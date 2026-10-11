@@ -47,7 +47,7 @@ line_segment_3d/
 | 形状の系統 | 状況 |
 | --- | --- |
 | 直線（無限直線・半直線・線分） | 移行済み。`InfiniteLine2D/3D::point_internal` / `direction_internal` は線分から使うため `pub(crate)` |
-| 円（円・円弧） | 未移行 |
+| 円（円・円弧） | 移行済み。楕円の円からの生成は円の trait定義の取得メソッド（`Circle2DProperties` / `Circle3DProperties`）を使い、`pub(crate)` は残さない |
 | 楕円（楕円・楕円弧） | 未移行 |
 | 平面・メッシュ（平面・矩形・三角形・三角形メッシュ） | 未移行 |
 | 解析曲面・立体（球・楕円体・円柱・円錐・トーラス） | 未移行 |

@@ -1,7 +1,7 @@
 //! Arc2D拡張メソッド
 //!
 //! Core Foundation パターンに基づく Arc2D の拡張機能
-//! 基本機能は arc_2d.rs を参照
+//! 基本機能は親モジュール（mod.rs）を参照
 
 use crate::{arc_2d::Arc2D, Circle2D, Point2D, Vector2D};
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};

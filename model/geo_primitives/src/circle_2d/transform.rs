@@ -9,10 +9,9 @@ impl<T: Scalar> SimilarityTransformable2D<T> for Circle2D<T> {
         transform: &X,
     ) -> Result<Self, TransformError> {
         Self::new_with_ref_direction(
-            self.center_internal().transform_similarity(transform)?,
-            self.radius_internal() * transform.scale_factor(),
-            self.ref_direction_internal()
-                .transform_similarity(transform)?,
+            self.center.transform_similarity(transform)?,
+            self.radius * transform.scale_factor(),
+            self.ref_direction.transform_similarity(transform)?,
         )
         .ok_or_else(|| TransformError::InvalidGeometry("invalid circle".to_string()))
     }

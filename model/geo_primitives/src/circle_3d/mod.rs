@@ -3,6 +3,12 @@
 //! 3次元円の基本実装とコンストラクタ、アクセサメソッド
 //! STEP (ISO 10303) 準拠の axis2_placement_3d スタイルで実装
 
+mod bounds;
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::default_angle_tolerance;
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
@@ -34,13 +40,9 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for Circle3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for Circle3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let center_distance = self.center_internal().distance_to(&other.center_internal());
-        let radius_diff = (self.radius_internal() - other.radius_internal()).abs();
-        let normal_dot = self
-            .normal_internal()
-            .as_vector()
-            .dot(&other.normal_internal().as_vector())
-            .abs();
+        let center_distance = self.center.distance_to(&other.center);
+        let radius_diff = (self.radius - other.radius).abs();
+        let normal_dot = self.axis.as_vector().dot(&other.axis.as_vector()).abs();
         let normal_similar = normal_dot >= T::from_f64(0.999);
 
         center_distance <= tolerance && radius_diff <= tolerance && normal_similar
@@ -159,34 +161,9 @@ impl<T: Scalar> Circle3D<T> {
         )
     }
 
-    /// 中心点を取得
-    pub(crate) fn center_internal(&self) -> Point3D<T> {
-        self.center
-    }
-
-    /// Z軸方向（法線ベクトル）を取得
-    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
-        self.axis
-    }
-
     /// 法線方向を取得
     pub fn normal(&self) -> Direction3D<T> {
         self.axis
-    }
-
-    /// 法線ベクトルを取得（後方互換性）
-    pub(crate) fn normal_internal(&self) -> Direction3D<T> {
-        self.axis
-    }
-
-    /// X軸方向（参照方向）を取得
-    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
-        self.ref_direction
-    }
-
-    /// 半径を取得
-    pub(crate) fn radius_internal(&self) -> T {
-        self.radius
     }
 
     /// 直径を取得
@@ -370,21 +347,21 @@ impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
 
 impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
     fn center(&self) -> (T, T, T) {
-        let c = self.center_internal();
+        let c = self.center;
         (c.x(), c.y(), c.z())
     }
 
     fn radius(&self) -> T {
-        self.radius_internal()
+        self.radius
     }
 
     fn axis(&self) -> (T, T, T) {
-        let a = self.axis_internal();
+        let a = self.axis;
         (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction_internal();
+        let r = self.ref_direction;
         (r.x(), r.y(), r.z())
     }
 
@@ -393,23 +370,23 @@ impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
     }
 
     fn is_unit_circle(&self) -> bool {
-        (self.radius_internal() - T::ONE).abs() <= default_distance_tolerance::<T>()
+        (self.radius - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_centered_at_origin(&self) -> bool {
-        let c = self.center_internal();
+        let c = self.center;
         c.x().abs() <= default_distance_tolerance::<T>()
             && c.y().abs() <= default_distance_tolerance::<T>()
             && c.z().abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_degenerate(&self) -> bool {
-        self.radius_internal() <= default_distance_tolerance::<T>()
+        self.radius <= default_distance_tolerance::<T>()
     }
 
     fn is_on_xy_plane(&self) -> bool {
         // Z軸に平行かどうかを確認
-        let z_component = self.axis_internal().z().abs();
+        let z_component = self.axis.z().abs();
         (z_component - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
 }
@@ -506,25 +483,5 @@ impl<T: Scalar> CrossDistance<T, Self> for Circle3D<T> {
         } else {
             T::ZERO
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{Direction3D, Point3D, Vector3D};
-    use geo_contracts::TolerantEq;
-
-    #[test]
-    fn test_tolerant_eq() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
-
-        let circle1 = Circle3D::new(center, normal, 5.0).unwrap();
-        let circle2 = Circle3D::new(center, normal, 5.0).unwrap();
-        let circle3 = Circle3D::new(Point3D::new(2.0, 0.0, 0.0), normal, 5.0).unwrap();
-
-        assert!(circle1.tolerant_eq(&circle2, 0.01));
-        assert!(!circle1.tolerant_eq(&circle3, 0.01));
     }
 }

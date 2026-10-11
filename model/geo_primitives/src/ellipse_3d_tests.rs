@@ -43,10 +43,16 @@ mod tests {
         let circle = Circle3D::new_xy_plane(Point3D::new(1.0, 2.0, 3.0), 4.0).unwrap();
         let ellipse = Ellipse3D::from_circle(&circle).unwrap();
 
-        let c = circle.center_internal();
+        let c = Point3D::from_tuple(geo_contracts::Circle3DProperties::center(&circle));
         assert_eq!(ellipse.center_3d(), (c.x(), c.y(), c.z()));
-        assert_eq!(ellipse.semi_major_axis(), circle.radius_internal());
-        assert_eq!(ellipse.semi_minor_axis(), circle.radius_internal());
+        assert_eq!(
+            ellipse.semi_major_axis(),
+            geo_contracts::Circle3DProperties::radius(&circle)
+        );
+        assert_eq!(
+            ellipse.semi_minor_axis(),
+            geo_contracts::Circle3DProperties::radius(&circle)
+        );
         assert_eq!(ellipse.normal(), circle.normal());
         assert!(ellipse.is_circle());
     }
@@ -94,7 +100,7 @@ mod tests {
 
         // 円への変換
         let circle = circle_ellipse.to_circle().unwrap();
-        assert_eq!(circle.radius_internal(), 3.0);
+        assert_eq!(geo_contracts::Circle3DProperties::radius(&circle), 3.0);
     }
 
     #[test]

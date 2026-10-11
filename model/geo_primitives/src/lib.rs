@@ -8,15 +8,8 @@ mod ellipse_calculation_strategy;
 pub use geo_core::TransformError;
 
 // 3D プリミティブ
-pub mod arc_3d;
-pub mod arc_3d_bounds;
-pub mod arc_3d_extensions;
-pub mod arc_3d_transform;
-pub mod circle_3d;
-pub mod circle_3d_bounds;
-pub mod circle_3d_extensions;
-pub mod circle_3d_tests;
-pub mod circle_3d_transform;
+mod arc_3d;
+mod circle_3d;
 pub mod conical_solid_3d;
 pub mod conical_solid_3d_bounds;
 pub mod conical_solid_3d_extensions;
@@ -96,17 +89,10 @@ pub mod triangle_3d_tests;
 pub mod triangle_mesh_3d_tests;
 
 // 2D プリミティブ
-pub mod arc_2d;
-pub mod arc_2d_bounds;
-pub mod arc_2d_extensions;
-pub mod arc_2d_transform;
+mod arc_2d;
 
-pub mod circle_2d;
-pub mod circle_2d_bounds;
-pub mod circle_2d_extensions;
-pub mod circle_2d_transform;
+mod circle_2d;
 
-pub mod circle_2d_metrics;
 pub mod ellipse_2d;
 pub mod ellipse_2d_bounds;
 pub mod ellipse_2d_transform;
@@ -126,13 +112,7 @@ pub mod triangle_2d_transform;
 
 // テストモジュール
 #[cfg(test)]
-mod arc_2d_tests;
-#[cfg(test)]
-mod arc_3d_tests;
-#[cfg(test)]
 mod arc_angle_range_tests;
-#[cfg(test)]
-mod circle_2d_tests;
 #[cfg(test)]
 mod ellipse_2d_additional_tests;
 #[cfg(test)]

@@ -1,7 +1,13 @@
 //! 2次元円弧（Arc2D）の Core 実装
 //!
 //! Foundation統一システムに基づく Arc2D の必須機能のみ
-//! 拡張機能は arc_2d_extensions.rs を参照
+//! 拡張機能は子モジュール extensions を参照
+
+mod bounds;
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
 
 use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
@@ -17,11 +23,11 @@ use geo_contracts::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc2D<T: Scalar> {
     /// 基底となる円
-    pub(crate) circle: Circle2D<T>,
+    circle: Circle2D<T>,
     /// 開始角度
-    pub(crate) start_angle: Angle<T>,
+    start_angle: Angle<T>,
     /// 終了角度
-    pub(crate) end_angle: Angle<T>,
+    end_angle: Angle<T>,
 }
 
 impl<T: Scalar> PrimitiveMetadata for Arc2D<T> {
@@ -73,13 +79,13 @@ impl<T: Scalar> Arc2D<T> {
     }
 
     /// 中心点を取得（内部用）
-    pub(crate) fn center_internal(&self) -> Point2D<T> {
+    fn center_internal(&self) -> Point2D<T> {
         let (x, y) = self.circle.center();
         Point2D::new(x, y)
     }
 
     /// 半径を取得（内部用）
-    pub(crate) fn radius_internal(&self) -> T {
+    fn radius_internal(&self) -> T {
         self.circle.radius()
     }
 
@@ -392,71 +398,5 @@ impl<T: Scalar> Arc2D<T> {
     /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、点に最も近い母円上の点の角度（中心の点は角度 0）とする。
     pub fn contains_point_angle(&self, point: &Point2D<T>) -> bool {
         self.contains_angle(Angle::from_radians(self.circle.parameter_for_point(point)))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_arc_creation() {
-        let center = Point2D::new(0.0, 0.0);
-        let radius = 1.0;
-        let start = Angle::from_degrees(0.0);
-        let end = Angle::from_degrees(90.0);
-
-        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-        let (cx, cy) = arc.center();
-        assert_eq!((cx, cy), (center.x(), center.y()));
-        assert_eq!(arc.radius(), radius);
-        assert_eq!(arc.start_angle(), start);
-        assert_eq!(arc.end_angle(), end);
-    }
-
-    #[test]
-    fn test_arc_points() {
-        let center = Point2D::new(1.0, 1.0);
-        let radius = 2.0;
-        let start = Angle::from_degrees(0.0);
-        let end = Angle::from_degrees(90.0);
-
-        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-
-        let start_pt = arc.start_point();
-        let end_pt = arc.end_point();
-
-        // 開始点：(center_x + radius, center_y) = (3.0, 1.0)
-        assert!((start_pt.x() - 3.0).abs() < 1e-10);
-        assert!((start_pt.y() - 1.0).abs() < 1e-10);
-
-        // 終了点：(center_x, center_y + radius) = (1.0, 3.0)
-        assert!((end_pt.x() - 1.0).abs() < 1e-10);
-        assert!((end_pt.y() - 3.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_length() {
-        let center = Point2D::new(0.0, 0.0);
-        let radius = 1.0;
-        let start = Angle::from_degrees(0.0);
-        let end = Angle::from_degrees(90.0);
-
-        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-
-        // 90度円弧の長さ = π/2
-        let expected_length = std::f64::consts::PI / 2.0;
-        assert!((arc.length() - expected_length).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_full_circle() {
-        let center = Point2D::new(0.0, 0.0);
-        let radius = 1.0;
-        let start = Angle::from_degrees(0.0);
-        let end = Angle::from_degrees(360.0);
-
-        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-        assert!(arc.is_full_circle());
     }
 }

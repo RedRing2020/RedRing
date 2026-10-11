@@ -13,8 +13,8 @@ impl<T: Scalar> Bounded<T> for Arc3D<T> {
     type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
-        let center = self.center_internal();
-        let radius = self.radius_internal();
+        let center = self.center;
+        let radius = self.radius;
         let u = self.start_direction().as_vector();
         let v = self.normal().as_vector().cross(&u);
 

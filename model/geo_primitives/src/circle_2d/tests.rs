@@ -12,8 +12,8 @@ fn test_circle2d_creation() {
     let radius = 5.0;
     let circle = Circle2D::new(center, radius).unwrap();
 
-    assert_eq!(circle.center_internal(), center);
-    assert_eq!(circle.radius_internal(), radius);
+    assert_eq!(circle.center, center);
+    assert_eq!(circle.radius, radius);
     assert_eq!(circle.diameter(), 10.0);
 }
 
@@ -40,9 +40,9 @@ fn test_from_three_points() {
     let circle = Circle2D::from_three_points(p1, p2, p3).unwrap();
 
     // 外接円の中心は(1.5, 2.0)、半径は2.5
-    assert!((circle.center_internal().x() - 1.5f64).abs() < TOLERANCE_F64);
-    assert!((circle.center_internal().y() - 2.0f64).abs() < TOLERANCE_F64);
-    assert!((circle.radius_internal() - 2.5f64).abs() < TOLERANCE_F64);
+    assert!((circle.center.x() - 1.5f64).abs() < TOLERANCE_F64);
+    assert!((circle.center.y() - 2.0f64).abs() < TOLERANCE_F64);
+    assert!((circle.radius - 2.5f64).abs() < TOLERANCE_F64);
 
     // 3点すべてが円上にあることを確認
     assert!(circle.contains_point(&p1, TOLERANCE_F64));
@@ -230,8 +230,8 @@ fn test_transformations() {
 
     // スケール
     let scaled = circle.scale(2.0).unwrap();
-    assert_eq!(scaled.center_internal(), Point2D::new(1.0, 2.0));
-    assert_eq!(scaled.radius_internal(), 6.0);
+    assert_eq!(scaled.center, Point2D::new(1.0, 2.0));
+    assert_eq!(scaled.radius, 6.0);
 
     // 無効なスケール
     assert!(circle.scale(-1.0).is_none());
@@ -240,8 +240,8 @@ fn test_transformations() {
     // 平行移動
     let offset = Vector2D::new(2.0, -1.0);
     let translated = circle.translate(offset);
-    assert_eq!(translated.center_internal(), Point2D::new(3.0, 1.0));
-    assert_eq!(translated.radius_internal(), 3.0);
+    assert_eq!(translated.center, Point2D::new(3.0, 1.0));
+    assert_eq!(translated.radius, 3.0);
 }
 
 /// 円同士の関係テスト
@@ -353,7 +353,7 @@ fn test_basic_parametric() {
 fn test_circle2d_f32() {
     let circle: Circle2D<f32> = Circle2D::new(Point2D::new(1.0f32, 2.0f32), 3.0f32).unwrap();
 
-    assert_eq!(circle.radius_internal(), 3.0f32);
+    assert_eq!(circle.radius, 3.0f32);
     assert_eq!(circle.diameter(), 6.0f32);
 
     let area = circle.area();
