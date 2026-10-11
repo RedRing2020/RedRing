@@ -435,8 +435,8 @@ Point / Vector の `*Measure` は、互換 alias や非推奨 trait を長期維
 | `LineSegment2DConstructor` / `LineSegment3DConstructor` | `definition` |
 | `LineSegment2DProperties::start/end/midpoint/length` | `definition` |
 | `LineSegment3DProperties::start/end/midpoint/length` | `definition` |
-| `LineSegment2DProperties::dimension/is_unit_length/is_horizontal/is_vertical` | `definition` |
-| `LineSegment3DProperties::dimension/is_unit_length/is_on_xy_plane/is_on_yz_plane` | `definition` |
+| `LineSegment2DProperties::dimension` | `definition` |
+| `LineSegment3DProperties::dimension` | `definition` |
 | `LineSegment2DDerived::measure/direction_vector/as_vector` | `derived` |
 | `LineSegment3DDerived::measure/direction_vector/as_vector` | `derived` |
 | `LineSegment2DEvaluation::point_at_parameter` | `evaluation` |

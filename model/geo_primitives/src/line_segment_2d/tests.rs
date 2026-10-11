@@ -24,19 +24,6 @@ fn test_basic_creation() {
 }
 
 #[test]
-fn test_creation_methods() {
-    // 点と方向から作成
-    let start = Point2D::new(1.0, 2.0);
-    let direction = Vector2D::new(1.0, 0.0); // X軸方向
-    let length = 5.0;
-    let segment = LineSegment2D::from_point_direction_length(start, direction, length).unwrap();
-
-    assert_eq!(segment.start_point(), start);
-    assert_eq!(segment.end_point(), Point2D::new(6.0, 2.0));
-    assert_eq!(segment.length(), length);
-}
-
-#[test]
 fn test_midpoint_and_direction() {
     let segment = LineSegment2D::new(Point2D::new(1.0, 2.0), Point2D::new(5.0, 6.0)).unwrap();
 

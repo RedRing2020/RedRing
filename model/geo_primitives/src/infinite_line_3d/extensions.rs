@@ -6,11 +6,6 @@ use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
 
 impl<T: Scalar> InfiniteLine3D<T> {
-    /// X軸に平行な直線を作成
-    pub fn x_axis(point: Point3D<T>) -> Self {
-        Self::new(point, Vector3D::unit_x()).unwrap()
-    }
-
     /// Y軸に平行な直線を作成
     pub fn y_axis(point: Point3D<T>) -> Self {
         Self::new(point, Vector3D::unit_y()).unwrap()

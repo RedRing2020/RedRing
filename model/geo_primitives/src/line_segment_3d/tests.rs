@@ -23,24 +23,6 @@ fn test_line_segment3d_invalid_creation() {
 
     // 同じ点では線分作成不可
     assert!(LineSegment3D::new(point, point).is_none());
-
-    // 長さ0の線分
-    assert!(LineSegment3D::from_point_direction_length(point, Vector3D::unit_x(), 0.0).is_none());
-
-    // 負の長さ
-    assert!(LineSegment3D::from_point_direction_length(point, Vector3D::unit_x(), -1.0).is_none());
-}
-
-#[test]
-fn test_line_segment3d_from_direction_length() {
-    let start = Point3D::new(1.0, 2.0, 3.0);
-    let direction = Vector3D::unit_x();
-    let length = 5.0;
-
-    let segment = LineSegment3D::from_point_direction_length(start, direction, length).unwrap();
-    assert_eq!(segment.start_point(), start);
-    assert_eq!(segment.end_point(), Point3D::new(6.0, 2.0, 3.0));
-    assert_eq!(segment.length(), length);
 }
 
 #[test]

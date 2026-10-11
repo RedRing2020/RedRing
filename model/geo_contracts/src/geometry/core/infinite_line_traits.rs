@@ -18,34 +18,6 @@ pub trait InfiniteLine2DConstructor<T: Scalar> {
     fn horizontal(y: T) -> Self
     where
         Self: Sized;
-
-    fn vertical(x: T) -> Self
-    where
-        Self: Sized;
-
-    fn x_axis() -> Self
-    where
-        Self: Sized;
-
-    fn y_axis() -> Self
-    where
-        Self: Sized;
-
-    fn through_origin(direction: (T, T)) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_angle(angle: T) -> Self
-    where
-        Self: Sized;
-
-    fn from_point_and_angle(point: (T, T), angle: T) -> Self
-    where
-        Self: Sized;
-
-    fn perpendicular_through(point: (T, T), other: &Self) -> Self
-    where
-        Self: Sized;
 }
 
 pub trait InfiniteLine3DConstructor<T: Scalar> {
@@ -56,81 +28,20 @@ pub trait InfiniteLine3DConstructor<T: Scalar> {
     fn from_two_points(p1: (T, T, T), p2: (T, T, T)) -> Option<Self>
     where
         Self: Sized;
-
-    fn x_parallel(point: (T, T, T)) -> Self
-    where
-        Self: Sized;
-
-    fn y_parallel(point: (T, T, T)) -> Self
-    where
-        Self: Sized;
-
-    fn z_parallel(point: (T, T, T)) -> Self
-    where
-        Self: Sized;
-
-    fn x_axis() -> Self
-    where
-        Self: Sized;
-
-    fn y_axis() -> Self
-    where
-        Self: Sized;
-
-    fn z_axis() -> Self
-    where
-        Self: Sized;
-
-    fn through_origin(direction: (T, T, T)) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_xy_angle(angle: T) -> Self
-    where
-        Self: Sized;
-
-    fn from_point_and_xy_angle(point: (T, T, T), angle: T) -> Self
-    where
-        Self: Sized;
-
-    fn perpendicular_in_plane(
-        point: (T, T, T),
-        other: &Self,
-        plane_normal: (T, T, T),
-    ) -> Option<Self>
-    where
-        Self: Sized;
 }
 
 pub trait InfiniteLine2DProperties<T: Scalar> {
     fn point(&self) -> (T, T);
     fn direction(&self) -> (T, T);
     fn normal(&self) -> (T, T);
-    fn slope(&self) -> Option<T>;
-    fn y_intercept(&self) -> Option<T>;
-    fn x_intercept(&self) -> Option<T>;
-    fn is_horizontal(&self) -> bool;
-    fn is_vertical(&self) -> bool;
-    fn passes_through_origin(&self) -> bool;
     fn dimension(&self) -> u32;
     fn angle(&self) -> T;
-    fn is_above(&self, point: (T, T)) -> bool;
-    fn is_below(&self, point: (T, T)) -> bool;
 }
 
 pub trait InfiniteLine3DProperties<T: Scalar> {
     fn point(&self) -> (T, T, T);
     fn direction(&self) -> (T, T, T);
-    fn is_x_parallel(&self) -> bool;
-    fn is_y_parallel(&self) -> bool;
-    fn is_z_parallel(&self) -> bool;
-    fn is_xy_parallel(&self) -> bool;
-    fn is_xz_parallel(&self) -> bool;
-    fn is_yz_parallel(&self) -> bool;
-    fn passes_through_origin(&self) -> bool;
     fn dimension(&self) -> u32;
-    fn xy_angle(&self) -> T;
-    fn is_axis_aligned(&self) -> bool;
 }
 
 pub trait InfiniteLine2DEvaluation<T: Scalar> {
@@ -152,20 +63,10 @@ pub trait InfiniteLine2DContainment<T: Scalar> {
 pub trait InfiniteLine2DProjection<T: Scalar> {
     /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: (T, T)) -> (T, T);
-    fn mirror_point(&self, point: (T, T)) -> (T, T);
 }
 
 pub trait InfiniteLine2DTransform<T: Scalar> {
     fn reverse(&self) -> Self
-    where
-        Self: Sized;
-    fn offset(&self, distance: T) -> Self
-    where
-        Self: Sized;
-    fn rotate_around_origin(&self, angle: T) -> Self
-    where
-        Self: Sized;
-    fn rotate_around_point(&self, center: (T, T), angle: T) -> Self
     where
         Self: Sized;
 }
@@ -189,19 +90,10 @@ pub trait InfiniteLine3DContainment<T: Scalar> {
 pub trait InfiniteLine3DProjection<T: Scalar> {
     /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
-    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
 }
 
 pub trait InfiniteLine3DTransform<T: Scalar> {
     fn reverse(&self) -> Self
-    where
-        Self: Sized;
-    fn rotate_around_axis(
-        &self,
-        axis_point: (T, T, T),
-        axis_direction: (T, T, T),
-        angle: T,
-    ) -> Option<Self>
     where
         Self: Sized;
 }

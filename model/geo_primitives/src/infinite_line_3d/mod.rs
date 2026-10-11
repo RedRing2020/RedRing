@@ -10,12 +10,12 @@ mod transform;
 
 use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, default_orthogonality_dot_error_tolerance,
-    default_parallel_cross_error_tolerance, AngularRelation, BasicIntersection, CrossDistance,
-    InfiniteLine3DConstructor, InfiniteLine3DContainment, InfiniteLine3DDistance,
-    InfiniteLine3DEvaluation, InfiniteLine3DProjection, InfiniteLine3DProperties,
-    InfiniteLine3DTransform, IntersectsRelation, OnPlaneRelation, ParallelRelation,
-    PerpendicularRelation, PrimitiveKind, PrimitiveMetadata, SameLineRelation, Scalar,
+    default_distance_tolerance, default_orthogonality_dot_error_tolerance, AngularRelation,
+    BasicIntersection, CrossDistance, InfiniteLine3DConstructor, InfiniteLine3DContainment,
+    InfiniteLine3DDistance, InfiniteLine3DEvaluation, InfiniteLine3DProjection,
+    InfiniteLine3DProperties, InfiniteLine3DTransform, IntersectsRelation, OnPlaneRelation,
+    ParallelRelation, PerpendicularRelation, PrimitiveKind, PrimitiveMetadata, SameLineRelation,
+    Scalar,
 };
 
 /// 3次元空間の無限直線（Core実装）
@@ -198,77 +198,6 @@ impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
         let p2 = Point3D::new(point2.0, point2.1, point2.2);
         InfiniteLine3D::from_two_points(p1, p2)
     }
-
-    fn x_axis() -> Self {
-        let origin = Point3D::origin();
-        let direction = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
-        InfiniteLine3D::new(origin, direction).unwrap()
-    }
-
-    fn y_axis() -> Self {
-        let origin = Point3D::origin();
-        let direction = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
-        InfiniteLine3D::new(origin, direction).unwrap()
-    }
-
-    fn z_axis() -> Self {
-        let origin = Point3D::origin();
-        let direction = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
-        InfiniteLine3D::new(origin, direction).unwrap()
-    }
-
-    fn x_parallel(point: (T, T, T)) -> Self {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let direction = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
-        InfiniteLine3D::new(p, direction).unwrap()
-    }
-
-    fn y_parallel(point: (T, T, T)) -> Self {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let direction = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
-        InfiniteLine3D::new(p, direction).unwrap()
-    }
-
-    fn z_parallel(point: (T, T, T)) -> Self {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let direction = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
-        InfiniteLine3D::new(p, direction).unwrap()
-    }
-
-    fn through_origin(direction: (T, T, T)) -> Option<Self> {
-        let origin = Point3D::origin();
-        let dir = Vector3D::new(direction.0, direction.1, direction.2);
-        InfiniteLine3D::new(origin, dir)
-    }
-
-    fn from_xy_angle(angle: T) -> Self {
-        let direction = Vector3D::new(angle.cos(), angle.sin(), T::ZERO);
-        InfiniteLine3D::new(Point3D::origin(), direction).unwrap()
-    }
-
-    fn from_point_and_xy_angle(point: (T, T, T), angle: T) -> Self {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let direction = Vector3D::new(angle.cos(), angle.sin(), T::ZERO);
-        InfiniteLine3D::new(p, direction).unwrap()
-    }
-
-    fn perpendicular_in_plane(
-        point: (T, T, T),
-        other: &Self,
-        plane_normal: (T, T, T),
-    ) -> Option<Self> {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let other_dir = Vector3D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-            other.direction_internal().z(),
-        );
-        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
-
-        // 平面法線と直線方向の外積で垂直方向を計算
-        let perp_dir = normal.cross(&other_dir);
-        InfiniteLine3D::new(p, perp_dir)
-    }
 }
 
 impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
@@ -280,51 +209,8 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
         (self.direction.x(), self.direction.y(), self.direction.z())
     }
 
-    fn is_x_parallel(&self) -> bool {
-        let tolerance = default_parallel_cross_error_tolerance::<T>();
-        self.direction.y().abs() <= tolerance && self.direction.z().abs() <= tolerance
-    }
-
-    fn is_y_parallel(&self) -> bool {
-        let tolerance = default_parallel_cross_error_tolerance::<T>();
-        self.direction.x().abs() <= tolerance && self.direction.z().abs() <= tolerance
-    }
-
-    fn is_z_parallel(&self) -> bool {
-        let tolerance = default_parallel_cross_error_tolerance::<T>();
-        self.direction.x().abs() <= tolerance && self.direction.y().abs() <= tolerance
-    }
-
-    fn is_xy_parallel(&self) -> bool {
-        let tolerance = default_parallel_cross_error_tolerance::<T>();
-        self.direction.z().abs() <= tolerance
-    }
-
-    fn is_xz_parallel(&self) -> bool {
-        let tolerance = default_parallel_cross_error_tolerance::<T>();
-        self.direction.y().abs() <= tolerance
-    }
-
-    fn is_yz_parallel(&self) -> bool {
-        let tolerance = default_parallel_cross_error_tolerance::<T>();
-        self.direction.x().abs() <= tolerance
-    }
-
-    fn passes_through_origin(&self) -> bool {
-        let origin = (T::ZERO, T::ZERO, T::ZERO);
-        <Self as InfiniteLine3DContainment<T>>::contains_point(self, origin)
-    }
-
     fn dimension(&self) -> u32 {
         3
-    }
-
-    fn xy_angle(&self) -> T {
-        self.direction.y().atan2(self.direction.x())
-    }
-
-    fn is_axis_aligned(&self) -> bool {
-        self.is_x_parallel() || self.is_y_parallel() || self.is_z_parallel()
     }
 }
 
@@ -360,14 +246,6 @@ impl<T: Scalar> InfiniteLine3DProjection<T> for InfiniteLine3D<T> {
         let projected = InfiniteLine3D::closest_point(self, &p);
         (projected.x(), projected.y(), projected.z())
     }
-
-    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let projected = self.closest_point(&p);
-        // 鏡面点 = 2 * 投影点 - 元の点
-        let mirrored = projected + (projected - p);
-        (mirrored.x(), mirrored.y(), mirrored.z())
-    }
 }
 
 impl<T: Scalar> InfiniteLine3DTransform<T> for InfiniteLine3D<T> {
@@ -376,44 +254,6 @@ impl<T: Scalar> InfiniteLine3DTransform<T> for InfiniteLine3D<T> {
         let self_point = <Self as InfiniteLine3DProperties<T>>::point(self);
         let reversed_dir = (-self_dir.0, -self_dir.1, -self_dir.2);
         <Self as InfiniteLine3DConstructor<T>>::new(self_point, reversed_dir).unwrap()
-    }
-
-    fn rotate_around_axis(
-        &self,
-        axis_point: (T, T, T),
-        axis_direction: (T, T, T),
-        angle: T,
-    ) -> Option<Self> {
-        use analysis::linalg::matrix::Matrix4x4;
-        use analysis::linalg::vector::Vector3;
-
-        let axis_vec = Vector3::new(axis_direction.0, axis_direction.1, axis_direction.2);
-        let axis_normalized = axis_vec.normalize().ok()?;
-
-        let rotation_matrix = Matrix4x4::rotation_axis(&axis_normalized, angle);
-
-        // 軸上の点からの相対位置を計算して回転
-        let axis_pt = Point3D::new(axis_point.0, axis_point.1, axis_point.2);
-        let relative = Vector3D::from_points(&axis_pt, &self.point);
-        let relative_analysis = Vector3::new(relative.x(), relative.y(), relative.z());
-        let rotated_relative = rotation_matrix.transform_point_3d(&relative_analysis);
-
-        let rotated_point = Point3D::new(
-            axis_pt.x() + rotated_relative.x(),
-            axis_pt.y() + rotated_relative.y(),
-            axis_pt.z() + rotated_relative.z(),
-        );
-
-        // 方向ベクトルを回転
-        let dir_analysis = Vector3::new(self.direction.x(), self.direction.y(), self.direction.z());
-        let rotated_dir_analysis = rotation_matrix.transform_vector_3d(&dir_analysis);
-        let rotated_dir = Vector3D::new(
-            rotated_dir_analysis.x(),
-            rotated_dir_analysis.y(),
-            rotated_dir_analysis.z(),
-        );
-
-        InfiniteLine3D::new(rotated_point, rotated_dir)
     }
 }
 

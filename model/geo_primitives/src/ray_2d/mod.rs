@@ -180,79 +180,6 @@ impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
         let through_point = Point2D::new(through.0, through.1);
         Ray2D::from_points(start_point, through_point)
     }
-
-    fn along_positive_x(origin: (T, T)) -> Self
-    where
-        Self: Sized,
-    {
-        let origin_point = Point2D::new(origin.0, origin.1);
-        let x_direction = Vector2D::new(T::ONE, T::ZERO);
-        Ray2D::new(origin_point, x_direction).unwrap()
-    }
-
-    fn along_positive_y(origin: (T, T)) -> Self
-    where
-        Self: Sized,
-    {
-        let origin_point = Point2D::new(origin.0, origin.1);
-        let y_direction = Vector2D::new(T::ZERO, T::ONE);
-        Ray2D::new(origin_point, y_direction).unwrap()
-    }
-
-    fn along_negative_x(origin: (T, T)) -> Self
-    where
-        Self: Sized,
-    {
-        let origin_point = Point2D::new(origin.0, origin.1);
-        let neg_x_direction = Vector2D::new(-T::ONE, T::ZERO);
-        Ray2D::new(origin_point, neg_x_direction).unwrap()
-    }
-
-    fn along_negative_y(origin: (T, T)) -> Self
-    where
-        Self: Sized,
-    {
-        let origin_point = Point2D::new(origin.0, origin.1);
-        let neg_y_direction = Vector2D::new(T::ZERO, -T::ONE);
-        Ray2D::new(origin_point, neg_y_direction).unwrap()
-    }
-
-    fn x_axis() -> Self
-    where
-        Self: Sized,
-    {
-        Self::along_positive_x((T::ZERO, T::ZERO))
-    }
-
-    fn y_axis() -> Self
-    where
-        Self: Sized,
-    {
-        Self::along_positive_y((T::ZERO, T::ZERO))
-    }
-
-    fn from_angle(origin: (T, T), angle: T) -> Self
-    where
-        Self: Sized,
-    {
-        let origin_point = Point2D::new(origin.0, origin.1);
-        let direction = Vector2D::new(angle.cos(), angle.sin());
-        Ray2D::new(origin_point, direction).unwrap()
-    }
-
-    fn horizontal_right() -> Self
-    where
-        Self: Sized,
-    {
-        Self::x_axis()
-    }
-
-    fn vertical_up() -> Self
-    where
-        Self: Sized,
-    {
-        Self::y_axis()
-    }
 }
 
 /// Ray2DProperties トレイト実装
@@ -265,22 +192,6 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
         (self.direction.x(), self.direction.y())
     }
 
-    fn origin_x(&self) -> T {
-        self.origin.x()
-    }
-
-    fn origin_y(&self) -> T {
-        self.origin.y()
-    }
-
-    fn direction_x(&self) -> T {
-        self.direction.x()
-    }
-
-    fn direction_y(&self) -> T {
-        self.direction.y()
-    }
-
     fn is_valid(&self) -> bool {
         // Ray2D::new がSomeを返した時点で有効性は保証されている
         true
@@ -288,16 +199,6 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
 
     fn angle(&self) -> T {
         self.direction.y().atan2(self.direction.x())
-    }
-
-    fn is_horizontal(&self) -> bool {
-        use geo_contracts::default_distance_tolerance;
-        self.direction.y().abs() < default_distance_tolerance::<T>()
-    }
-
-    fn is_vertical(&self) -> bool {
-        use geo_contracts::default_distance_tolerance;
-        self.direction.x().abs() < default_distance_tolerance::<T>()
     }
 }
 
@@ -343,41 +244,6 @@ impl<T: Scalar> Ray2DTransform<T> for Ray2D<T> {
         let direction_vec = Vector2D::new(self.direction.x(), self.direction.y());
         let reversed_direction = -direction_vec;
         Ray2D::new(self.origin, reversed_direction).unwrap()
-    }
-
-    fn translate(&self, offset: (T, T)) -> Self
-    where
-        Self: Sized,
-    {
-        let offset_vector = Vector2D::new(offset.0, offset.1);
-        let new_origin = self.origin + offset_vector;
-        let direction_vec = Vector2D::new(self.direction.x(), self.direction.y());
-
-        Ray2D::new(new_origin, direction_vec).unwrap()
-    }
-
-    fn rotate_around_origin(&self, angle: T) -> Self
-    where
-        Self: Sized,
-    {
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
-
-        let origin = self.origin;
-        let ox = origin.x();
-        let oy = origin.y();
-        let new_ox = ox * cos_a - oy * sin_a;
-        let new_oy = ox * sin_a + oy * cos_a;
-        let new_origin = Point2D::new(new_ox, new_oy);
-
-        let dir = self.direction;
-        let dx = dir.x();
-        let dy = dir.y();
-        let new_dx = dx * cos_a - dy * sin_a;
-        let new_dy = dx * sin_a + dy * cos_a;
-        let new_direction = Vector2D::new(new_dx, new_dy);
-
-        Ray2D::new(new_origin, new_direction).unwrap()
     }
 }
 
