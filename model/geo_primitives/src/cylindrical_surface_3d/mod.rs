@@ -369,11 +369,6 @@ impl<T: Scalar> CylindricalSurface3DConstructor<T> for CylindricalSurface3D<T> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         Self::new_z_axis(center_point, radius)
     }
-
-    fn unit_cylinder_surface() -> Self {
-        Self::new_z_axis(Point3D::origin(), T::ONE)
-            .expect("Unit cylinder surface should always be valid")
-    }
 }
 
 impl<T: Scalar> ContractsCylindricalSurface3DProperties<T> for CylindricalSurface3D<T> {

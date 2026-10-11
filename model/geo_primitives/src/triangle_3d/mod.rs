@@ -7,10 +7,7 @@ mod bounds;
 mod tests;
 mod transform;
 
-use std::any::TypeId;
-
 use crate::{Point3D, Vector3D};
-use analysis::consts::special::{SQRT_3_OVER_2_F32, SQRT_3_OVER_2_F64};
 use geo_contracts::{
     default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
     Scalar, Triangle3DBoundaryAccess, Triangle3DConstructor, Triangle3DContainment,
@@ -42,15 +39,6 @@ impl<T: Scalar> geo_contracts::TolerantEq<T> for Triangle3D<T> {
 }
 
 impl<T: Scalar> Triangle3D<T> {
-    #[inline]
-    fn equilateral_height_factor() -> T {
-        if TypeId::of::<T>() == TypeId::of::<f32>() {
-            T::from_f32(SQRT_3_OVER_2_F32)
-        } else {
-            T::from_f64(SQRT_3_OVER_2_F64)
-        }
-    }
-
     /// 新しい3D三角形を作成
     ///
     /// 基本的な検証のみ実行（退化三角形チェック）
@@ -114,24 +102,6 @@ impl<T: Scalar> Triangle3D<T> {
         cross.length() / T::from_f64(2.0)
     }
 
-    /// 重心を計算
-    pub fn centroid(&self) -> Point3D<T> {
-        let x = (self.vertex_a.x() + self.vertex_b.x() + self.vertex_c.x()) / T::from_f64(3.0);
-        let y = (self.vertex_a.y() + self.vertex_b.y() + self.vertex_c.y()) / T::from_f64(3.0);
-        let z = (self.vertex_a.z() + self.vertex_b.z() + self.vertex_c.z()) / T::from_f64(3.0);
-
-        Point3D::new(x, y, z)
-    }
-
-    /// 周囲長を計算
-    pub fn perimeter(&self) -> T {
-        let ab_length: T = self.edge_ab().length();
-        let bc_length: T = self.edge_bc().length();
-        let ca_length: T = self.edge_ca().length();
-
-        ab_length + bc_length + ca_length
-    }
-
     /// 三角形が退化していないかチェック
     pub fn is_valid(&self) -> bool {
         let area: T = self.area();
@@ -190,28 +160,6 @@ impl<T: Scalar> Triangle3D<T> {
         }
     }
 
-    /// xz平面上の単位正三角形を生成
-    pub fn unit_triangle_xz() -> Self {
-        let h = Self::equilateral_height_factor();
-        Self::new(
-            Point3D::new(T::ZERO, T::ZERO, T::ONE),
-            Point3D::new(-h, T::ZERO, -T::ONE / (T::ONE + T::ONE)),
-            Point3D::new(h, T::ZERO, -T::ONE / (T::ONE + T::ONE)),
-        )
-        .expect("Unit triangle should always be valid")
-    }
-
-    /// yz平面上の単位正三角形を生成
-    pub fn unit_triangle_yz() -> Self {
-        let h = Self::equilateral_height_factor();
-        Self::new(
-            Point3D::new(T::ZERO, T::ZERO, T::ONE),
-            Point3D::new(T::ZERO, -h, -T::ONE / (T::ONE + T::ONE)),
-            Point3D::new(T::ZERO, h, -T::ONE / (T::ONE + T::ONE)),
-        )
-        .expect("Unit triangle should always be valid")
-    }
-
     /// 頂点順序を反転（法線方向を反転）
     pub fn reverse(&self) -> Self {
         Self {
@@ -266,20 +214,6 @@ impl<T: Scalar> Triangle3D<T> {
         );
 
         Some(circumcenter)
-    }
-
-    /// 外接円の半径を計算
-    pub fn circumradius(&self) -> Option<T> {
-        let circumcenter = self.circumcenter()?;
-        let distance = Vector3D::from_points(&circumcenter, &self.vertex_a).length();
-        Some(distance)
-    }
-
-    /// 内接円の半径を計算
-    pub fn inradius(&self) -> T {
-        let area = self.area();
-        let perimeter = self.perimeter();
-        (area * (T::ONE + T::ONE)) / perimeter
     }
 
     /// 点から三角形までの最短距離を計算
@@ -338,11 +272,6 @@ impl<T: Scalar> Triangle3D<T> {
 
         Vector3D::from_points(&closest, point).length()
     }
-
-    /// 三角形が平面上にあるか判定（常に true）
-    pub fn is_planar(&self) -> bool {
-        true // 三角形は常に平面上
-    }
 }
 
 impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
@@ -351,33 +280,6 @@ impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
         let pb = Point3D::new(b.0, b.1, b.2);
         let pc = Point3D::new(c.0, c.1, c.2);
         Self::new(pa, pb, pc)
-    }
-
-    fn from_array(points: [(T, T, T); 3]) -> Option<Self> {
-        let pa = Point3D::new(points[0].0, points[0].1, points[0].2);
-        let pb = Point3D::new(points[1].0, points[1].1, points[1].2);
-        let pc = Point3D::new(points[2].0, points[2].1, points[2].2);
-        Self::new(pa, pb, pc)
-    }
-
-    fn unit_triangle_xy() -> Self {
-        let h = Self::equilateral_height_factor();
-        let pa = Point3D::new(T::ZERO, T::ONE, T::ZERO);
-        let pb = Point3D::new(-h, -T::ONE / (T::ONE + T::ONE), T::ZERO);
-        let pc = Point3D::new(h, -T::ONE / (T::ONE + T::ONE), T::ZERO);
-        Self::new(pa, pb, pc).expect("Unit triangle should always be valid")
-    }
-
-    fn unit_triangle_xz() -> Self {
-        Self::unit_triangle_xz()
-    }
-
-    fn unit_triangle_yz() -> Self {
-        Self::unit_triangle_yz()
-    }
-
-    fn reversed(&self) -> Self {
-        self.reverse()
     }
 }
 
@@ -399,34 +301,9 @@ impl<T: Scalar> Triangle3DBoundaryAccess<T> for Triangle3D<T> {
 }
 
 impl<T: Scalar> Triangle3DDerived<T> for Triangle3D<T> {
-    fn centroid(&self) -> (T, T, T) {
-        let c = Triangle3D::centroid(self);
-        (c.x(), c.y(), c.z())
-    }
-
     fn normal(&self) -> (T, T, T) {
         let n = Triangle3D::normal(self).unwrap_or(Vector3D::unit_z());
         (n.x(), n.y(), n.z())
-    }
-
-    fn circumcenter(&self) -> Option<(T, T, T)> {
-        Triangle3D::circumcenter(self).map(|c| (c.x(), c.y(), c.z()))
-    }
-
-    fn circumradius(&self) -> Option<T> {
-        Triangle3D::circumradius(self)
-    }
-
-    fn inradius(&self) -> T {
-        Triangle3D::inradius(self)
-    }
-
-    fn area(&self) -> T {
-        Triangle3D::area(self)
-    }
-
-    fn is_planar(&self) -> bool {
-        Triangle3D::is_planar(self)
     }
 }
 

@@ -255,59 +255,6 @@ impl<T: Scalar> SphericalSolid3DConstructor<T> for SphericalSolid3D<T> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         Self::new_standard(center_point, radius)
     }
-
-    fn unit_sphere() -> Self {
-        Self::new_at_origin(T::ONE).expect("Unit sphere creation should always succeed")
-    }
-
-    fn from_diameter(center: (T, T, T), diameter: T) -> Option<Self> {
-        let radius = diameter / (T::ONE + T::ONE);
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::new_standard(center_point, radius)
-    }
-
-    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self> {
-        let center_x = (min.0 + max.0) / (T::ONE + T::ONE);
-        let center_y = (min.1 + max.1) / (T::ONE + T::ONE);
-        let center_z = (min.2 + max.2) / (T::ONE + T::ONE);
-
-        let dx = (max.0 - min.0) / (T::ONE + T::ONE);
-        let dy = (max.1 - min.1) / (T::ONE + T::ONE);
-        let dz = (max.2 - min.2) / (T::ONE + T::ONE);
-
-        let radius = dx.min(dy).min(dz);
-        let center_point = Point3D::new(center_x, center_y, center_z);
-        Self::new_standard(center_point, radius)
-    }
-
-    fn from_four_points(
-        p1: (T, T, T),
-        p2: (T, T, T),
-        p3: (T, T, T),
-        p4: (T, T, T),
-    ) -> Option<Self> {
-        // 厳密外接球ではなく重心ベースの近似生成
-        let center_x = (p1.0 + p2.0 + p3.0 + p4.0) / T::from_f64(4.0);
-        let center_y = (p1.1 + p2.1 + p3.1 + p4.1) / T::from_f64(4.0);
-        let center_z = (p1.2 + p2.2 + p3.2 + p4.2) / T::from_f64(4.0);
-
-        let dist1 =
-            ((p1.0 - center_x).powi(2) + (p1.1 - center_y).powi(2) + (p1.2 - center_z).powi(2))
-                .sqrt();
-        let dist2 =
-            ((p2.0 - center_x).powi(2) + (p2.1 - center_y).powi(2) + (p2.2 - center_z).powi(2))
-                .sqrt();
-        let dist3 =
-            ((p3.0 - center_x).powi(2) + (p3.1 - center_y).powi(2) + (p3.2 - center_z).powi(2))
-                .sqrt();
-        let dist4 =
-            ((p4.0 - center_x).powi(2) + (p4.1 - center_y).powi(2) + (p4.2 - center_z).powi(2))
-                .sqrt();
-
-        let radius = dist1.max(dist2).max(dist3).max(dist4);
-        let center_point = Point3D::new(center_x, center_y, center_z);
-        Self::new_standard(center_point, radius)
-    }
 }
 
 impl<T: Scalar> ContractsSphericalSolid3DProperties<T> for SphericalSolid3D<T> {
@@ -332,19 +279,6 @@ impl<T: Scalar> ContractsSphericalSolid3DProperties<T> for SphericalSolid3D<T> {
 
     fn diameter(&self) -> T {
         self.radius * T::from_f64(2.0)
-    }
-
-    fn is_unit_sphere(&self) -> bool {
-        (self.radius - T::ONE).abs() <= T::EPSILON
-    }
-
-    fn circumference(&self) -> T {
-        T::TAU * self.radius
-    }
-
-    fn is_centered_at_origin(&self) -> bool {
-        let c = self.center;
-        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON && c.z().abs() <= T::EPSILON
     }
 }
 

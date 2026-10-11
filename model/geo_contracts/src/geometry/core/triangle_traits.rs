@@ -11,21 +11,6 @@ pub trait Triangle2DConstructor<T: Scalar>: Sized {
     ///
     /// 退化した三角形（3点が一直線上）の場合は None を返す
     fn new(a: (T, T), b: (T, T), c: (T, T)) -> Option<Self>;
-
-    /// 単位正三角形を生成
-    fn unit_triangle() -> Self;
-
-    /// 配列から三角形を構築
-    fn from_array(points: [(T, T); 3]) -> Option<Self>;
-
-    /// 原点中心の正三角形を生成（辺の長さ指定）
-    fn equilateral_at_origin(side_length: T) -> Self;
-
-    /// 直角二等辺三角形を生成（原点、x軸、y軸上）
-    fn right_isosceles(leg_length: T) -> Self;
-
-    /// 頂点の順序を反転した三角形を作成
-    fn reversed(&self) -> Self;
 }
 
 /// Triangle2D の face boundary access
@@ -58,21 +43,6 @@ pub trait Triangle3DConstructor<T: Scalar>: Sized {
     ///
     /// 退化した三角形（3点が一直線上）の場合は None を返す
     fn new(a: (T, T, T), b: (T, T, T), c: (T, T, T)) -> Option<Self>;
-
-    /// 配列から三角形を構築
-    fn from_array(points: [(T, T, T); 3]) -> Option<Self>;
-
-    /// xy平面上の単位正三角形
-    fn unit_triangle_xy() -> Self;
-
-    /// xz平面上の単位正三角形
-    fn unit_triangle_xz() -> Self;
-
-    /// yz平面上の単位正三角形
-    fn unit_triangle_yz() -> Self;
-
-    /// 頂点の順序を反転した三角形を作成（法線方向反転）
-    fn reversed(&self) -> Self;
 }
 
 /// Triangle3D の face boundary access
@@ -88,26 +58,8 @@ pub trait Triangle3DBoundaryAccess<T: Scalar> {
 }
 
 pub trait Triangle3DDerived<T: Scalar> {
-    /// 重心座標を取得
-    fn centroid(&self) -> (T, T, T);
-
     /// 法線ベクトル（正規化済み）を取得
     fn normal(&self) -> (T, T, T);
-
-    /// 外心座標を取得（三角形を含む平面上）
-    fn circumcenter(&self) -> Option<(T, T, T)>;
-
-    /// 外接円の半径を取得
-    fn circumradius(&self) -> Option<T>;
-
-    /// 内接円の半径を取得
-    fn inradius(&self) -> T;
-
-    /// 三角形の面積を計算
-    fn area(&self) -> T;
-
-    /// 三角形が平面上にあるか判定
-    fn is_planar(&self) -> bool;
 }
 
 pub trait Triangle3DContainment<T: Scalar> {

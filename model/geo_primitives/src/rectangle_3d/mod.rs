@@ -224,10 +224,6 @@ impl<T: Scalar> Rect3DContainment<T> for Rect3D<T> {
 }
 
 impl<T: Scalar> Rect3DDerived<T> for Rect3D<T> {
-    fn area(&self) -> T {
-        Self::area(self)
-    }
-
     fn corners(&self) -> [(T, T, T); 4] {
         let c = Self::corners(self);
         [

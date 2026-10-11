@@ -7,7 +7,6 @@ use analysis::abstract_types::Scalar;
 
 pub trait Rect2DConstructor<T: Scalar>: Sized {
     fn new(origin: (T, T), width: T, height: T) -> Option<Self>;
-    fn from_corners(min: (T, T), max: (T, T)) -> Option<Self>;
     fn resize(&mut self, width: T, height: T) -> bool;
 }
 
@@ -15,7 +14,6 @@ pub trait Rect2DProperties<T: Scalar> {
     fn origin(&self) -> (T, T);
     fn width(&self) -> T;
     fn height(&self) -> T;
-    fn max_corner(&self) -> (T, T);
     fn center(&self) -> (T, T);
 }
 
@@ -27,8 +25,6 @@ pub trait Rect2DContainment<T: Scalar> {
 }
 
 pub trait Rect2DDerived<T: Scalar> {
-    fn area(&self) -> T;
-    fn perimeter(&self) -> T;
     fn is_valid(&self) -> bool;
 }
 
@@ -62,7 +58,6 @@ pub trait Rect3DContainment<T: Scalar> {
 }
 
 pub trait Rect3DDerived<T: Scalar> {
-    fn area(&self) -> T;
     fn corners(&self) -> [(T, T, T); 4];
     fn is_valid(&self) -> bool;
 }

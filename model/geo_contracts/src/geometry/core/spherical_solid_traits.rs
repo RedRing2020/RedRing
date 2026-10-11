@@ -11,22 +11,6 @@ pub trait SphericalSolid3DConstructor<T: Scalar> {
     fn new_standard(center: (T, T, T), radius: T) -> Option<Self>
     where
         Self: Sized;
-
-    fn unit_sphere() -> Self
-    where
-        Self: Sized;
-
-    fn from_diameter(center: (T, T, T), diameter: T) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_four_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T), p4: (T, T, T)) -> Option<Self>
-    where
-        Self: Sized;
 }
 
 pub trait SphericalSolid3DProperties<T: Scalar> {
@@ -35,9 +19,6 @@ pub trait SphericalSolid3DProperties<T: Scalar> {
     fn axis(&self) -> (T, T, T);
     fn ref_direction(&self) -> (T, T, T);
     fn diameter(&self) -> T;
-    fn is_unit_sphere(&self) -> bool;
-    fn circumference(&self) -> T;
-    fn is_centered_at_origin(&self) -> bool;
 }
 
 pub trait SphericalSolid3DDerived<T: Scalar> {

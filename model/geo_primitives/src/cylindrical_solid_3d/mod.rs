@@ -354,46 +354,6 @@ impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         Self::new_z_axis(center_point, radius, height)
     }
-
-    fn unit_cylinder() -> Self {
-        Self::new_z_axis(Point3D::origin(), T::ONE, T::from_f64(2.0))
-            .expect("Unit cylinder should always be valid")
-    }
-
-    fn from_axis_and_radius(
-        start_point: (T, T, T),
-        end_point: (T, T, T),
-        radius: T,
-    ) -> Option<Self> {
-        let p1 = Point3D::new(start_point.0, start_point.1, start_point.2);
-        let p2 = Point3D::new(end_point.0, end_point.1, end_point.2);
-        let axis_vec = Vector3D::from_points(&p1, &p2);
-        let height = axis_vec.length();
-
-        if height < T::EPSILON {
-            return None;
-        }
-
-        let axis_dir = axis_vec / height;
-        let ref_dir = if axis_dir.z().abs() < T::from_f64(0.9) {
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE)
-        } else {
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO)
-        };
-
-        let center_point = Point3D::new(start_point.0, start_point.1, start_point.2);
-
-        Self::new(center_point, axis_dir, ref_dir, radius, height)
-    }
-
-    fn from_diameter(center: (T, T, T), _axis: (T, T, T), diameter: T, height: T) -> Option<Self> {
-        let radius = diameter / (T::ONE + T::ONE);
-        Self::new_standard(center, radius, height)
-    }
-
-    fn from_two_points_and_radius(p1: (T, T, T), p2: (T, T, T), radius: T) -> Option<Self> {
-        Self::from_axis_and_radius(p1, p2, radius)
-    }
 }
 
 impl<T: Scalar> ContractsCylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
@@ -423,21 +383,6 @@ impl<T: Scalar> ContractsCylindricalSolid3DProperties<T> for CylindricalSolid3D<
 
     fn diameter(&self) -> T {
         self.radius * T::from_f64(2.0)
-    }
-
-    fn top_center(&self) -> (T, T, T) {
-        let top_x = self.center.x() + self.axis.x() * self.height;
-        let top_y = self.center.y() + self.axis.y() * self.height;
-        let top_z = self.center.z() + self.axis.z() * self.height;
-        (top_x, top_y, top_z)
-    }
-
-    fn lateral_surface_area(&self) -> T {
-        T::TAU * self.radius * self.height
-    }
-
-    fn base_area(&self) -> T {
-        T::PI * self.radius * self.radius
     }
 }
 

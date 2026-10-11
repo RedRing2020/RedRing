@@ -329,46 +329,6 @@ impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
             c_radius,
         )
     }
-
-    fn unit_ellipsoid() -> Self {
-        Self::new_standard(
-            Point3D::new(T::ZERO, T::ZERO, T::ZERO),
-            T::ONE,
-            T::ONE,
-            T::ONE,
-        )
-        .unwrap()
-    }
-
-    fn from_radii(center: (T, T, T), a: T, b: T, c: T) -> Option<Self> {
-        Self::new_standard(Point3D::new(center.0, center.1, center.2), a, b, c)
-    }
-
-    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self> {
-        let center_x = (min.0 + max.0) / T::from_f64(2.0);
-        let center_y = (min.1 + max.1) / T::from_f64(2.0);
-        let center_z = (min.2 + max.2) / T::from_f64(2.0);
-
-        let a = (max.0 - min.0) / T::from_f64(2.0);
-        let b = (max.1 - min.1) / T::from_f64(2.0);
-        let c = (max.2 - min.2) / T::from_f64(2.0);
-
-        Self::new_standard(Point3D::new(center_x, center_y, center_z), a, b, c)
-    }
-
-    fn new_sphere(
-        center: (T, T, T),
-        axis: (T, T, T),
-        ref_direction: (T, T, T),
-        radius: T,
-    ) -> Option<Self> {
-        Self::new_sphere(
-            Point3D::new(center.0, center.1, center.2),
-            Vector3D::new(axis.0, axis.1, axis.2),
-            Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2),
-            radius,
-        )
-    }
 }
 
 impl<T: Scalar> ContractsEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
@@ -398,29 +358,6 @@ impl<T: Scalar> ContractsEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<
         let r = self.ref_direction;
         (r.x(), r.y(), r.z())
     }
-
-    fn radii(&self) -> (T, T, T) {
-        (self.a_radius, self.b_radius, self.c_radius)
-    }
-
-    fn is_sphere(&self) -> bool {
-        let epsilon = T::EPSILON * T::from_f64(10.0);
-        (self.a_radius - self.b_radius).abs() < epsilon
-            && (self.b_radius - self.c_radius).abs() < epsilon
-    }
-
-    fn is_unit_ellipsoid(&self) -> bool {
-        let epsilon = T::EPSILON * T::from_f64(10.0);
-        (self.a_radius - T::ONE).abs() < epsilon
-            && (self.b_radius - T::ONE).abs() < epsilon
-            && (self.c_radius - T::ONE).abs() < epsilon
-    }
-
-    fn is_centered_at_origin(&self) -> bool {
-        let epsilon = T::EPSILON * T::from_f64(10.0);
-        let c = self.center;
-        c.x().abs() < epsilon && c.y().abs() < epsilon && c.z().abs() < epsilon
-    }
 }
 
 impl<T: Scalar> EllipsoidalSolid3DDerived<T> for EllipsoidalSolid3D<T> {
@@ -437,10 +374,6 @@ impl<T: Scalar> EllipsoidalSolid3DDerived<T> for EllipsoidalSolid3D<T> {
         let min = bbox.min();
         let max = bbox.max();
         ((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
-    }
-
-    fn is_degenerate(&self) -> bool {
-        self.is_degenerate()
     }
 }
 

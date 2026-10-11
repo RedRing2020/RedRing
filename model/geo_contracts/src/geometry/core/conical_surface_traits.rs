@@ -17,10 +17,6 @@ pub trait ConicalSurface3DConstructor<T: Scalar> {
     fn new_standard(base_center: (T, T, T), radius: T, height: T) -> Option<Self>
     where
         Self: Sized;
-
-    fn unit_cone_surface() -> Self
-    where
-        Self: Sized;
 }
 
 pub trait ConicalSurface3DProperties<T: Scalar> {

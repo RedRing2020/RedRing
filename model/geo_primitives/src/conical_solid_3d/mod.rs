@@ -320,60 +320,6 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
         let center_point = Point3D::new(base_center.0, base_center.1, base_center.2);
         Self::new_standard(center_point, radius, height)
     }
-
-    fn unit_cone() -> Self {
-        Self::new_at_origin(T::ONE, T::from_f64(2.0)).expect("Unit cone should always be valid")
-    }
-
-    fn from_apex_and_base_circle(
-        apex: (T, T, T),
-        base_center: (T, T, T),
-        radius: T,
-    ) -> Option<Self> {
-        let apex_point = Point3D::new(apex.0, apex.1, apex.2);
-        let base_point = Point3D::new(base_center.0, base_center.1, base_center.2);
-        let axis_vector = Vector3D::new(
-            base_point.x() - apex_point.x(),
-            base_point.y() - apex_point.y(),
-            base_point.z() - apex_point.z(),
-        );
-        let height = axis_vector.length();
-        let ref_direction = if axis_vector.z().abs() < T::from_f64(0.99) {
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vector)
-        } else {
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vector)
-        };
-        Self::new(apex_point, axis_vector, ref_direction, radius, height)
-    }
-
-    fn from_apex_angle(apex: (T, T, T), axis: (T, T, T), half_angle: T, height: T) -> Option<Self> {
-        let radius = height * half_angle.tan();
-        let apex_point = Point3D::new(apex.0, apex.1, apex.2);
-        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
-        let ref_direction = if axis_vector.z().abs() < T::from_f64(0.99) {
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vector)
-        } else {
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vector)
-        };
-        Self::new(apex_point, axis_vector, ref_direction, radius, height)
-    }
-
-    fn frustum(base_center: (T, T, T), axis: (T, T, T), base_radius: T, height: T) -> Option<Self> {
-        let center_point = Point3D::new(base_center.0, base_center.1, base_center.2);
-        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
-        let ref_direction = if axis_vector.z().abs() < T::from_f64(0.99) {
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vector)
-        } else {
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vector)
-        };
-        Self::new(
-            center_point,
-            axis_vector,
-            ref_direction,
-            base_radius,
-            height,
-        )
-    }
 }
 
 impl<T: Scalar> ContractsConicalSolid3DProperties<T> for ConicalSolid3D<T> {
@@ -413,14 +359,6 @@ impl<T: Scalar> ContractsConicalSolid3DProperties<T> for ConicalSolid3D<T> {
 
     fn half_angle(&self) -> T {
         (self.radius / self.height).atan()
-    }
-
-    fn lateral_surface_area(&self) -> T {
-        T::PI * self.radius * ContractsConicalSolid3DProperties::slant_height(self)
-    }
-
-    fn base_area(&self) -> T {
-        T::PI * self.radius * self.radius
     }
 }
 

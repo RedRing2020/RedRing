@@ -163,22 +163,6 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         )
     }
 
-    /// 球形楕円体サーフェスを作成（全軸の半径が同じ）
-    ///
-    /// # Arguments
-    /// * `center` - 中心点
-    /// * `radius` - 全軸共通の半径
-    pub fn new_spherical(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(
-            center,
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE),
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO),
-            radius,
-            radius,
-            radius,
-        )
-    }
-
     /// Y軸方向を計算（派生軸）
     ///
     /// STEP標準：Y = Z × X（右手系）
@@ -451,28 +435,6 @@ impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
             semi_axis_c,
         )
     }
-
-    fn unit_ellipsoid_surface() -> Self {
-        Self::new_spherical(Point3D::origin(), T::ONE).unwrap()
-    }
-
-    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self> {
-        let center_x = (min.0 + max.0) / T::from_f64(2.0);
-        let center_y = (min.1 + max.1) / T::from_f64(2.0);
-        let center_z = (min.2 + max.2) / T::from_f64(2.0);
-        let semi_a = (max.0 - min.0) / T::from_f64(2.0);
-        let semi_b = (max.1 - min.1) / T::from_f64(2.0);
-        let semi_c = (max.2 - min.2) / T::from_f64(2.0);
-        Self::new_standard((center_x, center_y, center_z), semi_a, semi_b, semi_c)
-    }
-
-    fn from_semi_axes(center: (T, T, T), a: T, b: T, c: T) -> Option<Self> {
-        Self::new_standard(center, a, b, c)
-    }
-
-    fn oblate_spheroid(center: (T, T, T), equatorial_radius: T, polar_radius: T) -> Option<Self> {
-        Self::new_standard(center, equatorial_radius, equatorial_radius, polar_radius)
-    }
 }
 
 impl<T: Scalar> ContractsEllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
@@ -489,39 +451,6 @@ impl<T: Scalar> ContractsEllipsoidalSurface3DProperties<T> for EllipsoidalSurfac
     fn ref_direction(&self) -> (T, T, T) {
         let r = self.ref_direction;
         (r.x(), r.y(), r.z())
-    }
-
-    fn semi_axis_a(&self) -> T {
-        self.a_radius
-    }
-
-    fn semi_axis_b(&self) -> T {
-        self.b_radius
-    }
-
-    fn semi_axis_c(&self) -> T {
-        self.c_radius
-    }
-
-    fn is_sphere(&self) -> bool {
-        let a = self.a_radius;
-        let b = self.b_radius;
-        let c = self.c_radius;
-        (a - b).abs() < T::EPSILON && (b - c).abs() < T::EPSILON
-    }
-
-    fn is_oblate(&self) -> bool {
-        let c = self.c_radius;
-        let a = self.a_radius;
-        let b = self.b_radius;
-        c < a.max(b)
-    }
-
-    fn eccentricity(&self) -> T {
-        let a = self.a_radius;
-        let c = self.c_radius;
-        let e2 = T::ONE - (c * c) / (a * a);
-        e2.max(T::ZERO).sqrt()
     }
 }
 
@@ -561,10 +490,6 @@ impl<T: Scalar> EllipsoidalSurface3DDerived<T> for EllipsoidalSurface3D<T> {
         let c = self.c_radius;
         T::from_f64(4.0 / 3.0) * T::PI * a * b * c
     }
-
-    fn surface_area_knud_thomsen(&self) -> T {
-        self.surface_area()
-    }
 }
 
 impl<T: Scalar> EllipsoidalSurface3DEvaluation<T> for EllipsoidalSurface3D<T> {
@@ -579,24 +504,6 @@ impl<T: Scalar> EllipsoidalSurface3DEvaluation<T> for EllipsoidalSurface3D<T> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
         let p = self.point_at_uv(u, v);
         (p.x(), p.y(), p.z())
-    }
-
-    fn point_at_spherical(&self, theta: T, phi: T) -> (T, T, T) {
-        let cos_phi = phi.cos();
-        let sin_phi = phi.sin();
-        let cos_theta = theta.cos();
-        let sin_theta = theta.sin();
-
-        let c = self.center;
-        let a = self.a_radius;
-        let b = self.b_radius;
-        let c_radius = self.c_radius;
-
-        (
-            c.x() + a * cos_theta * sin_phi,
-            c.y() + b * sin_theta * sin_phi,
-            c.z() + c_radius * cos_phi,
-        )
     }
 }
 

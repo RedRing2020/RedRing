@@ -16,17 +16,8 @@ pub trait Plane3DConstructor<T: Scalar>: Sized {
     /// 3点から平面を作成
     fn from_three_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T)) -> Option<Self>;
 
-    /// XY平面を作成（Z=0）
-    fn xy_plane() -> Self;
-
     /// 点と法線から平面を作成
     fn from_point_and_normal(point: (T, T, T), normal: (T, T, T)) -> Option<Self>;
-
-    /// XZ平面を作成（Y=0）
-    fn xz_plane() -> Self;
-
-    /// YZ平面を作成（X=0）
-    fn yz_plane() -> Self;
 }
 
 /// Plane3D 基本プロパティ取得 trait
@@ -45,15 +36,6 @@ pub trait Plane3DProperties<T: Scalar> {
 
     /// 形状の次元数（2: 2次元多様体）
     fn dimension(&self) -> u32;
-
-    /// XY平面かどうか判定
-    fn is_xy_plane(&self) -> bool;
-
-    /// XZ平面かどうか判定
-    fn is_xz_plane(&self) -> bool;
-
-    /// YZ平面かどうか判定
-    fn is_yz_plane(&self) -> bool;
 }
 
 pub trait Plane3DContainment<T: Scalar> {
@@ -69,17 +51,4 @@ pub trait Plane3DDistance<T: Scalar> {
 pub trait Plane3DProjection<T: Scalar> {
     /// 点を平面に投影
     fn project_point(&self, point: (T, T, T)) -> (T, T, T);
-}
-
-pub trait Plane3DDerived<T: Scalar> {
-    /// 平面の方程式係数を取得（Ax + By + Cz + D = 0）
-    fn equation_coefficients(&self) -> (T, T, T, T);
-}
-
-pub trait Plane3DEvaluation<T: Scalar> {
-    /// 点の平面座標（UV座標）を取得
-    fn point_to_uv(&self, point: (T, T, T)) -> (T, T);
-
-    /// UV座標から3D点を取得
-    fn uv_to_point(&self, u: T, v: T) -> (T, T, T);
 }

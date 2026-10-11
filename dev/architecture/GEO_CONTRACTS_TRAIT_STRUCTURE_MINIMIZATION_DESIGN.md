@@ -613,7 +613,7 @@ analytic surface 群は `ConicalSurface3D`、`CylindricalSurface3D`、`Spherical
 | `TorusSurface3D::surface_area` | `derived` |
 | `TorusSurface3D::distance_to_point` | `distance` |
 | `EllipsoidalSurface3D::point_at_uv/normal_at/point_at_spherical` | `evaluation` |
-| `EllipsoidalSurface3D::surface_area/bounding_box/volume/surface_area_knud_thomsen` | `derived` |
+| `EllipsoidalSurface3D::surface_area/bounding_box/volume` | `derived` |
 | `EllipsoidalSurface3D::distance_to_point` | `distance` |
 | 各 `*Surface3DCore` | `Constructor + Properties` |
 
@@ -686,7 +686,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 | `Triangle2DConstructor` / `Triangle3DConstructor` | `definition` |
 | `Triangle2DBoundaryAccess::vertex_a/vertex_b/vertex_c` | `boundary-access` |
 | `Triangle3DBoundaryAccess::vertex_a/vertex_b/vertex_c` | `boundary-access` |
-| `Triangle3DDerived::centroid/normal/circumcenter/circumradius/inradius/area/is_planar` | `derived` |
+| `Triangle3DDerived::normal` | `derived` |
 | `Triangle2DContainment::contains_point` | `containment` |
 | `Triangle3DContainment::contains_point` | `containment` |
 | `Triangle2DDistance::distance_to_point` | `distance` |
