@@ -64,4 +64,4 @@ pub use point_3d::Point3D;
 pub use similarity_transform_2d::SimilarityTransform2D;
 pub use similarity_transform_3d::SimilarityTransform3D;
 pub use vector_2d::Vector2D;
-pub use vector_3d::{DominantAxis, Vector3D, VectorRelationship};
+pub use vector_3d::Vector3D;

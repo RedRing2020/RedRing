@@ -82,56 +82,6 @@ impl DegreeElevation {
 
         Ok((new_control_points, new_weights, new_knots, new_degree))
     }
-
-    /// 次数を1つ上昇させる（3D）
-    /// NURBS曲線の3D次数昇格
-    ///
-    /// # Errors
-    /// 無効な次数や制御点の場合にエラーを返します
-    pub fn elevate_degree_3d<T: Scalar>(
-        control_points: &[Vector3<T>],
-        weights: &[T],
-        knots: &KnotVector<T>,
-        degree: usize,
-    ) -> DegreeElevateResult3D<T> {
-        let n = control_points.len() - 1;
-        let p = degree;
-        let new_degree = p + 1;
-
-        let mut new_knots = Vec::new();
-        new_knots.push(knots[0]);
-        for &knot in knots {
-            new_knots.push(knot);
-        }
-
-        let mut new_control_points = Vec::with_capacity(n + 2);
-        let mut new_weights = Vec::with_capacity(n + 2);
-
-        new_control_points.push(control_points[0]);
-        new_weights.push(weights[0]);
-
-        for i in 1..=n {
-            let alpha = T::from_usize(i) / T::from_usize(new_degree);
-
-            let prev_point = control_points[i - 1];
-            let curr_point = control_points[i];
-            let prev_weight = weights[i - 1];
-            let curr_weight = weights[i];
-
-            let new_x = alpha * prev_point.x() + (T::ONE - alpha) * curr_point.x();
-            let new_y = alpha * prev_point.y() + (T::ONE - alpha) * curr_point.y();
-            let new_z = alpha * prev_point.z() + (T::ONE - alpha) * curr_point.z();
-            let new_weight = alpha * prev_weight + (T::ONE - alpha) * curr_weight;
-
-            new_control_points.push(Vector3::new(new_x, new_y, new_z));
-            new_weights.push(new_weight);
-        }
-
-        new_control_points.push(control_points[n]);
-        new_weights.push(weights[n]);
-
-        Ok((new_control_points, new_weights, new_knots, new_degree))
-    }
 }
 
 #[cfg(test)]

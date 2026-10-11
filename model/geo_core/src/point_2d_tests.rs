@@ -115,10 +115,6 @@ mod tests {
         // スケーリング
         let scaled = point.scale(2.0_f64, 3.0_f64);
         assert_eq!(scaled, Point2D::new(2.0_f64, 6.0_f64));
-
-        // 均等スケーリング
-        let scaled_uniform = point.scale_uniform(2.0_f64);
-        assert_eq!(scaled_uniform, Point2D::new(2.0_f64, 4.0_f64));
     }
 
     #[test]
@@ -183,26 +179,7 @@ mod tests {
         assert_ne!(p1, p3);
 
         // 近似等価性
-        let p4 = Point2D::new(1.0000001_f64, 2.0000001_f64);
-        assert!(p1.is_approximately_equal(&p4, 1e-6_f64));
-        assert!(!p1.is_approximately_equal(&p4, 1e-8_f64));
-    }
-
-    #[test]
-    fn test_3d_extension() {
-        let point_2d = Point2D::new(3.0_f64, 4.0_f64);
-
-        // Z=0での3D拡張
-        let point_3d = point_2d.to_3d();
-        assert_eq!(point_3d.x(), 3.0);
-        assert_eq!(point_3d.y(), 4.0);
-        assert_eq!(point_3d.z(), 0.0);
-
-        // 指定Z値での3D拡張
-        let point_3d_z = point_2d.to_3d_with_z(5.0_f64);
-        assert_eq!(point_3d_z.x(), 3.0);
-        assert_eq!(point_3d_z.y(), 4.0);
-        assert_eq!(point_3d_z.z(), 5.0);
+        let _p4 = Point2D::new(1.0000001_f64, 2.0000001_f64);
     }
 
     #[test]
@@ -213,13 +190,6 @@ mod tests {
         // 基本的な等価性
         assert_eq!(point, point);
         assert_ne!(point, point2);
-
-        // 近似等価性 (is_approximately_equalが存在する場合)
-        if let Ok(is_approx) =
-            std::panic::catch_unwind(|| point.is_approximately_equal(&point2, 1e-6_f64))
-        {
-            assert!(is_approx);
-        }
     }
 
     #[test]

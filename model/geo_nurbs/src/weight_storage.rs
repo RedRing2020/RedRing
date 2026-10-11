@@ -15,36 +15,4 @@ pub enum WeightStorage<T: Scalar> {
     Individual(Vec<T>),
 }
 
-impl<T: Scalar> WeightStorage<T> {
-    /// 指定されたインデックスの重みを取得
-    pub fn get_weight(&self, index: usize) -> T {
-        match self {
-            WeightStorage::Uniform => T::ONE,
-            WeightStorage::Individual(weights) => weights.get(index).copied().unwrap_or(T::ONE),
-        }
-    }
-
-    /// 重みを指定しない非有理（`Uniform`）として保持しているかどうか
-    #[must_use]
-    pub fn is_uniform(&self) -> bool {
-        matches!(self, WeightStorage::Uniform)
-    }
-
-    /// 非有理（全重みが1.0）かどうか判定
-    #[must_use]
-    pub fn is_non_rational(&self) -> bool {
-        match self {
-            WeightStorage::Uniform => true,
-            WeightStorage::Individual(weights) => weights.iter().all(|&w| w == T::ONE),
-        }
-    }
-
-    /// Uniform重みからIndividualに変換（指定したサイズで）
-    #[must_use]
-    pub fn to_individual(&self, num_points: usize) -> WeightStorage<T> {
-        match self {
-            WeightStorage::Uniform => WeightStorage::Individual(vec![T::ONE; num_points]),
-            WeightStorage::Individual(_) => self.clone(),
-        }
-    }
-}
+impl<T: Scalar> WeightStorage<T> {}

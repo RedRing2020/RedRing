@@ -210,11 +210,6 @@ impl<T: Scalar> Point3D<T> {
         dx.max(dy).max(dz)
     }
 
-    /// 点が境界上（許容誤差内）にあるかを判定
-    pub fn on_boundary(&self, point: &Self, tolerance: T) -> bool {
-        self.distance_to(point) <= tolerance
-    }
-
     /// 点が自分自身と一致するかを判定
     pub fn contains_point(&self, point: &Self) -> bool {
         self == point

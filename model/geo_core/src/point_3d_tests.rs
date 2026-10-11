@@ -65,9 +65,6 @@ mod tests {
         assert!(!point.contains_point(&different_point));
 
         // 境界判定（許容誤差付き）
-        assert!(point.on_boundary(&same_point, 0.0));
-        assert!(point.on_boundary(&Point3D::new(1.1, 2.0, 3.0), 0.2));
-        assert!(!point.on_boundary(&Point3D::new(1.1, 2.0, 3.0), 0.05));
 
         // 距離計算
         assert_eq!(point.distance_to(&same_point), 0.0);

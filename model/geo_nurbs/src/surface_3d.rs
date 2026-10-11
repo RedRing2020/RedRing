@@ -359,58 +359,6 @@ impl<T: Scalar> NurbsSurface3D<T> {
             .normalize()
             .unwrap_or_else(|_| Vector3::zero())
     }
-
-    /// サーフェスの面積を近似計算
-    ///
-    /// # 引数
-    /// * `u_subdivisions` - u方向の分割数
-    /// * `v_subdivisions` - v方向の分割数
-    ///
-    /// # 戻り値
-    /// 近似面積
-    #[must_use]
-    pub fn approximate_area(&self, u_subdivisions: usize, v_subdivisions: usize) -> T {
-        if u_subdivisions == 0 || v_subdivisions == 0 {
-            return T::ZERO;
-        }
-
-        let ((u_min, u_max), (v_min, v_max)) = self.parameter_domain();
-        let du = (u_max - u_min) / T::from_usize(u_subdivisions);
-        let dv = (v_max - v_min) / T::from_usize(v_subdivisions);
-
-        let mut total_area = T::ZERO;
-
-        for i in 0..u_subdivisions {
-            for j in 0..v_subdivisions {
-                let u1 = u_min + du * T::from_usize(i);
-                let u2 = u_min + du * T::from_usize(i + 1);
-                let v1 = v_min + dv * T::from_usize(j);
-                let v2 = v_min + dv * T::from_usize(j + 1);
-
-                // 4角形パッチの面積を近似計算
-                let p00 = self.evaluate_at(u1, v1);
-                let p10 = self.evaluate_at(u2, v1);
-                let p01 = self.evaluate_at(u1, v2);
-                let p11 = self.evaluate_at(u2, v2);
-
-                // 三角形2つに分割して面積計算（直接実装）
-                let area1 = {
-                    let v1 = p10 - p00;
-                    let v2 = p01 - p00;
-                    v1.cross(&v2).norm() / (T::ONE + T::ONE) // 外積の大きさの半分
-                };
-                let area2 = {
-                    let v1 = p11 - p10;
-                    let v2 = p01 - p10;
-                    v1.cross(&v2).norm() / (T::ONE + T::ONE)
-                };
-
-                total_area += area1 + area2;
-            }
-        }
-
-        total_area
-    }
 }
 
 impl<T: Scalar> NurbsSurface3DConstructor<T> for NurbsSurface3D<T> {
@@ -587,7 +535,7 @@ impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
 impl<T: Scalar> NurbsSurface3DDerived<T> for NurbsSurface3D<T> {
     #[allow(clippy::similar_names)]
     fn surface_area(&self) -> T {
-        // 簡易実装: 中央差分で近似
+        // パラメータ領域を格子に分割し、各格子の面積（偏導関数の外積の大きさ）を数値積分する
         let subdivisions = constants::SURFACE_AREA_SUBDIVISIONS;
         let ((u_min, u_max), (v_min, v_max)) = self.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(subdivisions);

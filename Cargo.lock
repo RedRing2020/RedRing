@@ -1082,7 +1082,6 @@ dependencies = [
  "geo_nurbs",
  "geo_primitives",
  "geo_topology",
- "rayon",
 ]
 
 [[package]]

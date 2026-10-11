@@ -67,7 +67,7 @@ impl<T: Scalar> TorusSurface3D<T> {
             point.y() - closest.y(),
             point.z() - closest.z(),
         );
-        diff.magnitude()
+        diff.length()
     }
 
     /// 主曲率を計算
