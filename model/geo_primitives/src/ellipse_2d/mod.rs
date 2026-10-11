@@ -7,17 +7,13 @@ mod bounds;
 mod tests;
 mod transform;
 
-use crate::{
-    ellipse_calculation_analysis, ellipse_calculation_strategy, Circle2D, Point2D, Vector2D,
-};
+use crate::{Circle2D, Point2D, Vector2D};
 use geo_contracts::{
     default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDerived,
     Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties,
     PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
-use geo_contracts::{
-    Circle2DProperties, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
-};
+use geo_contracts::{Circle2DProperties, EllipseCalculation};
 
 /// 2次元楕円
 ///
@@ -371,22 +367,6 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
         );
 
         (f1_final, f2_final)
-    }
-}
-
-impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse2D<T> {
-    fn circumference_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
-        ellipse_calculation_strategy::circumference_adaptive(
-            self,
-            target_accuracy,
-            max_computation_cost,
-        )
-    }
-}
-
-impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse2D<T> {
-    fn compare_approximation_methods(&self) -> Vec<(&'static str, T, T)> {
-        ellipse_calculation_analysis::compare_approximation_methods(self)
     }
 }
 

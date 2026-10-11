@@ -8,14 +8,9 @@ mod extensions;
 mod tests;
 mod transform;
 
-use crate::{
-    ellipse_calculation_analysis, ellipse_calculation_strategy, Angle, Circle3D, Direction3D,
-    Point3D, Vector3D,
-};
+use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
-use geo_contracts::{
-    Circle3DProperties, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
-};
+use geo_contracts::{Circle3DProperties, EllipseCalculation};
 use geo_contracts::{
     Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
     Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, PointClassification,
@@ -577,21 +572,5 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
         let f2_final = self.center + f2_vec;
 
         (f1_final, f2_final)
-    }
-}
-
-impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse3D<T> {
-    fn circumference_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
-        ellipse_calculation_strategy::circumference_adaptive(
-            self,
-            target_accuracy,
-            max_computation_cost,
-        )
-    }
-}
-
-impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse3D<T> {
-    fn compare_approximation_methods(&self) -> Vec<(&'static str, T, T)> {
-        ellipse_calculation_analysis::compare_approximation_methods(self)
     }
 }

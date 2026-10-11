@@ -23,7 +23,8 @@ line_segment_3d/
 - 子モジュールのファイル名は形状名を付けない（`extensions.rs` / `bounds.rs` / `transform.rs` / `metrics.rs` / `tests.rs`）
 - `mod.rs` は先頭の doc コメントの直後で子モジュールを宣言する（`mod extensions;`、`#[cfg(test)] mod tests;` 等）
 - `tests.rs` は `use super::*;` で親の要素を使い、`mod tests { ... }` で包まない（`tests::tests` の入れ子にしない）
-- 形状をまたぐテスト（`transform_*_tests.rs` / `region_*_tests.rs` 等）は crate の直下に置き、公開 API だけを使う
+- 形状をまたぐテストは結合テスト（`tests/cross_shape/main.rs` とその子モジュール）に置き、公開 API だけを使う。結合テストはクレートの外からコンパイルされるため、公開 API だけを使うことをコンパイラが確認する
+- `src` の直下には `lib.rs` と形状のディレクトリだけを置く
 
 ## 3. `lib.rs`
 
@@ -48,7 +49,7 @@ line_segment_3d/
 | --- | --- |
 | 直線（無限直線・半直線・線分） | 移行済み。`InfiniteLine2D/3D::point_internal` / `direction_internal` は線分から使うため `pub(crate)` |
 | 円（円・円弧） | 移行済み。楕円の円からの生成は円の trait定義の取得メソッド（`Circle2DProperties` / `Circle3DProperties`）を使い、`pub(crate)` は残さない |
-| 楕円（楕円・楕円弧） | 移行済み。楕円弧は楕円の公開の取得メソッド（`Ellipse3D` の固有メソッド、`Ellipse2D` の trait定義 `Ellipse2DProperties`）を使い、`pub(crate)` は残さない。2D / 3D の楕円が共用する計算の補助モジュール（`ellipse_calculation_analysis` / `ellipse_calculation_strategy`）は crate の直下の private なモジュールとする |
+| 楕円（楕円・楕円弧） | 移行済み。楕円弧は楕円の公開の取得メソッド（`Ellipse3D` の固有メソッド、`Ellipse2D` の trait定義 `Ellipse2DProperties`）を使い、`pub(crate)` は残さない |
 | 平面・メッシュ（平面・矩形・三角形・三角形メッシュ） | 移行済み。形状をまたぐテストは trait定義の取得メソッド（`Triangle2D/3DBoundaryAccess`・`Plane3DProperties`）を使う。法線を指定した三角形メッシュの生成（`from_parts`）は private とし、そのテストは三角形メッシュの `tests.rs` に置く |
 | 解析曲面・立体（球・楕円体・円柱・円錐・トーラス） | 移行済み。形状をまたぐ参照はなく、`pub(crate)` は残さない。形状をまたぐテストは trait定義の取得メソッド（`TorusSurface3DProperties` 等）を使う |
 

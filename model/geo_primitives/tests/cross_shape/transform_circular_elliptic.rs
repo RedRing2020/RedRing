@@ -1,14 +1,14 @@
 //! 円・楕円系形状の相似変換テスト
 
-use crate::{
-    Arc2D, Arc3D, Circle2D, Circle3D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D,
-    EllipseArc3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D, Vector2D,
-    Vector3D,
-};
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, Arc2DEvaluation, Arc3DEndpoint, Arc3DEvaluation, Circle3DEvaluation,
     SimilarityTransformable2D, SimilarityTransformable3D,
+};
+use geo_primitives::{
+    Arc2D, Arc3D, Circle2D, Circle3D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D,
+    EllipseArc3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D, Vector2D,
+    Vector3D,
 };
 use std::f64::consts::PI;
 

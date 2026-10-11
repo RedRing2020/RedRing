@@ -20,13 +20,3 @@ pub trait EllipseCalculation<T: Scalar> {
     fn area(&self) -> T;
     fn foci(&self) -> (Self::Point, Self::Point);
 }
-
-/// Strategy contract for adaptive circumference calculation.
-pub trait EllipseAdaptiveCalculation<T: Scalar>: EllipseCalculation<T> {
-    fn circumference_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T;
-}
-
-/// Accuracy analysis contract for comparing approximation methods.
-pub trait EllipseAccuracyAnalysis<T: Scalar>: EllipseCalculation<T> {
-    fn compare_approximation_methods(&self) -> Vec<(&'static str, T, T)>;
-}
