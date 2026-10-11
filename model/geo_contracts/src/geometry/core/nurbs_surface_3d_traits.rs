@@ -102,14 +102,3 @@ pub trait NurbsSurface3DDerived<T: Scalar> {
     /// サーフェスの表面積を計算（数値積分により近似計算）
     fn surface_area(&self) -> T;
 }
-
-/// NurbsSurface3D の互換 Core trait
-pub trait NurbsSurface3DCore<T: Scalar>:
-    NurbsSurface3DConstructor<T> + NurbsSurface3DProperties<T>
-{
-}
-
-impl<T: Scalar, Surface> NurbsSurface3DCore<T> for Surface where
-    Surface: NurbsSurface3DConstructor<T> + NurbsSurface3DProperties<T>
-{
-}

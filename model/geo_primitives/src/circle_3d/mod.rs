@@ -13,9 +13,8 @@ use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::default_angle_tolerance;
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
-    Circle3DConstructor, Circle3DContainment, Circle3DDerived, Circle3DDistance,
-    Circle3DEvaluation, Circle3DProjection, Circle3DProperties, CrossDistance, PointClassification,
-    Scalar,
+    Circle3DConstructor, Circle3DContainment, Circle3DDistance, Circle3DEvaluation,
+    Circle3DProjection, Circle3DProperties, CrossDistance, PointClassification, Scalar,
 };
 
 /// 3次元空間の円
@@ -388,16 +387,6 @@ impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
         // Z軸に平行かどうかを確認
         let z_component = self.axis.z().abs();
         (z_component - T::ONE).abs() <= default_distance_tolerance::<T>()
-    }
-}
-
-impl<T: Scalar> Circle3DDerived<T> for Circle3D<T> {
-    fn circumference(&self) -> T {
-        Circle3D::circumference(self)
-    }
-
-    fn area(&self) -> T {
-        Circle3D::area(self)
     }
 }
 

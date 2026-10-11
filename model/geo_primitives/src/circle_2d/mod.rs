@@ -13,9 +13,9 @@ mod transform;
 use crate::{Direction2D, Point2D};
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
-    Circle2DConstructor, Circle2DContainment, Circle2DDerived, Circle2DDistance,
-    Circle2DEvaluation, Circle2DProjection, Circle2DProperties, CrossDistance, PointClassification,
-    PrimitiveKind, PrimitiveMetadata, Scalar,
+    Circle2DConstructor, Circle2DContainment, Circle2DDistance, Circle2DEvaluation,
+    Circle2DProjection, Circle2DProperties, CrossDistance, PointClassification, PrimitiveKind,
+    PrimitiveMetadata, Scalar,
 };
 
 /// 2次元円
@@ -292,16 +292,6 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
 
     fn is_degenerate(&self) -> bool {
         self.radius <= default_distance_tolerance::<T>()
-    }
-}
-
-impl<T: Scalar> Circle2DDerived<T> for Circle2D<T> {
-    fn circumference(&self) -> T {
-        Circle2D::circumference(self)
-    }
-
-    fn area(&self) -> T {
-        Circle2D::area(self)
     }
 }
 

@@ -242,25 +242,3 @@ pub trait EllipseArc3DTrimRange<T: Scalar> {
     /// Primitive 局所角度系の角度がトリム区間内か判定
     fn contains_angle(&self, angle: T) -> bool;
 }
-
-/// EllipseArc2Dの3つのCore機能統合トレイト
-pub trait EllipseArc2DCore<T: Scalar>:
-    EllipseArc2DConstructor<T> + EllipseArc2DProperties<T>
-{
-}
-
-/// EllipseArc3Dの3つのCore機能統合トレイト
-pub trait EllipseArc3DCore<T: Scalar>:
-    EllipseArc3DConstructor<T> + EllipseArc3DProperties<T>
-{
-}
-
-impl<T: Scalar, E> EllipseArc2DCore<T> for E where
-    E: EllipseArc2DConstructor<T> + EllipseArc2DProperties<T>
-{
-}
-
-impl<T: Scalar, E> EllipseArc3DCore<T> for E where
-    E: EllipseArc3DConstructor<T> + EllipseArc3DProperties<T>
-{
-}

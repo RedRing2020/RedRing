@@ -32,8 +32,6 @@ pub trait Rect2DDerived<T: Scalar> {
     fn is_valid(&self) -> bool;
 }
 
-pub trait Rect2DCore<T: Scalar>: Rect2DConstructor<T> + Rect2DProperties<T> {}
-
 pub trait Rect3DConstructor<T: Scalar>: Sized {
     fn new(
         origin: (T, T, T),
@@ -68,9 +66,3 @@ pub trait Rect3DDerived<T: Scalar> {
     fn corners(&self) -> [(T, T, T); 4];
     fn is_valid(&self) -> bool;
 }
-
-pub trait Rect3DEvaluation<T: Scalar> {
-    fn distance_to_plane(&self, point: (T, T, T)) -> T;
-}
-
-pub trait Rect3DCore<T: Scalar>: Rect3DConstructor<T> + Rect3DProperties<T> {}

@@ -65,15 +65,6 @@ pub trait Aabb3DRelation<T: Scalar> {
     fn intersects(&self, other: &Self) -> bool;
 }
 
-/// 最近点対を返す relation
-pub trait ClosestPointPair<Other> {
-    /// 最近点対の型
-    type PointPair;
-
-    /// 最近点対を返す
-    fn closest_points(&self, other: &Other) -> Option<Self::PointPair>;
-}
-
 /// 平行関係
 pub trait ParallelRelation<Other> {
     /// 相手と平行かを返す
@@ -98,31 +89,10 @@ pub trait IntersectsRelation<Other> {
     fn intersects(&self, other: &Other) -> bool;
 }
 
-/// ねじれ関係
-pub trait SkewRelation<Other> {
-    /// 相手とスキュー関係かを返す
-    fn is_skew_to(&self, other: &Other) -> bool;
-}
-
 /// 角度 relation
 pub trait AngularRelation<T: Scalar, Other> {
     /// 相手との角度を返す
     fn angle_to(&self, other: &Other) -> T;
-}
-
-/// 向き relation
-pub trait DirectionalRelation<Other> {
-    /// 相手と同方向かを返す
-    fn is_same_direction(&self, other: &Other) -> bool;
-
-    /// 相手と逆方向かを返す
-    fn is_opposite_direction(&self, other: &Other) -> bool;
-}
-
-/// 指定方向を向くかを判定する relation
-pub trait PointsTowards<Target> {
-    /// 指定対象を向くかを返す
-    fn points_towards(&self, target: Target) -> bool;
 }
 
 /// 平面上に存在するかを判定する relation

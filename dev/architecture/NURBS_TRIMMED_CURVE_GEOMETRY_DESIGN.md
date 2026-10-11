@@ -247,7 +247,7 @@
 
 採用方針:
 
-- `BasisCurve: NurbsCurve3DCore<T>` は残す
+- `BasisCurve: NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>` は残す
 - `BasisCurveRef`
 - `BasisCurveStorage`
 - `BasisCurveOwned`
@@ -271,7 +271,7 @@
 
 ```rust
 pub trait TrimmedNurbsCurve3DBasis<T: Scalar> {
-	type BasisCurve: NurbsCurve3DCore<T>;
+	type BasisCurve: NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>;
 }
 ```
 
@@ -309,7 +309,7 @@ impl<T: Scalar> TrimmedNurbsCurve3DBasis<T> for TrimmedNurbsCurve3D<T> {
 
 意味:
 
-- contracts 側は `BasisCurve: NurbsCurve3DCore<T>` までしか知らない
+- contracts 側は `BasisCurve: NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>` までしか知らない
 - `geo_nurbs` 実装では、その concrete family が `NurbsCurve3D<T>` であることをここで確定する
 - これにより contracts は抽象を保ちつつ、実装側は追加 adapter なしで既存 `NurbsCurve3D<T>` 能力を再利用できる
 
@@ -334,7 +334,7 @@ pub enum ParametricDirection {
 }
 
 pub trait TrimmedNurbsCurve3DBasis<T: Scalar> {
-	type BasisCurve: NurbsCurve3DCore<T>;
+	type BasisCurve: NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>;
 }
 
 pub trait TrimmedNurbsCurve3DProperties<T: Scalar>: TrimmedNurbsCurve3DBasis<T> {
@@ -485,7 +485,7 @@ pub trait TrimmedNurbsCurve3DConstructor<T: Scalar>: TrimmedNurbsCurve3DBasis<T>
 - `NurbsCurve3DProperties` は母曲線本体の定義パラメータを返す
 - `TrimmedNurbsCurve3DProperties` は finite view としての trim 状態を返す
 - full curve と trimmed curve は同名 trait の流用ではなく、別 capability 群として分離する
-- ただし associated type `BasisCurve: NurbsCurve3DCore<T>` により、母曲線 capability との接続は明示する
+- ただし associated type `BasisCurve: NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>` により、母曲線 capability との接続は明示する
 - `orientation_relation` は trimmed curve 単体の capability ではなく、必要なら将来 operations/relation 側で別途扱う
 
 ## 実装開始時の最小スコープ案

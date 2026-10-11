@@ -5,9 +5,7 @@
 use crate::Vector2D;
 use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::vector::Vector2;
-use geo_contracts::{
-    Point2DConstructor, Point2DCore, Point2DDistance, Point2DInterpolation, Point2DProperties,
-};
+use geo_contracts::{Point2DConstructor, Point2DDistance, Point2DInterpolation, Point2DProperties};
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -122,7 +120,6 @@ impl<T: Scalar> Point2DTrait<T> for Point2D<T> {
         self.y
     }
 }
-
 
 impl<T: Scalar> BasicContainment<T> for Point2D<T> {
     fn contains_point(&self, point: &Self::Point) -> bool {
@@ -327,8 +324,6 @@ impl<T: Scalar> Point2DInterpolation<T> for Point2D<T> {
         self.lerp(other, t)
     }
 }
-
-impl<T: Scalar> Point2DCore<T> for Point2D<T> {}
 
 impl<T: Scalar> From<Point2D<T>> for analysis::linalg::vector::Vector2<T> {
     fn from(point: Point2D<T>) -> Self {

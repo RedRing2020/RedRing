@@ -11,15 +11,6 @@ pub trait CrossDistance<T: Scalar, Other> {
     fn distance_to(&self, other: &Other) -> T;
 }
 
-/// Cross-shape distance contract (fallible), intended for iterative solvers.
-pub trait FallibleCrossDistance<T: Scalar, Other> {
-    /// Error type for distance solver failures.
-    type Error;
-
-    /// Computes the shortest distance to `other`.
-    fn try_distance_to(&self, other: &Other) -> Result<T, Self::Error>;
-}
-
 /// Standardized failure for iterative distance solvers.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DistanceConvergenceError<T: Scalar> {

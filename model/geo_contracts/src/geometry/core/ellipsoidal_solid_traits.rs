@@ -71,17 +71,3 @@ pub trait EllipsoidalSolid3DContainment<T: Scalar> {
 pub trait EllipsoidalSolid3DDistance<T: Scalar> {
     fn distance_to_surface(&self, point: (T, T, T)) -> T;
 }
-
-pub trait EllipsoidalSolid3DProjection<T: Scalar> {
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
-}
-
-pub trait EllipsoidalSolid3DCore<T: Scalar>:
-    EllipsoidalSolid3DConstructor<T> + EllipsoidalSolid3DProperties<T>
-{
-}
-
-impl<T: Scalar, Solid> EllipsoidalSolid3DCore<T> for Solid where
-    Solid: EllipsoidalSolid3DConstructor<T> + EllipsoidalSolid3DProperties<T>
-{
-}

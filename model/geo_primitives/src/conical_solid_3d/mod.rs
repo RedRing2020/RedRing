@@ -298,8 +298,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
 
 use geo_contracts::{
     ConicalSolid3DConstructor, ConicalSolid3DContainment, ConicalSolid3DDerived,
-    ConicalSolid3DDistance, ConicalSolid3DEvaluation, ConicalSolid3DProjection,
-    ConicalSolid3DProperties as ContractsConicalSolid3DProperties,
+    ConicalSolid3DDistance, ConicalSolid3DProperties as ContractsConicalSolid3DProperties,
 };
 
 impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
@@ -476,104 +475,6 @@ impl<T: Scalar> ConicalSolid3DDistance<T> for ConicalSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.distance_to_surface(point_3d).abs()
-    }
-}
-
-impl<T: Scalar> ConicalSolid3DEvaluation<T> for ConicalSolid3D<T> {
-    fn point_at_conical(&self, r: T, theta: T, z: T) -> (T, T, T) {
-        let cos_theta = theta.cos();
-        let sin_theta = theta.sin();
-
-        let x_axis = self.ref_direction.as_vector();
-        let z_axis = self.axis.as_vector();
-        let y_axis = z_axis.cross(&x_axis);
-
-        let x = self.center.x()
-            + r * cos_theta * x_axis.x()
-            + r * sin_theta * y_axis.x()
-            + z * z_axis.x();
-        let y = self.center.y()
-            + r * cos_theta * x_axis.y()
-            + r * sin_theta * y_axis.y()
-            + z * z_axis.y();
-        let z_coord = self.center.z()
-            + r * cos_theta * x_axis.z()
-            + r * sin_theta * y_axis.z()
-            + z * z_axis.z();
-
-        (x, y, z_coord)
-    }
-}
-
-impl<T: Scalar> ConicalSolid3DProjection<T> for ConicalSolid3D<T> {
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
-        let apex = self.apex_internal();
-        let to_point_x = point.0 - apex.x();
-        let to_point_y = point.1 - apex.y();
-        let to_point_z = point.2 - apex.z();
-
-        let axis_projection =
-            to_point_x * self.axis.x() + to_point_y * self.axis.y() + to_point_z * self.axis.z();
-
-        if axis_projection <= T::ZERO {
-            return (apex.x(), apex.y(), apex.z());
-        }
-
-        if axis_projection >= self.height {
-            let clamped_h = self.height;
-            let axis_comp_x = self.axis.x() * clamped_h;
-            let axis_comp_y = self.axis.y() * clamped_h;
-            let axis_comp_z = self.axis.z() * clamped_h;
-
-            let radial_x = to_point_x - axis_comp_x;
-            let radial_y = to_point_y - axis_comp_y;
-            let radial_z = to_point_z - axis_comp_z;
-
-            let radial_len =
-                (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
-
-            if radial_len > T::EPSILON {
-                let scale = self.radius / radial_len;
-                (
-                    apex.x() + axis_comp_x + radial_x * scale,
-                    apex.y() + axis_comp_y + radial_y * scale,
-                    apex.z() + axis_comp_z + radial_z * scale,
-                )
-            } else {
-                (
-                    apex.x() + axis_comp_x + self.radius,
-                    apex.y() + axis_comp_y,
-                    apex.z() + axis_comp_z,
-                )
-            }
-        } else {
-            let current_radius = self.radius * (T::ONE - axis_projection / self.height);
-            let axis_comp_x = self.axis.x() * axis_projection;
-            let axis_comp_y = self.axis.y() * axis_projection;
-            let axis_comp_z = self.axis.z() * axis_projection;
-
-            let radial_x = to_point_x - axis_comp_x;
-            let radial_y = to_point_y - axis_comp_y;
-            let radial_z = to_point_z - axis_comp_z;
-
-            let radial_len =
-                (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
-
-            if radial_len > T::EPSILON {
-                let scale = current_radius / radial_len;
-                (
-                    apex.x() + axis_comp_x + radial_x * scale,
-                    apex.y() + axis_comp_y + radial_y * scale,
-                    apex.z() + axis_comp_z + radial_z * scale,
-                )
-            } else {
-                (
-                    apex.x() + axis_comp_x + current_radius,
-                    apex.y() + axis_comp_y,
-                    apex.z() + axis_comp_z,
-                )
-            }
-        }
     }
 }
 

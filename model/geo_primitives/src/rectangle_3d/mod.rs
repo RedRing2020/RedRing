@@ -8,7 +8,7 @@ mod transform;
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     PointClassification, PrimitiveKind, PrimitiveMetadata, Rect3DConstructor, Rect3DContainment,
-    Rect3DDerived, Rect3DEvaluation, Rect3DProperties, Scalar,
+    Rect3DDerived, Rect3DProperties, Scalar,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -101,15 +101,6 @@ impl<T: Scalar> Rect3D<T> {
         self.width = width;
         self.height = height;
         true
-    }
-
-    pub fn distance_to_plane(&self, point: Point3D<T>) -> T {
-        let relative = Vector3D::new(
-            point.x() - self.origin.x(),
-            point.y() - self.origin.y(),
-            point.z() - self.origin.z(),
-        );
-        relative.dot(&self.normal_dir().as_vector())
     }
 
     /// 点が矩形の内部または境界上にあるか（`classify_point` が `Outside` でない）
@@ -249,11 +240,5 @@ impl<T: Scalar> Rect3DDerived<T> for Rect3D<T> {
 
     fn is_valid(&self) -> bool {
         self.width >= T::ZERO && self.height >= T::ZERO
-    }
-}
-
-impl<T: Scalar> Rect3DEvaluation<T> for Rect3D<T> {
-    fn distance_to_plane(&self, point: (T, T, T)) -> T {
-        Self::distance_to_plane(self, Point3D::new(point.0, point.1, point.2))
     }
 }

@@ -249,8 +249,8 @@ impl<T: Scalar> From<(T, T)> for Vector2D<T> {
 
 use analysis::linalg::vector::Vector2;
 use geo_contracts::{
-    Vector2DConstructor, Vector2DCore, Vector2DMetric, Vector2DProduct, Vector2DProjection,
-    Vector2DProperties, Vector2DRelation,
+    Vector2DConstructor, Vector2DMetric, Vector2DProduct, Vector2DProjection, Vector2DProperties,
+    Vector2DRelation,
 };
 
 impl<T: Scalar> Vector2DConstructor<T> for Vector2D<T> {
@@ -376,8 +376,6 @@ impl<T: Scalar> Vector2DProjection<T> for Vector2D<T> {
         Some(self.project_onto(other))
     }
 }
-
-impl<T: Scalar> Vector2DCore<T> for Vector2D<T> {}
 
 impl<T: Scalar> From<Vector2D<T>> for analysis::linalg::vector::Vector2<T> {
     fn from(vector: Vector2D<T>) -> Self {

@@ -12,7 +12,7 @@ use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, default_orthogonality_dot_error_tolerance, BasicIntersection,
     Plane3DConstructor, Plane3DContainment, Plane3DDerived, Plane3DDistance, Plane3DEvaluation,
-    Plane3DProjection, Plane3DProperties, Plane3DTransform, Scalar,
+    Plane3DProjection, Plane3DProperties, Scalar,
 };
 
 /// 3次元平面（座標系付き）
@@ -415,29 +415,6 @@ impl<T: Scalar + From<f64>> Plane3DEvaluation<T> for Plane3D<T> {
         let offset = self.u_axis.as_vector() * u + self.v_axis.as_vector() * v;
         let point = self.origin + offset;
         (point.x(), point.y(), point.z())
-    }
-}
-
-impl<T: Scalar + From<f64>> Plane3DTransform<T> for Plane3D<T> {
-    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
-        // project_point の計算を直接展開
-        let relative = Vector3D::new(
-            point.0 - self.origin.x(),
-            point.1 - self.origin.y(),
-            point.2 - self.origin.z(),
-        );
-        let distance = relative.dot(&self.normal.as_vector());
-        let offset = self.normal.as_vector() * distance;
-        let projected_x = point.0 - offset.x();
-        let projected_y = point.1 - offset.y();
-        let projected_z = point.2 - offset.z();
-
-        // 鏡面点 = 2 * 投影点 - 元の点
-        (
-            projected_x + projected_x - point.0,
-            projected_y + projected_y - point.1,
-            projected_z + projected_z - point.2,
-        )
     }
 }
 

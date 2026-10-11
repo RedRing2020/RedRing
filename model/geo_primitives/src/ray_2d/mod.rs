@@ -20,9 +20,9 @@ mod transform;
 
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
-    AngleBetween, BasicIntersection, DirectionalRelation, ParallelRelation, PointsTowards,
-    PrimitiveKind, PrimitiveMetadata, Ray2DConstructor, Ray2DContainment, Ray2DDistance,
-    Ray2DEvaluation, Ray2DProjection, Ray2DProperties, Ray2DTransform, Scalar,
+    AngleBetween, BasicIntersection, ParallelRelation, PrimitiveKind, PrimitiveMetadata,
+    Ray2DConstructor, Ray2DContainment, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
+    Ray2DProperties, Ray2DTransform, Scalar,
 };
 
 /// 2次元半無限直線
@@ -106,13 +106,6 @@ impl<T: Scalar> Ray2D<T> {
     /// Ray 上で点に最も近い点を取得
     pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
         self.point_at_parameter(self.closest_parameter(point))
-    }
-
-    /// 指定方向を向いているかを判定
-    pub fn points_towards_direction(&self, direction: (T, T)) -> bool {
-        let target_direction = Vector2D::new(direction.0, direction.1);
-        let self_direction = Vector2D::new(self.direction.x(), self.direction.y());
-        self_direction.dot(&target_direction) > T::ZERO
     }
 
     /// 他の Ray との角度を返す
@@ -414,40 +407,12 @@ impl<T: Scalar> BasicIntersection<T, Self> for Ray2D<T> {
     }
 }
 
-impl<T: Scalar> PointsTowards<(T, T)> for Ray2D<T> {
-    fn points_towards(&self, target: (T, T)) -> bool {
-        Ray2D::points_towards_direction(self, target)
-    }
-}
-
 impl<T: Scalar> ParallelRelation<Self> for Ray2D<T> {
     fn is_parallel_to(&self, other: &Self) -> bool {
         let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
         let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
         let cross = this_dir.cross(&other_dir);
         cross.abs() < geo_contracts::default_distance_tolerance::<T>()
-    }
-}
-
-impl<T: Scalar> DirectionalRelation<Self> for Ray2D<T> {
-    fn is_same_direction(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
-        let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
-        let cross = this_dir.cross(&other_dir);
-        if cross.abs() >= geo_contracts::default_distance_tolerance::<T>() {
-            return false;
-        }
-        this_dir.dot(&other_dir) > T::ZERO
-    }
-
-    fn is_opposite_direction(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
-        let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
-        let cross = this_dir.cross(&other_dir);
-        if cross.abs() >= geo_contracts::default_distance_tolerance::<T>() {
-            return false;
-        }
-        this_dir.dot(&other_dir) < T::ZERO
     }
 }
 

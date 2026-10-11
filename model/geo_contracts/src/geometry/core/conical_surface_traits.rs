@@ -45,13 +45,3 @@ pub trait ConicalSurface3DDerived<T: Scalar> {
 pub trait ConicalSurface3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
-
-pub trait ConicalSurface3DCore<T: Scalar>:
-    ConicalSurface3DConstructor<T> + ConicalSurface3DProperties<T>
-{
-}
-
-impl<T: Scalar, Surface> ConicalSurface3DCore<T> for Surface where
-    Surface: ConicalSurface3DConstructor<T> + ConicalSurface3DProperties<T>
-{
-}

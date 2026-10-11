@@ -47,66 +47,6 @@ pub trait BasicCollision<T: Scalar, Other> {
     fn distance_to(&self, other: &Other) -> T;
 }
 
-/// 高度衝突検出trait
-///
-/// より詳細な衝突情報や高度な衝突検出機能を提供。
-/// 最近点対、重なり測定、分離軸判定等を含む。
-pub trait AdvancedCollision<T: Scalar, Other>: BasicCollision<T, Other> {
-    /// 最近点対型
-    type PointPair;
-
-    /// 2D ベクトル型
-    type Vector2D;
-
-    /// 最近点対を取得
-    ///
-    /// 2つのオブジェクト間で最も近い点の組み合わせを取得。
-    ///
-    /// # 引数
-    /// * `other` - 最近点計算を行う相手オブジェクト
-    ///
-    /// # 戻り値
-    /// 最近点対（self 側の点, other 側の点）
-    fn closest_points(&self, other: &Other) -> Self::PointPair;
-
-    /// 重なり測定値
-    ///
-    /// 2つのオブジェクトの重なり部分の面積または長さを計算。
-    /// 重なりがない場合は `None` を返す。
-    ///
-    /// # 引数
-    /// * `other` - 重なり測定を行う相手オブジェクト
-    ///
-    /// # 戻り値
-    /// 重なり測定値（面積・長さ・体積等）、重なりがない場合は `None`
-    fn overlap_measure(&self, other: &Other) -> Option<T>;
-
-    /// 分離軸判定（Separating Axis Theorem）
-    ///
-    /// 指定された軸での射影を比較して分離しているかを判定。
-    /// 凸形状の衝突検出で使用される高速アルゴリズム。
-    ///
-    /// # 引数
-    /// * `other` - 分離判定を行う相手オブジェクト
-    /// * `axis` - 分離軸となるベクトル
-    ///
-    /// # 戻り値
-    /// 指定軸で分離している場合は `true`
-    fn separated_by_axis(&self, other: &Other, axis: Self::Vector2D) -> bool;
-
-    /// 包含関係判定
-    ///
-    /// 一方のオブジェクトが他方を完全に包含しているかを判定。
-    ///
-    /// # 引数
-    /// * `other` - 包含判定を行う相手オブジェクト
-    /// * `tolerance` - 判定精度の許容誤差
-    ///
-    /// # 戻り値
-    /// `(self が other を包含, other が self を包含)`
-    fn containment_relation(&self, other: &Other, tolerance: T) -> (bool, bool);
-}
-
 /// 点との特化距離計算
 ///
 /// 幾何オブジェクトと点の間の距離・包含関係に特化したトレイト。

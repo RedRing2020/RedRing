@@ -83,11 +83,3 @@ pub trait Plane3DEvaluation<T: Scalar> {
     /// UV座標から3D点を取得
     fn uv_to_point(&self, u: T, v: T) -> (T, T, T);
 }
-
-pub trait Plane3DTransform<T: Scalar> {
-    /// 点を平面に対して鏡面反射
-    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
-}
-
-/// Plane3D Core トレイト（統合インターフェース）
-pub trait Plane3DCore<T: Scalar>: Plane3DConstructor<T> + Plane3DProperties<T> {}

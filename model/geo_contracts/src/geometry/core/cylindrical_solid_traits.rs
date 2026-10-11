@@ -67,21 +67,3 @@ pub trait CylindricalSolid3DContainment<T: Scalar> {
 pub trait CylindricalSolid3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
-
-pub trait CylindricalSolid3DEvaluation<T: Scalar> {
-    fn point_at_cylindrical(&self, r: T, theta: T, z: T) -> (T, T, T);
-}
-
-pub trait CylindricalSolid3DProjection<T: Scalar> {
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
-}
-
-pub trait CylindricalSolid3DCore<T: Scalar>:
-    CylindricalSolid3DConstructor<T> + CylindricalSolid3DProperties<T>
-{
-}
-
-impl<T: Scalar, Solid> CylindricalSolid3DCore<T> for Solid where
-    Solid: CylindricalSolid3DConstructor<T> + CylindricalSolid3DProperties<T>
-{
-}

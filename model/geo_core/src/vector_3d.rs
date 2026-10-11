@@ -312,8 +312,8 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
 
 use analysis::linalg::vector::Vector3;
 use geo_contracts::{
-    Vector3DConstructor, Vector3DCore, Vector3DMetric, Vector3DProduct, Vector3DProjection,
-    Vector3DProperties, Vector3DRelation,
+    Vector3DConstructor, Vector3DMetric, Vector3DProduct, Vector3DProjection, Vector3DProperties,
+    Vector3DRelation,
 };
 
 impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
@@ -462,8 +462,6 @@ impl<T: Scalar> Vector3DProjection<T> for Vector3D<T> {
         Some(*self - proj)
     }
 }
-
-impl<T: Scalar> Vector3DCore<T> for Vector3D<T> {}
 
 impl<T: Scalar> TolerantEq<T> for Vector3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {

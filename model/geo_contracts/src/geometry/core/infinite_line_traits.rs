@@ -205,23 +205,3 @@ pub trait InfiniteLine3DTransform<T: Scalar> {
     where
         Self: Sized;
 }
-
-pub trait InfiniteLine2DCore<T: Scalar>:
-    InfiniteLine2DConstructor<T> + InfiniteLine2DProperties<T>
-{
-}
-
-pub trait InfiniteLine3DCore<T: Scalar>:
-    InfiniteLine3DConstructor<T> + InfiniteLine3DProperties<T>
-{
-}
-
-impl<T: Scalar, L> InfiniteLine2DCore<T> for L where
-    L: InfiniteLine2DConstructor<T> + InfiniteLine2DProperties<T>
-{
-}
-
-impl<T: Scalar, L> InfiniteLine3DCore<T> for L where
-    L: InfiniteLine3DConstructor<T> + InfiniteLine3DProperties<T>
-{
-}

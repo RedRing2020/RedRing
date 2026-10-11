@@ -91,14 +91,3 @@ pub trait NurbsCurve2DDerived<T: Scalar> {
     /// パラメータ t での曲率を計算
     fn curvature_at(&self, t: T) -> T;
 }
-
-/// NurbsCurve2D の互換 Core trait
-pub trait NurbsCurve2DCore<T: Scalar>:
-    NurbsCurve2DConstructor<T> + NurbsCurve2DProperties<T>
-{
-}
-
-impl<T: Scalar, Curve> NurbsCurve2DCore<T> for Curve where
-    Curve: NurbsCurve2DConstructor<T> + NurbsCurve2DProperties<T>
-{
-}

@@ -58,13 +58,3 @@ pub trait SphericalSurface3DDistance<T: Scalar> {
 pub trait SphericalSurface3DProjection<T: Scalar> {
     fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
 }
-
-pub trait SphericalSurface3DCore<T: Scalar>:
-    SphericalSurface3DConstructor<T> + SphericalSurface3DProperties<T>
-{
-}
-
-impl<T: Scalar, Surface> SphericalSurface3DCore<T> for Surface where
-    Surface: SphericalSurface3DConstructor<T> + SphericalSurface3DProperties<T>
-{
-}

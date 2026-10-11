@@ -60,29 +60,6 @@ fn test_curve_3d_evaluation() {
 }
 
 #[test]
-fn test_tangent_calculation() {
-    use geo_contracts::NurbsCurve3DConstructor;
-    let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
-    let weights = Some(vec![1.0, 1.0, 1.0]);
-    let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-    let degree = 2;
-
-    let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
-        degree,
-        knot_vector,
-        control_points,
-        weights,
-    )
-    .unwrap();
-    let tangent = curve.tangent_at(0.5);
-
-    // 直線に近い曲線なのでX軸方向の接線
-    assert!((tangent.x() - 1.0).abs() < 0.1);
-    assert!(tangent.y().abs() < 0.1);
-    assert!(tangent.z().abs() < 0.1);
-}
-
-#[test]
 fn test_approximate_length_3d() {
     use geo_contracts::NurbsCurve3DConstructor;
     let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];

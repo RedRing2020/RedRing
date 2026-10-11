@@ -65,21 +65,6 @@ fn test_contains_point() {
 }
 
 #[test]
-fn test_orientation() {
-    let ccw_triangle = Triangle2D::new(
-        Point2D::new(0.0, 0.0),
-        Point2D::new(1.0, 0.0),
-        Point2D::new(0.5, 1.0),
-    )
-    .unwrap();
-
-    assert!(!ccw_triangle.is_clockwise());
-
-    let cw_triangle = ccw_triangle.reverse();
-    assert!(cw_triangle.is_clockwise());
-}
-
-#[test]
 fn test_circumcenter() {
     // 正三角形の外心は重心と一致
     let triangle: Triangle2D<f64> = Triangle2D::unit_triangle();

@@ -230,19 +230,3 @@ pub trait Direction3DTransform<T: Scalar> {
     /// 指定軸周りの回転
     fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self;
 }
-
-/// Direction2Dの3つのCore機能統合トレイト
-pub trait Direction2DCore<T: Scalar>: Direction2DConstructor<T> + Direction2DProperties<T> {}
-
-/// Direction3Dの3つのCore機能統合トレイト
-pub trait Direction3DCore<T: Scalar>: Direction3DConstructor<T> + Direction3DProperties<T> {}
-
-impl<T: Scalar, Direction> Direction2DCore<T> for Direction where
-    Direction: Direction2DConstructor<T> + Direction2DProperties<T>
-{
-}
-
-impl<T: Scalar, Direction> Direction3DCore<T> for Direction where
-    Direction: Direction3DConstructor<T> + Direction3DProperties<T>
-{
-}

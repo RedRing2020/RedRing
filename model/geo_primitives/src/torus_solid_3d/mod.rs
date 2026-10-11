@@ -227,7 +227,6 @@ impl<T: Scalar> TorusSolid3D<T> {
 
 use geo_contracts::{
     TorusSolid3DConstructor, TorusSolid3DContainment, TorusSolid3DDerived, TorusSolid3DDistance,
-    TorusSolid3DEvaluation, TorusSolid3DProjection,
     TorusSolid3DProperties as ContractsTorusSolid3DProperties,
 };
 
@@ -399,79 +398,5 @@ impl<T: Scalar> TorusSolid3DDistance<T> for TorusSolid3D<T> {
         let cross_section_distance =
             (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
         (cross_section_distance - self.minor_radius).max(T::ZERO)
-    }
-}
-
-impl<T: Scalar> TorusSolid3DEvaluation<T> for TorusSolid3D<T> {
-    fn point_at_toroidal(&self, u: T, v: T) -> (T, T, T) {
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-        let cos_v = v.cos();
-        let sin_v = v.sin();
-
-        let o = self.origin;
-        let x_axis = self.x_axis.as_vector();
-        let y_axis = self.y_axis_internal().as_vector();
-        let z_axis = self.z_axis.as_vector();
-
-        let r_major = self.major_radius;
-        let r_minor = self.minor_radius;
-
-        let circle_radius = r_major + r_minor * cos_v;
-
-        let x = o.x()
-            + circle_radius * cos_u * x_axis.x()
-            + circle_radius * sin_u * y_axis.x()
-            + r_minor * sin_v * z_axis.x();
-        let y = o.y()
-            + circle_radius * cos_u * x_axis.y()
-            + circle_radius * sin_u * y_axis.y()
-            + r_minor * sin_v * z_axis.y();
-        let z = o.z()
-            + circle_radius * cos_u * x_axis.z()
-            + circle_radius * sin_u * y_axis.z()
-            + r_minor * sin_v * z_axis.z();
-
-        (x, y, z)
-    }
-}
-
-impl<T: Scalar> TorusSolid3DProjection<T> for TorusSolid3D<T> {
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let local = p - self.origin;
-        let z_axis = self.z_axis;
-        let z_component = local.dot(&z_axis.as_vector());
-        let radial_vector = local - (z_axis.as_vector() * z_component);
-        let radial_distance = radial_vector.length();
-
-        let radial_dir = if radial_distance > T::EPSILON {
-            radial_vector / radial_distance
-        } else {
-            self.x_axis.as_vector()
-        };
-
-        let torus_center = radial_dir * self.major_radius;
-        let to_surface = Vector3D::new(
-            local.x() - torus_center.x(),
-            local.y() - torus_center.y(),
-            local.z() - torus_center.z(),
-        );
-        let distance_to_tube = to_surface.length();
-
-        let surface_dir = if distance_to_tube > T::EPSILON {
-            to_surface / distance_to_tube
-        } else {
-            z_axis.as_vector()
-        };
-
-        let surface_point = torus_center + surface_dir * self.minor_radius;
-        let o = self.origin;
-
-        (
-            o.x() + surface_point.x(),
-            o.y() + surface_point.y(),
-            o.z() + surface_point.z(),
-        )
     }
 }

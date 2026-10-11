@@ -93,7 +93,3 @@ pub trait Point3DInterpolation<T: Scalar> {
     fn midpoint(&self, other: &Self) -> Self;
     fn lerp(&self, other: &Self, t: T) -> Self;
 }
-
-pub trait Point2DCore<T: Scalar>: Point2DConstructor<T> + Point2DProperties<T> {}
-
-pub trait Point3DCore<T: Scalar>: Point3DConstructor<T> + Point3DProperties<T> {}

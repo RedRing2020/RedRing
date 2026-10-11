@@ -11,9 +11,8 @@ mod transform;
 
 use crate::{Direction3D, InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
-    AngleBetween, CrossDistance, DirectionalRelation, ParallelRelation, PointsTowards,
-    Ray3DConstructor, Ray3DContainment, Ray3DDistance, Ray3DEvaluation, Ray3DProjection,
-    Ray3DProperties, Ray3DTransform, Scalar,
+    AngleBetween, CrossDistance, ParallelRelation, Ray3DConstructor, Ray3DContainment,
+    Ray3DDistance, Ray3DEvaluation, Ray3DProjection, Ray3DProperties, Ray3DTransform, Scalar,
 };
 
 /// 3次元半無限直線
@@ -116,16 +115,6 @@ impl<T: Scalar> Ray3D<T> {
     pub fn is_parallel_to(&self, other: &Self) -> bool {
         let cross = self.direction.cross(&other.direction);
         cross.length() < geo_contracts::default_distance_tolerance::<T>()
-    }
-
-    /// 他の Ray と同方向かを判定
-    pub fn is_same_direction(&self, other: &Self) -> bool {
-        self.is_parallel_to(other) && self.direction.dot(&other.direction) > T::ZERO
-    }
-
-    /// 他の Ray と逆方向かを判定
-    pub fn is_opposite_direction(&self, other: &Self) -> bool {
-        self.is_parallel_to(other) && self.direction.dot(&other.direction) < T::ZERO
     }
 
     /// 他の Ray との角度を返す
@@ -497,26 +486,9 @@ impl<T: Scalar> CrossDistance<T, Self> for Ray3D<T> {
     }
 }
 
-impl<T: Scalar> PointsTowards<(T, T, T)> for Ray3D<T> {
-    fn points_towards(&self, target: (T, T, T)) -> bool {
-        let target_direction = Vector3D::new(target.0, target.1, target.2);
-        self.direction.as_vector().dot(&target_direction) > T::ZERO
-    }
-}
-
 impl<T: Scalar> ParallelRelation<Self> for Ray3D<T> {
     fn is_parallel_to(&self, other: &Self) -> bool {
         Ray3D::is_parallel_to(self, other)
-    }
-}
-
-impl<T: Scalar> DirectionalRelation<Self> for Ray3D<T> {
-    fn is_same_direction(&self, other: &Self) -> bool {
-        Ray3D::is_same_direction(self, other)
-    }
-
-    fn is_opposite_direction(&self, other: &Self) -> bool {
-        Ray3D::is_opposite_direction(self, other)
     }
 }
 

@@ -212,11 +212,3 @@ pub trait Ray3DTransform<T: Scalar> {
     where
         Self: Sized;
 }
-
-pub trait Ray2DCore<T: Scalar>: Ray2DConstructor<T> + Ray2DProperties<T> {}
-
-pub trait Ray3DCore<T: Scalar>: Ray3DConstructor<T> + Ray3DProperties<T> {}
-
-impl<T: Scalar, R> Ray2DCore<T> for R where R: Ray2DConstructor<T> + Ray2DProperties<T> {}
-
-impl<T: Scalar, R> Ray3DCore<T> for R where R: Ray3DConstructor<T> + Ray3DProperties<T> {}

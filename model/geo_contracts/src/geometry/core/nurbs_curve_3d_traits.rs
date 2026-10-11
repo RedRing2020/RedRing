@@ -91,14 +91,3 @@ pub trait NurbsCurve3DEvaluation<T: Scalar> {
         self.evaluate(u)
     }
 }
-
-/// NurbsCurve3D の互換 Core trait
-pub trait NurbsCurve3DCore<T: Scalar>:
-    NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>
-{
-}
-
-impl<T: Scalar, Curve> NurbsCurve3DCore<T> for Curve where
-    Curve: NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>
-{
-}

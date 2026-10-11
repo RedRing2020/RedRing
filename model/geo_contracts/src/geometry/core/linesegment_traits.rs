@@ -190,25 +190,3 @@ pub trait LineSegment3DProjection<T: Scalar> {
     /// 点から線分への最近点を計算
     fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
 }
-
-/// LineSegment2Dの3つのCore機能統合トレイト
-pub trait LineSegment2DCore<T: Scalar>:
-    LineSegment2DConstructor<T> + LineSegment2DProperties<T>
-{
-}
-
-/// LineSegment3Dの3つのCore機能統合トレイト
-pub trait LineSegment3DCore<T: Scalar>:
-    LineSegment3DConstructor<T> + LineSegment3DProperties<T>
-{
-}
-
-impl<T: Scalar, L> LineSegment2DCore<T> for L where
-    L: LineSegment2DConstructor<T> + LineSegment2DProperties<T>
-{
-}
-
-impl<T: Scalar, L> LineSegment3DCore<T> for L where
-    L: LineSegment3DConstructor<T> + LineSegment3DProperties<T>
-{
-}

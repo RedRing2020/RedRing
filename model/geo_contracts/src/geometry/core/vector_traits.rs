@@ -136,7 +136,3 @@ pub trait Vector3DProjection<T: Scalar> {
     where
         Self: Sized;
 }
-
-pub trait Vector2DCore<T: Scalar>: Vector2DConstructor<T> + Vector2DProperties<T> {}
-
-pub trait Vector3DCore<T: Scalar>: Vector3DConstructor<T> + Vector3DProperties<T> {}
