@@ -2,6 +2,12 @@
 //!
 //! 3次元円弧の基本実装とコンストラクタ、アクセサメソッド
 
+mod bounds;
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Angle, Direction3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
 use geo_contracts::{
@@ -20,12 +26,12 @@ use geo_contracts::{
 /// - 基本的な幾何プロパティ
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc3D<T: Scalar> {
-    pub(crate) center: Point3D<T>,
-    pub(crate) radius: T,
-    pub(crate) normal: Direction3D<T>, // 円弧平面の法線ベクトル（正規化済み）
-    pub(crate) start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
-    pub(crate) start_angle: Angle<T>,  // 開始角度
-    pub(crate) end_angle: Angle<T>,    // 終了角度
+    center: Point3D<T>,
+    radius: T,
+    normal: Direction3D<T>,    // 円弧平面の法線ベクトル（正規化済み）
+    start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
+    start_angle: Angle<T>,     // 開始角度
+    end_angle: Angle<T>,       // 終了角度
 }
 
 impl<T: Scalar> geo_contracts::PrimitiveMetadata for Arc3D<T> {
@@ -36,8 +42,8 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for Arc3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for Arc3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let center_distance = self.center_internal().distance_to(&other.center_internal());
-        let radius_diff = (self.radius_internal() - other.radius_internal()).abs();
+        let center_distance = self.center.distance_to(&other.center);
+        let radius_diff = (self.radius - other.radius).abs();
         let start_angle_diff = (self.start_angle() - other.start_angle())
             .to_radians()
             .abs();
@@ -110,16 +116,6 @@ impl<T: Scalar> Arc3D<T> {
         let normal = Direction3D::from_vector(Vector3D::unit_z())?;
         let start_dir = Direction3D::from_vector(Vector3D::unit_x())?;
         Self::new(center, radius, normal, start_dir, start_angle, end_angle)
-    }
-
-    /// 円弧の中心点を取得（内部使用）
-    pub(crate) fn center_internal(&self) -> Point3D<T> {
-        self.center
-    }
-
-    /// 円弧の半径を取得（内部使用）
-    pub(crate) fn radius_internal(&self) -> T {
-        self.radius
     }
 
     /// 円弧平面の法線ベクトルを取得
@@ -469,36 +465,5 @@ impl<T: Scalar> Arc3D<T> {
         let v_axis = self.normal.as_vector().cross(&u_axis);
         let angle = to_point.dot(&v_axis).atan2(to_point.dot(&u_axis));
         self.contains_angle(Angle::from_radians(angle))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{Direction3D, Point3D, Vector3D};
-    use geo_contracts::TolerantEq;
-
-    #[test]
-    fn test_tolerant_eq() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
-        let start_dir = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let start_angle = geo_contracts::Angle::from_radians(0.0);
-        let end_angle = geo_contracts::Angle::from_radians(std::f64::consts::PI);
-
-        let arc1 = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();
-        let arc2 = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();
-        let arc3 = Arc3D::new(
-            Point3D::new(1.0, 0.0, 0.0),
-            5.0,
-            normal,
-            start_dir,
-            start_angle,
-            end_angle,
-        )
-        .unwrap();
-
-        assert!(arc1.tolerant_eq(&arc2, 0.01));
-        assert!(!arc1.tolerant_eq(&arc3, 0.01));
     }
 }

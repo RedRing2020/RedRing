@@ -8,11 +8,13 @@ use crate::{
 };
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{
+    Circle3DProperties, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
+};
+use geo_contracts::{
     Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
     Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, PointClassification,
     PrimitiveKind, PrimitiveMetadata, Scalar,
 };
-use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
 /// 3次元楕円（Core実装）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -67,13 +69,14 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 3D円から楕円を作成
     pub fn from_circle(circle: &Circle3D<T>) -> Option<Self> {
-        let normal_dir = circle.normal_internal();
-        let u_axis_dir = circle.ref_direction_internal();
+        let normal_dir = circle.normal();
+        let (rx, ry, rz) = Circle3DProperties::ref_direction(circle);
+        let u_axis_dir = Direction3D::from_vector(Vector3D::new(rx, ry, rz))?;
 
         Some(Self {
-            center: circle.center_internal(),
-            semi_major_axis: circle.radius_internal(),
-            semi_minor_axis: circle.radius_internal(),
+            center: Point3D::from_tuple(Circle3DProperties::center(circle)),
+            semi_major_axis: Circle3DProperties::radius(circle),
+            semi_minor_axis: Circle3DProperties::radius(circle),
             normal: normal_dir,
             major_axis_dir: u_axis_dir,
         })

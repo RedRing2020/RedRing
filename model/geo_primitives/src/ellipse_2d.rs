@@ -10,7 +10,9 @@ use geo_contracts::{
     Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties,
     PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
-use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
+use geo_contracts::{
+    Circle2DProperties, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
+};
 
 /// 2次元楕円
 ///
@@ -54,9 +56,9 @@ impl<T: Scalar> Ellipse2D<T> {
     /// 円から楕円を作成
     pub fn from_circle(circle: Circle2D<T>) -> Self {
         Self {
-            center: circle.center_internal(),
-            semi_major: circle.radius_internal(),
-            semi_minor: circle.radius_internal(),
+            center: Point2D::from_tuple(Circle2DProperties::center(&circle)),
+            semi_major: Circle2DProperties::radius(&circle),
+            semi_minor: Circle2DProperties::radius(&circle),
             rotation: T::ZERO,
         }
     }

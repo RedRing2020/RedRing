@@ -42,9 +42,18 @@ mod tests {
         let circle = Circle2D::new(Point2D::new(1.0, 2.0), 3.0).unwrap();
         let ellipse = Ellipse2D::from_circle(circle);
 
-        assert_eq!(ellipse.center_internal(), circle.center_internal());
-        assert_eq!(ellipse.semi_major_internal(), circle.radius_internal());
-        assert_eq!(ellipse.semi_minor_internal(), circle.radius_internal());
+        assert_eq!(
+            ellipse.center_internal(),
+            Point2D::from_tuple(geo_contracts::Circle2DProperties::center(&circle))
+        );
+        assert_eq!(
+            ellipse.semi_major_internal(),
+            geo_contracts::Circle2DProperties::radius(&circle)
+        );
+        assert_eq!(
+            ellipse.semi_minor_internal(),
+            geo_contracts::Circle2DProperties::radius(&circle)
+        );
         assert!(ellipse.is_circle(TOLERANCE_F64));
     }
 
@@ -74,7 +83,7 @@ mod tests {
 
         // 円への変換
         let circle = circle_ellipse.to_circle().unwrap();
-        assert_eq!(circle.radius_internal(), 3.0);
+        assert_eq!(geo_contracts::Circle2DProperties::radius(&circle), 3.0);
     }
 
     #[test]

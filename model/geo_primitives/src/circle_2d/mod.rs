@@ -3,6 +3,13 @@
 //! Foundation統一システムに基づくCircle2Dの必須機能のみ
 //! STEP (ISO 10303) 準拠の ref_direction フィールドでArc変換に対応
 
+mod bounds;
+mod extensions;
+mod metrics;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Direction2D, Point2D};
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
@@ -57,21 +64,6 @@ impl<T: Scalar> Circle2D<T> {
         } else {
             None
         }
-    }
-
-    /// 中心を取得（内部用）
-    pub(crate) fn center_internal(&self) -> Point2D<T> {
-        self.center
-    }
-
-    /// 半径を取得（内部用）
-    pub(crate) fn radius_internal(&self) -> T {
-        self.radius
-    }
-
-    /// 参照方向を取得（内部用）
-    pub(crate) fn ref_direction_internal(&self) -> Direction2D<T> {
-        self.ref_direction
     }
 
     /// バウンディングボックスを取得
@@ -266,21 +258,21 @@ impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
 
 impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
     fn center(&self) -> (T, T) {
-        let c = self.center_internal();
+        let c = self.center;
         (c.x(), c.y())
     }
 
     fn radius(&self) -> T {
-        self.radius_internal()
+        self.radius
     }
 
     fn ref_direction(&self) -> (T, T) {
-        let r = self.ref_direction_internal();
+        let r = self.ref_direction;
         (r.x(), r.y())
     }
 
     fn diameter(&self) -> T {
-        let r = self.radius_internal();
+        let r = self.radius;
         r + r
     }
 
@@ -289,17 +281,17 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
     }
 
     fn is_unit_circle(&self) -> bool {
-        (self.radius_internal() - T::ONE).abs() <= default_distance_tolerance::<T>()
+        (self.radius - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_centered_at_origin(&self) -> bool {
-        let c = self.center_internal();
+        let c = self.center;
         c.x().abs() <= default_distance_tolerance::<T>()
             && c.y().abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_degenerate(&self) -> bool {
-        self.radius_internal() <= default_distance_tolerance::<T>()
+        self.radius <= default_distance_tolerance::<T>()
     }
 }
 

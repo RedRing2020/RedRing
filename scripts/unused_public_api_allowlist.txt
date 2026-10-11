@@ -18,8 +18,11 @@ model/geo_core/src/similarity_transform_3d.rs:renormalized
 # 形状の定義パラメータ・構成要素の基本の取得
 model/geo_core/src/vector_2d.rs:components
 model/geo_core/src/vector_3d.rs:components
-model/geo_primitives/src/arc_2d.rs:circle
+model/geo_primitives/src/arc_2d/mod.rs:circle
 model/geo_primitives/src/line_segment_2d/mod.rs:support_line
 model/geo_primitives/src/line_segment_3d/mod.rs:support_line
 model/geo_topology/src/topology_core.rs:curve
 model/geo_topology/src/topology_validator.rs:tolerances
+
+# 形状の基本の生成
+model/geo_primitives/src/arc_2d/mod.rs:from_center_radius

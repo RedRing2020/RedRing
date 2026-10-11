@@ -48,15 +48,15 @@ impl<T: Scalar> Circle2D<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
         Point2D::new(
-            self.center_internal().x() + self.radius_internal() * cos_a,
-            self.center_internal().y() + self.radius_internal() * sin_a,
+            self.center.x() + self.radius * cos_a,
+            self.center.y() + self.radius * sin_a,
         )
     }
 
     /// 円を指定倍率でスケール
     pub fn scale(&self, factor: T) -> Option<Self> {
         if factor > T::ZERO {
-            Self::new(self.center_internal(), self.radius_internal() * factor)
+            Self::new(self.center, self.radius * factor)
         } else {
             None
         }
@@ -64,22 +64,22 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 円を指定ベクトルで平行移動
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
-        Self::new(self.center_internal() + offset, self.radius_internal()).unwrap()
+        Self::new(self.center + offset, self.radius).unwrap()
     }
 
     /// 他の円を完全に含むかを判定
     pub fn contains_circle(&self, other: &Self) -> bool {
-        let distance = self.center_internal().distance_to(&other.center_internal());
-        distance + other.radius_internal() <= self.radius_internal()
+        let distance = self.center.distance_to(&other.center);
+        distance + other.radius <= self.radius
     }
 
     /// 3次元円に拡張（Z=0平面）
     pub fn to_3d(&self) -> crate::Circle3D<T> {
         use crate::Direction3D;
         crate::Circle3D::new(
-            self.center_internal().to_3d(),
+            self.center.to_3d(),
             Direction3D::positive_z(), // Z軸法線
-            self.radius_internal(),
+            self.radius,
         )
         .unwrap()
     }

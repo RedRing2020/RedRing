@@ -63,7 +63,7 @@ fn circle_3d_maps_every_parameter_and_scales_radius() {
     let circle = Circle3D::new_xy_plane(Point3D::new(1.0, 0.0, 0.0), 2.0).unwrap();
     let moved = circle.transform_similarity(&transform_3d()).unwrap();
 
-    assert!((moved.radius_internal() - 4.0).abs() < TOLERANCE_F64);
+    assert!((geo_contracts::Circle3DProperties::radius(&moved) - 4.0).abs() < TOLERANCE_F64);
     for t in PARAMS {
         let expected = map3(Circle3DEvaluation::point_at_parameter(&circle, t));
         let actual = Point3D::from(Circle3DEvaluation::point_at_parameter(&moved, t));
@@ -153,12 +153,19 @@ fn circle_2d_scales_radius_and_keeps_points_on_circle() {
     let circle = Circle2D::new(Point2D::new(1.0, 0.0), 2.0).unwrap();
     let moved = circle.transform_similarity(&transform_2d()).unwrap();
 
-    assert_point2_eq(moved.center_internal(), map2(circle.center_internal()));
-    assert!((moved.radius_internal() - 4.0).abs() < TOLERANCE_F64);
+    assert_point2_eq(
+        Point2D::from_tuple(geo_contracts::Circle2DProperties::center(&moved)),
+        map2(Point2D::from_tuple(
+            geo_contracts::Circle2DProperties::center(&circle),
+        )),
+    );
+    assert!((geo_contracts::Circle2DProperties::radius(&moved) - 4.0).abs() < TOLERANCE_F64);
     // 2D の円のパラメータはグローバル X 軸基準のため、点の集合として一致を確認する
     for t in PARAMS {
         let mapped = map2(circle.point_at_parameter(t));
-        let distance = mapped.distance_to(&moved.center_internal());
+        let distance = mapped.distance_to(&Point2D::from_tuple(
+            geo_contracts::Circle2DProperties::center(&moved),
+        ));
         assert!((distance - 4.0).abs() < TOLERANCE_F64);
     }
 }
@@ -184,10 +191,10 @@ fn arc_2d_adds_rotation_to_angles_and_maps_endpoints() {
         assert_point2_eq(actual, expected);
     }
     // 開始角は [0, 2π) に正規化し、掃引角は保つ
-    let start = moved.start_angle.to_radians();
+    let start = moved.start_angle().to_radians();
     assert!((0.0..2.0 * PI).contains(&start));
-    let sweep = (moved.end_angle - moved.start_angle).to_radians();
-    assert!((sweep - (arc.end_angle - arc.start_angle).to_radians()).abs() < TOLERANCE_F64);
+    let sweep = (moved.end_angle() - moved.start_angle()).to_radians();
+    assert!((sweep - (arc.end_angle() - arc.start_angle()).to_radians()).abs() < TOLERANCE_F64);
 }
 
 #[test]

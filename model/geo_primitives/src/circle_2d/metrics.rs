@@ -6,17 +6,17 @@ use geo_contracts::Scalar;
 impl<T: Scalar> Circle2D<T> {
     /// 直径を取得
     pub fn diameter(&self) -> T {
-        self.radius_internal() + self.radius_internal() // 2.0 * self.radius_internal()と同等、但しT型対応
+        self.radius + self.radius // 2.0 * self.radiusと同等、但しT型対応
     }
 
     /// 点から円の中心までの距離
     pub fn distance_to_center(&self, point: Point2D<T>) -> T {
-        point.distance_to(&self.center_internal())
+        point.distance_to(&self.center)
     }
 
     /// 点から円周までの符号付き距離
     pub fn signed_distance_to_circle(&self, point: Point2D<T>) -> T {
-        self.distance_to_center(point) - self.radius_internal()
+        self.distance_to_center(point) - self.radius
     }
 }
 
