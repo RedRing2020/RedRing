@@ -10,34 +10,14 @@ pub use geo_core::TransformError;
 // 3D プリミティブ
 mod arc_3d;
 mod circle_3d;
-pub mod conical_solid_3d;
-pub mod conical_solid_3d_bounds;
-pub mod conical_solid_3d_extensions;
-pub mod conical_solid_3d_transform;
-pub mod conical_surface_3d;
-pub mod conical_surface_3d_bounds;
-pub mod conical_surface_3d_extensions;
-pub mod conical_surface_3d_transform;
-pub mod cylindrical_solid_3d;
-pub mod cylindrical_solid_3d_bounds;
-pub mod cylindrical_solid_3d_extensions;
-#[cfg(test)]
-pub mod cylindrical_solid_3d_tests;
-pub mod cylindrical_solid_3d_transform;
-pub mod cylindrical_surface_3d;
-pub mod cylindrical_surface_3d_bounds;
-pub mod cylindrical_surface_3d_extensions;
-#[cfg(test)]
-pub mod cylindrical_surface_3d_tests;
-pub mod cylindrical_surface_3d_transform;
+mod conical_solid_3d;
+mod conical_surface_3d;
+mod cylindrical_solid_3d;
+mod cylindrical_surface_3d;
 mod ellipse_3d;
 mod ellipse_arc_3d;
-pub mod ellipsoidal_solid_3d;
-pub mod ellipsoidal_solid_3d_bounds;
-pub mod ellipsoidal_solid_3d_transform;
-pub mod ellipsoidal_surface_3d;
-pub mod ellipsoidal_surface_3d_bounds;
-pub mod ellipsoidal_surface_3d_transform;
+mod ellipsoidal_solid_3d;
+mod ellipsoidal_surface_3d;
 mod infinite_line_3d;
 mod line_segment_3d;
 mod plane_3d;
@@ -46,22 +26,10 @@ mod plane_3d;
 
 mod ray_3d;
 mod rectangle_3d;
-pub mod spherical_solid_3d;
-pub mod spherical_solid_3d_bounds;
-#[cfg(test)]
-pub mod spherical_solid_3d_tests;
-pub mod spherical_solid_3d_transform;
-pub mod spherical_surface_3d;
-pub mod spherical_surface_3d_bounds;
-pub mod spherical_surface_3d_transform;
-pub mod torus_solid_3d;
-pub mod torus_solid_3d_bounds;
-pub mod torus_solid_3d_extensions;
-pub mod torus_solid_3d_transform;
-pub mod torus_surface_3d;
-pub mod torus_surface_3d_bounds;
-pub mod torus_surface_3d_extensions;
-pub mod torus_surface_3d_transform;
+mod spherical_solid_3d;
+mod spherical_surface_3d;
+mod torus_solid_3d;
+mod torus_surface_3d;
 mod triangle_3d;
 mod triangle_mesh_3d;
 
