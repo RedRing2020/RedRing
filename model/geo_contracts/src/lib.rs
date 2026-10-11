@@ -97,12 +97,11 @@ pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{
     Aabb2DRelation, Aabb3DRelation, AdvancedCollision, AngleBetween, AngularRelation,
     BBoxCollision, BasicCollision, BasicIntersection, ClosestPointPair, Contains, CrossDistance,
-    DirectionalRelation, DistanceConvergenceError, EllipseAccuracyAnalysis,
-    EllipseAdaptiveCalculation, EllipseCalculation, FallibleCrossDistance, IntersectsRelation,
-    MultipleIntersection, OnPlaneRelation, ParallelRelation, PerpendicularRelation,
-    PointClassification, PointDistance, PointsTowards, SameLineRelation, SelfIntersection,
-    SimilarityTransform2DCore, SimilarityTransform3DCore, SimilarityTransformable2D,
-    SimilarityTransformable3D, SkewRelation, TransformError,
+    DirectionalRelation, DistanceConvergenceError, EllipseCalculation, FallibleCrossDistance,
+    IntersectsRelation, MultipleIntersection, OnPlaneRelation, ParallelRelation,
+    PerpendicularRelation, PointClassification, PointDistance, PointsTowards, SameLineRelation,
+    SelfIntersection, SimilarityTransform2DCore, SimilarityTransform3DCore,
+    SimilarityTransformable2D, SimilarityTransformable3D, SkewRelation, TransformError,
 };
 pub use tolerance::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,

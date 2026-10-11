@@ -1,10 +1,5 @@
 //! 二次曲面・トーラス（面・立体）の相似変換テスト
 
-use crate::{
-    ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D, Direction3D,
-    EllipsoidalSolid3D, EllipsoidalSurface3D, Point3D, SimilarityTransform3D, SphericalSolid3D,
-    SphericalSurface3D, TorusSolid3D, TorusSurface3D, Vector3D,
-};
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, ConicalSolid3DContainment, ConicalSolid3DDerived, ConicalSurface3DEvaluation,
@@ -13,6 +8,11 @@ use geo_contracts::{
     SimilarityTransformable3D, SphericalSolid3DContainment, SphericalSolid3DDerived,
     SphericalSurface3DEvaluation, TorusSolid3DContainment, TorusSolid3DDerived,
     TorusSurface3DEvaluation, TorusSurface3DProperties,
+};
+use geo_primitives::{
+    ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D, Direction3D,
+    EllipsoidalSolid3D, EllipsoidalSurface3D, Point3D, SimilarityTransform3D, SphericalSolid3D,
+    SphericalSurface3D, TorusSolid3D, TorusSurface3D, Vector3D,
 };
 
 const SCALE: f64 = 2.0;

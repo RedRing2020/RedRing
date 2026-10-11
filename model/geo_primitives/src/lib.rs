@@ -1,13 +1,20 @@
 //! 幾何プリミティブクレート
 //!
-//! モジュール公開と trait定義 の再エクスポートを提供する。
+//! 形状の型と、形状が使う基本型を再エクスポートする。形状のモジュールは private とし、
+//! trait定義は `geo_contracts` から使う。
 
-mod ellipse_calculation_analysis;
-mod ellipse_calculation_strategy;
+// 2D の形状
+mod arc_2d;
+mod circle_2d;
+mod ellipse_2d;
+mod ellipse_arc_2d;
+mod infinite_line_2d;
+mod line_segment_2d;
+mod ray_2d;
+mod rectangle_2d;
+mod triangle_2d;
 
-pub use geo_core::TransformError;
-
-// 3D プリミティブ
+// 3D の形状
 mod arc_3d;
 mod circle_3d;
 mod conical_solid_3d;
@@ -21,9 +28,6 @@ mod ellipsoidal_surface_3d;
 mod infinite_line_3d;
 mod line_segment_3d;
 mod plane_3d;
-
-// Point/Vector 実装は geo_core 側を利用する。
-
 mod ray_3d;
 mod rectangle_3d;
 mod spherical_solid_3d;
@@ -33,41 +37,25 @@ mod torus_surface_3d;
 mod triangle_3d;
 mod triangle_mesh_3d;
 
-// 3D テストモジュール
-
-// 2D プリミティブ
-mod arc_2d;
-
-mod circle_2d;
-
-mod ellipse_2d;
-mod ellipse_arc_2d;
-mod infinite_line_2d;
-mod line_segment_2d;
-mod ray_2d;
-mod rectangle_2d;
-mod triangle_2d;
-
-// テストモジュール
-#[cfg(test)]
-mod arc_angle_range_tests;
-#[cfg(test)]
-mod region_classification_tests;
-#[cfg(test)]
-mod region_distance_tests;
-#[cfg(test)]
-mod transform_circular_elliptic_tests;
-#[cfg(test)]
-mod transform_linear_planar_tests;
-#[cfg(test)]
-mod transform_quadric_torus_tests;
-
-// capability trait は geo_contracts を正本 export とし、この crate では shape 型公開を優先する。
-
 // 基本型
 pub use geo_contracts::{Angle, Scalar};
+pub use geo_core::{
+    Direction2D, Direction3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D,
+    TransformError, Vector2D, Vector3D,
+};
 
-// 3D プリミティブ
+// 2D の形状
+pub use arc_2d::Arc2D;
+pub use circle_2d::Circle2D;
+pub use ellipse_2d::Ellipse2D;
+pub use ellipse_arc_2d::EllipseArc2D;
+pub use infinite_line_2d::InfiniteLine2D;
+pub use line_segment_2d::LineSegment2D;
+pub use ray_2d::Ray2D;
+pub use rectangle_2d::Rect2D;
+pub use triangle_2d::Triangle2D;
+
+// 3D の形状
 pub use arc_3d::Arc3D;
 pub use circle_3d::Circle3D;
 pub use conical_solid_3d::ConicalSolid3D;
@@ -89,18 +77,3 @@ pub use torus_solid_3d::TorusSolid3D;
 pub use torus_surface_3d::TorusSurface3D;
 pub use triangle_3d::Triangle3D;
 pub use triangle_mesh_3d::TriangleMesh3D;
-
-// 2D プリミティブ
-pub use arc_2d::Arc2D;
-pub use circle_2d::Circle2D;
-pub use ellipse_2d::Ellipse2D;
-pub use ellipse_arc_2d::EllipseArc2D;
-pub use geo_core::{
-    Direction2D, Direction3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D,
-    Vector2D, Vector3D,
-};
-pub use infinite_line_2d::InfiniteLine2D;
-pub use line_segment_2d::LineSegment2D;
-pub use ray_2d::Ray2D;
-pub use rectangle_2d::Rect2D;
-pub use triangle_2d::Triangle2D;

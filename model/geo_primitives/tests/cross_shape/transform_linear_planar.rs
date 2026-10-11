@@ -1,14 +1,14 @@
 //! 線形・平面系形状の相似変換テスト
 
-use crate::{
-    Direction3D, InfiniteLine2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D,
-    Point3D, Ray2D, Ray3D, Rect2D, Rect3D, SimilarityTransform2D, SimilarityTransform3D,
-    Triangle2D, Triangle3D, TriangleMesh3D, Vector2D, Vector3D,
-};
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, Plane3DProperties, SimilarityTransformable2D, SimilarityTransformable3D, TransformError,
     Triangle2DBoundaryAccess, Triangle3DBoundaryAccess,
+};
+use geo_primitives::{
+    Direction3D, InfiniteLine2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D,
+    Point3D, Ray2D, Ray3D, Rect2D, Rect3D, SimilarityTransform2D, SimilarityTransform3D,
+    Triangle2D, Triangle3D, TriangleMesh3D, Vector2D, Vector3D,
 };
 
 /// z 軸まわりに 90° 回転 → (0, 0, 5) 平行移動 → 原点まわりに 2 倍

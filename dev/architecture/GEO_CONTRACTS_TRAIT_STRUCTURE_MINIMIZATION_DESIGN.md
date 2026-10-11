@@ -790,7 +790,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - `collision.rs`: `BasicCollision`, `AdvancedCollision`, `PointDistance`, `BBoxCollision`
 - `distance.rs`: `CrossDistance`, `FallibleCrossDistance`, `DistanceConvergenceError`
 - `intersection.rs`: `BasicIntersection`, `MultipleIntersection`, `SelfIntersection`
-- `ellipse_calculation_traits.rs`: `EllipseCalculation`, `EllipseAdaptiveCalculation`, `EllipseAccuracyAnalysis`
+- `ellipse_calculation.rs`: `EllipseCalculation`
 
 ## 一次分類
 
@@ -826,7 +826,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - `BasicCollision`, `AdvancedCollision`, `PointDistance`, `BBoxCollision`
 - `CrossDistance`, `FallibleCrossDistance`, `DistanceConvergenceError`
 - `BasicIntersection`, `MultipleIntersection`, `SelfIntersection`
-- `EllipseCalculation`, `EllipseAdaptiveCalculation`, `EllipseAccuracyAnalysis`
+- `EllipseCalculation`
 - `LineSegment3DCollisionDetection`
 
 ## 曖昧境界の個別判定
@@ -1163,7 +1163,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 設計反映:
 
-- `EllipseCalculation`, `EllipseAdaptiveCalculation`, `EllipseAccuracyAnalysis` は operations 側に残す
+- `EllipseCalculation` は operations 側に残す
 - ただし `geo_contracts` に置くのは trait定義の正本までとし、adaptive 選択や比較分析の default 実装は持ち込まない
 - strategy の実装本体は `geo_primitives` の impl entry point または将来的な `geo_algorithms` 側 helper へ置く
 - 近似式・距離計算の数値カーネル自体は `geo_commons` に維持し、`geo_contracts` は数値閾値や比較ロジックを保持しない
@@ -1172,10 +1172,10 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - 推奨方針は、`EllipseCalculation*` の trait定義を `geo_contracts` に残しつつ、純粋数値カーネルと impl-support を分離して扱う段階整理とする
 - `geo_commons` に残す対象は、楕円周長近似、離心率、焦点距離、焦点座標、shape 型を要求しない ellipse 距離計算のような純粋数値カーネルに限定する
-- `geo_primitives` に残す対象は、`EllipseCalculation<T>` 実装を持つ自 crate 型からのみ利用される非公開 helper とし、現時点では `ellipse_calculation_strategy.rs` と `ellipse_calculation_analysis.rs` のような impl-support をここに含める
+- `geo_primitives` には、楕円周長の近似式の adaptive 選択や比較分析の補助を置かない。呼び出し元がなかったため、`EllipseAdaptiveCalculation` / `EllipseAccuracyAnalysis` の trait定義ごと削除した
 - `geo_primitives` 内 helper は、`geo_commons` の純粋関数へ薄く委譲する構造を優先し、数値式そのものを重複実装しない
 - `geo_algorithms` へ移すのは、cross-shape 化した strategy、solver orchestration を伴う heavy strategy、または ellipse 専用 helper を超えて複数 shape family で共有される高レベル戦略に限る
-- したがって `compare_approximation_methods` のような比較分析 helper や `circumference_adaptive` のような選択ロジックは、将来的な共有需要が確認されるまでは `geo_primitives` の impl-support に留める
+- 近似式の選択や比較分析が必要になった場合は、呼び出し元とともに最低限のメソッドから追加する
 - この分類は ellipse 固有の暫定例外ではなく、後続 shape でも再利用する「trait定義は contracts、純粋数値 kernel は commons、impl entry に閉じた補助は primitives、高レベル戦略は algorithms」という配置判定ルールとして扱う
 
 `#547` の curve discretization 追加方針:
