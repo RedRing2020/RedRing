@@ -40,18 +40,12 @@ pub mod ellipsoidal_surface_3d_bounds;
 pub mod ellipsoidal_surface_3d_transform;
 mod infinite_line_3d;
 mod line_segment_3d;
-pub mod plane_3d;
-pub mod plane_3d_extensions;
-#[cfg(test)]
-pub mod plane_3d_tests;
-pub mod plane_3d_transform;
+mod plane_3d;
 
 // Point/Vector 実装は geo_core 側を利用する。
 
 mod ray_3d;
-pub mod rectangle_3d;
-pub mod rectangle_3d_bounds;
-pub mod rectangle_3d_transform;
+mod rectangle_3d;
 pub mod spherical_solid_3d;
 pub mod spherical_solid_3d_bounds;
 #[cfg(test)]
@@ -68,18 +62,10 @@ pub mod torus_surface_3d;
 pub mod torus_surface_3d_bounds;
 pub mod torus_surface_3d_extensions;
 pub mod torus_surface_3d_transform;
-pub mod triangle_3d;
-pub mod triangle_3d_bounds;
-pub mod triangle_3d_transform;
-pub mod triangle_mesh_3d;
-pub mod triangle_mesh_3d_bounds;
-pub mod triangle_mesh_3d_transform;
+mod triangle_3d;
+mod triangle_mesh_3d;
 
 // 3D テストモジュール
-#[cfg(test)]
-pub mod triangle_3d_tests;
-#[cfg(test)]
-pub mod triangle_mesh_3d_tests;
 
 // 2D プリミティブ
 mod arc_2d;
@@ -91,12 +77,8 @@ mod ellipse_arc_2d;
 mod infinite_line_2d;
 mod line_segment_2d;
 mod ray_2d;
-pub mod rectangle_2d;
-pub mod rectangle_2d_bounds;
-pub mod rectangle_2d_transform;
-pub mod triangle_2d;
-pub mod triangle_2d_bounds;
-pub mod triangle_2d_transform;
+mod rectangle_2d;
+mod triangle_2d;
 
 // テストモジュール
 #[cfg(test)]

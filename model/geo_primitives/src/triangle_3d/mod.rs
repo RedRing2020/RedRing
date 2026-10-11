@@ -2,6 +2,11 @@
 //!
 //! Foundation統一システムに基づくTriangle3Dの必須機能のみ
 
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use std::any::TypeId;
 
 use crate::{Point3D, Vector3D};
@@ -28,15 +33,9 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for Triangle3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for Triangle3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let a_distance = self
-            .vertex_a_internal()
-            .distance_to(&other.vertex_a_internal());
-        let b_distance = self
-            .vertex_b_internal()
-            .distance_to(&other.vertex_b_internal());
-        let c_distance = self
-            .vertex_c_internal()
-            .distance_to(&other.vertex_c_internal());
+        let a_distance = self.vertex_a.distance_to(&other.vertex_a);
+        let b_distance = self.vertex_b.distance_to(&other.vertex_b);
+        let c_distance = self.vertex_c.distance_to(&other.vertex_c);
 
         a_distance <= tolerance && b_distance <= tolerance && c_distance <= tolerance
     }
@@ -76,21 +75,6 @@ impl<T: Scalar> Triangle3D<T> {
     /// タプルから三角形を作成
     pub fn from_points(points: (Point3D<T>, Point3D<T>, Point3D<T>)) -> Option<Self> {
         Self::new(points.0, points.1, points.2)
-    }
-
-    /// 頂点Aを取得（内部用）
-    pub(crate) fn vertex_a_internal(&self) -> Point3D<T> {
-        self.vertex_a
-    }
-
-    /// 頂点Bを取得（内部用）
-    pub(crate) fn vertex_b_internal(&self) -> Point3D<T> {
-        self.vertex_b
-    }
-
-    /// 頂点Cを取得（内部用）
-    pub(crate) fn vertex_c_internal(&self) -> Point3D<T> {
-        self.vertex_c
     }
 
     /// 辺ABのベクトルを取得
@@ -399,17 +383,17 @@ impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
 
 impl<T: Scalar> Triangle3DBoundaryAccess<T> for Triangle3D<T> {
     fn vertex_a(&self) -> (T, T, T) {
-        let p = self.vertex_a_internal();
+        let p = self.vertex_a;
         (p.x(), p.y(), p.z())
     }
 
     fn vertex_b(&self) -> (T, T, T) {
-        let p = self.vertex_b_internal();
+        let p = self.vertex_b;
         (p.x(), p.y(), p.z())
     }
 
     fn vertex_c(&self) -> (T, T, T) {
-        let p = self.vertex_c_internal();
+        let p = self.vertex_c;
         (p.x(), p.y(), p.z())
     }
 }
@@ -490,37 +474,5 @@ impl<T: Scalar> std::fmt::Display for Triangle3D<T> {
             "Triangle3D(A: {:?}, B: {:?}, C: {:?})",
             self.vertex_a, self.vertex_b, self.vertex_c
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Point3D;
-    use geo_contracts::TolerantEq;
-
-    #[test]
-    fn test_tolerant_eq() {
-        let triangle1 = Triangle3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        )
-        .unwrap();
-        let triangle2 = Triangle3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        )
-        .unwrap();
-        let triangle3 = Triangle3D::new(
-            Point3D::new(1.0, 1.0, 1.0),
-            Point3D::new(2.0, 1.0, 1.0),
-            Point3D::new(1.0, 2.0, 1.0),
-        )
-        .unwrap();
-
-        assert!(triangle1.tolerant_eq(&triangle2, 0.01));
-        assert!(!triangle1.tolerant_eq(&triangle3, 0.01));
     }
 }

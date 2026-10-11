@@ -9,9 +9,9 @@ impl<T: Scalar> SimilarityTransformable3D<T> for Triangle3D<T> {
         transform: &X,
     ) -> Result<Self, TransformError> {
         Self::new(
-            self.vertex_a_internal().transform_similarity(transform)?,
-            self.vertex_b_internal().transform_similarity(transform)?,
-            self.vertex_c_internal().transform_similarity(transform)?,
+            self.vertex_a.transform_similarity(transform)?,
+            self.vertex_b.transform_similarity(transform)?,
+            self.vertex_c.transform_similarity(transform)?,
         )
         .ok_or_else(|| TransformError::InvalidGeometry("degenerate triangle".to_string()))
     }

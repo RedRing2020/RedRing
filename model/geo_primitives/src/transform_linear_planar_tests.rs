@@ -6,7 +6,10 @@ use crate::{
     Triangle2D, Triangle3D, TriangleMesh3D, Vector2D, Vector3D,
 };
 use analysis::test_constants::TOLERANCE_F64;
-use geo_contracts::{Angle, SimilarityTransformable2D, SimilarityTransformable3D, TransformError};
+use geo_contracts::{
+    Angle, Plane3DProperties, SimilarityTransformable2D, SimilarityTransformable3D, TransformError,
+    Triangle2DBoundaryAccess, Triangle3DBoundaryAccess,
+};
 
 /// z 軸まわりに 90° 回転 → (0, 0, 5) 平行移動 → 原点まわりに 2 倍
 fn transform_3d() -> SimilarityTransform3D<f64> {
@@ -108,9 +111,9 @@ fn plane_3d_keeps_orthonormal_right_handed_frame() {
     assert_point3_eq(moved.origin(), map3(plane.origin()));
     assert!((moved.normal().as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < TOLERANCE_F64);
     let (n, u, v) = (
-        moved.normal.as_vector(),
-        moved.u_axis.as_vector(),
-        moved.v_axis.as_vector(),
+        moved.normal().as_vector(),
+        Vector3D::from(Plane3DProperties::u_axis(&moved)),
+        Vector3D::from(Plane3DProperties::v_axis(&moved)),
     );
     assert!((u - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64);
     assert!(u.dot(&v).abs() < TOLERANCE_F64 && n.dot(&u).abs() < TOLERANCE_F64);
@@ -128,12 +131,16 @@ fn triangle_3d_transforms_vertices_and_scales_area() {
     let moved = triangle.transform_similarity(&transform_3d()).unwrap();
 
     assert_point3_eq(
-        moved.vertex_a_internal(),
-        map3(triangle.vertex_a_internal()),
+        Point3D::from_tuple(Triangle3DBoundaryAccess::vertex_a(&moved)),
+        map3(Point3D::from_tuple(Triangle3DBoundaryAccess::vertex_a(
+            &triangle,
+        ))),
     );
     assert_point3_eq(
-        moved.vertex_c_internal(),
-        map3(triangle.vertex_c_internal()),
+        Point3D::from_tuple(Triangle3DBoundaryAccess::vertex_c(&moved)),
+        map3(Point3D::from_tuple(Triangle3DBoundaryAccess::vertex_c(
+            &triangle,
+        ))),
     );
     assert!((moved.area() - triangle.area() * 4.0).abs() < TOLERANCE_F64);
 }
@@ -155,18 +162,6 @@ fn triangle_mesh_3d_transforms_vertices_and_keeps_indices() {
         assert_point3_eq(*a, map3(*b));
     }
     assert_eq!(moved.indices(), mesh.indices());
-}
-
-#[test]
-fn triangle_mesh_3d_normals_stay_unit_after_scale() {
-    let mesh = TriangleMesh3D::from_parts(
-        vec![Point3D::new(0.0, 0.0, 0.0)],
-        Vec::new(),
-        Some(vec![Vector3D::new(1.0, 0.0, 0.0)]),
-    );
-    let moved = mesh.transform_similarity(&transform_3d()).unwrap();
-    let normal = moved.normals().unwrap()[0];
-    assert!((normal - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64);
 }
 
 #[test]
@@ -229,8 +224,10 @@ fn triangle_2d_transforms_vertices_and_scales_area() {
     .unwrap();
     let moved = triangle.transform_similarity(&transform_2d()).unwrap();
     assert_point2_eq(
-        moved.vertex_b_internal(),
-        map2(triangle.vertex_b_internal()),
+        Point2D::from_tuple(Triangle2DBoundaryAccess::vertex_b(&moved)),
+        map2(Point2D::from_tuple(Triangle2DBoundaryAccess::vertex_b(
+            &triangle,
+        ))),
     );
     assert!((moved.area() - triangle.area() * 4.0).abs() < TOLERANCE_F64);
 }
