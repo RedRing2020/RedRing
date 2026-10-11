@@ -2,6 +2,12 @@
 //!
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
+mod bounds;
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{
     ellipse_calculation_analysis, ellipse_calculation_strategy, Angle, Circle3D, Direction3D,
     Point3D, Vector3D,
@@ -81,34 +87,20 @@ impl<T: Scalar> Ellipse3D<T> {
             major_axis_dir: u_axis_dir,
         })
     }
-    /// 楕円の中心点を取得（内部使用）
-    pub(crate) fn center_internal(&self) -> Point3D<T> {
-        self.center
-    }
-
-    /// 長半軸の長さを取得（内部使用）
-    pub(crate) fn semi_major_internal(&self) -> T {
-        self.semi_major_axis
-    }
-
-    /// 短半軸の長さを取得（内部使用）
-    pub(crate) fn semi_minor_internal(&self) -> T {
-        self.semi_minor_axis
-    }
 
     /// 楕円の中心点を取得
     pub fn center(&self) -> Point3D<T> {
-        self.center_internal()
+        self.center
     }
 
     /// 長半軸の長さを取得
     pub fn semi_major_axis(&self) -> T {
-        self.semi_major_internal()
+        self.semi_major_axis
     }
 
     /// 短半軸の長さを取得
     pub fn semi_minor_axis(&self) -> T {
-        self.semi_minor_internal()
+        self.semi_minor_axis
     }
 
     /// 楕円平面の法線ベクトルを取得
@@ -142,8 +134,8 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 楕円の周回長を近似計算（ラマヌジャンの公式）
     pub fn circumference(&self) -> T {
-        let a = self.semi_major_internal();
-        let b = self.semi_minor_internal();
+        let a = self.semi_major_axis;
+        let b = self.semi_minor_axis;
         let h = ((a - b) / (a + b)).powi(2);
 
         T::PI
@@ -165,14 +157,6 @@ impl<T: Scalar> Ellipse3D<T> {
         self.semi_minor_axis <= tolerance
     }
 
-    /// 円への変換（円の場合のみ）
-    pub fn to_circle(&self) -> Option<Circle3D<T>> {
-        if self.is_circle() {
-            Circle3D::new(self.center, self.normal, self.semi_major_axis)
-        } else {
-            None
-        }
-    }
     /// Primitive 局所座標系の angle parameter `t` (`0 <= t <= 2π`) で楕円上の点を計算
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         let cos_t = t.cos();

@@ -1,7 +1,13 @@
 //! 3次元楕円弧（EllipseArc3D）のCore実装
 //!
 //! Core Foundation パターンに基づく EllipseArc3D の必須機能のみ
-//! 拡張機能は ellipse_arc_3d_extensions.rs を参照
+//! 拡張機能は子モジュール extensions を参照
+
+mod bounds;
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
 
 use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_contracts::{
@@ -16,9 +22,9 @@ use geo_contracts::{
 /// 開始角度と終了角度で定義される
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EllipseArc3D<T: Scalar> {
-    pub(crate) ellipse: Ellipse3D<T>, // 基底楕円
-    pub(crate) start_angle: Angle<T>, // 開始角度
-    pub(crate) end_angle: Angle<T>,   // 終了角度
+    ellipse: Ellipse3D<T>, // 基底楕円
+    start_angle: Angle<T>, // 開始角度
+    end_angle: Angle<T>,   // 終了角度
 }
 
 impl<T: Scalar> geo_contracts::PrimitiveMetadata for EllipseArc3D<T> {
@@ -54,17 +60,17 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 中心点を取得
     pub fn center(&self) -> Point3D<T> {
-        self.ellipse.center_internal()
+        self.ellipse.center()
     }
 
     /// 長半径を取得
     pub fn semi_major(&self) -> T {
-        self.ellipse.semi_major_internal()
+        self.ellipse.semi_major_axis()
     }
 
     /// 短半径を取得
     pub fn semi_minor(&self) -> T {
-        self.ellipse.semi_minor_internal()
+        self.ellipse.semi_minor_axis()
     }
 
     /// 法線方向を取得
@@ -119,8 +125,8 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 楕円弧の有効性を検証
     pub fn is_valid(&self) -> bool {
-        self.ellipse.semi_major_internal() > T::ZERO
-            && self.ellipse.semi_minor_internal() > T::ZERO
+        self.ellipse.semi_major_axis() > T::ZERO
+            && self.ellipse.semi_minor_axis() > T::ZERO
             && self.start_angle.to_radians().is_finite()
             && self.end_angle.to_radians().is_finite()
     }
@@ -148,9 +154,9 @@ impl<T: Scalar> EllipseArc3D<T> {
 
         // 楕円をスケールして新しいEllipseArc3Dを作成
         let scaled_ellipse = Ellipse3D::new(
-            self.ellipse.center_internal(),
-            self.ellipse.semi_major_internal() * factor,
-            self.ellipse.semi_minor_internal() * factor,
+            self.ellipse.center(),
+            self.ellipse.semi_major_axis() * factor,
+            self.ellipse.semi_minor_axis() * factor,
             self.ellipse.normal().as_vector(),
             self.ellipse.major_axis_direction().as_vector(),
         )?;
@@ -312,16 +318,16 @@ impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
 
 impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
     fn center(&self) -> (T, T, T) {
-        let c = self.ellipse.center_internal();
+        let c = self.ellipse.center();
         (c.x(), c.y(), c.z())
     }
 
     fn semi_major_axis(&self) -> T {
-        self.ellipse.semi_major_internal()
+        self.ellipse.semi_major_axis()
     }
 
     fn semi_minor_axis(&self) -> T {
-        self.ellipse.semi_minor_internal()
+        self.ellipse.semi_minor_axis()
     }
 
     fn start_angle(&self) -> T {

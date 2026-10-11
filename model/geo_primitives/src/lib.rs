@@ -30,15 +30,8 @@ pub mod cylindrical_surface_3d_extensions;
 #[cfg(test)]
 pub mod cylindrical_surface_3d_tests;
 pub mod cylindrical_surface_3d_transform;
-pub mod ellipse_3d;
-pub mod ellipse_3d_bounds;
-pub mod ellipse_3d_extensions;
-pub mod ellipse_3d_transform;
-pub mod ellipse_arc_3d;
-pub mod ellipse_arc_3d_bounds;
-pub mod ellipse_arc_3d_extensions;
-pub mod ellipse_arc_3d_tests;
-pub mod ellipse_arc_3d_transform;
+mod ellipse_3d;
+mod ellipse_arc_3d;
 pub mod ellipsoidal_solid_3d;
 pub mod ellipsoidal_solid_3d_bounds;
 pub mod ellipsoidal_solid_3d_transform;
@@ -93,13 +86,8 @@ mod arc_2d;
 
 mod circle_2d;
 
-pub mod ellipse_2d;
-pub mod ellipse_2d_bounds;
-pub mod ellipse_2d_transform;
-pub mod ellipse_arc_2d;
-pub mod ellipse_arc_2d_bounds;
-pub mod ellipse_arc_2d_extensions;
-pub mod ellipse_arc_2d_transform;
+mod ellipse_2d;
+mod ellipse_arc_2d;
 mod infinite_line_2d;
 mod line_segment_2d;
 mod ray_2d;
@@ -113,12 +101,6 @@ pub mod triangle_2d_transform;
 // テストモジュール
 #[cfg(test)]
 mod arc_angle_range_tests;
-#[cfg(test)]
-mod ellipse_2d_additional_tests;
-#[cfg(test)]
-mod ellipse_2d_tests;
-#[cfg(test)]
-mod ellipse_3d_tests;
 #[cfg(test)]
 mod region_classification_tests;
 #[cfg(test)]

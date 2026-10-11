@@ -3,27 +3,18 @@
 //! Extension Foundation パターンに基づく EllipseArc2D の拡張実装
 
 use crate::{Ellipse2D, EllipseArc2D, Point2D, Vector2D};
-use geo_contracts::Scalar;
+use geo_contracts::{Ellipse2DProperties, Scalar};
 
 impl<T: Scalar> EllipseArc2D<T> {
-    // 円弧への変換候補。Arc2D は trait のため具象型が確定するまで保留。
-    // 一時的にコメントアウト: Arc2Dはトレイトなので具象型が必要
-    // pub fn to_arc(&self) -> Option<Arc2D<T>> {
-    //     let circle = self.ellipse().to_circle()?;
-    //     Arc2D::new(circle, self.start_angle(), self.end_angle())
-    // }
-
     /// 中心を移動
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
-        let new_center = Point2D::new(
-            self.ellipse().center_internal().x() + offset.x(),
-            self.ellipse().center_internal().y() + offset.y(),
-        );
+        let center = Point2D::from_tuple(Ellipse2DProperties::center(self.ellipse()));
+        let new_center = Point2D::new(center.x() + offset.x(), center.y() + offset.y());
 
         let new_ellipse = Ellipse2D::new(
             new_center,
-            self.ellipse().semi_major_internal(),
-            self.ellipse().semi_minor_internal(),
+            Ellipse2DProperties::semi_major_axis(self.ellipse()),
+            Ellipse2DProperties::semi_minor_axis(self.ellipse()),
             self.ellipse().rotation(),
         )
         .unwrap();

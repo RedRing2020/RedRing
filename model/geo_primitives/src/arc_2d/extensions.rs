@@ -94,17 +94,4 @@ impl<T: Scalar> Arc2D<T> {
     }
 
     // normalize_angle is implemented in arc_2d_containment.rs
-
-    /// Circle2D に変換（完全円の場合のみ）
-    pub fn to_circle(&self) -> Option<Circle2D<T>> {
-        // 型安全な変換のみ許可
-        if (self.angular_span() - (T::ONE + T::ONE) * T::PI).abs() <= default_angle_tolerance::<T>()
-        {
-            let center = self.center_internal();
-            let radius = self.radius_internal();
-            Some(Circle2D::new(center, radius)?)
-        } else {
-            None
-        }
-    }
 }
