@@ -15,11 +15,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         self.ellipse().tangent_at_parameter(angle)
     }
 
-    /// Primitive 局所角度系の角度で接線ベクトルを取得する convenience API
-    pub fn tangent_at_angle(&self, angle: Angle<T>) -> Vector3D<T> {
-        self.ellipse().tangent_at_parameter(angle.to_radians())
-    }
-
     /// 円から楕円弧を作成（完全な円弧）
     pub fn from_circle_arc(
         center: Point3D<T>,

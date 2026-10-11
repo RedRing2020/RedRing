@@ -10,9 +10,9 @@ impl<T: Scalar> SimilarityTransformable3D<T> for Ellipse3D<T> {
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Self::new(
-            self.center_internal().transform_similarity(transform)?,
-            self.semi_major_internal() * scale,
-            self.semi_minor_internal() * scale,
+            self.center.transform_similarity(transform)?,
+            self.semi_major_axis * scale,
+            self.semi_minor_axis * scale,
             self.normal().transform_similarity(transform)?.as_vector(),
             self.major_axis_direction()
                 .transform_similarity(transform)?

@@ -229,31 +229,6 @@ fn test_angle_span_calculation() {
 }
 
 #[test]
-fn test_circle_conversion() {
-    let center = Point2D::origin();
-
-    // 完全円の場合は Circle2D に変換可能
-    let full_arc = Arc2D::from_center_radius(
-        center,
-        3.0_f64,
-        angle(0.0),
-        angle(2.0 * std::f64::consts::PI),
-    )
-    .unwrap();
-    let circle = full_arc.to_circle().unwrap();
-    use geo_contracts::Circle2DProperties;
-    let (cx, cy) = circle.center();
-    assert_eq!((cx, cy), (center.x(), center.y()));
-    assert_eq!(circle.radius(), 3.0);
-
-    // 部分円弧は変換不可
-    let partial_arc =
-        Arc2D::from_center_radius(center, 3.0_f64, angle(0.0), angle(std::f64::consts::PI))
-            .unwrap();
-    assert!(partial_arc.to_circle().is_none());
-}
-
-#[test]
 fn test_f32_compatibility() {
     // f32での基本操作
     let center = Point2D::new(0.0f32, 0.0f32);

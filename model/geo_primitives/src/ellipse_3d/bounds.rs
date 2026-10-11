@@ -8,11 +8,11 @@ impl<T: Scalar> Bounded<T> for Ellipse3D<T> {
     type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
-        let center = self.center_internal();
+        let center = self.center;
         let major = self.major_axis_direction().as_vector();
         let minor = self.minor_axis_direction().as_vector();
-        let semi_major = self.semi_major_internal();
-        let semi_minor = self.semi_minor_internal();
+        let semi_major = self.semi_major_axis;
+        let semi_minor = self.semi_minor_axis;
 
         let x_extent = ((semi_major * major.x()) * (semi_major * major.x())
             + (semi_minor * minor.x()) * (semi_minor * minor.x()))

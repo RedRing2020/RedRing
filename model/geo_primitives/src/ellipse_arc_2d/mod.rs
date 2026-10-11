@@ -2,11 +2,17 @@
 //!
 //! Foundation統一システムに基づくEllipseArc2Dの必須機能のみ
 
+mod bounds;
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Ellipse2D, Point2D, Vector2D};
 use geo_contracts::{
-    Angle, EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DDerived,
-    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange,
-    PrimitiveKind, PrimitiveMetadata, Scalar,
+    Angle, Ellipse2DProperties, EllipseArc2DConstructor, EllipseArc2DContainment,
+    EllipseArc2DDerived, EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties,
+    EllipseArc2DTrimRange, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元楕円弧
@@ -15,9 +21,9 @@ use geo_contracts::{
 /// 開始角度と終了角度で定義される
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EllipseArc2D<T: Scalar> {
-    pub(crate) ellipse: Ellipse2D<T>, // 基底楕円
-    pub(crate) start_angle: Angle<T>, // 開始角度
-    pub(crate) end_angle: Angle<T>,   // 終了角度
+    ellipse: Ellipse2D<T>, // 基底楕円
+    start_angle: Angle<T>, // 開始角度
+    end_angle: Angle<T>,   // 終了角度
 }
 
 impl<T: Scalar> PrimitiveMetadata for EllipseArc2D<T> {
@@ -58,17 +64,17 @@ impl<T: Scalar> EllipseArc2D<T> {
 
     /// 中心点を取得
     pub fn center(&self) -> Point2D<T> {
-        self.ellipse.center_internal()
+        Point2D::from_tuple(Ellipse2DProperties::center(&self.ellipse))
     }
 
     /// 長半軸を取得
     pub fn semi_major(&self) -> T {
-        self.ellipse.semi_major_internal()
+        Ellipse2DProperties::semi_major_axis(&self.ellipse)
     }
 
     /// 短半軸を取得
     pub fn semi_minor(&self) -> T {
-        self.ellipse.semi_minor_internal()
+        Ellipse2DProperties::semi_minor_axis(&self.ellipse)
     }
 
     /// 回転角を取得
@@ -112,11 +118,6 @@ impl<T: Scalar> EllipseArc2D<T> {
     pub fn tangent_at_parameter(&self, t: T) -> Vector2D<T> {
         let angle = self.start_angle.to_radians()
             + (self.end_angle.to_radians() - self.start_angle.to_radians()) * t;
-        self.ellipse.tangent_at_parameter(angle)
-    }
-
-    /// Primitive 局所角度系の角度で接線ベクトルを取得する convenience API
-    pub fn tangent_at_angle(&self, angle: T) -> Vector2D<T> {
         self.ellipse.tangent_at_parameter(angle)
     }
 
@@ -315,16 +316,16 @@ impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
 
 impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
     fn center(&self) -> (T, T) {
-        let c = self.ellipse.center_internal();
+        let c = Point2D::from_tuple(Ellipse2DProperties::center(&self.ellipse));
         (c.x(), c.y())
     }
 
     fn semi_major_axis(&self) -> T {
-        self.ellipse.semi_major_internal()
+        Ellipse2DProperties::semi_major_axis(&self.ellipse)
     }
 
     fn semi_minor_axis(&self) -> T {
-        self.ellipse.semi_minor_internal()
+        Ellipse2DProperties::semi_minor_axis(&self.ellipse)
     }
 
     fn start_angle(&self) -> T {
@@ -505,43 +506,5 @@ impl<T: Scalar> EllipseArc2D<T> {
     /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、点に最も近い母楕円上の点のパラメータ角とする。
     pub fn contains_point_angle(&self, point: &Point2D<T>) -> bool {
         self.contains_angle(Angle::from_radians(self.ellipse.parameter_for_point(point)))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_ellipse_arc() -> EllipseArc2D<f64> {
-        let center = Point2D::new(2.0, 3.0);
-        let ellipse = Ellipse2D::new(center, 4.0, 2.0, 0.0).unwrap();
-
-        EllipseArc2D::new(ellipse, Angle::from_degrees(0.0), Angle::from_degrees(90.0))
-    }
-
-    #[test]
-    fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
-        let ellipse_arc = create_test_ellipse_arc();
-
-        let point_from_parameter = ellipse_arc.point_at_parameter(0.5);
-        let point_from_angle = ellipse_arc.point_at_angle(std::f64::consts::PI / 4.0);
-
-        assert!((point_from_parameter.x() - point_from_angle.x()).abs() < 1e-10);
-        assert!((point_from_parameter.y() - point_from_angle.y()).abs() < 1e-10);
-
-        let tangent_from_parameter = ellipse_arc.tangent_at_parameter(0.5);
-        let tangent_from_angle = ellipse_arc.tangent_at_angle(std::f64::consts::PI / 4.0);
-
-        assert!((tangent_from_parameter.x() - tangent_from_angle.x()).abs() < 1e-10);
-        assert!((tangent_from_parameter.y() - tangent_from_angle.y()).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_parameter_range_is_trim_local_unit_interval() {
-        let ellipse_arc = create_test_ellipse_arc();
-        let range = ellipse_arc.parameter_range();
-
-        assert_eq!(range.0, 0.0);
-        assert_eq!(range.1, 1.0);
     }
 }

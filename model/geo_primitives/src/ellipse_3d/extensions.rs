@@ -9,15 +9,15 @@ impl<T: Scalar> Ellipse3D<T> {
     /// 楕円を平行移動
     pub fn translate(&self, offset: Vector3D<T>) -> Self {
         let new_center = Point3D::new(
-            self.center_internal().x() + offset.x(),
-            self.center_internal().y() + offset.y(),
-            self.center_internal().z() + offset.z(),
+            self.center.x() + offset.x(),
+            self.center.y() + offset.y(),
+            self.center.z() + offset.z(),
         );
 
         Self::new(
             new_center,
-            self.semi_major_internal(),
-            self.semi_minor_internal(),
+            self.semi_major_axis,
+            self.semi_minor_axis,
             self.normal().as_vector(),
             self.major_axis_direction().as_vector(),
         )
@@ -32,9 +32,9 @@ impl<T: Scalar> Ellipse3D<T> {
 
         Some(
             Self::new(
-                self.center_internal(),
-                self.semi_major_internal() * factor,
-                self.semi_minor_internal() * factor,
+                self.center,
+                self.semi_major_axis * factor,
+                self.semi_minor_axis * factor,
                 self.normal().as_vector(),
                 self.major_axis_direction().as_vector(),
             )
