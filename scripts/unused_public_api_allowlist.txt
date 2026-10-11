@@ -1,0 +1,25 @@
+# 呼び出し元がなくても意図して残す公開メソッド（scripts/check_unused_public_api.ps1 の除外リスト）
+# 形式: ファイルのパス:メソッド名  # 残す理由
+
+# 相似変換の公開 API（生成・行列との変換・再正規化）
+model/geo_core/src/similarity_transform_2d.rs:rotation_about
+model/geo_core/src/similarity_transform_2d.rs:uniform_scale_about
+model/geo_core/src/similarity_transform_2d.rs:from_matrix
+model/geo_core/src/similarity_transform_2d.rs:to_matrix
+model/geo_core/src/similarity_transform_2d.rs:orthogonality_error
+model/geo_core/src/similarity_transform_2d.rs:renormalized
+model/geo_core/src/similarity_transform_3d.rs:rotation_about_axis
+model/geo_core/src/similarity_transform_3d.rs:uniform_scale_about
+model/geo_core/src/similarity_transform_3d.rs:from_matrix
+model/geo_core/src/similarity_transform_3d.rs:to_matrix
+model/geo_core/src/similarity_transform_3d.rs:orthogonality_error
+model/geo_core/src/similarity_transform_3d.rs:renormalized
+
+# 形状の定義パラメータ・構成要素の基本の取得
+model/geo_core/src/vector_2d.rs:components
+model/geo_core/src/vector_3d.rs:components
+model/geo_primitives/src/arc_2d.rs:circle
+model/geo_primitives/src/line_segment_2d.rs:support_line
+model/geo_primitives/src/line_segment_3d.rs:support_line
+model/geo_topology/src/topology_core.rs:curve
+model/geo_topology/src/topology_validator.rs:tolerances

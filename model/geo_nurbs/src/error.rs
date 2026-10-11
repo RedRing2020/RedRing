@@ -93,31 +93,6 @@ impl NurbsError {
             reason: reason.into(),
         }
     }
-
-    /// 数値計算エラーを作成
-    pub fn numerical_error<S: Into<String>>(message: S) -> Self {
-        Self::NumericalError {
-            message: message.into(),
-        }
-    }
-
-    /// 退化した幾何要素エラーを作成
-    pub fn degenerate_geometry<S: Into<String>>(reason: S) -> Self {
-        Self::DegenerateGeometry {
-            reason: reason.into(),
-        }
-    }
-
-    /// 互換性のない操作エラーを作成
-    pub fn incompatible_operation<S: Into<String>, R: Into<String>>(
-        operation: S,
-        reason: R,
-    ) -> Self {
-        Self::IncompatibleOperation {
-            operation: operation.into(),
-            reason: reason.into(),
-        }
-    }
 }
 
 #[cfg(test)]
