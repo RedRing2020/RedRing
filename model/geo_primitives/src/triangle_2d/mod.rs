@@ -2,6 +2,11 @@
 //!
 //! Foundation統一システムに基づくTriangle2Dの必須機能のみ
 
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use std::any::TypeId;
 
 use crate::{Point2D, Vector2D};
@@ -89,21 +94,6 @@ impl<T: Scalar> Triangle2D<T> {
             Point2D::new(T::ZERO, leg_length),
         )
         .expect("Right isosceles triangle should always be valid")
-    }
-
-    /// 頂点A取得（内部用）
-    pub(crate) fn vertex_a_internal(&self) -> Point2D<T> {
-        self.vertex_a
-    }
-
-    /// 頂点B取得（内部用）
-    pub(crate) fn vertex_b_internal(&self) -> Point2D<T> {
-        self.vertex_b
-    }
-
-    /// 頂点C取得（内部用）
-    pub(crate) fn vertex_c_internal(&self) -> Point2D<T> {
-        self.vertex_c
     }
 
     /// 辺AB取得
@@ -349,17 +339,17 @@ impl<T: Scalar> Triangle2DConstructor<T> for Triangle2D<T> {
 
 impl<T: Scalar> Triangle2DBoundaryAccess<T> for Triangle2D<T> {
     fn vertex_a(&self) -> (T, T) {
-        let p = self.vertex_a_internal();
+        let p = self.vertex_a;
         (p.x(), p.y())
     }
 
     fn vertex_b(&self) -> (T, T) {
-        let p = self.vertex_b_internal();
+        let p = self.vertex_b;
         (p.x(), p.y())
     }
 
     fn vertex_c(&self) -> (T, T) {
-        let p = self.vertex_c_internal();
+        let p = self.vertex_c;
         (p.x(), p.y())
     }
 }
@@ -430,98 +420,5 @@ impl<T: Scalar> Triangle2DDistance<T> for Triangle2D<T> {
     fn distance_to_point(&self, point: (T, T)) -> T {
         let p = Point2D::new(point.0, point.1);
         Triangle2D::distance_to_point(self, &p)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_triangle_creation() {
-        let triangle = Triangle2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.5, 1.0),
-        );
-        assert!(triangle.is_some());
-
-        // 退化した三角形（一直線上の点）
-        let degenerate = Triangle2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(2.0, 0.0),
-        );
-        assert!(degenerate.is_none());
-    }
-
-    #[test]
-    fn test_area_calculation() {
-        let triangle = Triangle2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 0.0),
-            Point2D::new(1.0, 2.0),
-        )
-        .unwrap();
-
-        assert_eq!(triangle.area(), 2.0);
-    }
-
-    #[test]
-    fn test_centroid() {
-        let triangle = Triangle2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(3.0, 0.0),
-            Point2D::new(0.0, 3.0),
-        )
-        .unwrap();
-
-        let centroid = triangle.centroid();
-        assert_eq!(centroid, Point2D::new(1.0, 1.0));
-    }
-
-    #[test]
-    fn test_contains_point() {
-        let triangle = Triangle2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 0.0),
-            Point2D::new(1.0, 2.0),
-        )
-        .unwrap();
-
-        // 内部の点
-        assert!(triangle.contains_point(&Point2D::new(1.0, 0.5)));
-
-        // 外部の点
-        assert!(!triangle.contains_point(&Point2D::new(3.0, 3.0)));
-
-        // 重心は必ず内部
-        assert!(triangle.contains_point(&triangle.centroid()));
-    }
-
-    #[test]
-    fn test_orientation() {
-        let ccw_triangle = Triangle2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.5, 1.0),
-        )
-        .unwrap();
-
-        assert!(!ccw_triangle.is_clockwise());
-
-        let cw_triangle = ccw_triangle.reverse();
-        assert!(cw_triangle.is_clockwise());
-    }
-
-    #[test]
-    fn test_circumcenter() {
-        // 正三角形の外心は重心と一致
-        let triangle: Triangle2D<f64> = Triangle2D::unit_triangle();
-        let circumcenter = triangle.circumcenter().unwrap();
-        let centroid = triangle.centroid();
-
-        assert!((circumcenter.x() - centroid.x()).abs() < 1e-10);
-        assert!((circumcenter.y() - centroid.y()).abs() < 1e-10);
     }
 }

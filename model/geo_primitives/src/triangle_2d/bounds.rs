@@ -8,10 +8,6 @@ impl<T: Scalar> Bounded<T> for Triangle2D<T> {
     type Aabb = Aabb2D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
-        Aabb2D::from_points(&[
-            self.vertex_a_internal(),
-            self.vertex_b_internal(),
-            self.vertex_c_internal(),
-        ])
+        Aabb2D::from_points(&[self.vertex_a, self.vertex_b, self.vertex_c])
     }
 }

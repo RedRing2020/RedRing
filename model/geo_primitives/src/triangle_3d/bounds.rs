@@ -9,11 +9,7 @@ impl<T: Scalar> Bounded<T> for Triangle3D<T> {
 
     fn aabb(&self) -> Option<Self::Aabb> {
         // 3つの頂点の最小/最大座標を計算
-        let vertices = [
-            self.vertex_a_internal(),
-            self.vertex_b_internal(),
-            self.vertex_c_internal(),
-        ];
+        let vertices = [self.vertex_a, self.vertex_b, self.vertex_c];
 
         let min_x = vertices
             .iter()

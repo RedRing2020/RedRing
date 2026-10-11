@@ -1,5 +1,10 @@
 //! Rect3D Core 実装（任意平面）
 
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     PointClassification, PrimitiveKind, PrimitiveMetadata, Rect3DConstructor, Rect3DContainment,
@@ -250,33 +255,5 @@ impl<T: Scalar> Rect3DDerived<T> for Rect3D<T> {
 impl<T: Scalar> Rect3DEvaluation<T> for Rect3D<T> {
     fn distance_to_plane(&self, point: (T, T, T)) -> T {
         Self::distance_to_plane(self, Point3D::new(point.0, point.1, point.2))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const POINT_CONTAINMENT_TOLERANCE: f64 = 1e-9;
-
-    #[test]
-    fn contains_and_resize() {
-        let mut rect = Rect3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Vector3D::unit_x(),
-            Vector3D::unit_y(),
-            10.0,
-            5.0,
-        )
-        .unwrap();
-
-        assert!(rect.contains_point(&Point3D::new(5.0, 2.5, 0.0), POINT_CONTAINMENT_TOLERANCE,));
-        assert!(!rect.contains_point(&Point3D::new(11.0, 2.5, 0.0), POINT_CONTAINMENT_TOLERANCE,));
-        assert!(!rect.contains_point(&Point3D::new(5.0, 2.5, 0.1), 1e-3));
-
-        assert!(rect.resize(20.0, 10.0));
-        assert_eq!(rect.width_value(), 20.0);
-        assert_eq!(rect.height_value(), 10.0);
-        assert!(!rect.resize(-1.0, 10.0));
     }
 }

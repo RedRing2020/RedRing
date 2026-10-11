@@ -2,6 +2,11 @@
 //!
 //! Foundation統一システムに基づくTriangleMesh3Dの必須機能のみ
 
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Point3D, Triangle3D, Vector3D};
 use geo_contracts::Scalar;
 
@@ -92,7 +97,7 @@ impl<T: Scalar> TriangleMesh3D<T> {
     /// 検証済みの構成要素からメッシュを組み立てる（変換結果の構築用）
     ///
     /// 頂点数・インデックスは変換前のメッシュと同じであることを呼び出し側が保証する。
-    pub(crate) fn from_parts(
+    fn from_parts(
         vertices: Vec<Point3D<T>>,
         indices: Vec<[usize; 3]>,
         normals: Option<Vec<Vector3D<T>>>,
@@ -243,33 +248,5 @@ impl<T: Scalar> std::fmt::Display for TriangleMesh3D<T> {
             self.vertex_count(),
             self.triangle_count()
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Point3D;
-    use geo_contracts::TolerantEq;
-
-    #[test]
-    fn test_tolerant_eq() {
-        let vertices1 = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        ];
-        let indices1 = vec![[0, 1, 2]];
-        let vertices2 = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        ];
-        let indices2 = vec![[0, 1, 2]];
-
-        let mesh1 = TriangleMesh3D::new(vertices1, indices1).unwrap();
-        let mesh2 = TriangleMesh3D::new(vertices2, indices2).unwrap();
-
-        assert!(mesh1.tolerant_eq(&mesh2, 0.01));
     }
 }

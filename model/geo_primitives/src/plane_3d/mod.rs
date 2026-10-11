@@ -3,6 +3,11 @@
 //! 座標系付き平面実装（旧Plane3DCoordinateSystem）
 //! STEP AP214準拠の完全な平面座標系を提供
 
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, default_orthogonality_dot_error_tolerance, BasicIntersection,
@@ -23,16 +28,16 @@ use geo_contracts::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Plane3D<T: Scalar> {
     /// 平面原点（STEP: location）
-    pub(crate) origin: Point3D<T>,
+    origin: Point3D<T>,
 
     /// Z軸方向 - 法線ベクトル（STEP: axis）
-    pub(crate) normal: Direction3D<T>,
+    normal: Direction3D<T>,
 
     /// X軸方向 - 第一軸（STEP: ref_direction）
-    pub(crate) u_axis: Direction3D<T>,
+    u_axis: Direction3D<T>,
 
     /// Y軸方向 - 第二軸（STEP: derived, normal × u_axis）
-    pub(crate) v_axis: Direction3D<T>,
+    v_axis: Direction3D<T>,
 }
 
 impl<T: Scalar> Plane3D<T> {
@@ -157,11 +162,6 @@ impl<T: Scalar> Plane3D<T> {
         self.normal
     }
 
-    /// 法線方向（Z軸）を取得（内部用）
-    pub(crate) fn normal_internal(&self) -> Direction3D<T> {
-        self.normal
-    }
-
     /// 従来の点+法線ベクトル形式で原点と法線を取得
     pub fn point(&self) -> Point3D<T> {
         self.origin
@@ -229,8 +229,8 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for Plane3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for Plane3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let normal1 = self.normal_internal();
-        let normal2 = other.normal_internal();
+        let normal1 = self.normal;
+        let normal2 = other.normal;
 
         let dot_product = normal1.dot(&normal2).abs();
         if (dot_product - T::ONE).abs() > tolerance {
@@ -486,56 +486,5 @@ impl<T: Scalar + From<f64>> BasicIntersection<T, Self> for Plane3D<T> {
                 None
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use geo_contracts::{PrimitiveKind, PrimitiveMetadata, TolerantEq};
-
-    #[test]
-    fn test_plane_metadata() {
-        let point = Point3D::new(0.0, 0.0, 0.0);
-        let normal = Vector3D::new(0.0, 0.0, 1.0);
-        let plane = Plane3D::from_point_and_normal(point, normal).unwrap();
-
-        assert_eq!(plane.primitive_kind(), PrimitiveKind::Plane);
-    }
-
-    #[test]
-    fn test_plane_tolerant_eq() {
-        let plane1 = Plane3D::from_point_and_normal(
-            Point3D::new(0.0, 0.0, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-        )
-        .unwrap();
-        let plane2 = Plane3D::from_point_and_normal(
-            Point3D::new(0.0, 0.0, 0.001),
-            Vector3D::new(0.0, 0.0, 1.0),
-        )
-        .unwrap();
-
-        assert!(plane1.tolerant_eq(&plane2, 0.01));
-        assert_eq!(
-            plane1.tolerant_eq(&plane2, 0.01),
-            plane2.tolerant_eq(&plane1, 0.01)
-        );
-    }
-
-    #[test]
-    fn test_plane_tolerant_eq_different_planes() {
-        let plane1 = Plane3D::from_point_and_normal(
-            Point3D::new(0.0, 0.0, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-        )
-        .unwrap();
-        let plane2 = Plane3D::from_point_and_normal(
-            Point3D::new(0.0, 0.0, 0.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-        )
-        .unwrap();
-
-        assert!(!plane1.tolerant_eq(&plane2, 0.01));
     }
 }
