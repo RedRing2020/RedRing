@@ -1,0 +1,346 @@
+mod bounds;
+mod extensions;
+mod transform;
+
+// torus_surface_3d.rs
+// STEP AP214 準拠のトーラス面実装
+//
+// トーラス面は大半径（major_radius）と小半径（minor_radius）を持つ回転面です。
+//
+// STEP エンティティ: TOROIDAL_SURFACE + AXIS2_PLACEMENT_3D
+// パラメータ範囲: u ∈ [0, 2π], v ∈ [0, 2π]
+
+use crate::{Direction3D, Point3D, Vector3D};
+use geo_contracts::default_angle_tolerance;
+use geo_contracts::Scalar;
+use std::f64::consts::PI;
+
+/// STEP AP214 準拠のトーラス面
+///
+/// 大半径（中心軸から断面の円の中心までの距離）と
+/// 小半径（断面の円の半径）により定義されます。
+#[derive(Debug, Clone, PartialEq)]
+pub struct TorusSurface3D<T: Scalar> {
+    /// 原点（トーラスの中心点）
+    origin: Point3D<T>,
+    /// Z軸方向（トーラスの軸方向）
+    z_axis: Direction3D<T>,
+    /// X軸方向（大半径の基準方向）
+    x_axis: Direction3D<T>,
+    /// 大半径（中心軸から断面の円の中心までの距離）
+    major_radius: T,
+    /// 小半径（断面の円の半径）
+    minor_radius: T,
+}
+
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for TorusSurface3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::TorusSurface
+    }
+}
+
+impl<T: Scalar> TorusSurface3D<T> {
+    /// 新しいトーラス面を作成
+    ///
+    /// # Arguments
+    /// * `origin` - トーラスの中心点
+    /// * `z_axis` - トーラスの軸方向
+    /// * `x_axis` - 大半径の基準方向（z_axisと直交である必要があります）
+    /// * `major_radius` - 大半径（正の値である必要があります）
+    /// * `minor_radius` - 小半径（正の値である必要があります）
+    ///
+    /// # Returns
+    /// * `Some(TorusSurface3D)` - 有効なパラメータの場合
+    /// * `None` - 無効なパラメータの場合（半径が非正、軸が非直交など）
+    pub fn new(
+        origin: Point3D<T>,
+        z_axis: Direction3D<T>,
+        x_axis: Direction3D<T>,
+        major_radius: T,
+        minor_radius: T,
+    ) -> Option<Self> {
+        // パラメータ検証
+        if major_radius <= T::ZERO || minor_radius <= T::ZERO {
+            return None;
+        }
+
+        // 軸の直交性チェック
+        let z_vec = Vector3D::new(z_axis.x(), z_axis.y(), z_axis.z());
+        let x_vec = Vector3D::new(x_axis.x(), x_axis.y(), x_axis.z());
+        let dot_product = z_vec.dot(&x_vec);
+
+        if dot_product.abs() > default_angle_tolerance::<T>() {
+            return None; // 軸が直交していない
+        }
+
+        Some(TorusSurface3D {
+            origin,
+            z_axis,
+            x_axis,
+            major_radius,
+            minor_radius,
+        })
+    }
+
+    /// 標準的なトーラス面を作成（XY平面上、原点中心）
+    ///
+    /// # Arguments
+    /// * `major_radius` - 大半径
+    /// * `minor_radius` - 小半径
+    pub fn standard(major_radius: T, minor_radius: T) -> Option<Self> {
+        let origin = Point3D::origin();
+        let z_axis = Direction3D::from_vector(Vector3D::new(T::ZERO, T::ZERO, T::ONE))?;
+        let x_axis = Direction3D::from_vector(Vector3D::new(T::ONE, T::ZERO, T::ZERO))?;
+
+        Self::new(origin, z_axis, x_axis, major_radius, minor_radius)
+    }
+
+    /// Y軸方向を計算（右手座標系）
+    fn y_axis_internal(&self) -> Direction3D<T> {
+        let z_vec = Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z());
+        let x_vec = Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z());
+        let y_vec = z_vec.cross(&x_vec);
+
+        // 正規化されたベクトルのクロス積は正規化済み
+        Direction3D::from_vector(y_vec).unwrap()
+    }
+
+    /// パラメータ (u, v) での点を計算
+    ///
+    /// u: 主方向角度 [0, 2π]
+    /// v: 副方向角度 [0, 2π]
+    ///
+    /// # Mathematical Formula
+    /// ```text
+    /// P(u,v) = origin +
+    ///          (major_radius + minor_radius * cos(v)) * (cos(u) * x_axis + sin(u) * y_axis) +
+    ///          minor_radius * sin(v) * z_axis
+    /// ```
+    pub fn point_at(&self, u: T, v: T) -> Point3D<T> {
+        let cos_u = u.cos();
+        let sin_u = u.sin();
+        let cos_v = v.cos();
+        let sin_v = v.sin();
+
+        let y_axis = self.y_axis_internal();
+
+        // 断面の円の中心を計算
+        let radius_at_v = self.major_radius + self.minor_radius * cos_v;
+
+        // 各軸成分を計算
+        let x_component = radius_at_v * cos_u;
+        let y_component = radius_at_v * sin_u;
+        let z_component = self.minor_radius * sin_v;
+
+        // 局所座標系から世界座標系への変換
+        let x_contribution =
+            Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z()) * x_component;
+        let y_contribution = Vector3D::new(y_axis.x(), y_axis.y(), y_axis.z()) * y_component;
+        let z_contribution =
+            Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z()) * z_component;
+
+        let total_offset = x_contribution + y_contribution + z_contribution;
+
+        Point3D::new(
+            self.origin.x() + total_offset.x(),
+            self.origin.y() + total_offset.y(),
+            self.origin.z() + total_offset.z(),
+        )
+    }
+
+    /// パラメータ (u, v) での法線ベクトルを計算
+    pub fn normal_at(&self, u: T, v: T) -> Direction3D<T> {
+        let cos_u = u.cos();
+        let sin_u = u.sin();
+        let cos_v = v.cos();
+        let sin_v = v.sin();
+
+        let y_axis = self.y_axis_internal();
+
+        // 法線ベクトルの計算（外向き法線）
+        let radial_component = cos_v;
+        let axial_component = sin_v;
+
+        let x_part = radial_component * cos_u;
+        let y_part = radial_component * sin_u;
+        let z_part = axial_component;
+
+        // 局所座標系から世界座標系への変換
+        let normal_vec = Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z()) * x_part
+            + Vector3D::new(y_axis.x(), y_axis.y(), y_axis.z()) * y_part
+            + Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z()) * z_part;
+
+        Direction3D::from_vector(normal_vec).unwrap_or(
+            // フォールバック: Z軸方向
+            self.z_axis,
+        )
+    }
+
+    /// 表面積を計算
+    ///
+    /// 数学的公式: 4π² * major_radius * minor_radius
+    pub fn surface_area(&self) -> T {
+        let two = T::ONE + T::ONE;
+        let four = two + two;
+        // π² の値を直接使用
+        let pi_squared = T::from_f64(PI * PI);
+
+        four * pi_squared * self.major_radius * self.minor_radius
+    }
+
+    /// トーラスが有効かどうかをチェック
+    ///
+    /// 有効な条件:
+    /// - 大半径 > 0
+    /// - 小半径 > 0
+    /// - 軸が単位ベクトル
+    /// - 軸が直交
+    pub fn is_valid(&self) -> bool {
+        if self.major_radius <= T::ZERO || self.minor_radius <= T::ZERO {
+            return false;
+        }
+
+        // 軸の直交性チェック
+        let z_vec = Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z());
+        let x_vec = Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z());
+        let dot_product = z_vec.dot(&x_vec);
+
+        dot_product.abs() <= default_angle_tolerance::<T>()
+    }
+}
+
+/// f64 での特別な実装
+impl TorusSurface3D<f64> {
+    /// ドーナツ型トーラス（major_radius > minor_radius）
+    pub fn donut(major_radius: f64, minor_radius: f64) -> Option<Self> {
+        if major_radius <= minor_radius {
+            return None; // ドーナツ型ではない
+        }
+        Self::standard(major_radius, minor_radius)
+    }
+}
+
+use geo_contracts::{
+    TorusSurface3DConstructor, TorusSurface3DDerived, TorusSurface3DDistance,
+    TorusSurface3DEvaluation, TorusSurface3DProperties as ContractsTorusSurface3DProperties,
+};
+
+impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
+    fn new(
+        center: (T, T, T),
+        axis_vector: (T, T, T),
+        ref_vector: (T, T, T),
+        major_radius: T,
+        minor_radius: T,
+    ) -> Option<Self> {
+        let origin = Point3D::new(center.0, center.1, center.2);
+        let axis =
+            Direction3D::from_vector(Vector3D::new(axis_vector.0, axis_vector.1, axis_vector.2))?;
+        let x_axis =
+            Direction3D::from_vector(Vector3D::new(ref_vector.0, ref_vector.1, ref_vector.2))?;
+        Self::new(origin, axis, x_axis, major_radius, minor_radius)
+    }
+
+    fn new_standard(center: (T, T, T), major_radius: T, minor_radius: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis = Direction3D::from_vector(Vector3D::new(T::ZERO, T::ZERO, T::ONE))?;
+        let x_axis = Direction3D::from_vector(Vector3D::new(T::ONE, T::ZERO, T::ZERO))?;
+        Self::new(center_point, axis, x_axis, major_radius, minor_radius)
+    }
+
+    fn unit_torus_surface() -> Self {
+        Self::standard(T::from_f64(2.0), T::ONE).unwrap()
+    }
+}
+
+impl<T: Scalar> ContractsTorusSurface3DProperties<T> for TorusSurface3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let o = self.origin;
+        (o.x(), o.y(), o.z())
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.z_axis;
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.x_axis;
+        (r.x(), r.y(), r.z())
+    }
+
+    fn major_radius(&self) -> T {
+        self.major_radius
+    }
+
+    fn minor_radius(&self) -> T {
+        self.minor_radius
+    }
+
+    fn tube_diameter(&self) -> T {
+        self.minor_radius * T::from_f64(2.0)
+    }
+}
+
+impl<T: Scalar> TorusSurface3DDerived<T> for TorusSurface3D<T> {
+    fn surface_area(&self) -> T {
+        self.surface_area()
+    }
+}
+
+impl<T: Scalar> TorusSurface3DEvaluation<T> for TorusSurface3D<T> {
+    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
+        let n = self.normal_at(u, v);
+        (n.x(), n.y(), n.z())
+    }
+
+    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
+        // パラメータから表面上の点を計算（内部実装のロジックを再現）
+        let cos_u = u.cos();
+        let sin_u = u.sin();
+        let cos_v = v.cos();
+        let sin_v = v.sin();
+
+        let y_axis = self.y_axis_internal();
+        let radius_at_v = self.major_radius + self.minor_radius * cos_v;
+
+        let x_component = radius_at_v * cos_u;
+        let y_component = radius_at_v * sin_u;
+        let z_component = self.minor_radius * sin_v;
+
+        let x_axis = self.x_axis;
+        let z_axis = self.z_axis;
+        let x_contrib = Vector3D::new(x_axis.x(), x_axis.y(), x_axis.z()) * x_component;
+        let y_contrib = Vector3D::new(y_axis.x(), y_axis.y(), y_axis.z()) * y_component;
+        let z_contrib = Vector3D::new(z_axis.x(), z_axis.y(), z_axis.z()) * z_component;
+
+        let total_offset = x_contrib + y_contrib + z_contrib;
+        let origin = self.origin;
+
+        (
+            origin.x() + total_offset.x(),
+            origin.y() + total_offset.y(),
+            origin.z() + total_offset.z(),
+        )
+    }
+}
+
+impl<T: Scalar> TorusSurface3DDistance<T> for TorusSurface3D<T> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        // 大半径の円（断面の円の中心が描く円）までの距離と小半径の差（トーラス表面までの最短距離）
+        let origin = self.origin;
+        let local = p - origin;
+        let z_axis = self.z_axis;
+        let z_component = local.dot(&z_axis.as_vector());
+        let radial_vector = local - (z_axis.as_vector() * z_component);
+        let radial_distance = (radial_vector.x() * radial_vector.x()
+            + radial_vector.y() * radial_vector.y()
+            + radial_vector.z() * radial_vector.z())
+        .sqrt();
+        let torus_center_distance = (radial_distance - self.major_radius).abs();
+        let cross_section_distance =
+            (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
+        (cross_section_distance - self.minor_radius).abs()
+    }
+}

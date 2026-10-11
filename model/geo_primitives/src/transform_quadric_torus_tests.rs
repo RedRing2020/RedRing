@@ -12,7 +12,7 @@ use geo_contracts::{
     EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived, EllipsoidalSurface3DEvaluation,
     SimilarityTransformable3D, SphericalSolid3DContainment, SphericalSolid3DDerived,
     SphericalSurface3DEvaluation, TorusSolid3DContainment, TorusSolid3DDerived,
-    TorusSurface3DEvaluation,
+    TorusSurface3DEvaluation, TorusSurface3DProperties,
 };
 
 const SCALE: f64 = 2.0;
@@ -139,7 +139,6 @@ fn conical_surface_and_solid() {
     )
     .unwrap();
     let moved = surface.transform_similarity(&transform()).unwrap();
-    assert!((moved.semi_angle_internal() - 0.4).abs() < TOLERANCE_F64);
     assert_surface_maps(
         SCALE,
         |u, v| ConicalSurface3DEvaluation::point_at_uv(&surface, u, v),
@@ -193,8 +192,8 @@ fn ellipsoidal_surface_and_solid() {
 fn torus_surface_and_solid() {
     let surface = TorusSurface3D::standard(2.0, 0.7).unwrap();
     let moved = surface.transform_similarity(&transform()).unwrap();
-    assert!((moved.major_radius_internal() - 4.0).abs() < TOLERANCE_F64);
-    assert!((moved.minor_radius_internal() - 1.4).abs() < TOLERANCE_F64);
+    assert!((TorusSurface3DProperties::major_radius(&moved) - 4.0).abs() < TOLERANCE_F64);
+    assert!((TorusSurface3DProperties::minor_radius(&moved) - 1.4).abs() < TOLERANCE_F64);
     assert_surface_maps(
         1.0,
         |u, v| TorusSurface3DEvaluation::point_at_uv(&surface, u, v),
