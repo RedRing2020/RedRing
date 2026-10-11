@@ -247,10 +247,6 @@ impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
         let x_axis = Direction3D::from_vector(Vector3D::new(T::ONE, T::ZERO, T::ZERO))?;
         Self::new(center_point, axis, x_axis, major_radius, minor_radius)
     }
-
-    fn unit_torus_surface() -> Self {
-        Self::standard(T::from_f64(2.0), T::ONE).unwrap()
-    }
 }
 
 impl<T: Scalar> ContractsTorusSurface3DProperties<T> for TorusSurface3D<T> {
@@ -275,10 +271,6 @@ impl<T: Scalar> ContractsTorusSurface3DProperties<T> for TorusSurface3D<T> {
 
     fn minor_radius(&self) -> T {
         self.minor_radius
-    }
-
-    fn tube_diameter(&self) -> T {
-        self.minor_radius * T::from_f64(2.0)
     }
 }
 

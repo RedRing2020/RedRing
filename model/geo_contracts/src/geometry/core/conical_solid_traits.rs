@@ -18,31 +18,6 @@ pub trait ConicalSolid3DConstructor<T: Scalar> {
     fn new_standard(base_center: (T, T, T), radius: T, height: T) -> Option<Self>
     where
         Self: Sized;
-
-    fn unit_cone() -> Self
-    where
-        Self: Sized;
-
-    fn from_apex_and_base_circle(
-        apex: (T, T, T),
-        base_center: (T, T, T),
-        base_radius: T,
-    ) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_apex_angle(apex: (T, T, T), axis: (T, T, T), height: T, half_angle: T) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn frustum(
-        base_center: (T, T, T),
-        top_center: (T, T, T),
-        base_radius: T,
-        top_radius: T,
-    ) -> Option<Self>
-    where
-        Self: Sized;
 }
 
 pub trait ConicalSolid3DProperties<T: Scalar> {
@@ -54,8 +29,6 @@ pub trait ConicalSolid3DProperties<T: Scalar> {
     fn ref_direction(&self) -> (T, T, T);
     fn slant_height(&self) -> T;
     fn half_angle(&self) -> T;
-    fn lateral_surface_area(&self) -> T;
-    fn base_area(&self) -> T;
 }
 
 pub trait ConicalSolid3DDerived<T: Scalar> {

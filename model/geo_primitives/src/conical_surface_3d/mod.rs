@@ -439,11 +439,6 @@ impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
         let semi_angle = (radius / height).atan();
         Self::new_at_origin(radius, semi_angle)
     }
-
-    fn unit_cone_surface() -> Self {
-        let semi_angle = (T::ONE / T::from_f64(2.0)).atan();
-        Self::new_at_origin(T::ONE, semi_angle).expect("Unit cone surface should always be valid")
-    }
 }
 
 impl<T: Scalar> ContractsConicalSurface3DProperties<T> for ConicalSurface3D<T> {

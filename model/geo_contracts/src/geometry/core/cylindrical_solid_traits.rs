@@ -17,26 +17,6 @@ pub trait CylindricalSolid3DConstructor<T: Scalar> {
     fn new_standard(center: (T, T, T), radius: T, height: T) -> Option<Self>
     where
         Self: Sized;
-
-    fn unit_cylinder() -> Self
-    where
-        Self: Sized;
-
-    fn from_axis_and_radius(
-        start_point: (T, T, T),
-        end_point: (T, T, T),
-        radius: T,
-    ) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_diameter(center: (T, T, T), axis: (T, T, T), diameter: T, height: T) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_two_points_and_radius(p1: (T, T, T), p2: (T, T, T), radius: T) -> Option<Self>
-    where
-        Self: Sized;
 }
 
 pub trait CylindricalSolid3DProperties<T: Scalar> {
@@ -46,9 +26,6 @@ pub trait CylindricalSolid3DProperties<T: Scalar> {
     fn axis(&self) -> (T, T, T);
     fn ref_direction(&self) -> (T, T, T);
     fn diameter(&self) -> T;
-    fn top_center(&self) -> (T, T, T);
-    fn lateral_surface_area(&self) -> T;
-    fn base_area(&self) -> T;
 }
 
 pub trait CylindricalSolid3DDerived<T: Scalar> {

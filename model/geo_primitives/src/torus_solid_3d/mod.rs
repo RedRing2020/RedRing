@@ -106,13 +106,6 @@ impl<T: Scalar> TorusSolid3D<T> {
         Self::new(origin, z_axis, x_axis, major_radius, minor_radius)
     }
 
-    /// 最小有効トーラス固体を作成（テスト用）
-    pub fn minimal() -> Option<Self> {
-        let major_radius = T::from_f64(2.0);
-        let minor_radius = T::ONE;
-        Self::standard(major_radius, minor_radius)
-    }
-
     /// Y軸方向を計算（右手座標系）
     fn y_axis_internal(&self) -> Direction3D<T> {
         let y_vec = Vector3D::new(
@@ -253,52 +246,6 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
             t
         })
     }
-
-    fn unit_torus() -> Self {
-        Self::minimal().unwrap()
-    }
-
-    fn from_diameters(
-        center: (T, T, T),
-        axis: (T, T, T),
-        major_diameter: T,
-        minor_diameter: T,
-    ) -> Option<Self> {
-        let major_radius = major_diameter / T::from_f64(2.0);
-        let minor_radius = minor_diameter / T::from_f64(2.0);
-        let axis_vec = Vector3D::new(axis.0, axis.1, axis.2);
-        let ref_direction = if axis_vec.z().abs() < T::from_f64(0.99) {
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vec)
-        } else {
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vec)
-        };
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let axis_dir = Direction3D::from_vector(axis_vec)?;
-        let ref_dir = Direction3D::from_vector(ref_direction)?;
-        Self::new(center_point, axis_dir, ref_dir, major_radius, minor_radius)
-    }
-
-    fn from_radii_and_axis(
-        center: (T, T, T),
-        axis: (T, T, T),
-        major_radius: T,
-        minor_radius: T,
-    ) -> Option<Self> {
-        let axis_vec = Vector3D::new(axis.0, axis.1, axis.2);
-        let ref_direction = if axis_vec.z().abs() < T::from_f64(0.99) {
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vec)
-        } else {
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vec)
-        };
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let axis_dir = Direction3D::from_vector(axis_vec)?;
-        let ref_dir = Direction3D::from_vector(ref_direction)?;
-        Self::new(center_point, axis_dir, ref_dir, major_radius, minor_radius)
-    }
-
-    fn ring_torus(center: (T, T, T), axis: (T, T, T), radius: T) -> Option<Self> {
-        Self::from_radii_and_axis(center, axis, radius, radius)
-    }
 }
 
 impl<T: Scalar> ContractsTorusSolid3DProperties<T> for TorusSolid3D<T> {
@@ -324,22 +271,6 @@ impl<T: Scalar> ContractsTorusSolid3DProperties<T> for TorusSolid3D<T> {
     fn minor_radius(&self) -> T {
         self.minor_radius
     }
-
-    fn tube_diameter(&self) -> T {
-        self.minor_radius * T::from_f64(2.0)
-    }
-
-    fn aspect_ratio(&self) -> T {
-        self.major_radius / self.minor_radius
-    }
-
-    fn outer_radius(&self) -> T {
-        self.major_radius + self.minor_radius
-    }
-
-    fn inner_radius(&self) -> T {
-        (self.major_radius - self.minor_radius).max(T::ZERO)
-    }
 }
 
 impl<T: Scalar> TorusSolid3DDerived<T> for TorusSolid3D<T> {
@@ -363,10 +294,6 @@ impl<T: Scalar> TorusSolid3DDerived<T> for TorusSolid3D<T> {
         let max_z = o.z() + self.minor_radius;
 
         ((min_x, min_y, min_z), (max_x, max_y, max_z))
-    }
-
-    fn is_self_intersecting(&self) -> bool {
-        self.major_radius < self.minor_radius
     }
 }
 

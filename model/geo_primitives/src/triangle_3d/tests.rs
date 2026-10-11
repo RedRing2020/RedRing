@@ -60,35 +60,6 @@ fn test_triangle_normal() {
 }
 
 #[test]
-fn test_triangle_centroid() {
-    let a = Point3D::new(0.0, 0.0, 0.0);
-    let b = Point3D::new(3.0, 0.0, 0.0);
-    let c = Point3D::new(0.0, 3.0, 0.0);
-
-    let triangle = Triangle3D::new(a, b, c).unwrap();
-    let centroid = triangle.centroid();
-
-    // 重心は (1, 1, 0) のはず
-    assert!((centroid.x() - 1.0).abs() < 1e-10);
-    assert!((centroid.y() - 1.0).abs() < 1e-10);
-    assert!(centroid.z().abs() < 1e-10);
-}
-
-#[test]
-fn test_triangle_perimeter() {
-    // 3-4-5の直角三角形
-    let a = Point3D::new(0.0, 0.0, 0.0);
-    let b = Point3D::new(3.0, 0.0, 0.0);
-    let c = Point3D::new(0.0, 4.0, 0.0);
-
-    let triangle = Triangle3D::new(a, b, c).unwrap();
-    let perimeter = triangle.perimeter();
-
-    // 周囲長は 3 + 4 + 5 = 12 のはず
-    assert!((perimeter - 12.0).abs() < 1e-10);
-}
-
-#[test]
 fn test_point_containment() {
     let a = Point3D::new(0.0, 0.0, 0.0);
     let b = Point3D::new(2.0, 0.0, 0.0);
@@ -97,7 +68,7 @@ fn test_point_containment() {
     let triangle = Triangle3D::new(a, b, c).unwrap();
 
     // 重心は内部にある
-    let centroid = triangle.centroid();
+    let centroid = Point3D::new(2.0 / 3.0, 2.0 / 3.0, 0.0);
     assert!(triangle.contains_point_on_plane(centroid));
 
     // 頂点も含まれる

@@ -15,8 +15,7 @@ pub use entity::{
     LineEntity3DProperties, PlanarStroke2DProperties, StrokeDisplayProperties, StrokePattern,
 };
 pub use geometry::core::plane3d_traits::{
-    Plane3DConstructor, Plane3DContainment, Plane3DDerived, Plane3DDistance, Plane3DEvaluation,
-    Plane3DProjection, Plane3DProperties,
+    Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,
 };
 pub use geometry::core::{Aabb2DDerived, Aabb2DProperties, Aabb3DDerived, Aabb3DProperties};
 pub use geometry::core::{

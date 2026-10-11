@@ -33,19 +33,6 @@ fn test_area_calculation() {
 }
 
 #[test]
-fn test_centroid() {
-    let triangle = Triangle2D::new(
-        Point2D::new(0.0, 0.0),
-        Point2D::new(3.0, 0.0),
-        Point2D::new(0.0, 3.0),
-    )
-    .unwrap();
-
-    let centroid = triangle.centroid();
-    assert_eq!(centroid, Point2D::new(1.0, 1.0));
-}
-
-#[test]
 fn test_contains_point() {
     let triangle = Triangle2D::new(
         Point2D::new(0.0, 0.0),
@@ -59,18 +46,14 @@ fn test_contains_point() {
 
     // 外部の点
     assert!(!triangle.contains_point(&Point2D::new(3.0, 3.0)));
-
-    // 重心は必ず内部
-    assert!(triangle.contains_point(&triangle.centroid()));
 }
 
 #[test]
 fn test_circumcenter() {
-    // 正三角形の外心は重心と一致
+    // 単位の正三角形の外心は重心（原点）と一致
     let triangle: Triangle2D<f64> = Triangle2D::unit_triangle();
     let circumcenter = triangle.circumcenter().unwrap();
-    let centroid = triangle.centroid();
 
-    assert!((circumcenter.x() - centroid.x()).abs() < 1e-10);
-    assert!((circumcenter.y() - centroid.y()).abs() < 1e-10);
+    assert!(circumcenter.x().abs() < 1e-10);
+    assert!(circumcenter.y().abs() < 1e-10);
 }

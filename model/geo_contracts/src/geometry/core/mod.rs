@@ -105,8 +105,7 @@ pub use nurbs_surface_3d_traits::{
     NurbsSurface3DProperties,
 };
 pub use plane3d_traits::{
-    Plane3DConstructor, Plane3DContainment, Plane3DDerived, Plane3DDistance, Plane3DEvaluation,
-    Plane3DProjection, Plane3DProperties,
+    Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,
 };
 pub use point_traits::{
     Point2DConstructor, Point2DDistance, Point2DInterpolation, Point2DProperties,

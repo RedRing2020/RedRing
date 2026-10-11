@@ -16,10 +16,6 @@ pub trait TorusSurface3DConstructor<T: Scalar> {
     fn new_standard(center: (T, T, T), major_radius: T, minor_radius: T) -> Option<Self>
     where
         Self: Sized;
-
-    fn unit_torus_surface() -> Self
-    where
-        Self: Sized;
 }
 
 pub trait TorusSurface3DProperties<T: Scalar> {
@@ -28,7 +24,6 @@ pub trait TorusSurface3DProperties<T: Scalar> {
     fn minor_radius(&self) -> T;
     fn axis(&self) -> (T, T, T);
     fn ref_direction(&self) -> (T, T, T);
-    fn tube_diameter(&self) -> T;
 }
 
 pub trait TorusSurface3DEvaluation<T: Scalar> {

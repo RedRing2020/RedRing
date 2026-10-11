@@ -76,22 +76,6 @@ fn test_coordinate_planes() {
         xy_plane.normal(),
         Direction3D::from_vector(Vector3D::unit_z()).unwrap()
     );
-
-    // XZ平面
-    let xz_plane = Plane3D::xz_plane(3.0);
-    assert_eq!(xz_plane.origin(), Point3D::new(0.0, 3.0, 0.0));
-    assert_eq!(
-        xz_plane.normal(),
-        Direction3D::from_vector(Vector3D::unit_y()).unwrap()
-    );
-
-    // YZ平面
-    let yz_plane = Plane3D::yz_plane(2.0);
-    assert_eq!(yz_plane.origin(), Point3D::new(2.0, 0.0, 0.0));
-    assert_eq!(
-        yz_plane.normal(),
-        Direction3D::from_vector(Vector3D::unit_x()).unwrap()
-    );
 }
 
 #[test]
@@ -137,23 +121,6 @@ fn test_project_point() {
 
     // 投影点は平面上にあるはず
     assert!(plane.contains_point(projected, 1e-10));
-}
-
-#[test]
-fn test_equation_coefficients() {
-    let plane = Plane3D::xy_plane(3.0);
-    let (a, b, c, d) = geo_contracts::Plane3DDerived::equation_coefficients(&plane);
-
-    // z = 3 なので、0x + 0y + 1z - 3 = 0
-    assert_relative_eq!(a, 0.0);
-    assert_relative_eq!(b, 0.0);
-    assert_relative_eq!(c, 1.0);
-    assert_relative_eq!(d, -3.0);
-
-    // 平面上の点で方程式をチェック
-    let test_point = Point3D::new(5.0, 7.0, 3.0);
-    let result = a * test_point.x() + b * test_point.y() + c * test_point.z() + d;
-    assert_relative_eq!(result, 0.0, epsilon = 1e-10);
 }
 
 #[test]
@@ -213,13 +180,8 @@ fn test_step_plane_creation() {
 
     let plane_sys = Plane3D::from_origin_and_axes(origin, normal, u_direction).unwrap();
 
-    // UV座標(1, 1)がワールド座標(1, 1, 0)になることを確認
-    let world_point = Point3D::from_tuple(geo_contracts::Plane3DEvaluation::uv_to_point(
-        &plane_sys, 1.0, 1.0,
-    ));
-    assert_abs_diff_eq!(world_point.x(), 1.0, epsilon = TOLERANCE_F64);
-    assert_abs_diff_eq!(world_point.y(), 1.0, epsilon = TOLERANCE_F64);
-    assert_abs_diff_eq!(world_point.z(), 0.0, epsilon = TOLERANCE_F64);
+    assert_eq!(plane_sys.origin(), origin);
+    assert_abs_diff_eq!(plane_sys.normal().z(), 1.0, epsilon = TOLERANCE_F64);
 }
 
 #[test]
@@ -268,34 +230,6 @@ fn test_coordinate_system_orthogonality() {
         1.0,
         epsilon = TOLERANCE_F64
     );
-}
-
-#[test]
-fn test_world_to_local_conversion() {
-    // ワールド座標⇔ローカル座標変換テスト
-    let origin = Point3D::new(0.0, 0.0, 0.0);
-    let normal = Vector3D::new(0.0, 0.0, 1.0);
-    let u_direction = Vector3D::new(1.0, 0.0, 0.0);
-
-    let plane_sys = Plane3D::from_origin_and_axes(origin, normal, u_direction).unwrap();
-
-    // 平面上の点のテスト
-    let test_point = Point3D::new(2.0, 3.0, 0.0);
-    let (u, v) = geo_contracts::Plane3DEvaluation::point_to_uv(
-        &plane_sys,
-        (test_point.x(), test_point.y(), test_point.z()),
-    );
-
-    assert_abs_diff_eq!(u, 2.0, epsilon = TOLERANCE_F64);
-    assert_abs_diff_eq!(v, 3.0, epsilon = TOLERANCE_F64);
-
-    // 逆変換の確認
-    let reconstructed = Point3D::from_tuple(geo_contracts::Plane3DEvaluation::uv_to_point(
-        &plane_sys, u, v,
-    ));
-    assert_abs_diff_eq!(reconstructed.x(), test_point.x(), epsilon = TOLERANCE_F64);
-    assert_abs_diff_eq!(reconstructed.y(), test_point.y(), epsilon = TOLERANCE_F64);
-    assert_abs_diff_eq!(reconstructed.z(), test_point.z(), epsilon = TOLERANCE_F64);
 }
 
 #[test]

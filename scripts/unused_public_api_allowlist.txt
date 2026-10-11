@@ -21,6 +21,10 @@ model/geo_core/src/vector_3d.rs:components
 model/geo_primitives/src/arc_2d/mod.rs:circle
 model/geo_primitives/src/line_segment_2d/mod.rs:support_line
 model/geo_primitives/src/line_segment_3d/mod.rs:support_line
+model/geo_primitives/src/triangle_2d/mod.rs:edge_bc
+model/geo_primitives/src/triangle_2d/mod.rs:edge_ca
+model/geo_primitives/src/triangle_3d/mod.rs:edge_bc
+model/geo_primitives/src/triangle_3d/mod.rs:edge_ca
 model/geo_topology/src/topology_core.rs:curve
 model/geo_topology/src/topology_validator.rs:tolerances
 

@@ -10,22 +10,6 @@ pub trait SphericalSurface3DConstructor<T: Scalar> {
     fn new_standard(center: (T, T, T), radius: T) -> Option<Self>
     where
         Self: Sized;
-
-    fn unit_sphere_surface() -> Self
-    where
-        Self: Sized;
-
-    fn from_diameter(center: (T, T, T), diameter: T) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn from_three_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T)) -> Option<Self>
-    where
-        Self: Sized;
 }
 
 pub trait SphericalSurface3DProperties<T: Scalar> {
@@ -34,16 +18,11 @@ pub trait SphericalSurface3DProperties<T: Scalar> {
     fn axis(&self) -> (T, T, T);
     fn ref_direction(&self) -> (T, T, T);
     fn diameter(&self) -> T;
-    fn is_unit_sphere(&self) -> bool;
-    fn circumference(&self) -> T;
-    fn is_centered_at_origin(&self) -> bool;
 }
 
 pub trait SphericalSurface3DEvaluation<T: Scalar> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
     fn normal_at(&self, u: T, v: T) -> (T, T, T);
-    fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T);
-    fn tangent_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T));
 }
 
 pub trait SphericalSurface3DDerived<T: Scalar> {

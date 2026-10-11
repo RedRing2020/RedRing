@@ -16,10 +16,6 @@ pub trait CylindricalSurface3DConstructor<T: Scalar> {
     fn new_standard(center: (T, T, T), radius: T, height: T) -> Option<Self>
     where
         Self: Sized;
-
-    fn unit_cylinder_surface() -> Self
-    where
-        Self: Sized;
 }
 
 pub trait CylindricalSurface3DProperties<T: Scalar> {

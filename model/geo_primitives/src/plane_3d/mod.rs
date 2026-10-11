@@ -11,8 +11,8 @@ mod transform;
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, default_orthogonality_dot_error_tolerance, BasicIntersection,
-    Plane3DConstructor, Plane3DContainment, Plane3DDerived, Plane3DDistance, Plane3DEvaluation,
-    Plane3DProjection, Plane3DProperties, Scalar,
+    Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,
+    Scalar,
 };
 
 /// 3次元平面（座標系付き）
@@ -109,26 +109,6 @@ impl<T: Scalar> Plane3D<T> {
             Point3D::new(T::ZERO, T::ZERO, z),
             Vector3D::unit_z(),
             Vector3D::unit_x(),
-        )
-        .unwrap()
-    }
-
-    /// XZ平面を作成（y = constant）
-    pub fn xz_plane(y: T) -> Self {
-        Self::from_origin_and_axes(
-            Point3D::new(T::ZERO, y, T::ZERO),
-            Vector3D::unit_y(),
-            Vector3D::unit_x(),
-        )
-        .unwrap()
-    }
-
-    /// YZ平面を作成（x = constant）
-    pub fn yz_plane(x: T) -> Self {
-        Self::from_origin_and_axes(
-            Point3D::new(x, T::ZERO, T::ZERO),
-            Vector3D::unit_x(),
-            Vector3D::unit_y(),
         )
         .unwrap()
     }
@@ -284,22 +264,10 @@ impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
         Self::from_three_points(point1, point2, point3)
     }
 
-    fn xy_plane() -> Self {
-        Self::xy_plane(T::ZERO)
-    }
-
     fn from_point_and_normal(point: (T, T, T), normal: (T, T, T)) -> Option<Self> {
         let origin = Point3D::new(point.0, point.1, point.2);
         let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
         Self::from_point_and_normal(origin, normal_vec)
-    }
-
-    fn xz_plane() -> Self {
-        Self::xz_plane(T::ZERO)
-    }
-
-    fn yz_plane() -> Self {
-        Self::yz_plane(T::ZERO)
     }
 }
 
@@ -322,30 +290,6 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
 
     fn dimension(&self) -> u32 {
         2 // 2次元多様体
-    }
-
-    fn is_xy_plane(&self) -> bool {
-        let angle_tolerance = default_orthogonality_dot_error_tolerance::<T>();
-        let distance_tolerance = default_distance_tolerance::<T>();
-        let z_axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
-        (self.normal.as_vector().dot(&z_axis) - T::ONE).abs() <= angle_tolerance
-            && self.origin.z().abs() <= distance_tolerance
-    }
-
-    fn is_xz_plane(&self) -> bool {
-        let angle_tolerance = default_orthogonality_dot_error_tolerance::<T>();
-        let distance_tolerance = default_distance_tolerance::<T>();
-        let y_axis = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
-        (self.normal.as_vector().dot(&y_axis) - T::ONE).abs() <= angle_tolerance
-            && self.origin.y().abs() <= distance_tolerance
-    }
-
-    fn is_yz_plane(&self) -> bool {
-        let angle_tolerance = default_orthogonality_dot_error_tolerance::<T>();
-        let distance_tolerance = default_distance_tolerance::<T>();
-        let x_axis = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
-        (self.normal.as_vector().dot(&x_axis) - T::ONE).abs() <= angle_tolerance
-            && self.origin.x().abs() <= distance_tolerance
     }
 }
 
@@ -389,32 +333,6 @@ impl<T: Scalar + From<f64>> Plane3DProjection<T> for Plane3D<T> {
             point.1 - offset.y(),
             point.2 - offset.z(),
         )
-    }
-}
-
-impl<T: Scalar + From<f64>> Plane3DDerived<T> for Plane3D<T> {
-    fn equation_coefficients(&self) -> (T, T, T, T) {
-        let a = self.normal.x();
-        let b = self.normal.y();
-        let c = self.normal.z();
-        let d = -(a * self.origin.x() + b * self.origin.y() + c * self.origin.z());
-        (a, b, c, d)
-    }
-}
-
-impl<T: Scalar + From<f64>> Plane3DEvaluation<T> for Plane3D<T> {
-    fn point_to_uv(&self, point: (T, T, T)) -> (T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let from_origin = Vector3D::from_points(&self.origin, &p);
-        let u = from_origin.dot(&self.u_axis.as_vector());
-        let v = from_origin.dot(&self.v_axis.as_vector());
-        (u, v)
-    }
-
-    fn uv_to_point(&self, u: T, v: T) -> (T, T, T) {
-        let offset = self.u_axis.as_vector() * u + self.v_axis.as_vector() * v;
-        let point = self.origin + offset;
-        (point.x(), point.y(), point.z())
     }
 }
 

@@ -74,28 +74,6 @@ impl<T: Scalar> Triangle2D<T> {
         .expect("Unit triangle should always be valid")
     }
 
-    /// 原点中心の正三角形を生成（辺の長さ指定）
-    pub fn equilateral_at_origin(side_length: T) -> Self {
-        let h = Self::equilateral_height_factor();
-        let half = side_length / (T::ONE + T::ONE);
-        Self::new(
-            Point2D::new(T::ZERO, side_length * h / T::from_f64(1.5)),
-            Point2D::new(-half, -side_length * h / T::from_f64(3.0)),
-            Point2D::new(half, -side_length * h / T::from_f64(3.0)),
-        )
-        .expect("Equilateral triangle should always be valid")
-    }
-
-    /// 直角二等辺三角形を生成（原点、x軸、y軸上）
-    pub fn right_isosceles(leg_length: T) -> Self {
-        Self::new(
-            Point2D::new(T::ZERO, T::ZERO),
-            Point2D::new(leg_length, T::ZERO),
-            Point2D::new(T::ZERO, leg_length),
-        )
-        .expect("Right isosceles triangle should always be valid")
-    }
-
     /// 辺AB取得
     pub fn edge_ab(&self) -> Vector2D<T> {
         Vector2D::from_points(self.vertex_a, self.vertex_b)
@@ -111,21 +89,6 @@ impl<T: Scalar> Triangle2D<T> {
         Vector2D::from_points(self.vertex_c, self.vertex_a)
     }
 
-    /// 辺の長さ配列取得
-    pub fn edge_lengths(&self) -> [T; 3] {
-        [
-            self.edge_ab().length(),
-            self.edge_bc().length(),
-            self.edge_ca().length(),
-        ]
-    }
-
-    /// 周囲長計算
-    pub fn perimeter(&self) -> T {
-        let lengths = self.edge_lengths();
-        lengths[0] + lengths[1] + lengths[2]
-    }
-
     /// 面積計算（外積の半分）
     pub fn area(&self) -> T {
         let ab = self.edge_ab();
@@ -134,15 +97,6 @@ impl<T: Scalar> Triangle2D<T> {
         // 外積のZ成分の絶対値の半分
         let cross_z = ab.x() * ac.y() - ab.y() * ac.x();
         cross_z.abs() / (T::ONE + T::ONE)
-    }
-
-    /// 重心計算
-    pub fn centroid(&self) -> Point2D<T> {
-        let three = T::ONE + T::ONE + T::ONE;
-        Point2D::new(
-            (self.vertex_a.x() + self.vertex_b.x() + self.vertex_c.x()) / three,
-            (self.vertex_a.y() + self.vertex_b.y() + self.vertex_c.y()) / three,
-        )
     }
 
     /// 外心計算（外接円の中心）
@@ -169,20 +123,6 @@ impl<T: Scalar> Triangle2D<T> {
         let uy = (a_sq * (cx - bx) + b_sq * (ax - cx) + c_sq * (bx - ax)) / d;
 
         Some(Point2D::new(ux, uy))
-    }
-
-    /// 外接円の半径
-    pub fn circumradius(&self) -> Option<T> {
-        let circumcenter = self.circumcenter()?;
-        let distance_a = Vector2D::from_points(circumcenter, self.vertex_a).length();
-        Some(distance_a)
-    }
-
-    /// 内接円の半径
-    pub fn inradius(&self) -> T {
-        let area = self.area();
-        let perimeter = self.perimeter();
-        (area * (T::ONE + T::ONE)) / perimeter
     }
 
     /// 点が三角形の内部または境界上にあるかの判定（重心座標使用、境界を含む厳密な判定）
@@ -289,29 +229,6 @@ impl<T: Scalar> Triangle2DConstructor<T> for Triangle2D<T> {
         let pb = Point2D::new(b.0, b.1);
         let pc = Point2D::new(c.0, c.1);
         Self::new(pa, pb, pc)
-    }
-
-    fn unit_triangle() -> Self {
-        Self::unit_triangle()
-    }
-
-    fn from_array(points: [(T, T); 3]) -> Option<Self> {
-        let pa = Point2D::new(points[0].0, points[0].1);
-        let pb = Point2D::new(points[1].0, points[1].1);
-        let pc = Point2D::new(points[2].0, points[2].1);
-        Self::new(pa, pb, pc)
-    }
-
-    fn equilateral_at_origin(side_length: T) -> Self {
-        Self::equilateral_at_origin(side_length)
-    }
-
-    fn right_isosceles(leg_length: T) -> Self {
-        Self::right_isosceles(leg_length)
-    }
-
-    fn reversed(&self) -> Self {
-        self.reverse()
     }
 }
 

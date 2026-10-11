@@ -36,12 +36,6 @@ impl<T: Scalar> Rect2D<T> {
         })
     }
 
-    pub fn from_corners(min: Point2D<T>, max: Point2D<T>) -> Option<Self> {
-        let width = max.x() - min.x();
-        let height = max.y() - min.y();
-        Self::new(min, width, height)
-    }
-
     pub fn origin_point(&self) -> Point2D<T> {
         self.origin
     }
@@ -95,11 +89,6 @@ impl<T: Scalar> Rect2D<T> {
         self.width * self.height
     }
 
-    pub fn perimeter(&self) -> T {
-        let two = T::ONE + T::ONE;
-        two * (self.width + self.height)
-    }
-
     pub fn corners(&self) -> [Point2D<T>; 4] {
         let max = self.max_point();
         [
@@ -114,10 +103,6 @@ impl<T: Scalar> Rect2D<T> {
 impl<T: Scalar> Rect2DConstructor<T> for Rect2D<T> {
     fn new(origin: (T, T), width: T, height: T) -> Option<Self> {
         Self::new(Point2D::new(origin.0, origin.1), width, height)
-    }
-
-    fn from_corners(min: (T, T), max: (T, T)) -> Option<Self> {
-        Self::from_corners(Point2D::new(min.0, min.1), Point2D::new(max.0, max.1))
     }
 
     fn resize(&mut self, width: T, height: T) -> bool {
@@ -136,11 +121,6 @@ impl<T: Scalar> Rect2DProperties<T> for Rect2D<T> {
 
     fn height(&self) -> T {
         self.height
-    }
-
-    fn max_corner(&self) -> (T, T) {
-        let max = self.max_point();
-        (max.x(), max.y())
     }
 
     fn center(&self) -> (T, T) {
@@ -164,14 +144,6 @@ impl<T: Scalar> Rect2DContainment<T> for Rect2D<T> {
 }
 
 impl<T: Scalar> Rect2DDerived<T> for Rect2D<T> {
-    fn area(&self) -> T {
-        Self::area(self)
-    }
-
-    fn perimeter(&self) -> T {
-        Self::perimeter(self)
-    }
-
     fn is_valid(&self) -> bool {
         self.width >= T::ZERO && self.height >= T::ZERO
     }

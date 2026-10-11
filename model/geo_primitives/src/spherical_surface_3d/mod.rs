@@ -360,50 +360,6 @@ impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         Self::new_standard(center_point, radius)
     }
-
-    fn unit_sphere_surface() -> Self {
-        Self::new_at_origin(T::ONE).expect("Unit sphere surface creation should always succeed")
-    }
-
-    fn from_diameter(center: (T, T, T), diameter: T) -> Option<Self> {
-        let radius = diameter / (T::ONE + T::ONE);
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::new_standard(center_point, radius)
-    }
-
-    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self> {
-        let center_x = (min.0 + max.0) / (T::ONE + T::ONE);
-        let center_y = (min.1 + max.1) / (T::ONE + T::ONE);
-        let center_z = (min.2 + max.2) / (T::ONE + T::ONE);
-
-        let dx = (max.0 - min.0) / (T::ONE + T::ONE);
-        let dy = (max.1 - min.1) / (T::ONE + T::ONE);
-        let dz = (max.2 - min.2) / (T::ONE + T::ONE);
-
-        let radius = dx.min(dy).min(dz);
-        let center_point = Point3D::new(center_x, center_y, center_z);
-        Self::new_standard(center_point, radius)
-    }
-
-    fn from_three_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T)) -> Option<Self> {
-        let center_x = (p1.0 + p2.0 + p3.0) / T::from_f64(3.0);
-        let center_y = (p1.1 + p2.1 + p3.1) / T::from_f64(3.0);
-        let center_z = (p1.2 + p2.2 + p3.2) / T::from_f64(3.0);
-
-        let dist1 =
-            ((p1.0 - center_x).powi(2) + (p1.1 - center_y).powi(2) + (p1.2 - center_z).powi(2))
-                .sqrt();
-        let dist2 =
-            ((p2.0 - center_x).powi(2) + (p2.1 - center_y).powi(2) + (p2.2 - center_z).powi(2))
-                .sqrt();
-        let dist3 =
-            ((p3.0 - center_x).powi(2) + (p3.1 - center_y).powi(2) + (p3.2 - center_z).powi(2))
-                .sqrt();
-
-        let radius = dist1.max(dist2).max(dist3);
-        let center_point = Point3D::new(center_x, center_y, center_z);
-        Self::new_standard(center_point, radius)
-    }
 }
 
 impl<T: Scalar> ContractsSphericalSurface3DProperties<T> for SphericalSurface3D<T> {
@@ -428,19 +384,6 @@ impl<T: Scalar> ContractsSphericalSurface3DProperties<T> for SphericalSurface3D<
 
     fn diameter(&self) -> T {
         self.radius * T::from_f64(2.0)
-    }
-
-    fn is_unit_sphere(&self) -> bool {
-        (self.radius - T::ONE).abs() <= T::EPSILON
-    }
-
-    fn circumference(&self) -> T {
-        T::TAU * self.radius
-    }
-
-    fn is_centered_at_origin(&self) -> bool {
-        let c = self.center;
-        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON && c.z().abs() <= T::EPSILON
     }
 }
 
@@ -472,41 +415,6 @@ impl<T: Scalar> SphericalSurface3DEvaluation<T> for SphericalSurface3D<T> {
     }
 
     // Phase 2: 追加測定
-
-    fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T) {
-        let c = self.center;
-        let r = self.radius;
-
-        let cos_lat = latitude.cos();
-        let sin_lat = latitude.sin();
-        let cos_lon = longitude.cos();
-        let sin_lon = longitude.sin();
-
-        let x = c.x() + r * cos_lat * cos_lon;
-        let y = c.y() + r * cos_lat * sin_lon;
-        let z = c.z() + r * sin_lat;
-
-        (x, y, z)
-    }
-
-    fn tangent_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T)) {
-        let r = self.radius;
-
-        let cos_v = v.cos();
-        let sin_v = v.sin();
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-
-        let tu_x = -r * cos_v * sin_u;
-        let tu_y = r * cos_v * cos_u;
-        let tu_z = T::ZERO;
-
-        let tv_x = -r * sin_v * cos_u;
-        let tv_y = -r * sin_v * sin_u;
-        let tv_z = r * cos_v;
-
-        ((tu_x, tu_y, tu_z), (tv_x, tv_y, tv_z))
-    }
 }
 
 impl<T: Scalar> SphericalSurface3DDistance<T> for SphericalSurface3D<T> {
