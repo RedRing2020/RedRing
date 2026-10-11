@@ -2,6 +2,11 @@
 //!
 //! Core Foundation パターンに基づく LineSegment2D の必須機能のみを提供する。
 
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
     default_distance_tolerance, CrossDistance, LineSegment2DConstructor, LineSegment2DContainment,
@@ -14,11 +19,11 @@ use geo_contracts::{
 /// support line と trim 区間を正本とし、必要に応じて拘束端点も保持できる有限線形 shape を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineSegment2D<T: Scalar> {
-    pub(crate) line: InfiniteLine2D<T>,
-    pub(crate) start_param: T,
-    pub(crate) end_param: T,
-    pub(crate) start_point: Point2D<T>,
-    pub(crate) end_point: Point2D<T>,
+    line: InfiniteLine2D<T>,
+    start_param: T,
+    end_param: T,
+    start_point: Point2D<T>,
+    end_point: Point2D<T>,
 }
 
 impl<T: Scalar> PrimitiveMetadata for LineSegment2D<T> {
@@ -104,11 +109,6 @@ impl<T: Scalar> LineSegment2D<T> {
     /// topology 連携用の拘束終点を取得
     pub fn constraint_end_point(&self) -> Point2D<T> {
         self.end_point
-    }
-
-    /// 拘束端点間の距離を取得
-    pub fn constraint_length(&self) -> T {
-        self.start_point.distance_to(&self.end_point)
     }
 
     /// 始点を取得
@@ -419,51 +419,5 @@ impl<T: Scalar> LineSegment2DProjection<T> for LineSegment2D<T> {
 impl<T: Scalar> CrossDistance<T, Self> for LineSegment2D<T> {
     fn distance_to(&self, other: &Self) -> T {
         LineSegment2D::distance_to_segment(self, other)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn public_endpoints_follow_ideal_support_line() {
-        let line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0_f64, 0.0)).unwrap();
-        let start = Point2D::new(0.0, 1.0);
-        let end = Point2D::new(2.0, 1.0);
-
-        let segment =
-            LineSegment2D::from_support_line_and_constraint_points(line, start, end).unwrap();
-
-        assert_eq!(segment.constraint_start_point(), start);
-        assert_eq!(segment.constraint_end_point(), end);
-        assert_eq!(segment.ideal_start(), Point2D::new(0.0, 0.0));
-        assert_eq!(segment.ideal_end(), Point2D::new(2.0, 0.0));
-        assert_eq!(segment.start_point(), Point2D::new(0.0, 0.0));
-        assert_eq!(segment.end_point(), Point2D::new(2.0, 0.0));
-        assert_eq!(
-            segment.point_at_parameter(0.5),
-            Some(Point2D::new(1.0, 0.0))
-        );
-        assert_eq!(segment.length(), 2.0);
-        assert_eq!(segment.constraint_length(), 2.0);
-        assert_eq!(segment.ideal_length(), 2.0);
-    }
-
-    #[test]
-    fn trait_parameter_evaluation_rejects_out_of_domain_input() {
-        use geo_contracts::LineSegment2DEvaluation;
-
-        let segment = LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(2.0, 0.0))
-            .expect("segment creation should succeed");
-
-        let evaluate = |t| {
-            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter(&segment, t)
-        };
-
-        assert_eq!(evaluate(0.5), Some((1.0, 0.0)));
-        assert!(evaluate(1.1).is_none());
-        assert!(evaluate(-0.1).is_none());
-        assert!(evaluate(f64::NAN).is_none());
     }
 }
