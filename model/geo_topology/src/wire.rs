@@ -60,13 +60,6 @@ impl<T: Scalar> Wire<T> {
             .is_valid()
     }
 
-    pub fn is_continuous_with_tolerances(&self, edge_tolerance: T, shared_tolerance: T) -> bool {
-        self.is_continuous(TopologyToleranceSettings::new(
-            edge_tolerance,
-            shared_tolerance,
-        ))
-    }
-
     /// 閉ループかを判定
     pub fn is_closed(&self, tolerances: TopologyToleranceSettings<T>) -> bool {
         self.is_closed_with_tolerance(tolerances.shared_tolerance)
