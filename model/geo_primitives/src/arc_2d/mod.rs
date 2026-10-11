@@ -186,41 +186,12 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
         )
     }
 
-    fn semicircle(center: (T, T), radius: T) -> Self {
-        let center_point = Point2D::new(center.0, center.1);
-        let circle = Circle2D::new(center_point, radius).unwrap();
-        let start = Angle::from_radians(T::ZERO);
-        let end = Angle::from_radians(T::PI);
-        Self::new(circle, start, end).unwrap()
-    }
-
-    fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self> {
-        let center_point = Point2D::new(center.0, center.1);
-        let start_point = Point2D::new(start.0, start.1);
-        let end_point = Point2D::new(end.0, end.1);
-
-        let radius = center_point.distance_to(&start_point);
-        let start_angle = Self::angle_from_center(center_point, start_point);
-        let end_angle = Self::angle_from_center(center_point, end_point);
-
-        let circle = Circle2D::new(center_point, radius)?;
-        Self::new(
-            circle,
-            Angle::from_radians(start_angle),
-            Angle::from_radians(end_angle),
-        )
-    }
-
     fn full_circle(center: (T, T), radius: T) -> Self {
         let center_point = Point2D::new(center.0, center.1);
         let circle = Circle2D::new(center_point, radius).unwrap();
         let start = Angle::from_radians(T::ZERO);
         let end = Angle::from_radians((T::ONE + T::ONE) * T::PI);
         Self::new(circle, start, end).unwrap()
-    }
-
-    fn unit_semicircle() -> Self {
-        Self::semicircle((T::ZERO, T::ZERO), T::ONE)
     }
 }
 
@@ -252,11 +223,6 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
     fn is_full_circle(&self) -> bool {
         let span = self.angle_span();
         (span - (T::ONE + T::ONE) * T::PI).abs() <= default_angle_tolerance::<T>()
-    }
-
-    fn is_semicircle(&self) -> bool {
-        let span = self.angle_span();
-        (span - T::PI).abs() <= default_angle_tolerance::<T>()
     }
 }
 

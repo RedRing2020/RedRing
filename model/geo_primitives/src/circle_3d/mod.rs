@@ -142,24 +142,6 @@ impl<T: Scalar> Circle3D<T> {
         )
     }
 
-    /// XZ平面上の円を作成（Y軸が法線）
-    pub fn new_xz_plane(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(
-            center,
-            Direction3D::from_vector(Vector3D::unit_y()).unwrap(),
-            radius,
-        )
-    }
-
-    /// YZ平面上の円を作成（X軸が法線）
-    pub fn new_yz_plane(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(
-            center,
-            Direction3D::from_vector(Vector3D::unit_x()).unwrap(),
-            radius,
-        )
-    }
-
     /// 法線方向を取得
     pub fn normal(&self) -> Direction3D<T> {
         self.axis
@@ -287,60 +269,12 @@ impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
         Self::new_xy_plane(center_point, radius)
     }
 
-    fn unit_circle_xy() -> Self {
-        let center = Point3D::origin();
-        Self::new_xy_plane(center, T::ONE).unwrap()
-    }
-
-    fn from_center_and_point(
-        center: (T, T, T),
-        axis: (T, T, T),
-        point_on_circle: (T, T, T),
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let axis_vec = Vector3D::new(axis.0, axis.1, axis.2);
-        let axis_dir = Direction3D::from_vector(axis_vec)?;
-        let point = Point3D::new(point_on_circle.0, point_on_circle.1, point_on_circle.2);
-
-        // 点から中心へのベクトル
-        let to_point = Vector3D::new(
-            point.x() - center_point.x(),
-            point.y() - center_point.y(),
-            point.z() - center_point.z(),
-        );
-
-        // 軸方向への投影成分を除去
-        let projection = to_point.dot(&axis_dir.as_vector());
-        let radial = to_point - axis_dir.as_vector() * projection;
-
-        let radius = radial.length();
-        if radius <= T::ZERO {
-            None
-        } else {
-            Self::new(center_point, axis_dir, radius)
-        }
-    }
-
     fn from_three_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T)) -> Option<Self> {
         let point1 = Point3D::new(p1.0, p1.1, p1.2);
         let point2 = Point3D::new(p2.0, p2.1, p2.2);
         let point3 = Point3D::new(p3.0, p3.1, p3.2);
 
         Self::from_three_points_internal(point1, point2, point3)
-    }
-
-    fn centered_at_origin_xy(radius: T) -> Option<Self> {
-        Self::new_xy_plane(Point3D::origin(), radius)
-    }
-
-    fn new_xz_plane(center: (T, T, T), radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::new_xz_plane(center_point, radius)
-    }
-
-    fn new_yz_plane(center: (T, T, T), radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::new_yz_plane(center_point, radius)
     }
 }
 
@@ -366,27 +300,6 @@ impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
 
     fn dimension(&self) -> u32 {
         3
-    }
-
-    fn is_unit_circle(&self) -> bool {
-        (self.radius - T::ONE).abs() <= default_distance_tolerance::<T>()
-    }
-
-    fn is_centered_at_origin(&self) -> bool {
-        let c = self.center;
-        c.x().abs() <= default_distance_tolerance::<T>()
-            && c.y().abs() <= default_distance_tolerance::<T>()
-            && c.z().abs() <= default_distance_tolerance::<T>()
-    }
-
-    fn is_degenerate(&self) -> bool {
-        self.radius <= default_distance_tolerance::<T>()
-    }
-
-    fn is_on_xy_plane(&self) -> bool {
-        // Z軸に平行かどうかを確認
-        let z_component = self.axis.z().abs();
-        (z_component - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
 }
 

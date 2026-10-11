@@ -212,108 +212,6 @@ impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
         let end = Angle::from_radians(end_angle);
         Some(Self::new(ellipse, start, end))
     }
-
-    fn xy_plane(
-        center: (T, T, T),
-        semi_major: T,
-        semi_minor: T,
-        rotation: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_vec = Vector3D::unit_z();
-
-        // 回転を考慮した長軸方向
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-        let major_vec = Vector3D::new(cos_rot, sin_rot, T::ZERO);
-
-        let ellipse = Ellipse3D::new(center_point, semi_major, semi_minor, normal_vec, major_vec)?;
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Some(Self::new(ellipse, start, end))
-    }
-
-    fn unit_ellipse_arc_xy() -> Self {
-        let center = Point3D::origin();
-        let normal = Vector3D::unit_z();
-        let major_axis = Vector3D::unit_x();
-        let ellipse = Ellipse3D::new(center, T::ONE, T::ONE, normal, major_axis).unwrap();
-        let start = Angle::from_radians(T::ZERO);
-        let end = Angle::from_radians(T::PI / (T::ONE + T::ONE)); // π/2
-        Self::new(ellipse, start, end)
-    }
-
-    fn xz_plane(
-        center: (T, T, T),
-        semi_major: T,
-        semi_minor: T,
-        rotation: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_vec = Vector3D::unit_y();
-
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-        let major_vec = Vector3D::new(cos_rot, T::ZERO, sin_rot);
-
-        let ellipse = Ellipse3D::new(center_point, semi_major, semi_minor, normal_vec, major_vec)?;
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Some(Self::new(ellipse, start, end))
-    }
-
-    fn yz_plane(
-        center: (T, T, T),
-        semi_major: T,
-        semi_minor: T,
-        rotation: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_vec = Vector3D::unit_x();
-
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-        let major_vec = Vector3D::new(T::ZERO, cos_rot, sin_rot);
-
-        let ellipse = Ellipse3D::new(center_point, semi_major, semi_minor, normal_vec, major_vec)?;
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Some(Self::new(ellipse, start, end))
-    }
-
-    fn from_three_points(start: (T, T, T), mid: (T, T, T), end: (T, T, T)) -> Option<Self> {
-        let p1 = Point3D::new(start.0, start.1, start.2);
-        let p2 = Point3D::new(mid.0, mid.1, mid.2);
-        let p3 = Point3D::new(end.0, end.1, end.2);
-
-        let v1 = Vector3D::from_points(&p1, &p2);
-        let v2 = Vector3D::from_points(&p2, &p3);
-
-        let normal = v1.cross(&v2);
-        if normal.length() < T::EPSILON {
-            return None;
-        }
-
-        let center = Point3D::new(
-            (p1.x() + p2.x() + p3.x()) / (T::ONE + T::ONE + T::ONE),
-            (p1.y() + p2.y() + p3.y()) / (T::ONE + T::ONE + T::ONE),
-            (p1.z() + p2.z() + p3.z()) / (T::ONE + T::ONE + T::ONE),
-        );
-
-        let radius = Vector3D::from_points(&center, &p1).length();
-        let major_vec = Vector3D::from_points(&center, &p1).normalize();
-
-        let ellipse = Ellipse3D::new(center, radius, radius, normal, major_vec)?;
-        let start_angle = Angle::from_radians(T::ZERO);
-        let end_angle = Angle::from_radians(T::PI);
-        Some(Self::new(ellipse, start_angle, end_angle))
-    }
 }
 
 impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
@@ -341,18 +239,6 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
     fn normal(&self) -> (T, T, T) {
         let n = self.ellipse.normal();
         (n.x(), n.y(), n.z())
-    }
-
-    fn sweep_angle(&self) -> T {
-        let mut sweep = self.end_angle.to_radians() - self.start_angle.to_radians();
-        if sweep < T::ZERO {
-            sweep += T::TAU;
-        }
-        sweep
-    }
-
-    fn eccentricity(&self) -> T {
-        self.ellipse.eccentricity()
     }
 }
 

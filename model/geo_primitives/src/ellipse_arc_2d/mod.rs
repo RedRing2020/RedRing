@@ -209,109 +209,6 @@ impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
         let end = Angle::from_radians(end_angle);
         Some(Self::new(ellipse, start, end))
     }
-
-    fn unit_ellipse_arc() -> Self {
-        let center = Point2D::origin();
-        let ellipse = Ellipse2D::new(center, T::ONE, T::ONE, T::ZERO).unwrap();
-        let start = Angle::from_radians(T::ZERO);
-        let end = Angle::from_radians(T::PI / (T::ONE + T::ONE)); // π/2
-        Self::new(ellipse, start, end)
-    }
-
-    fn from_ellipse_and_angles(
-        center: (T, T),
-        semi_major: T,
-        semi_minor: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self> {
-        // 回転なし（0度）で楕円弧を作成
-        let center_point = Point2D::new(center.0, center.1);
-        let ellipse = Ellipse2D::new(center_point, semi_major, semi_minor, T::ZERO)?;
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Some(Self::new(ellipse, start, end))
-    }
-
-    fn from_circle_arc(center: (T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
-        // 円弧は楕円弧の特殊ケース（a = b = radius）
-        let center_point = Point2D::new(center.0, center.1);
-        let ellipse = Ellipse2D::new(center_point, radius, radius, T::ZERO)?;
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Some(Self::new(ellipse, start, end))
-    }
-
-    fn from_three_points(start: (T, T), mid: (T, T), end: (T, T)) -> Option<Self> {
-        // 3点を通る円弧として解釈
-        let p1 = Point2D::new(start.0, start.1);
-        let p2 = Point2D::new(mid.0, mid.1);
-        let p3 = Point2D::new(end.0, end.1);
-
-        let v1 = Vector2D::from_points(p1, p2);
-        let v2 = Vector2D::from_points(p2, p3);
-
-        let mid1 = Point2D::new(
-            (p1.x() + p2.x()) / (T::ONE + T::ONE),
-            (p1.y() + p2.y()) / (T::ONE + T::ONE),
-        );
-        let mid2 = Point2D::new(
-            (p2.x() + p3.x()) / (T::ONE + T::ONE),
-            (p2.y() + p3.y()) / (T::ONE + T::ONE),
-        );
-
-        let perp1 = Vector2D::new(-v1.y(), v1.x());
-        let perp2 = Vector2D::new(-v2.y(), v2.x());
-
-        let det = perp1.x() * perp2.y() - perp1.y() * perp2.x();
-        if det.abs() < T::EPSILON {
-            return None;
-        }
-
-        let diff_x = mid2.x() - mid1.x();
-        let diff_y = mid2.y() - mid1.y();
-        let t = (diff_x * perp2.y() - diff_y * perp2.x()) / det;
-
-        let center = Point2D::new(mid1.x() + perp1.x() * t, mid1.y() + perp1.y() * t);
-        let radius = Vector2D::from_points(center, p1).length();
-
-        let start_vec = Vector2D::from_points(center, p1);
-        let end_vec = Vector2D::from_points(center, p3);
-        let start_angle = start_vec.y().atan2(start_vec.x());
-        let end_angle = end_vec.y().atan2(end_vec.x());
-
-        Self::from_circle_arc((center.x(), center.y()), radius, start_angle, end_angle)
-    }
-
-    fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self> {
-        let c = Point2D::new(center.0, center.1);
-        let p1 = Point2D::new(start.0, start.1);
-        let p2 = Point2D::new(end.0, end.1);
-
-        let r1 = Vector2D::from_points(c, p1).length();
-        let r2 = Vector2D::from_points(c, p2).length();
-
-        if (r1 - r2).abs() < T::EPSILON {
-            let start_vec = Vector2D::from_points(c, p1);
-            let end_vec = Vector2D::from_points(c, p2);
-            let start_angle = start_vec.y().atan2(start_vec.x());
-            let end_angle = end_vec.y().atan2(end_vec.x());
-            return Self::from_circle_arc(center, r1, start_angle, end_angle);
-        }
-
-        let semi_major = r1.max(r2);
-        let semi_minor = r1.min(r2);
-        let start_vec = Vector2D::from_points(c, p1);
-        let end_vec = Vector2D::from_points(c, p2);
-        let start_angle = start_vec.y().atan2(start_vec.x());
-        let end_angle = end_vec.y().atan2(end_vec.x());
-
-        let center_point = Point2D::new(center.0, center.1);
-        let ellipse = Ellipse2D::new(center_point, semi_major, semi_minor, T::ZERO)?;
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Some(Self::new(ellipse, start, end))
-    }
 }
 
 impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
@@ -338,19 +235,6 @@ impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
 
     fn rotation(&self) -> T {
         self.ellipse.rotation()
-    }
-
-    fn sweep_angle(&self) -> T {
-        // 角度範囲を計算（正規化）
-        let mut sweep = self.end_angle.to_radians() - self.start_angle.to_radians();
-        if sweep < T::ZERO {
-            sweep += T::TAU;
-        }
-        sweep
-    }
-
-    fn eccentricity(&self) -> T {
-        self.ellipse.eccentricity()
     }
 }
 

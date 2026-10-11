@@ -18,37 +18,6 @@ pub trait EllipseArc2DConstructor<T: Scalar> {
     ) -> Option<Self>
     where
         Self: Sized;
-
-    /// XY平面上の単位楕円弧を作成（回転なし、0度から90度）
-    fn unit_ellipse_arc() -> Self
-    where
-        Self: Sized;
-
-    /// 指定した角度範囲の楕円弧を作成（回転なし）
-    fn from_ellipse_and_angles(
-        center: (T, T),
-        semi_major: T,
-        semi_minor: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// 円弧から楕円弧を作成（円弧は楕円弧の特殊ケース）
-    fn from_circle_arc(center: (T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// 3点を通る楕円弧を作成（開始点、中間点、終了点）
-    fn from_three_points(start: (T, T), mid: (T, T), end: (T, T)) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// 中心と2点から楕円弧を作成（回転角は0）
-    fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self>
-    where
-        Self: Sized;
 }
 
 /// EllipseArc3D生成のためのConstructorトレイト（Phase 1 + Phase 2）
@@ -63,52 +32,6 @@ pub trait EllipseArc3DConstructor<T: Scalar> {
         start_angle: T,
         end_angle: T,
     ) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// XY平面上の楕円弧を作成
-    fn xy_plane(
-        center: (T, T, T),
-        semi_major: T,
-        semi_minor: T,
-        rotation: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// 単位楕円弧をXY平面上に作成
-    fn unit_ellipse_arc_xy() -> Self
-    where
-        Self: Sized;
-
-    /// XZ平面上の楕円弧を作成
-    fn xz_plane(
-        center: (T, T, T),
-        semi_major: T,
-        semi_minor: T,
-        rotation: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// YZ平面上の楕円弧を作成
-    fn yz_plane(
-        center: (T, T, T),
-        semi_major: T,
-        semi_minor: T,
-        rotation: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// 3点を通る楕円弧を3D空間に作成（開始点、中間点、終了点）
-    fn from_three_points(start: (T, T, T), mid: (T, T, T), end: (T, T, T)) -> Option<Self>
     where
         Self: Sized;
 }
@@ -132,12 +55,6 @@ pub trait EllipseArc2DProperties<T: Scalar> {
 
     /// 回転角を取得（ラジアン）
     fn rotation(&self) -> T;
-
-    /// 角度範囲（スイープ角）を取得（ラジアン）
-    fn sweep_angle(&self) -> T;
-
-    /// 楕円の離心率を取得（0 <= e < 1）
-    fn eccentricity(&self) -> T;
 }
 
 /// EllipseArc3D基本プロパティ取得トレイト（Phase 1 + Phase 2）
@@ -159,12 +76,6 @@ pub trait EllipseArc3DProperties<T: Scalar> {
 
     /// 法線ベクトルを取得
     fn normal(&self) -> (T, T, T);
-
-    /// 角度範囲（スイープ角）を取得（ラジアン）
-    fn sweep_angle(&self) -> T;
-
-    /// 楕円の離心率を取得（0 <= e < 1）
-    fn eccentricity(&self) -> T;
 }
 
 /// EllipseArc2D計量・関係演算機能トレイト（Phase 1 + Phase 2）

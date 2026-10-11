@@ -2,8 +2,8 @@
 //!
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
-use crate::{Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
-use geo_contracts::{Ellipse3DProjection, Ellipse3DProperties};
+use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
+use geo_contracts::Ellipse3DProjection;
 
 use analysis::test_constants::TOLERANCE_F32;
 
@@ -13,7 +13,7 @@ fn test_basic_creation() {
     let center = Point3D::new(1.0, 2.0, 3.0);
     let ellipse = Ellipse3D::new(center, 5.0, 3.0, Vector3D::unit_z(), Vector3D::unit_x()).unwrap();
 
-    assert_eq!(ellipse.center_3d(), (center.x(), center.y(), center.z()));
+    assert_eq!(ellipse.center(), center);
     assert_eq!(ellipse.semi_major_axis(), 5.0);
     assert_eq!(ellipse.semi_minor_axis(), 3.0);
     assert_eq!(
@@ -35,24 +35,6 @@ fn test_basic_creation() {
 }
 
 #[test]
-fn test_from_circle() {
-    let circle = Circle3D::new_xy_plane(Point3D::new(1.0, 2.0, 3.0), 4.0).unwrap();
-    let ellipse = Ellipse3D::from_circle(&circle).unwrap();
-
-    let c = Point3D::from_tuple(geo_contracts::Circle3DProperties::center(&circle));
-    assert_eq!(ellipse.center_3d(), (c.x(), c.y(), c.z()));
-    assert_eq!(
-        ellipse.semi_major_axis(),
-        geo_contracts::Circle3DProperties::radius(&circle)
-    );
-    assert_eq!(
-        ellipse.semi_minor_axis(),
-        geo_contracts::Circle3DProperties::radius(&circle)
-    );
-    assert_eq!(ellipse.normal(), circle.normal());
-}
-
-#[test]
 fn test_basic_properties() {
     let ellipse = Ellipse3D::new(
         Point3D::origin(),
@@ -63,11 +45,6 @@ fn test_basic_properties() {
     )
     .unwrap();
 
-    // 離心率
-    let eccentricity = ellipse.eccentricity();
-    let expected_e = (1.0f64 - (3.0f64 * 3.0f64) / (5.0f64 * 5.0f64)).sqrt();
-    assert!((eccentricity - expected_e).abs() < 1e-10);
-
     // 面積
     let area = ellipse.area();
     let expected_area = std::f64::consts::PI * 5.0 * 3.0;
@@ -77,19 +54,6 @@ fn test_basic_properties() {
 
     // 退化判定
     assert!(!ellipse.is_degenerate());
-}
-
-#[test]
-fn test_circle_detection() {
-    let circle_ellipse = Ellipse3D::new(
-        Point3D::origin(),
-        3.0,
-        3.0,
-        Vector3D::unit_z(),
-        Vector3D::unit_x(),
-    )
-    .unwrap();
-    assert_eq!(circle_ellipse.eccentricity(), 0.0);
 }
 
 #[test]

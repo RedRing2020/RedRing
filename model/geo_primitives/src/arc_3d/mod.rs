@@ -240,24 +240,6 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
         )
     }
 
-    fn xz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_dir = Direction3D::positive_y(); // XZ平面の法線はY軸
-        let start_dir = Direction3D::positive_x(); // 開始方向はX軸
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Self::new(center_point, radius, normal_dir, start_dir, start, end)
-    }
-
-    fn yz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_dir = Direction3D::positive_x(); // YZ平面の法線はX軸
-        let start_dir = Direction3D::positive_y(); // 開始方向はY軸
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Self::new(center_point, radius, normal_dir, start_dir, start, end)
-    }
-
     fn full_circle(center: (T, T, T), normal: (T, T, T), radius: T) -> Option<Self> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
@@ -302,13 +284,6 @@ impl<T: Scalar> ContractsArc3DProperties<T> for Arc3D<T> {
     fn is_full_circle(&self) -> bool {
         let span = (self.end_angle.to_radians() - self.start_angle.to_radians()).abs();
         (span - T::from_f64(2.0) * T::PI).abs() <= default_angle_tolerance::<T>()
-    }
-
-    fn is_on_xy_plane(&self) -> bool {
-        let z_axis = Direction3D::positive_z();
-        (self.normal.x() - z_axis.x()).abs() <= default_distance_tolerance::<T>()
-            && (self.normal.y() - z_axis.y()).abs() <= default_distance_tolerance::<T>()
-            && (self.normal.z() - z_axis.z()).abs() <= default_distance_tolerance::<T>()
     }
 }
 

@@ -7,13 +7,12 @@ mod bounds;
 mod tests;
 mod transform;
 
-use crate::{Circle2D, Point2D, Vector2D};
+use crate::{Point2D, Vector2D};
 use geo_contracts::{
     default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDistance,
     Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties, PointClassification,
     PrimitiveKind, PrimitiveMetadata, Scalar,
 };
-use geo_contracts::{Circle2DProperties, EllipseCalculation};
 
 /// 2次元楕円
 ///
@@ -54,34 +53,9 @@ impl<T: Scalar> Ellipse2D<T> {
         }
     }
 
-    /// 円から楕円を作成
-    pub fn from_circle(circle: Circle2D<T>) -> Self {
-        Self {
-            center: Point2D::from_tuple(Circle2DProperties::center(&circle)),
-            semi_major: Circle2DProperties::radius(&circle),
-            semi_minor: Circle2DProperties::radius(&circle),
-            rotation: T::ZERO,
-        }
-    }
-
     /// 回転角を取得（ラジアン）
     pub fn rotation(&self) -> T {
         self.rotation
-    }
-
-    /// 離心率を取得
-    pub fn eccentricity(&self) -> T {
-        if self.semi_major == T::ZERO {
-            return T::ZERO;
-        }
-
-        let e_squared =
-            T::ONE - (self.semi_minor * self.semi_minor) / (self.semi_major * self.semi_major);
-        if e_squared <= T::ZERO {
-            T::ZERO
-        } else {
-            e_squared.sqrt()
-        }
     }
 
     /// 面積を取得
@@ -264,157 +238,10 @@ impl<T: Scalar> Ellipse2D<T> {
     }
 }
 
-impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
-    type Point = Point2D<T>;
-
-    /// 長半軸の長さを取得
-    fn semi_major_axis(&self) -> T {
-        self.semi_major
-    }
-
-    /// 短半軸の長さを取得
-    fn semi_minor_axis(&self) -> T {
-        self.semi_minor
-    }
-
-    /// ラマヌジャン近似式I（標準版）による周回長計算
-    fn circumference_ramanujan_i(&self) -> T {
-        geo_commons::ellipse_circumference_ramanujan_i(self.semi_major, self.semi_minor)
-    }
-
-    /// ラマヌジャン近似式II（高精度版）による周回長計算
-    fn circumference_ramanujan_ii(&self) -> T {
-        geo_commons::ellipse_circumference_ramanujan_ii(self.semi_major, self.semi_minor)
-    }
-
-    /// パダン近似による周回長計算（中程度精度）
-    fn circumference_pade(&self) -> T {
-        geo_commons::ellipse_circumference_padé(self.semi_major, self.semi_minor)
-    }
-
-    /// カントレル近似による周回長計算（高精度）
-    fn circumference_cantrell(&self) -> T {
-        geo_commons::ellipse_circumference_cantrell(self.semi_major, self.semi_minor)
-    }
-
-    /// 級数展開による周回長計算（最高精度）
-    fn circumference_series(&self, terms: usize) -> T {
-        geo_commons::ellipse_circumference_series(self.semi_major, self.semi_minor, terms)
-    }
-
-    /// 数値積分による周回長計算（最高精度版）
-    fn circumference_numerical(&self, n_points: usize) -> T {
-        geo_commons::ellipse_circumference_numerical(self.semi_major, self.semi_minor, n_points)
-    }
-
-    /// 楕円の離心率計算
-    fn eccentricity(&self) -> T {
-        geo_commons::ellipse_eccentricity(self.semi_major, self.semi_minor)
-    }
-
-    /// 楕円の焦点距離計算
-    fn focal_distance(&self) -> T {
-        geo_commons::ellipse_focal_distance(self.semi_major, self.semi_minor)
-    }
-
-    /// 楕円の面積計算
-    fn area(&self) -> T {
-        T::PI * self.semi_major * self.semi_minor
-    }
-
-    /// 楕円の焦点座標を計算
-    fn foci(&self) -> (Point2D<T>, Point2D<T>) {
-        let a = self.semi_major;
-        let b = self.semi_minor;
-
-        // 焦点間距離の半分
-        let c = if a >= b {
-            (a * a - b * b).sqrt()
-        } else {
-            T::ZERO // 円の場合、焦点は中心
-        };
-
-        // 回転と中心移動を考慮した焦点座標
-        let cos_rot = self.rotation.cos();
-        let sin_rot = self.rotation.sin();
-
-        let f1_local = Point2D::new(c, T::ZERO);
-        let f2_local = Point2D::new(-c, T::ZERO);
-
-        // 回転変換
-        let f1_rotated = Point2D::new(
-            f1_local.x() * cos_rot - f1_local.y() * sin_rot,
-            f1_local.x() * sin_rot + f1_local.y() * cos_rot,
-        );
-        let f2_rotated = Point2D::new(
-            f2_local.x() * cos_rot - f2_local.y() * sin_rot,
-            f2_local.x() * sin_rot + f2_local.y() * cos_rot,
-        );
-
-        // 中心移動
-        let f1_final = Point2D::new(
-            self.center.x() + f1_rotated.x(),
-            self.center.y() + f1_rotated.y(),
-        );
-        let f2_final = Point2D::new(
-            self.center.x() + f2_rotated.x(),
-            self.center.y() + f2_rotated.y(),
-        );
-
-        (f1_final, f2_final)
-    }
-}
-
 impl<T: Scalar> Ellipse2DConstructor<T> for Ellipse2D<T> {
     fn new(center: (T, T), semi_major: T, semi_minor: T, rotation: T) -> Option<Self> {
         let center_point = Point2D::new(center.0, center.1);
         Self::new(center_point, semi_major, semi_minor, rotation)
-    }
-
-    fn unit_ellipse() -> Self {
-        Self::new(Point2D::origin(), T::ONE, T::ONE, T::ZERO)
-            .expect("Unit ellipse should always be valid")
-    }
-
-    fn axis_aligned(center: (T, T), semi_major: T, semi_minor: T) -> Option<Self> {
-        let c = Point2D::new(center.0, center.1);
-        Self::new(c, semi_major, semi_minor, T::ZERO)
-    }
-
-    fn from_circle(center: (T, T), radius: T) -> Self {
-        let c = Point2D::new(center.0, center.1);
-        Self::new(c, radius, radius, T::ZERO).expect("Circle should be a valid ellipse")
-    }
-
-    fn from_foci_and_semi_major(focus1: (T, T), focus2: (T, T), semi_major: T) -> Option<Self> {
-        let f1 = Point2D::new(focus1.0, focus1.1);
-        let f2 = Point2D::new(focus2.0, focus2.1);
-
-        // 中心点は焦点の中点
-        let center = Point2D::new(
-            (f1.x() + f2.x()) / (T::ONE + T::ONE),
-            (f1.y() + f2.y()) / (T::ONE + T::ONE),
-        );
-
-        // 焦点間距離の半分 = c
-        let focal_vec = Vector2D::from_points(f1, f2);
-        let two_c = focal_vec.length();
-        let c = two_c / (T::ONE + T::ONE);
-
-        // b = sqrt(a^2 - c^2)
-        if c > semi_major {
-            return None; // 無効な楕円
-        }
-        let semi_minor = (semi_major * semi_major - c * c).sqrt();
-
-        // 回転角を算出（f1 -> f2 の方向）
-        let rotation = focal_vec.y().atan2(focal_vec.x());
-
-        Self::new(center, semi_major, semi_minor, rotation)
-    }
-
-    fn centered_at_origin(semi_major: T, semi_minor: T, rotation: T) -> Option<Self> {
-        Self::new(Point2D::origin(), semi_major, semi_minor, rotation)
     }
 }
 
