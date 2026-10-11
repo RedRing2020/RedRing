@@ -3,7 +3,6 @@
 //! 有理 NURBS（重み付き）で、制御点を変換して重みを保持すれば曲線・曲面上の点が
 //! 点の変換と一致することを確認する。
 
-use crate::{NurbsCurve2D, NurbsCurve3D, NurbsSurface3D};
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, NurbsCurve2DConstructor, NurbsCurve3DConstructor, NurbsSurface3DConstructor,
@@ -13,6 +12,7 @@ use geo_contracts::{
 use geo_core::{
     Direction3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D, Vector2D, Vector3D,
 };
+use geo_nurbs::{NurbsCurve2D, NurbsCurve3D, NurbsSurface3D};
 use std::f64::consts::FRAC_1_SQRT_2;
 
 const SCALE: f64 = 2.0;

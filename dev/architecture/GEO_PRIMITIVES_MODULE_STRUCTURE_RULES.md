@@ -1,7 +1,7 @@
 # geo_primitives モジュール構成ルール
 
 最終更新: 2026-10-11
-適用範囲: `model/geo_primitives/src`
+適用範囲: `model/geo_primitives/src`、`model/geo_nurbs/src`（6 章）
 
 ## 1. 目的
 
@@ -53,4 +53,13 @@ line_segment_3d/
 | 平面・メッシュ（平面・矩形・三角形・三角形メッシュ） | 移行済み。形状をまたぐテストは trait定義の取得メソッド（`Triangle2D/3DBoundaryAccess`・`Plane3DProperties`）を使う。法線を指定した三角形メッシュの生成（`from_parts`）は private とし、そのテストは三角形メッシュの `tests.rs` に置く |
 | 解析曲面・立体（球・楕円体・円柱・円錐・トーラス） | 移行済み。形状をまたぐ参照はなく、`pub(crate)` は残さない。形状をまたぐテストは trait定義の取得メソッド（`TorusSurface3DProperties` 等）を使う |
 
-`geo_nurbs` は、モジュール構成と命名規則を他の形状と揃える作業の中で別途扱う。
+## 6. `geo_nurbs`
+
+`geo_nurbs` の形状（`NurbsCurve2D` / `NurbsCurve3D` / `NurbsSurface3D`）も 2〜4 章に従う。形状のディレクトリ名は型名の snake_case とする（`nurbs_curve_2d/` / `nurbs_curve_3d/` / `nurbs_surface_3d/`）。
+
+`geo_primitives` と異なる点は次のとおり。
+
+- 形状が共用する NURBS の計算（`basis` / `knot` / `weight_storage` / `error` / `adaptive_tessellation` / `operations`）は `src` の直下の private なモジュールとし、型・関数を `lib.rs` から再エクスポートする
+- 形状をまたぐ内部の参照（テセレーションの補助関数等）は、共用のモジュールの `pub(crate)` とする
+- 定数（`constants`）はクレート外から使うため、公開のモジュールとする
+- 形状をまたぐテストは結合テスト（`tests/similarity_transform.rs`）に置く

@@ -1,6 +1,6 @@
 //! `NurbsSurface3D` の相似変換
 
-use crate::surface_3d::NurbsSurface3D;
+use crate::NurbsSurface3D;
 use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
 
 /// 制御点を点として変換する。重みは相似変換で変わらないため保持する。

@@ -2,8 +2,10 @@
 
 use geo_contracts::NurbsSurface3DConstructor;
 
-use crate::adaptive_tessellation::AdaptiveParamGrid;
-use crate::{adaptive_tessellation as ga_tess, NurbsSurface3D};
+use crate::{
+    AdaptiveParamGrid, AdaptiveTessellationSettings, NurbsSurface3D,
+    NurbsSurfaceAdaptiveTessellation,
+};
 
 /// サンプルNURBS曲面と適応テッセレーション用パラメータグリッドを生成する。
 pub fn create_sample_nurbs_surface_with_adaptive_params(
@@ -25,9 +27,8 @@ pub fn create_sample_nurbs_surface_with_adaptive_params(
         NurbsSurface3D::<f64>::new(control_points, None, u_knots, v_knots, u_degree, v_degree)
             .map_err(|e| e.to_string())?;
 
-    let settings = ga_tess::AdaptiveTessellationSettings::default_with_tolerance(tolerance);
-    let param_grid =
-        ga_tess::NurbsSurfaceAdaptiveTessellation::adaptive_params_surface(&surface, &settings);
+    let settings = AdaptiveTessellationSettings::default_with_tolerance(tolerance);
+    let param_grid = NurbsSurfaceAdaptiveTessellation::adaptive_params_surface(&surface, &settings);
 
     Ok((surface, param_grid))
 }

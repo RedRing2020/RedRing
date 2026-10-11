@@ -29,8 +29,10 @@ pub use result::{IntersectionGeometry, IntersectionResult, IntersectionTopology}
 
 pub use geo_contracts::{default_kernel_numerical_zero_tolerance, Scalar};
 // NURBS型の再エクスポート（ViewModel層からのアクセス用）
-pub use geo_nurbs::adaptive_tessellation;
-pub use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
+pub use geo_nurbs::{
+    AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings, NurbsCurve3D,
+    NurbsCurveAdaptiveTessellation, NurbsSurface3D, NurbsSurfaceAdaptiveTessellation,
+};
 
 // Topology types from geo_topology
 // `CompositeCurve3D` の public endpoint は拘束端点基準であることに注意。

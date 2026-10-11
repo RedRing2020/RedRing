@@ -185,9 +185,9 @@ pub fn ensure_min_segments<T: Scalar>(
 
 ### 4.1.4 配置案
 
-- `model/geo_nurbs/src/curve_3d_extensions.rs`
+- `model/geo_nurbs/src/nurbs_curve_3d/extensions.rs`
   - 既存の拡張ファイルに適応分割APIを追加
-- `model/geo_nurbs/src/surface_3d_extensions.rs`（新規）
+- `model/geo_nurbs/src/nurbs_surface_3d/extensions.rs`（新規）
   - サーフェス向けの適応分割APIを追加
 - `model/geo_nurbs/src/lib.rs`
   - `surface_3d_extensions` を公開（必要に応じて）
@@ -221,8 +221,8 @@ pub trait NurbsAdaptiveParametricTessellation<T: Scalar> {
 ```
 
 実装配置:
-- `curve_3d_extensions.rs` に曲線用の実装
-- `surface_3d_extensions.rs`（新規）にサーフェス用の実装
+- `nurbs_curve_3d/extensions.rs` に曲線用の実装
+- `nurbs_surface_3d/extensions.rs`（新規）にサーフェス用の実装
 
 ## 4.3 geo_contracts::NurbsTessellation との関係
 
