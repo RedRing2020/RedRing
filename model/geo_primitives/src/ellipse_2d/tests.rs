@@ -1,6 +1,6 @@
 //! Ellipse2D のテスト
 
-use crate::{Circle2D, Ellipse2D, Point2D};
+use crate::{Ellipse2D, Point2D};
 use geo_contracts::Scalar;
 
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
@@ -35,32 +35,8 @@ fn test_axis_aligned_ellipse() {
 }
 
 #[test]
-fn test_from_circle() {
-    let circle = Circle2D::new(Point2D::new(1.0, 2.0), 3.0).unwrap();
-    let ellipse = Ellipse2D::from_circle(circle);
-
-    assert_eq!(
-        ellipse.center,
-        Point2D::from_tuple(geo_contracts::Circle2DProperties::center(&circle))
-    );
-    assert_eq!(
-        ellipse.semi_major,
-        geo_contracts::Circle2DProperties::radius(&circle)
-    );
-    assert_eq!(
-        ellipse.semi_minor,
-        geo_contracts::Circle2DProperties::radius(&circle)
-    );
-}
-
-#[test]
 fn test_ellipse_properties() {
     let ellipse = Ellipse2D::new(Point2D::origin(), 5.0, 3.0, 0.0).unwrap();
-
-    // 離心率
-    let eccentricity = ellipse.eccentricity();
-    let expected_e = (1.0 - (3.0 * 3.0) / (5.0 * 5.0)).sqrt();
-    assert!((eccentricity - expected_e).abs() < TOLERANCE_F64);
 
     // 面積
     let area = ellipse.area();
@@ -68,12 +44,6 @@ fn test_ellipse_properties() {
     assert!((area - expected_area).abs() < TOLERANCE_F64);
 
     // 円判定
-}
-
-#[test]
-fn test_circle_detection() {
-    let circle_ellipse = Ellipse2D::new(Point2D::origin(), 3.0, 3.0, 0.0).unwrap();
-    assert_eq!(circle_ellipse.eccentricity(), 0.0);
 }
 
 #[test]

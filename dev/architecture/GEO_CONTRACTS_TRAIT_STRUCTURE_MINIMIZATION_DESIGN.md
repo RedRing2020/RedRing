@@ -463,8 +463,8 @@ Arc はもともと `Measure` に endpoint / evaluation / containment / distance
 | 現行 trait / API | 再分類 |
 | --- | --- |
 | `Arc2DConstructor` / `Arc3DConstructor` | `definition` |
-| `Arc2DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle/is_semicircle` | `definition` |
-| `Arc3DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle/is_on_xy_plane` | `definition` |
+| `Arc2DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle` | `definition` |
+| `Arc3DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle` | `definition` |
 | `Arc2DDerived::length` | `derived` |
 | `Arc3DDerived::length` | `derived` |
 | `Arc2DEndpoint::start_point/end_point` | `endpoint` |
@@ -479,7 +479,7 @@ Arc はもともと `Measure` に endpoint / evaluation / containment / distance
 | `Arc3DTrimRange::contains_angle` | `trim-range` |
 | `Arc2DDistance::distance_to_point` | `distance` |
 | `Arc3DDistance::distance_to_point` | `distance` |
-| `Arc2DSampling::sample_points/sample_by_arc_length` | `sampling` |
+| `Arc2DSampling::sample_points` | `sampling` |
 
 補足:
 
@@ -496,8 +496,8 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 | 現行 trait / API | 再分類 |
 | --- | --- |
 | `EllipseArc2DConstructor` / `EllipseArc3DConstructor` | `definition` |
-| `EllipseArc2DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/rotation/sweep_angle/eccentricity` | `definition` |
-| `EllipseArc3DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/normal/sweep_angle/eccentricity` | `definition` |
+| `EllipseArc2DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/rotation` | `definition` |
+| `EllipseArc3DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/normal` | `definition` |
 | `EllipseArc2DDerived::length/bounding_box` | `derived` |
 | `EllipseArc3DDerived::length/bounding_box` | `derived` |
 | `EllipseArc2DEndpoint::start_point/end_point` | `endpoint` |
@@ -529,7 +529,7 @@ Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability �
 | --- | --- |
 | `Ellipse2DConstructor` / `Ellipse3DConstructor` | `definition` |
 | `Ellipse2DProperties::center/semi_major_axis/semi_minor_axis/rotation` | `definition` |
-| `Ellipse3DProperties::center_3d/center_3d_tuple/normal/major_axis_direction/minor_axis_direction/semi_major_axis/semi_minor_axis` | `definition` |
+| `Ellipse3DProperties::normal/major_axis_direction/minor_axis_direction/semi_major_axis/semi_minor_axis` | `definition` |
 | `Ellipse2DEvaluation::point_at_parameter` | `evaluation` |
 | `Ellipse3DEvaluation::point_at_parameter` | `evaluation` |
 | `Ellipse2DContainment::contains_point/point_on_boundary` | `containment` |
@@ -657,8 +657,8 @@ Circle は閉曲線であり、parameter evaluation を持っても endpoint cap
 | 現行 trait / API | 再分類 |
 | --- | --- |
 | `Circle2DConstructor` / `Circle3DConstructor` | `definition` |
-| `Circle2DProperties::center/radius/ref_direction/diameter/dimension/is_unit_circle/is_centered_at_origin/is_degenerate` | `definition` |
-| `Circle3DProperties::center/radius/axis/ref_direction/dimension/is_unit_circle/is_centered_at_origin/is_degenerate/is_on_xy_plane` | `definition` |
+| `Circle2DProperties::center/radius/ref_direction/diameter/dimension` | `definition` |
+| `Circle3DProperties::center/radius/axis/ref_direction/dimension` | `definition` |
 | `Circle2DEvaluation::point_at_parameter` | `evaluation` |
 | `Circle3DEvaluation::point_at_parameter` | `evaluation` |
 | `Circle2DContainment::contains_point/point_on_circumference` | `containment` |
@@ -773,7 +773,6 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - `collision.rs`: `BasicCollision`, `PointDistance`, `BBoxCollision`
 - `distance.rs`: `CrossDistance`, `DistanceConvergenceError`
 - `intersection.rs`: `BasicIntersection`
-- `ellipse_calculation.rs`: `EllipseCalculation`
 
 ## 一次分類
 
@@ -809,7 +808,6 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - `BasicCollision`, `PointDistance`, `BBoxCollision`
 - `CrossDistance`, `DistanceConvergenceError`
 - `BasicIntersection`
-- `EllipseCalculation`
 - `LineSegment3DCollisionDetection`
 
 ## 曖昧境界の個別判定
@@ -841,8 +839,6 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - `dimension()`
 - `diameter()`
 - `angle_span()`
-- `is_unit_circle()`
-- `is_on_xy_plane()`
 - `is_zero()`
 
 理由:
@@ -1146,7 +1142,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 設計反映:
 
-- `EllipseCalculation` は operations 側に残す
+- `EllipseCalculation` は、長軸・短軸の半径が `Ellipse2DProperties` / `Ellipse3DProperties` と重複し、近似式のメソッドに呼び出し元がなかったため削除した。楕円周長の近似式は `geo_commons` の純粋関数とする
 - ただし `geo_contracts` に置くのは trait定義の正本までとし、adaptive 選択や比較分析の default 実装は持ち込まない
 - strategy の実装本体は `geo_primitives` の impl entry point または将来的な `geo_algorithms` 側 helper へ置く
 - 近似式・距離計算の数値カーネル自体は `geo_commons` に維持し、`geo_contracts` は数値閾値や比較ロジックを保持しない

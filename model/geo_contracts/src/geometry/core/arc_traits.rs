@@ -11,19 +11,7 @@ pub trait Arc2DConstructor<T: Scalar> {
     where
         Self: Sized;
 
-    fn semicircle(center: (T, T), radius: T) -> Self
-    where
-        Self: Sized;
-
-    fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self>
-    where
-        Self: Sized;
-
     fn full_circle(center: (T, T), radius: T) -> Self
-    where
-        Self: Sized;
-
-    fn unit_semicircle() -> Self
     where
         Self: Sized;
 }
@@ -47,14 +35,6 @@ pub trait Arc3DConstructor<T: Scalar> {
     where
         Self: Sized;
 
-    fn xz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn yz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self>
-    where
-        Self: Sized;
-
     fn full_circle(center: (T, T, T), normal: (T, T, T), radius: T) -> Option<Self>
     where
         Self: Sized;
@@ -68,7 +48,6 @@ pub trait Arc2DProperties<T: Scalar> {
     fn dimension(&self) -> u32;
     fn angle_span(&self) -> T;
     fn is_full_circle(&self) -> bool;
-    fn is_semicircle(&self) -> bool;
 }
 
 pub trait Arc3DProperties<T: Scalar> {
@@ -79,7 +58,6 @@ pub trait Arc3DProperties<T: Scalar> {
     fn dimension(&self) -> u32;
     fn angle_span(&self) -> T;
     fn is_full_circle(&self) -> bool;
-    fn is_on_xy_plane(&self) -> bool;
 }
 
 pub trait Arc2DDerived<T: Scalar> {
@@ -156,5 +134,4 @@ pub trait Arc3DTrimRange<T: Scalar> {
 
 pub trait Arc2DSampling<T: Scalar> {
     fn sample_points(&self, num_points: usize) -> Vec<(T, T)>;
-    fn sample_by_arc_length(&self, arc_length_step: T) -> Vec<(T, T)>;
 }

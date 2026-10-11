@@ -225,34 +225,12 @@ impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
         Self::new_with_ref_direction(center_point, radius, ref_dir)
     }
 
-    fn unit_circle() -> Self {
-        let center = Point2D::origin();
-        Self::new(center, T::ONE).unwrap()
-    }
-
-    fn from_center_and_point(center: (T, T), point_on_circle: (T, T)) -> Option<Self> {
-        let center_point = Point2D::new(center.0, center.1);
-        let point = Point2D::new(point_on_circle.0, point_on_circle.1);
-
-        let radius = point.distance_to(&center_point);
-
-        if radius <= T::ZERO {
-            None
-        } else {
-            Self::new(center_point, radius)
-        }
-    }
-
     fn from_three_points(p1: (T, T), p2: (T, T), p3: (T, T)) -> Option<Self> {
         let point1 = Point2D::new(p1.0, p1.1);
         let point2 = Point2D::new(p2.0, p2.1);
         let point3 = Point2D::new(p3.0, p3.1);
 
         Self::from_three_points_internal(point1, point2, point3)
-    }
-
-    fn centered_at_origin(radius: T) -> Option<Self> {
-        Self::new(Point2D::origin(), radius)
     }
 }
 
@@ -278,20 +256,6 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
 
     fn dimension(&self) -> u32 {
         2
-    }
-
-    fn is_unit_circle(&self) -> bool {
-        (self.radius - T::ONE).abs() <= default_distance_tolerance::<T>()
-    }
-
-    fn is_centered_at_origin(&self) -> bool {
-        let c = self.center;
-        c.x().abs() <= default_distance_tolerance::<T>()
-            && c.y().abs() <= default_distance_tolerance::<T>()
-    }
-
-    fn is_degenerate(&self) -> bool {
-        self.radius <= default_distance_tolerance::<T>()
     }
 }
 

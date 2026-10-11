@@ -2,14 +2,12 @@
 
 pub mod collision;
 pub mod distance;
-pub mod ellipse_calculation;
 pub mod intersection;
 pub mod relation;
 pub mod transform;
 
 pub use collision::{BBoxCollision, BasicCollision, PointDistance};
 pub use distance::{CrossDistance, DistanceConvergenceError};
-pub use ellipse_calculation::EllipseCalculation;
 pub use intersection::BasicIntersection;
 pub use relation::{
     Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, Contains, IntersectsRelation,

@@ -40,20 +40,6 @@ fn test_plane_constructors() {
         xy_circle.axis,
         Direction3D::from_vector(Vector3D::unit_z()).unwrap()
     );
-
-    // XZ平面の円
-    let xz_circle = Circle3D::new_xz_plane(center, radius).unwrap();
-    assert_eq!(
-        xz_circle.axis,
-        Direction3D::from_vector(Vector3D::unit_y()).unwrap()
-    );
-
-    // YZ平面の円
-    let yz_circle = Circle3D::new_yz_plane(center, radius).unwrap();
-    assert_eq!(
-        yz_circle.axis,
-        Direction3D::from_vector(Vector3D::unit_x()).unwrap()
-    );
 }
 
 #[test]

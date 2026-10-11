@@ -2,8 +2,8 @@
 //!
 //! Extension Foundation パターンに基づく EllipseArc3D の拡張実装
 
-use crate::{Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
-use geo_contracts::{Angle, Scalar};
+use crate::{EllipseArc3D, Point3D, Vector3D};
+use geo_contracts::Scalar;
 
 impl<T: Scalar> EllipseArc3D<T> {
     /// Arc trim-local parameter `t` (`0 <= t <= 1`) に対応する接線ベクトルを取得
@@ -13,20 +13,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         let angle = self.start_angle().to_radians()
             + (self.end_angle().to_radians() - self.start_angle().to_radians()) * t;
         self.ellipse().tangent_at_parameter(angle)
-    }
-
-    /// 円から楕円弧を作成（完全な円弧）
-    pub fn from_circle_arc(
-        center: Point3D<T>,
-        radius: T,
-        normal: Vector3D<T>,
-        start_angle: Angle<T>,
-        end_angle: Angle<T>,
-    ) -> Option<Self> {
-        let normal_dir = crate::Direction3D::from_vector(normal)?;
-        let circle = Circle3D::new(center, normal_dir, radius)?;
-        let ellipse = Ellipse3D::from_circle(&circle)?;
-        Some(Self::new(ellipse, start_angle, end_angle))
     }
 
     /// 点から楕円弧への最短距離

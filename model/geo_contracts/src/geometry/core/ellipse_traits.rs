@@ -9,21 +9,6 @@ use analysis::abstract_types::Scalar;
 pub trait Ellipse2DConstructor<T: Scalar>: Sized {
     /// 中心、長軸、短軸、回転角から楕円を作成
     fn new(center: (T, T), semi_major: T, semi_minor: T, rotation: T) -> Option<Self>;
-
-    /// 単位楕円を作成（原点中心、a=1, b=1、回転なし）
-    fn unit_ellipse() -> Self;
-
-    /// 軸に平行な楕円を作成（回転なし）
-    fn axis_aligned(center: (T, T), semi_major: T, semi_minor: T) -> Option<Self>;
-
-    /// 円から楕円を作成
-    fn from_circle(center: (T, T), radius: T) -> Self;
-
-    /// 焦点と長半軸から楕円を作成
-    fn from_foci_and_semi_major(focus1: (T, T), focus2: (T, T), semi_major: T) -> Option<Self>;
-
-    /// 原点中心の楕円を作成
-    fn centered_at_origin(semi_major: T, semi_minor: T, rotation: T) -> Option<Self>;
 }
 
 /// Ellipse2D の定義パラメータ
@@ -77,16 +62,6 @@ pub trait Ellipse3DConstructor<T: Scalar>: Sized {
         major_axis_direction: (T, T, T),
     ) -> Option<Self>;
 
-    /// 完全な座標系で楕円を作成
-    fn new_with_coordinate_system(
-        center: (T, T, T),
-        normal: (T, T, T),
-        major_axis_direction: (T, T, T),
-        minor_axis_direction: (T, T, T),
-        semi_major_axis: T,
-        semi_minor_axis: T,
-    ) -> Option<Self>;
-
     /// XY平面上の楕円を作成
     fn new_xy_plane(
         center: (T, T, T),
@@ -94,25 +69,6 @@ pub trait Ellipse3DConstructor<T: Scalar>: Sized {
         semi_minor_axis: T,
         rotation: T,
     ) -> Option<Self>;
-
-    /// XZ平面上の楕円を作成
-    fn new_xz_plane(
-        center: (T, T, T),
-        semi_major_axis: T,
-        semi_minor_axis: T,
-        rotation: T,
-    ) -> Option<Self>;
-
-    /// YZ平面上の楕円を作成
-    fn new_yz_plane(
-        center: (T, T, T),
-        semi_major_axis: T,
-        semi_minor_axis: T,
-        rotation: T,
-    ) -> Option<Self>;
-
-    /// XY平面の単位楕円を作成
-    fn unit_ellipse_xy() -> Self;
 }
 
 /// Ellipse3D の定義パラメータ
@@ -125,12 +81,6 @@ pub trait Ellipse3DProperties<T: Scalar> {
 
     /// 短軸方向ベクトルを取得
     fn minor_axis_direction(&self) -> (T, T, T);
-
-    /// 中心座標を取得
-    fn center_3d(&self) -> (T, T, T);
-
-    /// 中心座標をタプルとして取得
-    fn center_3d_tuple(&self) -> (T, T, T);
 
     /// 長半軸の長さを取得
     fn semi_major_axis(&self) -> T;
