@@ -4,6 +4,11 @@
 //! パラメータ t は 0 ≤ t < ∞ の範囲で定義されます。
 //! Core Traits実装（Constructor, Properties, Measure）も含む
 
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Direction3D, InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
     AngleBetween, CrossDistance, DirectionalRelation, ParallelRelation, PointsTowards,
@@ -18,9 +23,9 @@ use geo_contracts::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ray3D<T: Scalar> {
     /// 起点（t=0での点）
-    pub(crate) origin: Point3D<T>,
+    origin: Point3D<T>,
     /// 方向（単位ベクトル）
-    pub(crate) direction: Direction3D<T>,
+    direction: Direction3D<T>,
 }
 
 impl<T: Scalar> Ray3D<T> {
@@ -55,16 +60,6 @@ impl<T: Scalar> Ray3D<T> {
         self.origin
     }
 
-    /// 起点を取得（内部用）
-    pub(crate) fn origin_internal(&self) -> Point3D<T> {
-        self.origin
-    }
-
-    /// 方向ベクトルを取得（内部用）
-    pub(crate) fn direction_internal(&self) -> Direction3D<T> {
-        self.direction
-    }
-
     /// 内部方向ベクトルを取得（Vector3D型）
     pub fn direction_vector(&self) -> Vector3D<T> {
         self.direction.as_vector()
@@ -72,7 +67,7 @@ impl<T: Scalar> Ray3D<T> {
 
     /// この Ray が乗る無限直線を返す
     pub fn to_line(&self) -> InfiniteLine3D<T> {
-        InfiniteLine3D::from_direction(self.origin, self.direction_internal())
+        InfiniteLine3D::from_direction(self.origin, self.direction)
     }
 
     /// パラメータ t での点を計算
@@ -528,33 +523,5 @@ impl<T: Scalar> DirectionalRelation<Self> for Ray3D<T> {
 impl<T: Scalar> AngleBetween<T, Self> for Ray3D<T> {
     fn angle_between(&self, other: &Self) -> T {
         Ray3D::angle_between(self, other)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use geo_contracts::{PrimitiveKind, PrimitiveMetadata, TolerantEq};
-
-    #[test]
-    fn test_ray_metadata() {
-        let origin = Point3D::new(0.0, 0.0, 0.0);
-        let direction = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let ray = Ray3D::new(origin, direction.as_vector()).unwrap();
-
-        assert_eq!(ray.primitive_kind(), PrimitiveKind::Ray);
-    }
-
-    #[test]
-    fn test_ray_tolerant_eq() {
-        let origin = Point3D::new(0.0, 0.0, 0.0);
-        let direction = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-
-        let ray1 = Ray3D::new(origin, direction.as_vector()).unwrap();
-        let ray2 = Ray3D::new(origin, direction.as_vector()).unwrap();
-        let ray3 = Ray3D::new(Point3D::new(1.0, 0.0, 0.0), direction.as_vector()).unwrap();
-
-        assert!(ray1.tolerant_eq(&ray2, 0.01));
-        assert!(!ray1.tolerant_eq(&ray3, 0.01));
     }
 }

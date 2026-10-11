@@ -13,6 +13,11 @@
 //! - 基本トレイト実装（CoreFoundation, BasicParametric, BasicDirectional, BasicContainment）
 //! - Core Traits実装（Constructor, Properties, Measure）
 
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
     AngleBetween, BasicIntersection, DirectionalRelation, ParallelRelation, PointsTowards,
@@ -27,9 +32,9 @@ use geo_contracts::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ray2D<T: Scalar> {
     /// 起点（t=0での点）
-    pub(crate) origin: Point2D<T>,
+    origin: Point2D<T>,
     /// 方向（単位ベクトル）
-    pub(crate) direction: Direction2D<T>,
+    direction: Direction2D<T>,
 }
 
 impl<T: Scalar> PrimitiveMetadata for Ray2D<T> {
@@ -69,16 +74,6 @@ impl<T: Scalar> Ray2D<T> {
         Self::new(start, direction_vector)
     }
 
-    /// 起点を取得（内部用）
-    pub(crate) fn origin_internal(&self) -> Point2D<T> {
-        self.origin
-    }
-
-    /// 方向ベクトルを取得（正規化済み、内部用）
-    pub(crate) fn direction_internal(&self) -> Direction2D<T> {
-        self.direction
-    }
-
     /// 点が Ray 上にあるかを判定（tolerance付き）
     ///
     /// # 引数
@@ -116,18 +111,14 @@ impl<T: Scalar> Ray2D<T> {
     /// 指定方向を向いているかを判定
     pub fn points_towards_direction(&self, direction: (T, T)) -> bool {
         let target_direction = Vector2D::new(direction.0, direction.1);
-        let self_direction =
-            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let self_direction = Vector2D::new(self.direction.x(), self.direction.y());
         self_direction.dot(&target_direction) > T::ZERO
     }
 
     /// 他の Ray との角度を返す
     pub fn angle_between(&self, other: &Self) -> T {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
+        let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
+        let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
         this_dir.dot(&other_dir).acos()
     }
 }
@@ -356,10 +347,9 @@ impl<T: Scalar> Ray2DTransform<T> for Ray2D<T> {
     where
         Self: Sized,
     {
-        let direction_vec =
-            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let direction_vec = Vector2D::new(self.direction.x(), self.direction.y());
         let reversed_direction = -direction_vec;
-        Ray2D::new(self.origin_internal(), reversed_direction).unwrap()
+        Ray2D::new(self.origin, reversed_direction).unwrap()
     }
 
     fn translate(&self, offset: (T, T)) -> Self
@@ -367,9 +357,8 @@ impl<T: Scalar> Ray2DTransform<T> for Ray2D<T> {
         Self: Sized,
     {
         let offset_vector = Vector2D::new(offset.0, offset.1);
-        let new_origin = self.origin_internal() + offset_vector;
-        let direction_vec =
-            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let new_origin = self.origin + offset_vector;
+        let direction_vec = Vector2D::new(self.direction.x(), self.direction.y());
 
         Ray2D::new(new_origin, direction_vec).unwrap()
     }
@@ -381,14 +370,14 @@ impl<T: Scalar> Ray2DTransform<T> for Ray2D<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
 
-        let origin = self.origin_internal();
+        let origin = self.origin;
         let ox = origin.x();
         let oy = origin.y();
         let new_ox = ox * cos_a - oy * sin_a;
         let new_oy = ox * sin_a + oy * cos_a;
         let new_origin = Point2D::new(new_ox, new_oy);
 
-        let dir = self.direction_internal();
+        let dir = self.direction;
         let dx = dir.x();
         let dy = dir.y();
         let new_dx = dx * cos_a - dy * sin_a;
@@ -403,11 +392,8 @@ impl<T: Scalar> BasicIntersection<T, Self> for Ray2D<T> {
     type Point = (T, T);
 
     fn intersection_with(&self, other: &Self) -> Option<Self::Point> {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
+        let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
+        let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
 
         let cross = this_dir.cross(&other_dir);
         use geo_contracts::default_distance_tolerance;
@@ -415,7 +401,7 @@ impl<T: Scalar> BasicIntersection<T, Self> for Ray2D<T> {
             return None;
         }
 
-        let diff = other.origin_internal() - self.origin_internal();
+        let diff = other.origin - self.origin;
         let diff_vec = Vector2D::new(diff.x(), diff.y());
         let t = diff_vec.cross(&other_dir) / cross;
 
@@ -436,11 +422,8 @@ impl<T: Scalar> PointsTowards<(T, T)> for Ray2D<T> {
 
 impl<T: Scalar> ParallelRelation<Self> for Ray2D<T> {
     fn is_parallel_to(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
+        let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
+        let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
         let cross = this_dir.cross(&other_dir);
         cross.abs() < geo_contracts::default_distance_tolerance::<T>()
     }
@@ -448,11 +431,8 @@ impl<T: Scalar> ParallelRelation<Self> for Ray2D<T> {
 
 impl<T: Scalar> DirectionalRelation<Self> for Ray2D<T> {
     fn is_same_direction(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
+        let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
+        let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
         let cross = this_dir.cross(&other_dir);
         if cross.abs() >= geo_contracts::default_distance_tolerance::<T>() {
             return false;
@@ -461,11 +441,8 @@ impl<T: Scalar> DirectionalRelation<Self> for Ray2D<T> {
     }
 
     fn is_opposite_direction(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
+        let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
+        let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
         let cross = this_dir.cross(&other_dir);
         if cross.abs() >= geo_contracts::default_distance_tolerance::<T>() {
             return false;

@@ -1,7 +1,13 @@
 //! 3次元線分（LineSegment3D）の Core 実装
 //!
 //! Core Foundation パターンに基づく LineSegment3D の必須機能のみ
-//! 拡張機能は line_segment_3d_extensions.rs を参照
+//! 拡張機能は子モジュール extensions を参照
+
+mod bounds;
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
@@ -15,11 +21,11 @@ use geo_contracts::{
 /// support line と trim 区間を正本とし、必要に応じて拘束端点も保持できる有限線形 shape を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineSegment3D<T: Scalar> {
-    pub(crate) line: InfiniteLine3D<T>,
-    pub(crate) start_param: T,
-    pub(crate) end_param: T,
-    pub(crate) start_point: Point3D<T>,
-    pub(crate) end_point: Point3D<T>,
+    line: InfiniteLine3D<T>,
+    start_param: T,
+    end_param: T,
+    start_point: Point3D<T>,
+    end_point: Point3D<T>,
 }
 
 impl<T: Scalar> PrimitiveMetadata for LineSegment3D<T> {
@@ -74,7 +80,7 @@ impl<T: Scalar> LineSegment3D<T> {
         Self::from_support_line_and_constraint_points(line, start, end)
     }
 
-    pub(crate) fn ordered_params(&self) -> (T, T) {
+    fn ordered_params(&self) -> (T, T) {
         if self.start_param <= self.end_param {
             (self.start_param, self.end_param)
         } else {
@@ -105,11 +111,6 @@ impl<T: Scalar> LineSegment3D<T> {
     /// topology 連携用の拘束終点を取得
     pub fn constraint_end_point(&self) -> Point3D<T> {
         self.end_point
-    }
-
-    /// 拘束端点間の距離を取得
-    pub fn constraint_length(&self) -> T {
-        self.start_point.distance_to(&self.end_point)
     }
 
     /// 始点を取得
@@ -346,53 +347,5 @@ impl<T: Scalar> CrossDistance<T, ((T, T, T), (T, T, T))> for LineSegment3D<T> {
         let end = (end_point.x(), end_point.y(), end_point.z());
 
         line_segment_to_aabb_distance(start, end, other.0, other.1)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn public_endpoints_follow_ideal_support_line() {
-        let line =
-            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0_f64, 0.0, 0.0)).unwrap();
-        let start = Point3D::new(0.0, 1.0, 0.0);
-        let end = Point3D::new(2.0, 1.0, 0.0);
-
-        let segment =
-            LineSegment3D::from_support_line_and_constraint_points(line, start, end).unwrap();
-
-        assert_eq!(segment.constraint_start_point(), start);
-        assert_eq!(segment.constraint_end_point(), end);
-        assert_eq!(segment.ideal_start(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(segment.ideal_end(), Point3D::new(2.0, 0.0, 0.0));
-        assert_eq!(segment.start_point(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(segment.end_point(), Point3D::new(2.0, 0.0, 0.0));
-        assert_eq!(
-            segment.point_at_parameter(0.5),
-            Some(Point3D::new(1.0, 0.0, 0.0))
-        );
-        assert_eq!(segment.length(), 2.0);
-        assert_eq!(segment.constraint_length(), 2.0);
-        assert_eq!(segment.ideal_length(), 2.0);
-    }
-
-    #[test]
-    fn trait_parameter_evaluation_rejects_out_of_domain_input() {
-        use geo_contracts::LineSegment3DEvaluation;
-
-        let segment =
-            LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0))
-                .expect("segment creation should succeed");
-
-        let evaluate = |t| {
-            <LineSegment3D<f64> as LineSegment3DEvaluation<f64>>::point_at_parameter(&segment, t)
-        };
-
-        assert_eq!(evaluate(0.5), Some((1.0, 0.0, 0.0)));
-        assert!(evaluate(1.1).is_none());
-        assert!(evaluate(-0.1).is_none());
-        assert!(evaluate(f64::NAN).is_none());
     }
 }

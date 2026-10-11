@@ -52,15 +52,8 @@ pub mod ellipsoidal_solid_3d_transform;
 pub mod ellipsoidal_surface_3d;
 pub mod ellipsoidal_surface_3d_bounds;
 pub mod ellipsoidal_surface_3d_transform;
-pub mod infinite_line_3d;
-pub mod infinite_line_3d_extensions;
-#[cfg(test)]
-pub mod infinite_line_3d_tests;
-pub mod infinite_line_3d_transform;
-pub mod line_segment_3d;
-pub mod line_segment_3d_bounds;
-pub mod line_segment_3d_extensions;
-pub mod line_segment_3d_transform;
+mod infinite_line_3d;
+mod line_segment_3d;
 pub mod plane_3d;
 pub mod plane_3d_extensions;
 #[cfg(test)]
@@ -69,9 +62,7 @@ pub mod plane_3d_transform;
 
 // Point/Vector 実装は geo_core 側を利用する。
 
-pub mod ray_3d;
-pub mod ray_3d_extensions;
-pub mod ray_3d_transform;
+mod ray_3d;
 pub mod rectangle_3d;
 pub mod rectangle_3d_bounds;
 pub mod rectangle_3d_transform;
@@ -100,8 +91,6 @@ pub mod triangle_mesh_3d_transform;
 
 // 3D テストモジュール
 #[cfg(test)]
-pub mod ray_3d_tests;
-#[cfg(test)]
 pub mod triangle_3d_tests;
 #[cfg(test)]
 pub mod triangle_mesh_3d_tests;
@@ -125,15 +114,9 @@ pub mod ellipse_arc_2d;
 pub mod ellipse_arc_2d_bounds;
 pub mod ellipse_arc_2d_extensions;
 pub mod ellipse_arc_2d_transform;
-pub mod infinite_line_2d;
-pub mod infinite_line_2d_extensions;
-pub mod infinite_line_2d_transform;
-pub mod line_segment_2d;
-pub mod line_segment_2d_bounds;
-pub mod line_segment_2d_transform;
-pub mod ray_2d;
-pub mod ray_2d_extensions;
-pub mod ray_2d_transform;
+mod infinite_line_2d;
+mod line_segment_2d;
+mod ray_2d;
 pub mod rectangle_2d;
 pub mod rectangle_2d_bounds;
 pub mod rectangle_2d_transform;
@@ -156,12 +139,6 @@ mod ellipse_2d_additional_tests;
 mod ellipse_2d_tests;
 #[cfg(test)]
 mod ellipse_3d_tests;
-#[cfg(test)]
-mod line_segment_2d_tests;
-#[cfg(test)]
-mod line_segment_3d_tests;
-#[cfg(test)]
-mod ray_2d_tests;
 #[cfg(test)]
 mod region_classification_tests;
 #[cfg(test)]

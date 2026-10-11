@@ -9,56 +9,45 @@ use geo_contracts::{Angle, Scalar};
 impl<T: Scalar> Ray2D<T> {
     /// Ray を回転
     pub fn rotate(&self, center: &Point2D<T>, angle: Angle<T>) -> Self {
-        let rotated_origin = self.origin_internal().rotate_around(center, angle);
-        let rotated_direction = self.direction_internal().rotate(angle);
+        let rotated_origin = self.origin.rotate_around(center, angle);
+        let rotated_direction = self.direction.rotate(angle);
         Self::new(rotated_origin, rotated_direction).unwrap()
     }
 
     /// Ray をスケール
     pub fn scale(&self, center: &Point2D<T>, factor: T) -> Self {
-        let scaled_origin = *center + (self.origin_internal() - *center) * factor;
+        let scaled_origin = *center + (self.origin - *center) * factor;
         // DerefによりVector2D<T>が得られる
-        Self::new(scaled_origin, self.direction_internal().as_vector()).unwrap()
+        Self::new(scaled_origin, self.direction.as_vector()).unwrap()
     }
 
     /// Ray を反転（逆方向の Ray を作成）
     pub fn reverse(&self) -> Self {
         // DerefによりVector2D<T>が得られる
-        Self::new(
-            self.origin_internal(),
-            (-self.direction_internal()).as_vector(),
-        )
-        .unwrap()
+        Self::new(self.origin, (-self.direction).as_vector()).unwrap()
     }
 
     /// 他の Ray と平行かを判定
     pub fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
-        let angle = self
-            .direction_internal()
-            .angle_to(&other.direction_internal());
+        let angle = self.direction.angle_to(&other.direction);
         angle <= tolerance || (T::PI - angle).abs() <= tolerance
     }
 
     /// 他の Ray と垂直かを判定
     pub fn is_perpendicular_to(&self, other: &Self, tolerance: T) -> bool {
         let right_angle = T::PI / (T::ONE + T::ONE);
-        (self
-            .direction_internal()
-            .angle_to(&other.direction_internal())
-            - right_angle)
-            .abs()
-            <= tolerance
+        (self.direction.angle_to(&other.direction) - right_angle).abs() <= tolerance
     }
 
     /// Ray の角度を取得（X軸正方向からの角度）
     pub fn angle(&self) -> Angle<T> {
-        let dir = self.direction_internal();
+        let dir = self.direction;
         Angle::from_radians(dir.y().atan2(dir.x()))
     }
 
     /// 平行移動（BasicTransformより柔軟）
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
-        let new_origin = self.origin_internal() + offset;
-        Self::new(new_origin, self.direction_internal().as_vector()).unwrap()
+        let new_origin = self.origin + offset;
+        Self::new(new_origin, self.direction.as_vector()).unwrap()
     }
 }

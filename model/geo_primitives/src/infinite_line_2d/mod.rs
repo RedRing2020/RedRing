@@ -2,6 +2,9 @@
 //!
 //! Foundation統一システムに基づくInfiniteLine2Dの必須機能のみ
 
+mod extensions;
+mod transform;
+
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
     AngularRelation, BasicIntersection, ParallelRelation, PerpendicularRelation, PrimitiveKind,
@@ -11,8 +14,8 @@ use geo_contracts::{
 /// 2次元無限直線（Core実装）
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct InfiniteLine2D<T: Scalar> {
-    pub(crate) point: Point2D<T>,         // 直線上の点
-    pub(crate) direction: Direction2D<T>, // 正規化された方向ベクトル
+    point: Point2D<T>,         // 直線上の点
+    direction: Direction2D<T>, // 正規化された方向ベクトル
 }
 
 impl<T: Scalar> PrimitiveMetadata for InfiniteLine2D<T> {
@@ -36,18 +39,18 @@ impl<T: Scalar> InfiniteLine2D<T> {
         Self::new(p1, direction)
     }
 
-    /// 直線上の点を取得（内部用）
+    /// 直線上の基準点を取得（線分から使うため pub(crate)）
     pub(crate) fn point_internal(&self) -> Point2D<T> {
         self.point
     }
 
-    /// 正規化された方向ベクトルを取得（内部用）
+    /// 直線の方向（正規化済み）を取得（線分から使うため pub(crate)）
     pub(crate) fn direction_internal(&self) -> Direction2D<T> {
         self.direction
     }
 
     /// 法線ベクトルを取得（右回り90度回転、内部用）
-    pub(crate) fn normal_internal(&self) -> Direction2D<T> {
+    fn normal_internal(&self) -> Direction2D<T> {
         Direction2D::from_vector(self.direction.rotate_neg_90())
             .expect("Rotated direction should be valid")
     }

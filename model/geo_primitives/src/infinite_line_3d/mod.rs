@@ -3,6 +3,11 @@
 //! Foundation統一システムに基づくInfiniteLine3Dの必須機能のみ
 //! Foundation Pattern: Constructor/Properties を中心に capability trait を実装
 
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, default_orthogonality_dot_error_tolerance,
@@ -22,8 +27,8 @@ type LinePointPair3D<T> = ((T, T, T), (T, T, T));
 /// Core機能：基本構築、アクセサ、基本幾何計算
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct InfiniteLine3D<T: Scalar> {
-    pub(crate) point: Point3D<T>,         // 直線上の任意の点
-    pub(crate) direction: Direction3D<T>, // 方向ベクトル（正規化済み）
+    point: Point3D<T>,         // 直線上の任意の点
+    direction: Direction3D<T>, // 方向ベクトル（正規化済み）
 }
 
 impl<T: Scalar> PrimitiveMetadata for InfiniteLine3D<T> {
@@ -65,12 +70,12 @@ impl<T: Scalar> InfiniteLine3D<T> {
         Self::new(p1, direction)
     }
 
-    /// 直線上の点を取得（内部用）
+    /// 直線上の基準点を取得（線分から使うため pub(crate)）
     pub(crate) fn point_internal(&self) -> Point3D<T> {
         self.point
     }
 
-    /// 方向ベクトルを取得（正規化済み、内部用）
+    /// 直線の方向（正規化済み）を取得（線分から使うため pub(crate)）
     pub(crate) fn direction_internal(&self) -> Direction3D<T> {
         self.direction
     }
