@@ -12,9 +12,9 @@ use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Circle3DProperties, EllipseCalculation};
 use geo_contracts::{
-    Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
-    Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, PointClassification,
-    PrimitiveKind, PrimitiveMetadata, Scalar,
+    Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDistance, Ellipse3DEvaluation,
+    Ellipse3DProjection, Ellipse3DProperties, PointClassification, PrimitiveKind,
+    PrimitiveMetadata, Scalar,
 };
 
 /// 3次元楕円（Core実装）
@@ -138,12 +138,6 @@ impl<T: Scalar> Ellipse3D<T> {
             * (T::ONE
                 + (T::from_f64(3.0) * h)
                     / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
-    }
-
-    /// 楕円が円かどうかを判定
-    pub fn is_circle(&self) -> bool {
-        let tolerance = default_distance_tolerance::<T>();
-        (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
     }
 
     /// 楕円が退化しているかどうかを判定
@@ -445,31 +439,6 @@ impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
     /// 短半軸の長さを取得
     fn semi_minor_axis(&self) -> T {
         self.semi_minor_axis
-    }
-}
-
-impl<T: Scalar> Ellipse3DDerived<T> for Ellipse3D<T> {
-    fn area(&self) -> T {
-        Ellipse3D::area(self)
-    }
-
-    fn circumference(&self) -> T {
-        Ellipse3D::circumference(self)
-    }
-
-    /// 離心率を取得
-    fn eccentricity(&self) -> T {
-        Ellipse3D::eccentricity(self)
-    }
-
-    fn focal_distance(&self) -> T {
-        geo_contracts::EllipseCalculation::focal_distance(self)
-    }
-
-    /// 楕円が円かどうか判定
-    fn is_circle(&self) -> bool {
-        let tolerance = default_distance_tolerance::<T>();
-        (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
     }
 }
 

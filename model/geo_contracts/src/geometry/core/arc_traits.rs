@@ -158,10 +158,3 @@ pub trait Arc2DSampling<T: Scalar> {
     fn sample_points(&self, num_points: usize) -> Vec<(T, T)>;
     fn sample_by_arc_length(&self, arc_length_step: T) -> Vec<(T, T)>;
 }
-
-pub trait Arc2DCore<T: Scalar>: Arc2DConstructor<T> + Arc2DProperties<T> {}
-pub trait Arc3DCore<T: Scalar>: Arc3DConstructor<T> + Arc3DProperties<T> {}
-
-impl<T: Scalar, A> Arc2DCore<T> for A where A: Arc2DConstructor<T> + Arc2DProperties<T> {}
-
-impl<T: Scalar, A> Arc3DCore<T> for A where A: Arc3DConstructor<T> + Arc3DProperties<T> {}

@@ -13,8 +13,8 @@ use crate::{Point2D, Vector2D};
 use analysis::consts::special::{SQRT_3_OVER_2_F32, SQRT_3_OVER_2_F64};
 use geo_contracts::{
     default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
-    PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity,
-    Triangle2DConstructor, Triangle2DContainment, Triangle2DDerived, Triangle2DDistance,
+    PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DBoundaryAccess, Triangle2DConstructor,
+    Triangle2DContainment, Triangle2DDistance,
 };
 
 /// 2次元三角形（Core実装）
@@ -178,20 +178,6 @@ impl<T: Scalar> Triangle2D<T> {
         Some(distance_a)
     }
 
-    /// 内心計算（内接円の中心）
-    pub fn incenter(&self) -> Point2D<T> {
-        let [a, b, c] = self.edge_lengths();
-        let perimeter = a + b + c;
-
-        // 辺長による重み付き重心
-        let ix =
-            (a * self.vertex_a.x() + b * self.vertex_b.x() + c * self.vertex_c.x()) / perimeter;
-        let iy =
-            (a * self.vertex_a.y() + b * self.vertex_b.y() + c * self.vertex_c.y()) / perimeter;
-
-        Point2D::new(ix, iy)
-    }
-
     /// 内接円の半径
     pub fn inradius(&self) -> T {
         let area = self.area();
@@ -242,14 +228,6 @@ impl<T: Scalar> Triangle2D<T> {
         let w = T::ONE - u - v;
 
         (u, v, w)
-    }
-
-    /// 三角形が時計回りかの判定
-    pub fn is_clockwise(&self) -> bool {
-        let ab = self.edge_ab();
-        let ac = Vector2D::from_points(self.vertex_a, self.vertex_c);
-        let cross_z = ab.x() * ac.y() - ab.y() * ac.x();
-        cross_z < T::ZERO
     }
 
     /// 三角形の向きを反転
@@ -351,56 +329,6 @@ impl<T: Scalar> Triangle2DBoundaryAccess<T> for Triangle2D<T> {
     fn vertex_c(&self) -> (T, T) {
         let p = self.vertex_c;
         (p.x(), p.y())
-    }
-}
-
-impl<T: Scalar> Triangle2DDerived<T> for Triangle2D<T> {
-    fn centroid(&self) -> (T, T) {
-        let c = Triangle2D::centroid(self);
-        (c.x(), c.y())
-    }
-
-    fn circumcenter(&self) -> Option<(T, T)> {
-        Triangle2D::circumcenter(self).map(|c| (c.x(), c.y()))
-    }
-
-    fn incenter(&self) -> (T, T) {
-        let i = Triangle2D::incenter(self);
-        (i.x(), i.y())
-    }
-
-    fn circumradius(&self) -> Option<T> {
-        Triangle2D::circumradius(self)
-    }
-
-    fn inradius(&self) -> T {
-        Triangle2D::inradius(self)
-    }
-
-    fn area(&self) -> T {
-        Triangle2D::area(self)
-    }
-
-    fn is_clockwise(&self) -> bool {
-        Triangle2D::is_clockwise(self)
-    }
-}
-
-impl<T: Scalar> Triangle2DBoundaryQuantity<T> for Triangle2D<T> {
-    fn edge_ab_length(&self) -> T {
-        Triangle2D::edge_ab(self).length()
-    }
-
-    fn edge_bc_length(&self) -> T {
-        Triangle2D::edge_bc(self).length()
-    }
-
-    fn edge_ca_length(&self) -> T {
-        Triangle2D::edge_ca(self).length()
-    }
-
-    fn perimeter(&self) -> T {
-        Triangle2D::perimeter(self)
     }
 }
 

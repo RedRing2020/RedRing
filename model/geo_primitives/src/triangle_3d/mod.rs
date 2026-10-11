@@ -13,8 +13,8 @@ use crate::{Point3D, Vector3D};
 use analysis::consts::special::{SQRT_3_OVER_2_F32, SQRT_3_OVER_2_F64};
 use geo_contracts::{
     default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
-    Scalar, Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity, Triangle3DConstructor,
-    Triangle3DContainment, Triangle3DDerived, Triangle3DDistance,
+    Scalar, Triangle3DBoundaryAccess, Triangle3DConstructor, Triangle3DContainment,
+    Triangle3DDerived, Triangle3DDistance,
 };
 
 /// 3次元三角形（Core実装）
@@ -427,24 +427,6 @@ impl<T: Scalar> Triangle3DDerived<T> for Triangle3D<T> {
 
     fn is_planar(&self) -> bool {
         Triangle3D::is_planar(self)
-    }
-}
-
-impl<T: Scalar> Triangle3DBoundaryQuantity<T> for Triangle3D<T> {
-    fn edge_ab_length(&self) -> T {
-        Triangle3D::edge_ab(self).length()
-    }
-
-    fn edge_bc_length(&self) -> T {
-        Triangle3D::edge_bc(self).length()
-    }
-
-    fn edge_ca_length(&self) -> T {
-        Triangle3D::edge_ca(self).length()
-    }
-
-    fn perimeter(&self) -> T {
-        Triangle3D::perimeter(self)
     }
 }
 

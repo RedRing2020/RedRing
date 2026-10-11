@@ -298,7 +298,7 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
 
 use geo_contracts::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived,
-    EllipsoidalSolid3DDistance, EllipsoidalSolid3DProjection,
+    EllipsoidalSolid3DDistance,
     EllipsoidalSolid3DProperties as ContractsEllipsoidalSolid3DProperties,
 };
 
@@ -461,12 +461,5 @@ impl<T: Scalar> EllipsoidalSolid3DContainment<T> for EllipsoidalSolid3D<T> {
 impl<T: Scalar> EllipsoidalSolid3DDistance<T> for EllipsoidalSolid3D<T> {
     fn distance_to_surface(&self, point: (T, T, T)) -> T {
         self.distance_to_surface(&Point3D::new(point.0, point.1, point.2))
-    }
-}
-
-impl<T: Scalar> EllipsoidalSolid3DProjection<T> for EllipsoidalSolid3D<T> {
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = self.closest_point_on_surface(&Point3D::new(point.0, point.1, point.2));
-        (p.x(), p.y(), p.z())
     }
 }

@@ -89,14 +89,6 @@ pub trait Circle3DProperties<T: Scalar> {
     fn is_on_xy_plane(&self) -> bool;
 }
 
-pub trait Circle2DDerived<T: Scalar> {
-    /// 閉曲線 shape の primary quantity としての周回長を返す
-    fn circumference(&self) -> T;
-
-    /// 円が張る interior を含めた派生量を返す
-    fn area(&self) -> T;
-}
-
 pub trait Circle2DEvaluation<T: Scalar> {
     /// Primitive 局所座標系の local angle parameter `t` (`0 <= t <= 2π`) に対応する円周上の点を返す
     fn point_at_parameter(&self, t: T) -> (T, T);
@@ -117,14 +109,6 @@ pub trait Circle2DDistance<T: Scalar> {
 pub trait Circle2DProjection<T: Scalar> {
     /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: (T, T)) -> (T, T);
-}
-
-pub trait Circle3DDerived<T: Scalar> {
-    /// 閉曲線 shape の primary quantity としての周回長を返す
-    fn circumference(&self) -> T;
-
-    /// 円が張る interior を含めた派生量を返す
-    fn area(&self) -> T;
 }
 
 pub trait Circle3DEvaluation<T: Scalar> {
@@ -148,11 +132,3 @@ pub trait Circle3DProjection<T: Scalar> {
     /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
 }
-
-pub trait Circle2DCore<T: Scalar>: Circle2DConstructor<T> + Circle2DProperties<T> {}
-
-pub trait Circle3DCore<T: Scalar>: Circle3DConstructor<T> + Circle3DProperties<T> {}
-
-impl<T: Scalar, C> Circle2DCore<T> for C where C: Circle2DConstructor<T> + Circle2DProperties<T> {}
-
-impl<T: Scalar, C> Circle3DCore<T> for C where C: Circle3DConstructor<T> + Circle3DProperties<T> {}

@@ -40,46 +40,6 @@ pub trait Triangle2DBoundaryAccess<T: Scalar> {
     fn vertex_c(&self) -> (T, T);
 }
 
-/// Triangle2D の互換 boundary access alias
-pub trait Triangle2DProperties<T: Scalar>: Triangle2DBoundaryAccess<T> {}
-
-pub trait Triangle2DDerived<T: Scalar> {
-    /// 重心座標を取得
-    fn centroid(&self) -> (T, T);
-
-    /// 外心座標を取得
-    fn circumcenter(&self) -> Option<(T, T)>;
-
-    /// 内心座標を取得
-    fn incenter(&self) -> (T, T);
-
-    /// 外接円の半径を取得
-    fn circumradius(&self) -> Option<T>;
-
-    /// 内接円の半径を取得
-    fn inradius(&self) -> T;
-
-    /// 三角形の面積を計算
-    fn area(&self) -> T;
-
-    /// 三角形が時計回りか判定
-    fn is_clockwise(&self) -> bool;
-}
-
-pub trait Triangle2DBoundaryQuantity<T: Scalar> {
-    /// 辺ABの長さ
-    fn edge_ab_length(&self) -> T;
-
-    /// 辺BCの長さ
-    fn edge_bc_length(&self) -> T;
-
-    /// 辺CAの長さ
-    fn edge_ca_length(&self) -> T;
-
-    /// 周囲長を計算
-    fn perimeter(&self) -> T;
-}
-
 pub trait Triangle2DContainment<T: Scalar> {
     /// 点が三角形の内部または境界上にあるか判定（境界を含む厳密な判定）
     fn contains_point(&self, point: (T, T)) -> bool;
@@ -90,12 +50,6 @@ pub trait Triangle2DContainment<T: Scalar> {
 pub trait Triangle2DDistance<T: Scalar> {
     /// 点から三角形までの距離（最短距離）
     fn distance_to_point(&self, point: (T, T)) -> T;
-}
-
-/// Triangle2D Core トレイト（統合インターフェース）
-pub trait Triangle2DCore<T: Scalar>:
-    Triangle2DConstructor<T> + Triangle2DBoundaryAccess<T>
-{
 }
 
 /// Triangle3D Constructor トレイト（3+3メソッド）
@@ -133,9 +87,6 @@ pub trait Triangle3DBoundaryAccess<T: Scalar> {
     fn vertex_c(&self) -> (T, T, T);
 }
 
-/// Triangle3D の互換 boundary access alias
-pub trait Triangle3DProperties<T: Scalar>: Triangle3DBoundaryAccess<T> {}
-
 pub trait Triangle3DDerived<T: Scalar> {
     /// 重心座標を取得
     fn centroid(&self) -> (T, T, T);
@@ -159,20 +110,6 @@ pub trait Triangle3DDerived<T: Scalar> {
     fn is_planar(&self) -> bool;
 }
 
-pub trait Triangle3DBoundaryQuantity<T: Scalar> {
-    /// 辺ABの長さ
-    fn edge_ab_length(&self) -> T;
-
-    /// 辺BCの長さ
-    fn edge_bc_length(&self) -> T;
-
-    /// 辺CAの長さ
-    fn edge_ca_length(&self) -> T;
-
-    /// 周囲長を計算
-    fn perimeter(&self) -> T;
-}
-
 pub trait Triangle3DContainment<T: Scalar> {
     /// 点が三角形の内部または境界上にあるか判定（既定の距離トレランスで `classify_point` が `Outside` でない）
     fn contains_point(&self, point: (T, T, T)) -> bool;
@@ -183,30 +120,4 @@ pub trait Triangle3DContainment<T: Scalar> {
 pub trait Triangle3DDistance<T: Scalar> {
     /// 点から三角形までの距離（最短距離）
     fn distance_to_point(&self, point: (T, T, T)) -> T;
-}
-
-/// Triangle3D Core トレイト（統合インターフェース）
-pub trait Triangle3DCore<T: Scalar>:
-    Triangle3DConstructor<T> + Triangle3DBoundaryAccess<T>
-{
-}
-
-impl<T: Scalar, Triangle> Triangle2DCore<T> for Triangle where
-    Triangle: Triangle2DConstructor<T> + Triangle2DBoundaryAccess<T>
-{
-}
-
-impl<T: Scalar, Triangle> Triangle3DCore<T> for Triangle where
-    Triangle: Triangle3DConstructor<T> + Triangle3DBoundaryAccess<T>
-{
-}
-
-impl<T: Scalar, Triangle> Triangle2DProperties<T> for Triangle where
-    Triangle: Triangle2DBoundaryAccess<T>
-{
-}
-
-impl<T: Scalar, Triangle> Triangle3DProperties<T> for Triangle where
-    Triangle: Triangle3DBoundaryAccess<T>
-{
 }

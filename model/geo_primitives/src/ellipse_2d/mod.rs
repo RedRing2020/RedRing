@@ -9,9 +9,9 @@ mod transform;
 
 use crate::{Circle2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDerived,
-    Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties,
-    PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar,
+    default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDistance,
+    Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties, PointClassification,
+    PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 use geo_contracts::{Circle2DProperties, EllipseCalculation};
 
@@ -245,11 +245,6 @@ impl<T: Scalar> Ellipse2D<T> {
             Point2D::new(self.center.x() + width, self.center.y() + height),
         )
     }
-
-    /// 楕円が円かどうかを判定
-    pub fn is_circle(&self, tolerance: T) -> bool {
-        (self.semi_major - self.semi_minor).abs() <= tolerance
-    }
 }
 
 impl<T: Scalar> Ellipse2D<T> {
@@ -438,45 +433,6 @@ impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
 
     fn rotation(&self) -> T {
         self.rotation
-    }
-}
-
-impl<T: Scalar + From<f64>> Ellipse2DDerived<T> for Ellipse2D<T> {
-    fn area(&self) -> T {
-        Ellipse2D::area(self)
-    }
-
-    fn circumference(&self) -> T {
-        Ellipse2D::circumference(self)
-    }
-
-    fn eccentricity(&self) -> T {
-        Ellipse2D::eccentricity(self)
-    }
-
-    fn focal_distance(&self) -> T {
-        geo_contracts::EllipseCalculation::focal_distance(self)
-    }
-
-    fn focus1(&self) -> (T, T) {
-        let (f1, _) = self.foci();
-        (f1.x(), f1.y())
-    }
-
-    fn focus2(&self) -> (T, T) {
-        let (_, f2) = self.foci();
-        (f2.x(), f2.y())
-    }
-
-    fn is_circle(&self) -> bool {
-        let tolerance = default_distance_tolerance::<T>();
-        self.is_circle(tolerance)
-    }
-
-    fn linear_eccentricity(&self) -> T {
-        let a = self.semi_major;
-        let b = self.semi_minor;
-        (a * a - b * b).sqrt()
     }
 }
 

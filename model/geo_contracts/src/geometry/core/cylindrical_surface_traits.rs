@@ -43,13 +43,3 @@ pub trait CylindricalSurface3DDerived<T: Scalar> {
 pub trait CylindricalSurface3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
-
-pub trait CylindricalSurface3DCore<T: Scalar>:
-    CylindricalSurface3DConstructor<T> + CylindricalSurface3DProperties<T>
-{
-}
-
-impl<T: Scalar, Surface> CylindricalSurface3DCore<T> for Surface where
-    Surface: CylindricalSurface3DConstructor<T> + CylindricalSurface3DProperties<T>
-{
-}

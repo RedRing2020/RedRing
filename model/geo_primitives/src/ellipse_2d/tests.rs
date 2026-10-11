@@ -51,7 +51,6 @@ fn test_from_circle() {
         ellipse.semi_minor,
         geo_contracts::Circle2DProperties::radius(&circle)
     );
-    assert!(ellipse.is_circle(TOLERANCE_F64));
 }
 
 #[test]
@@ -69,13 +68,11 @@ fn test_ellipse_properties() {
     assert!((area - expected_area).abs() < TOLERANCE_F64);
 
     // 円判定
-    assert!(!ellipse.is_circle(TOLERANCE_F64));
 }
 
 #[test]
 fn test_circle_detection() {
     let circle_ellipse = Ellipse2D::new(Point2D::origin(), 3.0, 3.0, 0.0).unwrap();
-    assert!(circle_ellipse.is_circle(TOLERANCE_F64));
     assert_eq!(circle_ellipse.eccentricity(), 0.0);
 }
 
@@ -304,19 +301,6 @@ fn test_ellipse_bounding_box() {
 
     // 境界ボックスに中心が含まれる
     assert!(bbox.contains_point(&center));
-}
-
-#[test]
-fn test_circle_conversion() {
-    let center = Point2D::new(0.0, 0.0);
-
-    // 円に近い楕円
-    let circle_ellipse = Ellipse2D::new(center, 3.0, 3.0, 0.0).expect("楕円の作成に失敗");
-    assert!(circle_ellipse.is_circle(TOLERANCE_F64));
-
-    // 明確な楕円
-    let regular_ellipse = Ellipse2D::new(center, 5.0, 2.0, 0.0).expect("楕円の作成に失敗");
-    assert!(!regular_ellipse.is_circle(TOLERANCE_F64));
 }
 
 #[test]

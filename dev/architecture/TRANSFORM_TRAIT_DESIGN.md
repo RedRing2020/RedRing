@@ -12,7 +12,7 @@
 
 ### 2.1 変換の trait定義がない
 
-- `geo_contracts` に行列による汎用の変換 trait定義がない。形状別の個別操作（`Direction2D/3DTransform`・`InfiniteLine2D/3DTransform`・`Plane3DTransform`・`Ray2D/3DTransform` の `reverse` / `rotate_90` 等）があるのみ
+- `geo_contracts` に行列による汎用の変換 trait定義がない。形状別の個別操作（`Direction2D/3DTransform`・`InfiniteLine2D/3DTransform`・`Ray2D/3DTransform` の `reverse` / `rotate_90` 等）があるのみ
 - 共通 trait `AnalysisTransform3D/2D` が `geo_core` に定義されており、trait定義の正本を `geo_contracts` に置く方針（[GEO_CORE_GEO_CONTRACTS_TRAIT_SOURCE_OF_TRUTH_DESIGN.md](GEO_CORE_GEO_CONTRACTS_TRAIT_SOURCE_OF_TRUTH_DESIGN.md)）と整合しない
 - 形状の変換は `geo_*` 以外から使われていない
 

@@ -235,8 +235,7 @@ impl<T: Scalar> SphericalSolid3D<T> {
 
 use geo_contracts::{
     SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DDerived,
-    SphericalSolid3DDistance, SphericalSolid3DEvaluation, SphericalSolid3DProjection,
-    SphericalSolid3DProperties as ContractsSphericalSolid3DProperties,
+    SphericalSolid3DDistance, SphericalSolid3DProperties as ContractsSphericalSolid3DProperties,
 };
 
 impl<T: Scalar> SphericalSolid3DConstructor<T> for SphericalSolid3D<T> {
@@ -386,48 +385,6 @@ impl<T: Scalar> SphericalSolid3DDistance<T> for SphericalSolid3D<T> {
         // 球ソリッド（領域）までの距離。内部・表面上は 0
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.distance_to_surface(point_3d).max(T::ZERO)
-    }
-}
-
-impl<T: Scalar> SphericalSolid3DEvaluation<T> for SphericalSolid3D<T> {
-    fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T) {
-        let c = self.center;
-        let r = self.radius;
-
-        let cos_lat = latitude.cos();
-        let sin_lat = latitude.sin();
-        let cos_lon = longitude.cos();
-        let sin_lon = longitude.sin();
-
-        let x = c.x() + r * cos_lat * cos_lon;
-        let y = c.y() + r * cos_lat * sin_lon;
-        let z = c.z() + r * sin_lat;
-
-        (x, y, z)
-    }
-}
-
-impl<T: Scalar> SphericalSolid3DProjection<T> for SphericalSolid3D<T> {
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
-        let c = self.center;
-        let r = self.radius;
-        let p = Point3D::new(point.0, point.1, point.2);
-
-        let dir = Vector3D::from_points(&c, &p);
-        let len = dir.length();
-
-        if len < T::EPSILON {
-            return (c.x() + r, c.y(), c.z());
-        }
-
-        let normalized = dir / len;
-        let surface_point = Point3D::new(
-            c.x() + normalized.x() * r,
-            c.y() + normalized.y() * r,
-            c.z() + normalized.z() * r,
-        );
-
-        (surface_point.x(), surface_point.y(), surface_point.z())
     }
 }
 

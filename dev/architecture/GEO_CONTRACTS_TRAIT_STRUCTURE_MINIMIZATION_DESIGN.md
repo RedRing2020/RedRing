@@ -480,7 +480,6 @@ Arc はもともと `Measure` に endpoint / evaluation / containment / distance
 | `Arc2DDistance::distance_to_point` | `distance` |
 | `Arc3DDistance::distance_to_point` | `distance` |
 | `Arc2DSampling::sample_points/sample_by_arc_length` | `sampling` |
-| `Arc2DCore` / `Arc3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
@@ -509,7 +508,6 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 | `EllipseArc3DContainment::contains_point` | `containment` |
 | `EllipseArc2DTrimRange::contains_angle` | `trim-range` |
 | `EllipseArc3DTrimRange::contains_angle` | `trim-range` |
-| `EllipseArc2DCore` / `EllipseArc3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
@@ -532,17 +530,12 @@ Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability �
 | `Ellipse2DConstructor` / `Ellipse3DConstructor` | `definition` |
 | `Ellipse2DProperties::center/semi_major_axis/semi_minor_axis/rotation` | `definition` |
 | `Ellipse3DProperties::center_3d/center_3d_tuple/normal/major_axis_direction/minor_axis_direction/semi_major_axis/semi_minor_axis` | `definition` |
-| `Ellipse2DDerived::eccentricity/focal_distance/focus1/focus2/linear_eccentricity/is_circle` | `derived` |
-| `Ellipse3DDerived::eccentricity/focal_distance/is_circle` | `derived` |
-| `Ellipse2DDerived::circumference/area` | `derived` |
-| `Ellipse3DDerived::circumference/area` | `derived` |
 | `Ellipse2DEvaluation::point_at_parameter` | `evaluation` |
 | `Ellipse3DEvaluation::point_at_parameter` | `evaluation` |
 | `Ellipse2DContainment::contains_point/point_on_boundary` | `containment` |
 | `Ellipse3DContainment::contains_point_3d` | `containment` |
 | `Ellipse2DDistance::distance_to_point` | `distance` |
 | `Ellipse3DDistance::distance_to_point_3d` | `distance` |
-| `Ellipse2DCore` / `Ellipse3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
@@ -567,7 +560,6 @@ NURBS curve は endpoint を shape 意味論の正本として持たず、parame
 | `NurbsCurve3DEvaluation::evaluate/parameter_at_length` | `evaluation` |
 | `NurbsCurve2DDerived::length/curvature_at` | `derived` |
 | `NurbsCurve3DDerived::arc_length/arc_length_total` | `derived` |
-| `NurbsCurve2DCore` / `NurbsCurve3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
@@ -589,7 +581,6 @@ NURBS surface は curve family と異なり、UV parameter evaluation と surfac
 | `NurbsSurface3DProperties::u_degree/v_degree/u_count/v_count/u_knots/v_knots/is_rational/coordinates/weights` | `definition` |
 | `NurbsSurface3DEvaluation::point_at_uv/normal_at/tangent_vectors_at` | `evaluation` |
 | `NurbsSurface3DDerived::surface_area` | `derived` |
-| `NurbsSurface3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
@@ -668,8 +659,6 @@ Circle は閉曲線であり、parameter evaluation を持っても endpoint cap
 | `Circle2DConstructor` / `Circle3DConstructor` | `definition` |
 | `Circle2DProperties::center/radius/ref_direction/diameter/dimension/is_unit_circle/is_centered_at_origin/is_degenerate` | `definition` |
 | `Circle3DProperties::center/radius/axis/ref_direction/dimension/is_unit_circle/is_centered_at_origin/is_degenerate/is_on_xy_plane` | `definition` |
-| `Circle2DDerived::circumference/area` | `derived` |
-| `Circle3DDerived::circumference/area` | `derived` |
 | `Circle2DEvaluation::point_at_parameter` | `evaluation` |
 | `Circle3DEvaluation::point_at_parameter` | `evaluation` |
 | `Circle2DContainment::contains_point/point_on_circumference` | `containment` |
@@ -678,7 +667,6 @@ Circle は閉曲線であり、parameter evaluation を持っても endpoint cap
 | `Circle3DDistance::distance_to_point` | `distance` |
 | `Circle2DProjection::closest_point_to` | `projection` |
 | `Circle3DProjection::closest_point_to` | `projection` |
-| `Circle2DCore` / `Circle3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
@@ -698,16 +686,11 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 | `Triangle2DConstructor` / `Triangle3DConstructor` | `definition` |
 | `Triangle2DBoundaryAccess::vertex_a/vertex_b/vertex_c` | `boundary-access` |
 | `Triangle3DBoundaryAccess::vertex_a/vertex_b/vertex_c` | `boundary-access` |
-| `Triangle2DProperties` / `Triangle3DProperties` | 互換 alias |
-| `Triangle2DDerived::centroid/circumcenter/incenter/circumradius/inradius/area/is_clockwise` | `derived` |
 | `Triangle3DDerived::centroid/normal/circumcenter/circumradius/inradius/area/is_planar` | `derived` |
-| `Triangle2DBoundaryQuantity::edge_ab_length/edge_bc_length/edge_ca_length/perimeter` | `boundary-quantity` |
-| `Triangle3DBoundaryQuantity::edge_ab_length/edge_bc_length/edge_ca_length/perimeter` | `boundary-quantity` |
 | `Triangle2DContainment::contains_point` | `containment` |
 | `Triangle3DContainment::contains_point` | `containment` |
 | `Triangle2DDistance::distance_to_point` | `distance` |
 | `Triangle3DDistance::distance_to_point` | `distance` |
-| `Triangle2DCore` / `Triangle3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
@@ -745,7 +728,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `geo_contracts::geometry::core::mod.rs` と `geo_contracts::lib.rs` は capability trait の正本 export 面とする
 - compatibility alias は trait定義 側に残してもよいが、crate root で canonical capability と同列に再公開しない
-- Triangle では `Triangle2DBoundaryAccess` / `Triangle3DBoundaryAccess` を正本とし、`Triangle2DProperties` / `Triangle3DProperties` は互換経路へ後退させる
+- Triangle では `Triangle2DBoundaryAccess` / `Triangle3DBoundaryAccess` を正本とし。互換経路の `Triangle2DProperties` / `Triangle3DProperties` は削除した
 - `geo_primitives::lib.rs` は shape 型と最小限の基本型公開を優先し、contract trait の再公開を正本経路として扱わない
 - downstream が capability trait を参照する場合は `geo_contracts` から直接 import する
 
@@ -762,9 +745,9 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 代表例:
 
-- `point_traits.rs`: `Point2DConstructor` / `Point2DProperties` / `Point2DMeasure` / `Point2DCore`
-- `vector_traits.rs`: `Vector2DConstructor` / `Vector2DProperties` / `Vector2DMeasure` / `Vector2DCore`
-- `triangle_traits.rs`: `Triangle2DConstructor` / `Triangle2DProperties` / capability trait 群 / `Triangle2DCore`
+- `point_traits.rs`: `Point2DConstructor` / `Point2DProperties` / `Point2DMeasure`
+- `vector_traits.rs`: `Vector2DConstructor` / `Vector2DProperties` / `Vector2DMeasure`
+- `triangle_traits.rs`: `Triangle2DConstructor` / capability trait 群
 
 ただし、現行 `core` には shape 定義以外も混在している。
 
@@ -787,9 +770,9 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 `geometry/operations` には横断演算系 trait がある。
 
-- `collision.rs`: `BasicCollision`, `AdvancedCollision`, `PointDistance`, `BBoxCollision`
-- `distance.rs`: `CrossDistance`, `FallibleCrossDistance`, `DistanceConvergenceError`
-- `intersection.rs`: `BasicIntersection`, `MultipleIntersection`, `SelfIntersection`
+- `collision.rs`: `BasicCollision`, `PointDistance`, `BBoxCollision`
+- `distance.rs`: `CrossDistance`, `DistanceConvergenceError`
+- `intersection.rs`: `BasicIntersection`
 - `ellipse_calculation.rs`: `EllipseCalculation`
 
 ## 一次分類
@@ -823,9 +806,9 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 この層には、shape 間演算や計算戦略を置く。
 
-- `BasicCollision`, `AdvancedCollision`, `PointDistance`, `BBoxCollision`
-- `CrossDistance`, `FallibleCrossDistance`, `DistanceConvergenceError`
-- `BasicIntersection`, `MultipleIntersection`, `SelfIntersection`
+- `BasicCollision`, `PointDistance`, `BBoxCollision`
+- `CrossDistance`, `DistanceConvergenceError`
+- `BasicIntersection`
 - `EllipseCalculation`
 - `LineSegment3DCollisionDetection`
 
@@ -1231,7 +1214,7 @@ Issue #541 では、まず既存の `geometry::operations` trait に自然に載
 
 - 距離は `CrossDistance`
 - 単一点交差は `BasicIntersection`
-- 複数交点は `MultipleIntersection`
+- 複数交点の trait定義は、呼び出し元が必要になった時点で追加する
 - concrete 型の convenience method は必要最小限だけ残し、trait定義の正本は `operations` 側に寄せる
 
 ### 13. relation 系メソッドは独立に厳格判定する
@@ -1437,3 +1420,9 @@ relation 系の代表例:
 - [ ] 旧構造へ逆戻りする duplicate 定義が入っていない
 - [ ] 次段階で扱う未解決事項が列挙されている
 - [ ] PR 本文で「残したもの」と「次 Issue へ送るもの」を分離して説明できる
+
+## 呼び出し元のない trait定義の削除
+
+- 実装以外から呼ばれていない trait定義（形状の `*Derived` / `*Evaluation` / `*Projection` の一部、`AdvancedCollision` / `MultipleIntersection` / `SelfIntersection` / `FallibleCrossDistance`、方向の関係の trait定義等）を、実装とともに削除した
+- 他の trait定義をまとめるだけの `*Core` は、境界として使われていなかったため削除した。境界が必要な場合は構成要素の trait定義（`*Constructor` + `*Properties` 等）を並べる
+- 線種・線幅の表示属性（`StrokeDisplayProperties` / `PlanarStroke2DProperties`）は、表示の経路の設計に基づいて実装の途中のため残す

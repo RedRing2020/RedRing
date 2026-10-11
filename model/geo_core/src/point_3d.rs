@@ -4,9 +4,7 @@
 //! 基本機能、Foundation トレイト、Analysis 変換、演算子オーバーロードを含む。
 
 use analysis::abstract_types::Scalar;
-use geo_contracts::{
-    Point3DConstructor, Point3DCore, Point3DDistance, Point3DInterpolation, Point3DProperties,
-};
+use geo_contracts::{Point3DConstructor, Point3DDistance, Point3DInterpolation, Point3DProperties};
 
 /// 3次元空間の点
 ///
@@ -303,8 +301,6 @@ impl<T: Scalar> Point3DInterpolation<T> for Point3D<T> {
         Point3D::lerp(self, other, t)
     }
 }
-
-impl<T: Scalar> Point3DCore<T> for Point3D<T> {}
 
 // Note: Vector3D は geo_primitives で定義されるため、
 // 演算子オーバーロードは geo_primitives で実装します

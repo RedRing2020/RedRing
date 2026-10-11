@@ -41,33 +41,6 @@ pub trait Ellipse2DProperties<T: Scalar> {
     fn rotation(&self) -> T;
 }
 
-/// Ellipse2D の派生量
-pub trait Ellipse2DDerived<T: Scalar> {
-    /// 楕円が張る interior を含めた派生量を返す
-    fn area(&self) -> T;
-
-    /// 閉曲線 shape の primary quantity としての周回長を返す
-    fn circumference(&self) -> T;
-
-    /// 離心率を返す
-    fn eccentricity(&self) -> T;
-
-    /// 焦点間距離を返す
-    fn focal_distance(&self) -> T;
-
-    /// 第1焦点を返す
-    fn focus1(&self) -> (T, T);
-
-    /// 第2焦点を返す
-    fn focus2(&self) -> (T, T);
-
-    /// 線形離心率を返す
-    fn linear_eccentricity(&self) -> T;
-
-    /// 円の特殊ケースかどうかを返す
-    fn is_circle(&self) -> bool;
-}
-
 /// Ellipse2D の評価
 pub trait Ellipse2DEvaluation<T: Scalar> {
     /// Primitive 局所座標系の周期 angle parameter `t` (`0 <= t < 2π`) に対応する evaluation point を返す
@@ -92,9 +65,6 @@ pub trait Ellipse2DProjection<T: Scalar> {
     /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: (T, T)) -> (T, T);
 }
-
-/// Ellipse2D の互換 Core trait
-pub trait Ellipse2DCore<T: Scalar>: Ellipse2DConstructor<T> + Ellipse2DProperties<T> {}
 
 /// Ellipse3D の生成 trait
 pub trait Ellipse3DConstructor<T: Scalar>: Sized {
@@ -169,24 +139,6 @@ pub trait Ellipse3DProperties<T: Scalar> {
     fn semi_minor_axis(&self) -> T;
 }
 
-/// Ellipse3D の派生量
-pub trait Ellipse3DDerived<T: Scalar> {
-    /// 楕円が張る interior を含めた派生量を返す
-    fn area(&self) -> T;
-
-    /// 閉曲線 shape の primary quantity としての周回長を返す
-    fn circumference(&self) -> T;
-
-    /// 離心率を返す
-    fn eccentricity(&self) -> T;
-
-    /// 焦点間距離を返す
-    fn focal_distance(&self) -> T;
-
-    /// 円の特殊ケースかどうかを返す
-    fn is_circle(&self) -> bool;
-}
-
 /// Ellipse3D の評価
 pub trait Ellipse3DEvaluation<T: Scalar> {
     /// Primitive 局所座標系の周期 angle parameter `t` (`0 <= t < 2π`) に対応する evaluation point を返す
@@ -211,17 +163,4 @@ pub trait Ellipse3DDistance<T: Scalar> {
 pub trait Ellipse3DProjection<T: Scalar> {
     /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
-}
-
-/// Ellipse3D の互換 Core trait
-pub trait Ellipse3DCore<T: Scalar>: Ellipse3DConstructor<T> + Ellipse3DProperties<T> {}
-
-impl<T: Scalar, Ellipse> Ellipse2DCore<T> for Ellipse where
-    Ellipse: Ellipse2DConstructor<T> + Ellipse2DProperties<T>
-{
-}
-
-impl<T: Scalar, Ellipse> Ellipse3DCore<T> for Ellipse where
-    Ellipse: Ellipse3DConstructor<T> + Ellipse3DProperties<T>
-{
 }

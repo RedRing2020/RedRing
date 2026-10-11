@@ -68,13 +68,3 @@ pub trait EllipsoidalSurface3DDerived<T: Scalar> {
 pub trait EllipsoidalSurface3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
-
-pub trait EllipsoidalSurface3DCore<T: Scalar>:
-    EllipsoidalSurface3DConstructor<T> + EllipsoidalSurface3DProperties<T>
-{
-}
-
-impl<T: Scalar, Surface> EllipsoidalSurface3DCore<T> for Surface where
-    Surface: EllipsoidalSurface3DConstructor<T> + EllipsoidalSurface3DProperties<T>
-{
-}

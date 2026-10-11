@@ -77,21 +77,3 @@ pub trait ConicalSolid3DContainment<T: Scalar> {
 pub trait ConicalSolid3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
-
-pub trait ConicalSolid3DEvaluation<T: Scalar> {
-    fn point_at_conical(&self, r_ratio: T, theta: T, h_ratio: T) -> (T, T, T);
-}
-
-pub trait ConicalSolid3DProjection<T: Scalar> {
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
-}
-
-pub trait ConicalSolid3DCore<T: Scalar>:
-    ConicalSolid3DConstructor<T> + ConicalSolid3DProperties<T>
-{
-}
-
-impl<T: Scalar, Solid> ConicalSolid3DCore<T> for Solid where
-    Solid: ConicalSolid3DConstructor<T> + ConicalSolid3DProperties<T>
-{
-}

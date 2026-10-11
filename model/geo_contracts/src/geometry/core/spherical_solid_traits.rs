@@ -56,21 +56,3 @@ pub trait SphericalSolid3DContainment<T: Scalar> {
 pub trait SphericalSolid3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
-
-pub trait SphericalSolid3DEvaluation<T: Scalar> {
-    fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T);
-}
-
-pub trait SphericalSolid3DProjection<T: Scalar> {
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
-}
-
-pub trait SphericalSolid3DCore<T: Scalar>:
-    SphericalSolid3DConstructor<T> + SphericalSolid3DProperties<T>
-{
-}
-
-impl<T: Scalar, Solid> SphericalSolid3DCore<T> for Solid where
-    Solid: SphericalSolid3DConstructor<T> + SphericalSolid3DProperties<T>
-{
-}

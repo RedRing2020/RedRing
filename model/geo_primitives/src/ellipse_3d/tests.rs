@@ -50,7 +50,6 @@ fn test_from_circle() {
         geo_contracts::Circle3DProperties::radius(&circle)
     );
     assert_eq!(ellipse.normal(), circle.normal());
-    assert!(ellipse.is_circle());
 }
 
 #[test]
@@ -75,7 +74,6 @@ fn test_basic_properties() {
     assert!((area - expected_area).abs() < 1e-10);
 
     // 円判定
-    assert!(!ellipse.is_circle());
 
     // 退化判定
     assert!(!ellipse.is_degenerate());
@@ -91,7 +89,6 @@ fn test_circle_detection() {
         Vector3D::unit_x(),
     )
     .unwrap();
-    assert!(circle_ellipse.is_circle());
     assert_eq!(circle_ellipse.eccentricity(), 0.0);
 }
 

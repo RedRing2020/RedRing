@@ -174,13 +174,6 @@ impl<T: Scalar> NurbsCurve3D<T> {
         Vector3::new(dx, dy, dz)
     }
 
-    /// 指定パラメータでの接線ベクトルを計算（正規化済み）
-    pub fn tangent_at(&self, t: T) -> Vector3<T> {
-        self.derivative_at(t)
-            .normalize()
-            .unwrap_or_else(|_| Vector3::zero())
-    }
-
     /// 曲線の長さを近似計算
     #[must_use]
     pub fn approximate_length(&self, subdivisions: usize) -> T {

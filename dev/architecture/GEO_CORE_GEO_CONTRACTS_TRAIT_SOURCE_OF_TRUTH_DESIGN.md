@@ -35,7 +35,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 
 ### Point / Vector
 
-- `geo_contracts` には `Point2DCore` / `Point3DCore` / `Vector2DCore` / `Vector3DCore` が既に存在する
+- `geo_contracts` には点・ベクトルの生成・取得の trait定義（`Point2DConstructor` / `Point2DProperties` 等）が既に存在する
 - `geo_core` 側の `point_traits` / `vector_traits` は互換再エクスポート層として残っている
 - `geo_contracts` 側には `position` / `dimension` / `is_zero` / `is_unit` / `area` / `volume` / `length` など、`geo_core` 側にない既定メソッドがある
 - `geo_core` の concrete type 実装はなお互換再エクスポート経由の import を一部残している

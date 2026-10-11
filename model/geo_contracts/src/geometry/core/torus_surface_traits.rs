@@ -43,13 +43,3 @@ pub trait TorusSurface3DDerived<T: Scalar> {
 pub trait TorusSurface3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
-
-pub trait TorusSurface3DCore<T: Scalar>:
-    TorusSurface3DConstructor<T> + TorusSurface3DProperties<T>
-{
-}
-
-impl<T: Scalar, Surface> TorusSurface3DCore<T> for Surface where
-    Surface: TorusSurface3DConstructor<T> + TorusSurface3DProperties<T>
-{
-}
