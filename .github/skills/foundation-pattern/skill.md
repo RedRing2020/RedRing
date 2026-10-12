@@ -2,214 +2,169 @@
 
 ## 最終更新日: 2026年10月12日
 
-RedRingにおける Foundation Pattern の詳細仕様と実装ガイドを定義します。
+形状の API を、`geo_contracts` の trait定義（責務ごとの capability）と、`geo_primitives` / `geo_nurbs` / `geo_core` の具体型の実装に分ける構成を定義します。
 
 ---
 
-## Foundation Pattern とは
-
-全ての幾何プリミティブに統一されたインターフェースを提供する3層構造のデザインパターンです。
+## 全体の構成
 
 ```
-Core Traits (Constructor/Properties/Measure)
-    ↓
-Extension Traits (Bounded, Transformable, etc.)
-    ↓
-Transform Traits (AnalysisTransform2D/3D)
+geo_contracts（trait定義の正本）
+  geometry/core/{shape}_traits.rs   形状ごとの capability（生成・定義パラメータ・評価・距離 等）
+  geometry/foundation/              形状に共通の capability（PrimitiveMetadata / Bounded）
+  geometry/operations/              形状をまたぐ演算（距離・衝突・関係・相似変換）
+        ↑ 実装
+geo_core（点・ベクトル・方向・相似変換・AABB）
+geo_primitives（解析形状）/ geo_nurbs（NURBS 曲線・曲面）
 ```
+
+- trait定義は `geo_contracts` だけに置く。具体型のクレートは trait定義を再エクスポートせず、利用側が `geo_contracts` から直接使う
+- 形状をまたぐ高レベルの計算は `geo_algorithms`、形状の型に依存しない共通の数値計算は `geo_commons` に置く
 
 ---
 
-## 1. Core Traits（geo_contracts/src/geometry/solids/）
+## 1. 形状ごとの capability（`geometry/core/{shape}_traits.rs`）
 
-### 定義場所
+trait定義は、責務ごとに分ける。形状がその責務を持つ場合だけ定義する。
 
-`geo_contracts/src/geometry/solids/{shape}_core_traits.rs`
+| capability | 責務 | 例 |
+| --- | --- | --- |
+| `{Shape}Constructor` | 生成 | `new` |
+| `{Shape}Properties` | 定義パラメータの取得 | `start` / `end` / `center` / `radius` |
+| `{Shape}Derived` | 定義パラメータから導く量 | `length` / `area` / `volume` |
+| `{Shape}Evaluation` | パラメータに対応する点の評価 | `point_at_parameter` / `point_at_uv` |
+| `{Shape}Distance` | 点との距離 | `distance_to_point` |
+| `{Shape}Containment` | 点の包含・分類 | `contains_point` / `classify_point` |
+| `{Shape}Projection` | 点の最近点 | `closest_point` |
 
-### 3つの基本トレイト
+- 曲線の `contains_point` は「曲線上にあるか」を表す。領域を持つ形状は `classify_point` で `PointClassification`（`Inside` / `OnBoundary` / `Outside`）を返し、`contains_point(p)` は `classify_point(p) != Outside` と一致させる
+- 他の trait定義をまとめるだけの trait定義（`{Shape}Core` 等）は置かない。境界が必要な場合は構成要素の trait定義を並べる
+- 引数・戻り値の点・ベクトルは、現状はタプル（`(T, T, T)`）で受け渡す
 
-#### Constructor - 生成機能
+### 例: LineSegment3D
 
 ```rust
-pub trait {Shape}3DConstructor<T: Scalar> {
-    /// 基本的なコンストラクタ
-    fn new(...) -> Option<Self> where Self: Sized;
-    
-    /// 代替コンストラクタ
-    fn from_point_direction(...) -> Option<Self> where Self: Sized;
-    
-    /// 単位形状生成
-    fn unit_x() -> Self where Self: Sized;
+// geo_contracts/src/geometry/core/linesegment_traits.rs
+pub trait LineSegment3DConstructor<T: Scalar> {
+    fn new(start: (T, T, T), end: (T, T, T)) -> Option<Self>
+    where
+        Self: Sized;
 }
-```
 
-#### Properties - プロパティ取得
-
-```rust
-pub trait {Shape}3DProperties<T: Scalar> {
-    /// 基本情報取得
-    fn start(&self) -> (T, T, T);
-    fn end(&self) -> (T, T, T);
-    fn length(&self) -> T;
-    
-    /// 形状の次元数
-    fn dimension(&self) -> u32;
-}
-```
-
-#### Measure - 計量・関係演算
-
-```rust
-pub trait {Shape}3DMeasure<T: Scalar> {
-    /// 測度（長さ、面積、体積）
-    fn measure(&self) -> T;
-    
-    /// 距離計算
+pub trait LineSegment3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
-    
-    /// 包含判定
-    fn contains_point(&self, point: (T, T, T)) -> bool;
-    
-    /// パラメトリック評価
-    fn point_at_parameter(&self, t: T) -> (T, T, T);
 }
 ```
-
-### Core Traits の統合
 
 ```rust
-/// 3つのCore機能統合トレイト
-pub trait {Shape}3DCore<T: Scalar>:
-    {Shape}3DConstructor<T> +
-    {Shape}3DProperties<T> +
-    {Shape}3DMeasure<T>
-{
-}
-
-// Blanket implementation
-impl<T: Scalar, S> {Shape}3DCore<T> for S
-where
-    S: {Shape}3DConstructor<T> +
-       {Shape}3DProperties<T> +
-       {Shape}3DMeasure<T>
-{
+// geo_primitives/src/line_segment_3d.rs
+impl<T: Scalar> LineSegment3DDistance<T> for LineSegment3D<T> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_point(&p)
+    }
 }
 ```
+
+trait定義の実装は、型付きの固有メソッドへタプルを変換して委譲する。固有メソッドと trait定義のメソッドが同名で型が異なる場合、メソッド呼び出しでは固有メソッドが優先されることに注意する。
 
 ---
 
-## 2. Extension Traits（geo_contracts/src/geometry/extensions/）
-
-### ExtensionFoundation - 基本拡張
+## 2. 形状に共通の capability（`geometry/foundation/`）
 
 ```rust
-pub trait ExtensionFoundation<T: Scalar> {
-    /// プリミティブの種類
+pub trait PrimitiveMetadata {
     fn primitive_kind(&self) -> PrimitiveKind;
-    
-    /// 測度（Option版、無限形状対応）
-    fn measure(&self) -> Option<T>;
 }
-```
 
-### Bounded - 境界ボックス
-
-```rust
-pub trait Bounded<T: Scalar>: ExtensionFoundation<T> {
-    type Aabb;
-    
-    /// 軸並行境界ボックス取得
+pub trait Bounded<T: Scalar = f64>: PrimitiveMetadata {
+    type Aabb; // geo_core::Aabb2D / Aabb3D
     fn aabb(&self) -> Option<Self::Aabb>;
 }
 ```
 
-### その他の Extension Traits
+- `PrimitiveMetadata` は全形状が実装する
+- `Bounded` は、有界な形状が `bounds.rs` で実装する（無限直線などは `None` を返すか実装しない）
+
+---
+
+## 3. 形状をまたぐ演算（`geometry/operations/`）
+
+| ファイル | trait定義 |
+| --- | --- |
+| `distance.rs` | `CrossDistance`（形状どうしの距離）、`DistanceConvergenceError` |
+| `collision.rs` | `BasicCollision` / `PointDistance` / `BBoxCollision` |
+| `relation.rs` | 平行・垂直・同一直線・角度等の関係、`Contains`、`PointClassification` |
+| `transform.rs` | 相似変換（`SimilarityTransformable2D/3D`・`SimilarityTransform2D/3DCore`）、`TransformError` |
+
+### 相似変換
+
+形状の変換は、回転・平行移動・一様スケールの組み合わせ（相似変換）に限る。
 
 ```rust
-pub trait MeasurableExtension<T: Scalar>: ExtensionFoundation<T> {
-    fn area(&self) -> Option<T>;
-    fn volume(&self) -> Option<T>;
+pub trait SimilarityTransformable3D<T: Scalar>: Sized {
+    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+        &self,
+        transform: &X,
+    ) -> Result<Self, TransformError>;
 }
 
-pub trait SpatialExtension<T: Scalar>: ExtensionFoundation<T> {
-    fn centroid(&self) -> Option<(T, T, T)>;
+pub enum TransformError {
+    Unsupported(String),      // 扱わない変換・形状が受け付けない変換
+    InvalidGeometry(String),  // 変換結果が形状として成立しない
+    InvalidParameter(String), // 変換の構築に不正な引数が渡された
+}
+```
+
+```rust
+// geo_primitives/src/line_segment_3d/transform.rs
+impl<T: Scalar> SimilarityTransformable3D<T> for LineSegment3D<T> {
+    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+        &self,
+        transform: &X,
+    ) -> Result<Self, TransformError> {
+        let scale = transform.scale_factor();
+        Ok(Self {
+            line: self.line.transform_similarity(transform)?,
+            start_param: self.start_param * scale,
+            end_param: self.end_param * scale,
+            start_point: self.start_point.transform_similarity(transform)?,
+            end_point: self.end_point.transform_similarity(transform)?,
+        })
+    }
 }
 ```
 
 ---
 
-## 3. Transform Traits（geo_foundation/src/core/transform.rs）
+## 4. API を追加するときの原則
 
-### AnalysisTransform3D
+- 基本の形状定義と最低限のメソッドから始め、呼び出し元が必要になった時点で追加する
+- 呼び出し元のない API・別名・結果が誤った簡易実装を置かない
+- 呼び出し元のない公開メソッド・trait定義のメソッドは `scripts/check_unused_public_api.ps1` が警告する。意図して残す場合は `scripts/unused_public_api_allowlist.txt` に理由とともに記載する
+- 許容誤差は `analysis` に集約したものを使い（`default_distance_tolerance` 等）、モジュール内に独自の定数を置かない
 
-```rust
-pub trait AnalysisTransform3D<T: Scalar> {
-    type Matrix4x4;
-    type Angle;
-    type Output;
-
-    /// 平行移動
-    fn translate_analysis(
-        &self,
-        offset: (T, T, T),
-    ) -> Result<Self::Output, TransformError>;
-
-    /// 回転（任意軸）
-    fn rotate_analysis(
-        &self,
-        axis: (T, T, T),
-        angle: Self::Angle,
-    ) -> Result<Self::Output, TransformError>;
-
-    /// スケール変換
-    fn scale_analysis(
-        &self,
-        factors: (T, T, T),
-    ) -> Result<Self::Output, TransformError>;
-
-    /// 行列変換
-    fn transform_point_matrix(
-        &self,
-        matrix: Self::Matrix4x4,
-    ) -> Self::Output;
-}
-```
-
-### TransformError - エラー型
-
-```rust
-#[derive(Debug, Clone, PartialEq)]
-pub enum TransformError {
-    ZeroVector,           // ゼロベクトル
-    InvalidScaleFactor,   // 無効なスケール倍率
-    InvalidRotation,      // 無効な回転パラメータ
-    InvalidGeometry,      // 変換後の幾何的無効性
-}
-```
+詳細は `dev/architecture/GEO_API_ADDITION_RULES.md` と `dev/architecture/GEOMETRIC_TOLERANCE_USAGE_RULES.md` を参照。
 
 ---
 
 ## 実装チェックリスト
 
-新規幾何プリミティブ実装時の必要ファイル：
+新規幾何プリミティブ実装時：
 
-### geo_contracts（トレイト定義）
+### geo_contracts（trait定義）
 
 - [ ] `geo_contracts/src/geometry/core/{shape}_traits.rs`
-  - [ ] `{Shape}Constructor<T>` trait
-  - [ ] `{Shape}Properties<T>` trait
-  - [ ] 呼び出し元が必要な capability trait（`{Shape}Evaluation<T>` / `{Shape}Distance<T>` 等）だけを追加する
-
-- [ ] `geo_contracts/src/lib.rs` に再エクスポート追加
-  ```rust
-  pub use core::{shape}_traits::{{Shape}Constructor, {Shape}Properties};
-  ```
+  - [ ] `{Shape}Constructor<T>` / `{Shape}Properties<T>`
+  - [ ] 呼び出し元が必要な capability（`{Shape}Evaluation<T>` / `{Shape}Distance<T>` 等）だけを追加する
+- [ ] `geo_contracts/src/geometry/core.rs` と `geo_contracts/src/lib.rs` に再エクスポートを追加
+- [ ] `PrimitiveKind` に形状の種類を追加
 
 ### geo_primitives（具体実装）
 
 - [ ] `geo_primitives/src/{shape}_3d.rs`（親: 構造体定義・基本メソッド・trait定義の実装）
-- [ ] `geo_primitives/src/{shape}_3d/bounds.rs`（境界ボックス）
-- [ ] `geo_primitives/src/{shape}_3d/transform.rs`（相似変換）
+- [ ] `geo_primitives/src/{shape}_3d/bounds.rs`（`Bounded`）
+- [ ] `geo_primitives/src/{shape}_3d/transform.rs`（`SimilarityTransformable3D`）
 - [ ] `geo_primitives/src/{shape}_3d/tests.rs`（テスト）
 - [ ] `geo_primitives/src/lib.rs` に `mod {shape}_3d;` と `pub use {shape}_3d::{Shape}3D;`
 
@@ -217,106 +172,19 @@ pub enum TransformError {
 
 ---
 
-## デフォルト実装パターン
-
-### トレイトにデフォルト実装を提供
-
-```rust
-// geo_foundation/src/core/linesegment_traits.rs
-pub trait LineSegment3DCollisionDetection<T: Scalar>: 
-    LineSegment3DProperties<T> 
-{
-    fn distance_to_aabb(
-        &self,
-        aabb_min: (T, T, T),
-        aabb_max: (T, T, T),
-    ) -> T {
-        // デフォルト実装
-        let start = self.start();
-        let end = self.end();
-        geo_commons::metrics::distance::line_segment_to_aabb_distance(
-            start, end, aabb_min, aabb_max,
-        )
-    }
-}
-```
-
-### Blanket Implementation
-
-```rust
-// geo_primitives/src/line_segment_3d_collision.rs
-impl<T: Scalar> LineSegment3DCollisionDetection<T> for LineSegment3D<T> {}
-```
-
-この方法により、トレイト境界を満たす全ての型に自動的に実装が適用されます。
-
----
-
-## 実装例：LineSegment3D
-
-### 1. Core Traits 定義
-
-```rust
-// geo_foundation/src/core/linesegment_traits.rs
-pub trait LineSegment3DConstructor<T: Scalar> {
-    fn new(start: (T, T, T), end: (T, T, T)) -> Option<Self>
-    where Self: Sized;
-}
-
-pub trait LineSegment3DProperties<T: Scalar> {
-    fn start(&self) -> (T, T, T);
-    fn end(&self) -> (T, T, T);
-    fn length(&self) -> T;
-}
-
-pub trait LineSegment3DMeasure<T: Scalar> {
-    fn measure(&self) -> T;
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
-}
-```
-
-### 2. 具体実装
-
-```rust
-// geo_primitives/src/line_segment_3d_foundation.rs
-impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
-    fn new(start: (T, T, T), end: (T, T, T)) -> Option<Self> {
-        let start_point = Point3D::new(start.0, start.1, start.2);
-        let end_point = Point3D::new(end.0, end.1, end.2);
-        Self::new(start_point, end_point)
-    }
-}
-
-impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
-    fn start(&self) -> (T, T, T) {
-        (self.start.x(), self.start.y(), self.start.z())
-    }
-    
-    fn end(&self) -> (T, T, T) {
-        (self.end.x(), self.end.y(), self.end.z())
-    }
-    
-    fn length(&self) -> T {
-        self.start.distance_to(&self.end)
-    }
-}
-```
-
----
-
 ## 参照文書
 
-- **Phase 1 計画**: `dev/foundation/PHASE1_DETAILED_PLAN.md`
-- **Foundation 再設計**: `dev/foundation/FOUNDATION_CORE_EXTENSION_REDESIGN_PROPOSAL.md`
-- **NURBS Foundation**: `dev/architecture/NURBS_FOUNDATION_PATTERN.md`
-- **Issue #222 実装例**: PR #223（LineSegment3DCollisionDetection）
+- **trait定義の構成**: `dev/architecture/GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md`
+- **形状の意味（包含・距離・パラメータ）**: `dev/architecture/GEOMETRY_SHAPE_SEMANTICS_DESIGN.md`
+- **モジュールの構成**: `dev/architecture/GEO_PRIMITIVES_MODULE_STRUCTURE_RULES.md`
+- **API の追加**: `dev/architecture/GEO_API_ADDITION_RULES.md`
+- **相似変換**: `dev/architecture/TRANSFORM_TRAIT_DESIGN.md`
 
 ---
 
 ## 使用例コメントの配置方針（共通）
 
-- Foundation 実装ファイルでは、責務説明を優先し、詳細な使用例は `manual/` に集約する
-- import を含む実践サンプルはコメントで長文化せず、`manual/<topic>_examples.md` 参照へ置換する
+- 実装ファイルでは責務の説明を優先し、詳細な使用例は `manual/` に集約する
+- import を含む実践サンプルはコメントで長文化せず、`manual/<topic>_examples.md` の参照へ置き換える
 - 参照先ドキュメントを追加した場合は `manual/SUMMARY.md` に登録する
-- 詳細ルールは `.github/skills/implementation/skill.md` の
-    「使用例コメントの配置ルール（CI整合）」に従う
+- 詳細は `.github/skills/implementation/skill.md` の「使用例コメントの配置ルール（CI整合）」に従う
