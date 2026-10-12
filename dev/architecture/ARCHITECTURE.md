@@ -34,7 +34,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 
 - **`foundation/analysis`**: 線形代数などの純粋な数値解析・抽象型・許容誤差
 - **`foundation/logging_foundation`** / **`foundation/i18n_foundation`**: ログの初期化・レート制御 / ローカライズのメッセージカタログ
-- **`geo_contracts`**: 幾何の trait定義の正本（抽象化）。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義し、`geo_core` の値型で型付けする。具体型と実装を持たない
+- **`geo_contracts`**: 幾何の trait定義の正本（抽象化）。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義し、`geo_core` の値型で型付けし、その値型を再エクスポートする。形状の具体型と実装を持たない
 - **`geo_commons`**: `analysis` のみに依存する、形状の型に依存しない共通の数値計算（楕円・楕円体の最近点と距離等）
 - **`geo_core`**: 最下位の幾何の値型（点・ベクトル・方向・相似変換・AABB・点の分類）と、許容誤差の既定値・変換のエラー。`analysis` のみに依存し、trait定義を持たず、操作は固有メソッドで提供する
 - **`geo_primitives`**: 解析形状の実装。`geo_contracts` の trait定義を実装し、必要に応じて `geo_commons` の計算へ委譲する

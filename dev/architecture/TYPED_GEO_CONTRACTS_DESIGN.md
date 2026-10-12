@@ -33,6 +33,7 @@ analysis
 - 新しいクレートは作らない。`geo_core` は `analysis` のみに依存する
 - `geo_core` は trait定義を持たず、値型の操作は固有メソッドで提供する
 - `geo_contracts` は `analysis` と `geo_core` に依存する
+- `geo_contracts` は `geo_core` の値型（点・ベクトル・方向・相似変換・AABB）を再エクスポートする。trait定義の引数・戻り値に現れる型を、trait定義と同じクレートから使えるようにするため。Model 層の外からも `geo_contracts::Point3D` のように値型を作れる
 
 ### 2.0 抽象化と実装の分離
 

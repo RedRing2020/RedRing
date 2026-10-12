@@ -17,10 +17,12 @@ pub use geometry::core::plane3d_traits::{
     Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,
 };
 
+// 値型（trait定義の引数・戻り値に使う型）と、許容誤差の既定値・点の分類・変換のエラー
 pub use geo_core::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
-    default_orthogonality_dot_error_tolerance, default_parallel_cross_error_tolerance,
-    PointClassification, ToleranceSettings, TransformError,
+    default_orthogonality_dot_error_tolerance, default_parallel_cross_error_tolerance, Aabb2D,
+    Aabb3D, Direction2D, Direction3D, Point2D, Point3D, PointClassification, SimilarityTransform2D,
+    SimilarityTransform3D, ToleranceSettings, TransformError, Vector2D, Vector3D,
 };
 pub use geometry::core::{
     Arc2DConstructor, Arc2DContainment, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
