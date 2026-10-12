@@ -1,117 +1,73 @@
 # アーキテクチャ概要
 
-## 最終更新日: 2026年2月13日
+## 最終更新日: 2026年10月12日
 
-RedRingプロジェクトのアーキテクチャ構成と依存関係ルールを定義します。
-
----
-
-## Workspace 構成
-
-```text
-foundation/         # 基礎機能（analysis: 数値解析・線形代数）
-model/             # 幾何データ層
-├── geo_contracts  # トレイト定義・型システム
-├── geo_commons    # 共通計算関数（楕円近似、距離計算等）
-├── geo_primitives # 基本幾何要素
-├── geo_core      # 幾何計算基盤
-├── geo_algorithms # 高レベル幾何アルゴリズム
-├── geo_nurbs     # NURBS曲線・曲面
-└── geo_io        # ファイルI/O
-view/              # アプリケーション・描画層
-├── app           # メインアプリケーション
-├── render        # GPU描画基盤（wgpu + WGSL）
-└── stage         # レンダリングステージ管理
-viewmodel/         # ビュー変換ロジック
-├── converter     # 幾何データ→描画データ変換
-└── graphics      # グラフィックス設定
-```
+RedRing のレイヤー構成と、クレート間の依存関係の汎用的な規則を定義します。個々のクレートの責務と依存の正本は `dev/architecture/ARCHITECTURE.md`（「クレート責務定義」「レイヤー設計の重要ポイント」）で、この手順書にはクレートの一覧を載せません。
 
 ---
 
-## 依存関係ルール
+## レイヤー構成
 
-### 基本原則
+ワークスペースは、ディレクトリごとに次のレイヤーに分かれる。
+
+| ディレクトリ | レイヤー | 役割 |
+| --- | --- | --- |
+| `foundation/` | 基盤 | ドメインに依存しない数値計算・ログ・ローカライズ |
+| `model/` | モデル | 幾何（`geo_*`）・CAM（`cam_*`）・ジョブ・ユースケースの orchestration |
+| `viewmodel/` | ビューモデル | モデルのデータを描画用のデータに変換する |
+| `view/` | ビュー | GPU 描画・ステージ・アプリケーション |
+
+各クレートがどのレイヤーに属し、何に依存してよいかは `ARCHITECTURE.md` と、依存関係のチェックスクリプトのルール（`scripts/_arch_rules_data.ps1`）で定義する。
+
+---
+
+## 依存関係の規則
+
+### 向き
 
 ```text
-analysis → geo_contracts → geo_commons
-                         ↓
-                      geo_core
-                       ↓    ↓
-            geo_primitives  geo_nurbs
-                       ↓         ↓
-                 geo_algorithms  geo_io
-            ↓
-        viewmodel
-            ↓
-          view
+view → viewmodel → model → foundation
 ```
 
-### レイヤー間依存
+- 依存は下位のレイヤーへの一方向だけとし、下位のレイヤーが上位のレイヤーに依存しない
+- `foundation` のクレートはワークスペースの他のクレートに依存しない
+- `view` はモデルのクレートに直接依存しない。描画に必要なデータは `viewmodel` で変換したものを受け取る
+- クレートの間に循環する依存を作らない
 
-1. **Foundation レイヤー** (`analysis`)
-   - 他レイヤーに依存しない
-   - 数値計算、線形代数、抽象型を提供
+### モデルの中
 
-2. **Model レイヤー** (`geo_*`)
-   - `geo_contracts`: analysis, geo_commons に依存
-   - `geo_commons`: analysis のみに依存
-   - `geo_core`: analysis, geo_entity に依存
-   - `geo_primitives`: geo_contracts, geo_core, analysis に依存
-   - `geo_nurbs`: geo_contracts, geo_core, analysis に依存（geo_primitives 直接依存禁止）
-   - `geo_algorithms`: 上記全て + geo_primitives, geo_nurbs に依存可能
+- 形状の trait定義は契約のクレート（`geo_contracts`）を正本とし、具体型のクレートはそれを実装する。trait定義のクレートは具体型を持たない
+- 形状の型に依存しない共通の数値計算は、共通計算のクレート（`geo_commons`）に置き、形状のクレートで同じ計算を個別に実装しない
+- 形状をまたぐ高レベルの計算は、アルゴリズムのクレート（`geo_algorithms`）に置く
+- 幾何のクレート（`geo_*`）は CAM のクレート（`cam_*`）に依存しない（CAD / CAM の境界）
+- ユースケースの orchestration（テセレーション・シミュレーション・ジョブ投入の組み立て）は application 層に置く
 
-3. **ViewModel レイヤー** (`viewmodel`)
-   - Model レイヤーに依存可能
-   - View レイヤーに依存しない
+### クレートを追加・変更するとき
 
-4. **View レイヤー** (`view`)
-   - `render`: analysis のみに依存（幾何データ層に依存しない）
-   - `stage`: render, analysis に依存
-   - `app`: render, stage, analysis に依存
-
-### 重要な制約
-
-- ✅ **geo_core ブリッジパターン**: `geo_nurbs` は `geo_core` 経由で具体型にアクセス
-- ✅ **Foundation Pattern**: 全ての幾何計算は Foundation トレイト経由
-- ✅ **View 独立性**: `render` と `stage` は model に依存しない
-- ❌ **逆向き依存禁止**: 下位レイヤーが上位レイヤーに依存してはならない
-- ❌ **geo_primitives 直接依存**: `geo_nurbs` が `geo_primitives` を直接参照することは禁止
+- ワークスペースの `members` に加える（`members` から漏れたクレートは `--workspace` のテスト・Clippy の対象にならない）
+- `[lints] workspace = true` でワークスペースの lint を使う
+- 依存関係のチェックのルール（`scripts/_arch_rules_data.ps1`）と `ARCHITECTURE.md` を、同じ変更の中で更新する
 
 ---
 
 ## アーキテクチャ検証
 
-### 依存関係チェック
-
 ```powershell
-# アーキテクチャルールに準拠しているか検証
-.\scripts\check_architecture_dependencies_simple.ps1
+.\scripts\check_architecture_dependencies.ps1
 ```
 
-**検証項目**:
-1. Model レイヤーの命名規則（`geo_` プレフィックス）
-2. 依存関係の方向性
-3. 禁止依存の検出
-4. レイヤー間境界の遵守
-
-### 出力例
-
-```
-=== RedRing Architecture Dependency Check ===
-✅ SUCCESS: All architecture dependency checks passed!
-  - View -> ViewModel -> Model direction maintained
-  - Model layer naming rules followed
-  - No forbidden dependencies detected
-```
+- レイヤーの依存の向き・禁止された依存・モデルのクレートの命名規則を検査する
+- CI（`common_architecture_check.yml`）でも同じスクリプトを実行する
 
 ---
 
 ## 参照文書
 
-- **詳細設計**: `dev/architecture/ARCHITECTURE.md`
-- **MVVM設計**: `dev/architecture/VIEWMODEL_ARCHITECTURE_DESIGN.md`
-- **依存関係図**: `dev/architecture/` 内の各種設計文書
+- **クレートの責務と依存（正本）**: `dev/architecture/ARCHITECTURE.md`
+- **MVVM 設計**: `dev/architecture/VIEWMODEL_ARCHITECTURE_DESIGN.md`
+- **application 層**: `dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`
+- **形状の意味**: `dev/architecture/GEOMETRY_SHAPE_SEMANTICS_DESIGN.md`
+- **trait定義・形状の実装**: `.github/skills/foundation-pattern/skill.md`、`.github/skills/implementation/skill.md`
 
 ---
 
@@ -120,5 +76,4 @@ analysis → geo_contracts → geo_commons
 - 実装ファイル内の使用例は最小限に留め、詳細なサンプルは `manual/` に集約する
 - import を含む長い例はコメントに埋め込まず、`manual/<topic>_examples.md` への参照に置き換える
 - 使用例ページを追加した場合は `manual/SUMMARY.md` に必ず登録する
-- 具体的な運用ルールは `.github/skills/implementation/skill.md` の
-   「使用例コメントの配置ルール（CI整合）」に準拠する
+- 具体的な運用ルールは `.github/skills/implementation/skill.md` の「使用例コメントの配置ルール（CI整合）」に準拠する

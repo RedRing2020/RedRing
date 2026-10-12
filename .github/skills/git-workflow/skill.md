@@ -1,320 +1,154 @@
 # Git/GitHub ワークフロー
 
-## 最終更新日: 2026年2月13日
+## 最終更新日: 2026年10月12日
 
-RedRingプロジェクトにおけるGit操作、コミット、PR作成の標準手順を定義します。
+RedRing における Git 操作・コミット・PR 作成の手順です。運用ルールの正本は `dev/GIT_PR_WORKFLOW_OPERATION.md` で、この手順書と食い違う場合は正本を優先します。
 
 ---
 
 ## ブランチ戦略
 
 ```
-main (リリース版) ← develop (開発版) ← feature/issue-xxx-description (機能ブランチ)
+main (リリース版) ← develop (開発版) ← feature/<topic>（作業ブランチ）
 ```
 
-### ブランチの役割
-
-- **main**: リリース済みの安定版（本番環境デプロイ用）
-- **develop**: 開発中の最新版（次期リリース候補）
-- **feature/issue-xxx-\***: 機能追加・修正用の作業ブランチ
+- **main**: リリース済みの安定版
+- **develop**: 開発中の最新版。直接実装・コミットしない
+- **feature/<topic>**: 作業ブランチ。Issue がある場合は `feature/issue-<番号>-<topic>` とする
 
 ---
 
-## 新規作業の開始
-
-### 1. 最新の develop を取得
+## 作業の開始
 
 ```bash
-# developブランチに切り替え
 git checkout develop
-
-# 最新の変更を取得
-git pull origin develop
+git pull --ff-only origin develop
+git status -sb   # develop が ahead のまま次の作業へ進まない
+git checkout -b feature/issue-123-sphere-primitive
 ```
-
-### 2. 作業ブランチの作成
-
-```bash
-# Issue番号と説明を含む命名規則
-git checkout -b feature/issue-123-add-sphere-primitive
-
-# 別の例
-git checkout -b fix/issue-456-vector-normalization
-git checkout -b refactor/issue-789-foundation-pattern
-```
-
-**命名規則**:
-- `feature/issue-xxx-description`: 新機能追加
-- `fix/issue-xxx-description`: バグ修正
-- `refactor/issue-xxx-description`: リファクタリング
-- `docs/issue-xxx-description`: ドキュメント更新
 
 ---
 
-## コミット作業
+## コミット
 
-### 1. 変更内容の確認
+### 形式
 
-```bash
-# 変更ファイルの確認
-git status
+```
+<type>(<scope>): <要約> (#<Issue番号>)
 
-# 変更内容の詳細確認
-git diff
+- 変更点
+- 変更点
 ```
 
-### 2. ステージングとコミット
-
-```bash
-# 全ての変更をステージング
-git add -A
-
-# または特定ファイルのみ
-git add model/geo_primitives/src/sphere_3d.rs
-
-# コミットメッセージの作成
-git commit -m "feat: Add Sphere3D primitive implementation
-
-- Implement Core Traits (Constructor/Properties/Measure)
-- Add Foundation Pattern integration
-- Add comprehensive test suite
-
-Ref: Issue #123"
-```
-
-### コミットメッセージ規則
-
-**フォーマット**:
-```
-<type>: <subject>
-
-<body>
-
-<footer>
-```
-
-**Type 一覧**:
-- `feat`: 新機能追加
-- `fix`: バグ修正
-- `refactor`: リファクタリング
-- `docs`: ドキュメント更新
-- `test`: テスト追加・修正
-- `style`: コードフォーマット（機能変更なし）
-- `chore`: ビルド設定、依存関係更新
+- `type`: `feat` / `fix` / `refactor` / `docs` / `test` / `chore`
+- `scope`: 対象のクレート・領域（`geo_primitives` / `scripts` / `vscode` 等）。複数にまたがる場合は省略してよい
+- 要約・本文は日本語で書く
 
 **例**:
 ```
-feat: Implement LineSegment3DCollisionDetection trait
+refactor(geo_core): 点・ベクトル・方向・相似変換・AABB を親子のモジュール構成にする (#823)
 
-- Add LineSegment3DCollisionDetection trait in geo_foundation
-- Implement blanket implementation for LineSegment3D
-- Refactor voxel.rs to use Foundation Pattern
-- Remove geo_commons dependency from geo_algorithms
-
-Ref: Issue #222, Option A
+- 10 個の型の拡張・テストを、型と同名のディレクトリの子モジュールに移した
+- モジュールを private にし、型だけを lib.rs から再エクスポートする
 ```
 
-### 3. リモートへプッシュ
+### 注意
 
-```bash
-# ブランチをリモートにプッシュ
-git push origin feature/issue-123-add-sphere-primitive
-
-# 初回プッシュ時（上流ブランチ設定）
-git push -u origin feature/issue-123-add-sphere-primitive
-```
+- pre-commit フックがフォーマットを確認する。フック・署名を省略するオプション（`--no-verify` 等）は使わない
+- ソースコード（コメントを含む）には Issue / PR の番号などの GitHub 固有の情報を書かない（`scripts/check_github_refs_in_source.ps1` が検査する）。コミットメッセージ・PR 本文には書いてよい
 
 ---
 
-## Pull Request (PR) 作成
+## PR 作成
 
-### 0. PR 作成前の手順
+### 1. 事前チェック
 
-- PR 作成前に必ず preflight チェックを実行
-- PR作成後に追加コミットを push する場合も、push 前に同じ preflight を再実行
+PR 作成前と、PR 作成後に追加コミットを push する前に、必ず実行してすべて通ることを確認する。
 
-```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1
+```powershell
+pwsh -NoProfile -File .\scripts\check_all_before_push.ps1
 ```
 
-### 1. GitHub CLI を使用した PR 作成
+- 検査項目: fmt / clippy / テスト / 実行時文言の言語ポリシー / ソースコード中の GitHub 固有情報 / 呼び出し元のない公開メソッド・trait定義のメソッド（警告のみ）
 
-```bash
-# developブランチへのPR作成（推奨）
-gh pr create --base develop --title "feat: Add Sphere3D primitive" --body "$(cat PR_TEMPLATE.md)"
+### 2. タイトル
 
-# または対話形式
-gh pr create --base develop
+```
+issue #<番号> [Phase<番号>][<系列>-<枝番>] <対象>: <要約>
 ```
 
-### 2. PR テンプレート
+- 例: `issue #815 [Design][B-2] geo_contracts: 直線系の trait定義の呼び出し元のないメソッドの削除`
+- `Phase`（実施段階）と `PR系列`（変更単位）を混同しない（`dev/ISSUE_LABEL_OPERATION.md`）
+
+### 3. 本文
+
+本文の先頭に、この PR に含む単位と含めない単位を明記する。
 
 ```markdown
+- 含む単位: B-2（直線系の trait定義のメソッドの削除）
+- 含めない単位: B-3 以降（円・楕円系）は別 PR
+
 ## 概要
+...
 
-Issue #123 の実装として、Sphere3D プリミティブを追加しました。
+## 変更内容
+...
 
-## 主な変更
+## 確認
+- `scripts/check_all_before_push.ps1` すべて通過
 
-### 1. Core Traits 実装
-- **場所**: `geo_foundation/src/core/sphere_traits.rs`
-- **機能**: Constructor/Properties/Measure トレイト
-
-### 2. Sphere3D 実装
-- **場所**: `geo_primitives/src/sphere_3d.rs`
-- **実装方式**: Foundation Pattern準拠
-
-### 3. テスト追加
-- **テストケース**: 15件
-- **カバレッジ**: Constructor, Properties, Measure
-
-## テスト結果
-
-\`\`\`
-✅ cargo test -p geo_primitives: 全テスト成功
-✅ cargo test --workspace: 全テスト成功
-✅ cargo build: ビルド成功
-✅ アーキテクチャチェック: 成功
-\`\`\`
-
-## 関連Issue
-
-- Closes #123
-
-## チェックリスト
-
-- [x] develop から新規ブランチ作成
-- [x] Core Traits 定義
-- [x] Foundation Pattern実装
-- [x] テスト実装
-- [x] 全テスト成功確認
-- [x] アーキテクチャチェック成功
-- [x] ドキュメント更新
+Closes #123
 ```
 
-### 3. PR 作成後の CI 確認
+- 1 つの Issue を複数の PR に分ける場合、最後の PR 以外は `Refs #<番号>`、最後の PR は `Closes #<番号>` とする
+
+### 4. 作成
 
 ```bash
-# PR のステータス確認
-gh pr status
-
-# CIログの確認
+git push -u origin feature/issue-123-sphere-primitive
+gh pr create --base develop --title "..." --body-file pr_body.md
 gh pr checks
 ```
 
----
-
-## 重要な注意事項（AI開発者向け）
-
-### ❌ 絶対禁止事項
-
-```bash
-# main への直接PR作成は禁止
-gh pr create --base main  # ← これは絶対ダメ
-```
-
-### ✅ 正しい手順
-
-1. **必ず develop から分岐**
-   ```bash
-   git checkout develop
-   git pull origin develop
-   git checkout -b feature/issue-xxx
-   ```
-
-2. **PR は必ず develop へ**
-   ```bash
-   gh pr create --base develop
-   ```
-
-3. **重要な操作は必ずユーザー確認**
-   - PR 作成前
-   - ブランチ削除前
-   - マージ実行前
-
-### 確認コマンド
-
-```bash
-# 現在のブランチ確認
-git branch --show-current
-
-# ブランチの派生元確認
-git log --oneline --graph --all -10
-
-# PRのマージ先確認
-gh pr view
-```
+- PR は必ず `develop` に向ける（`main` への PR は作らない）
+- マージはユーザーが行う
 
 ---
 
-## マージ後の作業
-
-### 1. ブランチのクリーンアップ
+## マージ後
 
 ```bash
-# developに戻る
 git checkout develop
-
-# 最新の変更を取得
-git pull origin develop
-
-# マージ済みブランチの削除（ローカル）
-git branch -d feature/issue-123-add-sphere-primitive
-
-# リモートブランチの削除
-git push origin --delete feature/issue-123-add-sphere-primitive
-```
-
-### 2. 次の作業の開始
-
-```bash
-# 最新のdevelopから新しいブランチを作成
-git checkout -b feature/issue-124-next-task
+git pull --ff-only origin develop
+git branch -d feature/issue-123-sphere-primitive
+git push origin --delete feature/issue-123-sphere-primitive
 ```
 
 ---
 
 ## トラブルシューティング
 
-### コンフリクトの解決
+### develop の変更の取り込み
 
 ```bash
-# developの最新変更を取得
 git fetch origin develop
-
-# 現在のブランチにマージ
 git merge origin/develop
-
-# コンフリクトを手動で解決後
-git add .
-git commit -m "Merge develop and resolve conflicts"
-git push
+# コンフリクトを解決したら
+git add <解決したファイル>
+git commit
 ```
 
-### コミットの修正
+- コンフリクトはどちらを採用するか方針を決めてから解決する
 
-```bash
-# 直前のコミットメッセージを修正
-git commit --amend -m "新しいメッセージ"
+### 既に push したコミットの扱い
 
-# プッシュ済みの場合（force pushは慎重に）
-git push --force-with-lease
-```
-
-### 誤ったコミットの取り消し
-
-```bash
-# 直前のコミットを取り消し（変更は保持）
-git reset --soft HEAD~1
-
-# 直前のコミットを完全に取り消し
-git reset --hard HEAD~1
-```
+- 修正は新しいコミットで行う。`git commit --amend` や `git push --force` で履歴を書き換えない
 
 ---
 
 ## 参照文書
 
-- **GitHub Projects**: プロジェクト管理とIssue追跡
-- **INFORMATION_MANAGEMENT_TRANSITION.md**: 情報管理の移行方針
-- **.github/PROJECT_STRUCTURE_POLICY.md**: プロジェクト構造方針
+- **Git/PR の運用ルール（正本）**: `dev/GIT_PR_WORKFLOW_OPERATION.md`
+- **Issue のラベル運用**: `dev/ISSUE_LABEL_OPERATION.md`
+- **用語**: `dev/AI_TERMINOLOGY_GLOSSARY.md`
+- **情報管理の方針**: `INFORMATION_MANAGEMENT_TRANSITION.md`
