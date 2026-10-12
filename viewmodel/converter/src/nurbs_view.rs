@@ -116,7 +116,13 @@ mod tests {
     #[test]
     fn test_nurbs_curve_eval_data_from_line() {
         // 直線のNURBS曲線を作成（(0,0,0) -> (1,0,0)）
-        let curve = NurbsCurve3D::<f64>::line_segment((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![0.0, 0.0, 1.0, 1.0],
+            vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)],
+            None,
+        )
+        .unwrap();
 
         // 適応パラメータ生成
         let settings = AdaptiveTessellationSettings::default_with_tolerance(0.01);

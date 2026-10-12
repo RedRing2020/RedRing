@@ -245,7 +245,6 @@ impl<T: Scalar> From<(T, T)> for Vector2D<T> {
     }
 }
 
-use analysis::linalg::vector::Vector2;
 use geo_contracts::{
     Vector2DConstructor, Vector2DMetric, Vector2DProduct, Vector2DProjection, Vector2DProperties,
     Vector2DRelation,
@@ -272,14 +271,6 @@ impl<T: Scalar> Vector2DConstructor<T> for Vector2D<T> {
         Self::new(components.0, components.1)
     }
 
-    fn from_analysis_vector(vector: &Vector2<T>) -> Self {
-        Self::new(vector.x(), vector.y())
-    }
-
-    fn from_array(components: [T; 2]) -> Self {
-        Self::new(components[0], components[1])
-    }
-
     fn from_polar(magnitude: T, angle: T) -> Self {
         Self::new(magnitude * angle.cos(), magnitude * angle.sin())
     }
@@ -304,10 +295,6 @@ impl<T: Scalar> Vector2DProperties<T> for Vector2D<T> {
 
     fn to_tuple(&self) -> (T, T) {
         (self.x, self.y)
-    }
-
-    fn to_analysis_vector(&self) -> Vector2<T> {
-        Vector2::new(self.x, self.y)
     }
 }
 
@@ -339,19 +326,11 @@ impl<T: Scalar> Vector2DMetric<T> for Vector2D<T> {
     fn magnitude(&self) -> T {
         Vector2D::length(self)
     }
-
-    fn manhattan_distance(&self) -> T {
-        self.x.abs() + self.y.abs()
-    }
 }
 
 impl<T: Scalar> Vector2DProduct<T> for Vector2D<T> {
     fn dot(&self, other: &Self) -> T {
         self.dot(other)
-    }
-
-    fn cross_2d(&self, other: &Self) -> T {
-        self.cross(other)
     }
 }
 

@@ -42,11 +42,6 @@ pub trait Direction2DConstructor<T: Scalar> {
     fn from_tuple(components: (T, T)) -> Option<Self>
     where
         Self: Sized;
-
-    /// Analysis Vector2から作成
-    fn from_analysis_vector(vector: &Vector2<T>) -> Option<Self>
-    where
-        Self: Sized;
 }
 
 /// Direction3D生成のためのConstructorトレイト
@@ -86,18 +81,8 @@ pub trait Direction3DConstructor<T: Scalar> {
     where
         Self: Sized;
 
-    /// Z軸負方向の単位ベクトル
-    fn negative_z() -> Self
-    where
-        Self: Sized;
-
     /// タプルから作成
     fn from_tuple(components: (T, T, T)) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// Analysis Vector3から作成
-    fn from_analysis_vector(vector: &Vector3<T>) -> Option<Self>
     where
         Self: Sized;
 }
@@ -116,17 +101,11 @@ pub trait Direction2DProperties<T: Scalar> {
     /// 成分をタプルとして取得
     fn to_tuple(&self) -> (T, T);
 
-    /// Analysis Vector2へ変換
-    fn to_analysis_vector(&self) -> Vector2<T>;
-
     /// 内部ベクトルを取得
     fn as_vector(&self) -> Vector2<T>;
 
     /// 長さ（常に1.0）
     fn length(&self) -> T;
-
-    /// 正規化済みかどうか（常にtrue）
-    fn is_normalized(&self) -> bool;
 
     /// 形状の次元数（2）
     fn dimension(&self) -> u32;
@@ -149,17 +128,11 @@ pub trait Direction3DProperties<T: Scalar> {
     /// 成分をタプルとして取得
     fn to_tuple(&self) -> (T, T, T);
 
-    /// Analysis Vector3へ変換
-    fn to_analysis_vector(&self) -> Vector3<T>;
-
     /// 内部ベクトルを取得
     fn as_vector(&self) -> Vector3<T>;
 
     /// 長さ（常に1.0）
     fn length(&self) -> T;
-
-    /// 正規化済みかどうか（常にtrue）
-    fn is_normalized(&self) -> bool;
 
     /// 形状の次元数（3）
     fn dimension(&self) -> u32;
@@ -178,12 +151,6 @@ pub trait Direction2DRelation<T: Scalar> {
 
     /// 他の方向と垂直かどうか
     fn is_perpendicular_to(&self, other: &Self) -> bool;
-
-    /// 他の方向と同じ方向かどうか
-    fn is_same_direction(&self, other: &Self) -> bool;
-
-    /// 他の方向と反対方向かどうか
-    fn is_opposite_direction(&self, other: &Self) -> bool;
 }
 
 /// Direction2D変換機能トレイト
@@ -214,19 +181,10 @@ pub trait Direction3DRelation<T: Scalar> {
 
     /// 他の方向と垂直かどうか
     fn is_perpendicular_to(&self, other: &Self) -> bool;
-
-    /// 他の方向と同じ方向かどうか
-    fn is_same_direction(&self, other: &Self) -> bool;
-
-    /// 他の方向と反対方向かどうか
-    fn is_opposite_direction(&self, other: &Self) -> bool;
 }
 
 /// Direction3D変換機能トレイト
 pub trait Direction3DTransform<T: Scalar> {
     /// 反転（逆方向）
     fn reverse(&self) -> Self;
-
-    /// 指定軸周りの回転
-    fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self;
 }

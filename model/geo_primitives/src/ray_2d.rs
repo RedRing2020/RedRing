@@ -20,9 +20,9 @@ mod transform;
 
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
-    AngleBetween, BasicIntersection, ParallelRelation, PrimitiveKind, PrimitiveMetadata,
-    Ray2DConstructor, Ray2DContainment, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
-    Ray2DProperties, Ray2DTransform, Scalar,
+    AngleBetween, ParallelRelation, PrimitiveKind, PrimitiveMetadata, Ray2DConstructor,
+    Ray2DContainment, Ray2DDistance, Ray2DEvaluation, Ray2DProjection, Ray2DProperties,
+    Ray2DTransform, Scalar,
 };
 
 /// 2次元半無限直線
@@ -244,32 +244,6 @@ impl<T: Scalar> Ray2DTransform<T> for Ray2D<T> {
         let direction_vec = Vector2D::new(self.direction.x(), self.direction.y());
         let reversed_direction = -direction_vec;
         Ray2D::new(self.origin, reversed_direction).unwrap()
-    }
-}
-
-impl<T: Scalar> BasicIntersection<T, Self> for Ray2D<T> {
-    type Point = (T, T);
-
-    fn intersection_with(&self, other: &Self) -> Option<Self::Point> {
-        let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
-        let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
-
-        let cross = this_dir.cross(&other_dir);
-        use geo_contracts::default_distance_tolerance;
-        if cross.abs() < default_distance_tolerance::<T>() {
-            return None;
-        }
-
-        let diff = other.origin - self.origin;
-        let diff_vec = Vector2D::new(diff.x(), diff.y());
-        let t = diff_vec.cross(&other_dir) / cross;
-
-        if t < T::ZERO {
-            return None;
-        }
-
-        let intersection = self.point_at_parameter(t);
-        Some((intersection.x(), intersection.y()))
     }
 }
 

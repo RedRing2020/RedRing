@@ -355,7 +355,18 @@ mod tests {
     }
 
     fn create_test_surface<T: Scalar>() -> NurbsSurface3D<T> {
-        <NurbsSurface3D<T> as NurbsSurface3DConstructor<T>>::unit_plane()
+        <NurbsSurface3D<T> as NurbsSurface3DConstructor<T>>::new(
+            vec![
+                vec![(T::ZERO, T::ZERO, T::ZERO), (T::ZERO, T::ONE, T::ZERO)],
+                vec![(T::ONE, T::ZERO, T::ZERO), (T::ONE, T::ONE, T::ZERO)],
+            ],
+            None,
+            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
+            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
+            1,
+            1,
+        )
+        .unwrap()
     }
 
     #[test]

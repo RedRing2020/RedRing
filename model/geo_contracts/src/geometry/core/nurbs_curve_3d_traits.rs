@@ -19,16 +19,6 @@ pub trait NurbsCurve3DConstructor<T: Scalar> {
     ) -> Result<Self, String>
     where
         Self: Sized;
-
-    /// Bezier曲線として作成（クランプド・ノットベクトル使用）
-    fn from_bezier(control_points: Vec<(T, T, T)>) -> Result<Self, String>
-    where
-        Self: Sized;
-
-    /// 線分として作成（1次NURBS、2制御点）
-    fn line_segment(start: (T, T, T), end: (T, T, T)) -> Result<Self, String>
-    where
-        Self: Sized;
 }
 
 /// NurbsCurve3D の定義パラメータ
@@ -44,9 +34,6 @@ pub trait NurbsCurve3DProperties<T: Scalar> {
 
     /// 重み配列への参照を取得
     fn weights(&self) -> Option<&[T]>;
-
-    /// 有理曲線かどうかを判定
-    fn is_rational(&self) -> bool;
 
     /// パラメータ定義域を取得 (u_min, u_max)
     fn parameter_domain(&self) -> (T, T);
@@ -64,30 +51,4 @@ pub trait NurbsCurve3DDerived<T: Scalar> {
 
     /// 曲線全体の長さを計算
     fn arc_length_total(&self, tolerance: T) -> T;
-}
-
-/// NurbsCurve3D の評価
-pub trait NurbsCurve3DEvaluation<T: Scalar> {
-    /// 指定された曲線長に対応するパラメータ値を計算
-    fn parameter_at_length(&self, arc_length: T, tolerance: T) -> Option<T>;
-
-    /// 指定されたパラメータ値における曲線上の点を評価
-    fn evaluate(&self, u: T) -> Option<(T, T, T)>;
-
-    /// checked 入口として使うための評価メソッド。
-    ///
-    /// デフォルト実装は互換維持のため `evaluate` へ委譲する暫定ラッパであり、
-    /// parameter domain 判定はこの trait定義だけでは行わない。
-    /// ただし checked 入口として最低限の fail-fast を担保するため、
-    /// 非有限値（NaN/Inf）は `None` として扱う。
-    ///
-    /// 範囲外入力を `None` として扱う必要がある実装では、このメソッドを
-    /// override して各型の parameter domain 判定を行うこと。
-    fn evaluate_checked(&self, u: T) -> Option<(T, T, T)> {
-        if !u.is_finite() {
-            return None;
-        }
-
-        self.evaluate(u)
-    }
 }

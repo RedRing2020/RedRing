@@ -227,14 +227,6 @@ impl<T: Scalar> Point3DConstructor<T> for Point3D<T> {
     fn from_spherical(r: T, theta: T, phi: T) -> Self {
         Point3D::from_spherical(r, theta, phi)
     }
-
-    fn from_analysis_vector(v: &analysis::linalg::vector::Vector3<T>) -> Self {
-        Point3D::new(v.x(), v.y(), v.z())
-    }
-
-    fn from_point(p: &Self) -> Self {
-        *p
-    }
 }
 
 impl<T: Scalar> Point3DProperties<T> for Point3D<T> {
@@ -250,16 +242,8 @@ impl<T: Scalar> Point3DProperties<T> for Point3D<T> {
         self.z
     }
 
-    fn coords(&self) -> [T; 3] {
-        [self.x, self.y, self.z]
-    }
-
     fn to_tuple(&self) -> (T, T, T) {
         (self.x, self.y, self.z)
-    }
-
-    fn to_analysis_vector(&self) -> analysis::linalg::vector::Vector3<T> {
-        analysis::linalg::vector::Vector3::new(self.x, self.y, self.z)
     }
 }
 
@@ -274,10 +258,6 @@ impl<T: Scalar> Point3DDistance<T> for Point3D<T> {
 
     fn norm_squared(&self) -> T {
         Point3D::norm_squared(self)
-    }
-
-    fn distance_from_origin(&self) -> T {
-        self.norm()
     }
 
     fn manhattan_distance_to(&self, other: &Self) -> T {

@@ -82,7 +82,6 @@ fn test_aabb3d_capability_traits() {
         &outer,
         &Point3D::new(2.0, 3.0, 4.0)
     ));
-    assert!(Aabb3DRelation::contains_bbox(&outer, &inner));
     assert!(Aabb3DRelation::intersects(&outer, &inner));
 }
 

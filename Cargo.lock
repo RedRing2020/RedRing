@@ -1089,9 +1089,6 @@ name = "geo_commons"
 version = "0.1.0"
 dependencies = [
  "analysis",
- "approx",
- "num-traits",
- "serde",
 ]
 
 [[package]]
@@ -1099,7 +1096,6 @@ name = "geo_contracts"
 version = "0.1.0"
 dependencies = [
  "analysis",
- "geo_commons",
  "serde",
 ]
 
@@ -1174,7 +1170,6 @@ name = "geo_topology"
 version = "0.1.0"
 dependencies = [
  "analysis",
- "geo_commons",
  "geo_contracts",
  "geo_core",
  "geo_nurbs",

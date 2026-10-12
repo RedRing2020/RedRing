@@ -7,7 +7,6 @@ mod tests;
 
 use crate::Vector2D;
 use analysis::abstract_types::{Angle, Scalar};
-use analysis::linalg::vector::Vector2;
 use geo_contracts::{Point2DConstructor, Point2DDistance, Point2DInterpolation, Point2DProperties};
 
 use std::ops::{Add, Mul, Neg, Sub};
@@ -246,14 +245,6 @@ impl<T: Scalar> Point2DConstructor<T> for Point2D<T> {
         Point2D::from_tuple(coords)
     }
 
-    fn from_analysis_vector(vector: &Vector2<T>) -> Self {
-        Point2D::new(vector.x(), vector.y())
-    }
-
-    fn from_point(other: &Self) -> Self {
-        *other
-    }
-
     fn from_polar(r: T, theta: T) -> Self {
         Point2D::from_polar(r, theta)
     }
@@ -268,20 +259,8 @@ impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
         self.y
     }
 
-    fn coords(&self) -> [T; 2] {
-        [self.x, self.y]
-    }
-
     fn to_tuple(&self) -> (T, T) {
         (self.x, self.y)
-    }
-
-    fn to_analysis_vector(&self) -> Vector2<T> {
-        Vector2::new(self.x, self.y)
-    }
-
-    fn polar_radius(&self) -> T {
-        Point2D::norm(self)
     }
 }
 
@@ -292,11 +271,6 @@ impl<T: Scalar> Point2DDistance<T> for Point2D<T> {
 
     fn distance_squared_to(&self, other: &Self) -> T {
         self.distance_squared_to(other)
-    }
-
-    fn distance_from_origin(&self) -> T {
-        let origin = Point2D::origin();
-        self.distance_to(&origin)
     }
 
     fn norm_squared(&self) -> T {

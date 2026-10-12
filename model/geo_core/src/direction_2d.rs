@@ -160,11 +160,6 @@ impl<T: Scalar> Direction2DConstructor<T> for Direction2D<T> {
     fn from_tuple(components: (T, T)) -> Option<Self> {
         Self::new(components.0, components.1)
     }
-
-    fn from_analysis_vector(vector: &Vector2<T>) -> Option<Self> {
-        let geo_vector = Vector2D::new(vector.x(), vector.y());
-        Self::from_vector(geo_vector)
-    }
 }
 
 /// Direction2D Properties Trait Implementation
@@ -185,20 +180,12 @@ impl<T: Scalar> Direction2DProperties<T> for Direction2D<T> {
         (self.vector.x(), self.vector.y())
     }
 
-    fn to_analysis_vector(&self) -> Vector2<T> {
-        Vector2::new(self.vector.x(), self.vector.y())
-    }
-
     fn as_vector(&self) -> Vector2<T> {
         Vector2::new(self.vector.x(), self.vector.y())
     }
 
     fn length(&self) -> T {
         T::ONE // Direction は常に正規化済み
-    }
-
-    fn is_normalized(&self) -> bool {
-        true // Direction は常に正規化済み
     }
 
     fn dimension(&self) -> u32 {
@@ -224,14 +211,6 @@ impl<T: Scalar> Direction2DRelation<T> for Direction2D<T> {
 
     fn is_perpendicular_to(&self, other: &Self) -> bool {
         self.is_perpendicular_with_angle_tolerance(other, default_angle_tolerance::<T>())
-    }
-
-    fn is_same_direction(&self, other: &Self) -> bool {
-        self.angle_to(other) <= default_angle_tolerance::<T>()
-    }
-
-    fn is_opposite_direction(&self, other: &Self) -> bool {
-        (self.angle_to(other) - T::PI).abs() <= default_angle_tolerance::<T>()
     }
 }
 

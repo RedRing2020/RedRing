@@ -22,18 +22,6 @@ pub trait BasicCollision<T: Scalar, Other> {
     /// 衝突している場合は `true`
     fn intersects(&self, other: &Other, tolerance: T) -> bool;
 
-    /// 重なりを持つかどうか
-    ///
-    /// 完全に内包している場合や部分的に重なっている場合を検出。
-    ///
-    /// # 引数
-    /// * `other` - 重なり判定を行う相手オブジェクト
-    /// * `tolerance` - 判定精度の許容誤差
-    ///
-    /// # 戻り値
-    /// 重なりがある場合は `true`
-    fn overlaps(&self, other: &Other, tolerance: T) -> bool;
-
     /// 最短距離
     ///
     /// 2つのオブジェクト間の最短距離を計算。
@@ -74,16 +62,6 @@ pub trait PointDistance<T: Scalar> {
     /// 点が内部にある場合は `true`
     fn contains_point(&self, point: &Self::Point2D, tolerance: T) -> bool;
 
-    /// 点が境界上にあるか
-    ///
-    /// # 引数
-    /// * `point` - 判定対象の点
-    /// * `tolerance` - 判定精度の許容誤差
-    ///
-    /// # 戻り値
-    /// 点が境界上にある場合は `true`
-    fn point_on_boundary(&self, point: &Self::Point2D, tolerance: T) -> bool;
-
     /// 最近点を取得
     ///
     /// オブジェクト上で指定点に最も近い点を取得。
@@ -106,13 +84,4 @@ pub trait BBoxCollision<T: Scalar> {
 
     /// 境界ボックスを取得
     fn bounding_box(&self) -> Self::BBox;
-
-    /// 境界ボックス同士の衝突判定
-    ///
-    /// # 引数
-    /// * `other_bbox` - 相手の境界ボックス
-    ///
-    /// # 戻り値
-    /// 境界ボックスが重なっている場合は `true`
-    fn bbox_intersects(&self, other_bbox: &Self::BBox) -> bool;
 }

@@ -249,9 +249,11 @@ mod tests {
     #[test]
     fn curve_segment_nurbs_start_end_and_constraint_endpoints() {
         let tol = standard_distance_tol();
-        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
-            (0.0, 0.0, 0.0),
-            (2.0, 0.0, 0.0),
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![0.0, 0.0, 1.0, 1.0],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
         )
         .unwrap();
 
@@ -295,9 +297,11 @@ mod tests {
     #[test]
     fn composite_curve_accepts_nurbs_segment() {
         let tol = standard_distance_tol();
-        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
-            (0.0, 0.0, 0.0),
-            (2.0, 0.0, 0.0),
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![0.0, 0.0, 1.0, 1.0],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
         )
         .unwrap();
 

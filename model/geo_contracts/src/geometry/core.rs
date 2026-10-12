@@ -98,7 +98,7 @@ pub use nurbs_curve_2d_traits::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
 };
 pub use nurbs_curve_3d_traits::{
-    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DProperties,
 };
 pub use nurbs_surface_3d_traits::{
     NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,

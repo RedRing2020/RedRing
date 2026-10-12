@@ -554,11 +554,10 @@ NURBS curve は endpoint を shape 意味論の正本として持たず、parame
 | 現行 trait / API | 再分類 |
 | --- | --- |
 | `NurbsCurve2DConstructor` / `NurbsCurve3DConstructor` | `definition` |
-| `NurbsCurve2DProperties::degree/num_control_points/knot_vector/is_rational/dimension` | `definition` |
-| `NurbsCurve3DProperties::degree/knot_vector/control_points_count/weights/is_rational/parameter_domain/coordinates` | `definition` |
-| `NurbsCurve2DEvaluation::point_at/tangent_at` | `evaluation` |
-| `NurbsCurve3DEvaluation::evaluate/parameter_at_length` | `evaluation` |
-| `NurbsCurve2DDerived::length/curvature_at` | `derived` |
+| `NurbsCurve2DProperties::degree/num_control_points/knot_vector/dimension` | `definition` |
+| `NurbsCurve3DProperties::degree/knot_vector/control_points_count/weights/parameter_domain/coordinates` | `definition` |
+| `NurbsCurve2DEvaluation::point_at` | `evaluation` |
+| `NurbsCurve2DDerived::length` | `derived` |
 | `NurbsCurve3DDerived::arc_length/arc_length_total` | `derived` |
 
 補足:
@@ -578,8 +577,8 @@ NURBS surface は curve family と異なり、UV parameter evaluation と surfac
 | 現行 trait / API | 再分類 |
 | --- | --- |
 | `NurbsSurface3DConstructor` | `definition` |
-| `NurbsSurface3DProperties::u_degree/v_degree/u_count/v_count/u_knots/v_knots/is_rational/coordinates/weights` | `definition` |
-| `NurbsSurface3DEvaluation::point_at_uv/normal_at/tangent_vectors_at` | `evaluation` |
+| `NurbsSurface3DProperties::u_degree/v_degree/u_count/v_count/u_knots/v_knots/coordinates/weights` | `definition` |
+| `NurbsSurface3DEvaluation::point_at_uv/normal_at` | `evaluation` |
 | `NurbsSurface3DDerived::surface_area` | `derived` |
 
 補足:
@@ -772,7 +771,6 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `collision.rs`: `BasicCollision`, `PointDistance`, `BBoxCollision`
 - `distance.rs`: `CrossDistance`, `DistanceConvergenceError`
-- `intersection.rs`: `BasicIntersection`
 
 ## 一次分類
 
@@ -807,7 +805,6 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `BasicCollision`, `PointDistance`, `BBoxCollision`
 - `CrossDistance`, `DistanceConvergenceError`
-- `BasicIntersection`
 - `LineSegment3DCollisionDetection`
 
 ## 曖昧境界の個別判定
@@ -1209,8 +1206,7 @@ Issue #541 では、まず既存の `geometry::operations` trait に自然に載
 設計反映:
 
 - 距離は `CrossDistance`
-- 単一点交差は `BasicIntersection`
-- 複数交点の trait定義は、呼び出し元が必要になった時点で追加する
+- 交差（単一点・複数点）の trait定義は、呼び出し元が必要になった時点で追加する
 - concrete 型の convenience method は必要最小限だけ残し、trait定義の正本は `operations` 側に寄せる
 
 ### 13. relation 系メソッドは独立に厳格判定する

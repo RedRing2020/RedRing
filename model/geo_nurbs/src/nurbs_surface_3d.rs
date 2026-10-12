@@ -389,64 +389,6 @@ impl<T: Scalar> NurbsSurface3DConstructor<T> for NurbsSurface3D<T> {
         Self::new_internal(points, weights, u_knots, v_knots, u_degree, v_degree)
             .map_err(|e| e.to_string())
     }
-
-    fn from_control_points(
-        control_points: Vec<Vec<(T, T, T)>>,
-        u_degree: usize,
-        v_degree: usize,
-    ) -> std::result::Result<Self, String> {
-        if control_points.is_empty() || control_points[0].is_empty() {
-            return Err("Control points grid is empty".to_string());
-        }
-
-        let u_count = control_points.len();
-        let v_count = control_points[0].len();
-
-        if u_count < u_degree + 1 || v_count < v_degree + 1 {
-            return Err(format!(
-                "Insufficient control points: ({}, {}) < ({}, {})",
-                u_count,
-                v_count,
-                u_degree + 1,
-                v_degree + 1
-            ));
-        }
-
-        // クランプド・ノットベクトルを生成
-        let u_knots = crate::knot::clamped_knot_vector(u_degree, u_count);
-        let v_knots = crate::knot::clamped_knot_vector(v_degree, v_count);
-
-        <Self as NurbsSurface3DConstructor<T>>::new(
-            control_points,
-            None,
-            u_knots,
-            v_knots,
-            u_degree,
-            v_degree,
-        )
-    }
-
-    fn unit_plane() -> Self {
-        // XY平面上の1×1正方形
-        let control_points = vec![
-            vec![(T::ZERO, T::ZERO, T::ZERO), (T::ZERO, T::ONE, T::ZERO)],
-            vec![(T::ONE, T::ZERO, T::ZERO), (T::ONE, T::ONE, T::ZERO)],
-        ];
-        let u_degree = 1;
-        let v_degree = 1;
-        let u_knots = vec![T::ZERO, T::ZERO, T::ONE, T::ONE];
-        let v_knots = vec![T::ZERO, T::ZERO, T::ONE, T::ONE];
-
-        <Self as NurbsSurface3DConstructor<T>>::new(
-            control_points,
-            None,
-            u_knots,
-            v_knots,
-            u_degree,
-            v_degree,
-        )
-        .expect("Unit plane creation should never fail")
-    }
 }
 
 impl<T: Scalar> NurbsSurface3DProperties<T> for NurbsSurface3D<T> {
@@ -474,10 +416,6 @@ impl<T: Scalar> NurbsSurface3DProperties<T> for NurbsSurface3D<T> {
         &self.v_knots
     }
 
-    fn is_rational(&self) -> bool {
-        matches!(self.weights, WeightStorage::Individual(_))
-    }
-
     fn coordinates(&self) -> &[T] {
         &self.coordinates
     }
@@ -494,19 +432,6 @@ impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
         let point = self.evaluate_at(u, v);
         (point.x(), point.y(), point.z())
-    }
-
-    fn point_at_uv_checked(&self, u: T, v: T) -> Option<(T, T, T)> {
-        if !u.is_finite() || !v.is_finite() {
-            return None;
-        }
-
-        let ((u_min, u_max), (v_min, v_max)) = self.parameter_domain();
-        if u < u_min || u > u_max || v < v_min || v > v_max {
-            return None;
-        }
-
-        Some(self.point_at_uv(u, v))
     }
 
     fn normal_at(&self, u: T, v: T) -> (T, T, T) {
@@ -528,13 +453,6 @@ impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
         } else {
             (nx / len, ny / len, nz / len)
         }
-    }
-
-    fn tangent_vectors_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T)) {
-        let du = self.u_derivative_at(u, v);
-        let dv = self.v_derivative_at(u, v);
-
-        ((du.x(), du.y(), du.z()), (dv.x(), dv.y(), dv.z()))
     }
 }
 

@@ -220,15 +220,6 @@ impl<T: Scalar> Aabb3DRelation<T> for Aabb3D<T> {
         Aabb3D::classify_point(self, point, default_distance_tolerance::<T>())
     }
 
-    fn contains_bbox(&self, other: &Self) -> bool {
-        self.min.x() <= other.min.x()
-            && self.max.x() >= other.max.x()
-            && self.min.y() <= other.min.y()
-            && self.max.y() >= other.max.y()
-            && self.min.z() <= other.min.z()
-            && self.max.z() >= other.max.z()
-    }
-
     fn intersects(&self, other: &Self) -> bool {
         self.min.x() <= other.max.x()
             && self.max.x() >= other.min.x()

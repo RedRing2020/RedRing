@@ -1,36 +1,16 @@
-/// geo_commons - 共通幾何計算機能クレート
-///
-/// Foundation Pattern において、形状に依存しない共通計算機能を提供します。
-/// geo_core が低レベル共通型を担当するのに対し、
-/// geo_commons は近似計算や計量演算等の数値計算を提供します。
-///
-/// ## 主要機能
-/// - **approximations**: 楕円等の近似計算
-/// - **metrics**: 面積・体積・距離等の計量計算
-///
-/// ## アーキテクチャでの位置
-/// ```text
-/// geo_foundation → geo_commons → geo_core → geo_primitives, geo_nurbs → geo_algorithms
-/// ```
-///
-/// ---
-/// © RedRing Project
-pub mod approximations;
-pub mod metrics;
+//! geo_commons - geo_* で共通する幾何計算の関数
+//!
+//! 形状の型に依存しない数値計算を、geo_* の各クレートが共通して使う関数として提供する。
+//! 形状のクレートは、同じ計算を個別に実装せず、ここの関数を使う。
+//!
+//! ## 依存関係での位置
+//! ```text
+//! analysis → geo_commons → geo_primitives
+//! ```
 
-// 便利な再エクスポート - 名前衝突回避のため明示的にエクスポート
-pub use approximations::curves::*;
-pub use approximations::ellipse::{
-    ellipse_circumference_cantrell, ellipse_circumference_numerical, ellipse_circumference_padé,
-    ellipse_circumference_ramanujan_i, ellipse_circumference_ramanujan_ii,
-    ellipse_circumference_series, ellipse_eccentricity, ellipse_focal_distance, ellipse_foci,
-};
-pub use metrics::area_volume::{
-    circle_area, cone_volume, cylinder_volume, ellipse_area, polygon_area, sphere_volume,
-    triangle_area, triangle_area_from_coords,
-};
-pub use metrics::distance::{
+mod distance;
+
+pub use distance::{
     ellipse_2d_closest_point, ellipse_2d_distance_to_point, ellipse_3d_distance_to_point,
-    ellipsoid_closest_point, ellipsoid_distance_to_point, line_segment_to_aabb_distance,
-    sphere_to_infinite_line_distance, sphere_to_line_segment_distance, sphere_to_ray_distance,
+    ellipsoid_closest_point, line_segment_to_aabb_distance,
 };
