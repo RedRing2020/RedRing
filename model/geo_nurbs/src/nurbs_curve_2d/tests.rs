@@ -79,46 +79,6 @@ fn test_approximate_length() {
 }
 
 #[test]
-fn test_point_at_checked_returns_none_for_out_of_domain_parameter() {
-    use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DEvaluation};
-
-    let control_points = &[(0.0, 0.0), (1.0, 0.0)];
-    let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-        control_points,
-        None,
-        vec![2.0, 2.0, 3.0, 3.0],
-        1,
-    )
-    .unwrap();
-
-    let in_domain =
-        <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, 2.5);
-    let out_of_domain =
-        <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, 1.9);
-
-    assert!(in_domain.is_some());
-    assert!(out_of_domain.is_none());
-}
-
-#[test]
-fn test_point_at_checked_returns_none_for_nan_parameter() {
-    use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DEvaluation};
-
-    let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-        &[(0.0, 0.0), (1.0, 0.0)],
-        None,
-        vec![2.0, 2.0, 3.0, 3.0],
-        1,
-    )
-    .unwrap();
-
-    let value =
-        <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, f64::NAN);
-
-    assert!(value.is_none());
-}
-
-#[test]
 fn test_core_traits_constructor_new() {
     let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
     let weights = Some(vec![1.0, 1.0, 1.0]);
@@ -141,46 +101,6 @@ fn test_core_traits_constructor_new() {
 }
 
 #[test]
-fn test_core_traits_from_control_points() {
-    let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
-    let degree = 2;
-
-    let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::from_control_points(
-        control_points,
-        degree,
-    );
-
-    assert!(curve.is_ok());
-    let curve = curve.unwrap();
-    assert_eq!(
-        <NurbsCurve2D<f64> as NurbsCurve2DProperties<f64>>::degree(&curve),
-        2
-    );
-    assert_eq!(
-        <NurbsCurve2D<f64> as NurbsCurve2DProperties<f64>>::num_control_points(&curve),
-        3
-    );
-}
-
-#[test]
-fn test_core_traits_unit_line() {
-    let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::unit_line();
-
-    assert_eq!(
-        <NurbsCurve2D<f64> as NurbsCurve2DProperties<f64>>::degree(&curve),
-        1
-    );
-
-    let start = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at(&curve, 0.0);
-    let end = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at(&curve, 1.0);
-
-    assert!((start.0 - 0.0).abs() < 1e-10);
-    assert!((start.1 - 0.0).abs() < 1e-10);
-    assert!((end.0 - 1.0).abs() < 1e-10);
-    assert!((end.1 - 0.0).abs() < 1e-10);
-}
-
-#[test]
 fn test_core_traits_properties() {
     let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
     let knots = clamped_knot_vector(2, 3);
@@ -196,7 +116,6 @@ fn test_core_traits_properties() {
         <NurbsCurve2D<f64> as NurbsCurve2DProperties<f64>>::num_control_points(&curve),
         3
     );
-    assert!(!<NurbsCurve2D<f64> as NurbsCurve2DProperties<f64>>::is_rational(&curve));
     assert_eq!(
         <NurbsCurve2D<f64> as NurbsCurve2DProperties<f64>>::dimension(&curve),
         2
@@ -219,18 +138,9 @@ fn test_core_traits_evaluation_and_derived() {
     assert!((end.0 - 2.0).abs() < 1e-10);
     assert!(end.1.abs() < 1e-10);
 
-    // tangent_at テスト
-    let tangent = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::tangent_at(&curve, 0.5);
-    assert!((tangent.0 - 1.0).abs() < 0.1); // X方向の接線
-    assert!(tangent.1.abs() < 0.1);
-
     // length テスト
     let length = <NurbsCurve2D<f64> as NurbsCurve2DDerived<f64>>::length(&curve);
     assert!((length - 2.0).abs() < 0.1); // 直線なので約2.0
-
-    // curvature_at テスト
-    let curvature = <NurbsCurve2D<f64> as NurbsCurve2DDerived<f64>>::curvature_at(&curve, 0.5);
-    assert!(curvature.abs() < 0.1); // 直線なので曲率は0に近い
 }
 
 #[test]

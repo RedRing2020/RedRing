@@ -313,7 +313,6 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
     }
 }
 
-use analysis::linalg::vector::Vector3;
 use geo_contracts::{
     Vector3DConstructor, Vector3DMetric, Vector3DProduct, Vector3DProjection, Vector3DProperties,
     Vector3DRelation,
@@ -344,25 +343,10 @@ impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
         Self::new(components.0, components.1, components.2)
     }
 
-    fn from_analysis_vector(vector: &Vector3<T>) -> Self {
-        Self::new(vector.x(), vector.y(), vector.z())
-    }
-
-    fn from_array(components: [T; 3]) -> Self {
-        Self::new(components[0], components[1], components[2])
-    }
-
     fn from_spherical(magnitude: T, azimuth: T, elevation: T) -> Self {
         let x = magnitude * elevation.cos() * azimuth.cos();
         let y = magnitude * elevation.cos() * azimuth.sin();
         let z = magnitude * elevation.sin();
-        Self::new(x, y, z)
-    }
-
-    fn from_cylindrical(radial_distance: T, azimuth: T, height: T) -> Self {
-        let x = radial_distance * azimuth.cos();
-        let y = radial_distance * azimuth.sin();
-        let z = height;
         Self::new(x, y, z)
     }
 
@@ -390,10 +374,6 @@ impl<T: Scalar> Vector3DProperties<T> for Vector3D<T> {
 
     fn to_tuple(&self) -> (T, T, T) {
         (self.x, self.y, self.z)
-    }
-
-    fn to_analysis_vector(&self) -> Vector3<T> {
-        Vector3::new(self.x, self.y, self.z)
     }
 }
 
@@ -425,19 +405,11 @@ impl<T: Scalar> Vector3DMetric<T> for Vector3D<T> {
     fn magnitude(&self) -> T {
         Vector3D::length(self)
     }
-
-    fn manhattan_distance(&self) -> T {
-        self.x.abs() + self.y.abs() + self.z.abs()
-    }
 }
 
 impl<T: Scalar> Vector3DProduct<T> for Vector3D<T> {
     fn dot(&self, other: &Self) -> T {
         self.dot(other)
-    }
-
-    fn cross_3d(&self, other: &Self) -> Self {
-        self.cross(other)
     }
 }
 
@@ -458,11 +430,6 @@ impl<T: Scalar> Vector3DRelation<T> for Vector3D<T> {
 impl<T: Scalar> Vector3DProjection<T> for Vector3D<T> {
     fn project_onto(&self, other: &Self) -> Option<Self> {
         Some(self.project_onto(other))
-    }
-
-    fn project_onto_plane(&self, normal: &Self) -> Option<Self> {
-        let proj = self.project_onto(normal);
-        Some(*self - proj)
     }
 }
 

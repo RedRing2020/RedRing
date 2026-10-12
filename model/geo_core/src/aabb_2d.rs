@@ -198,13 +198,6 @@ impl<T: Scalar> Aabb2DRelation<T> for Aabb2D<T> {
         Aabb2D::classify_point(self, point, default_distance_tolerance::<T>())
     }
 
-    fn contains_bbox(&self, other: &Self) -> bool {
-        self.min.x() <= other.min.x()
-            && self.max.x() >= other.max.x()
-            && self.min.y() <= other.min.y()
-            && self.max.y() >= other.max.y()
-    }
-
     fn intersects(&self, other: &Self) -> bool {
         self.min.x() <= other.max.x()
             && self.max.x() >= other.min.x()

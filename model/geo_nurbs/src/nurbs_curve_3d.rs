@@ -13,10 +13,7 @@ mod transform;
 
 use crate::{constants, KnotVector, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector3;
-use geo_contracts::{
-    default_kernel_numerical_zero_tolerance, NurbsCurve3DConstructor, NurbsCurve3DDerived,
-    NurbsCurve3DEvaluation, NurbsCurve3DProperties,
-};
+use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DProperties};
 
 /// NURBS曲線 - 3次元（メモリ最適化版）
 ///
@@ -263,44 +260,6 @@ impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
             num_points,
         })
     }
-
-    fn from_bezier(control_points: Vec<(T, T, T)>) -> std::result::Result<Self, String> {
-        if control_points.len() < 2 {
-            return Err("Bezier curve requires at least 2 control points".to_string());
-        }
-
-        let degree = control_points.len() - 1;
-
-        // クランプド・ノットベクトルを生成
-        let knots_vec = crate::knot::clamped_knot_vector(degree, control_points.len());
-        let knots: Vec<T> = knots_vec;
-
-        // トレイトのnewメソッドに転送（これは NurbsCurve3DConstructor::new）
-        <Self as NurbsCurve3DConstructor<T>>::new(degree, knots, control_points, None)
-    }
-
-    fn line_segment(start: (T, T, T), end: (T, T, T)) -> std::result::Result<Self, String> {
-        // 始点と終点が一致するかチェック
-        let segment = Vector3::new(end.0 - start.0, end.1 - start.1, end.2 - start.2);
-        let distance_sq = segment.norm_squared();
-
-        let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
-
-        if distance_sq <= zero_tol * zero_tol {
-            return Err(
-                "Start and end points are too close and the segment degenerates within tolerance"
-                    .to_string(),
-            );
-        }
-
-        // 1次NURBS（線分）: 次数1、制御点2個
-        let degree = 1;
-        let control_points = vec![start, end];
-        let knots = vec![T::ZERO, T::ZERO, T::ONE, T::ONE]; // クランプド・ノットベクトル
-
-        // トレイトのnewメソッドに転送（これは NurbsCurve3DConstructor::new）
-        <Self as NurbsCurve3DConstructor<T>>::new(degree, knots, control_points, None)
-    }
 }
 
 impl<T: Scalar> NurbsCurve3DProperties<T> for NurbsCurve3D<T> {
@@ -321,10 +280,6 @@ impl<T: Scalar> NurbsCurve3DProperties<T> for NurbsCurve3D<T> {
             WeightStorage::Uniform => None,
             WeightStorage::Individual(w) => Some(w),
         }
-    }
-
-    fn is_rational(&self) -> bool {
-        matches!(self.weights, WeightStorage::Individual(_))
     }
 
     fn parameter_domain(&self) -> (T, T) {
@@ -369,51 +324,5 @@ impl<T: Scalar> NurbsCurve3DDerived<T> for NurbsCurve3D<T> {
     fn arc_length_total(&self, tolerance: T) -> T {
         let (u_start, u_end) = self.parameter_domain();
         self.arc_length(u_start, u_end, tolerance)
-    }
-}
-
-impl<T: Scalar> NurbsCurve3DEvaluation<T> for NurbsCurve3D<T> {
-    fn parameter_at_length(&self, arc_length: T, tolerance: T) -> Option<T> {
-        let (u_start, u_end) = self.parameter_domain();
-        let total_length = self.arc_length_total(tolerance);
-
-        if arc_length < T::ZERO || arc_length > total_length {
-            return None;
-        }
-
-        // 二分探索で対応するパラメータを見つける
-        let mut low = u_start;
-        let mut high = u_end;
-        let max_iterations = constants::PARAMETER_AT_LENGTH_MAX_ITER;
-        let two = T::ONE + T::ONE;
-
-        for _ in 0..max_iterations {
-            let mid = (low + high) / two;
-            let length_at_mid = self.arc_length(u_start, mid, tolerance);
-
-            if (length_at_mid - arc_length).abs() < tolerance {
-                return Some(mid);
-            }
-
-            if length_at_mid < arc_length {
-                low = mid;
-            } else {
-                high = mid;
-            }
-        }
-
-        Some((low + high) / two)
-    }
-
-    fn evaluate(&self, u: T) -> Option<(T, T, T)> {
-        let (u_min, u_max) = self.parameter_domain();
-
-        // パラメータ範囲チェック
-        if u < u_min || u > u_max {
-            return None;
-        }
-
-        let point = self.evaluate_at(u);
-        Some((point.x(), point.y(), point.z()))
     }
 }

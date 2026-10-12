@@ -69,70 +69,6 @@ fn test_surface_evaluation() {
 }
 
 #[test]
-fn test_point_at_uv_checked_returns_none_for_out_of_domain_parameter() {
-    use geo_contracts::NurbsSurface3DEvaluation;
-
-    let control_points = vec![
-        vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-        vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
-    ];
-    let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
-    let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-        control_points,
-        Some(weights),
-        vec![2.0, 2.0, 3.0, 3.0],
-        vec![5.0, 5.0, 6.0, 6.0],
-        1,
-        1,
-    )
-    .unwrap();
-
-    let in_domain = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
-        &surface, 2.5, 5.5,
-    );
-    let out_of_domain = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
-        &surface, 1.9, 5.5,
-    );
-
-    assert!(in_domain.is_some());
-    assert!(out_of_domain.is_none());
-}
-
-#[test]
-fn test_point_at_uv_checked_returns_none_for_nan_parameter() {
-    use geo_contracts::NurbsSurface3DEvaluation;
-
-    let control_points = vec![
-        vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-        vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
-    ];
-    let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
-    let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-        control_points,
-        Some(weights),
-        vec![2.0, 2.0, 3.0, 3.0],
-        vec![5.0, 5.0, 6.0, 6.0],
-        1,
-        1,
-    )
-    .unwrap();
-
-    let nan_u = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
-        &surface,
-        f64::NAN,
-        5.5,
-    );
-    let nan_v = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
-        &surface,
-        2.5,
-        f64::NAN,
-    );
-
-    assert!(nan_u.is_none());
-    assert!(nan_v.is_none());
-}
-
-#[test]
 fn test_constructor_new() {
     // 2x2 制御点グリッド
     let control_points = vec![
@@ -174,67 +110,6 @@ fn test_constructor_new() {
         <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::v_count(&surface),
         2
     );
-    assert!(<NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::is_rational(&surface));
-}
-
-#[test]
-fn test_constructor_from_control_points() {
-    // クランプドノットベクトルを自動生成
-    let control_points = vec![
-        vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 2.0, 0.0)],
-        vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.5), (1.0, 2.0, 0.0)],
-        vec![(2.0, 0.0, 0.0), (2.0, 1.0, 0.0), (2.0, 2.0, 1.0)],
-    ];
-
-    let result = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::from_control_points(
-        control_points,
-        2, // u_degree
-        2, // v_degree
-    );
-
-    assert!(result.is_ok());
-    let surface = result.unwrap();
-
-    assert_eq!(
-        <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::u_count(&surface),
-        3
-    );
-    assert_eq!(
-        <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::v_count(&surface),
-        3
-    );
-    assert_eq!(
-        <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::u_degree(&surface),
-        2
-    );
-    assert_eq!(
-        <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::v_degree(&surface),
-        2
-    );
-    assert!(!<NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::is_rational(&surface));
-}
-
-#[test]
-fn test_constructor_unit_plane() {
-    let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
-
-    assert_eq!(
-        <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::u_degree(&surface),
-        1
-    );
-    assert_eq!(
-        <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::v_degree(&surface),
-        1
-    );
-
-    // 単位平面の点評価
-    let (x, y, z) =
-        <NurbsSurface3D<f64> as geo_contracts::NurbsSurface3DEvaluation<f64>>::point_at_uv(
-            &surface, 0.5, 0.5,
-        );
-    assert!((x - 0.5).abs() < 1e-10);
-    assert!((y - 0.5).abs() < 1e-10);
-    assert!(z.abs() < 1e-10);
 }
 
 #[test]
@@ -362,46 +237,19 @@ fn test_measure_surface_area() {
 }
 
 #[test]
-#[allow(clippy::similar_names)]
-fn test_measure_tangent_vectors_at() {
-    let control_points = vec![
-        vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-        vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
-    ];
-
-    let u_knots = vec![0.0, 0.0, 1.0, 1.0];
-    let v_knots = vec![0.0, 0.0, 1.0, 1.0];
-
+fn test_metadata_and_surface_area_capabilities() {
     let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-        control_points,
+        vec![
+            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
+        ],
         None,
-        u_knots,
-        v_knots,
+        vec![0.0, 0.0, 1.0, 1.0],
+        vec![0.0, 0.0, 1.0, 1.0],
         1,
         1,
     )
     .unwrap();
-
-    let ((du_x, du_y, du_z), (dv_x, dv_y, dv_z)) =
-        <NurbsSurface3D<f64> as geo_contracts::NurbsSurface3DEvaluation<f64>>::tangent_vectors_at(
-            &surface, 0.5, 0.5,
-        );
-
-    // 平面のタンジェントベクトル
-    // u方向はx軸方向
-    assert!((du_x - 1.0).abs() < 0.1);
-    assert!(du_y.abs() < 0.1);
-    assert!(du_z.abs() < 0.1);
-
-    // v方向はy軸方向
-    assert!(dv_x.abs() < 0.1);
-    assert!((dv_y - 1.0).abs() < 0.1);
-    assert!(dv_z.abs() < 0.1);
-}
-
-#[test]
-fn test_metadata_and_surface_area_capabilities() {
-    let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
 
     // PrimitiveKind
     let kind = <NurbsSurface3D<f64> as PrimitiveMetadata>::primitive_kind(&surface);
@@ -419,8 +267,11 @@ fn test_bounded_aabb() {
         vec![(3.0, 0.0, 0.0), (3.0, 2.0, 1.0)],
     ];
 
-    let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::from_control_points(
+    let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
         control_points,
+        None,
+        vec![0.0, 0.0, 1.0, 1.0],
+        vec![0.0, 0.0, 1.0, 1.0],
         1,
         1,
     )

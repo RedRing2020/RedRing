@@ -20,8 +20,8 @@ mod bounds;
 mod tests;
 mod transform;
 
-use crate::{Direction3D, InfiniteLine3D, Point3D, Vector3D};
-use geo_contracts::{default_distance_tolerance, BasicIntersection, PointClassification, Scalar};
+use crate::{Direction3D, Point3D, Vector3D};
+use geo_contracts::{default_distance_tolerance, PointClassification, Scalar};
 
 /// 3次元円柱ソリッド（STEP準拠のCore実装）
 ///
@@ -487,13 +487,5 @@ impl<T: Scalar> CylindricalSolid3DDistance<T> for CylindricalSolid3D<T> {
 
         // 軸方向と半径方向の距離を合成
         (axis_distance * axis_distance + radial_excess * radial_excess).sqrt()
-    }
-}
-
-impl<T: Scalar> BasicIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3D<T> {
-    type Point = (T, T, T);
-
-    fn intersection_with(&self, _other: &InfiniteLine3D<T>) -> Option<Self::Point> {
-        None
     }
 }

@@ -1,10 +1,10 @@
 //! CylindricalSolid3D のテスト（STEP準拠）
 //! Core Traits経由でのAPI使用を推奨
 
-use crate::{CylindricalSolid3D, Direction3D, InfiniteLine3D, Point3D, Vector3D};
+use crate::{CylindricalSolid3D, Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    BasicIntersection, CylindricalSolid3DContainment, CylindricalSolid3DDerived,
-    CylindricalSolid3DDistance, CylindricalSolid3DProperties,
+    CylindricalSolid3DContainment, CylindricalSolid3DDerived, CylindricalSolid3DDistance,
+    CylindricalSolid3DProperties,
 };
 
 #[test]
@@ -264,23 +264,6 @@ fn test_distance_to_surface() {
     let actual_distance =
         CylindricalSolid3DDistance::distance_to_point(&cylindrical_solid, external_point);
     assert!((actual_distance - expected_distance).abs() < 1e-10_f64);
-}
-
-#[test]
-fn test_cylindrical_solid_line_intersection_is_exposed_via_basic_intersection() {
-    let cylindrical_solid = CylindricalSolid3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        5.0,
-        10.0,
-    )
-    .unwrap();
-    let line = InfiniteLine3D::new(Point3D::new(-10.0, 0.0, 5.0), Vector3D::unit_x()).unwrap();
-
-    let intersection = BasicIntersection::intersection_with(&cylindrical_solid, &line);
-
-    assert!(intersection.is_none());
 }
 
 use geo_contracts::TolerantEq;

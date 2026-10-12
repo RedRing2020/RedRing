@@ -7,8 +7,8 @@ mod transform;
 
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
-    AngularRelation, BasicIntersection, ParallelRelation, PerpendicularRelation, PrimitiveKind,
-    PrimitiveMetadata, SameLineRelation, Scalar,
+    AngularRelation, ParallelRelation, PerpendicularRelation, PrimitiveKind, PrimitiveMetadata,
+    SameLineRelation, Scalar,
 };
 
 /// 2次元無限直線（Core実装）
@@ -83,30 +83,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
     pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
         let to_point = Vector2D::from_points(self.point, *point);
         to_point.dot(&self.direction)
-    }
-
-    /// 他の直線との交点を計算
-    pub fn intersection(&self, other: &Self) -> Option<Point2D<T>> {
-        // 平行線の場合は交点なし
-        if self.direction.is_parallel_to(&other.direction) {
-            return None;
-        }
-
-        // 連立方程式を解く
-        // P1 + t1 * D1 = P2 + t2 * D2
-        // (P1 - P2) = t2 * D2 - t1 * D1
-        let dp = Vector2D::from_points(other.point, self.point);
-
-        // クラメルの公式で解く
-        // |dp.x  -D1.x|   |D2.x  -D1.x|
-        // |dp.y  -D1.y| / |D2.y  -D1.y|
-        let det = other.direction.cross(&(-self.direction));
-        if det.abs() <= geo_contracts::default_kernel_numerical_zero_tolerance::<T>() {
-            return None; // 平行（実際上はありえない）
-        }
-
-        let t1 = dp.cross(&(-self.direction)) / det;
-        Some(other.point_at_parameter(t1))
     }
 
     /// 境界ボックスを取得（起点を含む十分大きな範囲）
@@ -225,14 +201,6 @@ impl<T: Scalar> InfiniteLine2DProjection<T> for InfiniteLine2D<T> {
 impl<T: Scalar> InfiniteLine2DTransform<T> for InfiniteLine2D<T> {
     fn reverse(&self) -> Self {
         Self::new(self.point, -(*self.direction)).unwrap()
-    }
-}
-
-impl<T: Scalar> BasicIntersection<T, Self> for InfiniteLine2D<T> {
-    type Point = (T, T);
-
-    fn intersection_with(&self, other: &Self) -> Option<Self::Point> {
-        InfiniteLine2D::intersection(self, other).map(|point| (point.x(), point.y()))
     }
 }
 

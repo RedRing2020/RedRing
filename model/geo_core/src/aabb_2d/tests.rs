@@ -105,7 +105,6 @@ fn test_aabb2d_capability_traits() {
         &outer,
         &Point2D::new(2.0, 3.0)
     ));
-    assert!(Aabb2DRelation::contains_bbox(&outer, &inner));
     assert!(Aabb2DRelation::intersects(&outer, &inner));
 }
 

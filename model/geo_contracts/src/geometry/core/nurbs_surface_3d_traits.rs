@@ -23,20 +23,6 @@ pub trait NurbsSurface3DConstructor<T: Scalar> {
     ) -> Result<Self, String>
     where
         Self: Sized;
-
-    /// 制御点グリッドから非有理NURBSサーフェスを作成（簡易コンストラクタ）
-    fn from_control_points(
-        control_points: Vec<Vec<(T, T, T)>>,
-        u_degree: usize,
-        v_degree: usize,
-    ) -> Result<Self, String>
-    where
-        Self: Sized;
-
-    /// 単位平面サーフェス（XY平面上の1×1正方形）
-    fn unit_plane() -> Self
-    where
-        Self: Sized;
 }
 
 /// NurbsSurface3D の定義パラメータ
@@ -59,9 +45,6 @@ pub trait NurbsSurface3DProperties<T: Scalar> {
     /// v方向ノットベクトルへの参照を取得
     fn v_knots(&self) -> &[T];
 
-    /// 有理サーフェスかどうかを判定
-    fn is_rational(&self) -> bool;
-
     /// 全制御点座標のflattened配列への参照を取得（u方向優先でflatten）
     fn coordinates(&self) -> &[T];
 
@@ -74,27 +57,8 @@ pub trait NurbsSurface3DEvaluation<T: Scalar> {
     /// パラメータ座標(u, v)でのサーフェス上の点を計算
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
 
-    /// checked 入口。
-    ///
-    /// このデフォルト実装は互換維持のための暫定ラッパであり、domain 判定は行わない。
-    /// ただし checked 入口として最低限の fail-fast を担保するため、
-    /// `u` / `v` が非有限値（NaN/Inf）の場合は `None` を返す。
-    ///
-    /// 範囲外入力を失敗として扱いたい実装は、このメソッドを override して
-    /// u/v の有効範囲を判定し、範囲外では `None` を返すことを想定している。
-    fn point_at_uv_checked(&self, u: T, v: T) -> Option<(T, T, T)> {
-        if !u.is_finite() || !v.is_finite() {
-            return None;
-        }
-
-        Some(self.point_at_uv(u, v))
-    }
-
     /// パラメータ座標(u, v)での法線ベクトルを計算
     fn normal_at(&self, u: T, v: T) -> (T, T, T);
-
-    /// パラメータ座標(u, v)での接線ベクトル(du, dv)を計算
-    fn tangent_vectors_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T));
 }
 
 /// NurbsSurface3D の派生量

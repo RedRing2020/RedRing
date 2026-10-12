@@ -4,7 +4,6 @@ use super::*;
 use crate::clamped_knot_vector;
 use crate::constants;
 use crate::{AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation};
-use geo_contracts::default_kernel_numerical_zero_tolerance;
 use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata};
 
 #[test]
@@ -135,91 +134,20 @@ fn test_core_traits_constructor_new() {
 }
 
 #[test]
-fn test_core_traits_from_bezier() {
-    use geo_contracts::NurbsCurve3DConstructor;
-
-    let control_points = vec![(0.0_f64, 0.0, 0.0), (0.5, 1.0, 0.0), (1.0, 0.0, 0.0)];
-    let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::from_bezier(control_points);
-    assert!(result.is_ok());
-
-    let curve = result.unwrap();
-    assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);
-}
-
-#[test]
-fn test_core_traits_line_segment() {
-    use geo_contracts::NurbsCurve3DConstructor;
-
-    let start = (0.0_f64, 0.0, 0.0);
-    let end = (1.0, 1.0, 1.0);
-    let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, end);
-    assert!(result.is_ok());
-
-    let curve = result.unwrap();
-    assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);
-}
-
-#[test]
-fn test_core_traits_line_segment_rejects_identical_points() {
-    use geo_contracts::NurbsCurve3DConstructor;
-
-    let start = (1.0_f64, 2.0, 3.0);
-    let end = (1.0_f64, 2.0, 3.0);
-    let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, end);
-
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_core_traits_line_segment_f64_kernel_tolerance_boundary() {
-    use geo_contracts::NurbsCurve3DConstructor;
-
-    let zero_tol = default_kernel_numerical_zero_tolerance::<f64>();
-    let start = (0.0_f64, 0.0, 0.0);
-    let inside = (zero_tol * 0.5, 0.0, 0.0);
-    let inside_result =
-        <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, inside);
-    assert!(inside_result.is_err());
-
-    let outside = (zero_tol * 2.0, 0.0, 0.0);
-    let outside_result =
-        <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, outside);
-    assert!(outside_result.is_ok());
-}
-
-#[test]
-fn test_core_traits_line_segment_f32_kernel_tolerance_boundary() {
-    use geo_contracts::NurbsCurve3DConstructor;
-
-    let zero_tol = default_kernel_numerical_zero_tolerance::<f32>();
-    let start = (0.0_f32, 0.0, 0.0);
-
-    let inside = (zero_tol * 0.5, 0.0, 0.0);
-    let inside_result =
-        <NurbsCurve3D<f32> as NurbsCurve3DConstructor<f32>>::line_segment(start, inside);
-    assert!(inside_result.is_err());
-
-    let outside = (zero_tol * 2.0, 0.0, 0.0);
-    let outside_result =
-        <NurbsCurve3D<f32> as NurbsCurve3DConstructor<f32>>::line_segment(start, outside);
-    assert!(outside_result.is_ok());
-}
-
-#[test]
 fn test_core_traits_properties() {
     use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DProperties};
 
-    let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::from_bezier(vec![
-        (0.0, 0.0, 0.0),
-        (0.5, 1.0, 0.0),
-        (1.0, 0.0, 0.0),
-    ])
+    let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+        2,
+        vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        vec![(0.0, 0.0, 0.0), (0.5, 1.0, 0.0), (1.0, 0.0, 0.0)],
+        None,
+    )
     .unwrap();
 
     // Propertiesトレイトメソッド確認
     assert_eq!(curve.degree(), 2);
     assert_eq!(curve.control_points_count(), 3);
-    assert!(!curve.is_rational());
 
     let (t_min, t_max) = curve.parameter_domain();
     assert!((t_min - 0.0).abs() < 1e-10);
@@ -229,11 +157,13 @@ fn test_core_traits_properties() {
 #[test]
 fn test_core_traits_measure() {
     use analysis::test_constants::INTEGRATION_TOLERANCE_STRICT;
-    use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation};
+    use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DDerived};
 
-    let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
-        (0.0, 0.0, 0.0),
-        (3.0, 0.0, 0.0),
+    let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+        1,
+        vec![0.0, 0.0, 1.0, 1.0],
+        vec![(0.0, 0.0, 0.0), (3.0, 0.0, 0.0)],
+        None,
     )
     .unwrap();
 
@@ -245,35 +175,8 @@ fn test_core_traits_measure() {
     let half_length = curve.arc_length(0.0, 0.5, tolerance);
     assert!((half_length - 1.5).abs() < 1e-3);
 
-    let point_opt = curve.evaluate(0.5);
-    assert!(point_opt.is_some());
-    let point = point_opt.unwrap();
-    assert!((point.0 - 1.5).abs() < 1e-10);
-}
-
-#[test]
-fn test_evaluate_checked_rejects_nan_parameter() {
-    use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DEvaluation};
-
-    let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
-        (0.0, 0.0, 0.0),
-        (1.0, 0.0, 0.0),
-    )
-    .unwrap();
-
-    let value =
-        <NurbsCurve3D<f64> as NurbsCurve3DEvaluation<f64>>::evaluate_checked(&curve, f64::NAN);
-
-    assert!(value.is_none());
-
-    let (u_min, u_max) = curve.parameter_domain();
-    let below_domain =
-        <NurbsCurve3D<f64> as NurbsCurve3DEvaluation<f64>>::evaluate_checked(&curve, u_min - 0.1);
-    let above_domain =
-        <NurbsCurve3D<f64> as NurbsCurve3DEvaluation<f64>>::evaluate_checked(&curve, u_max + 0.1);
-
-    assert!(below_domain.is_none());
-    assert!(above_domain.is_none());
+    let point = curve.evaluate_at(0.5);
+    assert!((point.x() - 1.5).abs() < 1e-10);
 }
 
 #[test]

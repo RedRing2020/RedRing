@@ -74,7 +74,7 @@ pub use geometry::core::{
 };
 pub use geometry::core::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
-    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DProperties,
     NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
     NurbsSurface3DProperties, Triangle2DBoundaryAccess, Triangle2DConstructor,
     Triangle2DContainment, Triangle2DDistance, Triangle3DBoundaryAccess, Triangle3DConstructor,
@@ -83,10 +83,10 @@ pub use geometry::core::{
 pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{
     Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, BBoxCollision, BasicCollision,
-    BasicIntersection, Contains, CrossDistance, DistanceConvergenceError, IntersectsRelation,
-    OnPlaneRelation, ParallelRelation, PerpendicularRelation, PointClassification, PointDistance,
-    SameLineRelation, SimilarityTransform2DCore, SimilarityTransform3DCore,
-    SimilarityTransformable2D, SimilarityTransformable3D, TransformError,
+    Contains, CrossDistance, DistanceConvergenceError, IntersectsRelation, ParallelRelation,
+    PerpendicularRelation, PointClassification, PointDistance, SameLineRelation,
+    SimilarityTransform2DCore, SimilarityTransform3DCore, SimilarityTransformable2D,
+    SimilarityTransformable3D, TransformError,
 };
 pub use tolerance::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,

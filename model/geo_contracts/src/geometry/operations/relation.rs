@@ -40,9 +40,6 @@ pub trait Aabb2DRelation<T: Scalar> {
     /// AABB の領域に対する点の位置を分類する（既定の距離トレランス）
     fn classify_point(&self, point: &Self::Point2D) -> PointClassification;
 
-    /// 他方の AABB を包含するかを返す
-    fn contains_bbox(&self, other: &Self) -> bool;
-
     /// 他方の AABB と交差するかを返す
     fn intersects(&self, other: &Self) -> bool;
 }
@@ -57,9 +54,6 @@ pub trait Aabb3DRelation<T: Scalar> {
 
     /// AABB の領域に対する点の位置を分類する（既定の距離トレランス）
     fn classify_point(&self, point: &Self::Point3D) -> PointClassification;
-
-    /// 他方の AABB を包含するかを返す
-    fn contains_bbox(&self, other: &Self) -> bool;
 
     /// 他方の AABB と交差するかを返す
     fn intersects(&self, other: &Self) -> bool;
@@ -93,12 +87,6 @@ pub trait IntersectsRelation<Other> {
 pub trait AngularRelation<T: Scalar, Other> {
     /// 相手との角度を返す
     fn angle_to(&self, other: &Other) -> T;
-}
-
-/// 平面上に存在するかを判定する relation
-pub trait OnPlaneRelation<Other> {
-    /// 相手の平面上にあるかを返す
-    fn is_on_plane(&self, other: &Other) -> bool;
 }
 
 /// 相手との角度を返す relation

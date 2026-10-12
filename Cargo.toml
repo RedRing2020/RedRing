@@ -4,6 +4,7 @@ members = [
   "foundation/i18n_foundation", # Foundation層：ローカライズ共通基盤
   "foundation/logging_foundation", # Foundation層：ログ初期化・レート制御基盤
   "model/geo_contracts",  # Model層：幾何形状契約（trait定義）
+  "model/geo_commons",    # Model層：geo_* で共通する幾何計算の関数
   "model/geo_core",       # Model層：幾何計算基盤
   "model/geo_primitives", # Model層：幾何プリミティブクレート
   "model/geo_topology",   # Model層：位相構造クレート（CompositeCurve等）

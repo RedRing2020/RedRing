@@ -272,33 +272,6 @@ impl<T: Scalar> NurbsCurve2DConstructor<T> for NurbsCurve2D<T> {
 
         Self::new_internal(&points, weights, knot_vector, degree).map_err(|e| e.to_string())
     }
-
-    fn from_control_points(
-        control_points: &[(T, T)],
-        degree: usize,
-    ) -> std::result::Result<Self, String> {
-        if control_points.len() < degree + 1 {
-            return Err(format!(
-                "Insufficient control points: {} < {}",
-                control_points.len(),
-                degree + 1
-            ));
-        }
-
-        // クランプド・ノットベクトルを生成
-        let knots = crate::knot::clamped_knot_vector(degree, control_points.len());
-
-        <Self as NurbsCurve2DConstructor<T>>::new(control_points, None, knots, degree)
-    }
-
-    fn unit_line() -> Self {
-        let control_points = &[(T::ZERO, T::ZERO), (T::ONE, T::ZERO)];
-        let degree = 1;
-        let knots = vec![T::ZERO, T::ZERO, T::ONE, T::ONE];
-
-        <Self as NurbsCurve2DConstructor<T>>::new(control_points, None, knots, degree)
-            .expect("Unit line creation should never fail")
-    }
 }
 
 impl<T: Scalar> NurbsCurve2DProperties<T> for NurbsCurve2D<T> {
@@ -313,10 +286,6 @@ impl<T: Scalar> NurbsCurve2DProperties<T> for NurbsCurve2D<T> {
     fn knot_vector(&self) -> &[T] {
         &self.knot_vector
     }
-
-    fn is_rational(&self) -> bool {
-        matches!(self.weights, WeightStorage::Individual(_))
-    }
 }
 
 impl<T: Scalar> NurbsCurve2DEvaluation<T> for NurbsCurve2D<T> {
@@ -324,57 +293,10 @@ impl<T: Scalar> NurbsCurve2DEvaluation<T> for NurbsCurve2D<T> {
         let point = self.evaluate_at(t);
         (point.x(), point.y())
     }
-
-    fn point_at_checked(&self, t: T) -> Option<(T, T)> {
-        if !t.is_finite() {
-            return None;
-        }
-
-        let (t_min, t_max) = self.parameter_domain();
-        if t < t_min || t > t_max {
-            return None;
-        }
-
-        Some(self.point_at(t))
-    }
-
-    fn tangent_at(&self, t: T) -> (T, T) {
-        let derivative = self.derivative_at(t);
-        let len_sq = derivative.x() * derivative.x() + derivative.y() * derivative.y();
-        let len = len_sq.sqrt();
-
-        if len.is_zero() {
-            (T::ZERO, T::ZERO)
-        } else {
-            (derivative.x() / len, derivative.y() / len)
-        }
-    }
 }
 
 impl<T: Scalar> NurbsCurve2DDerived<T> for NurbsCurve2D<T> {
     fn length(&self) -> T {
         self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS)
-    }
-
-    #[allow(clippy::similar_names)]
-    fn curvature_at(&self, t: T) -> T {
-        let h = constants::solver::derivative_step::<T>();
-        let d1 = self.derivative_at(t);
-        let d2_plus = self.derivative_at(t + h);
-        let d2_minus = self.derivative_at(t - h);
-
-        // 2次導関数の中央差分近似
-        let d2x = (d2_plus.x() - d2_minus.x()) / (h + h);
-        let d2y = (d2_plus.y() - d2_minus.y()) / (h + h);
-
-        // 曲率 = |x'y'' - y'x''| / (x'^2 + y'^2)^(3/2)
-        let numerator = (d1.x() * d2y - d1.y() * d2x).abs();
-        let denominator = (d1.x() * d1.x() + d1.y() * d1.y()).powf(T::from_f64(1.5));
-
-        if denominator.is_zero() {
-            T::ZERO
-        } else {
-            numerator / denominator
-        }
     }
 }

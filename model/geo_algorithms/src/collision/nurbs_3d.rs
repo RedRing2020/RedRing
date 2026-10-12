@@ -104,10 +104,6 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
         self.distance_to(point) <= tolerance
     }
 
-    fn overlaps(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        self.intersects(point, tolerance)
-    }
-
     fn distance_to(&self, point: &Point3D<T>) -> T {
         // 2段階アプローチ: サンプリング + Newton法による精密化
         // 1. サンプリングで初期推定値を見つける
@@ -153,10 +149,6 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsCurveCollider<T> {
 
     fn intersects(&self, segment: &LineSegment3D<T>, tolerance: T) -> bool {
         self.distance_to(segment) <= tolerance
-    }
-
-    fn overlaps(&self, segment: &LineSegment3D<T>, tolerance: T) -> bool {
-        self.intersects(segment, tolerance)
     }
 
     fn distance_to(&self, segment: &LineSegment3D<T>) -> T {
@@ -221,10 +213,6 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsCurveCollider<T> {
         self.distance_to(ray) <= tolerance
     }
 
-    fn overlaps(&self, ray: &Ray3D<T>, tolerance: T) -> bool {
-        self.intersects(ray, tolerance)
-    }
-
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点からRayへの距離を計算
         let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
@@ -275,10 +263,6 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsCurveCollider<T> {
 
     fn intersects(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
         self.distance_to(line) <= tolerance
-    }
-
-    fn overlaps(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
-        self.intersects(line, tolerance)
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
@@ -334,10 +318,6 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsCurveCollider<T> {
         self.distance_to(circle) <= tolerance
     }
 
-    fn overlaps(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
-        self.intersects(circle, tolerance)
-    }
-
     fn distance_to(&self, circle: &Circle3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点からCircle3Dへの距離を計算
         let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
@@ -375,10 +355,6 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for NurbsCurveCollider<T> {
 
     fn intersects(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
         self.distance_to(plane) <= tolerance
-    }
-
-    fn overlaps(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
-        self.intersects(plane, tolerance)
     }
 
     fn distance_to(&self, plane: &Plane3D<T>) -> T {
@@ -423,10 +399,6 @@ impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsCurveCollider<T>
         self.distance_to(sphere) <= tolerance
     }
 
-    fn overlaps(&self, sphere: &SphericalSolid3D<T>, tolerance: T) -> bool {
-        self.intersects(sphere, tolerance)
-    }
-
     fn distance_to(&self, sphere: &SphericalSolid3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点から球への距離を計算
         let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
@@ -455,10 +427,6 @@ impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsCurveCollider<
 
     fn intersects(&self, ellipsoid: &EllipsoidalSolid3D<T>, tolerance: T) -> bool {
         self.distance_to(ellipsoid) <= tolerance
-    }
-
-    fn overlaps(&self, ellipsoid: &EllipsoidalSolid3D<T>, tolerance: T) -> bool {
-        self.intersects(ellipsoid, tolerance)
     }
 
     fn distance_to(&self, ellipsoid: &EllipsoidalSolid3D<T>) -> T {
@@ -493,10 +461,6 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
 
     fn intersects(&self, cylinder: &CylindricalSolid3D<T>, tolerance: T) -> bool {
         self.distance_to(cylinder) <= tolerance
-    }
-
-    fn overlaps(&self, cylinder: &CylindricalSolid3D<T>, tolerance: T) -> bool {
-        self.intersects(cylinder, tolerance)
     }
 
     fn distance_to(&self, cylinder: &CylindricalSolid3D<T>) -> T {
@@ -829,10 +793,6 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsSurfaceCollider<T> {
         self.distance_to(point) <= tolerance
     }
 
-    fn overlaps(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        self.intersects(point, tolerance)
-    }
-
     fn distance_to(&self, point: &Point3D<T>) -> T {
         self.nearest_sample_to_point(point).1
     }
@@ -843,10 +803,6 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for NurbsSurfaceCollider<T> {
 
     fn intersects(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
         self.distance_to(plane) <= tolerance
-    }
-
-    fn overlaps(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
-        self.intersects(plane, tolerance)
     }
 
     fn distance_to(&self, plane: &Plane3D<T>) -> T {
@@ -861,10 +817,6 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsSurfaceCollider<T> {
         self.distance_to(ray) <= tolerance
     }
 
-    fn overlaps(&self, ray: &Ray3D<T>, tolerance: T) -> bool {
-        self.intersects(ray, tolerance)
-    }
-
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
         self.min_distance_to_ray(ray)
     }
@@ -875,10 +827,6 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsSurfaceCollider<T> 
 
     fn intersects(&self, segment: &LineSegment3D<T>, tolerance: T) -> bool {
         self.distance_to(segment) <= tolerance
-    }
-
-    fn overlaps(&self, segment: &LineSegment3D<T>, tolerance: T) -> bool {
-        self.intersects(segment, tolerance)
     }
 
     fn distance_to(&self, segment: &LineSegment3D<T>) -> T {
@@ -893,10 +841,6 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsSurfaceCollider<T>
         self.distance_to(line) <= tolerance
     }
 
-    fn overlaps(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
-        self.intersects(line, tolerance)
-    }
-
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
         self.min_distance_to_infinite_line(line)
     }
@@ -907,10 +851,6 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsSurfaceCollider<T> {
 
     fn intersects(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
         self.distance_to(circle) <= tolerance
-    }
-
-    fn overlaps(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
-        self.intersects(circle, tolerance)
     }
 
     fn distance_to(&self, circle: &Circle3D<T>) -> T {
@@ -925,10 +865,6 @@ impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsSurfaceCollider<
         self.distance_to(sphere) <= tolerance
     }
 
-    fn overlaps(&self, sphere: &SphericalSolid3D<T>, tolerance: T) -> bool {
-        self.intersects(sphere, tolerance)
-    }
-
     fn distance_to(&self, sphere: &SphericalSolid3D<T>) -> T {
         self.min_distance_to_spherical_solid(sphere)
     }
@@ -941,10 +877,6 @@ impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsSurfaceCollide
         self.distance_to(ellipsoid) <= tolerance
     }
 
-    fn overlaps(&self, ellipsoid: &EllipsoidalSolid3D<T>, tolerance: T) -> bool {
-        self.intersects(ellipsoid, tolerance)
-    }
-
     fn distance_to(&self, ellipsoid: &EllipsoidalSolid3D<T>) -> T {
         self.min_distance_to_ellipsoidal_solid(ellipsoid)
     }
@@ -955,10 +887,6 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsSurfaceCollide
 
     fn intersects(&self, cylinder: &CylindricalSolid3D<T>, tolerance: T) -> bool {
         self.distance_to(cylinder) <= tolerance
-    }
-
-    fn overlaps(&self, cylinder: &CylindricalSolid3D<T>, tolerance: T) -> bool {
-        self.intersects(cylinder, tolerance)
     }
 
     fn distance_to(&self, cylinder: &CylindricalSolid3D<T>) -> T {
@@ -1134,7 +1062,18 @@ mod tests {
     }
 
     fn create_test_surface<T: Scalar>() -> NurbsSurface3D<T> {
-        <NurbsSurface3D<T> as NurbsSurface3DConstructor<T>>::unit_plane()
+        <NurbsSurface3D<T> as NurbsSurface3DConstructor<T>>::new(
+            vec![
+                vec![(T::ZERO, T::ZERO, T::ZERO), (T::ZERO, T::ONE, T::ZERO)],
+                vec![(T::ONE, T::ZERO, T::ZERO), (T::ONE, T::ONE, T::ZERO)],
+            ],
+            None,
+            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
+            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
+            1,
+            1,
+        )
+        .unwrap()
     }
 
     #[test]
