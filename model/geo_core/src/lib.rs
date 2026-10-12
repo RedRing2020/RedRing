@@ -16,44 +16,17 @@
 //! ---
 //! © RedRing Project
 
-// 基本型実装
-pub mod direction_2d;
-pub mod direction_2d_extensions;
-pub mod direction_3d;
-pub mod direction_3d_extensions;
-pub mod point_2d;
-pub mod point_3d;
-pub mod point_traits;
-pub mod similarity_transform_2d;
-pub mod similarity_transform_3d;
-pub mod vector_2d;
-pub mod vector_3d;
-pub mod vector_traits;
+mod aabb_2d;
+mod aabb_3d;
+mod direction_2d;
+mod direction_3d;
+mod point_2d;
+mod point_3d;
+mod similarity_transform_2d;
+mod similarity_transform_3d;
+mod vector_2d;
+mod vector_3d;
 
-// テストモジュール
-#[cfg(test)]
-mod direction_2d_extensions_tests;
-#[cfg(test)]
-mod direction_3d_extensions_tests;
-#[cfg(test)]
-mod point_2d_tests;
-#[cfg(test)]
-mod point_3d_tests;
-#[cfg(test)]
-mod similarity_transform_2d_tests;
-#[cfg(test)]
-mod similarity_transform_3d_tests;
-#[cfg(test)]
-mod vector_2d_tests;
-#[cfg(test)]
-mod vector_3d_tests;
-
-// AABB型実装
-pub mod aabb_2d;
-pub mod aabb_3d;
-pub mod aabb_traits;
-
-// 公開API
 pub use aabb_2d::Aabb2D;
 pub use aabb_3d::Aabb3D;
 pub use direction_2d::Direction2D;

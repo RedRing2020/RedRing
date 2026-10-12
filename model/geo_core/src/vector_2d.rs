@@ -2,6 +2,9 @@
 //!
 //! geo_core内部実装として、全機能を統合
 
+#[cfg(test)]
+mod tests;
+
 use analysis::abstract_types::{Angle, Scalar};
 
 use std::ops::{Add, Mul, Neg, Sub};
@@ -82,11 +85,6 @@ impl<T: Scalar> Vector2D<T> {
     /// 2つの点からベクトルを作成（to - from）
     pub fn from_points(from: crate::Point2D<T>, to: crate::Point2D<T>) -> Self {
         from.vector_to(&to)
-    }
-
-    /// Point2D から Vector2D を作成（原点からのベクトルとして）
-    pub fn from_point(point: &crate::Point2D<T>) -> Self {
-        Self::new(point.x(), point.y())
     }
 
     /// ベクトルがゼロベクトルかを判定

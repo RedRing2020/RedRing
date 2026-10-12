@@ -3,6 +3,9 @@
 //! geo_core における Point3D の完全実装。
 //! 基本機能、Foundation トレイト、Analysis 変換、演算子オーバーロードを含む。
 
+#[cfg(test)]
+mod tests;
+
 use analysis::abstract_types::Scalar;
 use geo_contracts::{Point3DConstructor, Point3DDistance, Point3DInterpolation, Point3DProperties};
 
@@ -82,12 +85,6 @@ impl<T: Scalar> Point3D<T> {
     #[inline]
     pub fn z(&self) -> T {
         self.z
-    }
-
-    /// 座標を配列として取得
-    #[inline]
-    pub fn coords(&self) -> [T; 3] {
-        [self.x, self.y, self.z]
     }
 
     /// 他の点との距離を計算
@@ -321,118 +318,5 @@ impl<T: Scalar> From<Point3D<T>> for analysis::linalg::vector::Vector3<T> {
 impl<T: Scalar> From<analysis::linalg::vector::Vector3<T>> for Point3D<T> {
     fn from(vector: analysis::linalg::vector::Vector3<T>) -> Self {
         Point3D::new(vector.x(), vector.y(), vector.z())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_new() {
-        let p = Point3D::new(1.0, 2.0, 3.0);
-        assert_eq!(p.x(), 1.0);
-        assert_eq!(p.y(), 2.0);
-        assert_eq!(p.z(), 3.0);
-    }
-
-    #[test]
-    fn test_origin() {
-        let origin = Point3D::<f64>::origin();
-        assert_eq!(origin.x(), 0.0);
-        assert_eq!(origin.y(), 0.0);
-        assert_eq!(origin.z(), 0.0);
-    }
-
-    #[test]
-    fn test_from_tuple() {
-        let p = Point3D::from_tuple((1.0, 2.0, 3.0));
-        assert_eq!(p.x(), 1.0);
-        assert_eq!(p.y(), 2.0);
-        assert_eq!(p.z(), 3.0);
-    }
-
-    #[test]
-    fn test_coords() {
-        let p = Point3D::new(1.0, 2.0, 3.0);
-        assert_eq!(p.coords(), [1.0, 2.0, 3.0]);
-    }
-
-    #[test]
-    fn test_distance_to() {
-        let p1 = Point3D::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::new(3.0, 4.0, 0.0);
-        assert_eq!(p1.distance_to(&p2), 5.0);
-    }
-
-    #[test]
-    fn test_distance_squared_to() {
-        let p1 = Point3D::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::new(3.0, 4.0, 0.0);
-        assert_eq!(p1.distance_squared_to(&p2), 25.0);
-    }
-
-    #[test]
-    fn test_norm() {
-        let p = Point3D::new(3.0, 4.0, 0.0);
-        assert_eq!(p.norm(), 5.0);
-    }
-
-    #[test]
-    fn test_norm_squared() {
-        let p = Point3D::new(3.0, 4.0, 0.0);
-        assert_eq!(p.norm_squared(), 25.0);
-    }
-
-    #[test]
-    fn test_midpoint() {
-        let p1 = Point3D::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::new(2.0, 4.0, 6.0);
-        let mid = p1.midpoint(&p2);
-        assert_eq!(mid.x(), 1.0);
-        assert_eq!(mid.y(), 2.0);
-        assert_eq!(mid.z(), 3.0);
-    }
-
-    #[test]
-    fn test_lerp() {
-        let p1 = Point3D::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::new(10.0, 10.0, 10.0);
-
-        let lerp0 = p1.lerp(&p2, 0.0);
-        assert_eq!(lerp0.x(), 0.0);
-
-        let lerp_half = p1.lerp(&p2, 0.5);
-        assert_eq!(lerp_half.x(), 5.0);
-        assert_eq!(lerp_half.y(), 5.0);
-        assert_eq!(lerp_half.z(), 5.0);
-
-        let lerp1 = p1.lerp(&p2, 1.0);
-        assert_eq!(lerp1.x(), 10.0);
-    }
-
-    #[test]
-    fn test_from_trait() {
-        let p: Point3D<f64> = (1.0, 2.0, 3.0).into();
-        assert_eq!(p.x(), 1.0);
-        assert_eq!(p.y(), 2.0);
-        assert_eq!(p.z(), 3.0);
-    }
-
-    #[test]
-    fn test_equality() {
-        let p1 = Point3D::new(1.0, 2.0, 3.0);
-        let p2 = Point3D::new(1.0, 2.0, 3.0);
-        let p3 = Point3D::new(1.0, 2.0, 4.0);
-
-        assert_eq!(p1, p2);
-        assert_ne!(p1, p3);
-    }
-
-    #[test]
-    fn test_clone() {
-        let p1 = Point3D::new(1.0, 2.0, 3.0);
-        let p2 = p1;
-        assert_eq!(p1, p2);
     }
 }
