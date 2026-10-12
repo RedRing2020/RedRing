@@ -10,3 +10,6 @@ cam_core = { path = "../../model/cam_core" }
 cam_sim = { path = "../../model/cam_sim" }
 converter = { package = "viewmodel", path = "../converter" }
 geo_algorithms = { path = "../../model/geo_algorithms" }
+
+[lints]
+workspace = true

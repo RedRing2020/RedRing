@@ -37,3 +37,6 @@ path = "src/lib.rs"
 # [[bench]]
 # name = "vector_ops"
 # harness = false
+
+[lints]
+workspace = true

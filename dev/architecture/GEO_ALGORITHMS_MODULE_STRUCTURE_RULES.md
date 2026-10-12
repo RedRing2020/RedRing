@@ -1,6 +1,6 @@
 # geo_algorithms モジュール分割ルール
 
-最終更新: 2026-04-23
+最終更新: 2026-10-12
 適用範囲: `model/geo_algorithms/src/{collision,intersection,distance}`
 
 ## 1. 目的
@@ -16,7 +16,7 @@
   - 2D primitive, 3D primitive, NURBS curve, NURBS surface
 - 原則3: **対称性は正規方向 + 逆方向委譲**
   - 正規方向だけ計算本体を持ち、逆方向はラッパー
-- 原則4: **公開面は mod.rs で一元再エクスポート**
+- 原則4: **公開面は演算の親モジュール（`{operation}.rs`）で一元再エクスポート**
 - 原則5: **新規ペア追加時は coverage matrix を同時更新**
 - 原則6: **Point/Tuple 境界は Point 型を正本にする**
   - `geo_algorithms` の公開 free-function では `Point2D<T>` / `Point3D<T>` を優先する
@@ -70,8 +70,8 @@
 各演算ディレクトリで、以下を標準とする。
 
 ```text
+{operation}.rs                 # 親モジュール（子の宣言・再エクスポート）
 {operation}/
-  mod.rs
   pair_base.rs                 # 必要時のみ（共通計算）
   primitive_2d.rs
   primitive_3d.rs
@@ -107,7 +107,7 @@
 - `primitive_3d.rs` が shape family 見出しコメントに依存し始めた場合は、コメント追加ではなく module 分割を優先する。
 - 分割単位は 1 shape 1 ファイルを既定にせず、shape family または line-like / planar-like の責務単位でまとめてよい。
 - family 横断 helper は `shared` 系 module へ隔離し、各 family module に混在させない。
-- 利用側の公開面は親 `primitive_3d` module と上位 `mod.rs` で一元化し、分割詳細を外へ漏らさない。
+- 利用側の公開面は親 `primitive_3d` module と上位の `{operation}.rs` で一元化し、分割詳細を外へ漏らさない。
 - コメント整理は分割後に不要になった section 見出しを落とす形で行い、コメント削除だけを先行させない。
 
 ## 5. 関数命名規約
@@ -121,9 +121,9 @@
 - `nurbscurve3d_ray3d_try_distance`
 - `ray3d_nurbscurve3d_distance` (委譲)
 
-## 6. mod.rs の並び順（固定）
+## 6. 親モジュールの並び順（固定）
 
-`mod.rs` は次順序で宣言・`pub use` する。
+`{operation}.rs` は次順序で宣言・`pub use` する。
 
 1. `pair_base`（ある場合）
 2. `primitive_2d`
@@ -147,7 +147,7 @@
 
 - [ ] 追加関数の配置先が本ルールと一致
 - [ ] 逆方向関数が委譲実装
-- [ ] `mod.rs` の宣言・再エクスポート順が規約準拠
+- [ ] `{operation}.rs` の宣言・再エクスポート順が規約準拠
 - [ ] `coverage_matrix_engine.rs` へ対称エントリ追加
 - [ ] `cargo clippy -p geo_algorithms -- -D warnings` 成功
 - [ ] `cargo fmt --all` 実行
@@ -162,7 +162,7 @@
 
 ## 10. geo_primitives 側の交点実装に関するポリシー（Issue #697 追記）
 
-最終更新: 2026-04-23
+最終更新: 2026-10-12
 
 ### 10.1 正本の所在
 

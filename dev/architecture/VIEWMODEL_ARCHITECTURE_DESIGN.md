@@ -177,7 +177,7 @@ impl ParametricSurface3D<f64> for CylindricalSurface3D<f64> {
 **提案**: `geo_algorithms` に曲面メッシュ化機能を追加
 
 ```rust
-// geo_algorithms/src/tessellation/mod.rs (新規)
+// geo_algorithms/src/tessellation.rs (新規)
 pub struct TessellationParams {
     pub u_divisions: usize,
     pub v_divisions: usize,

@@ -62,7 +62,7 @@
 
 - **analysis クレート内部のみで使用** (4箇所)
   - `geometry/plane3.rs`: 定義と実装
-  - `geometry/mod.rs`: 再エクスポート
+  - `geometry.rs`: 再エクスポート
 - **model 層では一切参照されていない**
   
 **結論**: analysis の内部実装として残す（外部からは使用されていない）

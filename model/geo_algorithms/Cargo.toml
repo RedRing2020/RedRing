@@ -11,3 +11,5 @@ geo_topology = { path = "../geo_topology" }
 geo_nurbs = { path = "../geo_nurbs" }
 geo_core = { path = "../geo_core" }
 
+[lints]
+workspace = true

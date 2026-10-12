@@ -1,6 +1,6 @@
 # geo_primitives モジュール構成ルール
 
-最終更新: 2026-10-11
+最終更新: 2026-10-12
 適用範囲: `model/geo_primitives/src`、`model/geo_nurbs/src`（6 章）
 
 ## 1. 目的
@@ -12,19 +12,20 @@
 形状ごとにディレクトリのモジュールを置き、core を親、責務ファイルを子とする。
 
 ```text
+line_segment_3d.rs  // 親: 構造体（private フィールド）・core のメソッド・core の trait定義の実装
 line_segment_3d/
-  mod.rs         // 構造体（private フィールド）・core のメソッド・core の trait定義の実装
-  extensions.rs  // 子モジュール: 親の private なフィールド・関数をそのまま使える
+  extensions.rs     // 子モジュール: 親の private なフィールド・関数をそのまま使える
   bounds.rs
   transform.rs
-  tests.rs       // #[cfg(test)]
+  tests.rs          // #[cfg(test)]
 ```
 
 - 子モジュールのファイル名は形状名を付けない（`extensions.rs` / `bounds.rs` / `transform.rs` / `metrics.rs` / `tests.rs`）
-- `mod.rs` は先頭の doc コメントの直後で子モジュールを宣言する（`mod extensions;`、`#[cfg(test)] mod tests;` 等）
+- 親はディレクトリと同名のファイル（`line_segment_3d.rs`）に置き、`mod.rs` は使わない（Clippy の `mod_module_files` で確認する）
+- 親は先頭の doc コメントの直後で子モジュールを宣言する（`mod extensions;`、`#[cfg(test)] mod tests;` 等）
 - `tests.rs` は `use super::*;` で親の要素を使い、`mod tests { ... }` で包まない（`tests::tests` の入れ子にしない）
 - 形状をまたぐテストは結合テスト（`tests/cross_shape/main.rs` とその子モジュール）に置き、公開 API だけを使う。結合テストはクレートの外からコンパイルされるため、公開 API だけを使うことをコンパイラが確認する
-- `src` の直下には `lib.rs` と形状のディレクトリだけを置く
+- `src` の直下には `lib.rs` と形状のモジュール（親のファイルとディレクトリ）だけを置く
 
 ## 3. `lib.rs`
 

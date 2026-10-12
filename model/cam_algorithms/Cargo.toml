@@ -15,3 +15,6 @@ geo_contracts = { path = "../geo_contracts" }
 
 [dev-dependencies]
 analysis = { path = "../../foundation/analysis" }
+
+[lints]
+workspace = true

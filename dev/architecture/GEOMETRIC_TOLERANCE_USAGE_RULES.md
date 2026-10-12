@@ -237,7 +237,7 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 ### 実施結果（#671）
 
 1. `geo_nurbs` 実装コードの棚卸しと参照入口分類を確定した。
-2. PR-A で `nurbs_curve_3d/mod.rs` の公開経路退化判定を `default_kernel_numerical_zero_tolerance<T>()` へ統一した。
+2. PR-A で `nurbs_curve_3d.rs` の公開経路退化判定を `default_kernel_numerical_zero_tolerance<T>()` へ統一した。
 3. PR-B では移行段階として `lib.rs` に `constants::tolerance` / `constants::solver` の型別入口を導入し、`geo_nurbs` 内参照を段階的に切替した。
 4. PR-C で未使用だった `constants::tolerance` を削除して `constants::solver` に集約し、docs と tests の整合を固定した。現行の参照正本は `constants::solver::*` である。
 
@@ -251,14 +251,14 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 | カーネルゼロ判定 | `nurbs_curve_3d/transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
 | カーネルゼロ判定 | `nurbs_surface_3d/transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
 | カーネルゼロ判定 | `nurbs_curve_3d/extensions.rs` | `tolerance.max(default_kernel_numerical_zero_tolerance::<T>())` | 下限ガードとして方針準拠 | 維持 |
-| 公開経路の退化判定 | `nurbs_curve_3d/mod.rs` | `distance_sq <= T::EPSILON * T::EPSILON` | 公開経路で `T::EPSILON` 直接参照 | `default_kernel_numerical_zero_tolerance<T>()` 経由へ置換済み |
+| 公開経路の退化判定 | `nurbs_curve_3d.rs` | `distance_sq <= T::EPSILON * T::EPSILON` | 公開経路で `T::EPSILON` 直接参照 | `default_kernel_numerical_zero_tolerance<T>()` 経由へ置換済み |
 | 解法しきい値（f64固定） | `lib.rs` | `DEFAULT_TOLERANCE=1e-10`, `MIN_KNOT_INTERVAL=1e-12`, `NEWTON_TOLERANCE=1e-10`, `NEWTON_DIFF_STEP=1e-7`, `DERIVATIVE_STEP=1e-8` | 型非依存の f64 固定値が集約 | 実使用がある `constants::solver` の型別入口へ再配置し、旧f64互換定数と未使用入口は削除 |
-| 数学係数（意味付き） | `nurbs_curve_2d/mod.rs` | `powf(T::from_f64(1.5))` | 曲率式の指数係数 | 置換対象外（マジックナンバー扱いにしない） |
-| 数学係数（意味付き） | `nurbs_surface_3d/mod.rs` | `du / T::from_f64(2.0)`, `dv / T::from_f64(2.0)` | セル中心サンプリング係数 | 置換対象外（マジックナンバー扱いにしない） |
+| 数学係数（意味付き） | `nurbs_curve_2d.rs` | `powf(T::from_f64(1.5))` | 曲率式の指数係数 | 置換対象外（マジックナンバー扱いにしない） |
+| 数学係数（意味付き） | `nurbs_surface_3d.rs` | `du / T::from_f64(2.0)`, `dv / T::from_f64(2.0)` | セル中心サンプリング係数 | 置換対象外（マジックナンバー扱いにしない） |
 
 ### 小PR分割（#671 完了記録）
 
-1. PR-A: `nurbs_curve_3d/mod.rs` の `T::EPSILON` 直接参照を `default_kernel_numerical_zero_tolerance<T>()` へ置換（完了）
+1. PR-A: `nurbs_curve_3d.rs` の `T::EPSILON` 直接参照を `default_kernel_numerical_zero_tolerance<T>()` へ置換（完了）
 2. PR-B: `lib.rs` の f64 固定解法定数を用途別に再配置し、`geo_nurbs` 内の参照を型別入口経由へ切替（完了）
 3. PR-C: docs と tests の整合調整（置換後の意味と参照入口を固定）（完了）
 
@@ -271,7 +271,7 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 
 備考:
 
-- `nurbs_curve_2d/mod.rs` の `1.5` と `nurbs_surface_3d/mod.rs` の `2.0` は幾何式由来の係数であり、トレランス系しきい値移行とは分離して扱う。
+- `nurbs_curve_2d.rs` の `1.5` と `nurbs_surface_3d.rs` の `2.0` は幾何式由来の係数であり、トレランス系しきい値移行とは分離して扱う。
 
 ## 廃止ロードマップ
 

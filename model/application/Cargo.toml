@@ -24,3 +24,6 @@ job_domain = { path = "../job_domain" }
 
 [dev-dependencies]
 redring_test_support = { path = "../test_support" }
+
+[lints]
+workspace = true

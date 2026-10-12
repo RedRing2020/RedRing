@@ -26,3 +26,6 @@ async = ["tokio"]
 
 [dev-dependencies]
 tempfile = "3.0"
+
+[lints]
+workspace = true

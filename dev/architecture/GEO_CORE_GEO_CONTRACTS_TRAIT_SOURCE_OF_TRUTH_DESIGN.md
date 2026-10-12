@@ -186,7 +186,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 - `model/geo_core/src/vector_2d.rs`
 - `model/geo_core/src/vector_3d.rs`
 - `model/geo_contracts/src/geometry/core/vector_traits.rs`
-- `model/geo_contracts/src/geometry/core/mod.rs`
+- `model/geo_contracts/src/geometry/core.rs`
 - `model/geo_contracts/src/lib.rs`
 
 ### Phase 2: Point
@@ -195,7 +195,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 - `model/geo_core/src/point_2d.rs`
 - `model/geo_core/src/point_3d.rs`
 - `model/geo_contracts/src/geometry/core/point_traits.rs`
-- `model/geo_contracts/src/geometry/core/mod.rs`
+- `model/geo_contracts/src/geometry/core.rs`
 - `model/geo_contracts/src/lib.rs`
 
 ### Phase 3: AABB
@@ -203,9 +203,9 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 - `model/geo_core/src/aabb_traits.rs`
 - `model/geo_core/src/aabb_2d.rs`
 - `model/geo_core/src/aabb_3d.rs`
-- `model/geo_contracts/src/geometry/core/mod.rs`
+- `model/geo_contracts/src/geometry/core.rs`
 - `model/geo_contracts/src/lib.rs`
-- `model/geo_contracts/src/geometry/foundation/mod.rs` 必要に応じて注記更新
+- `model/geo_contracts/src/geometry/foundation.rs` 必要に応じて注記更新
 
 ## 受け入れ条件
 

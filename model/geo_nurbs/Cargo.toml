@@ -22,3 +22,6 @@ thiserror = "1.0.69"
 
 [dev-dependencies]
 approx = "0.5.1"
+
+[lints]
+workspace = true

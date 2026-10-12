@@ -13,7 +13,7 @@
 現時点で確認できる接続点は次の通り。
 
 - `analysis` 側 solver 本体: `foundation/analysis/src/linalg/solver/newton.rs`
-- `analysis` 側公開面: `foundation/analysis/src/lib.rs`, `foundation/analysis/src/linalg/solver/mod.rs`
+- `analysis` 側公開面: `foundation/analysis/src/lib.rs`, `foundation/analysis/src/linalg/solver.rs`
 - production 利用箇所: `model/geo_algorithms/src/collision/nurbs_3d.rs`
 - `geo_nurbs` 側の Newton 関連定数: `model/geo_nurbs/src/lib.rs`
 
