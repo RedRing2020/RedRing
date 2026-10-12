@@ -81,35 +81,27 @@ let moved = circle.transform_similarity(&t)?;
 
 ## 5. trait定義（`geo_contracts`）
 
-点・ベクトルは既存の trait定義と同じくタプルで受け渡す。
+形状は、相似変換の具体型（`geo_core` の `SimilarityTransform3D`）を受け取る trait定義を実装する。
 
 ```rust
-/// 相似変換（回転・平行移動・正の一様スケール）
-pub trait SimilarityTransform3DCore<T: Scalar> {
-    /// 点に適用する
-    fn apply_point(&self, point: (T, T, T)) -> (T, T, T);
-    /// ベクトルに適用する（平行移動を含まない）
-    fn apply_vector(&self, vector: (T, T, T)) -> (T, T, T);
-    /// 一様スケール係数（> 0）
-    fn scale_factor(&self) -> T;
-    /// 回転成分を含むか
-    fn has_rotation(&self) -> bool;
-}
-
 /// 相似変換を受け付ける形状
 pub trait SimilarityTransformable3D<T: Scalar>: Sized {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError>;
+    fn transform_similarity(&self, transform: &SimilarityTransform3D<T>) -> Result<Self, TransformError>;
 }
 ```
 
-2D は `SimilarityTransform2DCore` / `SimilarityTransformable2D` を同じ形で定義する（`apply_point` / `apply_vector` は 2 要素タプル）。
+2D は `SimilarityTransformable2D` を同じ形で定義する。
+
+値型（点・ベクトル・方向）は trait定義を実装せず、相似変換の型の固有メソッドで変換する（`TYPED_GEO_CONTRACTS_DESIGN.md`）。
+
+- `apply_point(&Point3D<T>) -> Point3D<T>`
+- `apply_vector(Vector3D<T>) -> Vector3D<T>`（平行移動を受けない）
+- `apply_direction(Direction3D<T>) -> Direction3D<T>`（回転だけを受ける）
+- `scale_factor()` / `has_rotation()`
 
 ### 5.1 `TransformError`
 
-`geo_contracts` に置き、`geo_core::TransformError` は再エクスポートとして既存の参照パスを維持する。
+`geo_core` に置き（相似変換の生成が返す）、`geo_contracts::TransformError` は再エクスポートとして参照パスを維持する。
 
 | バリアント | 用途 |
 |---|---|

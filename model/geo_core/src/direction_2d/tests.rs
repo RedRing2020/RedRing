@@ -8,7 +8,7 @@ type TestType = f64;
 fn test_angle_operations() {
     // 基本的な角度操作をテスト
     let _right = Direction2D::<TestType>::positive_x();
-    let _up = Direction2D::<TestType>::positive_y();
+    let _up = Direction2D::<TestType>::new(0.0, 1.0).unwrap();
 
     // 角度から方向を作成
     let from_radians = Direction2D::from_angle_radians(std::f64::consts::PI / 2.0);
@@ -19,7 +19,7 @@ fn test_angle_operations() {
 #[test]
 fn test_angle_between_directions() {
     let right = Direction2D::<TestType>::positive_x();
-    let up = Direction2D::<TestType>::positive_y();
+    let up = Direction2D::<TestType>::new(0.0, 1.0).unwrap();
 
     let angle = right.angle_between(&up);
     assert!((angle - std::f64::consts::PI / 2.0).abs() < TestType::EPSILON);
@@ -28,7 +28,7 @@ fn test_angle_between_directions() {
 #[test]
 fn test_slerp_interpolation() {
     let start = Direction2D::<TestType>::positive_x();
-    let end = Direction2D::<TestType>::positive_y();
+    let end = Direction2D::<TestType>::new(0.0, 1.0).unwrap();
 
     // 中点での補間
     let mid = start.slerp(&end, 0.5);

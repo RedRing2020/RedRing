@@ -1,14 +1,12 @@
 //! Geometry core contracts.
 // 実装ロジックは置かず、shape contract の定義だけを保持する。
 
-pub mod aabb_traits;
 pub mod arc_traits;
 pub mod circle_traits;
 pub mod conical_solid_traits;
 pub mod conical_surface_traits;
 pub mod cylindrical_solid_traits;
 pub mod cylindrical_surface_traits;
-pub mod direction_traits;
 pub mod ellipse_arc_traits;
 pub mod ellipse_traits;
 pub mod ellipsoidal_solid_traits;
@@ -19,7 +17,6 @@ pub mod nurbs_curve_2d_traits;
 pub mod nurbs_curve_3d_traits;
 pub mod nurbs_surface_3d_traits;
 pub mod plane3d_traits;
-pub mod point_traits;
 pub mod ray_traits;
 pub mod rectangle_traits;
 pub mod spherical_solid_traits;
@@ -27,9 +24,7 @@ pub mod spherical_surface_traits;
 pub mod torus_solid_traits;
 pub mod torus_surface_traits;
 pub mod triangle_traits;
-pub mod vector_traits;
 
-pub use aabb_traits::{Aabb2DDerived, Aabb2DProperties, Aabb3DDerived, Aabb3DProperties};
 pub use arc_traits::{
     Arc2DConstructor, Arc2DContainment, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
     Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc2DTrimRange, Arc3DConstructor,
@@ -57,10 +52,7 @@ pub use cylindrical_surface_traits::{
     CylindricalSurface3DConstructor, CylindricalSurface3DDerived, CylindricalSurface3DDistance,
     CylindricalSurface3DEvaluation, CylindricalSurface3DProperties,
 };
-pub use direction_traits::{
-    Direction2DConstructor, Direction2DProperties, Direction2DRelation, Direction2DTransform,
-    Direction3DConstructor, Direction3DProperties, Direction3DRelation, Direction3DTransform,
-};
+
 pub use ellipse_arc_traits::{
     EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DDerived, EllipseArc2DEndpoint,
     EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange, EllipseArc3DConstructor,
@@ -107,10 +99,7 @@ pub use nurbs_surface_3d_traits::{
 pub use plane3d_traits::{
     Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,
 };
-pub use point_traits::{
-    Point2DConstructor, Point2DDistance, Point2DInterpolation, Point2DProperties,
-    Point3DConstructor, Point3DDistance, Point3DInterpolation, Point3DProperties,
-};
+
 pub use ray_traits::{
     Ray2DConstructor, Ray2DContainment, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
     Ray2DProperties, Ray2DTransform, Ray3DConstructor, Ray3DContainment, Ray3DDistance,
@@ -140,9 +129,4 @@ pub use triangle_traits::{
     Triangle2DBoundaryAccess, Triangle2DConstructor, Triangle2DContainment, Triangle2DDistance,
     Triangle3DBoundaryAccess, Triangle3DConstructor, Triangle3DContainment, Triangle3DDerived,
     Triangle3DDistance,
-};
-pub use vector_traits::{
-    Vector2DConstructor, Vector2DMetric, Vector2DProduct, Vector2DProjection, Vector2DProperties,
-    Vector2DRelation, Vector3DConstructor, Vector3DMetric, Vector3DProduct, Vector3DProjection,
-    Vector3DProperties, Vector3DRelation,
 };

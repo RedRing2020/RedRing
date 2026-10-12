@@ -6,13 +6,14 @@
 #[cfg(test)]
 mod tests;
 
-use crate::{Aabb3D, Direction3D, Point3D, Vector3D};
+use crate::{
+    default_kernel_numerical_zero_tolerance, default_orthogonality_dot_error_tolerance,
+    TransformError,
+};
+use crate::{Direction3D, Point3D, Vector3D};
+use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::matrix::Matrix4x4;
 use analysis::linalg::vector::Vector3;
-use geo_contracts::{
-    default_kernel_numerical_zero_tolerance, default_orthogonality_dot_error_tolerance, Angle,
-    Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError,
-};
 
 /// 3D 相似変換
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -172,26 +173,37 @@ fn linear_columns<T: Scalar>(matrix: &Matrix4x4<T>) -> [Vector3D<T>; 3] {
     [0, 1, 2].map(|c| Vector3D::new(matrix.get(0, c), matrix.get(1, c), matrix.get(2, c)))
 }
 
-impl<T: Scalar> SimilarityTransform3DCore<T> for SimilarityTransform3D<T> {
-    fn apply_point(&self, point: (T, T, T)) -> (T, T, T) {
+impl<T: Scalar> SimilarityTransform3D<T> {
+    /// 点を変換する
+    pub fn apply_point(&self, point: &Point3D<T>) -> Point3D<T> {
         let p = self
             .matrix
-            .transform_point_3d(&Vector3::new(point.0, point.1, point.2));
-        (p.x(), p.y(), p.z())
+            .transform_point_3d(&Vector3::new(point.x(), point.y(), point.z()));
+        Point3D::new(p.x(), p.y(), p.z())
     }
 
-    fn apply_vector(&self, vector: (T, T, T)) -> (T, T, T) {
+    /// ベクトルを変換する（平行移動を受けず、長さはスケール係数倍になる）
+    pub fn apply_vector(&self, vector: Vector3D<T>) -> Vector3D<T> {
         let v = self
             .matrix
-            .transform_vector_3d(&Vector3::new(vector.0, vector.1, vector.2));
-        (v.x(), v.y(), v.z())
+            .transform_vector_3d(&Vector3::new(vector.x(), vector.y(), vector.z()));
+        Vector3D::new(v.x(), v.y(), v.z())
     }
 
-    fn scale_factor(&self) -> T {
+    /// 方向を変換する（回転だけを受ける）
+    pub fn apply_direction(&self, direction: Direction3D<T>) -> Direction3D<T> {
+        let v = self.apply_vector(direction.as_vector()) * (T::ONE / self.scale);
+        // スケール係数は正のため、単位ベクトルの変換結果は 0 にならない
+        Direction3D::from_vector(v).expect("similarity transform keeps a direction nonzero")
+    }
+
+    /// 一様スケール係数
+    pub fn scale_factor(&self) -> T {
         self.scale
     }
 
-    fn has_rotation(&self) -> bool {
+    /// 回転を含むか
+    pub fn has_rotation(&self) -> bool {
         let tol = default_orthogonality_dot_error_tolerance::<T>();
         let units = linear_columns(&self.matrix).map(|c| c * (T::ONE / self.scale));
         let identity = [Vector3D::unit_x(), Vector3D::unit_y(), Vector3D::unit_z()];
@@ -199,56 +211,5 @@ impl<T: Scalar> SimilarityTransform3DCore<T> for SimilarityTransform3D<T> {
             .iter()
             .zip(identity.iter())
             .any(|(u, e)| (*u - *e).length() > tol)
-    }
-}
-
-impl<T: Scalar> SimilarityTransformable3D<T> for Point3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError> {
-        Ok(transform.apply_point((self.x(), self.y(), self.z())).into())
-    }
-}
-
-impl<T: Scalar> SimilarityTransformable3D<T> for Vector3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError> {
-        Ok(transform
-            .apply_vector((self.x(), self.y(), self.z()))
-            .into())
-    }
-}
-
-impl<T: Scalar> SimilarityTransformable3D<T> for Direction3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError> {
-        let (x, y, z) = transform.apply_vector((self.x(), self.y(), self.z()));
-        Direction3D::new(x, y, z).ok_or_else(|| {
-            TransformError::InvalidGeometry("direction degenerated to zero".to_string())
-        })
-    }
-}
-
-impl<T: Scalar> SimilarityTransformable3D<T> for Aabb3D<T> {
-    /// 平行移動・一様スケールのみ受け付ける。回転を含む場合は `Unsupported`。
-    ///
-    /// 回転後の境界ボックスが必要な場合は、形状側で再構築する。
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError> {
-        if transform.has_rotation() {
-            return Err(TransformError::Unsupported(
-                "rotation of an axis-aligned bounding box".to_string(),
-            ));
-        }
-        let min = self.min().transform_similarity(transform)?;
-        let max = self.max().transform_similarity(transform)?;
-        Ok(Aabb3D::new(min, max))
     }
 }

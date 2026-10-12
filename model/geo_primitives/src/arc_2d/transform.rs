@@ -4,16 +4,16 @@
 //! 回転角を開始角・終了角に加える。
 
 use crate::Arc2D;
-use geo_contracts::{
-    Angle, Scalar, SimilarityTransform2DCore, SimilarityTransformable2D, TransformError,
-};
+use crate::{SimilarityTransform2D, Vector2D};
+use geo_contracts::{Angle, Scalar, SimilarityTransformable2D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable2D<T> for Arc2D<T> {
-    fn transform_similarity<X: SimilarityTransform2DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform2D<T>,
     ) -> Result<Self, TransformError> {
-        let (x, y) = transform.apply_vector((T::ONE, T::ZERO));
+        let unit_x = transform.apply_vector(Vector2D::unit_x());
+        let (x, y) = (unit_x.x(), unit_x.y());
         let rotation = Angle::from_radians(y.atan2(x));
         // 開始角を [0, 2π) に正規化し、掃引角は変えない（範囲判定が開始角基準のため）
         let start_angle = (self.start_angle + rotation).normalize();

@@ -166,20 +166,6 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
         let through_point = Point3D::new(through.0, through.1, through.2);
         Ray3D::from_points(start_point, through_point)
     }
-
-    fn from_spherical(origin: (T, T, T), azimuth: T, elevation: T) -> Self
-    where
-        Self: Sized,
-    {
-        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
-        let cos_elev = elevation.cos();
-        let sin_elev = elevation.sin();
-        let cos_azim = azimuth.cos();
-        let sin_azim = azimuth.sin();
-
-        let direction = Vector3D::new(cos_elev * cos_azim, cos_elev * sin_azim, sin_elev);
-        Ray3D::new(origin_point, direction).unwrap()
-    }
 }
 
 /// Ray3DProperties トレイト実装

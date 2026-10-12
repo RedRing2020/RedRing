@@ -89,8 +89,6 @@ fn test_vector3d_relationships() {
     assert!(!v1.is_parallel(&v3));
 
     // 垂直
-    assert!(v1.is_perpendicular(&v3));
-    assert!(!v1.is_perpendicular(&v2));
 }
 
 /*

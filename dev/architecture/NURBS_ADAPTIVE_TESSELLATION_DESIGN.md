@@ -316,7 +316,7 @@ GPU向けのパラメータ列APIとは別レイヤーで提供する。
 
 ## 9. 注意事項
 
-- Foundation Patternの依存階層を厳守（geo_nurbs -> geo_core -> geo_contracts）
+- Foundation Patternの依存階層を厳守（geo_nurbs -> geo_contracts -> geo_core）
 - 既存のSVG経由テッセレーションはデバッグ用途として維持
 - 将来のCompute移行を見据えて、GPU入力形式は固定化する
 

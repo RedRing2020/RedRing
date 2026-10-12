@@ -157,8 +157,6 @@ fn test_line_relationships() {
     assert!(!segment1.line().is_parallel(segment3.line()));
 
     // 垂直判定
-    assert!(segment1.line().is_perpendicular(segment3.line()));
-    assert!(!segment1.line().is_perpendicular(segment2.line()));
 
     // 共線判定
     let collinear_segment =

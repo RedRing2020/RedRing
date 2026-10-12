@@ -1,7 +1,6 @@
 //! Aabb3D のテスト
 
 use super::*;
-use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation, Contains};
 
 #[test]
 fn test_aabb3d_creation() {
@@ -70,36 +69,30 @@ fn test_aabb3d_capability_traits() {
     let outer = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 6.0, 8.0));
     let inner = Aabb3D::new(Point3D::new(1.0, 2.0, 3.0), Point3D::new(3.0, 5.0, 7.0));
 
-    assert_eq!(Aabb3DProperties::min(&outer), Point3D::new(0.0, 0.0, 0.0));
-    assert_eq!(Aabb3DProperties::max(&outer), Point3D::new(4.0, 6.0, 8.0));
-    assert_eq!(Aabb3DDerived::width(&outer), 4.0);
-    assert_eq!(Aabb3DDerived::height(&outer), 6.0);
-    assert_eq!(Aabb3DDerived::depth(&outer), 8.0);
-    assert_eq!(Aabb3DDerived::volume(&outer), 192.0);
-    assert_eq!(Aabb3DDerived::center(&outer), Point3D::new(2.0, 3.0, 4.0));
-    assert!(Aabb3DDerived::is_valid(&outer));
-    assert!(Aabb3DRelation::contains_point(
-        &outer,
-        &Point3D::new(2.0, 3.0, 4.0)
-    ));
-    assert!(Aabb3DRelation::intersects(&outer, &inner));
+    assert_eq!(outer.min(), Point3D::new(0.0, 0.0, 0.0));
+    assert_eq!(outer.max(), Point3D::new(4.0, 6.0, 8.0));
+    assert_eq!(outer.width(), 4.0);
+    assert_eq!(outer.height(), 6.0);
+    assert_eq!(outer.depth(), 8.0);
+    assert_eq!(outer.volume(), 192.0);
+    assert_eq!(outer.center(), Point3D::new(2.0, 3.0, 4.0));
+    assert!(outer.contains_point(&Point3D::new(2.0, 3.0, 4.0)));
+    assert!(outer.intersects(&inner));
 }
 
 #[test]
-fn test_contains_trait_for_point_and_aabb() {
+fn test_contains_point_and_aabb() {
     let outer = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 4.0, 4.0));
     let inner = Aabb3D::new(Point3D::new(1.0, 1.0, 1.0), Point3D::new(3.0, 3.0, 3.0));
 
-    assert!(Contains::contains(&outer, &Point3D::new(2.0, 2.0, 2.0)));
-    assert!(Contains::contains(&outer, &inner));
-    assert!(outer.contains(&Point3D::new(2.0, 2.0, 2.0)));
-    assert!(outer.contains(&inner));
+    assert!(outer.contains_point(&Point3D::new(2.0, 2.0, 2.0)));
+    assert!(outer.contains_aabb(&inner));
+    assert!(outer.contains_point(&Point3D::new(2.0, 2.0, 2.0)));
+    assert!(outer.contains_aabb(&inner));
 }
 
 #[test]
 fn classify_point_uses_distance_to_boundary() {
-    use geo_contracts::PointClassification;
-
     let aabb = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 2.0, 2.0));
     let tolerance = 1e-3;
     let classify = |x: f64, y: f64, z: f64| aabb.classify_point(&Point3D::new(x, y, z), tolerance);
@@ -134,7 +127,10 @@ fn classify_point_uses_distance_to_boundary() {
     }
 
     assert_eq!(
-        Aabb3DRelation::classify_point(&aabb, &Point3D::new(1.0, 1.0, 1.0)),
+        aabb.classify_point(
+            &Point3D::new(1.0, 1.0, 1.0),
+            crate::default_distance_tolerance()
+        ),
         PointClassification::Inside
     );
 }

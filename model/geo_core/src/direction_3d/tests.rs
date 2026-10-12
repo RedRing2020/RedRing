@@ -1,7 +1,7 @@
 //! Direction3D のテスト
 
 use crate::{Direction3D, Vector3D};
-use geo_contracts::Scalar;
+use analysis::abstract_types::Scalar;
 
 type TestType = f64;
 

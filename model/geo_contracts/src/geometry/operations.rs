@@ -9,10 +9,7 @@ pub use collision::{BBoxCollision, BasicCollision, PointDistance};
 pub use distance::{CrossDistance, DistanceConvergenceError};
 
 pub use relation::{
-    Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, Contains, IntersectsRelation,
-    ParallelRelation, PerpendicularRelation, PointClassification, SameLineRelation,
+    AngleBetween, AngularRelation, IntersectsRelation, ParallelRelation, PerpendicularRelation,
+    SameLineRelation,
 };
-pub use transform::{
-    SimilarityTransform2DCore, SimilarityTransform3DCore, SimilarityTransformable2D,
-    SimilarityTransformable3D, TransformError,
-};
+pub use transform::{SimilarityTransformable2D, SimilarityTransformable3D};

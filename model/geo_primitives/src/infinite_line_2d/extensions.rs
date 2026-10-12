@@ -23,12 +23,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
             .is_parallel_to(&other.direction_internal())
     }
 
-    /// 直線が垂直かを判定（角度許容誤差使用）
-    pub fn is_perpendicular(&self, other: &Self) -> bool {
-        self.direction_internal()
-            .is_perpendicular_to(&other.direction_internal())
-    }
-
     /// 他の直線と同じ直線かを判定
     pub fn is_same_line(&self, other: &Self, tolerance: T) -> bool {
         self.is_parallel(other) && self.contains_point(&other.point_internal(), tolerance)

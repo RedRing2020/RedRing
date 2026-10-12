@@ -2,20 +2,21 @@
 
 ## 最終更新日: 2026年10月12日
 
-形状の API を、`geo_contracts` の trait定義（責務ごとの capability）と、`geo_primitives` / `geo_nurbs` / `geo_core` の具体型の実装に分ける構成を定義します。
+形状の API を、`geo_contracts` の trait定義（抽象化）と、`geo_primitives` / `geo_nurbs` の形状の実装に分け、値型を `geo_core` に置く構成を定義します。
 
 ---
 
 ## 全体の構成
 
 ```
-geo_contracts（trait定義の正本）
+geo_primitives（解析形状）/ geo_nurbs（NURBS 曲線・曲面）   形状の実装
+        ↓ trait定義を実装
+geo_contracts（trait定義の正本・抽象化。実装を持たない）
   geometry/core/{shape}_traits.rs   形状ごとの capability（生成・定義パラメータ・評価・距離 等）
   geometry/foundation/              形状に共通の capability（PrimitiveMetadata / Bounded）
   geometry/operations/              形状をまたぐ演算（距離・衝突・関係・相似変換）
-        ↑ 実装
-geo_core（点・ベクトル・方向・相似変換・AABB）
-geo_primitives（解析形状）/ geo_nurbs（NURBS 曲線・曲面）
+        ↓ 値型を使う
+geo_core（点・ベクトル・方向・相似変換・AABB。trait定義を持たず、操作は固有メソッド）
 ```
 
 - trait定義は `geo_contracts` だけに置く。具体型のクレートは trait定義を再エクスポートせず、利用側が `geo_contracts` から直接使う
@@ -94,8 +95,8 @@ pub trait Bounded<T: Scalar = f64>: PrimitiveMetadata {
 | --- | --- |
 | `distance.rs` | `CrossDistance`（形状どうしの距離）、`DistanceConvergenceError` |
 | `collision.rs` | `BasicCollision` / `PointDistance` / `BBoxCollision` |
-| `relation.rs` | 平行・垂直・同一直線・角度等の関係、`Contains`、`PointClassification` |
-| `transform.rs` | 相似変換（`SimilarityTransformable2D/3D`・`SimilarityTransform2D/3DCore`）、`TransformError` |
+| `relation.rs` | 平行・垂直・同一直線・角度等の関係（`PointClassification` は `geo_core` から再エクスポート） |
+| `transform.rs` | 相似変換（`SimilarityTransformable2D/3D`）。`TransformError` は `geo_core` から再エクスポート |
 
 ### 相似変換
 
@@ -103,10 +104,7 @@ pub trait Bounded<T: Scalar = f64>: PrimitiveMetadata {
 
 ```rust
 pub trait SimilarityTransformable3D<T: Scalar>: Sized {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError>;
+    fn transform_similarity(&self, transform: &SimilarityTransform3D<T>) -> Result<Self, TransformError>;
 }
 
 pub enum TransformError {
@@ -119,21 +117,23 @@ pub enum TransformError {
 ```rust
 // geo_primitives/src/line_segment_3d/transform.rs
 impl<T: Scalar> SimilarityTransformable3D<T> for LineSegment3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Ok(Self {
             line: self.line.transform_similarity(transform)?,
             start_param: self.start_param * scale,
             end_param: self.end_param * scale,
-            start_point: self.start_point.transform_similarity(transform)?,
-            end_point: self.end_point.transform_similarity(transform)?,
+            start_point: transform.apply_point(&self.start_point),
+            end_point: transform.apply_point(&self.end_point),
         })
     }
 }
 ```
+
+- 値型（点・ベクトル・方向）は trait定義を実装せず、相似変換の型の固有メソッド（`apply_point` / `apply_vector` / `apply_direction`）で変換する
 
 ---
 

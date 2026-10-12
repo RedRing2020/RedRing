@@ -33,13 +33,11 @@ fn transform_2d() -> SimilarityTransform2D<f64> {
 }
 
 fn map3(p: (f64, f64, f64)) -> Point3D<f64> {
-    Point3D::from(p)
-        .transform_similarity(&transform_3d())
-        .unwrap()
+    transform_3d().apply_point(&Point3D::from(p))
 }
 
 fn map2(p: Point2D<f64>) -> Point2D<f64> {
-    p.transform_similarity(&transform_2d()).unwrap()
+    transform_2d().apply_point(&p)
 }
 
 fn assert_point3_eq(actual: Point3D<f64>, expected: Point3D<f64>) {
@@ -114,10 +112,7 @@ fn ellipse_3d_maps_every_parameter_and_scales_axes() {
     assert!((moved.semi_major_axis() - 6.0).abs() < TOLERANCE_F64);
     assert!((moved.semi_minor_axis() - 2.0).abs() < TOLERANCE_F64);
     for t in PARAMS {
-        let expected = ellipse
-            .point_at_parameter(t)
-            .transform_similarity(&transform_3d())
-            .unwrap();
+        let expected = transform_3d().apply_point(&ellipse.point_at_parameter(t));
         assert_point3_eq(moved.point_at_parameter(t), expected);
     }
 }
@@ -140,10 +135,7 @@ fn ellipse_arc_3d_keeps_angles_and_maps_points() {
     let moved = arc.transform_similarity(&transform_3d()).unwrap();
 
     for t in [0.0, 0.5, 1.0] {
-        let expected = arc
-            .point_at_parameter(t)
-            .transform_similarity(&transform_3d())
-            .unwrap();
+        let expected = transform_3d().apply_point(&arc.point_at_parameter(t));
         assert_point3_eq(moved.point_at_parameter(t), expected);
     }
 }

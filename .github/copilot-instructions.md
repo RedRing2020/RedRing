@@ -85,7 +85,7 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 
 1. **設計検討フェーズ**: 実装前に複数選択肢を提示し、ユーザー承認を得る
 2. **継続作業確認**: 既存の途中実装がないか `dev/` フォルダと `model/geo_core` を確認
-3. **アーキテクチャ遵守**: `geo_core` ブリッジパターンを厳守（例: `geo_nurbs → geo_core → geo_contracts`）
+3. **アーキテクチャ遵守**: 抽象化（`geo_contracts`）・値型の実装（`geo_core`）・形状の実装（`geo_primitives` / `geo_nurbs`）の分離を守る（依存の向き: `geo_nurbs → geo_contracts → geo_core`）
 4. **依存関係のルールを緩めない**: 依存関係のチェック（`scripts/check_architecture_dependencies.ps1` と、そのルール `scripts/_arch_rules_data.ps1`）の許可の追加・禁止の削除・検査の無効化は、ユーザーの承認なしに行わない。違反はチェックを変えずにコードを直す
 5. **表示不具合とカーネル変換の分離確認**: wgpu表示の症状だけを根拠に `geo_core` / `geo_nurbs` の行列積順や transform 実装を変更しない。変更前に、対象の transform 経路が実際に呼ばれていることを確認する
 

@@ -1,17 +1,18 @@
 //! Circle3D の相似変換
 
 use crate::Circle3D;
-use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
+use crate::SimilarityTransform3D;
+use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for Circle3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         Self::new_with_ref_direction(
-            self.center.transform_similarity(transform)?,
-            self.axis.transform_similarity(transform)?,
-            self.ref_direction.transform_similarity(transform)?,
+            transform.apply_point(&self.center),
+            transform.apply_direction(self.axis),
+            transform.apply_direction(self.ref_direction),
             self.radius * transform.scale_factor(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("invalid circle".to_string()))

@@ -33,6 +33,7 @@ analysis
 - 新しいクレートは作らない。`geo_core` は `analysis` のみに依存する
 - `geo_core` は trait定義を持たず、値型の操作は固有メソッドで提供する
 - `geo_contracts` は `analysis` と `geo_core` に依存する
+- `geo_contracts` は `geo_core` の値型（点・ベクトル・方向・相似変換・AABB）を再エクスポートする。trait定義の引数・戻り値に現れる型を、trait定義と同じクレートから使えるようにするため。Model 層の外からも `geo_contracts::Point3D` のように値型を作れる
 
 ### 2.0 抽象化と実装の分離
 
@@ -64,8 +65,8 @@ Rust の orphan rule では、trait の実装は trait定義のクレートか�
 - `SimilarityTransformable*` は形状のクレートだけが実装する。`geo_core` の値型には実装しない（ジェネリクスの境界として使われていない）
 - 値型の変換は、相似変換の型の固有メソッドで行う
   - 点・ベクトル・方向: `apply_point(&Point3D<T>) -> Point3D<T>` / `apply_vector` / `apply_direction`（失敗しないため値を返す）
-  - AABB: `apply_aabb(&Aabb3D<T>) -> Result<Aabb3D<T>, TransformError>`（回転を受け付けない）
   - 形状の相似変換の実装は、値型のフィールドを `transform.apply_point(&self.center)` のように変換する
+- AABB の相似変換は、呼び出し元がないため提供しない（回転後の境界ボックスは形状の側で再構築する）
 - AABB の `Contains` の実装は削除し、固有メソッド（`contains_point` 等）を使う。他に実装のない `Contains` の trait定義も削除する
 
 ## 3. 形状の API の正本
@@ -99,7 +100,7 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 | 段階 | 内容 | 形状の API |
 | --- | --- | --- |
 | D-0 | 本設計書 | 変更なし |
-| D-1 | `geo_core` を下位に移す（値型の trait定義の削除、許容誤差・`PointClassification`・`TransformError` の移動、相似変換の型付け、`ARCHITECTURE.md` と依存のルールの更新） | 変更なし |
+| D-1 | `geo_core` を下位に移す（値型の trait定義の削除、許容誤差・`PointClassification`・`TransformError` の移動、相似変換の型付け、`ARCHITECTURE.md` と依存のルールの更新）。完了 | 変更なし |
 | D-2〜 | 形状の系統ごと（直線 → 円・楕円 → 平面・矩形・三角形 → 解析曲面・立体 → NURBS → 形状をまたぐ演算）に、trait定義の型付け・重複する固有メソッドの削除・呼び出し元の更新。最初の系統で prelude を追加する | 系統ごとに変更 |
 | 最後 | `geo_algorithms` 等の Point / タプルの境界の残りの整理と、規約の文書の仕上げ | — |
 

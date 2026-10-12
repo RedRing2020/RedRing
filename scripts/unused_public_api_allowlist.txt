@@ -18,6 +18,7 @@ model/geo_core/src/similarity_transform_3d.rs:renormalized
 # 形状の定義パラメータ・構成要素の基本の取得
 model/geo_core/src/vector_2d.rs:components
 model/geo_core/src/vector_3d.rs:components
+model/geo_core/src/aabb_2d.rs:min_point
 model/geo_primitives/src/arc_2d.rs:circle
 model/geo_primitives/src/line_segment_2d.rs:support_line
 model/geo_primitives/src/line_segment_3d.rs:support_line
@@ -42,9 +43,6 @@ model/geo_contracts/src/entity/entity_traits.rs:definition_plane_normal
 model/geo_contracts/src/entity/entity_traits.rs:definition_plane_u_axis
 model/geo_contracts/src/geometry/foundation/metadata.rs:primitive_kind
 
-# ベクトル・方向の成分の基本の取得（trait定義）
-model/geo_contracts/src/geometry/core/vector_traits.rs:components
-model/geo_contracts/src/geometry/core/direction_traits.rs:components
 
 # NURBS の編集の中核のアルゴリズム（ノット挿入・次数上げ）
 model/geo_nurbs/src/operations/knot_insertion.rs:insert_knot_2d

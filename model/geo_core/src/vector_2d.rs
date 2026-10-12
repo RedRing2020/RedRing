@@ -102,16 +102,6 @@ impl<T: Scalar> Vector2D<T> {
         self.cross(other).abs() <= tolerance
     }
 
-    /// 2つのベクトルが垂直かを判定
-    pub fn is_perpendicular(&self, other: &Self) -> bool {
-        self.is_perpendicular_with_error_tolerance(other, T::ORTHOGONALITY_DOT_ERROR_TOLERANCE)
-    }
-
-    /// 2つのベクトルが垂直かを数値誤差閾値つきで判定
-    pub fn is_perpendicular_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
-        self.dot(other).abs() <= tolerance
-    }
-
     /// 正規化を試行（ゼロベクトルの場合はNoneを返す）
     pub fn try_normalize(&self) -> Option<Self> {
         let len = self.length();
@@ -242,115 +232,6 @@ impl<T: Scalar> Neg for Vector2D<T> {
 impl<T: Scalar> From<(T, T)> for Vector2D<T> {
     fn from(tuple: (T, T)) -> Self {
         Self::new(tuple.0, tuple.1)
-    }
-}
-
-use geo_contracts::{
-    Vector2DConstructor, Vector2DMetric, Vector2DProduct, Vector2DProjection, Vector2DProperties,
-    Vector2DRelation,
-};
-
-impl<T: Scalar> Vector2DConstructor<T> for Vector2D<T> {
-    fn new(x: T, y: T) -> Self {
-        Self::new(x, y)
-    }
-
-    fn zero() -> Self {
-        Self::zero()
-    }
-
-    fn unit_x() -> Self {
-        Self::unit_x()
-    }
-
-    fn unit_y() -> Self {
-        Self::unit_y()
-    }
-
-    fn from_tuple(components: (T, T)) -> Self {
-        Self::new(components.0, components.1)
-    }
-
-    fn from_polar(magnitude: T, angle: T) -> Self {
-        Self::new(magnitude * angle.cos(), magnitude * angle.sin())
-    }
-
-    fn from_vector(other: &Self) -> Self {
-        *other
-    }
-}
-
-impl<T: Scalar> Vector2DProperties<T> for Vector2D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
-    }
-
-    fn components(&self) -> [T; 2] {
-        [self.x, self.y]
-    }
-
-    fn to_tuple(&self) -> (T, T) {
-        (self.x, self.y)
-    }
-}
-
-impl<T: Scalar> Vector2DMetric<T> for Vector2D<T> {
-    fn length(&self) -> T {
-        Vector2D::length(self)
-    }
-
-    fn length_squared(&self) -> T {
-        Vector2D::length_squared(self)
-    }
-
-    fn normalize(&self) -> Self {
-        Vector2D::normalize(self)
-    }
-
-    fn try_normalize(&self) -> Option<Self> {
-        Vector2D::try_normalize(self)
-    }
-
-    fn distance_to(&self, other: &Self) -> T {
-        (*self - *other).length()
-    }
-
-    fn distance_squared_to(&self, other: &Self) -> T {
-        (*self - *other).length_squared()
-    }
-
-    fn magnitude(&self) -> T {
-        Vector2D::length(self)
-    }
-}
-
-impl<T: Scalar> Vector2DProduct<T> for Vector2D<T> {
-    fn dot(&self, other: &Self) -> T {
-        self.dot(other)
-    }
-}
-
-impl<T: Scalar> Vector2DRelation<T> for Vector2D<T> {
-    fn angle_to(&self, other: &Self) -> Option<T> {
-        Some(self.angle_to(other).to_radians())
-    }
-
-    fn is_parallel_to(&self, other: &Self) -> bool {
-        self.is_parallel(other)
-    }
-
-    fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.is_perpendicular(other)
-    }
-}
-
-impl<T: Scalar> Vector2DProjection<T> for Vector2D<T> {
-    fn project_onto(&self, other: &Self) -> Option<Self> {
-        Some(self.project_onto(other))
     }
 }
 

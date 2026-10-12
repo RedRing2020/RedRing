@@ -6,9 +6,9 @@ mod extensions;
 #[cfg(test)]
 mod tests;
 
+use crate::default_angle_tolerance;
 use crate::Vector3D;
-use geo_contracts::default_angle_tolerance;
-use geo_contracts::Scalar;
+use analysis::abstract_types::Scalar;
 use std::ops::{Deref, DerefMut, Mul, Neg};
 
 /// 3次元方向ベクトル（正規化済み）
@@ -18,6 +18,12 @@ pub struct Direction3D<T: Scalar> {
 }
 
 impl<T: Scalar> Direction3D<T> {
+    /// 2 つの方向のなす角（0〜π）
+    fn angle_to(&self, other: &Self) -> T {
+        let dot_product = self.vector.dot(&other.vector).max(-T::ONE).min(T::ONE);
+        dot_product.acos()
+    }
+
     fn is_parallel_with_angle_tolerance(&self, other: &Self, angle_tolerance: T) -> bool {
         let angle = self.angle_to(other);
         angle <= angle_tolerance || (T::PI - angle).abs() <= angle_tolerance
@@ -51,31 +57,10 @@ impl<T: Scalar> Direction3D<T> {
         }
     }
 
-    /// Y軸正方向の単位ベクトル
-    pub fn positive_y() -> Self {
-        Self {
-            vector: Vector3D::unit_y(),
-        }
-    }
-
     /// Z軸正方向の単位ベクトル
     pub fn positive_z() -> Self {
         Self {
             vector: Vector3D::unit_z(),
-        }
-    }
-
-    /// X軸負方向の単位ベクトル
-    pub fn negative_x() -> Self {
-        Self {
-            vector: -Vector3D::unit_x(),
-        }
-    }
-
-    /// Y軸負方向の単位ベクトル
-    pub fn negative_y() -> Self {
-        Self {
-            vector: -Vector3D::unit_y(),
         }
     }
 
@@ -180,96 +165,5 @@ impl<T: Scalar> Neg for Direction3D<T> {
         Self {
             vector: -self.vector,
         }
-    }
-}
-
-use analysis::linalg::Vector3;
-use geo_contracts::geometry::core::direction_traits::{
-    Direction3DConstructor, Direction3DProperties, Direction3DRelation, Direction3DTransform,
-};
-
-impl<T: Scalar> Direction3DConstructor<T> for Direction3D<T> {
-    fn from_vector(vector: Vector3<T>) -> Option<Self> {
-        Direction3D::new(vector.x(), vector.y(), vector.z())
-    }
-
-    fn new(x: T, y: T, z: T) -> Option<Self> {
-        Direction3D::new(x, y, z)
-    }
-
-    fn positive_x() -> Self {
-        Direction3D::<T>::positive_x()
-    }
-    fn positive_y() -> Self {
-        Direction3D::<T>::positive_y()
-    }
-    fn positive_z() -> Self {
-        Direction3D::<T>::positive_z()
-    }
-    fn negative_x() -> Self {
-        Direction3D::positive_x().reverse()
-    }
-    fn negative_y() -> Self {
-        Direction3D::positive_y().reverse()
-    }
-    fn from_tuple(components: (T, T, T)) -> Option<Self> {
-        Self::new(components.0, components.1, components.2)
-    }
-}
-
-impl<T: Scalar> Direction3DProperties<T> for Direction3D<T> {
-    fn x(&self) -> T {
-        self.vector.x()
-    }
-    fn y(&self) -> T {
-        self.vector.y()
-    }
-    fn z(&self) -> T {
-        self.vector.z()
-    }
-    fn components(&self) -> [T; 3] {
-        [self.vector.x(), self.vector.y(), self.vector.z()]
-    }
-    fn to_tuple(&self) -> (T, T, T) {
-        (self.vector.x(), self.vector.y(), self.vector.z())
-    }
-    fn as_vector(&self) -> Vector3<T> {
-        Vector3::new(self.vector.x(), self.vector.y(), self.vector.z())
-    }
-    fn length(&self) -> T {
-        T::ONE
-    }
-    fn dimension(&self) -> u32 {
-        3
-    }
-}
-
-impl<T: Scalar> Direction3DRelation<T> for Direction3D<T> {
-    fn dot(&self, other: &Self) -> T {
-        self.vector.dot(&other.vector)
-    }
-
-    fn angle_to(&self, other: &Self) -> T {
-        let dot_product = self.vector.dot(&other.vector).max(-T::ONE).min(T::ONE);
-        dot_product.acos()
-    }
-
-    fn cross(&self, other: &Self) -> Self {
-        let result_vector = self.vector.cross(&other.vector);
-        Direction3D::from_vector(result_vector).unwrap_or_else(|| Direction3D::positive_x())
-    }
-
-    fn is_parallel_to(&self, other: &Self) -> bool {
-        self.is_parallel_with_angle_tolerance(other, default_angle_tolerance::<T>())
-    }
-
-    fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.is_perpendicular_with_angle_tolerance(other, default_angle_tolerance::<T>())
-    }
-}
-
-impl<T: Scalar> Direction3DTransform<T> for Direction3D<T> {
-    fn reverse(&self) -> Self {
-        self.reverse()
     }
 }

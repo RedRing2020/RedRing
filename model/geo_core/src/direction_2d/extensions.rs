@@ -4,7 +4,7 @@
 //! Core機能は direction_2d.rs を参照
 
 use crate::Direction2D;
-use geo_contracts::Scalar;
+use analysis::abstract_types::Scalar;
 
 impl<T: Scalar> Direction2D<T> {
     /// 角度から方向を作成（ラジアン）

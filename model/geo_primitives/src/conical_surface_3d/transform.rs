@@ -3,20 +3,19 @@
 //! 半頂角は相似変換で変わらないため保持する。
 
 use crate::ConicalSurface3D;
-use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
+use crate::SimilarityTransform3D;
+use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for ConicalSurface3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Self::new(
-            self.center.transform_similarity(transform)?,
-            self.axis.transform_similarity(transform)?.as_vector(),
-            self.ref_direction
-                .transform_similarity(transform)?
-                .as_vector(),
+            transform.apply_point(&self.center),
+            transform.apply_direction(self.axis).as_vector(),
+            transform.apply_direction(self.ref_direction).as_vector(),
             self.radius * scale,
             self.semi_angle,
         )
