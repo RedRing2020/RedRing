@@ -199,7 +199,7 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
         let projected = self.closest_point(point);
-        point.distance_to(&projected)
+        point.distance_to(projected)
     }
 
     /// 境界ボックスを取得

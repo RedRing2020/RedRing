@@ -21,7 +21,7 @@ fn test_angle_between_directions() {
     let right = Direction2D::<TestType>::positive_x();
     let up = Direction2D::<TestType>::new(0.0, 1.0).unwrap();
 
-    let angle = right.angle_between(&up);
+    let angle = right.angle_between(up);
     assert!((angle - std::f64::consts::PI / 2.0).abs() < TestType::EPSILON);
 }
 
@@ -31,7 +31,7 @@ fn test_slerp_interpolation() {
     let end = Direction2D::<TestType>::new(0.0, 1.0).unwrap();
 
     // 中点での補間
-    let mid = start.slerp(&end, 0.5);
+    let mid = start.slerp(end, 0.5);
     let expected_angle = std::f64::consts::PI / 4.0; // 45度
     let actual_angle = mid.to_angle_radians();
 

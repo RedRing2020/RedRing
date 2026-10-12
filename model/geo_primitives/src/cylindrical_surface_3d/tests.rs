@@ -77,7 +77,7 @@ fn test_ref_direction_orthogonalization() {
     let dot_product = surface
         .ref_direction()
         .as_vector()
-        .dot(&surface.axis().as_vector());
+        .dot(surface.axis().as_vector());
     assert_relative_eq!(dot_product, 0.0, epsilon = 1e-10);
 }
 
@@ -175,7 +175,7 @@ fn test_step_compliance() {
     assert_eq!(radius_value, radius);
 
     let y_axis = surface.y_axis();
-    let expected_y = axis.cross(&ref_direction);
+    let expected_y = axis.cross(ref_direction);
     assert_relative_eq!(y_axis.as_vector().x(), expected_y.x(), epsilon = 1e-10);
     assert_relative_eq!(y_axis.as_vector().y(), expected_y.y(), epsilon = 1e-10);
     assert_relative_eq!(y_axis.as_vector().z(), expected_y.z(), epsilon = 1e-10);

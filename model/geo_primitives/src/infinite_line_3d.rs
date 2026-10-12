@@ -46,7 +46,7 @@ impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
     }
 
     fn from_two_points(p1: Point3D<T>, p2: Point3D<T>) -> Option<Self> {
-        <Self as InfiniteLine3DConstructor<T>>::new(p1, Vector3D::from_points(&p1, &p2))
+        <Self as InfiniteLine3DConstructor<T>>::new(p1, Vector3D::from_points(p1, p2))
     }
 }
 
@@ -74,13 +74,13 @@ impl<T: Scalar> InfiniteLine3DEvaluation<T> for InfiniteLine3D<T> {
     }
 
     fn parameter_for_point(&self, point: Point3D<T>) -> T {
-        Vector3D::from_points(&self.point, &point).dot(&self.direction)
+        Vector3D::from_points(self.point, point).dot(*self.direction)
     }
 }
 
 impl<T: Scalar> InfiniteLine3DDistance<T> for InfiniteLine3D<T> {
     fn distance_to_point(&self, point: Point3D<T>) -> T {
-        point.distance_to(&self.closest_point(point))
+        point.distance_to(self.closest_point(point))
     }
 }
 
@@ -115,25 +115,25 @@ impl<T: Scalar> CrossDistance<T, Self> for InfiniteLine3D<T> {
         let cross = self
             .direction
             .as_vector()
-            .cross(&other.direction.as_vector());
+            .cross(other.direction.as_vector());
         if cross.is_zero() {
             return T::ZERO; // 同一直線
         }
 
-        let dp = Vector3D::from_points(&self.point, &other.point);
-        dp.dot(&cross).abs() / cross.length()
+        let dp = Vector3D::from_points(self.point, other.point);
+        dp.dot(cross).abs() / cross.length()
     }
 }
 
 impl<T: Scalar> ParallelRelation<Self> for InfiniteLine3D<T> {
     fn is_parallel_to(&self, other: &Self) -> bool {
-        self.direction.is_parallel_to(&other.direction)
+        self.direction.is_parallel_to(other.direction)
     }
 }
 
 impl<T: Scalar> PerpendicularRelation<Self> for InfiniteLine3D<T> {
     fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.direction.is_perpendicular_to(&other.direction)
+        self.direction.is_perpendicular_to(other.direction)
     }
 }
 
@@ -149,7 +149,7 @@ impl<T: Scalar> AngularRelation<T, Self> for InfiniteLine3D<T> {
         let dot = self
             .direction
             .as_vector()
-            .dot(&other.direction.as_vector())
+            .dot(other.direction.as_vector())
             .abs();
         dot.max(T::ZERO).min(T::ONE).acos()
     }

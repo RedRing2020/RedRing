@@ -156,7 +156,7 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
-        point.distance_to(&self.closest_point(point))
+        point.distance_to(self.closest_point(point))
     }
 
     /// 点が線分上にあるかを判定
@@ -231,7 +231,7 @@ impl<T: Scalar> LineSegment3DDerived<T> for LineSegment3D<T> {
     fn as_vector(&self) -> (T, T, T) {
         let start = self.start_point();
         let end = self.end_point();
-        let v = Vector3D::from_points(&start, &end);
+        let v = Vector3D::from_points(start, end);
         (v.x(), v.y(), v.z())
     }
 }

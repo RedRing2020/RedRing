@@ -27,10 +27,10 @@ fn validate_ccw_normal_consistency(
     computed_normal: &Vector3D<f64>,
 ) -> bool {
     // CCW順序での外積による法線計算
-    let ccw_normal = edge1.cross(edge2).normalize();
+    let ccw_normal = edge1.cross(*edge2).normalize();
 
     // 内積による方向性チェック（同じ方向なら正の値）
-    let dot_product = ccw_normal.dot(computed_normal);
+    let dot_product = ccw_normal.dot(*computed_normal);
 
     // 直接f64で比較
     dot_product > 0.9
@@ -54,7 +54,7 @@ pub fn triangle_mesh_to_vertices(mesh: &TriangleMesh3D<f64>) -> Vec<VertexData> 
             let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());
             let edge2 = Vector3D::new(vc.x() - va.x(), vc.y() - va.y(), vc.z() - va.z());
 
-            let normal = edge1.cross(&edge2).normalize();
+            let normal = edge1.cross(edge2).normalize();
 
             // CCWと法線の整合性をチェック（デバッグ用）
             let is_consistent = validate_ccw_normal_consistency(&edge1, &edge2, &normal);

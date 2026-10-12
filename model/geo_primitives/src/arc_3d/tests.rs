@@ -63,7 +63,7 @@ fn test_from_three_points_over_half_circle_and_offset_center() {
 
     // 中間点は 180° の位置にある
     let (mx, my, mz) = <Arc3D<f64> as Arc3DEvaluation<f64>>::point_at_angle(&arc, PI);
-    assert!(Point3D::new(mx, my, mz).distance_to(&middle) < TOLERANCE_F64);
+    assert!(Point3D::new(mx, my, mz).distance_to(middle) < TOLERANCE_F64);
 }
 
 #[test]

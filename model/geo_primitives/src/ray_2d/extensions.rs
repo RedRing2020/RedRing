@@ -9,7 +9,7 @@ use geo_contracts::{Angle, Scalar};
 impl<T: Scalar> Ray2D<T> {
     /// Ray を回転
     pub fn rotate(&self, center: &Point2D<T>, angle: Angle<T>) -> Self {
-        let rotated_origin = self.origin.rotate_around(center, angle);
+        let rotated_origin = self.origin.rotate_around(*center, angle);
         let rotated_direction = self.direction.rotate(angle);
         Self::new(rotated_origin, rotated_direction).unwrap()
     }
@@ -29,14 +29,14 @@ impl<T: Scalar> Ray2D<T> {
 
     /// 他の Ray と平行かを判定
     pub fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
-        let angle = self.direction.angle_to(&other.direction);
+        let angle = self.direction.angle_to(other.direction);
         angle <= tolerance || (T::PI - angle).abs() <= tolerance
     }
 
     /// 他の Ray と垂直かを判定
     pub fn is_perpendicular_to(&self, other: &Self, tolerance: T) -> bool {
         let right_angle = T::PI / (T::ONE + T::ONE);
-        (self.direction.angle_to(&other.direction) - right_angle).abs() <= tolerance
+        (self.direction.angle_to(other.direction) - right_angle).abs() <= tolerance
     }
 
     /// 平行移動（BasicTransformより柔軟）

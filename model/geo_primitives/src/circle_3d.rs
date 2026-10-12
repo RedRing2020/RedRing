@@ -39,9 +39,9 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for Circle3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for Circle3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let center_distance = self.center.distance_to(&other.center);
+        let center_distance = self.center.distance_to(other.center);
         let radius_diff = (self.radius - other.radius).abs();
-        let normal_dot = self.axis.as_vector().dot(&other.axis.as_vector()).abs();
+        let normal_dot = self.axis.as_vector().dot(other.axis.as_vector()).abs();
         let normal_similar = normal_dot >= T::from_f64(0.999);
 
         center_distance <= tolerance && radius_diff <= tolerance && normal_similar
@@ -176,8 +176,8 @@ impl<T: Scalar> Circle3D<T> {
             return PointClassification::OnBoundary;
         }
 
-        let to_point = Vector3D::from_points(&self.center, point);
-        let plane_distance = to_point.dot(&self.axis.as_vector());
+        let to_point = Vector3D::from_points(self.center, *point);
+        let plane_distance = to_point.dot(self.axis.as_vector());
         if plane_distance.abs() > tolerance {
             return PointClassification::Outside;
         }
@@ -237,20 +237,20 @@ impl<T: Scalar> Circle3D<T> {
             point3.z() - point1.z(),
         );
 
-        let normal = v1.cross(&v2);
+        let normal = v1.cross(v2);
         if normal.length() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 3点が一直線上
         }
         let axis = Direction3D::from_vector(normal)?;
 
         // 外心（3 点から等距離の点）: p3 + ((|a|² b − |b|² a) × (a × b)) / (2 |a × b|²)
-        let a = Vector3D::from_points(&point3, &point1);
-        let b = Vector3D::from_points(&point3, &point2);
-        let a_cross_b = a.cross(&b);
-        let numerator = (b * a.length_squared() - a * b.length_squared()).cross(&a_cross_b);
+        let a = Vector3D::from_points(point3, point1);
+        let b = Vector3D::from_points(point3, point2);
+        let a_cross_b = a.cross(b);
+        let numerator = (b * a.length_squared() - a * b.length_squared()).cross(a_cross_b);
         let offset = numerator / ((T::ONE + T::ONE) * a_cross_b.length_squared());
         let center = point3 + offset;
-        let radius = center.distance_to(&point1);
+        let radius = center.distance_to(point1);
 
         Self::new(center, axis, radius)
     }
@@ -335,7 +335,7 @@ impl<T: Scalar> Circle3DProjection<T> for Circle3D<T> {
 
         // 円の平面上への投影
         let axis_vec = self.axis.as_vector();
-        let projection = to_point.dot(&axis_vec);
+        let projection = to_point.dot(axis_vec);
         let in_plane = to_point - axis_vec * projection;
 
         let distance = in_plane.length();
@@ -366,7 +366,7 @@ impl<T: Scalar> Circle3DEvaluation<T> for Circle3D<T> {
         let v_ref = self.ref_direction.as_vector();
 
         // v_refと垂直なベクトル（円平面内）
-        let v_perp = v_axis.cross(&v_ref);
+        let v_perp = v_axis.cross(v_ref);
 
         let point =
             self.center + v_ref * (self.radius * cos_angle) + v_perp * (self.radius * sin_angle);
@@ -377,7 +377,7 @@ impl<T: Scalar> Circle3DEvaluation<T> for Circle3D<T> {
 
 impl<T: Scalar> CrossDistance<T, Self> for Circle3D<T> {
     fn distance_to(&self, other: &Self) -> T {
-        let center_distance = self.center.distance_to(&other.center);
+        let center_distance = self.center.distance_to(other.center);
         let radii_sum = self.radius + other.radius;
 
         if center_distance >= radii_sum {

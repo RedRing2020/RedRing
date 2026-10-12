@@ -22,7 +22,7 @@ fn test_point3d_origin() {
 fn test_point3d_distance() {
     let p1 = Point3D::new(0.0, 0.0, 0.0);
     let p2 = Point3D::new(3.0, 4.0, 0.0);
-    assert_eq!(p1.distance_to(&p2), 5.0); // 3-4-5直角三角形
+    assert_eq!(p1.distance_to(p2), 5.0); // 3-4-5直角三角形
 }
 
 #[test]
@@ -51,14 +51,14 @@ fn test_basic_operations() {
     let different_point = Point3D::new(2.0, 3.0, 4.0);
 
     // 点は自分自身を含む
-    assert!(point.contains_point(&same_point));
-    assert!(!point.contains_point(&different_point));
+    assert!(point.contains_point(same_point));
+    assert!(!point.contains_point(different_point));
 
     // 境界判定（許容誤差付き）
 
     // 距離計算
-    assert_eq!(point.distance_to(&same_point), 0.0);
-    assert_eq!(point.distance_to(&Point3D::new(1.0, 2.0, 6.0)), 3.0);
+    assert_eq!(point.distance_to(same_point), 0.0);
+    assert_eq!(point.distance_to(Point3D::new(1.0, 2.0, 6.0)), 3.0);
 }
 
 #[test]
@@ -82,12 +82,12 @@ fn test_lerp_interpolation() {
     let point2 = Point3D::new(4.0, 6.0, 8.0);
 
     // 線形補間テスト（実装済み機能）
-    let midpoint = point1.lerp(&point2, 0.5);
+    let midpoint = point1.lerp(point2, 0.5);
     assert_eq!(midpoint.x(), 2.0);
     assert_eq!(midpoint.y(), 3.0);
     assert_eq!(midpoint.z(), 4.0);
 
-    let quarter = point1.lerp(&point2, 0.25);
+    let quarter = point1.lerp(point2, 0.25);
     assert_eq!(quarter.x(), 1.0);
     assert_eq!(quarter.y(), 1.5);
     assert_eq!(quarter.z(), 2.0);
@@ -121,14 +121,14 @@ fn test_from_tuple() {
 fn test_distance_to() {
     let p1 = Point3D::new(0.0, 0.0, 0.0);
     let p2 = Point3D::new(3.0, 4.0, 0.0);
-    assert_eq!(p1.distance_to(&p2), 5.0);
+    assert_eq!(p1.distance_to(p2), 5.0);
 }
 
 #[test]
 fn test_distance_squared_to() {
     let p1 = Point3D::new(0.0, 0.0, 0.0);
     let p2 = Point3D::new(3.0, 4.0, 0.0);
-    assert_eq!(p1.distance_squared_to(&p2), 25.0);
+    assert_eq!(p1.distance_squared_to(p2), 25.0);
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn test_norm_squared() {
 fn test_midpoint() {
     let p1 = Point3D::new(0.0, 0.0, 0.0);
     let p2 = Point3D::new(2.0, 4.0, 6.0);
-    let mid = p1.midpoint(&p2);
+    let mid = p1.midpoint(p2);
     assert_eq!(mid.x(), 1.0);
     assert_eq!(mid.y(), 2.0);
     assert_eq!(mid.z(), 3.0);
@@ -158,15 +158,15 @@ fn test_lerp() {
     let p1 = Point3D::new(0.0, 0.0, 0.0);
     let p2 = Point3D::new(10.0, 10.0, 10.0);
 
-    let lerp0 = p1.lerp(&p2, 0.0);
+    let lerp0 = p1.lerp(p2, 0.0);
     assert_eq!(lerp0.x(), 0.0);
 
-    let lerp_half = p1.lerp(&p2, 0.5);
+    let lerp_half = p1.lerp(p2, 0.5);
     assert_eq!(lerp_half.x(), 5.0);
     assert_eq!(lerp_half.y(), 5.0);
     assert_eq!(lerp_half.z(), 5.0);
 
-    let lerp1 = p1.lerp(&p2, 1.0);
+    let lerp1 = p1.lerp(p2, 1.0);
     assert_eq!(lerp1.x(), 10.0);
 }
 

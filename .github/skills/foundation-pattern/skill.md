@@ -126,8 +126,8 @@ impl<T: Scalar> SimilarityTransformable3D<T> for LineSegment3D<T> {
             line: self.line.transform_similarity(transform)?,
             start_param: self.start_param * scale,
             end_param: self.end_param * scale,
-            start_point: transform.apply_point(&self.start_point),
-            end_point: transform.apply_point(&self.end_point),
+            start_point: transform.apply_point(self.start_point),
+            end_point: transform.apply_point(self.end_point),
         })
     }
 }

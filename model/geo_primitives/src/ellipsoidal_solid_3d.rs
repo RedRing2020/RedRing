@@ -109,7 +109,7 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         let z_axis = Direction3D::from_vector(axis)?;
 
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let axis_component = ref_direction.dot(&z_axis.as_vector());
+        let axis_component = ref_direction.dot(z_axis.as_vector());
         let orthogonal_ref = ref_direction - z_axis.as_vector() * axis_component;
 
         // 参照方向の正規化
@@ -149,7 +149,7 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
 
     /// Y軸方向を計算（axis × ref_direction）
     fn y_axis_internal(&self) -> Direction3D<T> {
-        let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
+        let y_vector = self.axis.as_vector().cross(self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector)
             .expect("Y-axis calculation should always succeed with orthogonal axes")
     }
@@ -214,9 +214,9 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         let z_axis = self.axis.as_vector();
 
         // ローカル座標に投影
-        let local_x = offset.dot(&x_axis);
-        let local_y = offset.dot(&y_axis);
-        let local_z = offset.dot(&z_axis);
+        let local_x = offset.dot(x_axis);
+        let local_y = offset.dot(y_axis);
+        let local_z = offset.dot(z_axis);
 
         // 正規化された楕円体方程式
         let x_norm = local_x / self.a_radius;
@@ -273,9 +273,9 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         let z_axis = self.axis.as_vector();
 
         let (surface_x, surface_y, surface_z) = geo_commons::ellipsoid_closest_point(
-            offset.dot(&x_axis),
-            offset.dot(&y_axis),
-            offset.dot(&z_axis),
+            offset.dot(x_axis),
+            offset.dot(y_axis),
+            offset.dot(z_axis),
             self.a_radius,
             self.b_radius,
             self.c_radius,

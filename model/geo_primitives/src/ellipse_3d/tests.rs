@@ -79,9 +79,9 @@ fn test_axis_directions() {
     );
 
     // 基本的な直交性確認
-    let dot1: f64 = major_dir.dot(&minor_dir);
-    let dot2: f64 = major_dir.dot(&ellipse.normal());
-    let dot3: f64 = minor_dir.dot(&ellipse.normal());
+    let dot1: f64 = major_dir.dot(minor_dir);
+    let dot2: f64 = major_dir.dot(ellipse.normal());
+    let dot3: f64 = minor_dir.dot(ellipse.normal());
     assert!(dot1.abs() < 1e-10f64);
     assert!(dot2.abs() < 1e-10f64);
     assert!(dot3.abs() < 1e-10f64);
@@ -174,7 +174,7 @@ fn test_distance_and_closest_point_to_curve() {
     // 平面外の点は、平面へ投影した点の最近点を最近点とする
     let closest = ellipse.closest_point(&Point3D::new(1.0, 0.5, 3.0));
     assert!(
-        closest.distance_to(&Point3D::new(
+        closest.distance_to(Point3D::new(
             1.110_726_977_965_884,
             0.831_607_717_078_608,
             0.0
@@ -258,7 +258,7 @@ fn test_parameter_for_point_returns_parameter_angle_of_closest_point() {
     for point in [Point3D::new(1.0, 0.5, 0.0), Point3D::new(-1.5, -0.2, 2.0)] {
         let parameter = ellipse.parameter_for_point(&point);
         let closest = ellipse.closest_point(&point);
-        assert!(ellipse.point_at_parameter(parameter).distance_to(&closest) < TOLERANCE_F64);
+        assert!(ellipse.point_at_parameter(parameter).distance_to(closest) < TOLERANCE_F64);
         assert!((0.0..std::f64::consts::TAU).contains(&parameter));
     }
 }

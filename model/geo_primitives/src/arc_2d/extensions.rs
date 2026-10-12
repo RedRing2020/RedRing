@@ -35,11 +35,11 @@ impl<T: Scalar> Arc2D<T> {
         end: Point2D<T>,
     ) -> Option<Self> {
         // 3点から円の中心と半径を計算
-        let v1 = start.vector_to(&middle);
-        let v2 = start.vector_to(&end);
+        let v1 = start.vector_to(middle);
+        let v2 = start.vector_to(end);
 
         // 3点が一直線上にある場合は円弧を作成できない
-        let cross = v1.cross(&v2);
+        let cross = v1.cross(v2);
         if cross.abs() <= default_distance_tolerance::<T>() {
             return None;
         }
@@ -65,11 +65,11 @@ impl<T: Scalar> Arc2D<T> {
             / d;
 
         let center = Point2D::new(ux, uy);
-        let radius = start.vector_to(&center).length();
+        let radius = start.vector_to(center).length();
 
         // 各点に対応する角度を計算
-        let start_dir = start.vector_to(&center).try_normalize()?;
-        let end_dir = end.vector_to(&center).try_normalize()?;
+        let start_dir = start.vector_to(center).try_normalize()?;
+        let end_dir = end.vector_to(center).try_normalize()?;
 
         let start_angle = start_dir.y().atan2(start_dir.x());
         let end_angle = end_dir.y().atan2(end_dir.x());

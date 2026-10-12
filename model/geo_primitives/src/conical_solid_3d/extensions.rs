@@ -30,7 +30,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
 
         // 軸方向への射影（高さ）
         let axis = self.axis;
-        let height_along_axis = relative.dot(&axis.as_vector());
+        let height_along_axis = relative.dot(axis.as_vector());
 
         // 高さが範囲外の場合
         let height = self.height;
@@ -82,9 +82,9 @@ impl<T: Scalar> ConicalSolid3D<T> {
 
     /// プロファイル面上の点の座標（軸からの距離, 底面からの高さ）
     fn profile_coordinates(&self, point: Point3D<T>) -> (T, T) {
-        let relative = Vector3D::from_points(&self.center, &point);
+        let relative = Vector3D::from_points(self.center, point);
         let axis = self.axis.as_vector();
-        let axial = relative.dot(&axis);
+        let axial = relative.dot(axis);
         let radial = (relative - axis * axial).length();
         (radial, axial)
     }

@@ -189,7 +189,7 @@ fn test_line_segment3d_reversed_closest_parameter_and_projection() {
         reversed
             .point_at_parameter(t)
             .unwrap()
-            .distance_to(&Point3D::new(3.0, 0.0, 0.0))
+            .distance_to(Point3D::new(3.0, 0.0, 0.0))
             < TOLERANCE_F64
     );
     assert!(
@@ -204,11 +204,11 @@ fn test_line_segment3d_reversed_closest_parameter_and_projection() {
 
     // 投影は線分内の点はそのまま、範囲外は近い端点に制限される
     let projected = reversed.closest_point(&Point3D::new(3.0, 2.0, 0.0));
-    assert!(projected.distance_to(&Point3D::new(3.0, 0.0, 0.0)) < TOLERANCE_F64);
+    assert!(projected.distance_to(Point3D::new(3.0, 0.0, 0.0)) < TOLERANCE_F64);
     let beyond_start = reversed.closest_point(&Point3D::new(15.0, 1.0, 0.0));
-    assert!(beyond_start.distance_to(&Point3D::new(10.0, 0.0, 0.0)) < TOLERANCE_F64);
+    assert!(beyond_start.distance_to(Point3D::new(10.0, 0.0, 0.0)) < TOLERANCE_F64);
     let beyond_end = reversed.closest_point(&Point3D::new(-5.0, 1.0, 0.0));
-    assert!(beyond_end.distance_to(&Point3D::new(0.0, 0.0, 0.0)) < TOLERANCE_F64);
+    assert!(beyond_end.distance_to(Point3D::new(0.0, 0.0, 0.0)) < TOLERANCE_F64);
 }
 
 #[test]

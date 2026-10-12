@@ -73,18 +73,18 @@ impl<T: Scalar> Vector2D<T> {
     }
 
     /// 内積を計算
-    pub fn dot(&self, other: &Self) -> T {
+    pub fn dot(&self, other: Self) -> T {
         self.x * other.x + self.y * other.y
     }
 
     /// 外積のZ成分を計算（2Dでは実際の外積ではなく、Z成分のスカラー値）
-    pub fn cross(&self, other: &Self) -> T {
+    pub fn cross(&self, other: Self) -> T {
         self.x * other.y - self.y * other.x
     }
 
     /// 2つの点からベクトルを作成（to - from）
     pub fn from_points(from: crate::Point2D<T>, to: crate::Point2D<T>) -> Self {
-        from.vector_to(&to)
+        from.vector_to(to)
     }
 
     /// ベクトルがゼロベクトルかを判定
@@ -129,14 +129,14 @@ impl<T: Scalar> Vector2D<T> {
     }
 
     /// ベクトル間の角度を取得
-    pub fn angle_to(&self, other: &Self) -> Angle<T> {
+    pub fn angle_to(&self, other: Self) -> Angle<T> {
         let dot = self.dot(other);
         let cross = self.cross(other);
         Angle::from_radians(cross.atan2(dot))
     }
 
     /// 2つのベクトル間で線形補間
-    pub fn lerp(&self, other: &Self, t: T) -> Self {
+    pub fn lerp(&self, other: Self, t: T) -> Self {
         Self::new(
             self.x + (other.x - self.x) * t,
             self.y + (other.y - self.y) * t,
@@ -144,22 +144,22 @@ impl<T: Scalar> Vector2D<T> {
     }
 
     /// 投影ベクトルを計算（このベクトルをotherに投影）
-    pub fn project_onto(&self, other: &Self) -> Self {
+    pub fn project_onto(&self, other: Self) -> Self {
         let other_len_sq = other.length_squared();
         if other_len_sq <= T::ZERO {
             Self::zero()
         } else {
-            *other * (self.dot(other) / other_len_sq)
+            other * (self.dot(other) / other_len_sq)
         }
     }
 
     /// 成分ごとの最小値
-    pub fn min(&self, other: &Self) -> Self {
+    pub fn min(&self, other: Self) -> Self {
         Self::new(self.x.min(other.x), self.y.min(other.y))
     }
 
     /// 成分ごとの最大値
-    pub fn max(&self, other: &Self) -> Self {
+    pub fn max(&self, other: Self) -> Self {
         Self::new(self.x.max(other.x), self.y.max(other.y))
     }
 

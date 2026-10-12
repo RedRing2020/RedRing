@@ -456,7 +456,7 @@ impl SolidBoundsSpatialIndex {
         self.buckets.get(&key).is_some_and(|candidate_indexes| {
             candidate_indexes
                 .iter()
-                .any(|&idx| self.solid_bounds[idx].contains_point(point))
+                .any(|&idx| self.solid_bounds[idx].contains_point(*point))
         })
     }
 }
@@ -483,7 +483,7 @@ fn is_voxel_boundary_point(
 
     offsets.into_iter().any(|(dx, dy, dz)| {
         let p = Point3D::new(point.x() + dx, point.y() + dy, point.z() + dz);
-        bounds.contains_point(&p) && voxel_index.contains_material_at(&p) != center_state
+        bounds.contains_point(p) && voxel_index.contains_material_at(&p) != center_state
     })
 }
 

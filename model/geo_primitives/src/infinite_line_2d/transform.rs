@@ -10,7 +10,7 @@ impl<T: Scalar> SimilarityTransformable2D<T> for InfiniteLine2D<T> {
         transform: &SimilarityTransform2D<T>,
     ) -> Result<Self, TransformError> {
         Ok(Self {
-            point: transform.apply_point(&self.point),
+            point: transform.apply_point(self.point),
             direction: transform.apply_direction(self.direction),
         })
     }

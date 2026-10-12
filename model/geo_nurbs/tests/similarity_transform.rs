@@ -55,10 +55,10 @@ fn rational_curve_3d_maps_points_and_keeps_weights() {
 
     for t in PARAMS {
         let p = curve.evaluate_at(t);
-        let expected = transform_3d().apply_point(&Point3D::new(p.x(), p.y(), p.z()));
+        let expected = transform_3d().apply_point(Point3D::new(p.x(), p.y(), p.z()));
         let q = moved.evaluate_at(t);
         let actual = Point3D::new(q.x(), q.y(), q.z());
-        let d = actual.distance_to(&expected);
+        let d = actual.distance_to(expected);
         assert!(d < TOLERANCE_F64, "t = {t}: {actual:?} != {expected:?}");
     }
     assert_eq!(moved.weights(), curve.weights());
@@ -66,10 +66,10 @@ fn rational_curve_3d_maps_points_and_keeps_weights() {
     assert_eq!(moved.degree(), curve.degree());
 
     // 1/4 円は変換後も円弧であり、半径はスケール係数倍になる
-    let center = transform_3d().apply_point(&Point3D::new(0.0, 0.0, 0.0));
+    let center = transform_3d().apply_point(Point3D::new(0.0, 0.0, 0.0));
     for t in PARAMS {
         let q = moved.evaluate_at(t);
-        let r = Point3D::new(q.x(), q.y(), q.z()).distance_to(&center);
+        let r = Point3D::new(q.x(), q.y(), q.z()).distance_to(center);
         assert!((r - SCALE).abs() < TOLERANCE_F64);
     }
 }
@@ -87,9 +87,9 @@ fn rational_curve_2d_maps_points_and_keeps_weights() {
 
     for t in PARAMS {
         let p = curve.evaluate_at(t);
-        let expected = transform_2d().apply_point(&Point2D::new(p.x(), p.y()));
+        let expected = transform_2d().apply_point(Point2D::new(p.x(), p.y()));
         let q = moved.evaluate_at(t);
-        let d = Point2D::new(q.x(), q.y()).distance_to(&expected);
+        let d = Point2D::new(q.x(), q.y()).distance_to(expected);
         assert!(d < TOLERANCE_F64, "t = {t}");
     }
     assert_eq!(moved.weights(), curve.weights());
@@ -114,9 +114,9 @@ fn rational_surface_maps_points_and_keeps_weights() {
     for u in PARAMS {
         for v in PARAMS {
             let p = surface.evaluate_at(u, v);
-            let expected = transform_3d().apply_point(&Point3D::new(p.x(), p.y(), p.z()));
+            let expected = transform_3d().apply_point(Point3D::new(p.x(), p.y(), p.z()));
             let q = moved.evaluate_at(u, v);
-            let d = Point3D::new(q.x(), q.y(), q.z()).distance_to(&expected);
+            let d = Point3D::new(q.x(), q.y(), q.z()).distance_to(expected);
             assert!(d < TOLERANCE_F64, "(u, v) = ({u}, {v})");
         }
     }

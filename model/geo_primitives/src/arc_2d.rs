@@ -164,7 +164,7 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
 
         // 外接円の中心と半径を計算
         let center = Self::circumcenter(p1, p2, p3)?;
-        let radius = center.distance_to(&p1);
+        let radius = center.distance_to(p1);
 
         // 各点の角度を計算
         let start_angle = Self::angle_from_center(center, p1);
@@ -354,8 +354,8 @@ impl<T: Scalar> Arc2D<T> {
             self.circle.distance_to_point(point)
         } else {
             point
-                .distance_to(&self.start_point())
-                .min(point.distance_to(&self.end_point()))
+                .distance_to(self.start_point())
+                .min(point.distance_to(self.end_point()))
         }
     }
 

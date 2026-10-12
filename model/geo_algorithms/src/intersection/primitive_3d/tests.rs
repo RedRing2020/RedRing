@@ -539,7 +539,7 @@ fn spherical_solid_ray_entrypoints_are_symmetric_wrappers() {
     assert_eq!(a_to_b.topology, b_to_a.topology);
     match (&a_to_b.geometry, &b_to_a.geometry) {
         (IntersectionGeometry::Point(a), IntersectionGeometry::Point(b)) => {
-            assert!(a.distance_to(b) <= tolerance);
+            assert!(a.distance_to(*b) <= tolerance);
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
         _ => panic!("Geometry mismatch between wrapper entrypoints"),
@@ -566,7 +566,7 @@ fn spherical_solid_line_segment_intersection_handles_reversed_segment() {
         let result = spherical_solid3d_line_segment3d_intersection(&sphere, &target, tolerance);
         match result.geometry {
             IntersectionGeometry::Point(point) => {
-                assert!(point.distance_to(&Point3D::new(0.0, 0.0, 0.0)) <= tolerance);
+                assert!(point.distance_to(Point3D::new(0.0, 0.0, 0.0)) <= tolerance);
             }
             _ => panic!("Expected Point geometry"),
         }
@@ -579,7 +579,7 @@ fn spherical_solid_line_segment_intersection_handles_reversed_segment() {
         let result = spherical_solid3d_line_segment3d_intersection(&sphere, &target, tolerance);
         match result.geometry {
             IntersectionGeometry::Point(point) => {
-                assert!(point.distance_to(&Point3D::new(1.0, 0.0, 0.0)) <= tolerance);
+                assert!(point.distance_to(Point3D::new(1.0, 0.0, 0.0)) <= tolerance);
             }
             _ => panic!("Expected Point geometry"),
         }
@@ -606,7 +606,7 @@ fn spherical_surface_ray_entrypoints_are_symmetric_wrappers() {
         (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
             assert_eq!(a.len(), b.len());
             for (pa, pb) in a.iter().zip(b.iter()) {
-                assert!(pa.distance_to(pb) <= tolerance);
+                assert!(pa.distance_to(*pb) <= tolerance);
             }
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
@@ -636,7 +636,7 @@ fn ellipsoidal_solid_ray_entrypoints_are_symmetric_wrappers() {
         (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
             assert_eq!(a.len(), b.len());
             for (pa, pb) in a.iter().zip(b.iter()) {
-                assert!(pa.distance_to(pb) <= tolerance);
+                assert!(pa.distance_to(*pb) <= tolerance);
             }
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
@@ -664,7 +664,7 @@ fn arc_ray_entrypoints_are_symmetric_wrappers() {
     assert_eq!(a_to_b.topology, b_to_a.topology);
     match (&a_to_b.geometry, &b_to_a.geometry) {
         (IntersectionGeometry::Point(a), IntersectionGeometry::Point(b)) => {
-            assert!(a.distance_to(b) <= tolerance);
+            assert!(a.distance_to(*b) <= tolerance);
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
         _ => panic!("Geometry mismatch between wrapper entrypoints"),
@@ -688,7 +688,7 @@ fn circle_ray_entrypoints_are_symmetric_wrappers() {
     assert_eq!(a_to_b.topology, b_to_a.topology);
     match (&a_to_b.geometry, &b_to_a.geometry) {
         (IntersectionGeometry::Point(a), IntersectionGeometry::Point(b)) => {
-            assert!(a.distance_to(b) <= tolerance);
+            assert!(a.distance_to(*b) <= tolerance);
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
         _ => panic!("Geometry mismatch between wrapper entrypoints"),
@@ -716,7 +716,7 @@ fn ellipse_ray_entrypoints_are_symmetric_wrappers() {
         (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
             assert_eq!(a.len(), b.len());
             for (pa, pb) in a.iter().zip(b.iter()) {
-                assert!(pa.distance_to(pb) <= tolerance);
+                assert!(pa.distance_to(*pb) <= tolerance);
             }
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
@@ -743,7 +743,7 @@ fn conical_solid_ray_entrypoints_are_symmetric_wrappers() {
     assert_eq!(a_to_b.topology, b_to_a.topology);
     match (&a_to_b.geometry, &b_to_a.geometry) {
         (IntersectionGeometry::Point(a), IntersectionGeometry::Point(b)) => {
-            assert!(a.distance_to(b) <= tolerance);
+            assert!(a.distance_to(*b) <= tolerance);
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
         _ => panic!("Geometry mismatch between wrapper entrypoints"),
@@ -771,7 +771,7 @@ fn conical_surface_ray_entrypoints_are_symmetric_wrappers() {
         (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
             assert_eq!(a.len(), b.len());
             for (pa, pb) in a.iter().zip(b.iter()) {
-                assert!(pa.distance_to(pb) <= tolerance);
+                assert!(pa.distance_to(*pb) <= tolerance);
             }
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
@@ -791,7 +791,7 @@ fn ray_ray_intersection_returns_shared_point_only_for_forward_rays() {
     assert_eq!(crossing.topology, IntersectionTopology::Crossing);
     let origin = Point3D::new(0.0_f64, 0.0, 0.0);
     if let IntersectionGeometry::Point(ref p) = crossing.geometry {
-        assert!(p.distance_to(&origin) < 1e-9);
+        assert!(p.distance_to(origin) < 1e-9);
     } else {
         panic!("Expected IntersectionGeometry::Point for crossing");
     }
@@ -851,7 +851,7 @@ fn spherical_surface_line_like_intersections_handle_tangent_and_backward_ray() {
         IntersectionGeometry::Points(ref pts) if pts.len() == 1 => pts[0],
         ref other => panic!("Expected single tangent point, got {other:?}"),
     };
-    assert!(tangent_point.distance_to(&Point3D::new(0.0, 1.0, 0.0)) < tol);
+    assert!(tangent_point.distance_to(Point3D::new(0.0, 1.0, 0.0)) < tol);
 
     let backward = ray3d_spherical_surface3d_intersections(&backward_ray, &sphere, tol);
     assert_eq!(backward.topology, IntersectionTopology::Disjoint);
@@ -886,7 +886,7 @@ fn linear_pair_intersections_detect_crossing_and_reject_outside_cases() {
 
     let line_line = infinite_line3d_infinite_line3d_intersection(&x_axis, &y_axis, tol);
     if let IntersectionGeometry::Point(p) = line_line.geometry {
-        assert!(p.distance_to(&Point3D::origin()) < tol);
+        assert!(p.distance_to(Point3D::origin()) < tol);
     } else {
         panic!("Expected IntersectionGeometry::Point for line-line crossing");
     }

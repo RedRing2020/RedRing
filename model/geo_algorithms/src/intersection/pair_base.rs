@@ -26,7 +26,7 @@ pub fn circle2d_circle2d_intersections<T: Scalar>(
 
     let dx = center2.0 - center1.0;
     let dy = center2.1 - center1.1;
-    let d = center1_point.distance_to(&center2_point);
+    let d = center1_point.distance_to(center2_point);
 
     if d > r1 + r2 + tolerance || d + tolerance < (r1 - r2).abs() || d.abs() <= tolerance {
         return result;
@@ -106,7 +106,7 @@ pub fn line_segment2d_circle2d_intersections<T: Scalar>(
 
     let start_point = Point2D::from_tuple(start);
     let end_point = Point2D::from_tuple(end);
-    let a = start_point.distance_squared_to(&end_point);
+    let a = start_point.distance_squared_to(end_point);
     if a.abs() <= tolerance {
         return result;
     }

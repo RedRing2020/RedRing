@@ -11,7 +11,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for Plane3D<T> {
         &self,
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
-        let origin = transform.apply_point(&self.origin);
+        let origin = transform.apply_point(self.origin);
         let normal = transform.apply_direction(self.normal);
         let u_axis = transform.apply_direction(self.u_axis);
         Self::from_origin_and_axes(origin, normal.as_vector(), u_axis.as_vector())

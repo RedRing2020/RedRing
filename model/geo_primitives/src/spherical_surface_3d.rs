@@ -105,7 +105,7 @@ impl<T: Scalar> SphericalSurface3D<T> {
         let z_axis = Direction3D::from_vector(axis)?;
 
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let axis_component = ref_direction.dot(&z_axis.as_vector());
+        let axis_component = ref_direction.dot(z_axis.as_vector());
         let orthogonal_ref = ref_direction - z_axis.as_vector() * axis_component;
 
         // 参照方向の正規化
@@ -137,7 +137,7 @@ impl<T: Scalar> SphericalSurface3D<T> {
     /// Y軸方向を計算（axis × ref_direction）
     #[allow(dead_code)]
     fn y_axis_internal(&self) -> Direction3D<T> {
-        let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
+        let y_vector = self.axis.as_vector().cross(self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector)
             .expect("Y-axis calculation should always succeed with orthogonal axes")
     }
@@ -214,8 +214,8 @@ impl<T: Scalar> SphericalSurface3D<T> {
         line_direction: &Vector3D<T>,
     ) -> T {
         let to_center = self.center - *line_point;
-        let dir_dot = line_direction.dot(line_direction);
-        let t = to_center.dot(line_direction) / dir_dot;
+        let dir_dot = line_direction.dot(*line_direction);
+        let t = to_center.dot(*line_direction) / dir_dot;
         let closest = *line_point + *line_direction * t;
         let distance_from_center = (self.center - closest).length();
         (distance_from_center - self.radius).abs()
@@ -231,8 +231,8 @@ impl<T: Scalar> SphericalSurface3D<T> {
     /// 球面から光線までの最短距離
     pub fn distance_to_ray(&self, ray_origin: &Point3D<T>, ray_direction: &Vector3D<T>) -> T {
         let to_center = self.center - *ray_origin;
-        let dir_dot = ray_direction.dot(ray_direction);
-        let t = to_center.dot(ray_direction) / dir_dot;
+        let dir_dot = ray_direction.dot(*ray_direction);
+        let t = to_center.dot(*ray_direction) / dir_dot;
 
         if t < T::ZERO {
             let dist_to_origin = to_center.length();
@@ -259,8 +259,8 @@ impl<T: Scalar> SphericalSurface3D<T> {
     ) -> T {
         let direction = *segment_end - *segment_start;
         let to_center = self.center - *segment_start;
-        let dir_dot = direction.dot(&direction);
-        let t = to_center.dot(&direction) / dir_dot;
+        let dir_dot = direction.dot(direction);
+        let t = to_center.dot(direction) / dir_dot;
 
         let nearest = if t < T::ZERO {
             *segment_start
@@ -299,7 +299,7 @@ impl<T: Scalar> SphericalSurface3D<T> {
     /// 点から球サーフェスまでの最短距離を計算
     /// 球内部の点の場合は負の値を返す
     pub fn distance_to_surface(&self, point: Point3D<T>) -> T {
-        let distance_to_center = self.center.distance_to(&point);
+        let distance_to_center = self.center.distance_to(point);
         distance_to_center - self.radius
     }
 }
@@ -397,7 +397,7 @@ impl<T: Scalar> SphericalSurface3DProjection<T> for SphericalSurface3D<T> {
         let r = self.radius;
         let p = Point3D::new(point.0, point.1, point.2);
 
-        let dir = Vector3D::from_points(&c, &p);
+        let dir = Vector3D::from_points(c, p);
         let len = dir.length();
 
         if len < T::EPSILON {

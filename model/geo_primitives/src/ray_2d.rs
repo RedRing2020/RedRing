@@ -95,7 +95,7 @@ impl<T: Scalar> Ray2D<T> {
     /// 点が Ray の延長線上にある場合のパラメータ（負の値も含む）
     pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
         let to_point = *point - self.origin;
-        to_point.dot(&self.direction)
+        to_point.dot(*self.direction)
     }
 
     /// Ray 上で点に最も近い点のパラメータ（起点からの距離。0 以上に制限する）を取得
@@ -112,7 +112,7 @@ impl<T: Scalar> Ray2D<T> {
     pub fn angle_between(&self, other: &Self) -> T {
         let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
         let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
-        this_dir.dot(&other_dir).acos()
+        this_dir.dot(other_dir).acos()
     }
 }
 
@@ -147,10 +147,10 @@ impl<T: Scalar> Ray2D<T> {
         if t >= T::ZERO {
             // 点が Ray の有効範囲内
             let projected_point = self.origin + self.direction * t;
-            point.distance_to(&projected_point)
+            point.distance_to(projected_point)
         } else {
             // 点が Ray の起点より後ろ側
-            point.distance_to(&self.origin)
+            point.distance_to(self.origin)
         }
     }
 }
@@ -241,7 +241,7 @@ impl<T: Scalar> ParallelRelation<Self> for Ray2D<T> {
     fn is_parallel_to(&self, other: &Self) -> bool {
         let this_dir = Vector2D::new(self.direction.x(), self.direction.y());
         let other_dir = Vector2D::new(other.direction.x(), other.direction.y());
-        let cross = this_dir.cross(&other_dir);
+        let cross = this_dir.cross(other_dir);
         cross.abs() < geo_contracts::default_distance_tolerance::<T>()
     }
 }

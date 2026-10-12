@@ -15,7 +15,7 @@ impl<T: Scalar> SimilarityTransformable2D<T> for Ellipse2D<T> {
         let (x, y) = (rotated.x(), rotated.y());
         let scale = transform.scale_factor();
         Self::new(
-            transform.apply_point(&self.center),
+            transform.apply_point(self.center),
             self.semi_major * scale,
             self.semi_minor * scale,
             y.atan2(x),

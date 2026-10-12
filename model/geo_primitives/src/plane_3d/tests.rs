@@ -214,9 +214,9 @@ fn test_coordinate_system_orthogonality() {
     let v_axis = plane_sys.v_axis;
     let normal_axis = plane_sys.normal();
 
-    let dot_uv = u_axis.as_vector().dot(&v_axis.as_vector());
-    let dot_un = u_axis.as_vector().dot(&normal_axis.as_vector());
-    let dot_vn = v_axis.as_vector().dot(&normal_axis.as_vector());
+    let dot_uv = u_axis.as_vector().dot(v_axis.as_vector());
+    let dot_un = u_axis.as_vector().dot(normal_axis.as_vector());
+    let dot_vn = v_axis.as_vector().dot(normal_axis.as_vector());
 
     assert_abs_diff_eq!(dot_uv, 0.0, epsilon = TOLERANCE_F64);
     assert_abs_diff_eq!(dot_un, 0.0, epsilon = TOLERANCE_F64);
@@ -247,9 +247,9 @@ fn test_gram_schmidt_orthogonalization() {
     let normal_axis = plane_sys.normal();
 
     // 直交性確認
-    let dot_uv = u_axis.as_vector().dot(&v_axis.as_vector());
-    let dot_un = u_axis.as_vector().dot(&normal_axis.as_vector());
-    let dot_vn = v_axis.as_vector().dot(&normal_axis.as_vector());
+    let dot_uv = u_axis.as_vector().dot(v_axis.as_vector());
+    let dot_un = u_axis.as_vector().dot(normal_axis.as_vector());
+    let dot_vn = v_axis.as_vector().dot(normal_axis.as_vector());
 
     assert_abs_diff_eq!(dot_uv, 0.0, epsilon = TOLERANCE_F64);
     assert_abs_diff_eq!(dot_un, 0.0, epsilon = TOLERANCE_F64);

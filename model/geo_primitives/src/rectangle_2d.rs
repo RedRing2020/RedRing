@@ -82,7 +82,7 @@ impl<T: Scalar> Rect2D<T> {
     /// 辺までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
     /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
     pub fn classify_point(&self, point: &Point2D<T>, tolerance: T) -> PointClassification {
-        geo_core::Aabb2D::new(self.origin, self.max_point()).classify_point(point, tolerance)
+        geo_core::Aabb2D::new(self.origin, self.max_point()).classify_point(*point, tolerance)
     }
 
     pub fn area(&self) -> T {

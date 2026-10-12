@@ -57,10 +57,10 @@ fn test_vector3d_operations() {
     let v2 = Vector3D::new(4.0, 5.0, 6.0);
 
     // 内積
-    assert_eq!(v1.dot(&v2), 32.0); // 1*4 + 2*5 + 3*6 = 32
+    assert_eq!(v1.dot(v2), 32.0); // 1*4 + 2*5 + 3*6 = 32
 
     // 外積
-    let cross = v1.cross(&v2);
+    let cross = v1.cross(v2);
     assert_eq!(cross.x(), -3.0); // 2*6 - 3*5 = -3
     assert_eq!(cross.y(), 6.0); // 3*4 - 1*6 = 6
     assert_eq!(cross.z(), -3.0); // 1*5 - 2*4 = -3
@@ -74,7 +74,7 @@ fn test_vector3d_operations() {
 fn test_vector3d_from_points() {
     let p1 = Point3D::new(1.0, 2.0, 3.0);
     let p2 = Point3D::new(4.0, 6.0, 9.0);
-    let vec = Vector3D::from_points(&p1, &p2);
+    let vec = Vector3D::from_points(p1, p2);
     assert_eq!(vec.components(), [3.0, 4.0, 6.0]);
 }
 

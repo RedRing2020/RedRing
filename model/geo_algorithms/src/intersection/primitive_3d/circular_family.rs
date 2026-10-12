@@ -144,16 +144,16 @@ fn arc3d_arc3d_intersection_raw<T: Scalar>(
     let pb = Point3D::new(e1x, e1y, e1z);
     let pc = Point3D::new(s2x, s2y, s2z);
     let pd = Point3D::new(e2x, e2y, e2z);
-    if Vector3D::from_points(&pa, &pc).length() <= tolerance {
+    if Vector3D::from_points(pa, pc).length() <= tolerance {
         return Some(pa);
     }
-    if Vector3D::from_points(&pa, &pd).length() <= tolerance {
+    if Vector3D::from_points(pa, pd).length() <= tolerance {
         return Some(pa);
     }
-    if Vector3D::from_points(&pb, &pc).length() <= tolerance {
+    if Vector3D::from_points(pb, pc).length() <= tolerance {
         return Some(pb);
     }
-    if Vector3D::from_points(&pb, &pd).length() <= tolerance {
+    if Vector3D::from_points(pb, pd).length() <= tolerance {
         return Some(pb);
     }
     None

@@ -15,7 +15,7 @@ impl<T: Scalar> Bounded<T> for Circle3D<T> {
         let center = self.center;
         let radius = self.radius;
         let u = self.ref_direction.as_vector();
-        let v = self.axis.as_vector().cross(&u);
+        let v = self.axis.as_vector().cross(u);
 
         let extent_x = extent_from_plane_axes(radius, u.x(), v.x());
         let extent_y = extent_from_plane_axes(radius, u.y(), v.y());

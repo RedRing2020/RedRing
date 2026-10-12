@@ -42,18 +42,18 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
     let d1 = InfiniteLine3DProperties::direction(line1).as_vector();
     let p2 = InfiniteLine3DProperties::point(line2);
     let d2 = InfiniteLine3DProperties::direction(line2).as_vector();
-    let dp = Vector3D::from_points(&p1, &p2);
-    let cross_d1_d2 = d1.cross(&d2);
-    let cross_dp_d2 = dp.cross(&d2);
+    let dp = Vector3D::from_points(p1, p2);
+    let cross_d1_d2 = d1.cross(d2);
+    let cross_dp_d2 = dp.cross(d2);
 
     // denom_sq は無次元量（sin²θ 相当）。par_tol と同じ無次元軸で比較する。
-    let denom_sq = cross_d1_d2.dot(&cross_d1_d2);
+    let denom_sq = cross_d1_d2.dot(cross_d1_d2);
     let par_tol = default_parallel_cross_error_tolerance::<T>();
     if !check_denominator_validity(denom_sq, par_tol * par_tol) {
         return None;
     }
 
-    let t = cross_dp_d2.dot(&cross_d1_d2) / denom_sq;
+    let t = cross_dp_d2.dot(cross_d1_d2) / denom_sq;
     Some(Point3D::new(
         p1.x() + t * d1.x(),
         p1.y() + t * d1.y(),

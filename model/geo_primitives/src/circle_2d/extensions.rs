@@ -13,7 +13,7 @@ impl<T: Scalar> Circle2D<T> {
         let v1 = Vector2D::from_points(p1, p2);
         let v2 = Vector2D::from_points(p1, p3);
 
-        let cross = v1.cross(&v2);
+        let cross = v1.cross(v2);
         if cross.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 共線点
         }
@@ -36,7 +36,7 @@ impl<T: Scalar> Circle2D<T> {
         }
 
         let center = Point2D::new(aux1 / div, aux2 / div);
-        let radius = center.distance_to(&p1);
+        let radius = center.distance_to(p1);
 
         Self::new(center, radius)
     }

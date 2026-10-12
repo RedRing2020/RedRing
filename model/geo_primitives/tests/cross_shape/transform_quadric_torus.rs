@@ -31,7 +31,7 @@ fn transform() -> SimilarityTransform3D<f64> {
 }
 
 fn map(p: (f64, f64, f64)) -> (f64, f64, f64) {
-    let q = transform().apply_point(&Point3D::from(p));
+    let q = transform().apply_point(Point3D::from(p));
     (q.x(), q.y(), q.z())
 }
 
@@ -48,7 +48,7 @@ fn assert_surface_maps(
         let expected = Point3D::from(map(original(u, v)));
         let actual = Point3D::from(moved(u, v * v_scale));
         assert!(
-            actual.distance_to(&expected) < TOLERANCE_F64,
+            actual.distance_to(expected) < TOLERANCE_F64,
             "(u, v) = ({u}, {v}): {actual:?} != {expected:?}"
         );
     }

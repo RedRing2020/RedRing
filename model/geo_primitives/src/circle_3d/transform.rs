@@ -10,7 +10,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for Circle3D<T> {
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         Self::new_with_ref_direction(
-            transform.apply_point(&self.center),
+            transform.apply_point(self.center),
             transform.apply_direction(self.axis),
             transform.apply_direction(self.ref_direction),
             self.radius * transform.scale_factor(),

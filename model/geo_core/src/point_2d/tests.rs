@@ -33,19 +33,19 @@ fn test_distance_calculations() {
     let p2 = Point2D::new(3.0_f64, 4.0_f64);
 
     // 距離計算
-    let distance = p1.distance_to(&p2);
+    let distance = p1.distance_to(p2);
     assert_eq!(distance, 5.0);
 
     // 距離の2乗
-    let distance_squared = p1.distance_squared_to(&p2);
+    let distance_squared = p1.distance_squared_to(p2);
     assert_eq!(distance_squared, 25.0);
 
     // 原点からの距離
-    let origin_distance = p2.distance_to(&Point2D::<f64>::origin());
+    let origin_distance = p2.distance_to(Point2D::<f64>::origin());
     assert_eq!(origin_distance, 5.0);
 
     // 原点からの距離の2乗
-    let origin_distance_squared = p2.distance_squared_to(&Point2D::<f64>::origin());
+    let origin_distance_squared = p2.distance_squared_to(Point2D::<f64>::origin());
     assert_eq!(origin_distance_squared, 25.0);
 }
 
@@ -55,26 +55,26 @@ fn test_interpolation_and_midpoint() {
     let p2 = Point2D::new(10.0_f64, 10.0_f64);
 
     // 線形補間
-    let lerp_start = p1.lerp(&p2, 0.0_f64);
+    let lerp_start = p1.lerp(p2, 0.0_f64);
     assert_eq!(lerp_start, p1);
 
-    let lerp_end = p1.lerp(&p2, 1.0_f64);
+    let lerp_end = p1.lerp(p2, 1.0_f64);
     assert_eq!(lerp_end, p2);
 
-    let lerp_mid = p1.lerp(&p2, 0.5_f64);
+    let lerp_mid = p1.lerp(p2, 0.5_f64);
     assert_eq!(lerp_mid, Point2D::new(5.0_f64, 5.0_f64));
 
-    let lerp_quarter = p1.lerp(&p2, 0.25_f64);
+    let lerp_quarter = p1.lerp(p2, 0.25_f64);
     assert_eq!(lerp_quarter, Point2D::new(2.5_f64, 2.5_f64));
 
     // 中点計算
-    let midpoint = p1.midpoint(&p2);
+    let midpoint = p1.midpoint(p2);
     assert_eq!(midpoint, Point2D::new(5.0_f64, 5.0_f64));
 
     // 異なる点での中点
     let p3 = Point2D::new(1.0_f64, 3.0_f64);
     let p4 = Point2D::new(5.0_f64, 7.0_f64);
-    let mid = p3.midpoint(&p4);
+    let mid = p3.midpoint(p4);
     assert_eq!(mid, Point2D::new(3.0_f64, 5.0_f64));
 }
 
@@ -100,7 +100,7 @@ fn test_transformations() {
     // 指定点中心回転
     let center = Point2D::new(1.0_f64, 1.0_f64);
     let rotated_around =
-        point.rotate_around(&center, Angle::from_radians(std::f64::consts::PI / 2.0));
+        point.rotate_around(center, Angle::from_radians(std::f64::consts::PI / 2.0));
     assert!((rotated_around.x() - 0.0).abs() < 1e-10);
     assert!((rotated_around.y() - 1.0).abs() < 1e-10);
 
@@ -127,7 +127,7 @@ fn test_vector_conversion() {
     // 2点間のベクトル
     let p1 = Point2D::new(1.0_f64, 2.0_f64);
     let p2 = Point2D::new(4.0_f64, 6.0_f64);
-    let vector_between = p1.vector_to(&p2);
+    let vector_between = p1.vector_to(p2);
     assert_eq!(vector_between.x(), 3.0);
     assert_eq!(vector_between.y(), 4.0);
 }
@@ -191,12 +191,12 @@ fn test_f32_compatibility() {
     let other = Point2D::new(4.5f32, 6.5f32);
 
     // 距離計算
-    let distance = point.distance_to(&other);
+    let distance = point.distance_to(other);
     let expected = 5.0f32; // 3-4-5三角形
     assert!((distance - expected).abs() < 1e-6);
 
     // 中点計算
-    let midpoint = point.midpoint(&other);
+    let midpoint = point.midpoint(other);
     assert_eq!(midpoint, Point2D::new(3.0f32, 4.5f32));
 
     // 回転
@@ -210,13 +210,13 @@ fn test_edge_cases() {
     let origin = Point2D::<f64>::origin();
 
     // 原点の特性
-    assert_eq!(origin.distance_to(&Point2D::<f64>::origin()), 0.0);
-    assert_eq!(origin.distance_squared_to(&Point2D::<f64>::origin()), 0.0);
+    assert_eq!(origin.distance_to(Point2D::<f64>::origin()), 0.0);
+    assert_eq!(origin.distance_squared_to(Point2D::<f64>::origin()), 0.0);
 
     // 同じ点での操作
     let same_point = Point2D::new(1.0_f64, 2.0_f64);
-    assert_eq!(same_point.distance_to(&same_point), 0.0);
-    assert_eq!(same_point.midpoint(&same_point), same_point);
+    assert_eq!(same_point.distance_to(same_point), 0.0);
+    assert_eq!(same_point.midpoint(same_point), same_point);
 
     // ゼロベクトルとの演算
     let zero_vector = Vector2D::<f64>::zero();
@@ -235,11 +235,11 @@ fn test_large_coordinates() {
     let small_point = Point2D::new(1.0_f64, 1.0_f64);
 
     // 距離計算が正常に動作することを確認
-    let distance = large_point.distance_to(&small_point);
+    let distance = large_point.distance_to(small_point);
     assert!(distance > 1e10);
 
     // 中点計算
-    let midpoint = large_point.midpoint(&small_point);
+    let midpoint = large_point.midpoint(small_point);
     assert!((midpoint.x() - 5e9 - 0.5).abs() < 1e-6);
     assert!((midpoint.y() - 5e9 - 0.5).abs() < 1e-6);
 }
@@ -251,14 +251,14 @@ fn test_negative_coordinates() {
     let pos_point = Point2D::new(3.0_f64, 4.0_f64);
 
     // 距離計算
-    let distance = neg_point.distance_to(&pos_point);
+    let distance = neg_point.distance_to(pos_point);
     assert!((distance - 10.0).abs() < 1e-10); // √((6)² + (8)²) = 10
 
     // 中点（原点）
-    let midpoint = neg_point.midpoint(&pos_point);
+    let midpoint = neg_point.midpoint(pos_point);
     assert_eq!(midpoint, Point2D::<f64>::origin());
 
     // 距離の計算
-    let norm = neg_point.distance_to(&Point2D::<f64>::origin());
+    let norm = neg_point.distance_to(Point2D::<f64>::origin());
     assert!((norm - 5.0).abs() < 1e-10);
 }

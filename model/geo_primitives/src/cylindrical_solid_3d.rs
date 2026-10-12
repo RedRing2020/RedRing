@@ -70,15 +70,15 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for CylindricalSolid3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for CylindricalSolid3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let center_distance = self.center.distance_to(&other.center);
+        let center_distance = self.center.distance_to(other.center);
         let radius_diff = (self.radius() - other.radius()).abs();
         let height_diff = (self.height() - other.height()).abs();
-        let axis_dot = self.axis().as_vector().dot(&other.axis().as_vector()).abs();
+        let axis_dot = self.axis().as_vector().dot(other.axis().as_vector()).abs();
         let axis_similar = axis_dot >= T::from_f64(0.999);
         let ref_dot = self
             .ref_direction()
             .as_vector()
-            .dot(&other.ref_direction().as_vector())
+            .dot(other.ref_direction().as_vector())
             .abs();
         let ref_similar = ref_dot >= T::from_f64(0.999);
 
@@ -124,7 +124,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         let z_axis = Direction3D::from_vector(axis)?;
 
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let axis_component = ref_direction.dot(&z_axis.as_vector());
+        let axis_component = ref_direction.dot(z_axis.as_vector());
         let orthogonal_ref = ref_direction - z_axis.as_vector() * axis_component;
 
         // 参照方向の正規化
@@ -162,7 +162,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
 
     /// Y軸方向を計算（axis × ref_direction）
     pub fn y_axis(&self) -> Direction3D<T> {
-        let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
+        let y_vector = self.axis.as_vector().cross(self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector)
             .expect("Y-axis calculation should always succeed with orthogonal axes")
     }
@@ -225,8 +225,8 @@ impl<T: Scalar> CylindricalSolid3D<T> {
     pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
         let inside = self.contains_point_internal(*point);
         let boundary_distance = if inside {
-            let to_point = Vector3D::from_points(&self.center, point);
-            let axial = to_point.dot(&self.axis.as_vector());
+            let to_point = Vector3D::from_points(self.center, *point);
+            let axial = to_point.dot(self.axis.as_vector());
             let radial = (to_point - self.axis.as_vector() * axial).length();
             (self.radius - radial).min(axial).min(self.height - axial)
         } else {
@@ -251,7 +251,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
             point.z() - self.center.z(),
         );
 
-        let axis_projection = to_point.dot(&self.axis.as_vector());
+        let axis_projection = to_point.dot(self.axis.as_vector());
 
         // 高さ範囲の確認
         if axis_projection < T::ZERO || axis_projection > self.height {
@@ -282,7 +282,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
             point.z() - self.center.z(),
         );
 
-        let axis_projection = to_point.dot(&self.axis.as_vector());
+        let axis_projection = to_point.dot(self.axis.as_vector());
 
         // 軸方向の距離
         let axis_distance = if axis_projection < T::ZERO {

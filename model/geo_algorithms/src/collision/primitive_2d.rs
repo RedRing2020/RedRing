@@ -27,7 +27,7 @@ pub fn circle2d_point2d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let center = Point2D::from_tuple(circle.center());
-    let distance = point.distance_to(&center);
+    let distance = point.distance_to(center);
     (distance - circle.radius()).abs() <= tolerance
 }
 
@@ -38,7 +38,7 @@ pub fn circle2d_circle2d_collides<T: Scalar>(
 ) -> bool {
     let center1 = Point2D::from_tuple(circle1.center());
     let center2 = Point2D::from_tuple(circle2.center());
-    let center_distance = center1.distance_to(&center2);
+    let center_distance = center1.distance_to(center2);
 
     let radii_sum = circle1.radius() + circle2.radius();
     let radii_diff = (circle1.radius() - circle2.radius()).abs();
@@ -57,10 +57,10 @@ pub fn line_segment2d_point2d_distance<T: Scalar>(
 
     let dx = end.0 - start.0;
     let dy = end.1 - start.1;
-    let length_sq = start_point.distance_squared_to(&end_point);
+    let length_sq = start_point.distance_squared_to(end_point);
 
     if length_sq == T::ZERO {
-        return point.distance_to(&start_point);
+        return point.distance_to(start_point);
     }
 
     let t = {
@@ -72,7 +72,7 @@ pub fn line_segment2d_point2d_distance<T: Scalar>(
     let closest_y = start.1 + t * dy;
 
     let closest_point = Point2D::new(closest_x, closest_y);
-    point.distance_to(&closest_point)
+    point.distance_to(closest_point)
 }
 
 pub fn line_segment2d_circle2d_collides<T: Scalar>(
@@ -87,7 +87,7 @@ pub fn line_segment2d_circle2d_collides<T: Scalar>(
 
 pub fn arc2d_point2d_collides<T: Scalar>(arc: &Arc2D<T>, point: &Point2D<T>, tolerance: T) -> bool {
     let center = Point2D::from_tuple(<Arc2D<T> as Arc2DProperties<T>>::center(arc));
-    let distance = point.distance_to(&center);
+    let distance = point.distance_to(center);
 
     (distance - arc.radius()).abs() <= tolerance
 }
@@ -99,7 +99,7 @@ pub fn arc2d_circle2d_collides<T: Scalar>(
 ) -> bool {
     let center1 = Point2D::from_tuple(<Arc2D<T> as Arc2DProperties<T>>::center(arc));
     let center2 = Point2D::from_tuple(circle.center());
-    let center_distance = center1.distance_to(&center2);
+    let center_distance = center1.distance_to(center2);
 
     let radii_sum = arc.radius() + circle.radius();
     let radii_diff = (arc.radius() - circle.radius()).abs();

@@ -129,9 +129,9 @@ impl<T: Scalar> Vector3D<T> {
     ///
     /// let v1 = Vector3D::new(1.0, 0.0, 0.0);
     /// let v2 = Vector3D::new(0.0, 1.0, 0.0);
-    /// assert_eq!(v1.dot(&v2), 0.0);
+    /// assert_eq!(v1.dot(v2), 0.0);
     /// ```
-    pub fn dot(&self, other: &Self) -> T {
+    pub fn dot(&self, other: Self) -> T {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
@@ -143,10 +143,10 @@ impl<T: Scalar> Vector3D<T> {
     ///
     /// let v1 = Vector3D::new(1.0, 0.0, 0.0);
     /// let v2 = Vector3D::new(0.0, 1.0, 0.0);
-    /// let cross = v1.cross(&v2);
+    /// let cross = v1.cross(v2);
     /// assert_eq!(cross.z(), 1.0);
     /// ```
-    pub fn cross(&self, other: &Self) -> Self {
+    pub fn cross(&self, other: Self) -> Self {
         Self::new(
             self.y * other.z - self.z * other.y,
             self.z * other.x - self.x * other.z,
@@ -160,7 +160,7 @@ impl<T: Scalar> Vector3D<T> {
     }
 
     /// 2点間のベクトルを作成
-    pub fn from_points(from: &Point3D<T>, to: &Point3D<T>) -> Self {
+    pub fn from_points(from: Point3D<T>, to: Point3D<T>) -> Self {
         Self::new(to.x() - from.x(), to.y() - from.y(), to.z() - from.z())
     }
 
@@ -170,12 +170,12 @@ impl<T: Scalar> Vector3D<T> {
     }
 
     /// ベクトルの線形補間
-    pub fn lerp(&self, other: &Self, t: T) -> Self {
-        *self + (*other - *self) * t
+    pub fn lerp(&self, other: Self, t: T) -> Self {
+        *self + (other - *self) * t
     }
 
     /// ベクトルの球面線形補間（SLERP）
-    pub fn slerp(&self, other: &Self, t: T) -> Self {
+    pub fn slerp(&self, other: Self, t: T) -> Self {
         let dot = self.dot(other).clamp(-T::ONE, T::ONE);
         let angle = dot.acos();
 
@@ -187,11 +187,11 @@ impl<T: Scalar> Vector3D<T> {
         let factor1 = ((T::ONE - t) * angle).sin() / sin_angle;
         let factor2 = (t * angle).sin() / sin_angle;
 
-        *self * factor1 + *other * factor2
+        *self * factor1 + other * factor2
     }
 
     /// ベクトル間の角度を計算（ラジアン）
-    pub fn angle_between(&self, other: &Self) -> T {
+    pub fn angle_between(&self, other: Self) -> T {
         let dot = self.dot(other);
         let lengths = self.length() * other.length();
 
@@ -203,12 +203,12 @@ impl<T: Scalar> Vector3D<T> {
     }
 
     /// ベクトルの投影
-    pub fn project_onto(&self, other: &Self) -> Self {
+    pub fn project_onto(&self, other: Self) -> Self {
         let other_length_sq = other.length_squared();
         if other_length_sq <= T::ZERO {
             Self::zero()
         } else {
-            *other * (self.dot(other) / other_length_sq)
+            other * (self.dot(other) / other_length_sq)
         }
     }
 }

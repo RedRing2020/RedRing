@@ -67,14 +67,14 @@ impl<T: Scalar> InfiniteLine2DEvaluation<T> for InfiniteLine2D<T> {
     }
 
     fn parameter_for_point(&self, point: Point2D<T>) -> T {
-        Vector2D::from_points(self.point, point).dot(&self.direction)
+        Vector2D::from_points(self.point, point).dot(*self.direction)
     }
 }
 
 impl<T: Scalar> InfiniteLine2DDistance<T> for InfiniteLine2D<T> {
     fn distance_to_point(&self, point: Point2D<T>) -> T {
         Vector2D::from_points(self.point, point)
-            .dot(&self.normal())
+            .dot(*self.normal())
             .abs()
     }
 }
@@ -102,19 +102,19 @@ impl<T: Scalar> InfiniteLine2DTransform<T> for InfiniteLine2D<T> {
 
 impl<T: Scalar> ParallelRelation<Self> for InfiniteLine2D<T> {
     fn is_parallel_to(&self, other: &Self) -> bool {
-        self.direction.is_parallel_to(&other.direction)
+        self.direction.is_parallel_to(other.direction)
     }
 }
 
 impl<T: Scalar> PerpendicularRelation<Self> for InfiniteLine2D<T> {
     fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.direction.is_perpendicular_to(&other.direction)
+        self.direction.is_perpendicular_to(other.direction)
     }
 }
 
 impl<T: Scalar> AngularRelation<T, Self> for InfiniteLine2D<T> {
     fn angle_to(&self, other: &Self) -> T {
-        let dot = self.direction.dot(&other.direction);
+        let dot = self.direction.dot(other.direction);
         let clamped = dot.max(-T::ONE).min(T::ONE);
         clamped.acos()
     }
