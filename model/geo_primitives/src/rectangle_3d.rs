@@ -41,7 +41,7 @@ impl<T: Scalar> Rect3D<T> {
         let u = Direction3D::from_vector(u_axis)?;
         let v_raw = Direction3D::from_vector(v_axis)?;
 
-        let projection = u.as_vector() * v_raw.as_vector().dot(&u.as_vector());
+        let projection = u.as_vector() * v_raw.as_vector().dot(u.as_vector());
         let v_orthogonal = v_raw.as_vector() - projection;
         let v = Direction3D::from_vector(v_orthogonal)?;
 
@@ -67,7 +67,7 @@ impl<T: Scalar> Rect3D<T> {
     }
 
     pub fn normal_dir(&self) -> Direction3D<T> {
-        Direction3D::from_vector(self.u_axis.as_vector().cross(&self.v_axis.as_vector()))
+        Direction3D::from_vector(self.u_axis.as_vector().cross(self.v_axis.as_vector()))
             .expect("u_axis and v_axis should define a valid normal")
     }
 
@@ -113,25 +113,25 @@ impl<T: Scalar> Rect3D<T> {
     /// 辺までの距離が `tolerance` 以内なら、平面外でも `OnBoundary` とする。それ以外は、平面からの距離が
     /// `tolerance` 以内で、平面へ投影した点が矩形の内側にあれば `Inside`、それ以外を `Outside` とする。
     pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
-        let relative = Vector3D::from_points(&self.origin, point);
+        let relative = Vector3D::from_points(self.origin, *point);
         let in_plane = crate::Point2D::new(
-            relative.dot(&self.u_axis.as_vector()),
-            relative.dot(&self.v_axis.as_vector()),
+            relative.dot(self.u_axis.as_vector()),
+            relative.dot(self.v_axis.as_vector()),
         );
-        let plane_distance = relative.dot(&self.normal_dir().as_vector());
+        let plane_distance = relative.dot(self.normal_dir().as_vector());
 
         let rectangle = geo_core::Aabb2D::new(
             crate::Point2D::new(T::ZERO, T::ZERO),
             crate::Point2D::new(self.width, self.height),
         );
-        let in_plane_edge_distance = rectangle.distance_to_boundary(&in_plane);
+        let in_plane_edge_distance = rectangle.distance_to_boundary(in_plane);
         let edge_distance = (in_plane_edge_distance * in_plane_edge_distance
             + plane_distance * plane_distance)
             .sqrt();
 
         if edge_distance <= tolerance {
             PointClassification::OnBoundary
-        } else if plane_distance.abs() <= tolerance && rectangle.contains_point(&in_plane) {
+        } else if plane_distance.abs() <= tolerance && rectangle.contains_point(in_plane) {
             PointClassification::Inside
         } else {
             PointClassification::Outside

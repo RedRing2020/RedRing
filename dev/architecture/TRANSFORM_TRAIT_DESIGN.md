@@ -94,7 +94,7 @@ pub trait SimilarityTransformable3D<T: Scalar>: Sized {
 
 値型（点・ベクトル・方向）は trait定義を実装せず、相似変換の型の固有メソッドで変換する（`TYPED_GEO_CONTRACTS_DESIGN.md`）。
 
-- `apply_point(&Point3D<T>) -> Point3D<T>`
+- `apply_point(Point3D<T>) -> Point3D<T>`
 - `apply_vector(Vector3D<T>) -> Vector3D<T>`（平行移動を受けない）
 - `apply_direction(Direction3D<T>) -> Direction3D<T>`（回転だけを受ける）
 - `scale_factor()` / `has_rotation()`

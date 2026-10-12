@@ -19,9 +19,9 @@ impl<T: Scalar> Arc3D<T> {
         end: Point3D<T>,
     ) -> Option<Self> {
         // 3点が同一直線上でないことを確認
-        let v1 = Vector3D::from_points(&start, &middle);
-        let v2 = Vector3D::from_points(&middle, &end);
-        let cross = v1.cross(&v2);
+        let v1 = Vector3D::from_points(start, middle);
+        let v2 = Vector3D::from_points(middle, end);
+        let cross = v1.cross(v2);
 
         if cross.length() < default_distance_tolerance::<T>() {
             return None; // 同一直線上
@@ -29,18 +29,18 @@ impl<T: Scalar> Arc3D<T> {
 
         // 円の中心と半径を計算
         let center = Self::calculate_circle_center(&start, &middle, &end)?;
-        let radius = center.distance_to(&start);
+        let radius = center.distance_to(start);
 
         // 法線ベクトル（外積から）
         let normal = Direction3D::from_vector(cross)?;
 
         // 開始方向ベクトル
-        let start_vec = Vector3D::from_points(&center, &start);
+        let start_vec = Vector3D::from_points(center, start);
         let start_dir = Direction3D::from_vector(start_vec)?;
 
         // 角度計算
         let start_angle = Angle::from_radians(T::ZERO); // 基準角度
-        let end_vec = Vector3D::from_points(&center, &end);
+        let end_vec = Vector3D::from_points(center, end);
         let end_dir = Direction3D::from_vector(end_vec)?;
 
         // 開始点 → 中間点 → 終了点の順に、法線まわりに反時計回りとなる
@@ -65,7 +65,7 @@ impl<T: Scalar> Arc3D<T> {
         // 円弧平面内での2つの直交軸
         let u_axis = self.start_direction();
         let v_axis =
-            Direction3D::from_vector(self.normal().as_vector().cross(&u_axis.as_vector())).unwrap();
+            Direction3D::from_vector(self.normal().as_vector().cross(u_axis.as_vector())).unwrap();
 
         let point_on_circle = u_axis.as_vector() * (self.radius * cos_angle)
             + v_axis.as_vector() * (self.radius * sin_angle);
@@ -96,14 +96,14 @@ impl<T: Scalar> Arc3D<T> {
         p2: &Point3D<T>,
         p3: &Point3D<T>,
     ) -> Option<Point3D<T>> {
-        let a = Vector3D::from_points(p3, p1);
-        let b = Vector3D::from_points(p3, p2);
-        let a_cross_b = a.cross(&b);
+        let a = Vector3D::from_points(*p3, *p1);
+        let b = Vector3D::from_points(*p3, *p2);
+        let a_cross_b = a.cross(b);
         let denominator = (T::ONE + T::ONE) * a_cross_b.length_squared();
         if denominator <= default_kernel_numerical_zero_tolerance::<T>() {
             return None;
         }
-        let numerator = (b * a.length_squared() - a * b.length_squared()).cross(&a_cross_b);
+        let numerator = (b * a.length_squared() - a * b.length_squared()).cross(a_cross_b);
         Some(*p3 + numerator * (T::ONE / denominator))
     }
 
@@ -118,8 +118,8 @@ impl<T: Scalar> Arc3D<T> {
     ) -> Option<Angle<T>> {
         let u = dir1.as_vector();
         let v = dir2.as_vector();
-        let sin = normal.as_vector().dot(&u.cross(&v));
-        let cos = u.dot(&v);
+        let sin = normal.as_vector().dot(u.cross(v));
+        let cos = u.dot(v);
         let mut angle = sin.atan2(cos);
         if angle <= T::ZERO {
             angle += T::TAU;

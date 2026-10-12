@@ -104,13 +104,13 @@ impl<T: Scalar> SimilarityTransform3D<T> {
             .iter()
             .all(|&len| (len - scale).abs() <= ortho_tol * scale);
         let units = columns.map(|c| c * (T::ONE / c.length()));
-        let orthogonal = units[0].dot(&units[1]).abs() <= ortho_tol
-            && units[1].dot(&units[2]).abs() <= ortho_tol
-            && units[0].dot(&units[2]).abs() <= ortho_tol;
+        let orthogonal = units[0].dot(units[1]).abs() <= ortho_tol
+            && units[1].dot(units[2]).abs() <= ortho_tol
+            && units[0].dot(units[2]).abs() <= ortho_tol;
         if !uniform || !orthogonal {
             return Err(TransformError::Unsupported("non-uniform scale".to_string()));
         }
-        if units[0].cross(&units[1]).dot(&units[2]) < T::ZERO {
+        if units[0].cross(units[1]).dot(units[2]) < T::ZERO {
             return Err(TransformError::Unsupported("mirroring".to_string()));
         }
 
@@ -131,7 +131,7 @@ impl<T: Scalar> SimilarityTransform3D<T> {
         for (i, ci) in units.iter().enumerate() {
             for (j, cj) in units.iter().enumerate() {
                 let expected = if i == j { T::ONE } else { T::ZERO };
-                max_error = max_error.max((ci.dot(cj) - expected).abs());
+                max_error = max_error.max((ci.dot(*cj) - expected).abs());
             }
         }
         max_error
@@ -145,8 +145,8 @@ impl<T: Scalar> SimilarityTransform3D<T> {
     pub fn renormalized(&self) -> Self {
         let [c0, c1, _] = linear_columns(&self.matrix);
         let u0 = c0.normalize();
-        let u1 = (c1 - u0 * c1.dot(&u0)).normalize();
-        let u2 = u0.cross(&u1);
+        let u1 = (c1 - u0 * c1.dot(u0)).normalize();
+        let u2 = u0.cross(u1);
 
         let mut matrix = self.matrix;
         for (col, unit) in [u0, u1, u2].iter().enumerate() {
@@ -175,7 +175,7 @@ fn linear_columns<T: Scalar>(matrix: &Matrix4x4<T>) -> [Vector3D<T>; 3] {
 
 impl<T: Scalar> SimilarityTransform3D<T> {
     /// 点を変換する
-    pub fn apply_point(&self, point: &Point3D<T>) -> Point3D<T> {
+    pub fn apply_point(&self, point: Point3D<T>) -> Point3D<T> {
         let p = self
             .matrix
             .transform_point_3d(&Vector3::new(point.x(), point.y(), point.z()));

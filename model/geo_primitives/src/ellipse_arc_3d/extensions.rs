@@ -30,9 +30,9 @@ impl<T: Scalar> EllipseArc3D<T> {
             let minor_axis = self.minor_axis_direction().as_vector();
             let normal_axis = self.normal().as_vector();
 
-            let x_local = translated.dot(&major_axis);
-            let y_local = translated.dot(&minor_axis);
-            let z_local = translated.dot(&normal_axis);
+            let x_local = translated.dot(major_axis);
+            let y_local = translated.dot(minor_axis);
+            let z_local = translated.dot(normal_axis);
 
             return geo_commons::ellipse_3d_distance_to_point(
                 x_local,
@@ -47,8 +47,8 @@ impl<T: Scalar> EllipseArc3D<T> {
         let start_point = self.start_point();
         let end_point = self.end_point();
 
-        let dist_to_start = point.distance_to(&start_point);
-        let dist_to_end = point.distance_to(&end_point);
+        let dist_to_start = point.distance_to(start_point);
+        let dist_to_end = point.distance_to(end_point);
 
         dist_to_start.min(dist_to_end)
     }

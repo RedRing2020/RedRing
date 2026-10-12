@@ -13,7 +13,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for ConicalSurface3D<T> {
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Self::new(
-            transform.apply_point(&self.center),
+            transform.apply_point(self.center),
             transform.apply_direction(self.axis).as_vector(),
             transform.apply_direction(self.ref_direction).as_vector(),
             self.radius * scale,

@@ -156,11 +156,11 @@ impl<T: Scalar> Triangle2D<T> {
         let v1 = Vector2D::from_points(self.vertex_a, self.vertex_b);
         let v2 = Vector2D::from_points(self.vertex_a, *point);
 
-        let dot00 = v0.dot(&v0);
-        let dot01 = v0.dot(&v1);
-        let dot02 = v0.dot(&v2);
-        let dot11 = v1.dot(&v1);
-        let dot12 = v1.dot(&v2);
+        let dot00 = v0.dot(v0);
+        let dot01 = v0.dot(v1);
+        let dot02 = v0.dot(v2);
+        let dot11 = v1.dot(v1);
+        let dot12 = v1.dot(v2);
 
         let inv_denom = T::ONE / (dot00 * dot11 - dot01 * dot01);
         let u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
@@ -199,14 +199,14 @@ impl<T: Scalar> Triangle2D<T> {
         let edge = Vector2D::from_points(p1, p2);
         let to_point = Vector2D::from_points(p1, *point);
 
-        let edge_length_sq = edge.dot(&edge);
+        let edge_length_sq = edge.dot(edge);
         if edge_length_sq < default_kernel_numerical_zero_tolerance::<T>() {
             // 退化した辺の場合、点p1までの距離
             return to_point.length();
         }
 
         // パラメータt: 点からの最短距離を与える辺上の位置
-        let t = (to_point.dot(&edge) / edge_length_sq)
+        let t = (to_point.dot(edge) / edge_length_sq)
             .max(T::ZERO)
             .min(T::ONE);
 

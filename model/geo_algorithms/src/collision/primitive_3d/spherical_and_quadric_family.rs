@@ -83,7 +83,7 @@ pub fn spherical_solid3d_spherical_solid3d_collides<T: Scalar>(
     let (bx, by, bz) = SphericalSolid3DProperties::center(sphere_b);
     let center_a = Point3D::new(ax, ay, az);
     let center_b = Point3D::new(bx, by, bz);
-    let dist = center_a.distance_to(&center_b);
+    let dist = center_a.distance_to(center_b);
     let r1 = SphericalSolid3DProperties::radius(sphere_a);
     let r2 = SphericalSolid3DProperties::radius(sphere_b);
     dist <= r1 + r2 + tolerance
@@ -154,7 +154,7 @@ pub fn ellipsoidal_solid3d_ellipsoidal_solid3d_collides<T: Scalar>(
     let (bx, by, bz) = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ell_b);
     let center_a = Point3D::new(ax, ay, az);
     let center_b = Point3D::new(bx, by, bz);
-    let center_dist = center_a.distance_to(&center_b);
+    let center_dist = center_a.distance_to(center_b);
     let max_1 = {
         let a = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::a_radius(ell_a);
         let b = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::b_radius(ell_a);

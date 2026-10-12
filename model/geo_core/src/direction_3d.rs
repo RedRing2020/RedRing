@@ -19,17 +19,17 @@ pub struct Direction3D<T: Scalar> {
 
 impl<T: Scalar> Direction3D<T> {
     /// 2 つの方向のなす角（0〜π）
-    fn angle_to(&self, other: &Self) -> T {
-        let dot_product = self.vector.dot(&other.vector).max(-T::ONE).min(T::ONE);
+    fn angle_to(&self, other: Self) -> T {
+        let dot_product = self.vector.dot(other.vector).max(-T::ONE).min(T::ONE);
         dot_product.acos()
     }
 
-    fn is_parallel_with_angle_tolerance(&self, other: &Self, angle_tolerance: T) -> bool {
+    fn is_parallel_with_angle_tolerance(&self, other: Self, angle_tolerance: T) -> bool {
         let angle = self.angle_to(other);
         angle <= angle_tolerance || (T::PI - angle).abs() <= angle_tolerance
     }
 
-    fn is_perpendicular_with_angle_tolerance(&self, other: &Self, angle_tolerance: T) -> bool {
+    fn is_perpendicular_with_angle_tolerance(&self, other: Self, angle_tolerance: T) -> bool {
         let right_angle = T::PI / (T::ONE + T::ONE);
         (self.angle_to(other) - right_angle).abs() <= angle_tolerance
     }
@@ -91,8 +91,8 @@ impl<T: Scalar> Direction3D<T> {
     }
 
     /// 他の方向との内積を計算
-    pub fn dot(&self, other: &Self) -> T {
-        self.vector.dot(&other.vector)
+    pub fn dot(&self, other: Self) -> T {
+        self.vector.dot(other.vector)
     }
 
     /// 180度回転（反転）
@@ -113,12 +113,12 @@ impl<T: Scalar> Direction3D<T> {
     }
 
     /// 他の方向と平行かどうかを判定
-    pub fn is_parallel_to(&self, other: &Self) -> bool {
+    pub fn is_parallel_to(&self, other: Self) -> bool {
         self.is_parallel_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 
     /// 他の方向と垂直かどうかを判定
-    pub fn is_perpendicular_to(&self, other: &Self) -> bool {
+    pub fn is_perpendicular_to(&self, other: Self) -> bool {
         self.is_perpendicular_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 }

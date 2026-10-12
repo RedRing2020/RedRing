@@ -49,7 +49,7 @@ where
 
         for item in node.data().iter() {
             let pos = item.position();
-            let dist = point.distance_to(&pos);
+            let dist = point.distance_to(pos);
 
             if best.is_none() || dist < best.unwrap().1 {
                 best = Some((item, dist));
@@ -108,6 +108,6 @@ where
         };
 
         let point_on_box = Point3D::new(point.x() + dx, point.y() + dy, point.z() + dz);
-        point.distance_squared_to(&point_on_box)
+        point.distance_squared_to(point_on_box)
     }
 }

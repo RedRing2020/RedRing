@@ -36,10 +36,10 @@ fn test_contains_point() {
     let min = Point2D::new(0.0, 0.0);
     let max = Point2D::new(2.0, 2.0);
     let aabb = Aabb2D::new(min, max);
-    assert!(aabb.contains_point(&Point2D::new(1.0, 1.0)));
-    assert!(aabb.contains_point(&Point2D::new(0.0, 0.0)));
-    assert!(aabb.contains_point(&Point2D::new(2.0, 2.0)));
-    assert!(!aabb.contains_point(&Point2D::new(3.0, 1.0)));
+    assert!(aabb.contains_point(Point2D::new(1.0, 1.0)));
+    assert!(aabb.contains_point(Point2D::new(0.0, 0.0)));
+    assert!(aabb.contains_point(Point2D::new(2.0, 2.0)));
+    assert!(!aabb.contains_point(Point2D::new(3.0, 1.0)));
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn test_aabb2d_capability_traits() {
     assert_eq!(outer.height(), 6.0);
     assert_eq!(outer.area(), 24.0);
     assert_eq!(outer.center(), Point2D::new(2.0, 3.0));
-    assert!(outer.contains_point(&Point2D::new(2.0, 3.0)));
+    assert!(outer.contains_point(Point2D::new(2.0, 3.0)));
     assert!(outer.intersects(&inner));
 }
 
@@ -108,9 +108,9 @@ fn test_contains_point_and_aabb() {
     let outer = Aabb2D::new(Point2D::new(0.0, 0.0), Point2D::new(4.0, 4.0));
     let inner = Aabb2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 3.0));
 
-    assert!(outer.contains_point(&Point2D::new(2.0, 2.0)));
+    assert!(outer.contains_point(Point2D::new(2.0, 2.0)));
     assert!(outer.contains_aabb(&inner));
-    assert!(outer.contains_point(&Point2D::new(2.0, 2.0)));
+    assert!(outer.contains_point(Point2D::new(2.0, 2.0)));
     assert!(outer.contains_aabb(&inner));
 }
 
@@ -118,7 +118,7 @@ fn test_contains_point_and_aabb() {
 fn classify_point_uses_distance_to_boundary() {
     let aabb = Aabb2D::new(Point2D::new(0.0, 0.0), Point2D::new(4.0, 2.0));
     let tolerance = 1e-3;
-    let classify = |x: f64, y: f64| aabb.classify_point(&Point2D::new(x, y), tolerance);
+    let classify = |x: f64, y: f64| aabb.classify_point(Point2D::new(x, y), tolerance);
 
     assert_eq!(classify(2.0, 1.0), PointClassification::Inside);
     assert_eq!(classify(4.0, 1.0), PointClassification::OnBoundary);
@@ -152,21 +152,21 @@ fn classify_point_uses_distance_to_boundary() {
     );
 
     // 境界までの距離
-    assert!((aabb.distance_to_boundary(&Point2D::new(1.0, 0.5)) - 0.5).abs() < 1e-12);
-    assert!((aabb.distance_to_boundary(&Point2D::new(7.0, 6.0)) - 5.0).abs() < 1e-12);
+    assert!((aabb.distance_to_boundary(Point2D::new(1.0, 0.5)) - 0.5).abs() < 1e-12);
+    assert!((aabb.distance_to_boundary(Point2D::new(7.0, 6.0)) - 5.0).abs() < 1e-12);
 
     // contains_point は許容誤差 0 の分類が Outside でないことと一致する
     for (x, y) in [(2.0, 1.0), (4.0, 1.0), (4.0, 2.0), (5.0, 1.0)] {
         let point = Point2D::new(x, y);
         assert_eq!(
-            aabb.contains_point(&point),
-            aabb.classify_point(&point, 0.0) != PointClassification::Outside
+            aabb.contains_point(point),
+            aabb.classify_point(point, 0.0) != PointClassification::Outside
         );
     }
 
     // 既定の距離トレランスで判定する
     assert_eq!(
-        aabb.classify_point(&Point2D::new(0.0, 1.0), crate::default_distance_tolerance()),
+        aabb.classify_point(Point2D::new(0.0, 1.0), crate::default_distance_tolerance()),
         PointClassification::OnBoundary
     );
 }

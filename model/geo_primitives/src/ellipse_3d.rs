@@ -53,7 +53,7 @@ impl<T: Scalar> Ellipse3D<T> {
         let major_axis_dir = Direction3D::from_vector(major_axis_dir)?;
 
         // 基本的な直交性チェック
-        let dot_product = normal_dir.dot(&major_axis_dir);
+        let dot_product = normal_dir.dot(major_axis_dir);
         if dot_product.abs() > default_angle_tolerance::<T>() {
             return None;
         }
@@ -94,7 +94,7 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 短軸方向ベクトルを取得
     pub fn minor_axis_direction(&self) -> Direction3D<T> {
-        Direction3D::from_vector(self.normal.cross(&self.major_axis_dir))
+        Direction3D::from_vector(self.normal.cross(*self.major_axis_dir))
             .expect("Cross product of normalized vectors should be valid")
     }
 
@@ -230,11 +230,11 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 中心を原点とし、長軸・短軸・法線を軸とする楕円の局所座標系での点の座標
     fn local_coordinates(&self, point: &Point3D<T>) -> (T, T, T) {
-        let translated = Vector3D::from_points(&self.center, point);
+        let translated = Vector3D::from_points(self.center, *point);
         (
-            translated.dot(&self.major_axis_dir.as_vector()),
-            translated.dot(&self.minor_axis_direction().as_vector()),
-            translated.dot(&self.normal.as_vector()),
+            translated.dot(self.major_axis_dir.as_vector()),
+            translated.dot(self.minor_axis_direction().as_vector()),
+            translated.dot(self.normal.as_vector()),
         )
     }
 }

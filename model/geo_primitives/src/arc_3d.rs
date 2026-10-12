@@ -42,7 +42,7 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for Arc3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for Arc3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let center_distance = self.center.distance_to(&other.center);
+        let center_distance = self.center.distance_to(other.center);
         let radius_diff = (self.radius - other.radius).abs();
         let start_angle_diff = (self.start_angle() - other.start_angle())
             .to_radians()
@@ -85,7 +85,7 @@ impl<T: Scalar> Arc3D<T> {
         }
 
         // 法線と開始方向の直交性チェック
-        let dot_product = normal.as_vector().dot(&start_dir.as_vector()).abs();
+        let dot_product = normal.as_vector().dot(start_dir.as_vector()).abs();
         if dot_product > default_angle_tolerance::<T>() {
             return None;
         }
@@ -171,8 +171,8 @@ impl<T: Scalar> Arc3D<T> {
         let sin_theta = theta.sin();
 
         let rotated = start_vec * cos_theta
-            + rotation_axis.cross(&start_vec) * sin_theta
-            + rotation_axis * (rotation_axis.dot(&start_vec) * (T::ONE - cos_theta));
+            + rotation_axis.cross(start_vec) * sin_theta
+            + rotation_axis * (rotation_axis.dot(start_vec) * (T::ONE - cos_theta));
 
         self.center + rotated * self.radius
     }
@@ -214,12 +214,12 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
         // 3点から円の中心と法線を計算
         let v1 = p2 - p1;
         let v2 = p3 - p1;
-        let normal_vec = v1.cross(&v2);
+        let normal_vec = v1.cross(v2);
         let normal_dir = Direction3D::from_vector(normal_vec)?;
 
         // 外接円の中心を計算
         let center = Self::circumcenter_3d(p1, p2, p3, normal_dir)?;
-        let radius = center.distance_to(&p1);
+        let radius = center.distance_to(p1);
 
         // 開始方向を計算
         let start_vec = p1 - center;
@@ -344,14 +344,14 @@ impl<T: Scalar> Arc3D<T> {
 
         // X軸との外積を試す
         let x_axis = Vector3D::unit_x();
-        let perp1 = n.cross(&x_axis);
+        let perp1 = n.cross(x_axis);
 
         if perp1.length() > default_kernel_numerical_zero_tolerance::<T>() {
             Direction3D::from_vector(perp1)
         } else {
             // X軸と平行な場合、Y軸を使用
             let y_axis = Vector3D::unit_y();
-            let perp2 = n.cross(&y_axis);
+            let perp2 = n.cross(y_axis);
             Direction3D::from_vector(perp2)
         }
     }
@@ -366,9 +366,9 @@ impl<T: Scalar> Arc3D<T> {
         let v1 = p2 - p1;
         let v2 = p3 - p1;
 
-        let v1_sq = v1.dot(&v1);
-        let v2_sq = v2.dot(&v2);
-        let v1_v2 = v1.dot(&v2);
+        let v1_sq = v1.dot(v1);
+        let v2_sq = v2.dot(v2);
+        let v1_v2 = v1.dot(v2);
 
         let denom = (T::ONE + T::ONE) * (v1_sq * v2_sq - v1_v2 * v1_v2);
         if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
@@ -383,12 +383,12 @@ impl<T: Scalar> Arc3D<T> {
 
     /// 2つのベクトル間の角度を計算
     fn angle_between_vectors(v1: Vector3D<T>, v2: Vector3D<T>, normal: Vector3D<T>) -> Angle<T> {
-        let cos_angle = v1.dot(&v2) / (v1.length() * v2.length());
+        let cos_angle = v1.dot(v2) / (v1.length() * v2.length());
         let angle = cos_angle.acos();
 
         // 符号を確認（法線との外積で判定）
-        let cross = v1.cross(&v2);
-        if cross.dot(&normal) < T::ZERO {
+        let cross = v1.cross(v2);
+        if cross.dot(normal) < T::ZERO {
             Angle::from_radians(T::TAU - angle)
         } else {
             Angle::from_radians(angle)
@@ -419,15 +419,15 @@ impl<T: Scalar> Arc3D<T> {
     /// 距離の小さい方を返す。
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         if self.contains_point_angle(point) {
-            let to_point = Vector3D::from_points(&self.center, point);
+            let to_point = Vector3D::from_points(self.center, *point);
             let normal = self.normal.as_vector();
-            let plane_distance = to_point.dot(&normal);
+            let plane_distance = to_point.dot(normal);
             let radial_distance = (to_point - normal * plane_distance).length() - self.radius;
             (plane_distance * plane_distance + radial_distance * radial_distance).sqrt()
         } else {
             point
-                .distance_to(&self.start_point())
-                .min(point.distance_to(&self.end_point()))
+                .distance_to(self.start_point())
+                .min(point.distance_to(self.end_point()))
         }
     }
 
@@ -435,10 +435,10 @@ impl<T: Scalar> Arc3D<T> {
     ///
     /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、円弧平面へ投影した点の、開始方向を角度 0 とし法線まわりに反時計回りを正とする角度（`point_at_angle` と同じ）とする。中心軸上の点は角度 0 とする。
     pub fn contains_point_angle(&self, point: &Point3D<T>) -> bool {
-        let to_point = Vector3D::from_points(&self.center, point);
+        let to_point = Vector3D::from_points(self.center, *point);
         let u_axis = self.start_dir.as_vector();
-        let v_axis = self.normal.as_vector().cross(&u_axis);
-        let angle = to_point.dot(&v_axis).atan2(to_point.dot(&u_axis));
+        let v_axis = self.normal.as_vector().cross(u_axis);
+        let angle = to_point.dot(v_axis).atan2(to_point.dot(u_axis));
         self.contains_angle(Angle::from_radians(angle))
     }
 }

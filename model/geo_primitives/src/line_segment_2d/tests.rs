@@ -28,7 +28,7 @@ fn test_midpoint_and_direction() {
 
     // 中点
     let midpoint = segment.midpoint();
-    assert!(midpoint.distance_to(&Point2D::new(3.0, 4.0)) < TOLERANCE_F64);
+    assert!(midpoint.distance_to(Point2D::new(3.0, 4.0)) < TOLERANCE_F64);
 
     // 方向ベクトル
     let direction = segment.direction();
@@ -108,7 +108,7 @@ fn test_parameter_for_point_and_closest_parameter() {
     assert!((reversed.closest_parameter(&Point2D::new(-5.0, 0.0)) - 1.0).abs() < TOLERANCE_F64);
     let t = reversed.closest_parameter(&Point2D::new(3.0, 2.0));
     let point = reversed.point_at_parameter(t).unwrap();
-    assert!(point.distance_to(&Point2D::new(3.0, 0.0)) < TOLERANCE_F64);
+    assert!(point.distance_to(Point2D::new(3.0, 0.0)) < TOLERANCE_F64);
 }
 
 #[test]
@@ -174,8 +174,8 @@ fn test_geometry_foundation_traits() {
 
     // CoreFoundation
     let bbox = segment.bounding_box();
-    assert!(bbox.min_point().distance_to(&Point2D::new(1.0, 2.0)) < TOLERANCE_F64);
-    assert!(bbox.max_point().distance_to(&Point2D::new(5.0, 6.0)) < TOLERANCE_F64);
+    assert!(bbox.min_point().distance_to(Point2D::new(1.0, 2.0)) < TOLERANCE_F64);
+    assert!(bbox.max_point().distance_to(Point2D::new(5.0, 6.0)) < TOLERANCE_F64);
 }
 
 #[test]

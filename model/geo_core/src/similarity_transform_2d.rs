@@ -98,10 +98,10 @@ impl<T: Scalar> SimilarityTransform2D<T> {
 
         let uniform = (len1 - len0).abs() <= ortho_tol * len0;
         let (u0, u1) = (c0 * (T::ONE / len0), c1 * (T::ONE / len1));
-        if !uniform || u0.dot(&u1).abs() > ortho_tol {
+        if !uniform || u0.dot(u1).abs() > ortho_tol {
             return Err(TransformError::Unsupported("non-uniform scale".to_string()));
         }
-        if u0.cross(&u1) < T::ZERO {
+        if u0.cross(u1) < T::ZERO {
             return Err(TransformError::Unsupported("mirroring".to_string()));
         }
 
@@ -122,9 +122,9 @@ impl<T: Scalar> SimilarityTransform2D<T> {
     pub fn orthogonality_error(&self) -> T {
         let [u0, u1] = linear_columns(&self.matrix).map(|c| c * (T::ONE / self.scale));
         let errors = [
-            (u0.dot(&u0) - T::ONE).abs(),
-            (u1.dot(&u1) - T::ONE).abs(),
-            u0.dot(&u1).abs(),
+            (u0.dot(u0) - T::ONE).abs(),
+            (u1.dot(u1) - T::ONE).abs(),
+            u0.dot(u1).abs(),
         ];
         errors.into_iter().fold(T::ZERO, |acc, e| acc.max(e))
     }
@@ -165,7 +165,7 @@ fn linear_columns<T: Scalar>(matrix: &Matrix3x3<T>) -> [Vector2D<T>; 2] {
 
 impl<T: Scalar> SimilarityTransform2D<T> {
     /// 点を変換する
-    pub fn apply_point(&self, point: &Point2D<T>) -> Point2D<T> {
+    pub fn apply_point(&self, point: Point2D<T>) -> Point2D<T> {
         let p = self
             .matrix
             .transform_point_2d(&Vector2::new(point.x(), point.y()));

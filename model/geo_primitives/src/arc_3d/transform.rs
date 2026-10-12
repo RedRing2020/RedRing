@@ -12,7 +12,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for Arc3D<T> {
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         Self::new(
-            transform.apply_point(&self.center),
+            transform.apply_point(self.center),
             self.radius * transform.scale_factor(),
             transform.apply_direction(self.normal),
             transform.apply_direction(self.start_dir),

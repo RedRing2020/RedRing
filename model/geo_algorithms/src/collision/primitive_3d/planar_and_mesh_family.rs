@@ -89,7 +89,7 @@ pub fn plane3d_line_segment3d_collides<T: Scalar>(
 pub fn plane3d_ray3d_collides<T: Scalar>(plane: &Plane3D<T>, ray: &Ray3D<T>, tolerance: T) -> bool {
     let ray_dir = ray.direction_vector();
     let normal_vec = plane.normal().as_vector();
-    let denom = ray_dir.dot(&normal_vec);
+    let denom = ray_dir.dot(normal_vec);
     if denom.abs() > tolerance {
         let origin_dist = plane.distance_to_point(ray.origin());
         origin_dist.abs() <= tolerance || (origin_dist * denom <= T::ZERO)
@@ -105,7 +105,7 @@ pub fn plane3d_infinite_line3d_collides<T: Scalar>(
 ) -> bool {
     let line_dir_vec = InfiniteLine3DProperties::direction(line).as_vector();
     let normal_vec = plane.normal().as_vector();
-    let denom = line_dir_vec.dot(&normal_vec);
+    let denom = line_dir_vec.dot(normal_vec);
     if denom.abs() > tolerance {
         true
     } else {
@@ -120,7 +120,7 @@ pub fn plane3d_plane3d_collides<T: Scalar>(
 ) -> bool {
     let normal1 = plane_a.normal().as_vector();
     let normal2 = plane_b.normal().as_vector();
-    let cross = normal1.cross(&normal2);
+    let cross = normal1.cross(normal2);
     if cross.length() > tolerance {
         true
     } else {

@@ -22,8 +22,8 @@ pub(crate) fn point_matches_either_segment_endpoint<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    point.distance_to(&segment.start_point()) <= tolerance
-        || point.distance_to(&segment.end_point()) <= tolerance
+    point.distance_to(segment.start_point()) <= tolerance
+        || point.distance_to(segment.end_point()) <= tolerance
 }
 
 pub(crate) fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(
@@ -58,15 +58,15 @@ pub(crate) fn spherical_surface_intersection_parameters<T: Scalar>(
     let center_tuple = SphericalSurface3DProperties::center(sphere);
     let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
     let radius = SphericalSurface3DProperties::radius(sphere);
-    let offset = crate::Vector3D::from_points(&center, start);
+    let offset = crate::Vector3D::from_points(center, *start);
 
-    let a = direction.dot(direction);
+    let a = direction.dot(*direction);
     if a.abs() <= tolerance {
         return None;
     }
 
-    let b = offset.dot(direction) * (T::ONE + T::ONE);
-    let c = offset.dot(&offset) - radius * radius;
+    let b = offset.dot(*direction) * (T::ONE + T::ONE);
+    let c = offset.dot(offset) - radius * radius;
     let discriminant = b * b - (T::ONE + T::ONE + T::ONE + T::ONE) * a * c;
     if discriminant < T::ZERO {
         return None;
@@ -159,7 +159,7 @@ pub(crate) fn conical_surface3d_filter_params<T: Scalar>(
             pts.push(p);
         }
     }
-    if pts.len() == 2 && pts[0].distance_to(&pts[1]) <= tolerance {
+    if pts.len() == 2 && pts[0].distance_to(pts[1]) <= tolerance {
         pts.truncate(1);
     }
     pts

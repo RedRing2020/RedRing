@@ -70,7 +70,7 @@ impl<T: Scalar> Wire<T> {
         let last = self.edges.last().expect("wire has at least one edge");
         first
             .oriented_constraint_start_point()
-            .distance_to(&last.oriented_constraint_end_point())
+            .distance_to(last.oriented_constraint_end_point())
             <= shared_tolerance
     }
 }

@@ -337,7 +337,7 @@ impl<T: Scalar> EllipseArc3DContainment<T> for EllipseArc3D<T> {
     fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
         let center = self.center();
-        let vec = Vector3D::from_points(&center, &p);
+        let vec = Vector3D::from_points(center, p);
 
         let distance = vec.length();
         let expected_radius = self.semi_major();

@@ -84,33 +84,33 @@ fn triangle3d_ray3d_intersection_raw<T: Scalar>(
     let v1 = Point3D::new(vb.0, vb.1, vb.2);
     let v2 = Point3D::new(vc.0, vc.1, vc.2);
 
-    let edge1 = Vector3D::from_points(&v0, &v1);
-    let edge2 = Vector3D::from_points(&v0, &v2);
+    let edge1 = Vector3D::from_points(v0, v1);
+    let edge2 = Vector3D::from_points(v0, v2);
 
     let ray_dir = ray.direction_vector();
-    let h = ray_dir.cross(&edge2);
-    let a = edge1.dot(&h);
+    let h = ray_dir.cross(edge2);
+    let a = edge1.dot(h);
 
     if a.abs() <= tolerance {
         return None;
     }
 
     let f = T::ONE / a;
-    let s = Vector3D::from_points(&v0, &ray.origin());
-    let u = f * s.dot(&h);
+    let s = Vector3D::from_points(v0, ray.origin());
+    let u = f * s.dot(h);
 
     if u < T::ZERO || u > T::ONE {
         return None;
     }
 
-    let q = s.cross(&edge1);
-    let v = f * ray_dir.dot(&q);
+    let q = s.cross(edge1);
+    let v = f * ray_dir.dot(q);
 
     if v < T::ZERO || u + v > T::ONE {
         return None;
     }
 
-    let t = f * edge2.dot(&q);
+    let t = f * edge2.dot(q);
     if t < T::ZERO {
         return None;
     }
@@ -192,7 +192,7 @@ fn plane3d_line_segment3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let start = segment.start_point();
     let end = segment.end_point();
-    let direction = Vector3D::from_points(&start, &end);
+    let direction = Vector3D::from_points(start, end);
 
     if direction.is_zero() {
         return if plane.contains_point(start, tolerance) {
@@ -203,7 +203,7 @@ fn plane3d_line_segment3d_intersection_raw<T: Scalar>(
     }
 
     let normal = plane.normal().as_vector();
-    let denom = direction.dot(&normal);
+    let denom = direction.dot(normal);
 
     if denom.abs() <= tolerance {
         return if plane.contains_point(start, tolerance) {
@@ -213,8 +213,8 @@ fn plane3d_line_segment3d_intersection_raw<T: Scalar>(
         };
     }
 
-    let to_plane = Vector3D::from_points(&start, &plane.origin());
-    let t = to_plane.dot(&normal) / denom;
+    let to_plane = Vector3D::from_points(start, plane.origin());
+    let t = to_plane.dot(normal) / denom;
 
     if t >= T::ZERO && t <= T::ONE {
         Some(Point3D::new(
@@ -247,7 +247,7 @@ fn plane3d_ray3d_intersection_raw<T: Scalar>(
     let origin = ray.origin();
     let direction = ray.direction_vector();
     let normal = plane.normal().as_vector();
-    let denom = direction.dot(&normal);
+    let denom = direction.dot(normal);
 
     if denom.abs() <= tolerance {
         return if plane.contains_point(origin, tolerance) {
@@ -257,8 +257,8 @@ fn plane3d_ray3d_intersection_raw<T: Scalar>(
         };
     }
 
-    let to_plane = Vector3D::from_points(&origin, &plane.origin());
-    let t = to_plane.dot(&normal) / denom;
+    let to_plane = Vector3D::from_points(origin, plane.origin());
+    let t = to_plane.dot(normal) / denom;
 
     if t >= T::ZERO {
         Some(Point3D::new(
@@ -291,7 +291,7 @@ fn plane3d_infinite_line3d_intersection_raw<T: Scalar>(
     let line_point = line.point();
     let line_dir_vec = line.direction().as_vector();
     let normal = plane.normal().as_vector();
-    let denom = line_dir_vec.dot(&normal);
+    let denom = line_dir_vec.dot(normal);
 
     if denom.abs() <= tolerance {
         return if plane.distance_to_point(line_point).abs() <= tolerance {
@@ -301,8 +301,8 @@ fn plane3d_infinite_line3d_intersection_raw<T: Scalar>(
         };
     }
 
-    let to_plane = Vector3D::from_points(&line_point, &plane.origin());
-    let t = to_plane.dot(&normal) / denom;
+    let to_plane = Vector3D::from_points(line_point, plane.origin());
+    let t = to_plane.dot(normal) / denom;
     Some(Point3D::new(
         line_point.x() + t * line_dir_vec.x(),
         line_point.y() + t * line_dir_vec.y(),

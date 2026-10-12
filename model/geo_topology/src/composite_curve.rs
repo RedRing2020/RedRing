@@ -66,7 +66,7 @@ impl<T: Scalar> CurveSegment3D<T> {
     pub fn length(&self) -> T {
         match self {
             Self::Line(seg) => {
-                let vec = Vector3D::from_points(&seg.start_point(), &seg.end_point());
+                let vec = Vector3D::from_points(seg.start_point(), seg.end_point());
                 vec.length()
             }
             Self::Arc(arc) => arc.length(),
@@ -90,7 +90,7 @@ pub struct CompositeCurve3D<T: Scalar> {
 
 impl<T: Scalar> CompositeCurve3D<T> {
     fn points_are_connected(start: Point3D<T>, end: Point3D<T>, tolerance: T) -> bool {
-        start.distance_to(&end) <= tolerance
+        start.distance_to(end) <= tolerance
     }
 
     /// セグメント列から複合曲線を生成

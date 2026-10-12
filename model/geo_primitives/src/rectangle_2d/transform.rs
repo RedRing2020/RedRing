@@ -17,7 +17,7 @@ impl<T: Scalar> SimilarityTransformable2D<T> for Rect2D<T> {
         }
         let scale = transform.scale_factor();
         Self::new(
-            transform.apply_point(&self.origin_point()),
+            transform.apply_point(self.origin_point()),
             self.width_value() * scale,
             self.height_value() * scale,
         )

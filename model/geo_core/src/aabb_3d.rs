@@ -51,7 +51,7 @@ impl<T: Scalar> Aabb3D<T> {
     }
 
     /// 点がAABB内に含まれるか
-    pub fn contains_point(&self, p: &Point3D<T>) -> bool {
+    pub fn contains_point(&self, p: Point3D<T>) -> bool {
         (self.min.x() <= p.x() && p.x() <= self.max.x())
             && (self.min.y() <= p.y() && p.y() <= self.max.y())
             && (self.min.z() <= p.z() && p.z() <= self.max.z())
@@ -60,7 +60,7 @@ impl<T: Scalar> Aabb3D<T> {
     /// 点から AABB の境界（辺・面）までの最短距離
     ///
     /// 内部の点は最も近い辺・面までの距離、外部の点は AABB までの距離を返す。
-    pub fn distance_to_boundary(&self, point: &Point3D<T>) -> T {
+    pub fn distance_to_boundary(&self, point: Point3D<T>) -> T {
         let coordinates = [point.x(), point.y(), point.z()];
         let mins = [self.min.x(), self.min.y(), self.min.z()];
         let maxs = [self.max.x(), self.max.y(), self.max.z()];
@@ -83,7 +83,7 @@ impl<T: Scalar> Aabb3D<T> {
     ///
     /// 境界までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
     /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
-    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
+    pub fn classify_point(&self, point: Point3D<T>, tolerance: T) -> PointClassification {
         if self.distance_to_boundary(point) <= tolerance {
             PointClassification::OnBoundary
         } else if self.contains_point(point) {

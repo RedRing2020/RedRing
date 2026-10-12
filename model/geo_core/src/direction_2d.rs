@@ -19,12 +19,12 @@ pub struct Direction2D<T: Scalar> {
 }
 
 impl<T: Scalar> Direction2D<T> {
-    fn is_parallel_with_angle_tolerance(&self, other: &Self, angle_tolerance: T) -> bool {
+    fn is_parallel_with_angle_tolerance(&self, other: Self, angle_tolerance: T) -> bool {
         let angle = self.angle_to(other);
         angle <= angle_tolerance || (T::PI - angle).abs() <= angle_tolerance
     }
 
-    fn is_perpendicular_with_angle_tolerance(&self, other: &Self, angle_tolerance: T) -> bool {
+    fn is_perpendicular_with_angle_tolerance(&self, other: Self, angle_tolerance: T) -> bool {
         let right_angle = T::PI / (T::ONE + T::ONE);
         (self.angle_to(other) - right_angle).abs() <= angle_tolerance
     }
@@ -68,12 +68,12 @@ impl<T: Scalar> Direction2D<T> {
     }
 
     /// 他の方向との内積を計算
-    pub fn dot(&self, other: &Self) -> T {
-        self.vector.dot(&other.vector)
+    pub fn dot(&self, other: Self) -> T {
+        self.vector.dot(other.vector)
     }
 
     /// 他の方向との角度を計算（0 ≤ angle ≤ π）
-    pub fn angle_to(&self, other: &Self) -> T {
+    pub fn angle_to(&self, other: Self) -> T {
         let dot_product = self.dot(other);
         // dot_product を [-1, 1] にクランプ
         let clamped = dot_product.max(-T::ONE).min(T::ONE);
@@ -95,12 +95,12 @@ impl<T: Scalar> Direction2D<T> {
     }
 
     /// 他の方向と平行かどうかを判定
-    pub fn is_parallel_to(&self, other: &Self) -> bool {
+    pub fn is_parallel_to(&self, other: Self) -> bool {
         self.is_parallel_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 
     /// 他の方向と垂直かどうかを判定
-    pub fn is_perpendicular_to(&self, other: &Self) -> bool {
+    pub fn is_perpendicular_to(&self, other: Self) -> bool {
         self.is_perpendicular_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 }

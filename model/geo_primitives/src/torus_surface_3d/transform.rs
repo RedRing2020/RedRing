@@ -11,7 +11,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for TorusSurface3D<T> {
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Self::new(
-            transform.apply_point(&self.origin),
+            transform.apply_point(self.origin),
             transform.apply_direction(self.z_axis),
             transform.apply_direction(self.x_axis),
             self.major_radius * scale,

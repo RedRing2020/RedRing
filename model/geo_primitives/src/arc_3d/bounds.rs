@@ -16,7 +16,7 @@ impl<T: Scalar> Bounded<T> for Arc3D<T> {
         let center = self.center;
         let radius = self.radius;
         let u = self.start_direction().as_vector();
-        let v = self.normal().as_vector().cross(&u);
+        let v = self.normal().as_vector().cross(u);
 
         let start = Arc3DEndpoint::start_point(self);
         let end = Arc3DEndpoint::end_point(self);

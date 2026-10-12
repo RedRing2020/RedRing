@@ -87,7 +87,7 @@ pub fn cylindrical_solid3d_cylindrical_solid3d_collides<T: Scalar>(
     let (bx, by, bz) = <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::center(cyl_b);
     let center_a = Point3D::new(ax, ay, az);
     let center_b = Point3D::new(bx, by, bz);
-    let dist = center_a.distance_to(&center_b);
+    let dist = center_a.distance_to(center_b);
     let max_a = <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::radius(cyl_a)
         + <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::height(cyl_a);
     let max_b = <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::radius(cyl_b)
@@ -175,7 +175,7 @@ pub fn cylindrical_surface3d_cylindrical_surface3d_collides<T: Scalar>(
         <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(cyl_b);
     let center_a = Point3D::new(ax, ay, az);
     let center_b = Point3D::new(bx, by, bz);
-    let dist = center_a.distance_to(&center_b);
+    let dist = center_a.distance_to(center_b);
     let radius_sum = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(cyl_a)
         + <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(cyl_b);
     dist <= radius_sum + tolerance

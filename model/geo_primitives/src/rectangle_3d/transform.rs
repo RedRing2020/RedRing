@@ -11,7 +11,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for Rect3D<T> {
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Self::new(
-            transform.apply_point(&self.origin_point()),
+            transform.apply_point(self.origin_point()),
             transform.apply_direction(self.u_axis_dir()).as_vector(),
             transform.apply_direction(self.v_axis_dir()).as_vector(),
             self.width_value() * scale,

@@ -66,11 +66,11 @@ impl<T: Scalar> Circle3D<T> {
         };
 
         // 第一基底ベクトル: normal × temp を正規化
-        let first_unnormalized = self.axis.as_vector().cross(&temp);
+        let first_unnormalized = self.axis.as_vector().cross(temp);
         let first = first_unnormalized.normalize();
 
         // 第二基底ベクトル: normal × first
-        let second = self.axis.as_vector().cross(&first);
+        let second = self.axis.as_vector().cross(first);
 
         (first, second)
     }
@@ -123,7 +123,7 @@ impl<T: Scalar> Circle3D<T> {
     pub fn tangent_at_parameter(&self, t: T) -> Direction3D<T> {
         let v_axis = self.axis.as_vector();
         let v_ref = self.ref_direction.as_vector();
-        let v_perp = v_axis.cross(&v_ref);
+        let v_perp = v_axis.cross(v_ref);
 
         let tangent = v_ref * (-t.sin()) + v_perp * t.cos();
 
@@ -138,8 +138,8 @@ impl<T: Scalar> Circle3D<T> {
     /// # 戻り値
     /// 円周上の最近点
     pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
-        let center_to_point = Vector3D::from_points(&self.center, point);
-        let plane_distance = center_to_point.dot(&self.axis.as_vector());
+        let center_to_point = Vector3D::from_points(self.center, *point);
+        let plane_distance = center_to_point.dot(self.axis.as_vector());
 
         // 平面上での投影点への方向
         let projected_direction = Vector3D::new(

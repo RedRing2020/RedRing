@@ -10,7 +10,7 @@ impl<T: Scalar> SimilarityTransformable2D<T> for Circle2D<T> {
         transform: &SimilarityTransform2D<T>,
     ) -> Result<Self, TransformError> {
         Self::new_with_ref_direction(
-            transform.apply_point(&self.center),
+            transform.apply_point(self.center),
             self.radius * transform.scale_factor(),
             transform.apply_direction(self.ref_direction),
         )

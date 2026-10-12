@@ -364,7 +364,7 @@ fn test_parameter_for_point_is_angle_of_closest_point() {
         assert!(
             circle
                 .point_at_parameter(t)
-                .distance_to(&circle.closest_point(&point))
+                .distance_to(circle.closest_point(&point))
                 < TOLERANCE_F64
         );
     }

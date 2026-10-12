@@ -49,12 +49,12 @@ impl<T: Scalar> Point2D<T> {
     }
 
     /// 他の点との距離を計算
-    pub fn distance_to(&self, other: &Self) -> T {
+    pub fn distance_to(&self, other: Self) -> T {
         self.distance_squared_to(other).sqrt()
     }
 
     /// 他の点との距離の二乗を計算（sqrt回避で高速）
-    pub fn distance_squared_to(&self, other: &Self) -> T {
+    pub fn distance_squared_to(&self, other: Self) -> T {
         let dx = self.x - other.x;
         let dy = self.y - other.y;
         dx * dx + dy * dy
@@ -71,7 +71,7 @@ impl<T: Scalar> Point2D<T> {
     }
 
     /// 2点の中点を計算
-    pub fn midpoint(&self, other: &Self) -> Self {
+    pub fn midpoint(&self, other: Self) -> Self {
         Self::new(
             (self.x + other.x) / (T::ONE + T::ONE),
             (self.y + other.y) / (T::ONE + T::ONE),
@@ -79,7 +79,7 @@ impl<T: Scalar> Point2D<T> {
     }
 
     /// 別の点との線形補間（t=0で自分、t=1で相手）
-    pub fn lerp(&self, other: &Self, t: T) -> Self {
+    pub fn lerp(&self, other: Self, t: T) -> Self {
         Self::new(
             self.x + (other.x - self.x) * t,
             self.y + (other.y - self.y) * t,
@@ -89,12 +89,12 @@ impl<T: Scalar> Point2D<T> {
 
 impl<T: Scalar> Point2D<T> {
     /// 他の点へのベクトル
-    pub fn vector_to(&self, other: &Self) -> Vector2D<T> {
+    pub fn vector_to(&self, other: Self) -> Vector2D<T> {
         Vector2D::new(other.x - self.x, other.y - self.y)
     }
 
     /// 指定点周りの回転（Angle<T>型角度）
-    pub fn rotate_around(&self, center: &Self, angle: Angle<T>) -> Self {
+    pub fn rotate_around(&self, center: Self, angle: Angle<T>) -> Self {
         let offset = Vector2D::new(self.x - center.x, self.y - center.y);
         let radians = angle.to_radians();
         let cos_a = radians.cos();

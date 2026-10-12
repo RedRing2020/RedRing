@@ -100,7 +100,7 @@ impl<T: Scalar> Ray3D<T> {
     /// 指定された点に対するパラメータを計算
     pub fn parameter_for_point(&self, point: &Point3D<T>) -> T {
         let to_point = *point - self.origin;
-        self.direction.as_vector().dot(&to_point)
+        self.direction.as_vector().dot(to_point)
     }
 
     /// Ray の逆方向を作成
@@ -113,13 +113,13 @@ impl<T: Scalar> Ray3D<T> {
 
     /// 他の Ray と平行かを判定
     pub fn is_parallel_to(&self, other: &Self) -> bool {
-        let cross = self.direction.cross(&other.direction);
+        let cross = self.direction.cross(*other.direction);
         cross.length() < geo_contracts::default_distance_tolerance::<T>()
     }
 
     /// 他の Ray との角度を返す
     pub fn angle_between(&self, other: &Self) -> T {
-        let dot = self.direction.dot(&other.direction);
+        let dot = self.direction.dot(other.direction);
         let clamped = if dot > T::ONE {
             T::ONE
         } else if dot < -T::ONE {
@@ -139,8 +139,8 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for Ray3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for Ray3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let origin_distance = self.origin.distance_to(&other.origin);
-        let direction_dot = self.direction.dot(&other.direction).abs();
+        let origin_distance = self.origin.distance_to(other.origin);
+        let direction_dot = self.direction.dot(other.direction).abs();
         let direction_similar = direction_dot >= T::from_f64(0.999);
 
         origin_distance <= tolerance && direction_similar
@@ -210,10 +210,10 @@ impl<T: Scalar> Ray3DDistance<T> for Ray3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let target_point = Point3D::new(point.0, point.1, point.2);
         let to_point = target_point - self.origin;
-        let projection_length = self.direction.as_vector().dot(&to_point);
+        let projection_length = self.direction.as_vector().dot(to_point);
 
         if projection_length <= T::ZERO {
-            self.origin.distance_to(&target_point)
+            self.origin.distance_to(target_point)
         } else {
             let direction_offset = self.direction * projection_length;
             let projection = Point3D::new(
@@ -221,7 +221,7 @@ impl<T: Scalar> Ray3DDistance<T> for Ray3D<T> {
                 self.origin.y() + direction_offset.y(),
                 self.origin.z() + direction_offset.z(),
             );
-            target_point.distance_to(&projection)
+            target_point.distance_to(projection)
         }
     }
 }
@@ -246,11 +246,11 @@ impl<T: Scalar> Ray3DTransform<T> for Ray3D<T> {
 impl<T: Scalar> CrossDistance<T, Self> for Ray3D<T> {
     fn distance_to(&self, other: &Self) -> T {
         let w = self.origin - other.origin;
-        let a = self.direction.dot(&self.direction);
-        let b = self.direction.dot(&other.direction);
-        let c = other.direction.dot(&other.direction);
-        let d = self.direction.as_vector().dot(&w);
-        let e = other.direction.as_vector().dot(&w);
+        let a = self.direction.dot(self.direction);
+        let b = self.direction.dot(other.direction);
+        let c = other.direction.dot(other.direction);
+        let d = self.direction.as_vector().dot(w);
+        let e = other.direction.as_vector().dot(w);
 
         let denom = a * c - b * b;
         use geo_contracts::default_kernel_numerical_zero_tolerance;

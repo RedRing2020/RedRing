@@ -46,7 +46,7 @@ fn total_mesh_area<T: Scalar>(mesh: &TriangleMesh3D<T>) -> T {
         ) {
             let edge1 = crate::Vector3D::new(v1.x() - v0.x(), v1.y() - v0.y(), v1.z() - v0.z());
             let edge2 = crate::Vector3D::new(v2.x() - v0.x(), v2.y() - v0.y(), v2.z() - v0.z());
-            let cross_product = edge1.cross(&edge2);
+            let cross_product = edge1.cross(edge2);
             let triangle_area = cross_product.length() / T::from_f64(2.0);
             total_area += triangle_area;
         }

@@ -159,15 +159,15 @@ fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
     let rhs_axis_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(rhs);
     let lhs_axis = Vector3D::new(lhs_axis_tuple.0, lhs_axis_tuple.1, lhs_axis_tuple.2);
     let rhs_axis = Vector3D::new(rhs_axis_tuple.0, rhs_axis_tuple.1, rhs_axis_tuple.2);
-    let center_delta = Vector3D::from_points(&lhs_center, &rhs_center);
+    let center_delta = Vector3D::from_points(lhs_center, rhs_center);
 
     let angle_tolerance = if tolerance > T::from_f64(1.0e-6) {
         tolerance
     } else {
         T::from_f64(1.0e-6)
     };
-    let axes_parallel = (lhs_axis.dot(&rhs_axis).abs() - T::ONE).abs() <= angle_tolerance;
-    let axis_distance = center_delta.cross(&lhs_axis).length();
+    let axes_parallel = (lhs_axis.dot(rhs_axis).abs() - T::ONE).abs() <= angle_tolerance;
+    let axis_distance = center_delta.cross(lhs_axis).length();
     let radii_match = (<CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(lhs)
         - <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(rhs))
     .abs()
@@ -411,7 +411,7 @@ pub fn conical_surface3d_line_segment3d_intersections<T: Scalar>(
 ) -> IntersectionResult<T> {
     let start = segment.start_point();
     let end = segment.end_point();
-    let direction = Vector3D::from_points(&start, &end);
+    let direction = Vector3D::from_points(start, end);
     let params = conical_surface3d_intersect_params(cone, &start, &direction, tolerance);
     IntersectionResult::from_option_points(
         conical_surface3d_filter_params(

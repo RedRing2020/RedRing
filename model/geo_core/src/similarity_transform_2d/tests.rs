@@ -24,7 +24,7 @@ fn composes_rotation_translation_and_scale_into_one_transform() {
             );
 
     // (1, 0) → 回転 (0, 1) → 平行移動 (0, 6) → 2 倍 (0, 12)
-    let moved = transform.apply_point(&Point2D::new(1.0, 0.0));
+    let moved = transform.apply_point(Point2D::new(1.0, 0.0));
     assert_point_eq(moved, (0.0, 12.0));
     assert!((transform.scale_factor() - 2.0).abs() < TOLERANCE_F64);
 }
@@ -33,10 +33,10 @@ fn composes_rotation_translation_and_scale_into_one_transform() {
 fn rotates_and_scales_about_given_center() {
     let rotation =
         SimilarityTransform2D::rotation_about(Point2D::new(1.0, 1.0), Angle::from_degrees(180.0));
-    assert_point_eq(rotation.apply_point(&Point2D::new(2.0, 1.0)), (0.0, 1.0));
+    assert_point_eq(rotation.apply_point(Point2D::new(2.0, 1.0)), (0.0, 1.0));
 
     let scale = SimilarityTransform2D::uniform_scale_about(Point2D::new(1.0, 1.0), 3.0).unwrap();
-    assert_point_eq(scale.apply_point(&Point2D::new(2.0, 1.0)), (4.0, 1.0));
+    assert_point_eq(scale.apply_point(Point2D::new(2.0, 1.0)), (4.0, 1.0));
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn renormalized_restores_orthogonality_after_many_compositions() {
     assert!(renormalized.orthogonality_error() < TOLERANCE_F64);
 
     let p = Point2D::new(1.0, -2.0);
-    let a = transform.apply_point(&p);
-    let b = renormalized.apply_point(&p);
+    let a = transform.apply_point(p);
+    let b = renormalized.apply_point(p);
     assert!((a - b).length() < TOLERANCE_F64);
 }

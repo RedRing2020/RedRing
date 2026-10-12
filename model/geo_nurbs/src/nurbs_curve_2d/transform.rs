@@ -11,7 +11,7 @@ impl<T: Scalar> SimilarityTransformable2D<T> for NurbsCurve2D<T> {
         transform: &SimilarityTransform2D<T>,
     ) -> Result<Self, TransformError> {
         Ok(self.map_control_points(|(x, y)| {
-            let p = transform.apply_point(&Point2D::new(x, y));
+            let p = transform.apply_point(Point2D::new(x, y));
             (p.x(), p.y())
         }))
     }

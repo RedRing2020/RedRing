@@ -25,13 +25,13 @@ fn test_closest_parameter_and_point() {
     assert!((ray.closest_parameter(&Point2D::new(3.0, 4.0)) - 3.0).abs() < 1e-12);
     assert!(
         ray.closest_point(&Point2D::new(3.0, 4.0))
-            .distance_to(&Point2D::new(1.0, 4.0))
+            .distance_to(Point2D::new(1.0, 4.0))
             < 1e-12
     );
     assert_eq!(ray.closest_parameter(&Point2D::new(3.0, -2.0)), 0.0);
     assert!(
         ray.closest_point(&Point2D::new(3.0, -2.0))
-            .distance_to(&Point2D::new(1.0, 1.0))
+            .distance_to(Point2D::new(1.0, 1.0))
             < 1e-12
     );
 

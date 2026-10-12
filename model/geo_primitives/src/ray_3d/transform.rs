@@ -10,7 +10,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for Ray3D<T> {
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         Ok(Self {
-            origin: transform.apply_point(&self.origin),
+            origin: transform.apply_point(self.origin),
             direction: transform.apply_direction(self.direction),
         })
     }

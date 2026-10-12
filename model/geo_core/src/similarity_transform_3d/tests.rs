@@ -31,7 +31,7 @@ fn composes_rotation_translation_and_scale_into_one_transform() {
     let transform = rotation.then(&translation).then(&scale);
 
     // (1, 0, 0) → 回転 (0, 1, 0) → 平行移動 (0, 1, 5) → 2 倍 (0, 2, 10)
-    let moved = transform.apply_point(&Point3D::new(1.0, 0.0, 0.0));
+    let moved = transform.apply_point(Point3D::new(1.0, 0.0, 0.0));
     assert_point_eq(moved, (0.0, 2.0, 10.0));
     assert!((transform.scale_factor() - 2.0).abs() < TOLERANCE_F64);
 }
@@ -43,7 +43,7 @@ fn rotates_about_given_center() {
         z_axis(),
         Angle::from_degrees(180.0),
     );
-    let moved = rotation.apply_point(&Point3D::new(2.0, 1.0, 3.0));
+    let moved = rotation.apply_point(Point3D::new(2.0, 1.0, 3.0));
     assert_point_eq(moved, (0.0, 1.0, 3.0));
 }
 
@@ -51,7 +51,7 @@ fn rotates_about_given_center() {
 fn scales_about_given_center() {
     let scale =
         SimilarityTransform3D::uniform_scale_about(Point3D::new(1.0, 1.0, 1.0), 3.0).unwrap();
-    let moved = scale.apply_point(&Point3D::new(2.0, 1.0, 1.0));
+    let moved = scale.apply_point(Point3D::new(2.0, 1.0, 1.0));
     assert_point_eq(moved, (4.0, 1.0, 1.0));
 }
 
@@ -100,8 +100,8 @@ fn from_matrix_accepts_similarity_and_round_trips() {
     let rebuilt = SimilarityTransform3D::from_matrix(original.to_matrix()).unwrap();
     assert!((rebuilt.scale_factor() - 1.5).abs() < TOLERANCE_F64);
     let p = Point3D::new(3.0, -1.0, 2.0);
-    let a = original.apply_point(&p);
-    let b = rebuilt.apply_point(&p);
+    let a = original.apply_point(p);
+    let b = rebuilt.apply_point(p);
     assert_point_eq(b, (a.x(), a.y(), a.z()));
 }
 
@@ -142,7 +142,7 @@ fn renormalized_restores_orthogonality_after_many_compositions() {
 
     // 再正規化しても写像はほぼ変わらない
     let p = Point3D::new(1.0, -2.0, 0.5);
-    let a = transform.apply_point(&p);
-    let b = renormalized.apply_point(&p);
-    assert!(a.distance_to(&b) < TOLERANCE_F64);
+    let a = transform.apply_point(p);
+    let b = renormalized.apply_point(p);
+    assert!(a.distance_to(b) < TOLERANCE_F64);
 }

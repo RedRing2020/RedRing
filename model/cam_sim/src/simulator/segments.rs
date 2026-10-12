@@ -80,7 +80,7 @@ impl<T: Scalar> super::CuttingSimulator<T> {
     pub(super) fn segment_length(&self, segment: &LineSegment3D<T>) -> f64 {
         let start = segment.start_point();
         let end = segment.end_point();
-        start.distance_to(&end).to_f64()
+        start.distance_to(end).to_f64()
     }
 
     /// ToolPathから線分セグメントを抽出し、切削フラグ付きで返す。

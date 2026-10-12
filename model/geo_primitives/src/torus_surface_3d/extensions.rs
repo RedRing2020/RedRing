@@ -25,9 +25,9 @@ impl<T: Scalar> TorusSurface3D<T> {
         );
         let z_axis_vec = Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z());
 
-        let local_x = relative_point.dot(&x_axis_vec);
-        let local_y = relative_point.dot(&y_axis_vec);
-        let local_z = relative_point.dot(&z_axis_vec);
+        let local_x = relative_point.dot(x_axis_vec);
+        let local_y = relative_point.dot(y_axis_vec);
+        let local_z = relative_point.dot(z_axis_vec);
 
         // 3. 主方向角度 u の初期推定
         let u_initial = local_y.atan2(local_x);

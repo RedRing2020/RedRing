@@ -11,7 +11,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for NurbsCurve3D<T> {
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         Ok(self.map_control_points(|(x, y, z)| {
-            let p = transform.apply_point(&Point3D::new(x, y, z));
+            let p = transform.apply_point(Point3D::new(x, y, z));
             (p.x(), p.y(), p.z())
         }))
     }

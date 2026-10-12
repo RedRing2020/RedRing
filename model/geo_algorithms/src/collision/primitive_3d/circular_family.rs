@@ -108,7 +108,7 @@ pub fn ellipse3d_ellipse3d_collides<T: Scalar>(
 ) -> bool {
     let c1 = ellipse_a.center();
     let c2 = ellipse_b.center();
-    let center_dist = c1.distance_to(&c2);
+    let center_dist = c1.distance_to(c2);
     let sum_semi_major = ellipse_a.semi_major_axis() + ellipse_b.semi_major_axis();
     center_dist <= sum_semi_major + tolerance
 }
@@ -130,8 +130,8 @@ pub fn arc3d_line_segment3d_collides<T: Scalar>(
     crate::distance::arc3d_point3d_distance(arc, &segment.start_point()) <= tolerance
         || crate::distance::arc3d_point3d_distance(arc, &segment.end_point()) <= tolerance
         || {
-            let d1 = Vector3D::from_points(&arc_start, &segment.start_point()).length();
-            let d2 = Vector3D::from_points(&arc_end, &segment.start_point()).length();
+            let d1 = Vector3D::from_points(arc_start, segment.start_point()).length();
+            let d2 = Vector3D::from_points(arc_end, segment.start_point()).length();
             d1 <= tolerance || d2 <= tolerance
         }
 }
@@ -157,10 +157,10 @@ pub fn arc3d_arc3d_collides<T: Scalar>(arc_a: &Arc3D<T>, arc_b: &Arc3D<T>, toler
     let pb = Point3D::new(e1x, e1y, e1z);
     let pc = Point3D::new(s2x, s2y, s2z);
     let pd = Point3D::new(e2x, e2y, e2z);
-    Vector3D::from_points(&pa, &pc).length() <= tolerance
-        || Vector3D::from_points(&pa, &pd).length() <= tolerance
-        || Vector3D::from_points(&pb, &pc).length() <= tolerance
-        || Vector3D::from_points(&pb, &pd).length() <= tolerance
+    Vector3D::from_points(pa, pc).length() <= tolerance
+        || Vector3D::from_points(pa, pd).length() <= tolerance
+        || Vector3D::from_points(pb, pc).length() <= tolerance
+        || Vector3D::from_points(pb, pd).length() <= tolerance
 }
 
 pub fn circle3d_point3d_collides<T: Scalar>(
@@ -213,6 +213,6 @@ pub fn circle3d_circle3d_collides<T: Scalar>(
     let (bx, by, bz) = circle_b.center();
     let center_a = Point3D::new(ax, ay, az);
     let center_b = Point3D::new(bx, by, bz);
-    let dist = center_a.distance_to(&center_b);
+    let dist = center_a.distance_to(center_b);
     dist <= circle_a.radius() + circle_b.radius() + tolerance
 }

@@ -13,7 +13,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for TriangleMesh3D<T> {
         let vertices = self
             .vertices()
             .iter()
-            .map(|v| transform.apply_point(v))
+            .map(|v| transform.apply_point(*v))
             .collect::<Vec<_>>();
         let normals = self.normals().map(|normals| {
             normals

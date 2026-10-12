@@ -30,9 +30,9 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for Triangle3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for Triangle3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let a_distance = self.vertex_a.distance_to(&other.vertex_a);
-        let b_distance = self.vertex_b.distance_to(&other.vertex_b);
-        let c_distance = self.vertex_c.distance_to(&other.vertex_c);
+        let a_distance = self.vertex_a.distance_to(other.vertex_a);
+        let b_distance = self.vertex_b.distance_to(other.vertex_b);
+        let c_distance = self.vertex_c.distance_to(other.vertex_c);
 
         a_distance <= tolerance && b_distance <= tolerance && c_distance <= tolerance
     }
@@ -44,12 +44,12 @@ impl<T: Scalar> Triangle3D<T> {
     /// 基本的な検証のみ実行（退化三角形チェック）
     pub fn new(vertex_a: Point3D<T>, vertex_b: Point3D<T>, vertex_c: Point3D<T>) -> Option<Self> {
         // 退化した三角形（3点が一直線上）を検証
-        let ab = Vector3D::from_points(&vertex_a, &vertex_b);
-        let ac = Vector3D::from_points(&vertex_a, &vertex_c);
+        let ab = Vector3D::from_points(vertex_a, vertex_b);
+        let ac = Vector3D::from_points(vertex_a, vertex_c);
         let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
 
         // 外積の大きさが非常に小さい場合、3点が一直線上
-        let cross = ab.cross(&ac);
+        let cross = ab.cross(ac);
         if cross.length() < zero_tol {
             return None;
         }
@@ -67,25 +67,25 @@ impl<T: Scalar> Triangle3D<T> {
 
     /// 辺ABのベクトルを取得
     pub fn edge_ab(&self) -> Vector3D<T> {
-        Vector3D::from_points(&self.vertex_a, &self.vertex_b)
+        Vector3D::from_points(self.vertex_a, self.vertex_b)
     }
 
     /// 辺BCのベクトルを取得
     pub fn edge_bc(&self) -> Vector3D<T> {
-        Vector3D::from_points(&self.vertex_b, &self.vertex_c)
+        Vector3D::from_points(self.vertex_b, self.vertex_c)
     }
 
     /// 辺CAのベクトルを取得
     pub fn edge_ca(&self) -> Vector3D<T> {
-        Vector3D::from_points(&self.vertex_c, &self.vertex_a)
+        Vector3D::from_points(self.vertex_c, self.vertex_a)
     }
 
     /// 法線ベクトルを計算（正規化済み）
     pub fn normal(&self) -> Option<Vector3D<T>> {
         let ab = self.edge_ab();
-        let ac = Vector3D::from_points(&self.vertex_a, &self.vertex_c);
+        let ac = Vector3D::from_points(self.vertex_a, self.vertex_c);
 
-        let cross = ab.cross(&ac);
+        let cross = ab.cross(ac);
         if cross.length() < default_kernel_numerical_zero_tolerance::<T>() {
             None
         } else {
@@ -96,9 +96,9 @@ impl<T: Scalar> Triangle3D<T> {
     /// 面積を計算
     pub fn area(&self) -> T {
         let ab = self.edge_ab();
-        let ac = Vector3D::from_points(&self.vertex_a, &self.vertex_c);
+        let ac = Vector3D::from_points(self.vertex_a, self.vertex_c);
 
-        let cross = ab.cross(&ac);
+        let cross = ab.cross(ac);
         cross.length() / T::from_f64(2.0)
     }
 
@@ -112,15 +112,15 @@ impl<T: Scalar> Triangle3D<T> {
     /// 指定した点が三角形の平面上にあるかチェック（バリセントリック座標使用）
     pub fn contains_point_on_plane(&self, point: Point3D<T>) -> bool {
         // バリセントリック座標で計算
-        let v0 = Vector3D::from_points(&self.vertex_c, &self.vertex_a);
-        let v1 = Vector3D::from_points(&self.vertex_c, &self.vertex_b);
-        let v2 = Vector3D::from_points(&self.vertex_c, &point);
+        let v0 = Vector3D::from_points(self.vertex_c, self.vertex_a);
+        let v1 = Vector3D::from_points(self.vertex_c, self.vertex_b);
+        let v2 = Vector3D::from_points(self.vertex_c, point);
 
-        let dot00 = v0.dot(&v0);
-        let dot01 = v0.dot(&v1);
-        let dot02 = v0.dot(&v2);
-        let dot11 = v1.dot(&v1);
-        let dot12 = v1.dot(&v2);
+        let dot00 = v0.dot(v0);
+        let dot01 = v0.dot(v1);
+        let dot02 = v0.dot(v2);
+        let dot11 = v1.dot(v1);
+        let dot12 = v1.dot(v2);
 
         let inv_denom = T::ONE / (dot00 * dot11 - dot01 * dot01);
         let u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
@@ -152,7 +152,7 @@ impl<T: Scalar> Triangle3D<T> {
         let Some(normal) = self.normal() else {
             return PointClassification::Outside;
         };
-        let plane_distance = Vector3D::from_points(&self.vertex_a, point).dot(&normal);
+        let plane_distance = Vector3D::from_points(self.vertex_a, *point).dot(normal);
         if plane_distance.abs() <= tolerance && self.contains_point_on_plane(*point) {
             PointClassification::Inside
         } else {
@@ -178,15 +178,15 @@ impl<T: Scalar> Triangle3D<T> {
         // 三角形の平面上で2D座標系を構築
         let ab = self.edge_ab();
         let x_axis = ab.normalize();
-        let y_axis = normal.cross(&x_axis);
+        let y_axis = normal.cross(x_axis);
 
         // 各頂点を2D座標に変換
         let a_2d = (T::ZERO, T::ZERO);
         let b_2d = (ab.length(), T::ZERO);
 
-        let ac = Vector3D::from_points(&self.vertex_a, &self.vertex_c);
-        let c_x = ac.dot(&x_axis);
-        let c_y = ac.dot(&y_axis);
+        let ac = Vector3D::from_points(self.vertex_a, self.vertex_c);
+        let c_x = ac.dot(x_axis);
+        let c_y = ac.dot(y_axis);
         let c_2d = (c_x, c_y);
 
         // 2D外心を計算
@@ -220,8 +220,8 @@ impl<T: Scalar> Triangle3D<T> {
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         // 点の平面への投影
         if let Some(normal) = self.normal() {
-            let to_point = Vector3D::from_points(&self.vertex_a, point);
-            let distance_to_plane = to_point.dot(&normal).abs();
+            let to_point = Vector3D::from_points(self.vertex_a, *point);
+            let distance_to_plane = to_point.dot(normal).abs();
 
             // 投影点を計算
             let projected = Point3D::new(
@@ -243,24 +243,24 @@ impl<T: Scalar> Triangle3D<T> {
             dist_ab.min(dist_bc).min(dist_ca)
         } else {
             // 退化した三角形の場合、頂点までの最短距離
-            let dist_a = Vector3D::from_points(&self.vertex_a, point).length();
-            let dist_b = Vector3D::from_points(&self.vertex_b, point).length();
-            let dist_c = Vector3D::from_points(&self.vertex_c, point).length();
+            let dist_a = Vector3D::from_points(self.vertex_a, *point).length();
+            let dist_b = Vector3D::from_points(self.vertex_b, *point).length();
+            let dist_c = Vector3D::from_points(self.vertex_c, *point).length();
             dist_a.min(dist_b).min(dist_c)
         }
     }
 
     /// 点から線分までの距離（ヘルパーメソッド）
     fn distance_to_edge(&self, point: &Point3D<T>, p1: &Point3D<T>, p2: &Point3D<T>) -> T {
-        let edge = Vector3D::from_points(p1, p2);
-        let to_point = Vector3D::from_points(p1, point);
+        let edge = Vector3D::from_points(*p1, *p2);
+        let to_point = Vector3D::from_points(*p1, *point);
 
-        let edge_length_sq = edge.dot(&edge);
+        let edge_length_sq = edge.dot(edge);
         if edge_length_sq < default_kernel_numerical_zero_tolerance::<T>() {
             return to_point.length();
         }
 
-        let t = (to_point.dot(&edge) / edge_length_sq)
+        let t = (to_point.dot(edge) / edge_length_sq)
             .max(T::ZERO)
             .min(T::ONE);
 
@@ -270,7 +270,7 @@ impl<T: Scalar> Triangle3D<T> {
             p1.z() + t * edge.z(),
         );
 
-        Vector3D::from_points(&closest, point).length()
+        Vector3D::from_points(closest, *point).length()
     }
 }
 

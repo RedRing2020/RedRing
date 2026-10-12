@@ -50,7 +50,7 @@ pub fn nurbscurve3d_point3d_try_distance<T: Scalar>(
         let u = u_min + delta_u * T::from_usize(i);
         let curve_vec = curve.evaluate_at(u);
         let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
-        min_distance = min_distance.min(curve_point.distance_to(point));
+        min_distance = min_distance.min(curve_point.distance_to(*point));
     }
 
     if min_distance == T::INFINITY {

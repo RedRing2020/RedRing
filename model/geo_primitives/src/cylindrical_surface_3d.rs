@@ -72,7 +72,7 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for CylindricalSurface3D<T> {
 
 impl<T: Scalar> geo_contracts::TolerantEq<T> for CylindricalSurface3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        let center_dist_sq = self.center.distance_squared_to(&other.center);
+        let center_dist_sq = self.center.distance_squared_to(other.center);
         if center_dist_sq > tolerance * tolerance {
             return false;
         }
@@ -136,7 +136,7 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         let z_axis = Direction3D::from_vector(axis)?;
 
         // 参照方向の直交化・正規化（グラム・シュミット正規直交化）
-        let axis_component = ref_direction.dot(&z_axis.as_vector());
+        let axis_component = ref_direction.dot(z_axis.as_vector());
         let orthogonal_ref = ref_direction - z_axis.as_vector() * axis_component;
         let x_axis = Direction3D::from_vector(orthogonal_ref)?;
 
@@ -170,7 +170,7 @@ impl<T: Scalar> CylindricalSurface3D<T> {
 
     /// Y軸方向を計算（axis × ref_direction）
     pub fn y_axis(&self) -> Direction3D<T> {
-        let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
+        let y_vector = self.axis.as_vector().cross(self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector)
             .expect("Y-axis calculation should always succeed with orthogonal axes")
     }
@@ -274,7 +274,7 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         );
 
         // 軸方向成分を除去して径方向距離を計算
-        let axis_projection = to_point.dot(&self.axis.as_vector());
+        let axis_projection = to_point.dot(self.axis.as_vector());
         let axis_component = self.axis.as_vector() * axis_projection;
         let radial_vector = Vector3D::new(
             to_point.x() - axis_component.x(),
@@ -296,7 +296,7 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         );
 
         // V パラメータ（軸方向）
-        let v = to_point.dot(&self.axis.as_vector());
+        let v = to_point.dot(self.axis.as_vector());
 
         // 径方向ベクトル
         let axis_component = self.axis.as_vector() * v;
@@ -310,8 +310,8 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         // U パラメータ（角度）
         let u = if radial_distance > T::EPSILON {
             let normalized_radial = radial_vector / radial_distance;
-            let x_component = normalized_radial.dot(&self.ref_direction.as_vector());
-            let y_component = normalized_radial.dot(&self.y_axis().as_vector());
+            let x_component = normalized_radial.dot(self.ref_direction.as_vector());
+            let y_component = normalized_radial.dot(self.y_axis().as_vector());
             y_component.atan2(x_component)
         } else {
             T::ZERO // 軸上の点の場合は任意の角度

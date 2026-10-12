@@ -92,7 +92,7 @@ impl<T: Scalar> Circle2D<T> {
     ///
     /// 円周までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は中心からの距離で内側・外側に分ける。
     pub fn classify_point(&self, point: &Point2D<T>, tolerance: T) -> PointClassification {
-        let center_distance = point.distance_to(&self.center);
+        let center_distance = point.distance_to(self.center);
         if (center_distance - self.radius).abs() <= tolerance {
             PointClassification::OnBoundary
         } else if center_distance < self.radius {
@@ -114,7 +114,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 点から円周への距離
     pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        let center_distance = point.distance_to(&self.center);
+        let center_distance = point.distance_to(self.center);
         (center_distance - self.radius).abs()
     }
 
@@ -122,7 +122,7 @@ impl<T: Scalar> Circle2D<T> {
     pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
         let dx = point.x() - self.center.x();
         let dy = point.y() - self.center.y();
-        let distance = point.distance_to(&self.center);
+        let distance = point.distance_to(self.center);
 
         if distance <= default_kernel_numerical_zero_tolerance::<T>() {
             // 点が中心にある場合、任意の円周上の点を返す
@@ -148,7 +148,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 2つの円の距離
     pub fn distance_to_circle(&self, other: &Self) -> T {
-        let center_distance = self.center.distance_to(&other.center);
+        let center_distance = self.center.distance_to(other.center);
 
         let radii_sum = self.radius + other.radius;
 
@@ -207,7 +207,7 @@ impl<T: Scalar> Circle2D<T> {
         let center = Point2D::new(cx, cy);
 
         // 半径を計算
-        let radius = center.distance_to(&point1);
+        let radius = center.distance_to(point1);
 
         Self::new(center, radius)
     }

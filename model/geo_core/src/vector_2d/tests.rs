@@ -99,12 +99,12 @@ fn test_dot_product() {
     let v1 = Vector2D::new(1.0, 2.0);
     let v2 = Vector2D::new(3.0, 4.0);
 
-    assert_eq!(v1.dot(&v2), 11.0); // 1*3 + 2*4 = 11
+    assert_eq!(v1.dot(v2), 11.0); // 1*3 + 2*4 = 11
 
     // 垂直ベクトルの内積は0
     let v3 = Vector2D::new(1.0, 0.0);
     let v4 = Vector2D::new(0.0, 1.0);
-    assert_eq!(v3.dot(&v4), 0.0);
+    assert_eq!(v3.dot(v4), 0.0);
 }
 
 /// 外積（Z成分）テスト
@@ -113,13 +113,13 @@ fn test_cross_product() {
     let v1 = Vector2D::new(1.0, 0.0);
     let v2 = Vector2D::new(0.0, 1.0);
 
-    assert_eq!(v1.cross(&v2), 1.0); // 正の回転
-    assert_eq!(v2.cross(&v1), -1.0); // 負の回転
+    assert_eq!(v1.cross(v2), 1.0); // 正の回転
+    assert_eq!(v2.cross(v1), -1.0); // 負の回転
 
     // 平行ベクトルの外積は0
     let v3 = Vector2D::new(2.0, 4.0);
     let v4 = Vector2D::new(1.0, 2.0);
-    assert_eq!(v3.cross(&v4), 0.0);
+    assert_eq!(v3.cross(v4), 0.0);
 }
 
 /// 角度計算テスト
@@ -129,7 +129,7 @@ fn test_angles() {
     let y_axis = Vector2D::new(0.0, 1.0);
 
     // ベクトル間の角度
-    let angle = x_axis.angle_to(&y_axis);
+    let angle = x_axis.angle_to(y_axis);
     assert!((angle.to_radians() - std::f64::consts::FRAC_PI_2).abs() < f64::EPSILON);
 }
 
@@ -162,14 +162,14 @@ fn test_lerp() {
     let v1 = Vector2D::new(0.0, 0.0);
     let v2 = Vector2D::new(4.0, 2.0);
 
-    let mid = v1.lerp(&v2, 0.5);
+    let mid = v1.lerp(v2, 0.5);
     assert_eq!(mid.x(), 2.0);
     assert_eq!(mid.y(), 1.0);
 
-    let start = v1.lerp(&v2, 0.0);
+    let start = v1.lerp(v2, 0.0);
     assert_eq!(start, v1);
 
-    let end = v1.lerp(&v2, 1.0);
+    let end = v1.lerp(v2, 1.0);
     assert_eq!(end, v2);
 }
 
@@ -179,7 +179,7 @@ fn test_projection() {
     let v = Vector2D::new(3.0, 4.0);
     let target = Vector2D::new(1.0, 0.0); // X軸
 
-    let projected = v.project_onto(&target);
+    let projected = v.project_onto(target);
     assert_eq!(projected.x(), 3.0);
     assert_eq!(projected.y(), 0.0);
 
@@ -201,11 +201,11 @@ fn test_component_operations() {
     let v1 = Vector2D::new(1.0, 4.0);
     let v2 = Vector2D::new(3.0, 2.0);
 
-    let min = v1.min(&v2);
+    let min = v1.min(v2);
     assert_eq!(min.x(), 1.0);
     assert_eq!(min.y(), 2.0);
 
-    let max = v1.max(&v2);
+    let max = v1.max(v2);
     assert_eq!(max.x(), 3.0);
     assert_eq!(max.y(), 4.0);
 

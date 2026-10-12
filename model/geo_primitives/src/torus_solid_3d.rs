@@ -160,8 +160,8 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// トーラスの表面までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
     /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
     pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
-        let relative = Vector3D::from_points(&self.origin, point);
-        let axial = relative.dot(&self.z_axis.as_vector());
+        let relative = Vector3D::from_points(self.origin, *point);
+        let axial = relative.dot(self.z_axis.as_vector());
         let radial = (relative - self.z_axis.as_vector() * axial).length();
         let tube_center_distance =
             ((radial - self.major_radius) * (radial - self.major_radius) + axial * axial).sqrt();
@@ -317,7 +317,7 @@ impl<T: Scalar> TorusSolid3DDistance<T> for TorusSolid3D<T> {
         // トーラスソリッド（領域）までの距離。大半径の円（断面の円の中心が描く円）までの距離から小半径を引き、内部・表面上は 0 とする
         let local = p - self.origin;
         let z_axis = self.z_axis;
-        let z_component = local.dot(&z_axis.as_vector());
+        let z_component = local.dot(z_axis.as_vector());
         let radial_vector = local - (z_axis.as_vector() * z_component);
         let radial_distance = (radial_vector.x() * radial_vector.x()
             + radial_vector.y() * radial_vector.y()

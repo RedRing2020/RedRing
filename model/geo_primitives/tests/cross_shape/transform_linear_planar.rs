@@ -34,24 +34,24 @@ fn transform_2d() -> SimilarityTransform2D<f64> {
 
 fn assert_point3_eq(actual: Point3D<f64>, expected: Point3D<f64>) {
     assert!(
-        actual.distance_to(&expected) < TOLERANCE_F64,
+        actual.distance_to(expected) < TOLERANCE_F64,
         "{actual:?} != {expected:?}"
     );
 }
 
 fn assert_point2_eq(actual: Point2D<f64>, expected: Point2D<f64>) {
     assert!(
-        actual.distance_to(&expected) < TOLERANCE_F64,
+        actual.distance_to(expected) < TOLERANCE_F64,
         "{actual:?} != {expected:?}"
     );
 }
 
 fn map3(p: Point3D<f64>) -> Point3D<f64> {
-    transform_3d().apply_point(&p)
+    transform_3d().apply_point(p)
 }
 
 fn map2(p: Point2D<f64>) -> Point2D<f64> {
-    transform_2d().apply_point(&p)
+    transform_2d().apply_point(p)
 }
 
 #[test]
@@ -117,8 +117,8 @@ fn plane_3d_keeps_orthonormal_right_handed_frame() {
         Vector3D::from(Plane3DProperties::v_axis(&moved)),
     );
     assert!((u - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64);
-    assert!(u.dot(&v).abs() < TOLERANCE_F64 && n.dot(&u).abs() < TOLERANCE_F64);
-    assert!((n.cross(&u) - v).length() < TOLERANCE_F64);
+    assert!(u.dot(v).abs() < TOLERANCE_F64 && n.dot(u).abs() < TOLERANCE_F64);
+    assert!((n.cross(u) - v).length() < TOLERANCE_F64);
 }
 
 #[test]

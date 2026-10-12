@@ -69,7 +69,7 @@ impl<T: Scalar> TorusSurface3D<T> {
         // 軸の直交性チェック
         let z_vec = Vector3D::new(z_axis.x(), z_axis.y(), z_axis.z());
         let x_vec = Vector3D::new(x_axis.x(), x_axis.y(), x_axis.z());
-        let dot_product = z_vec.dot(&x_vec);
+        let dot_product = z_vec.dot(x_vec);
 
         if dot_product.abs() > default_angle_tolerance::<T>() {
             return None; // 軸が直交していない
@@ -101,7 +101,7 @@ impl<T: Scalar> TorusSurface3D<T> {
     fn y_axis_internal(&self) -> Direction3D<T> {
         let z_vec = Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z());
         let x_vec = Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z());
-        let y_vec = z_vec.cross(&x_vec);
+        let y_vec = z_vec.cross(x_vec);
 
         // 正規化されたベクトルのクロス積は正規化済み
         Direction3D::from_vector(y_vec).unwrap()
@@ -205,7 +205,7 @@ impl<T: Scalar> TorusSurface3D<T> {
         // 軸の直交性チェック
         let z_vec = Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z());
         let x_vec = Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z());
-        let dot_product = z_vec.dot(&x_vec);
+        let dot_product = z_vec.dot(x_vec);
 
         dot_product.abs() <= default_angle_tolerance::<T>()
     }
@@ -318,7 +318,7 @@ impl<T: Scalar> TorusSurface3DDistance<T> for TorusSurface3D<T> {
         let origin = self.origin;
         let local = p - origin;
         let z_axis = self.z_axis;
-        let z_component = local.dot(&z_axis.as_vector());
+        let z_component = local.dot(z_axis.as_vector());
         let radial_vector = local - (z_axis.as_vector() * z_component);
         let radial_distance = (radial_vector.x() * radial_vector.x()
             + radial_vector.y() * radial_vector.y()

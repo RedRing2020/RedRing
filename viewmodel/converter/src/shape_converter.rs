@@ -170,8 +170,8 @@ pub fn circle_to_vertices(
         Vector3D::new(1.0, 0.0, 0.0)
     };
 
-    let u = normal_vec.cross(&arbitrary).normalize();
-    let v = normal_vec.cross(&u).normalize();
+    let u = normal_vec.cross(arbitrary).normalize();
+    let v = normal_vec.cross(u).normalize();
 
     // 円周上の点を生成
     for i in 0..=segments {
@@ -224,8 +224,8 @@ pub fn circle_to_wireframe_line_segments(
         Vector3D::new(1.0, 0.0, 0.0)
     };
 
-    let u = normal_vec.cross(&arbitrary).normalize();
-    let v = normal_vec.cross(&u).normalize();
+    let u = normal_vec.cross(arbitrary).normalize();
+    let v = normal_vec.cross(u).normalize();
 
     // 円周を線分のペアとして生成
     for i in 0..segments {
@@ -287,8 +287,8 @@ pub fn circle_to_solid_vertices(
         Vector3D::new(1.0, 0.0, 0.0)
     };
 
-    let u = normal_vec.cross(&arbitrary).normalize();
-    let v = normal_vec.cross(&u).normalize();
+    let u = normal_vec.cross(arbitrary).normalize();
+    let v = normal_vec.cross(u).normalize();
 
     // 中心点の頂点データ
     let center_vertex = VertexData::new(
@@ -346,7 +346,7 @@ pub fn triangle_to_wireframe_vertices(triangle: &Triangle3D<f64>) -> Vec<VertexD
     // 法線を計算
     let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());
     let edge2 = Vector3D::new(vc.x() - va.x(), vc.y() - va.y(), vc.z() - va.z());
-    let normal_vec = edge1.cross(&edge2).normalize();
+    let normal_vec = edge1.cross(edge2).normalize();
     let normal = [
         normal_vec.x() as f32,
         normal_vec.y() as f32,
@@ -384,7 +384,7 @@ pub fn triangle_to_solid_vertices(triangle: &Triangle3D<f64>) -> Vec<VertexData>
     // 法線を計算（CCW順序を前提）
     let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());
     let edge2 = Vector3D::new(vc.x() - va.x(), vc.y() - va.y(), vc.z() - va.z());
-    let normal_vec = edge1.cross(&edge2).normalize();
+    let normal_vec = edge1.cross(edge2).normalize();
     let normal = [
         normal_vec.x() as f32,
         normal_vec.y() as f32,
@@ -416,7 +416,7 @@ pub fn triangle_to_wireframe_line_segments(triangle: &Triangle3D<f64>) -> Vec<Ve
     // 法線を計算（CCW順序を前提）
     let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());
     let edge2 = Vector3D::new(vc.x() - va.x(), vc.y() - va.y(), vc.z() - va.z());
-    let normal_vec = edge1.cross(&edge2).normalize();
+    let normal_vec = edge1.cross(edge2).normalize();
     let normal = [
         normal_vec.x() as f32,
         normal_vec.y() as f32,
@@ -482,7 +482,7 @@ pub fn arc_to_vertices(arc: &Arc3D<f64>, quality: &TessellationQuality) -> Vec<V
     ];
 
     // V方向 = normal × start_dir
-    let v = normal_vec.cross(&start_dir_vec).normalize();
+    let v = normal_vec.cross(start_dir_vec).normalize();
 
     // 円弧上の点を生成
     for i in 0..=segments {
@@ -549,7 +549,7 @@ pub fn arc_to_wireframe_line_segments(
     ];
 
     // V方向 = normal × start_dir
-    let v = normal_vec.cross(&start_dir_vec).normalize();
+    let v = normal_vec.cross(start_dir_vec).normalize();
 
     // 円弧を線分のペアとして生成
     for i in 0..segments {
@@ -1521,7 +1521,7 @@ pub fn cylindrical_solid_to_vertices(
     let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
     let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
     let x_axis = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
-    let y_axis = z_axis.cross(&x_axis).normalize();
+    let y_axis = z_axis.cross(x_axis).normalize();
 
     let mut vertices = Vec::new();
 
@@ -1789,7 +1789,7 @@ pub fn conical_solid_to_vertices(
     let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
     let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
     let x_axis = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
-    let y_axis = z_axis.cross(&x_axis).normalize();
+    let y_axis = z_axis.cross(x_axis).normalize();
 
     let mut vertices = Vec::new();
 

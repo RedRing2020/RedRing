@@ -57,12 +57,12 @@ impl<T: Scalar> Plane3D<T> {
         let z_axis = Direction3D::from_vector(normal)?;
 
         // U軸の法線成分を除去して正規化（グラム・シュミット正規直交化）
-        let normal_component = u_direction.dot(&z_axis.as_vector());
+        let normal_component = u_direction.dot(z_axis.as_vector());
         let orthogonal_u = u_direction - z_axis.as_vector() * normal_component;
         let u_axis = Direction3D::from_vector(orthogonal_u)?;
 
         // V軸 = Z軸 × U軸（右手系）
-        let v_vector = z_axis.as_vector().cross(&u_axis.as_vector());
+        let v_vector = z_axis.as_vector().cross(u_axis.as_vector());
         let v_axis = Direction3D::from_vector(v_vector)?;
 
         Some(Self {
@@ -96,7 +96,7 @@ impl<T: Scalar> Plane3D<T> {
         );
 
         // 法線 = U × V（右手系）
-        let normal = u_vector.cross(&v_vector);
+        let normal = u_vector.cross(v_vector);
 
         Self::from_origin_and_axes(origin, normal, u_vector)
     }
@@ -158,7 +158,7 @@ impl<T: Scalar> Plane3D<T> {
             point.y() - self.origin.y(),
             point.z() - self.origin.z(),
         );
-        relative.dot(&self.normal.as_vector())
+        relative.dot(self.normal.as_vector())
     }
 
     /// 点を平面に投影
@@ -176,9 +176,9 @@ impl<T: Scalar> Plane3D<T> {
     pub fn is_valid(&self) -> bool {
         // 各軸がDirection3Dで正規化されていることを前提
         // 直交性のチェック
-        let dot_uv = self.u_axis.as_vector().dot(&self.v_axis.as_vector()).abs();
-        let dot_un = self.u_axis.as_vector().dot(&self.normal.as_vector()).abs();
-        let dot_vn = self.v_axis.as_vector().dot(&self.normal.as_vector()).abs();
+        let dot_uv = self.u_axis.as_vector().dot(self.v_axis.as_vector()).abs();
+        let dot_un = self.u_axis.as_vector().dot(self.normal.as_vector()).abs();
+        let dot_vn = self.v_axis.as_vector().dot(self.normal.as_vector()).abs();
 
         let tolerance = default_orthogonality_dot_error_tolerance::<T>();
         dot_uv < tolerance && dot_un < tolerance && dot_vn < tolerance
@@ -210,7 +210,7 @@ impl<T: Scalar> geo_contracts::TolerantEq<T> for Plane3D<T> {
         let normal1 = self.normal;
         let normal2 = other.normal;
 
-        let dot_product = normal1.dot(&normal2).abs();
+        let dot_product = normal1.dot(normal2).abs();
         if (dot_product - T::ONE).abs() > tolerance {
             return false;
         }
@@ -300,7 +300,7 @@ impl<T: Scalar + From<f64>> Plane3DContainment<T> for Plane3D<T> {
             point.1 - self.origin.y(),
             point.2 - self.origin.z(),
         );
-        let distance = relative.dot(&self.normal.as_vector()).abs();
+        let distance = relative.dot(self.normal.as_vector()).abs();
         distance <= tolerance
     }
 }
@@ -312,7 +312,7 @@ impl<T: Scalar + From<f64>> Plane3DDistance<T> for Plane3D<T> {
             point.1 - self.origin.y(),
             point.2 - self.origin.z(),
         );
-        relative.dot(&self.normal.as_vector())
+        relative.dot(self.normal.as_vector())
     }
 }
 
@@ -324,7 +324,7 @@ impl<T: Scalar + From<f64>> Plane3DProjection<T> for Plane3D<T> {
             point.1 - self.origin.y(),
             point.2 - self.origin.z(),
         );
-        let distance = relative.dot(&self.normal.as_vector());
+        let distance = relative.dot(self.normal.as_vector());
         let offset = self.normal.as_vector() * distance;
         (
             point.0 - offset.x(),

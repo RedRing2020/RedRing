@@ -151,14 +151,14 @@ fn test_extensions() {
     assert_approx_eq(v_axis.as_vector().length(), 1.0, 1e-10);
 
     // 軸は互いに直交
-    assert_approx_eq(u_axis.as_vector().dot(&v_axis.as_vector()), 0.0, 1e-10);
+    assert_approx_eq(u_axis.as_vector().dot(v_axis.as_vector()), 0.0, 1e-10);
 
     // サンプルポイントの生成
     let points = circle.sample_points(4);
     assert_eq!(points.len(), 4);
 
     for point in &points {
-        let distance = center.distance_to(point);
+        let distance = center.distance_to(*point);
         assert_approx_eq(distance, radius, 1e-10);
     }
 }
@@ -228,7 +228,7 @@ fn test_from_three_points_passes_through_all_points() {
         (-1.0, 0.0, 0.0),
     )
     .unwrap();
-    assert!(circle.center.distance_to(&Point3D::new(0.0, 0.0, 0.0)) < 1e-12);
+    assert!(circle.center.distance_to(Point3D::new(0.0, 0.0, 0.0)) < 1e-12);
     assert!((circle.radius - 1.0).abs() < 1e-12);
 
     // 傾いた平面上の 3 点のいずれも円上にある

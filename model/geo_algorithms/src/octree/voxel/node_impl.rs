@@ -433,7 +433,7 @@ impl<T: Scalar> VoxelNode<T> {
 
         let point = Point3D::new(px, py, pz);
         let closest = Point3D::new(closest_x, closest_y, closest_z);
-        let distance = point.distance_to(&closest);
+        let distance = point.distance_to(closest);
         // 半径方向距離で円柱断面内判定。
         distance <= radius
     }
@@ -458,7 +458,7 @@ impl<T: Scalar> VoxelNode<T> {
 
         let start_point = Point3D::new(sx, sy, sz);
         let end_point = Point3D::new(ex, ey, ez);
-        let len_sq = start_point.distance_squared_to(&end_point);
+        let len_sq = start_point.distance_squared_to(end_point);
         let t = if len_sq <= T::EPSILON {
             T::ZERO
         } else {
@@ -472,7 +472,7 @@ impl<T: Scalar> VoxelNode<T> {
 
         let point = Point3D::new(px, py, pz);
         let closest = Point3D::new(closest_x, closest_y, closest_z);
-        point.distance_to(&closest)
+        point.distance_to(closest)
     }
 
     /// 最大深さ葉ノードでのAABB除去判定（中心点サンプリング）。
@@ -481,7 +481,7 @@ impl<T: Scalar> VoxelNode<T> {
             !tool_aabb.is_empty(),
             "tool_aabb should not be empty in remove_material_box"
         );
-        tool_aabb.contains_point(&self.bounds.center())
+        tool_aabb.contains_point(self.bounds.center())
     }
 
     /// 葉ノードの適応判定を有効化するかを返す。

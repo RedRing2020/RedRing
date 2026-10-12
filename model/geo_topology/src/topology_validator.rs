@@ -88,7 +88,7 @@ fn shared_vertex_consistency<T: Scalar>(
         .map(|index| {
             let end = wire.edges()[index].oriented_constraint_end_point();
             let next_start = wire.edges()[index + 1].oriented_constraint_start_point();
-            end.distance_to(&next_start) <= budget.shared_tolerance
+            end.distance_to(next_start) <= budget.shared_tolerance
         })
         .collect()
 }

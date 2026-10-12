@@ -267,7 +267,7 @@ fn test_ellipse_bounding_box() {
     let bbox = ellipse.bounding_box();
 
     // 境界ボックスに中心が含まれる
-    assert!(bbox.contains_point(&center));
+    assert!(bbox.contains_point(center));
 }
 
 #[test]
@@ -291,9 +291,9 @@ fn test_ellipse_distance_and_closest_point_to_curve() {
     assert!((ellipse.distance_to_point(&inside) - 0.349_605_694_569_673).abs() < TOLERANCE_F64);
     let closest = ellipse.closest_point(&inside);
     let expected = to_world(1.110_726_977_965_884, 0.831_607_717_078_608);
-    assert!(closest.distance_to(&expected) < TOLERANCE_F64);
+    assert!(closest.distance_to(expected) < TOLERANCE_F64);
     assert!(
-        (closest.distance_to(&inside) - ellipse.distance_to_point(&inside)).abs() < TOLERANCE_F64
+        (closest.distance_to(inside) - ellipse.distance_to_point(&inside)).abs() < TOLERANCE_F64
     );
 }
 

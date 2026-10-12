@@ -339,8 +339,8 @@ impl<T: Scalar> Edge<T> {
     pub fn is_binding_consistent(&self, bind_tolerance: T) -> bool {
         let (constraint_start, constraint_end) = self.oriented_constraint_points();
 
-        self.start_vertex.point().distance_to(&constraint_start) <= bind_tolerance
-            && self.end_vertex.point().distance_to(&constraint_end) <= bind_tolerance
+        self.start_vertex.point().distance_to(constraint_start) <= bind_tolerance
+            && self.end_vertex.point().distance_to(constraint_end) <= bind_tolerance
     }
 
     /// primitive の ideal endpoint と拘束端点の整合を確認する
@@ -348,8 +348,8 @@ impl<T: Scalar> Edge<T> {
         let (constraint_start, constraint_end) = self.oriented_constraint_points();
         let (ideal_start, ideal_end) = self.oriented_ideal_points();
 
-        ideal_start.distance_to(&constraint_start) <= ideal_tolerance
-            && ideal_end.distance_to(&constraint_end) <= ideal_tolerance
+        ideal_start.distance_to(constraint_start) <= ideal_tolerance
+            && ideal_end.distance_to(constraint_end) <= ideal_tolerance
     }
 
     /// parameter_range から評価した endpoint と拘束端点の整合を確認する
@@ -357,8 +357,8 @@ impl<T: Scalar> Edge<T> {
         let (constraint_start, constraint_end) = self.oriented_constraint_points();
         let (evaluated_start, evaluated_end) = self.oriented_evaluated_points();
 
-        evaluated_start.distance_to(&constraint_start) <= eval_tolerance
-            && evaluated_end.distance_to(&constraint_end) <= eval_tolerance
+        evaluated_start.distance_to(constraint_start) <= eval_tolerance
+            && evaluated_end.distance_to(constraint_end) <= eval_tolerance
     }
 
     /// Edge の局所整合を確認する

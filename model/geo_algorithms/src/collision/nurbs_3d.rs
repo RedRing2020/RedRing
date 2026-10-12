@@ -121,7 +121,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
             let u = u_min + delta_u * T::from_usize(i);
             let curve_point = self.0.evaluate_at(u);
             let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
-            let dist_sq = sample_point.distance_squared_to(point);
+            let dist_sq = sample_point.distance_squared_to(*point);
 
             if dist_sq < min_dist_sq {
                 min_dist_sq = dist_sq;
@@ -138,7 +138,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
         let closest_point = self.0.evaluate_at(refined_u);
         let closest_point =
             CorePoint3D::new(closest_point.x(), closest_point.y(), closest_point.z());
-        closest_point.distance_to(point)
+        closest_point.distance_to(*point)
     }
 }
 
@@ -195,7 +195,7 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsCurveCollider<T> {
             // 距離を計算
             let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
             let closest_point = CorePoint3D::new(closest_x, closest_y, closest_z);
-            let distance = sample_point.distance_to(&closest_point);
+            let distance = sample_point.distance_to(closest_point);
 
             min_distance = min_distance.min(distance);
         }
@@ -247,7 +247,7 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsCurveCollider<T> {
             // 距離を計算
             let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
             let closest_point = CorePoint3D::new(closest_x, closest_y, closest_z);
-            let distance = sample_point.distance_to(&closest_point);
+            let distance = sample_point.distance_to(closest_point);
 
             min_distance = min_distance.min(distance);
         }
@@ -299,7 +299,7 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsCurveCollider<T> {
             // 距離を計算
             let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
             let closest_point = CorePoint3D::new(closest_x, closest_y, closest_z);
-            let distance = sample_point.distance_to(&closest_point);
+            let distance = sample_point.distance_to(closest_point);
 
             min_distance = min_distance.min(distance);
         }
@@ -335,7 +335,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsCurveCollider<T> {
             let radius = <Circle3D<T> as Circle3DProperties<T>>::radius(circle);
 
             let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
-            let dist_to_center = sample_point.distance_to(&center);
+            let dist_to_center = sample_point.distance_to(center);
 
             // 円周までの距離
             let distance = (dist_to_center - radius).abs();
@@ -514,7 +514,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
                 let p = self.0.evaluate_at(u, v);
                 let surface_point = Point3D::new(p.x(), p.y(), p.z());
 
-                let d = surface_point.distance_to(point);
+                let d = surface_point.distance_to(*point);
 
                 if d < min_dist {
                     min_dist = d;
@@ -586,7 +586,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
 
                 let surface_point = Point3D::new(p.x(), p.y(), p.z());
                 let closest_point = Point3D::new(closest_x, closest_y, closest_z);
-                let d = surface_point.distance_to(&closest_point);
+                let d = surface_point.distance_to(closest_point);
 
                 min_dist = min_dist.min(d);
             }
@@ -607,7 +607,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
         let seg_dx = end.x() - start.x();
         let seg_dy = end.y() - start.y();
         let seg_dz = end.z() - start.z();
-        let seg_len_sq = start.distance_squared_to(&end);
+        let seg_len_sq = start.distance_squared_to(end);
 
         let mut min_dist = T::INFINITY;
 
@@ -634,7 +634,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
 
                 let surface_point = Point3D::new(p.x(), p.y(), p.z());
                 let closest_point = Point3D::new(cx, cy, cz);
-                let d = surface_point.distance_to(&closest_point);
+                let d = surface_point.distance_to(closest_point);
                 min_dist = min_dist.min(d);
             }
         }
@@ -673,7 +673,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
 
                 let surface_point = Point3D::new(p.x(), p.y(), p.z());
                 let closest_point = Point3D::new(cx, cy, cz);
-                let d = surface_point.distance_to(&closest_point);
+                let d = surface_point.distance_to(closest_point);
                 min_dist = min_dist.min(d);
             }
         }
@@ -701,7 +701,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
 
                 let surface_point = Point3D::new(p.x(), p.y(), p.z());
                 let center = Point3D::new(cx, cy, cz);
-                let distance_to_center = surface_point.distance_to(&center);
+                let distance_to_center = surface_point.distance_to(center);
                 let d = (distance_to_center - radius).abs();
                 min_dist = min_dist.min(d);
             }

@@ -135,7 +135,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
         let normalized_axis = Direction3D::from_vector(axis)?;
 
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let axis_component = ref_direction.dot(&normalized_axis.as_vector());
+        let axis_component = ref_direction.dot(normalized_axis.as_vector());
         let orthogonal_ref = ref_direction - normalized_axis.as_vector() * axis_component;
         let normalized_ref_direction = Direction3D::from_vector(orthogonal_ref)?;
 
@@ -196,7 +196,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// # Returns
     /// 右手系座標系のY軸方向
     fn derived_y_axis_internal(&self) -> Direction3D<T> {
-        let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
+        let y_vector = self.axis.as_vector().cross(self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector).unwrap() // 直交ベクトルなので常に成功
     }
 

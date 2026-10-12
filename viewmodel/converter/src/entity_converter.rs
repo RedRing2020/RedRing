@@ -48,8 +48,8 @@ where
     } else {
         Vector3D::new(1.0, 0.0, 0.0)
     };
-    let u = normal_vec.cross(&arbitrary).normalize();
-    let v = normal_vec.cross(&u).normalize();
+    let u = normal_vec.cross(arbitrary).normalize();
+    let v = normal_vec.cross(u).normalize();
 
     let mut vertices = Vec::with_capacity(segments * 2);
     for index in 0..segments {
@@ -94,7 +94,7 @@ where
     let start_dir = entity.arc_start_direction();
     let normal_vec = Vector3D::new(normal_dir.0, normal_dir.1, normal_dir.2).normalize();
     let start_dir_vec = Vector3D::new(start_dir.0, start_dir.1, start_dir.2).normalize();
-    let v = normal_vec.cross(&start_dir_vec).normalize();
+    let v = normal_vec.cross(start_dir_vec).normalize();
     let normal = [
         normal_vec.x() as f32,
         normal_vec.y() as f32,

@@ -94,9 +94,9 @@ impl<T: Scalar> Point3D<T> {
     ///
     /// let p1 = Point3D::new(0.0, 0.0, 0.0);
     /// let p2 = Point3D::new(3.0, 4.0, 0.0);
-    /// assert_eq!(p1.distance_to(&p2), 5.0);
+    /// assert_eq!(p1.distance_to(p2), 5.0);
     /// ```
-    pub fn distance_to(&self, other: &Self) -> T {
+    pub fn distance_to(&self, other: Self) -> T {
         self.distance_squared_to(other).sqrt()
     }
 
@@ -108,10 +108,10 @@ impl<T: Scalar> Point3D<T> {
     ///
     /// let p1 = Point3D::new(0.0, 0.0, 0.0);
     /// let p2 = Point3D::new(3.0, 4.0, 0.0);
-    /// assert_eq!(p1.distance_squared_to(&p2), 25.0);
+    /// assert_eq!(p1.distance_squared_to(p2), 25.0);
     /// ```
     #[inline]
-    pub fn distance_squared_to(&self, other: &Self) -> T {
+    pub fn distance_squared_to(&self, other: Self) -> T {
         let dx = self.x - other.x;
         let dy = self.y - other.y;
         let dz = self.z - other.z;
@@ -146,12 +146,12 @@ impl<T: Scalar> Point3D<T> {
     ///
     /// let p1 = Point3D::new(0.0, 0.0, 0.0);
     /// let p2 = Point3D::new(2.0, 4.0, 6.0);
-    /// let mid = p1.midpoint(&p2);
+    /// let mid = p1.midpoint(p2);
     /// assert_eq!(mid.x(), 1.0);
     /// assert_eq!(mid.y(), 2.0);
     /// assert_eq!(mid.z(), 3.0);
     /// ```
-    pub fn midpoint(&self, other: &Self) -> Self {
+    pub fn midpoint(&self, other: Self) -> Self {
         let two = T::ONE + T::ONE;
         Self::new(
             (self.x + other.x) / two,
@@ -168,10 +168,10 @@ impl<T: Scalar> Point3D<T> {
     ///
     /// let p1 = Point3D::new(0.0, 0.0, 0.0);
     /// let p2 = Point3D::new(10.0, 10.0, 10.0);
-    /// let lerp = p1.lerp(&p2, 0.5);
+    /// let lerp = p1.lerp(p2, 0.5);
     /// assert_eq!(lerp.x(), 5.0);
     /// ```
-    pub fn lerp(&self, other: &Self, t: T) -> Self {
+    pub fn lerp(&self, other: Self, t: T) -> Self {
         Self::new(
             self.x + (other.x - self.x) * t,
             self.y + (other.y - self.y) * t,
@@ -180,8 +180,8 @@ impl<T: Scalar> Point3D<T> {
     }
 
     /// 点が自分自身と一致するかを判定
-    pub fn contains_point(&self, point: &Self) -> bool {
-        self == point
+    pub fn contains_point(&self, point: Self) -> bool {
+        *self == point
     }
 }
 

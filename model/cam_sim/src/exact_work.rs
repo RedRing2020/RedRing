@@ -320,7 +320,7 @@ fn aabb_is_finite(aabb: &Aabb3D<f64>) -> bool {
 }
 
 fn bounds_contains_point(bounds: &Aabb3D<f64>, point: &Point3D<f64>) -> bool {
-    bounds.contains_point(point)
+    bounds.contains_point(*point)
 }
 
 fn primitive_bounds(primitive: &ExactToolPrimitive<f64>) -> Aabb3D<f64> {
