@@ -1,4 +1,4 @@
-# 呼び出し元がなくても意図して残す公開メソッド（scripts/check_unused_public_api.ps1 の除外リスト）
+# 呼び出し元がなくても意図して残す公開メソッド・trait定義のメソッド（scripts/check_unused_public_api.ps1 の除外リスト）
 # 形式: ファイルのパス:メソッド名  # 残す理由
 
 # 相似変換の公開 API（生成・行列との変換・再正規化）
@@ -30,3 +30,29 @@ model/geo_topology/src/topology_validator.rs:tolerances
 
 # 形状の基本の生成
 model/geo_primitives/src/arc_2d.rs:from_center_radius
+
+# 表示の経路の実装の途中の表示属性・形状の種類（trait定義）
+model/geo_contracts/src/entity/entity_traits.rs:entity_id
+model/geo_contracts/src/entity/entity_traits.rs:entity_visible
+model/geo_contracts/src/entity/entity_traits.rs:entity_color
+model/geo_contracts/src/entity/entity_traits.rs:entity_stroke_pattern
+model/geo_contracts/src/entity/entity_traits.rs:entity_stroke_width
+model/geo_contracts/src/entity/entity_traits.rs:definition_plane_origin
+model/geo_contracts/src/entity/entity_traits.rs:definition_plane_normal
+model/geo_contracts/src/entity/entity_traits.rs:definition_plane_u_axis
+model/geo_contracts/src/geometry/foundation/metadata.rs:primitive_kind
+
+# ベクトル・方向の成分の基本の取得（trait定義）
+model/geo_contracts/src/geometry/core/vector_traits.rs:components
+model/geo_contracts/src/geometry/core/direction_traits.rs:components
+
+# NURBS の編集の中核のアルゴリズム（ノット挿入・次数上げ）
+model/geo_nurbs/src/operations/knot_insertion.rs:insert_knot_2d
+model/geo_nurbs/src/operations/degree_elevation.rs:elevate_degree_2d
+
+# 位相データの基本の取得と、設計途中の検査・生成
+model/geo_topology/src/topology_core.rs:value
+model/geo_topology/src/topology_core.rs:parameter_range
+model/geo_topology/src/topology_core.rs:same_sense
+model/geo_topology/src/topology_core.rs:is_local_consistent
+model/geo_topology/src/wire.rs:new_with_tolerances

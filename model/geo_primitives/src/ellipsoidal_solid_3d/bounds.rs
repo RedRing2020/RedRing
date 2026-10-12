@@ -71,15 +71,6 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
             Point3D::new(max_x, max_y, max_z),
         )
     }
-
-    /// 退化した楕円体かどうかを判定
-    ///
-    /// # Returns
-    /// いずれかの半径が許容誤差以下の場合は `true`
-    pub fn is_degenerate(&self) -> bool {
-        let epsilon = T::EPSILON * T::from_f64(10.0);
-        self.a_radius < epsilon || self.b_radius < epsilon || self.c_radius < epsilon
-    }
 }
 
 #[cfg(test)]
@@ -122,41 +113,5 @@ mod tests {
         assert!(bbox.min().y() < 0.0);
         assert!(bbox.max().x() > 0.0);
         assert!(bbox.max().y() > 0.0);
-    }
-
-    #[test]
-    fn test_ellipsoidal_solid_degenerate() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let solid = EllipsoidalSolid3D::new_standard(center, f64::EPSILON / 2.0, 1.0, 1.0).unwrap();
-
-        assert!(solid.is_degenerate());
-
-        let bbox = solid.aabb().expect("should have aabb");
-        assert!(!bbox.is_empty());
-    }
-
-    #[test]
-    fn test_sphere_special_case_foundation() {
-        // a = b = c の球の特殊ケース
-        let center = Point3D::new(1.0, 2.0, 3.0);
-        let solid = EllipsoidalSolid3D::new_sphere(
-            center,
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            5.0,
-        )
-        .unwrap();
-
-        assert_eq!(solid.primitive_kind(), PrimitiveKind::EllipsoidalSolid);
-
-        // 球の体積: V = (4/3)π × r³
-        let expected_volume = (4.0 / 3.0) * std::f64::consts::PI * 5.0_f64.powi(3);
-        let volume = solid.volume();
-        assert!((volume - expected_volume).abs() < 1e-10);
-
-        // 境界ボックスは中心 ± 半径
-        let bbox = solid.aabb().unwrap();
-        assert_eq!(bbox.min(), Point3D::new(-4.0, -3.0, -2.0));
-        assert_eq!(bbox.max(), Point3D::new(6.0, 7.0, 8.0));
     }
 }

@@ -222,11 +222,6 @@ impl<T: Scalar> Ellipse2D<T> {
 }
 
 impl<T: Scalar> Ellipse2D<T> {
-    /// local angle parameter の有効範囲 `[0, 2π]` を返す
-    pub fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::TAU) // 0 から 2π
-    }
-
     /// 長軸方向の単位ベクトルを取得
     pub fn major_axis_direction(&self) -> Vector2D<T> {
         Vector2D::new(self.rotation.cos(), self.rotation.sin())

@@ -53,11 +53,6 @@ impl<T: Scalar> LineSegment3D<T> {
         t >= -margin && t <= T::ONE + margin
     }
 
-    /// パラメータ範囲を取得
-    pub fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::ONE)
-    }
-
     /// パラメータでの接線方向を取得
     pub fn tangent_at_parameter(&self, _t: T) -> Vector3D<T> {
         self.direction()

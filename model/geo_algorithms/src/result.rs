@@ -77,14 +77,6 @@ impl<T: Scalar> IntersectionGeometry<T> {
         matches!(self, Self::None)
     }
 
-    /// 複数要素を含むかを返す
-    pub fn is_multiple(&self) -> bool {
-        matches!(
-            self,
-            Self::Points(_) | Self::CompositeCurve(_) | Self::Points2D(_)
-        )
-    }
-
     /// 交差集合の次元を返す
     /// - -1: 空集合
     /// - 0: 点
@@ -516,7 +508,6 @@ mod tests {
         let result = IntersectionResult::from_option_points2d(pts, false, 1e-9);
         assert!(result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Crossing);
-        assert!(result.geometry.is_multiple());
         assert_eq!(result.geometry.dimension(), 0);
     }
 
@@ -541,7 +532,6 @@ mod tests {
             assert_eq!(geom.dimension(), 1);
             assert_eq!(geom.description(), "line segment (2D)");
             assert!(!geom.is_empty());
-            assert!(!geom.is_multiple());
         }
     }
 }

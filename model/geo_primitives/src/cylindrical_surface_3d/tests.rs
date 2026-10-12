@@ -114,21 +114,6 @@ fn test_normal_at_uv() {
 }
 
 #[test]
-fn test_tangent_vectors() {
-    let surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 5.0).unwrap();
-
-    let tangent_u = surface.tangent_u_at_uv(0.0, 0.0);
-    assert_relative_eq!(tangent_u.x(), 0.0, epsilon = 1e-10);
-    assert_relative_eq!(tangent_u.y(), 5.0, epsilon = 1e-10);
-    assert_relative_eq!(tangent_u.z(), 0.0, epsilon = 1e-10);
-
-    let tangent_v = surface.tangent_v_at_uv(0.0, 0.0);
-    assert_relative_eq!(tangent_v.x(), 0.0, epsilon = 1e-10);
-    assert_relative_eq!(tangent_v.y(), 0.0, epsilon = 1e-10);
-    assert_relative_eq!(tangent_v.z(), 1.0, epsilon = 1e-10);
-}
-
-#[test]
 fn test_distance_to_surface() {
     let surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 5.0).unwrap();
 

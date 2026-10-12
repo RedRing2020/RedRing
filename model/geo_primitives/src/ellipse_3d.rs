@@ -116,12 +116,6 @@ impl<T: Scalar> Ellipse3D<T> {
                     / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
     }
 
-    /// 楕円が退化しているかどうかを判定
-    pub fn is_degenerate(&self) -> bool {
-        let tolerance = default_distance_tolerance::<T>();
-        self.semi_minor_axis <= tolerance
-    }
-
     /// Primitive 局所座標系の angle parameter `t` (`0 <= t <= 2π`) で楕円上の点を計算
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         let cos_t = t.cos();
@@ -153,11 +147,6 @@ impl<T: Scalar> Ellipse3D<T> {
     /// 角度 θ での楕円上の点を計算
     pub fn point_at_angle(&self, angle: Angle<T>) -> Point3D<T> {
         self.point_at_parameter(angle.to_radians())
-    }
-
-    /// local angle parameter の有効範囲 `[0, 2π]` を返す
-    pub fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::TAU)
     }
 
     /// 3D空間での点から楕円（曲線）への最短距離を計算（内部実装）

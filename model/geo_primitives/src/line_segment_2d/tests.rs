@@ -218,11 +218,6 @@ fn test_basic_containment_trait() {
 fn test_basic_parametric_trait() {
     let segment = LineSegment2D::new(Point2D::new(0.0, 0.0), Point2D::new(4.0, 0.0)).unwrap();
 
-    // BasicParametric
-    let (start_param, end_param) = segment.parameter_range();
-    assert_eq!(start_param, 0.0);
-    assert_eq!(end_param, 1.0);
-
     let mid_point = segment.point_at_parameter(0.5);
     assert_eq!(mid_point, Some(Point2D::new(2.0, 0.0)));
 

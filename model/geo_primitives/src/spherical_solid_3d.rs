@@ -157,11 +157,6 @@ impl<T: Scalar> SphericalSolid3D<T> {
         distance_to_center - self.radius
     }
 
-    /// 退化判定
-    pub fn is_degenerate(&self) -> bool {
-        self.radius <= T::EPSILON
-    }
-
     /// 無限直線までの最短距離の返却
     pub fn distance_to_infinite_line(
         &self,

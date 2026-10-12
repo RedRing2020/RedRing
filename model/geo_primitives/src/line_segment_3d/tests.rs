@@ -288,10 +288,6 @@ fn test_basic_parametric() {
     let segment =
         LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
 
-    let (min_t, max_t) = segment.parameter_range();
-    assert_eq!(min_t, 0.0);
-    assert_eq!(max_t, 1.0);
-
     let point = segment.point_at_parameter(0.5);
     assert_eq!(point, Some(Point3D::new(5.0, 0.0, 0.0)));
 

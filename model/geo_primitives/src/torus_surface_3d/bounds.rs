@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_geometric_properties() {
-        let torus = TorusSurface3D::donut(5.0, 1.0).unwrap(); // ドーナツ型
+        let torus = TorusSurface3D::standard(5.0, 1.0).unwrap();
 
         // 表面積が正の値
         assert!(torus.surface_area() > 0.0);

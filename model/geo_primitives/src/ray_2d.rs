@@ -134,12 +134,6 @@ impl<T: Scalar> Ray2D<T> {
         self.origin + self.direction * t
     }
 
-    /// パラメータ範囲を取得
-    pub fn parameter_range(&self) -> (T, T) {
-        // Ray のパラメータ範囲は [0, ∞)
-        (T::ZERO, T::INFINITY)
-    }
-
     /// 接線方向を取得
     pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         // Ray の接線方向は一定（方向ベクトル）

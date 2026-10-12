@@ -187,11 +187,6 @@ impl<T: Scalar> EllipseArc2D<T> {
 
         geo_core::Aabb2D::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
     }
-
-    /// EllipseArc trim-local parameter の有効範囲 `[0, 1]` を返す
-    pub fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::ONE)
-    }
 }
 
 impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {

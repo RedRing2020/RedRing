@@ -19,12 +19,3 @@ fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
     assert!((point_from_parameter.x() - point_from_angle.x()).abs() < 1e-10);
     assert!((point_from_parameter.y() - point_from_angle.y()).abs() < 1e-10);
 }
-
-#[test]
-fn test_parameter_range_is_trim_local_unit_interval() {
-    let ellipse_arc = create_test_ellipse_arc();
-    let range = ellipse_arc.parameter_range();
-
-    assert_eq!(range.0, 0.0);
-    assert_eq!(range.1, 1.0);
-}

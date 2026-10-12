@@ -240,11 +240,6 @@ impl<T: Scalar> LineSegment2D<T> {
         }
     }
 
-    /// パラメータ範囲を取得
-    pub fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::ONE)
-    }
-
     /// 接線ベクトルを取得
     pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         self.direction()
