@@ -307,7 +307,7 @@ pub fn infinite_line2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let opt = if line.distance_to_point(point) <= tolerance {
+    let opt = if line.distance_to_point(*point) <= tolerance {
         Some(*point)
     } else {
         None
@@ -321,7 +321,7 @@ pub fn infinite_line2d_circle2d_intersection<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    let opt = if line.distance_to_point(&center) <= circle.radius() + tolerance {
+    let opt = if line.distance_to_point(center) <= circle.radius() + tolerance {
         Some(center)
     } else {
         None
@@ -335,8 +335,8 @@ pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    let projected = line.closest_point(&center);
-    let dist_to_center = line.distance_to_point(&center);
+    let projected = line.closest_point(center);
+    let dist_to_center = line.distance_to_point(center);
     let radius = circle.radius();
     if dist_to_center > radius + tolerance {
         return IntersectionResult::from_option_points2d(Vec::new(), false, tolerance);
@@ -880,8 +880,8 @@ mod tests {
 
     #[test]
     fn infinite_line2d_intersection_non_parallel_returns_point() {
-        let line1 = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
-        let line2 = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(0.0, 1.0)).unwrap();
+        let line1 = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line2 = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(0.0, 1.0)).unwrap();
         let result = infinite_line2d_infinite_line2d_intersection(
             &line1,
             &line2,
@@ -899,8 +899,8 @@ mod tests {
 
     #[test]
     fn infinite_line2d_intersection_parallel_is_disjoint() {
-        let line1 = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
-        let line2 = InfiniteLine2D::new(&Point2D::new(0.0, 1.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line1 = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line2 = InfiniteLine2D::new(Point2D::new(0.0, 1.0), Vector2D::new(1.0, 0.0)).unwrap();
         let result = infinite_line2d_infinite_line2d_intersection(
             &line1,
             &line2,
@@ -912,8 +912,8 @@ mod tests {
 
     #[test]
     fn infinite_line2d_intersection_coincident_lines() {
-        let line1 = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
-        let line2 = InfiniteLine2D::new(&Point2D::new(3.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line1 = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line2 = InfiniteLine2D::new(Point2D::new(3.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let result = infinite_line2d_infinite_line2d_intersection(
             &line1,
             &line2,
@@ -1098,7 +1098,7 @@ mod tests {
 
     #[test]
     fn infinite_line_point_intersection_on_line_is_crossing() {
-        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let point = Point2D::new(5.0, 0.0);
 
         let result =
@@ -1109,7 +1109,7 @@ mod tests {
 
     #[test]
     fn infinite_line_point_intersection_off_line_is_disjoint() {
-        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let point = Point2D::new(0.0, 1.0);
 
         let result =
@@ -1262,7 +1262,7 @@ mod tests {
         let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
-        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
 
         let tol = STANDARD_TEST_TOLERANCE_F64;
         let circle_ray = circle2d_ray2d_intersections(&circle, &ray, tol);
@@ -1306,7 +1306,7 @@ mod tests {
 
     #[test]
     fn infinite_line_segment_collinear_returns_segment2d() {
-        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
 
         let result = infinite_line2d_line_segment2d_intersection(
@@ -1323,7 +1323,7 @@ mod tests {
 
     #[test]
     fn infinite_line_ray_collinear_returns_coincident() {
-        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let ray = Ray2D::new(Point2D::new(1.0, 0.0), Vector2D::new(2.0, 0.0)).unwrap();
 
         let result = infinite_line2d_ray2d_intersection(&line, &ray, STANDARD_TEST_TOLERANCE_F64);

@@ -41,15 +41,12 @@ impl<T: Scalar> InfiniteLine3D<T> {
 }
 
 impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
-    fn new(point: &Point3D<T>, direction: Vector3D<T>) -> Option<Self> {
-        Direction3D::from_vector(direction).map(|direction| Self {
-            point: *point,
-            direction,
-        })
+    fn new(point: Point3D<T>, direction: Vector3D<T>) -> Option<Self> {
+        Direction3D::from_vector(direction).map(|direction| Self { point, direction })
     }
 
-    fn from_two_points(p1: &Point3D<T>, p2: &Point3D<T>) -> Option<Self> {
-        <Self as InfiniteLine3DConstructor<T>>::new(p1, Vector3D::from_points(p1, p2))
+    fn from_two_points(p1: Point3D<T>, p2: Point3D<T>) -> Option<Self> {
+        <Self as InfiniteLine3DConstructor<T>>::new(p1, Vector3D::from_points(&p1, &p2))
     }
 }
 
@@ -76,25 +73,25 @@ impl<T: Scalar> InfiniteLine3DEvaluation<T> for InfiniteLine3D<T> {
         )
     }
 
-    fn parameter_for_point(&self, point: &Point3D<T>) -> T {
-        Vector3D::from_points(&self.point, point).dot(&self.direction)
+    fn parameter_for_point(&self, point: Point3D<T>) -> T {
+        Vector3D::from_points(&self.point, &point).dot(&self.direction)
     }
 }
 
 impl<T: Scalar> InfiniteLine3DDistance<T> for InfiniteLine3D<T> {
-    fn distance_to_point(&self, point: &Point3D<T>) -> T {
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
         point.distance_to(&self.closest_point(point))
     }
 }
 
 impl<T: Scalar> InfiniteLine3DContainment<T> for InfiniteLine3D<T> {
-    fn contains_point(&self, point: &Point3D<T>) -> bool {
+    fn contains_point(&self, point: Point3D<T>) -> bool {
         self.distance_to_point(point) <= default_distance_tolerance::<T>()
     }
 }
 
 impl<T: Scalar> InfiniteLine3DProjection<T> for InfiniteLine3D<T> {
-    fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
+    fn closest_point(&self, point: Point3D<T>) -> Point3D<T> {
         self.point_at_parameter(self.parameter_for_point(point))
     }
 }
@@ -112,7 +109,7 @@ impl<T: Scalar> CrossDistance<T, Self> for InfiniteLine3D<T> {
     fn distance_to(&self, other: &Self) -> T {
         if self.is_parallel_to(other) {
             // 平行な場合、任意の点からの距離
-            return self.distance_to_point(&other.point);
+            return self.distance_to_point(other.point);
         }
 
         let cross = self

@@ -622,13 +622,13 @@ mod tests {
     fn infinite_line3d_distance_parallel_lines() {
         let tol = standard_distance_tol();
         let line_a = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.0, 0.0, 0.0),
-            &Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let line_b = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.0, 2.0, 0.0),
-            &Point3D::new(1.0, 2.0, 0.0),
+            Point3D::new(0.0, 2.0, 0.0),
+            Point3D::new(1.0, 2.0, 0.0),
         )
         .unwrap();
 
@@ -640,13 +640,13 @@ mod tests {
     fn infinite_line3d_distance_intersecting_lines() {
         let tol = standard_distance_tol();
         let line_a = InfiniteLine3D::from_two_points(
-            &Point3D::new(-1.0, 0.0, 0.0),
-            &Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(-1.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let line_b = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.0, -1.0, 0.0),
-            &Point3D::new(0.0, 1.0, 0.0),
+            Point3D::new(0.0, -1.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
         )
         .unwrap();
 

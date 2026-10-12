@@ -36,7 +36,7 @@ impl<T: Scalar> PrimitiveMetadata for LineSegment2D<T> {
 impl<T: Scalar> LineSegment2D<T> {
     /// 始点と終点から線分を作成
     pub fn new(start: Point2D<T>, end: Point2D<T>) -> Option<Self> {
-        let line = InfiniteLine2D::from_two_points(&start, &end)?;
+        let line = InfiniteLine2D::from_two_points(start, end)?;
 
         Self::from_support_line_and_constraint_points(line, start, end)
     }
@@ -47,8 +47,8 @@ impl<T: Scalar> LineSegment2D<T> {
         start_point: Point2D<T>,
         end_point: Point2D<T>,
     ) -> Option<Self> {
-        let start_param = line.parameter_for_point(&start_point);
-        let end_param = line.parameter_for_point(&end_point);
+        let start_param = line.parameter_for_point(start_point);
+        let end_param = line.parameter_for_point(end_point);
 
         if (end_param - start_param).abs() <= T::EPSILON {
             return None;
@@ -164,7 +164,7 @@ impl<T: Scalar> LineSegment2D<T> {
     ///
     /// 始点 0・終点 1 とし、`[0, 1]` に制限しない。
     pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
-        let line_param = self.line.parameter_for_point(point);
+        let line_param = self.line.parameter_for_point(*point);
         (line_param - self.start_param) / (self.end_param - self.start_param)
     }
 
@@ -178,18 +178,18 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 点が線分上にあるかを判定
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
         // まず無限直線上にあるかチェック
-        if self.line.distance_to_point(point) > tolerance {
+        if self.line.distance_to_point(*point) > tolerance {
             return false;
         }
 
-        let param = self.line.parameter_for_point(point);
+        let param = self.line.parameter_for_point(*point);
         let (min_param, max_param) = self.ordered_params();
         param >= min_param - tolerance && param <= max_param + tolerance
     }
 
     /// 点を線分に投影（線分内に制限）
     pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
-        let projected_param = self.line.parameter_for_point(point);
+        let projected_param = self.line.parameter_for_point(*point);
         let (min_param, max_param) = self.ordered_params();
         let clamped_param = projected_param.max(min_param).min(max_param);
 

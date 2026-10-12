@@ -493,8 +493,8 @@ mod tests {
     fn test_nurbssurface3d_infinite_line3d_intersection_vertical_hit() {
         let surface = create_test_surface::<f64>();
         let line = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.5, 0.5, -1.0),
-            &Point3D::new(0.5, 0.5, 1.0),
+            Point3D::new(0.5, 0.5, -1.0),
+            Point3D::new(0.5, 0.5, 1.0),
         )
         .unwrap();
         let result = nurbssurface3d_infinite_line3d_intersection(&surface, &line, TEST_TOLERANCE);

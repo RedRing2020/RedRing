@@ -85,7 +85,7 @@ fn ray_3d_transforms_origin_and_unit_direction() {
 #[test]
 fn infinite_line_3d_transforms_points_on_line() {
     let line =
-        InfiniteLine3D::from_two_points(&Point3D::new(0.0, 1.0, 0.0), &Point3D::new(1.0, 1.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 1.0, 0.0), Point3D::new(1.0, 1.0, 0.0))
             .unwrap();
     let moved = line.transform_similarity(&transform_3d()).unwrap();
 
@@ -207,7 +207,7 @@ fn ray_and_infinite_line_2d_transform_points() {
     );
 
     let line =
-        InfiniteLine2D::from_two_points(&Point2D::new(0.0, 1.0), &Point2D::new(1.0, 1.0)).unwrap();
+        InfiniteLine2D::from_two_points(Point2D::new(0.0, 1.0), Point2D::new(1.0, 1.0)).unwrap();
     let moved_line = line.transform_similarity(&transform_2d()).unwrap();
     assert_point2_eq(
         moved_line.point_at_parameter(2.0),

@@ -140,7 +140,7 @@ fn circle_plane_ray_line_point_collisions_use_geometric_checks() {
     ));
 
     let line =
-        InfiniteLine3D::from_two_points(&Point3D::new(0.0, 0.0, 0.0), &Point3D::new(1.0, 0.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
             .unwrap();
     assert!(infinite_line3d_point3d_collides(
         &line,
@@ -295,11 +295,9 @@ fn symmetric_plane_collision_wrappers_match_base_functions() {
     let ray = Ray3D::new(Point3D::new(0.0, 0.0, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
     let seg =
         LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
-    let line = InfiniteLine3D::from_two_points(
-        &Point3D::new(0.0, 0.0, -1.0),
-        &Point3D::new(0.0, 0.0, 1.0),
-    )
-    .unwrap();
+    let line =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0))
+            .unwrap();
 
     assert_eq!(
         ray3d_plane3d_collides(&ray, &plane, tol),
@@ -346,11 +344,9 @@ fn linear_and_spherical_collisions_use_forward_direction_and_bounds() {
     let y_ray = Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
     assert!(ray3d_ray3d_collides(&x_ray, &y_ray, tol));
 
-    let x_axis = InfiniteLine3D::from_two_points(
-        &Point3D::new(-1.0, 0.0, 0.0),
-        &Point3D::new(1.0, 0.0, 0.0),
-    )
-    .unwrap();
+    let x_axis =
+        InfiniteLine3D::from_two_points(Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
     let away_ray = Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
     assert!(!infinite_line3d_ray3d_collides(&x_axis, &away_ray, tol));
 

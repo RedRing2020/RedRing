@@ -155,7 +155,7 @@ fn spherical_solid3d_line3d_intersection_raw<T: Scalar>(
     let line_point = InfiniteLine3DProperties::point(line);
     let line_dir = InfiniteLine3DProperties::direction(line).as_vector();
     if sphere.distance_to_infinite_line(&line_point, &line_dir) <= tolerance {
-        Some(line.closest_point(&center))
+        Some(line.closest_point(center))
     } else {
         None
     }

@@ -2396,7 +2396,7 @@ mod tests {
 
         // 5. InfiniteLine3D
         let infinite_line =
-            InfiniteLine3D::new(&Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
         let infinite_line_vertices = infinite_line_to_vertices(&infinite_line, &quality);
         assert_eq!(
             infinite_line_vertices.len(),

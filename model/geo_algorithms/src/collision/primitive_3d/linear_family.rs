@@ -106,7 +106,7 @@ pub fn infinite_line3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    line.distance_to_point(point) <= tolerance
+    line.distance_to_point(*point) <= tolerance
 }
 
 pub fn infinite_line3d_spherical_surface3d_collides<T: Scalar>(

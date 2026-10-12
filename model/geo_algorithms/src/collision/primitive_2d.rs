@@ -257,7 +257,7 @@ pub fn infinite_line2d_point2d_collides<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> bool {
-    line.distance_to_point(point) <= tolerance
+    line.distance_to_point(*point) <= tolerance
 }
 
 pub fn infinite_line2d_circle2d_collides<T: Scalar>(
@@ -266,7 +266,7 @@ pub fn infinite_line2d_circle2d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    line.distance_to_point(&center) <= circle.radius() + tolerance
+    line.distance_to_point(center) <= circle.radius() + tolerance
 }
 
 pub fn circle2d_infinite_line2d_collides<T: Scalar>(
@@ -538,7 +538,7 @@ mod tests {
 
     #[test]
     fn infinite_line_line_segment_collision_detects_midpoint_intersection() {
-        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let segment = LineSegment2D::new(Point2D::new(-1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
 
         assert!(infinite_line2d_line_segment2d_collides(
@@ -555,7 +555,7 @@ mod tests {
 
     #[test]
     fn infinite_line_ray_collision_detects_off_origin_intersection() {
-        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let ray = Ray2D::new(Point2D::new(1.0, 1.0), Vector2D::new(0.0, -1.0)).unwrap();
 
         assert!(infinite_line2d_ray2d_collides(
@@ -610,7 +610,7 @@ mod tests {
             line_segment2d_arc2d_collides(&segment, &arc, STANDARD_TEST_TOLERANCE_F64)
         );
 
-        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         assert_eq!(
             circle2d_infinite_line2d_collides(&circle, &line, tol),
             infinite_line2d_circle2d_collides(&line, &circle, tol)

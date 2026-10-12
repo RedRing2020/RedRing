@@ -245,7 +245,7 @@ fn test_f32_compatibility() {
 
 #[test]
 fn public_endpoints_follow_ideal_support_line() {
-    let line = InfiniteLine2D::new(&Point2D::origin(), Vector2D::new(1.0_f64, 0.0)).unwrap();
+    let line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0_f64, 0.0)).unwrap();
     let start = Point2D::new(0.0, 1.0);
     let end = Point2D::new(2.0, 1.0);
 

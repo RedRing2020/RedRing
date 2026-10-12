@@ -100,7 +100,7 @@ fn ray3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let ray_line = InfiniteLine3D::new(&ray.origin(), ray.direction_vector())?;
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
     let segment_line = segment.line();
     let point = line_line_intersection_raw(&ray_line, segment_line)?;
     if ray.contains_point(&point, tolerance) && segment.contains_point(&point, tolerance) {
@@ -127,9 +127,9 @@ fn ray3d_infinite_line3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let ray_line = InfiniteLine3D::new(&ray.origin(), ray.direction_vector())?;
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
     let point = line_line_intersection_raw(&ray_line, line)?;
-    if line.distance_to_point(&point) <= tolerance && ray.contains_point(&point, tolerance) {
+    if line.distance_to_point(point) <= tolerance && ray.contains_point(&point, tolerance) {
         Some(point)
     } else {
         None
@@ -260,7 +260,7 @@ fn infinite_line3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, line.distance_to_point(point) <= tolerance)
+    point_intersection_if(point, line.distance_to_point(*point) <= tolerance)
 }
 
 pub fn infinite_line3d_point3d_intersection<T: Scalar>(
@@ -313,7 +313,7 @@ fn infinite_line3d_infinite_line3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let point = line_line_intersection_raw(line_a, line_b)?;
-    if line_b.distance_to_point(&point) <= tolerance {
+    if line_b.distance_to_point(point) <= tolerance {
         Some(point)
     } else {
         None
@@ -363,7 +363,7 @@ fn infinite_line3d_ray3d_intersection_raw<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let ray_line = InfiniteLine3D::new(&ray.origin(), ray.direction_vector())?;
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
     let point = line_line_intersection_raw(line, &ray_line)?;
     if ray.contains_point(&point, tolerance) {
         Some(point)

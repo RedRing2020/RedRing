@@ -328,7 +328,7 @@ fn test_line_segment3d_f32_compatibility() {
 
 #[test]
 fn public_endpoints_follow_ideal_support_line() {
-    let line = InfiniteLine3D::new(&Point3D::origin(), Vector3D::new(1.0_f64, 0.0, 0.0)).unwrap();
+    let line = InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0_f64, 0.0, 0.0)).unwrap();
     let start = Point3D::new(0.0, 1.0, 0.0);
     let end = Point3D::new(2.0, 1.0, 0.0);
 

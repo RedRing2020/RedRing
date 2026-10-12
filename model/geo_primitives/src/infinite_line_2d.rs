@@ -26,15 +26,12 @@ impl<T: Scalar> PrimitiveMetadata for InfiniteLine2D<T> {
 }
 
 impl<T: Scalar> InfiniteLine2DConstructor<T> for InfiniteLine2D<T> {
-    fn new(point: &Point2D<T>, direction: Vector2D<T>) -> Option<Self> {
-        Direction2D::from_vector(direction).map(|direction| Self {
-            point: *point,
-            direction,
-        })
+    fn new(point: Point2D<T>, direction: Vector2D<T>) -> Option<Self> {
+        Direction2D::from_vector(direction).map(|direction| Self { point, direction })
     }
 
-    fn from_two_points(p1: &Point2D<T>, p2: &Point2D<T>) -> Option<Self> {
-        <Self as InfiniteLine2DConstructor<T>>::new(p1, Vector2D::from_points(*p1, *p2))
+    fn from_two_points(p1: Point2D<T>, p2: Point2D<T>) -> Option<Self> {
+        <Self as InfiniteLine2DConstructor<T>>::new(p1, Vector2D::from_points(p1, p2))
     }
 
     fn horizontal(y: T) -> Self {
@@ -69,27 +66,27 @@ impl<T: Scalar> InfiniteLine2DEvaluation<T> for InfiniteLine2D<T> {
         self.point + self.direction * t
     }
 
-    fn parameter_for_point(&self, point: &Point2D<T>) -> T {
-        Vector2D::from_points(self.point, *point).dot(&self.direction)
+    fn parameter_for_point(&self, point: Point2D<T>) -> T {
+        Vector2D::from_points(self.point, point).dot(&self.direction)
     }
 }
 
 impl<T: Scalar> InfiniteLine2DDistance<T> for InfiniteLine2D<T> {
-    fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        Vector2D::from_points(self.point, *point)
+    fn distance_to_point(&self, point: Point2D<T>) -> T {
+        Vector2D::from_points(self.point, point)
             .dot(&self.normal())
             .abs()
     }
 }
 
 impl<T: Scalar> InfiniteLine2DContainment<T> for InfiniteLine2D<T> {
-    fn contains_point(&self, point: &Point2D<T>) -> bool {
+    fn contains_point(&self, point: Point2D<T>) -> bool {
         self.distance_to_point(point) <= default_distance_tolerance::<T>()
     }
 }
 
 impl<T: Scalar> InfiniteLine2DProjection<T> for InfiniteLine2D<T> {
-    fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
+    fn closest_point(&self, point: Point2D<T>) -> Point2D<T> {
         self.point_at_parameter(self.parameter_for_point(point))
     }
 }

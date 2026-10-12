@@ -38,7 +38,7 @@ impl<T: Scalar> PrimitiveMetadata for LineSegment3D<T> {
 impl<T: Scalar> LineSegment3D<T> {
     /// 始点と終点から線分を作成
     pub fn new(start: Point3D<T>, end: Point3D<T>) -> Option<Self> {
-        let line = InfiniteLine3D::from_two_points(&start, &end)?;
+        let line = InfiniteLine3D::from_two_points(start, end)?;
 
         Self::from_support_line_and_constraint_points(line, start, end)
     }
@@ -49,8 +49,8 @@ impl<T: Scalar> LineSegment3D<T> {
         start_point: Point3D<T>,
         end_point: Point3D<T>,
     ) -> Option<Self> {
-        let start_param = line.parameter_for_point(&start_point);
-        let end_param = line.parameter_for_point(&end_point);
+        let start_param = line.parameter_for_point(start_point);
+        let end_param = line.parameter_for_point(end_point);
 
         if (end_param - start_param).abs() <= T::EPSILON {
             return None;
@@ -161,11 +161,11 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点が線分上にあるかを判定
     pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        if self.line.distance_to_point(point) > tolerance {
+        if self.line.distance_to_point(*point) > tolerance {
             return false;
         }
 
-        let param = self.line.parameter_for_point(point);
+        let param = self.line.parameter_for_point(*point);
         let (min_param, max_param) = self.ordered_params();
         param >= min_param - tolerance && param <= max_param + tolerance
     }

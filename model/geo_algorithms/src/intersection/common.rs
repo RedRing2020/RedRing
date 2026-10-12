@@ -225,13 +225,13 @@ mod tests {
     fn line_line_intersection_raw_交差する直線は交点を返す() {
         // X軸と Y軸が原点で交差
         let line1 = InfiniteLine3D::from_two_points(
-            &Point3D::new(-1.0_f64, 0.0, 0.0),
-            &Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(-1.0_f64, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let line2 = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.0, -1.0_f64, 0.0),
-            &Point3D::new(0.0, 1.0, 0.0),
+            Point3D::new(0.0, -1.0_f64, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
         )
         .unwrap();
 
@@ -247,13 +247,13 @@ mod tests {
     fn line_line_intersection_raw_平行直線はnoneを返す() {
         // 平行な2直線（Y方向にオフセット）
         let line1 = InfiniteLine3D::from_two_points(
-            &Point3D::new(-1.0_f64, 0.0, 0.0),
-            &Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(-1.0_f64, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let line2 = InfiniteLine3D::from_two_points(
-            &Point3D::new(-1.0_f64, 1.0, 0.0),
-            &Point3D::new(1.0, 1.0, 0.0),
+            Point3D::new(-1.0_f64, 1.0, 0.0),
+            Point3D::new(1.0, 1.0, 0.0),
         )
         .unwrap();
 
@@ -268,13 +268,13 @@ mod tests {
         // par_tol / 2 の角度では |d1 × d2| ≈ par_tol / 2 < par_tol となり None が期待される
         let tiny_angle = default_parallel_cross_error_tolerance::<f64>() / 2.0;
         let line1 = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.0_f64, 0.0, 0.0),
-            &Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let line2 = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.0_f64, 0.0, 0.0),
-            &Point3D::new(1.0, tiny_angle, 0.0),
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Point3D::new(1.0, tiny_angle, 0.0),
         )
         .unwrap();
 
@@ -287,13 +287,13 @@ mod tests {
         // スキュー線（非共面）：真の交点は存在しないが、この関数は
         // line1 上の最近接点候補を返す。coplanar チェックは呼び出し元の責務。
         let line1 = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.0_f64, 0.0, 0.0),
-            &Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let line2 = InfiniteLine3D::from_two_points(
-            &Point3D::new(0.0_f64, 1.0, 1.0),
-            &Point3D::new(0.0, 0.0, 1.0),
+            Point3D::new(0.0_f64, 1.0, 1.0),
+            Point3D::new(0.0, 0.0, 1.0),
         )
         .unwrap();
 

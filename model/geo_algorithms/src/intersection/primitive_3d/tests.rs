@@ -80,7 +80,7 @@ fn line_segment_point_intersection_checks_segment_bounds() {
 #[test]
 fn infinite_line_point_intersection_checks_collinearity() {
     let line =
-        InfiniteLine3D::from_two_points(&Point3D::new(0.0, 0.0, 0.0), &Point3D::new(1.0, 0.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
             .unwrap();
     let on_line = Point3D::new(5.0, 0.0, 0.0);
     let off_line = Point3D::new(0.0, 1.0, 0.0);
@@ -234,10 +234,10 @@ fn arc_linear_input_result_variants_convert_to_topology() {
     let ray_hit = Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
     let ray_miss = Ray3D::new(Point3D::new(5.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
     let line_hit =
-        InfiniteLine3D::from_two_points(&Point3D::new(2.0, 0.0, 0.0), &Point3D::new(2.0, 1.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(2.0, 0.0, 0.0), Point3D::new(2.0, 1.0, 0.0))
             .unwrap();
     let line_miss =
-        InfiniteLine3D::from_two_points(&Point3D::new(5.0, 0.0, 0.0), &Point3D::new(5.0, 1.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(5.0, 0.0, 0.0), Point3D::new(5.0, 1.0, 0.0))
             .unwrap();
 
     let hit_segment =
@@ -324,10 +324,10 @@ fn circle_linear_input_result_variants_convert_to_topology() {
     let ray_hit = Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
     let ray_miss = Ray3D::new(Point3D::new(5.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
     let line_hit =
-        InfiniteLine3D::from_two_points(&Point3D::new(2.0, 0.0, 0.0), &Point3D::new(2.0, 1.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(2.0, 0.0, 0.0), Point3D::new(2.0, 1.0, 0.0))
             .unwrap();
     let line_miss =
-        InfiniteLine3D::from_two_points(&Point3D::new(5.0, 0.0, 0.0), &Point3D::new(5.0, 1.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(5.0, 0.0, 0.0), Point3D::new(5.0, 1.0, 0.0))
             .unwrap();
 
     let hit_segment =
@@ -459,7 +459,7 @@ fn symmetric_line_segment_intersection_wrappers_match_base_functions() {
     let seg = LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
     let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
     let line =
-        InfiniteLine3D::from_two_points(&Point3D::new(0.0, 0.0, 0.0), &Point3D::new(1.0, 0.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
             .unwrap();
 
     assert_eq!(
@@ -486,11 +486,9 @@ fn spherical_surface_line_like_intersections_return_expected_points() {
     let segment =
         LineSegment3D::new(Point3D::new(-2.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)).unwrap();
     let ray = Ray3D::new(Point3D::new(-2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-    let line = InfiniteLine3D::from_two_points(
-        &Point3D::new(-2.0, 0.0, 0.0),
-        &Point3D::new(2.0, 0.0, 0.0),
-    )
-    .unwrap();
+    let line =
+        InfiniteLine3D::from_two_points(Point3D::new(-2.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0))
+            .unwrap();
 
     let seg_result = line_segment3d_spherical_surface3d_intersections(&segment, &sphere, tolerance);
     assert_eq!(seg_result.topology, IntersectionTopology::Crossing);
@@ -839,11 +837,9 @@ fn spherical_surface_line_like_intersections_handle_tangent_and_backward_ray() {
     let tol = standard_distance_tol();
     let sphere = SphericalSurface3D::new_standard(Point3D::origin(), 1.0).unwrap();
     // y=1 で赤道に接する直線
-    let tangent_line = InfiniteLine3D::from_two_points(
-        &Point3D::new(-2.0, 1.0, 0.0),
-        &Point3D::new(2.0, 1.0, 0.0),
-    )
-    .unwrap();
+    let tangent_line =
+        InfiniteLine3D::from_two_points(Point3D::new(-2.0, 1.0, 0.0), Point3D::new(2.0, 1.0, 0.0))
+            .unwrap();
     // 球から離れる方向の Ray
     let backward_ray =
         Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
@@ -864,18 +860,14 @@ fn spherical_surface_line_like_intersections_handle_tangent_and_backward_ray() {
 #[test]
 fn linear_pair_intersections_detect_crossing_and_reject_outside_cases() {
     let tol = standard_distance_tol();
-    let x_axis = InfiniteLine3D::from_two_points(
-        &Point3D::new(-1.0, 0.0, 0.0),
-        &Point3D::new(1.0, 0.0, 0.0),
-    )
-    .unwrap();
-    let y_axis = InfiniteLine3D::from_two_points(
-        &Point3D::new(0.0, -1.0, 0.0),
-        &Point3D::new(0.0, 1.0, 0.0),
-    )
-    .unwrap();
+    let x_axis =
+        InfiniteLine3D::from_two_points(Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+    let y_axis =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, -1.0, 0.0), Point3D::new(0.0, 1.0, 0.0))
+            .unwrap();
     let parallel_line =
-        InfiniteLine3D::from_two_points(&Point3D::new(0.0, 1.0, 0.0), &Point3D::new(1.0, 1.0, 0.0))
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 1.0, 0.0), Point3D::new(1.0, 1.0, 0.0))
             .unwrap();
     let crossing_segment =
         LineSegment3D::new(Point3D::new(0.0, -1.0, 0.0), Point3D::new(0.0, 1.0, 0.0)).unwrap();
@@ -930,16 +922,12 @@ fn planar_intersections_detect_crossing_and_reject_parallel_or_backward_cases() 
         Ray3D::new(Point3D::new(0.0, 0.0, -2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
     let backward_ray =
         Ray3D::new(Point3D::new(0.0, 0.0, 2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
-    let crossing_line = InfiniteLine3D::from_two_points(
-        &Point3D::new(0.0, 0.0, -1.0),
-        &Point3D::new(0.0, 0.0, 1.0),
-    )
-    .unwrap();
-    let parallel_line = InfiniteLine3D::from_two_points(
-        &Point3D::new(-1.0, 0.0, 1.0),
-        &Point3D::new(1.0, 0.0, 1.0),
-    )
-    .unwrap();
+    let crossing_line =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0))
+            .unwrap();
+    let parallel_line =
+        InfiniteLine3D::from_two_points(Point3D::new(-1.0, 0.0, 1.0), Point3D::new(1.0, 0.0, 1.0))
+            .unwrap();
 
     let plane_segment = plane3d_line_segment3d_intersection(&plane, &crossing_segment, tol);
     if let IntersectionGeometry::Point(p) = plane_segment.geometry {

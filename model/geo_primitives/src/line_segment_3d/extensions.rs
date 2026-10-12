@@ -71,7 +71,7 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点を線分に投影
     pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
-        let t = self.line.parameter_for_point(point);
+        let t = self.line.parameter_for_point(*point);
 
         // パラメータを線分の範囲内に制限する。reverse した線分は start_param > end_param となるため、
         // 小さい側・大きい側のパラメータで制限する
@@ -85,7 +85,7 @@ impl<T: Scalar> LineSegment3D<T> {
     ///
     /// 始点 0・終点 1 とし、`[0, 1]` に制限しない。
     pub fn parameter_for_point(&self, point: &Point3D<T>) -> T {
-        let line_param = self.line.parameter_for_point(point);
+        let line_param = self.line.parameter_for_point(*point);
         (line_param - self.start_param) / (self.end_param - self.start_param)
     }
 

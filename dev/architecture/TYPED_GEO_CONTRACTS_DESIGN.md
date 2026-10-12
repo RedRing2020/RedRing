@@ -65,7 +65,7 @@ Rust の orphan rule では、trait の実装は trait定義のクレートか�
 - `SimilarityTransformable*` は形状のクレートだけが実装する。`geo_core` の値型には実装しない（ジェネリクスの境界として使われていない）
 - 値型の変換は、相似変換の型の固有メソッドで行う
   - 点・ベクトル・方向: `apply_point(&Point3D<T>) -> Point3D<T>` / `apply_vector` / `apply_direction`（失敗しないため値を返す）
-  - 形状の相似変換の実装は、値型のフィールドを `transform.apply_point(&self.center)` のように変換する
+  - 形状の相似変換の実装は、値型のフィールドを `transform.apply_point(&self.center)` のように変換する（`apply_point` の引数は D-2a-2 で値渡しに揃える）
 - AABB の相似変換は、呼び出し元がないため提供しない（回転後の境界ボックスは形状の側で再構築する）
 - AABB の `Contains` の実装は削除し、固有メソッド（`contains_point` 等）を使う。他に実装のない `Contains` の trait定義も削除する
 
@@ -86,16 +86,18 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 
 | 種類 | 引数 | 戻り値 |
 | --- | --- | --- |
-| 点 | 参照（`&Point3D<T>`） | 値（`Point3D<T>`） |
-| ベクトル | 値（`Vector3D<T>`、`Copy`） | 値 |
-| 方向（単位ベクトル） | 値（`Direction3D<T>`、`Copy`） | 値 |
+| 値型（点・ベクトル・方向。`Copy`） | 値（`Point3D<T>` / `Vector3D<T>` / `Direction3D<T>`） | 値 |
 | スカラー | 値（`T`） | 値 |
+| 形状（線分・円・NURBS 等） | 参照（`&LineSegment3D<T>`） | 値 |
+| 点の並び | スライス（`&[Point3D<T>]`） | `Vec<Point3D<T>>` |
+
+- 値型は `Copy` で大きさも同じ（`Point3D<f64>` は 24 バイト）ため、点・ベクトル・方向を区別せず値で渡す。読むだけの引数を参照にする理由はなく、フィールドに保存する生成でも複製が要らない
+- 二項のメソッドの相手（`other`）も、値型であれば値で渡す
 
 - 単位ベクトルであることを前提とする引数・戻り値は `Direction*` とし、`Vector*` と区別する
 - 形状として成立しない入力の生成は `Option`、変換の失敗は `Result<_, TransformError>`、範囲外の評価は `Option` を返す（既存の規約のまま）
 - タプルを受け渡す trait定義のメソッドは残さない
-- 生成（Constructor）の点の引数も参照で受け取る（`new(&point, direction)` / `from_two_points(&p1, &p2)`）
-- `contains_point(&point)` は既定の距離の許容誤差で判定する。呼び出し元が許容誤差を指定する場合は `distance_to_point(&point) <= tolerance` と書く。専用のメソッド（`contains_point_within`）は、それで書けない呼び出し元が現れた時点で追加する
+- `contains_point(point)` は既定の距離の許容誤差で判定する。呼び出し元が許容誤差を指定する場合は `distance_to_point(point) <= tolerance` と書く。専用のメソッド（`contains_point_within`）は、それで書けない呼び出し元が現れた時点で追加する
 
 ## 5. 移行の順序
 
@@ -105,6 +107,7 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 | D-1 | `geo_core` を下位に移す（値型の trait定義の削除、許容誤差・`PointClassification`・`TransformError` の移動、相似変換の型付け、`ARCHITECTURE.md` と依存のルールの更新）。完了 | 変更なし |
 | D-2〜 | 形状の系統ごと（直線 → 円・楕円 → 平面・矩形・三角形 → 解析曲面・立体 → NURBS → 形状をまたぐ演算）に、trait定義の型付け・重複する固有メソッドの削除・呼び出し元の更新。最初の系統で prelude を追加する | 系統ごとに変更 |
 | D-2a | 無限直線（`InfiniteLine2D/3D`）の型付けと prelude の追加。完了 | 無限直線 |
+| D-2a-2 | `geo_core` の値型の固有メソッドの引数を値渡しに揃える（`apply_point`・`Vector3D::from_points`・`distance_to` 等） | 変更なし |
 | D-2b | 半直線（`Ray2D/3D`） | 半直線 |
 | D-2c | 線分（`LineSegment2D/3D`） | 線分 |
 | 最後 | `geo_algorithms` 等の Point / タプルの境界の残りの整理と、規約の文書の仕上げ | — |

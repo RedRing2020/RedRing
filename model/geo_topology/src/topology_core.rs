@@ -421,8 +421,8 @@ mod tests {
     #[test]
     fn edge_binding_is_separated_from_curve_consistency_for_offset_constraints() {
         let support_line = TopoInfiniteLine3D::from_two_points(
-            &Point3D::new(0.0, 0.0, 0.0),
-            &Point3D::new(2.0, 0.0, 0.0),
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(2.0, 0.0, 0.0),
         )
         .unwrap();
         let start = Point3D::new(0.0, 0.0, 0.1);
