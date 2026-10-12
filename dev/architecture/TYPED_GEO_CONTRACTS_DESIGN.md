@@ -26,6 +26,16 @@ analysis
 - `geo_core` は trait定義を持たず、値型の操作は固有メソッドで提供する
 - `geo_contracts` は `analysis` と `geo_core` に依存する
 
+### 2.0 trait定義と実装の分離
+
+| クレート | 持つもの |
+| --- | --- |
+| `geo_core` | 値型と、その操作の固有メソッド（相似変換の適用を含む） |
+| `geo_contracts` | trait定義だけ（実装を持たない） |
+| 形状のクレート（`geo_primitives` / `geo_nurbs`） | trait定義の実装 |
+
+Rust の orphan rule では、trait の実装は trait定義のクレートか型のクレートに置く。`geo_core` は `geo_contracts` より下位にあり trait定義を参照できないため、`geo_core` の値型には `geo_contracts` の trait定義を実装しない。値型の操作はすべて固有メソッドとし、`geo_contracts` には実装を置かない。
+
 ### 2.1 `geo_core` に置くもの
 
 | 要素 | 現在の場所 | 扱い |
@@ -42,8 +52,12 @@ analysis
 
 - `SimilarityTransformable2D/3D` の trait定義は `geo_contracts` に残し、引数を具体型（`&SimilarityTransform2D<T>` / `&SimilarityTransform3D<T>`）にする
 - 実装が 1 つずつしかない `SimilarityTransform2D/3DCore` の trait定義は削除する
-- `geo_core` の値型（点・ベクトル・方向・AABB）への `SimilarityTransformable*` の実装は、orphan rule により trait定義の側（`geo_contracts`）に置く。実装は `geo_core` の固有メソッド（変換の適用）へ委譲するだけの薄いものとする
-- AABB の `Contains` の実装も同様に `geo_contracts` に置く（使われていなければ削除する）
+- `SimilarityTransformable*` は形状のクレートだけが実装する。`geo_core` の値型には実装しない（ジェネリクスの境界として使われていない）
+- 値型の変換は、相似変換の型の固有メソッドで行う
+  - 点・ベクトル・方向: `apply_point(&Point3D<T>) -> Point3D<T>` / `apply_vector` / `apply_direction`（失敗しないため値を返す）
+  - AABB: `apply_aabb(&Aabb3D<T>) -> Result<Aabb3D<T>, TransformError>`（回転を受け付けない）
+  - 形状の相似変換の実装は、値型のフィールドを `transform.apply_point(&self.center)` のように変換する
+- AABB の `Contains` の実装は削除し、固有メソッド（`contains_point` 等）を使う。他に実装のない `Contains` の trait定義も削除する
 
 ## 3. 形状の API の正本
 
