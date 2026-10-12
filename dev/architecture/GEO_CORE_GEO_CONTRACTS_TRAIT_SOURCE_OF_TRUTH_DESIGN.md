@@ -1,5 +1,7 @@
 # geo_core / geo_contracts trait Source of Truth Design
 
+> **この設計は置き換えた**: 値型（点・ベクトル・方向・AABB）の trait定義は削除し、`geo_core` を `geo_contracts` の下位に置いた。値型の操作は `geo_core` の固有メソッドとし、`geo_contracts` は値型で型付けした形状の trait定義だけを持つ（`TYPED_GEO_CONTRACTS_DESIGN.md`）。以下は置き換える前の判断の記録である。
+
 ## 背景
 
 Issue #533 では、`geo_core` と `geo_contracts` にまたがって残っている基本型 trait定義の二重管理を整理する。

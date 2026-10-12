@@ -4,7 +4,7 @@
 //! Core機能は direction_3d.rs を参照
 
 use crate::{Direction3D, Vector3D};
-use geo_contracts::{Angle, Scalar};
+use analysis::abstract_types::{Angle, Scalar};
 
 // Derive traits are handled by #[derive] on the main struct.
 

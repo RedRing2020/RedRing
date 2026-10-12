@@ -6,11 +6,8 @@
 #[cfg(test)]
 mod tests;
 
+use crate::PointClassification;
 use analysis::abstract_types::Scalar;
-use geo_contracts::{
-    default_distance_tolerance, Aabb3DDerived, Aabb3DProperties, Aabb3DRelation, Contains,
-    PointClassification,
-};
 
 use crate::Point3D;
 
@@ -159,85 +156,5 @@ impl<T: Scalar> Aabb3D<T> {
             && self.max.y() >= other.min.y()
             && self.min.z() <= other.max.z()
             && self.max.z() >= other.min.z()
-    }
-}
-
-impl<T: Scalar> Aabb3DProperties<T> for Aabb3D<T> {
-    type Point3D = Point3D<T>;
-
-    fn min(&self) -> Self::Point3D {
-        self.min
-    }
-
-    fn max(&self) -> Self::Point3D {
-        self.max
-    }
-}
-
-impl<T: Scalar> Aabb3DDerived<T> for Aabb3D<T> {
-    fn width(&self) -> T {
-        self.max.x() - self.min.x()
-    }
-
-    fn height(&self) -> T {
-        self.max.y() - self.min.y()
-    }
-
-    fn depth(&self) -> T {
-        self.max.z() - self.min.z()
-    }
-
-    fn volume(&self) -> T {
-        (self.max.x() - self.min.x())
-            * (self.max.y() - self.min.y())
-            * (self.max.z() - self.min.z())
-    }
-
-    fn center(&self) -> Self::Point3D {
-        let two = T::ONE + T::ONE;
-        Point3D::new(
-            (self.min.x() + self.max.x()) / two,
-            (self.min.y() + self.max.y()) / two,
-            (self.min.z() + self.max.z()) / two,
-        )
-    }
-
-    fn is_valid(&self) -> bool {
-        !(self.min.x() > self.max.x() || self.min.y() > self.max.y() || self.min.z() > self.max.z())
-    }
-}
-
-impl<T: Scalar> Aabb3DRelation<T> for Aabb3D<T> {
-    type Point3D = Point3D<T>;
-
-    fn contains_point(&self, point: &Self::Point3D) -> bool {
-        (self.min.x() <= point.x() && point.x() <= self.max.x())
-            && (self.min.y() <= point.y() && point.y() <= self.max.y())
-            && (self.min.z() <= point.z() && point.z() <= self.max.z())
-    }
-
-    fn classify_point(&self, point: &Self::Point3D) -> PointClassification {
-        Aabb3D::classify_point(self, point, default_distance_tolerance::<T>())
-    }
-
-    fn intersects(&self, other: &Self) -> bool {
-        self.min.x() <= other.max.x()
-            && self.max.x() >= other.min.x()
-            && self.min.y() <= other.max.y()
-            && self.max.y() >= other.min.y()
-            && self.min.z() <= other.max.z()
-            && self.max.z() >= other.min.z()
-    }
-}
-
-impl<T: Scalar> Contains<Point3D<T>> for Aabb3D<T> {
-    fn contains(&self, target: &Point3D<T>) -> bool {
-        self.contains_point(target)
-    }
-}
-
-impl<T: Scalar> Contains<Aabb3D<T>> for Aabb3D<T> {
-    fn contains(&self, target: &Aabb3D<T>) -> bool {
-        self.contains_aabb(target)
     }
 }

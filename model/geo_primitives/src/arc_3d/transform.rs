@@ -3,18 +3,19 @@
 //! 角度は円弧平面の開始方向から測るため、フレームを変換すれば角度は変わらない。
 
 use crate::Arc3D;
-use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
+use crate::SimilarityTransform3D;
+use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for Arc3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         Self::new(
-            self.center.transform_similarity(transform)?,
+            transform.apply_point(&self.center),
             self.radius * transform.scale_factor(),
-            self.normal.transform_similarity(transform)?,
-            self.start_dir.transform_similarity(transform)?,
+            transform.apply_direction(self.normal),
+            transform.apply_direction(self.start_dir),
             self.start_angle,
             self.end_angle,
         )

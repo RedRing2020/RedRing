@@ -1,6 +1,6 @@
 //! 幾何計算のための許容誤差管理
 //!
-//! geo_contracts で共有するトレランス設定。
+//! 幾何のカーネルで共有する許容誤差の既定値と設定。
 
 use std::any::TypeId;
 
@@ -8,38 +8,11 @@ use analysis::consts::numerical::{
     KERNEL_NUMERICAL_ZERO_THRESHOLD_F32, KERNEL_NUMERICAL_ZERO_THRESHOLD_F64,
 };
 
-use crate::Scalar;
+use analysis::abstract_types::Scalar;
 
 #[inline]
 fn is_f32_scalar<T: Scalar>() -> bool {
     TypeId::of::<T>() == TypeId::of::<f32>()
-}
-
-#[inline]
-fn precision_distance_tolerance<T: Scalar>() -> T {
-    if is_f32_scalar::<T>() {
-        T::DISTANCE_TOLERANCE
-    } else {
-        T::from_f64(1e-12)
-    }
-}
-
-#[inline]
-fn precision_angle_tolerance<T: Scalar>() -> T {
-    if is_f32_scalar::<T>() {
-        T::ANGLE_TOLERANCE
-    } else {
-        T::from_f64(1e-10)
-    }
-}
-
-#[inline]
-fn precision_length_tolerance<T: Scalar>() -> T {
-    if is_f32_scalar::<T>() {
-        T::DISTANCE_TOLERANCE
-    } else {
-        T::from_f64(1e-12)
-    }
 }
 
 #[inline]
@@ -64,19 +37,6 @@ pub struct ToleranceSettings<T: Scalar> {
 }
 
 impl<T: Scalar> ToleranceSettings<T> {
-    /// 高精度設定
-    pub fn precision() -> Self {
-        let distance_tolerance = precision_distance_tolerance();
-        let angle_tolerance = precision_angle_tolerance();
-        let length_tolerance = precision_length_tolerance();
-        Self {
-            distance_tolerance,
-            angle_tolerance,
-            area_tolerance: area_tolerance_from_length(length_tolerance),
-            length_tolerance,
-        }
-    }
-
     /// 標準設定（一般的な工学計算用）
     pub fn standard() -> Self {
         let distance_tolerance = T::from_f64(1e-6);
@@ -100,16 +60,6 @@ impl<T: Scalar> ToleranceSettings<T> {
             angle_tolerance,
             area_tolerance: area_tolerance_from_length(length_tolerance),
             length_tolerance,
-        }
-    }
-
-    /// カスタム設定
-    pub fn custom(distance: T, angle: T, area: T, length: T) -> Self {
-        Self {
-            distance_tolerance: distance,
-            angle_tolerance: angle,
-            area_tolerance: area,
-            length_tolerance: length,
         }
     }
 }
@@ -151,58 +101,9 @@ pub fn default_kernel_numerical_zero_tolerance<T: Scalar>() -> T {
     }
 }
 
-/// 幾何計算コンテキスト
-#[derive(Debug, Clone, Copy)]
-pub struct GeometryContext<T: Scalar> {
-    pub tolerances: ToleranceSettings<T>,
-}
-
-impl<T: Scalar> GeometryContext<T> {
-    /// 新しいコンテキストを作成
-    pub fn new(tolerances: ToleranceSettings<T>) -> Self {
-        Self { tolerances }
-    }
-
-    /// 標準コンテキスト
-    pub fn standard() -> Self {
-        Self::new(ToleranceSettings::standard())
-    }
-
-    /// 高精度コンテキスト
-    pub fn precision() -> Self {
-        Self::new(ToleranceSettings::precision())
-    }
-
-    /// 緩いコンテキスト
-    pub fn relaxed() -> Self {
-        Self::new(ToleranceSettings::relaxed())
-    }
-}
-
-impl<T: Scalar> Default for GeometryContext<T> {
-    fn default() -> Self {
-        Self::standard()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_precision_profile_is_type_aware() {
-        let f32_profile = ToleranceSettings::<f32>::precision();
-        assert_eq!(f32_profile.distance_tolerance, 1e-6_f32);
-        assert_eq!(f32_profile.angle_tolerance, 1e-6_f32);
-        assert_eq!(f32_profile.area_tolerance, 1e-12_f32);
-        assert_eq!(f32_profile.length_tolerance, 1e-6_f32);
-
-        let f64_profile = ToleranceSettings::<f64>::precision();
-        assert_eq!(f64_profile.distance_tolerance, 1e-12_f64);
-        assert_eq!(f64_profile.angle_tolerance, 1e-10_f64);
-        assert_eq!(f64_profile.area_tolerance, 1e-24_f64);
-        assert_eq!(f64_profile.length_tolerance, 1e-12_f64);
-    }
 
     #[test]
     fn test_standard_and_relaxed_area_tolerance_follow_length_squared() {

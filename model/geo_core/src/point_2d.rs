@@ -7,7 +7,6 @@ mod tests;
 
 use crate::Vector2D;
 use analysis::abstract_types::{Angle, Scalar};
-use geo_contracts::{Point2DConstructor, Point2DDistance, Point2DInterpolation, Point2DProperties};
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -71,11 +70,6 @@ impl<T: Scalar> Point2D<T> {
         self.x * self.x + self.y * self.y
     }
 
-    /// 極座標から点を作成（r: 半径, theta: 角度）
-    pub fn from_polar(r: T, theta: T) -> Self {
-        Self::new(r * theta.cos(), r * theta.sin())
-    }
-
     /// 2点の中点を計算
     pub fn midpoint(&self, other: &Self) -> Self {
         Self::new(
@@ -91,47 +85,7 @@ impl<T: Scalar> Point2D<T> {
             self.y + (other.y - self.y) * t,
         )
     }
-
-    /// マンハッタン距離（L1ノルム）
-    pub fn manhattan_distance_to(&self, other: &Self) -> T {
-        (self.x - other.x).abs() + (self.y - other.y).abs()
-    }
-
-    /// チェビシェフ距離（L∞ノルム）
-    pub fn chebyshev_distance_to(&self, other: &Self) -> T {
-        let dx = (self.x - other.x).abs();
-        let dy = (self.y - other.y).abs();
-        dx.max(dy)
-    }
 }
-
-// 一時的に無効化した旧 Foundation 実装
-
-/*
-impl<T: Scalar> Point2DTrait<T> for Point2D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
-    }
-}
-
-impl<T: Scalar> BasicContainment<T> for Point2D<T> {
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        *self == *point
-    }
-
-    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
-        self.distance_to(point) <= tolerance
-    }
-
-    fn distance_to_point(&self, point: &Self::Point) -> T {
-        self.distance_to(point)
-    }
-}
-*/
 
 impl<T: Scalar> Point2D<T> {
     /// 他の点へのベクトル
@@ -229,71 +183,6 @@ impl<T: Scalar> Neg for Point2D<T> {
 impl<T: Scalar> Default for Point2D<T> {
     fn default() -> Self {
         Self::origin()
-    }
-}
-
-impl<T: Scalar> Point2DConstructor<T> for Point2D<T> {
-    fn new(x: T, y: T) -> Self {
-        Point2D::new(x, y)
-    }
-
-    fn origin() -> Self {
-        Point2D::origin()
-    }
-
-    fn from_tuple(coords: (T, T)) -> Self {
-        Point2D::from_tuple(coords)
-    }
-
-    fn from_polar(r: T, theta: T) -> Self {
-        Point2D::from_polar(r, theta)
-    }
-}
-
-impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
-    }
-
-    fn to_tuple(&self) -> (T, T) {
-        (self.x, self.y)
-    }
-}
-
-impl<T: Scalar> Point2DDistance<T> for Point2D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        self.distance_to(other)
-    }
-
-    fn distance_squared_to(&self, other: &Self) -> T {
-        self.distance_squared_to(other)
-    }
-
-    fn norm_squared(&self) -> T {
-        let origin = Point2D::origin();
-        self.distance_squared_to(&origin)
-    }
-
-    fn manhattan_distance_to(&self, other: &Self) -> T {
-        self.manhattan_distance_to(other)
-    }
-
-    fn chebyshev_distance_to(&self, other: &Self) -> T {
-        self.chebyshev_distance_to(other)
-    }
-}
-
-impl<T: Scalar> Point2DInterpolation<T> for Point2D<T> {
-    fn midpoint(&self, other: &Self) -> Self {
-        self.midpoint(other)
-    }
-
-    fn lerp(&self, other: &Self, t: T) -> Self {
-        self.lerp(other, t)
     }
 }
 

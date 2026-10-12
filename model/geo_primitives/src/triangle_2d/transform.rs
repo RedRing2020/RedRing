@@ -1,17 +1,18 @@
 //! Triangle2D の相似変換
 
+use crate::SimilarityTransform2D;
 use crate::Triangle2D;
-use geo_contracts::{Scalar, SimilarityTransform2DCore, SimilarityTransformable2D, TransformError};
+use geo_contracts::{Scalar, SimilarityTransformable2D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable2D<T> for Triangle2D<T> {
-    fn transform_similarity<X: SimilarityTransform2DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform2D<T>,
     ) -> Result<Self, TransformError> {
         Self::new(
-            self.vertex_a.transform_similarity(transform)?,
-            self.vertex_b.transform_similarity(transform)?,
-            self.vertex_c.transform_similarity(transform)?,
+            transform.apply_point(&self.vertex_a),
+            transform.apply_point(&self.vertex_b),
+            transform.apply_point(&self.vertex_c),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("degenerate triangle".to_string()))
     }

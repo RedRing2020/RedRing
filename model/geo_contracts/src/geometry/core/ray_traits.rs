@@ -23,10 +23,6 @@ pub trait Ray3DConstructor<T: Scalar> {
     fn from_points(start: (T, T, T), through: (T, T, T)) -> Option<Self>
     where
         Self: Sized;
-
-    fn from_spherical(origin: (T, T, T), azimuth: T, elevation: T) -> Self
-    where
-        Self: Sized;
 }
 
 pub trait Ray2DProperties<T: Scalar> {

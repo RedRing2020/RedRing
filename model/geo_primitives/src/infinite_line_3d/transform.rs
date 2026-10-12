@@ -1,16 +1,17 @@
 //! InfiniteLine3D の相似変換
 
 use crate::InfiniteLine3D;
-use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
+use crate::SimilarityTransform3D;
+use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for InfiniteLine3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         Ok(Self::from_direction(
-            self.point.transform_similarity(transform)?,
-            self.direction.transform_similarity(transform)?,
+            transform.apply_point(&self.point),
+            transform.apply_direction(self.direction),
         ))
     }
 }

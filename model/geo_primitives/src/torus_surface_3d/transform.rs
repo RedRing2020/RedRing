@@ -1,18 +1,19 @@
 //! TorusSurface3D の相似変換
 
+use crate::SimilarityTransform3D;
 use crate::TorusSurface3D;
-use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
+use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for TorusSurface3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Self::new(
-            self.origin.transform_similarity(transform)?,
-            self.z_axis.transform_similarity(transform)?,
-            self.x_axis.transform_similarity(transform)?,
+            transform.apply_point(&self.origin),
+            transform.apply_direction(self.z_axis),
+            transform.apply_direction(self.x_axis),
             self.major_radius * scale,
             self.minor_radius * scale,
         )

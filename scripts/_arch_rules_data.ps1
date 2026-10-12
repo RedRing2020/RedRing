@@ -26,9 +26,9 @@ $ARCH_ALLOWED_DEPS = @{
     logging_foundation   = @()
     redring_test_support = @()
 
-    geo_contracts  = @("analysis")
+    geo_contracts  = @("analysis", "geo_core")
     geo_commons    = @("analysis")
-    geo_core       = @("analysis", "geo_contracts")
+    geo_core       = @("analysis")
     geo_primitives = @("analysis", "geo_contracts", "geo_commons", "geo_core")
     geo_nurbs      = @("analysis", "geo_contracts", "geo_commons", "geo_core")
     geo_topology   = @("analysis", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs")
@@ -61,12 +61,13 @@ $ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives
 $ARCH_FORBIDDEN_DEPS = @{
     # 基盤はワークスペースの他のクレートに依存しない
     analysis           = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_runtime", "job_domain")
-    # trait定義の正本は具体型のクレートに依存しない
-    geo_contracts      = @("geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    # trait定義の正本（抽象化）は形状のクレートに依存しない（値型の geo_core には依存する）
+    geo_contracts      = @("geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     # 共通計算は形状のクレートに依存しない
     geo_commons        = @("geo_contracts", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     # 幾何のクレートは CAM・ビューモデル・ビューに依存しない（CAD / CAM の境界）
-    geo_core           = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    # 値型は抽象化・形状に依存しない
+    geo_core           = @("geo_contracts", "geo_commons", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_primitives     = @("geo_nurbs") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_nurbs          = @("geo_primitives", "geo_topology") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_topology       = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL

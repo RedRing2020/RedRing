@@ -1,20 +1,19 @@
 //! EllipsoidalSurface3D の相似変換
 
 use crate::EllipsoidalSurface3D;
-use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
+use crate::SimilarityTransform3D;
+use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for EllipsoidalSurface3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Self::new(
-            self.center.transform_similarity(transform)?,
-            self.axis.transform_similarity(transform)?.as_vector(),
-            self.ref_direction
-                .transform_similarity(transform)?
-                .as_vector(),
+            transform.apply_point(&self.center),
+            transform.apply_direction(self.axis).as_vector(),
+            transform.apply_direction(self.ref_direction).as_vector(),
             self.a_radius * scale,
             self.b_radius * scale,
             self.c_radius * scale,

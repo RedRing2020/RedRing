@@ -20,7 +20,7 @@ viewmodel（converter / graphics / cam_demo）
   ↓
 model
   application → cam_sim → cam_algorithms → cam_core
-  application → geo_algorithms → geo_topology → geo_primitives / geo_nurbs → geo_core → geo_contracts
+  application → geo_algorithms → geo_topology → geo_primitives / geo_nurbs → geo_contracts → geo_core
   geo_primitives → geo_commons
   geo_entity / geo_io → geo_primitives
   cam_sim / application → job_domain → job_runtime
@@ -34,9 +34,9 @@ foundation（analysis / logging_foundation / i18n_foundation）
 
 - **`foundation/analysis`**: 線形代数などの純粋な数値解析・抽象型・許容誤差
 - **`foundation/logging_foundation`** / **`foundation/i18n_foundation`**: ログの初期化・レート制御 / ローカライズのメッセージカタログ
-- **`geo_contracts`**: 幾何の trait定義の正本。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義する。具体型を持たない
+- **`geo_contracts`**: 幾何の trait定義の正本（抽象化）。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義し、`geo_core` の値型で型付けする。具体型と実装を持たない
 - **`geo_commons`**: `analysis` のみに依存する、形状の型に依存しない共通の数値計算（楕円・楕円体の最近点と距離等）
-- **`geo_core`**: 低レイヤーの値型（点・ベクトル・方向・相似変換・AABB）。`geo_primitives` / `geo_nurbs` から直接使う
+- **`geo_core`**: 最下位の幾何の値型（点・ベクトル・方向・相似変換・AABB・点の分類）と、許容誤差の既定値・変換のエラー。`analysis` のみに依存し、trait定義を持たず、操作は固有メソッドで提供する
 - **`geo_primitives`**: 解析形状の実装。`geo_contracts` の trait定義を実装し、必要に応じて `geo_commons` の計算へ委譲する
 - **`geo_nurbs`**: NURBS 曲線・曲面の実装。`geo_contracts` の trait定義を実装し、`geo_core` の型を使う
 - **`geo_topology`**: 位相構造（エッジ・ワイヤ・複合曲線等）
@@ -59,7 +59,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **shape 意味論の正本は別文書**: 個別の形状の意味と API の意図は `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` を正本とし、trait定義の構成（`GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md`）とは分けて管理する
 - **API は最低限から拡張**: 呼び出し元が必要になった時点で API を追加し、呼び出し元のない API・別名・簡易実装を置かない（`GEO_API_ADDITION_RULES.md`）
 - **`geo_commons` は存続対象**: `analysis` のみに依存する共通の数値計算の置き場として維持する。`geo_algorithms` の代替でも、廃止前提の移行対象でもない
-- **`geo_core` は低レイヤー**: `geo_primitives` と `geo_nurbs` より下位に位置し、`geo_core` の型（特に `Aabb2D` / `Aabb3D`）の直接 import は許可する
+- **抽象化と実装の分離**: `geo_contracts`（抽象化）→ `geo_core`（値型の実装）の向きに依存し、形状のクレートが `geo_core` の値型で `geo_contracts` の trait定義を実装する。`geo_core` の型の直接 import は許可する（`TYPED_GEO_CONTRACTS_DESIGN.md`）
 - **`geo_primitives` / `geo_nurbs` の役割**: 自クレートの型に対する trait定義の実装の入口を担い、重い自由関数のアルゴリズムは `geo_algorithms`、形状の型に依存しない数値計算は `geo_commons` へ分離する
 - **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` の依存は許可だが、`geo_algorithms` の実装ファイルでの `use geo_primitives::...` の直接 import は禁止（`use crate::...` の再エクスポート経由を使う）
 - **`geo_topology` の曲線依存**: `geo_topology -> geo_primitives` を許可し、曲線のエッジの段階導入に限って `geo_topology -> geo_nurbs` も許可する。`geo_nurbs -> geo_topology` の逆依存は禁止する

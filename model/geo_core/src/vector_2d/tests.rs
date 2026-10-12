@@ -130,9 +130,7 @@ fn test_parallel_perpendicular() {
     let v3 = Vector2D::new(-2.0, 1.0); // 垂直
 
     assert!(v1.is_parallel(&v2));
-    assert!(v1.is_perpendicular(&v3));
     assert!(!v1.is_parallel(&v3));
-    assert!(!v1.is_perpendicular(&v2));
 }
 
 /// 角度計算テスト

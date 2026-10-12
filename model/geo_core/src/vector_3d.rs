@@ -174,20 +174,10 @@ impl<T: Scalar> Vector3D<T> {
         self.is_parallel_with_error_tolerance(other, T::PARALLEL_CROSS_ERROR_TOLERANCE)
     }
 
-    /// 他のベクトルと垂直かどうかを判定
-    pub fn is_perpendicular(&self, other: &Self) -> bool {
-        self.is_perpendicular_with_error_tolerance(other, T::ORTHOGONALITY_DOT_ERROR_TOLERANCE)
-    }
-
     /// 他のベクトルと平行かどうかを数値誤差閾値つきで判定
     pub fn is_parallel_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
         let cross = self.cross(other);
         cross.length() <= tolerance
-    }
-
-    /// 他のベクトルと垂直かどうかを数値誤差閾値つきで判定
-    pub fn is_perpendicular_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
-        self.dot(other).abs() <= tolerance
     }
 
     /// ベクトルの線形補間
@@ -313,130 +303,10 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
     }
 }
 
-use geo_contracts::{
-    Vector3DConstructor, Vector3DMetric, Vector3DProduct, Vector3DProjection, Vector3DProperties,
-    Vector3DRelation,
-};
-
-impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
-    fn new(x: T, y: T, z: T) -> Self {
-        Self::new(x, y, z)
-    }
-
-    fn zero() -> Self {
-        Self::zero()
-    }
-
-    fn unit_x() -> Self {
-        Self::unit_x()
-    }
-
-    fn unit_y() -> Self {
-        Self::unit_y()
-    }
-
-    fn unit_z() -> Self {
-        Self::unit_z()
-    }
-
-    fn from_tuple(components: (T, T, T)) -> Self {
-        Self::new(components.0, components.1, components.2)
-    }
-
-    fn from_spherical(magnitude: T, azimuth: T, elevation: T) -> Self {
-        let x = magnitude * elevation.cos() * azimuth.cos();
-        let y = magnitude * elevation.cos() * azimuth.sin();
-        let z = magnitude * elevation.sin();
-        Self::new(x, y, z)
-    }
-
-    fn from_vector(other: &Self) -> Self {
-        *other
-    }
-}
-
-impl<T: Scalar> Vector3DProperties<T> for Vector3D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
-    }
-
-    fn z(&self) -> T {
-        self.z
-    }
-
-    fn components(&self) -> [T; 3] {
-        [self.x, self.y, self.z]
-    }
-
-    fn to_tuple(&self) -> (T, T, T) {
-        (self.x, self.y, self.z)
-    }
-}
-
-impl<T: Scalar> Vector3DMetric<T> for Vector3D<T> {
-    fn length(&self) -> T {
-        Vector3D::length(self)
-    }
-
-    fn length_squared(&self) -> T {
-        Vector3D::length_squared(self)
-    }
-
-    fn normalize(&self) -> Self {
-        Vector3D::normalize(self)
-    }
-
-    fn try_normalize(&self) -> Option<Self> {
-        Vector3D::try_normalize(self)
-    }
-
-    fn distance_to(&self, other: &Self) -> T {
-        (*self - *other).length()
-    }
-
-    fn distance_squared_to(&self, other: &Self) -> T {
-        (*self - *other).length_squared()
-    }
-
-    fn magnitude(&self) -> T {
-        Vector3D::length(self)
-    }
-}
-
-impl<T: Scalar> Vector3DProduct<T> for Vector3D<T> {
-    fn dot(&self, other: &Self) -> T {
-        self.dot(other)
-    }
-}
-
-impl<T: Scalar> Vector3DRelation<T> for Vector3D<T> {
-    fn angle_to(&self, other: &Self) -> Option<T> {
-        Some(self.angle_between(other))
-    }
-
-    fn is_parallel_to(&self, other: &Self) -> bool {
-        self.is_parallel(other)
-    }
-
-    fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.is_perpendicular(other)
-    }
-}
-
-impl<T: Scalar> Vector3DProjection<T> for Vector3D<T> {
-    fn project_onto(&self, other: &Self) -> Option<Self> {
-        Some(self.project_onto(other))
-    }
-}
-
 impl<T: Scalar> TolerantEq<T> for Vector3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         let diff = *self - *other;
-        let diff_magnitude = diff.magnitude();
+        let diff_magnitude = diff.length();
         diff_magnitude <= tolerance
     }
 }

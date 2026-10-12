@@ -31,7 +31,7 @@ fn transform() -> SimilarityTransform3D<f64> {
 }
 
 fn map(p: (f64, f64, f64)) -> (f64, f64, f64) {
-    let q = Point3D::from(p).transform_similarity(&transform()).unwrap();
+    let q = transform().apply_point(&Point3D::from(p));
     (q.x(), q.y(), q.z())
 }
 

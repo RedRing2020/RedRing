@@ -7,11 +7,8 @@
 mod tests;
 
 use crate::Point2D;
+use crate::PointClassification;
 use analysis::abstract_types::Scalar;
-use geo_contracts::{
-    default_distance_tolerance, Aabb2DDerived, Aabb2DProperties, Aabb2DRelation, Contains,
-    PointClassification,
-};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Aabb2D<T: Scalar> {
@@ -143,77 +140,5 @@ impl<T: Scalar> Aabb2D<T> {
     /// is_empty
     pub fn is_empty(&self) -> bool {
         self.min.x() > self.max.x() || self.min.y() > self.max.y()
-    }
-}
-
-impl<T: Scalar> Aabb2DProperties<T> for Aabb2D<T> {
-    type Point2D = Point2D<T>;
-
-    fn min(&self) -> Self::Point2D {
-        self.min
-    }
-
-    fn max(&self) -> Self::Point2D {
-        self.max
-    }
-}
-
-impl<T: Scalar> Aabb2DDerived<T> for Aabb2D<T> {
-    fn width(&self) -> T {
-        self.max.x() - self.min.x()
-    }
-
-    fn height(&self) -> T {
-        self.max.y() - self.min.y()
-    }
-
-    fn area(&self) -> T {
-        (self.max.x() - self.min.x()) * (self.max.y() - self.min.y())
-    }
-
-    fn center(&self) -> Self::Point2D {
-        let two = T::ONE + T::ONE;
-        Point2D::new(
-            (self.min.x() + self.max.x()) / two,
-            (self.min.y() + self.max.y()) / two,
-        )
-    }
-
-    fn is_valid(&self) -> bool {
-        !(self.min.x() > self.max.x() || self.min.y() > self.max.y())
-    }
-}
-
-impl<T: Scalar> Aabb2DRelation<T> for Aabb2D<T> {
-    type Point2D = Point2D<T>;
-
-    fn contains_point(&self, point: &Self::Point2D) -> bool {
-        point.x() >= self.min.x()
-            && point.x() <= self.max.x()
-            && point.y() >= self.min.y()
-            && point.y() <= self.max.y()
-    }
-
-    fn classify_point(&self, point: &Self::Point2D) -> PointClassification {
-        Aabb2D::classify_point(self, point, default_distance_tolerance::<T>())
-    }
-
-    fn intersects(&self, other: &Self) -> bool {
-        self.min.x() <= other.max.x()
-            && self.max.x() >= other.min.x()
-            && self.min.y() <= other.max.y()
-            && self.max.y() >= other.min.y()
-    }
-}
-
-impl<T: Scalar> Contains<Point2D<T>> for Aabb2D<T> {
-    fn contains(&self, target: &Point2D<T>) -> bool {
-        self.contains_point(target)
-    }
-}
-
-impl<T: Scalar> Contains<Aabb2D<T>> for Aabb2D<T> {
-    fn contains(&self, target: &Aabb2D<T>) -> bool {
-        self.contains_aabb(target)
     }
 }

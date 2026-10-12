@@ -6,7 +6,6 @@
 pub mod classification;
 pub mod entity;
 pub mod geometry;
-pub mod tolerance;
 
 pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
@@ -17,7 +16,12 @@ pub use entity::{
 pub use geometry::core::plane3d_traits::{
     Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,
 };
-pub use geometry::core::{Aabb2DDerived, Aabb2DProperties, Aabb3DDerived, Aabb3DProperties};
+
+pub use geo_core::{
+    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
+    default_orthogonality_dot_error_tolerance, default_parallel_cross_error_tolerance,
+    PointClassification, ToleranceSettings, TransformError,
+};
 pub use geometry::core::{
     Arc2DConstructor, Arc2DContainment, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
     Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc2DTrimRange, Arc3DConstructor,
@@ -31,9 +35,7 @@ pub use geometry::core::{
     ConicalSurface3DProperties, CylindricalSolid3DConstructor, CylindricalSolid3DContainment,
     CylindricalSolid3DDerived, CylindricalSolid3DDistance, CylindricalSolid3DProperties,
     CylindricalSurface3DConstructor, CylindricalSurface3DDerived, CylindricalSurface3DDistance,
-    CylindricalSurface3DEvaluation, CylindricalSurface3DProperties, Direction2DConstructor,
-    Direction2DProperties, Direction2DRelation, Direction2DTransform, Direction3DConstructor,
-    Direction3DProperties, Direction3DRelation, Direction3DTransform, Ellipse2DConstructor,
+    CylindricalSurface3DEvaluation, CylindricalSurface3DProperties, Ellipse2DConstructor,
     Ellipse2DContainment, Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProjection,
     Ellipse2DProperties, Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDistance,
     Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, EllipseArc2DConstructor,
@@ -44,8 +46,6 @@ pub use geometry::core::{
     EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived, EllipsoidalSolid3DDistance,
     EllipsoidalSolid3DProperties, EllipsoidalSurface3DConstructor, EllipsoidalSurface3DDerived,
     EllipsoidalSurface3DDistance, EllipsoidalSurface3DEvaluation, EllipsoidalSurface3DProperties,
-    Point2DConstructor, Point2DDistance, Point2DInterpolation, Point2DProperties,
-    Point3DConstructor, Point3DDistance, Point3DInterpolation, Point3DProperties,
     Rect2DConstructor, Rect2DContainment, Rect2DDerived, Rect2DProperties, Rect3DConstructor,
     Rect3DContainment, Rect3DDerived, Rect3DProperties, SphericalSolid3DConstructor,
     SphericalSolid3DContainment, SphericalSolid3DDerived, SphericalSolid3DDistance,
@@ -54,9 +54,7 @@ pub use geometry::core::{
     SphericalSurface3DProperties, TorusSolid3DConstructor, TorusSolid3DContainment,
     TorusSolid3DDerived, TorusSolid3DDistance, TorusSolid3DProperties, TorusSurface3DConstructor,
     TorusSurface3DDerived, TorusSurface3DDistance, TorusSurface3DEvaluation,
-    TorusSurface3DProperties, Vector2DConstructor, Vector2DMetric, Vector2DProduct,
-    Vector2DProjection, Vector2DProperties, Vector2DRelation, Vector3DConstructor, Vector3DMetric,
-    Vector3DProduct, Vector3DProjection, Vector3DProperties, Vector3DRelation,
+    TorusSurface3DProperties,
 };
 pub use geometry::core::{
     InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DDistance,
@@ -82,14 +80,7 @@ pub use geometry::core::{
 };
 pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{
-    Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, BBoxCollision, BasicCollision,
-    Contains, CrossDistance, DistanceConvergenceError, IntersectsRelation, ParallelRelation,
-    PerpendicularRelation, PointClassification, PointDistance, SameLineRelation,
-    SimilarityTransform2DCore, SimilarityTransform3DCore, SimilarityTransformable2D,
-    SimilarityTransformable3D, TransformError,
-};
-pub use tolerance::{
-    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
-    default_orthogonality_dot_error_tolerance, default_parallel_cross_error_tolerance,
-    GeometryContext, ToleranceSettings,
+    AngleBetween, AngularRelation, BBoxCollision, BasicCollision, CrossDistance,
+    DistanceConvergenceError, IntersectsRelation, ParallelRelation, PerpendicularRelation,
+    PointDistance, SameLineRelation, SimilarityTransformable2D, SimilarityTransformable3D,
 };

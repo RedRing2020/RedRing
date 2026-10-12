@@ -135,6 +135,8 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 ここでは、基本型の capability を `Measure` 集約から外した後の標準分類を定義する。
 
+> 値型（点・ベクトル・方向・AABB）の trait定義は削除し、値型の操作は `geo_core` の固有メソッドとした（`TYPED_GEO_CONTRACTS_DESIGN.md`）。以下の分類は、固有メソッドの責務の分け方として残す。
+
 ### Point
 
 `Point` は shape の primary measure を持つ対象ではないため、`area` / `length` / `volume` のような measure 語彙を正本 capability に置かない。
@@ -744,8 +746,6 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 代表例:
 
-- `point_traits.rs`: `Point2DConstructor` / `Point2DProperties` / `Point2DMeasure`
-- `vector_traits.rs`: `Vector2DConstructor` / `Vector2DProperties` / `Vector2DMeasure`
 - `triangle_traits.rs`: `Triangle2DConstructor` / capability trait 群
 
 ただし、現行 `core` には shape 定義以外も混在している。
@@ -784,8 +784,6 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 該当例:
 
-- `Point2DConstructor`, `Point2DProperties`
-- `Vector3DConstructor`, `Vector3DProperties`
 - `Circle2DConstructor`, `Circle2DProperties`
 - `Plane3DConstructor`, `Plane3DProperties`
 

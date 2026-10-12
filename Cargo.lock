@@ -1096,6 +1096,7 @@ name = "geo_contracts"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "geo_core",
  "serde",
 ]
 
@@ -1106,7 +1107,6 @@ dependencies = [
  "analysis",
  "approx",
  "criterion",
- "geo_contracts",
  "nalgebra 0.34.2",
  "num-traits",
  "quickcheck",

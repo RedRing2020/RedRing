@@ -6,13 +6,14 @@
 #[cfg(test)]
 mod tests;
 
-use crate::{Aabb2D, Direction2D, Point2D, Vector2D};
+use crate::{
+    default_kernel_numerical_zero_tolerance, default_orthogonality_dot_error_tolerance,
+    TransformError,
+};
+use crate::{Direction2D, Point2D, Vector2D};
+use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::matrix::Matrix3x3;
 use analysis::linalg::vector::Vector2;
-use geo_contracts::{
-    default_kernel_numerical_zero_tolerance, default_orthogonality_dot_error_tolerance, Angle,
-    Scalar, SimilarityTransform2DCore, SimilarityTransformable2D, TransformError,
-};
 
 /// 2D 相似変換
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -162,79 +163,40 @@ fn linear_columns<T: Scalar>(matrix: &Matrix3x3<T>) -> [Vector2D<T>; 2] {
     [0, 1].map(|c| Vector2D::new(matrix.get(0, c), matrix.get(1, c)))
 }
 
-impl<T: Scalar> SimilarityTransform2DCore<T> for SimilarityTransform2D<T> {
-    fn apply_point(&self, point: (T, T)) -> (T, T) {
+impl<T: Scalar> SimilarityTransform2D<T> {
+    /// 点を変換する
+    pub fn apply_point(&self, point: &Point2D<T>) -> Point2D<T> {
         let p = self
             .matrix
-            .transform_point_2d(&Vector2::new(point.0, point.1));
-        (p.x(), p.y())
+            .transform_point_2d(&Vector2::new(point.x(), point.y()));
+        Point2D::new(p.x(), p.y())
     }
 
-    fn apply_vector(&self, vector: (T, T)) -> (T, T) {
+    /// ベクトルを変換する（平行移動を受けず、長さはスケール係数倍になる）
+    pub fn apply_vector(&self, vector: Vector2D<T>) -> Vector2D<T> {
         let v = self
             .matrix
-            .transform_vector_2d(&Vector2::new(vector.0, vector.1));
-        (v.x(), v.y())
+            .transform_vector_2d(&Vector2::new(vector.x(), vector.y()));
+        Vector2D::new(v.x(), v.y())
     }
 
-    fn scale_factor(&self) -> T {
+    /// 方向を変換する（回転だけを受ける）
+    pub fn apply_direction(&self, direction: Direction2D<T>) -> Direction2D<T> {
+        let v = self.apply_vector(direction.as_vector()) * (T::ONE / self.scale);
+        // スケール係数は正のため、単位ベクトルの変換結果は 0 にならない
+        Direction2D::from_vector(v).expect("similarity transform keeps a direction nonzero")
+    }
+
+    /// 一様スケール係数
+    pub fn scale_factor(&self) -> T {
         self.scale
     }
 
-    fn has_rotation(&self) -> bool {
+    /// 回転を含むか
+    pub fn has_rotation(&self) -> bool {
         let tol = default_orthogonality_dot_error_tolerance::<T>();
         let [u0, u1] = linear_columns(&self.matrix).map(|c| c * (T::ONE / self.scale));
         (u0 - Vector2D::new(T::ONE, T::ZERO)).length() > tol
             || (u1 - Vector2D::new(T::ZERO, T::ONE)).length() > tol
-    }
-}
-
-impl<T: Scalar> SimilarityTransformable2D<T> for Point2D<T> {
-    fn transform_similarity<X: SimilarityTransform2DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError> {
-        let (x, y) = transform.apply_point((self.x(), self.y()));
-        Ok(Point2D::new(x, y))
-    }
-}
-
-impl<T: Scalar> SimilarityTransformable2D<T> for Vector2D<T> {
-    fn transform_similarity<X: SimilarityTransform2DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError> {
-        Ok(transform.apply_vector((self.x(), self.y())).into())
-    }
-}
-
-impl<T: Scalar> SimilarityTransformable2D<T> for Direction2D<T> {
-    fn transform_similarity<X: SimilarityTransform2DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError> {
-        let (x, y) = transform.apply_vector((self.x(), self.y()));
-        Direction2D::new(x, y).ok_or_else(|| {
-            TransformError::InvalidGeometry("direction degenerated to zero".to_string())
-        })
-    }
-}
-
-impl<T: Scalar> SimilarityTransformable2D<T> for Aabb2D<T> {
-    /// 平行移動・一様スケールのみ受け付ける。回転を含む場合は `Unsupported`。
-    ///
-    /// 回転後の境界ボックスが必要な場合は、形状側で再構築する。
-    fn transform_similarity<X: SimilarityTransform2DCore<T>>(
-        &self,
-        transform: &X,
-    ) -> Result<Self, TransformError> {
-        if transform.has_rotation() {
-            return Err(TransformError::Unsupported(
-                "rotation of an axis-aligned bounding box".to_string(),
-            ));
-        }
-        let min = self.min_point().transform_similarity(transform)?;
-        let max = self.max_point().transform_similarity(transform)?;
-        Ok(Aabb2D::new(min, max))
     }
 }

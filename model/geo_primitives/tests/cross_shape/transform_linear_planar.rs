@@ -46,11 +46,11 @@ fn assert_point2_eq(actual: Point2D<f64>, expected: Point2D<f64>) {
 }
 
 fn map3(p: Point3D<f64>) -> Point3D<f64> {
-    p.transform_similarity(&transform_3d()).unwrap()
+    transform_3d().apply_point(&p)
 }
 
 fn map2(p: Point2D<f64>) -> Point2D<f64> {
-    p.transform_similarity(&transform_2d()).unwrap()
+    transform_2d().apply_point(&p)
 }
 
 #[test]

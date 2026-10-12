@@ -1,21 +1,22 @@
 //! Ellipse3D の相似変換
 
 use crate::Ellipse3D;
-use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
+use crate::SimilarityTransform3D;
+use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for Ellipse3D<T> {
-    fn transform_similarity<X: SimilarityTransform3DCore<T>>(
+    fn transform_similarity(
         &self,
-        transform: &X,
+        transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         let scale = transform.scale_factor();
         Self::new(
-            self.center.transform_similarity(transform)?,
+            transform.apply_point(&self.center),
             self.semi_major_axis * scale,
             self.semi_minor_axis * scale,
-            self.normal().transform_similarity(transform)?.as_vector(),
-            self.major_axis_direction()
-                .transform_similarity(transform)?
+            transform.apply_direction(self.normal()).as_vector(),
+            transform
+                .apply_direction(self.major_axis_direction())
                 .as_vector(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("invalid ellipse".to_string()))

@@ -7,7 +7,6 @@
 mod tests;
 
 use analysis::abstract_types::Scalar;
-use geo_contracts::{Point3DConstructor, Point3DDistance, Point3DInterpolation, Point3DProperties};
 
 /// 3次元空間の点
 ///
@@ -180,102 +179,9 @@ impl<T: Scalar> Point3D<T> {
         )
     }
 
-    /// 球面座標から点を作成（r: 半径, theta: 方位角, phi: 仰角）
-    /// theta: xy平面での角度（0 = +x軸）
-    /// phi: z軸からの角度（0 = +z軸, π/2 = xy平面）
-    pub fn from_spherical(r: T, theta: T, phi: T) -> Self {
-        let sin_phi = phi.sin();
-        Self::new(
-            r * sin_phi * theta.cos(),
-            r * sin_phi * theta.sin(),
-            r * phi.cos(),
-        )
-    }
-
-    /// マンハッタン距離（L1ノルム）
-    pub fn manhattan_distance_to(&self, other: &Self) -> T {
-        (self.x - other.x).abs() + (self.y - other.y).abs() + (self.z - other.z).abs()
-    }
-
-    /// チェビシェフ距離（L∞ノルム）
-    pub fn chebyshev_distance_to(&self, other: &Self) -> T {
-        let dx = (self.x - other.x).abs();
-        let dy = (self.y - other.y).abs();
-        let dz = (self.z - other.z).abs();
-        dx.max(dy).max(dz)
-    }
-
     /// 点が自分自身と一致するかを判定
     pub fn contains_point(&self, point: &Self) -> bool {
         self == point
-    }
-}
-
-impl<T: Scalar> Point3DConstructor<T> for Point3D<T> {
-    fn new(x: T, y: T, z: T) -> Self {
-        Point3D::new(x, y, z)
-    }
-
-    fn origin() -> Self {
-        Point3D::origin()
-    }
-
-    fn from_tuple(coords: (T, T, T)) -> Self {
-        Point3D::from_tuple(coords)
-    }
-
-    fn from_spherical(r: T, theta: T, phi: T) -> Self {
-        Point3D::from_spherical(r, theta, phi)
-    }
-}
-
-impl<T: Scalar> Point3DProperties<T> for Point3D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
-    }
-
-    fn z(&self) -> T {
-        self.z
-    }
-
-    fn to_tuple(&self) -> (T, T, T) {
-        (self.x, self.y, self.z)
-    }
-}
-
-impl<T: Scalar> Point3DDistance<T> for Point3D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        Point3D::distance_to(self, other)
-    }
-
-    fn distance_squared_to(&self, other: &Self) -> T {
-        Point3D::distance_squared_to(self, other)
-    }
-
-    fn norm_squared(&self) -> T {
-        Point3D::norm_squared(self)
-    }
-
-    fn manhattan_distance_to(&self, other: &Self) -> T {
-        Point3D::manhattan_distance_to(self, other)
-    }
-
-    fn chebyshev_distance_to(&self, other: &Self) -> T {
-        Point3D::chebyshev_distance_to(self, other)
-    }
-}
-
-impl<T: Scalar> Point3DInterpolation<T> for Point3D<T> {
-    fn midpoint(&self, other: &Self) -> Self {
-        Point3D::midpoint(self, other)
-    }
-
-    fn lerp(&self, other: &Self, t: T) -> Self {
-        Point3D::lerp(self, other, t)
     }
 }
 
