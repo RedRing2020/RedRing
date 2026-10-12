@@ -1,8 +1,8 @@
 use crate::{Attributes, DisplayAttributes, EntityId, Metadata};
 use geo_contracts::{
     Arc3DProperties, ArcEntity3DProperties, Circle3DProperties, CircleEntity3DProperties,
-    EntityDisplayProperties, EntityIdentity, LineEntity3DProperties, Scalar,
-    StrokeDisplayProperties,
+    EntityDisplayProperties, EntityIdentity, LineEntity3DProperties, LineSegment3DProperties,
+    Scalar, StrokeDisplayProperties,
 };
 
 #[derive(Debug, Clone)]

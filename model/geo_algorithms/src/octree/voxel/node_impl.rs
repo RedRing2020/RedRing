@@ -1,6 +1,6 @@
 use super::*;
 use analysis::linalg::vector::Vector2;
-use geo_contracts::CrossDistance;
+use geo_contracts::{CrossDistance, LineSegment3DProperties};
 
 impl<T: Scalar> VoxelNode<T> {
     /// 新しいソリッドノードを作成
@@ -177,10 +177,7 @@ impl<T: Scalar> VoxelNode<T> {
         match self.state {
             VoxelState::Empty => (),
             VoxelState::Solid => {
-                let min = self.bounds.min();
-                let max = self.bounds.max();
-                let distance = segment
-                    .distance_to(&((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z())));
+                let distance = segment.distance_to(&self.bounds);
 
                 if distance > radius {
                     return;
@@ -240,10 +237,7 @@ impl<T: Scalar> VoxelNode<T> {
                     return;
                 }
 
-                let min = self.bounds.min();
-                let max = self.bounds.max();
-                let distance = segment
-                    .distance_to(&((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z())));
+                let distance = segment.distance_to(&self.bounds);
 
                 // 軸方向へ射影可能でも半径外なら非交差。
                 if distance > radius {

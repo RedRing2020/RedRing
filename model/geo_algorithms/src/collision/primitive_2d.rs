@@ -18,8 +18,8 @@ use crate::{
     Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, InfiniteLine2DDistance, Ray2DDistance, Scalar,
-    Triangle2DBoundaryAccess,
+    Arc2DProperties, Circle2DProperties, InfiniteLine2DDistance, LineSegment2DProperties,
+    Ray2DDistance, Scalar, Triangle2DBoundaryAccess,
 };
 
 pub fn circle2d_point2d_collides<T: Scalar>(
@@ -419,6 +419,7 @@ mod tests {
     };
     use analysis::test_constants;
     use geo_contracts::InfiniteLine2DConstructor;
+    use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::Ray2DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;

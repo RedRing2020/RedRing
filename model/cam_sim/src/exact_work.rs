@@ -1,5 +1,5 @@
 use geo_algorithms::distance::line_segment3d_point3d_distance;
-use geo_algorithms::{Aabb3D, LineSegment3D, Point3D, Scalar};
+use geo_algorithms::{Aabb3D, LineSegment3D, LineSegment3DProperties, Point3D, Scalar};
 
 /// SAT-Cut PoCで扱う工具掃引プリミティブ。
 #[derive(Debug, Clone, Copy)]
@@ -655,6 +655,7 @@ mod tests {
         ExactToolPrimitive, ExactWorkError, ExactWorkModel, ExactWorkProjectionCache,
         PrimitiveSetExactWork,
     };
+    use geo_algorithms::LineSegment3DConstructor;
     use geo_algorithms::{Aabb3D, LineSegment3D, Point3D};
 
     #[derive(Default)]

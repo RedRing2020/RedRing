@@ -13,8 +13,8 @@ use crate::topology_orchestration::{
 };
 use geo_contracts::{
     Arc3DProperties, ArcEntity3DProperties, Circle3DProperties, CircleEntity3DProperties,
-    EntityDisplayProperties, EntityIdentity, LineEntity3DProperties, StrokeDisplayProperties,
-    StrokePattern,
+    EntityDisplayProperties, EntityIdentity, LineEntity3DProperties, LineSegment3DProperties,
+    StrokeDisplayProperties, StrokePattern,
 };
 use geo_entity::{EntityId, GeometricEntity};
 use geo_topology::{Edge as TopologyEdge, TopoId};

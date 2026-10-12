@@ -75,6 +75,7 @@ Rust の orphan rule では、trait の実装は trait定義のクレートか�
 - trait定義と同じ名前の固有メソッドは削除する。固有メソッドは実装の補助（private）とし、trait定義にない公開メソッドが必要になった場合は trait定義に追加する
 - 生成（`new` 等）も Constructor の trait定義を正本とする
 - 値型（`geo_core`）は trait定義を持たないため、固有メソッドを API とする
+- 形状の具体型を引数・戻り値に使う API は、関連型を持つ trait定義にする（`Bounded` の `type Aabb`、`LineSegment3DSupportLine` の `type Line` 等）
 
 ### 3.1 prelude
 
@@ -110,7 +111,7 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 | D-2a | 無限直線（`InfiniteLine2D/3D`）の型付けと prelude の追加。完了 | 無限直線 |
 | D-2a-2 | `geo_core` の値型の固有メソッドの引数を値渡しに揃える（`apply_point`・`Vector3D::from_points`・`distance_to` 等）。完了 | 変更なし |
 | D-2b | 半直線（`Ray2D/3D`）の型付け。完了 | 半直線 |
-| D-2c | 線分（`LineSegment2D/3D`） | 線分 |
+| D-2c | 線分（`LineSegment2D/3D`）の型付け。完了 | 線分 |
 | 最後 | `geo_algorithms` 等の Point / タプルの境界の残りの整理と、規約の文書の仕上げ | — |
 
 - 旧 API の別名・互換用の変換は置かない（各段階で呼び出し元まで更新する）

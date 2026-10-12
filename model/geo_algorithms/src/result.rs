@@ -369,6 +369,7 @@ impl<T: Scalar> IntersectionResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use geo_contracts::LineSegment2DConstructor;
 
     #[test]
     fn geometry_dimension() {

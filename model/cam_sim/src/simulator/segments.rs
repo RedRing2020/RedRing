@@ -1,7 +1,7 @@
 use cam_core::{ArcDirection, PathGeometry, PathSegment, ToolPath};
 use geo_algorithms::{
-    CircularArcDirection, CircularArcPolylineOptions, LineSegment3D, Scalar,
-    circular_arc_to_polyline,
+    CircularArcDirection, CircularArcPolylineOptions, LineSegment3D, LineSegment3DConstructor,
+    LineSegment3DProperties, Scalar, circular_arc_to_polyline,
 };
 
 use crate::error::SimulationError;

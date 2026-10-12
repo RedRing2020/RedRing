@@ -1,4 +1,5 @@
 use super::*;
+use geo_contracts::LineSegment3DConstructor;
 
 impl<T: Scalar> VoxelOctree<T> {
     /// 新しいボクセルOctreeを作成

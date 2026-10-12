@@ -1,6 +1,7 @@
 //! Geometry向け orchestration 境界。
 
 use crate::primitives::{Angle, Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
+use geo_contracts::LineSegment3DConstructor;
 
 /// 将来の geometry orchestration ユースケース向けマーカー入力境界。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -180,6 +181,7 @@ mod tests {
         CreateTriangleGeometryRequest, DebugShapeGeometryMutationPort, GeometryOrchestrationError,
         GeometryOrchestrator, LineGeometryMutationPort,
     };
+    use geo_contracts::LineSegment3DProperties;
     use geo_contracts::{Arc3DProperties, Circle3DProperties, Triangle3DBoundaryAccess};
 
     #[test]

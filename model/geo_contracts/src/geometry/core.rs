@@ -79,11 +79,11 @@ pub use infinite_line_traits::{
     InfiniteLine3DEvaluation, InfiniteLine3DProjection, InfiniteLine3DProperties,
 };
 pub use linesegment_traits::{
-    LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DDerived,
-    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
-    LineSegment2DProperties, LineSegment3DConstructor, LineSegment3DContainment,
-    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
-    LineSegment3DProperties,
+    LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DDistance,
+    LineSegment2DEvaluation, LineSegment2DProjection, LineSegment2DProperties,
+    LineSegment3DConstructor, LineSegment3DContainment, LineSegment3DDistance,
+    LineSegment3DEvaluation, LineSegment3DProjection, LineSegment3DProperties,
+    LineSegment3DSupportLine,
 };
 pub use nurbs_curve_2d_traits::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,

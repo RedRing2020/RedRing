@@ -3,6 +3,7 @@
 use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, LineSegment3D, Point3D, octree::VoxelOctree};
+use geo_contracts::LineSegment3DProperties;
 #[cfg(test)]
 use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
 

@@ -1,6 +1,8 @@
 use cam_core::Tool;
 use geo_algorithms::octree::VoxelOctree;
-use geo_algorithms::{LineSegment3D, Point3D, Scalar};
+use geo_algorithms::{
+    LineSegment3D, LineSegment3DConstructor, LineSegment3DProperties, Point3D, Scalar,
+};
 
 use crate::error::SimulationError;
 

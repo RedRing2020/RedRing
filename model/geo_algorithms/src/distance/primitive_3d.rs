@@ -14,10 +14,10 @@ use geo_contracts::{
     default_kernel_numerical_zero_tolerance, default_parallel_cross_error_tolerance, Arc3DDistance,
     ConicalSurface3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance,
     Ellipse3DDistance, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance,
-    EllipsoidalSurface3DDistance, InfiniteLine3DProperties, LineSegment3DProperties,
-    Plane3DProperties, Ray3DProperties, Scalar, SphericalSolid3DContainment,
-    SphericalSolid3DDistance, TorusSolid3DContainment, TorusSolid3DDistance,
-    TorusSurface3DDistance, Triangle3DBoundaryAccess,
+    EllipsoidalSurface3DDistance, InfiniteLine3DProperties, LineSegment3DConstructor,
+    LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
+    SphericalSolid3DContainment, SphericalSolid3DDistance, TorusSolid3DContainment,
+    TorusSolid3DDistance, TorusSurface3DDistance, Triangle3DBoundaryAccess,
 };
 
 /// LineSegment3D-点 間の最短距離（端点クランプあり）
@@ -25,8 +25,10 @@ pub fn line_segment3d_point3d_distance<T: Scalar>(
     segment: &LineSegment3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    let (s1x, s1y, s1z) = LineSegment3DProperties::start_point(segment);
-    let (s2x, s2y, s2z) = LineSegment3DProperties::end_point(segment);
+    let segment_start = LineSegment3DProperties::start_point(segment);
+    let (s1x, s1y, s1z) = (segment_start.x(), segment_start.y(), segment_start.z());
+    let segment_end = LineSegment3DProperties::end_point(segment);
+    let (s2x, s2y, s2z) = (segment_end.x(), segment_end.y(), segment_end.z());
     let dx = s2x - s1x;
     let dy = s2y - s1y;
     let dz = s2z - s1z;

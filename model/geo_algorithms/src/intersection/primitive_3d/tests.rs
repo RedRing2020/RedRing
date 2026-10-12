@@ -32,7 +32,10 @@ use crate::{
     Triangle3D, TriangleMesh3D, Vector3D,
 };
 use analysis::test_constants;
-use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
+use geo_contracts::{
+    InfiniteLine3DConstructor, LineSegment3DConstructor, LineSegment3DProperties,
+    LineSegment3DSupportLine, Ray3DConstructor,
+};
 
 fn standard_distance_tol() -> f64 {
     test_constants::DISTANCE_TOLERANCE_F64
@@ -546,6 +549,16 @@ fn spherical_solid_ray_entrypoints_are_symmetric_wrappers() {
     }
 }
 
+/// 同じ support line 上で始点と終点を入れ替えた線分（始点のパラメータが終点より大きい）
+fn reversed_on_support_line(segment: &LineSegment3D<f64>) -> LineSegment3D<f64> {
+    LineSegment3D::from_support_line_and_constraint_points(
+        *segment.support_line(),
+        segment.end_point(),
+        segment.start_point(),
+    )
+    .unwrap()
+}
+
 #[test]
 fn spherical_solid_line_segment_intersection_handles_reversed_segment() {
     let tolerance = standard_distance_tol();
@@ -558,9 +571,9 @@ fn spherical_solid_line_segment_intersection_handles_reversed_segment() {
     .unwrap();
     let segment =
         LineSegment3D::new(Point3D::new(-10.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
-    let reversed = segment.reverse();
+    let reversed = reversed_on_support_line(&segment);
 
-    // reverse した線分（support line 上で始点のパラメータが終点より大きい）でも、
+    // 始点と終点を入れ替えた線分（support line 上で始点のパラメータが終点より大きい）でも、
     // 線分上で球の中心に最も近い点を交点とする
     for target in [segment, reversed] {
         let result = spherical_solid3d_line_segment3d_intersection(&sphere, &target, tolerance);
@@ -575,7 +588,7 @@ fn spherical_solid_line_segment_intersection_handles_reversed_segment() {
     // 線分の一部だけが球と交わる場合は、球の中心に近い側の端点を交点とする
     let partial =
         LineSegment3D::new(Point3D::new(5.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
-    for target in [partial, partial.reverse()] {
+    for target in [partial, reversed_on_support_line(&partial)] {
         let result = spherical_solid3d_line_segment3d_intersection(&sphere, &target, tolerance);
         match result.geometry {
             IntersectionGeometry::Point(point) => {

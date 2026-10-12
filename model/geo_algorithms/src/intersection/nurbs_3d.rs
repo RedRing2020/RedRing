@@ -20,7 +20,7 @@ use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
     Point3D, Ray3D, SphericalSolid3D,
 };
-use geo_contracts::{Ray3DProperties, Scalar};
+use geo_contracts::{LineSegment3DProperties, Ray3DProperties, Scalar};
 use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -313,6 +313,7 @@ mod tests {
     use crate::{Direction3D, Vector3D};
     use analysis::test_constants;
     use geo_contracts::InfiniteLine3DConstructor;
+    use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::Ray3DConstructor;
     use geo_contracts::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
 

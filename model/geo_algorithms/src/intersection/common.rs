@@ -5,7 +5,7 @@
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, Vector3D};
 use geo_contracts::{
     default_parallel_cross_error_tolerance, InfiniteLine3DConstructor, InfiniteLine3DProperties,
-    Ray3DDistance, Ray3DProperties, Scalar,
+    LineSegment3DDistance, LineSegment3DSupportLine, Ray3DDistance, Ray3DProperties, Scalar,
 };
 
 /// 分母が有効（非ゼロ・非極小）かチェック
@@ -90,7 +90,7 @@ pub(crate) fn ray_ray_intersection_raw<T: Scalar>(
 ///
 /// `line_line_intersection_raw` を使い外積ベースで平行判定したうえで、
 /// 両セグメントの有効範囲を `contains_point` で検証する。
-/// `LineSegment3D::line()` が返す正規化済み `InfiniteLine3D` 経由で計算するため、
+/// `LineSegment3DSupportLine::support_line()` が返す正規化済み `InfiniteLine3D` 経由で計算するため、
 /// 外積ベース無次元化が Ray×Ray と同じ軸で一貫して機能する。
 ///
 /// # 戻り値
@@ -100,8 +100,8 @@ pub(crate) fn segment_segment_intersection_raw<T: Scalar>(
     seg2: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let point = line_line_intersection_raw(seg1.line(), seg2.line())?;
-    if seg1.contains_point(&point, tolerance) && seg2.contains_point(&point, tolerance) {
+    let point = line_line_intersection_raw(seg1.support_line(), seg2.support_line())?;
+    if seg1.distance_to_point(point) <= tolerance && seg2.distance_to_point(point) <= tolerance {
         Some(point)
     } else {
         None
@@ -112,6 +112,7 @@ pub(crate) fn segment_segment_intersection_raw<T: Scalar>(
 mod tests {
     use super::*;
     use geo_contracts::InfiniteLine3DConstructor;
+    use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::Ray3DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;

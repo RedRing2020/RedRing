@@ -4,8 +4,8 @@ use crate::{
     Point3D, Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D, Triangle3D,
 };
 use geo_contracts::{
-    Circle3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Ray3DProperties,
-    Scalar, SphericalSolid3DProperties,
+    Circle3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties,
+    LineSegment3DProperties, Ray3DProperties, Scalar, SphericalSolid3DProperties,
 };
 
 pub fn spherical_solid3d_point3d_collides<T: Scalar>(

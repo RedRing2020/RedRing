@@ -16,8 +16,8 @@ use crate::{
 use geo_contracts::{
     default_parallel_cross_error_tolerance, Arc2DProperties, Circle2DProperties,
     Ellipse2DProperties, InfiniteLine2DDistance, InfiniteLine2DProjection,
-    InfiniteLine2DProperties, LineSegment2DProperties, Ray2DDistance, Ray2DProperties, Scalar,
-    Triangle2DBoundaryAccess,
+    InfiniteLine2DProperties, LineSegment2DConstructor, LineSegment2DProperties, Ray2DDistance,
+    Ray2DProperties, Scalar, Triangle2DBoundaryAccess,
 };
 
 fn arc2d_line_segment2d_intersection_points<T: Scalar>(
@@ -377,8 +377,10 @@ pub fn infinite_line2d_line_segment2d_intersection<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (s1x, s1y) = LineSegment2DProperties::start_point(segment);
-    let (s2x, s2y) = LineSegment2DProperties::end_point(segment);
+    let segment_start = LineSegment2DProperties::start_point(segment);
+    let (s1x, s1y) = (segment_start.x(), segment_start.y());
+    let segment_end = LineSegment2DProperties::end_point(segment);
+    let (s2x, s2y) = (segment_end.x(), segment_end.y());
     let line_point = InfiniteLine2DProperties::point(line);
     let line_dir = InfiniteLine2DProperties::direction(line);
     let (ldx, ldy) = (line_dir.x(), line_dir.y());
@@ -874,6 +876,8 @@ mod tests {
     };
     use analysis::test_constants;
     use geo_contracts::InfiniteLine2DConstructor;
+    use geo_contracts::LineSegment2DConstructor;
+    use geo_contracts::LineSegment2DProperties;
     use geo_contracts::Ray2DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;

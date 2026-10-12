@@ -2,8 +2,8 @@ use crate::{
     ConicalSolid3D, ConicalSurface3D, LineSegment3D, Point3D, SphericalSurface3D, Triangle3D,
 };
 use geo_contracts::{
-    ConicalSolid3DContainment, ConicalSurface3DProperties, Scalar, SphericalSurface3DProperties,
-    Triangle3DBoundaryAccess,
+    ConicalSolid3DContainment, ConicalSurface3DProperties, LineSegment3DProperties, Scalar,
+    SphericalSurface3DProperties, Triangle3DBoundaryAccess,
 };
 
 pub(crate) fn point_intersection_if<T: Scalar>(

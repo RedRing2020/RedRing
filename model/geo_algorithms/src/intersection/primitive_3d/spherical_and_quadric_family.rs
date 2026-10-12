@@ -5,7 +5,8 @@ use crate::{
 };
 use geo_contracts::{
     EllipsoidalSolid3DProperties, InfiniteLine3DProjection, InfiniteLine3DProperties,
-    Ray3DEvaluation, Ray3DProperties, Scalar, SphericalSolid3DProperties,
+    LineSegment3DProjection, LineSegment3DProperties, Ray3DEvaluation, Ray3DProperties, Scalar,
+    SphericalSolid3DProperties,
 };
 
 fn ellipsoidal_solid3d_point3d_intersection_raw<T: Scalar>(
@@ -222,7 +223,7 @@ fn spherical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
     let center = Point3D::new(cx, cy, cz);
     if sphere.distance_to_line_segment(&segment.start_point(), &segment.end_point()) <= tolerance {
-        Some(segment.closest_point(&center))
+        Some(segment.closest_point(center))
     } else {
         None
     }
