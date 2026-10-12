@@ -236,10 +236,7 @@ pub fn point3d_circle3d_distance<T: Scalar>(point: &Point3D<T>, circle: &Circle3
 
 /// Ellipse3D-点 間の最短距離
 pub fn ellipse3d_point3d_distance<T: Scalar>(ellipse: &Ellipse3D<T>, point: &Point3D<T>) -> T {
-    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
-        ellipse,
-        (point.x(), point.y(), point.z()),
-    )
+    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, *point)
 }
 
 /// 逆向きラッパー: point-ellipse

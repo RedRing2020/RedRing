@@ -2,7 +2,9 @@
 
 use geo_contracts::{
     Angle, Arc2DConstructor, Arc2DTrimRange, Arc3DConstructor, Arc3DEvaluation, Arc3DTrimRange,
-    EllipseArc3DTrimRange,
+    Ellipse2DConstructor, Ellipse2DEvaluation, Ellipse3DConstructor, Ellipse3DEvaluation,
+    EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DTrimRange,
+    EllipseArc3DConstructor, EllipseArc3DTrimRange,
 };
 use geo_primitives::{
     Arc2D, Arc3D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D, EllipseArc3D, Point2D, Point3D,
@@ -84,20 +86,28 @@ fn arc3d_contains_point_angle_matches_point_at_angle() {
 #[test]
 fn ellipse_arc_contains_point_angle_uses_parameter_angle() {
     // 長半軸 2・短半軸 1 の楕円の、パラメータ角 30°〜60° の楕円弧
-    let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 2.0, 1.0, 0.0).unwrap();
-    let arc = EllipseArc2D::new(ellipse, deg(30.0), deg(60.0));
+    let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 2.0, 1.0, deg(0.0)).unwrap();
+    let arc = EllipseArc2D::new(
+        Point2D::new(0.0, 0.0),
+        2.0,
+        1.0,
+        deg(0.0),
+        deg(30.0),
+        deg(60.0),
+    )
+    .unwrap();
 
     // パラメータ角 35° の点は、中心から見た方向の角度（約 19.3°）では範囲外だが、パラメータ角では範囲内
     let point = ellipse.point_at_parameter(35.0_f64.to_radians());
-    assert!(arc.contains_point_angle(&point));
-    assert!(arc.contains_point(&point, 1e-9));
+    assert!(arc.contains_point_angle(point));
+    assert!(arc.contains_point(point));
 
     // パラメータ角 20° の点は範囲外
     let point = ellipse.point_at_parameter(20.0_f64.to_radians());
-    assert!(!arc.contains_point_angle(&point));
+    assert!(!arc.contains_point_angle(point));
 
     // 中心の点は、最近点（短軸の端点、パラメータ角 90°）の角度で判定する
-    assert!(!arc.contains_point_angle(&Point2D::new(0.0, 0.0)));
+    assert!(!arc.contains_point_angle(Point2D::new(0.0, 0.0)));
 }
 
 #[test]
@@ -106,23 +116,32 @@ fn ellipse_arc3d_contains_angle_and_point_angle() {
         Point3D::new(0.0, 0.0, 0.0),
         2.0,
         1.0,
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
+        Direction3D::positive_z(),
+        Direction3D::positive_x(),
     )
     .unwrap();
-    let arc = EllipseArc3D::new(ellipse, deg(30.0), deg(60.0));
+    let arc = EllipseArc3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        2.0,
+        1.0,
+        Direction3D::positive_z(),
+        Direction3D::positive_x(),
+        deg(30.0),
+        deg(60.0),
+    )
+    .unwrap();
 
     // 周期の違う同じ角度と、範囲の端の許容誤差
     assert!(EllipseArc3DTrimRange::contains_angle(
         &arc,
-        (360.0_f64 + 45.0).to_radians()
+        deg(360.0 + 45.0)
     ));
     assert!(arc.contains_angle(deg(60.0)));
     assert!(!arc.contains_angle(deg(90.0)));
 
     let point = ellipse.point_at_parameter(35.0_f64.to_radians());
-    assert!(arc.contains_point_angle(&point));
-    assert!(arc.contains_point_angle(&Point3D::new(point.x(), point.y(), 3.0)));
+    assert!(arc.contains_point_angle(point));
+    assert!(arc.contains_point_angle(Point3D::new(point.x(), point.y(), 3.0)));
 }
 
 #[test]

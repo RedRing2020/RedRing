@@ -24,11 +24,11 @@
 use crate::mesh_converter::VertexData;
 use geo_contracts::{
     Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DEvaluation,
-    CylindricalSolid3DProperties, CylindricalSurface3DEvaluation, EllipseArc3DProperties,
-    EllipsoidalSolid3DProperties, EllipsoidalSurface3DEvaluation, InfiniteLine3DProperties,
-    LineSegment3DProperties, Plane3DProperties, PrimitiveKind, Ray3DProperties,
-    SphericalSolid3DProperties, SphericalSurface3DEvaluation, TorusSolid3DProperties,
-    TorusSurface3DEvaluation, Triangle3DBoundaryAccess,
+    CylindricalSolid3DProperties, CylindricalSurface3DEvaluation, Ellipse3DProperties,
+    EllipseArc3DProperties, EllipsoidalSolid3DProperties, EllipsoidalSurface3DEvaluation,
+    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DProperties, PrimitiveKind,
+    Ray3DProperties, SphericalSolid3DProperties, SphericalSurface3DEvaluation,
+    TorusSolid3DProperties, TorusSurface3DEvaluation, Triangle3DBoundaryAccess,
 };
 // geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
 // - 基本型 (Point3D, Vector3D from geo_core)
@@ -790,8 +790,8 @@ pub fn ellipse_arc_to_vertices(
     quality: &TessellationQuality,
 ) -> Vec<VertexData> {
     // 楕円弧の角度範囲を取得
-    let start_angle: f64 = EllipseArc3DProperties::start_angle(arc);
-    let end_angle: f64 = EllipseArc3DProperties::end_angle(arc);
+    let start_angle: f64 = EllipseArc3DProperties::start_angle(arc).to_radians();
+    let end_angle: f64 = EllipseArc3DProperties::end_angle(arc).to_radians();
 
     // 角度範囲を計算（CCW方向）
     let mut angle_range: f64 = end_angle - start_angle;
@@ -806,13 +806,12 @@ pub fn ellipse_arc_to_vertices(
 
     let mut vertices = Vec::with_capacity(segments + 1);
 
-    let ellipse = arc.ellipse();
-    let center = ellipse.center();
-    let semi_major = ellipse.semi_major_axis();
-    let semi_minor = ellipse.semi_minor_axis();
-    let normal = ellipse.normal().as_vector();
-    let major_dir = ellipse.major_axis_direction().as_vector();
-    let minor_dir = ellipse.minor_axis_direction().as_vector();
+    let center = EllipseArc3DProperties::center(arc);
+    let semi_major = EllipseArc3DProperties::semi_major_axis(arc);
+    let semi_minor = EllipseArc3DProperties::semi_minor_axis(arc);
+    let normal = EllipseArc3DProperties::normal(arc).as_vector();
+    let major_dir = EllipseArc3DProperties::major_axis_direction(arc).as_vector();
+    let minor_dir = EllipseArc3DProperties::minor_axis_direction(arc).as_vector();
 
     let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
 
@@ -847,8 +846,8 @@ pub fn ellipse_arc_to_wireframe_line_segments(
     quality: &TessellationQuality,
 ) -> Vec<VertexData> {
     // 角度範囲を取得
-    let start_angle: f64 = EllipseArc3DProperties::start_angle(arc);
-    let end_angle: f64 = EllipseArc3DProperties::end_angle(arc);
+    let start_angle: f64 = EllipseArc3DProperties::start_angle(arc).to_radians();
+    let end_angle: f64 = EllipseArc3DProperties::end_angle(arc).to_radians();
 
     let mut angle_range: f64 = end_angle - start_angle;
     if angle_range < 0.0 {
@@ -861,13 +860,12 @@ pub fn ellipse_arc_to_wireframe_line_segments(
 
     let mut vertices = Vec::with_capacity(segments * 2);
 
-    let ellipse = arc.ellipse();
-    let center = ellipse.center();
-    let semi_major = ellipse.semi_major_axis();
-    let semi_minor = ellipse.semi_minor_axis();
-    let normal = ellipse.normal().as_vector();
-    let major_dir = ellipse.major_axis_direction().as_vector();
-    let minor_dir = ellipse.minor_axis_direction().as_vector();
+    let center = EllipseArc3DProperties::center(arc);
+    let semi_major = EllipseArc3DProperties::semi_major_axis(arc);
+    let semi_minor = EllipseArc3DProperties::semi_minor_axis(arc);
+    let normal = EllipseArc3DProperties::normal(arc).as_vector();
+    let major_dir = EllipseArc3DProperties::major_axis_direction(arc).as_vector();
+    let minor_dir = EllipseArc3DProperties::minor_axis_direction(arc).as_vector();
 
     let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
 
@@ -2134,6 +2132,7 @@ mod tests {
     use geo_contracts::Arc3DConstructor;
     use geo_contracts::Circle3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
+    use geo_contracts::{Ellipse3DConstructor, EllipseArc3DConstructor};
     use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
 
     #[test]
@@ -2358,29 +2357,26 @@ mod tests {
         // 2. Ellipse3D
         let ellipse = Ellipse3D::new(
             Point3D::origin(),
-            2.0,                          // semi_major_axis
-            1.0,                          // semi_minor_axis
-            Vector3D::new(0.0, 0.0, 1.0), // normal
-            Vector3D::new(1.0, 0.0, 0.0), // major_axis_dir
+            2.0,                       // semi_major_axis
+            1.0,                       // semi_minor_axis
+            Direction3D::positive_z(), // normal
+            Direction3D::positive_x(), // major_axis_dir
         )
         .unwrap();
         let ellipse_vertices = ellipse_to_vertices(&ellipse, &quality);
         assert!(!ellipse_vertices.is_empty(), "Ellipse3D conversion failed");
 
         // 3. EllipseArc3D
-        let base_ellipse = Ellipse3D::new(
+        let ellipse_arc = EllipseArc3D::new(
             Point3D::origin(),
             2.0,
             1.0,
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-        )
-        .unwrap();
-        let ellipse_arc = EllipseArc3D::new(
-            base_ellipse,
+            Direction3D::positive_z(),
+            Direction3D::positive_x(),
             Angle::from_radians(0.0),
             Angle::from_radians(std::f64::consts::PI),
-        );
+        )
+        .unwrap();
         let ellipse_arc_vertices = ellipse_arc_to_vertices(&ellipse_arc, &quality);
         assert!(
             !ellipse_arc_vertices.is_empty(),

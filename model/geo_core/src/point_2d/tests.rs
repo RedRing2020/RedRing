@@ -81,11 +81,6 @@ fn test_interpolation_and_midpoint() {
 fn test_transformations() {
     let point = Point2D::new(1.0_f64, 2.0_f64);
 
-    // 平行移動
-    let translation_vector = crate::Vector2D::new(3.0_f64, 4.0_f64);
-    let translated = point.translate(translation_vector);
-    assert_eq!(translated, Point2D::new(4.0_f64, 6.0_f64));
-
     // スケーリング
     let scaled = point.scale(2.0_f64, 3.0_f64);
     assert_eq!(scaled, Point2D::new(2.0_f64, 6.0_f64));

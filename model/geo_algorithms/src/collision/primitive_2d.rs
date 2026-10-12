@@ -18,8 +18,10 @@ use crate::{
     Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, InfiniteLine2DDistance, LineSegment2DProperties,
-    Ray2DDistance, Scalar, Triangle2DBoundaryAccess,
+    Arc2DProperties, Circle2DProperties, Ellipse2DConstructor, Ellipse2DDistance,
+    EllipseArc2DDistance, EllipseArc2DEndpoint, EllipseArc2DProperties, EllipseArc2DTrimRange,
+    InfiniteLine2DDistance, LineSegment2DProperties, Ray2DDistance, Scalar,
+    Triangle2DBoundaryAccess,
 };
 
 pub fn circle2d_point2d_collides<T: Scalar>(
@@ -315,7 +317,7 @@ pub fn ellipse2d_point2d_collides<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> bool {
-    ellipse.distance_to_point(point) <= tolerance
+    ellipse.distance_to_point(*point) <= tolerance
 }
 
 pub fn ellipse2d_circle2d_collides<T: Scalar>(
@@ -324,7 +326,7 @@ pub fn ellipse2d_circle2d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let center = circle.center();
-    ellipse.distance_to_point(&center) <= circle.radius() + tolerance
+    ellipse.distance_to_point(center) <= circle.radius() + tolerance
 }
 
 pub fn circle2d_ellipse2d_collides<T: Scalar>(
@@ -340,7 +342,7 @@ pub fn ellipse_arc2d_point2d_collides<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> bool {
-    arc.contains_point(point, tolerance)
+    arc.distance_to_point(*point) <= tolerance
 }
 
 pub fn ellipse_arc2d_circle2d_collides<T: Scalar>(
@@ -348,15 +350,21 @@ pub fn ellipse_arc2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    if !{
-        let center = circle.center();
-        arc.ellipse().distance_to_point(&center) <= circle.radius() + tolerance
-    } {
+    // 母楕円と円が離れていれば交わらない
+    let ellipse = Ellipse2D::new(
+        arc.center(),
+        arc.semi_major_axis(),
+        arc.semi_minor_axis(),
+        arc.rotation(),
+    );
+    if ellipse.is_some_and(|ellipse| {
+        ellipse.distance_to_point(circle.center()) > circle.radius() + tolerance
+    }) {
         return false;
     }
 
     let center = circle.center();
-    if arc.contains_point_angle(&center) {
+    if arc.contains_point_angle(center) {
         return true;
     }
 
@@ -423,6 +431,7 @@ mod tests {
     use geo_contracts::InfiniteLine2DConstructor;
     use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::Ray2DConstructor;
+    use geo_contracts::{Ellipse2DConstructor, EllipseArc2DConstructor};
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;
@@ -634,12 +643,17 @@ mod tests {
 
     #[test]
     fn ellipse_and_ellipse_arc_collision_entry_points_work() {
-        let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 3.0, 2.0, 0.0).unwrap();
+        let ellipse =
+            Ellipse2D::new(Point2D::new(0.0, 0.0), 3.0, 2.0, Angle::from_radians(0.0)).unwrap();
         let ellipse_arc = EllipseArc2D::new(
-            ellipse,
+            Point2D::new(0.0, 0.0),
+            3.0,
+            2.0,
+            Angle::from_radians(0.0),
             Angle::from_degrees(0.0),
             Angle::from_degrees(180.0),
-        );
+        )
+        .unwrap();
         let point = Point2D::new(3.0, 0.0);
         let circle = Circle2D::new(Point2D::new(2.5, 0.0), 0.75).unwrap();
 

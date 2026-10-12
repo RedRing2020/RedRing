@@ -54,10 +54,10 @@ pub use cylindrical_surface_traits::{
 };
 
 pub use ellipse_arc_traits::{
-    EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DDerived, EllipseArc2DEndpoint,
-    EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange, EllipseArc3DConstructor,
-    EllipseArc3DContainment, EllipseArc3DDerived, EllipseArc3DEndpoint, EllipseArc3DEvaluation,
-    EllipseArc3DProperties, EllipseArc3DTrimRange,
+    EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DDerived, EllipseArc2DDistance,
+    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange,
+    EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DDerived, EllipseArc3DDistance,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DProperties, EllipseArc3DTrimRange,
 };
 pub use ellipse_traits::{
     Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDistance, Ellipse2DEvaluation,

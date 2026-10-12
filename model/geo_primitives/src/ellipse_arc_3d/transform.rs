@@ -11,10 +11,10 @@ impl<T: Scalar> SimilarityTransformable3D<T> for EllipseArc3D<T> {
         &self,
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
-        Ok(Self::new(
-            self.ellipse.transform_similarity(transform)?,
-            self.start_angle,
-            self.end_angle,
-        ))
+        Ok(Self {
+            ellipse: self.ellipse.transform_similarity(transform)?,
+            start_angle: self.start_angle,
+            end_angle: self.end_angle,
+        })
     }
 }

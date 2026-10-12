@@ -88,8 +88,7 @@ impl<T: Scalar> CurveRef<T> {
             Self::Line(line) => line.start_point(),
             Self::Arc(arc) => <TopoArc3D<T> as Arc3DEndpoint<T>>::start_point(arc),
             Self::EllipseArc(arc) => {
-                let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::start_point(arc);
-                Point3D::new(x, y, z)
+                <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::start_point(arc)
             }
             Self::Nurbs(curve) => {
                 let (u_min, _) =
@@ -105,8 +104,7 @@ impl<T: Scalar> CurveRef<T> {
             Self::Line(line) => line.end_point(),
             Self::Arc(arc) => <TopoArc3D<T> as Arc3DEndpoint<T>>::end_point(arc),
             Self::EllipseArc(arc) => {
-                let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::end_point(arc);
-                Point3D::new(x, y, z)
+                <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::end_point(arc)
             }
             Self::Nurbs(curve) => {
                 let (_, u_max) =
@@ -127,9 +125,7 @@ impl<T: Scalar> CurveRef<T> {
             Self::Line(line) => line.support_line().point_at_parameter(t),
             Self::Arc(arc) => <TopoArc3D<T> as Arc3DEvaluation<T>>::point_at_parameter(arc, t),
             Self::EllipseArc(arc) => {
-                let (x, y, z) =
-                    <TopoEllipseArc3D<T> as EllipseArc3DEvaluation<T>>::point_at_parameter(arc, t);
-                Point3D::new(x, y, z)
+                <TopoEllipseArc3D<T> as EllipseArc3DEvaluation<T>>::point_at_parameter(arc, t)
             }
             Self::Nurbs(curve) => {
                 let (u_min, u_max) =
