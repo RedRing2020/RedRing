@@ -174,10 +174,7 @@ fn test_boundary_distance() {
 fn test_basic_parametric() {
     let ellipse = Ellipse2D::new(Point2D::origin(), 4.0, 2.0, 0.0).unwrap();
 
-    // Ellipse の parameter_range / point_at_parameter は local angle domain を使う
-    let (start, end) = ellipse.parameter_range();
-    assert_eq!(start, 0.0);
-    assert!((end - 2.0 * std::f64::consts::PI).abs() < TOLERANCE_F64);
+    // Ellipse の point_at_parameter は local angle domain を使う
 
     let point = ellipse.point_at_parameter(std::f64::consts::PI / 2.0);
     assert!((point.x() - 0.0).abs() < TOLERANCE_F64);

@@ -51,22 +51,6 @@ fn test_basic_properties() {
     assert!((area - expected_area).abs() < 1e-10);
 
     // 円判定
-
-    // 退化判定
-    assert!(!ellipse.is_degenerate());
-}
-
-#[test]
-fn test_degenerate_ellipse() {
-    let tiny_ellipse = Ellipse3D::new(
-        Point3D::origin(),
-        1e-12,
-        1e-12,
-        Vector3D::unit_z(),
-        Vector3D::unit_x(),
-    )
-    .unwrap();
-    assert!(tiny_ellipse.is_degenerate());
 }
 
 #[test]

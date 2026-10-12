@@ -25,11 +25,6 @@ impl<T: Scalar> Ray3D<T> {
         geo_core::Aabb3D::new(origin, origin)
     }
 
-    /// パラメータの範囲を取得
-    pub fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::INFINITY)
-    }
-
     /// パラメータ t での接線ベクトルを取得
     pub fn tangent_at_parameter(&self, _t: T) -> Vector3D<T> {
         self.direction_vector()

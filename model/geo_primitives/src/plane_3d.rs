@@ -3,7 +3,6 @@
 //! 座標系付き平面実装（旧Plane3DCoordinateSystem）
 //! STEP AP214準拠の完全な平面座標系を提供
 
-mod extensions;
 #[cfg(test)]
 mod tests;
 mod transform;

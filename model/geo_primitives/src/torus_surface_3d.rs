@@ -210,15 +210,7 @@ impl<T: Scalar> TorusSurface3D<T> {
 }
 
 /// f64 での特別な実装
-impl TorusSurface3D<f64> {
-    /// ドーナツ型トーラス（major_radius > minor_radius）
-    pub fn donut(major_radius: f64, minor_radius: f64) -> Option<Self> {
-        if major_radius <= minor_radius {
-            return None; // ドーナツ型ではない
-        }
-        Self::standard(major_radius, minor_radius)
-    }
-}
+impl TorusSurface3D<f64> {}
 
 use geo_contracts::{
     TorusSurface3DConstructor, TorusSurface3DDerived, TorusSurface3DDistance,

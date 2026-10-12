@@ -4,7 +4,7 @@
 //! 基本機能は親モジュール（arc_2d.rs）を参照
 
 use crate::{arc_2d::Arc2D, Circle2D, Point2D, Vector2D};
-use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
+use geo_contracts::default_distance_tolerance;
 use geo_contracts::{Angle, Scalar};
 
 impl<T: Scalar> Arc2D<T> {
@@ -86,12 +86,6 @@ impl<T: Scalar> Arc2D<T> {
     //     let span = self.angular_span();
     //     (span - (T::ONE + T::ONE) * T::PI).abs() <= T::EPSILON
     // }
-
-    /// 退化した円弧かどうかを判定（非常に小さい半径または角度範囲）
-    pub fn is_degenerate(&self) -> bool {
-        self.radius_internal() <= default_distance_tolerance::<T>()
-            || self.angular_span() <= default_angle_tolerance::<T>()
-    }
 
     // normalize_angle is implemented in arc_2d_containment.rs
 }

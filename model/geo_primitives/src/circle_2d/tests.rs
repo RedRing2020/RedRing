@@ -244,20 +244,6 @@ fn test_transformations() {
     assert_eq!(translated.radius, 3.0);
 }
 
-/// 円同士の関係テスト
-#[test]
-fn test_circle_relationships() {
-    let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 3.0).unwrap();
-    let circle2 = Circle2D::new(Point2D::new(4.0, 0.0), 2.0).unwrap(); // 交差
-    let circle3 = Circle2D::new(Point2D::new(1.0, 0.0), 1.0).unwrap(); // 内包
-    let circle4 = Circle2D::new(Point2D::new(10.0, 0.0), 1.0).unwrap(); // 離れている
-
-    // 包含判定
-    assert!(circle1.contains_circle(&circle3)); // circle1がcircle3を包含
-    assert!(!circle1.contains_circle(&circle2)); // 交差関係
-    assert!(!circle1.contains_circle(&circle4)); // 離れている
-}
-
 /// 境界ボックステスト
 #[test]
 fn test_bounding_box() {

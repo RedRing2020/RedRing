@@ -294,46 +294,11 @@ impl<T: Scalar> SphericalSurface3D<T> {
         geo_core::Aabb3D::new(min_point, max_point)
     }
 
-    /// 球サーフェスが退化しているかどうかを判定
-    pub fn is_degenerate(&self) -> bool {
-        self.radius <= T::EPSILON
-    }
-
     /// 点から球サーフェスまでの最短距離を計算
     /// 球内部の点の場合は負の値を返す
     pub fn distance_to_surface(&self, point: Point3D<T>) -> T {
         let distance_to_center = self.center.distance_to(&point);
         distance_to_center - self.radius
-    }
-
-    /// 球サーフェス上の点での法線ベクトルを計算（外向き）
-    pub fn normal_at_point(&self, point: Point3D<T>) -> Option<Direction3D<T>> {
-        let to_point = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
-        );
-
-        Direction3D::from_vector(to_point)
-    }
-
-    /// 球サーフェスの主曲率を計算（どの点でも同じ）
-    /// 球の場合、両方の主曲率は 1/radius
-    pub fn principal_curvatures(&self) -> (T, T) {
-        let curvature = T::ONE / self.radius;
-        (curvature, curvature)
-    }
-
-    /// 球サーフェスの平均曲率を計算
-    /// H = (k1 + k2) / 2 = 1/radius
-    pub fn mean_curvature(&self) -> T {
-        T::ONE / self.radius
-    }
-
-    /// 球サーフェスのガウス曲率を計算
-    /// K = k1 * k2 = 1/radius²
-    pub fn gaussian_curvature(&self) -> T {
-        T::ONE / (self.radius * self.radius)
     }
 }
 

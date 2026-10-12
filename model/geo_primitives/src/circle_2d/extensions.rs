@@ -67,12 +67,6 @@ impl<T: Scalar> Circle2D<T> {
         Self::new(self.center + offset, self.radius).unwrap()
     }
 
-    /// 他の円を完全に含むかを判定
-    pub fn contains_circle(&self, other: &Self) -> bool {
-        let distance = self.center.distance_to(&other.center);
-        distance + other.radius <= self.radius
-    }
-
     /// 3次元円に拡張（Z=0平面）
     pub fn to_3d(&self) -> crate::Circle3D<T> {
         use crate::Direction3D;

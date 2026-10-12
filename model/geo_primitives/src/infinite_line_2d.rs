@@ -97,14 +97,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         )
     }
 
-    /// パラメータ範囲を取得
-    pub fn parameter_range(&self) -> (T, T) {
-        // 無限直線なので理論上は (-∞, +∞)
-        // 実用的な大きな値を使用
-        let large_value = T::from_f64(1e6);
-        (-large_value, large_value)
-    }
-
     /// 接線ベクトルを取得
     pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         // 直線の接線ベクトルは方向ベクトルと同じ

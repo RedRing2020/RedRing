@@ -16,7 +16,6 @@
 //! - 高さは境界によって定義（無限円柱面）
 
 mod bounds;
-mod extensions;
 #[cfg(test)]
 mod tests;
 mod transform;
@@ -232,26 +231,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
 
         // 径方向の単位ベクトル
         x_axis * cos_u + y_axis * sin_u
-    }
-
-    /// パラメータ (u, v) でのU方向接線ベクトルを計算
-    ///
-    /// ∂P/∂u = radius * (-sin(u) * X + cos(u) * Y)
-    pub fn tangent_u_at_uv(&self, u: T, _v: T) -> Vector3D<T> {
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.y_axis().as_vector();
-
-        (x_axis * (-sin_u) + y_axis * cos_u) * self.radius
-    }
-
-    /// パラメータ (u, v) でのV方向接線ベクトルを計算
-    ///
-    /// ∂P/∂v = Z (軸方向)
-    pub fn tangent_v_at_uv(&self, _u: T, _v: T) -> Vector3D<T> {
-        self.axis.as_vector()
     }
 
     /// 円柱サーフェスの境界ボックスを計算（無限軸方向のため制限が必要）

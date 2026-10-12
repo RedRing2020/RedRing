@@ -146,17 +146,6 @@ fn test_reverse_direction() {
 }
 
 #[test]
-fn test_parameter_range() {
-    let origin = Point3D::new(0.0, 0.0, 0.0);
-    let direction = Vector3D::new(1.0, 0.0, 0.0);
-    let ray = Ray3D::new(origin, direction).unwrap();
-
-    let (min, max) = ray.parameter_range();
-    assert_eq!(min, 0.0);
-    assert_eq!(max, f64::INFINITY);
-}
-
-#[test]
 fn test_3d_diagonal_ray() {
     let origin = Point3D::new(0.0, 0.0, 0.0);
     let direction = Vector3D::new(1.0, 1.0, 1.0);

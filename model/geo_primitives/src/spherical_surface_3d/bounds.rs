@@ -39,46 +39,4 @@ mod tests {
         let expected_area = 4.0 * std::f64::consts::PI * 4.0; // 4π * r²
         assert!((area - expected_area).abs() < 1e-10);
     }
-
-    #[test]
-    fn test_spherical_surface_degenerate() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let surface = SphericalSurface3D::new_standard(center, f64::EPSILON / 2.0).unwrap();
-
-        assert!(surface.is_degenerate());
-
-        let bbox = surface.aabb().expect("should have aabb");
-        assert!(!bbox.is_empty());
-    }
-
-    #[test]
-    fn test_spherical_surface_normal() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let surface = SphericalSurface3D::new_standard(center, 1.0).unwrap();
-
-        // 表面上の点での法線テスト
-        let point = Point3D::new(1.0, 0.0, 0.0);
-        let normal = surface.normal_at_point(point).unwrap();
-
-        // 法線は外向きで正規化されている
-        assert!((normal.x() - 1.0).abs() < 1e-10);
-        assert!((normal.y() - 0.0).abs() < 1e-10);
-        assert!((normal.z() - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_spherical_surface_curvature() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let surface = SphericalSurface3D::new_standard(center, 2.0).unwrap();
-
-        let (k1, k2) = surface.principal_curvatures();
-        assert!((k1 - 0.5).abs() < 1e-10);
-        assert!((k2 - 0.5).abs() < 1e-10);
-
-        let mean_curvature = surface.mean_curvature();
-        assert!((mean_curvature - 0.5).abs() < 1e-10);
-
-        let gaussian_curvature = surface.gaussian_curvature();
-        assert!((gaussian_curvature - 0.25).abs() < 1e-10);
-    }
 }

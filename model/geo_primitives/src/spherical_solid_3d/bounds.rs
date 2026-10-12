@@ -35,15 +35,4 @@ mod tests {
         let expected_volume = 4.0 * std::f64::consts::PI * 8.0 / 3.0;
         assert!((volume - expected_volume).abs() < 1e-10);
     }
-
-    #[test]
-    fn test_spherical_solid_degenerate() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let solid = SphericalSolid3D::new_standard(center, f64::EPSILON / 2.0).unwrap();
-
-        assert!(solid.is_degenerate());
-
-        let bbox = solid.aabb().expect("should have aabb");
-        assert!(!bbox.is_empty());
-    }
 }

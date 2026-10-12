@@ -8,7 +8,7 @@
     3. cargo test --workspace (テスト)
     4. scripts/check_message_language_policy.ps1 (実行時文言の言語ポリシーチェック)
     5. scripts/check_github_refs_in_source.ps1 (ソースコード中の GitHub 固有情報チェック)
-    6. scripts/check_unused_public_api.ps1 (呼び出し元のない公開メソッド・簡易実装の記載。警告のみ)
+    6. scripts/check_unused_public_api.ps1 (呼び出し元のない公開メソッド・trait定義のメソッド・簡易実装の記載。警告のみ)
     
     1〜5 のチェックが通らないと、このスクリプトは失敗します。6 は警告のみで失敗にしません。
     
@@ -80,8 +80,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host ""
 
-# 6. 呼び出し元のない公開メソッド・簡易実装の記載（警告のみ）
-Write-Host "[6/6] 呼び出し元のない公開メソッド・簡易実装の記載チェック（警告のみ）..." -ForegroundColor Yellow
+# 6. 呼び出し元のない公開メソッド・trait定義のメソッド・簡易実装の記載（警告のみ）
+Write-Host "[6/6] 呼び出し元のない公開メソッド・trait定義のメソッド・簡易実装の記載チェック（警告のみ）..." -ForegroundColor Yellow
 $unusedApiScript = Join-Path $PSScriptRoot "check_unused_public_api.ps1"
 pwsh -NoProfile -ExecutionPolicy Bypass -File $unusedApiScript
 Write-Host ""

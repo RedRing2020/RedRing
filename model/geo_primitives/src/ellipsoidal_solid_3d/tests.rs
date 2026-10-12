@@ -61,22 +61,6 @@ fn test_contains_point() {
 }
 
 #[test]
-fn test_sphere_special_case() {
-    // a = b = c = 5.0 の場合、球になる
-    let sphere = EllipsoidalSolid3D::new_sphere(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        5.0,
-    )
-    .unwrap();
-
-    // 体積は球の公式と一致するはず: V = (4/3)π × r³
-    let expected_volume = (4.0 / 3.0) * std::f64::consts::PI * 5.0_f64.powi(3);
-    assert!((sphere.volume() - expected_volume).abs() < 1e-10);
-}
-
-#[test]
 fn test_invalid_radii() {
     let center = Point3D::new(0.0, 0.0, 0.0);
     let axis = Vector3D::new(0.0, 0.0, 1.0);

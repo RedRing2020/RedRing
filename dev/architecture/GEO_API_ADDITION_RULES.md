@@ -1,6 +1,6 @@
 # Geo API Addition Rules
 
-最終更新: 2026-10-11
+最終更新: 2026-10-12
 
 ## 目的
 
@@ -39,8 +39,10 @@
 
 ## 検出
 
-`scripts/check_unused_public_api.ps1` が、`geo_*` クレートのテスト以外から呼ばれない公開メソッドと、簡易実装・TODO の記載を一覧にする。事前チェック（`scripts/check_all_before_push.ps1`）で警告として表示し、失敗にはしない。
+`scripts/check_unused_public_api.ps1` が、`geo_*` クレートのテスト以外から呼ばれない公開メソッド・`geo_contracts` の trait定義のメソッドと、簡易実装・TODO の記載を一覧にする。事前チェック（`scripts/check_all_before_push.ps1`）で警告として表示し、失敗にはしない。
 
 - 名前だけで判定するため、別の型の同名メソッドの呼び出しがあれば検出しない
-- 意図して残す公開メソッドは `scripts/unused_public_api_allowlist.txt` に理由とともに記載する
+- trait定義のメソッドは、実装を呼び出しに数えない
+- テストのファイルと、本体ファイル内の `#[cfg(test)] mod` の中の呼び出しは数えない
+- 意図して残す公開メソッド・trait定義のメソッドは `scripts/unused_public_api_allowlist.txt` に理由とともに記載する
 - 簡易実装の記載の誤検出は、行末に `api-check: allow` を付けて除外する

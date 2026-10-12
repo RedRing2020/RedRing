@@ -4,9 +4,7 @@
 
 use crate::{Angle, Arc3D, Direction3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
-use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
-};
+use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 
 impl<T: Scalar> Arc3D<T> {
     /// 3点を通る円弧を作成
@@ -51,12 +49,6 @@ impl<T: Scalar> Arc3D<T> {
         Self::new(center, radius, normal, start_dir, start_angle, end_angle)
     }
 
-    /// 退化した円弧かどうか判定
-    pub fn is_degenerate(&self) -> bool {
-        self.radius <= default_distance_tolerance::<T>()
-            || self.angle_span().to_radians() <= default_angle_tolerance::<T>()
-    }
-
     /// Arc trim-local parameter `t` (`0 <= t <= 1`) で円弧上の点を計算
     ///
     /// 母円の local angle parameter へ線形写像して評価する。
@@ -93,11 +85,6 @@ impl<T: Scalar> Arc3D<T> {
     /// 終了点を取得
     pub fn end_point(&self) -> Point3D<T> {
         self.point_at_angle(self.end_angle().to_radians())
-    }
-
-    /// Arc trim-local parameter の有効範囲 `[0, 1]` を返す
-    pub fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::ONE)
     }
 
     /// 3点の外心（3点を通る円の中心）を計算

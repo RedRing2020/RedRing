@@ -85,9 +85,6 @@ fn test_basic_properties() {
 
     // 完全円判定
     assert!(!arc.is_full_circle());
-
-    // 退化判定
-    assert!(!arc.is_degenerate());
 }
 
 #[test]
@@ -106,20 +103,6 @@ fn test_full_circle_detection() {
     let arc_length = full_arc.length();
     let expected_circumference = 2.0 * std::f64::consts::PI * 3.0;
     assert!((arc_length - expected_circumference).abs() < TOLERANCE_F64);
-}
-#[test]
-fn test_degenerate_arc() {
-    let center = Point2D::origin();
-
-    // 非常に小さい半径
-    let tiny_arc =
-        Arc2D::from_center_radius(center, 1e-12_f64, angle(0.0), angle(std::f64::consts::PI))
-            .unwrap();
-    assert!(tiny_arc.is_degenerate());
-
-    // 非常に小さい角度範囲
-    let narrow_arc = Arc2D::from_center_radius(center, 5.0_f64, angle(0.0), angle(1e-12)).unwrap();
-    assert!(narrow_arc.is_degenerate());
 }
 
 #[test]

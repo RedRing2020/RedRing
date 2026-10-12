@@ -147,16 +147,6 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         )
     }
 
-    /// 球ソリッドとして作成（a = b = c の特殊ケース）
-    pub fn new_sphere(
-        center: Point3D<T>,
-        axis: Vector3D<T>,
-        ref_direction: Vector3D<T>,
-        radius: T,
-    ) -> Option<Self> {
-        Self::new(center, axis, ref_direction, radius, radius, radius)
-    }
-
     /// Y軸方向を計算（axis × ref_direction）
     fn y_axis_internal(&self) -> Direction3D<T> {
         let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
