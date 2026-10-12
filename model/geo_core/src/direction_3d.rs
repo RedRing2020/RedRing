@@ -95,13 +95,6 @@ impl<T: Scalar> Direction3D<T> {
         self.vector.dot(other.vector)
     }
 
-    /// 180度回転（反転）
-    pub fn reverse(&self) -> Self {
-        Self {
-            vector: -self.vector,
-        }
-    }
-
     /// 長さを取得（常に1.0）
     pub fn length(&self) -> T {
         T::ONE

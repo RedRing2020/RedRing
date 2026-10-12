@@ -1,6 +1,6 @@
 use super::shared::triangle3d_vertex_points;
 use crate::{InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D, TriangleMesh3D};
-use geo_contracts::{InfiniteLine3DProperties, Scalar};
+use geo_contracts::{InfiniteLine3DProperties, Ray3DProperties, Scalar};
 
 pub fn triangle3d_point3d_collides<T: Scalar>(
     triangle: &Triangle3D<T>,
@@ -87,7 +87,7 @@ pub fn plane3d_line_segment3d_collides<T: Scalar>(
 }
 
 pub fn plane3d_ray3d_collides<T: Scalar>(plane: &Plane3D<T>, ray: &Ray3D<T>, tolerance: T) -> bool {
-    let ray_dir = ray.direction_vector();
+    let ray_dir = ray.direction().as_vector();
     let normal_vec = plane.normal().as_vector();
     let denom = ray_dir.dot(normal_vec);
     if denom.abs() > tolerance {

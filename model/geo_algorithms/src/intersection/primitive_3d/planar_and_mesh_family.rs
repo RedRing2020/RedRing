@@ -3,7 +3,10 @@ use crate::{
     InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
     TriangleMesh3D, Vector3D,
 };
-use geo_contracts::{InfiniteLine3DProperties, Scalar, Triangle3DBoundaryAccess};
+use geo_contracts::{
+    InfiniteLine3DProperties, Ray3DConstructor, Ray3DEvaluation, Ray3DProperties, Scalar,
+    Triangle3DBoundaryAccess,
+};
 
 fn triangle3d_point3d_intersection_raw<T: Scalar>(
     triangle: &Triangle3D<T>,
@@ -43,7 +46,7 @@ fn triangle3d_line_segment3d_intersection_raw<T: Scalar>(
     let ray = Ray3D::new(start, dir)?;
     let point = triangle3d_ray3d_intersection_raw(triangle, &ray, tolerance)?;
 
-    let t = ray.parameter_for_point(&point);
+    let t = ray.parameter_for_point(point);
     if t >= T::ZERO && t <= length {
         Some(point)
     } else {
@@ -87,7 +90,7 @@ fn triangle3d_ray3d_intersection_raw<T: Scalar>(
     let edge1 = Vector3D::from_points(v0, v1);
     let edge2 = Vector3D::from_points(v0, v2);
 
-    let ray_dir = ray.direction_vector();
+    let ray_dir = ray.direction().as_vector();
     let h = ray_dir.cross(edge2);
     let a = edge1.dot(h);
 
@@ -245,7 +248,7 @@ fn plane3d_ray3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let origin = ray.origin();
-    let direction = ray.direction_vector();
+    let direction = ray.direction().as_vector();
     let normal = plane.normal().as_vector();
     let denom = direction.dot(normal);
 

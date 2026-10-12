@@ -19,13 +19,6 @@ impl<T: Scalar> Direction2D<T> {
         self.y().atan2(self.x())
     }
 
-    /// 2つの方向の間の角度を計算（常に正の値）
-    pub fn angle_between(&self, other: Self) -> T {
-        let cross = self.x() * other.y() - self.y() * other.x();
-        let dot = self.dot(other);
-        cross.atan2(dot).abs()
-    }
-
     /// 単位円上での線形補間
     pub fn slerp(&self, other: Self, t: T) -> Self {
         let angle_diff = {

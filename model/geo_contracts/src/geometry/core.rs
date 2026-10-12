@@ -75,9 +75,8 @@ pub use ellipsoidal_surface_traits::{
 pub use infinite_line_traits::{
     InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DDistance,
     InfiniteLine2DEvaluation, InfiniteLine2DProjection, InfiniteLine2DProperties,
-    InfiniteLine2DTransform, InfiniteLine3DConstructor, InfiniteLine3DContainment,
-    InfiniteLine3DDistance, InfiniteLine3DEvaluation, InfiniteLine3DProjection,
-    InfiniteLine3DProperties, InfiniteLine3DTransform,
+    InfiniteLine3DConstructor, InfiniteLine3DContainment, InfiniteLine3DDistance,
+    InfiniteLine3DEvaluation, InfiniteLine3DProjection, InfiniteLine3DProperties,
 };
 pub use linesegment_traits::{
     LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DDerived,
@@ -102,8 +101,8 @@ pub use plane3d_traits::{
 
 pub use ray_traits::{
     Ray2DConstructor, Ray2DContainment, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
-    Ray2DProperties, Ray2DTransform, Ray3DConstructor, Ray3DContainment, Ray3DDistance,
-    Ray3DEvaluation, Ray3DProjection, Ray3DProperties, Ray3DTransform,
+    Ray2DProperties, Ray3DConstructor, Ray3DContainment, Ray3DDistance, Ray3DEvaluation,
+    Ray3DProjection, Ray3DProperties,
 };
 pub use rectangle_traits::{
     Rect2DConstructor, Rect2DContainment, Rect2DDerived, Rect2DProperties, Rect3DConstructor,

@@ -4,7 +4,7 @@
 //! Core機能は direction_3d.rs を参照
 
 use crate::{Direction3D, Vector3D};
-use analysis::abstract_types::{Angle, Scalar};
+use analysis::abstract_types::Scalar;
 
 // Derive traits are handled by #[derive] on the main struct.
 
@@ -20,10 +20,4 @@ impl<T: Scalar> From<Direction3D<T>> for Vector3D<T> {
     }
 }
 
-impl<T: Scalar> Direction3D<T> {
-    /// 他の方向との角度差を計算（3D版）
-    pub fn angle_between(&self, other: Self) -> Angle<T> {
-        let dot = self.dot(other).clamp(-T::ONE, T::ONE);
-        Angle::from_radians(dot.acos())
-    }
-}
+impl<T: Scalar> Direction3D<T> {}

@@ -102,17 +102,6 @@ impl<T: Scalar> Vector2D<T> {
         }
     }
 
-    /// ベクトルを指定角度回転
-    pub fn rotate(&self, angle: Angle<T>) -> Self {
-        let radians = angle.to_radians();
-        let cos_a = radians.cos();
-        let sin_a = radians.sin();
-        Self::new(
-            self.x * cos_a - self.y * sin_a,
-            self.x * sin_a + self.y * cos_a,
-        )
-    }
-
     /// ベクトルを90度回転（反時計回り）
     pub fn rotate_90(&self) -> Self {
         Self::new(-self.y, self.x)

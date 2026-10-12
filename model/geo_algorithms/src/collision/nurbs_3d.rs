@@ -30,7 +30,7 @@ use crate::{
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded_generic;
 use geo_contracts::{
     BasicCollision, Circle3DProperties, CylindricalSolid3DDistance, InfiniteLine3DProperties,
-    Plane3DProperties, Scalar,
+    Plane3DProperties, Ray3DProperties, Scalar,
 };
 use geo_core::Point3D as CorePoint3D;
 use geo_nurbs::{constants, NurbsCurve3D, NurbsSurface3D};
@@ -222,7 +222,7 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsCurveCollider<T> {
         let delta_u = (u_max - u_min) / T::from_usize(num_samples);
 
         let origin = ray.origin();
-        let direction_vec = ray.direction_vector();
+        let direction_vec = ray.direction().as_vector();
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
@@ -563,7 +563,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
         let dv = (v_max - v_min) / T::from_usize(samples_v);
 
         let origin = ray.origin();
-        let direction = ray.direction_vector();
+        let direction = ray.direction().as_vector();
 
         let mut min_dist = T::INFINITY;
 
@@ -1019,6 +1019,7 @@ mod tests {
     use crate::Vector3D;
     use analysis::test_constants;
     use geo_contracts::NurbsSurface3DConstructor;
+    use geo_contracts::Ray3DConstructor;
     use geo_nurbs::NurbsCurve3D;
 
     const TEST_TOLERANCE: f64 = test_constants::DISTANCE_TOLERANCE_F64;

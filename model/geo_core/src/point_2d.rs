@@ -6,7 +6,7 @@
 mod tests;
 
 use crate::Vector2D;
-use analysis::abstract_types::{Angle, Scalar};
+use analysis::abstract_types::Scalar;
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -91,27 +91,6 @@ impl<T: Scalar> Point2D<T> {
     /// 他の点へのベクトル
     pub fn vector_to(&self, other: Self) -> Vector2D<T> {
         Vector2D::new(other.x - self.x, other.y - self.y)
-    }
-
-    /// 指定点周りの回転（Angle<T>型角度）
-    pub fn rotate_around(&self, center: Self, angle: Angle<T>) -> Self {
-        let offset = Vector2D::new(self.x - center.x, self.y - center.y);
-        let radians = angle.to_radians();
-        let cos_a = radians.cos();
-        let sin_a = radians.sin();
-        let rotated_x = offset.x() * cos_a - offset.y() * sin_a;
-        let rotated_y = offset.x() * sin_a + offset.y() * cos_a;
-        Point2D::new(center.x + rotated_x, center.y + rotated_y)
-    }
-
-    /// 原点周りの回転（Angle<T>型角度）
-    pub fn rotate(&self, angle: Angle<T>) -> Self {
-        let radians = angle.to_radians();
-        let cos_a = radians.cos();
-        let sin_a = radians.sin();
-        let rotated_x = self.x * cos_a - self.y * sin_a;
-        let rotated_y = self.x * sin_a + self.y * cos_a;
-        Point2D::new(rotated_x, rotated_y)
     }
 
     /// 3D点に変換（Z=0）

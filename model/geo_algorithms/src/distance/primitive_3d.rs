@@ -168,8 +168,10 @@ pub fn point3d_spherical_solid3d_distance<T: Scalar>(
 
 /// Ray3D-点 間の最短距離（Ray の有効範囲を考慮）
 pub fn ray3d_point3d_distance<T: Scalar>(ray: &Ray3D<T>, point: &Point3D<T>) -> T {
-    let (ox, oy, oz) = Ray3DProperties::origin(ray);
-    let (dx, dy, dz) = Ray3DProperties::direction(ray);
+    let ray_origin = Ray3DProperties::origin(ray);
+    let (ox, oy, oz) = (ray_origin.x(), ray_origin.y(), ray_origin.z());
+    let ray_dir = Ray3DProperties::direction(ray);
+    let (dx, dy, dz) = (ray_dir.x(), ray_dir.y(), ray_dir.z());
     let to_x = point.x() - ox;
     let to_y = point.y() - oy;
     let to_z = point.z() - oz;
@@ -489,6 +491,7 @@ mod tests {
     use super::*;
     use analysis::test_constants;
     use geo_contracts::InfiniteLine3DConstructor;
+    use geo_contracts::Ray3DConstructor;
 
     fn standard_distance_tol() -> f64 {
         test_constants::DISTANCE_TOLERANCE_F64

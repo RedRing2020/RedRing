@@ -932,12 +932,10 @@ pub fn ellipse_arc_to_wireframe_line_segments(
 /// # Returns
 /// 2頂点の線分データ（LineListトポロジ用）
 pub fn ray_to_vertices(ray: &Ray3D<f64>, quality: &TessellationQuality) -> Vec<VertexData> {
-    let origin_point = Ray3DProperties::origin(ray);
-    let direction_vec = Ray3DProperties::direction(ray);
     let extent = quality.ray_extent;
 
-    let origin = Point3D::new(origin_point.0, origin_point.1, origin_point.2);
-    let direction = Vector3D::new(direction_vec.0, direction_vec.1, direction_vec.2);
+    let origin = Ray3DProperties::origin(ray);
+    let direction = Ray3DProperties::direction(ray).as_vector();
 
     // 終点 = 起点 + 方向 × 表示範囲
     let end = Point3D::new(
@@ -2136,7 +2134,7 @@ fn generate_circle_cap(
 mod tests {
     use super::*;
     use geo_algorithms::Direction3D;
-    use geo_contracts::InfiniteLine3DConstructor;
+    use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
 
     #[test]
     fn test_line_segment_conversion() {

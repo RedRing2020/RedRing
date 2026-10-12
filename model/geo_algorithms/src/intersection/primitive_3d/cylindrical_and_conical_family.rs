@@ -8,7 +8,7 @@ use crate::{
 };
 use geo_contracts::{
     Circle3DProperties, ConicalSolid3DProperties, CylindricalSurface3DProperties,
-    InfiniteLine3DProperties, Scalar,
+    InfiniteLine3DProperties, Ray3DProperties, Scalar,
 };
 
 fn cylindrical_surface3d_point3d_intersection_raw<T: Scalar>(
@@ -378,7 +378,7 @@ pub fn conical_surface3d_ray3d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let origin = ray.origin();
-    let direction = ray.direction_vector();
+    let direction = ray.direction().as_vector();
     let params = conical_surface3d_intersect_params(cone, &origin, &direction, tolerance);
     let t_inf = T::ONE / tolerance;
     IntersectionResult::from_option_points(

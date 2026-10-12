@@ -62,16 +62,15 @@ pub use geometry::core::{
 pub use geometry::core::{
     InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DDistance,
     InfiniteLine2DEvaluation, InfiniteLine2DProjection, InfiniteLine2DProperties,
-    InfiniteLine2DTransform, InfiniteLine3DConstructor, InfiniteLine3DContainment,
-    InfiniteLine3DDistance, InfiniteLine3DEvaluation, InfiniteLine3DProjection,
-    InfiniteLine3DProperties, InfiniteLine3DTransform, LineSegment2DConstructor,
-    LineSegment2DContainment, LineSegment2DDerived, LineSegment2DDistance, LineSegment2DEvaluation,
-    LineSegment2DProjection, LineSegment2DProperties, LineSegment3DConstructor,
-    LineSegment3DContainment, LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation,
-    LineSegment3DProjection, LineSegment3DProperties, Ray2DConstructor, Ray2DContainment,
-    Ray2DDistance, Ray2DEvaluation, Ray2DProjection, Ray2DProperties, Ray2DTransform,
-    Ray3DConstructor, Ray3DContainment, Ray3DDistance, Ray3DEvaluation, Ray3DProjection,
-    Ray3DProperties, Ray3DTransform,
+    InfiniteLine3DConstructor, InfiniteLine3DContainment, InfiniteLine3DDistance,
+    InfiniteLine3DEvaluation, InfiniteLine3DProjection, InfiniteLine3DProperties,
+    LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DDerived,
+    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
+    LineSegment2DProperties, LineSegment3DConstructor, LineSegment3DContainment,
+    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
+    LineSegment3DProperties, Ray2DConstructor, Ray2DContainment, Ray2DDistance, Ray2DEvaluation,
+    Ray2DProjection, Ray2DProperties, Ray3DConstructor, Ray3DContainment, Ray3DDistance,
+    Ray3DEvaluation, Ray3DProjection, Ray3DProperties,
 };
 pub use geometry::core::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
@@ -83,7 +82,7 @@ pub use geometry::core::{
 };
 pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{
-    AngleBetween, AngularRelation, BBoxCollision, BasicCollision, CrossDistance,
-    DistanceConvergenceError, IntersectsRelation, ParallelRelation, PerpendicularRelation,
-    PointDistance, SimilarityTransformable2D, SimilarityTransformable3D,
+    AngularRelation, BBoxCollision, BasicCollision, CrossDistance, DistanceConvergenceError,
+    IntersectsRelation, ParallelRelation, PerpendicularRelation, PointDistance,
+    SimilarityTransformable2D, SimilarityTransformable3D,
 };

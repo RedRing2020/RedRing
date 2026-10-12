@@ -190,18 +190,6 @@ impl<T: Scalar> Vector3D<T> {
         *self * factor1 + other * factor2
     }
 
-    /// ベクトル間の角度を計算（ラジアン）
-    pub fn angle_between(&self, other: Self) -> T {
-        let dot = self.dot(other);
-        let lengths = self.length() * other.length();
-
-        if lengths <= T::ZERO {
-            return T::ZERO;
-        }
-
-        (dot / lengths).clamp(-T::ONE, T::ONE).acos()
-    }
-
     /// ベクトルの投影
     pub fn project_onto(&self, other: Self) -> Self {
         let other_length_sq = other.length_squared();

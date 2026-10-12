@@ -3,7 +3,10 @@
 //! primitive_3d の交点計算が利用する基礎計算を提供する。
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, Vector3D};
-use geo_contracts::{default_parallel_cross_error_tolerance, InfiniteLine3DProperties, Scalar};
+use geo_contracts::{
+    default_parallel_cross_error_tolerance, InfiniteLine3DConstructor, InfiniteLine3DProperties,
+    Ray3DDistance, Ray3DProperties, Scalar,
+};
 
 /// 分母が有効（非ゼロ・非極小）かチェック
 ///
@@ -73,8 +76,10 @@ pub(crate) fn ray_ray_intersection_raw<T: Scalar>(
     ray2: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let point = line_line_intersection_raw(&ray1.to_line(), &ray2.to_line())?;
-    if ray1.contains_point(&point, tolerance) && ray2.contains_point(&point, tolerance) {
+    let line1 = InfiniteLine3D::new(ray1.origin(), ray1.direction().as_vector())?;
+    let line2 = InfiniteLine3D::new(ray2.origin(), ray2.direction().as_vector())?;
+    let point = line_line_intersection_raw(&line1, &line2)?;
+    if ray1.distance_to_point(point) <= tolerance && ray2.distance_to_point(point) <= tolerance {
         Some(point)
     } else {
         None
@@ -107,6 +112,7 @@ pub(crate) fn segment_segment_intersection_raw<T: Scalar>(
 mod tests {
     use super::*;
     use geo_contracts::InfiniteLine3DConstructor;
+    use geo_contracts::Ray3DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
 

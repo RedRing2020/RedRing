@@ -4,8 +4,8 @@ use crate::{
     Point3D, Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D, Triangle3D,
 };
 use geo_contracts::{
-    Circle3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
-    SphericalSolid3DProperties,
+    Circle3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Ray3DProperties,
+    Scalar, SphericalSolid3DProperties,
 };
 
 pub fn spherical_solid3d_point3d_collides<T: Scalar>(
@@ -40,7 +40,7 @@ pub fn spherical_solid3d_ray3d_collides<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> bool {
-    sphere.distance_to_ray(&ray.origin(), &ray.direction_vector()) <= tolerance
+    sphere.distance_to_ray(&ray.origin(), &ray.direction().as_vector()) <= tolerance
 }
 
 pub fn spherical_solid3d_infinite_line3d_collides<T: Scalar>(
