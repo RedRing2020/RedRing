@@ -11,3 +11,6 @@ categories.workspace = true
 [dependencies]
 geo_entity = { path = "../geo_entity" }
 cam_core = { path = "../cam_core" }
+
+[lints]
+workspace = true

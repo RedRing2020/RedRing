@@ -13,3 +13,6 @@ viewmodel = { path = "../../viewmodel/converter" }
 analysis = { path = "../../foundation/analysis" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
 viewmodel-graphics = { path = "../../viewmodel/graphics" }
+
+[lints]
+workspace = true

@@ -12,3 +12,6 @@ categories.workspace = true
 
 [dev-dependencies]
 redring_test_support = { path = "../test_support" }
+
+[lints]
+workspace = true

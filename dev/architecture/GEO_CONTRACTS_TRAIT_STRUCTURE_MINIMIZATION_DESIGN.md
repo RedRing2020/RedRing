@@ -250,7 +250,7 @@ Point / Vector の `*Measure` は、互換 alias や非推奨 trait を長期維
 
 - `geometry/foundation/point_measure_traits.rs` は再分類後に廃止する
 - `geometry/foundation/vector_measure_traits.rs` は再分類後に廃止する
-- `geometry/foundation/mod.rs` の `pub use Point2DMeasure` などの export は削除対象とする
+- `geometry/foundation.rs` の `pub use Point2DMeasure` などの export は削除対象とする
 - `geo_contracts::lib.rs` の `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` export は削除対象とする
 
 ## 実施順序
@@ -282,7 +282,7 @@ Point / Vector の `*Measure` は、互換 alias や非推奨 trait を長期維
 
 設計反映:
 
-- `geometry/foundation/mod.rs` から `MeasureFoundation` を削除する
+- `geometry/foundation.rs` から `MeasureFoundation` を削除する
 - `geo_contracts::lib.rs` の `MeasureFoundation` export を削除する
 - 各 `*_foundation.rs` にある `MeasureFoundation` 実装は削除する
 - `measure()` を使ったテストは、`length` / `circumference` / `area` / `volume` / `arc_length` / `surface_area` のような shape 固有 API へ置き換える
@@ -726,7 +726,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 `#582` では、shape ごとの capability 分離結果を crate root の export 面へ反映する。
 
-- `geo_contracts::geometry::core::mod.rs` と `geo_contracts::lib.rs` は capability trait の正本 export 面とする
+- `geo_contracts::geometry::core.rs` と `geo_contracts::lib.rs` は capability trait の正本 export 面とする
 - compatibility alias は trait定義 側に残してもよいが、crate root で canonical capability と同列に再公開しない
 - Triangle では `Triangle2DBoundaryAccess` / `Triangle3DBoundaryAccess` を正本とし。互換経路の `Triangle2DProperties` / `Triangle3DProperties` は削除した
 - `geo_primitives::lib.rs` は shape 型と最小限の基本型公開を優先し、contract trait の再公開を正本経路として扱わない
@@ -1005,7 +1005,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 対象ファイル:
 
-- `model/geo_contracts/src/geometry/core/mod.rs`
+- `model/geo_contracts/src/geometry/core.rs`
 - `model/geo_contracts/src/lib.rs`
 - `model/geo_primitives/src/lib.rs`
 - 必要に応じて `model/geo_topology/src/topology_core.rs`
@@ -1285,7 +1285,7 @@ relation 系の代表例:
 
 `#578` では、foundation 配置について次を採用案とする。
 
-- `geometry/foundation/mod.rs` は公開 facade として残す
+- `geometry/foundation.rs` は公開 facade として残す
 - foundation の実体は責務名ベースで内部分割する
 - 最小分割は `metadata.rs` と `bounds.rs` とする
 - `PrimitiveMetadata` は `metadata.rs` へ置く
@@ -1294,13 +1294,13 @@ relation 系の代表例:
 
 理由:
 
-- `foundation` は公開窓口としては維持できるが、実体を単一 `mod.rs` に混在させると責務が読み取りにくい
+- `foundation` は公開窓口としては維持できるが、実体を単一の親モジュール（`foundation.rs`）に混在させると責務が読み取りにくい
 - `PrimitiveMetadata` と `Bounded<T>` はどちらも shape 定義本体ではなく横断 capability だが、意味は異なる
 - `ExtensionFoundation<T>` は空の互換 surface に縮退しており、独立 capability として弱い
 
 設計反映:
 
-- `geometry/foundation/mod.rs` は `pub use metadata::PrimitiveMetadata` と `pub use bounds::Bounded` を行う facade に縮退する
+- `geometry/foundation.rs` は `pub use metadata::PrimitiveMetadata` と `pub use bounds::Bounded` を行う facade に縮退する
 - `geo_contracts::lib.rs` は `PrimitiveMetadata` と `Bounded` を継続 re-export する
 - `geo_contracts::lib.rs` から `ExtensionFoundation` の re-export は削除する
 - shape 側の `*_foundation.rs` は、contract 側 taxonomy をこの形へ整理した後に吸収・再配置を判断する
@@ -1385,7 +1385,7 @@ relation 系の代表例:
 ### 3. 配置変更
 
 - [ ] 移動先モジュールが決まっている
-- [ ] `mod.rs` の公開が更新されている
+- [ ] 親モジュールの公開が更新されている
 - [ ] `geo_contracts::lib.rs` の公開が必要なら更新されている
 - [ ] `*Core` alias を残す場合は `Constructor + Properties` のみを束ねている
 

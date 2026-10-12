@@ -14,3 +14,6 @@ geo_primitives = { path = "../geo_primitives" }
 geo_algorithms = { path = "../geo_algorithms" }
 
 [dev-dependencies]
+
+[lints]
+workspace = true

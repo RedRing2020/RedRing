@@ -1,7 +1,7 @@
 //! LineSegment3D Extensions 実装
 //!
 //! Foundation統一システムに基づくLineSegment3Dの拡張機能
-//! Core機能は親モジュール（mod.rs）を参照
+//! Core機能は親モジュール（line_segment_3d.rs）を参照
 
 use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_contracts::{default_distance_tolerance, Scalar};

@@ -1,7 +1,7 @@
 //! Ray3D Extensions 実装
 //!
 //! Foundation統一システムに基づくRay3Dの拡張機能
-//! Core機能は親モジュール（mod.rs）を参照
+//! Core機能は親モジュール（ray_3d.rs）を参照
 
 use crate::{Point3D, Ray3D, Vector3D};
 use geo_contracts::Scalar;
