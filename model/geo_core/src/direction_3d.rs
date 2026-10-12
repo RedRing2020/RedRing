@@ -2,6 +2,10 @@
 //!
 //! 3次元方向ベクトルの基本実装とコンストラクタ、アクセサメソッド
 
+mod extensions;
+#[cfg(test)]
+mod tests;
+
 use crate::Vector3D;
 use geo_contracts::default_angle_tolerance;
 use geo_contracts::Scalar;

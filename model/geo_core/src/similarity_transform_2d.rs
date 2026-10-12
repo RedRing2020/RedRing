@@ -3,6 +3,9 @@
 //! 操作を組み合わせて 1 つの 3×3 行列に合成し、形状には 1 回で適用する。
 //! 非一様スケール・ミラーリング・射影は表現できない。
 
+#[cfg(test)]
+mod tests;
+
 use crate::{Aabb2D, Direction2D, Point2D, Vector2D};
 use analysis::linalg::matrix::Matrix3x3;
 use analysis::linalg::vector::Vector2;

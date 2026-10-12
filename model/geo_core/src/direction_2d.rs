@@ -3,6 +3,10 @@
 //! Foundation統一システムに基づくDirection2Dの必須機能のみ
 //! 拡張機能は direction_2d_extensions.rs を参照
 
+mod extensions;
+#[cfg(test)]
+mod tests;
+
 use crate::Vector2D;
 use analysis::linalg::vector::Vector2;
 use geo_contracts::default_angle_tolerance;

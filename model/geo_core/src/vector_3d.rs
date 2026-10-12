@@ -3,6 +3,9 @@
 //! geo_core における Vector3D の完全実装。
 //! 基本機能、Foundation トレイト、拡張機能、演算子オーバーロードを含む。
 
+#[cfg(test)]
+mod tests;
+
 use crate::Point3D;
 use analysis::abstract_types::{Scalar, TolerantEq};
 

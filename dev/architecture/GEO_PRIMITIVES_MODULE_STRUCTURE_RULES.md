@@ -1,7 +1,7 @@
 # geo_primitives モジュール構成ルール
 
 最終更新: 2026-10-12
-適用範囲: `model/geo_primitives/src`、`model/geo_nurbs/src`（6 章）
+適用範囲: `model/geo_primitives/src`、`model/geo_nurbs/src`（6 章）、`model/geo_core/src`（7 章）
 
 ## 1. 目的
 
@@ -64,3 +64,7 @@ line_segment_3d/
 - 形状をまたぐ内部の参照（テセレーションの補助関数等）は、共用のモジュールの `pub(crate)` とする
 - 定数（`constants`）はクレート外から使うため、公開のモジュールとする
 - 形状をまたぐテストは結合テスト（`tests/similarity_transform.rs`）に置く
+
+## 7. `geo_core`
+
+`geo_core` の値型（`Point2D/3D` / `Vector2D/3D` / `Direction2D/3D`）・相似変換（`SimilarityTransform2D/3D`）・AABB（`Aabb2D/3D`）も 2〜4 章に従う。モジュールは private とし、型だけを `lib.rs` から再エクスポートする。`geo_contracts` の trait定義は再エクスポートせず、利用側が `geo_contracts` から直接使う。

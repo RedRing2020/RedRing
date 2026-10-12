@@ -36,13 +36,12 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 ### Point / Vector
 
 - `geo_contracts` には点・ベクトルの生成・取得の trait定義（`Point2DConstructor` / `Point2DProperties` 等）が既に存在する
-- `geo_core` 側の `point_traits` / `vector_traits` は互換再エクスポート層として残っている
+- `geo_core` 側の互換の再エクスポートの層（`point_traits` / `vector_traits`）は、使われていなかったため削除した
 - `geo_contracts` 側には `position` / `dimension` / `is_zero` / `is_unit` / `area` / `volume` / `length` など、`geo_core` 側にない既定メソッドがある
-- `geo_core` の concrete type 実装はなお互換再エクスポート経由の import を一部残している
 
 ### AABB
 
-- `geo_core` には concrete type `Aabb2D` / `Aabb3D` と互換再エクスポート層 `aabb_traits` が存在する
+- `geo_core` には concrete type `Aabb2D` / `Aabb3D` が存在する。互換の再エクスポートの層 `aabb_traits` は削除した
 - `geo_contracts` には `Aabb2DProperties` / `Aabb2DDerived` / `Aabb3DProperties` / `Aabb3DDerived` が既に存在する
 - `Bounded` は `geo_contracts` 側に存在し、associated type `Aabb` を介して concrete type を返せる設計になっている
 
@@ -83,6 +82,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 - 移行期間中のみ `geo_core` 側に互換導線を残してよい
 - 互換導線は再エクスポートを第一候補とし、trait定義の複製は増やさない
 - 最終形では `geo_core` ローカルの Point / Vector / AABB trait定義は削除する
+- 互換導線（`point_traits` / `vector_traits` / `aabb_traits`）は削除済みで、`geo_core` の型は `geo_contracts` の trait定義を直接参照する
 
 ## 移行順序
 

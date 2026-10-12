@@ -2,6 +2,9 @@
 //!
 //! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
+#[cfg(test)]
+mod tests;
+
 use crate::Vector2D;
 use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::vector::Vector2;
@@ -40,11 +43,6 @@ impl<T: Scalar> Point2D<T> {
     /// Y座標を取得
     pub fn y(&self) -> T {
         self.y
-    }
-
-    /// 座標を配列として取得
-    pub fn coords(&self) -> [T; 2] {
-        [self.x, self.y]
     }
 
     /// 座標をタプルとして取得
