@@ -531,7 +531,7 @@ impl ArcEntityStorePort for InMemoryArcEntityStore {
         let dto = StoredArcEntityDto {
             entity_id: entity.id(),
             feature_name,
-            center: [center.0, center.1, center.2],
+            center: [center.x(), center.y(), center.z()],
             radius: Arc3DProperties::radius(entity.geometry()),
             start_angle_radians: entity.geometry().start_angle().to_radians(),
             end_angle_radians: entity.geometry().end_angle().to_radians(),

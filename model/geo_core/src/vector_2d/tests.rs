@@ -81,17 +81,6 @@ fn test_normalize() {
     assert!(normalized_zero.is_zero(f64::EPSILON));
 }
 
-/// 安全な正規化テスト
-#[test]
-fn test_try_normalize() {
-    let v = Vector2D::new(3.0, 4.0);
-    let normalized = v.try_normalize().unwrap();
-    assert!((normalized.length() - 1.0f64).abs() < f64::EPSILON);
-
-    let zero = Vector2D::<f64>::zero();
-    assert!(zero.try_normalize().is_none());
-}
-
 /// 内積テスト
 #[test]
 fn test_dot_product() {

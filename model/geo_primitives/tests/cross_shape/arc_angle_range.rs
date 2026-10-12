@@ -1,11 +1,12 @@
 //! 円弧・楕円弧の角度範囲の判定のテスト
 
 use geo_contracts::{
-    Angle, Arc2DTrimRange, Arc3DTrimRange, Circle2DConstructor, EllipseArc3DTrimRange,
+    Angle, Arc2DConstructor, Arc2DTrimRange, Arc3DConstructor, Arc3DEvaluation, Arc3DTrimRange,
+    EllipseArc3DTrimRange,
 };
 use geo_primitives::{
-    Arc2D, Arc3D, Circle2D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D, EllipseArc3D, Point2D,
-    Point3D, Vector3D,
+    Arc2D, Arc3D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D, EllipseArc3D, Point2D, Point3D,
+    Vector3D,
 };
 
 fn deg(value: f64) -> Angle<f64> {
@@ -13,8 +14,7 @@ fn deg(value: f64) -> Angle<f64> {
 }
 
 fn arc2d(start: f64, end: f64) -> Arc2D<f64> {
-    let circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
-    Arc2D::new(circle, deg(start), deg(end)).unwrap()
+    Arc2D::new(Point2D::new(0.0, 0.0), 2.0, deg(start), deg(end)).unwrap()
 }
 
 fn arc3d(start: f64, end: f64) -> Arc3D<f64> {
@@ -51,19 +51,19 @@ fn arc_contains_angle_normalizes_angle() {
 fn full_circle_arc_contains_every_angle() {
     let arc = arc2d(0.0, 360.0);
     assert!(arc.contains_angle(deg(180.0)));
-    assert!(Arc2DTrimRange::contains_angle(&arc, std::f64::consts::PI));
-    assert!(arc.contains_point_angle(&Point2D::new(-2.0, 0.0)));
+    assert!(Arc2DTrimRange::contains_angle(&arc, deg(180.0)));
+    assert!(arc.contains_point_angle(Point2D::new(-2.0, 0.0)));
 
     let arc = arc3d(0.0, 360.0);
-    assert!(Arc3DTrimRange::contains_angle(&arc, std::f64::consts::PI));
+    assert!(Arc3DTrimRange::contains_angle(&arc, deg(180.0)));
 }
 
 #[test]
 fn arc2d_contains_point_angle_uses_direction_from_center() {
     let arc = arc2d(0.0, 90.0);
-    assert!(arc.contains_point_angle(&Point2D::new(1.0, 1.0)));
-    assert!(arc.contains_point_angle(&Point2D::new(5.0, 5.0)));
-    assert!(!arc.contains_point_angle(&Point2D::new(-1.0, 1.0)));
+    assert!(arc.contains_point_angle(Point2D::new(1.0, 1.0)));
+    assert!(arc.contains_point_angle(Point2D::new(5.0, 5.0)));
+    assert!(!arc.contains_point_angle(Point2D::new(-1.0, 1.0)));
 }
 
 #[test]
@@ -71,14 +71,14 @@ fn arc3d_contains_point_angle_matches_point_at_angle() {
     let arc = arc3d(0.0, 90.0);
 
     // point_at_angle と同じ向き（開始方向から法線まわりに反時計回り）で角度を測る
-    let inside = arc.point_at_angle(45.0_f64.to_radians());
-    let outside = arc.point_at_angle(315.0_f64.to_radians());
-    assert!(arc.contains_point_angle(&inside));
-    assert!(!arc.contains_point_angle(&outside));
+    let inside = arc.point_at_angle(deg(45.0));
+    let outside = arc.point_at_angle(deg(315.0));
+    assert!(arc.contains_point_angle(inside));
+    assert!(!arc.contains_point_angle(outside));
 
     // 円弧平面外の点は平面へ投影した点で判定する
-    assert!(arc.contains_point_angle(&Point3D::new(1.0, 1.0, 5.0)));
-    assert!(!arc.contains_point_angle(&Point3D::new(1.0, -1.0, 5.0)));
+    assert!(arc.contains_point_angle(Point3D::new(1.0, 1.0, 5.0)));
+    assert!(!arc.contains_point_angle(Point3D::new(1.0, -1.0, 5.0)));
 }
 
 #[test]
@@ -133,22 +133,45 @@ fn arc_distance_uses_endpoints_outside_angle_range() {
     let arc = arc2d(0.0, 90.0);
     // 角度範囲内は母円までの距離
     assert!(
-        (Arc2DDistance::distance_to_point(&arc, (3.0, 3.0)) - (18.0_f64.sqrt() - 2.0)).abs()
+        (Arc2DDistance::distance_to_point(&arc, Point2D::new(3.0, 3.0)) - (18.0_f64.sqrt() - 2.0))
+            .abs()
             < 1e-12
     );
     // 角度範囲外は近い端点 (0, 2) までの距離
-    assert!((Arc2DDistance::distance_to_point(&arc, (-3.0, 0.0)) - 13.0_f64.sqrt()).abs() < 1e-12);
-    assert!(!Arc2DContainment::contains_point(&arc, (-2.0, 0.0)));
-    assert!(Arc2DContainment::contains_point(&arc, (0.0, 2.0)));
+    assert!(
+        (Arc2DDistance::distance_to_point(&arc, Point2D::new(-3.0, 0.0)) - 13.0_f64.sqrt()).abs()
+            < 1e-12
+    );
+    assert!(!Arc2DContainment::contains_point(
+        &arc,
+        Point2D::new(-2.0, 0.0)
+    ));
+    assert!(Arc2DContainment::contains_point(
+        &arc,
+        Point2D::new(0.0, 2.0)
+    ));
 
     // XY 平面上、開始方向 +X・法線 +Z・半径 2・0°〜90° の円弧
     let arc = arc3d(0.0, 90.0);
     // 角度範囲内の平面外の点は、平面外の距離を含めた円弧までの距離
-    assert!((Arc3DDistance::distance_to_point(&arc, (2.0, 0.0, 1.5)) - 1.5).abs() < 1e-12);
+    assert!(
+        (Arc3DDistance::distance_to_point(&arc, Point3D::new(2.0, 0.0, 1.5)) - 1.5).abs() < 1e-12
+    );
     let expected = (1.0_f64 + 1.0).sqrt(); // 半径方向 1・平面外 1
-    assert!((Arc3DDistance::distance_to_point(&arc, (3.0, 0.0, 1.0)) - expected).abs() < 1e-12);
+    assert!(
+        (Arc3DDistance::distance_to_point(&arc, Point3D::new(3.0, 0.0, 1.0)) - expected).abs()
+            < 1e-12
+    );
     // 角度範囲外は近い端点 (2, 0, 0) までの距離
-    assert!((Arc3DDistance::distance_to_point(&arc, (2.0, -1.0, 0.0)) - 1.0).abs() < 1e-12);
-    assert!(!Arc3DContainment::contains_point(&arc, (2.0, 0.0, 0.5)));
-    assert!(Arc3DContainment::contains_point(&arc, (0.0, 2.0, 0.0)));
+    assert!(
+        (Arc3DDistance::distance_to_point(&arc, Point3D::new(2.0, -1.0, 0.0)) - 1.0).abs() < 1e-12
+    );
+    assert!(!Arc3DContainment::contains_point(
+        &arc,
+        Point3D::new(2.0, 0.0, 0.5)
+    ));
+    assert!(Arc3DContainment::contains_point(
+        &arc,
+        Point3D::new(0.0, 2.0, 0.0)
+    ));
 }

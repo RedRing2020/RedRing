@@ -92,16 +92,6 @@ impl<T: Scalar> Vector2D<T> {
         self.length() <= tolerance
     }
 
-    /// 正規化を試行（ゼロベクトルの場合はNoneを返す）
-    pub fn try_normalize(&self) -> Option<Self> {
-        let len = self.length();
-        if len <= T::ZERO {
-            None
-        } else {
-            Some(Self::new(self.x / len, self.y / len))
-        }
-    }
-
     /// ベクトルを90度回転（反時計回り）
     pub fn rotate_90(&self) -> Self {
         Self::new(-self.y, self.x)

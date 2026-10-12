@@ -1,7 +1,7 @@
 //! Arc3D の Bounds 実装
 
 use crate::{Arc3D, Point3D};
-use geo_contracts::{Arc3DEndpoint, Arc3DTrimRange, Bounded, Scalar};
+use geo_contracts::{Angle, Arc3DEndpoint, Arc3DProperties, Arc3DTrimRange, Bounded, Scalar};
 use geo_core::Aabb3D;
 
 fn candidate_extreme_angles<T: Scalar>(axis_u: T, axis_v: T) -> [T; 2] {
@@ -18,19 +18,14 @@ impl<T: Scalar> Bounded<T> for Arc3D<T> {
         let u = self.start_direction().as_vector();
         let v = self.normal().as_vector().cross(u);
 
-        let start = Arc3DEndpoint::start_point(self);
-        let end = Arc3DEndpoint::end_point(self);
-        let mut points = vec![
-            Point3D::new(start.0, start.1, start.2),
-            Point3D::new(end.0, end.1, end.2),
-        ];
+        let mut points = vec![self.start_point(), self.end_point()];
 
         for angle in candidate_extreme_angles(u.x(), v.x())
             .into_iter()
             .chain(candidate_extreme_angles(u.y(), v.y()))
             .chain(candidate_extreme_angles(u.z(), v.z()))
         {
-            if Arc3DTrimRange::contains_angle(self, angle) {
+            if self.contains_angle(Angle::from_radians(angle)) {
                 points.push(Point3D::new(
                     center.x() + radius * (u.x() * angle.cos() + v.x() * angle.sin()),
                     center.y() + radius * (u.y() * angle.cos() + v.y() * angle.sin()),
