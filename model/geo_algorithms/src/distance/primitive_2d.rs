@@ -16,10 +16,10 @@ pub fn line_segment2d_point2d_distance<T: Scalar>(
     segment: &LineSegment2D<T>,
     point: &Point2D<T>,
 ) -> T {
-    let s1x = LineSegment2DProperties::start_point(segment).0;
-    let s1y = LineSegment2DProperties::start_point(segment).1;
-    let s2x = LineSegment2DProperties::end_point(segment).0;
-    let s2y = LineSegment2DProperties::end_point(segment).1;
+    let s1x = LineSegment2DProperties::start_point(segment).x();
+    let s1y = LineSegment2DProperties::start_point(segment).y();
+    let s2x = LineSegment2DProperties::end_point(segment).x();
+    let s2y = LineSegment2DProperties::end_point(segment).y();
     let dx = s2x - s1x;
     let dy = s2y - s1y;
     let len_sq = dx * dx + dy * dy;
@@ -124,14 +124,14 @@ pub fn line_segment2d_line_segment2d_distance<T: Scalar>(
     seg1: &LineSegment2D<T>,
     seg2: &LineSegment2D<T>,
 ) -> T {
-    let s1x = LineSegment2DProperties::start_point(seg1).0;
-    let s1y = LineSegment2DProperties::start_point(seg1).1;
-    let s2x = LineSegment2DProperties::end_point(seg1).0;
-    let s2y = LineSegment2DProperties::end_point(seg1).1;
-    let p1x = LineSegment2DProperties::start_point(seg2).0;
-    let p1y = LineSegment2DProperties::start_point(seg2).1;
-    let p2x = LineSegment2DProperties::end_point(seg2).0;
-    let p2y = LineSegment2DProperties::end_point(seg2).1;
+    let s1x = LineSegment2DProperties::start_point(seg1).x();
+    let s1y = LineSegment2DProperties::start_point(seg1).y();
+    let s2x = LineSegment2DProperties::end_point(seg1).x();
+    let s2y = LineSegment2DProperties::end_point(seg1).y();
+    let p1x = LineSegment2DProperties::start_point(seg2).x();
+    let p1y = LineSegment2DProperties::start_point(seg2).y();
+    let p2x = LineSegment2DProperties::end_point(seg2).x();
+    let p2y = LineSegment2DProperties::end_point(seg2).y();
 
     let d1x = s2x - s1x;
     let d1y = s2y - s1y;
@@ -223,10 +223,10 @@ pub fn ray2d_line_segment2d_distance<T: Scalar>(ray: &Ray2D<T>, segment: &LineSe
     let (ox, oy) = (ray_origin.x(), ray_origin.y());
     let ray_dir = Ray2DProperties::direction(ray);
     let (rdx, rdy) = (ray_dir.x(), ray_dir.y());
-    let s1x = LineSegment2DProperties::start_point(segment).0;
-    let s1y = LineSegment2DProperties::start_point(segment).1;
-    let s2x = LineSegment2DProperties::end_point(segment).0;
-    let s2y = LineSegment2DProperties::end_point(segment).1;
+    let s1x = LineSegment2DProperties::start_point(segment).x();
+    let s1y = LineSegment2DProperties::start_point(segment).y();
+    let s2x = LineSegment2DProperties::end_point(segment).x();
+    let s2y = LineSegment2DProperties::end_point(segment).y();
     let sdx = s2x - s1x;
     let sdy = s2y - s1y;
 
@@ -256,6 +256,7 @@ mod tests {
     use super::*;
     use crate::{Circle2D, LineSegment2D, Point2D, Ray2D, Vector2D};
     use analysis::test_constants;
+    use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::Ray2DConstructor;
 
     const TOL: f64 = test_constants::DISTANCE_TOLERANCE_F64;

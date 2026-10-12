@@ -30,7 +30,7 @@ use crate::{
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded_generic;
 use geo_contracts::{
     BasicCollision, Circle3DProperties, CylindricalSolid3DDistance, InfiniteLine3DProperties,
-    Plane3DProperties, Ray3DProperties, Scalar,
+    LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
 };
 use geo_core::Point3D as CorePoint3D;
 use geo_nurbs::{constants, NurbsCurve3D, NurbsSurface3D};

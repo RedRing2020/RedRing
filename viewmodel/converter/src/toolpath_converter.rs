@@ -16,6 +16,7 @@ use cam_core::{
 use geo_algorithms::{
     circular_arc_to_polyline, CircularArcDirection, CircularArcPolylineOptions, Point3D,
 };
+use geo_contracts::LineSegment3DSupportLine;
 
 /// 工具経路の色設定（App層から注入）
 #[derive(Debug, Clone, Copy)]

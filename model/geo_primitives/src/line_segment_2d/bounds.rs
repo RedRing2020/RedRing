@@ -1,7 +1,7 @@
 //! LineSegment2D の Bounds 実装
 
 use crate::LineSegment2D;
-use geo_contracts::{Bounded, Scalar};
+use geo_contracts::{Bounded, LineSegment2DProperties, Scalar};
 use geo_core::Aabb2D;
 
 impl<T: Scalar> Bounded<T> for LineSegment2D<T> {

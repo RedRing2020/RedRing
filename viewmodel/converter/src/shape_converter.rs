@@ -26,9 +26,9 @@ use geo_contracts::{
     Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DEvaluation,
     CylindricalSolid3DProperties, CylindricalSurface3DEvaluation, EllipseArc3DProperties,
     EllipsoidalSolid3DProperties, EllipsoidalSurface3DEvaluation, InfiniteLine3DProperties,
-    Plane3DProperties, PrimitiveKind, Ray3DProperties, SphericalSolid3DProperties,
-    SphericalSurface3DEvaluation, TorusSolid3DProperties, TorusSurface3DEvaluation,
-    Triangle3DBoundaryAccess,
+    LineSegment3DProperties, Plane3DProperties, PrimitiveKind, Ray3DProperties,
+    SphericalSolid3DProperties, SphericalSurface3DEvaluation, TorusSolid3DProperties,
+    TorusSurface3DEvaluation, Triangle3DBoundaryAccess,
 };
 // geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
 // - 基本型 (Point3D, Vector3D from geo_core)
@@ -2134,6 +2134,7 @@ fn generate_circle_cap(
 mod tests {
     use super::*;
     use geo_algorithms::Direction3D;
+    use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
 
     #[test]

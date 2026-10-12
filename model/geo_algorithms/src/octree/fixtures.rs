@@ -1,5 +1,6 @@
 //! Octree向けサンプルデータ生成。
 
+use geo_contracts::LineSegment3DConstructor;
 use geo_core::{Aabb3D, Point3D};
 
 use crate::LineSegment3D;

@@ -1,4 +1,5 @@
 use crate::{LineSegment3D, Point3D, Scalar};
+use geo_contracts::LineSegment3DConstructor;
 
 /// 円弧を polyline 近似する際のデフォルト弦誤差上限（mm）。
 pub const DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM: f64 = 0.1;
@@ -214,6 +215,7 @@ mod tests {
         DEFAULT_MAX_CIRCULAR_ARC_DIVISIONS,
     };
     use crate::Point3D;
+    use geo_contracts::LineSegment3DSupportLine;
 
     #[test]
     fn circular_arc_to_polyline_preserves_endpoints() {

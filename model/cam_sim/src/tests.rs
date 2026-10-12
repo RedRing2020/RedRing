@@ -1,3 +1,6 @@
+use geo_algorithms::{
+    Aabb3D, LineSegment3D, LineSegment3DConstructor, Point3D, octree::VoxelOctree,
+};
 use std::io::Cursor;
 use std::path::Path;
 
@@ -5,8 +8,6 @@ use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
     ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
-use geo_algorithms::{Aabb3D, Point3D};
-use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
 use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
 

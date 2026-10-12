@@ -10,6 +10,7 @@
 
 use geo_algorithms::octree::voxel::VoxelOctree;
 use geo_algorithms::{Angle, Arc3D, LineSegment3D};
+use geo_contracts::LineSegment3DConstructor;
 use geo_core::{Aabb3D, Point3D};
 
 fn main() {

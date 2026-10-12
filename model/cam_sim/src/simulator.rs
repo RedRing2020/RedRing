@@ -1,12 +1,12 @@
+use geo_algorithms::{
+    Aabb3D, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM, LineSegment3D, LineSegment3DConstructor,
+    LineSegment3DProperties, Point3D, Scalar, default_kernel_numerical_zero_tolerance,
+};
 use std::collections::HashMap;
 use std::time::Instant;
 
 use cam_core::{Tool, ToolPath};
 use geo_algorithms::octree::VoxelOctree;
-use geo_algorithms::{
-    Aabb3D, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM, LineSegment3D, Point3D, Scalar,
-    default_kernel_numerical_zero_tolerance,
-};
 
 use crate::error::SimulationError;
 use crate::exact_work::{

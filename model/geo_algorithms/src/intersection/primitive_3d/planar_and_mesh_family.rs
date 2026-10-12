@@ -4,8 +4,8 @@ use crate::{
     TriangleMesh3D, Vector3D,
 };
 use geo_contracts::{
-    InfiniteLine3DProperties, Ray3DConstructor, Ray3DEvaluation, Ray3DProperties, Scalar,
-    Triangle3DBoundaryAccess,
+    InfiniteLine3DProperties, LineSegment3DProperties, Ray3DConstructor, Ray3DEvaluation,
+    Ray3DProperties, Scalar, Triangle3DBoundaryAccess,
 };
 
 fn triangle3d_point3d_intersection_raw<T: Scalar>(

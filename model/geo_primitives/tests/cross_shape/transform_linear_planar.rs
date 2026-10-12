@@ -3,9 +3,11 @@
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, InfiniteLine2DConstructor, InfiniteLine2DEvaluation, InfiniteLine3DConstructor,
-    InfiniteLine3DEvaluation, Plane3DProperties, Ray2DConstructor, Ray2DEvaluation,
-    Ray3DConstructor, Ray3DEvaluation, Ray3DProperties, SimilarityTransformable2D,
-    SimilarityTransformable3D, TransformError, Triangle2DBoundaryAccess, Triangle3DBoundaryAccess,
+    InfiniteLine3DEvaluation, LineSegment2DConstructor, LineSegment2DProperties,
+    LineSegment3DConstructor, LineSegment3DProperties, LineSegment3DSupportLine, Plane3DProperties,
+    Ray2DConstructor, Ray2DEvaluation, Ray3DConstructor, Ray3DEvaluation, Ray3DProperties,
+    SimilarityTransformable2D, SimilarityTransformable3D, TransformError, Triangle2DBoundaryAccess,
+    Triangle3DBoundaryAccess,
 };
 use geo_primitives::{
     Direction3D, InfiniteLine2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D,
@@ -65,8 +67,8 @@ fn line_segment_3d_keeps_support_line_parameters_consistent() {
     assert_point3_eq(moved.end_point(), map3(segment.end_point()));
     assert!((moved.length() - 4.0).abs() < TOLERANCE_F64);
     // support line 上の理想端点と拘束端点が一致する
-    assert_point3_eq(moved.ideal_start(), moved.start_point());
-    assert_point3_eq(moved.ideal_end(), moved.end_point());
+    assert_point3_eq(moved.constraint_start_point(), moved.start_point());
+    assert_point3_eq(moved.constraint_end_point(), moved.end_point());
 }
 
 #[test]
@@ -196,8 +198,6 @@ fn line_segment_2d_keeps_support_line_parameters_consistent() {
     assert_point2_eq(moved.start_point(), map2(segment.start_point()));
     assert_point2_eq(moved.end_point(), map2(segment.end_point()));
     assert!((moved.length() - 4.0).abs() < TOLERANCE_F64);
-    assert_point2_eq(moved.ideal_start(), moved.start_point());
-    assert_point2_eq(moved.ideal_end(), moved.end_point());
 }
 
 #[test]

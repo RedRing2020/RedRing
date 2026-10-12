@@ -98,6 +98,7 @@ mod tests {
     use super::{TopologyValidator, WireValidationReport};
     use crate::{CurveRef, Point3D, TopoInfiniteLine3D, TopoLineSegment3D, Vertex, Wire};
     use geo_contracts::InfiniteLine3DConstructor;
+    use geo_contracts::{LineSegment3DConstructor, LineSegment3DSupportLine};
     use std::sync::Arc;
 
     fn make_edge(start: Point3D<f64>, end: Point3D<f64>) -> crate::Edge<f64> {

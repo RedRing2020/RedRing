@@ -1,5 +1,6 @@
 use super::super::*;
 use crate::LineSegment3D;
+use geo_contracts::LineSegment3DConstructor;
 use geo_core::Point3D;
 
 #[test]

@@ -18,6 +18,7 @@ use geo_algorithms::{
     octree::{VoxelOctree, VoxelState},
     CircularArcPolylineOptions, LineSegment3D, Point3D,
 };
+use geo_contracts::{LineSegment3DConstructor, LineSegment3DProperties};
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 

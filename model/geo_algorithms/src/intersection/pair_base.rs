@@ -3,7 +3,7 @@
 //! 型ごとの trait実装とは分離し、形状ペア単位の幾何計算を集約する。
 
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
-use geo_contracts::{Arc2DProperties, Circle2DProperties, Scalar};
+use geo_contracts::{Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar};
 
 #[cfg(test)]
 const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
@@ -207,6 +207,7 @@ mod tests {
         line_segment2d_circle2d_intersections, line_segment2d_line_segment2d_intersection,
     };
     use crate::{Angle, Arc2D, Circle2D, LineSegment2D, Point2D};
+    use geo_contracts::LineSegment2DConstructor;
 
     #[test]
     fn circle_circle_returns_two_points() {

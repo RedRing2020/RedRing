@@ -7,8 +7,8 @@ use crate::tolerance::ResolvedEdgeToleranceSettings;
 use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived,
-    EllipseArc3DEndpoint, EllipseArc3DEvaluation, InfiniteLine3DEvaluation, NurbsCurve3DProperties,
-    Scalar,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, InfiniteLine3DEvaluation,
+    LineSegment3DProperties, LineSegment3DSupportLine, NurbsCurve3DProperties, Scalar,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -130,7 +130,7 @@ impl<T: Scalar> CurveRef<T> {
     /// ideal start/end と整合する parameter domain を使う。
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         match self {
-            Self::Line(line) => line.line().point_at_parameter(t),
+            Self::Line(line) => line.support_line().point_at_parameter(t),
             Self::Arc(arc) => {
                 let (x, y, z) = <TopoArc3D<T> as Arc3DEvaluation<T>>::point_at_parameter(arc, t);
                 Point3D::new(x, y, z)
@@ -383,6 +383,7 @@ mod tests {
     use super::*;
     use crate::{TopoInfiniteLine3D, TopoNurbsCurve3D};
     use geo_contracts::InfiniteLine3DConstructor;
+    use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::NurbsCurve3DConstructor;
 
     #[test]

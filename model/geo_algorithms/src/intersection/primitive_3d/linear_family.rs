@@ -10,7 +10,8 @@ use crate::{
     Vector3D,
 };
 use geo_contracts::{
-    InfiniteLine3DConstructor, InfiniteLine3DDistance, InfiniteLine3DProperties, Ray3DDistance,
+    InfiniteLine3DConstructor, InfiniteLine3DDistance, InfiniteLine3DProperties,
+    LineSegment3DDistance, LineSegment3DProperties, LineSegment3DSupportLine, Ray3DDistance,
     Ray3DProperties, Scalar,
 };
 
@@ -102,9 +103,9 @@ fn ray3d_line_segment3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction().as_vector())?;
-    let segment_line = segment.line();
+    let segment_line = segment.support_line();
     let point = line_line_intersection_raw(&ray_line, segment_line)?;
-    if ray.distance_to_point(point) <= tolerance && segment.contains_point(&point, tolerance) {
+    if ray.distance_to_point(point) <= tolerance && segment.distance_to_point(point) <= tolerance {
         Some(point)
     } else {
         None
@@ -162,7 +163,7 @@ fn line_segment3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, segment.contains_point(point, tolerance))
+    point_intersection_if(point, segment.distance_to_point(*point) <= tolerance)
 }
 
 pub fn line_segment3d_point3d_intersection<T: Scalar>(
@@ -338,9 +339,9 @@ fn infinite_line3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let segment_line = segment.line();
+    let segment_line = segment.support_line();
     let point = line_line_intersection_raw(line, segment_line)?;
-    if segment.contains_point(&point, tolerance) {
+    if segment.distance_to_point(point) <= tolerance {
         Some(point)
     } else {
         None
