@@ -112,6 +112,10 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 | D-2a-2 | `geo_core` の値型の固有メソッドの引数を値渡しに揃える（`apply_point`・`Vector3D::from_points`・`distance_to` 等）。完了 | 変更なし |
 | D-2b | 半直線（`Ray2D/3D`）の型付け。完了 | 半直線 |
 | D-2c | 線分（`LineSegment2D/3D`）の型付け。完了 | 線分 |
+| D-3a | 円（`Circle2D/3D`）の型付け。完了 | 円 |
+| D-3b | 円弧（`Arc2D/3D`） | 円弧 |
+| D-3c | 楕円（`Ellipse2D/3D`） | 楕円 |
+| D-3d | 楕円弧（`EllipseArc2D/3D`） | 楕円弧 |
 | 最後 | `geo_algorithms` 等の Point / タプルの境界の残りの整理と、規約の文書の仕上げ | — |
 
 - 旧 API の別名・互換用の変換は置かない（各段階で呼び出し元まで更新する）

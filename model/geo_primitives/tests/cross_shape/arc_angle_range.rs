@@ -1,6 +1,8 @@
 //! 円弧・楕円弧の角度範囲の判定のテスト
 
-use geo_contracts::{Angle, Arc2DTrimRange, Arc3DTrimRange, EllipseArc3DTrimRange};
+use geo_contracts::{
+    Angle, Arc2DTrimRange, Arc3DTrimRange, Circle2DConstructor, EllipseArc3DTrimRange,
+};
 use geo_primitives::{
     Arc2D, Arc3D, Circle2D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D, EllipseArc3D, Point2D,
     Point3D, Vector3D,

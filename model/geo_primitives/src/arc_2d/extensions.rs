@@ -4,8 +4,7 @@
 //! 基本機能は親モジュール（arc_2d.rs）を参照
 
 use crate::{arc_2d::Arc2D, Circle2D, Point2D, Vector2D};
-use geo_contracts::default_distance_tolerance;
-use geo_contracts::{Angle, Scalar};
+use geo_contracts::{default_distance_tolerance, Angle, Circle2DConstructor, Scalar};
 
 impl<T: Scalar> Arc2D<T> {
     /// Arc trim-local parameter `t` (`0 <= t <= 1`) で円弧上の点を計算

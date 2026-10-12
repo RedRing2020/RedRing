@@ -330,8 +330,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsCurveCollider<T> {
             let curve_point = self.0.evaluate_at(u);
 
             // Circle3Dの中心からの距離を計算し、半径を引く
-            let (cx, cy, cz) = <Circle3D<T> as Circle3DProperties<T>>::center(circle);
-            let center = CorePoint3D::new(cx, cy, cz);
+            let center = <Circle3D<T> as Circle3DProperties<T>>::center(circle);
             let radius = <Circle3D<T> as Circle3DProperties<T>>::radius(circle);
 
             let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
@@ -688,7 +687,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
 
-        let (cx, cy, cz) = <Circle3D<T> as Circle3DProperties<T>>::center(circle);
+        let center = <Circle3D<T> as Circle3DProperties<T>>::center(circle);
+        let (cx, cy, cz) = (center.x(), center.y(), center.z());
         let radius = <Circle3D<T> as Circle3DProperties<T>>::radius(circle);
 
         let mut min_dist = T::INFINITY;

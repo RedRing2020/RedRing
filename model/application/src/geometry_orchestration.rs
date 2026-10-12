@@ -1,7 +1,7 @@
 //! Geometry向け orchestration 境界。
 
 use crate::primitives::{Angle, Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
-use geo_contracts::LineSegment3DConstructor;
+use geo_contracts::{Circle3DConstructor, LineSegment3DConstructor};
 
 /// 将来の geometry orchestration ユースケース向けマーカー入力境界。
 #[derive(Debug, Clone, PartialEq, Eq)]

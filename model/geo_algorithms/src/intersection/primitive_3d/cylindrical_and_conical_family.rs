@@ -39,8 +39,7 @@ fn cylindrical_surface3d_circle3d_intersection_raw<T: Scalar>(
     circle: &Circle3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (cx, cy, cz) = Circle3DProperties::center(circle);
-    let center = Point3D::new(cx, cy, cz);
+    let center = Circle3DProperties::center(circle);
     let dist = crate::distance::cylindrical_surface3d_point3d_distance(cyl, &center);
     if dist <= Circle3DProperties::radius(circle) + tolerance {
         Some(center)

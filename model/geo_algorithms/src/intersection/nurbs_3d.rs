@@ -109,8 +109,7 @@ pub fn nurbscurve3d_circle3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // 現実装では代表点として Circle center を返す。
-        let (cx, cy, cz) = geo_contracts::Circle3DProperties::center(circle);
-        Some(Point3D::new(cx, cy, cz))
+        Some(geo_contracts::Circle3DProperties::center(circle))
     } else {
         None
     }
@@ -254,8 +253,7 @@ pub fn nurbssurface3d_circle3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // 現実装では代表点として Circle center を返す。
-        let (cx, cy, cz) = geo_contracts::Circle3DProperties::center(circle);
-        Some(Point3D::new(cx, cy, cz))
+        Some(geo_contracts::Circle3DProperties::center(circle))
     } else {
         None
     }
@@ -312,6 +310,7 @@ mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
     use analysis::test_constants;
+    use geo_contracts::Circle3DConstructor;
     use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::Ray3DConstructor;

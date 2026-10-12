@@ -9,7 +9,7 @@ use crate::{
     Plane3D, Point3D, Ray3D, SphericalSolid3D,
 };
 use geo_contracts::{
-    CylindricalSolid3DDistance, DistanceConvergenceError, InfiniteLine3DDistance,
+    Circle3DDistance, CylindricalSolid3DDistance, DistanceConvergenceError, InfiniteLine3DDistance,
     LineSegment3DDistance, Ray3DDistance, Scalar,
 };
 
@@ -261,7 +261,7 @@ pub fn nurbscurve3d_circle3d_try_distance<T: Scalar>(
         let u = u_min + delta_u * T::from_usize(i);
         let curve_vec = curve.evaluate_at(u);
         let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
-        min_distance = min_distance.min(circle.distance_to_point(&curve_point));
+        min_distance = min_distance.min(circle.distance_to_point(curve_point));
     }
 
     if min_distance == T::INFINITY {
@@ -494,6 +494,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_try_distance<T: Scalar>(
 mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
+    use geo_contracts::Circle3DConstructor;
     use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::Ray3DConstructor;

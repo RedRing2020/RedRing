@@ -1,26 +1,23 @@
-//! 2次元円（Circle2D）のCore実装
+//! 2次元円（Circle2D）の実装
 //!
-//! Foundation統一システムに基づくCircle2Dの必須機能のみ
-//! STEP (ISO 10303) 準拠の ref_direction フィールドでArc変換に対応
+//! STEP (ISO 10303) 準拠の ref_direction フィールドを持つ
 
 mod bounds;
-mod extensions;
-mod metrics;
 #[cfg(test)]
 mod tests;
 mod transform;
 
 use crate::{Direction2D, Point2D};
-use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
-    Circle2DConstructor, Circle2DContainment, Circle2DDistance, Circle2DEvaluation,
-    Circle2DProjection, Circle2DProperties, CrossDistance, PointClassification, PrimitiveKind,
-    PrimitiveMetadata, Scalar,
+    default_distance_tolerance, default_kernel_numerical_zero_tolerance, Circle2DConstructor,
+    Circle2DContainment, Circle2DDistance, Circle2DEvaluation, Circle2DProjection,
+    Circle2DProperties, CrossDistance, PointClassification, PrimitiveKind, PrimitiveMetadata,
+    Scalar,
 };
 
 /// 2次元円
 ///
-/// STEP準拠でref_direction（参照方向）を持ち、Arc2Dへの変換とトリム操作が可能
+/// STEP準拠でref_direction（参照方向）を持つ
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Circle2D<T: Scalar> {
     center: Point2D<T>,
@@ -36,107 +33,23 @@ impl<T: Scalar> PrimitiveMetadata for Circle2D<T> {
 }
 
 impl<T: Scalar> Circle2D<T> {
-    /// 新しい円を作成（デフォルトでX軸正方向を参照方向とする）
-    pub fn new(center: Point2D<T>, radius: T) -> Option<Self> {
-        if radius > T::ZERO {
-            Some(Self {
-                center,
-                radius,
-                ref_direction: Direction2D::positive_x(),
-            })
-        } else {
-            None
-        }
-    }
-
-    /// 参照方向を指定して円を作成
-    pub fn new_with_ref_direction(
+    /// 参照方向を指定して円を作成（半径が正でない場合は `None`）
+    fn new_with_ref_direction(
         center: Point2D<T>,
         radius: T,
         ref_direction: Direction2D<T>,
     ) -> Option<Self> {
-        if radius > T::ZERO {
-            Some(Self {
-                center,
-                radius,
-                ref_direction,
-            })
-        } else {
-            None
-        }
-    }
-
-    /// バウンディングボックスを取得
-    pub fn bounding_box(&self) -> (Point2D<T>, Point2D<T>) {
-        let min_point = Point2D::new(self.center.x() - self.radius, self.center.y() - self.radius);
-        let max_point = Point2D::new(self.center.x() + self.radius, self.center.y() + self.radius);
-        (min_point, max_point)
-    }
-
-    /// 円周の長さ
-    pub fn circumference(&self) -> T {
-        T::TAU * self.radius
-    }
-
-    /// 円の面積
-    pub fn area(&self) -> T {
-        T::PI * self.radius * self.radius
-    }
-
-    /// 点が円周上にあるか判定（円周までの距離が `tolerance` 以内）
-    pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        self.distance_to_point(point) <= tolerance
-    }
-
-    /// 円が囲む領域に対する点の位置を分類する
-    ///
-    /// 円周までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は中心からの距離で内側・外側に分ける。
-    pub fn classify_point(&self, point: &Point2D<T>, tolerance: T) -> PointClassification {
-        let center_distance = point.distance_to(self.center);
-        if (center_distance - self.radius).abs() <= tolerance {
-            PointClassification::OnBoundary
-        } else if center_distance < self.radius {
-            PointClassification::Inside
-        } else {
-            PointClassification::Outside
-        }
-    }
-
-    /// Primitive 局所座標系の local angle parameter `t` (`0 <= t <= 2π`) で円周上の点を取得
-    ///
-    /// `point_at_angle` と同じ local angle domain を使う core evaluation 入口として扱う。
-    pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
-        Point2D::new(
-            self.center.x() + self.radius * t.cos(),
-            self.center.y() + self.radius * t.sin(),
-        )
-    }
-
-    /// 点から円周への距離
-    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        let center_distance = point.distance_to(self.center);
-        (center_distance - self.radius).abs()
-    }
-
-    /// 点に最も近い円周上の点を取得
-    pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
-        let dx = point.x() - self.center.x();
-        let dy = point.y() - self.center.y();
-        let distance = point.distance_to(self.center);
-
-        if distance <= default_kernel_numerical_zero_tolerance::<T>() {
-            // 点が中心にある場合、任意の円周上の点を返す
-            Point2D::new(self.center.x() + self.radius, self.center.y())
-        } else {
-            let scale = self.radius / distance;
-            Point2D::new(self.center.x() + dx * scale, self.center.y() + dy * scale)
-        }
+        (radius > T::ZERO).then_some(Self {
+            center,
+            radius,
+            ref_direction,
+        })
     }
 
     /// 点に最も近い円周上の点の local angle parameter（`0 <= t < 2π`）を取得
     ///
-    /// 中心の点は、`closest_point` と同じく角度 0 の点を最近点とする。
-    pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
+    /// 円弧が点の角度を求めるため pub(crate)。中心の点は、`closest_point` と同じく角度 0 の点を最近点とする。
+    pub(crate) fn parameter_for_point(&self, point: Point2D<T>) -> T {
         let closest = self.closest_point(point);
         let angle = (closest.y() - self.center.y()).atan2(closest.x() - self.center.x());
         if angle < T::ZERO {
@@ -145,11 +58,111 @@ impl<T: Scalar> Circle2D<T> {
             angle
         }
     }
+}
 
-    /// 2つの円の距離
-    pub fn distance_to_circle(&self, other: &Self) -> T {
+impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
+    fn new(center: Point2D<T>, radius: T) -> Option<Self> {
+        Self::new_with_ref_direction(center, radius, Direction2D::positive_x())
+    }
+
+    fn from_three_points(p1: Point2D<T>, p2: Point2D<T>, p3: Point2D<T>) -> Option<Self> {
+        // 3点が一直線上にある場合は円が定義できない
+        let dx1 = p2.x() - p1.x();
+        let dy1 = p2.y() - p1.y();
+        let dx2 = p3.x() - p2.x();
+        let dy2 = p3.y() - p2.y();
+
+        let cross = dx1 * dy2 - dy1 * dx2;
+        if cross.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
+            return None;
+        }
+
+        // 外心を計算
+        let d = T::from_f64(2.0)
+            * (p1.x() * (p2.y() - p3.y())
+                + p2.x() * (p3.y() - p1.y())
+                + p3.x() * (p1.y() - p2.y()));
+
+        if d.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
+            return None;
+        }
+
+        let p1_sq = p1.x() * p1.x() + p1.y() * p1.y();
+        let p2_sq = p2.x() * p2.x() + p2.y() * p2.y();
+        let p3_sq = p3.x() * p3.x() + p3.y() * p3.y();
+
+        let cx =
+            (p1_sq * (p2.y() - p3.y()) + p2_sq * (p3.y() - p1.y()) + p3_sq * (p1.y() - p2.y())) / d;
+        let cy =
+            (p1_sq * (p3.x() - p2.x()) + p2_sq * (p1.x() - p3.x()) + p3_sq * (p2.x() - p1.x())) / d;
+
+        let center = Point2D::new(cx, cy);
+        <Self as Circle2DConstructor<T>>::new(center, center.distance_to(p1))
+    }
+}
+
+impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
+    fn center(&self) -> Point2D<T> {
+        self.center
+    }
+
+    fn radius(&self) -> T {
+        self.radius
+    }
+}
+
+impl<T: Scalar> Circle2DEvaluation<T> for Circle2D<T> {
+    fn point_at_parameter(&self, t: T) -> Point2D<T> {
+        Point2D::new(
+            self.center.x() + self.radius * t.cos(),
+            self.center.y() + self.radius * t.sin(),
+        )
+    }
+}
+
+impl<T: Scalar> Circle2DContainment<T> for Circle2D<T> {
+    fn contains_point(&self, point: Point2D<T>) -> bool {
+        self.distance_to_point(point) <= default_distance_tolerance::<T>()
+    }
+
+    /// 円周までの距離が既定の許容誤差以内なら `OnBoundary`、それ以外は中心からの距離で内側・外側に分ける。
+    fn classify_point(&self, point: Point2D<T>) -> PointClassification {
+        let center_distance = point.distance_to(self.center);
+        if (center_distance - self.radius).abs() <= default_distance_tolerance::<T>() {
+            PointClassification::OnBoundary
+        } else if center_distance < self.radius {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
+    }
+}
+
+impl<T: Scalar> Circle2DDistance<T> for Circle2D<T> {
+    fn distance_to_point(&self, point: Point2D<T>) -> T {
+        (point.distance_to(self.center) - self.radius).abs()
+    }
+}
+
+impl<T: Scalar> Circle2DProjection<T> for Circle2D<T> {
+    /// 中心の点は、角度 0 の点を最近点とする
+    fn closest_point(&self, point: Point2D<T>) -> Point2D<T> {
+        let dx = point.x() - self.center.x();
+        let dy = point.y() - self.center.y();
+        let distance = point.distance_to(self.center);
+
+        if distance <= default_kernel_numerical_zero_tolerance::<T>() {
+            Point2D::new(self.center.x() + self.radius, self.center.y())
+        } else {
+            let scale = self.radius / distance;
+            Point2D::new(self.center.x() + dx * scale, self.center.y() + dy * scale)
+        }
+    }
+}
+
+impl<T: Scalar> CrossDistance<T, Self> for Circle2D<T> {
+    fn distance_to(&self, other: &Self) -> T {
         let center_distance = self.center.distance_to(other.center);
-
         let radii_sum = self.radius + other.radius;
 
         if center_distance >= radii_sum {
@@ -162,139 +175,5 @@ impl<T: Scalar> Circle2D<T> {
             // 円が交差している
             T::ZERO
         }
-    }
-
-    /// 3点から円を作成する内部メソッド
-    fn from_three_points_internal(
-        point1: Point2D<T>,
-        point2: Point2D<T>,
-        point3: Point2D<T>,
-    ) -> Option<Self> {
-        // 3点が一直線上にある場合は円が定義できない
-        let dx1 = point2.x() - point1.x();
-        let dy1 = point2.y() - point1.y();
-        let dx2 = point3.x() - point2.x();
-        let dy2 = point3.y() - point2.y();
-
-        let cross = dx1 * dy2 - dy1 * dx2;
-        if cross.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
-            return None; // 3点が一直線上
-        }
-
-        // 外心を計算
-        let d = T::from_f64(2.0)
-            * (point1.x() * (point2.y() - point3.y())
-                + point2.x() * (point3.y() - point1.y())
-                + point3.x() * (point1.y() - point2.y()));
-
-        if d.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
-            return None;
-        }
-
-        let p1_sq = point1.x() * point1.x() + point1.y() * point1.y();
-        let p2_sq = point2.x() * point2.x() + point2.y() * point2.y();
-        let p3_sq = point3.x() * point3.x() + point3.y() * point3.y();
-
-        let cx = (p1_sq * (point2.y() - point3.y())
-            + p2_sq * (point3.y() - point1.y())
-            + p3_sq * (point1.y() - point2.y()))
-            / d;
-        let cy = (p1_sq * (point3.x() - point2.x())
-            + p2_sq * (point1.x() - point3.x())
-            + p3_sq * (point2.x() - point1.x()))
-            / d;
-
-        let center = Point2D::new(cx, cy);
-
-        // 半径を計算
-        let radius = center.distance_to(point1);
-
-        Self::new(center, radius)
-    }
-}
-
-impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
-    fn new(center: (T, T), radius: T) -> Option<Self> {
-        let center_point = Point2D::new(center.0, center.1);
-        Self::new(center_point, radius)
-    }
-
-    fn new_with_ref_direction(center: (T, T), radius: T, ref_direction: (T, T)) -> Option<Self> {
-        let center_point = Point2D::new(center.0, center.1);
-        let ref_dir = Direction2D::new(ref_direction.0, ref_direction.1)?;
-        Self::new_with_ref_direction(center_point, radius, ref_dir)
-    }
-
-    fn from_three_points(p1: (T, T), p2: (T, T), p3: (T, T)) -> Option<Self> {
-        let point1 = Point2D::new(p1.0, p1.1);
-        let point2 = Point2D::new(p2.0, p2.1);
-        let point3 = Point2D::new(p3.0, p3.1);
-
-        Self::from_three_points_internal(point1, point2, point3)
-    }
-}
-
-impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
-    fn center(&self) -> (T, T) {
-        let c = self.center;
-        (c.x(), c.y())
-    }
-
-    fn radius(&self) -> T {
-        self.radius
-    }
-
-    fn ref_direction(&self) -> (T, T) {
-        let r = self.ref_direction;
-        (r.x(), r.y())
-    }
-
-    fn diameter(&self) -> T {
-        let r = self.radius;
-        r + r
-    }
-
-    fn dimension(&self) -> u32 {
-        2
-    }
-}
-
-impl<T: Scalar> Circle2DContainment<T> for Circle2D<T> {
-    fn contains_point(&self, point: (T, T)) -> bool {
-        let p = Point2D::new(point.0, point.1);
-        Circle2D::contains_point(self, &p, default_distance_tolerance::<T>())
-    }
-
-    fn classify_point(&self, point: (T, T)) -> PointClassification {
-        let p = Point2D::new(point.0, point.1);
-        Circle2D::classify_point(self, &p, default_distance_tolerance::<T>())
-    }
-}
-
-impl<T: Scalar> Circle2DDistance<T> for Circle2D<T> {
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        let p = Point2D::new(point.0, point.1);
-        Circle2D::distance_to_point(self, &p)
-    }
-}
-
-impl<T: Scalar> Circle2DProjection<T> for Circle2D<T> {
-    fn closest_point(&self, point: (T, T)) -> (T, T) {
-        let p = Point2D::new(point.0, point.1);
-        let closest = Circle2D::closest_point(self, &p);
-        (closest.x(), closest.y())
-    }
-}
-
-impl<T: Scalar> Circle2DEvaluation<T> for Circle2D<T> {
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        let point = Circle2D::point_at_parameter(self, t);
-        (point.x(), point.y())
-    }
-}
-
-impl<T: Scalar> CrossDistance<T, Self> for Circle2D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        Circle2D::distance_to_circle(self, other)
     }
 }

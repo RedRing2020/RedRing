@@ -1,3 +1,4 @@
+use geo_contracts::Circle2DConstructor;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

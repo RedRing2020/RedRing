@@ -21,8 +21,7 @@ pub fn ellipse3d_circle3d_collides<T: Scalar + From<f64>>(
     circle: &Circle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (cx, cy, cz) = circle.center();
-    let center = Point3D::new(cx, cy, cz);
+    let center = circle.center();
     crate::distance::ellipse3d_point3d_distance(ellipse, &center) <= circle.radius() + tolerance
 }
 
@@ -210,8 +209,18 @@ pub fn circle3d_circle3d_collides<T: Scalar>(
     circle_b: &Circle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = circle_a.center();
-    let (bx, by, bz) = circle_b.center();
+    let circle_a_center = circle_a.center();
+    let (ax, ay, az) = (
+        circle_a_center.x(),
+        circle_a_center.y(),
+        circle_a_center.z(),
+    );
+    let circle_b_center = circle_b.center();
+    let (bx, by, bz) = (
+        circle_b_center.x(),
+        circle_b_center.y(),
+        circle_b_center.z(),
+    );
     let center_a = Point3D::new(ax, ay, az);
     let center_b = Point3D::new(bx, by, bz);
     let dist = center_a.distance_to(center_b);

@@ -21,8 +21,7 @@ pub fn cylindrical_solid3d_circle3d_collides<T: Scalar>(
     circle: &Circle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (cx, cy, cz) = circle.center();
-    let center = Point3D::new(cx, cy, cz);
+    let center = circle.center();
     crate::distance::cylindrical_solid3d_point3d_distance(cyl, &center) <= tolerance
 }
 
@@ -108,8 +107,7 @@ pub fn cylindrical_surface3d_circle3d_collides<T: Scalar>(
     circle: &Circle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (cx, cy, cz) = circle.center();
-    let center = Point3D::new(cx, cy, cz);
+    let center = circle.center();
     crate::distance::cylindrical_surface3d_point3d_distance(cyl, &center) <= tolerance
 }
 

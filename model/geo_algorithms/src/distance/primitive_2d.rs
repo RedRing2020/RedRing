@@ -90,7 +90,8 @@ pub fn point2d_ray2d_distance<T: Scalar>(point: &Point2D<T>, ray: &Ray2D<T>) -> 
 
 /// Circle2D-点 間の最短距離（円周への距離）
 pub fn circle2d_point2d_distance<T: Scalar>(circle: &Circle2D<T>, point: &Point2D<T>) -> T {
-    let (cx, cy) = Circle2DProperties::center(circle);
+    let circle_center = Circle2DProperties::center(circle);
+    let (cx, cy) = (circle_center.x(), circle_center.y());
     let r = Circle2DProperties::radius(circle);
     let dist = ((point.x() - cx) * (point.x() - cx) + (point.y() - cy) * (point.y() - cy)).sqrt();
     (dist - r).abs()
@@ -103,8 +104,10 @@ pub fn point2d_circle2d_distance<T: Scalar>(point: &Point2D<T>, circle: &Circle2
 
 /// Circle2D-Circle2D 間の最短距離（交差時は 0）
 pub fn circle2d_circle2d_distance<T: Scalar>(c1: &Circle2D<T>, c2: &Circle2D<T>) -> T {
-    let (cx1, cy1) = Circle2DProperties::center(c1);
-    let (cx2, cy2) = Circle2DProperties::center(c2);
+    let c1_center = Circle2DProperties::center(c1);
+    let (cx1, cy1) = (c1_center.x(), c1_center.y());
+    let c2_center = Circle2DProperties::center(c2);
+    let (cx2, cy2) = (c2_center.x(), c2_center.y());
     let r1 = Circle2DProperties::radius(c1);
     let r2 = Circle2DProperties::radius(c2);
     let center_dist = ((cx2 - cx1) * (cx2 - cx1) + (cy2 - cy1) * (cy2 - cy1)).sqrt();
@@ -256,6 +259,7 @@ mod tests {
     use super::*;
     use crate::{Circle2D, LineSegment2D, Point2D, Ray2D, Vector2D};
     use analysis::test_constants;
+    use geo_contracts::Circle2DConstructor;
     use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::Ray2DConstructor;
 

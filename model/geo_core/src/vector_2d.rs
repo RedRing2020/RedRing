@@ -156,11 +156,6 @@ impl<T: Scalar> Vector2D<T> {
     pub fn abs(&self) -> Self {
         Self::new(self.x.abs(), self.y.abs())
     }
-
-    /// 3次元ベクトルに拡張（Z=0）
-    pub fn to_3d(&self) -> crate::Vector3D<T> {
-        crate::Vector3D::new(self.x, self.y, T::ZERO)
-    }
 }
 
 impl<T: Scalar> Add for Vector2D<T> {

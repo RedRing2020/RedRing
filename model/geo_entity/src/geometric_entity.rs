@@ -137,7 +137,8 @@ impl<T: Scalar> LineEntity3DProperties<T> for GeometricEntity<T, geo_primitives:
 
 impl<T: Scalar> CircleEntity3DProperties<T> for GeometricEntity<T, geo_primitives::Circle3D<T>> {
     fn circle_center(&self) -> (T, T, T) {
-        Circle3DProperties::center(self.geometry())
+        let center = Circle3DProperties::center(self.geometry());
+        (center.x(), center.y(), center.z())
     }
 
     fn circle_radius(&self) -> T {
@@ -145,7 +146,8 @@ impl<T: Scalar> CircleEntity3DProperties<T> for GeometricEntity<T, geo_primitive
     }
 
     fn circle_axis(&self) -> (T, T, T) {
-        Circle3DProperties::axis(self.geometry())
+        let axis = Circle3DProperties::axis(self.geometry());
+        (axis.x(), axis.y(), axis.z())
     }
 }
 

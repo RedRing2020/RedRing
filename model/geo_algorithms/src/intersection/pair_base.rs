@@ -3,7 +3,9 @@
 //! 型ごとの trait実装とは分離し、形状ペア単位の幾何計算を集約する。
 
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
-use geo_contracts::{Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar};
+use geo_contracts::{
+    Arc2DProperties, Circle2DConstructor, Circle2DProperties, LineSegment2DProperties, Scalar,
+};
 
 #[cfg(test)]
 const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
@@ -19,14 +21,12 @@ pub fn circle2d_circle2d_intersections<T: Scalar>(
 
     let center1 = circle1.center();
     let center2 = circle2.center();
-    let center1_point = Point2D::from_tuple(center1);
-    let center2_point = Point2D::from_tuple(center2);
     let r1 = circle1.radius();
     let r2 = circle2.radius();
 
-    let dx = center2.0 - center1.0;
-    let dy = center2.1 - center1.1;
-    let d = center1_point.distance_to(center2_point);
+    let dx = center2.x() - center1.x();
+    let dy = center2.y() - center1.y();
+    let d = center1.distance_to(center2);
 
     if d > r1 + r2 + tolerance || d + tolerance < (r1 - r2).abs() || d.abs() <= tolerance {
         return result;
@@ -45,8 +45,8 @@ pub fn circle2d_circle2d_intersections<T: Scalar>(
     };
 
     let h = h_squared.sqrt();
-    let px = center1.0 + a * dx / d;
-    let py = center1.1 + a * dy / d;
+    let px = center1.x() + a * dx / d;
+    let py = center1.y() + a * dy / d;
 
     if h.abs() <= tolerance {
         result.push(Point2D::new(px, py));
@@ -101,8 +101,8 @@ pub fn line_segment2d_circle2d_intersections<T: Scalar>(
 
     let dx = end.0 - start.0;
     let dy = end.1 - start.1;
-    let fx = start.0 - center.0;
-    let fy = start.1 - center.1;
+    let fx = start.0 - center.x();
+    let fy = start.1 - center.y();
 
     let start_point = Point2D::from_tuple(start);
     let end_point = Point2D::from_tuple(end);
@@ -152,7 +152,7 @@ pub fn line_segment2d_arc2d_intersections<T: Scalar>(
     tolerance: T,
 ) -> Vec<Point2D<T>> {
     let base_circle = Circle2D::new(
-        Point2D::new(arc.center().0, arc.center().1),
+        Point2D::from_tuple(arc.center()),
         <Arc2D<T> as Arc2DProperties<T>>::radius(arc),
     );
 
@@ -207,6 +207,7 @@ mod tests {
         line_segment2d_circle2d_intersections, line_segment2d_line_segment2d_intersection,
     };
     use crate::{Angle, Arc2D, Circle2D, LineSegment2D, Point2D};
+    use geo_contracts::Circle2DConstructor;
     use geo_contracts::LineSegment2DConstructor;
 
     #[test]
