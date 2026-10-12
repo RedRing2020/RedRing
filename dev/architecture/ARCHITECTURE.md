@@ -1,110 +1,74 @@
 # RedRing アーキテクチャ構成
 
-**最終更新日**: 2026年4月3日
+**最終更新日**: 2026年10月12日
 
-RedRing の幾何計算層とレンダリング層の構成、および現在の課題と解決策について説明します。
+RedRing のレイヤー構成、クレートの責務と依存の規則を定義する。クレートの依存の検査は `scripts/check_architecture_dependencies.ps1` と、そのルール `scripts/_arch_rules_data.ps1` で行う。
 
-## 🧱 ワークスペース構成
+## 🧱 レイヤー構成
 
-### 幾何計算層
-
-## 🚨 現在の重大な課題（2026年3月15日更新）
-
-### 系統的な*_core_traits実装問題
-
-10以上の形状で**レガシーAPIとFoundation実装が共存**し、以下の問題が発生しています：
-
-- **メソッド名競合**: `center()`, `arc_length()`, `point_at_parameter()` 等
-- **型不一致**: `Point2D<T>` vs `(T, T)` のシグネチャ違い
-- **Foundation Patternの破綻**: 統一アクセスが実現できない
-
-**対象形状**: point, vector, circle, ellipse_arc, direction, bbox, ray, line_segment, infinite_line
-
-### アーキテクチャ再編提案（geo_foundation 廃止）
+| ディレクトリ | レイヤー | 役割 |
+| --- | --- | --- |
+| `foundation/` | 基盤 | ドメインに依存しない数値計算・ログ・ローカライズ |
+| `model/` | モデル | 幾何（`geo_*`）・CAM（`cam_*`）・ジョブ（`job_*`）・ユースケースの orchestration（`application`） |
+| `viewmodel/` | ビューモデル | モデルのデータを描画用のデータに変換する |
+| `view/` | ビュー | GPU 描画・ステージ・アプリケーション |
 
 ```text
-foundation/analysis（将来改名候補）
-            ↓
-        geo_contracts（trait定義の正本）
-          ↓        ↓
- geo_commons     geo_core（低レイヤー・基本型提供）
-  （analysisのみ依存の   ↓             ↓
-   数値カーネル）  geo_primitives      geo_nurbs
-                      （impl入口）       （impl入口）
-                            ↘           ↙
-                    geo_algorithms（交差/衝突/幾何演算）
-                    ↓
-         application層クレート群
-    （tessellation / simulation / job manager）
-
-        CAM側の責務分離（設計更新）
-
-            geo_*（汎用幾何演算）
-                ↓
-            cam_core（中立データ基盤）
-               ↙          ↘
-        cam_algorithms      cam_entity
-        （CAM固有計算）     （表示/統合）
-               ↓
-              cam_sim
-        （CAM特化ユースケース実行）
+view（render / stage / app）
+  ↓
+viewmodel（converter / graphics / cam_demo）
+  ↓
+model
+  application → cam_sim → cam_algorithms → cam_core
+  application → geo_algorithms → geo_topology → geo_primitives / geo_nurbs → geo_core → geo_contracts
+  geo_primitives → geo_commons
+  geo_entity / geo_io → geo_primitives
+  cam_sim / application → job_domain → job_runtime
+  ↓
+foundation（analysis / logging_foundation / i18n_foundation）
 ```
 
-#### クレート責務定義
+各クレートに許可された依存の正本は `scripts/_arch_rules_data.ps1` とする。
 
-- **`foundation/analysis`**: 線形代数などの純粋な数値解析のみを提供（将来改名検討）
-- **`geo_contracts`**: 幾何 trait定義の正本。shape definition core / extension / operations の公開境界を定義する
-- **`geo_commons`**: `analysis` のみに依存する、再利用可能な幾何数値カーネル置き場。ellipse 近似や距離計算など、trait定義でも高レベル戦略でもない共通数値処理を置く
-- **`geo_core`**: **低レイヤー基本型**（Aabb2D/Aabb3D等）- geo_primitives/geo_nurbsから直接アクセス可
-- **`geo_primitives`**: プリミティブ形状の実装入口。`geo_contracts` の trait を実装し、必要に応じて `geo_commons` の数値カーネルへ薄く委譲する
-- **`geo_nurbs`**: NURBS形状の実装入口。`geo_contracts` の trait を実装し、`geo_core` 経由で具体型へ接続する
-- **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を利用した高レベル幾何アルゴリズム（intersect, collision 等）
-- **`application::*`（新設方針）**: テセレーション、シミュレーション、ジョブ管理など業務ユースケース
-    - Application Layer の主要責務は orchestration とし、入口API、委譲順序、境界DTO、port/adapter 切り替えを集約する
-    - 詳細方針は `dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md` を参照
-- **`geo_io`**: ファイル I/O（STL/OBJ/PLY 等）
-- **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小機械制約）
-- **`cam_algorithms`**: CAM 固有アルゴリズム（経路生成、順序最適化、干渉回避、機械制約検証）。#684 で新設し、逆オフセット法による ToolPath 生成を実装
-- **`cam_sim`**: CAM 特化の実行・ユースケース層（ToolPath 実行、除去量更新、結果キャッシュ）
-- **`cam_entity`**: CAM 向け表示/属性統合層
+### クレート責務定義
 
-#### レイヤー設計の重要ポイント
+- **`foundation/analysis`**: 線形代数などの純粋な数値解析・抽象型・許容誤差
+- **`foundation/logging_foundation`** / **`foundation/i18n_foundation`**: ログの初期化・レート制御 / ローカライズのメッセージカタログ
+- **`geo_contracts`**: 幾何の trait定義の正本。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義する。具体型を持たない
+- **`geo_commons`**: `analysis` のみに依存する、形状の型に依存しない共通の数値計算（楕円・楕円体の最近点と距離等）
+- **`geo_core`**: 低レイヤーの値型（点・ベクトル・方向・相似変換・AABB）。`geo_primitives` / `geo_nurbs` から直接使う
+- **`geo_primitives`**: 解析形状の実装。`geo_contracts` の trait定義を実装し、必要に応じて `geo_commons` の計算へ委譲する
+- **`geo_nurbs`**: NURBS 曲線・曲面の実装。`geo_contracts` の trait定義を実装し、`geo_core` の型を使う
+- **`geo_topology`**: 位相構造（エッジ・ワイヤ・複合曲線等）
+- **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` / `geo_topology` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
+- **`geo_entity`**: エンティティの識別子・属性・関係の基盤
+- **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）
+- **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小の機械制約）
+- **`cam_algorithms`**: CAM 固有のアルゴリズム（経路生成、順序最適化、干渉回避、機械制約の検証）
+- **`cam_sim`**: CAM 特化の実行・ユースケース（ToolPath の実行、除去量の更新、結果のキャッシュ）
+- **`cam_entity`**: CAM 向けの表示・属性の統合
+- **`job_runtime`** / **`job_domain`**: CAD / CAM / CAE に依存しない実行制御 / ジョブ投入のポリシー
+- **`application`**: テセレーション・シミュレーション・ジョブ投入などのユースケースの orchestration（`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`）
+- **`test_support`**（`redring_test_support`）: 共有のテスト補助
+- **`viewmodel/*`**: モデルのデータの描画用への変換（`converter`）、カメラ等のグラフィックス制御（`graphics`）、CAM のデモ導線（`cam_demo`）
+- **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）
 
-- **`geo_contracts` は境界定義層**: shape definition core / extension / operations の公開面は `geo_contracts` を正本とする
-- **shape 意味論の正本は別文書**: 個別 shape の意味と API 意図は `dev/architecture/GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` を正本とし、`geo_contracts` の責務分離文書とは分けて管理する
-- **`geo_commons` は存続対象**: `analysis` のみに依存する数値カーネル置き場として意図的に維持する。`geo_algorithms` の代替でも、廃止前提の移行対象でもない
-- **`geo_core`は低レイヤー**: `geo_primitives`と`geo_nurbs`より下位に位置
-- **直接アクセス許可**: `geo_core`からのインポート（特にAabb2D/Aabb3D）は許可
-- **`geo_foundation`廃止（完了）**: 形状trait定義は`geo_contracts`へ統一済み
-- **`geo_primitives` / `geo_nurbs` の役割**: 自 crate 型に対する impl entry point を担い、重い自由関数アルゴリズムは `geo_algorithms`、形状非依存の数値カーネルは `geo_commons` へ分離する
-- **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` 依存は許可だが、`geo_algorithms` 実装ファイルでの `use geo_primitives::...` 直接 import は禁止（`use crate::...` 再エクスポート経由を使用）
-- **`geo_topology` の曲線依存**: `geo_topology -> geo_primitives` は既存許可とし、curve edge の段階導入に限って `geo_topology -> geo_nurbs` 依存も許可する
-- **NURBS topology 依存の制約**: 許可するのは `geo_topology -> geo_nurbs` の片方向のみとし、`geo_nurbs -> geo_topology` の逆依存は禁止する
-- **上位責務分離**: tessellation/simulation/job managerは`geo_algorithms`より上位のapplication層へ集約
-- **Application Layer の役割**: 非同期実装詳細そのものは持たず、同期/非同期/job投入の実行方式境界だけを管理する
-- **CAM責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` はCAM特化ユースケース実行として分離する
-- **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋データ層ではなく CAM ドメイン専用の application 層に近い
-- **循環依存回避**: `geo_primitives` ↔ `geo_nurbs` の直接依存は禁止（交差処理は`geo_algorithms`に集約）
+### レイヤー設計の重要ポイント
 
-### 段階移行計画（提案）
-
-1. **Phase 1: trait移設**
-- `geo_foundation` の形状traitを `geo_contracts` へ移設
-- 既存利用側を新trait参照へ置換
-
-2. **Phase 2: アルゴリズム統合**
-- `geo_algorithms` に `geo_primitives` と `geo_nurbs` の両依存を明示
-- Intersect/Collision等のクロス形状演算を `geo_algorithms` に統一
-
-3. **Phase 3: application層分離**
-- tessellation/simulation/job manager を application層クレートに移動
-- `geo_algorithms` は純粋幾何アルゴリズム責務に限定
-- 初期導入は PoC から段階適用とし、初手は単一受け皿 + module 分割を優先する
-- `*_orchestration` の独立クレート化は、責務境界と依存分岐が安定した段階で判断する
-
-4. **Phase 4: analysis再編**
-- `foundation/analysis` の名称変更を検討
-- 内部実装を純粋数値解析（線形代数等）に整理し、ドメイン責務を排除
+- **`geo_contracts` は境界定義層**: 形状の trait定義の公開面は `geo_contracts` を正本とし、具体型のクレートは trait定義を再エクスポートしない
+- **shape 意味論の正本は別文書**: 個別の形状の意味と API の意図は `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` を正本とし、trait定義の構成（`GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md`）とは分けて管理する
+- **API は最低限から拡張**: 呼び出し元が必要になった時点で API を追加し、呼び出し元のない API・別名・簡易実装を置かない（`GEO_API_ADDITION_RULES.md`）
+- **`geo_commons` は存続対象**: `analysis` のみに依存する共通の数値計算の置き場として維持する。`geo_algorithms` の代替でも、廃止前提の移行対象でもない
+- **`geo_core` は低レイヤー**: `geo_primitives` と `geo_nurbs` より下位に位置し、`geo_core` の型（特に `Aabb2D` / `Aabb3D`）の直接 import は許可する
+- **`geo_primitives` / `geo_nurbs` の役割**: 自クレートの型に対する trait定義の実装の入口を担い、重い自由関数のアルゴリズムは `geo_algorithms`、形状の型に依存しない数値計算は `geo_commons` へ分離する
+- **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` の依存は許可だが、`geo_algorithms` の実装ファイルでの `use geo_primitives::...` の直接 import は禁止（`use crate::...` の再エクスポート経由を使う）
+- **`geo_topology` の曲線依存**: `geo_topology -> geo_primitives` を許可し、曲線のエッジの段階導入に限って `geo_topology -> geo_nurbs` も許可する。`geo_nurbs -> geo_topology` の逆依存は禁止する
+- **循環依存の回避**: `geo_primitives` と `geo_nurbs` は互いに直接依存しない（形状をまたぐ処理は `geo_algorithms` に集約する）
+- **上位責務の分離**: テセレーション・シミュレーション・ジョブ管理の orchestration は `geo_algorithms` より上位の application 層へ集約する
+- **Application Layer の役割**: 非同期の実装詳細そのものは持たず、同期 / 非同期 / ジョブ投入の実行方式の境界だけを管理する
+- **CAM の責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` は CAM 特化のユースケースの実行として分離する
+- **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋なデータ層ではなく CAM ドメイン専用の application 層に近い
+- **ビューはモデルに直接依存しない**: `view/*` はモデルのクレートに依存せず、描画に必要なデータは `viewmodel/*` で変換したものを受け取る
 
 ### CAD/CAM 境界ルール（2026年3月更新）
 
@@ -114,7 +78,6 @@ foundation/analysis（将来改名候補）
 - **CAM内部の表示依存**: `cam_entity -> cam_core` は許可、`cam_entity -> cam_algorithms` は禁止
 - **禁止**: `cam_core -> geo_entity`
 - **禁止**: `geo_core -> cam_entity`
-- **許可**: `geo_core -> geo_entity`
 
 #### CAMクレート責務の補足
 
@@ -133,6 +96,8 @@ foundation/analysis（将来改名候補）
     - `job_runtime` は `geo_*` / `cam_*` / View系へ依存しない
     - `cam_*` / 将来のCAE側は `job_runtime` をアダプタ経由で利用する
 
+## 📏 運用ルール
+
 ### Artifact API 命名運用ルール（2026年3月更新, #415）
 
 - 運用原則: `*_v1` は wire format v1.0 を意味せず、API 世代識別子を表す
@@ -141,7 +106,7 @@ foundation/analysis（将来改名候補）
 
 ### 参照識別子・パス文字列運用ルール（2026年8月更新）
 
-- 適用範囲: RedRing 全体（`model/` / `viewmodel/` / `view/` / `render/` / `stage/` / `scripts/`）
+- 適用範囲: RedRing 全体（`foundation/` / `model/` / `viewmodel/` / `view/` / `scripts/`）
 - 対象: 参照識別子として扱う文字列全般
     - `input_ref` / `result_ref` / `log_ref`
     - artifact 参照ID、ジョブ関連参照、追跡キー
@@ -271,16 +236,16 @@ foundation/analysis（将来改名候補）
 
 ### 依存チェック運用
 
-- 実行コマンド: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1 -ExitOnError`
-- CI/ローカルともに上記スクリプトで依存境界違反を検出する
-- `cam_algorithms` 新設時は、workspace 参加、`scripts/_arch_rules_data.ps1` の依存ルール更新、関連ドキュメント更新を同一変更セットで行う
+- 実行コマンド: `pwsh -NoProfile -File .\scripts\check_architecture_dependencies.ps1 -ExitOnError`
+- CI / ローカルともに上記スクリプトで依存境界の違反を検出する
+- ワークスペースのクレートと依存は `cargo metadata` から取得し、ルール（`scripts/_arch_rules_data.ps1`）は `Cargo.toml` のパッケージ名で書く
+- ルールにないクレート・許可されていない依存はエラーになる。クレートを追加・変更するときは、ワークスペースの `members`、`[lints] workspace = true`、`scripts/_arch_rules_data.ps1`、この文書を同じ変更セットで更新する
 
 ### 共有テスト補助コード配置方針（2026年7月更新）
 
 - 共有テスト補助コードは、実際に同時利用している層の最小範囲で配置する
-- include による共有テスト補助コードを model層内で共通利用する場合は、`model/test_helpers` のように用途が明確なディレクトリへ配置する
-- 層横断で同一補助コードを継続利用する必要が生じた場合は、ワークスペース共通テスト補助クレート化を再評価する
-- 再評価を採用する場合は、workspace 構成、依存境界ルール、関連設計書を同一変更セットで更新する
+- 層をまたいで継続利用する補助コードは、ワークスペース共通のテスト補助クレート（`model/test_support`、パッケージ名 `redring_test_support`）に置き、dev-dependencies で使う
+- テストの置き場所は `TEST_PLACEMENT_RULES.md` に従う
 
 ### 実行時文言の言語ポリシー（2026年8月更新）
 
@@ -294,76 +259,41 @@ foundation/analysis（将来改名候補）
     - 検出: `scripts/check_github_refs_in_source.ps1`（`check_all_before_push.ps1` と CI のアーキテクチャチェックで実行）
     - 経緯の参照が必要な場合は、Issue 番号ではなく設計書名と節（例: `設計: CAM_ALGORITHMS_DESIGN.md §8`）で記載する
 
-## 🔧 修正方針
-
-### レガシーAPIの段階的置き換え
-
-1. **競合メソッドの内部化**: レガシー `pub fn` を `fn` に変更
-2. **Foundation実装の真の移行**: 共存ではなく置き換えアプローチ
-3. **最小限の実装から開始**: 1-2個のメソッドから段階的に実装
-4. **geo_commons機能の活用**: 共通計算で内部実装を再利用
-
 ## geo_commons の位置づけ
 
 ### 現在方針
 
-- `geo_commons` は廃止前提ではなく、`analysis` のみに依存する再利用可能な幾何数値カーネル層として維持する
+- `geo_commons` は廃止前提ではなく、`analysis` のみに依存する再利用可能な幾何の数値計算の層として維持する
 - `geo_contracts` は trait定義の正本であり、数値アルゴリズム本体は持たない
-- `geo_primitives` / `geo_nurbs` は自 crate 型の impl entry point を担い、必要に応じて `geo_commons` へ薄く委譲する
-- `geo_algorithms` は cross-shape 演算や高レベル戦略を置く層であり、`geo_commons` の置き換えではない
+- `geo_primitives` / `geo_nurbs` は自クレートの型の trait定義の実装の入口を担い、必要に応じて `geo_commons` へ委譲する
+- `geo_algorithms` は形状をまたぐ演算や高レベルの戦略を置く層であり、`geo_commons` の置き換えではない
+- 置くのは呼び出し元のある関数だけとし、使われなくなった関数は削除する
 
 ### 置くもの
 
-- ellipse 周長近似、焦点、離心率のような shape 非依存の数値式
-- ellipse 距離計算のような、具体 shape 型を要求しない共通数値カーネル
-- trait定義や orchestration を含まない、純粋関数ベースの幾何補助計算
+- 形状の型に依存しない数値計算（楕円・楕円体の最近点と距離、線分と AABB の距離 等）
+- trait定義や orchestration を含まない、純粋関数ベースの幾何の補助計算
 
 ### 置かないもの
 
 - trait定義そのもの
-- cross-shape capability の公開契約
-- shape 実装の entry point
-- heavy strategy / solver orchestration
+- 形状をまたぐ capability の公開契約
+- 形状の実装の入口
+- 重い戦略 / ソルバーの orchestration
 
-この位置づけを正本とし、`geo_commons` 廃止前提で書かれた旧設計メモがある場合は、個別 Issue で現行方針へ更新する。
-
-### 形状API統一の実現（新方針）
-
-**目標**: 全てのアクセスを「各形状クレート内trait」経由に統一
-
-```rust
-// ✅ 目標: 形状クレート内trait経由のみアクセス可能
-use geo_primitives::EllipseArc2DDerived;
-
-let arc = EllipseArc2D::new(...);
-let length = arc.length(); // trait実装を呼び出し
-let point = arc.point_at_parameter(0.5); // trait実装を呼び出し
-
-// ❌ 禁止: レガシー直接アクセス
-// arc.legacy_method() // コンパイルエラー
-```
-
-### レンダリング層
+## レンダリング層
 
 ```text
-redring ← stage ← render
-       ↖ viewmodel
+redring（view/app） → stage → render
+          ↓             ↓        ↓
+              viewmodel（converter / graphics / cam_demo） → model
 ```
 
-#### アプリケーション層の責務
-
-- **`render`**: GPU 描画基盤（wgpu + WGSL）- 基本描画機能のみ
-- **`stage`**: レンダリングステージ管理 - 最小限の構造のみ
-- **`viewmodel`**: ビュー操作・変換ロジック - 基礎機能のみ
-- **`redring`**: メインアプリケーション - ウィンドウ表示のみ
-
-**現在未実装の主要機能**:
-
-- メニューシステム
-- コマンドパレット
-- ファイル操作（開く/保存）
-- WebAssembly対応
-- 実用的なCAD/CAM機能
+- **`render`**: GPU 描画基盤（wgpu + WGSL）。デバイス・パイプライン・シェーダ・頂点型・描画対象ごとの GPU リソース
+- **`stage`**: レンダリングステージ（`RenderStage` の実装）
+- **`viewmodel`**: モデルのデータを描画用のデータに変換する
+- **`redring`**: メインアプリケーション（ウィンドウ・入力・ステージの組み立て）
+- 実装パターンは `.github/skills/rendering/skill.md` を参照する
 
 ## 📐 座標系の規約
 
@@ -382,36 +312,19 @@ redring ← stage ← render
    - 座標系の左右の切り替えはミラーリング（行列式が負）にあたるため、同じ境界で三角形の巻き順（表面の判定）と法線も反転させる
    - ミラーリングを含む変換の扱いは [#763](https://github.com/RedRing2020/RedRing/issues/763) で定める
 
-## 🔄 f64正準化移行について
-
-- **基本方針**: Vector/Point は f64 正準型、測定量は Scalar `<T>` 維持
-- **Legacy型**: 全て削除済み、CI で deprecated symbols を deny
-- **詳細履歴**: `MIGRATION_VECTOR_F64.md` を参照
-
-## 📝 重要な教訓
-
-1. **共存アプローチの失敗**: レガシーとFoundationの共存はメソッド名競合を引き起こす
-2. **置き換えの必要性**: Foundation Patternの真の価値は統一アクセスにある
-3. **段階的実装の重要性**: 一度に多数のメソッドを実装すると失敗する
-
-## 🎆 期待される成果
-
-- **統一アクセス**: 全てのAPIが各形状クレートのtrait経由
-- **型安全性**: コンパイル時のインターフェース統一
-- **保守性向上**: 明確な責務分離と依存関係
-- **拡張性**: 新しい形状追加は各形状クレート、クロス演算は`geo_algorithms`に集約
-
 ## 🔗 関連ドキュメント
 
 - **[📖 オンラインドキュメント](https://redring2020.github.io/RedRing/)** - GitHub Pages（自動更新）
-- [`dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`](dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md) - Application Layer / orchestration 層の責務定義
-- [`dev/architecture/FIXTURE_SEPARATION_DESIGN.md`](dev/architecture/FIXTURE_SEPARATION_DESIGN.md) - Model fixtures 分離方針（Issue #516）
-- [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md) - 幾何抽象化の詳細仕様
-- [`manual/philosophy.md`](manual/philosophy.md) - 設計思想・エラー処理ガイドライン
-- [`MIGRATION_VECTOR_F64.md`](MIGRATION_VECTOR_F64.md) - f64 正準化移行履歴
-- [`GITHUB_PAGES_SETUP.md`](GITHUB_PAGES_SETUP.md) - GitHub Pages 設定ガイド
-- [`dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md`](dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Dockerヘッドレス + Kubernetes）
-- [`dev/architecture/GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md`](dev/architecture/GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md) - geo_algorithms の分割ルール（primitive_2d/3d/NURBS/pair_base の統一規約）
-- [`dev/architecture/TRANSFORM_TRAIT_DESIGN.md`](dev/architecture/TRANSFORM_TRAIT_DESIGN.md) - 変換の trait定義（geo_contracts の変換 trait、geo_core の変換型、形状ごとの扱い）
-- [`dev/archive/issues/issue-412-artifact-api-naming-archive-note.md`](dev/archive/issues/issue-412-artifact-api-naming-archive-note.md) - artifact API命名整理の判断記録
-
+- [`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`](APPLICATION_ORCHESTRATION_LAYER_DESIGN.md) - Application Layer / orchestration 層の責務定義
+- [`GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md`](GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md) - geo_contracts の trait定義の構成
+- [`GEOMETRY_SHAPE_SEMANTICS_DESIGN.md`](GEOMETRY_SHAPE_SEMANTICS_DESIGN.md) - 形状の意味と API の意図
+- [`GEO_API_ADDITION_RULES.md`](GEO_API_ADDITION_RULES.md) - 公開 API の追加の規則
+- [`GEO_PRIMITIVES_MODULE_STRUCTURE_RULES.md`](GEO_PRIMITIVES_MODULE_STRUCTURE_RULES.md) - 形状のモジュール構成
+- [`TEST_PLACEMENT_RULES.md`](TEST_PLACEMENT_RULES.md) - テストの配置
+- [`GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md`](GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md) - geo_algorithms の分割ルール
+- [`TRANSFORM_TRAIT_DESIGN.md`](TRANSFORM_TRAIT_DESIGN.md) - 変換の trait定義
+- [`FIXTURE_SEPARATION_DESIGN.md`](FIXTURE_SEPARATION_DESIGN.md) - Model fixtures の分離方針
+- [`BATCH_COMPUTE_PLATFORM_DESIGN.md`](BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Docker ヘッドレス + Kubernetes）
+- [`manual/philosophy.md`](../../manual/philosophy.md) - 設計思想・エラー処理ガイドライン
+- [`issue-412-artifact-api-naming-archive-note.md`](../archive/issues/issue-412-artifact-api-naming-archive-note.md) - artifact API 命名整理の判断記録
+- [`issue-832-architecture-history-archive-note.md`](../archive/issues/architecture/issue-832-architecture-history-archive-note.md) - 完了した移行計画と、解消した課題の記録
