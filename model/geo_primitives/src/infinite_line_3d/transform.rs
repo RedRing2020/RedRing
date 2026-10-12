@@ -9,9 +9,9 @@ impl<T: Scalar> SimilarityTransformable3D<T> for InfiniteLine3D<T> {
         &self,
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
-        Ok(Self::from_direction(
-            transform.apply_point(self.point),
-            transform.apply_direction(self.direction),
-        ))
+        Ok(Self {
+            point: transform.apply_point(self.point),
+            direction: transform.apply_direction(self.direction),
+        })
     }
 }

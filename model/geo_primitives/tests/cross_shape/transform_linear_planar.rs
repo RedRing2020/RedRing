@@ -3,7 +3,8 @@
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, InfiniteLine2DConstructor, InfiniteLine2DEvaluation, InfiniteLine3DConstructor,
-    InfiniteLine3DEvaluation, Plane3DProperties, SimilarityTransformable2D,
+    InfiniteLine3DEvaluation, Plane3DProperties, Ray2DConstructor, Ray2DEvaluation,
+    Ray3DConstructor, Ray3DEvaluation, Ray3DProperties, SimilarityTransformable2D,
     SimilarityTransformable3D, TransformError, Triangle2DBoundaryAccess, Triangle3DBoundaryAccess,
 };
 use geo_primitives::{
@@ -74,7 +75,9 @@ fn ray_3d_transforms_origin_and_unit_direction() {
     let moved = ray.transform_similarity(&transform_3d()).unwrap();
 
     assert_point3_eq(moved.origin(), map3(ray.origin()));
-    assert!((moved.direction_vector() - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64);
+    assert!(
+        (moved.direction().as_vector() - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64
+    );
     // パラメータは距離のため、スケール後は 2 倍の距離に対応する
     assert_point3_eq(
         moved.point_at_parameter(2.0),

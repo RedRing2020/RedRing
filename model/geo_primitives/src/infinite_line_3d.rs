@@ -9,9 +9,8 @@ use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, AngularRelation, CrossDistance, InfiniteLine3DConstructor,
     InfiniteLine3DContainment, InfiniteLine3DDistance, InfiniteLine3DEvaluation,
-    InfiniteLine3DProjection, InfiniteLine3DProperties, InfiniteLine3DTransform,
-    IntersectsRelation, ParallelRelation, PerpendicularRelation, PrimitiveKind, PrimitiveMetadata,
-    Scalar,
+    InfiniteLine3DProjection, InfiniteLine3DProperties, IntersectsRelation, ParallelRelation,
+    PerpendicularRelation, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 3次元空間の無限直線（Core実装）
@@ -27,16 +26,6 @@ pub struct InfiniteLine3D<T: Scalar> {
 impl<T: Scalar> PrimitiveMetadata for InfiniteLine3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::InfiniteLine
-    }
-}
-
-impl<T: Scalar> InfiniteLine3D<T> {
-    /// 正規化済み方向ベクトルから無限直線を作成（再正規化なし）
-    ///
-    /// 半直線が自身を含む直線を作るため pub(crate)。`Direction3D` は正規化済みであることが
-    /// 型で保証されるため、`new` と異なり sqrt を呼ばない。
-    pub(crate) fn from_direction(point: Point3D<T>, direction: Direction3D<T>) -> Self {
-        Self { point, direction }
     }
 }
 
@@ -93,15 +82,6 @@ impl<T: Scalar> InfiniteLine3DContainment<T> for InfiniteLine3D<T> {
 impl<T: Scalar> InfiniteLine3DProjection<T> for InfiniteLine3D<T> {
     fn closest_point(&self, point: Point3D<T>) -> Point3D<T> {
         self.point_at_parameter(self.parameter_for_point(point))
-    }
-}
-
-impl<T: Scalar> InfiniteLine3DTransform<T> for InfiniteLine3D<T> {
-    fn reverse(&self) -> Self {
-        Self {
-            point: self.point,
-            direction: -self.direction,
-        }
     }
 }
 

@@ -4,8 +4,8 @@ use crate::{
     Plane3D, Point3D, Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D,
 };
 use geo_contracts::{
-    EllipsoidalSolid3DProperties, InfiniteLine3DProjection, InfiniteLine3DProperties, Scalar,
-    SphericalSolid3DProperties,
+    EllipsoidalSolid3DProperties, InfiniteLine3DProjection, InfiniteLine3DProperties,
+    Ray3DEvaluation, Ray3DProperties, Scalar, SphericalSolid3DProperties,
 };
 
 fn ellipsoidal_solid3d_point3d_intersection_raw<T: Scalar>(
@@ -180,9 +180,9 @@ fn spherical_solid3d_ray3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
     let center = Point3D::new(cx, cy, cz);
-    let ray_direction = ray.direction_vector();
+    let ray_direction = ray.direction().as_vector();
     if sphere.distance_to_ray(&ray.origin(), &ray_direction) <= tolerance {
-        let parameter = ray.parameter_for_point(&center);
+        let parameter = ray.parameter_for_point(center);
         let clamped = if parameter < T::ZERO {
             T::ZERO
         } else {

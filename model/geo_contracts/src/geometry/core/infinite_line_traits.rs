@@ -69,12 +69,6 @@ pub trait InfiniteLine2DProjection<T: Scalar> {
     fn closest_point(&self, point: Point2D<T>) -> Point2D<T>;
 }
 
-pub trait InfiniteLine2DTransform<T: Scalar> {
-    fn reverse(&self) -> Self
-    where
-        Self: Sized;
-}
-
 pub trait InfiniteLine3DEvaluation<T: Scalar> {
     /// 基準点 `point()` を原点とし、正規化方向 `direction()` に沿う signed support parameter `t` の evaluation point を返す
     fn point_at_parameter(&self, t: T) -> Point3D<T>;
@@ -95,10 +89,4 @@ pub trait InfiniteLine3DContainment<T: Scalar> {
 pub trait InfiniteLine3DProjection<T: Scalar> {
     /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: Point3D<T>) -> Point3D<T>;
-}
-
-pub trait InfiniteLine3DTransform<T: Scalar> {
-    fn reverse(&self) -> Self
-    where
-        Self: Sized;
 }

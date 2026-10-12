@@ -87,13 +87,6 @@ impl<T: Scalar> Direction2D<T> {
         }
     }
 
-    /// 180度回転（反転）
-    pub fn reverse(&self) -> Self {
-        Self {
-            vector: -self.vector,
-        }
-    }
-
     /// 他の方向と平行かどうかを判定
     pub fn is_parallel_to(&self, other: Self) -> bool {
         self.is_parallel_with_angle_tolerance(other, default_angle_tolerance::<T>())

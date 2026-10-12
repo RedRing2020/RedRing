@@ -9,7 +9,8 @@ use crate::{
     Plane3D, Point3D, Ray3D, SphericalSolid3D,
 };
 use geo_contracts::{
-    CylindricalSolid3DDistance, DistanceConvergenceError, InfiniteLine3DDistance, Scalar,
+    CylindricalSolid3DDistance, DistanceConvergenceError, InfiniteLine3DDistance, Ray3DDistance,
+    Scalar,
 };
 
 /// NurbsCurve3D-点 間の最短距離（フォールバック付き）
@@ -152,7 +153,7 @@ pub fn nurbscurve3d_ray3d_try_distance<T: Scalar>(
         let u = u_min + delta_u * T::from_usize(i);
         let curve_vec = curve.evaluate_at(u);
         let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
-        min_distance = min_distance.min(ray.distance_to_point(&curve_point));
+        min_distance = min_distance.min(ray.distance_to_point(curve_point));
     }
 
     if min_distance == T::INFINITY {
@@ -494,6 +495,7 @@ mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
     use geo_contracts::InfiniteLine3DConstructor;
+    use geo_contracts::Ray3DConstructor;
     use geo_contracts::{
         CylindricalSolid3DConstructor, EllipsoidalSolid3DConstructor, NurbsCurve3DConstructor,
         SphericalSolid3DConstructor, ToleranceSettings,

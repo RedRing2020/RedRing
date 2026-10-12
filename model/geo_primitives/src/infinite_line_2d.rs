@@ -8,8 +8,8 @@ use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
     default_distance_tolerance, AngularRelation, InfiniteLine2DConstructor,
     InfiniteLine2DContainment, InfiniteLine2DDistance, InfiniteLine2DEvaluation,
-    InfiniteLine2DProjection, InfiniteLine2DProperties, InfiniteLine2DTransform, ParallelRelation,
-    PerpendicularRelation, PrimitiveKind, PrimitiveMetadata, Scalar,
+    InfiniteLine2DProjection, InfiniteLine2DProperties, ParallelRelation, PerpendicularRelation,
+    PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元無限直線（Core実装）
@@ -88,15 +88,6 @@ impl<T: Scalar> InfiniteLine2DContainment<T> for InfiniteLine2D<T> {
 impl<T: Scalar> InfiniteLine2DProjection<T> for InfiniteLine2D<T> {
     fn closest_point(&self, point: Point2D<T>) -> Point2D<T> {
         self.point_at_parameter(self.parameter_for_point(point))
-    }
-}
-
-impl<T: Scalar> InfiniteLine2DTransform<T> for InfiniteLine2D<T> {
-    fn reverse(&self) -> Self {
-        Self {
-            point: self.point,
-            direction: -self.direction,
-        }
     }
 }
 

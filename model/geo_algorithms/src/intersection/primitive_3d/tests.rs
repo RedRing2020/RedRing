@@ -32,7 +32,7 @@ use crate::{
     Triangle3D, TriangleMesh3D, Vector3D,
 };
 use analysis::test_constants;
-use geo_contracts::InfiniteLine3DConstructor;
+use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
 
 fn standard_distance_tol() -> f64 {
     test_constants::DISTANCE_TOLERANCE_F64

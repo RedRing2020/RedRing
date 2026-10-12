@@ -16,7 +16,7 @@ use crate::{
 use geo_contracts::{
     default_parallel_cross_error_tolerance, Arc2DProperties, Circle2DProperties,
     Ellipse2DProperties, InfiniteLine2DDistance, InfiniteLine2DProjection,
-    InfiniteLine2DProperties, LineSegment2DProperties, Ray2DProperties, Scalar,
+    InfiniteLine2DProperties, LineSegment2DProperties, Ray2DDistance, Ray2DProperties, Scalar,
     Triangle2DBoundaryAccess,
 };
 
@@ -144,10 +144,8 @@ pub fn ray2d_line_segment2d_intersection<T: Scalar>(
     let s1 = segment.start_point();
     let s2 = segment.end_point();
 
-    let origin_tuple = ray.origin();
-    let direction_tuple = ray.direction();
-    let origin = Point2D::new(origin_tuple.0, origin_tuple.1);
-    let direction = Vector2D::new(direction_tuple.0, direction_tuple.1);
+    let origin = ray.origin();
+    let direction = ray.direction().as_vector();
 
     let d1 = direction;
     let d2 = Vector2D::from_points(s1, s2);
@@ -191,10 +189,8 @@ pub fn ray2d_circle2d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    let origin_tuple = ray.origin();
-    let direction_tuple = ray.direction();
-    let origin = Point2D::new(origin_tuple.0, origin_tuple.1);
-    let direction = Vector2D::new(direction_tuple.0, direction_tuple.1);
+    let origin = ray.origin();
+    let direction = ray.direction().as_vector();
 
     let oc = origin - center;
     let dir_vec = direction;
@@ -275,7 +271,7 @@ pub fn ray2d_ellipse2d_intersection<T: Scalar>(
 ) -> IntersectionResult<T> {
     let center_tuple = ellipse.center();
     let center = Point2D::new(center_tuple.0, center_tuple.1);
-    let opt = if ray.distance_to_point(&center) <= ellipse.semi_major_axis() + tolerance {
+    let opt = if ray.distance_to_point(center) <= ellipse.semi_major_axis() + tolerance {
         Some(center)
     } else {
         None
@@ -430,8 +426,10 @@ pub fn infinite_line2d_ray2d_intersection<T: Scalar>(
     ray: &Ray2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (ox, oy) = Ray2DProperties::origin(ray);
-    let (rdx, rdy) = Ray2DProperties::direction(ray);
+    let ray_origin = Ray2DProperties::origin(ray);
+    let (ox, oy) = (ray_origin.x(), ray_origin.y());
+    let ray_dir = Ray2DProperties::direction(ray);
+    let (rdx, rdy) = (ray_dir.x(), ray_dir.y());
     let line_point = InfiniteLine2DProperties::point(line);
     let line_dir = InfiniteLine2DProperties::direction(line);
     let (ldx, ldy) = (line_dir.x(), line_dir.y());
@@ -625,8 +623,8 @@ fn collinear_ray_segment_overlap_result<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let origin = Point2D::new(ray.origin().0, ray.origin().1);
-    let direction = Vector2D::new(ray.direction().0, ray.direction().1);
+    let origin = ray.origin();
+    let direction = ray.direction().as_vector();
     let s1 = segment.start_point();
     let s2 = segment.end_point();
     let dir_norm = direction.length_squared();
@@ -759,10 +757,14 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
     ray2: &Ray2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (ox1, oy1) = Ray2DProperties::origin(ray1);
-    let (dx1, dy1) = Ray2DProperties::direction(ray1);
-    let (ox2, oy2) = Ray2DProperties::origin(ray2);
-    let (dx2, dy2) = Ray2DProperties::direction(ray2);
+    let ray1_origin = Ray2DProperties::origin(ray1);
+    let (ox1, oy1) = (ray1_origin.x(), ray1_origin.y());
+    let ray1_dir = Ray2DProperties::direction(ray1);
+    let (dx1, dy1) = (ray1_dir.x(), ray1_dir.y());
+    let ray2_origin = Ray2DProperties::origin(ray2);
+    let (ox2, oy2) = (ray2_origin.x(), ray2_origin.y());
+    let ray2_dir = Ray2DProperties::direction(ray2);
+    let (dx2, dy2) = (ray2_dir.x(), ray2_dir.y());
 
     // ray1: P = (ox1, oy1) + t1 * (dx1, dy1),  t1 >= 0
     // ray2: Q = (ox2, oy2) + t2 * (dx2, dy2),  t2 >= 0
@@ -872,6 +874,7 @@ mod tests {
     };
     use analysis::test_constants;
     use geo_contracts::InfiniteLine2DConstructor;
+    use geo_contracts::Ray2DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;

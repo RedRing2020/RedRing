@@ -6,9 +6,9 @@
 pub use crate::geometry::core::*;
 pub use crate::geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use crate::geometry::operations::{
-    AngleBetween, AngularRelation, BBoxCollision, BasicCollision, CrossDistance,
-    IntersectsRelation, ParallelRelation, PerpendicularRelation, PointDistance,
-    SimilarityTransformable2D, SimilarityTransformable3D,
+    AngularRelation, BBoxCollision, BasicCollision, CrossDistance, IntersectsRelation,
+    ParallelRelation, PerpendicularRelation, PointDistance, SimilarityTransformable2D,
+    SimilarityTransformable3D,
 };
 pub use crate::{
     Aabb2D, Aabb3D, Angle, Direction2D, Direction3D, Point2D, Point3D, Scalar,

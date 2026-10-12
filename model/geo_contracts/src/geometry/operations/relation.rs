@@ -27,9 +27,3 @@ pub trait AngularRelation<T: Scalar, Other> {
     /// 相手との角度を返す
     fn angle_to(&self, other: &Other) -> T;
 }
-
-/// 相手との角度を返す relation
-pub trait AngleBetween<T: Scalar, Other> {
-    /// 相手との角度を返す
-    fn angle_between(&self, other: &Other) -> T;
-}

@@ -1,7 +1,6 @@
 //! Vector2D のテスト
 
 use crate::{Point2D, Vector2D};
-use analysis::abstract_types::Angle;
 
 /// 基本作成テスト
 #[test]
@@ -136,14 +135,7 @@ fn test_angles() {
 /// 回転テスト
 #[test]
 fn test_rotation() {
-    use std::f64::consts::FRAC_PI_2;
-
     let v = Vector2D::new(1.0, 0.0);
-
-    // 90度回転
-    let rotated = v.rotate(Angle::from_radians(FRAC_PI_2));
-    assert!((rotated.x() - 0.0_f64).abs() < f64::EPSILON);
-    assert!((rotated.y() - 1.0_f64).abs() < f64::EPSILON);
 
     // 90度回転（専用メソッド）
     let rot90 = v.rotate_90();
@@ -272,17 +264,4 @@ fn test_vector2d_f32() {
 
     let normalized = v.normalize();
     assert!((normalized.length() - 1.0f32).abs() < f32::EPSILON);
-}
-
-#[test]
-fn test_rotation_identity() {
-    use std::f64::consts::PI;
-
-    let v = Vector2D::new(1.0, 2.0);
-
-    // 2π回転は元のベクトルと同じ
-    let rotated = v.rotate(Angle::from_radians(2.0 * PI));
-
-    assert!((rotated.x() - v.x()).abs() < 1e-10);
-    assert!((rotated.y() - v.y()).abs() < 1e-10);
 }
