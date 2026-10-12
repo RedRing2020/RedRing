@@ -290,7 +290,7 @@ analysis → geo_contracts
 
 ```powershell
 # 依存関係チェック（全てパス）
-.\scripts\check_architecture_dependencies_simple.ps1
+.\scripts\check_architecture_dependencies.ps1
 ```
 
 - ✅ `geo_nurbs` → `geo_primitives` 依存なし

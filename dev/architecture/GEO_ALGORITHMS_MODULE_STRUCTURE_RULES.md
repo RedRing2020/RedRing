@@ -152,7 +152,7 @@
 - [ ] `cargo clippy -p geo_algorithms -- -D warnings` 成功
 - [ ] `cargo fmt --all` 実行
 - [ ] `cargo test -p geo_algorithms` 成功
-- [ ] `./scripts/check_architecture_dependencies_simple.ps1` 成功
+- [ ] `./scripts/check_architecture_dependencies.ps1` 成功
 
 ## 9. #403 への適用メモ
 

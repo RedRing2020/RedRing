@@ -31,7 +31,7 @@
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
 4. `cargo fmt --all -- --check`
-5. `./scripts/check_architecture_dependencies_simple.ps1`
+5. `./scripts/check_architecture_dependencies.ps1`
 6. `mdbook build`
 
 ## 4. リリース運用フロー（運用初版）
@@ -115,7 +115,7 @@
   - [ ] `cargo test --workspace`
   - [ ] `cargo clippy --workspace --all-targets -- -D warnings`
   - [ ] `cargo fmt --all -- --check`
-  - [ ] `./scripts/check_architecture_dependencies_simple.ps1`
+  - [ ] `./scripts/check_architecture_dependencies.ps1`
   - [ ] `mdbook build`
 - [ ] `CHANGELOG.md` の `Unreleased` を `0.1.0` として確定
 - [ ] `dev/RELEASE_NOTE_TEMPLATE.md` を使って `v0.1.0` ノートを作成

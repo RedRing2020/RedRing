@@ -4,7 +4,7 @@
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
-> **技術詳細**: 実装パターンや設計原則は [skills/](skills/)（`implementation` / `foundation-pattern` 等） を参照してください。
+> **技術詳細**: 実装パターンや設計原則は [skills.md](skills.md) を参照してください。
 
 ## 🚨 AI開発者への厳格な制約（最終更新: 2025年12月27日）
 
@@ -86,7 +86,7 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 1. **設計検討フェーズ**: 実装前に複数選択肢を提示し、ユーザー承認を得る
 2. **継続作業確認**: 既存の途中実装がないか `dev/` フォルダと `model/geo_core` を確認
 3. **アーキテクチャ遵守**: `geo_core` ブリッジパターンを厳守（例: `geo_nurbs → geo_core → geo_contracts`）
-4. **依存関係不変**: `scripts/check_architecture_dependencies_simple.ps1` の改変は絶対禁止
+4. **依存関係のルールを緩めない**: 依存関係のチェック（`scripts/check_architecture_dependencies.ps1` と、そのルール `scripts/_arch_rules_data.ps1`）の許可の追加・禁止の削除・検査の無効化は、ユーザーの承認なしに行わない。違反はチェックを変えずにコードを直す
 5. **表示不具合とカーネル変換の分離確認**: wgpu表示の症状だけを根拠に `geo_core` / `geo_nurbs` の行列積順や transform 実装を変更しない。変更前に、対象の transform 経路が実際に呼ばれていることを確認する
 
 ### 依存関係と import の運用ルール（重要）
@@ -169,7 +169,7 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 cargo build                 # 全体ビルド
 cargo test --workspace      # 全体テスト実行
 cargo fmt --all -- --check  # フォーマットチェック
-.\scripts\check_architecture_dependencies_simple.ps1  # アーキテクチャ検証
+.\scripts\check_architecture_dependencies.ps1  # アーキテクチャ検証
 ```
 
 **重要な制約**:
@@ -207,7 +207,7 @@ AIは、命名や進行管理の判断時に次の順で必ず参照すること
 4. **ドキュメント更新** - 実装前に関連ドキュメントを更新
 5. **テストの充実** - テストの置き場所は `dev/architecture/TEST_PLACEMENT_RULES.md` に従う
 
-詳細は [skills/](skills/)（`implementation` / `foundation-pattern` 等） を参照
+詳細は [skills.md](skills.md) を参照
 - `tracing` + `tracing-subscriber` をワークスペース共通依存として使用
 - ログレベルは `RUST_LOG` 環境変数で制御
 - 進捗管理: GitHub Issues/Projects で追跡

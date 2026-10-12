@@ -163,7 +163,7 @@ CAM では、用途を次の 3 種に分けてトレランスを選択する。
 
 ### 統合時の固定ルール
 
-- `scripts/check_architecture_dependencies_simple.ps1` は例外追加で迂回しない
+- `scripts/check_architecture_dependencies.ps1` は例外追加で迂回しない
 - `cam_sim` を追加・拡張する場合も、workspace 全体の build/test と依存チェックスクリプトが通る状態を維持する
 - UI 連携は `view/app` 側に留め、`cam_sim` は計算コアとスナップショット管理へ責務を限定する
 - `ToolPath` / `ToolSet` / `Tool` を入力境界とし、表示都合の state を `cam_sim` に持ち込まない
