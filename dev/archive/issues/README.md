@@ -19,6 +19,7 @@
 
 | Issue | 状態 | 機能 | ファイル |
 | --- | --- | --- | --- |
+| #832 | OPEN | ARCHITECTURE.md から移した完了済みの移行計画・解消した課題 | `dev/archive/issues/architecture/issue-832-architecture-history-archive-note.md` |
 | #248 | CLOSED | primitive_nurbs の Newton 法重複実装の統合 | `dev/archive/issues/architecture/issue-248-newton-consolidation-design-archive-note.md` |
 
 ### View Refactoring（app/stage/render）
