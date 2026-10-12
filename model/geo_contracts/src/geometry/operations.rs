@@ -10,6 +10,5 @@ pub use distance::{CrossDistance, DistanceConvergenceError};
 
 pub use relation::{
     AngleBetween, AngularRelation, IntersectsRelation, ParallelRelation, PerpendicularRelation,
-    SameLineRelation,
 };
 pub use transform::{SimilarityTransformable2D, SimilarityTransformable3D};

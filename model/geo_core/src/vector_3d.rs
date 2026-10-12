@@ -169,17 +169,6 @@ impl<T: Scalar> Vector3D<T> {
         self.length() <= T::EPSILON
     }
 
-    /// 他のベクトルと平行かどうかを判定
-    pub fn is_parallel(&self, other: &Self) -> bool {
-        self.is_parallel_with_error_tolerance(other, T::PARALLEL_CROSS_ERROR_TOLERANCE)
-    }
-
-    /// 他のベクトルと平行かどうかを数値誤差閾値つきで判定
-    pub fn is_parallel_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
-        let cross = self.cross(other);
-        cross.length() <= tolerance
-    }
-
     /// ベクトルの線形補間
     pub fn lerp(&self, other: &Self, t: T) -> Self {
         *self + (*other - *self) * t

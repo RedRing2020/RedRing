@@ -38,14 +38,10 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
     line1: &InfiniteLine3D<T>,
     line2: &InfiniteLine3D<T>,
 ) -> Option<Point3D<T>> {
-    let (px1, py1, pz1) = InfiniteLine3DProperties::point(line1);
-    let (dx1, dy1, dz1) = InfiniteLine3DProperties::direction(line1);
-    let (px2, py2, pz2) = InfiniteLine3DProperties::point(line2);
-    let (dx2, dy2, dz2) = InfiniteLine3DProperties::direction(line2);
-    let p1 = Point3D::new(px1, py1, pz1);
-    let d1 = Vector3D::new(dx1, dy1, dz1);
-    let p2 = Point3D::new(px2, py2, pz2);
-    let d2 = Vector3D::new(dx2, dy2, dz2);
+    let p1 = InfiniteLine3DProperties::point(line1);
+    let d1 = InfiniteLine3DProperties::direction(line1).as_vector();
+    let p2 = InfiniteLine3DProperties::point(line2);
+    let d2 = InfiniteLine3DProperties::direction(line2).as_vector();
     let dp = Vector3D::from_points(&p1, &p2);
     let cross_d1_d2 = d1.cross(&d2);
     let cross_dp_d2 = dp.cross(&d2);
@@ -58,7 +54,11 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
     }
 
     let t = cross_dp_d2.dot(&cross_d1_d2) / denom_sq;
-    Some(Point3D::new(px1 + t * dx1, py1 + t * dy1, pz1 + t * dz1))
+    Some(Point3D::new(
+        p1.x() + t * d1.x(),
+        p1.y() + t * d1.y(),
+        p1.z() + t * d1.z(),
+    ))
 }
 
 /// 2つのRayの交点計算（生の計算）
@@ -106,6 +106,7 @@ pub(crate) fn segment_segment_intersection_raw<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use geo_contracts::InfiniteLine3DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
 

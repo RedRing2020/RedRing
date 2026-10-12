@@ -17,7 +17,9 @@ use crate::{
     Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D,
     Triangle2D, Vector2D,
 };
-use geo_contracts::{Arc2DProperties, Circle2DProperties, Scalar, Triangle2DBoundaryAccess};
+use geo_contracts::{
+    Arc2DProperties, Circle2DProperties, InfiniteLine2DDistance, Scalar, Triangle2DBoundaryAccess,
+};
 
 pub fn circle2d_point2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
@@ -255,7 +257,7 @@ pub fn infinite_line2d_point2d_collides<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> bool {
-    line.contains_point(point, tolerance)
+    line.distance_to_point(*point) <= tolerance
 }
 
 pub fn infinite_line2d_circle2d_collides<T: Scalar>(
@@ -264,7 +266,7 @@ pub fn infinite_line2d_circle2d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    line.distance_to_point(&center) <= circle.radius() + tolerance
+    line.distance_to_point(center) <= circle.radius() + tolerance
 }
 
 pub fn circle2d_infinite_line2d_collides<T: Scalar>(
@@ -415,6 +417,7 @@ mod tests {
         Ray2D, Triangle2D, Vector2D,
     };
     use analysis::test_constants;
+    use geo_contracts::InfiniteLine2DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;

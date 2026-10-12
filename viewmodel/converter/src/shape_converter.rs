@@ -972,12 +972,10 @@ pub fn infinite_line_to_vertices(
     line: &InfiniteLine3D<f64>,
     quality: &TessellationQuality,
 ) -> Vec<VertexData> {
-    let point_tuple = InfiniteLine3DProperties::point(line);
-    let direction_tuple = InfiniteLine3DProperties::direction(line);
     let extent = quality.infinite_line_extent;
 
-    let point = Point3D::new(point_tuple.0, point_tuple.1, point_tuple.2);
-    let direction = Vector3D::new(direction_tuple.0, direction_tuple.1, direction_tuple.2);
+    let point = InfiniteLine3DProperties::point(line);
+    let direction = InfiniteLine3DProperties::direction(line).as_vector();
 
     // 始点 = 点 - 方向 × 表示範囲
     let start = Point3D::new(
@@ -2138,6 +2136,7 @@ fn generate_circle_cap(
 mod tests {
     use super::*;
     use geo_algorithms::Direction3D;
+    use geo_contracts::InfiniteLine3DConstructor;
 
     #[test]
     fn test_line_segment_conversion() {

@@ -9,9 +9,10 @@ mod transform;
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, CrossDistance, LineSegment2DConstructor, LineSegment2DContainment,
-    LineSegment2DDerived, LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
-    LineSegment2DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
+    default_distance_tolerance, CrossDistance, InfiniteLine2DConstructor, InfiniteLine2DDistance,
+    InfiniteLine2DEvaluation, InfiniteLine2DProperties, LineSegment2DConstructor,
+    LineSegment2DContainment, LineSegment2DDerived, LineSegment2DDistance, LineSegment2DEvaluation,
+    LineSegment2DProjection, LineSegment2DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元平面の線分。
@@ -46,8 +47,8 @@ impl<T: Scalar> LineSegment2D<T> {
         start_point: Point2D<T>,
         end_point: Point2D<T>,
     ) -> Option<Self> {
-        let start_param = line.parameter_for_point(&start_point);
-        let end_param = line.parameter_for_point(&end_point);
+        let start_param = line.parameter_for_point(start_point);
+        let end_param = line.parameter_for_point(end_point);
 
         if (end_param - start_param).abs() <= T::EPSILON {
             return None;
@@ -121,9 +122,9 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 方向ベクトルを取得（正規化済み）
     pub fn direction(&self) -> Vector2D<T> {
         if self.end_param >= self.start_param {
-            *self.line.direction_internal()
+            *self.line.direction()
         } else {
-            (*self.line.direction_internal()).negate()
+            (*self.line.direction()).negate()
         }
     }
 
@@ -163,7 +164,7 @@ impl<T: Scalar> LineSegment2D<T> {
     ///
     /// 始点 0・終点 1 とし、`[0, 1]` に制限しない。
     pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
-        let line_param = self.line.parameter_for_point(point);
+        let line_param = self.line.parameter_for_point(*point);
         (line_param - self.start_param) / (self.end_param - self.start_param)
     }
 
@@ -177,18 +178,18 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 点が線分上にあるかを判定
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
         // まず無限直線上にあるかチェック
-        if !self.line.contains_point(point, tolerance) {
+        if self.line.distance_to_point(*point) > tolerance {
             return false;
         }
 
-        let param = self.line.parameter_for_point(point);
+        let param = self.line.parameter_for_point(*point);
         let (min_param, max_param) = self.ordered_params();
         param >= min_param - tolerance && param <= max_param + tolerance
     }
 
     /// 点を線分に投影（線分内に制限）
     pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
-        let projected_param = self.line.parameter_for_point(point);
+        let projected_param = self.line.parameter_for_point(*point);
         let (min_param, max_param) = self.ordered_params();
         let clamped_param = projected_param.max(min_param).min(max_param);
 

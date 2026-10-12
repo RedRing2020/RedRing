@@ -49,12 +49,12 @@ pub fn infinite_line2d_point2d_distance<T: Scalar>(
     line: &InfiniteLine2D<T>,
     point: &Point2D<T>,
 ) -> T {
-    let (px, py) = InfiniteLine2DProperties::point(line);
-    let (dx, dy) = InfiniteLine2DProperties::direction(line);
+    let line_point = InfiniteLine2DProperties::point(line);
+    let dir = InfiniteLine2DProperties::direction(line);
     // 法線方向への射影 = cross product / |dir| (dir は単位ベクトル)
-    let to_x = point.x() - px;
-    let to_y = point.y() - py;
-    (to_x * dy - to_y * dx).abs()
+    let to_x = point.x() - line_point.x();
+    let to_y = point.y() - line_point.y();
+    (to_x * dir.y() - to_y * dir.x()).abs()
 }
 
 /// 逆向きラッパー: point-line

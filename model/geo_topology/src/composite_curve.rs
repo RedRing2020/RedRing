@@ -184,7 +184,7 @@ impl<T: Scalar> CompositeCurve3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::NurbsCurve3DConstructor;
+    use geo_contracts::{InfiniteLine3DConstructor, NurbsCurve3DConstructor};
 
     fn standard_distance_tol() -> f64 {
         analysis::consts::test_constants::DISTANCE_TOLERANCE_F64

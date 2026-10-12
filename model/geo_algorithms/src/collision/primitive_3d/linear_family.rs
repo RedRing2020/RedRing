@@ -15,7 +15,7 @@ use crate::intersection::primitive_3d::{
     ray3d_ray3d_intersection, ray3d_spherical_surface3d_intersections,
 };
 use crate::{InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D};
-use geo_contracts::Scalar;
+use geo_contracts::{InfiniteLine3DDistance, Scalar};
 
 pub fn ray3d_point3d_collides<T: Scalar>(ray: &Ray3D<T>, point: &Point3D<T>, tolerance: T) -> bool {
     ray.contains_point(point, tolerance)
@@ -106,7 +106,7 @@ pub fn infinite_line3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    line.contains_point(point, tolerance)
+    line.distance_to_point(*point) <= tolerance
 }
 
 pub fn infinite_line3d_spherical_surface3d_collides<T: Scalar>(

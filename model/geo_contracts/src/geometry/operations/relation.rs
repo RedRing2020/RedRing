@@ -16,12 +16,6 @@ pub trait PerpendicularRelation<Other> {
     fn is_perpendicular_to(&self, other: &Other) -> bool;
 }
 
-/// 同一直線関係
-pub trait SameLineRelation<Other> {
-    /// 相手と同一直線かを返す
-    fn is_same_line(&self, other: &Other) -> bool;
-}
-
 /// 交差関係
 pub trait IntersectsRelation<Other> {
     /// 相手と交差するかを返す

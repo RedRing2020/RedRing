@@ -7,7 +7,8 @@ use crate::tolerance::ResolvedEdgeToleranceSettings;
 use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived,
-    EllipseArc3DEndpoint, EllipseArc3DEvaluation, NurbsCurve3DProperties, Scalar,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, InfiniteLine3DEvaluation, NurbsCurve3DProperties,
+    Scalar,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -381,6 +382,7 @@ impl<T: Scalar> Edge<T> {
 mod tests {
     use super::*;
     use crate::{TopoInfiniteLine3D, TopoNurbsCurve3D};
+    use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::NurbsCurve3DConstructor;
 
     #[test]

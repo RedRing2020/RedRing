@@ -78,19 +78,6 @@ fn test_vector3d_from_points() {
     assert_eq!(vec.components(), [3.0, 4.0, 6.0]);
 }
 
-#[test]
-fn test_vector3d_relationships() {
-    let v1 = Vector3D::new(2.0, 0.0, 0.0);
-    let v2 = Vector3D::new(4.0, 0.0, 0.0);
-    let v3 = Vector3D::new(0.0, 3.0, 0.0);
-
-    // 平行
-    assert!(v1.is_parallel(&v2));
-    assert!(!v1.is_parallel(&v3));
-
-    // 垂直
-}
-
 /*
 #[test]
 fn test_geometry_foundation() {

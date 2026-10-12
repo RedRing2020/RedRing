@@ -273,10 +273,9 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsCurveCollider<T> {
         let (u_min, u_max) = self.0.parameter_domain();
         let delta_u = (u_max - u_min) / T::from_usize(num_samples);
 
-        let (px, py, pz) = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::point(line);
-        let point_on_line = CorePoint3D::new(px, py, pz);
-        let (dx, dy, dz) = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::direction(line);
-        let direction_vec = geo_core::Vector3D::new(dx, dy, dz);
+        let point_on_line = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::point(line);
+        let direction_vec =
+            <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::direction(line).as_vector();
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
@@ -650,8 +649,10 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
 
-        let (px, py, pz) = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::point(line);
-        let (dx, dy, dz) = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::direction(line);
+        let line_point = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::point(line);
+        let line_dir = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::direction(line);
+        let (px, py, pz) = (line_point.x(), line_point.y(), line_point.z());
+        let (dx, dy, dz) = (line_dir.x(), line_dir.y(), line_dir.z());
 
         let mut min_dist = T::INFINITY;
 

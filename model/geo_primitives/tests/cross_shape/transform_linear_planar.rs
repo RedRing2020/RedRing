@@ -2,8 +2,9 @@
 
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    Angle, Plane3DProperties, SimilarityTransformable2D, SimilarityTransformable3D, TransformError,
-    Triangle2DBoundaryAccess, Triangle3DBoundaryAccess,
+    Angle, InfiniteLine2DConstructor, InfiniteLine2DEvaluation, InfiniteLine3DConstructor,
+    InfiniteLine3DEvaluation, Plane3DProperties, SimilarityTransformable2D,
+    SimilarityTransformable3D, TransformError, Triangle2DBoundaryAccess, Triangle3DBoundaryAccess,
 };
 use geo_primitives::{
     Direction3D, InfiniteLine2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D,

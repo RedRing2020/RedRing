@@ -8,7 +8,9 @@ use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, NurbsCurve3D,
     Plane3D, Point3D, Ray3D, SphericalSolid3D,
 };
-use geo_contracts::{CylindricalSolid3DDistance, DistanceConvergenceError, Scalar};
+use geo_contracts::{
+    CylindricalSolid3DDistance, DistanceConvergenceError, InfiniteLine3DDistance, Scalar,
+};
 
 /// NurbsCurve3D-点 間の最短距離（フォールバック付き）
 pub fn nurbscurve3d_point3d_distance<T: Scalar>(curve: &NurbsCurve3D<T>, point: &Point3D<T>) -> T {
@@ -204,7 +206,7 @@ pub fn nurbscurve3d_infinite_line3d_try_distance<T: Scalar>(
         let u = u_min + delta_u * T::from_usize(i);
         let curve_vec = curve.evaluate_at(u);
         let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
-        min_distance = min_distance.min(line.distance_to_point(&curve_point));
+        min_distance = min_distance.min(line.distance_to_point(curve_point));
     }
 
     if min_distance == T::INFINITY {
@@ -491,6 +493,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_try_distance<T: Scalar>(
 mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
+    use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::{
         CylindricalSolid3DConstructor, EllipsoidalSolid3DConstructor, NurbsCurve3DConstructor,
         SphericalSolid3DConstructor, ToleranceSettings,

@@ -48,10 +48,8 @@ pub fn spherical_solid3d_infinite_line3d_collides<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let (px, py, pz) = line.point();
-    let line_pt = Point3D::new(px, py, pz);
-    let (dx, dy, dz) = line.direction();
-    let line_dir = crate::Vector3D::new(dx, dy, dz);
+    let line_pt = line.point();
+    let line_dir = line.direction().as_vector();
     sphere.distance_to_infinite_line(&line_pt, &line_dir) <= tolerance
 }
 
@@ -126,8 +124,7 @@ pub fn ellipsoidal_solid3d_infinite_line3d_collides<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let (px, py, pz) = line.point();
-    let pt = Point3D::new(px, py, pz);
+    let pt = line.point();
     let d = crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &pt);
     d <= tolerance
 }

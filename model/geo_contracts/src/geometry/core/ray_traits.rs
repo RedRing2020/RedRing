@@ -32,7 +32,6 @@ pub trait Ray2DProperties<T: Scalar> {
     fn dimension(&self) -> usize {
         2
     }
-    fn angle(&self) -> T;
 }
 
 pub trait Ray3DProperties<T: Scalar> {

@@ -110,8 +110,7 @@ fn arc3d_infinite_line3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let pt = Point3D::new(px, py, pz);
+    let pt = InfiniteLine3DProperties::point(line);
     let d = crate::distance::arc3d_point3d_distance(arc, &pt);
     if d <= tolerance {
         Some(pt)
@@ -261,8 +260,7 @@ fn circle3d_infinite_line3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let pt = Point3D::new(px, py, pz);
+    let pt = InfiniteLine3DProperties::point(line);
     if crate::distance::circle3d_point3d_distance(circle, &pt) <= tolerance {
         Some(pt)
     } else {
@@ -367,8 +365,7 @@ pub fn ellipse3d_infinite_line3d_intersections<T: Scalar + From<f64>>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let point = Point3D::new(px, py, pz);
+    let point = InfiniteLine3DProperties::point(line);
     let dist = crate::distance::ellipse3d_point3d_distance(ellipse, &point);
     let points = if dist <= tolerance {
         vec![point]

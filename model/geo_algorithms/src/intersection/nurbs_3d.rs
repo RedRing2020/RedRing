@@ -94,8 +94,7 @@ pub fn nurbscurve3d_infinite_line3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // 現実装では代表点として InfiniteLine の基準点を返す。
-        let (px, py, pz) = geo_contracts::InfiniteLine3DProperties::point(line);
-        Some(Point3D::new(px, py, pz))
+        Some(geo_contracts::InfiniteLine3DProperties::point(line))
     } else {
         None
     }
@@ -240,8 +239,7 @@ pub fn nurbssurface3d_infinite_line3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // 現実装では代表点として InfiniteLine の基準点を返す。
-        let (px, py, pz) = geo_contracts::InfiniteLine3DProperties::point(line);
-        Some(Point3D::new(px, py, pz))
+        Some(geo_contracts::InfiniteLine3DProperties::point(line))
     } else {
         None
     }
@@ -314,6 +312,7 @@ mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
     use analysis::test_constants;
+    use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
 
     const TEST_TOLERANCE: f64 = test_constants::DISTANCE_TOLERANCE_F64;

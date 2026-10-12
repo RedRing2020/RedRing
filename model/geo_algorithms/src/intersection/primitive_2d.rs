@@ -15,8 +15,9 @@ use crate::{
 };
 use geo_contracts::{
     default_parallel_cross_error_tolerance, Arc2DProperties, Circle2DProperties,
-    Ellipse2DProperties, InfiniteLine2DProperties, LineSegment2DProperties, Ray2DProperties,
-    Scalar, Triangle2DBoundaryAccess,
+    Ellipse2DProperties, InfiniteLine2DDistance, InfiniteLine2DProjection,
+    InfiniteLine2DProperties, LineSegment2DProperties, Ray2DProperties, Scalar,
+    Triangle2DBoundaryAccess,
 };
 
 fn arc2d_line_segment2d_intersection_points<T: Scalar>(
@@ -306,7 +307,7 @@ pub fn infinite_line2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let opt = if line.contains_point(point, tolerance) {
+    let opt = if line.distance_to_point(*point) <= tolerance {
         Some(*point)
     } else {
         None
@@ -320,7 +321,7 @@ pub fn infinite_line2d_circle2d_intersection<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    let opt = if line.distance_to_point(&center) <= circle.radius() + tolerance {
+    let opt = if line.distance_to_point(center) <= circle.radius() + tolerance {
         Some(center)
     } else {
         None
@@ -334,8 +335,8 @@ pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    let projected = line.closest_point(&center);
-    let dist_to_center = line.distance_to_point(&center);
+    let projected = line.closest_point(center);
+    let dist_to_center = line.distance_to_point(center);
     let radius = circle.radius();
     if dist_to_center > radius + tolerance {
         return IntersectionResult::from_option_points2d(Vec::new(), false, tolerance);
@@ -344,7 +345,8 @@ pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
         return IntersectionResult::from_option_points2d(vec![projected], false, tolerance);
     }
     let half_chord = (radius * radius - dist_to_center * dist_to_center).sqrt();
-    let (dx, dy) = InfiniteLine2DProperties::direction(line);
+    let dir = InfiniteLine2DProperties::direction(line);
+    let (dx, dy) = (dir.x(), dir.y());
     let points = vec![
         Point2D::new(
             projected.x() + half_chord * dx,
@@ -381,14 +383,14 @@ pub fn infinite_line2d_line_segment2d_intersection<T: Scalar>(
 ) -> IntersectionResult<T> {
     let (s1x, s1y) = LineSegment2DProperties::start_point(segment);
     let (s2x, s2y) = LineSegment2DProperties::end_point(segment);
-    let (lx, ly) = InfiniteLine2DProperties::point(line);
-    let (ldx, ldy) = InfiniteLine2DProperties::direction(line);
+    let line_point = InfiniteLine2DProperties::point(line);
+    let line_dir = InfiniteLine2DProperties::direction(line);
+    let (ldx, ldy) = (line_dir.x(), line_dir.y());
     let dx_seg = s2x - s1x;
     let dy_seg = s2y - s1y;
     let denominator = ldx * dy_seg - ldy * dx_seg;
     if denominator.abs() <= tolerance {
-        let line_point = Point2D::new(lx, ly);
-        let line_dir = Vector2D::new(ldx, ldy);
+        let line_dir = line_dir.as_vector();
         let seg_start = Point2D::new(s1x, s1y);
         let seg_end = Point2D::new(s2x, s2y);
         if is_point_on_line(line_point, line_dir, seg_start, tolerance)
@@ -406,7 +408,7 @@ pub fn infinite_line2d_line_segment2d_intersection<T: Scalar>(
         }
         return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
-    let t2 = ((s1x - lx) * ldy - (s1y - ly) * ldx) / denominator;
+    let t2 = ((s1x - line_point.x()) * ldy - (s1y - line_point.y()) * ldx) / denominator;
     let opt = if t2 >= T::ZERO - tolerance && t2 <= T::ONE + tolerance {
         Some(Point2D::new(s1x + t2 * dx_seg, s1y + t2 * dy_seg))
     } else {
@@ -430,12 +432,12 @@ pub fn infinite_line2d_ray2d_intersection<T: Scalar>(
 ) -> IntersectionResult<T> {
     let (ox, oy) = Ray2DProperties::origin(ray);
     let (rdx, rdy) = Ray2DProperties::direction(ray);
-    let (lx, ly) = InfiniteLine2DProperties::point(line);
-    let (ldx, ldy) = InfiniteLine2DProperties::direction(line);
+    let line_point = InfiniteLine2DProperties::point(line);
+    let line_dir = InfiniteLine2DProperties::direction(line);
+    let (ldx, ldy) = (line_dir.x(), line_dir.y());
     let denominator = ldx * rdy - ldy * rdx;
     if denominator.abs() <= tolerance {
-        let line_point = Point2D::new(lx, ly);
-        let line_dir = Vector2D::new(ldx, ldy);
+        let line_dir = line_dir.as_vector();
         let ray_origin = Point2D::new(ox, oy);
         if is_point_on_line(line_point, line_dir, ray_origin, tolerance) {
             return IntersectionResult::new(
@@ -447,7 +449,7 @@ pub fn infinite_line2d_ray2d_intersection<T: Scalar>(
         }
         return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
-    let t2 = ((ox - lx) * ldy - (oy - ly) * ldx) / denominator;
+    let t2 = ((ox - line_point.x()) * ldy - (oy - line_point.y()) * ldx) / denominator;
     let opt = if t2 >= T::ZERO - tolerance {
         Some(Point2D::new(ox + t2 * rdx, oy + t2 * rdy))
     } else {
@@ -706,10 +708,12 @@ pub fn infinite_line2d_infinite_line2d_intersection<T: Scalar>(
     line2: &InfiniteLine2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (px, py) = InfiniteLine2DProperties::point(line1);
-    let (dx1, dy1) = InfiniteLine2DProperties::direction(line1);
-    let (qx, qy) = InfiniteLine2DProperties::point(line2);
-    let (dx2, dy2) = InfiniteLine2DProperties::direction(line2);
+    let p = InfiniteLine2DProperties::point(line1);
+    let d1 = InfiniteLine2DProperties::direction(line1);
+    let q = InfiniteLine2DProperties::point(line2);
+    let d2 = InfiniteLine2DProperties::direction(line2);
+    let (px, py, dx1, dy1) = (p.x(), p.y(), d1.x(), d1.y());
+    let (qx, qy, dx2, dy2) = (q.x(), q.y(), d2.x(), d2.y());
 
     // クラメルの公式: line1.point + t1 * line1.dir = line2.point + t2 * line2.dir
     // det = dx2 * (-dy1) - dy2 * (-dx1) = -(dx2*dy1 - dy2*dx1)
@@ -867,6 +871,7 @@ mod tests {
         IntersectionTopology, LineSegment2D, Point2D, Ray2D, Vector2D,
     };
     use analysis::test_constants;
+    use geo_contracts::InfiniteLine2DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;

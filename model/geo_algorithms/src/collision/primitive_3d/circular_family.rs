@@ -60,8 +60,7 @@ pub fn ellipse3d_infinite_line3d_collides<T: Scalar + From<f64>>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let (px, py, pz) = line.point();
-    let point = Point3D::new(px, py, pz);
+    let point = line.point();
     crate::distance::ellipse3d_point3d_distance(ellipse, &point) <= tolerance
 }
 
@@ -146,8 +145,7 @@ pub fn arc3d_infinite_line3d_collides<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let (px, py, pz) = line.point();
-    crate::distance::arc3d_point3d_distance(arc, &Point3D::new(px, py, pz)) <= tolerance
+    crate::distance::arc3d_point3d_distance(arc, &line.point()) <= tolerance
 }
 
 pub fn arc3d_arc3d_collides<T: Scalar>(arc_a: &Arc3D<T>, arc_b: &Arc3D<T>, tolerance: T) -> bool {
@@ -202,8 +200,7 @@ pub fn circle3d_infinite_line3d_collides<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let (px, py, pz) = line.point();
-    let point_on_line = Point3D::new(px, py, pz);
+    let point_on_line = line.point();
     crate::distance::circle3d_point3d_distance(circle, &point_on_line) <= tolerance
 }
 
