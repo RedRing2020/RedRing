@@ -1,5 +1,7 @@
 mod bounds;
 mod extensions;
+#[cfg(test)]
+mod tests;
 mod transform;
 
 // torus_solid_3d.rs

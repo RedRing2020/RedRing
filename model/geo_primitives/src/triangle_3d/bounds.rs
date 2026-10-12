@@ -44,29 +44,3 @@ impl<T: Scalar> Bounded<T> for Triangle3D<T> {
         Some(Aabb3D::new(min_point, max_point))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Point3D;
-    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
-
-    #[test]
-    fn test_metadata_and_bounds_capabilities() {
-        let triangle = Triangle3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        )
-        .unwrap();
-
-        assert_eq!(triangle.primitive_kind(), PrimitiveKind::Triangle);
-        assert_eq!(triangle.area(), 0.5);
-
-        let aabb = triangle.aabb().expect("Triangle should have an AABB");
-        assert_eq!(aabb.min().x(), 0.0);
-        assert_eq!(aabb.max().x(), 1.0);
-        assert_eq!(aabb.min().y(), 0.0);
-        assert_eq!(aabb.max().y(), 1.0);
-    }
-}

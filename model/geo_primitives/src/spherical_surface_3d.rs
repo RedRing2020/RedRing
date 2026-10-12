@@ -18,6 +18,8 @@
 //! **最終更新: 2025年11月1日**
 
 mod bounds;
+#[cfg(test)]
+mod tests;
 mod transform;
 
 // use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト

@@ -24,6 +24,7 @@ line_segment_3d/
 - 親はディレクトリと同名のファイル（`line_segment_3d.rs`）に置き、`mod.rs` は使わない（Clippy の `mod_module_files` で確認する）
 - 親は先頭の doc コメントの直後で子モジュールを宣言する（`mod extensions;`、`#[cfg(test)] mod tests;` 等）
 - `tests.rs` は `use super::*;` で親の要素を使い、`mod tests { ... }` で包まない（`tests::tests` の入れ子にしない）
+- 形状のテストは `tests.rs` にまとめ、親・子のファイルにテストを置かない（テストの置き場所の全体の規則は `TEST_PLACEMENT_RULES.md`）
 - 形状をまたぐテストは結合テスト（`tests/cross_shape/main.rs` とその子モジュール）に置き、公開 API だけを使う。結合テストはクレートの外からコンパイルされるため、公開 API だけを使うことをコンパイラが確認する
 - `src` の直下には `lib.rs` と形状のモジュール（親のファイルとディレクトリ）だけを置く
 

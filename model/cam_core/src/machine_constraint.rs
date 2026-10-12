@@ -3,6 +3,9 @@
 //! `cam_core` では加工機のDB実体は持たず、
 //! ToolPath消費側が参照できる最小の物理制約のみを保持します。
 
+#[cfg(test)]
+mod tests;
+
 use analysis::Scalar;
 
 /// 商用機で一般的な機械軸ラベル
@@ -247,7 +250,3 @@ impl<T: Scalar> MachineConstraint<T> {
             .find(|limit| limit.axis == axis)
     }
 }
-
-#[cfg(test)]
-#[path = "machine_constraint_tests.rs"]
-mod tests;

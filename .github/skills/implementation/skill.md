@@ -1,6 +1,6 @@
 # geo_primitives 実装パターン
 
-## 最終更新日: 2026年2月13日
+## 最終更新日: 2026年10月12日
 
 geo_primitives における幾何プリミティブの実装パターンと規約を定義します。
 
@@ -8,25 +8,26 @@ geo_primitives における幾何プリミティブの実装パターンと規�
 
 ## ファイル構成
 
-各幾何プリミティブは以下の構成で実装：
+各幾何プリミティブは、形状と同名の親ファイルと、同名のディレクトリの子モジュールで実装する（詳細は `dev/architecture/GEO_PRIMITIVES_MODULE_STRUCTURE_RULES.md`）。
 
 ```
-{shape}_3d.rs                      # 基本実装（構造体定義、基本メソッド）
-{shape}_3d_foundation.rs           # Foundation トレイト実装
-{shape}_3d_extensions.rs           # 基本操作・拡張機能
-{shape}_3d_transform.rs            # 変換操作（BasicTransform）
-{shape}_3d_transform_safe.rs       # 安全な変換操作（SafeTransform）
-{shape}_3d_collision.rs            # 衝突判定・交差判定
-{shape}_3d_intersection.rs         # 交差計算
-{shape}_3d_tests.rs                # 基本機能テスト
-{shape}_3d_transform_safe_tests.rs # SafeTransform テスト
+{shape}_3d.rs          # 親: 構造体定義（private フィールド）・基本メソッド・trait定義の実装
+{shape}_3d/
+  extensions.rs        # 拡張機能（必要な場合のみ）
+  bounds.rs            # 境界ボックス
+  transform.rs         # 相似変換
+  tests.rs             # テスト（#[cfg(test)]）
 ```
+
+- `mod.rs` は使わない（Clippy の `mod_module_files` で確認する）
+- `lib.rs` では形状のモジュールを private にし（`mod {shape}_3d;`）、型だけを再エクスポートする（`pub use {shape}_3d::{Shape}3D;`）
+- 子モジュールは親の private なフィールドをそのまま使えるため、`pub(crate)` のフィールドや `*_internal` アクセサを置かない
 
 ---
 
 ## 責務分離の原則
 
-### 1. 基本実装ファイル（`{shape}_3d.rs`）
+### 1. 親ファイル（`{shape}_3d.rs`）
 
 **責務**:
 - 構造体定義
@@ -74,14 +75,14 @@ impl<T: Scalar> ExtensionFoundation<T> for LineSegment3D<T> {
 }
 ```
 
-### 3. 拡張機能ファイル（`{shape}_3d_extensions.rs`）
+### 3. 拡張機能ファイル（`{shape}_3d/extensions.rs`）
 
 **責務**:
 - 便利メソッド
 - ユーティリティ関数
 - 特殊な計算機能
 
-### 4. Transform 実装ファイル（`{shape}_3d_transform.rs`）
+### 4. Transform 実装ファイル（`{shape}_3d/transform.rs`）
 
 **責務**:
 - AnalysisTransform3D 実装
@@ -114,61 +115,14 @@ impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
 
 ## テストコード配置ルール
 
-### 原則
+テストの置き場所は `dev/architecture/TEST_PLACEMENT_RULES.md` に従う。形状のモジュールでは次のとおり。
 
-1. **実装ファイル内のテスト禁止**
-   - 全てのテストは独立したテストファイルに分離
-
-2. **テストファイルの分類**
-   - `{shape}_3d_tests.rs`: 基本機能テスト
-   - `{shape}_3d_transform_safe_tests.rs`: SafeTransform テスト
-   - `{shape}_3d_collision_tests.rs`: 衝突判定テスト（オプション）
-
-### テストファイル構成
-
-```rust
-// line_segment_3d_tests.rs
-#[cfg(test)]
-mod line_segment_3d_tests {
-    use super::*;
-
-    // Constructor テスト
-    mod constructor_tests {
-        #[test]
-        fn test_new_valid() { /* ... */ }
-        
-        #[test]
-        fn test_new_invalid() { /* ... */ }
-    }
-
-    // Properties テスト
-    mod properties_tests {
-        #[test]
-        fn test_start_end() { /* ... */ }
-        
-        #[test]
-        fn test_length() { /* ... */ }
-    }
-
-    // Measure テスト
-    mod measure_tests {
-        #[test]
-        fn test_distance_to_point() { /* ... */ }
-    }
-
-    // Extension テスト
-    mod extension_tests {
-        #[test]
-        fn test_primitive_kind() { /* ... */ }
-    }
-
-    // Transform テスト
-    mod transform_tests {
-        #[test]
-        fn test_translate() { /* ... */ }
-    }
-}
-```
+1. **形状のテストは `{shape}_3d/tests.rs` にまとめる**
+   - 親・子のファイル（`bounds.rs` / `extensions.rs` 等）にテストを置かない
+   - `use super::*;` で親の要素を使い、`mod tests { ... }` で包まない
+2. **形状をまたぐテストは結合テスト（`tests/cross_shape/`）に置く**
+   - 公開 API だけを使う
+3. **兄弟のテストファイル（`{shape}_3d_tests.rs`）と `#[path]` は使わない**
 
 ---
 
@@ -213,32 +167,6 @@ mod line_segment_3d_tests {
 - 目次（`manual/SUMMARY.md`）に追加されているか確認
 
 ---
-
-## VSCode ネスティング設定
-
-### 設定ファイル: `.vscode/settings.json`
-
-新規ファイル追加時は必ず更新：
-
-```jsonc
-"explorer.fileNesting.patterns": {
-    "{shape}_3d.rs": [
-        "{shape}_3d_extensions.rs",
-        "{shape}_3d_foundation.rs",
-        "{shape}_3d_transform.rs",
-        "{shape}_3d_transform_safe.rs",
-        "{shape}_3d_collision.rs",
-        "{shape}_3d_intersection.rs",
-        "{shape}_3d_tests.rs",
-        "{shape}_3d_transform_safe_tests.rs"
-    ].join(",")
-}
-```
-
-**例**:
-```jsonc
-"line_segment_3d.rs": "line_segment_3d_extensions.rs,line_segment_3d_foundation.rs,line_segment_3d_transform.rs,line_segment_3d_transform_safe.rs,line_segment_3d_collision.rs,line_segment_3d_intersection.rs,line_segment_3d_tests.rs,line_segment_3d_transform_safe_tests.rs"
-```
 
 ---
 
@@ -356,22 +284,17 @@ impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
 新規幾何プリミティブ実装時：
 
 ### 1. ファイル作成
-- [ ] `{shape}_3d.rs` - 基本実装
-- [ ] `{shape}_3d_foundation.rs` - Foundation 実装
-- [ ] `{shape}_3d_extensions.rs` - 拡張機能
-- [ ] `{shape}_3d_transform.rs` - Transform 実装
-- [ ] `{shape}_3d_tests.rs` - テスト
+- [ ] `{shape}_3d.rs` - 親（構造体定義・基本メソッド・trait定義の実装）
+- [ ] `{shape}_3d/bounds.rs` - 境界ボックス
+- [ ] `{shape}_3d/transform.rs` - 相似変換
+- [ ] `{shape}_3d/tests.rs` - テスト
 
 ### 2. lib.rs への登録
-- [ ] `pub mod {shape}_3d;`
-- [ ] `pub mod {shape}_3d_foundation;`
-- [ ] `pub mod {shape}_3d_extensions;`
-- [ ] `pub mod {shape}_3d_transform;`
-- [ ] `pub mod {shape}_3d_tests;`
+- [ ] `mod {shape}_3d;`（private）
 - [ ] `pub use {shape}_3d::{Shape}3D;`
 
-### 3. VSCode 設定更新
-- [ ] `.vscode/settings.json` にネスティング追加
+### 3. 公開 API の確認
+- [ ] 呼び出し元のない公開メソッドを追加していない（`scripts/check_unused_public_api.ps1`）
 
 ### 4. テスト実装
 - [ ] Constructor テスト

@@ -6,7 +6,10 @@
 use crate::{CylindricalSurface3D, Point3D, Vector3D};
 use analysis::test_constants::TOLERANCE_F32;
 use approx::assert_relative_eq;
-use geo_contracts::{CylindricalSurface3DDistance, CylindricalSurface3DProperties, Scalar};
+use geo_contracts::{
+    Bounded, CylindricalSurface3DDistance, CylindricalSurface3DProperties, PrimitiveKind,
+    PrimitiveMetadata, Scalar, TolerantEq,
+};
 
 fn create_test_surface() -> CylindricalSurface3D<f64> {
     CylindricalSurface3D::new_z_axis(Point3D::new(1.0, 2.0, 3.0), 5.0).unwrap()
@@ -228,8 +231,6 @@ fn test_parametric_continuity() {
     assert_relative_eq!(point_0.z(), point_2pi.z(), epsilon = 1e-10);
 }
 
-use geo_contracts::TolerantEq;
-
 #[test]
 fn test_tolerant_eq() {
     let surface1 = CylindricalSurface3D::new_z_axis(Point3D::new(0.0, 0.0, 0.0), 5.0).unwrap();
@@ -240,4 +241,14 @@ fn test_tolerant_eq() {
     assert!(surface1.tolerant_eq(&surface2, 1e-3));
     assert!(!surface1.tolerant_eq(&surface2, 1e-5));
     assert!(!surface1.tolerant_eq(&surface3, 1e-3));
+}
+
+#[test]
+fn test_metadata_and_bounds_capabilities() {
+    let surface = CylindricalSurface3D::new_z_axis(Point3D::new(1.0, 2.0, 3.0), 5.0).unwrap();
+
+    assert_eq!(surface.primitive_kind(), PrimitiveKind::CylindricalSurface);
+
+    let bbox = surface.aabb().expect("should have aabb");
+    assert!(!bbox.is_empty());
 }

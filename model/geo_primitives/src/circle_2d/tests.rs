@@ -372,3 +372,9 @@ fn test_parameter_for_point_is_angle_of_closest_point() {
     // 中心は closest_point と同じく角度 0 の点を最近点とする
     assert!(circle.parameter_for_point(&Point2D::new(1.0, 1.0)).abs() < TOLERANCE_F64);
 }
+
+#[test]
+fn test_diameter() {
+    let circle = Circle2D::new(Point2D::new(0.0, 0.0), 5.0).unwrap();
+    assert_eq!(circle.diameter(), 10.0);
+}

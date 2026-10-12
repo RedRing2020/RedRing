@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod tests;
 use crate::camera_math::{matrix_transform_vector, quaternion_to_matrix};
 use crate::camera_navigation::{
     pan as navigate_pan, project_on_sphere as project_arcball_on_sphere, rotate as navigate_rotate,
@@ -417,7 +419,3 @@ impl Default for Camera {
         Self::new()
     }
 }
-
-#[cfg(test)]
-#[path = "camera_tests.rs"]
-mod tests;

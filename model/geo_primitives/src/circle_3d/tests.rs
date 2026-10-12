@@ -3,9 +3,7 @@
 //! 3次元円の全機能テスト：作成、アクセサ、拡張機能、変換操作
 
 use crate::{Circle3D, Direction3D, Point3D, Vector3D};
-use geo_contracts::TolerantEq;
-
-use geo_contracts::Circle3DEvaluation;
+use geo_contracts::{Bounded, Circle3DEvaluation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 
 // 近似等価性チェック用のヘルパー関数
 fn assert_approx_eq(a: f64, b: f64, epsilon: f64) {
@@ -271,4 +269,34 @@ fn test_tolerant_eq() {
 
     assert!(circle1.tolerant_eq(&circle2, 0.01));
     assert!(!circle1.tolerant_eq(&circle3, 0.01));
+}
+
+#[test]
+fn test_metadata_and_bounds_capabilities() {
+    let center = Point3D::new(1.0, 2.0, 3.0);
+    let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+    let circle = Circle3D::new(center, normal, 5.0).unwrap();
+
+    assert_eq!(circle.primitive_kind(), PrimitiveKind::Circle);
+    assert_eq!(circle.area(), 25.0 * std::f64::consts::PI);
+
+    let aabb = circle.aabb().expect("Circle should have an AABB");
+    // XY平面の円なので、Z方向の範囲は0
+    assert!((aabb.min().z() - center.z()).abs() < 1e-10);
+    assert!((aabb.max().z() - center.z()).abs() < 1e-10);
+    assert!((aabb.min().x() - (center.x() - 5.0)).abs() < 1e-10);
+    assert!((aabb.max().y() - (center.y() + 5.0)).abs() < 1e-10);
+}
+
+#[test]
+fn test_circle_3d_aabb_respects_plane_orientation() {
+    let center = Point3D::new(1.0_f64, 2.0, 3.0);
+    let normal = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    let circle = Circle3D::new(center, normal, 2.0).unwrap();
+
+    let aabb = circle.aabb().expect("Circle should have an AABB");
+    assert!((aabb.min().x() - center.x()).abs() < 1e-10);
+    assert!((aabb.max().x() - center.x()).abs() < 1e-10);
+    assert!((aabb.min().y() - (center.y() - 2.0)).abs() < 1e-10);
+    assert!((aabb.max().z() - (center.z() + 2.0)).abs() < 1e-10);
 }

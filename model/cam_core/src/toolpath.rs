@@ -42,6 +42,9 @@
 //! );
 //! ```
 
+#[cfg(test)]
+mod tests;
+
 use crate::ExtAttribute;
 use analysis::Scalar;
 use geo_algorithms::{Point3D, Vector3D};
@@ -791,7 +794,3 @@ impl<T: Scalar + std::iter::Sum> ToolPath<T> {
         self.contour_levels.len()
     }
 }
-
-#[cfg(test)]
-#[path = "toolpath_tests.rs"]
-mod tests;
