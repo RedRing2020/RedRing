@@ -2,10 +2,9 @@
 
 use super::*;
 use crate::{LineSegment2D, Point2D, Vector2D};
-use geo_contracts::Scalar;
+use geo_contracts::{default_distance_tolerance, ParallelRelation, Scalar};
 
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
-use geo_contracts::default_distance_tolerance;
 
 #[test]
 fn test_basic_creation() {
@@ -153,22 +152,10 @@ fn test_line_relationships() {
     let segment3 = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
 
     // 平行判定（support line で判定）
-    assert!(segment1.line().is_parallel(segment2.line()));
-    assert!(!segment1.line().is_parallel(segment3.line()));
+    assert!(segment1.line().is_parallel_to(segment2.line()));
+    assert!(!segment1.line().is_parallel_to(segment3.line()));
 
     // 垂直判定
-
-    // 共線判定
-    let collinear_segment =
-        LineSegment2D::new(Point2D::new(3.0, 0.0), Point2D::new(5.0, 0.0)).unwrap();
-    assert!(geo_contracts::SameLineRelation::is_same_line(
-        segment1.line(),
-        collinear_segment.line()
-    ));
-    assert!(!geo_contracts::SameLineRelation::is_same_line(
-        segment1.line(),
-        segment2.line()
-    ));
 }
 
 #[test]
@@ -258,7 +245,7 @@ fn test_f32_compatibility() {
 
 #[test]
 fn public_endpoints_follow_ideal_support_line() {
-    let line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0_f64, 0.0)).unwrap();
+    let line = InfiniteLine2D::new(&Point2D::origin(), Vector2D::new(1.0_f64, 0.0)).unwrap();
     let start = Point2D::new(0.0, 1.0);
     let end = Point2D::new(2.0, 1.0);
 

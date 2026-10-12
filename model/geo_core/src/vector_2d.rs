@@ -92,16 +92,6 @@ impl<T: Scalar> Vector2D<T> {
         self.length() <= tolerance
     }
 
-    /// 2つのベクトルが平行かを判定
-    pub fn is_parallel(&self, other: &Self) -> bool {
-        self.is_parallel_with_error_tolerance(other, T::PARALLEL_CROSS_ERROR_TOLERANCE)
-    }
-
-    /// 2つのベクトルが平行かを数値誤差閾値つきで判定
-    pub fn is_parallel_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
-        self.cross(other).abs() <= tolerance
-    }
-
     /// 正規化を試行（ゼロベクトルの場合はNoneを返す）
     pub fn try_normalize(&self) -> Option<Self> {
         let len = self.length();
@@ -143,11 +133,6 @@ impl<T: Scalar> Vector2D<T> {
         let dot = self.dot(other);
         let cross = self.cross(other);
         Angle::from_radians(cross.atan2(dot))
-    }
-
-    /// ベクトルのX軸からの角度を取得
-    pub fn angle(&self) -> Angle<T> {
-        Angle::from_radians(self.y.atan2(self.x))
     }
 
     /// 2つのベクトル間で線形補間

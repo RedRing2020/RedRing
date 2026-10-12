@@ -62,11 +62,12 @@ pub fn infinite_line3d_point3d_distance<T: Scalar>(
     line: &InfiniteLine3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let (dx, dy, dz) = InfiniteLine3DProperties::direction(line);
-    let to_x = point.x() - px;
-    let to_y = point.y() - py;
-    let to_z = point.z() - pz;
+    let line_point = InfiniteLine3DProperties::point(line);
+    let dir = InfiniteLine3DProperties::direction(line);
+    let (dx, dy, dz) = (dir.x(), dir.y(), dir.z());
+    let to_x = point.x() - line_point.x();
+    let to_y = point.y() - line_point.y();
+    let to_z = point.z() - line_point.z();
     // cross product of direction × to_point, divide by |direction|
     // direction is unit vector, so |dir| = 1
     let cx = dy * to_z - dz * to_y;
@@ -88,10 +89,14 @@ pub fn infinite_line3d_infinite_line3d_distance<T: Scalar>(
     line_a: &InfiniteLine3D<T>,
     line_b: &InfiniteLine3D<T>,
 ) -> T {
-    let (ax, ay, az) = InfiniteLine3DProperties::point(line_a);
-    let (dax, day, daz) = InfiniteLine3DProperties::direction(line_a);
-    let (bx, by, bz) = InfiniteLine3DProperties::point(line_b);
-    let (dbx, dby, dbz) = InfiniteLine3DProperties::direction(line_b);
+    let point_a = InfiniteLine3DProperties::point(line_a);
+    let dir_a = InfiniteLine3DProperties::direction(line_a);
+    let point_b = InfiniteLine3DProperties::point(line_b);
+    let dir_b = InfiniteLine3DProperties::direction(line_b);
+    let (ax, ay, az) = (point_a.x(), point_a.y(), point_a.z());
+    let (dax, day, daz) = (dir_a.x(), dir_a.y(), dir_a.z());
+    let (bx, by, bz) = (point_b.x(), point_b.y(), point_b.z());
+    let (dbx, dby, dbz) = (dir_b.x(), dir_b.y(), dir_b.z());
 
     // cross(da, db)
     let cx = day * dbz - daz * dby;
@@ -483,6 +488,7 @@ pub fn point3d_triangle_mesh3d_distance<T: Scalar>(
 mod tests {
     use super::*;
     use analysis::test_constants;
+    use geo_contracts::InfiniteLine3DConstructor;
 
     fn standard_distance_tol() -> f64 {
         test_constants::DISTANCE_TOLERANCE_F64
@@ -616,13 +622,13 @@ mod tests {
     fn infinite_line3d_distance_parallel_lines() {
         let tol = standard_distance_tol();
         let line_a = InfiniteLine3D::from_two_points(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
+            &Point3D::new(0.0, 0.0, 0.0),
+            &Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let line_b = InfiniteLine3D::from_two_points(
-            Point3D::new(0.0, 2.0, 0.0),
-            Point3D::new(1.0, 2.0, 0.0),
+            &Point3D::new(0.0, 2.0, 0.0),
+            &Point3D::new(1.0, 2.0, 0.0),
         )
         .unwrap();
 
@@ -634,13 +640,13 @@ mod tests {
     fn infinite_line3d_distance_intersecting_lines() {
         let tol = standard_distance_tol();
         let line_a = InfiniteLine3D::from_two_points(
-            Point3D::new(-1.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
+            &Point3D::new(-1.0, 0.0, 0.0),
+            &Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let line_b = InfiniteLine3D::from_two_points(
-            Point3D::new(0.0, -1.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
+            &Point3D::new(0.0, -1.0, 0.0),
+            &Point3D::new(0.0, 1.0, 0.0),
         )
         .unwrap();
 

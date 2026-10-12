@@ -184,7 +184,7 @@ impl<T: Scalar> CompositeCurve3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::NurbsCurve3DConstructor;
+    use geo_contracts::{InfiniteLine3DConstructor, NurbsCurve3DConstructor};
 
     fn standard_distance_tol() -> f64 {
         analysis::consts::test_constants::DISTANCE_TOLERANCE_F64
@@ -228,8 +228,8 @@ mod tests {
     #[test]
     fn curve_segment_line_constraint_endpoints_follow_constraint_points() {
         let support_line = crate::TopoInfiniteLine3D::from_two_points(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(2.0, 0.0, 0.0),
+            &Point3D::new(0.0, 0.0, 0.0),
+            &Point3D::new(2.0, 0.0, 0.0),
         )
         .unwrap();
         let seg = TopoLineSegment3D::from_support_line_and_constraint_points(
@@ -376,13 +376,13 @@ mod tests {
     #[test]
     fn composite_curve_connectivity_uses_constraint_endpoints_for_line_segments() {
         let support_line_a = crate::TopoInfiniteLine3D::from_two_points(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
+            &Point3D::new(0.0, 0.0, 0.0),
+            &Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
         let support_line_b = crate::TopoInfiniteLine3D::from_two_points(
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(2.0, 0.0, 0.0),
+            &Point3D::new(1.0, 0.0, 0.0),
+            &Point3D::new(2.0, 0.0, 0.0),
         )
         .unwrap();
         let seg1 = TopoLineSegment3D::from_support_line_and_constraint_points(

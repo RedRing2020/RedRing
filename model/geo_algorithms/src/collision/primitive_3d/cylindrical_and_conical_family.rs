@@ -42,8 +42,7 @@ pub fn cylindrical_solid3d_infinite_line3d_collides<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let (px, py, pz) = line.point();
-    let point = Point3D::new(px, py, pz);
+    let point = line.point();
     crate::distance::cylindrical_solid3d_point3d_distance(cyl, &point) <= tolerance
 }
 
@@ -139,8 +138,7 @@ pub fn cylindrical_surface3d_infinite_line3d_collides<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let (px, py, pz) = line.point();
-    let point = Point3D::new(px, py, pz);
+    let point = line.point();
     crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point) <= tolerance
 }
 

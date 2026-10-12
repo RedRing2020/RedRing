@@ -122,27 +122,11 @@ fn test_cross_product() {
     assert_eq!(v3.cross(&v4), 0.0);
 }
 
-/// 平行・垂直判定テスト
-#[test]
-fn test_parallel_perpendicular() {
-    let v1 = Vector2D::new(1.0, 2.0);
-    let v2 = Vector2D::new(2.0, 4.0); // 平行
-    let v3 = Vector2D::new(-2.0, 1.0); // 垂直
-
-    assert!(v1.is_parallel(&v2));
-    assert!(!v1.is_parallel(&v3));
-}
-
 /// 角度計算テスト
 #[test]
 fn test_angles() {
-    // X軸ベクトルの角度は0
     let x_axis = Vector2D::new(1.0, 0.0);
-    assert!((x_axis.angle().to_radians() - 0.0f64).abs() < f64::EPSILON);
-
-    // Y軸ベクトルの角度はπ/2
     let y_axis = Vector2D::new(0.0, 1.0);
-    assert!((y_axis.angle().to_radians() - std::f64::consts::FRAC_PI_2).abs() < f64::EPSILON);
 
     // ベクトル間の角度
     let angle = x_axis.angle_to(&y_axis);

@@ -94,6 +94,8 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 - 単位ベクトルであることを前提とする引数・戻り値は `Direction*` とし、`Vector*` と区別する
 - 形状として成立しない入力の生成は `Option`、変換の失敗は `Result<_, TransformError>`、範囲外の評価は `Option` を返す（既存の規約のまま）
 - タプルを受け渡す trait定義のメソッドは残さない
+- 生成（Constructor）の点の引数も参照で受け取る（`new(&point, direction)` / `from_two_points(&p1, &p2)`）
+- `contains_point(&point)` は既定の距離の許容誤差で判定する。呼び出し元が許容誤差を指定する場合は `distance_to_point(&point) <= tolerance` と書く。専用のメソッド（`contains_point_within`）は、それで書けない呼び出し元が現れた時点で追加する
 
 ## 5. 移行の順序
 
@@ -102,6 +104,9 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 | D-0 | 本設計書 | 変更なし |
 | D-1 | `geo_core` を下位に移す（値型の trait定義の削除、許容誤差・`PointClassification`・`TransformError` の移動、相似変換の型付け、`ARCHITECTURE.md` と依存のルールの更新）。完了 | 変更なし |
 | D-2〜 | 形状の系統ごと（直線 → 円・楕円 → 平面・矩形・三角形 → 解析曲面・立体 → NURBS → 形状をまたぐ演算）に、trait定義の型付け・重複する固有メソッドの削除・呼び出し元の更新。最初の系統で prelude を追加する | 系統ごとに変更 |
+| D-2a | 無限直線（`InfiniteLine2D/3D`）の型付けと prelude の追加。完了 | 無限直線 |
+| D-2b | 半直線（`Ray2D/3D`） | 半直線 |
+| D-2c | 線分（`LineSegment2D/3D`） | 線分 |
 | 最後 | `geo_algorithms` 等の Point / タプルの境界の残りの整理と、規約の文書の仕上げ | — |
 
 - 旧 API の別名・互換用の変換は置かない（各段階で呼び出し元まで更新する）

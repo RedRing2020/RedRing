@@ -39,12 +39,6 @@ impl<T: Scalar> Ray2D<T> {
         (self.direction.angle_to(&other.direction) - right_angle).abs() <= tolerance
     }
 
-    /// Ray の角度を取得（X軸正方向からの角度）
-    pub fn angle(&self) -> Angle<T> {
-        let dir = self.direction;
-        Angle::from_radians(dir.y().atan2(dir.x()))
-    }
-
     /// 平行移動（BasicTransformより柔軟）
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
         let new_origin = self.origin + offset;

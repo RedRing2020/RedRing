@@ -8,7 +8,9 @@ use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, NurbsCurve3D,
     Plane3D, Point3D, Ray3D, SphericalSolid3D,
 };
-use geo_contracts::{CylindricalSolid3DDistance, DistanceConvergenceError, Scalar};
+use geo_contracts::{
+    CylindricalSolid3DDistance, DistanceConvergenceError, InfiniteLine3DDistance, Scalar,
+};
 
 /// NurbsCurve3D-点 間の最短距離（フォールバック付き）
 pub fn nurbscurve3d_point3d_distance<T: Scalar>(curve: &NurbsCurve3D<T>, point: &Point3D<T>) -> T {
@@ -491,6 +493,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_try_distance<T: Scalar>(
 mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
+    use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::{
         CylindricalSolid3DConstructor, EllipsoidalSolid3DConstructor, NurbsCurve3DConstructor,
         SphericalSolid3DConstructor, ToleranceSettings,
@@ -666,8 +669,8 @@ mod tests {
     fn nurbscurve3d_infinite_line3d_distance_normal() {
         let curve = create_test_curve();
         let line = InfiniteLine3D::from_two_points(
-            Point3D::new(0.5, -0.5, 0.0),
-            Point3D::new(0.5, 0.5, 0.0),
+            &Point3D::new(0.5, -0.5, 0.0),
+            &Point3D::new(0.5, 0.5, 0.0),
         )
         .unwrap();
 
@@ -680,8 +683,8 @@ mod tests {
     fn nurbscurve3d_infinite_line3d_distance_zero() {
         let curve = create_test_curve();
         let line = InfiniteLine3D::from_two_points(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
+            &Point3D::new(0.0, 0.0, 0.0),
+            &Point3D::new(1.0, 0.0, 0.0),
         )
         .unwrap();
 
@@ -694,8 +697,8 @@ mod tests {
         let tol = standard_distance_tol();
         let curve = create_test_curve();
         let line = InfiniteLine3D::from_two_points(
-            Point3D::new(0.5, -0.5, 0.0),
-            Point3D::new(0.5, 0.5, 0.0),
+            &Point3D::new(0.5, -0.5, 0.0),
+            &Point3D::new(0.5, 0.5, 0.0),
         )
         .unwrap();
 
@@ -708,8 +711,8 @@ mod tests {
     fn nurbscurve3d_infinite_line3d_try_distance_invalid_samples() {
         let curve = create_test_curve();
         let line = InfiniteLine3D::from_two_points(
-            Point3D::new(0.5, -0.5, 0.0),
-            Point3D::new(0.5, 0.5, 0.0),
+            &Point3D::new(0.5, -0.5, 0.0),
+            &Point3D::new(0.5, 0.5, 0.0),
         )
         .unwrap();
 
@@ -724,8 +727,8 @@ mod tests {
     fn nurbscurve3d_infinite_line3d_try_distance_one_sample() {
         let curve = create_test_curve();
         let line = InfiniteLine3D::from_two_points(
-            Point3D::new(0.5, -0.5, 0.0),
-            Point3D::new(0.5, 0.5, 0.0),
+            &Point3D::new(0.5, -0.5, 0.0),
+            &Point3D::new(0.5, 0.5, 0.0),
         )
         .unwrap();
 

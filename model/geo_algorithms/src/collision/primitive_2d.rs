@@ -17,7 +17,9 @@ use crate::{
     Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D,
     Triangle2D, Vector2D,
 };
-use geo_contracts::{Arc2DProperties, Circle2DProperties, Scalar, Triangle2DBoundaryAccess};
+use geo_contracts::{
+    Arc2DProperties, Circle2DProperties, InfiniteLine2DDistance, Scalar, Triangle2DBoundaryAccess,
+};
 
 pub fn circle2d_point2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
@@ -255,7 +257,7 @@ pub fn infinite_line2d_point2d_collides<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> bool {
-    line.contains_point(point, tolerance)
+    line.distance_to_point(point) <= tolerance
 }
 
 pub fn infinite_line2d_circle2d_collides<T: Scalar>(
@@ -415,6 +417,7 @@ mod tests {
         Ray2D, Triangle2D, Vector2D,
     };
     use analysis::test_constants;
+    use geo_contracts::InfiniteLine2DConstructor;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;
@@ -535,7 +538,7 @@ mod tests {
 
     #[test]
     fn infinite_line_line_segment_collision_detects_midpoint_intersection() {
-        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let segment = LineSegment2D::new(Point2D::new(-1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
 
         assert!(infinite_line2d_line_segment2d_collides(
@@ -552,7 +555,7 @@ mod tests {
 
     #[test]
     fn infinite_line_ray_collision_detects_off_origin_intersection() {
-        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let ray = Ray2D::new(Point2D::new(1.0, 1.0), Vector2D::new(0.0, -1.0)).unwrap();
 
         assert!(infinite_line2d_ray2d_collides(
@@ -607,7 +610,7 @@ mod tests {
             line_segment2d_arc2d_collides(&segment, &arc, STANDARD_TEST_TOLERANCE_F64)
         );
 
-        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(&Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         assert_eq!(
             circle2d_infinite_line2d_collides(&circle, &line, tol),
             infinite_line2d_circle2d_collides(&line, &circle, tol)

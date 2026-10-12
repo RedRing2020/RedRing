@@ -288,10 +288,8 @@ fn plane3d_infinite_line3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let lp = line.point();
-    let ld = line.direction();
-    let line_point = Point3D::new(lp.0, lp.1, lp.2);
-    let line_dir_vec = Vector3D::new(ld.0, ld.1, ld.2);
+    let line_point = line.point();
+    let line_dir_vec = line.direction().as_vector();
     let normal = plane.normal().as_vector();
     let denom = line_dir_vec.dot(&normal);
 

@@ -1,10 +1,11 @@
 use super::shared::point_intersection_if;
 use crate::{
     EllipsoidalSolid3D, EllipsoidalSurface3D, InfiniteLine3D, IntersectionResult, LineSegment3D,
-    Plane3D, Point3D, Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D, Vector3D,
+    Plane3D, Point3D, Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D,
 };
 use geo_contracts::{
-    EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties,
+    EllipsoidalSolid3DProperties, InfiniteLine3DProjection, InfiniteLine3DProperties, Scalar,
+    SphericalSolid3DProperties,
 };
 
 fn ellipsoidal_solid3d_point3d_intersection_raw<T: Scalar>(
@@ -64,8 +65,7 @@ pub fn ellipsoidal_solid3d_infinite_line3d_intersections<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let point_on_line = Point3D::new(px, py, pz);
+    let point_on_line = InfiniteLine3DProperties::point(line);
     let points = if crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &point_on_line)
         <= tolerance
     {
@@ -152,10 +152,8 @@ fn spherical_solid3d_line3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
     let center = Point3D::new(cx, cy, cz);
-    let line_point_tuple = InfiniteLine3DProperties::point(line);
-    let line_dir_tuple = InfiniteLine3DProperties::direction(line);
-    let line_point = Point3D::new(line_point_tuple.0, line_point_tuple.1, line_point_tuple.2);
-    let line_dir = Vector3D::new(line_dir_tuple.0, line_dir_tuple.1, line_dir_tuple.2);
+    let line_point = InfiniteLine3DProperties::point(line);
+    let line_dir = InfiniteLine3DProperties::direction(line).as_vector();
     if sphere.distance_to_infinite_line(&line_point, &line_dir) <= tolerance {
         Some(line.closest_point(&center))
     } else {

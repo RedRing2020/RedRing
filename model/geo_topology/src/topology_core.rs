@@ -7,7 +7,8 @@ use crate::tolerance::ResolvedEdgeToleranceSettings;
 use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived,
-    EllipseArc3DEndpoint, EllipseArc3DEvaluation, NurbsCurve3DProperties, Scalar,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, InfiniteLine3DEvaluation, NurbsCurve3DProperties,
+    Scalar,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -381,6 +382,7 @@ impl<T: Scalar> Edge<T> {
 mod tests {
     use super::*;
     use crate::{TopoInfiniteLine3D, TopoNurbsCurve3D};
+    use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::NurbsCurve3DConstructor;
 
     #[test]
@@ -419,8 +421,8 @@ mod tests {
     #[test]
     fn edge_binding_is_separated_from_curve_consistency_for_offset_constraints() {
         let support_line = TopoInfiniteLine3D::from_two_points(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(2.0, 0.0, 0.0),
+            &Point3D::new(0.0, 0.0, 0.0),
+            &Point3D::new(2.0, 0.0, 0.0),
         )
         .unwrap();
         let start = Point3D::new(0.0, 0.0, 0.1);

@@ -79,6 +79,7 @@ impl<T: Scalar> Wire<T> {
 mod tests {
     use super::*;
     use crate::{CurveRef, Point3D, TopoInfiniteLine3D, TopoLineSegment3D, Vertex};
+    use geo_contracts::InfiniteLine3DConstructor;
     use std::sync::Arc;
 
     fn make_edge(start: Point3D<f64>, end: Point3D<f64>) -> Edge<f64> {
@@ -97,7 +98,8 @@ mod tests {
     fn make_offset_support_edge(start: Point3D<f64>, end: Point3D<f64>) -> Edge<f64> {
         let support_start = Point3D::new(start.x(), start.y(), 0.0);
         let support_end = Point3D::new(end.x(), end.y(), 0.0);
-        let support_line = TopoInfiniteLine3D::from_two_points(support_start, support_end).unwrap();
+        let support_line =
+            TopoInfiniteLine3D::from_two_points(&support_start, &support_end).unwrap();
         let line =
             TopoLineSegment3D::from_support_line_and_constraint_points(support_line, start, end)
                 .unwrap();

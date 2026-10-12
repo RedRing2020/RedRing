@@ -11,9 +11,10 @@ mod transform;
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, CrossDistance, LineSegment3DConstructor, LineSegment3DContainment,
-    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
-    LineSegment3DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
+    default_distance_tolerance, CrossDistance, InfiniteLine3DConstructor, InfiniteLine3DDistance,
+    InfiniteLine3DEvaluation, InfiniteLine3DProperties, LineSegment3DConstructor,
+    LineSegment3DContainment, LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation,
+    LineSegment3DProjection, LineSegment3DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 3次元空間の線分。
@@ -37,7 +38,7 @@ impl<T: Scalar> PrimitiveMetadata for LineSegment3D<T> {
 impl<T: Scalar> LineSegment3D<T> {
     /// 始点と終点から線分を作成
     pub fn new(start: Point3D<T>, end: Point3D<T>) -> Option<Self> {
-        let line = InfiniteLine3D::from_two_points(start, end)?;
+        let line = InfiniteLine3D::from_two_points(&start, &end)?;
 
         Self::from_support_line_and_constraint_points(line, start, end)
     }
@@ -127,9 +128,9 @@ impl<T: Scalar> LineSegment3D<T> {
     /// 方向ベクトルを取得
     pub fn direction(&self) -> Vector3D<T> {
         if self.end_param >= self.start_param {
-            *self.line.direction_internal()
+            *self.line.direction()
         } else {
-            (*self.line.direction_internal()).negate()
+            (*self.line.direction()).negate()
         }
     }
 
@@ -160,7 +161,7 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点が線分上にあるかを判定
     pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        if !self.line.contains_point(point, tolerance) {
+        if self.line.distance_to_point(point) > tolerance {
             return false;
         }
 

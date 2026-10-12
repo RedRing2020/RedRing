@@ -9,9 +9,10 @@ mod transform;
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, CrossDistance, LineSegment2DConstructor, LineSegment2DContainment,
-    LineSegment2DDerived, LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
-    LineSegment2DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
+    default_distance_tolerance, CrossDistance, InfiniteLine2DConstructor, InfiniteLine2DDistance,
+    InfiniteLine2DEvaluation, InfiniteLine2DProperties, LineSegment2DConstructor,
+    LineSegment2DContainment, LineSegment2DDerived, LineSegment2DDistance, LineSegment2DEvaluation,
+    LineSegment2DProjection, LineSegment2DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元平面の線分。
@@ -35,7 +36,7 @@ impl<T: Scalar> PrimitiveMetadata for LineSegment2D<T> {
 impl<T: Scalar> LineSegment2D<T> {
     /// 始点と終点から線分を作成
     pub fn new(start: Point2D<T>, end: Point2D<T>) -> Option<Self> {
-        let line = InfiniteLine2D::from_two_points(start, end)?;
+        let line = InfiniteLine2D::from_two_points(&start, &end)?;
 
         Self::from_support_line_and_constraint_points(line, start, end)
     }
@@ -121,9 +122,9 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 方向ベクトルを取得（正規化済み）
     pub fn direction(&self) -> Vector2D<T> {
         if self.end_param >= self.start_param {
-            *self.line.direction_internal()
+            *self.line.direction()
         } else {
-            (*self.line.direction_internal()).negate()
+            (*self.line.direction()).negate()
         }
     }
 
@@ -177,7 +178,7 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 点が線分上にあるかを判定
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
         // まず無限直線上にあるかチェック
-        if !self.line.contains_point(point, tolerance) {
+        if self.line.distance_to_point(point) > tolerance {
             return false;
         }
 

@@ -6,6 +6,7 @@
 pub mod classification;
 pub mod entity;
 pub mod geometry;
+pub mod prelude;
 
 pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
@@ -84,5 +85,5 @@ pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{
     AngleBetween, AngularRelation, BBoxCollision, BasicCollision, CrossDistance,
     DistanceConvergenceError, IntersectsRelation, ParallelRelation, PerpendicularRelation,
-    PointDistance, SameLineRelation, SimilarityTransformable2D, SimilarityTransformable3D,
+    PointDistance, SimilarityTransformable2D, SimilarityTransformable3D,
 };

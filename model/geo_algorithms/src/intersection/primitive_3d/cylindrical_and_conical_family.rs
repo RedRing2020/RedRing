@@ -225,8 +225,7 @@ fn conical_solid3d_line3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let point_on_line = Point3D::new(px, py, pz);
+    let point_on_line = InfiniteLine3DProperties::point(line);
     point_intersection_if(
         &point_on_line,
         conical_solid3d_contains_point_with_tolerance(cone, &point_on_line, tolerance),
@@ -360,10 +359,8 @@ pub fn conical_surface3d_infinite_line3d_intersections<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let (lx, ly, lz) = InfiniteLine3DProperties::direction(line);
-    let origin = Point3D::new(px, py, pz);
-    let direction = Vector3D::new(lx, ly, lz);
+    let origin = InfiniteLine3DProperties::point(line);
+    let direction = InfiniteLine3DProperties::direction(line).as_vector();
     let params = conical_surface3d_intersect_params(cone, &origin, &direction, tolerance);
     let t_inf = T::ONE / tolerance;
     IntersectionResult::from_option_points(

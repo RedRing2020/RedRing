@@ -103,15 +103,13 @@ pub fn plane3d_infinite_line3d_collides<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let (dx, dy, dz) = InfiniteLine3DProperties::direction(line);
-    let line_dir_vec = crate::Vector3D::new(dx, dy, dz);
+    let line_dir_vec = InfiniteLine3DProperties::direction(line).as_vector();
     let normal_vec = plane.normal().as_vector();
     let denom = line_dir_vec.dot(&normal_vec);
     if denom.abs() > tolerance {
         true
     } else {
-        let (px, py, pz) = InfiniteLine3DProperties::point(line);
-        plane.contains_point(crate::Point3D::new(px, py, pz), tolerance)
+        plane.contains_point(InfiniteLine3DProperties::point(line), tolerance)
     }
 }
 

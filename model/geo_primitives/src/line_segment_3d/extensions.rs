@@ -4,7 +4,7 @@
 //! Core機能は親モジュール（line_segment_3d.rs）を参照
 
 use crate::{LineSegment3D, Point3D, Vector3D};
-use geo_contracts::{default_distance_tolerance, Scalar};
+use geo_contracts::{default_distance_tolerance, InfiniteLine3DEvaluation, Scalar};
 
 // Note: Copy trait cannot be implemented due to InfiniteLine3D field not implementing Copy
 
@@ -71,15 +71,14 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点を線分に投影
     pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
-        let to_point = Vector3D::from_points(&self.line().point_internal(), point);
-        let t = to_point.dot(&self.line().direction_internal());
+        let t = self.line.parameter_for_point(point);
 
         // パラメータを線分の範囲内に制限する。reverse した線分は start_param > end_param となるため、
         // 小さい側・大きい側のパラメータで制限する
         let (min_param, max_param) = self.ordered_params();
         let clamped_param = t.max(min_param).min(max_param);
 
-        self.line().point_at_parameter(clamped_param)
+        self.line.point_at_parameter(clamped_param)
     }
 
     /// 点を support line に投影した位置の正規化パラメータを取得

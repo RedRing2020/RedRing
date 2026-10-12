@@ -190,10 +190,6 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
         // Ray2D::new がSomeを返した時点で有効性は保証されている
         true
     }
-
-    fn angle(&self) -> T {
-        self.direction.y().atan2(self.direction.x())
-    }
 }
 
 impl<T: Scalar> Ray2DEvaluation<T> for Ray2D<T> {
