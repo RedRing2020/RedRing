@@ -2,7 +2,7 @@
 
 ## 最終更新日: 2026年10月12日
 
-geo_primitives における幾何プリミティブの実装パターンと規約を定義します。
+geo_primitives における幾何プリミティブの実装パターンと規約を定義します。trait定義の構成は `.github/skills/foundation-pattern/skill.md` を参照してください。
 
 ---
 
@@ -30,86 +30,52 @@ geo_primitives における幾何プリミティブの実装パターンと規�
 ### 1. 親ファイル（`{shape}_3d.rs`）
 
 **責務**:
-- 構造体定義
-- 基本コンストラクタ（`new`, `from_*`）
-- 内部ヘルパーメソッド
+- 構造体定義（フィールドは private）
+- 基本の生成メソッド（`new` 等）と、定義パラメータの取得
+- `geo_contracts` の trait定義の実装（タプルを型付きの値に変換して固有メソッドへ委譲する）
+- `PrimitiveMetadata` の実装
 
 **例**:
 ```rust
 // line_segment_3d.rs
 pub struct LineSegment3D<T: Scalar> {
-    start: Point3D<T>,
-    end: Point3D<T>,
+    line: InfiniteLine3D<T>,
+    start_param: T,
+    end_param: T,
+    start_point: Point3D<T>,
+    end_point: Point3D<T>,
 }
 
 impl<T: Scalar> LineSegment3D<T> {
+    /// 始点と終点から線分を作成（同じ点の場合は None）
     pub fn new(start: Point3D<T>, end: Point3D<T>) -> Option<Self> {
-        if start == end {
-            None
-        } else {
-            Some(Self { start, end })
-        }
+        let line = InfiniteLine3D::from_two_points(start, end)?;
+        Self::from_support_line_and_constraint_points(line, start, end)
     }
 }
 ```
 
-### 2. Foundation 実装ファイル（`{shape}_3d_foundation.rs`）
+### 2. 拡張機能（`{shape}_3d/extensions.rs`）
 
 **責務**:
-- Core Traits 実装（Constructor/Properties/Measure）
-- Extension Traits 実装（Bounded, etc.）
+- 親に置くほど基本的ではないが、呼び出し元のある固有メソッド
+- 呼び出し元のないメソッドを先回りして置かない
 
-**例**:
-```rust
-// line_segment_3d_foundation.rs
-impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
-    fn new(start: (T, T, T), end: (T, T, T)) -> Option<Self> {
-        // ...
-    }
-}
-
-impl<T: Scalar> ExtensionFoundation<T> for LineSegment3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::LineSegment
-    }
-}
-```
-
-### 3. 拡張機能ファイル（`{shape}_3d/extensions.rs`）
+### 3. 境界ボックス（`{shape}_3d/bounds.rs`）
 
 **責務**:
-- 便利メソッド
-- ユーティリティ関数
-- 特殊な計算機能
+- `Bounded` の実装（`geo_core::Aabb2D` / `Aabb3D` を返す）
 
-### 4. Transform 実装ファイル（`{shape}_3d/transform.rs`）
+### 4. 相似変換（`{shape}_3d/transform.rs`）
 
 **責務**:
-- AnalysisTransform3D 実装
-- 変換操作の具体実装
+- `SimilarityTransformable2D` / `SimilarityTransformable3D` の実装
+- 定義パラメータを変換し、長さはスケール係数倍、角度・重みは保持する
 
-**例**:
-```rust
-// line_segment_3d_transform.rs
-impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
-    type Matrix4x4 = Matrix4x4<T>;
-    type Angle = Angle<T>;
-    type Output = Self;
-
-    fn translate_analysis(
-        &self,
-        offset: (T, T, T),
-    ) -> Result<Self::Output, TransformError> {
-        // ...
-    }
-}
-```
-
-### 5. 衝突判定ファイル（`{shape}_3d_collision.rs`）
+### 5. テスト（`{shape}_3d/tests.rs`）
 
 **責務**:
-- BasicCollision トレイト実装
-- 衝突検出専用トレイト実装
+- 形状のすべてのテスト（親・子のファイルにテストを置かない）
 
 ---
 
@@ -172,35 +138,29 @@ impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
 
 ## エラーハンドリングパターン
 
-### TransformError の使用
+### 生成の失敗は `Option`
 
-SafeTransform実装では以下のエラー型を使用：
+形状として成立しない入力（長さ 0 の線分、半径 0 以下の円など）は `None` を返す。
 
 ```rust
-#[derive(Debug, Clone, PartialEq)]
-pub enum TransformError {
-    ZeroVector,           // ゼロベクトル
-    InvalidScaleFactor,   // 無効なスケール倍率（0や負数）
-    InvalidRotation,      // 無効な回転パラメータ
-    InvalidGeometry,      // 変換後の幾何的無効性
+impl<T: Scalar> Circle3D<T> {
+    pub fn new(center: Point3D<T>, axis: Direction3D<T>, radius: T) -> Option<Self> { /* ... */ }
 }
 ```
 
-**使用例**:
-```rust
-impl<T: Scalar> SafeTransform<T> for LineSegment3D<T> {
-    fn safe_scale(
-        &self,
-        factor: T,
-    ) -> Result<Self, TransformError> {
-        if factor <= T::ZERO {
-            return Err(TransformError::InvalidScaleFactor);
-        }
-        // 正常な処理
-        Ok(/* ... */)
-    }
-}
-```
+### 変換の失敗は `TransformError`
+
+相似変換は `Result<Self, TransformError>` を返す（`geo_contracts::TransformError`）。
+
+| バリアント | 使う場面 |
+| --- | --- |
+| `Unsupported(String)` | 扱わない変換・形状が受け付けない変換（AABB の回転など） |
+| `InvalidGeometry(String)` | 変換結果が形状として成立しない |
+| `InvalidParameter(String)` | 変換の構築に不正な引数が渡された（0 以下のスケールなど） |
+
+### 評価の範囲外は `Option`
+
+パラメータの評価で、範囲から許容誤差を超えて外れた値や有限でない値は `None` を返す（例: `LineSegment3DEvaluation::point_at_parameter`）。値を黙って範囲内に丸めない。
 
 ---
 
@@ -208,74 +168,21 @@ impl<T: Scalar> SafeTransform<T> for LineSegment3D<T> {
 
 ### Direction と Vector の分離
 
-```rust
-// geo_primitives/src/direction_3d.rs
-pub struct Direction3D<T: Scalar>(Vector3D<T>);
-
-impl<T: Scalar> Direction3D<T> {
-    /// ゼロベクトルの場合は None を返す
-    pub fn from_vector(v: Vector3D<T>) -> Option<Self> {
-        let len = v.norm();
-        if len.is_zero() {
-            None
-        } else {
-            Some(Direction3D(v.normalize()))
-        }
-    }
-
-    // アクセサメソッド（内部Vectorへの直接アクセスは禁止）
-    pub fn x(&self) -> T { self.0.x() }
-    pub fn y(&self) -> T { self.0.y() }
-    pub fn z(&self) -> T { self.0.z() }
-    
-    // 内部Vectorの取得（必要な場合のみ）
-    pub fn as_vector(&self) -> &Vector3D<T> { &self.0 }
-}
-```
-
-**利点**:
-- 正規化されたベクトルであることを型で保証
-- ゼロベクトルの混入を防止
-- API の明確化
-
----
-
-## Option/Result による失敗の明示化
-
-### Constructor での使用
+方向は `geo_core::Direction3D`（単位ベクトルであることを型で保証）、大きさを持つベクトルは `Vector3D` を使う。
 
 ```rust
-impl<T: Scalar> LineSegment3D<T> {
-    /// 無効な線分（開始点=終了点）の場合は None
-    pub fn new(start: Point3D<T>, end: Point3D<T>) -> Option<Self> {
-        if start == end {
-            None
-        } else {
-            Some(Self { start, end })
-        }
-    }
-}
+// ゼロベクトルの場合は None
+let axis = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0))?;
+let v: Vector3D<f64> = axis.as_vector();
 ```
 
-### Transform での使用
+- 正規化済みであることを前提にする引数は `Direction3D` で受け取る
+- 方向の成分は `x()` / `y()` / `z()` で取得する
 
-```rust
-impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
-    fn rotate_analysis(
-        &self,
-        axis: (T, T, T),
-        angle: Self::Angle,
-    ) -> Result<Self::Output, TransformError> {
-        // 軸ベクトルの正規化
-        let axis_dir = Direction3D::from_vector(
-            Vector3D::new(axis.0, axis.1, axis.2)
-        ).ok_or(TransformError::ZeroVector)?;
-        
-        // 変換実行
-        Ok(/* ... */)
-    }
-}
-```
+### 許容誤差
+
+- 許容誤差は `analysis` に集約したものを使う（`default_distance_tolerance::<T>()` / `default_kernel_numerical_zero_tolerance::<T>()` 等、`geo_contracts` から再エクスポート）
+- モジュール内に独自の許容誤差の定数を置かない（`dev/architecture/GEOMETRIC_TOLERANCE_USAGE_RULES.md`）
 
 ---
 
@@ -293,25 +200,21 @@ impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
 - [ ] `mod {shape}_3d;`（private）
 - [ ] `pub use {shape}_3d::{Shape}3D;`
 
-### 3. 公開 API の確認
-- [ ] 呼び出し元のない公開メソッドを追加していない（`scripts/check_unused_public_api.ps1`）
+### 3. テスト実装
+- [ ] 生成（成立しない入力で `None` になること）
+- [ ] 定義パラメータの取得・派生量
+- [ ] 評価・距離・包含（境界上の扱いを含む）
+- [ ] 相似変換（変換後の点が点の変換と一致すること）
 
-### 4. テスト実装
-- [ ] Constructor テスト
-- [ ] Properties テスト
-- [ ] Measure テスト
-- [ ] Extension テスト
-- [ ] Transform テスト
-
-### 5. 検証
-- [ ] `cargo test -p geo_primitives`
-- [ ] `cargo build`
-- [ ] `.\scripts\check_architecture_dependencies_simple.ps1`
+### 4. 検証
+- [ ] `pwsh scripts/check_all_before_push.ps1`（fmt / clippy / テスト / 呼び出し元のない公開メソッドの警告）
 
 ---
 
 ## 参照文書
 
-- **Foundation Pattern**: `skills/foundation-pattern.md`
-- **Phase 1 実装**: `dev/foundation/PHASE1_COMPLETION_REPORT.md`
-- **Phase 2 実装**: `dev/foundation/PHASE2_IMPLEMENTATION_PLAN.md`
+- **trait定義の構成**: `.github/skills/foundation-pattern/skill.md`
+- **モジュールの構成**: `dev/architecture/GEO_PRIMITIVES_MODULE_STRUCTURE_RULES.md`
+- **テストの置き場所**: `dev/architecture/TEST_PLACEMENT_RULES.md`
+- **API の追加**: `dev/architecture/GEO_API_ADDITION_RULES.md`
+- **許容誤差**: `dev/architecture/GEOMETRIC_TOLERANCE_USAGE_RULES.md`

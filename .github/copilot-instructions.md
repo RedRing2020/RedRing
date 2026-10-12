@@ -4,7 +4,7 @@
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
-> **技術詳細**: 実装パターンや設計原則は [skills.md](skills.md) を参照してください。
+> **技術詳細**: 実装パターンや設計原則は [skills/](skills/)（`implementation` / `foundation-pattern` 等） を参照してください。
 
 ## 🚨 AI開発者への厳格な制約（最終更新: 2025年12月27日）
 
@@ -207,7 +207,7 @@ AIは、命名や進行管理の判断時に次の順で必ず参照すること
 4. **ドキュメント更新** - 実装前に関連ドキュメントを更新
 5. **テストの充実** - テストの置き場所は `dev/architecture/TEST_PLACEMENT_RULES.md` に従う
 
-詳細は [skills.md](skills.md) を参照
+詳細は [skills/](skills/)（`implementation` / `foundation-pattern` 等） を参照
 - `tracing` + `tracing-subscriber` をワークスペース共通依存として使用
 - ログレベルは `RUST_LOG` 環境変数で制御
 - 進捗管理: GitHub Issues/Projects で追跡
