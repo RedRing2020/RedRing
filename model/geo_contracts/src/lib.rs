@@ -27,8 +27,8 @@ pub use geo_core::{
 };
 pub use geometry::core::{
     Arc2DConstructor, Arc2DContainment, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
-    Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc2DTrimRange, Arc3DConstructor,
-    Arc3DContainment, Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation, Arc3DProperties,
+    Arc2DEvaluation, Arc2DProperties, Arc2DTrimRange, Arc3DConstructor, Arc3DContainment,
+    Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation, Arc3DProperties, Arc3DSampling,
     Arc3DTrimRange, Circle2DConstructor, Circle2DContainment, Circle2DDistance, Circle2DEvaluation,
     Circle2DProjection, Circle2DProperties, Circle3DConstructor, Circle3DContainment,
     Circle3DDistance, Circle3DEvaluation, Circle3DProjection, Circle3DProperties,

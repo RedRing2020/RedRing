@@ -4,7 +4,9 @@
 //! （Rhino: PolyCurve、ISO STEP: CompositeCurve）
 
 use crate::{Point3D, TopoArc3D, TopoLineSegment3D, TopoNurbsCurve3D, Vector3D};
-use geo_contracts::{LineSegment3DProperties, LineSegment3DSupportLine, Scalar};
+use geo_contracts::{
+    Arc3DDerived, Arc3DEndpoint, LineSegment3DProperties, LineSegment3DSupportLine, Scalar,
+};
 
 /// 複合曲線を構成する個別セグメント
 #[derive(Clone, Debug)]

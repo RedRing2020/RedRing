@@ -1,16 +1,14 @@
-//! 2次元円弧（Arc2D）の Core 実装
+//! 2次元円弧（Arc2D）の実装
 //!
-//! Foundation統一システムに基づく Arc2D の必須機能のみ
-//! 拡張機能は子モジュール extensions を参照
+//! 基底円と、開始角から反時計回りに終了角までの角度範囲で定義する。
 
 mod bounds;
-mod extensions;
 #[cfg(test)]
 mod tests;
 mod transform;
 
-use crate::{Circle2D, Direction2D, Point2D, Vector2D};
-use analysis::Angle;
+use crate::{Circle2D, Point2D, Vector2D};
+use analysis::{Angle, AngleRange};
 use geo_contracts::{
     default_angle_tolerance, default_distance_tolerance, Arc2DConstructor, Arc2DContainment,
     Arc2DDerived, Arc2DDistance, Arc2DEndpoint, Arc2DEvaluation, Arc2DProperties, Arc2DTrimRange,
@@ -20,7 +18,7 @@ use geo_contracts::{
 
 /// 2次元円弧
 ///
-/// 基底円と角度範囲による円弧の定義
+/// 基底円と角度範囲による円弧の定義。角度はグローバル X 軸から測る。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc2D<T: Scalar> {
     /// 基底となる円
@@ -38,256 +36,14 @@ impl<T: Scalar> PrimitiveMetadata for Arc2D<T> {
 }
 
 impl<T: Scalar> Arc2D<T> {
-    /// 新しい円弧を作成
-    ///
-    /// # 引数
-    /// * `circle` - 基底となる円
-    /// * `start_angle` - 開始角度（Angle）
-    /// * `end_angle` - 終了角度（Angle）
-    pub fn new(circle: Circle2D<T>, start_angle: Angle<T>, end_angle: Angle<T>) -> Option<Self> {
-        // 基底円の有効性チェック
-        if circle.radius() <= T::ZERO {
-            return None;
-        }
-
-        Some(Self {
-            circle,
-            start_angle,
-            end_angle,
-        })
+    /// 開始角から反時計回りに終了角まで進む角度範囲（開始角と終了角が等しい場合は `None`）
+    fn angle_range(&self) -> Option<AngleRange<T>> {
+        AngleRange::from_ccw_bounds(self.start_angle, self.end_angle)
     }
 
-    /// 中心点・半径・角度から円弧を作成
-    ///
-    /// # 引数
-    /// * `center` - 中心点
-    /// * `radius` - 半径（正の値）
-    /// * `start_angle` - 開始角度（Angle）
-    /// * `end_angle` - 終了角度（Angle）
-    pub fn from_center_radius(
-        center: Point2D<T>,
-        radius: T,
-        start_angle: Angle<T>,
-        end_angle: Angle<T>,
-    ) -> Option<Self> {
-        let circle = Circle2D::new(center, radius)?;
-        Self::new(circle, start_angle, end_angle)
-    }
-
-    /// 基底円を取得
-    pub fn circle(&self) -> &Circle2D<T> {
-        &self.circle
-    }
-
-    /// 中心点を取得（内部用）
-    fn center_internal(&self) -> Point2D<T> {
-        self.circle.center()
-    }
-
-    /// 半径を取得（内部用）
-    fn radius_internal(&self) -> T {
-        self.circle.radius()
-    }
-
-    /// 開始角度を取得
-    pub fn start_angle(&self) -> Angle<T> {
-        self.start_angle
-    }
-
-    /// 終了角度を取得
-    pub fn end_angle(&self) -> Angle<T> {
-        self.end_angle
-    }
-
-    /// 指定角度における点を取得（内部用・ラジアン値）
-    fn point_at_angle_internal(&self, angle: T) -> Point2D<T> {
-        let x = self.radius_internal() * angle.cos();
-        let y = self.radius_internal() * angle.sin();
-        self.center_internal() + Vector2D::new(x, y)
-    }
-
-    /// 開始点を取得
-    pub fn start_point(&self) -> Point2D<T> {
-        self.point_at_angle_internal(self.start_angle.to_radians())
-    }
-
-    /// 終了点を取得
-    pub fn end_point(&self) -> Point2D<T> {
-        self.point_at_angle_internal(self.end_angle.to_radians())
-    }
-
-    /// 開始角での接線方向（反時計回りに進む向き）を取得
-    pub fn start_direction(&self) -> Direction2D<T> {
-        let angle = self.start_angle.to_radians();
-        let direction_vector = Vector2D::new(-angle.sin(), angle.cos());
-        Direction2D::from_vector(direction_vector).expect("Direction vector should be valid")
-    }
-
-    /// 円弧の角度範囲を取得
-    pub fn angular_span(&self) -> T {
-        let start = self.start_angle.to_radians();
-        let end = self.end_angle.to_radians();
-        if end >= start {
-            end - start
-        } else {
-            // 角度が逆転している場合（例：350度から10度まで）
-            T::TAU - (start - end)
-        }
-    }
-
-    /// 円弧の長さを計算
-    pub fn length(&self) -> T {
-        self.radius_internal() * self.angular_span()
-    }
-
-    /// 完全な円かどうかを判定
-    pub fn is_full_circle(&self) -> bool {
-        let span = self.angular_span();
-        (span - T::TAU).abs() <= default_angle_tolerance::<T>()
-    }
-}
-
-impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
-    fn new(center: (T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
-        let center_point = Point2D::new(center.0, center.1);
-        let circle = Circle2D::new(center_point, radius)?;
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Self::new(circle, start, end)
-    }
-
-    fn from_three_points(start: (T, T), mid: (T, T), end: (T, T)) -> Option<Self> {
-        // 3点から円を求める
-        let p1 = Point2D::new(start.0, start.1);
-        let p2 = Point2D::new(mid.0, mid.1);
-        let p3 = Point2D::new(end.0, end.1);
-
-        // 外接円の中心と半径を計算
-        let center = Self::circumcenter(p1, p2, p3)?;
-        let radius = center.distance_to(p1);
-
-        // 各点の角度を計算
-        let start_angle = Self::angle_from_center(center, p1);
-        let mid_angle = Self::angle_from_center(center, p2);
-        let end_angle = Self::angle_from_center(center, p3);
-
-        // 角度の順序を確認（start→mid→endの順になるようにする）
-        let (start_rad, end_rad) = if Self::is_angle_between(start_angle, mid_angle, end_angle) {
-            (start_angle, end_angle)
-        } else {
-            (end_angle, start_angle)
-        };
-
-        let circle = Circle2D::new(center, radius)?;
-        Self::new(
-            circle,
-            Angle::from_radians(start_rad),
-            Angle::from_radians(end_rad),
-        )
-    }
-
-    fn full_circle(center: (T, T), radius: T) -> Self {
-        let center_point = Point2D::new(center.0, center.1);
-        let circle = Circle2D::new(center_point, radius).unwrap();
-        let start = Angle::from_radians(T::ZERO);
-        let end = Angle::from_radians((T::ONE + T::ONE) * T::PI);
-        Self::new(circle, start, end).unwrap()
-    }
-}
-
-impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
-    fn center(&self) -> (T, T) {
-        let c = self.circle.center();
-        (c.x(), c.y())
-    }
-
-    fn radius(&self) -> T {
-        self.circle.radius() // Circle2DのFoundationメソッド直接呼び出し
-    }
-
-    fn start_angle(&self) -> T {
-        self.start_angle.to_radians()
-    }
-
-    fn end_angle(&self) -> T {
-        self.end_angle.to_radians()
-    }
-
-    fn dimension(&self) -> u32 {
-        2
-    }
-
-    fn angle_span(&self) -> T {
-        (self.end_angle.to_radians() - self.start_angle.to_radians()).abs()
-    }
-
-    fn is_full_circle(&self) -> bool {
-        let span = self.angle_span();
-        (span - (T::ONE + T::ONE) * T::PI).abs() <= default_angle_tolerance::<T>()
-    }
-}
-
-impl<T: Scalar> Arc2DDerived<T> for Arc2D<T> {
-    fn length(&self) -> T {
-        Arc2D::length(self)
-    }
-}
-
-impl<T: Scalar> Arc2DEndpoint<T> for Arc2D<T> {
-    fn start_point(&self) -> (T, T) {
-        let p = self.point_at_angle_internal(self.start_angle.to_radians());
-        (p.x(), p.y())
-    }
-
-    fn end_point(&self) -> (T, T) {
-        let p = self.point_at_angle_internal(self.end_angle.to_radians());
-        (p.x(), p.y())
-    }
-}
-
-impl<T: Scalar> Arc2DEvaluation<T> for Arc2D<T> {
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        let start_rad = self.start_angle.to_radians();
-        let end_rad = self.end_angle.to_radians();
-        let angle = start_rad + t * (end_rad - start_rad);
-        let p = self.point_at_angle_internal(angle);
-        (p.x(), p.y())
-    }
-
-    fn point_at_angle(&self, angle: T) -> (T, T) {
-        let p = self.point_at_angle_internal(angle);
-        (p.x(), p.y())
-    }
-}
-
-impl<T: Scalar> Arc2DDistance<T> for Arc2D<T> {
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        Arc2D::distance_to_point(self, &Point2D::new(point.0, point.1))
-    }
-}
-
-impl<T: Scalar> Arc2DContainment<T> for Arc2D<T> {
-    fn contains_point(&self, point: (T, T)) -> bool {
-        let point = Point2D::new(point.0, point.1);
-        Arc2D::distance_to_point(self, &point) <= default_distance_tolerance::<T>()
-    }
-}
-
-impl<T: Scalar> Arc2DTrimRange<T> for Arc2D<T> {
-    fn contains_angle(&self, angle: T) -> bool {
-        Arc2D::contains_angle(self, Angle::from_radians(angle))
-    }
-}
-
-impl<T: Scalar> Arc2D<T> {
     /// 3点の外接円の中心を計算
     fn circumcenter(p1: Point2D<T>, p2: Point2D<T>, p3: Point2D<T>) -> Option<Point2D<T>> {
-        let x1 = p1.x();
-        let y1 = p1.y();
-        let x2 = p2.x();
-        let y2 = p2.y();
-        let x3 = p3.x();
-        let y3 = p3.y();
+        let (x1, y1, x2, y2, x3, y3) = (p1.x(), p1.y(), p2.x(), p2.y(), p3.x(), p3.y());
 
         let d = (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2);
         if d.abs() < default_distance_tolerance::<T>() {
@@ -308,19 +64,15 @@ impl<T: Scalar> Arc2D<T> {
     }
 
     /// 中心からの点の角度を計算
-    fn angle_from_center(center: Point2D<T>, point: Point2D<T>) -> T {
-        let dx = point.x() - center.x();
-        let dy = point.y() - center.y();
-        dy.atan2(dx)
+    fn angle_from_center(center: Point2D<T>, point: Point2D<T>) -> Angle<T> {
+        Angle::from_radians((point.y() - center.y()).atan2(point.x() - center.x()))
     }
 
-    /// 角度がstart→end範囲内にあるかチェック
-    fn is_angle_between(start: T, mid: T, end: T) -> bool {
-        let normalize = |angle: T| Angle::from_radians(angle).normalize().to_radians();
-
-        let s = normalize(start);
-        let m = normalize(mid);
-        let e = normalize(end);
+    /// 角度が start から反時計回りに end までの範囲内にあるか
+    fn is_angle_between(start: Angle<T>, mid: Angle<T>, end: Angle<T>) -> bool {
+        let s = start.normalize().to_radians();
+        let m = mid.normalize().to_radians();
+        let e = end.normalize().to_radians();
 
         if s <= e {
             s <= m && m <= e
@@ -330,40 +82,128 @@ impl<T: Scalar> Arc2D<T> {
     }
 }
 
-impl<T: Scalar> Arc2D<T> {
-    /// 開始角から反時計回りに終了角まで進む角度範囲
-    ///
-    /// 開始角と終了角が等しい場合は `None` を返す。
-    pub fn angle_range(&self) -> Option<analysis::AngleRange<T>> {
-        analysis::AngleRange::from_ccw_bounds(self.start_angle, self.end_angle)
+impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
+    fn new(
+        center: Point2D<T>,
+        radius: T,
+        start_angle: Angle<T>,
+        end_angle: Angle<T>,
+    ) -> Option<Self> {
+        Some(Self {
+            circle: Circle2D::new(center, radius)?,
+            start_angle,
+            end_angle,
+        })
     }
 
-    /// 角度が角度範囲に含まれるかを判定する（範囲の両端を含み、既定の角度トレランスで判定する）
-    pub fn contains_angle(&self, angle: Angle<T>) -> bool {
-        let tolerance = geo_contracts::default_angle_tolerance::<T>();
-        match self.angle_range() {
-            Some(range) => range.contains(angle, tolerance),
-            None => angle.is_equivalent(&self.start_angle, tolerance),
+    fn from_three_points(start: Point2D<T>, mid: Point2D<T>, end: Point2D<T>) -> Option<Self> {
+        let center = Self::circumcenter(start, mid, end)?;
+        let radius = center.distance_to(start);
+
+        let start_angle = Self::angle_from_center(center, start);
+        let mid_angle = Self::angle_from_center(center, mid);
+        let end_angle = Self::angle_from_center(center, end);
+
+        // 中間点を通る向き（start→mid→end が反時計回り）になるようにする
+        let (from, to) = if Self::is_angle_between(start_angle, mid_angle, end_angle) {
+            (start_angle, end_angle)
+        } else {
+            (end_angle, start_angle)
+        };
+
+        <Self as Arc2DConstructor<T>>::new(center, radius, from, to)
+    }
+}
+
+impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
+    fn center(&self) -> Point2D<T> {
+        self.circle.center()
+    }
+
+    fn radius(&self) -> T {
+        self.circle.radius()
+    }
+
+    fn start_angle(&self) -> Angle<T> {
+        self.start_angle
+    }
+
+    fn end_angle(&self) -> Angle<T> {
+        self.end_angle
+    }
+
+    fn angle_span(&self) -> Angle<T> {
+        let span = self.end_angle.to_radians() - self.start_angle.to_radians();
+        if span < T::ZERO {
+            Angle::from_radians(span + T::TAU)
+        } else {
+            Angle::from_radians(span)
         }
     }
 
-    /// 点から円弧への最短距離
-    ///
+    fn is_full_circle(&self) -> bool {
+        (self.angle_span().to_radians() - T::TAU).abs() <= default_angle_tolerance::<T>()
+    }
+}
+
+impl<T: Scalar> Arc2DDerived<T> for Arc2D<T> {
+    fn length(&self) -> T {
+        self.radius() * self.angle_span().to_radians()
+    }
+}
+
+impl<T: Scalar> Arc2DEndpoint<T> for Arc2D<T> {
+    fn start_point(&self) -> Point2D<T> {
+        self.point_at_angle(self.start_angle)
+    }
+
+    fn end_point(&self) -> Point2D<T> {
+        self.point_at_angle(self.end_angle)
+    }
+}
+
+impl<T: Scalar> Arc2DEvaluation<T> for Arc2D<T> {
+    fn point_at_parameter(&self, t: T) -> Point2D<T> {
+        self.point_at_angle(Angle::from_radians(
+            self.start_angle.to_radians() + self.angle_span().to_radians() * t,
+        ))
+    }
+
+    fn point_at_angle(&self, angle: Angle<T>) -> Point2D<T> {
+        let radians = angle.to_radians();
+        self.center() + Vector2D::new(self.radius() * radians.cos(), self.radius() * radians.sin())
+    }
+}
+
+impl<T: Scalar> Arc2DDistance<T> for Arc2D<T> {
     /// 点の角度が角度範囲内なら母円までの距離、範囲外なら始点・終点までの距離の小さい方を返す。
-    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
+    fn distance_to_point(&self, point: Point2D<T>) -> T {
         if self.contains_point_angle(point) {
-            self.circle.distance_to_point(*point)
+            self.circle.distance_to_point(point)
         } else {
             point
                 .distance_to(self.start_point())
                 .min(point.distance_to(self.end_point()))
         }
     }
+}
 
-    /// 点の角度が角度範囲に含まれるかを判定する
-    ///
-    /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、点に最も近い母円上の点の角度（中心の点は角度 0）とする。
-    pub fn contains_point_angle(&self, point: &Point2D<T>) -> bool {
-        self.contains_angle(Angle::from_radians(self.circle.parameter_for_point(*point)))
+impl<T: Scalar> Arc2DContainment<T> for Arc2D<T> {
+    fn contains_point(&self, point: Point2D<T>) -> bool {
+        self.distance_to_point(point) <= default_distance_tolerance::<T>()
+    }
+}
+
+impl<T: Scalar> Arc2DTrimRange<T> for Arc2D<T> {
+    fn contains_angle(&self, angle: Angle<T>) -> bool {
+        let tolerance = default_angle_tolerance::<T>();
+        match self.angle_range() {
+            Some(range) => range.contains(angle, tolerance),
+            None => angle.is_equivalent(&self.start_angle, tolerance),
+        }
+    }
+
+    fn contains_point_angle(&self, point: Point2D<T>) -> bool {
+        self.contains_angle(Angle::from_radians(self.circle.parameter_for_point(point)))
     }
 }

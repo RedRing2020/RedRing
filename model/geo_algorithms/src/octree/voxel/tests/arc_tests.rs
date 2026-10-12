@@ -1,6 +1,6 @@
 use super::super::*;
 use crate::{Angle, Arc3D, LineSegment3D};
-use geo_contracts::LineSegment3DConstructor;
+use geo_contracts::{Arc3DConstructor, Arc3DEndpoint, LineSegment3DConstructor};
 use geo_core::Point3D;
 
 #[test]

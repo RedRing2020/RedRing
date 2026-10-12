@@ -14,7 +14,7 @@ use crate::{
     IntersectionResult, IntersectionTopology, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    default_parallel_cross_error_tolerance, Arc2DProperties, Circle2DProperties,
+    default_parallel_cross_error_tolerance, Arc2DProperties, Arc2DTrimRange, Circle2DProperties,
     Ellipse2DProperties, InfiniteLine2DDistance, InfiniteLine2DProjection,
     InfiniteLine2DProperties, LineSegment2DConstructor, LineSegment2DProperties, Ray2DDistance,
     Ray2DProperties, Scalar, Triangle2DBoundaryAccess,
@@ -284,14 +284,14 @@ pub fn arc2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center = Point2D::from_tuple(<Arc2D<T> as Arc2DProperties<T>>::center(arc));
+    let center = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
     let distance = point.distance_to(center);
 
     if (distance - arc.radius()).abs() > tolerance {
         return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
 
-    if !arc.contains_point_angle(point) {
+    if !arc.contains_point_angle(*point) {
         return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
 
@@ -875,7 +875,9 @@ mod tests {
         IntersectionTopology, LineSegment2D, Point2D, Ray2D, Vector2D,
     };
     use analysis::test_constants;
+    use geo_contracts::Arc2DConstructor;
     use geo_contracts::Circle2DConstructor;
+    use geo_contracts::Circle2DProperties;
     use geo_contracts::InfiniteLine2DConstructor;
     use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::LineSegment2DProperties;
@@ -1085,7 +1087,13 @@ mod tests {
     #[test]
     fn arc_point_intersection_on_arc_is_crossing() {
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
-        let arc = Arc2D::new(circle, Angle::from_degrees(0.0), Angle::from_degrees(180.0)).unwrap();
+        let arc = Arc2D::new(
+            circle.center(),
+            circle.radius(),
+            Angle::from_degrees(0.0),
+            Angle::from_degrees(180.0),
+        )
+        .unwrap();
         let point = Point2D::new(0.0, 1.0);
 
         let result = arc2d_point2d_intersection(&arc, &point, STANDARD_TEST_TOLERANCE_F64);
@@ -1096,7 +1104,13 @@ mod tests {
     #[test]
     fn arc_point_intersection_outside_arc_range_is_disjoint() {
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
-        let arc = Arc2D::new(circle, Angle::from_degrees(0.0), Angle::from_degrees(90.0)).unwrap();
+        let arc = Arc2D::new(
+            circle.center(),
+            circle.radius(),
+            Angle::from_degrees(0.0),
+            Angle::from_degrees(90.0),
+        )
+        .unwrap();
         let point = Point2D::new(-1.0, 0.0);
 
         let result = arc2d_point2d_intersection(&arc, &point, STANDARD_TEST_TOLERANCE_F64);
@@ -1240,7 +1254,8 @@ mod tests {
     fn circle_arc_intersection_symmetric_entry_point_returns_hits() {
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let arc = Arc2D::new(
-            Circle2D::new(Point2D::new(1.0, 0.0), 1.0).unwrap(),
+            Point2D::new(1.0, 0.0),
+            1.0,
             crate::Angle::from_degrees(0.0),
             crate::Angle::from_degrees(360.0),
         )
@@ -1253,7 +1268,8 @@ mod tests {
     #[test]
     fn arc_line_segment_intersection_symmetric_entry_point_returns_hits() {
         let arc = Arc2D::new(
-            Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap(),
+            Point2D::new(0.0, 0.0),
+            1.0,
             crate::Angle::from_degrees(0.0),
             crate::Angle::from_degrees(180.0),
         )

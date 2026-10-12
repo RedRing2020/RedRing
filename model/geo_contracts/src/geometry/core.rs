@@ -27,8 +27,8 @@ pub mod triangle_traits;
 
 pub use arc_traits::{
     Arc2DConstructor, Arc2DContainment, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
-    Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc2DTrimRange, Arc3DConstructor,
-    Arc3DContainment, Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation, Arc3DProperties,
+    Arc2DEvaluation, Arc2DProperties, Arc2DTrimRange, Arc3DConstructor, Arc3DContainment,
+    Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation, Arc3DProperties, Arc3DSampling,
     Arc3DTrimRange,
 };
 pub use circle_traits::{

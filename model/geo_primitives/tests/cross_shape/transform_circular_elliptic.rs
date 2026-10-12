@@ -2,9 +2,9 @@
 
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    Angle, Arc2DEvaluation, Arc3DEndpoint, Arc3DEvaluation, Circle2DConstructor,
-    Circle2DEvaluation, Circle3DConstructor, Circle3DEvaluation, SimilarityTransformable2D,
-    SimilarityTransformable3D,
+    Angle, Arc2DConstructor, Arc2DEndpoint, Arc2DEvaluation, Arc2DProperties, Arc3DConstructor,
+    Arc3DEndpoint, Arc3DEvaluation, Circle2DConstructor, Circle2DEvaluation, Circle3DConstructor,
+    Circle3DEvaluation, SimilarityTransformable2D, SimilarityTransformable3D,
 };
 use geo_primitives::{
     Arc2D, Arc3D, Circle2D, Circle3D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D,
@@ -31,10 +31,6 @@ fn transform_2d() -> SimilarityTransform2D<f64> {
     SimilarityTransform2D::rotation_about(Point2D::new(0.0, 0.0), Angle::from_degrees(90.0))
         .then(&SimilarityTransform2D::translation(Vector2D::new(0.0, 5.0)))
         .then(&SimilarityTransform2D::uniform_scale_about(Point2D::new(0.0, 0.0), 2.0).unwrap())
-}
-
-fn map3(p: (f64, f64, f64)) -> Point3D<f64> {
-    transform_3d().apply_point(Point3D::from(p))
 }
 
 fn map2(p: Point2D<f64>) -> Point2D<f64> {
@@ -85,16 +81,16 @@ fn arc_3d_keeps_angles_and_maps_endpoints() {
     let moved = arc.transform_similarity(&transform_3d()).unwrap();
 
     assert_point3_eq(
-        Point3D::from(Arc3DEndpoint::start_point(&moved)),
-        map3(Arc3DEndpoint::start_point(&arc)),
+        Arc3DEndpoint::start_point(&moved),
+        transform_3d().apply_point(Arc3DEndpoint::start_point(&arc)),
     );
     assert_point3_eq(
-        Point3D::from(Arc3DEndpoint::end_point(&moved)),
-        map3(Arc3DEndpoint::end_point(&arc)),
+        Arc3DEndpoint::end_point(&moved),
+        transform_3d().apply_point(Arc3DEndpoint::end_point(&arc)),
     );
     for t in [0.25, 0.5, 0.75] {
-        let expected = map3(Arc3DEvaluation::point_at_parameter(&arc, t));
-        let actual = Point3D::from(Arc3DEvaluation::point_at_parameter(&moved, t));
+        let expected = transform_3d().apply_point(Arc3DEvaluation::point_at_parameter(&arc, t));
+        let actual = Arc3DEvaluation::point_at_parameter(&moved, t);
         assert_point3_eq(actual, expected);
     }
 }
@@ -162,7 +158,7 @@ fn circle_2d_scales_radius_and_keeps_points_on_circle() {
 
 #[test]
 fn arc_2d_adds_rotation_to_angles_and_maps_endpoints() {
-    let arc = Arc2D::from_center_radius(
+    let arc = Arc2D::new(
         Point2D::new(1.0, 0.0),
         2.0,
         Angle::from_degrees(300.0),
@@ -174,10 +170,8 @@ fn arc_2d_adds_rotation_to_angles_and_maps_endpoints() {
     assert_point2_eq(moved.start_point(), map2(arc.start_point()));
     assert_point2_eq(moved.end_point(), map2(arc.end_point()));
     for t in [0.25, 0.5, 0.75] {
-        let (x, y) = Arc2DEvaluation::point_at_parameter(&arc, t);
-        let expected = map2(Point2D::new(x, y));
-        let (x, y) = Arc2DEvaluation::point_at_parameter(&moved, t);
-        let actual = Point2D::new(x, y);
+        let expected = map2(Arc2DEvaluation::point_at_parameter(&arc, t));
+        let actual = Arc2DEvaluation::point_at_parameter(&moved, t);
         assert_point2_eq(actual, expected);
     }
     // 開始角は [0, 2π) に正規化し、掃引角は保つ

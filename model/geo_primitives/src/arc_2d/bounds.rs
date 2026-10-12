@@ -1,15 +1,15 @@
 //! Arc2D の Bounds 実装
 
 use crate::{Arc2D, Point2D};
-use geo_contracts::{Arc2DTrimRange, Bounded, Scalar};
+use geo_contracts::{Angle, Arc2DEndpoint, Arc2DProperties, Arc2DTrimRange, Bounded, Scalar};
 use geo_core::Aabb2D;
 
 impl<T: Scalar> Bounded<T> for Arc2D<T> {
     type Aabb = Aabb2D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
-        let center = self.center_internal();
-        let radius = self.radius_internal();
+        let center = self.center();
+        let radius = self.radius();
 
         if self.is_full_circle() {
             return Some(Aabb2D::new(
@@ -23,7 +23,7 @@ impl<T: Scalar> Bounded<T> for Arc2D<T> {
         let critical_angles = [T::ZERO, half_pi, T::PI, T::PI + half_pi];
 
         for angle in critical_angles {
-            if Arc2DTrimRange::contains_angle(self, angle) {
+            if self.contains_angle(Angle::from_radians(angle)) {
                 points.push(Point2D::new(
                     center.x() + radius * angle.cos(),
                     center.y() + radius * angle.sin(),

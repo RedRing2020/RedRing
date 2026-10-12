@@ -86,10 +86,7 @@ impl<T: Scalar> CurveRef<T> {
     pub fn ideal_start_point(&self) -> Point3D<T> {
         match self {
             Self::Line(line) => line.start_point(),
-            Self::Arc(arc) => {
-                let (x, y, z) = <TopoArc3D<T> as Arc3DEndpoint<T>>::start_point(arc);
-                Point3D::new(x, y, z)
-            }
+            Self::Arc(arc) => <TopoArc3D<T> as Arc3DEndpoint<T>>::start_point(arc),
             Self::EllipseArc(arc) => {
                 let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::start_point(arc);
                 Point3D::new(x, y, z)
@@ -106,10 +103,7 @@ impl<T: Scalar> CurveRef<T> {
     pub fn ideal_end_point(&self) -> Point3D<T> {
         match self {
             Self::Line(line) => line.end_point(),
-            Self::Arc(arc) => {
-                let (x, y, z) = <TopoArc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
-                Point3D::new(x, y, z)
-            }
+            Self::Arc(arc) => <TopoArc3D<T> as Arc3DEndpoint<T>>::end_point(arc),
             Self::EllipseArc(arc) => {
                 let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::end_point(arc);
                 Point3D::new(x, y, z)
@@ -131,10 +125,7 @@ impl<T: Scalar> CurveRef<T> {
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         match self {
             Self::Line(line) => line.support_line().point_at_parameter(t),
-            Self::Arc(arc) => {
-                let (x, y, z) = <TopoArc3D<T> as Arc3DEvaluation<T>>::point_at_parameter(arc, t);
-                Point3D::new(x, y, z)
-            }
+            Self::Arc(arc) => <TopoArc3D<T> as Arc3DEvaluation<T>>::point_at_parameter(arc, t),
             Self::EllipseArc(arc) => {
                 let (x, y, z) =
                     <TopoEllipseArc3D<T> as EllipseArc3DEvaluation<T>>::point_at_parameter(arc, t);

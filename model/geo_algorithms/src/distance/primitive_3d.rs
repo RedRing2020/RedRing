@@ -197,7 +197,7 @@ pub fn point3d_ray3d_distance<T: Scalar>(point: &Point3D<T>, ray: &Ray3D<T>) -> 
 
 /// Arc3D-点 間の最短距離
 pub fn arc3d_point3d_distance<T: Scalar>(arc: &Arc3D<T>, point: &Point3D<T>) -> T {
-    <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, (point.x(), point.y(), point.z()))
+    <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, *point)
 }
 
 /// 逆向きラッパー: point-arc

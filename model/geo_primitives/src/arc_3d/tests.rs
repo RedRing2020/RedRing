@@ -5,7 +5,8 @@
 use crate::{Arc3D, Direction3D, Point3D, Vector3D};
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
 use geo_contracts::{
-    Angle, Arc3DEvaluation, Arc3DProperties, Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq,
+    Angle, Arc3DConstructor, Arc3DDerived, Arc3DEndpoint, Arc3DEvaluation, Arc3DProperties,
+    Arc3DSampling, Arc3DTrimRange, Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq,
 };
 
 // ヘルパー関数：ラジアンから Angle を作成
@@ -23,13 +24,10 @@ fn test_basic_creation() {
     let center = Point3D::new(0.0_f64, 0.0_f64, 0.0_f64);
     let arc = Arc3D::xy_arc(center, 5.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
 
-    let (cx, cy, cz) = arc.center();
-    assert_eq!((cx, cy, cz), (center.x(), center.y(), center.z()));
+    assert_eq!(arc.center(), center);
     assert_eq!(arc.radius(), 5.0);
     assert_eq!(arc.normal().as_vector(), Vector3D::unit_z());
     assert_eq!(arc.start_direction().as_vector(), Vector3D::unit_x());
-    assert_eq!(arc.start_angle(), angle(0.0));
-    assert_eq!(arc.end_angle(), angle(std::f64::consts::PI));
     assert_eq!(arc.start_angle(), angle(0.0));
     assert_eq!(arc.end_angle(), angle(std::f64::consts::PI));
 
@@ -53,17 +51,13 @@ fn test_from_three_points_over_half_circle_and_offset_center() {
 
     let arc = Arc3D::from_three_points(start, middle, end).unwrap();
 
-    let (cx, cy, cz) = arc.center();
-    assert!((cx - 1.0).abs() < TOLERANCE_F64);
-    assert!((cy - 2.0).abs() < TOLERANCE_F64);
-    assert!((cz - 3.0).abs() < TOLERANCE_F64);
+    assert!(arc.center().distance_to(Point3D::new(1.0, 2.0, 3.0)) < TOLERANCE_F64);
     assert!((arc.radius() - 1.0).abs() < TOLERANCE_F64);
     let sweep = arc.end_angle().to_radians() - arc.start_angle().to_radians();
     assert!((sweep - 1.5 * PI).abs() < TOLERANCE_F64);
 
     // 中間点は 180° の位置にある
-    let (mx, my, mz) = <Arc3D<f64> as Arc3DEvaluation<f64>>::point_at_angle(&arc, PI);
-    assert!(Point3D::new(mx, my, mz).distance_to(middle) < TOLERANCE_F64);
+    assert!(arc.point_at_angle(angle(PI)).distance_to(middle) < TOLERANCE_F64);
 }
 
 #[test]
@@ -76,8 +70,7 @@ fn test_from_three_points() {
     let arc = Arc3D::from_three_points(start, middle, end).unwrap();
 
     // 中心は原点、半径 1、反時計回りに 180°
-    let (cx, cy, cz) = arc.center();
-    assert!(cx.abs() < TOLERANCE_F64 && cy.abs() < TOLERANCE_F64 && cz.abs() < TOLERANCE_F64);
+    assert!(arc.center().distance_to(Point3D::origin()) < TOLERANCE_F64);
     assert!((arc.radius() - 1.0_f64).abs() < TOLERANCE_F64);
     let sweep = arc.end_angle().to_radians() - arc.start_angle().to_radians();
     assert!((sweep - std::f64::consts::PI).abs() < TOLERANCE_F64);
@@ -178,8 +171,8 @@ fn test_endpoint_methods() {
     let expected_mid_angle = std::f64::consts::PI / 4.0;
     let expected_x = 3.0 * expected_mid_angle.cos();
     let expected_y = 3.0 * expected_mid_angle.sin();
-    assert!((mid.0 - expected_x).abs() < TOLERANCE_F64);
-    assert!((mid.1 - expected_y).abs() < TOLERANCE_F64);
+    assert!((mid.x() - expected_x).abs() < TOLERANCE_F64);
+    assert!((mid.y() - expected_y).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -194,7 +187,7 @@ fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
     .unwrap();
 
     let from_parameter = arc.point_at_parameter(0.5);
-    let from_angle = arc.point_at_angle(std::f64::consts::PI / 4.0);
+    let from_angle = arc.point_at_angle(angle(std::f64::consts::PI / 4.0));
 
     assert!((from_parameter.x() - from_angle.x()).abs() < TOLERANCE_F64);
     assert!((from_parameter.y() - from_angle.y()).abs() < TOLERANCE_F64);
@@ -235,6 +228,33 @@ fn test_angle_span_calculation() {
     .unwrap();
     let expected_span2 = angle(std::f64::consts::PI);
     assert!(arc2.angle_span().is_equivalent_default(&expected_span2));
+
+    // 評価点も開始角から反時計回りに進む（t=0.5 は角度 0 の点）
+    assert!(
+        arc2.point_at_parameter(0.5)
+            .distance_to(Point3D::new(2.0, 0.0, 0.0))
+            < TOLERANCE_F64
+    );
+}
+
+#[test]
+fn test_sample_points() {
+    let arc = Arc3D::xy_arc(
+        Point3D::origin(),
+        2.0_f64,
+        angle(0.0),
+        angle(std::f64::consts::PI / 2.0),
+    )
+    .unwrap();
+
+    assert!(arc.sample_points(0).is_empty());
+    assert_eq!(arc.sample_points(1), vec![arc.start_point()]);
+
+    let points = arc.sample_points(3);
+    assert_eq!(points.len(), 3);
+    assert!(points[0].distance_to(arc.start_point()) < TOLERANCE_F64);
+    assert!(points[1].distance_to(arc.point_at_parameter(0.5)) < TOLERANCE_F64);
+    assert!(points[2].distance_to(arc.end_point()) < TOLERANCE_F64);
 }
 
 #[test]

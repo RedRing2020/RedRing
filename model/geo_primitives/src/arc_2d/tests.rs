@@ -2,11 +2,11 @@
 //!
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
-use super::*;
-use crate::{Arc2D, Point2D, Vector2D};
-use geo_contracts::Angle;
-use geo_contracts::Arc2DEvaluation;
-use geo_contracts::Arc2DProperties;
+use crate::{Arc2D, Point2D};
+use geo_contracts::{
+    Angle, Arc2DConstructor, Arc2DDerived, Arc2DEndpoint, Arc2DEvaluation, Arc2DProperties,
+    Arc2DTrimRange,
+};
 
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
 
@@ -23,25 +23,19 @@ fn angle_f32(radians: f32) -> Angle<f32> {
 fn test_basic_creation() {
     // 基本的な円弧作成
     let center = Point2D::new(0.0_f64, 0.0_f64);
-    let arc = Arc2D::from_center_radius(center, 5.0_f64, angle(0.0), angle(std::f64::consts::PI))
-        .unwrap();
+    let arc = Arc2D::new(center, 5.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
 
-    let (cx, cy) = arc.center();
-    assert_eq!((cx, cy), (center.x(), center.y()));
+    assert_eq!(arc.center(), center);
     assert_eq!(arc.radius(), 5.0);
-    // 開始角 0 での反時計回りの接線方向
-    assert!((arc.start_direction().as_vector() - Vector2D::unit_y()).length() < TOLERANCE_F64);
     assert_eq!(arc.start_angle(), angle(0.0));
     assert_eq!(arc.end_angle(), angle(std::f64::consts::PI));
 
     // 不正な円弧（負の半径）
-    let invalid =
-        Arc2D::from_center_radius(center, -1.0_f64, angle(0.0), angle(std::f64::consts::PI));
+    let invalid = Arc2D::new(center, -1.0_f64, angle(0.0), angle(std::f64::consts::PI));
     assert!(invalid.is_none());
 
     // ゼロ半径
-    let invalid2 =
-        Arc2D::from_center_radius(center, 0.0_f64, angle(0.0), angle(std::f64::consts::PI));
+    let invalid2 = Arc2D::new(center, 0.0_f64, angle(0.0), angle(std::f64::consts::PI));
     assert!(invalid2.is_none());
 }
 #[test]
@@ -54,9 +48,7 @@ fn test_from_three_points() {
     let arc = Arc2D::from_three_points(start, middle, end).unwrap();
 
     // 中心は原点付近のはず
-    let (cx, cy) = arc.center();
-    assert!((cx - 0.0_f64).abs() < TOLERANCE_F64);
-    assert!((cy - 0.0_f64).abs() < TOLERANCE_F64);
+    assert!(arc.center().distance_to(Point2D::origin()) < TOLERANCE_F64);
     assert!((arc.radius() - 1.0_f64).abs() < TOLERANCE_F64);
 
     // 一直線上の点では作成不可
@@ -71,11 +63,10 @@ fn test_from_three_points() {
 #[test]
 fn test_basic_properties() {
     let center = Point2D::origin();
-    let arc = Arc2D::from_center_radius(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI))
-        .unwrap();
+    let arc = Arc2D::new(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
 
     // 角度範囲
-    let span = arc.angle_span();
+    let span = arc.angle_span().to_radians();
     assert!((span - std::f64::consts::PI).abs() < TOLERANCE_F64);
 
     // 円弧長
@@ -90,7 +81,7 @@ fn test_basic_properties() {
 #[test]
 fn test_full_circle_detection() {
     let center = Point2D::origin();
-    let full_arc = Arc2D::from_center_radius(
+    let full_arc = Arc2D::new(
         center,
         3.0_f64,
         angle(0.0),
@@ -108,8 +99,7 @@ fn test_full_circle_detection() {
 #[test]
 fn test_parametric_points() {
     let center = Point2D::origin();
-    let arc = Arc2D::from_center_radius(center, 4.0_f64, angle(0.0), angle(std::f64::consts::PI))
-        .unwrap();
+    let arc = Arc2D::new(center, 4.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
 
     // 開始点 (t=0)
     let start = arc.point_at_parameter(0.0);
@@ -130,7 +120,7 @@ fn test_parametric_points() {
 #[test]
 fn test_endpoint_methods() {
     let center = Point2D::origin();
-    let arc = Arc2D::from_center_radius(
+    let arc = Arc2D::new(
         center,
         3.0_f64,
         angle(0.0),
@@ -153,14 +143,14 @@ fn test_endpoint_methods() {
     let expected_mid_angle = std::f64::consts::PI / 4.0;
     let expected_x = 3.0 * expected_mid_angle.cos();
     let expected_y = 3.0 * expected_mid_angle.sin();
-    assert!((mid.0 - expected_x).abs() < TOLERANCE_F64);
-    assert!((mid.1 - expected_y).abs() < TOLERANCE_F64);
+    assert!((mid.x() - expected_x).abs() < TOLERANCE_F64);
+    assert!((mid.y() - expected_y).abs() < TOLERANCE_F64);
 }
 
 #[test]
 fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
     let center = Point2D::origin();
-    let arc = Arc2D::from_center_radius(
+    let arc = Arc2D::new(
         center,
         3.0_f64,
         angle(0.0),
@@ -169,7 +159,7 @@ fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
     .unwrap();
 
     let from_parameter = arc.point_at_parameter(0.5);
-    let from_angle = arc.point_at_angle(std::f64::consts::PI / 4.0);
+    let from_angle = arc.point_at_angle(angle(std::f64::consts::PI / 4.0));
 
     assert!((from_parameter.x() - from_angle.x()).abs() < TOLERANCE_F64);
     assert!((from_parameter.y() - from_angle.y()).abs() < TOLERANCE_F64);
@@ -178,8 +168,7 @@ fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
 #[test]
 fn test_angle_containment() {
     let center = Point2D::origin();
-    let arc = Arc2D::from_center_radius(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI))
-        .unwrap();
+    let arc = Arc2D::new(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
 
     // 範囲内の角度
     assert!(arc.contains_angle(angle(std::f64::consts::PI / 2.0)));
@@ -196,26 +185,31 @@ fn test_angle_span_calculation() {
     let center = Point2D::origin();
 
     // 正の角度範囲
-    let arc1 = Arc2D::from_center_radius(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI))
-        .unwrap();
-    assert!((arc1.angle_span() - std::f64::consts::PI).abs() < TOLERANCE_F64);
+    let arc1 = Arc2D::new(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
+    assert!((arc1.angle_span().to_radians() - std::f64::consts::PI).abs() < TOLERANCE_F64);
 
     // 0度をまたぐ角度範囲
-    let arc2 = Arc2D::from_center_radius(
+    let arc2 = Arc2D::new(
         center,
         2.0_f64,
         angle(3.0 * std::f64::consts::PI / 2.0),
         angle(std::f64::consts::PI / 2.0),
     )
     .unwrap();
-    assert!((arc2.angle_span() - std::f64::consts::PI).abs() < TOLERANCE_F64);
+    assert!((arc2.angle_span().to_radians() - std::f64::consts::PI).abs() < TOLERANCE_F64);
+
+    // 評価点も開始角から反時計回りに進む（t=0.5 は角度 0 の点）
+    let mid = arc2.point_at_parameter(0.5);
+    assert!(mid.distance_to(Point2D::new(2.0, 0.0)) < TOLERANCE_F64);
+    assert!(!arc2.is_full_circle());
+    assert!((arc2.length() - 2.0 * std::f64::consts::PI).abs() < TOLERANCE_F64);
 }
 
 #[test]
 fn test_f32_compatibility() {
     // f32での基本操作
     let center = Point2D::new(0.0f32, 0.0f32);
-    let arc = Arc2D::from_center_radius(
+    let arc = Arc2D::new(
         center,
         3.0f32,
         angle_f32(0.0f32),
@@ -241,9 +235,8 @@ fn test_arc_creation() {
     let start = Angle::from_degrees(0.0);
     let end = Angle::from_degrees(90.0);
 
-    let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-    let (cx, cy) = arc.center();
-    assert_eq!((cx, cy), (center.x(), center.y()));
+    let arc = Arc2D::new(center, radius, start, end).unwrap();
+    assert_eq!(arc.center(), center);
     assert_eq!(arc.radius(), radius);
     assert_eq!(arc.start_angle(), start);
     assert_eq!(arc.end_angle(), end);
@@ -251,12 +244,12 @@ fn test_arc_creation() {
 
 #[test]
 fn test_arc_points() {
-    let center = Point2D::new(1.0, 1.0);
+    let center = Point2D::new(1.0_f64, 1.0);
     let radius = 2.0;
     let start = Angle::from_degrees(0.0);
     let end = Angle::from_degrees(90.0);
 
-    let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+    let arc = Arc2D::new(center, radius, start, end).unwrap();
 
     let start_pt = arc.start_point();
     let end_pt = arc.end_point();
@@ -277,7 +270,7 @@ fn test_length() {
     let start = Angle::from_degrees(0.0);
     let end = Angle::from_degrees(90.0);
 
-    let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+    let arc = Arc2D::new(center, radius, start, end).unwrap();
 
     // 90度円弧の長さ = π/2
     let expected_length = std::f64::consts::PI / 2.0;
@@ -291,6 +284,6 @@ fn test_full_circle() {
     let start = Angle::from_degrees(0.0);
     let end = Angle::from_degrees(360.0);
 
-    let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+    let arc = Arc2D::new(center, radius, start, end).unwrap();
     assert!(arc.is_full_circle());
 }

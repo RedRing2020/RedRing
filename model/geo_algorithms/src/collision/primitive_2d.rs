@@ -87,7 +87,7 @@ pub fn line_segment2d_circle2d_collides<T: Scalar>(
 }
 
 pub fn arc2d_point2d_collides<T: Scalar>(arc: &Arc2D<T>, point: &Point2D<T>, tolerance: T) -> bool {
-    let center = Point2D::from_tuple(<Arc2D<T> as Arc2DProperties<T>>::center(arc));
+    let center = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
     let distance = point.distance_to(center);
 
     (distance - arc.radius()).abs() <= tolerance
@@ -98,7 +98,7 @@ pub fn arc2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    let center1 = Point2D::from_tuple(<Arc2D<T> as Arc2DProperties<T>>::center(arc));
+    let center1 = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
     let center2 = circle.center();
     let center_distance = center1.distance_to(center2);
 
@@ -418,6 +418,7 @@ mod tests {
         Ray2D, Triangle2D, Vector2D,
     };
     use analysis::test_constants;
+    use geo_contracts::Arc2DConstructor;
     use geo_contracts::Circle2DConstructor;
     use geo_contracts::InfiniteLine2DConstructor;
     use geo_contracts::LineSegment2DConstructor;
@@ -487,7 +488,8 @@ mod tests {
     #[test]
     fn line_segment_arc_collision_detects_crossing_segment() {
         let arc = Arc2D::new(
-            Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap(),
+            Point2D::new(0.0, 0.0),
+            1.0,
             crate::Angle::from_degrees(0.0),
             crate::Angle::from_degrees(180.0),
         )
@@ -586,7 +588,8 @@ mod tests {
         )
         .unwrap();
         let arc = Arc2D::new(
-            Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap(),
+            Point2D::new(0.0, 0.0),
+            1.0,
             crate::Angle::from_degrees(0.0),
             crate::Angle::from_degrees(180.0),
         )

@@ -4,14 +4,14 @@
 
 use crate::Arc3D;
 use crate::SimilarityTransform3D;
-use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
+use geo_contracts::{Arc3DConstructor, Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for Arc3D<T> {
     fn transform_similarity(
         &self,
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
-        Self::new(
+        <Self as Arc3DConstructor<T>>::new(
             transform.apply_point(self.center),
             self.radius * transform.scale_factor(),
             transform.apply_direction(self.normal),

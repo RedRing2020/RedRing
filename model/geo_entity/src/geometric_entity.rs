@@ -153,7 +153,8 @@ impl<T: Scalar> CircleEntity3DProperties<T> for GeometricEntity<T, geo_primitive
 
 impl<T: Scalar> ArcEntity3DProperties<T> for GeometricEntity<T, geo_primitives::Arc3D<T>> {
     fn arc_center(&self) -> (T, T, T) {
-        Arc3DProperties::center(self.geometry())
+        let center = Arc3DProperties::center(self.geometry());
+        (center.x(), center.y(), center.z())
     }
 
     fn arc_radius(&self) -> T {
@@ -161,11 +162,11 @@ impl<T: Scalar> ArcEntity3DProperties<T> for GeometricEntity<T, geo_primitives::
     }
 
     fn arc_start_angle(&self) -> T {
-        Arc3DProperties::start_angle(self.geometry())
+        Arc3DProperties::start_angle(self.geometry()).to_radians()
     }
 
     fn arc_end_angle(&self) -> T {
-        Arc3DProperties::end_angle(self.geometry())
+        Arc3DProperties::end_angle(self.geometry()).to_radians()
     }
 
     fn arc_normal(&self) -> (T, T, T) {

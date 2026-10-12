@@ -4,7 +4,8 @@
 
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
 use geo_contracts::{
-    Arc2DProperties, Circle2DConstructor, Circle2DProperties, LineSegment2DProperties, Scalar,
+    Arc2DProperties, Arc2DTrimRange, Circle2DConstructor, Circle2DProperties,
+    LineSegment2DProperties, Scalar,
 };
 
 #[cfg(test)]
@@ -71,7 +72,8 @@ pub fn arc2d_circle2d_intersections<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> Vec<Point2D<T>> {
-    let (center_x, center_y) = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
+    let arc_center = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
+    let (center_x, center_y) = (arc_center.x(), arc_center.y());
     let base_circle = Circle2D::new(
         Point2D::new(center_x, center_y),
         <Arc2D<T> as Arc2DProperties<T>>::radius(arc),
@@ -80,7 +82,7 @@ pub fn arc2d_circle2d_intersections<T: Scalar>(
     if let Some(base_circle) = base_circle {
         circle2d_circle2d_intersections(&base_circle, circle, tolerance)
             .into_iter()
-            .filter(|p| arc.contains_point_angle(p))
+            .filter(|p| arc.contains_point_angle(*p))
             .collect()
     } else {
         Vec::new()
@@ -151,15 +153,12 @@ pub fn line_segment2d_arc2d_intersections<T: Scalar>(
     arc: &Arc2D<T>,
     tolerance: T,
 ) -> Vec<Point2D<T>> {
-    let base_circle = Circle2D::new(
-        Point2D::from_tuple(arc.center()),
-        <Arc2D<T> as Arc2DProperties<T>>::radius(arc),
-    );
+    let base_circle = Circle2D::new(arc.center(), <Arc2D<T> as Arc2DProperties<T>>::radius(arc));
 
     if let Some(base_circle) = base_circle {
         line_segment2d_circle2d_intersections(segment, &base_circle, tolerance)
             .into_iter()
-            .filter(|p| arc.contains_point_angle(p))
+            .filter(|p| arc.contains_point_angle(*p))
             .collect()
     } else {
         Vec::new()
@@ -207,7 +206,9 @@ mod tests {
         line_segment2d_circle2d_intersections, line_segment2d_line_segment2d_intersection,
     };
     use crate::{Angle, Arc2D, Circle2D, LineSegment2D, Point2D};
+    use geo_contracts::Arc2DConstructor;
     use geo_contracts::Circle2DConstructor;
+    use geo_contracts::Circle2DProperties;
     use geo_contracts::LineSegment2DConstructor;
 
     #[test]
@@ -263,7 +264,8 @@ mod tests {
         let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let arc = Arc2D::new(
-            circle,
+            circle.center(),
+            circle.radius(),
             Angle::from_radians(0.0),
             Angle::from_radians(std::f64::consts::PI * 0.5),
         )
@@ -278,7 +280,8 @@ mod tests {
     fn arc_circle_filters_outside_angle_range() {
         let arc_circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
         let arc = Arc2D::new(
-            arc_circle,
+            arc_circle.center(),
+            arc_circle.radius(),
             Angle::from_radians(0.0),
             Angle::from_radians(std::f64::consts::PI * 0.5),
         )

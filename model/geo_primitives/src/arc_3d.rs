@@ -1,29 +1,22 @@
-//! Arc3D - Core Implementation
+//! 3次元円弧（Arc3D）の実装
 //!
-//! 3次元円弧の基本実装とコンストラクタ、アクセサメソッド
+//! 中心・半径・法線・開始方向のフレームと、開始角から反時計回りに終了角までの角度範囲で定義する。
 
 mod bounds;
-mod extensions;
 #[cfg(test)]
 mod tests;
 mod transform;
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
+use analysis::AngleRange;
 use geo_contracts::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
-};
-use geo_contracts::{
     Arc3DConstructor, Arc3DContainment, Arc3DDerived, Arc3DDistance, Arc3DEndpoint,
-    Arc3DEvaluation, Arc3DProperties as ContractsArc3DProperties, Arc3DTrimRange,
+    Arc3DEvaluation, Arc3DProperties, Arc3DSampling, Arc3DTrimRange, PrimitiveKind,
+    PrimitiveMetadata, Scalar, TolerantEq,
 };
 
-/// 3次元円弧（基本実装）
-///
-/// 基本機能のみ：
-/// - 作成・検証
-/// - アクセサメソッド
-/// - 基本的な幾何プロパティ
+/// 3次元円弧
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc3D<T: Scalar> {
     center: Point3D<T>,
@@ -34,20 +27,18 @@ pub struct Arc3D<T: Scalar> {
     end_angle: Angle<T>,       // 終了角度
 }
 
-impl<T: Scalar> geo_contracts::PrimitiveMetadata for Arc3D<T> {
-    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
-        geo_contracts::PrimitiveKind::Arc
+impl<T: Scalar> PrimitiveMetadata for Arc3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Arc
     }
 }
 
-impl<T: Scalar> geo_contracts::TolerantEq<T> for Arc3D<T> {
+impl<T: Scalar> TolerantEq<T> for Arc3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         let center_distance = self.center.distance_to(other.center);
         let radius_diff = (self.radius - other.radius).abs();
-        let start_angle_diff = (self.start_angle() - other.start_angle())
-            .to_radians()
-            .abs();
-        let end_angle_diff = (self.end_angle() - other.end_angle()).to_radians().abs();
+        let start_angle_diff = (self.start_angle - other.start_angle).to_radians().abs();
+        let end_angle_diff = (self.end_angle - other.end_angle).to_radians().abs();
         let tolerance_angle = T::from_f64(0.01);
 
         center_distance <= tolerance
@@ -58,20 +49,66 @@ impl<T: Scalar> geo_contracts::TolerantEq<T> for Arc3D<T> {
 }
 
 impl<T: Scalar> Arc3D<T> {
-    /// 新しい3D円弧を作成
+    /// 法線に垂直なベクトルを計算
+    fn compute_perpendicular(normal: Direction3D<T>) -> Option<Direction3D<T>> {
+        let n = normal.as_vector();
+        let perp_x = n.cross(Vector3D::unit_x());
+        if perp_x.length() > default_kernel_numerical_zero_tolerance::<T>() {
+            Direction3D::from_vector(perp_x)
+        } else {
+            // X軸と平行な場合、Y軸を使用
+            Direction3D::from_vector(n.cross(Vector3D::unit_y()))
+        }
+    }
+
+    /// 3点の外心（3点を通る円の中心）を計算
     ///
-    /// # 引数
-    /// * `center` - 円弧の中心点
-    /// * `radius` - 円弧の半径
-    /// * `normal` - 円弧平面の法線方向（正規化済み）
-    /// * `start_dir` - 開始方向（中心から開始点への方向、正規化済み）
-    /// * `start_angle` - 開始角度
-    /// * `end_angle` - 終了角度
+    /// `a = p1 - p3`、`b = p2 - p3` として
+    /// `p3 + ((|a|² b - |b|² a) × (a × b)) / (2 |a × b|²)`。
+    fn calculate_circle_center(
+        p1: Point3D<T>,
+        p2: Point3D<T>,
+        p3: Point3D<T>,
+    ) -> Option<Point3D<T>> {
+        let a = Vector3D::from_points(p3, p1);
+        let b = Vector3D::from_points(p3, p2);
+        let a_cross_b = a.cross(b);
+        let denominator = (T::ONE + T::ONE) * a_cross_b.length_squared();
+        if denominator <= default_kernel_numerical_zero_tolerance::<T>() {
+            return None;
+        }
+        let numerator = (b * a.length_squared() - a * b.length_squared()).cross(a_cross_b);
+        Some(p3 + numerator * (T::ONE / denominator))
+    }
+
+    /// `dir1` から `dir2` まで、法線まわりに反時計回り（右手系の正の向き）に測った角度
     ///
-    /// # 制約
-    /// - `radius > 0`
-    /// - `normal` と `start_dir` は直交していること
-    pub fn new(
+    /// 3点から作る円弧は 180° を超えうるため、`acos` ではなく符号付きの角度で
+    /// (0, 2π] の範囲に求める。
+    fn calculate_angle_between(
+        dir1: Direction3D<T>,
+        dir2: Direction3D<T>,
+        normal: Direction3D<T>,
+    ) -> Angle<T> {
+        let u = dir1.as_vector();
+        let v = dir2.as_vector();
+        let sin = normal.as_vector().dot(u.cross(v));
+        let cos = u.dot(v);
+        let mut angle = sin.atan2(cos);
+        if angle <= T::ZERO {
+            angle += T::TAU;
+        }
+        Angle::from_radians(angle)
+    }
+
+    /// 開始角から反時計回りに終了角まで進む角度範囲（開始角と終了角が等しい場合は `None`）
+    fn angle_range(&self) -> Option<AngleRange<T>> {
+        AngleRange::from_ccw_bounds(self.start_angle, self.end_angle)
+    }
+}
+
+impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
+    fn new(
         center: Point3D<T>,
         radius: T,
         normal: Direction3D<T>,
@@ -79,14 +116,12 @@ impl<T: Scalar> Arc3D<T> {
         start_angle: Angle<T>,
         end_angle: Angle<T>,
     ) -> Option<Self> {
-        // 半径の検証
         if radius <= T::ZERO {
             return None;
         }
 
         // 法線と開始方向の直交性チェック
-        let dot_product = normal.as_vector().dot(start_dir.as_vector()).abs();
-        if dot_product > default_angle_tolerance::<T>() {
+        if normal.dot(start_dir).abs() > default_angle_tolerance::<T>() {
             return None;
         }
 
@@ -100,326 +135,139 @@ impl<T: Scalar> Arc3D<T> {
         })
     }
 
-    /// XY平面上の円弧を作成（便利メソッド）
-    ///
-    /// # 引数
-    /// * `center` - 中心点
-    /// * `radius` - 半径
-    /// * `start_angle` - 開始角度
-    /// * `end_angle` - 終了角度
-    pub fn xy_arc(
+    fn xy_arc(
         center: Point3D<T>,
         radius: T,
         start_angle: Angle<T>,
         end_angle: Angle<T>,
     ) -> Option<Self> {
-        let normal = Direction3D::from_vector(Vector3D::unit_z())?;
-        let start_dir = Direction3D::from_vector(Vector3D::unit_x())?;
-        Self::new(center, radius, normal, start_dir, start_angle, end_angle)
-    }
-
-    /// 円弧平面の法線ベクトルを取得
-    pub fn normal(&self) -> Direction3D<T> {
-        self.normal
-    }
-
-    /// 開始方向ベクトルを取得
-    pub fn start_direction(&self) -> Direction3D<T> {
-        self.start_dir
-    }
-
-    /// 開始角度を取得
-    pub fn start_angle(&self) -> Angle<T> {
-        self.start_angle
-    }
-
-    /// 終了角度を取得
-    pub fn end_angle(&self) -> Angle<T> {
-        self.end_angle
-    }
-
-    /// 円弧の角度範囲を取得
-    pub fn angle_span(&self) -> Angle<T> {
-        let mut span = self.end_angle - self.start_angle;
-        if span.to_radians() < T::ZERO {
-            span += Angle::from_radians(T::from_f64(2.0) * T::PI);
-        }
-        span
-    }
-
-    /// 円弧の長さを計算
-    pub fn length(&self) -> T {
-        self.radius * self.angle_span().to_radians()
-    }
-
-    /// 完全円（360度）かどうか判定
-    pub fn is_full_circle(&self) -> bool {
-        let span = self.angle_span().to_radians();
-        let two_pi = T::from_f64(2.0) * T::PI;
-        (span - two_pi).abs() < default_angle_tolerance::<T>()
-    }
-
-    /// 指定角度での点を取得（内部用）
-    fn point_at_angle_internal(&self, angle: Angle<T>) -> Point3D<T> {
-        // 開始方向ベクトルを角度分回転
-        let rotation_axis = self.normal.as_vector();
-        let start_vec = self.start_dir.as_vector();
-
-        // ロドリゲスの回転公式を使用
-        let theta = angle.to_radians();
-        let cos_theta = theta.cos();
-        let sin_theta = theta.sin();
-
-        let rotated = start_vec * cos_theta
-            + rotation_axis.cross(start_vec) * sin_theta
-            + rotation_axis * (rotation_axis.dot(start_vec) * (T::ONE - cos_theta));
-
-        self.center + rotated * self.radius
-    }
-}
-
-impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
-    fn new(
-        center: (T, T, T),
-        radius: T,
-        normal: (T, T, T),
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
-        let normal_dir = Direction3D::from_vector(normal_vec)?;
-
-        // デフォルトの開始方向（法線に垂直なベクトル）を計算
-        let start_dir = Self::compute_perpendicular(normal_dir)?;
-
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-
-        Self::new(center_point, radius, normal_dir, start_dir, start, end)
-    }
-
-    fn xy_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let start = Angle::from_radians(start_angle);
-        let end = Angle::from_radians(end_angle);
-        Self::xy_arc(center_point, radius, start, end)
-    }
-
-    fn from_three_points(start: (T, T, T), mid: (T, T, T), end: (T, T, T)) -> Option<Self> {
-        let p1 = Point3D::new(start.0, start.1, start.2);
-        let p2 = Point3D::new(mid.0, mid.1, mid.2);
-        let p3 = Point3D::new(end.0, end.1, end.2);
-
-        // 3点から円の中心と法線を計算
-        let v1 = p2 - p1;
-        let v2 = p3 - p1;
-        let normal_vec = v1.cross(v2);
-        let normal_dir = Direction3D::from_vector(normal_vec)?;
-
-        // 外接円の中心を計算
-        let center = Self::circumcenter_3d(p1, p2, p3, normal_dir)?;
-        let radius = center.distance_to(p1);
-
-        // 開始方向を計算
-        let start_vec = p1 - center;
-        let start_dir = Direction3D::from_vector(start_vec)?;
-
-        // 角度を計算
-        let start_angle = Angle::from_radians(T::ZERO);
-        let end_vec = p3 - center;
-        let end_angle = Self::angle_between_vectors(start_vec, end_vec, normal_vec);
-
-        Self::new(
+        <Self as Arc3DConstructor<T>>::new(
             center,
             radius,
-            normal_dir,
-            start_dir,
+            Direction3D::positive_z(),
+            Direction3D::positive_x(),
             start_angle,
             end_angle,
         )
     }
 
-    fn full_circle(center: (T, T, T), normal: (T, T, T), radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
-        let normal_dir = Direction3D::from_vector(normal_vec)?;
-        let start_dir = Self::compute_perpendicular(normal_dir)?;
-        Self::new(
-            center_point,
-            radius,
-            normal_dir,
+    fn from_three_points(start: Point3D<T>, mid: Point3D<T>, end: Point3D<T>) -> Option<Self> {
+        // 3点が同一直線上でないことを確認
+        let cross = Vector3D::from_points(start, mid).cross(Vector3D::from_points(mid, end));
+        if cross.length() < default_distance_tolerance::<T>() {
+            return None;
+        }
+
+        let center = Self::calculate_circle_center(start, mid, end)?;
+        let normal = Direction3D::from_vector(cross)?;
+        let start_dir = Direction3D::from_vector(Vector3D::from_points(center, start))?;
+        let end_dir = Direction3D::from_vector(Vector3D::from_points(center, end))?;
+
+        // 開始点 → 中間点 → 終了点の順に、法線まわりに反時計回りとなる
+        let end_angle = Self::calculate_angle_between(start_dir, end_dir, normal);
+
+        <Self as Arc3DConstructor<T>>::new(
+            center,
+            center.distance_to(start),
+            normal,
             start_dir,
             Angle::from_radians(T::ZERO),
-            Angle::from_radians(T::from_f64(2.0) * T::PI),
+            end_angle,
+        )
+    }
+
+    fn full_circle(center: Point3D<T>, normal: Direction3D<T>, radius: T) -> Option<Self> {
+        <Self as Arc3DConstructor<T>>::new(
+            center,
+            radius,
+            normal,
+            Self::compute_perpendicular(normal)?,
+            Angle::from_radians(T::ZERO),
+            Angle::from_radians(T::TAU),
         )
     }
 }
 
-impl<T: Scalar> ContractsArc3DProperties<T> for Arc3D<T> {
-    fn center(&self) -> (T, T, T) {
-        (self.center.x(), self.center.y(), self.center.z())
+impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
+    fn center(&self) -> Point3D<T> {
+        self.center
     }
 
     fn radius(&self) -> T {
         self.radius
     }
 
-    fn start_angle(&self) -> T {
-        self.start_angle.to_radians()
+    fn normal(&self) -> Direction3D<T> {
+        self.normal
     }
 
-    fn end_angle(&self) -> T {
-        self.end_angle.to_radians()
+    fn start_direction(&self) -> Direction3D<T> {
+        self.start_dir
     }
 
-    fn dimension(&self) -> u32 {
-        3
+    fn start_angle(&self) -> Angle<T> {
+        self.start_angle
     }
 
-    fn angle_span(&self) -> T {
-        (self.end_angle.to_radians() - self.start_angle.to_radians()).abs()
+    fn end_angle(&self) -> Angle<T> {
+        self.end_angle
+    }
+
+    fn angle_span(&self) -> Angle<T> {
+        let span = self.end_angle.to_radians() - self.start_angle.to_radians();
+        if span < T::ZERO {
+            Angle::from_radians(span + T::TAU)
+        } else {
+            Angle::from_radians(span)
+        }
     }
 
     fn is_full_circle(&self) -> bool {
-        let span = (self.end_angle.to_radians() - self.start_angle.to_radians()).abs();
-        (span - T::from_f64(2.0) * T::PI).abs() <= default_angle_tolerance::<T>()
+        (self.angle_span().to_radians() - T::TAU).abs() <= default_angle_tolerance::<T>()
     }
 }
 
 impl<T: Scalar> Arc3DDerived<T> for Arc3D<T> {
     fn length(&self) -> T {
-        Arc3D::length(self)
+        self.radius * self.angle_span().to_radians()
     }
 }
 
 impl<T: Scalar> Arc3DEndpoint<T> for Arc3D<T> {
-    fn start_point(&self) -> (T, T, T) {
-        let p = self.point_at_angle_internal(self.start_angle);
-        (p.x(), p.y(), p.z())
+    fn start_point(&self) -> Point3D<T> {
+        self.point_at_angle(self.start_angle)
     }
 
-    fn end_point(&self) -> (T, T, T) {
-        let p = self.point_at_angle_internal(self.end_angle);
-        (p.x(), p.y(), p.z())
+    fn end_point(&self) -> Point3D<T> {
+        self.point_at_angle(self.end_angle)
     }
 }
 
 impl<T: Scalar> Arc3DEvaluation<T> for Arc3D<T> {
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
-        let p = self.point_at_angle_internal(angle);
-        (p.x(), p.y(), p.z())
+    fn point_at_parameter(&self, t: T) -> Point3D<T> {
+        self.point_at_angle(Angle::from_radians(
+            self.start_angle.to_radians() + self.angle_span().to_radians() * t,
+        ))
     }
 
-    fn point_at_angle(&self, angle: T) -> (T, T, T) {
-        let p = self.point_at_angle_internal(Angle::from_radians(angle));
-        (p.x(), p.y(), p.z())
+    /// 開始方向を角度 0 とし、法線まわりに反時計回りを正とする
+    fn point_at_angle(&self, angle: Angle<T>) -> Point3D<T> {
+        let radians = angle.to_radians();
+        let u_axis = self.start_dir.as_vector();
+        let v_axis = self.normal.as_vector().cross(u_axis);
+
+        self.center
+            + u_axis * (self.radius * radians.cos())
+            + v_axis * (self.radius * radians.sin())
     }
 }
 
 impl<T: Scalar> Arc3DDistance<T> for Arc3D<T> {
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        Arc3D::distance_to_point(self, &Point3D::new(point.0, point.1, point.2))
-    }
-}
-
-impl<T: Scalar> Arc3DContainment<T> for Arc3D<T> {
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        let point = Point3D::new(point.0, point.1, point.2);
-        Arc3D::distance_to_point(self, &point) <= default_distance_tolerance::<T>()
-    }
-}
-
-impl<T: Scalar> Arc3DTrimRange<T> for Arc3D<T> {
-    fn contains_angle(&self, angle: T) -> bool {
-        Arc3D::contains_angle(self, Angle::from_radians(angle))
-    }
-}
-
-impl<T: Scalar> Arc3D<T> {
-    /// 法線に垂直なベクトルを計算
-    fn compute_perpendicular(normal: Direction3D<T>) -> Option<Direction3D<T>> {
-        let n = normal.as_vector();
-
-        // X軸との外積を試す
-        let x_axis = Vector3D::unit_x();
-        let perp1 = n.cross(x_axis);
-
-        if perp1.length() > default_kernel_numerical_zero_tolerance::<T>() {
-            Direction3D::from_vector(perp1)
-        } else {
-            // X軸と平行な場合、Y軸を使用
-            let y_axis = Vector3D::unit_y();
-            let perp2 = n.cross(y_axis);
-            Direction3D::from_vector(perp2)
-        }
-    }
-
-    /// 3D空間での外接円の中心を計算
-    fn circumcenter_3d(
-        p1: Point3D<T>,
-        p2: Point3D<T>,
-        p3: Point3D<T>,
-        _normal: Direction3D<T>,
-    ) -> Option<Point3D<T>> {
-        let v1 = p2 - p1;
-        let v2 = p3 - p1;
-
-        let v1_sq = v1.dot(v1);
-        let v2_sq = v2.dot(v2);
-        let v1_v2 = v1.dot(v2);
-
-        let denom = (T::ONE + T::ONE) * (v1_sq * v2_sq - v1_v2 * v1_v2);
-        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
-            return None;
-        }
-
-        let alpha = v2_sq * (v1_sq - v1_v2) / denom;
-        let beta = v1_sq * (v2_sq - v1_v2) / denom;
-
-        Some(p1 + v1 * alpha + v2 * beta)
-    }
-
-    /// 2つのベクトル間の角度を計算
-    fn angle_between_vectors(v1: Vector3D<T>, v2: Vector3D<T>, normal: Vector3D<T>) -> Angle<T> {
-        let cos_angle = v1.dot(v2) / (v1.length() * v2.length());
-        let angle = cos_angle.acos();
-
-        // 符号を確認（法線との外積で判定）
-        let cross = v1.cross(v2);
-        if cross.dot(normal) < T::ZERO {
-            Angle::from_radians(T::TAU - angle)
-        } else {
-            Angle::from_radians(angle)
-        }
-    }
-}
-
-impl<T: Scalar> Arc3D<T> {
-    /// 開始角から反時計回りに終了角まで進む角度範囲
-    ///
-    /// 開始角と終了角が等しい場合は `None` を返す。
-    pub fn angle_range(&self) -> Option<analysis::AngleRange<T>> {
-        analysis::AngleRange::from_ccw_bounds(self.start_angle, self.end_angle)
-    }
-
-    /// 角度が角度範囲に含まれるかを判定する（範囲の両端を含み、既定の角度トレランスで判定する）
-    pub fn contains_angle(&self, angle: Angle<T>) -> bool {
-        let tolerance = geo_contracts::default_angle_tolerance::<T>();
-        match self.angle_range() {
-            Some(range) => range.contains(angle, tolerance),
-            None => angle.is_equivalent(&self.start_angle, tolerance),
-        }
-    }
-
-    /// 点から円弧への最短距離
-    ///
     /// 点の角度が角度範囲内なら母円までの距離（円弧平面からの距離を含む）、範囲外なら始点・終点までの
     /// 距離の小さい方を返す。
-    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
         if self.contains_point_angle(point) {
-            let to_point = Vector3D::from_points(self.center, *point);
+            let to_point = Vector3D::from_points(self.center, point);
             let normal = self.normal.as_vector();
             let plane_distance = to_point.dot(normal);
             let radial_distance = (to_point - normal * plane_distance).length() - self.radius;
@@ -430,15 +278,43 @@ impl<T: Scalar> Arc3D<T> {
                 .min(point.distance_to(self.end_point()))
         }
     }
+}
 
-    /// 点の角度が角度範囲に含まれるかを判定する
-    ///
-    /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、円弧平面へ投影した点の、開始方向を角度 0 とし法線まわりに反時計回りを正とする角度（`point_at_angle` と同じ）とする。中心軸上の点は角度 0 とする。
-    pub fn contains_point_angle(&self, point: &Point3D<T>) -> bool {
-        let to_point = Vector3D::from_points(self.center, *point);
+impl<T: Scalar> Arc3DContainment<T> for Arc3D<T> {
+    fn contains_point(&self, point: Point3D<T>) -> bool {
+        self.distance_to_point(point) <= default_distance_tolerance::<T>()
+    }
+}
+
+impl<T: Scalar> Arc3DTrimRange<T> for Arc3D<T> {
+    fn contains_angle(&self, angle: Angle<T>) -> bool {
+        let tolerance = default_angle_tolerance::<T>();
+        match self.angle_range() {
+            Some(range) => range.contains(angle, tolerance),
+            None => angle.is_equivalent(&self.start_angle, tolerance),
+        }
+    }
+
+    fn contains_point_angle(&self, point: Point3D<T>) -> bool {
+        let to_point = Vector3D::from_points(self.center, point);
         let u_axis = self.start_dir.as_vector();
         let v_axis = self.normal.as_vector().cross(u_axis);
         let angle = to_point.dot(v_axis).atan2(to_point.dot(u_axis));
         self.contains_angle(Angle::from_radians(angle))
+    }
+}
+
+impl<T: Scalar> Arc3DSampling<T> for Arc3D<T> {
+    fn sample_points(&self, num_points: usize) -> Vec<Point3D<T>> {
+        match num_points {
+            0 => Vec::new(),
+            1 => vec![self.start_point()],
+            _ => {
+                let segments = T::from_usize(num_points - 1);
+                (0..num_points)
+                    .map(|i| self.point_at_parameter(T::from_usize(i) / segments))
+                    .collect()
+            }
+        }
     }
 }

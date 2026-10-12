@@ -4,7 +4,7 @@ use crate::{
     Vector3D,
 };
 use geo_contracts::{
-    Arc3DEndpoint, Arc3DProperties, Circle3DProperties, InfiniteLine3DProperties,
+    Arc3DEndpoint, Arc3DProperties, Arc3DTrimRange, Circle3DProperties, InfiniteLine3DProperties,
     LineSegment3DProperties, Ray3DProperties, Scalar,
 };
 
@@ -30,7 +30,8 @@ pub fn ellipse3d_arc3d_collides<T: Scalar + From<f64>>(
     arc: &Arc3D<T>,
     tolerance: T,
 ) -> bool {
-    let (cx, cy, cz) = Arc3DProperties::center(arc);
+    let arc_center = Arc3DProperties::center(arc);
+    let (cx, cy, cz) = (arc_center.x(), arc_center.y(), arc_center.z());
     let arc_radius = Arc3DProperties::radius(arc);
     let center = Point3D::new(cx, cy, cz);
     crate::distance::ellipse3d_point3d_distance(ellipse, &center) <= arc_radius + tolerance
@@ -115,7 +116,7 @@ pub fn ellipse3d_ellipse3d_collides<T: Scalar>(
 
 pub fn arc3d_point3d_collides<T: Scalar>(arc: &Arc3D<T>, point: &Point3D<T>, tolerance: T) -> bool {
     crate::distance::arc3d_point3d_distance(arc, point) <= tolerance
-        && arc.contains_point_angle(point)
+        && arc.contains_point_angle(*point)
 }
 
 pub fn arc3d_line_segment3d_collides<T: Scalar>(
@@ -123,8 +124,14 @@ pub fn arc3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    let (sx, sy, sz) = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc);
-    let (ex, ey, ez) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
+    let arc_start_point = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc);
+    let (sx, sy, sz) = (
+        arc_start_point.x(),
+        arc_start_point.y(),
+        arc_start_point.z(),
+    );
+    let arc_end_point = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
+    let (ex, ey, ez) = (arc_end_point.x(), arc_end_point.y(), arc_end_point.z());
     let arc_start = Point3D::new(sx, sy, sz);
     let arc_end = Point3D::new(ex, ey, ez);
     crate::distance::arc3d_point3d_distance(arc, &segment.start_point()) <= tolerance
@@ -149,10 +156,30 @@ pub fn arc3d_infinite_line3d_collides<T: Scalar>(
 }
 
 pub fn arc3d_arc3d_collides<T: Scalar>(arc_a: &Arc3D<T>, arc_b: &Arc3D<T>, tolerance: T) -> bool {
-    let (s1x, s1y, s1z) = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc_a);
-    let (e1x, e1y, e1z) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc_a);
-    let (s2x, s2y, s2z) = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc_b);
-    let (e2x, e2y, e2z) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc_b);
+    let arc_a_start_point = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc_a);
+    let (s1x, s1y, s1z) = (
+        arc_a_start_point.x(),
+        arc_a_start_point.y(),
+        arc_a_start_point.z(),
+    );
+    let arc_a_end_point = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc_a);
+    let (e1x, e1y, e1z) = (
+        arc_a_end_point.x(),
+        arc_a_end_point.y(),
+        arc_a_end_point.z(),
+    );
+    let arc_b_start_point = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc_b);
+    let (s2x, s2y, s2z) = (
+        arc_b_start_point.x(),
+        arc_b_start_point.y(),
+        arc_b_start_point.z(),
+    );
+    let arc_b_end_point = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc_b);
+    let (e2x, e2y, e2z) = (
+        arc_b_end_point.x(),
+        arc_b_end_point.y(),
+        arc_b_end_point.z(),
+    );
     let pa = Point3D::new(s1x, s1y, s1z);
     let pb = Point3D::new(e1x, e1y, e1z);
     let pc = Point3D::new(s2x, s2y, s2z);

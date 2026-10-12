@@ -443,9 +443,9 @@ pub fn triangle_to_wireframe_line_segments(triangle: &Triangle3D<f64>) -> Vec<Ve
 /// 円弧をセグメント分割して頂点列を生成します。
 /// 開始角度から終了角度までの範囲のみを表示します。
 pub fn arc_to_vertices(arc: &Arc3D<f64>, quality: &TessellationQuality) -> Vec<VertexData> {
-    // 円弧の角度範囲を取得（Arc3DPropertiesトレイトを使用してf64を取得）
-    let start_angle: f64 = Arc3DProperties::start_angle(arc);
-    let end_angle: f64 = Arc3DProperties::end_angle(arc);
+    // 円弧の角度範囲を取得（ラジアン）
+    let start_angle: f64 = Arc3DProperties::start_angle(arc).to_radians();
+    let end_angle: f64 = Arc3DProperties::end_angle(arc).to_radians();
 
     // 角度範囲を計算（CCW方向）
     let mut angle_range: f64 = end_angle - start_angle;
@@ -461,7 +461,7 @@ pub fn arc_to_vertices(arc: &Arc3D<f64>, quality: &TessellationQuality) -> Vec<V
     let mut vertices = Vec::with_capacity(segments + 1);
 
     // 円弧の中心と半径を取得（Arc3DPropertiesトレイトを使用）
-    let center: (f64, f64, f64) = Arc3DProperties::center(arc);
+    let center = Arc3DProperties::center(arc);
     let radius: f64 = Arc3DProperties::radius(arc);
 
     // 円弧の法線方向と開始方向を取得（Arc3D内部メソッドを使用）
@@ -489,9 +489,9 @@ pub fn arc_to_vertices(arc: &Arc3D<f64>, quality: &TessellationQuality) -> Vec<V
         let sin_a = angle.sin();
 
         // 円弧上の点 = center + radius * (cos(θ) * start_dir + sin(θ) * v)
-        let point_x = center.0 + radius * (cos_a * start_dir_vec.x() + sin_a * v.x());
-        let point_y = center.1 + radius * (cos_a * start_dir_vec.y() + sin_a * v.y());
-        let point_z = center.2 + radius * (cos_a * start_dir_vec.z() + sin_a * v.z());
+        let point_x = center.x() + radius * (cos_a * start_dir_vec.x() + sin_a * v.x());
+        let point_y = center.y() + radius * (cos_a * start_dir_vec.y() + sin_a * v.y());
+        let point_z = center.z() + radius * (cos_a * start_dir_vec.z() + sin_a * v.z());
 
         vertices.push(VertexData::new(
             [point_x as f32, point_y as f32, point_z as f32],
@@ -511,8 +511,8 @@ pub fn arc_to_wireframe_line_segments(
     quality: &TessellationQuality,
 ) -> Vec<VertexData> {
     // 円弧の角度範囲を取得
-    let start_angle: f64 = Arc3DProperties::start_angle(arc);
-    let end_angle: f64 = Arc3DProperties::end_angle(arc);
+    let start_angle: f64 = Arc3DProperties::start_angle(arc).to_radians();
+    let end_angle: f64 = Arc3DProperties::end_angle(arc).to_radians();
 
     // 角度範囲を計算（CCW方向）
     let mut angle_range: f64 = end_angle - start_angle;
@@ -528,7 +528,7 @@ pub fn arc_to_wireframe_line_segments(
     let mut vertices = Vec::with_capacity(segments * 2); // 各線分に2頂点
 
     // 円弧の中心と半径を取得
-    let center: (f64, f64, f64) = Arc3DProperties::center(arc);
+    let center = Arc3DProperties::center(arc);
     let radius: f64 = Arc3DProperties::radius(arc);
 
     // 円弧の法線方向と開始方向を取得
@@ -559,16 +559,16 @@ pub fn arc_to_wireframe_line_segments(
         // 始点
         let cos_a1 = angle1.cos();
         let sin_a1 = angle1.sin();
-        let point1_x = center.0 + radius * (cos_a1 * start_dir_vec.x() + sin_a1 * v.x());
-        let point1_y = center.1 + radius * (cos_a1 * start_dir_vec.y() + sin_a1 * v.y());
-        let point1_z = center.2 + radius * (cos_a1 * start_dir_vec.z() + sin_a1 * v.z());
+        let point1_x = center.x() + radius * (cos_a1 * start_dir_vec.x() + sin_a1 * v.x());
+        let point1_y = center.y() + radius * (cos_a1 * start_dir_vec.y() + sin_a1 * v.y());
+        let point1_z = center.z() + radius * (cos_a1 * start_dir_vec.z() + sin_a1 * v.z());
 
         // 終点
         let cos_a2 = angle2.cos();
         let sin_a2 = angle2.sin();
-        let point2_x = center.0 + radius * (cos_a2 * start_dir_vec.x() + sin_a2 * v.x());
-        let point2_y = center.1 + radius * (cos_a2 * start_dir_vec.y() + sin_a2 * v.y());
-        let point2_z = center.2 + radius * (cos_a2 * start_dir_vec.z() + sin_a2 * v.z());
+        let point2_x = center.x() + radius * (cos_a2 * start_dir_vec.x() + sin_a2 * v.x());
+        let point2_y = center.y() + radius * (cos_a2 * start_dir_vec.y() + sin_a2 * v.y());
+        let point2_z = center.z() + radius * (cos_a2 * start_dir_vec.z() + sin_a2 * v.z());
 
         // 線分として2頂点を追加
         vertices.push(VertexData::new(
@@ -2131,6 +2131,7 @@ fn generate_circle_cap(
 mod tests {
     use super::*;
     use geo_algorithms::Direction3D;
+    use geo_contracts::Arc3DConstructor;
     use geo_contracts::Circle3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
