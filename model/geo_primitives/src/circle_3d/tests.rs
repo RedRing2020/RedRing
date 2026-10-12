@@ -1,9 +1,11 @@
-//! Circle3D Test Suite - Comprehensive testing for all Circle3D functionality
-//!
-//! 3次元円の全機能テスト：作成、アクセサ、拡張機能、変換操作
+//! Circle3D のテスト
 
 use crate::{Circle3D, Direction3D, Point3D, Vector3D};
-use geo_contracts::{Bounded, Circle3DEvaluation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
+use geo_contracts::{
+    default_distance_tolerance, Bounded, Circle3DConstructor, Circle3DContainment,
+    Circle3DDistance, Circle3DEvaluation, Circle3DProjection, Circle3DProperties,
+    PointClassification, PrimitiveKind, PrimitiveMetadata, TolerantEq,
+};
 
 // 近似等価性チェック用のヘルパー関数
 fn assert_approx_eq(a: f64, b: f64, epsilon: f64) {
@@ -14,13 +16,16 @@ fn assert_approx_eq(a: f64, b: f64, epsilon: f64) {
 fn test_circle_creation() {
     // 基本的な円の作成
     let center = Point3D::new(1.0, 2.0, 3.0);
-    let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
+    let normal = Direction3D::positive_z();
     let radius = 5.0;
 
     let circle = Circle3D::new(center, normal, radius).unwrap();
-    assert_eq!(circle.center, center);
-    assert_eq!(circle.axis, normal);
-    assert_eq!(circle.radius, radius);
+    assert_eq!(circle.center(), center);
+    assert_eq!(circle.axis(), normal);
+    assert_eq!(circle.radius(), radius);
+
+    // 参照方向は法線に直交する
+    assert_approx_eq(circle.ref_direction().dot(normal), 0.0, 1e-12);
 
     // 無効な半径での作成失敗
     assert!(Circle3D::new(center, normal, 0.0).is_none());
@@ -34,154 +39,45 @@ fn test_plane_constructors() {
 
     // XY平面の円
     let xy_circle = Circle3D::new_xy_plane(center, radius).unwrap();
-    assert_eq!(
-        xy_circle.axis,
-        Direction3D::from_vector(Vector3D::unit_z()).unwrap()
-    );
-}
-
-#[test]
-fn test_geometric_properties() {
-    let center = Point3D::new(0.0, 0.0, 0.0);
-    let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
-    let radius = 3.0;
-    let circle = Circle3D::new(center, normal, radius).unwrap();
-
-    // 幾何学的性質
-    assert_approx_eq(circle.diameter(), 6.0, 1e-10);
-    assert_approx_eq(
-        circle.circumference(),
-        2.0 * std::f64::consts::PI * 3.0,
-        1e-10,
-    );
-    assert_approx_eq(circle.area(), std::f64::consts::PI * 9.0, 1e-10);
-}
-
-#[test]
-fn test_point_at_angle() {
-    let center = Point3D::new(0.0, 0.0, 0.0);
-    let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
-    let ref_direction = Direction3D::from_vector(Vector3D::unit_x()).unwrap();
-    let radius = 2.0;
-    let circle = Circle3D::new_with_ref_direction(center, normal, ref_direction, radius).unwrap();
-
-    // 角度0での点（X軸正方向）
-    let point_0 = circle.point_at_angle(0.0);
-    assert_approx_eq(point_0.x(), 2.0, 1e-10);
-    assert_approx_eq(point_0.y(), 0.0, 1e-10);
-    assert_approx_eq(point_0.z(), 0.0, 1e-10);
-
-    // 角度π/2での点（Y軸正方向）
-    let point_90 = circle.point_at_angle(std::f64::consts::PI / 2.0);
-    assert_approx_eq(point_90.x(), 0.0, 1e-10);
-    assert_approx_eq(point_90.y(), 2.0, 1e-10);
-    assert_approx_eq(point_90.z(), 0.0, 1e-10);
-
-    let point_90_from_parameter = <Circle3D<f64> as Circle3DEvaluation<f64>>::point_at_parameter(
-        &circle,
-        std::f64::consts::PI / 2.0,
-    );
-    assert_approx_eq(point_90.x(), point_90_from_parameter.0, 1e-10);
-    assert_approx_eq(point_90.y(), point_90_from_parameter.1, 1e-10);
-    assert_approx_eq(point_90.z(), point_90_from_parameter.2, 1e-10);
+    assert_eq!(xy_circle.axis(), Direction3D::positive_z());
 }
 
 #[test]
 fn test_point_at_parameter_uses_local_angle_parameter() {
     let center = Point3D::new(0.0, 0.0, 0.0);
-    let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
-    let ref_direction = Direction3D::from_vector(Vector3D::unit_x()).unwrap();
+    let normal = Direction3D::positive_z();
+    let ref_direction = Direction3D::positive_x();
     let radius = 2.0;
     let circle = Circle3D::new_with_ref_direction(center, normal, ref_direction, radius).unwrap();
 
-    let point_0 = <Circle3D<f64> as Circle3DEvaluation<f64>>::point_at_parameter(&circle, 0.0);
-    assert_approx_eq(point_0.0, 2.0, 1e-10);
-    assert_approx_eq(point_0.1, 0.0, 1e-10);
-    assert_approx_eq(point_0.2, 0.0, 1e-10);
-
-    let point_pi_2 = <Circle3D<f64> as Circle3DEvaluation<f64>>::point_at_parameter(
-        &circle,
-        std::f64::consts::PI / 2.0,
-    );
-    assert_approx_eq(point_pi_2.0, 0.0, 1e-10);
-    assert_approx_eq(point_pi_2.1, 2.0, 1e-10);
-    assert_approx_eq(point_pi_2.2, 0.0, 1e-10);
-
-    let point_tau = <Circle3D<f64> as Circle3DEvaluation<f64>>::point_at_parameter(
-        &circle,
-        std::f64::consts::TAU,
-    );
-    assert_approx_eq(point_tau.0, 2.0, 1e-10);
-    assert_approx_eq(point_tau.1, 0.0, 1e-10);
-    assert_approx_eq(point_tau.2, 0.0, 1e-10);
-}
-
-#[test]
-fn test_tangent_at_angle_matches_parameter_semantics() {
-    let center = Point3D::new(0.0, 0.0, 0.0);
-    let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
-    let ref_direction = Direction3D::from_vector(Vector3D::unit_x()).unwrap();
-    let radius = 2.0;
-    let circle = Circle3D::new_with_ref_direction(center, normal, ref_direction, radius).unwrap();
-
-    let tangent_0 = circle.tangent_at_parameter(0.0);
-    assert_approx_eq(tangent_0.x(), 0.0, 1e-10);
-    assert_approx_eq(tangent_0.y(), 1.0, 1e-10);
-    assert_approx_eq(tangent_0.z(), 0.0, 1e-10);
-
-    let tangent_pi_2 = circle.tangent_at_parameter(std::f64::consts::PI / 2.0);
-    assert_approx_eq(tangent_pi_2.x(), -1.0, 1e-10);
-    assert_approx_eq(tangent_pi_2.y(), 0.0, 1e-10);
-    assert_approx_eq(tangent_pi_2.z(), 0.0, 1e-10);
-}
-
-#[test]
-fn test_extensions() {
-    let center = Point3D::new(0.0, 0.0, 0.0);
-    let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
-    let radius = 1.0;
-    let circle = Circle3D::new(center, normal, radius).unwrap();
-
-    // 軸の取得
-    let u_axis = circle.u_axis();
-    let v_axis = circle.v_axis();
-
-    // 軸は正規化されている
-    assert_approx_eq(u_axis.as_vector().length(), 1.0, 1e-10);
-    assert_approx_eq(v_axis.as_vector().length(), 1.0, 1e-10);
-
-    // 軸は互いに直交
-    assert_approx_eq(u_axis.as_vector().dot(v_axis.as_vector()), 0.0, 1e-10);
-
-    // サンプルポイントの生成
-    let points = circle.sample_points(4);
-    assert_eq!(points.len(), 4);
-
-    for point in &points {
-        let distance = center.distance_to(*point);
-        assert_approx_eq(distance, radius, 1e-10);
+    for (t, expected) in [
+        // 角度0での点（参照方向）
+        (0.0, Point3D::new(2.0, 0.0, 0.0)),
+        // 角度π/2での点（法線 × 参照方向）
+        (std::f64::consts::PI / 2.0, Point3D::new(0.0, 2.0, 0.0)),
+        // t = 2π は周期端として t = 0 と同じ点
+        (std::f64::consts::TAU, Point3D::new(2.0, 0.0, 0.0)),
+    ] {
+        assert!(circle.point_at_parameter(t).distance_to(expected) < 1e-10);
     }
 }
 
 #[test]
 fn test_contains_and_classify_point() {
-    use geo_contracts::{Circle3DContainment, PointClassification};
-
     // XY 平面上、中心 (1, 2, 3)・半径 2 の円
     let circle = Circle3D::new(
         Point3D::new(1.0_f64, 2.0, 3.0),
-        Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
+        Direction3D::positive_z(),
         2.0,
     )
     .unwrap();
-    let tolerance = 1e-3;
+    let tolerance = default_distance_tolerance::<f64>();
 
     // contains_point は円周上にあるかを判定する
-    assert!(circle.contains_point(&Point3D::new(3.0, 2.0, 3.0), tolerance));
-    assert!(!circle.contains_point(&Point3D::new(1.0, 2.0, 3.0), tolerance));
+    assert!(circle.contains_point(Point3D::new(3.0, 2.0, 3.0)));
+    assert!(!circle.contains_point(Point3D::new(1.0, 2.0, 3.0)));
 
-    let classify =
-        |x: f64, y: f64, z: f64| circle.classify_point(&Point3D::new(x, y, z), tolerance);
+    let classify = |x: f64, y: f64, z: f64| circle.classify_point(Point3D::new(x, y, z));
     assert_eq!(classify(1.0, 2.0, 3.0), PointClassification::Inside);
     assert_eq!(classify(3.0, 2.0, 3.0), PointClassification::OnBoundary);
     assert_eq!(classify(4.0, 2.0, 3.0), PointClassification::Outside);
@@ -205,31 +101,42 @@ fn test_contains_and_classify_point() {
         classify(1.0, 2.0, 3.0 + 0.5 * tolerance),
         PointClassification::Inside
     );
+}
 
-    // trait定義は既定の距離トレランスで判定する
-    assert!(Circle3DContainment::contains_point(
-        &circle,
-        (1.0, 4.0, 3.0)
-    ));
-    assert_eq!(
-        Circle3DContainment::classify_point(&circle, (1.0, 2.0, 3.0)),
-        PointClassification::Inside
+#[test]
+fn test_distance_and_closest_point() {
+    let circle = Circle3D::new_xy_plane(Point3D::new(0.0_f64, 0.0, 0.0), 2.0).unwrap();
+
+    // 平面からの距離と平面上での円周までの距離を合成する
+    assert_approx_eq(
+        circle.distance_to_point(Point3D::new(5.0, 0.0, 4.0)),
+        5.0,
+        1e-10,
     );
+
+    assert!(
+        circle
+            .closest_point(Point3D::new(0.0, 5.0, 3.0))
+            .distance_to(Point3D::new(0.0, 2.0, 0.0))
+            < 1e-10
+    );
+
+    // 中心軸上の点は参照方向の点を最近点とする
+    let on_axis = circle.closest_point(Point3D::new(0.0, 0.0, 1.0));
+    assert!(on_axis.distance_to(circle.point_at_parameter(0.0)) < 1e-10);
 }
 
 #[test]
 fn test_from_three_points_passes_through_all_points() {
-    use geo_contracts::Circle3DConstructor;
-
     // 中心 (0, 0, 0)・半径 1 の XY 平面上の円
-    let circle = <Circle3D<f64> as Circle3DConstructor<f64>>::from_three_points(
-        (1.0, 0.0, 0.0),
-        (0.0, 1.0, 0.0),
-        (-1.0, 0.0, 0.0),
+    let circle = Circle3D::from_three_points(
+        Point3D::new(1.0_f64, 0.0, 0.0),
+        Point3D::new(0.0, 1.0, 0.0),
+        Point3D::new(-1.0, 0.0, 0.0),
     )
     .unwrap();
-    assert!(circle.center.distance_to(Point3D::new(0.0, 0.0, 0.0)) < 1e-12);
-    assert!((circle.radius - 1.0).abs() < 1e-12);
+    assert!(circle.center().distance_to(Point3D::new(0.0, 0.0, 0.0)) < 1e-12);
+    assert!((circle.radius() - 1.0).abs() < 1e-12);
 
     // 傾いた平面上の 3 点のいずれも円上にある
     let points = [
@@ -237,25 +144,18 @@ fn test_from_three_points_passes_through_all_points() {
         Point3D::new(4.0, -1.0, 2.0),
         Point3D::new(0.0, 5.0, -1.0),
     ];
-    let circle = <Circle3D<f64> as Circle3DConstructor<f64>>::from_three_points(
-        (points[0].x(), points[0].y(), points[0].z()),
-        (points[1].x(), points[1].y(), points[1].z()),
-        (points[2].x(), points[2].y(), points[2].z()),
-    )
-    .unwrap();
+    let circle = Circle3D::from_three_points(points[0], points[1], points[2]).unwrap();
     for point in points {
-        assert!(circle.contains_point(&point, 1e-9));
+        assert!(circle.distance_to_point(point) <= 1e-9);
     }
 
     // 一直線上の 3 点は円を作れない
-    assert!(
-        <Circle3D<f64> as Circle3DConstructor<f64>>::from_three_points(
-            (0.0, 0.0, 0.0),
-            (1.0, 1.0, 1.0),
-            (2.0, 2.0, 2.0),
-        )
-        .is_none()
-    );
+    assert!(Circle3D::from_three_points(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 1.0, 1.0),
+        Point3D::new(2.0, 2.0, 2.0),
+    )
+    .is_none());
 }
 
 #[test]
@@ -273,12 +173,10 @@ fn test_tolerant_eq() {
 
 #[test]
 fn test_metadata_and_bounds_capabilities() {
-    let center = Point3D::new(1.0, 2.0, 3.0);
-    let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
-    let circle = Circle3D::new(center, normal, 5.0).unwrap();
+    let center = Point3D::new(1.0_f64, 2.0, 3.0);
+    let circle = Circle3D::new(center, Direction3D::positive_z(), 5.0).unwrap();
 
     assert_eq!(circle.primitive_kind(), PrimitiveKind::Circle);
-    assert_eq!(circle.area(), 25.0 * std::f64::consts::PI);
 
     let aabb = circle.aabb().expect("Circle should have an AABB");
     // XY平面の円なので、Z方向の範囲は0
@@ -291,8 +189,7 @@ fn test_metadata_and_bounds_capabilities() {
 #[test]
 fn test_circle_3d_aabb_respects_plane_orientation() {
     let center = Point3D::new(1.0_f64, 2.0, 3.0);
-    let normal = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-    let circle = Circle3D::new(center, normal, 2.0).unwrap();
+    let circle = Circle3D::new(center, Direction3D::positive_x(), 2.0).unwrap();
 
     let aabb = circle.aabb().expect("Circle should have an AABB");
     assert!((aabb.min().x() - center.x()).abs() < 1e-10);

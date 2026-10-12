@@ -317,8 +317,7 @@ pub fn ellipse3d_circle3d_intersections<T: Scalar + From<f64>>(
     circle: &Circle3D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (cx, cy, cz) = Circle3DProperties::center(circle);
-    let center = Point3D::new(cx, cy, cz);
+    let center = Circle3DProperties::center(circle);
     let dist = crate::distance::ellipse3d_point3d_distance(ellipse, &center);
     let points = if dist <= Circle3DProperties::radius(circle) + tolerance {
         vec![center]

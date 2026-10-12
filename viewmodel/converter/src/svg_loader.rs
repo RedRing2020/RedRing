@@ -9,7 +9,8 @@ use crate::shape_converter::{
     triangle_to_solid_vertices, TessellationQuality,
 };
 use geo_contracts::{
-    Angle, LineSegment3DConstructor, NurbsCurve3DConstructor, NurbsCurve3DDerived,
+    Angle, Circle3DConstructor, LineSegment3DConstructor, NurbsCurve3DConstructor,
+    NurbsCurve3DDerived,
 };
 // geo_algorithms は geo_primitives を再エクスポート（アーキテクチャルール上許可）
 use geo_algorithms::{

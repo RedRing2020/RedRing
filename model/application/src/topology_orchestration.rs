@@ -158,8 +158,12 @@ impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
         let center = request.circle.center();
         let axis = request.circle.axis();
-        let full_arc = Arc3D::full_circle(center, axis, request.circle.radius())
-            .ok_or(TopologyOrchestrationError::InvalidCircleTopology)?;
+        let full_arc = Arc3D::full_circle(
+            (center.x(), center.y(), center.z()),
+            (axis.x(), axis.y(), axis.z()),
+            request.circle.radius(),
+        )
+        .ok_or(TopologyOrchestrationError::InvalidCircleTopology)?;
         let start = full_arc.start_point();
         let shared_vertex = Arc::new(Vertex::new(geo_topology::Point3D::new(
             start.x(),
@@ -250,6 +254,7 @@ mod tests {
     };
     use crate::primitives::{Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
     use geo_contracts::Angle;
+    use geo_contracts::Circle3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
     use geo_topology::TopologyToleranceSettings;
 

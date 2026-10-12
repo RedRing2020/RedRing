@@ -2,8 +2,9 @@
 
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    Angle, Arc2DEvaluation, Arc3DEndpoint, Arc3DEvaluation, Circle3DEvaluation,
-    SimilarityTransformable2D, SimilarityTransformable3D,
+    Angle, Arc2DEvaluation, Arc3DEndpoint, Arc3DEvaluation, Circle2DConstructor,
+    Circle2DEvaluation, Circle3DConstructor, Circle3DEvaluation, SimilarityTransformable2D,
+    SimilarityTransformable3D,
 };
 use geo_primitives::{
     Arc2D, Arc3D, Circle2D, Circle3D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D,
@@ -63,8 +64,9 @@ fn circle_3d_maps_every_parameter_and_scales_radius() {
 
     assert!((geo_contracts::Circle3DProperties::radius(&moved) - 4.0).abs() < TOLERANCE_F64);
     for t in PARAMS {
-        let expected = map3(Circle3DEvaluation::point_at_parameter(&circle, t));
-        let actual = Point3D::from(Circle3DEvaluation::point_at_parameter(&moved, t));
+        let expected =
+            transform_3d().apply_point(Circle3DEvaluation::point_at_parameter(&circle, t));
+        let actual = Circle3DEvaluation::point_at_parameter(&moved, t);
         assert_point3_eq(actual, expected);
     }
 }
@@ -146,18 +148,14 @@ fn circle_2d_scales_radius_and_keeps_points_on_circle() {
     let moved = circle.transform_similarity(&transform_2d()).unwrap();
 
     assert_point2_eq(
-        Point2D::from_tuple(geo_contracts::Circle2DProperties::center(&moved)),
-        map2(Point2D::from_tuple(
-            geo_contracts::Circle2DProperties::center(&circle),
-        )),
+        geo_contracts::Circle2DProperties::center(&moved),
+        map2(geo_contracts::Circle2DProperties::center(&circle)),
     );
     assert!((geo_contracts::Circle2DProperties::radius(&moved) - 4.0).abs() < TOLERANCE_F64);
     // 2D の円のパラメータはグローバル X 軸基準のため、点の集合として一致を確認する
     for t in PARAMS {
         let mapped = map2(circle.point_at_parameter(t));
-        let distance = mapped.distance_to(Point2D::from_tuple(
-            geo_contracts::Circle2DProperties::center(&moved),
-        ));
+        let distance = mapped.distance_to(geo_contracts::Circle2DProperties::center(&moved));
         assert!((distance - 4.0).abs() < TOLERANCE_F64);
     }
 }

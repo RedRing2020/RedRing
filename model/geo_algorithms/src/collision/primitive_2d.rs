@@ -27,7 +27,7 @@ pub fn circle2d_point2d_collides<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> bool {
-    let center = Point2D::from_tuple(circle.center());
+    let center = circle.center();
     let distance = point.distance_to(center);
     (distance - circle.radius()).abs() <= tolerance
 }
@@ -37,8 +37,8 @@ pub fn circle2d_circle2d_collides<T: Scalar>(
     circle2: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    let center1 = Point2D::from_tuple(circle1.center());
-    let center2 = Point2D::from_tuple(circle2.center());
+    let center1 = circle1.center();
+    let center2 = circle2.center();
     let center_distance = center1.distance_to(center2);
 
     let radii_sum = circle1.radius() + circle2.radius();
@@ -81,7 +81,7 @@ pub fn line_segment2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     let distance_to_center = line_segment2d_point2d_distance(segment, &center);
     (distance_to_center - circle.radius()).max(T::ZERO) <= tolerance
 }
@@ -99,7 +99,7 @@ pub fn arc2d_circle2d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let center1 = Point2D::from_tuple(<Arc2D<T> as Arc2DProperties<T>>::center(arc));
-    let center2 = Point2D::from_tuple(circle.center());
+    let center2 = circle.center();
     let center_distance = center1.distance_to(center2);
 
     let radii_sum = arc.radius() + circle.radius();
@@ -141,7 +141,7 @@ pub fn ray2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     ray.distance_to_point(center) <= circle.radius() + tolerance
 }
 
@@ -174,7 +174,7 @@ pub fn triangle2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     if triangle.contains_point(&center) {
         return true;
     }
@@ -266,7 +266,7 @@ pub fn infinite_line2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     line.distance_to_point(center) <= circle.radius() + tolerance
 }
 
@@ -323,7 +323,7 @@ pub fn ellipse2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     ellipse.distance_to_point(&center) <= circle.radius() + tolerance
 }
 
@@ -349,13 +349,13 @@ pub fn ellipse_arc2d_circle2d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     if !{
-        let center = Point2D::new(circle.center().0, circle.center().1);
+        let center = circle.center();
         arc.ellipse().distance_to_point(&center) <= circle.radius() + tolerance
     } {
         return false;
     }
 
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     if arc.contains_point_angle(&center) {
         return true;
     }
@@ -418,6 +418,7 @@ mod tests {
         Ray2D, Triangle2D, Vector2D,
     };
     use analysis::test_constants;
+    use geo_contracts::Circle2DConstructor;
     use geo_contracts::InfiniteLine2DConstructor;
     use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::Ray2DConstructor;

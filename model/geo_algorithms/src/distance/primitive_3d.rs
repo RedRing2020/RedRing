@@ -12,10 +12,10 @@ use crate::{
 };
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, default_parallel_cross_error_tolerance, Arc3DDistance,
-    ConicalSurface3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance,
-    Ellipse3DDistance, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance,
-    EllipsoidalSurface3DDistance, InfiniteLine3DProperties, LineSegment3DConstructor,
-    LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
+    Circle3DDistance, ConicalSurface3DDistance, CylindricalSolid3DDistance,
+    CylindricalSurface3DDistance, Ellipse3DDistance, EllipsoidalSolid3DContainment,
+    EllipsoidalSolid3DDistance, EllipsoidalSurface3DDistance, InfiniteLine3DProperties,
+    LineSegment3DConstructor, LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
     SphericalSolid3DContainment, SphericalSolid3DDistance, TorusSolid3DContainment,
     TorusSolid3DDistance, TorusSurface3DDistance, Triangle3DBoundaryAccess,
 };
@@ -226,12 +226,12 @@ pub fn point3d_torus_surface3d_distance<T: Scalar>(
 
 /// Circle3D-点 間の最短距離（円周への3D空間での距離）
 pub fn circle3d_point3d_distance<T: Scalar>(circle: &Circle3D<T>, point: &Point3D<T>) -> T {
-    circle.distance_to_point(point)
+    circle.distance_to_point(*point)
 }
 
 /// 逆向きラッパー: point-circle
 pub fn point3d_circle3d_distance<T: Scalar>(point: &Point3D<T>, circle: &Circle3D<T>) -> T {
-    circle.distance_to_point(point)
+    circle.distance_to_point(*point)
 }
 
 /// Ellipse3D-点 間の最短距離

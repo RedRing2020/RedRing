@@ -495,9 +495,9 @@ impl CircleEntityStorePort for InMemoryCircleEntityStore {
         let dto = StoredCircleEntityDto {
             entity_id: entity.id(),
             feature_name,
-            center: [center.0, center.1, center.2],
+            center: [center.x(), center.y(), center.z()],
             radius: Circle3DProperties::radius(entity.geometry()),
-            axis: [axis.0, axis.1, axis.2],
+            axis: [axis.x(), axis.y(), axis.z()],
             color: entity.display().color,
             line_style: entity.display().line_style,
             line_width: entity.display().line_width,

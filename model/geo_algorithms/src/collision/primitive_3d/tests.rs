@@ -18,7 +18,9 @@ use crate::{
     TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D, Vector3D,
 };
 use analysis::test_constants;
-use geo_contracts::{InfiniteLine3DConstructor, LineSegment3DConstructor, Ray3DConstructor};
+use geo_contracts::{
+    Circle3DConstructor, InfiniteLine3DConstructor, LineSegment3DConstructor, Ray3DConstructor,
+};
 
 fn standard_distance_tol() -> f64 {
     test_constants::DISTANCE_TOLERANCE_F64

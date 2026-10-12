@@ -14,7 +14,8 @@ use analysis::Angle;
 use geo_contracts::{
     default_angle_tolerance, default_distance_tolerance, Arc2DConstructor, Arc2DContainment,
     Arc2DDerived, Arc2DDistance, Arc2DEndpoint, Arc2DEvaluation, Arc2DProperties, Arc2DTrimRange,
-    Circle2DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
+    Circle2DConstructor, Circle2DDistance, Circle2DProperties, PrimitiveKind, PrimitiveMetadata,
+    Scalar,
 };
 
 /// 2次元円弧
@@ -80,8 +81,7 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 中心点を取得（内部用）
     fn center_internal(&self) -> Point2D<T> {
-        let (x, y) = self.circle.center();
-        Point2D::new(x, y)
+        self.circle.center()
     }
 
     /// 半径を取得（内部用）
@@ -197,7 +197,8 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
 
 impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
     fn center(&self) -> (T, T) {
-        self.circle.center() // Circle2DのFoundationメソッド直接呼び出し
+        let c = self.circle.center();
+        (c.x(), c.y())
     }
 
     fn radius(&self) -> T {
@@ -351,7 +352,7 @@ impl<T: Scalar> Arc2D<T> {
     /// 点の角度が角度範囲内なら母円までの距離、範囲外なら始点・終点までの距離の小さい方を返す。
     pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
         if self.contains_point_angle(point) {
-            self.circle.distance_to_point(point)
+            self.circle.distance_to_point(*point)
         } else {
             point
                 .distance_to(self.start_point())
@@ -363,6 +364,6 @@ impl<T: Scalar> Arc2D<T> {
     ///
     /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、点に最も近い母円上の点の角度（中心の点は角度 0）とする。
     pub fn contains_point_angle(&self, point: &Point2D<T>) -> bool {
-        self.contains_angle(Angle::from_radians(self.circle.parameter_for_point(point)))
+        self.contains_angle(Angle::from_radians(self.circle.parameter_for_point(*point)))
     }
 }

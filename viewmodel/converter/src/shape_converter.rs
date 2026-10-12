@@ -149,13 +149,12 @@ pub fn circle_to_vertices(
     let segments = quality.circle_segments;
     let mut vertices = Vec::with_capacity(segments + 1); // +1 for closing the loop
 
-    // 円の中心と半径を取得（タプルからPoint3Dに変換）
-    let center_tuple = circle.center();
-    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
+    // 円の中心と半径を取得
+    let center = circle.center();
     let radius = circle.radius();
 
     // 円の法線方向を取得（平面の法線）
-    let normal_vec = circle.normal();
+    let normal_vec = circle.axis();
     let normal = [
         normal_vec.x() as f32,
         normal_vec.y() as f32,
@@ -205,12 +204,11 @@ pub fn circle_to_wireframe_line_segments(
     let mut vertices = Vec::with_capacity(segments * 2); // 各線分に2頂点
 
     // 円の中心と半径を取得
-    let center_tuple = circle.center();
-    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
+    let center = circle.center();
     let radius = circle.radius();
 
     // 円の法線方向を取得
-    let normal_vec = circle.normal();
+    let normal_vec = circle.axis();
     let normal = [
         normal_vec.x() as f32,
         normal_vec.y() as f32,
@@ -267,13 +265,12 @@ pub fn circle_to_solid_vertices(
     let segments = quality.circle_segments;
     let mut vertices = Vec::with_capacity(segments * 3); // 各セグメントで3頂点（扇形）
 
-    // 円の中心と半径を取得（タプルからPoint3Dに変換）
-    let center_tuple = circle.center();
-    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
+    // 円の中心と半径を取得
+    let center = circle.center();
     let radius = circle.radius();
 
     // 円の法線方向を取得
-    let normal_vec = circle.normal();
+    let normal_vec = circle.axis();
     let normal = [
         normal_vec.x() as f32,
         normal_vec.y() as f32,
@@ -2134,6 +2131,7 @@ fn generate_circle_cap(
 mod tests {
     use super::*;
     use geo_algorithms::Direction3D;
+    use geo_contracts::Circle3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
 

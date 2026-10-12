@@ -33,8 +33,8 @@ use crate::{
 };
 use analysis::test_constants;
 use geo_contracts::{
-    InfiniteLine3DConstructor, LineSegment3DConstructor, LineSegment3DProperties,
-    LineSegment3DSupportLine, Ray3DConstructor,
+    Circle3DConstructor, InfiniteLine3DConstructor, LineSegment3DConstructor,
+    LineSegment3DProperties, LineSegment3DSupportLine, Ray3DConstructor,
 };
 
 fn standard_distance_tol() -> f64 {

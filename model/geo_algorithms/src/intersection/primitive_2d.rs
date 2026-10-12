@@ -33,7 +33,7 @@ pub fn circle2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center = Point2D::from_tuple(circle.center());
+    let center = circle.center();
     let distance = point.distance_to(center);
 
     let opt = if (distance - circle.radius()).abs() <= tolerance {
@@ -49,8 +49,8 @@ pub fn circle2d_circle2d_intersections_algo<T: Scalar>(
     circle2: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center1 = Point2D::from_tuple(circle1.center());
-    let center2 = Point2D::from_tuple(circle2.center());
+    let center1 = circle1.center();
+    let center2 = circle2.center();
     let center_distance = center1.distance_to(center2);
 
     if center_distance <= tolerance {
@@ -188,7 +188,7 @@ pub fn ray2d_circle2d_intersections<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     let origin = ray.origin();
     let direction = ray.direction().as_vector();
 
@@ -316,7 +316,7 @@ pub fn infinite_line2d_circle2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     let opt = if line.distance_to_point(center) <= circle.radius() + tolerance {
         Some(center)
     } else {
@@ -330,7 +330,7 @@ pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     let projected = line.closest_point(center);
     let dist_to_center = line.distance_to_point(center);
     let radius = circle.radius();
@@ -484,7 +484,7 @@ pub fn ellipse2d_circle2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     let opt = if ellipse.distance_to_point(&center) <= circle.radius() + tolerance {
         Some(center)
     } else {
@@ -498,7 +498,7 @@ pub fn ellipse2d_circle2d_intersections<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center = Point2D::new(circle.center().0, circle.center().1);
+    let center = circle.center();
     let points = if ellipse.distance_to_point(&center) <= circle.radius() + tolerance {
         vec![center]
     } else {
@@ -875,6 +875,7 @@ mod tests {
         IntersectionTopology, LineSegment2D, Point2D, Ray2D, Vector2D,
     };
     use analysis::test_constants;
+    use geo_contracts::Circle2DConstructor;
     use geo_contracts::InfiniteLine2DConstructor;
     use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::LineSegment2DProperties;
