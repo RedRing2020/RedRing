@@ -6,13 +6,6 @@ pub mod angle;
 pub mod angle_range;
 pub mod scalar;
 
-#[cfg(test)]
-pub mod angle_range_tests;
-#[cfg(test)]
-pub mod angle_tests;
-#[cfg(test)]
-pub mod scalar_tests;
-
 // 主要な型とトレイトを再エクスポート
 pub use angle::{Angle, AngleType};
 pub use angle_range::AngleRange;

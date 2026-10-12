@@ -16,29 +16,3 @@ impl<T: Scalar> Bounded<T> for TriangleMesh3D<T> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Point3D;
-    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
-
-    #[test]
-    fn test_metadata_and_bounds_capabilities() {
-        let vertices = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        ];
-        let indices = vec![[0, 1, 2]];
-
-        let mesh = TriangleMesh3D::new(vertices, indices).unwrap();
-
-        assert_eq!(mesh.primitive_kind(), PrimitiveKind::Mesh);
-
-        if let Some(bbox) = mesh.aabb() {
-            assert_eq!(bbox.min().x(), 0.0);
-            assert_eq!(bbox.max().x(), 1.0);
-        }
-    }
-}

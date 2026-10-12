@@ -1,6 +1,9 @@
 //! 3x3行列（高速演算用）
 //!
 //! 3D変換、回転、投影に特化した固定サイズ行列
+
+#[cfg(test)]
+mod tests;
 use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector2, Vector3};
 use std::ops::{Add, Index, IndexMut, Mul, Neg, Sub};

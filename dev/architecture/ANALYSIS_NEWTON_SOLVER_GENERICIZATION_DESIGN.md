@@ -848,7 +848,7 @@ where
 - `foundation/analysis/src/linalg/solver/newton.rs` に `MultivariateNewtonBounds<T>` と `MultivariateNewtonOptions<T>` を追加する
 - bounded 版 API と `..._with_solver` 版を追加する
 - 反復ごとに clamp を適用し、実際に採用された更新量で step 判定を行う
-- `newton_tests.rs` に bounds 検証、初期値 clamp、境界端収束、shape 不整合、特異 Jacobian の回帰テストを追加する
+- `newton/tests.rs` に bounds 検証、初期値 clamp、境界端収束、shape 不整合、特異 Jacobian の回帰テストを追加する
 - 既存 unbounded API の署名・挙動は変更しない
 
 #### Issue #632 初期方針（2026年4月8日）
@@ -873,7 +873,7 @@ where
 - `tol < 0` 相当の入力は `0` に clamp して扱う
 - 判定は各軸で `lower[i] - tol <= value <= upper[i] + tol` を満たすかで決める
 - `point.len() != self.dimension()` は `false` を返す
-- `newton_tests.rs` に tolerance 内外、`tol = 0`、次元不整合、負の tolerance の固定テストを追加する
+- `newton/tests.rs` に tolerance 内外、`tol = 0`、次元不整合、負の tolerance の固定テストを追加する
 
 #### Issue #636 実装スコープ（2026年4月8日）
 
@@ -881,7 +881,7 @@ where
 - breaking change を受け入れ、`new(max_iter, residual_tol, step_tol)` に一本化する
 - bounded Newton 本体では residual 判定に `residual_tol`、step 判定に `step_tol` を使う
 - solver の既定 tolerance は `residual_tol` を元に生成する
-- `newton_tests.rs` に分離 tolerance の固定テストを追加する
+- `newton/tests.rs` に分離 tolerance の固定テストを追加する
 
 ### 外部利用者向け移行方針
 

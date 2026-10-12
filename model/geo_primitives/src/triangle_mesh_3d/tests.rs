@@ -1,7 +1,7 @@
 //! TriangleMesh3D のテスト
 
 use crate::{Point3D, TriangleMesh3D};
-use geo_contracts::TolerantEq;
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 
 #[test]
 fn test_mesh_creation() {
@@ -198,4 +198,23 @@ fn test_normals_stay_unit_after_similarity_transform() {
     let moved = mesh.transform_similarity(&transform).unwrap();
     let normal = moved.normals().unwrap()[0];
     assert!((normal - Vector3D::new(0.0, 1.0, 0.0)).length() < 1e-10);
+}
+
+#[test]
+fn test_metadata_and_bounds_capabilities() {
+    let vertices = vec![
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(0.0, 1.0, 0.0),
+    ];
+    let indices = vec![[0, 1, 2]];
+
+    let mesh = TriangleMesh3D::new(vertices, indices).unwrap();
+
+    assert_eq!(mesh.primitive_kind(), PrimitiveKind::Mesh);
+
+    if let Some(bbox) = mesh.aabb() {
+        assert_eq!(bbox.min().x(), 0.0);
+        assert_eq!(bbox.max().x(), 1.0);
+    }
 }

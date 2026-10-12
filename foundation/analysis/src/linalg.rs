@@ -17,12 +17,6 @@ pub mod solver;
 pub mod vector;
 
 // テストモジュール（*_tests.rs形式）
-#[cfg(test)]
-pub mod point2_tests;
-#[cfg(test)]
-pub mod point3_tests;
-#[cfg(test)]
-pub mod quaternion_tests;
 
 // 主要型の再エクスポート
 pub use matrix::{DynamicMatrix, Matrix2x2, Matrix3x3, Matrix4x4};

@@ -6,6 +6,9 @@
 //! - 干渉距離（側面/底面）の定義
 //! - 干渉判定用オフセット形状の生成
 
+#[cfg(test)]
+mod tests;
+
 use analysis::Scalar;
 
 use crate::Tool;
@@ -542,7 +545,3 @@ impl<T: Scalar> ToolSet<T> {
         segments
     }
 }
-
-#[cfg(test)]
-#[path = "toolset_tests.rs"]
-mod tests;

@@ -25,6 +25,9 @@
 //! let radius_mill = Tool::radius_end_mill("REM10R1".to_string(), 10.0, 1.0, 50.0);
 //! ```
 
+#[cfg(test)]
+mod tests;
+
 use analysis::Scalar;
 
 /// 工具種別
@@ -444,7 +447,3 @@ impl<T: Scalar> Tool<T> {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "tool_tests.rs"]
-mod tests;

@@ -3,6 +3,9 @@
 //! 非線形方程式 f(x) = 0 の求解や逆関数計算を提供する。
 //! 汎用的なニュートン法実装により、様々な数値計算問題に対応。
 
+#[cfg(test)]
+mod tests;
+
 use std::any::TypeId;
 
 use crate::consts::numerical::{

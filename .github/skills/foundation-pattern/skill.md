@@ -1,6 +1,6 @@
 # Foundation パターン
 
-## 最終更新日: 2026年2月13日
+## 最終更新日: 2026年10月12日
 
 RedRingにおける Foundation Pattern の詳細仕様と実装ガイドを定義します。
 
@@ -195,38 +195,25 @@ pub enum TransformError {
 
 ### geo_contracts（トレイト定義）
 
-- [ ] `geo_contracts/src/geometry/solids/{shape}_core_traits.rs`
+- [ ] `geo_contracts/src/geometry/core/{shape}_traits.rs`
   - [ ] `{Shape}Constructor<T>` trait
   - [ ] `{Shape}Properties<T>` trait
-  - [ ] `{Shape}Measure<T>` trait
-  - [ ] `{Shape}Core<T>` trait（統合）
-  - [ ] Blanket implementation
+  - [ ] 呼び出し元が必要な capability trait（`{Shape}Evaluation<T>` / `{Shape}Distance<T>` 等）だけを追加する
 
 - [ ] `geo_contracts/src/lib.rs` に再エクスポート追加
   ```rust
-  pub use core::{shape}_traits::{
-      {Shape}Constructor, {Shape}Properties,
-      {Shape}Measure, {Shape}Core,
-  };
+  pub use core::{shape}_traits::{{Shape}Constructor, {Shape}Properties};
   ```
 
 ### geo_primitives（具体実装）
 
-- [ ] `geo_primitives/src/{shape}_3d.rs`（基本実装）
-  - [ ] 構造体定義
-  - [ ] 基本メソッド実装
+- [ ] `geo_primitives/src/{shape}_3d.rs`（親: 構造体定義・基本メソッド・trait定義の実装）
+- [ ] `geo_primitives/src/{shape}_3d/bounds.rs`（境界ボックス）
+- [ ] `geo_primitives/src/{shape}_3d/transform.rs`（相似変換）
+- [ ] `geo_primitives/src/{shape}_3d/tests.rs`（テスト）
+- [ ] `geo_primitives/src/lib.rs` に `mod {shape}_3d;` と `pub use {shape}_3d::{Shape}3D;`
 
-- [ ] `geo_primitives/src/{shape}_3d_foundation.rs`
-  - [ ] Core Traits 実装
-  - [ ] Extension Traits 実装
-
-- [ ] `geo_primitives/src/{shape}_3d_transform.rs`
-  - [ ] AnalysisTransform3D 実装
-
-- [ ] `geo_primitives/src/{shape}_3d_tests.rs`
-  - [ ] Core 機能テスト
-  - [ ] Extension 機能テスト
-  - [ ] Transform 機能テスト
+構成の詳細は `dev/architecture/GEO_PRIMITIVES_MODULE_STRUCTURE_RULES.md`、テストの置き場所は `dev/architecture/TEST_PLACEMENT_RULES.md` を参照。
 
 ---
 

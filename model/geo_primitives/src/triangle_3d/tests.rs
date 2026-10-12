@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::{Point3D, Triangle3D, Vector3D};
-use geo_contracts::TolerantEq;
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 
 #[test]
 fn test_triangle_creation() {
@@ -157,4 +157,23 @@ fn test_tolerant_eq() {
 
     assert!(triangle1.tolerant_eq(&triangle2, 0.01));
     assert!(!triangle1.tolerant_eq(&triangle3, 0.01));
+}
+
+#[test]
+fn test_metadata_and_bounds_capabilities() {
+    let triangle = Triangle3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(0.0, 1.0, 0.0),
+    )
+    .unwrap();
+
+    assert_eq!(triangle.primitive_kind(), PrimitiveKind::Triangle);
+    assert_eq!(triangle.area(), 0.5);
+
+    let aabb = triangle.aabb().expect("Triangle should have an AABB");
+    assert_eq!(aabb.min().x(), 0.0);
+    assert_eq!(aabb.max().x(), 1.0);
+    assert_eq!(aabb.min().y(), 0.0);
+    assert_eq!(aabb.max().y(), 1.0);
 }

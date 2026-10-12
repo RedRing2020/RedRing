@@ -3,12 +3,10 @@
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Arc3D, Direction3D, Point3D, Vector3D};
-use geo_contracts::Angle;
-use geo_contracts::Arc3DEvaluation;
-use geo_contracts::Arc3DProperties;
-use geo_contracts::TolerantEq;
-
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
+use geo_contracts::{
+    Angle, Arc3DEvaluation, Arc3DProperties, Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq,
+};
 
 // ヘルパー関数：ラジアンから Angle を作成
 fn angle(radians: f64) -> Angle<f64> {
@@ -284,4 +282,49 @@ fn test_tolerant_eq() {
 
     assert!(arc1.tolerant_eq(&arc2, 0.01));
     assert!(!arc1.tolerant_eq(&arc3, 0.01));
+}
+
+#[test]
+fn test_metadata_and_bounds_capabilities() {
+    let center = Point3D::new(0.0, 0.0, 0.0);
+    let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+    let start_dir = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    let start_angle = geo_contracts::Angle::from_radians(0.0);
+    let end_angle = geo_contracts::Angle::from_radians(std::f64::consts::PI);
+    let arc = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();
+
+    assert_eq!(arc.primitive_kind(), PrimitiveKind::Arc);
+    assert_eq!(arc.length(), 5.0 * std::f64::consts::PI);
+
+    let aabb = arc.aabb().expect("Arc should have an AABB");
+    assert!((aabb.min().x() + 5.0).abs() < 1e-10);
+    assert!((aabb.max().x() - 5.0).abs() < 1e-10);
+    assert!((aabb.min().y() - 0.0).abs() < 1e-10);
+    assert!((aabb.max().y() - 5.0).abs() < 1e-10);
+    assert!((aabb.min().z() - 0.0).abs() < 1e-10);
+    assert!((aabb.max().z() - 0.0).abs() < 1e-10);
+}
+
+#[test]
+fn test_arc_3d_aabb_respects_trimmed_range() {
+    let center = Point3D::new(0.0, 0.0, 0.0);
+    let normal = Direction3D::from_vector(Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+    let start_dir = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    let arc = Arc3D::new(
+        center,
+        2.0,
+        normal,
+        start_dir,
+        geo_contracts::Angle::from_radians(0.0),
+        geo_contracts::Angle::from_radians(std::f64::consts::PI),
+    )
+    .unwrap();
+
+    let aabb = arc.aabb().expect("Arc should have an AABB");
+    assert!((aabb.min().x() + 2.0).abs() < 1e-10);
+    assert!((aabb.max().x() - 2.0).abs() < 1e-10);
+    assert!((aabb.min().y() - 0.0).abs() < 1e-10);
+    assert!((aabb.max().y() - 0.0).abs() < 1e-10);
+    assert!((aabb.min().z() + 2.0).abs() < 1e-10);
+    assert!((aabb.max().z() - 0.0).abs() < 1e-10);
 }

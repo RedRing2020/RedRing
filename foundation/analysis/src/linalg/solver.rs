@@ -14,10 +14,13 @@
 //! let result = newton_solve_generic(f, df, 1.0, 100, 1e-10);
 //! assert!(result.is_some());
 //! ```
+
 pub mod cramer;
 pub mod gaussian; // ガウス消去法
 pub mod lu; // LU分解法
-pub mod newton; // ニュートン・ラフソン法
+pub mod newton;
+#[cfg(test)]
+mod tests; // ニュートン・ラフソン法
 
 // Newton法ソルバーの再エクスポート
 // generic / multivariate API を正本として公開する。
@@ -30,16 +33,6 @@ pub use newton::{
 };
 
 // テストモジュール
-#[cfg(test)]
-pub mod cramer_tests;
-#[cfg(test)]
-pub mod gaussian_tests;
-#[cfg(test)]
-pub mod lu_tests;
-#[cfg(test)]
-pub mod mod_tests;
-#[cfg(test)]
-pub mod newton_tests;
 
 pub use cramer::CramerSolver;
 pub use gaussian::GaussianSolver;
