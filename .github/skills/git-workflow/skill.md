@@ -63,12 +63,13 @@ refactor(geo_core): 点・ベクトル・方向・相似変換・AABB を親子�
 
 ### 1. 事前チェック
 
-PR 作成前と、PR 作成後に追加コミットを push する前に実行する。
+PR 作成前と、PR 作成後に追加コミットを push する前に、必ず実行してすべて通ることを確認する。
 
 ```powershell
 pwsh -NoProfile -File .\scripts\check_all_before_push.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1
 ```
+
+- 検査項目: fmt / clippy / テスト / 実行時文言の言語ポリシー / ソースコード中の GitHub 固有情報 / 呼び出し元のない公開メソッド・trait定義のメソッド（警告のみ）
 
 ### 2. タイトル
 

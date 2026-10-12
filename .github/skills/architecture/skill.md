@@ -2,84 +2,51 @@
 
 ## 最終更新日: 2026年10月12日
 
-RedRing のワークスペース構成と、クレート間の依存関係のルールを定義します。
+RedRing のレイヤー構成と、クレート間の依存関係の汎用的な規則を定義します。個々のクレートの責務と依存の正本は `dev/architecture/ARCHITECTURE.md`（「クレート責務定義」「レイヤー設計の重要ポイント」）で、この手順書にはクレートの一覧を載せません。
 
 ---
 
-## Workspace 構成
+## レイヤー構成
 
-```text
-foundation/                 基盤（ドメイン非依存）
-├── analysis                数値解析・線形代数・抽象型・許容誤差
-├── i18n_foundation         ローカライズ
-└── logging_foundation      ログ初期化・レート制御
-model/                      モデル層
-├── geo_contracts           形状の trait定義の正本
-├── geo_commons             geo_* で共通する数値計算の関数
-├── geo_core                点・ベクトル・方向・相似変換・AABB
-├── geo_primitives          解析形状（直線・円・楕円・平面・二次曲面 等）
-├── geo_nurbs               NURBS 曲線・曲面
-├── geo_topology            位相構造（複合曲線・ワイヤ 等）
-├── geo_algorithms          形状をまたぐ距離・交差・衝突・テセレーション
-├── geo_entity              エンティティ基盤
-├── geo_io                  ファイル I/O
-├── cam_core                CAM 基盤（工具・工具経路）
-├── cam_entity              CAM エンティティ
-├── cam_algorithms          工具経路の生成
-├── cam_sim                 切削シミュレーション
-├── job_runtime             ジョブ管理の基盤
-├── job_domain              ジョブ投入のポリシー
-├── application             ユースケースの orchestration
-└── test_support            共有のテスト補助（redring_test_support）
-viewmodel/                  ビューモデル層
-├── converter               モデル → 描画データの変換（パッケージ名 viewmodel）
-├── cam_demo                CAM のデモ導線（viewmodel-cam-demo）
-└── graphics                カメラ等のグラフィックス制御（viewmodel-graphics）
-view/                       ビュー層
-├── render                  GPU 描画基盤（wgpu + WGSL）
-├── stage                   レンダリングステージ
-└── app                     メインアプリケーション（パッケージ名 redring）
-```
+ワークスペースは、ディレクトリごとに次のレイヤーに分かれる。
+
+| ディレクトリ | レイヤー | 役割 |
+| --- | --- | --- |
+| `foundation/` | 基盤 | ドメインに依存しない数値計算・ログ・ローカライズ |
+| `model/` | モデル | 幾何（`geo_*`）・CAM（`cam_*`）・ジョブ・ユースケースの orchestration |
+| `viewmodel/` | ビューモデル | モデルのデータを描画用のデータに変換する |
+| `view/` | ビュー | GPU 描画・ステージ・アプリケーション |
+
+各クレートがどのレイヤーに属し、何に依存してよいかは `ARCHITECTURE.md` と、依存関係のチェックスクリプトのルール（`scripts/_arch_rules_data.ps1`）で定義する。
 
 ---
 
-## 依存関係ルール
+## 依存関係の規則
 
-### 幾何のクレート
-
-```text
-analysis
-  ├── geo_contracts ── geo_core ──┬── geo_primitives (+ geo_commons)
-  │                               └── geo_nurbs
-  └── geo_commons
-geo_primitives, geo_nurbs → geo_topology → geo_algorithms
-geo_primitives → geo_entity, geo_io
-```
-
-- `geo_contracts`: `analysis` のみに依存する。trait定義の正本で、具体型を持たない
-- `geo_commons`: `analysis` のみに依存する。形状の型に依存しない共通の数値計算を置く
-- `geo_core`: `analysis`、`geo_contracts` に依存する
-- `geo_primitives`: `geo_contracts`、`geo_core`、`geo_commons`、`analysis` に依存する
-- `geo_nurbs`: `geo_contracts`、`geo_core`、`analysis` に依存する。`geo_primitives` に直接依存しない
-- `geo_topology`: `geo_primitives`、`geo_nurbs` まで依存できる
-- `geo_algorithms`: 幾何のクレートすべてに依存できる
-
-### CAM・ジョブ・アプリケーション
-
-- `cam_core` → `geo_primitives`、`geo_algorithms`
-- `cam_algorithms` → `cam_core`、`geo_algorithms`、`geo_contracts`
-- `cam_sim` → `cam_algorithms`、`cam_core`、`geo_algorithms`、`job_runtime`、`job_domain`
-- `application` → モデル層のクレート（ユースケースの orchestration）
-
-### MVVM
+### 向き
 
 ```text
-view (app / stage / render) → viewmodel (converter / graphics / cam_demo) → model
+view → viewmodel → model → foundation
 ```
 
-- `render` / `stage` はモデル層（`geo_*` / `cam_*`）に直接依存しない。描画に必要なデータは `viewmodel` で変換してから受け取る
-- `app` もモデル層に直接依存しない
-- 下位の層が上位の層に依存してはならない
+- 依存は下位のレイヤーへの一方向だけとし、下位のレイヤーが上位のレイヤーに依存しない
+- `foundation` のクレートはワークスペースの他のクレートに依存しない
+- `view` はモデルのクレートに直接依存しない。描画に必要なデータは `viewmodel` で変換したものを受け取る
+- クレートの間に循環する依存を作らない
+
+### モデルの中
+
+- 形状の trait定義は契約のクレート（`geo_contracts`）を正本とし、具体型のクレートはそれを実装する。trait定義のクレートは具体型を持たない
+- 形状の型に依存しない共通の数値計算は、共通計算のクレート（`geo_commons`）に置き、形状のクレートで同じ計算を個別に実装しない
+- 形状をまたぐ高レベルの計算は、アルゴリズムのクレート（`geo_algorithms`）に置く
+- 幾何のクレート（`geo_*`）は CAM のクレート（`cam_*`）に依存しない（CAD / CAM の境界）
+- ユースケースの orchestration（テセレーション・シミュレーション・ジョブ投入の組み立て）は application 層に置く
+
+### クレートを追加・変更するとき
+
+- ワークスペースの `members` に加える（`members` から漏れたクレートは `--workspace` のテスト・Clippy の対象にならない）
+- `[lints] workspace = true` でワークスペースの lint を使う
+- 依存関係のチェックのルール（`scripts/_arch_rules_data.ps1`）と `ARCHITECTURE.md` を、同じ変更の中で更新する
 
 ---
 
@@ -89,16 +56,17 @@ view (app / stage / render) → viewmodel (converter / graphics / cam_demo) → 
 .\scripts\check_architecture_dependencies.ps1
 ```
 
-- モデル層の命名規則、依存の向き、禁止依存（`geo_*` → `cam_*` 等）を検査する
+- レイヤーの依存の向き・禁止された依存・モデルのクレートの命名規則を検査する
 - CI（`common_architecture_check.yml`）でも同じスクリプトを実行する
-- 依存の一覧を手早く見る場合は `check_architecture_dependencies_simple.ps1` を使う
 
 ---
 
 ## 参照文書
 
-- **詳細設計**: `dev/architecture/ARCHITECTURE.md`
+- **クレートの責務と依存（正本）**: `dev/architecture/ARCHITECTURE.md`
 - **MVVM 設計**: `dev/architecture/VIEWMODEL_ARCHITECTURE_DESIGN.md`
+- **application 層**: `dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`
+- **形状の意味**: `dev/architecture/GEOMETRY_SHAPE_SEMANTICS_DESIGN.md`
 - **trait定義・形状の実装**: `.github/skills/foundation-pattern/skill.md`、`.github/skills/implementation/skill.md`
 
 ---

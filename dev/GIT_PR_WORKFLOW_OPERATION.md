@@ -1,6 +1,6 @@
 # Git/PR運用ルール
 
-最終更新: 2026-04-03
+最終更新: 2026-10-12
 
 ## 目的
 
@@ -23,15 +23,14 @@
 
 - `git status -sb` で `ahead` を確認したら原因を解消してから作業開始
 
-1. PR前の品質チェックを固定順序で実施
+1. PR前の品質チェックを実施
 
-- `cargo fmt --all -- --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
+- `scripts/check_all_before_push.ps1` を実行し、すべて通ることを確認する
+- 検査項目: `cargo fmt` / `cargo clippy`（`-D warnings`）/ `cargo test --workspace` / 実行時文言の言語ポリシー / ソースコード中の GitHub 固有情報 / 呼び出し元のない公開メソッド・trait定義のメソッド（警告のみ）
 
 1. PR作成後の追いpush前にも同じ品質チェックを再実行
 
-- 追加コミットを push する前に、必ず preflight を再実行する
+- 追加コミットを push する前に、必ず `check_all_before_push.ps1` を再実行する
 - ルール対象: 「PR作成後の修正コミット」「レビュー指摘対応コミット」「fmt/clippy修正コミット」
 
 1. Phase と PR系列の命名を固定する
@@ -76,14 +75,8 @@
 ## 推奨コマンド
 
 ```powershell
-# PR前チェック（全項目）
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1
-
-# 時短チェック（テスト省略）
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1 -SkipTests
-
-# PR作成後の追いpush前チェック（必須）
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1
+# PR前・PR作成後の追いpush前のチェック（必須）
+pwsh -NoProfile -File .\scripts\check_all_before_push.ps1
 ```
 
 ## 運用メモ
@@ -91,7 +84,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight
 - `git pull` は原則 `--ff-only` を使う
 - 競合発生時は安易に続行せず、どちらを採用するか方針を先に決める
 - CIで `fmt` が落ちた場合は `cargo fmt --all` 実行後に再チェックする
-- PR作成後の追加コミットでも、push前に `check_pr_preflight.ps1` を再実行する
+- PR作成後の追加コミットでも、push前に `check_all_before_push.ps1` を再実行する
 - コメントや命名規則の用語は `dev/AI_TERMINOLOGY_GLOSSARY.md` を参照し、業界用語を優先する
 
 ## ローカル文書運用

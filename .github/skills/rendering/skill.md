@@ -8,30 +8,15 @@ RedRing の wgpu ベースの描画（`view/render` / `view/stage`）の構成�
 
 ## クレートの役割と依存
 
-```text
-app → stage → render
-        ↘      ↘
-         viewmodel（converter / graphics）→ model
-```
-
 - `render`（`view/render`）: wgpu のデバイス・パイプライン・シェーダ・頂点型・GPU リソース
 - `stage`（`view/stage`）: 描画の単位（ステージ）。`RenderStage` を実装する
-- `render` / `stage` はモデル層（`geo_*` / `cam_*`）に直接依存しない。描画データは `viewmodel`（`mesh_converter` / `octree_converter` 等）で変換したものを受け取る
+- `render` / `stage` はモデルのクレートに直接依存しない。描画データは `viewmodel` で変換したものを受け取る（依存の規則は `.github/skills/architecture/skill.md`）
 
 ---
 
 ## render クレート
 
-| モジュール | 責務 |
-| --- | --- |
-| `device` | wgpu の Device / Queue / Surface の初期化 |
-| `surface` | サーフェスの設定・リサイズ |
-| `pipeline` | レンダリングパイプラインの構築・描画の補助 |
-| `shader` | シェーダモジュールの生成 |
-| `uniform_factory` | ユニフォームバッファ・バインドグループの生成 |
-| `vertex_2d` / `vertex_3d` | 頂点型（`Vertex2D` / `Vertex3D` / `MeshVertex`） |
-| `render_2d` / `render_3d` / `wireframe` / `line` / `mesh` / `toolpath` | 描画対象ごとの GPU リソース |
-| `mesh_convert` / `nurbs_eval` | viewmodel のデータからの GPU データの生成、NURBS の GPU 評価 |
+`view/render/src/` に、wgpu のデバイス・サーフェス・パイプライン・シェーダの生成・ユニフォーム・頂点型と、描画対象ごとの GPU リソースを置く。モジュールの一覧は `view/render/src/lib.rs` を参照する。
 
 ### シェーダ
 
@@ -116,7 +101,7 @@ pub trait RenderStage {
 ```
 
 - `render` と `as_any_mut` だけが必須。他のメソッドは既定の実装があり、必要なステージだけが上書きする
-- 既存のステージ: `MeshStage` / `ShadingStage` / `OutlineStage` / `DraftStage` / `NurbsCurveStage` / `NurbsSurfaceStage` / `ToolPathStage` / `OctreeStage`
+- 既存のステージは `view/stage/src/lib.rs` を参照する
 
 ---
 
@@ -129,7 +114,7 @@ pub trait RenderStage {
 - [ ] `view/render/src/shader.rs` に生成関数を追加
 
 ### 2. 頂点型・GPU リソース
-- [ ] 既存の頂点型（`Vertex3D` / `MeshVertex` 等）で足りるか確認し、足りない場合だけ追加する
+- [ ] 既存の頂点型（`view/render/src/vertex_2d.rs` / `vertex_3d.rs`）で足りるか確認し、足りない場合だけ追加する
 - [ ] 描画データは viewmodel で変換し、render からモデル層を参照しない
 
 ### 3. ステージ

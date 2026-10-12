@@ -9,11 +9,8 @@ RedRing の開発で使う Cargo コマンド・チェックスクリプト・�
 ## チェックスクリプト（push・PR の前）
 
 ```powershell
-# 全項目（fmt / clippy / テスト / 実行時文言の言語ポリシー / GitHub 固有情報 / 呼び出し元のない API）
+# push・PR の前に必ず実行する（fmt / clippy / テスト / 実行時文言の言語ポリシー / GitHub 固有情報 / 呼び出し元のない API）
 pwsh -NoProfile -File .\scripts\check_all_before_push.ps1
-
-# fmt / clippy / テストと git の状態（PR 前の必須チェック）
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1
 
 # アーキテクチャの依存関係（CI と同じ）
 .\scripts\check_architecture_dependencies.ps1
