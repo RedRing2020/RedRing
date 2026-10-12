@@ -13,6 +13,14 @@
 
 `geo_core` を `geo_contracts` の下位に置き、trait定義を値型で型付けして、形状の API を trait定義に一本化する。
 
+これにより、当初の構成で意図していた抽象化と実装の責務の分離を実現する。
+
+- **抽象化（`geo_contracts`）**: 形状が何をできるかを trait定義で定める。実装を持たない
+- **値型の実装（`geo_core`）**: 抽象化に依存しない具体的な値型（点・ベクトル・方向・相似変換・AABB）と、その操作を実装する
+- **形状（`geo_primitives` / `geo_nurbs`）**: `geo_core` の値型を使って `geo_contracts` の抽象化を実装し、上位の層（`geo_topology` / `geo_algorithms` / application 等）から trait定義を通じて呼ばれる
+
+現在の構成では、`geo_core` が `geo_contracts` に依存するため、抽象化（trait定義）が具体的な値型を使えず、タプルで受け渡していた。依存の向きを入れ替えることで、抽象化が値型で型付けされ、形状の API が抽象化の一つに揃う。
+
 ## 2. クレートの依存関係
 
 ```text
@@ -26,13 +34,14 @@ analysis
 - `geo_core` は trait定義を持たず、値型の操作は固有メソッドで提供する
 - `geo_contracts` は `analysis` と `geo_core` に依存する
 
-### 2.0 trait定義と実装の分離
+### 2.0 抽象化と実装の分離
 
 | クレート | 持つもの |
 | --- | --- |
-| `geo_core` | 値型と、その操作の固有メソッド（相似変換の適用を含む） |
-| `geo_contracts` | trait定義だけ（実装を持たない） |
-| 形状のクレート（`geo_primitives` / `geo_nurbs`） | trait定義の実装 |
+| `geo_contracts` | 抽象化: trait定義だけ（実装を持たない） |
+| `geo_core` | 値型の実装: 値型と、その操作の固有メソッド（相似変換の適用を含む） |
+| 形状のクレート（`geo_primitives` / `geo_nurbs`） | 形状の実装: `geo_core` の値型を使った trait定義の実装 |
+| 上位の層（`geo_topology` / `geo_algorithms` / application 等） | trait定義を通じて形状を使う |
 
 Rust の orphan rule では、trait の実装は trait定義のクレートか型のクレートに置く。`geo_core` は `geo_contracts` より下位にあり trait定義を参照できないため、`geo_core` の値型には `geo_contracts` の trait定義を実装しない。値型の操作はすべて固有メソッドとし、`geo_contracts` には実装を置かない。
 
