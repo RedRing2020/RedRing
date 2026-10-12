@@ -26,6 +26,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 依存関係のチェックは cargo metadata でワークスペースのクレートと依存を取得する
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
       - name: Run Architecture Dependency Check
         shell: pwsh
         run: |

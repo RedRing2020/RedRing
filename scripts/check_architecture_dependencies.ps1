@@ -1,5 +1,9 @@
 # RedRing Architecture Dependency Check Script
 # Usage: powershell -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1
+#
+# ワークスペースのクレートと依存を `cargo metadata` から取得し、scripts/_arch_rules_data.ps1 のルールと照合する。
+# - ルールにないクレート・許可されていない依存・禁止された依存はエラー
+# - レイヤーに属さないクレートはエラー
 
 param(
     [switch]$Verbose,
@@ -19,13 +23,12 @@ function Test-ArchitectureDependencies {
     Write-Info "Date: $(Get-Date -Format 'yyyy/MM/dd HH:mm:ss')"
     Write-Host ""
 
-    $errorCount   = 0
-    $warningCount = 0
+    $errorCount = 0
     $workspaceCrates = Get-WorkspaceCratesShared
 
     Write-Info "1. Model Layer Naming Rule Check"
     foreach ($crateName in $ARCH_REQUIRED_MODEL_CRATES) {
-        if ($workspaceCrates.ContainsKey($crateName)) {
+        if ($workspaceCrates.Contains($crateName)) {
             Write-Success "Model crate '$crateName' follows correct naming rules"
         }
         else {
@@ -37,16 +40,22 @@ function Test-ArchitectureDependencies {
 
     Write-Info "2. Dependency Rule Check"
     foreach ($crateName in $workspaceCrates.Keys) {
-        $cratePath  = $workspaceCrates[$crateName]
-        $actualDeps = Get-CrateDependenciesShared $cratePath
+        $actualDeps = $workspaceCrates[$crateName].Deps
 
-        Write-Info "Validating '$crateName' dependencies..."
-
+        if (-not $ARCH_ALLOWED_DEPS.ContainsKey($crateName)) {
+            Write-Error "  ERROR '$crateName' has no dependency rule (add it to scripts/_arch_rules_data.ps1)"
+            $errorCount++
+            continue
+        }
         $allowedDeps   = $ARCH_ALLOWED_DEPS[$crateName]
         $forbiddenDeps = $ARCH_FORBIDDEN_DEPS[$crateName]
 
         foreach ($dep in $actualDeps) {
-            if ($allowedDeps -contains $dep) {
+            if ($forbiddenDeps -contains $dep) {
+                Write-Error "  ERROR '$crateName' -> '$dep' (explicitly forbidden)"
+                $errorCount++
+            }
+            elseif ($allowedDeps -contains $dep) {
                 if ($Verbose) {
                     Write-Success "  OK '$crateName' -> '$dep' (allowed)"
                 }
@@ -56,26 +65,17 @@ function Test-ArchitectureDependencies {
                 $errorCount++
             }
         }
-
-        foreach ($dep in $actualDeps) {
-            if ($forbiddenDeps -contains $dep) {
-                Write-Error "  ERROR '$crateName' -> '$dep' (explicitly forbidden)"
-                $errorCount++
-            }
-        }
-
-        if ($actualDeps.Length -eq 0) {
-            Write-Info "  INFO '$crateName' has no workspace dependencies"
-        }
     }
     Write-Host ""
 
     Write-Info "3. Layer Dependency Summary"
+    $layered = @()
     foreach ($layerName in $ARCH_LAYERS.Keys) {
         Write-Info "Layer: $layerName"
         foreach ($crateName in $ARCH_LAYERS[$layerName]) {
-            if ($workspaceCrates.ContainsKey($crateName)) {
-                $deps = Get-CrateDependenciesShared $workspaceCrates[$crateName]
+            $layered += $crateName
+            if ($workspaceCrates.Contains($crateName)) {
+                $deps = $workspaceCrates[$crateName].Deps
                 if ($deps.Length -gt 0) {
                     Write-Host "    $crateName -> $($deps -join ', ')" -ForegroundColor White
                 }
@@ -84,31 +84,32 @@ function Test-ArchitectureDependencies {
                 }
             }
             else {
-                Write-Warning "    $crateName -> (not found)"
-                $warningCount++
+                Write-Error "    $crateName -> (not found in workspace)"
+                $errorCount++
             }
+        }
+    }
+    foreach ($crateName in $workspaceCrates.Keys) {
+        if ($layered -notcontains $crateName) {
+            Write-Error "    '$crateName' does not belong to any layer (add it to `$ARCH_LAYERS)"
+            $errorCount++
         }
     }
     Write-Host ""
 
     Write-Info "4. Check Result Summary"
-    if ($errorCount -eq 0 -and $warningCount -eq 0) {
-        Write-Success "SUCCESS: Architecture dependency check passed"
-        Write-Success "- geo_* -> cam_* forbidden rule enforced"
-        Write-Success "- Requested exceptions/policies are applied"
+    if ($errorCount -eq 0) {
+        Write-Success "SUCCESS: Architecture dependency check passed ($($workspaceCrates.Count) crates)"
     }
     else {
-        Write-Error "FAILED: Architecture dependency check found issues"
-        Write-Error "- Errors: $errorCount"
-        Write-Warning "- Warnings: $warningCount"
-
-        if ($ExitOnError -and $errorCount -gt 0) {
+        Write-Error "FAILED: Architecture dependency check found $errorCount error(s)"
+        if ($ExitOnError) {
             Write-Error "STOP: Exiting due to detected errors"
             exit 1
         }
     }
 
-    return @{ Errors = $errorCount; Warnings = $warningCount }
+    return @{ Errors = $errorCount }
 }
 
 if ($args -contains "-Help" -or $args -contains "-h") {
@@ -126,12 +127,7 @@ if ($args -contains "-Help" -or $args -contains "-h") {
 
 $result = Test-ArchitectureDependencies
 
-if ($env:CI -eq "true") {
-    if ($result.Errors -gt 0) {
-        Write-Output "::error::Architecture dependency check detected errors"
-        exit 1
-    }
-    if ($result.Warnings -gt 0) {
-        Write-Output "::warning::Architecture dependency check detected warnings"
-    }
+if ($env:CI -eq "true" -and $result.Errors -gt 0) {
+    Write-Output "::error::Architecture dependency check detected errors"
+    exit 1
 }

@@ -259,7 +259,7 @@
 
 ### 現状の制約スクリプト
 
-ファイル: `scripts/check_architecture_dependencies_simple.ps1`
+ファイル: `scripts/check_architecture_dependencies.ps1`
 
 **拡張対象**:
 
@@ -278,7 +278,7 @@
 
 **重要な整理**:
 
-- `check_architecture_dependencies_simple.ps1` 本体は共有ルールデータを読むだけなので、主変更点は `scripts/_arch_rules_data.ps1`
+- `check_architecture_dependencies.ps1` 本体は共有ルールデータを読むだけなので、主変更点は `scripts/_arch_rules_data.ps1`
 - つまり「cam_algorithms 追加時はスクリプト反映が必須でセット実施」という認識で正しい
 - さらに実運用では、workspace 参加、設計ドキュメント更新、依存ルール更新を同一変更セットに含める必要がある
 
@@ -355,7 +355,7 @@ $forbidden = @(
 - [x] `cam_algorithms` 新設の採否が明文化される（✅ 採択）
 - [x] CAM クレート責務表（core/algorithms/sim/entity）が確定する（本文 Section 1）
 - [x] 依存方向の許可/禁止が文書化される（本文 Section 2）
-- [x] `scripts/check_architecture_dependencies_simple.ps1` の既存方針に反しない導入手順が定義される（本文 Section 4）
+- [x] `scripts/check_architecture_dependencies.ps1` の既存方針に反しない導入手順が定義される（本文 Section 4）
 - [x] 最小 PoC の対象が1件以上選定される（本文 Section 5 - PoC-1を選定）
 - [ ] 後続実装 Issue を起票できる粒度でスコープ分割される（本文 Section 6）
 
