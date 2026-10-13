@@ -1,6 +1,9 @@
 use super::shared::triangle3d_vertex_points;
 use crate::{InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D, TriangleMesh3D};
-use geo_contracts::{InfiniteLine3DProperties, LineSegment3DProperties, Ray3DProperties, Scalar};
+use geo_contracts::{
+    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DDistance, Plane3DProperties,
+    Ray3DProperties, Scalar,
+};
 
 pub fn triangle3d_point3d_collides<T: Scalar>(
     triangle: &Triangle3D<T>,
@@ -71,7 +74,7 @@ pub fn plane3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    plane.contains_point(*point, tolerance)
+    plane.distance_to_point(*point).abs() <= tolerance
 }
 
 pub fn plane3d_line_segment3d_collides<T: Scalar>(
@@ -94,7 +97,7 @@ pub fn plane3d_ray3d_collides<T: Scalar>(plane: &Plane3D<T>, ray: &Ray3D<T>, tol
         let origin_dist = plane.distance_to_point(ray.origin());
         origin_dist.abs() <= tolerance || (origin_dist * denom <= T::ZERO)
     } else {
-        plane.contains_point(ray.origin(), tolerance)
+        plane.distance_to_point(ray.origin()).abs() <= tolerance
     }
 }
 
@@ -109,7 +112,10 @@ pub fn plane3d_infinite_line3d_collides<T: Scalar>(
     if denom.abs() > tolerance {
         true
     } else {
-        plane.contains_point(InfiniteLine3DProperties::point(line), tolerance)
+        plane
+            .distance_to_point(InfiniteLine3DProperties::point(line))
+            .abs()
+            <= tolerance
     }
 }
 

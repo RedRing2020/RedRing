@@ -4,7 +4,7 @@
 
 use crate::Plane3D;
 use crate::SimilarityTransform3D;
-use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
+use geo_contracts::{Plane3DConstructor, Scalar, SimilarityTransformable3D, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for Plane3D<T> {
     fn transform_similarity(
@@ -14,7 +14,7 @@ impl<T: Scalar> SimilarityTransformable3D<T> for Plane3D<T> {
         let origin = transform.apply_point(self.origin);
         let normal = transform.apply_direction(self.normal);
         let u_axis = transform.apply_direction(self.u_axis);
-        Self::from_origin_and_axes(origin, normal.as_vector(), u_axis.as_vector())
+        Self::from_origin_and_axes(origin, normal, u_axis)
             .ok_or_else(|| TransformError::InvalidGeometry("degenerate plane frame".to_string()))
     }
 }

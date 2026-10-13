@@ -5,7 +5,7 @@ use crate::{
 };
 use geo_contracts::{
     Circle3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties,
-    LineSegment3DProperties, Ray3DProperties, Scalar, SphericalSolid3DProperties,
+    LineSegment3DProperties, Plane3DDistance, Ray3DProperties, Scalar, SphericalSolid3DProperties,
 };
 
 pub fn spherical_solid3d_point3d_collides<T: Scalar>(

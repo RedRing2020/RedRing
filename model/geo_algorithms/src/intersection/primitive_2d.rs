@@ -243,13 +243,9 @@ pub fn triangle2d_line_segment2d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let mut intersections = Vec::new();
-
-    let va_tuple = triangle.vertex_a();
-    let vb_tuple = triangle.vertex_b();
-    let vc_tuple = triangle.vertex_c();
-    let va = Point2D::new(va_tuple.0, va_tuple.1);
-    let vb = Point2D::new(vb_tuple.0, vb_tuple.1);
-    let vc = Point2D::new(vc_tuple.0, vc_tuple.1);
+    let va = triangle.vertex_a();
+    let vb = triangle.vertex_b();
+    let vc = triangle.vertex_c();
 
     if let Some(p) = edge_segment_intersection(va, vb, segment, tolerance) {
         intersections.push(p);

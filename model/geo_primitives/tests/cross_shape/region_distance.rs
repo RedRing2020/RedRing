@@ -1,7 +1,10 @@
 //! 領域を持つ形状の点との距離のテスト
 
 use analysis::test_constants::TOLERANCE_F64;
-use geo_contracts::{ConicalSolid3DDistance, SphericalSolid3DDistance, TorusSolid3DDistance};
+use geo_contracts::{
+    ConicalSolid3DDistance, SphericalSolid3DDistance, TorusSolid3DDistance, Triangle3DConstructor,
+    Triangle3DDistance,
+};
 use geo_primitives::{
     ConicalSolid3D, EllipsoidalSolid3D, Point3D, SphericalSolid3D, TorusSolid3D, Triangle3D,
 };
@@ -17,7 +20,7 @@ fn triangle3d_distance_from_both_sides_of_plane() {
 
     // 平面の表側・裏側のどちらからでも、平面までの距離
     for z in [2.0, -2.0] {
-        let distance = triangle.distance_to_point(&Point3D::new(1.0, 1.0, z));
+        let distance = triangle.distance_to_point(Point3D::new(1.0, 1.0, z));
         assert!((distance - 2.0).abs() < TOLERANCE_F64);
     }
 }

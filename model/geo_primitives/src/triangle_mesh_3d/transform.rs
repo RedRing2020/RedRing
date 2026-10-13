@@ -11,16 +11,20 @@ impl<T: Scalar> SimilarityTransformable3D<T> for TriangleMesh3D<T> {
         transform: &SimilarityTransform3D<T>,
     ) -> Result<Self, TransformError> {
         let vertices = self
-            .vertices()
+            .vertices
             .iter()
             .map(|v| transform.apply_point(*v))
             .collect::<Vec<_>>();
-        let normals = self.normals().map(|normals| {
+        let normals = self.normals.as_ref().map(|normals| {
             normals
                 .iter()
                 .map(|n| transform.apply_vector(*n).normalize())
                 .collect::<Vec<_>>()
         });
-        Ok(Self::from_parts(vertices, self.indices().to_vec(), normals))
+        Ok(Self {
+            vertices,
+            indices: self.indices.clone(),
+            normals,
+        })
     }
 }

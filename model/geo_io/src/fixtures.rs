@@ -1,5 +1,6 @@
 //! geo_io 向けサンプルデータ生成。
 
+use geo_contracts::TriangleMesh3DConstructor;
 use geo_primitives::{Point3D, TriangleMesh3D};
 use std::path::Path;
 

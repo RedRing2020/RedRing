@@ -2,7 +2,7 @@
 
 use crate::SimilarityTransform2D;
 use crate::Triangle2D;
-use geo_contracts::{Scalar, SimilarityTransformable2D, TransformError};
+use geo_contracts::{Scalar, SimilarityTransformable2D, TransformError, Triangle2DConstructor};
 
 impl<T: Scalar> SimilarityTransformable2D<T> for Triangle2D<T> {
     fn transform_similarity(

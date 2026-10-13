@@ -1,7 +1,10 @@
 use analysis::consts::test_constants::TOLERANCE_F64 as EPS;
 use cam_core::{CoordinateFrame, LengthUnit, SegmentType, Tool};
 use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
-use geo_contracts::{NurbsSurface3DConstructor, default_distance_tolerance};
+use geo_contracts::{
+    NurbsSurface3DConstructor, TriangleMesh3DConstructor, TriangleMesh3DProperties,
+    default_distance_tolerance,
+};
 
 use crate::{
     CamSolverError, CamSolverInput, CutterShape, DropCutter, OperationSpec, ScanlineParams,

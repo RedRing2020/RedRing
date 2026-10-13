@@ -1,7 +1,15 @@
 //! TriangleMesh3D のテスト
 
 use crate::{Point3D, TriangleMesh3D};
-use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq};
+use geo_contracts::{
+    Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq, Triangle3DBoundaryAccess,
+    TriangleMesh3DConstructor, TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,
+    TriangleMeshError,
+};
+
+fn empty_mesh() -> TriangleMesh3D<f64> {
+    TriangleMesh3D::new(Vec::new(), Vec::new()).unwrap()
+}
 
 #[test]
 fn test_mesh_creation() {
@@ -28,13 +36,21 @@ fn test_invalid_indices() {
     // 無効なインデックス（3つの頂点しかないのに3を参照）
     let indices = vec![[0, 1, 3]];
 
-    let mesh = TriangleMesh3D::new(vertices, indices);
-    assert!(mesh.is_err());
+    // 範囲外の頂点番号を報告する
+    assert_eq!(
+        TriangleMesh3D::new(vertices, indices),
+        Err(TriangleMeshError::InvalidVertexIndex {
+            triangle: 0,
+            corner: 2,
+            index: 3,
+            vertex_count: 2,
+        })
+    );
 }
 
 #[test]
 fn test_empty_mesh() {
-    let mesh = TriangleMesh3D::<f64>::empty();
+    let mesh = empty_mesh();
     assert_eq!(mesh.vertex_count(), 0);
     assert_eq!(mesh.triangle_count(), 0);
     assert!(mesh.is_valid());
@@ -52,16 +68,6 @@ fn test_mesh_access() {
     let indices = vec![[0, 1, 2], [1, 3, 2]];
 
     let mesh = TriangleMesh3D::new(vertices.clone(), indices.clone()).unwrap();
-
-    // 頂点アクセス
-    assert_eq!(mesh.vertex(0), Some(vertices[0]));
-    assert_eq!(mesh.vertex(3), Some(vertices[3]));
-    assert_eq!(mesh.vertex(4), None);
-
-    // インデックスアクセス
-    assert_eq!(mesh.triangle_indices(0), Some([0, 1, 2]));
-    assert_eq!(mesh.triangle_indices(1), Some([1, 3, 2]));
-    assert_eq!(mesh.triangle_indices(2), None);
 
     // 配列アクセス
     assert_eq!(mesh.vertices(), &vertices);
@@ -82,18 +88,12 @@ fn test_triangle_extraction() {
 
     assert!(triangle.is_some());
     let triangle = triangle.unwrap();
-    assert_eq!(
-        Point3D::from_tuple(geo_contracts::Triangle3DBoundaryAccess::vertex_a(&triangle)),
-        vertices[0]
-    );
-    assert_eq!(
-        Point3D::from_tuple(geo_contracts::Triangle3DBoundaryAccess::vertex_b(&triangle)),
-        vertices[1]
-    );
-    assert_eq!(
-        Point3D::from_tuple(geo_contracts::Triangle3DBoundaryAccess::vertex_c(&triangle)),
-        vertices[2]
-    );
+    assert_eq!(triangle.vertex_a(), vertices[0]);
+    assert_eq!(triangle.vertex_b(), vertices[1]);
+    assert_eq!(triangle.vertex_c(), vertices[2]);
+
+    // 範囲外の番号
+    assert!(mesh.triangle(1).is_none());
 }
 
 #[test]
@@ -106,18 +106,15 @@ fn test_bounding_box() {
     let indices = vec![[0, 1, 2]];
 
     let mesh = TriangleMesh3D::new(vertices, indices).unwrap();
-    let bbox = mesh.bounding_box();
+    let bbox = mesh.aabb().unwrap();
 
-    assert!(bbox.is_some());
-    let (min_point, max_point) = bbox.unwrap();
-    assert_eq!(min_point, Point3D::new(-1.0, -2.0, -3.0));
-    assert_eq!(max_point, Point3D::new(2.0, 3.0, 1.0));
+    assert_eq!(bbox.min(), Point3D::new(-1.0, -2.0, -3.0));
+    assert_eq!(bbox.max(), Point3D::new(2.0, 3.0, 1.0));
 }
 
 #[test]
 fn test_empty_bounding_box() {
-    let mesh = TriangleMesh3D::<f64>::empty();
-    assert!(mesh.bounding_box().is_none());
+    assert!(empty_mesh().aabb().is_none());
 }
 
 #[test]
@@ -190,13 +187,13 @@ fn test_normals_stay_unit_after_similarity_transform() {
         Angle::from_degrees(90.0),
     )
     .then(&SimilarityTransform3D::uniform_scale_about(Point3D::origin(), 2.0).unwrap());
-    let mesh = TriangleMesh3D::from_parts(
-        vec![Point3D::new(0.0, 0.0, 0.0)],
-        Vec::new(),
-        Some(vec![Vector3D::new(1.0, 0.0, 0.0)]),
-    );
+    let mesh = TriangleMesh3D {
+        vertices: vec![Point3D::new(0.0, 0.0, 0.0)],
+        indices: Vec::new(),
+        normals: Some(vec![Vector3D::new(1.0, 0.0, 0.0)]),
+    };
     let moved = mesh.transform_similarity(&transform).unwrap();
-    let normal = moved.normals().unwrap()[0];
+    let normal = moved.normals.unwrap()[0];
     assert!((normal - Vector3D::new(0.0, 1.0, 0.0)).length() < 1e-10);
 }
 

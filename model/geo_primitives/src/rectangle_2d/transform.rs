@@ -2,7 +2,7 @@
 
 use crate::Rect2D;
 use crate::SimilarityTransform2D;
-use geo_contracts::{Scalar, SimilarityTransformable2D, TransformError};
+use geo_contracts::{Rect2DConstructor, Scalar, SimilarityTransformable2D, TransformError};
 
 /// 軸平行の矩形のため、平行移動・一様スケールのみ受け付ける。回転を含む場合は `Unsupported`。
 impl<T: Scalar> SimilarityTransformable2D<T> for Rect2D<T> {
@@ -17,9 +17,9 @@ impl<T: Scalar> SimilarityTransformable2D<T> for Rect2D<T> {
         }
         let scale = transform.scale_factor();
         Self::new(
-            transform.apply_point(self.origin_point()),
-            self.width_value() * scale,
-            self.height_value() * scale,
+            transform.apply_point(self.origin),
+            self.width * scale,
+            self.height * scale,
         )
         .ok_or_else(|| TransformError::InvalidGeometry("invalid rectangle".to_string()))
     }

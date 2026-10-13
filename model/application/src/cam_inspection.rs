@@ -8,6 +8,7 @@ use cam_algorithms::{
     tessellate_surfaces,
 };
 use geo_algorithms::NurbsSurface3D;
+use geo_contracts::TriangleMesh3DProperties;
 
 /// 検査対象の工具種別
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

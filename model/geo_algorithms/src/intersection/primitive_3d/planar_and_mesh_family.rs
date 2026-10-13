@@ -4,8 +4,8 @@ use crate::{
     TriangleMesh3D, Vector3D,
 };
 use geo_contracts::{
-    InfiniteLine3DProperties, LineSegment3DProperties, Ray3DConstructor, Ray3DEvaluation,
-    Ray3DProperties, Scalar, Triangle3DBoundaryAccess,
+    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DDistance, Plane3DProperties,
+    Ray3DConstructor, Ray3DEvaluation, Ray3DProperties, Scalar, Triangle3DBoundaryAccess,
 };
 
 fn triangle3d_point3d_intersection_raw<T: Scalar>(
@@ -79,13 +79,9 @@ fn triangle3d_ray3d_intersection_raw<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let va = triangle.vertex_a();
-    let vb = triangle.vertex_b();
-    let vc = triangle.vertex_c();
-
-    let v0 = Point3D::new(va.0, va.1, va.2);
-    let v1 = Point3D::new(vb.0, vb.1, vb.2);
-    let v2 = Point3D::new(vc.0, vc.1, vc.2);
+    let v0 = triangle.vertex_a();
+    let v1 = triangle.vertex_b();
+    let v2 = triangle.vertex_c();
 
     let edge1 = Vector3D::from_points(v0, v1);
     let edge2 = Vector3D::from_points(v0, v2);
@@ -173,7 +169,7 @@ fn plane3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, plane.contains_point(*point, tolerance))
+    point_intersection_if(point, plane.distance_to_point(*point).abs() <= tolerance)
 }
 
 pub fn plane3d_point3d_intersection<T: Scalar>(
@@ -198,7 +194,7 @@ fn plane3d_line_segment3d_intersection_raw<T: Scalar>(
     let direction = Vector3D::from_points(start, end);
 
     if direction.is_zero() {
-        return if plane.contains_point(start, tolerance) {
+        return if plane.distance_to_point(start).abs() <= tolerance {
             Some(start)
         } else {
             None
@@ -209,7 +205,7 @@ fn plane3d_line_segment3d_intersection_raw<T: Scalar>(
     let denom = direction.dot(normal);
 
     if denom.abs() <= tolerance {
-        return if plane.contains_point(start, tolerance) {
+        return if plane.distance_to_point(start).abs() <= tolerance {
             Some(start)
         } else {
             None
@@ -253,7 +249,7 @@ fn plane3d_ray3d_intersection_raw<T: Scalar>(
     let denom = direction.dot(normal);
 
     if denom.abs() <= tolerance {
-        return if plane.contains_point(origin, tolerance) {
+        return if plane.distance_to_point(origin).abs() <= tolerance {
             Some(origin)
         } else {
             None

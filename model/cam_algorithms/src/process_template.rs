@@ -342,6 +342,7 @@ pub fn build_solver_input(
 mod tests {
     use cam_core::{ToleranceProfile, Tool};
     use geo_algorithms::{Point3D, TriangleMesh3D};
+    use geo_contracts::TriangleMesh3DConstructor;
 
     use super::*;
     use crate::solver::{CamSolverError, ScanlineParams, SolverGeometry};

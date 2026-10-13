@@ -20,7 +20,7 @@
 
 use geo_algorithms::{Point3D, TriangleMesh3D};
 use geo_contracts::{
-    ToleranceSettings, default_kernel_numerical_zero_tolerance,
+    ToleranceSettings, TriangleMesh3DProperties, default_kernel_numerical_zero_tolerance,
     default_orthogonality_dot_error_tolerance, default_parallel_cross_error_tolerance,
 };
 

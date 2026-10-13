@@ -1,6 +1,6 @@
 //! Topology向け orchestration 境界。
 
-use crate::primitives::{Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
+use crate::primitives::{Arc3D, Circle3D, LineSegment3D, Triangle3D};
 use geo_contracts::{
     Arc3DConstructor, Arc3DEndpoint, Circle3DProperties, LineSegment3DConstructor,
     LineSegment3DProperties, LineSegment3DSupportLine, Triangle3DBoundaryAccess,
@@ -188,13 +188,9 @@ impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
         &self,
         request: CreateTriangleTopologyRequest,
     ) -> Result<CreateWireTopologyResult, TopologyOrchestrationError> {
-        let (ax, ay, az) = request.triangle.vertex_a();
-        let (bx, by, bz) = request.triangle.vertex_b();
-        let (cx, cy, cz) = request.triangle.vertex_c();
-
-        let point_a = Point3D::new(ax, ay, az);
-        let point_b = Point3D::new(bx, by, bz);
-        let point_c = Point3D::new(cx, cy, cz);
+        let point_a = request.triangle.vertex_a();
+        let point_b = request.triangle.vertex_b();
+        let point_c = request.triangle.vertex_c();
         let vertex_a = Arc::new(Vertex::new(point_a));
         let vertex_b = Arc::new(Vertex::new(point_b));
         let vertex_c = Arc::new(Vertex::new(point_c));
@@ -253,6 +249,7 @@ mod tests {
     use geo_contracts::Arc3DConstructor;
     use geo_contracts::Circle3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
+    use geo_contracts::Triangle3DConstructor;
     use geo_topology::TopologyToleranceSettings;
 
     #[test]

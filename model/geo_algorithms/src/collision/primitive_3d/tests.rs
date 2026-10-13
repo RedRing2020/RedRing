@@ -20,7 +20,8 @@ use crate::{
 use analysis::test_constants;
 use geo_contracts::{
     Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, InfiniteLine3DConstructor,
-    LineSegment3DConstructor, Ray3DConstructor,
+    LineSegment3DConstructor, Plane3DConstructor, Ray3DConstructor, Triangle3DConstructor,
+    TriangleMesh3DConstructor,
 };
 
 fn standard_distance_tol() -> f64 {
@@ -105,7 +106,9 @@ fn circle_plane_ray_line_point_collisions_use_geometric_checks() {
         tol
     ));
 
-    let plane = Plane3D::xy_plane(0.0);
+    let plane =
+        Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0), Direction3D::positive_z())
+            .unwrap();
     assert!(plane3d_point3d_collides(
         &plane,
         &Point3D::new(0.0, 0.0, 0.0),
@@ -294,7 +297,9 @@ fn symmetric_triangle_collision_wrappers_match_base_functions() {
 #[test]
 fn symmetric_plane_collision_wrappers_match_base_functions() {
     let tol = standard_distance_tol();
-    let plane = Plane3D::xy_plane(0.0_f64);
+    let plane =
+        Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0_f64), Direction3D::positive_z())
+            .unwrap();
     let ray = Ray3D::new(Point3D::new(0.0, 0.0, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
     let seg =
         LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
@@ -353,7 +358,9 @@ fn linear_and_spherical_collisions_use_forward_direction_and_bounds() {
     let away_ray = Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
     assert!(!infinite_line3d_ray3d_collides(&x_axis, &away_ray, tol));
 
-    let plane = Plane3D::xy_plane(0.0_f64);
+    let plane =
+        Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0_f64), Direction3D::positive_z())
+            .unwrap();
     let up_ray = Ray3D::new(Point3D::new(0.0, 0.0, -2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
     assert!(plane3d_ray3d_collides(&plane, &up_ray, tol));
 }

@@ -4,8 +4,11 @@
 //! 自動フォーマット判定機能付き。
 
 use crate::error::StlError;
-use geo_contracts::{Scalar, Triangle3DBoundaryAccess};
-use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
+use geo_contracts::{
+    Scalar, Triangle3DBoundaryAccess, Triangle3DDerived, TriangleMesh3DConstructor,
+    TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,
+};
+use geo_primitives::{Point3D, TriangleMesh3D};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::Path;
@@ -93,7 +96,7 @@ where
         }
     }
 
-    TriangleMesh3D::new(vertices, indices).map_err(StlError::InvalidTriangle)
+    TriangleMesh3D::new(vertices, indices).map_err(|e| StlError::InvalidTriangle(e.to_string()))
 }
 
 /// Binary STLファイルを読み込む
@@ -169,7 +172,7 @@ pub fn load_binary_stl<T: Scalar>(path: &Path) -> Result<TriangleMesh3D<T>, StlE
         ]);
     }
 
-    TriangleMesh3D::new(vertices, indices).map_err(StlError::InvalidTriangle)
+    TriangleMesh3D::new(vertices, indices).map_err(|e| StlError::InvalidTriangle(e.to_string()))
 }
 
 /// ASCII STLファイルとして保存
@@ -180,10 +183,7 @@ pub fn save_ascii_stl<T: Scalar>(mesh: &TriangleMesh3D<T>, path: &Path) -> Resul
 
     for i in 0..mesh.triangle_count() {
         if let Some(triangle) = mesh.triangle(i) {
-            // Calculate normal
-            let normal = triangle.normal().unwrap_or_else(|| {
-                Vector3D::new(T::ZERO, T::ZERO, T::ONE) // Default to Z-up if degenerate
-            });
+            let normal = triangle.normal();
 
             writeln!(
                 file,
@@ -200,23 +200,23 @@ pub fn save_ascii_stl<T: Scalar>(mesh: &TriangleMesh3D<T>, path: &Path) -> Resul
             writeln!(
                 file,
                 "      vertex {} {} {}",
-                va.0.to_f64(),
-                va.1.to_f64(),
-                va.2.to_f64()
+                va.x().to_f64(),
+                va.y().to_f64(),
+                va.z().to_f64()
             )?;
             writeln!(
                 file,
                 "      vertex {} {} {}",
-                vb.0.to_f64(),
-                vb.1.to_f64(),
-                vb.2.to_f64()
+                vb.x().to_f64(),
+                vb.y().to_f64(),
+                vb.z().to_f64()
             )?;
             writeln!(
                 file,
                 "      vertex {} {} {}",
-                vc.0.to_f64(),
-                vc.1.to_f64(),
-                vc.2.to_f64()
+                vc.x().to_f64(),
+                vc.y().to_f64(),
+                vc.z().to_f64()
             )?;
 
             writeln!(file, "    endloop")?;

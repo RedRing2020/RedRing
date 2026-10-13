@@ -364,7 +364,8 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for NurbsCurveCollider<T> {
         let delta_u = (u_max - u_min) / T::from_usize(num_samples);
 
         let point_on_plane = plane.origin();
-        let (nx, ny, nz) = <Plane3D<T> as Plane3DProperties<T>>::normal(plane);
+        let plane_normal = <Plane3D<T> as Plane3DProperties<T>>::normal(plane);
+        let (nx, ny, nz) = (plane_normal.x(), plane_normal.y(), plane_normal.z());
         let normal_vec = geo_core::Vector3D::new(nx, ny, nz);
 
         for i in 0..=num_samples {
@@ -533,7 +534,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
         let dv = (v_max - v_min) / T::from_usize(samples_v);
 
         let origin = plane.origin();
-        let (nx, ny, nz) = <Plane3D<T> as Plane3DProperties<T>>::normal(plane);
+        let plane_normal = <Plane3D<T> as Plane3DProperties<T>>::normal(plane);
+        let (nx, ny, nz) = (plane_normal.x(), plane_normal.y(), plane_normal.z());
 
         let mut min_dist = T::INFINITY;
 
@@ -1016,9 +1018,10 @@ pub fn nurbssurface3d_cylindrical_solid3d_distance<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Vector3D;
+    use crate::{Direction3D, Vector3D};
     use analysis::test_constants;
     use geo_contracts::NurbsSurface3DConstructor;
+    use geo_contracts::Plane3DConstructor;
     use geo_contracts::Ray3DConstructor;
     use geo_nurbs::NurbsCurve3D;
 
@@ -1113,7 +1116,9 @@ mod tests {
     #[test]
     fn test_nurbssurface3d_plane3d_distance_zero_for_xy_plane() {
         let surface = create_test_surface::<f64>();
-        let plane = Plane3D::xy_plane(0.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0), Direction3D::positive_z())
+                .unwrap();
         let d = nurbssurface3d_plane3d_distance(&surface, &plane);
         assert!(d <= TEST_TOLERANCE);
     }

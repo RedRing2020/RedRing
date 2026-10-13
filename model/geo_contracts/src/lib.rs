@@ -49,15 +49,15 @@ pub use geometry::core::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived,
     EllipsoidalSolid3DDistance, EllipsoidalSolid3DProperties, EllipsoidalSurface3DConstructor,
     EllipsoidalSurface3DDerived, EllipsoidalSurface3DDistance, EllipsoidalSurface3DEvaluation,
-    EllipsoidalSurface3DProperties, Rect2DConstructor, Rect2DContainment, Rect2DDerived,
-    Rect2DProperties, Rect3DConstructor, Rect3DContainment, Rect3DDerived, Rect3DProperties,
-    SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DDerived,
-    SphericalSolid3DDistance, SphericalSolid3DProperties, SphericalSurface3DConstructor,
-    SphericalSurface3DDerived, SphericalSurface3DDistance, SphericalSurface3DEvaluation,
-    SphericalSurface3DProjection, SphericalSurface3DProperties, TorusSolid3DConstructor,
-    TorusSolid3DContainment, TorusSolid3DDerived, TorusSolid3DDistance, TorusSolid3DProperties,
-    TorusSurface3DConstructor, TorusSurface3DDerived, TorusSurface3DDistance,
-    TorusSurface3DEvaluation, TorusSurface3DProperties,
+    EllipsoidalSurface3DProperties, Rect2DConstructor, Rect2DContainment, Rect2DProperties,
+    Rect3DConstructor, Rect3DContainment, Rect3DProperties, SphericalSolid3DConstructor,
+    SphericalSolid3DContainment, SphericalSolid3DDerived, SphericalSolid3DDistance,
+    SphericalSolid3DProperties, SphericalSurface3DConstructor, SphericalSurface3DDerived,
+    SphericalSurface3DDistance, SphericalSurface3DEvaluation, SphericalSurface3DProjection,
+    SphericalSurface3DProperties, TorusSolid3DConstructor, TorusSolid3DContainment,
+    TorusSolid3DDerived, TorusSolid3DDistance, TorusSolid3DProperties, TorusSurface3DConstructor,
+    TorusSurface3DDerived, TorusSurface3DDistance, TorusSurface3DEvaluation,
+    TorusSurface3DProperties,
 };
 pub use geometry::core::{
     InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DDistance,
@@ -78,7 +78,8 @@ pub use geometry::core::{
     NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
     NurbsSurface3DProperties, Triangle2DBoundaryAccess, Triangle2DConstructor,
     Triangle2DContainment, Triangle2DDistance, Triangle3DBoundaryAccess, Triangle3DConstructor,
-    Triangle3DContainment, Triangle3DDerived, Triangle3DDistance,
+    Triangle3DContainment, Triangle3DDerived, Triangle3DDistance, TriangleMesh3DConstructor,
+    TriangleMesh3DProperties, TriangleMesh3DTriangleAccess, TriangleMeshError,
 };
 pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{
