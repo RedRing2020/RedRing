@@ -34,7 +34,8 @@ use crate::{
 use analysis::test_constants;
 use geo_contracts::{
     Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, InfiniteLine3DConstructor,
-    LineSegment3DConstructor, LineSegment3DProperties, LineSegment3DSupportLine, Ray3DConstructor,
+    LineSegment3DConstructor, LineSegment3DProperties, LineSegment3DSupportLine,
+    Plane3DConstructor, Ray3DConstructor, Triangle3DConstructor, TriangleMesh3DConstructor,
 };
 
 fn standard_distance_tol() -> f64 {
@@ -43,7 +44,9 @@ fn standard_distance_tol() -> f64 {
 
 #[test]
 fn plane_point_intersection_returns_same_point() {
-    let plane = Plane3D::xy_plane(0.0_f64);
+    let plane =
+        Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0_f64), Direction3D::positive_z())
+            .unwrap();
     let point = Point3D::new(1.0, -2.0, 0.0);
 
     let result = plane3d_point3d_intersection(&plane, &point, standard_distance_tol());
@@ -441,7 +444,9 @@ fn symmetric_triangle_intersection_wrappers_match_base_functions() {
 #[test]
 fn symmetric_plane_intersection_wrappers_match_base_functions() {
     let tol = standard_distance_tol();
-    let plane = Plane3D::xy_plane(0.0_f64);
+    let plane =
+        Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0_f64), Direction3D::positive_z())
+            .unwrap();
     let ray = Ray3D::new(Point3D::new(0.0, 0.0, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
     let seg =
         LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
@@ -926,7 +931,9 @@ fn linear_pair_intersections_detect_crossing_and_reject_outside_cases() {
 #[test]
 fn planar_intersections_detect_crossing_and_reject_parallel_or_backward_cases() {
     let tol = standard_distance_tol();
-    let plane = Plane3D::xy_plane(0.0_f64);
+    let plane =
+        Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0_f64), Direction3D::positive_z())
+            .unwrap();
     let crossing_segment =
         LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
     let parallel_segment =

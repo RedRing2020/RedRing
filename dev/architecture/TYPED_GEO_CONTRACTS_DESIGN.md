@@ -75,7 +75,7 @@ Rust の orphan rule では、trait の実装は trait定義のクレートか�
 - trait定義と同じ名前の固有メソッドは削除する。固有メソッドは実装の補助（private）とし、trait定義にない公開メソッドが必要になった場合は trait定義に追加する
 - 生成（`new` 等）も Constructor の trait定義を正本とする
 - 値型（`geo_core`）は trait定義を持たないため、固有メソッドを API とする
-- 形状の具体型を引数・戻り値に使う API は、関連型を持つ trait定義にする（`Bounded` の `type Aabb`、`LineSegment3DSupportLine` の `type Line` 等）
+- 形状の具体型を引数・戻り値に使う API は、関連型を持つ trait定義にする（`Bounded` の `type Aabb`、`LineSegment3DSupportLine` の `type Line`、`TriangleMesh3DTriangleAccess` の `type Triangle` 等）
 
 ### 3.1 prelude
 
@@ -101,6 +101,7 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 
 - 単位ベクトルであることを前提とする引数・戻り値は `Direction*` とし、`Vector*` と区別する
 - 形状として成立しない入力の生成は `Option`、変換の失敗は `Result<_, TransformError>`、範囲外の評価は `Option` を返す（既存の規約のまま）
+  - 例外として、三角形メッシュの生成は `Result<_, TriangleMeshError>` を返す。ファイルの読み込み等で作る大きなデータのため、どの三角形のどの頂点番号が範囲外かを呼び出し元に返す
 - タプルを受け渡す trait定義のメソッドは残さない
 - `contains_point(point)` は既定の距離の許容誤差で判定する。呼び出し元が許容誤差を指定する場合は `distance_to_point(point) <= tolerance` と書く。専用のメソッド（`contains_point_within`）は、それで書けない呼び出し元が現れた時点で追加する
 
@@ -118,6 +119,7 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 | D-3a | 円（`Circle2D/3D`）の型付け。完了 | 円 |
 | D-3b | 円弧（`Arc2D/3D`）の型付け。完了 | 円弧 |
 | D-3c | 楕円（`Ellipse2D/3D`）と楕円弧（`EllipseArc2D/3D`）の型付け（楕円弧が楕円の固有メソッドに強く依存するため 1 つの段階にまとめた）。完了 | 楕円・楕円弧 |
+| D-4 | 平面（`Plane3D`）・矩形（`Rect2D/3D`）・三角形（`Triangle2D/3D`）の型付けと、三角形メッシュ（`TriangleMesh3D`）の trait定義の追加（リバースエンジニアリングや切削シミュレーション用の形状の取り込みで使う）。完了 | 平面・矩形・三角形・三角形メッシュ |
 | 最後 | `geo_algorithms` 等の Point / タプルの境界の残りの整理と、規約の文書の仕上げ | — |
 
 - 旧 API の別名・互換用の変換は置かない（各段階で呼び出し元まで更新する）

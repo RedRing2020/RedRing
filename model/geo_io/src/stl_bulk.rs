@@ -6,7 +6,7 @@
 //! - ASCII STLは事前容量確保で再アロケーション回避
 
 use crate::error::StlError;
-use geo_contracts::Scalar;
+use geo_contracts::{Scalar, TriangleMesh3DConstructor};
 use geo_primitives::{Point3D, TriangleMesh3D};
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use std::collections::HashMap;
@@ -297,7 +297,8 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
             indices.push(triangle_indices);
         }
 
-        TriangleMesh3D::new(unique_vertices, indices).map_err(StlError::InvalidTriangle)
+        TriangleMesh3D::new(unique_vertices, indices)
+            .map_err(|e| StlError::InvalidTriangle(e.to_string()))
     }
 }
 
@@ -603,7 +604,8 @@ impl<T: Scalar + FromStr> StlIndexedBulk<T> {
             ]);
         }
 
-        TriangleMesh3D::new(point_vertices, triangle_indices).map_err(StlError::InvalidTriangle)
+        TriangleMesh3D::new(point_vertices, triangle_indices)
+            .map_err(|e| StlError::InvalidTriangle(e.to_string()))
     }
 
     /// メモリ削減率を計算（%）
@@ -690,6 +692,7 @@ impl StlIndexedBulk<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use geo_contracts::TriangleMesh3DProperties;
     use std::io::Write;
     use tempfile::NamedTempFile;
 

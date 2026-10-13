@@ -10,7 +10,7 @@ use crate::{
 };
 use geo_contracts::{
     Circle3DDistance, CylindricalSolid3DDistance, DistanceConvergenceError, InfiniteLine3DDistance,
-    LineSegment3DDistance, Ray3DDistance, Scalar,
+    LineSegment3DDistance, Plane3DDistance, Ray3DDistance, Scalar,
 };
 
 /// NurbsCurve3D-点 間の最短距離（フォールバック付き）
@@ -497,6 +497,7 @@ mod tests {
     use geo_contracts::Circle3DConstructor;
     use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
+    use geo_contracts::Plane3DConstructor;
     use geo_contracts::Ray3DConstructor;
     use geo_contracts::{
         CylindricalSolid3DConstructor, EllipsoidalSolid3DConstructor, NurbsCurve3DConstructor,
@@ -825,7 +826,9 @@ mod tests {
     #[test]
     fn nurbscurve3d_plane3d_distance_normal() {
         let curve = create_test_curve();
-        let plane = Plane3D::xy_plane(1.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 1.0), Direction3D::positive_z())
+                .unwrap();
 
         let distance = nurbscurve3d_plane3d_distance(&curve, &plane);
         assert!(distance >= 0.0);
@@ -836,7 +839,9 @@ mod tests {
     fn nurbscurve3d_plane3d_distance_zero() {
         let curve = create_test_curve();
         // 曲線は z=0 平面上にあるので距離 0
-        let plane = Plane3D::xy_plane(0.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0), Direction3D::positive_z())
+                .unwrap();
 
         let distance = nurbscurve3d_plane3d_distance(&curve, &plane);
         let tol = standard_distance_tol();
@@ -847,7 +852,9 @@ mod tests {
     fn nurbscurve3d_plane3d_symmetric() {
         let tol = standard_distance_tol();
         let curve = create_test_curve();
-        let plane = Plane3D::xy_plane(1.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 1.0), Direction3D::positive_z())
+                .unwrap();
 
         let a_to_b = nurbscurve3d_plane3d_distance(&curve, &plane);
         let b_to_a = plane3d_nurbscurve3d_distance(&plane, &curve);
@@ -857,7 +864,9 @@ mod tests {
     #[test]
     fn nurbscurve3d_plane3d_try_distance_invalid_samples() {
         let curve = create_test_curve();
-        let plane = Plane3D::xy_plane(1.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 1.0), Direction3D::positive_z())
+                .unwrap();
 
         let result = nurbscurve3d_plane3d_try_distance(&curve, &plane, 0);
         assert!(matches!(
@@ -869,7 +878,9 @@ mod tests {
     #[test]
     fn nurbscurve3d_plane3d_try_distance_one_sample() {
         let curve = create_test_curve();
-        let plane = Plane3D::xy_plane(1.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 1.0), Direction3D::positive_z())
+                .unwrap();
 
         let result = nurbscurve3d_plane3d_try_distance(&curve, &plane, 1);
         assert!(matches!(

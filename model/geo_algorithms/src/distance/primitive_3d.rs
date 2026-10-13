@@ -18,6 +18,7 @@ use geo_contracts::{
     LineSegment3DConstructor, LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
     SphericalSolid3DContainment, SphericalSolid3DDistance, TorusSolid3DContainment,
     TorusSolid3DDistance, TorusSurface3DDistance, Triangle3DBoundaryAccess,
+    TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,
 };
 
 /// LineSegment3D-点 間の最短距離（端点クランプあり）
@@ -129,8 +130,10 @@ pub fn infinite_line3d_infinite_line3d_distance<T: Scalar>(
 
 /// Plane3D-点 間の距離（法線方向への射影の絶対値）
 pub fn plane3d_point3d_distance<T: Scalar>(plane: &Plane3D<T>, point: &Point3D<T>) -> T {
-    let (ox, oy, oz) = Plane3DProperties::origin(plane);
-    let (nx, ny, nz) = Plane3DProperties::normal(plane);
+    let plane_origin = Plane3DProperties::origin(plane);
+    let (ox, oy, oz) = (plane_origin.x(), plane_origin.y(), plane_origin.z());
+    let plane_normal = Plane3DProperties::normal(plane);
+    let (nx, ny, nz) = (plane_normal.x(), plane_normal.y(), plane_normal.z());
     let dp_x = point.x() - ox;
     let dp_y = point.y() - oy;
     let dp_z = point.z() - oz;
@@ -368,9 +371,24 @@ pub fn point3d_torus_solid3d_distance<T: Scalar>(point: &Point3D<T>, torus: &Tor
 
 /// Triangle3D-点 間の最短距離
 pub fn triangle3d_point3d_distance<T: Scalar>(triangle: &Triangle3D<T>, point: &Point3D<T>) -> T {
-    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
-    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
-    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
+    let triangle_vertex_a = Triangle3DBoundaryAccess::vertex_a(triangle);
+    let (ax, ay, az) = (
+        triangle_vertex_a.x(),
+        triangle_vertex_a.y(),
+        triangle_vertex_a.z(),
+    );
+    let triangle_vertex_b = Triangle3DBoundaryAccess::vertex_b(triangle);
+    let (bx, by, bz) = (
+        triangle_vertex_b.x(),
+        triangle_vertex_b.y(),
+        triangle_vertex_b.z(),
+    );
+    let triangle_vertex_c = Triangle3DBoundaryAccess::vertex_c(triangle);
+    let (cx, cy, cz) = (
+        triangle_vertex_c.x(),
+        triangle_vertex_c.y(),
+        triangle_vertex_c.z(),
+    );
     let pa = Point3D::new(ax, ay, az);
     let pb = Point3D::new(bx, by, bz);
     let pc = Point3D::new(cx, cy, cz);
@@ -491,6 +509,7 @@ mod tests {
     use analysis::test_constants;
     use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::Ray3DConstructor;
+    use geo_contracts::Triangle3DConstructor;
 
     fn standard_distance_tol() -> f64 {
         test_constants::DISTANCE_TOLERANCE_F64

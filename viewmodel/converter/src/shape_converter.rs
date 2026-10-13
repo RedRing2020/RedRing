@@ -331,14 +331,11 @@ pub fn circle_to_solid_vertices(
 /// 三角形の3辺をワイヤーフレームとして表示します。
 /// 各辺は2頂点の線分として表現されます。
 pub fn triangle_to_wireframe_vertices(triangle: &Triangle3D<f64>) -> Vec<VertexData> {
-    // 3つの頂点を取得（タプルからPoint3Dに変換）
-    let va_tuple = triangle.vertex_a();
-    let vb_tuple = triangle.vertex_b();
-    let vc_tuple = triangle.vertex_c();
+    // 3つの頂点を取得
 
-    let va = Point3D::new(va_tuple.0, va_tuple.1, va_tuple.2);
-    let vb = Point3D::new(vb_tuple.0, vb_tuple.1, vb_tuple.2);
-    let vc = Point3D::new(vc_tuple.0, vc_tuple.1, vc_tuple.2);
+    let va = triangle.vertex_a();
+    let vb = triangle.vertex_b();
+    let vc = triangle.vertex_c();
 
     // 法線を計算
     let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());
@@ -369,14 +366,11 @@ pub fn triangle_to_wireframe_vertices(triangle: &Triangle3D<f64>) -> Vec<VertexD
 /// 三角形を塗りつぶして表示します。
 /// CCW（反時計回り）順序で頂点を配置し、法線を計算します。
 pub fn triangle_to_solid_vertices(triangle: &Triangle3D<f64>) -> Vec<VertexData> {
-    // 3つの頂点を取得（タプルからPoint3Dに変換）
-    let va_tuple = triangle.vertex_a();
-    let vb_tuple = triangle.vertex_b();
-    let vc_tuple = triangle.vertex_c();
+    // 3つの頂点を取得
 
-    let va = Point3D::new(va_tuple.0, va_tuple.1, va_tuple.2);
-    let vb = Point3D::new(vb_tuple.0, vb_tuple.1, vb_tuple.2);
-    let vc = Point3D::new(vc_tuple.0, vc_tuple.1, vc_tuple.2);
+    let va = triangle.vertex_a();
+    let vb = triangle.vertex_b();
+    let vc = triangle.vertex_c();
 
     // 法線を計算（CCW順序を前提）
     let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());
@@ -402,13 +396,10 @@ pub fn triangle_to_solid_vertices(triangle: &Triangle3D<f64>) -> Vec<VertexData>
 /// 各辺は2頂点のペアとして生成されます。
 pub fn triangle_to_wireframe_line_segments(triangle: &Triangle3D<f64>) -> Vec<VertexData> {
     // 3つの頂点を取得
-    let va_tuple = triangle.vertex_a();
-    let vb_tuple = triangle.vertex_b();
-    let vc_tuple = triangle.vertex_c();
 
-    let va = Point3D::new(va_tuple.0, va_tuple.1, va_tuple.2);
-    let vb = Point3D::new(vb_tuple.0, vb_tuple.1, vb_tuple.2);
-    let vc = Point3D::new(vc_tuple.0, vc_tuple.1, vc_tuple.2);
+    let va = triangle.vertex_a();
+    let vb = triangle.vertex_b();
+    let vc = triangle.vertex_c();
 
     // 法線を計算（CCW順序を前提）
     let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());
@@ -465,11 +456,10 @@ pub fn arc_to_vertices(arc: &Arc3D<f64>, quality: &TessellationQuality) -> Vec<V
     let radius: f64 = Arc3DProperties::radius(arc);
 
     // 円弧の法線方向と開始方向を取得（Arc3D内部メソッドを使用）
-    let normal_dir = arc.normal();
     let start_dir = arc.start_direction();
 
     // Direction3Dから Vector3Dへ変換
-    let normal_vec = normal_dir.as_vector();
+    let normal_vec = arc.normal().as_vector();
     let start_dir_vec = start_dir.as_vector();
 
     let normal_f32 = [
@@ -532,11 +522,10 @@ pub fn arc_to_wireframe_line_segments(
     let radius: f64 = Arc3DProperties::radius(arc);
 
     // 円弧の法線方向と開始方向を取得
-    let normal_dir = arc.normal();
     let start_dir = arc.start_direction();
 
     // Direction3Dから Vector3Dへ変換
-    let normal_vec = normal_dir.as_vector();
+    let normal_vec = arc.normal().as_vector();
     let start_dir_vec = start_dir.as_vector();
 
     let normal_f32 = [
@@ -603,15 +592,10 @@ pub fn plane_to_grid_vertices(
     let extent = quality.plane_grid_extent;
     let step = extent * 2.0 / grid_size as f64;
 
-    let origin_tuple = Plane3DProperties::origin(plane);
-    let u_axis_tuple = Plane3DProperties::u_axis(plane);
-    let v_axis_tuple = Plane3DProperties::v_axis(plane);
-    let normal_tuple = Plane3DProperties::normal(plane);
-
-    let origin = Point3D::new(origin_tuple.0, origin_tuple.1, origin_tuple.2);
-    let u_axis = Vector3D::new(u_axis_tuple.0, u_axis_tuple.1, u_axis_tuple.2);
-    let v_axis = Vector3D::new(v_axis_tuple.0, v_axis_tuple.1, v_axis_tuple.2);
-    let normal = Vector3D::new(normal_tuple.0, normal_tuple.1, normal_tuple.2);
+    let origin = Plane3DProperties::origin(plane);
+    let u_axis = Plane3DProperties::u_axis(plane).as_vector();
+    let v_axis = Plane3DProperties::v_axis(plane).as_vector();
+    let normal = Plane3DProperties::normal(plane).as_vector();
 
     let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
 
@@ -2134,6 +2118,7 @@ mod tests {
     use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::{Ellipse3DConstructor, EllipseArc3DConstructor};
     use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
+    use geo_contracts::{Plane3DConstructor, Triangle3DConstructor};
 
     #[test]
     fn test_line_segment_conversion() {
@@ -2350,7 +2335,9 @@ mod tests {
         let quality = TessellationQuality::default();
 
         // 1. Plane3D
-        let plane = Plane3D::xy_plane(0.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0), Direction3D::positive_z())
+                .unwrap();
         let plane_vertices = plane_to_grid_vertices(&plane, &quality);
         assert!(!plane_vertices.is_empty(), "Plane3D conversion failed");
 

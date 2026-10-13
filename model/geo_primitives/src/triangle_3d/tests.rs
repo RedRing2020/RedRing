@@ -1,7 +1,7 @@
 //! Triangle3D のテスト
 
 use super::*;
-use crate::{Point3D, Triangle3D, Vector3D};
+use crate::{Point3D, Triangle3D};
 use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 
 #[test]
@@ -31,27 +31,13 @@ fn test_degenerate_triangle() {
 }
 
 #[test]
-fn test_triangle_area() {
-    // 直角三角形（底辺1、高さ1）
-    let a = Point3D::new(0.0, 0.0, 0.0);
-    let b = Point3D::new(1.0, 0.0, 0.0);
-    let c = Point3D::new(0.0, 1.0, 0.0);
-
-    let triangle = Triangle3D::new(a, b, c).unwrap();
-    let area = triangle.area();
-
-    // 面積は 0.5 のはず
-    assert!((area - 0.5).abs() < 1e-10);
-}
-
-#[test]
 fn test_triangle_normal() {
     let a = Point3D::new(0.0, 0.0, 0.0);
     let b = Point3D::new(1.0, 0.0, 0.0);
     let c = Point3D::new(0.0, 1.0, 0.0);
 
     let triangle = Triangle3D::new(a, b, c).unwrap();
-    let normal = triangle.normal().unwrap();
+    let normal = triangle.normal();
 
     // XY平面の三角形なので法線はZ方向
     assert!((normal.z() - 1.0).abs() < 1e-10);
@@ -79,44 +65,6 @@ fn test_point_containment() {
     // 外部の点は含まれない
     let outside = Point3D::new(3.0, 3.0, 0.0);
     assert!(!triangle.contains_point_on_plane(outside));
-}
-
-#[test]
-fn test_triangle_edges() {
-    let a = Point3D::new(0.0, 0.0, 0.0);
-    let b = Point3D::new(1.0, 0.0, 0.0);
-    let c = Point3D::new(0.0, 1.0, 0.0);
-
-    let triangle = Triangle3D::new(a, b, c).unwrap();
-
-    let ab = triangle.edge_ab();
-    let bc = triangle.edge_bc();
-    let ca = triangle.edge_ca();
-
-    assert_eq!(ab, Vector3D::new(1.0, 0.0, 0.0));
-    assert_eq!(bc, Vector3D::new(-1.0, 1.0, 0.0));
-    assert_eq!(ca, Vector3D::new(0.0, -1.0, 0.0));
-}
-
-#[test]
-fn test_triangle_validity() {
-    // 有効な三角形
-    let a = Point3D::new(0.0, 0.0, 0.0);
-    let b = Point3D::new(1.0, 0.0, 0.0);
-    let c = Point3D::new(0.0, 1.0, 0.0);
-
-    let triangle = Triangle3D::new(a, b, c).unwrap();
-    assert!(triangle.is_valid());
-
-    // 極小三角形（面積がほぼ0）
-    let a_small = Point3D::new(0.0, 0.0, 0.0);
-    let b_small = Point3D::new(1e-12, 0.0, 0.0);
-    let c_small = Point3D::new(0.0, 1e-12, 0.0);
-
-    let small_triangle = Triangle3D::new(a_small, b_small, c_small);
-    if let Some(triangle) = small_triangle {
-        assert!(!triangle.is_valid());
-    }
 }
 
 #[test]
@@ -169,7 +117,6 @@ fn test_metadata_and_bounds_capabilities() {
     .unwrap();
 
     assert_eq!(triangle.primitive_kind(), PrimitiveKind::Triangle);
-    assert_eq!(triangle.area(), 0.5);
 
     let aabb = triangle.aabb().expect("Triangle should have an AABB");
     assert_eq!(aabb.min().x(), 0.0);

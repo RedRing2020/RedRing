@@ -10,7 +10,7 @@
 
 use geo_algorithms::{AdaptiveTessellationSettings, NurbsSurfaceAdaptiveTessellation};
 use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
-use geo_contracts::default_kernel_numerical_zero_tolerance;
+use geo_contracts::{TriangleMesh3DConstructor, default_kernel_numerical_zero_tolerance};
 
 use crate::solver::CamSolverError;
 
@@ -103,7 +103,7 @@ pub fn tessellate_surfaces(
         }
     }
 
-    TriangleMesh3D::new(vertices, indices).map_err(CamSolverError::InvalidInput)
+    TriangleMesh3D::new(vertices, indices).map_err(|e| CamSolverError::InvalidInput(e.to_string()))
 }
 
 fn converge_param_grid(

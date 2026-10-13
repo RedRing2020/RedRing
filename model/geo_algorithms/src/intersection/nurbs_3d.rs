@@ -20,7 +20,7 @@ use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
     Point3D, Ray3D, SphericalSolid3D,
 };
-use geo_contracts::{LineSegment3DProperties, Ray3DProperties, Scalar};
+use geo_contracts::{LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar};
 use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -313,6 +313,7 @@ mod tests {
     use geo_contracts::Circle3DConstructor;
     use geo_contracts::InfiniteLine3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
+    use geo_contracts::Plane3DConstructor;
     use geo_contracts::Ray3DConstructor;
     use geo_contracts::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
 
@@ -459,7 +460,9 @@ mod tests {
     #[test]
     fn test_nurbssurface3d_plane3d_intersection_on_same_plane() {
         let surface = create_test_surface::<f64>();
-        let plane = Plane3D::xy_plane(0.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0), Direction3D::positive_z())
+                .unwrap();
         let result = nurbssurface3d_plane3d_intersection(&surface, &plane, TEST_TOLERANCE);
         assert!(result.is_some());
     }
@@ -467,7 +470,9 @@ mod tests {
     #[test]
     fn test_nurbssurface3d_plane3d_intersection_returns_plane_origin_as_representative_point() {
         let surface = create_test_surface::<f64>();
-        let plane = Plane3D::xy_plane(0.0);
+        let plane =
+            Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0), Direction3D::positive_z())
+                .unwrap();
 
         let result = nurbssurface3d_plane3d_intersection(&surface, &plane, TEST_TOLERANCE);
         assert_eq!(result, Some(plane.origin()));

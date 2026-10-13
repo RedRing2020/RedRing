@@ -8,7 +8,7 @@ use crate::{
 };
 use geo_contracts::{
     Circle3DProperties, ConicalSolid3DProperties, CylindricalSurface3DProperties,
-    InfiniteLine3DProperties, LineSegment3DProperties, Ray3DProperties, Scalar,
+    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DDistance, Ray3DProperties, Scalar,
 };
 
 fn cylindrical_surface3d_point3d_intersection_raw<T: Scalar>(

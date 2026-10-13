@@ -10,7 +10,7 @@ use crate::shape_converter::{
 };
 use geo_contracts::{
     Angle, Arc3DConstructor, Circle3DConstructor, LineSegment3DConstructor,
-    NurbsCurve3DConstructor, NurbsCurve3DDerived,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, Triangle3DConstructor,
 };
 // geo_algorithms は geo_primitives を再エクスポート（アーキテクチャルール上許可）
 use geo_algorithms::{

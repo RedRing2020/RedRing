@@ -5,8 +5,8 @@ use crate::{
 };
 use geo_contracts::{
     EllipsoidalSolid3DProperties, InfiniteLine3DProjection, InfiniteLine3DProperties,
-    LineSegment3DProjection, LineSegment3DProperties, Ray3DEvaluation, Ray3DProperties, Scalar,
-    SphericalSolid3DProperties,
+    LineSegment3DProjection, LineSegment3DProperties, Plane3DDistance, Plane3DProjection,
+    Ray3DEvaluation, Ray3DProperties, Scalar, SphericalSolid3DProperties,
 };
 
 fn ellipsoidal_solid3d_point3d_intersection_raw<T: Scalar>(

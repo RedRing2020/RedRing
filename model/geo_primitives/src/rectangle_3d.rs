@@ -1,14 +1,14 @@
-//! Rect3D Core 実装（任意平面）
+//! Rect3D 実装（任意平面上の矩形）
 
 mod bounds;
 #[cfg(test)]
 mod tests;
 mod transform;
 
-use crate::{Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point2D, Point3D, Vector3D};
 use geo_contracts::{
-    PointClassification, PrimitiveKind, PrimitiveMetadata, Rect3DConstructor, Rect3DContainment,
-    Rect3DDerived, Rect3DProperties, Scalar,
+    default_distance_tolerance, PointClassification, PrimitiveKind, PrimitiveMetadata,
+    Rect3DConstructor, Rect3DContainment, Rect3DProperties, Scalar,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -27,10 +27,24 @@ impl<T: Scalar> PrimitiveMetadata for Rect3D<T> {
 }
 
 impl<T: Scalar> Rect3D<T> {
-    pub fn new(
+    /// 4つの角（原点から U 軸方向・対角・V 軸方向の順）
+    fn corners(&self) -> [Point3D<T>; 4] {
+        let u = self.u_axis.as_vector() * self.width;
+        let v = self.v_axis.as_vector() * self.height;
+        [
+            self.origin,
+            self.origin + u,
+            self.origin + u + v,
+            self.origin + v,
+        ]
+    }
+}
+
+impl<T: Scalar> Rect3DConstructor<T> for Rect3D<T> {
+    fn new(
         origin: Point3D<T>,
-        u_axis: Vector3D<T>,
-        v_axis: Vector3D<T>,
+        u_axis: Direction3D<T>,
+        v_axis: Direction3D<T>,
         width: T,
         height: T,
     ) -> Option<Self> {
@@ -38,91 +52,73 @@ impl<T: Scalar> Rect3D<T> {
             return None;
         }
 
-        let u = Direction3D::from_vector(u_axis)?;
-        let v_raw = Direction3D::from_vector(v_axis)?;
-
-        let projection = u.as_vector() * v_raw.as_vector().dot(u.as_vector());
-        let v_orthogonal = v_raw.as_vector() - projection;
-        let v = Direction3D::from_vector(v_orthogonal)?;
+        // V 軸から U 軸方向の成分を除く
+        let v_orthogonal = v_axis.as_vector() - u_axis.as_vector() * v_axis.dot(u_axis);
+        let v_axis = Direction3D::from_vector(v_orthogonal)?;
 
         Some(Self {
             origin,
-            u_axis: u,
-            v_axis: v,
+            u_axis,
+            v_axis,
             width,
             height,
         })
     }
+}
 
-    pub fn origin_point(&self) -> Point3D<T> {
+impl<T: Scalar> Rect3DProperties<T> for Rect3D<T> {
+    fn origin(&self) -> Point3D<T> {
         self.origin
     }
 
-    pub fn u_axis_dir(&self) -> Direction3D<T> {
+    fn u_axis(&self) -> Direction3D<T> {
         self.u_axis
     }
 
-    pub fn v_axis_dir(&self) -> Direction3D<T> {
+    fn v_axis(&self) -> Direction3D<T> {
         self.v_axis
     }
 
-    pub fn normal_dir(&self) -> Direction3D<T> {
+    fn normal(&self) -> Direction3D<T> {
         Direction3D::from_vector(self.u_axis.as_vector().cross(self.v_axis.as_vector()))
             .expect("u_axis and v_axis should define a valid normal")
     }
 
-    pub fn width_value(&self) -> T {
+    fn width(&self) -> T {
         self.width
     }
 
-    pub fn height_value(&self) -> T {
+    fn height(&self) -> T {
         self.height
     }
 
-    pub fn center_point(&self) -> Point3D<T> {
+    fn center(&self) -> Point3D<T> {
         let two = T::ONE + T::ONE;
-        let center_offset = self.u_axis.as_vector() * (self.width / two)
-            + self.v_axis.as_vector() * (self.height / two);
-        Point3D::new(
-            self.origin.x() + center_offset.x(),
-            self.origin.y() + center_offset.y(),
-            self.origin.z() + center_offset.z(),
-        )
+        self.origin
+            + self.u_axis.as_vector() * (self.width / two)
+            + self.v_axis.as_vector() * (self.height / two)
+    }
+}
+
+impl<T: Scalar> Rect3DContainment<T> for Rect3D<T> {
+    fn contains_point(&self, point: Point3D<T>) -> bool {
+        self.classify_point(point) != PointClassification::Outside
     }
 
-    pub fn area(&self) -> T {
-        self.width * self.height
-    }
-
-    pub fn resize(&mut self, width: T, height: T) -> bool {
-        if width < T::ZERO || height < T::ZERO {
-            return false;
-        }
-        self.width = width;
-        self.height = height;
-        true
-    }
-
-    /// 点が矩形の内部または境界上にあるか（`classify_point` が `Outside` でない）
-    pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        self.classify_point(point, tolerance) != PointClassification::Outside
-    }
-
-    /// 矩形の領域に対する点の位置を分類する
-    ///
-    /// 辺までの距離が `tolerance` 以内なら、平面外でも `OnBoundary` とする。それ以外は、平面からの距離が
-    /// `tolerance` 以内で、平面へ投影した点が矩形の内側にあれば `Inside`、それ以外を `Outside` とする。
-    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
-        let relative = Vector3D::from_points(self.origin, *point);
-        let in_plane = crate::Point2D::new(
+    /// 辺までの距離が既定の許容誤差以内なら、平面外でも `OnBoundary` とする。それ以外は、平面からの距離が
+    /// 許容誤差以内で、平面へ投影した点が矩形の内側にあれば `Inside`、それ以外を `Outside` とする。
+    fn classify_point(&self, point: Point3D<T>) -> PointClassification {
+        let tolerance = default_distance_tolerance::<T>();
+        let relative = Vector3D::from_points(self.origin, point);
+        let in_plane = Point2D::new(
             relative.dot(self.u_axis.as_vector()),
             relative.dot(self.v_axis.as_vector()),
         );
-        let plane_distance = relative.dot(self.normal_dir().as_vector());
+        let plane_distance = relative.dot(self.normal().as_vector());
 
         let rectangle = geo_core::Aabb2D::new(
-            crate::Point2D::new(T::ZERO, T::ZERO),
-            crate::Point2D::new(self.width, self.height),
+            Point2D::new(T::ZERO, T::ZERO),
+            Point2D::new(self.width, self.height),
         );
         let in_plane_edge_distance = rectangle.distance_to_boundary(in_plane);
         let edge_distance = (in_plane_edge_distance * in_plane_edge_distance
@@ -136,105 +132,5 @@ impl<T: Scalar> Rect3D<T> {
         } else {
             PointClassification::Outside
         }
-    }
-
-    pub fn corners(&self) -> [Point3D<T>; 4] {
-        let p0 = self.origin;
-        let p1 = Point3D::new(
-            self.origin.x() + self.u_axis.x() * self.width,
-            self.origin.y() + self.u_axis.y() * self.width,
-            self.origin.z() + self.u_axis.z() * self.width,
-        );
-        let p3 = Point3D::new(
-            self.origin.x() + self.v_axis.x() * self.height,
-            self.origin.y() + self.v_axis.y() * self.height,
-            self.origin.z() + self.v_axis.z() * self.height,
-        );
-        let p2 = Point3D::new(
-            p1.x() + self.v_axis.x() * self.height,
-            p1.y() + self.v_axis.y() * self.height,
-            p1.z() + self.v_axis.z() * self.height,
-        );
-        [p0, p1, p2, p3]
-    }
-}
-
-impl<T: Scalar> Rect3DConstructor<T> for Rect3D<T> {
-    fn new(
-        origin: (T, T, T),
-        u_axis: (T, T, T),
-        v_axis: (T, T, T),
-        width: T,
-        height: T,
-    ) -> Option<Self> {
-        Self::new(
-            Point3D::new(origin.0, origin.1, origin.2),
-            Vector3D::new(u_axis.0, u_axis.1, u_axis.2),
-            Vector3D::new(v_axis.0, v_axis.1, v_axis.2),
-            width,
-            height,
-        )
-    }
-
-    fn resize(&mut self, width: T, height: T) -> bool {
-        Self::resize(self, width, height)
-    }
-}
-
-impl<T: Scalar> Rect3DProperties<T> for Rect3D<T> {
-    fn origin(&self) -> (T, T, T) {
-        (self.origin.x(), self.origin.y(), self.origin.z())
-    }
-
-    fn u_axis(&self) -> (T, T, T) {
-        (self.u_axis.x(), self.u_axis.y(), self.u_axis.z())
-    }
-
-    fn v_axis(&self) -> (T, T, T) {
-        (self.v_axis.x(), self.v_axis.y(), self.v_axis.z())
-    }
-
-    fn normal(&self) -> (T, T, T) {
-        let n = self.normal_dir();
-        (n.x(), n.y(), n.z())
-    }
-
-    fn width(&self) -> T {
-        self.width
-    }
-
-    fn height(&self) -> T {
-        self.height
-    }
-
-    fn center(&self) -> (T, T, T) {
-        let c = self.center_point();
-        (c.x(), c.y(), c.z())
-    }
-}
-
-impl<T: Scalar> Rect3DContainment<T> for Rect3D<T> {
-    fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool {
-        Self::contains_point(self, &Point3D::new(point.0, point.1, point.2), tolerance)
-    }
-
-    fn classify_point(&self, point: (T, T, T), tolerance: T) -> PointClassification {
-        Self::classify_point(self, &Point3D::new(point.0, point.1, point.2), tolerance)
-    }
-}
-
-impl<T: Scalar> Rect3DDerived<T> for Rect3D<T> {
-    fn corners(&self) -> [(T, T, T); 4] {
-        let c = Self::corners(self);
-        [
-            (c[0].x(), c[0].y(), c[0].z()),
-            (c[1].x(), c[1].y(), c[1].z()),
-            (c[2].x(), c[2].y(), c[2].z()),
-            (c[3].x(), c[3].y(), c[3].z()),
-        ]
-    }
-
-    fn is_valid(&self) -> bool {
-        self.width >= T::ZERO && self.height >= T::ZERO
     }
 }

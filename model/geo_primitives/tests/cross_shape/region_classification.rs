@@ -2,13 +2,14 @@
 
 use geo_contracts::PointClassification::{Inside, OnBoundary, Outside};
 use geo_contracts::{
-    ConicalSolid3DContainment, CylindricalSolid3DContainment, EllipsoidalSolid3DContainment,
-    PointClassification, Rect2DContainment, SphericalSolid3DContainment, TorusSolid3DContainment,
-    Triangle2DContainment, Triangle3DContainment,
+    default_distance_tolerance, ConicalSolid3DContainment, CylindricalSolid3DContainment,
+    EllipsoidalSolid3DContainment, PointClassification, Rect2DConstructor, Rect2DContainment,
+    Rect3DConstructor, Rect3DContainment, SphericalSolid3DContainment, TorusSolid3DContainment,
+    Triangle2DConstructor, Triangle2DContainment, Triangle3DConstructor, Triangle3DContainment,
 };
 use geo_primitives::{
-    ConicalSolid3D, CylindricalSolid3D, EllipsoidalSolid3D, Point2D, Point3D, Rect2D, Rect3D,
-    SphericalSolid3D, TorusSolid3D, Triangle2D, Triangle3D, Vector3D,
+    ConicalSolid3D, CylindricalSolid3D, Direction3D, EllipsoidalSolid3D, Point2D, Point3D, Rect2D,
+    Rect3D, SphericalSolid3D, TorusSolid3D, Triangle2D, Triangle3D, Vector3D,
 };
 
 const TOLERANCE: f64 = 1e-3;
@@ -29,125 +30,128 @@ fn assert_boundary_band_3d(
 
 #[test]
 fn rect2d_classify_point() {
+    let tolerance = default_distance_tolerance::<f64>();
     let rect = Rect2D::new(Point2D::new(1.0, 1.0), 4.0, 2.0).unwrap();
-    let classify = |x: f64, y: f64| rect.classify_point(&Point2D::new(x, y), TOLERANCE);
+    let classify = |x: f64, y: f64| rect.classify_point(Point2D::new(x, y));
 
     assert_eq!(classify(3.0, 2.0), Inside);
     assert_eq!(classify(5.0, 2.0), OnBoundary);
-    assert_eq!(classify(5.0 + 0.5 * TOLERANCE, 2.0), OnBoundary);
-    assert_eq!(classify(5.0 - 2.0 * TOLERANCE, 2.0), Inside);
-    assert_eq!(classify(5.0 + 2.0 * TOLERANCE, 2.0), Outside);
+    assert_eq!(classify(5.0 + 0.5 * tolerance, 2.0), OnBoundary);
+    assert_eq!(classify(5.0 - 2.0 * tolerance, 2.0), Inside);
+    assert_eq!(classify(5.0 + 2.0 * tolerance, 2.0), Outside);
 
-    // contains_point は許容誤差 0 の分類が Outside でないことと一致する
+    // 境界を含む厳密な contains_point は、これらの点では分類が Outside でないことと一致する
     for (x, y) in [(3.0, 2.0), (5.0, 3.0), (6.0, 2.0)] {
         let point = Point2D::new(x, y);
         assert_eq!(
-            rect.contains_point(&point),
-            rect.classify_point(&point, 0.0) != Outside
+            rect.contains_point(point),
+            rect.classify_point(point) != Outside
         );
     }
 
     assert_eq!(
-        Rect2DContainment::classify_point(&rect, (1.0, 2.0)),
+        Rect2DContainment::classify_point(&rect, Point2D::new(1.0, 2.0)),
         OnBoundary
     );
 }
 
 #[test]
 fn rect3d_classify_point() {
+    let tolerance = default_distance_tolerance::<f64>();
     // XY 平面上、原点から X 方向 4・Y 方向 2 の矩形
     let rect = Rect3D::new(
         Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        Vector3D::new(0.0, 1.0, 0.0),
+        Direction3D::positive_x(),
+        Direction3D::new(0.0, 1.0, 0.0).unwrap(),
         4.0,
         2.0,
     )
     .unwrap();
-    let classify = |x: f64, y: f64, z: f64| rect.classify_point(&Point3D::new(x, y, z), TOLERANCE);
+    let classify = |x: f64, y: f64, z: f64| rect.classify_point(Point3D::new(x, y, z));
 
     assert_eq!(classify(2.0, 1.0, 0.0), Inside);
     assert_eq!(classify(4.0, 1.0, 0.0), OnBoundary);
     assert_eq!(classify(6.0, 1.0, 0.0), Outside);
 
     // 辺までの距離が許容誤差以内なら、平面外でも OnBoundary
-    assert_eq!(classify(4.0, 1.0, 0.5 * TOLERANCE), OnBoundary);
+    assert_eq!(classify(4.0, 1.0, 0.5 * tolerance), OnBoundary);
 
     // 平面からの距離が許容誤差を超える点は、矩形の内側の上方でも Outside
-    assert_eq!(classify(2.0, 1.0, 0.5 * TOLERANCE), Inside);
-    assert_eq!(classify(2.0, 1.0, 2.0 * TOLERANCE), Outside);
+    assert_eq!(classify(2.0, 1.0, 0.5 * tolerance), Inside);
+    assert_eq!(classify(2.0, 1.0, 2.0 * tolerance), Outside);
 
     // contains_point は classify_point が Outside でないことと一致する
     for (x, y, z) in [(2.0, 1.0, 0.0), (4.0, 1.0, 0.0), (2.0, 1.0, 1.0)] {
         let point = Point3D::new(x, y, z);
         assert_eq!(
-            rect.contains_point(&point, TOLERANCE),
-            rect.classify_point(&point, TOLERANCE) != Outside
+            rect.contains_point(point),
+            rect.classify_point(point) != Outside
         );
     }
 }
 
 #[test]
 fn triangle2d_classify_point() {
+    let tolerance = default_distance_tolerance::<f64>();
     let triangle = Triangle2D::new(
         Point2D::new(0.0, 0.0),
         Point2D::new(4.0, 0.0),
         Point2D::new(0.0, 4.0),
     )
     .unwrap();
-    let classify = |x: f64, y: f64| triangle.classify_point(&Point2D::new(x, y), TOLERANCE);
+    let classify = |x: f64, y: f64| triangle.classify_point(Point2D::new(x, y));
 
     assert_eq!(classify(1.0, 1.0), Inside);
     assert_eq!(classify(2.0, 0.0), OnBoundary);
     assert_eq!(classify(2.0, 2.0), OnBoundary);
     assert_eq!(classify(3.0, 3.0), Outside);
-    assert_eq!(classify(2.0, -0.5 * TOLERANCE), OnBoundary);
-    assert_eq!(classify(2.0, 2.0 * TOLERANCE), Inside);
-    assert_eq!(classify(2.0, -2.0 * TOLERANCE), Outside);
+    assert_eq!(classify(2.0, -0.5 * tolerance), OnBoundary);
+    assert_eq!(classify(2.0, 2.0 * tolerance), Inside);
+    assert_eq!(classify(2.0, -2.0 * tolerance), Outside);
 
     for (x, y) in [(1.0, 1.0), (2.0, 0.0), (3.0, 3.0)] {
         let point = Point2D::new(x, y);
         assert_eq!(
-            triangle.contains_point(&point),
-            triangle.classify_point(&point, 0.0) != Outside
+            triangle.contains_point(point),
+            triangle.classify_point(point) != Outside
         );
     }
 
     assert_eq!(
-        Triangle2DContainment::classify_point(&triangle, (1.0, 1.0)),
+        Triangle2DContainment::classify_point(&triangle, Point2D::new(1.0, 1.0)),
         Inside
     );
 }
 
 #[test]
 fn triangle3d_classify_point() {
+    let tolerance = default_distance_tolerance::<f64>();
     let triangle = Triangle3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(4.0, 0.0, 0.0),
         Point3D::new(0.0, 4.0, 0.0),
     )
     .unwrap();
-    let classify =
-        |x: f64, y: f64, z: f64| triangle.classify_point(&Point3D::new(x, y, z), TOLERANCE);
+    let classify = |x: f64, y: f64, z: f64| triangle.classify_point(Point3D::new(x, y, z));
 
     assert_eq!(classify(1.0, 1.0, 0.0), Inside);
     assert_eq!(classify(2.0, 2.0, 0.0), OnBoundary);
     assert_eq!(classify(3.0, 3.0, 0.0), Outside);
-    assert_eq!(classify(2.0, 0.0, 0.5 * TOLERANCE), OnBoundary);
-    assert_eq!(classify(1.0, 1.0, -0.5 * TOLERANCE), Inside);
-    assert_eq!(classify(1.0, 1.0, -2.0 * TOLERANCE), Outside);
+    assert_eq!(classify(2.0, 0.0, 0.5 * tolerance), OnBoundary);
+    assert_eq!(classify(1.0, 1.0, -0.5 * tolerance), Inside);
+    assert_eq!(classify(1.0, 1.0, -2.0 * tolerance), Outside);
 
     // trait定義の contains_point は平面からの距離も判定する（三角形の上方の点は含まない）
     assert!(Triangle3DContainment::contains_point(
         &triangle,
-        (1.0, 1.0, 0.0)
+        Point3D::new(1.0, 1.0, 0.0)
     ));
     assert!(!Triangle3DContainment::contains_point(
         &triangle,
-        (1.0, 1.0, 5.0)
+        Point3D::new(1.0, 1.0, 5.0)
     ));
     assert_eq!(
-        Triangle3DContainment::classify_point(&triangle, (1.0, 1.0, 0.0)),
+        Triangle3DContainment::classify_point(&triangle, Point3D::new(1.0, 1.0, 0.0)),
         Inside
     );
 }

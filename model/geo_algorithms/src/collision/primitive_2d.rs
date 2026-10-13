@@ -21,7 +21,7 @@ use geo_contracts::{
     Arc2DProperties, Circle2DProperties, Ellipse2DConstructor, Ellipse2DDistance,
     EllipseArc2DDistance, EllipseArc2DEndpoint, EllipseArc2DProperties, EllipseArc2DTrimRange,
     InfiniteLine2DDistance, LineSegment2DProperties, Ray2DDistance, Scalar,
-    Triangle2DBoundaryAccess,
+    Triangle2DBoundaryAccess, Triangle2DContainment, Triangle2DDistance,
 };
 
 pub fn circle2d_point2d_collides<T: Scalar>(
@@ -177,11 +177,11 @@ pub fn triangle2d_circle2d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let center = circle.center();
-    if triangle.contains_point(&center) {
+    if triangle.contains_point(center) {
         return true;
     }
 
-    triangle.distance_to_point(&center) <= circle.radius() + tolerance
+    triangle.distance_to_point(center) <= circle.radius() + tolerance
 }
 
 pub fn circle2d_triangle2d_collides<T: Scalar>(
@@ -197,30 +197,21 @@ pub fn triangle2d_triangle2d_collides<T: Scalar>(
     triangle2: &Triangle2D<T>,
     tolerance: T,
 ) -> bool {
-    let va_tuple = triangle1.vertex_a();
-    let vb_tuple = triangle1.vertex_b();
-    let vc_tuple = triangle1.vertex_c();
-    let va = Point2D::new(va_tuple.0, va_tuple.1);
-    let vb = Point2D::new(vb_tuple.0, vb_tuple.1);
-    let vc = Point2D::new(vc_tuple.0, vc_tuple.1);
+    let va = triangle1.vertex_a();
+    let vb = triangle1.vertex_b();
+    let vc = triangle1.vertex_c();
 
-    if triangle2.contains_point(&va)
-        || triangle2.contains_point(&vb)
-        || triangle2.contains_point(&vc)
+    if triangle2.contains_point(va) || triangle2.contains_point(vb) || triangle2.contains_point(vc)
     {
         return true;
     }
+    let ova = triangle2.vertex_a();
+    let ovb = triangle2.vertex_b();
+    let ovc = triangle2.vertex_c();
 
-    let ova_tuple = triangle2.vertex_a();
-    let ovb_tuple = triangle2.vertex_b();
-    let ovc_tuple = triangle2.vertex_c();
-    let ova = Point2D::new(ova_tuple.0, ova_tuple.1);
-    let ovb = Point2D::new(ovb_tuple.0, ovb_tuple.1);
-    let ovc = Point2D::new(ovc_tuple.0, ovc_tuple.1);
-
-    if triangle1.contains_point(&ova)
-        || triangle1.contains_point(&ovb)
-        || triangle1.contains_point(&ovc)
+    if triangle1.contains_point(ova)
+        || triangle1.contains_point(ovb)
+        || triangle1.contains_point(ovc)
     {
         return true;
     }
@@ -431,6 +422,7 @@ mod tests {
     use geo_contracts::InfiniteLine2DConstructor;
     use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::Ray2DConstructor;
+    use geo_contracts::Triangle2DConstructor;
     use geo_contracts::{Ellipse2DConstructor, EllipseArc2DConstructor};
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;

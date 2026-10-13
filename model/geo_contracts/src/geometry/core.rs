@@ -23,6 +23,7 @@ pub mod spherical_solid_traits;
 pub mod spherical_surface_traits;
 pub mod torus_solid_traits;
 pub mod torus_surface_traits;
+pub mod triangle_mesh_traits;
 pub mod triangle_traits;
 
 pub use arc_traits::{
@@ -105,8 +106,8 @@ pub use ray_traits::{
     Ray3DProjection, Ray3DProperties,
 };
 pub use rectangle_traits::{
-    Rect2DConstructor, Rect2DContainment, Rect2DDerived, Rect2DProperties, Rect3DConstructor,
-    Rect3DContainment, Rect3DDerived, Rect3DProperties,
+    Rect2DConstructor, Rect2DContainment, Rect2DProperties, Rect3DConstructor, Rect3DContainment,
+    Rect3DProperties,
 };
 pub use spherical_solid_traits::{
     SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DDerived,
@@ -123,6 +124,10 @@ pub use torus_solid_traits::{
 pub use torus_surface_traits::{
     TorusSurface3DConstructor, TorusSurface3DDerived, TorusSurface3DDistance,
     TorusSurface3DEvaluation, TorusSurface3DProperties,
+};
+pub use triangle_mesh_traits::{
+    TriangleMesh3DConstructor, TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,
+    TriangleMeshError,
 };
 pub use triangle_traits::{
     Triangle2DBoundaryAccess, Triangle2DConstructor, Triangle2DContainment, Triangle2DDistance,

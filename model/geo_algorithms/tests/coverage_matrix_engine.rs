@@ -1,4 +1,4 @@
-use geo_contracts::Circle2DConstructor;
+use geo_contracts::{Circle2DConstructor, Plane3DConstructor};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -584,7 +584,11 @@ fn distance_collision_consistency_for_point_pairs() {
         );
     }
 
-    let plane = geo_algorithms::Plane3D::xy_plane(0.0);
+    let plane = geo_algorithms::Plane3D::from_point_and_normal(
+        geo_algorithms::Point3D::new(0.0, 0.0, 0.0),
+        geo_algorithms::Direction3D::positive_z(),
+    )
+    .unwrap();
     let candidates_3d = [
         geo_algorithms::Point3D::new(0.0, 0.0, 0.0),
         geo_algorithms::Point3D::new(0.0, 0.0, 5e-7),

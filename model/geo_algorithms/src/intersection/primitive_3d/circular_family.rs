@@ -7,7 +7,7 @@ use crate::{
 };
 use geo_contracts::{
     Arc3DEndpoint, Arc3DProperties, Arc3DTrimRange, Circle3DProperties, Ellipse3DProperties,
-    InfiniteLine3DProperties, LineSegment3DProperties, Ray3DProperties, Scalar,
+    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DDistance, Ray3DProperties, Scalar,
 };
 
 fn arc3d_point3d_intersection_raw<T: Scalar>(

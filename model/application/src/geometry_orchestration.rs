@@ -1,7 +1,9 @@
 //! Geometry向け orchestration 境界。
 
 use crate::primitives::{Angle, Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
-use geo_contracts::{Arc3DConstructor, Circle3DConstructor, LineSegment3DConstructor};
+use geo_contracts::{
+    Arc3DConstructor, Circle3DConstructor, LineSegment3DConstructor, Triangle3DConstructor,
+};
 
 /// 将来の geometry orchestration ユースケース向けマーカー入力境界。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -246,6 +248,9 @@ mod tests {
             })
             .expect("triangle geometry creation should succeed");
 
-        assert_eq!(result.triangle.vertex_a(), (0.0, 0.0, 0.0));
+        assert_eq!(
+            result.triangle.vertex_a(),
+            crate::primitives::Point3D::new(0.0, 0.0, 0.0)
+        );
     }
 }

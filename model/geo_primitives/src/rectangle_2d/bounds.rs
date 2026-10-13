@@ -8,6 +8,6 @@ impl<T: Scalar> Bounded<T> for Rect2D<T> {
     type Aabb = Aabb2D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
-        Aabb2D::from_points(&self.corners())
+        Some(Aabb2D::new(self.origin, self.max_point()))
     }
 }

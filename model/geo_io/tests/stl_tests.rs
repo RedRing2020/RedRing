@@ -1,6 +1,9 @@
 //! STLローダーのテスト
 
-use geo_contracts::Triangle3DBoundaryAccess;
+use geo_contracts::{
+    Triangle3DBoundaryAccess, TriangleMesh3DConstructor, TriangleMesh3DProperties,
+    TriangleMesh3DTriangleAccess,
+};
 use geo_io::stl;
 use geo_primitives::{Point3D, TriangleMesh3D};
 use std::io::Write;
@@ -33,9 +36,9 @@ fn test_ascii_stl_roundtrip() {
     let va = triangle.vertex_a();
     let vb = triangle.vertex_b();
     let vc = triangle.vertex_c();
-    assert_eq!((va.0, va.1, va.2), (0.0, 0.0, 0.0));
-    assert_eq!((vb.0, vb.1, vb.2), (1.0, 0.0, 0.0));
-    assert_eq!((vc.0, vc.1, vc.2), (0.0, 1.0, 0.0));
+    assert_eq!(va, Point3D::new(0.0, 0.0, 0.0));
+    assert_eq!(vb, Point3D::new(1.0, 0.0, 0.0));
+    assert_eq!(vc, Point3D::new(0.0, 1.0, 0.0));
 }
 
 #[test]
@@ -64,9 +67,9 @@ endsolid test
     let va = triangle.vertex_a();
     let vb = triangle.vertex_b();
     let vc = triangle.vertex_c();
-    assert_eq!((va.0, va.1, va.2), (0.0, 0.0, 0.0));
-    assert_eq!((vb.0, vb.1, vb.2), (1.0, 0.0, 0.0));
-    assert_eq!((vc.0, vc.1, vc.2), (0.0, 1.0, 0.0));
+    assert_eq!(va, Point3D::new(0.0, 0.0, 0.0));
+    assert_eq!(vb, Point3D::new(1.0, 0.0, 0.0));
+    assert_eq!(vc, Point3D::new(0.0, 1.0, 0.0));
 }
 
 #[test]
@@ -96,7 +99,7 @@ fn test_quad_mesh_ascii_stl() {
 
 #[test]
 fn test_empty_stl() {
-    let empty_mesh = TriangleMesh3D::<f64>::empty();
+    let empty_mesh = TriangleMesh3D::<f64>::new(Vec::new(), Vec::new()).unwrap();
 
     let temp_file = NamedTempFile::new().unwrap();
     stl::save_ascii_stl(&empty_mesh, temp_file.path()).unwrap();

@@ -4,10 +4,12 @@ use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, InfiniteLine2DConstructor, InfiniteLine2DEvaluation, InfiniteLine3DConstructor,
     InfiniteLine3DEvaluation, LineSegment2DConstructor, LineSegment2DProperties,
-    LineSegment3DConstructor, LineSegment3DProperties, LineSegment3DSupportLine, Plane3DProperties,
-    Ray2DConstructor, Ray2DEvaluation, Ray3DConstructor, Ray3DEvaluation, Ray3DProperties,
-    SimilarityTransformable2D, SimilarityTransformable3D, TransformError, Triangle2DBoundaryAccess,
-    Triangle3DBoundaryAccess,
+    LineSegment3DConstructor, LineSegment3DProperties, LineSegment3DSupportLine,
+    Plane3DConstructor, Plane3DProperties, Ray2DConstructor, Ray2DEvaluation, Ray3DConstructor,
+    Ray3DEvaluation, Ray3DProperties, Rect2DConstructor, Rect2DProperties, Rect3DConstructor,
+    Rect3DProperties, SimilarityTransformable2D, SimilarityTransformable3D, TransformError,
+    Triangle2DBoundaryAccess, Triangle2DConstructor, Triangle3DBoundaryAccess,
+    Triangle3DConstructor, TriangleMesh3DConstructor, TriangleMesh3DProperties,
 };
 use geo_primitives::{
     Direction3D, InfiniteLine2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D,
@@ -108,8 +110,8 @@ fn infinite_line_3d_transforms_points_on_line() {
 fn plane_3d_keeps_orthonormal_right_handed_frame() {
     let plane = Plane3D::from_origin_and_axes(
         Point3D::new(1.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
+        Direction3D::positive_z(),
+        Direction3D::positive_x(),
     )
     .unwrap();
     let moved = plane.transform_similarity(&transform_3d()).unwrap();
@@ -118,8 +120,8 @@ fn plane_3d_keeps_orthonormal_right_handed_frame() {
     assert!((moved.normal().as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < TOLERANCE_F64);
     let (n, u, v) = (
         moved.normal().as_vector(),
-        Vector3D::from(Plane3DProperties::u_axis(&moved)),
-        Vector3D::from(Plane3DProperties::v_axis(&moved)),
+        Plane3DProperties::u_axis(&moved).as_vector(),
+        Plane3DProperties::v_axis(&moved).as_vector(),
     );
     assert!((u - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64);
     assert!(u.dot(v).abs() < TOLERANCE_F64 && n.dot(u).abs() < TOLERANCE_F64);
@@ -136,19 +138,11 @@ fn triangle_3d_transforms_vertices_and_scales_area() {
     .unwrap();
     let moved = triangle.transform_similarity(&transform_3d()).unwrap();
 
-    assert_point3_eq(
-        Point3D::from_tuple(Triangle3DBoundaryAccess::vertex_a(&moved)),
-        map3(Point3D::from_tuple(Triangle3DBoundaryAccess::vertex_a(
-            &triangle,
-        ))),
-    );
-    assert_point3_eq(
-        Point3D::from_tuple(Triangle3DBoundaryAccess::vertex_c(&moved)),
-        map3(Point3D::from_tuple(Triangle3DBoundaryAccess::vertex_c(
-            &triangle,
-        ))),
-    );
-    assert!((moved.area() - triangle.area() * 4.0).abs() < TOLERANCE_F64);
+    assert_point3_eq(moved.vertex_a(), map3(triangle.vertex_a()));
+    assert_point3_eq(moved.vertex_c(), map3(triangle.vertex_c()));
+    // 辺の長さはスケール係数倍
+    let edge = |t: &Triangle3D<f64>| t.vertex_a().distance_to(t.vertex_b());
+    assert!((edge(&moved) - edge(&triangle) * 2.0).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -174,20 +168,18 @@ fn triangle_mesh_3d_transforms_vertices_and_keeps_indices() {
 fn rect_3d_transforms_frame_and_scales_size() {
     let rect = Rect3D::new(
         Point3D::new(1.0, 0.0, 0.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        Vector3D::new(0.0, 1.0, 0.0),
+        Direction3D::positive_x(),
+        Direction3D::new(0.0, 1.0, 0.0).unwrap(),
         2.0,
         3.0,
     )
     .unwrap();
     let moved = rect.transform_similarity(&transform_3d()).unwrap();
 
-    assert_point3_eq(moved.origin_point(), map3(rect.origin_point()));
-    assert!(
-        (moved.u_axis_dir().as_vector() - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64
-    );
-    assert!((moved.width_value() - 4.0).abs() < TOLERANCE_F64);
-    assert!((moved.height_value() - 6.0).abs() < TOLERANCE_F64);
+    assert_point3_eq(moved.origin(), map3(rect.origin()));
+    assert!((moved.u_axis().as_vector() - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64);
+    assert!((moved.width() - 4.0).abs() < TOLERANCE_F64);
+    assert!((moved.height() - 6.0).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -227,13 +219,10 @@ fn triangle_2d_transforms_vertices_and_scales_area() {
     )
     .unwrap();
     let moved = triangle.transform_similarity(&transform_2d()).unwrap();
-    assert_point2_eq(
-        Point2D::from_tuple(Triangle2DBoundaryAccess::vertex_b(&moved)),
-        map2(Point2D::from_tuple(Triangle2DBoundaryAccess::vertex_b(
-            &triangle,
-        ))),
-    );
-    assert!((moved.area() - triangle.area() * 4.0).abs() < TOLERANCE_F64);
+    assert_point2_eq(moved.vertex_b(), map2(triangle.vertex_b()));
+    // 辺の長さはスケール係数倍
+    let edge = |t: &Triangle2D<f64>| t.vertex_a().distance_to(t.vertex_b());
+    assert!((edge(&moved) - edge(&triangle) * 2.0).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -243,9 +232,9 @@ fn rect_2d_accepts_translation_and_scale_but_rejects_rotation() {
         .unwrap()
         .then(&SimilarityTransform2D::translation(Vector2D::new(1.0, 0.0)));
     let moved = rect.transform_similarity(&transform).unwrap();
-    assert_point2_eq(moved.origin_point(), Point2D::new(3.0, 2.0));
-    assert!((moved.width_value() - 4.0).abs() < TOLERANCE_F64);
-    assert!((moved.height_value() - 6.0).abs() < TOLERANCE_F64);
+    assert_point2_eq(moved.origin(), Point2D::new(3.0, 2.0));
+    assert!((moved.width() - 4.0).abs() < TOLERANCE_F64);
+    assert!((moved.height() - 6.0).abs() < TOLERANCE_F64);
 
     assert!(matches!(
         rect.transform_similarity(&transform_2d()),

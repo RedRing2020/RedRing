@@ -6,6 +6,7 @@
 use crate::mesh_converter::{
     triangle_mesh_to_vertices, triangle_mesh_to_vertices_with_indices, VertexData,
 };
+use geo_contracts::{Bounded, TriangleMesh3DProperties};
 use geo_io::{fixtures, stl};
 use std::path::Path;
 
@@ -69,8 +70,8 @@ pub fn create_and_load_sample_stl(path: &Path) -> Result<StlMeshData, Box<dyn st
 
 /// 境界ボックス計算のヘルパー関数
 fn calculate_bounds(mesh: &geo_algorithms::TriangleMesh3D<f64>) -> ([f32; 3], [f32; 3]) {
-    let bounds = mesh.bounding_box();
-    if let Some((min_point, max_point)) = bounds {
+    if let Some(aabb) = mesh.aabb() {
+        let (min_point, max_point) = (aabb.min(), aabb.max());
         let min_bounds = [
             min_point.x() as f32,
             min_point.y() as f32,

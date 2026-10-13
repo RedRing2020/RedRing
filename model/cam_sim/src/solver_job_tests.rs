@@ -1,5 +1,6 @@
 //! CamProcess solver 導線（設計: CAM_ALGORITHMS_DESIGN.md §8.7）の Job Manager 経由テスト
 
+use geo_algorithms::TriangleMesh3DConstructor;
 use std::io::Cursor;
 use std::sync::Arc;
 

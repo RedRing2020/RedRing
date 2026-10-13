@@ -220,6 +220,7 @@ fn map_job_type(job_type: CamJobType) -> JobType {
 
 #[cfg(test)]
 mod tests {
+    use geo_contracts::TriangleMesh3DConstructor;
     use job_domain::{CamJobEvent, CamJobStatus, CamJobType};
 
     use super::{

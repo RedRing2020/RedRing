@@ -1,23 +1,18 @@
-//! Triangle2D Core 実装
-//!
-//! Foundation統一システムに基づくTriangle2Dの必須機能のみ
+//! Triangle2D 実装
 
 mod bounds;
 #[cfg(test)]
 mod tests;
 mod transform;
 
-use std::any::TypeId;
-
 use crate::{Point2D, Vector2D};
-use analysis::consts::special::{SQRT_3_OVER_2_F32, SQRT_3_OVER_2_F64};
 use geo_contracts::{
     default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
     PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DBoundaryAccess, Triangle2DConstructor,
     Triangle2DContainment, Triangle2DDistance,
 };
 
-/// 2次元三角形（Core実装）
+/// 2次元三角形
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle2D<T: Scalar> {
     vertex_a: Point2D<T>,
@@ -32,129 +27,11 @@ impl<T: Scalar> PrimitiveMetadata for Triangle2D<T> {
 }
 
 impl<T: Scalar> Triangle2D<T> {
-    #[inline]
-    fn equilateral_height_factor() -> T {
-        if TypeId::of::<T>() == TypeId::of::<f32>() {
-            T::from_f32(SQRT_3_OVER_2_F32)
-        } else {
-            T::from_f64(SQRT_3_OVER_2_F64)
-        }
-    }
-
-    /// 新しい2D三角形を作成
-    ///
-    /// 基本的な検証のみ実行（退化三角形チェック）
-    pub fn new(vertex_a: Point2D<T>, vertex_b: Point2D<T>, vertex_c: Point2D<T>) -> Option<Self> {
-        // 退化した三角形（3点が一直線上）を検証
-        let ab = Vector2D::from_points(vertex_a, vertex_b);
-        let ac = Vector2D::from_points(vertex_a, vertex_c);
-        let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
-
-        // 外積（2Dでは z成分のみ）の絶対値が非常に小さい場合、3点が一直線上
-        let cross_z = ab.x() * ac.y() - ab.y() * ac.x();
-        if cross_z.abs() < zero_tol {
-            return None;
-        }
-
-        Some(Self {
-            vertex_a,
-            vertex_b,
-            vertex_c,
-        })
-    }
-
-    /// 原点と単位ベクトルから正三角形を作成
-    pub fn unit_triangle() -> Self {
-        let h = Self::equilateral_height_factor();
-        Self::new(
-            Point2D::new(T::ZERO, T::ONE),
-            Point2D::new(-h, -T::ONE / (T::ONE + T::ONE)),
-            Point2D::new(h, -T::ONE / (T::ONE + T::ONE)),
-        )
-        .expect("Unit triangle should always be valid")
-    }
-
-    /// 辺AB取得
-    pub fn edge_ab(&self) -> Vector2D<T> {
-        Vector2D::from_points(self.vertex_a, self.vertex_b)
-    }
-
-    /// 辺BC取得
-    pub fn edge_bc(&self) -> Vector2D<T> {
-        Vector2D::from_points(self.vertex_b, self.vertex_c)
-    }
-
-    /// 辺CA取得
-    pub fn edge_ca(&self) -> Vector2D<T> {
-        Vector2D::from_points(self.vertex_c, self.vertex_a)
-    }
-
-    /// 面積計算（外積の半分）
-    pub fn area(&self) -> T {
-        let ab = self.edge_ab();
-        let ac = Vector2D::from_points(self.vertex_a, self.vertex_c);
-
-        // 外積のZ成分の絶対値の半分
-        let cross_z = ab.x() * ac.y() - ab.y() * ac.x();
-        cross_z.abs() / (T::ONE + T::ONE)
-    }
-
-    /// 外心計算（外接円の中心）
-    pub fn circumcenter(&self) -> Option<Point2D<T>> {
-        let ax = self.vertex_a.x();
-        let ay = self.vertex_a.y();
-        let bx = self.vertex_b.x();
-        let by = self.vertex_b.y();
-        let cx = self.vertex_c.x();
-        let cy = self.vertex_c.y();
-
-        // 行列式計算
-        let d = (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by)) * (T::ONE + T::ONE);
-        if d.abs() < default_kernel_numerical_zero_tolerance::<T>() {
-            return None; // 退化した三角形
-        }
-
-        // 外心座標計算
-        let a_sq = ax * ax + ay * ay;
-        let b_sq = bx * bx + by * by;
-        let c_sq = cx * cx + cy * cy;
-
-        let ux = (a_sq * (by - cy) + b_sq * (cy - ay) + c_sq * (ay - by)) / d;
-        let uy = (a_sq * (cx - bx) + b_sq * (ax - cx) + c_sq * (bx - ax)) / d;
-
-        Some(Point2D::new(ux, uy))
-    }
-
-    /// 点が三角形の内部または境界上にあるかの判定（重心座標使用、境界を含む厳密な判定）
-    pub fn contains_point(&self, point: &Point2D<T>) -> bool {
-        let (u, v, w) = self.barycentric_coordinates(point);
-        u >= T::ZERO && v >= T::ZERO && w >= T::ZERO
-    }
-
-    /// 三角形の領域に対する点の位置を分類する
-    ///
-    /// 辺までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
-    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
-    pub fn classify_point(&self, point: &Point2D<T>, tolerance: T) -> PointClassification {
-        let boundary_distance = self
-            .distance_to_edge(point, self.vertex_a, self.vertex_b)
-            .min(self.distance_to_edge(point, self.vertex_b, self.vertex_c))
-            .min(self.distance_to_edge(point, self.vertex_c, self.vertex_a));
-
-        if boundary_distance <= tolerance {
-            PointClassification::OnBoundary
-        } else if self.contains_point(point) {
-            PointClassification::Inside
-        } else {
-            PointClassification::Outside
-        }
-    }
-
-    /// 重心座標計算
-    pub fn barycentric_coordinates(&self, point: &Point2D<T>) -> (T, T, T) {
+    /// 頂点 A を基準とした重心座標（C 方向の重み・B 方向の重み・A の重み）
+    fn barycentric_coordinates(&self, point: Point2D<T>) -> (T, T, T) {
         let v0 = Vector2D::from_points(self.vertex_a, self.vertex_c);
         let v1 = Vector2D::from_points(self.vertex_a, self.vertex_b);
-        let v2 = Vector2D::from_points(self.vertex_a, *point);
+        let v2 = Vector2D::from_points(self.vertex_a, point);
 
         let dot00 = v0.dot(v0);
         let dot01 = v0.dot(v1);
@@ -170,100 +47,84 @@ impl<T: Scalar> Triangle2D<T> {
         (u, v, w)
     }
 
-    /// 三角形の向きを反転
-    pub fn reverse(&self) -> Self {
-        Self {
-            vertex_a: self.vertex_a,
-            vertex_b: self.vertex_c, // B と C を入れ替え
-            vertex_c: self.vertex_b,
-        }
+    /// 3辺までの距離の最小値
+    fn distance_to_boundary(&self, point: Point2D<T>) -> T {
+        Self::distance_to_edge(point, self.vertex_a, self.vertex_b)
+            .min(Self::distance_to_edge(point, self.vertex_b, self.vertex_c))
+            .min(Self::distance_to_edge(point, self.vertex_c, self.vertex_a))
     }
 
-    /// 点から三角形までの最短距離を計算
-    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        // 点が三角形内部にある場合、距離は0
-        if self.contains_point(point) {
-            return T::ZERO;
-        }
-
-        // 各辺から点までの距離の最小値を計算
-        let dist_ab = self.distance_to_edge(point, self.vertex_a, self.vertex_b);
-        let dist_bc = self.distance_to_edge(point, self.vertex_b, self.vertex_c);
-        let dist_ca = self.distance_to_edge(point, self.vertex_c, self.vertex_a);
-
-        dist_ab.min(dist_bc).min(dist_ca)
-    }
-
-    /// 点から線分までの距離を計算（ヘルパーメソッド）
-    fn distance_to_edge(&self, point: &Point2D<T>, p1: Point2D<T>, p2: Point2D<T>) -> T {
+    /// 点から線分までの距離
+    fn distance_to_edge(point: Point2D<T>, p1: Point2D<T>, p2: Point2D<T>) -> T {
         let edge = Vector2D::from_points(p1, p2);
-        let to_point = Vector2D::from_points(p1, *point);
+        let to_point = Vector2D::from_points(p1, point);
 
         let edge_length_sq = edge.dot(edge);
         if edge_length_sq < default_kernel_numerical_zero_tolerance::<T>() {
-            // 退化した辺の場合、点p1までの距離
             return to_point.length();
         }
 
-        // パラメータt: 点からの最短距離を与える辺上の位置
         let t = (to_point.dot(edge) / edge_length_sq)
             .max(T::ZERO)
             .min(T::ONE);
-
-        // 辺上の最近点
-        let closest = Point2D::new(p1.x() + t * edge.x(), p1.y() + t * edge.y());
-
-        Vector2D::from_points(closest, *point).length()
-    }
-}
-
-impl<T: Scalar> Default for Triangle2D<T> {
-    fn default() -> Self {
-        Self::unit_triangle()
+        point.distance_to(p1 + edge * t)
     }
 }
 
 impl<T: Scalar> Triangle2DConstructor<T> for Triangle2D<T> {
-    fn new(a: (T, T), b: (T, T), c: (T, T)) -> Option<Self> {
-        let pa = Point2D::new(a.0, a.1);
-        let pb = Point2D::new(b.0, b.1);
-        let pc = Point2D::new(c.0, c.1);
-        Self::new(pa, pb, pc)
+    fn new(a: Point2D<T>, b: Point2D<T>, c: Point2D<T>) -> Option<Self> {
+        let ab = Vector2D::from_points(a, b);
+        let ac = Vector2D::from_points(a, c);
+        if ab.cross(ac).abs() < default_kernel_numerical_zero_tolerance::<T>() {
+            return None;
+        }
+
+        Some(Self {
+            vertex_a: a,
+            vertex_b: b,
+            vertex_c: c,
+        })
     }
 }
 
 impl<T: Scalar> Triangle2DBoundaryAccess<T> for Triangle2D<T> {
-    fn vertex_a(&self) -> (T, T) {
-        let p = self.vertex_a;
-        (p.x(), p.y())
+    fn vertex_a(&self) -> Point2D<T> {
+        self.vertex_a
     }
 
-    fn vertex_b(&self) -> (T, T) {
-        let p = self.vertex_b;
-        (p.x(), p.y())
+    fn vertex_b(&self) -> Point2D<T> {
+        self.vertex_b
     }
 
-    fn vertex_c(&self) -> (T, T) {
-        let p = self.vertex_c;
-        (p.x(), p.y())
+    fn vertex_c(&self) -> Point2D<T> {
+        self.vertex_c
     }
 }
 
 impl<T: Scalar> Triangle2DContainment<T> for Triangle2D<T> {
-    fn contains_point(&self, point: (T, T)) -> bool {
-        let p = Point2D::new(point.0, point.1);
-        Triangle2D::contains_point(self, &p)
+    fn contains_point(&self, point: Point2D<T>) -> bool {
+        let (u, v, w) = self.barycentric_coordinates(point);
+        u >= T::ZERO && v >= T::ZERO && w >= T::ZERO
     }
 
-    fn classify_point(&self, point: (T, T)) -> PointClassification {
-        let p = Point2D::new(point.0, point.1);
-        Triangle2D::classify_point(self, &p, default_distance_tolerance::<T>())
+    /// 辺までの距離が既定の許容誤差以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    fn classify_point(&self, point: Point2D<T>) -> PointClassification {
+        if self.distance_to_boundary(point) <= default_distance_tolerance::<T>() {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 }
 
 impl<T: Scalar> Triangle2DDistance<T> for Triangle2D<T> {
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        let p = Point2D::new(point.0, point.1);
-        Triangle2D::distance_to_point(self, &p)
+    fn distance_to_point(&self, point: Point2D<T>) -> T {
+        if self.contains_point(point) {
+            T::ZERO
+        } else {
+            self.distance_to_boundary(point)
+        }
     }
 }
