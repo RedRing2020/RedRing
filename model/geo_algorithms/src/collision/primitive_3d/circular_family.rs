@@ -4,8 +4,8 @@ use crate::{
     Vector3D,
 };
 use geo_contracts::{
-    Arc3DEndpoint, Arc3DProperties, Arc3DTrimRange, Circle3DProperties, InfiniteLine3DProperties,
-    LineSegment3DProperties, Ray3DProperties, Scalar,
+    Arc3DEndpoint, Arc3DProperties, Arc3DTrimRange, Circle3DProperties, Ellipse3DProperties,
+    InfiniteLine3DProperties, LineSegment3DProperties, Ray3DProperties, Scalar,
 };
 
 pub fn ellipse3d_point3d_collides<T: Scalar + From<f64>>(

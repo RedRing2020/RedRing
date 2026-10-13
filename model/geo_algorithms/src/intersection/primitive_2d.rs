@@ -15,9 +15,9 @@ use crate::{
 };
 use geo_contracts::{
     default_parallel_cross_error_tolerance, Arc2DProperties, Arc2DTrimRange, Circle2DProperties,
-    Ellipse2DProperties, InfiniteLine2DDistance, InfiniteLine2DProjection,
-    InfiniteLine2DProperties, LineSegment2DConstructor, LineSegment2DProperties, Ray2DDistance,
-    Ray2DProperties, Scalar, Triangle2DBoundaryAccess,
+    Ellipse2DDistance, Ellipse2DProperties, EllipseArc2DDistance, InfiniteLine2DDistance,
+    InfiniteLine2DProjection, InfiniteLine2DProperties, LineSegment2DConstructor,
+    LineSegment2DProperties, Ray2DDistance, Ray2DProperties, Scalar, Triangle2DBoundaryAccess,
 };
 
 fn arc2d_line_segment2d_intersection_points<T: Scalar>(
@@ -269,8 +269,7 @@ pub fn ray2d_ellipse2d_intersection<T: Scalar>(
     ellipse: &Ellipse2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let center_tuple = ellipse.center();
-    let center = Point2D::new(center_tuple.0, center_tuple.1);
+    let center = ellipse.center();
     let opt = if ray.distance_to_point(center) <= ellipse.semi_major_axis() + tolerance {
         Some(center)
     } else {
@@ -471,7 +470,7 @@ pub fn ellipse2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let opt = if ellipse.distance_to_point(point) <= tolerance {
+    let opt = if ellipse.distance_to_point(*point) <= tolerance {
         Some(*point)
     } else {
         None
@@ -485,7 +484,7 @@ pub fn ellipse2d_circle2d_intersection<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let center = circle.center();
-    let opt = if ellipse.distance_to_point(&center) <= circle.radius() + tolerance {
+    let opt = if ellipse.distance_to_point(center) <= circle.radius() + tolerance {
         Some(center)
     } else {
         None
@@ -499,7 +498,7 @@ pub fn ellipse2d_circle2d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let center = circle.center();
-    let points = if ellipse.distance_to_point(&center) <= circle.radius() + tolerance {
+    let points = if ellipse.distance_to_point(center) <= circle.radius() + tolerance {
         vec![center]
     } else {
         Vec::new()
@@ -528,7 +527,7 @@ pub fn ellipse_arc2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let opt = if arc.contains_point(point, tolerance) {
+    let opt = if arc.distance_to_point(*point) <= tolerance {
         Some(*point)
     } else {
         None
@@ -882,6 +881,7 @@ mod tests {
     use geo_contracts::LineSegment2DConstructor;
     use geo_contracts::LineSegment2DProperties;
     use geo_contracts::Ray2DConstructor;
+    use geo_contracts::{Ellipse2DConstructor, EllipseArc2DConstructor};
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;
@@ -1360,12 +1360,17 @@ mod tests {
 
     #[test]
     fn ellipse_and_ellipse_arc_intersection_entry_points_work() {
-        let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 3.0, 2.0, 0.0).unwrap();
+        let ellipse =
+            Ellipse2D::new(Point2D::new(0.0, 0.0), 3.0, 2.0, Angle::from_radians(0.0)).unwrap();
         let ellipse_arc = EllipseArc2D::new(
-            ellipse,
+            Point2D::new(0.0, 0.0),
+            3.0,
+            2.0,
+            Angle::from_radians(0.0),
             Angle::from_degrees(0.0),
             Angle::from_degrees(180.0),
-        );
+        )
+        .unwrap();
         let point = Point2D::new(3.0, 0.0);
         let circle = Circle2D::new(Point2D::new(2.5, 0.0), 0.75).unwrap();
 

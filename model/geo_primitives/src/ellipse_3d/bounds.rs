@@ -1,7 +1,7 @@
 //! Ellipse3D の Bounds 実装
 
 use crate::{Ellipse3D, Point3D};
-use geo_contracts::{Bounded, Scalar};
+use geo_contracts::{Bounded, Ellipse3DProperties, Scalar};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> Bounded<T> for Ellipse3D<T> {

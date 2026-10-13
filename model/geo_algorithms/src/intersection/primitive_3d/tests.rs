@@ -33,8 +33,8 @@ use crate::{
 };
 use analysis::test_constants;
 use geo_contracts::{
-    Arc3DConstructor, Circle3DConstructor, InfiniteLine3DConstructor, LineSegment3DConstructor,
-    LineSegment3DProperties, LineSegment3DSupportLine, Ray3DConstructor,
+    Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, InfiniteLine3DConstructor,
+    LineSegment3DConstructor, LineSegment3DProperties, LineSegment3DSupportLine, Ray3DConstructor,
 };
 
 fn standard_distance_tol() -> f64 {
@@ -292,8 +292,8 @@ fn ellipse_point_intersection_uses_distance() {
         Point3D::new(0.0, 0.0, 0.0),
         3.0,
         2.0,
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
+        Direction3D::positive_z(),
+        Direction3D::positive_x(),
     )
     .unwrap();
 
@@ -715,8 +715,8 @@ fn ellipse_ray_entrypoints_are_symmetric_wrappers() {
         Point3D::new(0.0, 0.0, 0.0),
         3.0,
         2.0,
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
+        Direction3D::positive_z(),
+        Direction3D::positive_x(),
     )
     .unwrap();
     let ray = Ray3D::new(Point3D::new(3.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();

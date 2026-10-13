@@ -4,7 +4,10 @@ use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, Arc2DConstructor, Arc2DEndpoint, Arc2DEvaluation, Arc2DProperties, Arc3DConstructor,
     Arc3DEndpoint, Arc3DEvaluation, Circle2DConstructor, Circle2DEvaluation, Circle3DConstructor,
-    Circle3DEvaluation, SimilarityTransformable2D, SimilarityTransformable3D,
+    Circle3DEvaluation, Ellipse2DConstructor, Ellipse2DEvaluation, Ellipse3DConstructor,
+    Ellipse3DEvaluation, Ellipse3DProperties, EllipseArc2DConstructor, EllipseArc2DEvaluation,
+    EllipseArc3DConstructor, EllipseArc3DEvaluation, SimilarityTransformable2D,
+    SimilarityTransformable3D,
 };
 use geo_primitives::{
     Arc2D, Arc3D, Circle2D, Circle3D, Direction3D, Ellipse2D, Ellipse3D, EllipseArc2D,
@@ -101,8 +104,8 @@ fn ellipse_3d_maps_every_parameter_and_scales_axes() {
         Point3D::new(1.0, 0.0, 0.0),
         3.0,
         1.0,
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
+        Direction3D::positive_z(),
+        Direction3D::positive_x(),
     )
     .unwrap();
     let moved = ellipse.transform_similarity(&transform_3d()).unwrap();
@@ -121,15 +124,20 @@ fn ellipse_arc_3d_keeps_angles_and_maps_points() {
         Point3D::new(0.0, 0.0, 0.0),
         3.0,
         1.0,
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
+        Direction3D::positive_z(),
+        Direction3D::positive_x(),
     )
     .unwrap();
     let arc = EllipseArc3D::new(
-        ellipse,
+        ellipse.center(),
+        ellipse.semi_major_axis(),
+        ellipse.semi_minor_axis(),
+        ellipse.normal(),
+        ellipse.major_axis_direction(),
         Angle::from_degrees(10.0),
         Angle::from_degrees(200.0),
-    );
+    )
+    .unwrap();
     let moved = arc.transform_similarity(&transform_3d()).unwrap();
 
     for t in [0.0, 0.5, 1.0] {
@@ -183,7 +191,13 @@ fn arc_2d_adds_rotation_to_angles_and_maps_endpoints() {
 
 #[test]
 fn ellipse_2d_updates_rotation_and_maps_every_parameter() {
-    let ellipse = Ellipse2D::new(Point2D::new(1.0, 0.0), 3.0, 1.0, PI / 6.0).unwrap();
+    let ellipse = Ellipse2D::new(
+        Point2D::new(1.0, 0.0),
+        3.0,
+        1.0,
+        Angle::from_radians(PI / 6.0),
+    )
+    .unwrap();
     let moved = ellipse.transform_similarity(&transform_2d()).unwrap();
 
     for t in PARAMS {
@@ -196,12 +210,15 @@ fn ellipse_2d_updates_rotation_and_maps_every_parameter() {
 
 #[test]
 fn ellipse_arc_2d_keeps_angles_and_maps_points() {
-    let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 3.0, 1.0, 0.0).unwrap();
     let arc = EllipseArc2D::new(
-        ellipse,
+        Point2D::new(0.0, 0.0),
+        3.0,
+        1.0,
+        Angle::from_radians(0.0),
         Angle::from_degrees(10.0),
         Angle::from_degrees(200.0),
-    );
+    )
+    .unwrap();
     let moved = arc.transform_similarity(&transform_2d()).unwrap();
 
     for t in [0.0, 0.5, 1.0] {

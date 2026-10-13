@@ -103,11 +103,6 @@ impl<T: Scalar> Point2D<T> {
         Point2D::new(vector.x(), vector.y())
     }
 
-    /// 平行移動
-    pub fn translate(&self, vector: Vector2D<T>) -> Self {
-        *self + vector
-    }
-
     /// スケール（非均等）
     pub fn scale(&self, scale_x: T, scale_y: T) -> Self {
         Point2D::new(self.x * scale_x, self.y * scale_y)
