@@ -1,6 +1,7 @@
 //! `NurbsSurface3D` の拡張機能（適応分割）
 
 use crate::{NurbsSurface3D, Scalar};
+use geo_contracts::NurbsSurface3DProperties;
 
 use crate::adaptive_tessellation::{
     adaptive_params_axis, AdaptiveParamGrid, AdaptiveTessellationSettings,
@@ -13,11 +14,10 @@ impl<T: Scalar> NurbsSurface3D<T> {
         let mut max_err = T::ZERO;
 
         for &v in v_samples {
-            let p0 = self.evaluate_at(u0, v);
-            let p1 = self.evaluate_at(u1, v);
-            let pm = self.evaluate_at(mid, v);
-            let chord_mid = (p0 + p1) / (T::ONE + T::ONE);
-            let err = (pm - chord_mid).norm();
+            let p0 = self.point_and_partials(u0, v).0;
+            let p1 = self.point_and_partials(u1, v).0;
+            let pm = self.point_and_partials(mid, v).0;
+            let err = pm.distance_to(p0.midpoint(p1));
             if err > max_err {
                 max_err = err;
             }
@@ -31,11 +31,10 @@ impl<T: Scalar> NurbsSurface3D<T> {
         let mut max_err = T::ZERO;
 
         for &u in u_samples {
-            let p0 = self.evaluate_at(u, v0);
-            let p1 = self.evaluate_at(u, v1);
-            let pm = self.evaluate_at(u, mid);
-            let chord_mid = (p0 + p1) / (T::ONE + T::ONE);
-            let err = (pm - chord_mid).norm();
+            let p0 = self.point_and_partials(u, v0).0;
+            let p1 = self.point_and_partials(u, v1).0;
+            let pm = self.point_and_partials(u, mid).0;
+            let err = pm.distance_to(p0.midpoint(p1));
             if err > max_err {
                 max_err = err;
             }

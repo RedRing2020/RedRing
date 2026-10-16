@@ -95,8 +95,7 @@ pub use nurbs_curve_3d_traits::{
 };
 pub use nurbs_error::NurbsError;
 pub use nurbs_surface_3d_traits::{
-    NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
-    NurbsSurface3DProperties,
+    NurbsSurface3DConstructor, NurbsSurface3DEvaluation, NurbsSurface3DProperties,
 };
 pub use plane3d_traits::{
     Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,

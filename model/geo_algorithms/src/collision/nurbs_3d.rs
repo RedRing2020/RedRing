@@ -31,7 +31,8 @@ use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bound
 use geo_contracts::{
     BasicCollision, Circle3DProperties, CylindricalSolid3DDistance, EllipsoidalSolid3DDistance,
     InfiniteLine3DProperties, LineSegment3DProperties, NurbsCurve3DEvaluation,
-    NurbsCurve3DProperties, Plane3DProperties, Ray3DProperties, Scalar, SphericalSolid3DDistance,
+    NurbsCurve3DProperties, NurbsSurface3DEvaluation, NurbsSurface3DProperties, Plane3DProperties,
+    Ray3DProperties, Scalar, SphericalSolid3DDistance,
 };
 use geo_core::Point3D as CorePoint3D;
 use geo_nurbs::{constants, NurbsCurve3D, NurbsSurface3D};
@@ -534,8 +535,11 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
-                let surface_point = Point3D::new(p.x(), p.y(), p.z());
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
+                let surface_point = p;
 
                 let d = surface_point.distance_to(*point);
 
@@ -566,7 +570,10 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
 
                 let dx = p.x() - origin.x();
                 let dy = p.y() - origin.y();
@@ -595,7 +602,10 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
 
                 let to_px = p.x() - origin.x();
                 let to_py = p.y() - origin.y();
@@ -608,7 +618,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
                 let closest_y = origin.y() + t * direction.y();
                 let closest_z = origin.z() + t * direction.z();
 
-                let surface_point = Point3D::new(p.x(), p.y(), p.z());
+                let surface_point = p;
                 let closest_point = Point3D::new(closest_x, closest_y, closest_z);
                 let d = surface_point.distance_to(closest_point);
 
@@ -639,7 +649,10 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
 
                 let to_px = p.x() - start.x();
                 let to_py = p.y() - start.y();
@@ -656,7 +669,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
                 let cy = start.y() + t * seg_dy;
                 let cz = start.z() + t * seg_dz;
 
-                let surface_point = Point3D::new(p.x(), p.y(), p.z());
+                let surface_point = p;
                 let closest_point = Point3D::new(cx, cy, cz);
                 let d = surface_point.distance_to(closest_point);
                 min_dist = min_dist.min(d);
@@ -684,7 +697,10 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
 
                 let tx = p.x() - px;
                 let ty = p.y() - py;
@@ -695,7 +711,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
                 let cy = py + t * dy;
                 let cz = pz + t * dz;
 
-                let surface_point = Point3D::new(p.x(), p.y(), p.z());
+                let surface_point = p;
                 let closest_point = Point3D::new(cx, cy, cz);
                 let d = surface_point.distance_to(closest_point);
                 min_dist = min_dist.min(d);
@@ -722,9 +738,12 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
 
-                let surface_point = Point3D::new(p.x(), p.y(), p.z());
+                let surface_point = p;
                 let center = Point3D::new(cx, cy, cz);
                 let distance_to_center = surface_point.distance_to(center);
                 let d = (distance_to_center - radius).abs();
@@ -748,8 +767,11 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
-                let surface_point = CorePoint3D::new(p.x(), p.y(), p.z());
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
+                let surface_point = p;
                 min_dist = min_dist.min(sphere.distance_to_point(surface_point));
             }
         }
@@ -770,8 +792,11 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
-                let surface_point = CorePoint3D::new(p.x(), p.y(), p.z());
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
+                let surface_point = p;
 
                 let d = ellipsoid.distance_to_point(surface_point);
                 min_dist = min_dist.min(d);
@@ -794,11 +819,13 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
             for j in 0..=samples_v {
                 let u = u_min + du * T::from_usize(i);
                 let v = v_min + dv * T::from_usize(j);
-                let p = self.0.evaluate_at(u, v);
+                let p = self
+                    .0
+                    .point_at_uv(u, v)
+                    .expect("sample parameter should be within the surface domain");
 
                 let d = <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
-                    cylinder,
-                    Point3D::from(p),
+                    cylinder, p,
                 );
                 min_dist = min_dist.min(d);
             }
@@ -1080,15 +1107,21 @@ mod tests {
 
     fn create_test_surface<T: Scalar>() -> NurbsSurface3D<T> {
         <NurbsSurface3D<T> as NurbsSurface3DConstructor<T>>::new(
-            vec![
-                vec![(T::ZERO, T::ZERO, T::ZERO), (T::ZERO, T::ONE, T::ZERO)],
-                vec![(T::ONE, T::ZERO, T::ZERO), (T::ONE, T::ONE, T::ZERO)],
+            1,
+            1,
+            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
+            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
+            &[
+                vec![
+                    CorePoint3D::new(T::ZERO, T::ZERO, T::ZERO),
+                    CorePoint3D::new(T::ZERO, T::ONE, T::ZERO),
+                ],
+                vec![
+                    CorePoint3D::new(T::ONE, T::ZERO, T::ZERO),
+                    CorePoint3D::new(T::ONE, T::ONE, T::ZERO),
+                ],
             ],
             None,
-            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
-            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
-            1,
-            1,
         )
         .unwrap()
     }

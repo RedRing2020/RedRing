@@ -21,8 +21,8 @@ use crate::{
     Point3D, Ray3D, SphericalSolid3D,
 };
 use geo_contracts::{
-    LineSegment3DProperties, NurbsCurve3DEvaluation, NurbsCurve3DProperties, Plane3DProperties,
-    Ray3DProperties, Scalar,
+    LineSegment3DProperties, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    NurbsSurface3DEvaluation, NurbsSurface3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
 };
 use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
 
@@ -46,8 +46,9 @@ fn representative_curve_domain_start_point<T: Scalar>(curve: &NurbsCurve3D<T>) -
 
 fn representative_surface_domain_start_point<T: Scalar>(surface: &NurbsSurface3D<T>) -> Point3D<T> {
     let ((u_min, _), (v_min, _)) = surface.parameter_domain();
-    let point = surface.evaluate_at(u_min, v_min);
-    Point3D::new(point.x(), point.y(), point.z())
+    surface
+        .point_at_uv(u_min, v_min)
+        .expect("sample parameter should be within the surface domain")
 }
 
 pub fn nurbscurve3d_point3d_intersection<T: Scalar>(
@@ -355,15 +356,21 @@ mod tests {
 
     fn create_test_surface<T: Scalar>() -> NurbsSurface3D<T> {
         <NurbsSurface3D<T> as NurbsSurface3DConstructor<T>>::new(
-            vec![
-                vec![(T::ZERO, T::ZERO, T::ZERO), (T::ZERO, T::ONE, T::ZERO)],
-                vec![(T::ONE, T::ZERO, T::ZERO), (T::ONE, T::ONE, T::ZERO)],
+            1,
+            1,
+            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
+            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
+            &[
+                vec![
+                    Point3D::new(T::ZERO, T::ZERO, T::ZERO),
+                    Point3D::new(T::ZERO, T::ONE, T::ZERO),
+                ],
+                vec![
+                    Point3D::new(T::ONE, T::ZERO, T::ZERO),
+                    Point3D::new(T::ONE, T::ONE, T::ZERO),
+                ],
             ],
             None,
-            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
-            vec![T::ZERO, T::ZERO, T::ONE, T::ONE],
-            1,
-            1,
         )
         .unwrap()
     }

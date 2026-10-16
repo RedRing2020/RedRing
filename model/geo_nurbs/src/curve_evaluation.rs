@@ -6,6 +6,15 @@ use crate::basis::{basis_first_derivatives, basis_functions};
 use crate::{constants, WeightStorage};
 use geo_contracts::{default_distance_tolerance, NurbsError, Scalar};
 
+/// 定義域 `(start, end)` から距離トレランス分を超えて外れない `t` を定義域に収めて返す（外れる・有限でない場合は `None`）
+pub(crate) fn clamp_to_domain<T: Scalar>(t: T, (start, end): (T, T)) -> Option<T> {
+    let tolerance = default_distance_tolerance::<T>();
+    if !t.is_finite() || t < start - tolerance || t > end + tolerance {
+        return None;
+    }
+    Some(t.max(start).min(end))
+}
+
 /// 曲線の生成の入力を検証し、重みの格納方式を返す
 pub(crate) fn validate_curve<T: Scalar>(
     degree: usize,
@@ -60,12 +69,7 @@ impl<T: Scalar, const N: usize> CurveDefinition<'_, T, N> {
 
     /// 定義域から距離トレランス分を超えて外れない `t` を定義域に収めて返す（外れる・有限でない場合は `None`）
     pub(crate) fn clamp_to_domain(&self, t: T) -> Option<T> {
-        let (start, end) = self.parameter_domain();
-        let tolerance = default_distance_tolerance::<T>();
-        if !t.is_finite() || t < start - tolerance || t > end + tolerance {
-            return None;
-        }
-        Some(t.max(start).min(end))
+        clamp_to_domain(t, self.parameter_domain())
     }
 
     /// 定義域内の `t` での点と 1 階導関数

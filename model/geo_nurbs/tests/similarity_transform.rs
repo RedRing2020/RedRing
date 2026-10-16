@@ -7,7 +7,8 @@ use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, NurbsCurve2DConstructor, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
     NurbsCurve3DConstructor, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
-    NurbsSurface3DConstructor, SimilarityTransformable2D, SimilarityTransformable3D,
+    NurbsSurface3DConstructor, NurbsSurface3DEvaluation, NurbsSurface3DProperties,
+    SimilarityTransformable2D, SimilarityTransformable3D,
 };
 use geo_core::{
     Direction3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D, Vector2D, Vector3D,
@@ -102,25 +103,29 @@ fn rational_curve_2d_maps_points_and_keeps_weights() {
 #[test]
 fn rational_surface_maps_points_and_keeps_weights() {
     let surface = NurbsSurface3D::new(
-        vec![
-            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.5)],
-            vec![(1.0, 0.0, 0.3), (1.0, 1.0, 1.0)],
+        1,
+        1,
+        vec![0.0, 0.0, 1.0, 1.0],
+        vec![0.0, 0.0, 1.0, 1.0],
+        &[
+            vec![Point3D::new(0.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 0.5)],
+            vec![Point3D::new(1.0, 0.0, 0.3), Point3D::new(1.0, 1.0, 1.0)],
         ],
         Some(vec![vec![1.0, 0.5], vec![2.0, 1.0]]),
-        vec![0.0, 0.0, 1.0, 1.0],
-        vec![0.0, 0.0, 1.0, 1.0],
-        1,
-        1,
     )
     .unwrap();
     let moved = surface.transform_similarity(&transform_3d()).unwrap();
 
     for u in PARAMS {
         for v in PARAMS {
-            let p = surface.evaluate_at(u, v);
-            let expected = transform_3d().apply_point(Point3D::new(p.x(), p.y(), p.z()));
-            let q = moved.evaluate_at(u, v);
-            let d = Point3D::new(q.x(), q.y(), q.z()).distance_to(expected);
+            let p = surface
+                .point_at_uv(u, v)
+                .expect("sample parameter should be within the surface domain");
+            let expected = transform_3d().apply_point(p);
+            let q = moved
+                .point_at_uv(u, v)
+                .expect("sample parameter should be within the surface domain");
+            let d = q.distance_to(expected);
             assert!(d < TOLERANCE_F64, "(u, v) = ({u}, {v})");
         }
     }

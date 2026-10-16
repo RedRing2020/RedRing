@@ -449,23 +449,35 @@ mod tests {
         };
         use cam_core::{CoordinateFrame, LengthUnit, Tool};
         use cam_sim::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
-        use geo_algorithms::NurbsSurface3D;
+        use geo_algorithms::{NurbsSurface3D, Point3D};
         use geo_contracts::NurbsSurface3DConstructor;
         use job_runtime::JobManager;
 
         // 曲面の弦誤差が収束しない設定（極小許容値・反復上限 1）で solver 実計算を失敗させる
         let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let dome = NurbsSurface3D::new(
-            vec![
-                vec![(0.0, 0.0, 80.0), (0.0, 20.0, 80.0), (0.0, 40.0, 80.0)],
-                vec![(20.0, 0.0, 80.0), (20.0, 20.0, 100.0), (20.0, 40.0, 80.0)],
-                vec![(40.0, 0.0, 80.0), (40.0, 20.0, 80.0), (40.0, 40.0, 80.0)],
-            ],
-            None,
+            2,
+            2,
             knots.clone(),
             knots,
-            2,
-            2,
+            &[
+                vec![
+                    Point3D::new(0.0, 0.0, 80.0),
+                    Point3D::new(0.0, 20.0, 80.0),
+                    Point3D::new(0.0, 40.0, 80.0),
+                ],
+                vec![
+                    Point3D::new(20.0, 0.0, 80.0),
+                    Point3D::new(20.0, 20.0, 100.0),
+                    Point3D::new(20.0, 40.0, 80.0),
+                ],
+                vec![
+                    Point3D::new(40.0, 0.0, 80.0),
+                    Point3D::new(40.0, 20.0, 80.0),
+                    Point3D::new(40.0, 40.0, 80.0),
+                ],
+            ],
+            None,
         )
         .unwrap();
         let store = InMemoryCamSolverInputStore::new();

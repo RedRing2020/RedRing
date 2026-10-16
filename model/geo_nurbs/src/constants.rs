@@ -32,12 +32,6 @@ pub mod solver {
     /// 境界付きニュートン法の数値微分ステップ幅（f64）
     pub const NEWTON_DIFF_STEP_F64: f64 = 1e-7;
 
-    /// 導関数の中央差分近似で使う微小ステップ幅（f32）
-    pub const DERIVATIVE_STEP_F32: f32 = 1e-4;
-
-    /// 導関数の中央差分近似で使う微小ステップ幅（f64）
-    pub const DERIVATIVE_STEP_F64: f64 = 1e-8;
-
     /// 境界付きニュートン法の収束許容誤差を型別に取得
     #[must_use]
     pub fn newton_tolerance<T: Scalar>() -> T {
@@ -49,19 +43,10 @@ pub mod solver {
     pub fn newton_diff_step<T: Scalar>() -> T {
         select_scalar_value::<T>(NEWTON_DIFF_STEP_F32, NEWTON_DIFF_STEP_F64)
     }
-
-    /// 導関数の中央差分近似で使う微小ステップ幅を型別に取得
-    #[must_use]
-    pub fn derivative_step<T: Scalar>() -> T {
-        select_scalar_value::<T>(DERIVATIVE_STEP_F32, DERIVATIVE_STEP_F64)
-    }
 }
 
 /// NURBS最近接パラメータ探索で使う境界付きニュートン法の最大反復回数
 pub const NEWTON_MAX_ITER: usize = 20;
-
-/// 曲面積近似で使うデフォルト分割数
-pub const SURFACE_AREA_SUBDIVISIONS: usize = 20;
 
 /// 曲線の長さの数値積分で、ノット区間を 2 等分する最大の深さ
 pub const LENGTH_MAX_BISECTION_DEPTH: usize = 20;
@@ -88,15 +73,6 @@ mod tests {
         assert_eq!(
             solver::newton_diff_step::<f64>().to_bits(),
             solver::NEWTON_DIFF_STEP_F64.to_bits()
-        );
-
-        assert_eq!(
-            solver::derivative_step::<f32>().to_bits(),
-            solver::DERIVATIVE_STEP_F32.to_bits()
-        );
-        assert_eq!(
-            solver::derivative_step::<f64>().to_bits(),
-            solver::DERIVATIVE_STEP_F64.to_bits()
         );
     }
 }

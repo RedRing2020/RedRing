@@ -9,21 +9,20 @@ mod extensions;
 mod tests;
 mod transform;
 
-use crate::{constants, KnotVector, Scalar, WeightStorage};
-use analysis::linalg::vector::Vector3;
-use geo_contracts::NurbsError;
+use crate::basis::{basis_first_derivatives, basis_functions};
+use crate::curve_evaluation::clamp_to_domain;
+use crate::{KnotVector, Scalar, WeightStorage};
 use geo_contracts::{
-    NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
-    NurbsSurface3DProperties,
+    default_parallel_cross_error_tolerance, NurbsError, NurbsSurface3DConstructor,
+    NurbsSurface3DEvaluation, NurbsSurface3DProperties,
 };
+use geo_core::{Direction3D, Point3D, Vector3D};
 
 /// NURBSサーフェス - 3次元（メモリ最適化版）
 ///
 /// # 特徴
 /// - フラット配列による高効率メモリ配置
 /// - u, v 方向それぞれのノットベクトル
-/// - 双方向パラメトリック制御
-/// - 滑らかな曲面補間
 ///
 /// # メモリ構造
 /// - 座標: `[x0,y0,z0, x1,y1,z1, ...]` (u方向優先配列)
@@ -54,136 +53,13 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for NurbsSurface3D<T> {
 }
 
 impl<T: Scalar> NurbsSurface3D<T> {
-    /// 内部用コンストラクタ（クレート内専用）
-    ///
-    /// # 引数
-    /// * `control_points` - 制御点の2次元グリッド [`u_count`][v_count]
-    /// * `weights` - 重みの2次元グリッド（Noneの場合は非有理）
-    /// * `u_knots` - u方向ノットベクトル
-    /// * `v_knots` - v方向ノットベクトル
-    /// * `u_degree` - u方向次数
-    /// * `v_degree` - v方向次数
-    ///
-    /// # Errors
-    /// * 制御点と重みのサイズが一致しない場合
-    /// * ノットベクトルが無効な場合
-    #[allow(clippy::needless_pass_by_value)] // 制御点グリッドを所有する必要がある
-    fn new_internal(
-        control_points: Vec<Vec<Vector3<T>>>,
-        weights: Option<Vec<Vec<T>>>,
-        u_knots: KnotVector<T>,
-        v_knots: KnotVector<T>,
-        u_degree: usize,
-        v_degree: usize,
-    ) -> Result<Self, NurbsError> {
-        // グリッドサイズの検証
-        if control_points.is_empty() || control_points[0].is_empty() {
-            return Err(NurbsError::EmptyControlGrid);
-        }
-
-        let u_count = control_points.len();
-        let v_count = control_points[0].len();
-
-        // 制御点グリッドの一貫性確認
-        for (row, points) in control_points.iter().enumerate() {
-            if points.len() != v_count {
-                return Err(NurbsError::ControlGridRowMismatch {
-                    row,
-                    actual: points.len(),
-                    expected: v_count,
-                });
-            }
-        }
-
-        // フラット座標配列を構築
-        let mut coordinates = Vec::with_capacity(u_count * v_count * 3_usize);
-        #[allow(clippy::needless_range_loop)] // 2次元グリッドアクセスの標準パターン
-        for u in 0..u_count {
-            #[allow(clippy::needless_range_loop)] // 2次元グリッドアクセスの標準パターン
-            for v in 0..v_count {
-                let point = &control_points[u][v];
-                coordinates.push(point.x());
-                coordinates.push(point.y());
-                coordinates.push(point.z());
-            }
-        }
-
-        // 重み配列を処理
-        let weight_storage = if let Some(weight_grid) = weights {
-            // 重みグリッドの検証
-            if weight_grid.len() != u_count {
-                return Err(NurbsError::WeightCountMismatch {
-                    actual: weight_grid.len(),
-                    expected: u_count,
-                });
-            }
-
-            let mut flat_weights = Vec::with_capacity(u_count * v_count);
-            #[allow(clippy::needless_range_loop)] // 重みグリッドの検証と変換
-            for u in 0..u_count {
-                if weight_grid[u].len() != v_count {
-                    return Err(NurbsError::WeightCountMismatch {
-                        actual: weight_grid[u].len(),
-                        expected: v_count,
-                    });
-                }
-
-                #[allow(clippy::needless_range_loop)] // 重みグリッドの検証と変換
-                for v in 0..v_count {
-                    let weight = weight_grid[u][v];
-                    if weight <= T::ZERO {
-                        return Err(NurbsError::NonPositiveWeight {
-                            index: u * v_count + v,
-                            weight: weight.to_f64(),
-                        });
-                    }
-                    flat_weights.push(weight);
-                }
-            }
-            WeightStorage::Individual(flat_weights)
-        } else {
-            WeightStorage::Uniform
-        };
-
-        // ノットベクトルの検証
-        crate::knot::validate_knot_vector(&u_knots, u_degree, u_count)?;
-        crate::knot::validate_knot_vector(&v_knots, v_degree, v_count)?;
-
-        Ok(NurbsSurface3D {
-            coordinates,
-            weights: weight_storage,
-            u_knots,
-            v_knots,
-            u_degree,
-            v_degree,
-            u_count,
-            v_count,
-        })
-    }
-
-    /// 制御点アクセス用インデックス計算
-    #[inline]
-    fn control_point_index(&self, u: usize, v: usize) -> usize {
-        debug_assert!(u < self.u_count);
-        debug_assert!(v < self.v_count);
-        (u * self.v_count + v) * 3
-    }
-
-    /// 重みアクセス用インデックス計算
-    #[inline]
-    fn weight_index(&self, u: usize, v: usize) -> usize {
-        debug_assert!(u < self.u_count);
-        debug_assert!(v < self.v_count);
-        u * self.v_count + v
-    }
-
     /// 制御点の座標のみを写像した曲面を返す（重み・ノットベクトル・次数は保持する）
-    fn map_control_points(&self, f: impl Fn((T, T, T)) -> (T, T, T)) -> Self {
+    fn map_control_points(&self, f: impl Fn(Point3D<T>) -> Point3D<T>) -> Self {
         let mut coordinates = Vec::with_capacity(self.coordinates.len());
         let (points, _) = self.coordinates.as_chunks::<3>();
         for &[x, y, z] in points {
-            let (x, y, z) = f((x, y, z));
-            coordinates.extend([x, y, z]);
+            let p = f(Point3D::new(x, y, z));
+            coordinates.extend([p.x(), p.y(), p.z()]);
         }
         Self {
             coordinates,
@@ -197,199 +73,146 @@ impl<T: Scalar> NurbsSurface3D<T> {
         }
     }
 
-    /// 制御点取得
-    #[must_use]
-    pub fn control_point(&self, u: usize, v: usize) -> Vector3<T> {
-        let idx = self.control_point_index(u, v);
-        Vector3::new(
-            self.coordinates[idx],
-            self.coordinates[idx + 1],
-            self.coordinates[idx + 2],
-        )
+    /// 定義域から外れない `(u, v)` を定義域に収めて返す
+    fn clamp_to_domain(&self, u: T, v: T) -> Option<(T, T)> {
+        let (u_domain, v_domain) = self.parameter_domain();
+        Some((clamp_to_domain(u, u_domain)?, clamp_to_domain(v, v_domain)?))
     }
 
-    /// 重み取得
-    #[must_use]
-    pub fn weight(&self, u: usize, v: usize) -> T {
-        match &self.weights {
-            WeightStorage::Uniform => T::ONE,
-            WeightStorage::Individual(weights) => weights[self.weight_index(u, v)],
-        }
-    }
-
-    /// フラット座標配列への参照を取得
-    #[must_use]
-    pub fn coordinates(&self) -> &[T] {
-        &self.coordinates
-    }
-
-    /// 重みストレージへの参照を取得
-    #[must_use]
-    pub fn weights(&self) -> &WeightStorage<T> {
-        &self.weights
-    }
-
-    /// u方向ノットベクトルを取得
-    #[must_use]
-    pub fn u_knots(&self) -> &KnotVector<T> {
-        &self.u_knots
-    }
-
-    /// v方向ノットベクトルを取得
-    #[must_use]
-    pub fn v_knots(&self) -> &KnotVector<T> {
-        &self.v_knots
-    }
-
-    /// u方向次数を取得
-    #[must_use]
-    pub fn u_degree(&self) -> usize {
-        self.u_degree
-    }
-
-    /// v方向次数を取得
-    #[must_use]
-    pub fn v_degree(&self) -> usize {
-        self.v_degree
-    }
-
-    /// 制御点グリッドサイズを取得 (`u_count`, `v_count`)
-    #[must_use]
-    pub fn grid_size(&self) -> (usize, usize) {
-        (self.u_count, self.v_count)
-    }
-
-    /// パラメータ定義域を取得 ((`u_min`, `u_max`), (`v_min`, `v_max`))
-    #[must_use]
-    pub fn parameter_domain(&self) -> ((T, T), (T, T)) {
-        let u_domain = crate::knot::get_parameter_domain(&self.u_knots, self.u_degree);
-        let v_domain = crate::knot::get_parameter_domain(&self.v_knots, self.v_degree);
-        (u_domain, v_domain)
-    }
-
-    /// 指定パラメータでのサーフェス上の点を計算
+    /// 定義域内の `(u, v)` での点と、u・v 方向の偏導関数
     ///
-    /// # 引数
-    /// * `u` - u方向パラメータ値
-    /// * `v` - v方向パラメータ値
-    ///
-    /// # 戻り値
-    /// サーフェス上の点
-    pub fn evaluate_at(&self, u: T, v: T) -> Vector3<T> {
-        // ノットスパンを見つける
+    /// 同次座標 `A = ΣΣ N_i M_j w_ij P_ij`、`w = ΣΣ N_i M_j w_ij` から、
+    /// `S = A / w`、`S_u = (A_u - S w_u) / w`（v 方向も同様）とする。
+    pub(super) fn point_and_partials(&self, u: T, v: T) -> (Point3D<T>, Vector3D<T>, Vector3D<T>) {
         let u_span = crate::knot::find_knot_span(u, &self.u_knots, self.u_degree);
         let v_span = crate::knot::find_knot_span(v, &self.v_knots, self.v_degree);
+        let u_basis = basis_functions(u_span, self.u_degree, u, &self.u_knots);
+        let v_basis = basis_functions(v_span, self.v_degree, v, &self.v_knots);
+        let u_basis_derivatives = basis_first_derivatives(u_span, self.u_degree, u, &self.u_knots);
+        let v_basis_derivatives = basis_first_derivatives(v_span, self.v_degree, v, &self.v_knots);
 
-        // 基底関数を計算
-        let u_basis = crate::basis::basis_functions(u_span, self.u_degree, u, &self.u_knots);
-        let v_basis = crate::basis::basis_functions(v_span, self.v_degree, v, &self.v_knots);
-
-        // 重み付き制御点を使用してサーフェス点を計算
-        let mut numerator_x = T::ZERO;
-        let mut numerator_y = T::ZERO;
-        let mut numerator_z = T::ZERO;
-        let mut denominator = T::ZERO;
-
-        #[allow(clippy::needless_range_loop)] // NURBS曲面評価の標準アルゴリズム
+        // [x, y, z, w] の同次座標とその偏導関数
+        let mut numerator = [T::ZERO; 4];
+        let mut numerator_u = [T::ZERO; 4];
+        let mut numerator_v = [T::ZERO; 4];
         for i in 0..=self.u_degree {
-            #[allow(clippy::needless_range_loop)] // NURBS曲面評価の標準アルゴリズム
             for j in 0..=self.v_degree {
-                let u_index = u_span - self.u_degree + i;
-                let v_index = v_span - self.v_degree + j;
-
-                if u_index < self.u_count && v_index < self.v_count {
-                    let control_point = self.control_point(u_index, v_index);
-                    let weight = self.weight(u_index, v_index);
-                    let basis_product = u_basis[i] * v_basis[j] * weight;
-
-                    numerator_x += control_point.x() * basis_product;
-                    numerator_y += control_point.y() * basis_product;
-                    numerator_z += control_point.z() * basis_product;
-                    denominator += basis_product;
+                let index =
+                    (u_span - self.u_degree + i) * self.v_count + (v_span - self.v_degree + j);
+                let weight = self.weights.weight(index);
+                let point = [
+                    self.coordinates[index * 3] * weight,
+                    self.coordinates[index * 3 + 1] * weight,
+                    self.coordinates[index * 3 + 2] * weight,
+                    weight,
+                ];
+                let value = u_basis[i] * v_basis[j];
+                let value_u = u_basis_derivatives[i] * v_basis[j];
+                let value_v = u_basis[i] * v_basis_derivatives[j];
+                for k in 0..4 {
+                    numerator[k] += value * point[k];
+                    numerator_u[k] += value_u * point[k];
+                    numerator_v[k] += value_v * point[k];
                 }
             }
         }
 
-        Vector3::new(
-            numerator_x / denominator,
-            numerator_y / denominator,
-            numerator_z / denominator,
-        )
-    }
-
-    /// u方向の偏導関数を計算
-    ///
-    /// # 引数
-    /// * `u` - u方向パラメータ値
-    /// * `v` - v方向パラメータ値
-    ///
-    /// # 戻り値
-    /// u方向接線ベクトル
-    pub fn u_derivative_at(&self, u: T, v: T) -> Vector3<T> {
-        let h = constants::solver::derivative_step::<T>();
-        let p1 = self.evaluate_at(u - h, v);
-        let p2 = self.evaluate_at(u + h, v);
-
-        (p2 - p1) / (h + h)
-    }
-
-    /// v方向の偏導関数を計算
-    ///
-    /// # 引数
-    /// * `u` - u方向パラメータ値
-    /// * `v` - v方向パラメータ値
-    ///
-    /// # 戻り値
-    /// v方向接線ベクトル
-    pub fn v_derivative_at(&self, u: T, v: T) -> Vector3<T> {
-        let h = constants::solver::derivative_step::<T>();
-        let p1 = self.evaluate_at(u, v - h);
-        let p2 = self.evaluate_at(u, v + h);
-
-        (p2 - p1) / (h + h)
-    }
-
-    /// 指定点での法線ベクトルを計算
-    ///
-    /// # 引数
-    /// * `u` - u方向パラメータ値
-    /// * `v` - v方向パラメータ値
-    ///
-    /// # 戻り値
-    /// 正規化された法線ベクトル
-    pub fn normal_at(&self, u: T, v: T) -> Vector3<T> {
-        let u_tangent = self.u_derivative_at(u, v);
-        let v_tangent = self.v_derivative_at(u, v);
-
-        // 外積で法線ベクトルを計算
-        u_tangent
-            .cross(&v_tangent)
-            .normalize()
-            .unwrap_or_else(|_| Vector3::zero())
+        let w = numerator[3];
+        let point = Point3D::new(numerator[0] / w, numerator[1] / w, numerator[2] / w);
+        let partial = |n: [T; 4]| {
+            Vector3D::new(
+                (n[0] - point.x() * n[3]) / w,
+                (n[1] - point.y() * n[3]) / w,
+                (n[2] - point.z() * n[3]) / w,
+            )
+        };
+        (point, partial(numerator_u), partial(numerator_v))
     }
 }
 
 impl<T: Scalar> NurbsSurface3DConstructor<T> for NurbsSurface3D<T> {
     fn new(
-        control_points: Vec<Vec<(T, T, T)>>,
-        weights: Option<Vec<Vec<T>>>,
-        u_knots: Vec<T>,
-        v_knots: Vec<T>,
         u_degree: usize,
         v_degree: usize,
-    ) -> std::result::Result<Self, String> {
-        // タプルをVector3に変換
-        let points: Vec<Vec<Vector3<T>>> = control_points
-            .into_iter()
-            .map(|row| {
-                row.into_iter()
-                    .map(|(x, y, z)| Vector3::new(x, y, z))
-                    .collect()
-            })
+        u_knots: Vec<T>,
+        v_knots: Vec<T>,
+        control_points: &[Vec<Point3D<T>>],
+        weights: Option<Vec<Vec<T>>>,
+    ) -> Result<Self, NurbsError> {
+        // 制御点の格子の検証
+        if control_points.is_empty() || control_points[0].is_empty() {
+            return Err(NurbsError::EmptyControlGrid);
+        }
+        let u_count = control_points.len();
+        let v_count = control_points[0].len();
+        for (row, points) in control_points.iter().enumerate() {
+            if points.len() != v_count {
+                return Err(NurbsError::ControlGridRowMismatch {
+                    row,
+                    actual: points.len(),
+                    expected: v_count,
+                });
+            }
+        }
+        for (degree, count) in [(u_degree, u_count), (v_degree, v_count)] {
+            if count < degree + 1 {
+                return Err(NurbsError::InsufficientControlPoints {
+                    actual: count,
+                    required: degree + 1,
+                    degree,
+                });
+            }
+        }
+
+        // 重みの格子の検証（制御点と同じ u 方向優先の並びにする）
+        let weights = match weights {
+            Some(grid) => {
+                if grid.len() != u_count {
+                    return Err(NurbsError::WeightCountMismatch {
+                        actual: grid.len(),
+                        expected: u_count,
+                    });
+                }
+                let mut flat = Vec::with_capacity(u_count * v_count);
+                for row in &grid {
+                    if row.len() != v_count {
+                        return Err(NurbsError::WeightCountMismatch {
+                            actual: row.len(),
+                            expected: v_count,
+                        });
+                    }
+                    flat.extend_from_slice(row);
+                }
+                if let Some(index) = flat.iter().position(|&weight| weight <= T::ZERO) {
+                    return Err(NurbsError::NonPositiveWeight {
+                        index,
+                        weight: flat[index].to_f64(),
+                    });
+                }
+                WeightStorage::Individual(flat)
+            }
+            None => WeightStorage::Uniform,
+        };
+
+        crate::knot::validate_knot_vector(&u_knots, u_degree, u_count)?;
+        crate::knot::validate_knot_vector(&v_knots, v_degree, v_count)?;
+
+        let coordinates = control_points
+            .iter()
+            .flatten()
+            .flat_map(|p| [p.x(), p.y(), p.z()])
             .collect();
 
-        Self::new_internal(points, weights, u_knots, v_knots, u_degree, v_degree)
-            .map_err(|e| e.to_string())
+        Ok(Self {
+            coordinates,
+            weights,
+            u_knots,
+            v_knots,
+            u_degree,
+            v_degree,
+            u_count,
+            v_count,
+        })
     }
 }
 
@@ -418,75 +241,52 @@ impl<T: Scalar> NurbsSurface3DProperties<T> for NurbsSurface3D<T> {
         &self.v_knots
     }
 
+    fn control_point(&self, u: usize, v: usize) -> Option<Point3D<T>> {
+        if u >= self.u_count || v >= self.v_count {
+            return None;
+        }
+        let coordinates = self.coordinates.as_chunks::<3>().0[u * self.v_count + v];
+        Some(Point3D::new(coordinates[0], coordinates[1], coordinates[2]))
+    }
+
+    fn weight(&self, u: usize, v: usize) -> Option<T> {
+        (u < self.u_count && v < self.v_count).then(|| self.weights.weight(u * self.v_count + v))
+    }
+
     fn coordinates(&self) -> &[T] {
         &self.coordinates
     }
 
     fn weights(&self) -> Option<&[T]> {
-        match &self.weights {
-            WeightStorage::Uniform => None,
-            WeightStorage::Individual(w) => Some(w),
-        }
+        self.weights.as_slice()
+    }
+
+    fn parameter_domain(&self) -> ((T, T), (T, T)) {
+        (
+            crate::knot::get_parameter_domain(&self.u_knots, self.u_degree),
+            crate::knot::get_parameter_domain(&self.v_knots, self.v_degree),
+        )
     }
 }
 
 impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
-    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
-        let point = self.evaluate_at(u, v);
-        (point.x(), point.y(), point.z())
+    fn point_at_uv(&self, u: T, v: T) -> Option<Point3D<T>> {
+        let (u, v) = self.clamp_to_domain(u, v)?;
+        Some(self.point_and_partials(u, v).0)
     }
 
-    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
-        // 偏導関数を数値微分で近似
-        let du = self.u_derivative_at(u, v);
-        let dv = self.v_derivative_at(u, v);
-
-        // 法線 = du × dv
-        let nx = du.y() * dv.z() - du.z() * dv.y();
-        let ny = du.z() * dv.x() - du.x() * dv.z();
-        let nz = du.x() * dv.y() - du.y() * dv.x();
-
-        // 正規化
-        let len_sq = nx * nx + ny * ny + nz * nz;
-        let len = len_sq.sqrt();
-
-        if len.is_zero() {
-            (T::ZERO, T::ZERO, T::ONE) // デフォルトのz方向
-        } else {
-            (nx / len, ny / len, nz / len)
+    fn normal_at(&self, u: T, v: T) -> Option<Direction3D<T>> {
+        let (u, v) = self.clamp_to_domain(u, v)?;
+        let (_, partial_u, partial_v) = self.point_and_partials(u, v);
+        let normal = partial_u.cross(partial_v);
+        // 偏導関数が平行または 0 の場合（極など）は定まらない
+        if normal.length()
+            <= default_parallel_cross_error_tolerance::<T>()
+                * partial_u.length()
+                * partial_v.length()
+        {
+            return None;
         }
-    }
-}
-
-impl<T: Scalar> NurbsSurface3DDerived<T> for NurbsSurface3D<T> {
-    #[allow(clippy::similar_names)]
-    fn surface_area(&self) -> T {
-        // パラメータ領域を格子に分割し、各格子の面積（偏導関数の外積の大きさ）を数値積分する
-        let subdivisions = constants::SURFACE_AREA_SUBDIVISIONS;
-        let ((u_min, u_max), (v_min, v_max)) = self.parameter_domain();
-        let du = (u_max - u_min) / T::from_usize(subdivisions);
-        let dv = (v_max - v_min) / T::from_usize(subdivisions);
-
-        let mut total_area = T::ZERO;
-
-        for i in 0..subdivisions {
-            for j in 0..subdivisions {
-                let u = u_min + du * T::from_usize(i) + du / T::from_f64(2.0);
-                let v = v_min + dv * T::from_usize(j) + dv / T::from_f64(2.0);
-
-                let d_du = self.u_derivative_at(u, v);
-                let d_dv = self.v_derivative_at(u, v);
-
-                // 外積の大きさ
-                let cross_x = d_du.y() * d_dv.z() - d_du.z() * d_dv.y();
-                let cross_y = d_du.z() * d_dv.x() - d_du.x() * d_dv.z();
-                let cross_z = d_du.x() * d_dv.y() - d_du.y() * d_dv.x();
-                let cross_norm = (cross_x * cross_x + cross_y * cross_y + cross_z * cross_z).sqrt();
-
-                total_area += cross_norm * du * dv;
-            }
-        }
-
-        total_area
+        Direction3D::from_vector(normal)
     }
 }
