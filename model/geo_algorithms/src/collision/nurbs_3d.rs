@@ -29,8 +29,9 @@ use crate::{
 };
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded_generic;
 use geo_contracts::{
-    BasicCollision, Circle3DProperties, CylindricalSolid3DDistance, InfiniteLine3DProperties,
-    LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
+    BasicCollision, Circle3DProperties, CylindricalSolid3DDistance, EllipsoidalSolid3DDistance,
+    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
+    SphericalSolid3DDistance,
 };
 use geo_core::Point3D as CorePoint3D;
 use geo_nurbs::{constants, NurbsCurve3D, NurbsSurface3D};
@@ -411,7 +412,7 @@ impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsCurveCollider<T>
             let curve_vec = self.0.evaluate_at(u);
             let curve_point = CorePoint3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
 
-            let distance = sphere.distance_to_surface(curve_point);
+            let distance = sphere.distance_to_point(curve_point);
             min_distance = min_distance.min(distance);
         }
 
@@ -441,11 +442,7 @@ impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsCurveCollider<
             let curve_vec = self.0.evaluate_at(u);
             let curve_point = CorePoint3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
 
-            let distance = if ellipsoid.contains_point(&curve_point) {
-                T::ZERO
-            } else {
-                ellipsoid.distance_to_surface(&curve_point)
-            };
+            let distance = ellipsoid.distance_to_point(curve_point);
             min_distance = min_distance.min(distance);
         }
 
@@ -727,7 +724,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
                 let v = v_min + dv * T::from_usize(j);
                 let p = self.0.evaluate_at(u, v);
                 let surface_point = CorePoint3D::new(p.x(), p.y(), p.z());
-                min_dist = min_dist.min(sphere.distance_to_surface(surface_point));
+                min_dist = min_dist.min(sphere.distance_to_point(surface_point));
             }
         }
 
@@ -750,11 +747,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
                 let p = self.0.evaluate_at(u, v);
                 let surface_point = CorePoint3D::new(p.x(), p.y(), p.z());
 
-                let d = if ellipsoid.contains_point(&surface_point) {
-                    T::ZERO
-                } else {
-                    ellipsoid.distance_to_surface(&surface_point)
-                };
+                let d = ellipsoid.distance_to_point(surface_point);
                 min_dist = min_dist.min(d);
             }
         }
@@ -1020,9 +1013,7 @@ mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
     use analysis::test_constants;
-    use geo_contracts::NurbsSurface3DConstructor;
-    use geo_contracts::Plane3DConstructor;
-    use geo_contracts::Ray3DConstructor;
+    use geo_contracts::{NurbsSurface3DConstructor, Plane3DConstructor, Ray3DConstructor};
     use geo_nurbs::NurbsCurve3D;
 
     const TEST_TOLERANCE: f64 = test_constants::DISTANCE_TOLERANCE_F64;

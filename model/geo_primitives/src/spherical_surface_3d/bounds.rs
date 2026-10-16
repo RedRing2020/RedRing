@@ -1,11 +1,6 @@
-//! SphericalSurface3D Bounds Implementation
-//!
-//! `Bounded` trait への適合を提供する。
-//!
-//! **作成日: 2025年11月1日**
-//! **最終更新: 2025年11月1日**
+//! SphericalSurface3D の境界ボックス
 
-use crate::SphericalSurface3D;
+use crate::{SphericalSurface3D, Vector3D};
 use geo_contracts::{Bounded, Scalar};
 use geo_core::Aabb3D;
 
@@ -13,6 +8,7 @@ impl<T: Scalar> Bounded<T> for SphericalSurface3D<T> {
     type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
-        Some(self.bounding_box())
+        let extent = Vector3D::new(self.radius, self.radius, self.radius);
+        Some(Aabb3D::new(self.center - extent, self.center + extent))
     }
 }

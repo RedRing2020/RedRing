@@ -4,8 +4,9 @@ use crate::{
     Point3D, Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D, Triangle3D,
 };
 use geo_contracts::{
-    Circle3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties,
-    LineSegment3DProperties, Plane3DDistance, Ray3DProperties, Scalar, SphericalSolid3DProperties,
+    Circle3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DDistance,
+    InfiniteLine3DProperties, LineSegment3DDistance, LineSegment3DProperties, Plane3DDistance,
+    Ray3DDistance, Ray3DProperties, Scalar, SphericalSolid3DProperties,
 };
 
 pub fn spherical_solid3d_point3d_collides<T: Scalar>(
@@ -31,7 +32,7 @@ pub fn spherical_solid3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    sphere.distance_to_line_segment(&segment.start_point(), &segment.end_point()) <= tolerance
+    segment.distance_to_point(sphere.center()) <= sphere.radius() + tolerance
 }
 
 pub fn spherical_solid3d_ray3d_collides<T: Scalar>(
@@ -39,7 +40,7 @@ pub fn spherical_solid3d_ray3d_collides<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> bool {
-    sphere.distance_to_ray(&ray.origin(), &ray.direction().as_vector()) <= tolerance
+    ray.distance_to_point(sphere.center()) <= sphere.radius() + tolerance
 }
 
 pub fn spherical_solid3d_infinite_line3d_collides<T: Scalar>(
@@ -47,9 +48,7 @@ pub fn spherical_solid3d_infinite_line3d_collides<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> bool {
-    let line_pt = line.point();
-    let line_dir = line.direction().as_vector();
-    sphere.distance_to_infinite_line(&line_pt, &line_dir) <= tolerance
+    line.distance_to_point(sphere.center()) <= sphere.radius() + tolerance
 }
 
 pub fn spherical_solid3d_triangle3d_collides<T: Scalar>(
@@ -67,8 +66,7 @@ pub fn spherical_solid3d_plane3d_collides<T: Scalar>(
     plane: &Plane3D<T>,
     tolerance: T,
 ) -> bool {
-    let (sc, sy, sz) = SphericalSolid3DProperties::center(sphere);
-    let center = Point3D::new(sc, sy, sz);
+    let center = SphericalSolid3DProperties::center(sphere);
     let radius = SphericalSolid3DProperties::radius(sphere);
     plane.distance_to_point(center).abs() <= radius + tolerance
 }
@@ -78,10 +76,8 @@ pub fn spherical_solid3d_spherical_solid3d_collides<T: Scalar>(
     sphere_b: &SphericalSolid3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = SphericalSolid3DProperties::center(sphere_a);
-    let (bx, by, bz) = SphericalSolid3DProperties::center(sphere_b);
-    let center_a = Point3D::new(ax, ay, az);
-    let center_b = Point3D::new(bx, by, bz);
+    let center_a = SphericalSolid3DProperties::center(sphere_a);
+    let center_b = SphericalSolid3DProperties::center(sphere_b);
     let dist = center_a.distance_to(center_b);
     let r1 = SphericalSolid3DProperties::radius(sphere_a);
     let r2 = SphericalSolid3DProperties::radius(sphere_b);
@@ -133,9 +129,7 @@ pub fn ellipsoidal_solid3d_plane3d_collides<T: Scalar>(
     plane: &Plane3D<T>,
     tolerance: T,
 ) -> bool {
-    let (cx, cy, cz) =
-        <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ellipsoid);
-    let center = Point3D::new(cx, cy, cz);
+    let center = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ellipsoid);
     let dist = plane.distance_to_point(center).abs();
     let a = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::a_radius(ellipsoid);
     let b = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::b_radius(ellipsoid);
@@ -149,10 +143,8 @@ pub fn ellipsoidal_solid3d_ellipsoidal_solid3d_collides<T: Scalar>(
     ell_b: &EllipsoidalSolid3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ell_a);
-    let (bx, by, bz) = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ell_b);
-    let center_a = Point3D::new(ax, ay, az);
-    let center_b = Point3D::new(bx, by, bz);
+    let center_a = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ell_a);
+    let center_b = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ell_b);
     let center_dist = center_a.distance_to(center_b);
     let max_1 = {
         let a = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::a_radius(ell_a);

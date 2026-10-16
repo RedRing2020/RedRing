@@ -4,9 +4,11 @@ use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, ConicalSolid3DContainment, ConicalSolid3DDerived, ConicalSurface3DEvaluation,
     CylindricalSolid3DContainment, CylindricalSolid3DDerived, CylindricalSurface3DEvaluation,
-    EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived, EllipsoidalSurface3DEvaluation,
-    SimilarityTransformable3D, SphericalSolid3DContainment, SphericalSolid3DDerived,
-    SphericalSurface3DEvaluation, TorusSolid3DContainment, TorusSolid3DDerived,
+    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DProperties,
+    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DEvaluation, SimilarityTransformable3D,
+    SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DProperties,
+    SphericalSurface3DConstructor, SphericalSurface3DEvaluation, TorusSolid3DConstructor,
+    TorusSolid3DContainment, TorusSolid3DProperties, TorusSurface3DConstructor,
     TorusSurface3DEvaluation, TorusSurface3DProperties,
 };
 use geo_primitives::{
@@ -30,9 +32,8 @@ fn transform() -> SimilarityTransform3D<f64> {
     .then(&SimilarityTransform3D::uniform_scale_about(Point3D::origin(), SCALE).unwrap())
 }
 
-fn map(p: (f64, f64, f64)) -> (f64, f64, f64) {
-    let q = transform().apply_point(Point3D::from(p));
-    (q.x(), q.y(), q.z())
+fn map(p: Point3D<f64>) -> Point3D<f64> {
+    transform().apply_point(p)
 }
 
 /// 各 (u, v) の点が、点の変換と一致することを確認する
@@ -41,12 +42,12 @@ fn map(p: (f64, f64, f64)) -> (f64, f64, f64) {
 /// （円筒面・円錐面の v）はスケール係数となる。
 fn assert_surface_maps(
     v_scale: f64,
-    original: impl Fn(f64, f64) -> (f64, f64, f64),
-    moved: impl Fn(f64, f64) -> (f64, f64, f64),
+    original: impl Fn(f64, f64) -> Point3D<f64>,
+    moved: impl Fn(f64, f64) -> Point3D<f64>,
 ) {
     for (u, v) in [(0.0, 0.0), (0.4, 0.3), (1.9, -0.7), (4.0, 1.2)] {
-        let expected = Point3D::from(map(original(u, v)));
-        let actual = Point3D::from(moved(u, v * v_scale));
+        let expected = map(original(u, v));
+        let actual = moved(u, v * v_scale);
         assert!(
             actual.distance_to(expected) < TOLERANCE_F64,
             "(u, v) = ({u}, {v}): {actual:?} != {expected:?}"
@@ -56,15 +57,15 @@ fn assert_surface_maps(
 
 /// 内外判定が変換の前後で一致することを確認する（境界から離れた点で判定）
 fn assert_containment_maps(
-    original: impl Fn((f64, f64, f64)) -> bool,
-    moved: impl Fn((f64, f64, f64)) -> bool,
+    original: impl Fn(Point3D<f64>) -> bool,
+    moved: impl Fn(Point3D<f64>) -> bool,
 ) {
     let mut inside = 0;
     let mut outside = 0;
     for x in [-2.7, -1.3, -0.2, 0.3, 1.1, 2.6] {
         for y in [-2.1, -0.4, 0.2, 1.7] {
             for z in [-1.6, -0.3, 0.4, 0.9, 2.3] {
-                let p = (x, y, z);
+                let p = Point3D::new(x, y, z);
                 let before = original(p);
                 assert_eq!(before, moved(map(p)), "probe {p:?}");
                 if before {
@@ -96,10 +97,7 @@ fn spherical_surface_and_solid() {
 
     let solid = SphericalSolid3D::new_standard(Point3D::new(0.2, 0.1, 0.0), 1.5).unwrap();
     let moved = solid.transform_similarity(&transform()).unwrap();
-    assert_volume_scales(
-        SphericalSolid3DDerived::volume(&solid),
-        SphericalSolid3DDerived::volume(&moved),
-    );
+    assert!((moved.radius() - solid.radius() * SCALE).abs() < TOLERANCE_F64);
     assert_containment_maps(
         |p| SphericalSolid3DContainment::contains_point(&solid, p),
         |p| SphericalSolid3DContainment::contains_point(&moved, p),
@@ -112,8 +110,8 @@ fn cylindrical_surface_and_solid() {
     let moved = surface.transform_similarity(&transform()).unwrap();
     assert_surface_maps(
         SCALE,
-        |u, v| CylindricalSurface3DEvaluation::point_at_uv(&surface, u, v),
-        |u, v| CylindricalSurface3DEvaluation::point_at_uv(&moved, u, v),
+        |u, v| Point3D::from(CylindricalSurface3DEvaluation::point_at_uv(&surface, u, v)),
+        |u, v| Point3D::from(CylindricalSurface3DEvaluation::point_at_uv(&moved, u, v)),
     );
 
     let solid = CylindricalSolid3D::new_z_axis(Point3D::new(0.2, 0.1, -1.0), 1.5, 2.5).unwrap();
@@ -123,8 +121,8 @@ fn cylindrical_surface_and_solid() {
         CylindricalSolid3DDerived::volume(&moved),
     );
     assert_containment_maps(
-        |p| CylindricalSolid3DContainment::contains_point(&solid, p),
-        |p| CylindricalSolid3DContainment::contains_point(&moved, p),
+        |p| CylindricalSolid3DContainment::contains_point(&solid, (p.x(), p.y(), p.z())),
+        |p| CylindricalSolid3DContainment::contains_point(&moved, (p.x(), p.y(), p.z())),
     );
 }
 
@@ -141,8 +139,8 @@ fn conical_surface_and_solid() {
     let moved = surface.transform_similarity(&transform()).unwrap();
     assert_surface_maps(
         SCALE,
-        |u, v| ConicalSurface3DEvaluation::point_at_uv(&surface, u, v),
-        |u, v| ConicalSurface3DEvaluation::point_at_uv(&moved, u, v),
+        |u, v| Point3D::from(ConicalSurface3DEvaluation::point_at_uv(&surface, u, v)),
+        |u, v| Point3D::from(ConicalSurface3DEvaluation::point_at_uv(&moved, u, v)),
     );
 
     let solid = ConicalSolid3D::new_standard(Point3D::new(0.2, 0.1, -1.0), 1.8, 2.5).unwrap();
@@ -152,22 +150,15 @@ fn conical_surface_and_solid() {
         ConicalSolid3DDerived::volume(&moved),
     );
     assert_containment_maps(
-        |p| ConicalSolid3DContainment::contains_point(&solid, p),
-        |p| ConicalSolid3DContainment::contains_point(&moved, p),
+        |p| ConicalSolid3DContainment::contains_point(&solid, (p.x(), p.y(), p.z())),
+        |p| ConicalSolid3DContainment::contains_point(&moved, (p.x(), p.y(), p.z())),
     );
 }
 
 #[test]
 fn ellipsoidal_surface_and_solid() {
-    let surface = EllipsoidalSurface3D::new(
-        Point3D::new(0.2, 0.1, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        2.0,
-        1.5,
-        1.0,
-    )
-    .unwrap();
+    let surface =
+        EllipsoidalSurface3D::new_standard(Point3D::new(0.2, 0.1, 0.0), 2.0, 1.5, 1.0).unwrap();
     let moved = surface.transform_similarity(&transform()).unwrap();
     assert_surface_maps(
         1.0,
@@ -178,10 +169,13 @@ fn ellipsoidal_surface_and_solid() {
     let solid =
         EllipsoidalSolid3D::new_standard(Point3D::new(0.2, 0.1, 0.0), 2.0, 1.5, 1.0).unwrap();
     let moved = solid.transform_similarity(&transform()).unwrap();
-    assert_volume_scales(
-        EllipsoidalSolid3DDerived::volume(&solid),
-        EllipsoidalSolid3DDerived::volume(&moved),
-    );
+    for (radius, moved_radius) in [
+        (solid.a_radius(), moved.a_radius()),
+        (solid.b_radius(), moved.b_radius()),
+        (solid.c_radius(), moved.c_radius()),
+    ] {
+        assert!((moved_radius - radius * SCALE).abs() < TOLERANCE_F64);
+    }
     assert_containment_maps(
         |p| EllipsoidalSolid3DContainment::contains_point(&solid, p),
         |p| EllipsoidalSolid3DContainment::contains_point(&moved, p),
@@ -190,7 +184,7 @@ fn ellipsoidal_surface_and_solid() {
 
 #[test]
 fn torus_surface_and_solid() {
-    let surface = TorusSurface3D::standard(2.0, 0.7).unwrap();
+    let surface = TorusSurface3D::new_standard(Point3D::origin(), 2.0, 0.7).unwrap();
     let moved = surface.transform_similarity(&transform()).unwrap();
     assert!((TorusSurface3DProperties::major_radius(&moved) - 4.0).abs() < TOLERANCE_F64);
     assert!((TorusSurface3DProperties::minor_radius(&moved) - 1.4).abs() < TOLERANCE_F64);
@@ -200,12 +194,10 @@ fn torus_surface_and_solid() {
         |u, v| TorusSurface3DEvaluation::point_at_uv(&moved, u, v),
     );
 
-    let solid = TorusSolid3D::standard(2.0, 0.7).unwrap();
+    let solid = TorusSolid3D::new_standard(Point3D::origin(), 2.0, 0.7).unwrap();
     let moved = solid.transform_similarity(&transform()).unwrap();
-    assert_volume_scales(
-        TorusSolid3DDerived::volume(&solid),
-        TorusSolid3DDerived::volume(&moved),
-    );
+    assert!((TorusSolid3DProperties::major_radius(&moved) - 4.0).abs() < TOLERANCE_F64);
+    assert!((TorusSolid3DProperties::minor_radius(&moved) - 1.4).abs() < TOLERANCE_F64);
     assert_containment_maps(
         |p| TorusSolid3DContainment::contains_point(&solid, p),
         |p| TorusSolid3DContainment::contains_point(&moved, p),

@@ -70,8 +70,7 @@ pub(crate) fn spherical_surface_intersection_parameters<T: Scalar>(
     sphere: &SphericalSurface3D<T>,
     tolerance: T,
 ) -> Option<(T, T)> {
-    let center_tuple = SphericalSurface3DProperties::center(sphere);
-    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
+    let center = SphericalSurface3DProperties::center(sphere);
     let radius = SphericalSurface3DProperties::radius(sphere);
     let offset = crate::Vector3D::from_points(center, *start);
 

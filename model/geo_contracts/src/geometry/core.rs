@@ -66,12 +66,12 @@ pub use ellipse_traits::{
     Ellipse3DDistance, Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties,
 };
 pub use ellipsoidal_solid_traits::{
-    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived,
-    EllipsoidalSolid3DDistance, EllipsoidalSolid3DProperties,
+    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance,
+    EllipsoidalSolid3DProperties,
 };
 pub use ellipsoidal_surface_traits::{
-    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DDerived, EllipsoidalSurface3DDistance,
-    EllipsoidalSurface3DEvaluation, EllipsoidalSurface3DProperties,
+    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DDistance, EllipsoidalSurface3DEvaluation,
+    EllipsoidalSurface3DProperties,
 };
 pub use infinite_line_traits::{
     InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DDistance,
@@ -110,20 +110,19 @@ pub use rectangle_traits::{
     Rect3DProperties,
 };
 pub use spherical_solid_traits::{
-    SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DDerived,
-    SphericalSolid3DDistance, SphericalSolid3DProperties,
+    SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DDistance,
+    SphericalSolid3DProperties,
 };
 pub use spherical_surface_traits::{
-    SphericalSurface3DConstructor, SphericalSurface3DDerived, SphericalSurface3DDistance,
-    SphericalSurface3DEvaluation, SphericalSurface3DProjection, SphericalSurface3DProperties,
+    SphericalSurface3DConstructor, SphericalSurface3DDistance, SphericalSurface3DEvaluation,
+    SphericalSurface3DProperties,
 };
 pub use torus_solid_traits::{
-    TorusSolid3DConstructor, TorusSolid3DContainment, TorusSolid3DDerived, TorusSolid3DDistance,
-    TorusSolid3DProperties,
+    TorusSolid3DConstructor, TorusSolid3DContainment, TorusSolid3DDistance, TorusSolid3DProperties,
 };
 pub use torus_surface_traits::{
-    TorusSurface3DConstructor, TorusSurface3DDerived, TorusSurface3DDistance,
-    TorusSurface3DEvaluation, TorusSurface3DProperties,
+    TorusSurface3DConstructor, TorusSurface3DDistance, TorusSurface3DEvaluation,
+    TorusSurface3DProperties,
 };
 pub use triangle_mesh_traits::{
     TriangleMesh3DConstructor, TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,

@@ -13,10 +13,9 @@ use crate::{
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, default_parallel_cross_error_tolerance, Arc3DDistance,
     Circle3DDistance, ConicalSurface3DDistance, CylindricalSolid3DDistance,
-    CylindricalSurface3DDistance, Ellipse3DDistance, EllipsoidalSolid3DContainment,
-    EllipsoidalSolid3DDistance, EllipsoidalSurface3DDistance, InfiniteLine3DProperties,
-    LineSegment3DConstructor, LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
-    SphericalSolid3DContainment, SphericalSolid3DDistance, TorusSolid3DContainment,
+    CylindricalSurface3DDistance, Ellipse3DDistance, EllipsoidalSolid3DDistance,
+    EllipsoidalSurface3DDistance, InfiniteLine3DProperties, LineSegment3DConstructor,
+    LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar, SphericalSolid3DDistance,
     TorusSolid3DDistance, TorusSurface3DDistance, Triangle3DBoundaryAccess,
     TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,
 };
@@ -150,17 +149,7 @@ pub fn spherical_solid3d_point3d_distance<T: Scalar>(
     sphere: &SphericalSolid3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    if <SphericalSolid3D<T> as SphericalSolid3DContainment<T>>::contains_point(
-        sphere,
-        (point.x(), point.y(), point.z()),
-    ) {
-        T::ZERO
-    } else {
-        <SphericalSolid3D<T> as SphericalSolid3DDistance<T>>::distance_to_point(
-            sphere,
-            (point.x(), point.y(), point.z()),
-        )
-    }
+    <SphericalSolid3D<T> as SphericalSolid3DDistance<T>>::distance_to_point(sphere, *point)
 }
 
 /// 逆向きラッパー: point-spherical_solid
@@ -213,10 +202,7 @@ pub fn torus_surface3d_point3d_distance<T: Scalar>(
     torus: &TorusSurface3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    <TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point(
-        torus,
-        (point.x(), point.y(), point.z()),
-    )
+    <TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point(torus, *point)
 }
 
 /// 逆向きラッパー: point-torus_surface
@@ -290,17 +276,7 @@ pub fn ellipsoidal_solid3d_point3d_distance<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    if <EllipsoidalSolid3D<T> as EllipsoidalSolid3DContainment<T>>::contains_point(
-        ellipsoid,
-        (point.x(), point.y(), point.z()),
-    ) {
-        T::ZERO
-    } else {
-        <EllipsoidalSolid3D<T> as EllipsoidalSolid3DDistance<T>>::distance_to_surface(
-            ellipsoid,
-            (point.x(), point.y(), point.z()),
-        )
-    }
+    <EllipsoidalSolid3D<T> as EllipsoidalSolid3DDistance<T>>::distance_to_point(ellipsoid, *point)
 }
 
 /// 逆向きラッパー: point-ellipsoidal_solid
@@ -317,8 +293,7 @@ pub fn ellipsoidal_surface3d_point3d_distance<T: Scalar>(
     point: &Point3D<T>,
 ) -> T {
     <EllipsoidalSurface3D<T> as EllipsoidalSurface3DDistance<T>>::distance_to_point(
-        ellipsoid,
-        (point.x(), point.y(), point.z()),
+        ellipsoid, *point,
     )
 }
 
@@ -351,17 +326,7 @@ pub fn point3d_conical_surface3d_distance<T: Scalar>(
 
 /// TorusSolid3D-点 間の最短距離（内部点は 0）
 pub fn torus_solid3d_point3d_distance<T: Scalar>(torus: &TorusSolid3D<T>, point: &Point3D<T>) -> T {
-    if <TorusSolid3D<T> as TorusSolid3DContainment<T>>::contains_point(
-        torus,
-        (point.x(), point.y(), point.z()),
-    ) {
-        T::ZERO
-    } else {
-        <TorusSolid3D<T> as TorusSolid3DDistance<T>>::distance_to_point(
-            torus,
-            (point.x(), point.y(), point.z()),
-        )
-    }
+    <TorusSolid3D<T> as TorusSolid3DDistance<T>>::distance_to_point(torus, *point)
 }
 
 /// 逆向きラッパー: point-torus_solid
@@ -507,9 +472,7 @@ pub fn point3d_triangle_mesh3d_distance<T: Scalar>(
 mod tests {
     use super::*;
     use analysis::test_constants;
-    use geo_contracts::InfiniteLine3DConstructor;
-    use geo_contracts::Ray3DConstructor;
-    use geo_contracts::Triangle3DConstructor;
+    use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor, Triangle3DConstructor};
 
     fn standard_distance_tol() -> f64 {
         test_constants::DISTANCE_TOLERANCE_F64

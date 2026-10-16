@@ -310,12 +310,11 @@ mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
     use analysis::test_constants;
-    use geo_contracts::Circle3DConstructor;
-    use geo_contracts::InfiniteLine3DConstructor;
-    use geo_contracts::LineSegment3DConstructor;
-    use geo_contracts::Plane3DConstructor;
-    use geo_contracts::Ray3DConstructor;
-    use geo_contracts::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
+    use geo_contracts::{
+        Circle3DConstructor, InfiniteLine3DConstructor, LineSegment3DConstructor,
+        NurbsCurve3DConstructor, NurbsSurface3DConstructor, Plane3DConstructor, Ray3DConstructor,
+        SphericalSolid3DConstructor,
+    };
 
     const TEST_TOLERANCE: f64 = test_constants::DISTANCE_TOLERANCE_F64;
 
@@ -434,13 +433,7 @@ mod tests {
     #[test]
     fn test_nurbscurve3d_spherical_solid3d_intersection_returns_curve_domain_start_point() {
         let curve = create_test_curve::<f64>();
-        let sphere = SphericalSolid3D::new(
-            Point3D::new(0.5, 0.5, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            2.0,
-        )
-        .unwrap();
+        let sphere = SphericalSolid3D::new_standard(Point3D::new(0.5, 0.5, 0.0), 2.0).unwrap();
 
         let result = nurbscurve3d_spherical_solid3d_intersection(&curve, &sphere, TEST_TOLERANCE);
         assert_eq!(
@@ -523,13 +516,7 @@ mod tests {
     #[test]
     fn test_nurbssurface3d_spherical_solid3d_intersection_enclosing() {
         let surface = create_test_surface::<f64>();
-        let sphere = SphericalSolid3D::new(
-            Point3D::new(0.5, 0.5, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            2.0,
-        )
-        .unwrap();
+        let sphere = SphericalSolid3D::new_standard(Point3D::new(0.5, 0.5, 0.0), 2.0).unwrap();
         let result =
             nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, TEST_TOLERANCE);
         assert!(result.is_some());
@@ -538,13 +525,7 @@ mod tests {
     #[test]
     fn test_nurbssurface3d_spherical_solid3d_intersection_returns_surface_domain_start_point() {
         let surface = create_test_surface::<f64>();
-        let sphere = SphericalSolid3D::new(
-            Point3D::new(0.5, 0.5, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            2.0,
-        )
-        .unwrap();
+        let sphere = SphericalSolid3D::new_standard(Point3D::new(0.5, 0.5, 0.0), 2.0).unwrap();
 
         let result =
             nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, TEST_TOLERANCE);

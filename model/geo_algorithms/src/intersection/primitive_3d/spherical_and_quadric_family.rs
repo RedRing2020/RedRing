@@ -4,9 +4,10 @@ use crate::{
     Plane3D, Point3D, Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D,
 };
 use geo_contracts::{
-    EllipsoidalSolid3DProperties, InfiniteLine3DProjection, InfiniteLine3DProperties,
-    LineSegment3DProjection, LineSegment3DProperties, Plane3DDistance, Plane3DProjection,
-    Ray3DEvaluation, Ray3DProperties, Scalar, SphericalSolid3DProperties,
+    EllipsoidalSolid3DProperties, InfiniteLine3DDistance, InfiniteLine3DProjection,
+    InfiniteLine3DProperties, LineSegment3DDistance, LineSegment3DProjection, Plane3DDistance,
+    Plane3DProjection, Ray3DDistance, Ray3DEvaluation, Ray3DProperties, Scalar,
+    SphericalSolid3DProperties,
 };
 
 fn ellipsoidal_solid3d_point3d_intersection_raw<T: Scalar>(
@@ -37,13 +38,12 @@ fn ellipsoidal_solid3d_plane3d_intersection_raw<T: Scalar>(
     plane: &Plane3D<T>,
     _tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (c0, c1, c2) = EllipsoidalSolid3DProperties::center(ellipsoid);
-    let center = Point3D::new(c0, c1, c2);
+    let center = EllipsoidalSolid3DProperties::center(ellipsoid);
     let max_radius = EllipsoidalSolid3DProperties::a_radius(ellipsoid)
         .max(EllipsoidalSolid3DProperties::b_radius(ellipsoid))
         .max(EllipsoidalSolid3DProperties::c_radius(ellipsoid));
     if plane.distance_to_point(center).abs() <= max_radius {
-        Some(Point3D::new(c0, c1, c2))
+        Some(center)
     } else {
         None
     }
@@ -151,11 +151,8 @@ fn spherical_solid3d_line3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
-    let center = Point3D::new(cx, cy, cz);
-    let line_point = InfiniteLine3DProperties::point(line);
-    let line_dir = InfiniteLine3DProperties::direction(line).as_vector();
-    if sphere.distance_to_infinite_line(&line_point, &line_dir) <= tolerance {
+    let center = SphericalSolid3DProperties::center(sphere);
+    if line.distance_to_point(center) <= sphere.radius() + tolerance {
         Some(line.closest_point(center))
     } else {
         None
@@ -179,10 +176,8 @@ fn spherical_solid3d_ray3d_intersection_raw<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
-    let center = Point3D::new(cx, cy, cz);
-    let ray_direction = ray.direction().as_vector();
-    if sphere.distance_to_ray(&ray.origin(), &ray_direction) <= tolerance {
+    let center = SphericalSolid3DProperties::center(sphere);
+    if ray.distance_to_point(center) <= sphere.radius() + tolerance {
         let parameter = ray.parameter_for_point(center);
         let clamped = if parameter < T::ZERO {
             T::ZERO
@@ -220,9 +215,8 @@ fn spherical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
-    let center = Point3D::new(cx, cy, cz);
-    if sphere.distance_to_line_segment(&segment.start_point(), &segment.end_point()) <= tolerance {
+    let center = SphericalSolid3DProperties::center(sphere);
+    if segment.distance_to_point(center) <= sphere.radius() + tolerance {
         Some(segment.closest_point(center))
     } else {
         None
@@ -246,8 +240,7 @@ fn spherical_solid3d_plane3d_intersection_raw<T: Scalar>(
     plane: &Plane3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
-    let center = Point3D::new(cx, cy, cz);
+    let center = SphericalSolid3DProperties::center(sphere);
     let radius = SphericalSolid3DProperties::radius(sphere);
     if plane.distance_to_point(center).abs() <= radius + tolerance {
         Some(plane.project_point(center))

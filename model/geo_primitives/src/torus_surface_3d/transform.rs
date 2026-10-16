@@ -2,7 +2,7 @@
 
 use crate::SimilarityTransform3D;
 use crate::TorusSurface3D;
-use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
+use geo_contracts::{Scalar, SimilarityTransformable3D, TorusSurface3DConstructor, TransformError};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for TorusSurface3D<T> {
     fn transform_similarity(

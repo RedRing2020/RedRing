@@ -33,9 +33,11 @@ use crate::{
 };
 use analysis::test_constants;
 use geo_contracts::{
-    Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, InfiniteLine3DConstructor,
-    LineSegment3DConstructor, LineSegment3DProperties, LineSegment3DSupportLine,
-    Plane3DConstructor, Ray3DConstructor, Triangle3DConstructor, TriangleMesh3DConstructor,
+    Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, EllipsoidalSolid3DConstructor,
+    InfiniteLine3DConstructor, LineSegment3DConstructor, LineSegment3DProperties,
+    LineSegment3DSupportLine, Plane3DConstructor, Ray3DConstructor, SphericalSolid3DConstructor,
+    SphericalSurface3DConstructor, TorusSurface3DConstructor, Triangle3DConstructor,
+    TriangleMesh3DConstructor,
 };
 
 fn standard_distance_tol() -> f64 {
@@ -483,13 +485,7 @@ fn symmetric_line_segment_intersection_wrappers_match_base_functions() {
 #[test]
 fn spherical_surface_line_like_intersections_return_expected_points() {
     let tolerance = standard_distance_tol();
-    let sphere = SphericalSurface3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        1.0,
-    )
-    .unwrap();
+    let sphere = SphericalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
 
     let segment =
         LineSegment3D::new(Point3D::new(-2.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)).unwrap();
@@ -532,13 +528,7 @@ fn spherical_surface_line_like_intersections_return_expected_points() {
 #[test]
 fn spherical_solid_ray_entrypoints_are_symmetric_wrappers() {
     let tolerance = standard_distance_tol();
-    let sphere = SphericalSolid3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        2.0,
-    )
-    .unwrap();
+    let sphere = SphericalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 2.0).unwrap();
     let ray = Ray3D::new(Point3D::new(-5.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
 
     let a_to_b = spherical_solid3d_ray3d_intersection(&sphere, &ray, tolerance);
@@ -567,13 +557,7 @@ fn reversed_on_support_line(segment: &LineSegment3D<f64>) -> LineSegment3D<f64> 
 #[test]
 fn spherical_solid_line_segment_intersection_handles_reversed_segment() {
     let tolerance = standard_distance_tol();
-    let sphere = SphericalSolid3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        2.0,
-    )
-    .unwrap();
+    let sphere = SphericalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 2.0).unwrap();
     let segment =
         LineSegment3D::new(Point3D::new(-10.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
     let reversed = reversed_on_support_line(&segment);
@@ -607,13 +591,7 @@ fn spherical_solid_line_segment_intersection_handles_reversed_segment() {
 #[test]
 fn spherical_surface_ray_entrypoints_are_symmetric_wrappers() {
     let tolerance = standard_distance_tol();
-    let sphere = SphericalSurface3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        1.0,
-    )
-    .unwrap();
+    let sphere = SphericalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
     let ray = Ray3D::new(Point3D::new(-2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
 
     let a_to_b = spherical_surface3d_ray3d_intersections(&sphere, &ray, tolerance);
@@ -635,15 +613,8 @@ fn spherical_surface_ray_entrypoints_are_symmetric_wrappers() {
 #[test]
 fn ellipsoidal_solid_ray_entrypoints_are_symmetric_wrappers() {
     let tolerance = standard_distance_tol();
-    let ellipsoid = EllipsoidalSolid3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        2.0,
-        1.5,
-        1.0,
-    )
-    .unwrap();
+    let ellipsoid =
+        EllipsoidalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 2.0, 1.5, 1.0).unwrap();
     let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
 
     let a_to_b = ellipsoidal_solid3d_ray3d_intersections(&ellipsoid, &ray, tolerance);
