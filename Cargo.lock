@@ -1150,7 +1150,6 @@ dependencies = [
  "geo_contracts",
  "geo_core",
  "nalgebra 0.33.3",
- "thiserror 1.0.69",
 ]
 
 [[package]]

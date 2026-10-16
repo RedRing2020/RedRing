@@ -7,7 +7,7 @@ use std::path::Path;
 
 use geo_algorithms::{
     AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings, NurbsCurve3D,
-    NurbsCurveAdaptiveTessellation,
+    NurbsCurveAdaptiveTessellation, Point3D,
 };
 use geo_contracts::NurbsCurve3DConstructor;
 use geo_io::svg::{parse_svg_file, SvgError};
@@ -42,10 +42,14 @@ pub fn load_nurbs_curve_eval_from_svg(
     let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
         nurbs_data.degree,
         nurbs_data.knots.clone(),
-        nurbs_data.control_points.clone(),
+        &nurbs_data
+            .control_points
+            .iter()
+            .map(|&(x, y, z)| Point3D::new(x, y, z))
+            .collect::<Vec<_>>(),
         nurbs_data.weights.clone(),
     )
-    .map_err(NurbsEvalLoaderError::ConstructionError)?;
+    .map_err(|e| NurbsEvalLoaderError::ConstructionError(e.to_string()))?;
 
     let settings = AdaptiveTessellationSettings::default_with_tolerance(tolerance);
     let param_list = NurbsCurveAdaptiveTessellation::adaptive_params_curve(&curve, &settings);

@@ -1,56 +1,51 @@
-//! NurbsCurve2D の trait定義を capability taxonomy に沿って分離する。
+//! NurbsCurve2D 形状の契約定義
+//!
+//! geo_nurbs が実装すべき 2 次元 NURBS 曲線の公開 trait。
 
-use crate::Scalar;
+use crate::{NurbsError, Point2D, Scalar, Vector2D};
 
-/// NurbsCurve2D の生成 trait
-pub trait NurbsCurve2DConstructor<T: Scalar> {
-    /// NURBS曲線を作成
+pub trait NurbsCurve2DConstructor<T: Scalar>: Sized {
+    /// 次数・ノットベクトル・制御点・重みから作成する
     ///
-    /// # Arguments
-    /// * `control_points` - 制御点配列 [(x, y), ...]
-    /// * `weights` - 重み配列（Noneの場合は非有理曲線）
-    /// * `knot_vector` - ノットベクトル
-    /// * `degree` - NURBS次数
-    ///
-    /// # Errors
-    /// * 制御点数が次数+1未満の場合
-    /// * ノットベクトルが無効な場合
-    /// * 重み配列のサイズが制御点数と一致しない場合
+    /// 重みが `None` の場合は非有理（すべての重みが 1）。ノットベクトルの長さは 制御点の数 + 次数 + 1 で、
+    /// 両端のノットは 次数 + 1 回以上重複する（クランプ）必要がある。
     fn new(
-        control_points: &[(T, T)],
-        weights: Option<Vec<T>>,
-        knot_vector: Vec<T>,
         degree: usize,
-    ) -> Result<Self, String>
-    where
-        Self: Sized;
+        knots: Vec<T>,
+        control_points: &[Point2D<T>],
+        weights: Option<Vec<T>>,
+    ) -> Result<Self, NurbsError>;
 }
 
-/// NurbsCurve2D の定義パラメータ
 pub trait NurbsCurve2DProperties<T: Scalar> {
-    /// NURBS次数を取得
     fn degree(&self) -> usize;
-
-    /// 制御点数を取得
-    fn num_control_points(&self) -> usize;
-
-    /// ノットベクトルへの参照を取得
     fn knot_vector(&self) -> &[T];
-
-    /// 曲線の次元数を取得（2D曲線の場合は2）
-    fn dimension(&self) -> usize {
-        2
-    }
+    fn control_point_count(&self) -> usize;
+    /// `index` 番目の制御点（範囲外は `None`）
+    fn control_point(&self, index: usize) -> Option<Point2D<T>>;
+    /// `index` 番目の制御点の重み（非有理の曲線では 1。範囲外は `None`）
+    fn weight(&self, index: usize) -> Option<T>;
+    /// 制御点の座標を並べた配列 `[x0, y0, x1, y1, ...]`（GPU 等への受け渡し用）
+    fn coordinates(&self) -> &[T];
+    /// 制御点の重みの配列（非有理の曲線では `None`。GPU 等への受け渡し用）
+    fn weights(&self) -> Option<&[T]>;
+    /// パラメータの定義域 `(開始, 終了)`
+    fn parameter_domain(&self) -> (T, T);
 }
 
-/// NurbsCurve2D の評価
 pub trait NurbsCurve2DEvaluation<T: Scalar> {
-    /// パラメータ t での曲線上の点を計算
-    fn point_at(&self, t: T) -> (T, T);
+    /// パラメータ `t` での曲線上の点
+    ///
+    /// 定義域から距離トレランス分を超えて外れる `t` と、有限でない `t` は `None` を返す。
+    fn point_at_parameter(&self, t: T) -> Option<Point2D<T>>;
+
+    /// パラメータ `t` での 1 階導関数（接線ベクトル）
+    ///
+    /// 定義域から距離トレランス分を超えて外れる `t` と、有限でない `t` は `None` を返す。
+    fn derivative_at(&self, t: T) -> Option<Vector2D<T>>;
 }
 
-/// NurbsCurve2D の派生量
 pub trait NurbsCurve2DDerived<T: Scalar> {
-    /// 曲線の長さを計算（数値積分により近似計算）
+    /// 定義域全体の曲線の長さ（既定の距離トレランスまでの数値積分）
     fn length(&self) -> T;
 }

@@ -47,7 +47,7 @@ impl NurbsCurveEvalData {
         let knots: Vec<f32> = curve.knot_vector().iter().map(|k| k.to_f32()).collect();
 
         // 制御点のflatten: coordinates()で直接フラット配列を取得
-        let num_cp = curve.control_points_count();
+        let num_cp = curve.control_point_count();
         let control_points: Vec<f32> = curve.coordinates().iter().map(|c| c.to_f32()).collect();
 
         // 重みの変換（Foundationトレイトメソッド使用）
@@ -109,7 +109,7 @@ impl NurbsCurveEvalData {
 mod tests {
     use super::*;
     use geo_algorithms::{
-        AdaptiveTessellationSettings, NurbsCurve3D, NurbsCurveAdaptiveTessellation,
+        AdaptiveTessellationSettings, NurbsCurve3D, NurbsCurveAdaptiveTessellation, Point3D,
     };
     use geo_contracts::NurbsCurve3DConstructor;
 
@@ -119,7 +119,7 @@ mod tests {
         let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
             1,
             vec![0.0, 0.0, 1.0, 1.0],
-            vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)],
+            &[Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)],
             None,
         )
         .unwrap();

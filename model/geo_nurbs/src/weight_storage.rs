@@ -15,4 +15,20 @@ pub enum WeightStorage<T: Scalar> {
     Individual(Vec<T>),
 }
 
-impl<T: Scalar> WeightStorage<T> {}
+impl<T: Scalar> WeightStorage<T> {
+    /// `index` 番目の制御点の重み（非有理は 1）
+    pub(crate) fn weight(&self, index: usize) -> T {
+        match self {
+            Self::Uniform => T::ONE,
+            Self::Individual(weights) => weights[index],
+        }
+    }
+
+    /// 重みの配列（非有理は `None`）
+    pub(crate) fn as_slice(&self) -> Option<&[T]> {
+        match self {
+            Self::Uniform => None,
+            Self::Individual(weights) => Some(weights),
+        }
+    }
+}

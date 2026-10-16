@@ -57,29 +57,14 @@ pub mod solver {
     }
 }
 
-/// 最大サポート次数
-pub const MAX_DEGREE: usize = 10;
-
-/// 最小制御点数（線形曲線の場合）
-pub const MIN_CONTROL_POINTS: usize = 2;
-
 /// NURBS最近接パラメータ探索で使う境界付きニュートン法の最大反復回数
 pub const NEWTON_MAX_ITER: usize = 20;
-
-/// 曲線長近似で使うデフォルト分割数
-pub const CURVE_LENGTH_SUBDIVISIONS: usize = 100;
 
 /// 曲面積近似で使うデフォルト分割数
 pub const SURFACE_AREA_SUBDIVISIONS: usize = 20;
 
-/// 弧長近似サンプリング数の最小値
-pub const ARC_LENGTH_MIN_SAMPLES: usize = 10;
-
-/// 弧長近似サンプリング数の最大値
-pub const ARC_LENGTH_MAX_SAMPLES: usize = 1000;
-
-/// 弧長->パラメータ逆算時の最大反復回数
-pub const PARAMETER_AT_LENGTH_MAX_ITER: usize = 50;
+/// 曲線の長さの数値積分で、ノット区間を 2 等分する最大の深さ
+pub const LENGTH_MAX_BISECTION_DEPTH: usize = 20;
 
 #[cfg(test)]
 mod tests {

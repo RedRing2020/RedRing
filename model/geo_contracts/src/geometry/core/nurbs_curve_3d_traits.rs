@@ -1,54 +1,51 @@
-//! NurbsCurve3D の trait定義を capability taxonomy に沿って分離する。
+//! NurbsCurve3D 形状の契約定義
+//!
+//! geo_nurbs が実装すべき 3 次元 NURBS 曲線の公開 trait。
 
-use crate::Scalar;
+use crate::{NurbsError, Point3D, Scalar, Vector3D};
 
-/// NurbsCurve3D の生成 trait
-pub trait NurbsCurve3DConstructor<T: Scalar> {
-    /// 基本コンストラクタ（次数、ノット、制御点、重み）
+pub trait NurbsCurve3DConstructor<T: Scalar>: Sized {
+    /// 次数・ノットベクトル・制御点・重みから作成する
     ///
-    /// # 引数
-    /// * `degree` - NURBS曲線の次数（1=線形、2=2次、3=3次）
-    /// * `knots` - ノットベクトル
-    /// * `control_points` - 制御点配列（x,y,z座標のタプル）
-    /// * `weights` - 重み配列（Noneの場合は非有理曲線）
+    /// 重みが `None` の場合は非有理（すべての重みが 1）。ノットベクトルの長さは 制御点の数 + 次数 + 1 で、
+    /// 両端のノットは 次数 + 1 回以上重複する（クランプ）必要がある。
     fn new(
         degree: usize,
         knots: Vec<T>,
-        control_points: Vec<(T, T, T)>,
+        control_points: &[Point3D<T>],
         weights: Option<Vec<T>>,
-    ) -> Result<Self, String>
-    where
-        Self: Sized;
+    ) -> Result<Self, NurbsError>;
 }
 
-/// NurbsCurve3D の定義パラメータ
 pub trait NurbsCurve3DProperties<T: Scalar> {
-    /// NURBS曲線の次数を取得
     fn degree(&self) -> usize;
-
-    /// ノットベクトルへの参照を取得
     fn knot_vector(&self) -> &[T];
-
-    /// 制御点の数を取得
-    fn control_points_count(&self) -> usize;
-
-    /// 重み配列への参照を取得
-    fn weights(&self) -> Option<&[T]>;
-
-    /// パラメータ定義域を取得 (u_min, u_max)
-    fn parameter_domain(&self) -> (T, T);
-
-    /// 全制御点座標のflattened配列への参照を取得
-    ///
-    /// [x0, y0, z0, x1, y1, z1, ...] の形式のスライス参照
+    fn control_point_count(&self) -> usize;
+    /// `index` 番目の制御点（範囲外は `None`）
+    fn control_point(&self, index: usize) -> Option<Point3D<T>>;
+    /// `index` 番目の制御点の重み（非有理の曲線では 1。範囲外は `None`）
+    fn weight(&self, index: usize) -> Option<T>;
+    /// 制御点の座標を並べた配列 `[x0, y0, z0, x1, y1, z1, ...]`（GPU 等への受け渡し用）
     fn coordinates(&self) -> &[T];
+    /// 制御点の重みの配列（非有理の曲線では `None`。GPU 等への受け渡し用）
+    fn weights(&self) -> Option<&[T]>;
+    /// パラメータの定義域 `(開始, 終了)`
+    fn parameter_domain(&self) -> (T, T);
 }
 
-/// NurbsCurve3D の派生量
-pub trait NurbsCurve3DDerived<T: Scalar> {
-    /// 指定されたパラメータ範囲の曲線長を計算（数値積分）
-    fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T;
+pub trait NurbsCurve3DEvaluation<T: Scalar> {
+    /// パラメータ `t` での曲線上の点
+    ///
+    /// 定義域から距離トレランス分を超えて外れる `t` と、有限でない `t` は `None` を返す。
+    fn point_at_parameter(&self, t: T) -> Option<Point3D<T>>;
 
-    /// 曲線全体の長さを計算
-    fn arc_length_total(&self, tolerance: T) -> T;
+    /// パラメータ `t` での 1 階導関数（接線ベクトル）
+    ///
+    /// 定義域から距離トレランス分を超えて外れる `t` と、有限でない `t` は `None` を返す。
+    fn derivative_at(&self, t: T) -> Option<Vector3D<T>>;
+}
+
+pub trait NurbsCurve3DDerived<T: Scalar> {
+    /// 定義域全体の曲線の長さ（既定の距離トレランスまでの数値積分）
+    fn length(&self) -> T;
 }

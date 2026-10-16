@@ -8,11 +8,13 @@ mod bounds;
 mod tests;
 mod transform;
 
-use crate::{constants, KnotVector, NurbsError, Result, Scalar, WeightStorage};
-use analysis::linalg::vector::Vector2;
+use crate::curve_evaluation::{validate_curve, CurveDefinition};
+use crate::{KnotVector, Scalar, WeightStorage};
 use geo_contracts::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
+    NurbsError,
 };
+use geo_core::{Point2D, Vector2D};
 
 /// NURBS曲線 - 2次元（Foundation パターン準拠・ジェネリック）
 ///
@@ -46,91 +48,23 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for NurbsCurve2D<T> {
 }
 
 impl<T: Scalar> NurbsCurve2D<T> {
-    /// 内部用コンストラクタ（クレート内専用）
-    ///
-    /// # 引数
-    /// * `control_points` - 制御点座標配列 [(x, y), ...]
-    /// * `weights` - 重み配列（Noneの場合は非有理）
-    /// * `knot_vector` - ノットベクトル
-    /// * `degree` - NURBS次数
-    ///
-    /// # Errors
-    /// * 制御点数が次数+1未満の場合
-    /// * ノットベクトルが無効な場合
-    /// * 重み配列のサイズが制御点数と一致しない場合
-    fn new_internal(
-        control_points: &[Vector2<T>],
-        weights: Option<Vec<T>>,
-        knot_vector: KnotVector<T>,
-        degree: usize,
-    ) -> Result<Self> {
-        let num_points = control_points.len();
-
-        // 基本的なバリデーション
-        if num_points < degree + 1 {
-            return Err(NurbsError::InsufficientControlPoints {
-                actual: num_points,
-                required: degree + 1,
-                degree,
-            });
+    /// 評価に使う曲線の定義
+    fn definition(&self) -> CurveDefinition<'_, T, 2> {
+        CurveDefinition {
+            coordinates: &self.coordinates,
+            weights: &self.weights,
+            knots: &self.knot_vector,
+            degree: self.degree,
         }
-
-        // フラット座標配列を構築
-        let mut coordinates = Vec::with_capacity(num_points * 2);
-        for point in control_points {
-            coordinates.push(point.x());
-            coordinates.push(point.y());
-        }
-
-        // 重み配列を処理
-        let weight_storage = if let Some(weight_vec) = weights {
-            if weight_vec.len() != num_points {
-                return Err(NurbsError::WeightCountMismatch {
-                    actual: weight_vec.len(),
-                    expected: num_points,
-                });
-            }
-
-            // 重みの検証
-            for &weight in &weight_vec {
-                if weight <= T::ZERO {
-                    return Err(NurbsError::InvalidWeight {
-                        weight: weight.to_f64(),
-                    });
-                }
-            }
-
-            WeightStorage::Individual(weight_vec)
-        } else {
-            WeightStorage::Uniform
-        };
-
-        // ノットベクトルの検証
-        crate::knot::validate_knot_vector(&knot_vector, degree, num_points)?;
-
-        Ok(NurbsCurve2D {
-            coordinates,
-            weights: weight_storage,
-            knot_vector,
-            degree,
-            num_points,
-        })
-    }
-
-    /// 制御点アクセス用インデックス計算
-    #[inline]
-    fn control_point_index(&self, index: usize) -> usize {
-        debug_assert!(index < self.num_points);
-        index * 2
     }
 
     /// 制御点の座標のみを写像した曲線を返す（重み・ノットベクトル・次数は保持する）
-    fn map_control_points(&self, f: impl Fn((T, T)) -> (T, T)) -> Self {
+    fn map_control_points(&self, f: impl Fn(Point2D<T>) -> Point2D<T>) -> Self {
         let mut coordinates = Vec::with_capacity(self.coordinates.len());
         let (points, _) = self.coordinates.as_chunks::<2>();
         for &[x, y] in points {
-            let (x, y) = f((x, y));
-            coordinates.extend([x, y]);
+            let p = f(Point2D::new(x, y));
+            coordinates.extend([p.x(), p.y()]);
         }
         Self {
             coordinates,
@@ -140,137 +74,25 @@ impl<T: Scalar> NurbsCurve2D<T> {
             num_points: self.num_points,
         }
     }
-
-    /// 制御点取得
-    #[must_use]
-    pub fn control_point(&self, index: usize) -> Vector2<T> {
-        let base = self.control_point_index(index);
-        Vector2::new(self.coordinates[base], self.coordinates[base + 1])
-    }
-
-    /// 重み取得
-    #[must_use]
-    pub fn weight(&self, index: usize) -> T {
-        match &self.weights {
-            WeightStorage::Uniform => T::ONE,
-            WeightStorage::Individual(weights) => weights[index],
-        }
-    }
-
-    /// 制御点数を取得
-    #[must_use]
-    pub fn num_points(&self) -> usize {
-        self.num_points
-    }
-
-    /// フラット座標配列への参照を取得
-    #[must_use]
-    pub fn coordinates(&self) -> &[T] {
-        &self.coordinates
-    }
-
-    /// 重みストレージへの参照を取得
-    #[must_use]
-    pub fn weights(&self) -> &WeightStorage<T> {
-        &self.weights
-    }
-
-    /// ノットベクトルを取得
-    #[must_use]
-    pub fn knot_vector(&self) -> &KnotVector<T> {
-        &self.knot_vector
-    }
-
-    /// 次数を取得
-    #[must_use]
-    pub fn degree(&self) -> usize {
-        self.degree
-    }
-
-    /// パラメータ定義域を取得
-    #[must_use]
-    pub fn parameter_domain(&self) -> (T, T) {
-        crate::knot::get_parameter_domain(&self.knot_vector, self.degree)
-    }
-
-    /// 指定パラメータでの曲線上の点を計算
-    pub fn evaluate_at(&self, t: T) -> Vector2<T> {
-        let span = crate::knot::find_knot_span(t, &self.knot_vector, self.degree);
-        let basis = crate::basis::basis_functions(span, self.degree, t, &self.knot_vector);
-
-        let mut numerator_x = T::ZERO;
-        let mut numerator_y = T::ZERO;
-        let mut denominator = T::ZERO;
-
-        for (i, &basis_value) in basis.iter().enumerate().take(self.degree + 1) {
-            let control_index = span - self.degree + i;
-            if control_index < self.num_points {
-                let control_point = self.control_point(control_index);
-                let weight = self.weight(control_index);
-                let basis_weight = basis_value * weight;
-
-                numerator_x += control_point.x() * basis_weight;
-                numerator_y += control_point.y() * basis_weight;
-                denominator += basis_weight;
-            }
-        }
-
-        Vector2::new(numerator_x / denominator, numerator_y / denominator)
-    }
-
-    /// 指定パラメータでの1次導関数を計算
-    pub fn derivative_at(&self, t: T) -> Vector2<T> {
-        let h = constants::solver::derivative_step::<T>();
-        let p1 = self.evaluate_at(t - h);
-        let p2 = self.evaluate_at(t + h);
-
-        let dx = (p2.x() - p1.x()) / (h + h);
-        let dy = (p2.y() - p1.y()) / (h + h);
-
-        Vector2::new(dx, dy)
-    }
-
-    /// 曲線の長さを近似計算
-    #[must_use]
-    pub fn approximate_length(&self, subdivisions: usize) -> T {
-        if subdivisions == 0 {
-            return T::ZERO;
-        }
-
-        let (t_min, t_max) = self.parameter_domain();
-        let dt = (t_max - t_min) / T::from_usize(subdivisions);
-
-        let mut total_length = T::ZERO;
-        let mut prev_point = self.evaluate_at(t_min);
-
-        for i in 1..=subdivisions {
-            let t = t_min + dt * T::from_usize(i);
-            let current_point = self.evaluate_at(t);
-
-            let segment_length = (current_point - prev_point).norm();
-
-            total_length += segment_length;
-            prev_point = current_point;
-        }
-
-        total_length
-    }
 }
 
 impl<T: Scalar> NurbsCurve2DConstructor<T> for NurbsCurve2D<T> {
     fn new(
-        control_points: &[(T, T)],
-        weights: Option<Vec<T>>,
-        knot_vector: Vec<T>,
         degree: usize,
-    ) -> std::result::Result<Self, String> {
-        // (x,y)タプルをVector2に変換
-        let points: Vec<Vector2<T>> = control_points
-            .iter()
-            .map(|&(x, y)| Vector2::new(x, y))
-            .collect();
+        knots: Vec<T>,
+        control_points: &[Point2D<T>],
+        weights: Option<Vec<T>>,
+    ) -> Result<Self, NurbsError> {
+        let weights = validate_curve(degree, &knots, control_points.len(), weights)?;
+        let coordinates = control_points.iter().flat_map(|p| [p.x(), p.y()]).collect();
 
-        Self::new_internal(&points, weights, knot_vector, degree).map_err(|e| e.to_string())
+        Ok(Self {
+            coordinates,
+            weights,
+            knot_vector: knots,
+            degree,
+            num_points: control_points.len(),
+        })
     }
 }
 
@@ -279,24 +101,52 @@ impl<T: Scalar> NurbsCurve2DProperties<T> for NurbsCurve2D<T> {
         self.degree
     }
 
-    fn num_control_points(&self) -> usize {
+    fn knot_vector(&self) -> &[T] {
+        &self.knot_vector
+    }
+
+    fn control_point_count(&self) -> usize {
         self.num_points
     }
 
-    fn knot_vector(&self) -> &[T] {
-        &self.knot_vector
+    fn control_point(&self, index: usize) -> Option<Point2D<T>> {
+        let [x, y] = self.coordinates.as_chunks::<2>().0.get(index)?;
+        Some(Point2D::new(*x, *y))
+    }
+
+    fn weight(&self, index: usize) -> Option<T> {
+        (index < self.num_points).then(|| self.weights.weight(index))
+    }
+
+    fn coordinates(&self) -> &[T] {
+        &self.coordinates
+    }
+
+    fn weights(&self) -> Option<&[T]> {
+        self.weights.as_slice()
+    }
+
+    fn parameter_domain(&self) -> (T, T) {
+        self.definition().parameter_domain()
     }
 }
 
 impl<T: Scalar> NurbsCurve2DEvaluation<T> for NurbsCurve2D<T> {
-    fn point_at(&self, t: T) -> (T, T) {
-        let point = self.evaluate_at(t);
-        (point.x(), point.y())
+    fn point_at_parameter(&self, t: T) -> Option<Point2D<T>> {
+        let definition = self.definition();
+        let ([x, y], _) = definition.point_and_derivative(definition.clamp_to_domain(t)?);
+        Some(Point2D::new(x, y))
+    }
+
+    fn derivative_at(&self, t: T) -> Option<Vector2D<T>> {
+        let definition = self.definition();
+        let (_, [x, y]) = definition.point_and_derivative(definition.clamp_to_domain(t)?);
+        Some(Vector2D::new(x, y))
     }
 }
 
 impl<T: Scalar> NurbsCurve2DDerived<T> for NurbsCurve2D<T> {
     fn length(&self) -> T {
-        self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS)
+        self.definition().length()
     }
 }

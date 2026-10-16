@@ -15,6 +15,7 @@ pub mod infinite_line_traits;
 pub mod linesegment_traits;
 pub mod nurbs_curve_2d_traits;
 pub mod nurbs_curve_3d_traits;
+pub mod nurbs_error;
 pub mod nurbs_surface_3d_traits;
 pub mod plane3d_traits;
 pub mod ray_traits;
@@ -90,8 +91,9 @@ pub use nurbs_curve_2d_traits::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
 };
 pub use nurbs_curve_3d_traits::{
-    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DProperties,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
 };
+pub use nurbs_error::NurbsError;
 pub use nurbs_surface_3d_traits::{
     NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
     NurbsSurface3DProperties,
