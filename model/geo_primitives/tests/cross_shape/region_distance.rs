@@ -2,10 +2,10 @@
 
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    ConicalSolid3DDistance, EllipsoidalSolid3DConstructor, EllipsoidalSolid3DDistance,
-    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DDistance, SphericalSolid3DConstructor,
-    SphericalSolid3DDistance, TorusSolid3DConstructor, TorusSolid3DDistance, Triangle3DConstructor,
-    Triangle3DDistance,
+    ConicalSolid3DConstructor, ConicalSolid3DDistance, EllipsoidalSolid3DConstructor,
+    EllipsoidalSolid3DDistance, EllipsoidalSurface3DConstructor, EllipsoidalSurface3DDistance,
+    SphericalSolid3DConstructor, SphericalSolid3DDistance, TorusSolid3DConstructor,
+    TorusSolid3DDistance, Triangle3DConstructor, Triangle3DDistance,
 };
 use geo_primitives::{
     ConicalSolid3D, EllipsoidalSolid3D, EllipsoidalSurface3D, Point3D, SphericalSolid3D,
@@ -59,8 +59,9 @@ fn torus_distance_is_distance_to_region() {
 fn cone_distance_is_exact_distance_to_region() {
     // 底面の半径 2・高さ 4、底面の中心が原点で Z 軸方向に頂点がある円錐
     let cone = ConicalSolid3D::new_standard(Point3D::new(0.0_f64, 0.0, 0.0), 2.0, 4.0).unwrap();
-    let distance =
-        |x: f64, y: f64, z: f64| ConicalSolid3DDistance::distance_to_point(&cone, (x, y, z));
+    let distance = |x: f64, y: f64, z: f64| {
+        ConicalSolid3DDistance::distance_to_point(&cone, Point3D::new(x, y, z))
+    };
 
     // 底面の縁・頂点・底面の外側の点
     assert!((distance(5.0, 0.0, 0.0) - 3.0).abs() < TOLERANCE_F64);

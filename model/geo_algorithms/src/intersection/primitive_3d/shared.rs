@@ -2,8 +2,8 @@ use crate::{
     ConicalSolid3D, ConicalSurface3D, LineSegment3D, Point3D, SphericalSurface3D, Triangle3D,
 };
 use geo_contracts::{
-    ConicalSolid3DContainment, ConicalSurface3DProperties, LineSegment3DProperties, Scalar,
-    SphericalSurface3DProperties, Triangle3DBoundaryAccess,
+    ConicalSolid3DDistance, ConicalSurface3DDistance, ConicalSurface3DProperties,
+    LineSegment3DProperties, Scalar, SphericalSurface3DProperties, Triangle3DBoundaryAccess,
 };
 
 pub(crate) fn point_intersection_if<T: Scalar>(
@@ -31,11 +31,7 @@ pub(crate) fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    ConicalSolid3DContainment::contains_point_tolerance(
-        cone,
-        (point.x(), point.y(), point.z()),
-        tolerance,
-    )
+    cone.distance_to_point(*point) <= tolerance
 }
 
 pub(crate) fn triangle3d_vertex_points<T: Scalar>(triangle: &Triangle3D<T>) -> [Point3D<T>; 3] {
@@ -100,26 +96,21 @@ pub(crate) fn conical_surface3d_intersect_params<T: Scalar>(
     direction: &crate::Vector3D<T>,
     tolerance: T,
 ) -> [Option<T>; 2] {
-    let (cx, cy, cz) = ConicalSurface3DProperties::apex(cone);
-    let h = ConicalSurface3DProperties::height(cone);
-    let (dx, dy, dz) = ConicalSurface3DProperties::axis(cone);
-    let r = ConicalSurface3DProperties::radius(cone);
-
-    if h.abs() <= tolerance || r.abs() <= tolerance {
-        return [None, None];
-    }
-
-    let apex_x = cx - h * dx;
-    let apex_y = cy - h * dy;
-    let apex_z = cz - h * dz;
-    let k = (h * h) / (h * h + r * r);
+    // 頂点を原点とする二重円錐 ((p - apex)·axis)² = cos²(半頂角) |p - apex|² と直線の交点
+    let apex = ConicalSurface3DProperties::apex(cone);
+    let d = ConicalSurface3DProperties::axis(cone);
+    let cos = ConicalSurface3DProperties::semi_angle(cone).cos();
+    let apex_x = apex.x();
+    let apex_y = apex.y();
+    let apex_z = apex.z();
+    let k = cos * cos;
 
     let det_x = origin.x() - apex_x;
     let det_y = origin.y() - apex_y;
     let det_z = origin.z() - apex_z;
 
-    let ld = direction.x() * dx + direction.y() * dy + direction.z() * dz;
-    let dd = det_x * dx + det_y * dy + det_z * dz;
+    let ld = direction.x() * d.x() + direction.y() * d.y() + direction.z() * d.z();
+    let dd = det_x * d.x() + det_y * d.y() + det_z * d.z();
     let ll = direction.x() * direction.x()
         + direction.y() * direction.y()
         + direction.z() * direction.z();
@@ -169,7 +160,7 @@ pub(crate) fn conical_surface3d_filter_params<T: Scalar>(
             origin.y() + t * direction.y(),
             origin.z() + t * direction.z(),
         );
-        if cone.contains_point(&p, tolerance) {
+        if cone.distance_to_point(p) <= tolerance {
             pts.push(p);
         }
     }

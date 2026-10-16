@@ -2,20 +2,17 @@
 
 use geo_contracts::PointClassification::{Inside, OnBoundary, Outside};
 use geo_contracts::{
-    default_distance_tolerance, ConicalSolid3DContainment, CylindricalSolid3DContainment,
-    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, PointClassification,
-    Rect2DConstructor, Rect2DContainment, Rect3DConstructor, Rect3DContainment,
-    SphericalSolid3DConstructor, SphericalSolid3DContainment, TorusSolid3DConstructor,
-    TorusSolid3DContainment, Triangle2DConstructor, Triangle2DContainment, Triangle3DConstructor,
-    Triangle3DContainment,
+    default_distance_tolerance, ConicalSolid3DConstructor, ConicalSolid3DContainment,
+    CylindricalSolid3DConstructor, CylindricalSolid3DContainment, EllipsoidalSolid3DConstructor,
+    EllipsoidalSolid3DContainment, PointClassification, Rect2DConstructor, Rect2DContainment,
+    Rect3DConstructor, Rect3DContainment, SphericalSolid3DConstructor, SphericalSolid3DContainment,
+    TorusSolid3DConstructor, TorusSolid3DContainment, Triangle2DConstructor, Triangle2DContainment,
+    Triangle3DConstructor, Triangle3DContainment,
 };
 use geo_primitives::{
     ConicalSolid3D, CylindricalSolid3D, Direction3D, EllipsoidalSolid3D, Point2D, Point3D, Rect2D,
     Rect3D, SphericalSolid3D, TorusSolid3D, Triangle2D, Triangle3D, Vector3D,
 };
-
-/// 円柱・円錐の分類に渡す許容誤差
-const TOLERANCE: f64 = 1e-3;
 
 /// 境界上の点 `on` と、境界の内向き単位ベクトル `inward` について、許容誤差 `tolerance` の境目の分類を確かめる
 fn assert_boundary_band_3d(
@@ -221,8 +218,8 @@ fn ellipsoidal_solid_classify_point() {
 #[test]
 fn cylindrical_solid_classify_point() {
     // 底面の中心が原点、Z 軸方向に高さ 4、半径 2 の円柱
-    let cylinder = CylindricalSolid3D::new_z_axis(Point3D::new(0.0, 0.0, 0.0), 2.0, 4.0).unwrap();
-    let classify = |point: Point3D<f64>| cylinder.classify_point(&point, TOLERANCE);
+    let cylinder = CylindricalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 2.0, 4.0).unwrap();
+    let classify = |point: Point3D<f64>| cylinder.classify_point(point);
 
     assert_eq!(classify(Point3D::new(0.0, 0.0, 2.0)), Inside);
     assert_eq!(classify(Point3D::new(3.0, 0.0, 2.0)), Outside);
@@ -233,24 +230,24 @@ fn cylindrical_solid_classify_point() {
         classify,
         Point3D::new(2.0, 0.0, 2.0),
         Vector3D::new(-1.0, 0.0, 0.0),
-        TOLERANCE,
+        default_distance_tolerance::<f64>(),
     );
     assert_boundary_band_3d(
         classify,
         Point3D::new(0.5, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
-        TOLERANCE,
+        default_distance_tolerance::<f64>(),
     );
     assert_boundary_band_3d(
         classify,
         Point3D::new(0.5, 0.0, 4.0),
         Vector3D::new(0.0, 0.0, -1.0),
-        TOLERANCE,
+        default_distance_tolerance::<f64>(),
     );
     assert_eq!(classify(Point3D::new(2.0, 0.0, 4.0)), OnBoundary);
 
     assert_eq!(
-        CylindricalSolid3DContainment::classify_point(&cylinder, (1.0, 0.0, 1.0)),
+        CylindricalSolid3DContainment::classify_point(&cylinder, Point3D::new(1.0, 0.0, 1.0)),
         Inside
     );
 }
@@ -259,7 +256,7 @@ fn cylindrical_solid_classify_point() {
 fn conical_solid_classify_point() {
     // 底面の半径 2・高さ 4、底面の中心が原点で Z 軸方向に頂点がある円錐
     let cone = ConicalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 2.0, 4.0).unwrap();
-    let classify = |point: Point3D<f64>| cone.classify_point(point, TOLERANCE);
+    let classify = |point: Point3D<f64>| cone.classify_point(point);
 
     assert_eq!(classify(Point3D::new(0.0, 0.0, 1.0)), Inside);
     assert_eq!(classify(Point3D::new(3.0, 0.0, 1.0)), Outside);
@@ -269,14 +266,14 @@ fn conical_solid_classify_point() {
         classify,
         Point3D::new(0.5, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
-        TOLERANCE,
+        default_distance_tolerance::<f64>(),
     );
     let sqrt5 = 5.0_f64.sqrt();
     assert_boundary_band_3d(
         classify,
         Point3D::new(1.0, 0.0, 2.0),
         Vector3D::new(-2.0 / sqrt5, 0.0, -1.0 / sqrt5),
-        TOLERANCE,
+        default_distance_tolerance::<f64>(),
     );
     assert_eq!(classify(Point3D::new(0.0, 0.0, 4.0)), OnBoundary);
 
@@ -284,7 +281,7 @@ fn conical_solid_classify_point() {
     assert_eq!(classify(Point3D::new(0.0, 0.0, 2.0)), Inside);
 
     assert_eq!(
-        ConicalSolid3DContainment::classify_point(&cone, (0.0, 0.0, 1.0)),
+        ConicalSolid3DContainment::classify_point(&cone, Point3D::new(0.0, 0.0, 1.0)),
         Inside
     );
 }

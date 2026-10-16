@@ -238,10 +238,7 @@ pub fn cylindrical_solid3d_point3d_distance<T: Scalar>(
     cyl: &CylindricalSolid3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
-        cyl,
-        (point.x(), point.y(), point.z()),
-    )
+    <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(cyl, *point)
 }
 
 /// 逆向きラッパー: point-cylindrical_solid
@@ -257,10 +254,7 @@ pub fn cylindrical_surface3d_point3d_distance<T: Scalar>(
     cyl: &CylindricalSurface3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (point.x(), point.y(), point.z()),
-    )
+    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(cyl, *point)
 }
 
 /// 逆向きラッパー: point-cylindrical_surface
@@ -310,10 +304,7 @@ pub fn conical_surface3d_point3d_distance<T: Scalar>(
     cone: &ConicalSurface3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    <ConicalSurface3D<T> as ConicalSurface3DDistance<T>>::distance_to_point(
-        cone,
-        (point.x(), point.y(), point.z()),
-    )
+    <ConicalSurface3D<T> as ConicalSurface3DDistance<T>>::distance_to_point(cone, *point)
 }
 
 /// 逆向きラッパー: point-conical_surface

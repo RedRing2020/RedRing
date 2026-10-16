@@ -59,7 +59,7 @@ pub use triangle_2d::Triangle2D;
 pub use arc_3d::Arc3D;
 pub use circle_3d::Circle3D;
 pub use conical_solid_3d::ConicalSolid3D;
-pub use conical_surface_3d::{ConeRim3D, ConicalSurface3D};
+pub use conical_surface_3d::ConicalSurface3D;
 pub use cylindrical_solid_3d::CylindricalSolid3D;
 pub use cylindrical_surface_3d::CylindricalSurface3D;
 pub use ellipse_3d::Ellipse3D;

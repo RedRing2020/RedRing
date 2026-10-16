@@ -33,7 +33,8 @@ use crate::{
 };
 use analysis::test_constants;
 use geo_contracts::{
-    Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, EllipsoidalSolid3DConstructor,
+    Arc3DConstructor, Circle3DConstructor, ConicalSolid3DConstructor, ConicalSurface3DConstructor,
+    CylindricalSurface3DConstructor, Ellipse3DConstructor, EllipsoidalSolid3DConstructor,
     InfiniteLine3DConstructor, LineSegment3DConstructor, LineSegment3DProperties,
     LineSegment3DSupportLine, Plane3DConstructor, Ray3DConstructor, SphericalSolid3DConstructor,
     SphericalSurface3DConstructor, TorusSurface3DConstructor, Triangle3DConstructor,
@@ -385,7 +386,7 @@ fn torus_surface_point_intersection_uses_surface_distance() {
 
 #[test]
 fn cylindrical_surface_point_intersection_uses_surface_distance() {
-    let cyl = CylindricalSurface3D::new_z_axis(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
+    let cyl = CylindricalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
 
     let on_surface = Point3D::new(1.0, 0.0, 0.5);
     let off_surface = Point3D::new(2.0, 0.0, 0.5);
@@ -716,14 +717,7 @@ fn ellipse_ray_entrypoints_are_symmetric_wrappers() {
 #[test]
 fn conical_solid_ray_entrypoints_are_symmetric_wrappers() {
     let tolerance = standard_distance_tol();
-    let cone = ConicalSolid3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        1.0,
-        2.0,
-    )
-    .unwrap();
+    let cone = ConicalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0, 2.0).unwrap();
     let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
 
     let a_to_b = conical_solid3d_ray3d_intersection(&cone, &ray, tolerance);
@@ -742,12 +736,10 @@ fn conical_solid_ray_entrypoints_are_symmetric_wrappers() {
 #[test]
 fn conical_surface_ray_entrypoints_are_symmetric_wrappers() {
     let tolerance = standard_distance_tol();
-    let cone = ConicalSurface3D::new(
+    let cone = ConicalSurface3D::new_standard(
         Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
         1.0,
-        std::f64::consts::FRAC_PI_6,
+        Angle::from_radians(std::f64::consts::FRAC_PI_6),
     )
     .unwrap();
     let ray = Ray3D::new(Point3D::new(0.0, 0.0, 5.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();

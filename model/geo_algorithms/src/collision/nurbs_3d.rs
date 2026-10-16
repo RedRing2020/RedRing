@@ -476,7 +476,7 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
             let distance =
                 <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
                     cylinder,
-                    (curve_point.x(), curve_point.y(), curve_point.z()),
+                    curve_point,
                 );
             min_distance = min_distance.min(distance);
         }
@@ -772,7 +772,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
 
                 let d = <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
                     cylinder,
-                    (p.x(), p.y(), p.z()),
+                    Point3D::from(p),
                 );
                 min_dist = min_dist.min(d);
             }

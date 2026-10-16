@@ -23,22 +23,23 @@
 
 use crate::mesh_converter::VertexData;
 use geo_contracts::{
-    Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DEvaluation,
-    CylindricalSolid3DProperties, CylindricalSurface3DEvaluation, Ellipse3DProperties,
-    EllipseArc3DProperties, EllipsoidalSolid3DProperties, EllipsoidalSurface3DConstructor,
-    EllipsoidalSurface3DEvaluation, InfiniteLine3DProperties, LineSegment3DProperties,
-    Plane3DProperties, PrimitiveKind, Ray3DProperties, SphericalSolid3DProperties,
-    SphericalSurface3DConstructor, SphericalSurface3DEvaluation, TorusSolid3DProperties,
-    TorusSurface3DConstructor, TorusSurface3DEvaluation, Triangle3DBoundaryAccess,
+    Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DConstructor,
+    ConicalSurface3DEvaluation, CylindricalSolid3DProperties, CylindricalSurface3DConstructor,
+    CylindricalSurface3DEvaluation, Ellipse3DProperties, EllipseArc3DProperties,
+    EllipsoidalSolid3DProperties, EllipsoidalSurface3DConstructor, EllipsoidalSurface3DEvaluation,
+    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DProperties, PrimitiveKind,
+    Ray3DProperties, SphericalSolid3DProperties, SphericalSurface3DConstructor,
+    SphericalSurface3DEvaluation, TorusSolid3DProperties, TorusSurface3DConstructor,
+    TorusSurface3DEvaluation, Triangle3DBoundaryAccess,
 };
 // geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
 // - 基本型 (Point3D, Vector3D from geo_core)
 // - 形状型 (Arc3D等 from geo_primitives)
 use geo_algorithms::{
-    Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D,
-    Ellipse3D, EllipseArc3D, EllipsoidalSolid3D, EllipsoidalSurface3D, InfiniteLine3D,
-    LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, SphericalSurface3D, TorusSolid3D,
-    TorusSurface3D, Triangle3D, Vector3D,
+    Angle, Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D,
+    CylindricalSurface3D, Direction3D, Ellipse3D, EllipseArc3D, EllipsoidalSolid3D,
+    EllipsoidalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
+    SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, Vector3D,
 };
 use std::f64::consts::PI;
 
@@ -1010,51 +1011,55 @@ pub fn cylindrical_surface_to_vertices(
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
             // Foundation Traits経由でパラメトリック評価
-            let (p1x, p1y, p1z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(surface, u1, v1);
-            let (p2x, p2y, p2z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(surface, u2, v1);
-            let (p3x, p3y, p3z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(surface, u2, v2);
-            let (p4x, p4y, p4z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(surface, u1, v2);
+            let p1 =
+                <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u1, v1,
+                );
+            let p2 =
+                <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u2, v1,
+                );
+            let p3 =
+                <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u2, v2,
+                );
+            let p4 =
+                <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u1, v2,
+                );
 
-            let (n1x, n1y, n1z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::normal_at(surface, u1, v1);
-            let (n2x, n2y, n2z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::normal_at(surface, u2, v1);
+            let n1 = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::normal_at(
+                surface, u1, v1,
+            );
+            let n2 = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::normal_at(
+                surface, u2, v1,
+            );
 
             // 2つの三角形に分割
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
         }
     }
@@ -1223,64 +1228,28 @@ pub fn conical_surface_to_vertices(
 
     let mut vertices = Vec::new();
 
+    // 基準点 (v = 0) から軸方向に 1 の範囲を表示する。この範囲の半径は正のため法線が定まる
+    let to_f32 = |v: Vector3D<f64>| [v.x() as f32, v.y() as f32, v.z() as f32];
+    let point =
+        |u: f64, v: f64| Vector3D::from_points(Point3D::origin(), surface.point_at_uv(u, v));
+    let normal = |u: f64, v: f64| surface.normal_at(u, v).unwrap().as_vector();
     for i in 0..v_divisions {
         for j in 0..u_divisions {
-            let v1 = i as f64 / v_divisions as f64; // 0 to 1 (apex to base)
+            let v1 = i as f64 / v_divisions as f64;
             let v2 = (i + 1) as f64 / v_divisions as f64;
             let u1 = (j as f64 / u_divisions as f64) * 2.0 * PI;
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
-            let (p1x, p1y, p1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u1, v2,
-                );
+            let (p1, p2, p3, p4) = (point(u1, v1), point(u2, v1), point(u2, v2), point(u1, v2));
+            let (n1, n2) = (normal(u1, v1), normal(u2, v1));
 
-            let (n1x, n1y, n1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::normal_at(
-                    surface, u1, v1,
-                );
-            let (n2x, n2y, n2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::normal_at(
-                    surface, u2, v1,
-                );
+            vertices.push(VertexData::new(to_f32(p1), to_f32(n1)));
+            vertices.push(VertexData::new(to_f32(p2), to_f32(n2)));
+            vertices.push(VertexData::new(to_f32(p3), to_f32(n2)));
 
-            vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-
-            vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
+            vertices.push(VertexData::new(to_f32(p1), to_f32(n1)));
+            vertices.push(VertexData::new(to_f32(p3), to_f32(n2)));
+            vertices.push(VertexData::new(to_f32(p4), to_f32(n1)));
         }
     }
 
@@ -1485,23 +1454,23 @@ pub fn cylindrical_solid_to_vertices(
     let u_divisions = quality.circle_segments;
     let v_divisions = quality.sphere_v_divisions;
 
-    let center_tuple =
-        <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::center(solid);
-    let axis_tuple = <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple =
-        <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::ref_direction(solid);
-    let radius = <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::radius(solid);
-    let height = <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::height(solid);
-
-    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
-    let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
-    let x_axis = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
-    let y_axis = z_axis.cross(x_axis).normalize();
+    let center = solid.center();
+    let z_axis = solid.axis().as_vector();
+    let x_axis = solid.ref_direction().as_vector();
+    let y_axis = z_axis.cross(x_axis);
+    let radius = solid.radius();
+    let height = solid.height();
 
     let mut vertices = Vec::new();
 
     // 1. 側面メッシュ - SolidプロパティからSurface構築
-    let surface = CylindricalSurface3D::new(center, z_axis, x_axis, radius).unwrap();
+    let surface = <CylindricalSurface3D<f64> as CylindricalSurface3DConstructor<f64>>::new(
+        center,
+        solid.axis(),
+        solid.ref_direction(),
+        radius,
+    )
+    .unwrap();
     for i in 0..v_divisions {
         for j in 0..u_divisions {
             let v1 = (i as f64 / v_divisions as f64) * height;
@@ -1509,50 +1478,54 @@ pub fn cylindrical_solid_to_vertices(
             let u1 = (j as f64 / u_divisions as f64) * 2.0 * PI;
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
-            let (p1x, p1y, p1z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(&surface, u1, v1);
-            let (p2x, p2y, p2z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(&surface, u2, v1);
-            let (p3x, p3y, p3z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(&surface, u2, v2);
-            let (p4x, p4y, p4z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(&surface, u1, v2);
+            let p1 =
+                <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u1, v1,
+                );
+            let p2 =
+                <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u2, v1,
+                );
+            let p3 =
+                <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u2, v2,
+                );
+            let p4 =
+                <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u1, v2,
+                );
 
-            let (n1x, n1y, n1z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::normal_at(&surface, u1, v1);
-            let (n2x, n2y, n2z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
-                f64,
-            >>::normal_at(&surface, u2, v1);
-
-            vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
+            let n1 = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u1, v1,
+            );
+            let n2 = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u2, v1,
+            );
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
+            ));
+
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
         }
     }
@@ -1747,79 +1720,48 @@ pub fn conical_solid_to_vertices(
     let u_divisions = quality.circle_segments;
     let v_divisions = quality.sphere_v_divisions;
 
-    let center_tuple = <ConicalSolid3D<f64> as ConicalSolid3DProperties<f64>>::base_center(solid);
-    let axis_tuple = <ConicalSolid3D<f64> as ConicalSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple = <ConicalSolid3D<f64> as ConicalSolid3DProperties<f64>>::ref_direction(solid);
-    let radius = <ConicalSolid3D<f64> as ConicalSolid3DProperties<f64>>::radius(solid);
-    let semi_angle = <ConicalSolid3D<f64> as ConicalSolid3DProperties<f64>>::half_angle(solid);
-
-    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
-    let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
-    let x_axis = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
-    let y_axis = z_axis.cross(x_axis).normalize();
+    let center = solid.base_center();
+    let z_axis = solid.axis().as_vector();
+    let x_axis = solid.ref_direction().as_vector();
+    let y_axis = z_axis.cross(x_axis);
+    let radius = solid.radius();
+    let height = solid.height();
 
     let mut vertices = Vec::new();
 
-    // 1. 側面メッシュ - Solid プロパティから Surface 構築
-    let surface = ConicalSurface3D::new(center, z_axis, x_axis, radius, semi_angle).unwrap();
+    // 1. 側面メッシュ - 底面の円を基準点とし、頂点に向かって半径が減る円錐面を構築する。
+    // 円錐面の半径は軸方向に増えるため、軸を頂点の逆向きにとり、v は底面 (0) から頂点 (-height) へ進める。
+    // 軸を逆にすると円周方向の向きも逆になるため、u の符号を反転して評価する
+    let surface = <ConicalSurface3D<f64> as ConicalSurface3DConstructor<f64>>::new(
+        center,
+        Direction3D::from_vector(z_axis.negate()).unwrap(),
+        solid.ref_direction(),
+        radius,
+        Angle::from_radians((radius / height).atan()),
+    )
+    .unwrap();
+    // 側面の法線は母線に沿って一定のため、底面の円での法線を使う（頂点では定まらない）
+    let normal = |u: f64| surface.normal_at(-u, 0.0).unwrap().as_vector();
+    let to_f32 = |v: Vector3D<f64>| [v.x() as f32, v.y() as f32, v.z() as f32];
+    let point =
+        |u: f64, v: f64| Vector3D::from_points(Point3D::origin(), surface.point_at_uv(-u, v));
     for i in 0..v_divisions {
         for j in 0..u_divisions {
-            let v1 = i as f64 / v_divisions as f64;
-            let v2 = (i + 1) as f64 / v_divisions as f64;
+            let v1 = -(i as f64 / v_divisions as f64) * height;
+            let v2 = -((i + 1) as f64 / v_divisions as f64) * height;
             let u1 = (j as f64 / u_divisions as f64) * 2.0 * PI;
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
-            let (p1x, p1y, p1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u1, v2,
-                );
+            let (p1, p2, p3, p4) = (point(u1, v1), point(u2, v1), point(u2, v2), point(u1, v2));
+            let (n1, n2) = (normal(u1), normal(u2));
 
-            let (n1x, n1y, n1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::normal_at(
-                    &surface, u1, v1,
-                );
-            let (n2x, n2y, n2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::normal_at(
-                    &surface, u2, v1,
-                );
+            vertices.push(VertexData::new(to_f32(p1), to_f32(n1)));
+            vertices.push(VertexData::new(to_f32(p2), to_f32(n2)));
+            vertices.push(VertexData::new(to_f32(p3), to_f32(n2)));
 
-            vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-
-            vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
+            vertices.push(VertexData::new(to_f32(p1), to_f32(n1)));
+            vertices.push(VertexData::new(to_f32(p3), to_f32(n2)));
+            vertices.push(VertexData::new(to_f32(p4), to_f32(n1)));
         }
     }
 
@@ -2094,7 +2036,8 @@ mod tests {
     use super::*;
     use geo_algorithms::Direction3D;
     use geo_contracts::{
-        Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, EllipseArc3DConstructor,
+        Arc3DConstructor, Circle3DConstructor, ConicalSolid3DConstructor,
+        CylindricalSolid3DConstructor, Ellipse3DConstructor, EllipseArc3DConstructor,
         InfiniteLine3DConstructor, LineSegment3DConstructor, Plane3DConstructor, Ray3DConstructor,
         SphericalSolid3DConstructor, Triangle3DConstructor,
     };
@@ -2368,13 +2311,7 @@ mod tests {
         );
 
         // 6. CylindricalSurface3D
-        let cyl_surface = CylindricalSurface3D::new(
-            Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            1.0,
-        )
-        .unwrap();
+        let cyl_surface = CylindricalSurface3D::new_standard(Point3D::origin(), 1.0).unwrap();
         let cyl_surface_vertices = cylindrical_surface_to_vertices(&cyl_surface, &quality);
         assert!(
             !cyl_surface_vertices.is_empty(),
@@ -2390,12 +2327,10 @@ mod tests {
         );
 
         // 8. ConicalSurface3D
-        let cone_surface = ConicalSurface3D::new(
+        let cone_surface = ConicalSurface3D::new_standard(
             Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0), // axis
-            Vector3D::new(1.0, 0.0, 0.0), // ref_direction
-            1.0,                          // radius
-            std::f64::consts::PI / 6.0,   // semi_angle (30 degrees)
+            1.0,
+            Angle::from_radians(std::f64::consts::PI / 6.0),
         )
         .unwrap();
         let cone_surface_vertices = conical_surface_to_vertices(&cone_surface, &quality);
@@ -2423,14 +2358,7 @@ mod tests {
         );
 
         // 11. CylindricalSolid3D
-        let cyl_solid = CylindricalSolid3D::new(
-            Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            1.0,
-            2.0,
-        )
-        .unwrap();
+        let cyl_solid = CylindricalSolid3D::new_standard(Point3D::origin(), 1.0, 2.0).unwrap();
         let cyl_solid_vertices = cylindrical_solid_to_vertices(&cyl_solid, &quality);
         assert!(
             !cyl_solid_vertices.is_empty(),
@@ -2446,14 +2374,7 @@ mod tests {
         );
 
         // 13. ConicalSolid3D
-        let cone_solid = ConicalSolid3D::new(
-            Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            1.0,
-            2.0,
-        )
-        .unwrap();
+        let cone_solid = ConicalSolid3D::new_standard(Point3D::origin(), 1.0, 2.0).unwrap();
         let cone_solid_vertices = conical_solid_to_vertices(&cone_solid, &quality);
         assert!(
             !cone_solid_vertices.is_empty(),

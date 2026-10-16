@@ -19,7 +19,8 @@ use crate::{
 };
 use analysis::test_constants;
 use geo_contracts::{
-    Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, InfiniteLine3DConstructor,
+    Arc3DConstructor, Circle3DConstructor, CylindricalSolid3DConstructor,
+    CylindricalSurface3DConstructor, Ellipse3DConstructor, InfiniteLine3DConstructor,
     LineSegment3DConstructor, Plane3DConstructor, Ray3DConstructor, SphericalSolid3DConstructor,
     SphericalSurface3DConstructor, TorusSolid3DConstructor, TorusSurface3DConstructor,
     Triangle3DConstructor, TriangleMesh3DConstructor,
@@ -216,7 +217,8 @@ fn spherical_and_cylindrical_point_collisions_use_distance_based_checks() {
         tol
     ));
 
-    let cyl_solid = CylindricalSolid3D::new_z_axis(Point3D::new(0.0, 0.0, 0.0), 1.0, 2.0).unwrap();
+    let cyl_solid =
+        CylindricalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0, 2.0).unwrap();
     assert!(cylindrical_solid3d_point3d_collides(
         &cyl_solid,
         &Point3D::new(0.5, 0.0, 1.0),
@@ -228,7 +230,7 @@ fn spherical_and_cylindrical_point_collisions_use_distance_based_checks() {
         tol
     ));
 
-    let cyl_surface = CylindricalSurface3D::new_z_axis(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
+    let cyl_surface = CylindricalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
     assert!(cylindrical_surface3d_point3d_collides(
         &cyl_surface,
         &Point3D::new(1.0, 0.0, 0.5),
