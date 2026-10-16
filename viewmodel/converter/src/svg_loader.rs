@@ -10,7 +10,8 @@ use crate::shape_converter::{
 };
 use geo_contracts::{
     Angle, Arc3DConstructor, Circle3DConstructor, LineSegment3DConstructor,
-    NurbsCurve3DConstructor, NurbsCurve3DDerived, Triangle3DConstructor,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    Triangle3DConstructor,
 };
 // geo_algorithms は geo_primitives を再エクスポート（アーキテクチャルール上許可）
 use geo_algorithms::{
@@ -159,7 +160,11 @@ fn nurbs_curve_to_vertices(
     let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
         nurbs_data.degree,
         nurbs_data.knots.clone(),
-        nurbs_data.control_points.clone(),
+        &nurbs_data
+            .control_points
+            .iter()
+            .map(|&(x, y, z)| Point3D::new(x, y, z))
+            .collect::<Vec<_>>(),
         nurbs_data.weights.clone(),
     )
     .map_err(|e| {
@@ -170,7 +175,7 @@ fn nurbs_curve_to_vertices(
     let (t_min, t_max) = curve.parameter_domain();
 
     // 曲線の全長を計算
-    let arc_length = curve.arc_length_total(tolerance);
+    let arc_length = curve.length();
 
     // 分割数を決定（曲線長÷トレランス、最小10、最大10000）
     let num_segments = ((arc_length / tolerance).ceil() as usize).clamp(10, 10000);
@@ -186,7 +191,9 @@ fn nurbs_curve_to_vertices(
     let mut vertices = Vec::with_capacity(num_segments + 1);
     for i in 0..=num_segments {
         let t = t_min + (t_max - t_min) * (i as f64 / num_segments as f64);
-        let point = curve.evaluate_at(t);
+        let point = curve
+            .point_at_parameter(t)
+            .expect("sample parameter should be within the curve domain");
 
         vertices.push(VertexData {
             position: [point.x() as f32, point.y() as f32, point.z() as f32],

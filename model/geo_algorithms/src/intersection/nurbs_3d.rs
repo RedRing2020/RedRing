@@ -20,7 +20,10 @@ use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
     Point3D, Ray3D, SphericalSolid3D,
 };
-use geo_contracts::{LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar};
+use geo_contracts::{
+    LineSegment3DProperties, NurbsCurve3DEvaluation, NurbsCurve3DProperties, Plane3DProperties,
+    Ray3DProperties, Scalar,
+};
 use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -28,7 +31,7 @@ use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
 /// 交点条件の判定に基づき Point3D を返す
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
     if condition {
-        Some(Point3D::new(point.x(), point.y(), point.z()))
+        Some(*point)
     } else {
         None
     }
@@ -36,8 +39,9 @@ fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Opti
 
 fn representative_curve_domain_start_point<T: Scalar>(curve: &NurbsCurve3D<T>) -> Point3D<T> {
     let (u_min, _) = curve.parameter_domain();
-    let point = curve.evaluate_at(u_min);
-    Point3D::new(point.x(), point.y(), point.z())
+    curve
+        .point_at_parameter(u_min)
+        .expect("the start of the parameter domain should be evaluable")
 }
 
 fn representative_surface_domain_start_point<T: Scalar>(surface: &NurbsSurface3D<T>) -> Point3D<T> {
@@ -341,17 +345,12 @@ mod tests {
             T::ONE,
         ];
 
-        let control_points_tuples = control_points
+        let control_points: Vec<_> = control_points
             .into_iter()
-            .map(|v| (v.x(), v.y(), v.z()))
+            .map(|v| Point3D::new(v.x(), v.y(), v.z()))
             .collect();
-        <NurbsCurve3D<T> as NurbsCurve3DConstructor<T>>::new(
-            3,
-            knots,
-            control_points_tuples,
-            weights,
-        )
-        .unwrap()
+        <NurbsCurve3D<T> as NurbsCurve3DConstructor<T>>::new(3, knots, &control_points, weights)
+            .unwrap()
     }
 
     fn create_test_surface<T: Scalar>() -> NurbsSurface3D<T> {

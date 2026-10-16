@@ -5,8 +5,9 @@
 
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    Angle, NurbsCurve2DConstructor, NurbsCurve3DConstructor, NurbsSurface3DConstructor,
-    SimilarityTransformable2D, SimilarityTransformable3D,
+    Angle, NurbsCurve2DConstructor, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
+    NurbsCurve3DConstructor, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    NurbsSurface3DConstructor, SimilarityTransformable2D, SimilarityTransformable3D,
 };
 use geo_core::{
     Direction3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D, Vector2D, Vector3D,
@@ -42,7 +43,11 @@ fn quarter_circle_3d() -> NurbsCurve3D<f64> {
     NurbsCurve3D::new(
         2,
         vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
-        vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0)],
+        &[
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(1.0, 1.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        ],
         Some(vec![1.0, FRAC_1_SQRT_2, 1.0]),
     )
     .unwrap()
@@ -54,10 +59,8 @@ fn rational_curve_3d_maps_points_and_keeps_weights() {
     let moved = curve.transform_similarity(&transform_3d()).unwrap();
 
     for t in PARAMS {
-        let p = curve.evaluate_at(t);
-        let expected = transform_3d().apply_point(Point3D::new(p.x(), p.y(), p.z()));
-        let q = moved.evaluate_at(t);
-        let actual = Point3D::new(q.x(), q.y(), q.z());
+        let expected = transform_3d().apply_point(curve.point_at_parameter(t).unwrap());
+        let actual = moved.point_at_parameter(t).unwrap();
         let d = actual.distance_to(expected);
         assert!(d < TOLERANCE_F64, "t = {t}: {actual:?} != {expected:?}");
     }
@@ -68,8 +71,7 @@ fn rational_curve_3d_maps_points_and_keeps_weights() {
     // 1/4 円は変換後も円弧であり、半径はスケール係数倍になる
     let center = transform_3d().apply_point(Point3D::new(0.0, 0.0, 0.0));
     for t in PARAMS {
-        let q = moved.evaluate_at(t);
-        let r = Point3D::new(q.x(), q.y(), q.z()).distance_to(center);
+        let r = moved.point_at_parameter(t).unwrap().distance_to(center);
         assert!((r - SCALE).abs() < TOLERANCE_F64);
     }
 }
@@ -77,19 +79,21 @@ fn rational_curve_3d_maps_points_and_keeps_weights() {
 #[test]
 fn rational_curve_2d_maps_points_and_keeps_weights() {
     let curve = NurbsCurve2D::new(
-        &[(1.0, 0.0), (1.0, 1.0), (0.0, 1.0)],
-        Some(vec![1.0, FRAC_1_SQRT_2, 1.0]),
-        vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
         2,
+        vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        &[
+            Point2D::new(1.0, 0.0),
+            Point2D::new(1.0, 1.0),
+            Point2D::new(0.0, 1.0),
+        ],
+        Some(vec![1.0, FRAC_1_SQRT_2, 1.0]),
     )
     .unwrap();
     let moved = curve.transform_similarity(&transform_2d()).unwrap();
 
     for t in PARAMS {
-        let p = curve.evaluate_at(t);
-        let expected = transform_2d().apply_point(Point2D::new(p.x(), p.y()));
-        let q = moved.evaluate_at(t);
-        let d = Point2D::new(q.x(), q.y()).distance_to(expected);
+        let expected = transform_2d().apply_point(curve.point_at_parameter(t).unwrap());
+        let d = moved.point_at_parameter(t).unwrap().distance_to(expected);
         assert!(d < TOLERANCE_F64, "t = {t}");
     }
     assert_eq!(moved.weights(), curve.weights());

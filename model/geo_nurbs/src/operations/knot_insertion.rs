@@ -3,8 +3,9 @@
 //! 指定されたパラメータ値にノットを挿入して、
 //! 曲線の形状を変えずに制御点を細分化します。
 
-use crate::{KnotVector, NurbsError, Scalar};
+use crate::{KnotVector, Scalar};
 use analysis::linalg::vector::{Vector2, Vector3};
+use geo_contracts::NurbsError;
 
 /// ノット挿入結果の型エイリアス（2D用）
 pub type KnotInsertResult2D<T> = Result<(Vec<Vector2<T>>, Vec<T>, KnotVector<T>), NurbsError>;

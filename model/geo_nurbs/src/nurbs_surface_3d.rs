@@ -9,8 +9,9 @@ mod extensions;
 mod tests;
 mod transform;
 
-use crate::{constants, KnotVector, NurbsError, Result, Scalar, WeightStorage};
+use crate::{constants, KnotVector, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector3;
+use geo_contracts::NurbsError;
 use geo_contracts::{
     NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
     NurbsSurface3DProperties,
@@ -74,22 +75,22 @@ impl<T: Scalar> NurbsSurface3D<T> {
         v_knots: KnotVector<T>,
         u_degree: usize,
         v_degree: usize,
-    ) -> Result<Self> {
+    ) -> Result<Self, NurbsError> {
         // グリッドサイズの検証
         if control_points.is_empty() || control_points[0].is_empty() {
-            return Err(NurbsError::DegenerateGeometry {
-                reason: "制御点グリッドが空です".to_string(),
-            });
+            return Err(NurbsError::EmptyControlGrid);
         }
 
         let u_count = control_points.len();
         let v_count = control_points[0].len();
 
         // 制御点グリッドの一貫性確認
-        for row in &control_points {
-            if row.len() != v_count {
-                return Err(NurbsError::DegenerateGeometry {
-                    reason: "制御点グリッドの行サイズが一致しません".to_string(),
+        for (row, points) in control_points.iter().enumerate() {
+            if points.len() != v_count {
+                return Err(NurbsError::ControlGridRowMismatch {
+                    row,
+                    actual: points.len(),
+                    expected: v_count,
                 });
             }
         }
@@ -131,7 +132,8 @@ impl<T: Scalar> NurbsSurface3D<T> {
                 for v in 0..v_count {
                     let weight = weight_grid[u][v];
                     if weight <= T::ZERO {
-                        return Err(NurbsError::InvalidWeight {
+                        return Err(NurbsError::NonPositiveWeight {
+                            index: u * v_count + v,
                             weight: weight.to_f64(),
                         });
                     }

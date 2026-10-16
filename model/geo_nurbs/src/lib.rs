@@ -18,7 +18,7 @@ mod nurbs_surface_3d;
 mod adaptive_tessellation;
 mod basis;
 pub mod constants;
-mod error;
+mod curve_evaluation;
 mod knot;
 mod operations;
 mod weight_storage;
@@ -30,17 +30,12 @@ pub use adaptive_tessellation::{
     AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings,
     NurbsCurveAdaptiveTessellation, NurbsSurfaceAdaptiveTessellation,
 };
-pub use basis::{
-    basis_derivatives, basis_function, basis_functions, rational_basis_derivatives,
-    rational_basis_functions,
-};
-pub use error::{NurbsError, Result};
 pub use knot::{
     clamped_knot_vector, find_knot_span, get_parameter_domain, open_knot_vector,
     uniform_knot_vector, validate_knot_vector, KnotVector,
 };
 pub use nurbs_curve_2d::NurbsCurve2D;
-pub use nurbs_curve_3d::{AabbOptions, NurbsCurve3D};
+pub use nurbs_curve_3d::NurbsCurve3D;
 pub use nurbs_surface_3d::NurbsSurface3D;
 pub use operations::{
     DegreeElevateResult2D, DegreeElevateResult3D, DegreeElevation, KnotInsertResult2D,

@@ -5,7 +5,8 @@
 
 use crate::{Point3D, TopoArc3D, TopoLineSegment3D, TopoNurbsCurve3D, Vector3D};
 use geo_contracts::{
-    Arc3DDerived, Arc3DEndpoint, LineSegment3DProperties, LineSegment3DSupportLine, Scalar,
+    Arc3DDerived, Arc3DEndpoint, LineSegment3DProperties, LineSegment3DSupportLine,
+    NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties, Scalar,
 };
 
 /// 複合曲線を構成する個別セグメント
@@ -27,8 +28,9 @@ impl<T: Scalar> CurveSegment3D<T> {
             Self::Arc(arc) => arc.start_point(),
             Self::Nurbs(curve) => {
                 let (u_min, _) = curve.parameter_domain();
-                let p = curve.evaluate_at(u_min);
-                Point3D::new(p.x(), p.y(), p.z())
+                curve
+                    .point_at_parameter(u_min)
+                    .expect("the end of the parameter domain should be evaluable")
             }
         }
     }
@@ -40,8 +42,9 @@ impl<T: Scalar> CurveSegment3D<T> {
             Self::Arc(arc) => arc.end_point(),
             Self::Nurbs(curve) => {
                 let (_, u_max) = curve.parameter_domain();
-                let p = curve.evaluate_at(u_max);
-                Point3D::new(p.x(), p.y(), p.z())
+                curve
+                    .point_at_parameter(u_max)
+                    .expect("the end of the parameter domain should be evaluable")
             }
         }
     }
@@ -72,9 +75,7 @@ impl<T: Scalar> CurveSegment3D<T> {
                 vec.length()
             }
             Self::Arc(arc) => arc.length(),
-            Self::Nurbs(curve) => {
-                curve.approximate_length(geo_nurbs::constants::CURVE_LENGTH_SUBDIVISIONS)
-            }
+            Self::Nurbs(curve) => curve.length(),
         }
     }
 }
@@ -255,7 +256,7 @@ mod tests {
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
             1,
             vec![0.0, 0.0, 1.0, 1.0],
-            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            &[Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)],
             None,
         )
         .unwrap();
@@ -303,7 +304,7 @@ mod tests {
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
             1,
             vec![0.0, 0.0, 1.0, 1.0],
-            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            &[Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)],
             None,
         )
         .unwrap();

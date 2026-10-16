@@ -30,8 +30,8 @@ use crate::{
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded_generic;
 use geo_contracts::{
     BasicCollision, Circle3DProperties, CylindricalSolid3DDistance, EllipsoidalSolid3DDistance,
-    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
-    SphericalSolid3DDistance,
+    InfiniteLine3DProperties, LineSegment3DProperties, NurbsCurve3DEvaluation,
+    NurbsCurve3DProperties, Plane3DProperties, Ray3DProperties, Scalar, SphericalSolid3DDistance,
 };
 use geo_core::Point3D as CorePoint3D;
 use geo_nurbs::{constants, NurbsCurve3D, NurbsSurface3D};
@@ -72,8 +72,14 @@ impl<T: Scalar> NurbsCurveCollider<T> {
         u_max: T,
     ) -> T {
         let objective = |u: T| {
-            let c = self.0.evaluate_at(u);
-            let dc = self.0.derivative_at(u);
+            let c = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
+            let dc = self
+                .0
+                .derivative_at(u)
+                .expect("sample parameter should be within the curve domain");
 
             let diff_x = c.x() - point.x();
             let diff_y = c.y() - point.y();
@@ -120,8 +126,10 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
         // 段階1: サンプリングで初期推定
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_point = self.0.evaluate_at(u);
-            let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
+            let sample_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
             let dist_sq = sample_point.distance_squared_to(*point);
 
             if dist_sq < min_dist_sq {
@@ -136,9 +144,10 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
         let refined_u = self.newton_refine_closest_point(point, best_u, u_min, u_max);
 
         // 最終的な距離を計算
-        let closest_point = self.0.evaluate_at(refined_u);
-        let closest_point =
-            CorePoint3D::new(closest_point.x(), closest_point.y(), closest_point.z());
+        let closest_point = self
+            .0
+            .point_at_parameter(refined_u)
+            .expect("sample parameter should be within the curve domain");
         closest_point.distance_to(*point)
     }
 }
@@ -163,7 +172,10 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsCurveCollider<T> {
         // NURBS曲線上の各サンプル点から線分への最短距離を計算
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_point = self.0.evaluate_at(u);
+            let curve_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
 
             // 線分上の最近接点を計算（線分のパラメトリック表現を使用）
             let start = segment.start_point();
@@ -194,9 +206,8 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsCurveCollider<T> {
             let closest_z = start.z() + t * seg_dir_z;
 
             // 距離を計算
-            let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
             let closest_point = CorePoint3D::new(closest_x, closest_y, closest_z);
-            let distance = sample_point.distance_to(closest_point);
+            let distance = curve_point.distance_to(closest_point);
 
             min_distance = min_distance.min(distance);
         }
@@ -227,7 +238,10 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsCurveCollider<T> {
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_point = self.0.evaluate_at(u);
+            let curve_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
 
             // 点からRayへの距離（Ray上の最近接点を計算）
             let to_point_x = curve_point.x() - origin.x();
@@ -246,9 +260,8 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsCurveCollider<T> {
             let closest_z = origin.z() + t * direction_vec.z();
 
             // 距離を計算
-            let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
             let closest_point = CorePoint3D::new(closest_x, closest_y, closest_z);
-            let distance = sample_point.distance_to(closest_point);
+            let distance = curve_point.distance_to(closest_point);
 
             min_distance = min_distance.min(distance);
         }
@@ -280,7 +293,10 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsCurveCollider<T> {
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_point = self.0.evaluate_at(u);
+            let curve_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
 
             // 点から無限直線への距離
             let to_point_x = curve_point.x() - point_on_line.x();
@@ -298,9 +314,8 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsCurveCollider<T> {
             let closest_z = point_on_line.z() + t * direction_vec.z();
 
             // 距離を計算
-            let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
             let closest_point = CorePoint3D::new(closest_x, closest_y, closest_z);
-            let distance = sample_point.distance_to(closest_point);
+            let distance = curve_point.distance_to(closest_point);
 
             min_distance = min_distance.min(distance);
         }
@@ -328,14 +343,16 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsCurveCollider<T> {
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_point = self.0.evaluate_at(u);
+            let curve_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
 
             // Circle3Dの中心からの距離を計算し、半径を引く
             let center = <Circle3D<T> as Circle3DProperties<T>>::center(circle);
             let radius = <Circle3D<T> as Circle3DProperties<T>>::radius(circle);
 
-            let sample_point = CorePoint3D::new(curve_point.x(), curve_point.y(), curve_point.z());
-            let dist_to_center = sample_point.distance_to(center);
+            let dist_to_center = curve_point.distance_to(center);
 
             // 円周までの距離
             let distance = (dist_to_center - radius).abs();
@@ -371,7 +388,10 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for NurbsCurveCollider<T> {
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_point = self.0.evaluate_at(u);
+            let curve_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
 
             // 点から平面への符号付き距離
             let to_point_x = curve_point.x() - point_on_plane.x();
@@ -409,8 +429,10 @@ impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsCurveCollider<T>
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_vec = self.0.evaluate_at(u);
-            let curve_point = CorePoint3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+            let curve_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
 
             let distance = sphere.distance_to_point(curve_point);
             min_distance = min_distance.min(distance);
@@ -439,8 +461,10 @@ impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsCurveCollider<
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_vec = self.0.evaluate_at(u);
-            let curve_point = CorePoint3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+            let curve_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
 
             let distance = ellipsoid.distance_to_point(curve_point);
             min_distance = min_distance.min(distance);
@@ -469,8 +493,10 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
 
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
-            let curve_vec = self.0.evaluate_at(u);
-            let curve_point = CorePoint3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+            let curve_point = self
+                .0
+                .point_at_parameter(u)
+                .expect("sample parameter should be within the curve domain");
 
             // 円柱の distance_to_point メソッドを使用
             let distance =
@@ -1044,17 +1070,12 @@ mod tests {
             T::ONE,
         ];
 
-        let control_points_tuples = control_points
+        let control_points: Vec<_> = control_points
             .into_iter()
-            .map(|v| (v.x(), v.y(), v.z()))
+            .map(|v| CorePoint3D::new(v.x(), v.y(), v.z()))
             .collect();
-        <NurbsCurve3D<T> as NurbsCurve3DConstructor<T>>::new(
-            3,
-            knots,
-            control_points_tuples,
-            weights,
-        )
-        .unwrap()
+        <NurbsCurve3D<T> as NurbsCurve3DConstructor<T>>::new(3, knots, &control_points, weights)
+            .unwrap()
     }
 
     fn create_test_surface<T: Scalar>() -> NurbsSurface3D<T> {

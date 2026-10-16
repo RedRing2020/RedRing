@@ -8,7 +8,8 @@ use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCu
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived,
     EllipseArc3DEndpoint, EllipseArc3DEvaluation, InfiniteLine3DEvaluation,
-    LineSegment3DProperties, LineSegment3DSupportLine, NurbsCurve3DProperties, Scalar,
+    LineSegment3DProperties, LineSegment3DSupportLine, NurbsCurve3DDerived, NurbsCurve3DEvaluation,
+    NurbsCurve3DProperties, Scalar,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -93,8 +94,8 @@ impl<T: Scalar> CurveRef<T> {
             Self::Nurbs(curve) => {
                 let (u_min, _) =
                     <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
-                let point = curve.evaluate_at(u_min);
-                Point3D::new(point.x(), point.y(), point.z())
+                <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::point_at_parameter(curve, u_min)
+                    .expect("the end of the parameter domain should be evaluable")
             }
         }
     }
@@ -109,8 +110,8 @@ impl<T: Scalar> CurveRef<T> {
             Self::Nurbs(curve) => {
                 let (_, u_max) =
                     <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
-                let point = curve.evaluate_at(u_max);
-                Point3D::new(point.x(), point.y(), point.z())
+                <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::point_at_parameter(curve, u_max)
+                    .expect("the end of the parameter domain should be evaluable")
             }
         }
     }
@@ -153,8 +154,10 @@ impl<T: Scalar> CurveRef<T> {
                     t
                 };
 
-                let point = curve.evaluate_at(adjusted_t);
-                Point3D::new(point.x(), point.y(), point.z())
+                <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::point_at_parameter(
+                    curve, adjusted_t,
+                )
+                .expect("a parameter clamped to the domain should be evaluable")
             }
         }
     }
@@ -164,9 +167,7 @@ impl<T: Scalar> CurveRef<T> {
             Self::Line(line) => line.length(),
             Self::Arc(arc) => <TopoArc3D<T> as geo_contracts::Arc3DDerived<T>>::length(arc),
             Self::EllipseArc(arc) => <TopoEllipseArc3D<T> as EllipseArc3DDerived<T>>::length(arc),
-            Self::Nurbs(curve) => {
-                curve.approximate_length(geo_nurbs::constants::CURVE_LENGTH_SUBDIVISIONS)
-            }
+            Self::Nurbs(curve) => <TopoNurbsCurve3D<T> as NurbsCurve3DDerived<T>>::length(curve),
         }
     }
 }
@@ -461,7 +462,7 @@ mod tests {
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
             1,
             vec![2.0, 2.0, 3.0, 3.0],
-            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            &[Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)],
             None,
         )
         .unwrap();
@@ -489,7 +490,7 @@ mod tests {
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
             1,
             vec![2.0, 2.0, 3.0, 3.0],
-            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            &[Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)],
             None,
         )
         .unwrap();
@@ -520,7 +521,7 @@ mod tests {
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
             1,
             vec![2.0, 2.0, 3.0, 3.0],
-            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            &[Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)],
             None,
         )
         .unwrap();
@@ -542,7 +543,7 @@ mod tests {
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
             1,
             vec![u_min, u_min, u_max, u_max],
-            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            &[Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)],
             None,
         )
         .unwrap();

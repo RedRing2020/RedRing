@@ -10,8 +10,9 @@ use crate::{
 };
 use geo_contracts::{
     Circle3DDistance, CylindricalSolid3DDistance, DistanceConvergenceError,
-    EllipsoidalSolid3DDistance, InfiniteLine3DDistance, LineSegment3DDistance, Plane3DDistance,
-    Ray3DDistance, Scalar, SphericalSolid3DDistance,
+    EllipsoidalSolid3DDistance, InfiniteLine3DDistance, LineSegment3DDistance,
+    NurbsCurve3DEvaluation, NurbsCurve3DProperties, Plane3DDistance, Ray3DDistance, Scalar,
+    SphericalSolid3DDistance,
 };
 
 /// NurbsCurve3D-点 間の最短距離（フォールバック付き）
@@ -50,8 +51,9 @@ pub fn nurbscurve3d_point3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         min_distance = min_distance.min(curve_point.distance_to(*point));
     }
 
@@ -104,8 +106,9 @@ pub fn nurbscurve3d_linesegment3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         min_distance = min_distance.min(segment.distance_to_point(curve_point));
     }
 
@@ -152,8 +155,9 @@ pub fn nurbscurve3d_ray3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         min_distance = min_distance.min(ray.distance_to_point(curve_point));
     }
 
@@ -206,8 +210,9 @@ pub fn nurbscurve3d_infinite_line3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         min_distance = min_distance.min(line.distance_to_point(curve_point));
     }
 
@@ -260,8 +265,9 @@ pub fn nurbscurve3d_circle3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         min_distance = min_distance.min(circle.distance_to_point(curve_point));
     }
 
@@ -308,8 +314,9 @@ pub fn nurbscurve3d_plane3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         min_distance = min_distance.min(plane.distance_to_point(curve_point).abs());
     }
 
@@ -362,8 +369,9 @@ pub fn nurbscurve3d_spherical_solid3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         min_distance = min_distance.min(sphere.distance_to_point(curve_point));
     }
 
@@ -416,8 +424,9 @@ pub fn nurbscurve3d_ellipsoidal_solid3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         let d = ellipsoid.distance_to_point(curve_point);
         min_distance = min_distance.min(d);
     }
@@ -471,8 +480,9 @@ pub fn nurbscurve3d_cylindrical_solid3d_try_distance<T: Scalar>(
     let mut min_distance = T::INFINITY;
     for i in 0..=max_samples {
         let u = u_min + delta_u * T::from_usize(i);
-        let curve_vec = curve.evaluate_at(u);
-        let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+        let curve_point = curve
+            .point_at_parameter(u)
+            .expect("sample parameter should be within the curve domain");
         let d = <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
             cylinder,
             curve_point,
@@ -499,15 +509,15 @@ mod tests {
 
     fn create_test_curve() -> NurbsCurve3D<f64> {
         let control_points = vec![
-            (0.0, 0.0, 0.0),
-            (1.0, 0.0, 0.0),
-            (1.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(1.0, 1.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
         ];
         let knots = vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
         let weights = Some(vec![1.0, 1.0, 1.0, 1.0]);
 
-        <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(3, knots, control_points, weights)
+        <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(3, knots, &control_points, weights)
             .unwrap()
     }
 

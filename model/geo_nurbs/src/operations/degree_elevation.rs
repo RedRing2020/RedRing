@@ -3,8 +3,9 @@
 //! 曲線の形状を保ったまま次数を増やす操作を提供します。
 //! 次数を上げることで、より滑らかで柔軟な制御が可能になります。
 
-use crate::{KnotVector, NurbsError, Scalar};
+use crate::{KnotVector, Scalar};
 use analysis::linalg::vector::{Vector2, Vector3};
+use geo_contracts::NurbsError;
 
 /// 次数上昇結果の型エイリアス（2D用）
 pub type DegreeElevateResult2D<T> =

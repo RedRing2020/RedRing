@@ -5,15 +5,17 @@
 
 mod bounds;
 mod extensions;
-
-pub use extensions::AabbOptions;
 #[cfg(test)]
 mod tests;
 mod transform;
 
-use crate::{constants, KnotVector, Scalar, WeightStorage};
-use analysis::linalg::vector::Vector3;
-use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DProperties};
+use crate::curve_evaluation::{validate_curve, CurveDefinition};
+use crate::{KnotVector, Scalar, WeightStorage};
+use geo_contracts::{
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    NurbsError,
+};
+use geo_core::{Point3D, Vector3D};
 
 /// NURBS曲線 - 3次元（メモリ最適化版）
 ///
@@ -47,20 +49,23 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for NurbsCurve3D<T> {
 }
 
 impl<T: Scalar> NurbsCurve3D<T> {
-    /// 制御点アクセス用インデックス計算
-    #[inline]
-    fn control_point_index(&self, index: usize) -> usize {
-        debug_assert!(index < self.num_points);
-        index * 3
+    /// 評価に使う曲線の定義
+    fn definition(&self) -> CurveDefinition<'_, T, 3> {
+        CurveDefinition {
+            coordinates: &self.coordinates,
+            weights: &self.weights,
+            knots: &self.knot_vector,
+            degree: self.degree,
+        }
     }
 
     /// 制御点の座標のみを写像した曲線を返す（重み・ノットベクトル・次数は保持する）
-    fn map_control_points(&self, f: impl Fn((T, T, T)) -> (T, T, T)) -> Self {
+    fn map_control_points(&self, f: impl Fn(Point3D<T>) -> Point3D<T>) -> Self {
         let mut coordinates = Vec::with_capacity(self.coordinates.len());
         let (points, _) = self.coordinates.as_chunks::<3>();
         for &[x, y, z] in points {
-            let (x, y, z) = f((x, y, z));
-            coordinates.extend([x, y, z]);
+            let p = f(Point3D::new(x, y, z));
+            coordinates.extend([p.x(), p.y(), p.z()]);
         }
         Self {
             coordinates,
@@ -70,194 +75,27 @@ impl<T: Scalar> NurbsCurve3D<T> {
             num_points: self.num_points,
         }
     }
-
-    /// 制御点取得
-    #[must_use]
-    pub fn control_point(&self, index: usize) -> Vector3<T> {
-        let base = self.control_point_index(index);
-        Vector3::new(
-            self.coordinates[base],
-            self.coordinates[base + 1],
-            self.coordinates[base + 2],
-        )
-    }
-
-    /// 重み取得
-    #[must_use]
-    pub fn weight(&self, index: usize) -> T {
-        match &self.weights {
-            WeightStorage::Uniform => T::ONE,
-            WeightStorage::Individual(weights) => weights[index],
-        }
-    }
-
-    /// 制御点数を取得
-    #[must_use]
-    pub fn num_points(&self) -> usize {
-        self.num_points
-    }
-
-    /// フラット座標配列への参照を取得
-    #[must_use]
-    pub fn coordinates(&self) -> &[T] {
-        &self.coordinates
-    }
-
-    /// 重みストレージへの参照を取得
-    #[must_use]
-    pub fn weights(&self) -> &WeightStorage<T> {
-        &self.weights
-    }
-
-    /// ノットベクトルを取得
-    #[must_use]
-    pub fn knot_vector(&self) -> &KnotVector<T> {
-        &self.knot_vector
-    }
-
-    /// 次数を取得
-    #[must_use]
-    pub fn degree(&self) -> usize {
-        self.degree
-    }
-
-    /// パラメータ定義域を取得
-    #[must_use]
-    pub fn parameter_domain(&self) -> (T, T) {
-        crate::knot::get_parameter_domain(&self.knot_vector, self.degree)
-    }
-
-    /// 指定パラメータでの曲線上の点を計算
-    pub fn evaluate_at(&self, t: T) -> Vector3<T> {
-        let span = crate::knot::find_knot_span(t, &self.knot_vector, self.degree);
-        let basis = crate::basis::basis_functions(span, self.degree, t, &self.knot_vector);
-
-        let mut numerator_x = T::ZERO;
-        let mut numerator_y = T::ZERO;
-        let mut numerator_z = T::ZERO;
-        let mut denominator = T::ZERO;
-
-        for (i, &basis_value) in basis.iter().enumerate().take(self.degree + 1) {
-            let control_index = span - self.degree + i;
-            if control_index < self.num_points {
-                let control_point = self.control_point(control_index);
-                let weight = self.weight(control_index);
-                let basis_weight = basis_value * weight;
-
-                numerator_x += control_point.x() * basis_weight;
-                numerator_y += control_point.y() * basis_weight;
-                numerator_z += control_point.z() * basis_weight;
-                denominator += basis_weight;
-            }
-        }
-
-        Vector3::new(
-            numerator_x / denominator,
-            numerator_y / denominator,
-            numerator_z / denominator,
-        )
-    }
-
-    /// 指定パラメータでの1次導関数を計算
-    pub fn derivative_at(&self, t: T) -> Vector3<T> {
-        let h = constants::solver::derivative_step::<T>();
-        let p1 = self.evaluate_at(t - h);
-        let p2 = self.evaluate_at(t + h);
-
-        let dx = (p2.x() - p1.x()) / (h + h);
-        let dy = (p2.y() - p1.y()) / (h + h);
-        let dz = (p2.z() - p1.z()) / (h + h);
-
-        Vector3::new(dx, dy, dz)
-    }
-
-    /// 曲線の長さを近似計算
-    #[must_use]
-    pub fn approximate_length(&self, subdivisions: usize) -> T {
-        if subdivisions == 0 {
-            return T::ZERO;
-        }
-
-        let (t_min, t_max) = self.parameter_domain();
-        let dt = (t_max - t_min) / T::from_usize(subdivisions);
-
-        let mut total_length = T::ZERO;
-        let mut prev_point = self.evaluate_at(t_min);
-
-        for i in 1..=subdivisions {
-            let t = t_min + dt * T::from_usize(i);
-            let current_point = self.evaluate_at(t);
-
-            let segment_length = (current_point - prev_point).norm();
-
-            total_length += segment_length;
-            prev_point = current_point;
-        }
-
-        total_length
-    }
 }
+
 impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
     fn new(
         degree: usize,
         knots: Vec<T>,
-        control_points: Vec<(T, T, T)>,
+        control_points: &[Point3D<T>],
         weights: Option<Vec<T>>,
-    ) -> std::result::Result<Self, String> {
-        let num_points = control_points.len();
+    ) -> Result<Self, NurbsError> {
+        let weights = validate_curve(degree, &knots, control_points.len(), weights)?;
+        let coordinates = control_points
+            .iter()
+            .flat_map(|p| [p.x(), p.y(), p.z()])
+            .collect();
 
-        // 基本的なバリデーション
-        if num_points < degree + 1 {
-            return Err(format!(
-                "Insufficient control points: need {}, got {}",
-                degree + 1,
-                num_points
-            ));
-        }
-
-        // フラット座標配列を構築
-        let mut coordinates = Vec::with_capacity(num_points * 3);
-        for (x, y, z) in &control_points {
-            coordinates.push(*x);
-            coordinates.push(*y);
-            coordinates.push(*z);
-        }
-
-        // 重み配列を処理
-        let weight_storage = if let Some(weight_vec) = weights {
-            if weight_vec.len() != num_points {
-                return Err(format!(
-                    "Weight count mismatch: expected {}, got {}",
-                    num_points,
-                    weight_vec.len()
-                ));
-            }
-
-            // 重みの検証
-            for &weight in &weight_vec {
-                if weight <= T::ZERO {
-                    return Err(format!("Invalid weight: {}", weight.to_f64()));
-                }
-            }
-
-            WeightStorage::Individual(weight_vec)
-        } else {
-            WeightStorage::Uniform
-        };
-
-        // KnotVectorを作成
-        let knot_vector = KnotVector::from(knots);
-
-        // ノットベクトルの検証
-        crate::knot::validate_knot_vector(&knot_vector, degree, num_points)
-            .map_err(|e| e.to_string())?;
-
-        Ok(NurbsCurve3D {
+        Ok(Self {
             coordinates,
-            weights: weight_storage,
-            knot_vector,
+            weights,
+            knot_vector: knots,
             degree,
-            num_points,
+            num_points: control_points.len(),
         })
     }
 }
@@ -271,58 +109,48 @@ impl<T: Scalar> NurbsCurve3DProperties<T> for NurbsCurve3D<T> {
         &self.knot_vector
     }
 
-    fn control_points_count(&self) -> usize {
+    fn control_point_count(&self) -> usize {
         self.num_points
     }
 
-    fn weights(&self) -> Option<&[T]> {
-        match &self.weights {
-            WeightStorage::Uniform => None,
-            WeightStorage::Individual(w) => Some(w),
-        }
+    fn control_point(&self, index: usize) -> Option<Point3D<T>> {
+        let [x, y, z] = self.coordinates.as_chunks::<3>().0.get(index)?;
+        Some(Point3D::new(*x, *y, *z))
     }
 
-    fn parameter_domain(&self) -> (T, T) {
-        self.parameter_domain()
+    fn weight(&self, index: usize) -> Option<T> {
+        (index < self.num_points).then(|| self.weights.weight(index))
     }
 
     fn coordinates(&self) -> &[T] {
         &self.coordinates
     }
+
+    fn weights(&self) -> Option<&[T]> {
+        self.weights.as_slice()
+    }
+
+    fn parameter_domain(&self) -> (T, T) {
+        self.definition().parameter_domain()
+    }
+}
+
+impl<T: Scalar> NurbsCurve3DEvaluation<T> for NurbsCurve3D<T> {
+    fn point_at_parameter(&self, t: T) -> Option<Point3D<T>> {
+        let definition = self.definition();
+        let ([x, y, z], _) = definition.point_and_derivative(definition.clamp_to_domain(t)?);
+        Some(Point3D::new(x, y, z))
+    }
+
+    fn derivative_at(&self, t: T) -> Option<Vector3D<T>> {
+        let definition = self.definition();
+        let (_, [x, y, z]) = definition.point_and_derivative(definition.clamp_to_domain(t)?);
+        Some(Vector3D::new(x, y, z))
+    }
 }
 
 impl<T: Scalar> NurbsCurve3DDerived<T> for NurbsCurve3D<T> {
-    fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T {
-        // パラメータ区間を一定間隔でサンプリングし、折れ線の長さで弧長を数値積分する
-        let tolerance_f64 = tolerance.to_f64();
-        let u_range_f64 = (u_end - u_start).to_f64();
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let num_samples = ((u_range_f64 / tolerance_f64) as usize).clamp(
-            constants::ARC_LENGTH_MIN_SAMPLES,
-            constants::ARC_LENGTH_MAX_SAMPLES,
-        );
-        #[allow(clippy::cast_precision_loss)]
-        let step = (u_end - u_start) / T::from_f64(num_samples as f64);
-
-        let mut total_length = T::ZERO;
-        let mut prev_point = self.evaluate_at(u_start);
-
-        for i in 1..=num_samples {
-            #[allow(clippy::cast_precision_loss)]
-            let u = u_start + step * T::from_f64(i as f64);
-            let current_point = self.evaluate_at(u);
-
-            let segment_length = (current_point - prev_point).norm();
-
-            total_length += segment_length;
-            prev_point = current_point;
-        }
-
-        total_length
-    }
-
-    fn arc_length_total(&self, tolerance: T) -> T {
-        let (u_start, u_end) = self.parameter_domain();
-        self.arc_length(u_start, u_end, tolerance)
+    fn length(&self) -> T {
+        self.definition().length()
     }
 }

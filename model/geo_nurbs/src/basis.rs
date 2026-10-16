@@ -1,53 +1,10 @@
 //! B-スプライン基底関数計算
 //!
-//! Cox-de Boorの再帰公式を使用したB-スプライン基底関数とその導関数の計算を提供します。
+//! ノット区間ごとの非ゼロの B-スプライン基底関数と、その 1 階導関数を計算する。
 
 use analysis::Scalar;
 
-/// B-スプライン基底関数を計算（Cox-de Boor再帰公式）
-///
-/// # 引数
-/// * `i` - 基底関数のインデックス
-/// * `degree` - 次数
-/// * `t` - パラメータ値
-/// * `knots` - ノット列
-///
-/// # 戻り値
-/// B-スプライン基底関数値 N_{i,p}(t)
-pub fn basis_function<T: Scalar>(i: usize, degree: usize, t: T, knots: &[T]) -> T {
-    if degree == 0 {
-        // 0次基底関数（特性関数）
-        if i < knots.len() - 1 && t >= knots[i] && t < knots[i + 1] {
-            T::ONE
-        } else {
-            T::ZERO
-        }
-    } else {
-        // 高次基底関数の再帰計算
-        let mut left_term = T::ZERO;
-        let mut right_term = T::ZERO;
-
-        // 左側の項
-        let left_denom = knots[i + degree] - knots[i];
-        if !left_denom.is_zero() {
-            let left_basis = basis_function(i, degree - 1, t, knots);
-            left_term = (t - knots[i]) * left_basis / left_denom;
-        }
-
-        // 右側の項
-        if i + degree + 1 < knots.len() {
-            let right_denom = knots[i + degree + 1] - knots[i + 1];
-            if !right_denom.is_zero() {
-                let right_basis = basis_function(i + 1, degree - 1, t, knots);
-                right_term = (knots[i + degree + 1] - t) * right_basis / right_denom;
-            }
-        }
-
-        left_term + right_term
-    }
-}
-
-/// 指定スパンでの非ゼロ基底関数群を計算（効率的版）
+/// 指定ノットスパンにおける非ゼロ基底関数を計算
 ///
 /// # 引数
 /// * `span` - ノットスパン
@@ -56,8 +13,8 @@ pub fn basis_function<T: Scalar>(i: usize, degree: usize, t: T, knots: &[T]) -> 
 /// * `knots` - ノット列
 ///
 /// # 戻り値
-/// 非ゼロ基底関数値の配列（長さ = degree + 1）
-pub fn basis_functions<T: Scalar>(span: usize, degree: usize, t: T, knots: &[T]) -> Vec<T> {
+/// 非ゼロ基底関数値の配列（長さ = degree + 1）。`[i]` は `N_{span-degree+i, degree}(t)`
+pub(crate) fn basis_functions<T: Scalar>(span: usize, degree: usize, t: T, knots: &[T]) -> Vec<T> {
     let mut basis = vec![T::ZERO; degree + 1];
     let mut left = vec![T::ZERO; degree + 1];
     let mut right = vec![T::ZERO; degree + 1];
@@ -80,180 +37,52 @@ pub fn basis_functions<T: Scalar>(span: usize, degree: usize, t: T, knots: &[T])
     basis
 }
 
-/// 基底関数の導関数を計算
+/// 指定ノットスパンにおける非ゼロ基底関数の 1 階導関数を計算
 ///
-/// # 引数
-/// * `span` - ノットスパン
-/// * `degree` - 次数
-/// * `t` - パラメータ値
-/// * `knots` - ノット列
-/// * `derivative_order` - 導関数の次数
+/// `N'_{i,p} = p / (u_{i+p} - u_i) * N_{i,p-1} - p / (u_{i+p+1} - u_{i+1}) * N_{i+1,p-1}`
 ///
 /// # 戻り値
-/// `基底関数とその導関数の値（derivative_order次まで`）
-/// 戻り値[k][i] = N_{span-degree+i,degree}の k次導関数
-pub fn basis_derivatives<T: Scalar>(
+/// 長さ = degree + 1 の配列。`[i]` は `N'_{span-degree+i, degree}(t)`
+pub(crate) fn basis_first_derivatives<T: Scalar>(
     span: usize,
     degree: usize,
     t: T,
     knots: &[T],
-    derivative_order: usize,
-) -> Vec<Vec<T>> {
-    let n = derivative_order;
-    let p = degree;
-
-    // 結果の配列を初期化
-    let mut derivatives = vec![vec![T::ZERO; p + 1]; n + 1];
-
-    // 0次導関数（基底関数そのもの）
-    derivatives[0] = basis_functions(span, degree, t, knots);
-
-    if n == 0 {
+) -> Vec<T> {
+    let mut derivatives = vec![T::ZERO; degree + 1];
+    if degree == 0 {
         return derivatives;
     }
 
-    // 高次導関数の計算
-    for k in 1..=n {
-        for i in 0..=p {
-            let left_index = span - p + i;
-            let right_index = left_index + 1;
-
-            let mut left_term = T::ZERO;
-            let mut right_term = T::ZERO;
-
-            // 左側の項
-            if left_index + p < knots.len() {
-                let denom = knots[left_index + p] - knots[left_index];
-                if !denom.is_zero() && i > 0 {
-                    left_term = T::from_usize(p) * derivatives[k - 1][i - 1] / denom;
-                }
+    // 1 つ低い次数の基底関数。`[j]` は `N_{span-degree+1+j, degree-1}`
+    let lower = basis_functions(span, degree - 1, t, knots);
+    let p = T::from_usize(degree);
+    for (i, derivative) in derivatives.iter_mut().enumerate() {
+        let index = span - degree + i;
+        let left = if i > 0 {
+            let denominator = knots[index + degree] - knots[index];
+            if denominator.is_zero() {
+                T::ZERO
+            } else {
+                lower[i - 1] / denominator
             }
-
-            // 右側の項
-            if right_index + p < knots.len() {
-                let denom = knots[right_index + p] - knots[right_index];
-                if !denom.is_zero() && i < p {
-                    right_term = T::from_usize(p) * derivatives[k - 1][i + 1] / denom;
-                }
+        } else {
+            T::ZERO
+        };
+        let right = if i < degree {
+            let denominator = knots[index + degree + 1] - knots[index + 1];
+            if denominator.is_zero() {
+                T::ZERO
+            } else {
+                lower[i] / denominator
             }
-
-            derivatives[k][i] = left_term - right_term;
-        }
+        } else {
+            T::ZERO
+        };
+        *derivative = p * (left - right);
     }
 
     derivatives
-}
-
-/// 有理基底関数（NURBS基底関数）を計算
-///
-/// # 引数
-/// * `span` - ノットスパン
-/// * `degree` - 次数
-/// * `t` - パラメータ値
-/// * `knots` - ノット列
-/// * `weights` - 重み配列
-///
-/// # 戻り値
-/// 有理基底関数値の配列
-pub fn rational_basis_functions<T: Scalar>(
-    span: usize,
-    degree: usize,
-    t: T,
-    knots: &[T],
-    weights: &[T],
-) -> Vec<T> {
-    let basis = basis_functions(span, degree, t, knots);
-    let mut rational_basis = vec![T::ZERO; degree + 1];
-
-    // 重み付き基底関数の合計を計算
-    let mut weight_sum = T::ZERO;
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..=degree {
-        let control_index = span - degree + i;
-        if control_index < weights.len() {
-            weight_sum += basis[i] * weights[control_index];
-        }
-    }
-
-    // 正規化された有理基底関数を計算
-    if !weight_sum.is_zero() {
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..=degree {
-            let control_index = span - degree + i;
-            if control_index < weights.len() {
-                rational_basis[i] = basis[i] * weights[control_index] / weight_sum;
-            }
-        }
-    }
-
-    rational_basis
-}
-
-/// 有理基底関数の導関数を計算
-///
-/// # 引数
-/// * `span` - ノットスパン
-/// * `degree` - 次数
-/// * `t` - パラメータ値
-/// * `knots` - ノット列
-/// * `weights` - 重み配列
-/// * `derivative_order` - 導関数の次数
-///
-/// # 戻り値
-/// 有理基底関数の導関数の配列
-pub fn rational_basis_derivatives<T: Scalar>(
-    span: usize,
-    degree: usize,
-    t: T,
-    knots: &[T],
-    weights: &[T],
-    derivative_order: usize,
-) -> Vec<Vec<T>> {
-    let basis_derivs = basis_derivatives(span, degree, t, knots, derivative_order);
-    let mut rational_derivs = vec![vec![T::ZERO; degree + 1]; derivative_order + 1];
-
-    // 0次導関数（有理基底関数そのもの）
-    rational_derivs[0] = rational_basis_functions(span, degree, t, knots, weights);
-
-    if derivative_order == 0 {
-        return rational_derivs;
-    }
-
-    // 高次導関数の計算（商の微分公式を使用）
-    for k in 1..=derivative_order {
-        for i in 0..=degree {
-            let control_index = span - degree + i;
-            if control_index >= weights.len() {
-                continue;
-            }
-
-            let weight = weights[control_index];
-            let mut numerator = basis_derivs[k][i] * weight;
-
-            // 重み付き基底関数の合計とその導関数
-            let mut weighted_sum = T::ZERO;
-            let mut weighted_sum_deriv = T::ZERO;
-
-            #[allow(clippy::needless_range_loop)] // NURBS基底関数計算の標準アルゴリズム
-            for j in 0..=degree {
-                let j_index = span - degree + j;
-                if j_index < weights.len() {
-                    weighted_sum += basis_derivs[0][j] * weights[j_index];
-                    weighted_sum_deriv += basis_derivs[k][j] * weights[j_index];
-                }
-            }
-
-            if !weighted_sum.is_zero() {
-                // 商の微分公式: (f/g)' = (f'g - fg')/g²
-                let denominator = weighted_sum * weighted_sum;
-                numerator =
-                    numerator * weighted_sum - basis_derivs[0][i] * weight * weighted_sum_deriv;
-                rational_derivs[k][i] = numerator / denominator;
-            }
-        }
-    }
-
-    rational_derivs
 }
 
 #[cfg(test)]
@@ -261,42 +90,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_basis_function_degree_0() {
-        let knots = vec![0.0, 1.0, 2.0, 3.0];
-
-        // N_0,0(0.5) should be 1
-        assert!((basis_function(0, 0, 0.5, &knots) - 1.0).abs() < 1e-10);
-
-        // N_1,0(0.5) should be 0
-        assert!(basis_function(1, 0, 0.5, &knots).abs() < 1e-10);
-    }
-
-    #[test]
     fn test_basis_functions() {
         let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-        let span = 2;
-        let t = 0.5;
+        let basis = basis_functions(2, 2, 0.5, &knots);
 
-        let basis = basis_functions(span, degree, t, &knots);
-
-        // 基底関数の和は1になるはず
-        let sum: f64 = basis.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-10);
+        // 2 次 Bézier の基底 (1-t)², 2t(1-t), t²
+        let expected = [0.25, 0.5, 0.25];
+        for (value, expected) in basis.iter().zip(expected) {
+            assert!((value - expected).abs() < 1e-12);
+        }
     }
 
     #[test]
-    fn test_rational_basis_functions() {
+    fn test_basis_first_derivatives() {
         let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let weights = vec![1.0, 1.0, 1.0];
-        let degree = 2;
-        let span = 2;
-        let t = 0.5;
+        let t = 0.3;
+        let derivatives = basis_first_derivatives(2, 2, t, &knots);
 
-        let rational_basis = rational_basis_functions(span, degree, t, &knots, &weights);
+        // (1-t)², 2t(1-t), t² の導関数 -2(1-t), 2 - 4t, 2t
+        let expected = [-2.0 * (1.0 - t), 2.0 - 4.0 * t, 2.0 * t];
+        for (value, expected) in derivatives.iter().zip(expected) {
+            assert!((value - expected).abs() < 1e-12);
+        }
+    }
 
-        // 有理基底関数の和は1になるはず
-        let sum: f64 = rational_basis.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-10);
+    #[test]
+    fn test_basis_first_derivatives_with_interior_knot() {
+        // 内部ノットを持つ 2 次の基底関数の導関数を、差分と比べる
+        let knots = vec![0.0, 0.0, 0.0, 0.4, 1.0, 1.0, 1.0];
+        let (span, t, h) = (3, 0.7, 1e-6);
+        let derivatives = basis_first_derivatives(span, 2, t, &knots);
+        let ahead = basis_functions(span, 2, t + h, &knots);
+        let behind = basis_functions(span, 2, t - h, &knots);
+        for i in 0..3 {
+            let difference = (ahead[i] - behind[i]) / (2.0 * h);
+            assert!((derivatives[i] - difference).abs() < 1e-6);
+        }
     }
 }
