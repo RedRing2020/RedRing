@@ -1,5 +1,4 @@
 mod bounds;
-mod extensions;
 #[cfg(test)]
 mod tests;
 mod transform;
@@ -12,12 +11,11 @@ mod transform;
 // STEP エンティティ: TORUS + AXIS2_PLACEMENT_3D
 // 固体としての体積と表面を持ちます。
 
-use crate::{Direction3D, Point3D, TorusSurface3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
-    Scalar,
+    default_distance_tolerance, PointClassification, Scalar, TorusSolid3DConstructor,
+    TorusSolid3DContainment, TorusSolid3DDistance, TorusSolid3DProperties,
 };
-use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス固体
 ///
@@ -29,7 +27,7 @@ pub struct TorusSolid3D<T: Scalar> {
     origin: Point3D<T>,
     /// Z軸方向（トーラスの軸方向）
     z_axis: Direction3D<T>,
-    /// X軸方向（大半径の基準方向）
+    /// X軸方向（大半径の基準方向。z_axis と直交）
     x_axis: Direction3D<T>,
     /// 大半径（中心軸から断面の円の中心までの距離）
     major_radius: T,
@@ -44,226 +42,64 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for TorusSolid3D<T> {
 }
 
 impl<T: Scalar> TorusSolid3D<T> {
-    /// 新しいトーラス固体を作成
-    ///
-    /// # Arguments
-    /// * `origin` - トーラスの中心点
-    /// * `z_axis` - トーラスの軸方向
-    /// * `x_axis` - 大半径の基準方向（z_axisと直交である必要があります）
-    /// * `major_radius` - 大半径（正の値である必要があります）
-    /// * `minor_radius` - 小半径（正の値である必要があります）
-    ///
-    /// # Returns
-    /// * `Some(TorusSolid3D)` - 有効なパラメータの場合
-    /// * `None` - 無効なパラメータの場合（半径が非正、軸が非直交など）
-    pub fn new(
-        origin: Point3D<T>,
-        z_axis: Direction3D<T>,
-        x_axis: Direction3D<T>,
+    /// 点から、断面の円の中心が描く円までの距離
+    fn tube_center_distance(&self, point: Point3D<T>) -> T {
+        let local = point - self.origin;
+        let axial = local.dot(self.z_axis.as_vector());
+        let radial = (local - self.z_axis.as_vector() * axial).length();
+        Vector3D::new(radial - self.major_radius, axial, T::ZERO).length()
+    }
+}
+
+impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
+    fn new(
+        center: Point3D<T>,
+        axis: Direction3D<T>,
+        ref_direction: Direction3D<T>,
         major_radius: T,
         minor_radius: T,
     ) -> Option<Self> {
-        // 半径の妥当性チェック
-        if major_radius <= T::ZERO || minor_radius <= T::ZERO {
+        // 大半径が小半径以下だと、断面が中心軸で重なり立体にならない
+        if minor_radius <= T::ZERO || major_radius <= minor_radius {
             return None;
         }
 
-        // トーラス固体の幾何学的制約: major_radius > minor_radius
-        // （これにより、固体が適切にドーナツ形状になる）
-        if major_radius <= minor_radius {
-            return None;
-        }
+        // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
+        let x_axis = Direction3D::from_vector(
+            ref_direction.as_vector() - axis.as_vector() * ref_direction.dot(axis),
+        )?;
 
-        // 軸の直交性チェック
-        let dot_product =
-            x_axis.x() * z_axis.x() + x_axis.y() * z_axis.y() + x_axis.z() * z_axis.z();
-        let tolerance = default_kernel_numerical_zero_tolerance::<T>();
-        if dot_product.abs() > tolerance {
-            return None;
-        }
-
-        Some(TorusSolid3D {
-            origin,
-            z_axis,
+        Some(Self {
+            origin: center,
+            z_axis: axis,
             x_axis,
             major_radius,
             minor_radius,
         })
     }
 
-    /// 標準的なトーラス固体を作成（Z軸中心、原点配置）
-    ///
-    /// # Arguments
-    /// * `major_radius` - 大半径
-    /// * `minor_radius` - 小半径
-    ///
-    /// # Returns
-    /// * `Some(TorusSolid3D)` - 有効なパラメータの場合
-    /// * `None` - 無効なパラメータの場合
-    pub fn standard(major_radius: T, minor_radius: T) -> Option<Self> {
-        let origin = Point3D::origin();
-        let z_axis = Direction3D::from_vector(Vector3D::new(T::ZERO, T::ZERO, T::ONE))?;
-        let x_axis = Direction3D::from_vector(Vector3D::new(T::ONE, T::ZERO, T::ZERO))?;
-
-        Self::new(origin, z_axis, x_axis, major_radius, minor_radius)
-    }
-
-    /// Y軸方向を計算（右手座標系）
-    fn y_axis_internal(&self) -> Direction3D<T> {
-        let y_vec = Vector3D::new(
-            self.z_axis.y() * self.x_axis.z() - self.z_axis.z() * self.x_axis.y(),
-            self.z_axis.z() * self.x_axis.x() - self.z_axis.x() * self.x_axis.z(),
-            self.z_axis.x() * self.x_axis.y() - self.z_axis.y() * self.x_axis.x(),
-        );
-        Direction3D::from_vector(y_vec).unwrap_or_else(|| {
-            Direction3D::from_vector(Vector3D::new(T::ZERO, T::ONE, T::ZERO)).unwrap()
-        })
-    }
-
-    /// 対応するトーラス面を取得
-    ///
-    /// トーラス固体の外表面に対応するトーラス面を返します。
-    pub fn outer_surface(&self) -> Option<TorusSurface3D<T>> {
-        TorusSurface3D::new(
-            self.origin,
-            self.z_axis,
-            self.x_axis,
-            self.major_radius,
-            self.minor_radius,
+    fn new_standard(center: Point3D<T>, major_radius: T, minor_radius: T) -> Option<Self> {
+        Self::new(
+            center,
+            Direction3D::positive_z(),
+            Direction3D::positive_x(),
+            major_radius,
+            minor_radius,
         )
     }
-
-    /// 体積を計算
-    ///
-    /// トーラス固体の体積 = 2π²R²r (R=大半径, r=小半径)
-    #[allow(dead_code)]
-    fn volume_internal(&self) -> T {
-        let two = T::from_f64(2.0);
-        let pi_squared = T::from_f64(PI * PI);
-
-        two * pi_squared * self.major_radius * self.major_radius * self.minor_radius
-    }
-
-    /// 表面積を計算
-    ///
-    /// トーラス固体の表面積 = 4π²Rr (R=大半径, r=小半径)
-    #[allow(dead_code)]
-    fn surface_area_internal(&self) -> T {
-        let four = T::from_f64(4.0);
-        let pi_squared = T::from_f64(PI * PI);
-
-        four * pi_squared * self.major_radius * self.minor_radius
-    }
-
-    /// トーラスソリッドの領域に対する点の位置を分類する
-    ///
-    /// トーラスの表面までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
-    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
-    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
-        let relative = Vector3D::from_points(self.origin, *point);
-        let axial = relative.dot(self.z_axis.as_vector());
-        let radial = (relative - self.z_axis.as_vector() * axial).length();
-        let tube_center_distance =
-            ((radial - self.major_radius) * (radial - self.major_radius) + axial * axial).sqrt();
-        let boundary_distance = (tube_center_distance - self.minor_radius).abs();
-
-        if boundary_distance <= tolerance {
-            PointClassification::OnBoundary
-        } else if self.contains_point(point) {
-            PointClassification::Inside
-        } else {
-            PointClassification::Outside
-        }
-    }
-
-    /// 点が固体内部にあるかを判定
-    ///
-    /// # Arguments
-    /// * `point` - 判定する点
-    ///
-    /// # Returns
-    /// * `true` - 点が固体内部にある場合
-    /// * `false` - 点が固体外部にある場合
-    pub fn contains_point(&self, point: &Point3D<T>) -> bool {
-        // 原点からの相対位置ベクトル
-        let relative = Vector3D::new(
-            point.x() - self.origin.x(),
-            point.y() - self.origin.y(),
-            point.z() - self.origin.z(),
-        );
-
-        // Z軸方向の成分
-        let z_component = relative.x() * self.z_axis.x()
-            + relative.y() * self.z_axis.y()
-            + relative.z() * self.z_axis.z();
-
-        // XY平面への投影
-        let x_component = relative.x() * self.x_axis.x()
-            + relative.y() * self.x_axis.y()
-            + relative.z() * self.x_axis.z();
-
-        let y_axis = self.y_axis_internal();
-        let y_component =
-            relative.x() * y_axis.x() + relative.y() * y_axis.y() + relative.z() * y_axis.z();
-
-        // 中心軸からの距離
-        let radial_distance = (x_component * x_component + y_component * y_component).sqrt();
-
-        // トーラス中心線からの距離
-        let torus_center_distance = (radial_distance - self.major_radius).abs();
-
-        // 小半径内にあるかチェック
-        let cross_section_distance =
-            (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
-
-        cross_section_distance <= self.minor_radius
-    }
 }
 
-use geo_contracts::{
-    TorusSolid3DConstructor, TorusSolid3DContainment, TorusSolid3DDerived, TorusSolid3DDistance,
-    TorusSolid3DProperties as ContractsTorusSolid3DProperties,
-};
-
-impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
-    fn new(
-        origin: (T, T, T),
-        axis_vector: (T, T, T),
-        ref_vector: (T, T, T),
-        major_radius: T,
-        minor_radius: T,
-    ) -> Option<Self> {
-        let origin = Point3D::new(origin.0, origin.1, origin.2);
-        let axis =
-            Direction3D::from_vector(Vector3D::new(axis_vector.0, axis_vector.1, axis_vector.2))?;
-        let x_axis =
-            Direction3D::from_vector(Vector3D::new(ref_vector.0, ref_vector.1, ref_vector.2))?;
-        Self::new(origin, axis, x_axis, major_radius, minor_radius)
+impl<T: Scalar> TorusSolid3DProperties<T> for TorusSolid3D<T> {
+    fn center(&self) -> Point3D<T> {
+        self.origin
     }
 
-    fn new_standard(center: (T, T, T), major_radius: T, minor_radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::standard(major_radius, minor_radius).map(|mut t| {
-            t.origin = center_point;
-            t
-        })
-    }
-}
-
-impl<T: Scalar> ContractsTorusSolid3DProperties<T> for TorusSolid3D<T> {
-    fn center(&self) -> (T, T, T) {
-        let o = self.origin;
-        (o.x(), o.y(), o.z())
+    fn axis(&self) -> Direction3D<T> {
+        self.z_axis
     }
 
-    fn axis(&self) -> (T, T, T) {
-        let a = self.z_axis;
-        (a.x(), a.y(), a.z())
-    }
-
-    fn ref_direction(&self) -> (T, T, T) {
-        let r = self.x_axis;
-        (r.x(), r.y(), r.z())
+    fn ref_direction(&self) -> Direction3D<T> {
+        self.x_axis
     }
 
     fn major_radius(&self) -> T {
@@ -275,57 +111,25 @@ impl<T: Scalar> ContractsTorusSolid3DProperties<T> for TorusSolid3D<T> {
     }
 }
 
-impl<T: Scalar> TorusSolid3DDerived<T> for TorusSolid3D<T> {
-    fn volume(&self) -> T {
-        self.volume_internal()
-    }
-
-    fn surface_area(&self) -> T {
-        self.surface_area_internal()
-    }
-
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let o = self.origin;
-        let r_outer = self.major_radius + self.minor_radius;
-
-        let min_x = o.x() - r_outer;
-        let max_x = o.x() + r_outer;
-        let min_y = o.y() - r_outer;
-        let max_y = o.y() + r_outer;
-        let min_z = o.z() - self.minor_radius;
-        let max_z = o.z() + self.minor_radius;
-
-        ((min_x, min_y, min_z), (max_x, max_y, max_z))
-    }
-}
-
 impl<T: Scalar> TorusSolid3DContainment<T> for TorusSolid3D<T> {
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.contains_point(&p)
+    fn contains_point(&self, point: Point3D<T>) -> bool {
+        self.tube_center_distance(point) <= self.minor_radius
     }
 
-    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
-        let p = Point3D::new(point.0, point.1, point.2);
-        TorusSolid3D::classify_point(self, &p, default_distance_tolerance::<T>())
+    fn classify_point(&self, point: Point3D<T>) -> PointClassification {
+        let boundary_distance = (self.tube_center_distance(point) - self.minor_radius).abs();
+        if boundary_distance <= default_distance_tolerance::<T>() {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 }
 
 impl<T: Scalar> TorusSolid3DDistance<T> for TorusSolid3D<T> {
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-        // トーラスソリッド（領域）までの距離。大半径の円（断面の円の中心が描く円）までの距離から小半径を引き、内部・表面上は 0 とする
-        let local = p - self.origin;
-        let z_axis = self.z_axis;
-        let z_component = local.dot(z_axis.as_vector());
-        let radial_vector = local - (z_axis.as_vector() * z_component);
-        let radial_distance = (radial_vector.x() * radial_vector.x()
-            + radial_vector.y() * radial_vector.y()
-            + radial_vector.z() * radial_vector.z())
-        .sqrt();
-        let torus_center_distance = (radial_distance - self.major_radius).abs();
-        let cross_section_distance =
-            (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
-        (cross_section_distance - self.minor_radius).max(T::ZERO)
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
+        (self.tube_center_distance(point) - self.minor_radius).max(T::ZERO)
     }
 }

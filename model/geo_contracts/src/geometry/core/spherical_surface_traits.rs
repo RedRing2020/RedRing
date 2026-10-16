@@ -1,39 +1,40 @@
-//! SphericalSurface trait定義を capability taxonomy に沿って分離する。
+//! SphericalSurface3D 形状の契約定義
+//!
+//! geo_primitives が実装すべき球面の公開 trait。
 
-use analysis::abstract_types::Scalar;
+use crate::{Direction3D, Point3D, Scalar};
 
-pub trait SphericalSurface3DConstructor<T: Scalar> {
-    fn new(center: (T, T, T), axis: (T, T, T), ref_direction: (T, T, T), radius: T) -> Option<Self>
-    where
-        Self: Sized;
+pub trait SphericalSurface3DConstructor<T: Scalar>: Sized {
+    /// 中心・軸・参照方向・半径から作成する（STEP AXIS2_PLACEMENT_3D 形式）
+    ///
+    /// 参照方向は軸の成分を除いて正規化する。軸と平行な場合・半径が正でない場合は `None`。
+    fn new(
+        center: Point3D<T>,
+        axis: Direction3D<T>,
+        ref_direction: Direction3D<T>,
+        radius: T,
+    ) -> Option<Self>;
 
-    fn new_standard(center: (T, T, T), radius: T) -> Option<Self>
-    where
-        Self: Sized;
+    /// 軸を Z 軸正方向、参照方向を X 軸正方向として作成する（半径が正でない場合は `None`）
+    fn new_standard(center: Point3D<T>, radius: T) -> Option<Self>;
 }
 
 pub trait SphericalSurface3DProperties<T: Scalar> {
-    fn center(&self) -> (T, T, T);
+    fn center(&self) -> Point3D<T>;
     fn radius(&self) -> T;
-    fn axis(&self) -> (T, T, T);
-    fn ref_direction(&self) -> (T, T, T);
-    fn diameter(&self) -> T;
+    /// 緯度 π/2 の方向
+    fn axis(&self) -> Direction3D<T>;
+    /// 経度 0・緯度 0 の方向
+    fn ref_direction(&self) -> Direction3D<T>;
 }
 
 pub trait SphericalSurface3DEvaluation<T: Scalar> {
-    fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
-    fn normal_at(&self, u: T, v: T) -> (T, T, T);
-}
-
-pub trait SphericalSurface3DDerived<T: Scalar> {
-    fn surface_area(&self) -> T;
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T));
+    /// 経度 `u` (`0 <= u <= 2π`)・緯度 `v` (`-π/2 <= v <= π/2`) に対応する球面上の点を返す
+    fn point_at_uv(&self, u: T, v: T) -> Point3D<T>;
+    /// 経度 `u`・緯度 `v` での外向きの法線
+    fn normal_at(&self, u: T, v: T) -> Direction3D<T>;
 }
 
 pub trait SphericalSurface3DDistance<T: Scalar> {
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
-}
-
-pub trait SphericalSurface3DProjection<T: Scalar> {
-    fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
+    fn distance_to_point(&self, point: Point3D<T>) -> T;
 }

@@ -7,27 +7,16 @@ use std::f64::consts::PI;
 
 #[test]
 fn test_primitive_kind() {
-    let torus = TorusSurface3D::standard(3.0, 1.0).unwrap();
+    let torus = TorusSurface3D::new_standard(Point3D::origin(), 3.0, 1.0).unwrap();
     assert_eq!(torus.primitive_kind(), PrimitiveKind::TorusSurface);
-}
-
-#[test]
-fn test_surface_area_measure() {
-    let major_radius = 3.0;
-    let minor_radius = 1.0;
-    let torus = TorusSurface3D::standard(major_radius, minor_radius).unwrap();
-
-    let measure = torus.surface_area();
-    let expected = 4.0 * PI * PI * major_radius * minor_radius;
-
-    assert!((measure - expected).abs() < 1e-10);
 }
 
 #[test]
 fn test_bounding_box_standard_torus() {
     let major_radius = 3.0;
     let minor_radius = 1.0;
-    let torus = TorusSurface3D::standard(major_radius, minor_radius).unwrap();
+    let torus =
+        TorusSurface3D::new_standard(Point3D::origin(), major_radius, minor_radius).unwrap();
 
     let bbox = torus.aabb().expect("should have aabb");
     let outer_radius = major_radius + minor_radius; // 4.0
@@ -72,10 +61,7 @@ fn test_bounding_box_rotated_torus() {
 
 #[test]
 fn test_geometric_properties() {
-    let torus = TorusSurface3D::standard(5.0, 1.0).unwrap();
-
-    // 表面積が正の値
-    assert!(torus.surface_area() > 0.0);
+    let torus = TorusSurface3D::new_standard(Point3D::origin(), 5.0, 1.0).unwrap();
 
     // 境界ボックスが有効
     let bbox = torus.aabb().expect("should have aabb");
@@ -85,4 +71,45 @@ fn test_geometric_properties() {
 
     // プリミティブ種類が正しい
     assert_eq!(torus.primitive_kind(), PrimitiveKind::TorusSurface);
+}
+
+#[test]
+fn test_point_and_normal_at_uv() {
+    let torus = TorusSurface3D::new_standard(Point3D::origin(), 3.0, 1.0).unwrap();
+
+    // u は軸回りの角度、v は断面の円の角度
+    let cases = [
+        (
+            0.0,
+            0.0,
+            Point3D::new(4.0, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        ),
+        (
+            0.0,
+            PI,
+            Point3D::new(2.0, 0.0, 0.0),
+            Vector3D::new(-1.0, 0.0, 0.0),
+        ),
+        (
+            PI / 2.0,
+            PI / 2.0,
+            Point3D::new(0.0, 3.0, 1.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+        ),
+    ];
+    for (u, v, point, normal) in cases {
+        assert!(torus.point_at_uv(u, v).distance_to(point) < 1e-12);
+        assert!((torus.normal_at(u, v).as_vector() - normal).length() < 1e-12);
+    }
+}
+
+#[test]
+fn test_distance_to_point() {
+    let torus = TorusSurface3D::new_standard(Point3D::origin(), 3.0, 1.0).unwrap();
+
+    // 断面の円の中心では小半径、中心軸上では中心からの距離は √(R² + 0) - r
+    assert!((torus.distance_to_point(Point3D::new(3.0, 0.0, 0.0)) - 1.0).abs() < 1e-12);
+    assert!((torus.distance_to_point(Point3D::origin()) - 2.0).abs() < 1e-12);
+    assert!(torus.distance_to_point(Point3D::new(0.0, 4.0, 0.0)) < 1e-12);
 }

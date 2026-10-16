@@ -6,13 +6,13 @@ use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata};
 
 #[test]
 fn test_primitive_kind() {
-    let torus = TorusSolid3D::standard(3.0, 1.0).unwrap();
+    let torus = TorusSolid3D::new_standard(Point3D::origin(), 3.0, 1.0).unwrap();
     assert_eq!(torus.primitive_kind(), PrimitiveKind::TorusSolid);
 }
 
 #[test]
 fn test_bounding_box_standard_torus() {
-    let torus = TorusSolid3D::standard(3.0, 1.0).unwrap();
+    let torus = TorusSolid3D::new_standard(Point3D::origin(), 3.0, 1.0).unwrap();
     let bbox = torus.aabb().expect("should have aabb");
 
     // 標準トーラス（Z軸中心）の境界ボックス
@@ -42,31 +42,20 @@ fn test_bounding_box_rotated_torus() {
 }
 
 #[test]
-fn test_volume_measure() {
-    let torus = TorusSolid3D::standard(3.0, 1.0).unwrap();
-    let volume = torus.volume_internal();
+fn test_geometric_properties() {
+    let torus = TorusSolid3D::new_standard(Point3D::origin(), 2.0, 0.5).unwrap();
 
-    // 期待される体積: 2π²R²r = 2π² × 3² × 1 ≈ 177.65
-    let expected = 2.0 * std::f64::consts::PI.powi(2) * 3.0_f64.powi(2) * 1.0;
-    assert!((volume - expected).abs() < 1e-10);
+    assert_eq!(torus.primitive_kind(), PrimitiveKind::TorusSolid);
+
+    // 外径 2.5、軸方向の厚み ±0.5 の境界ボックス
+    let bbox = torus.aabb().expect("should have aabb");
+    assert_eq!(bbox.min(), Point3D::new(-2.5, -2.5, -0.5));
+    assert_eq!(bbox.max(), Point3D::new(2.5, 2.5, 0.5));
 }
 
 #[test]
-fn test_geometric_properties() {
-    let torus = TorusSolid3D::standard(2.0, 0.5).unwrap();
-
-    assert_eq!(torus.primitive_kind(), PrimitiveKind::TorusSolid);
-    assert!(torus.volume_internal() > 0.0);
-
-    let bbox = torus.aabb().expect("should have aabb");
-    let bbox_volume = (bbox.max().x() - bbox.min().x())
-        * (bbox.max().y() - bbox.min().y())
-        * (bbox.max().z() - bbox.min().z());
-
-    // 境界ボックスの体積 > トーラス固体の体積
-    // トーラス(2.0, 0.5): 体積 ≈ 2π² × 2² × 0.5 = 39.48
-    // 境界ボックス: 5×5×1 = 25 （まだ小さい）
-    // より現実的なアサーション：境界ボックス体積 > 0
-    assert!(bbox_volume > 0.0);
-    assert!(bbox_volume > torus.volume_internal() * 0.5); // 緩い条件
+fn test_new_rejects_spindle_torus() {
+    // 大半径が小半径以下の場合は立体にならない
+    assert!(TorusSolid3D::new_standard(Point3D::origin(), 1.0, 1.0).is_none());
+    assert!(TorusSolid3D::new_standard(Point3D::origin(), 1.0, 2.0).is_none());
 }

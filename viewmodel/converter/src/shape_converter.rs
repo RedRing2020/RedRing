@@ -25,17 +25,18 @@ use crate::mesh_converter::VertexData;
 use geo_contracts::{
     Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DEvaluation,
     CylindricalSolid3DProperties, CylindricalSurface3DEvaluation, Ellipse3DProperties,
-    EllipseArc3DProperties, EllipsoidalSolid3DProperties, EllipsoidalSurface3DEvaluation,
-    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DProperties, PrimitiveKind,
-    Ray3DProperties, SphericalSolid3DProperties, SphericalSurface3DEvaluation,
-    TorusSolid3DProperties, TorusSurface3DEvaluation, Triangle3DBoundaryAccess,
+    EllipseArc3DProperties, EllipsoidalSolid3DProperties, EllipsoidalSurface3DConstructor,
+    EllipsoidalSurface3DEvaluation, InfiniteLine3DProperties, LineSegment3DProperties,
+    Plane3DProperties, PrimitiveKind, Ray3DProperties, SphericalSolid3DProperties,
+    SphericalSurface3DConstructor, SphericalSurface3DEvaluation, TorusSolid3DProperties,
+    TorusSurface3DConstructor, TorusSurface3DEvaluation, Triangle3DBoundaryAccess,
 };
 // geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
 // - 基本型 (Point3D, Vector3D from geo_core)
 // - 形状型 (Arc3D等 from geo_primitives)
 use geo_algorithms::{
     Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D,
-    Direction3D, Ellipse3D, EllipseArc3D, EllipsoidalSolid3D, EllipsoidalSurface3D, InfiniteLine3D,
+    Ellipse3D, EllipseArc3D, EllipsoidalSolid3D, EllipsoidalSurface3D, InfiniteLine3D,
     LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, SphericalSurface3D, TorusSolid3D,
     TorusSurface3D, Triangle3D, Vector3D,
 };
@@ -1084,129 +1085,125 @@ pub fn spherical_surface_to_vertices(
             // 極点の退化処理
             if i == 0 {
                 // 北極
-                let (p_pole_x, p_pole_y, p_pole_z) =
+                let p_pole =
                     <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                         surface, u1, v2,
                     );
-                let (p2x, p2y, p2z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::point_at_uv(surface, u1, v2);
-                let (p3x, p3y, p3z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::point_at_uv(surface, u2, v2);
+                let p2 =
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                        surface, u1, v2,
+                    );
+                let p3 =
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                        surface, u2, v2,
+                    );
 
-                let (n_pole_x, n_pole_y, n_pole_z) =
+                let n_pole =
                     <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                         surface, u1, v2,
                     );
 
                 vertices.push(VertexData::new(
-                    [p_pole_x as f32, p_pole_y as f32, p_pole_z as f32],
-                    [n_pole_x as f32, n_pole_y as f32, n_pole_z as f32],
+                    [p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32],
+                    [n_pole.x() as f32, n_pole.y() as f32, n_pole.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p2x as f32, p2y as f32, p2z as f32],
-                    [n_pole_x as f32, n_pole_y as f32, n_pole_z as f32],
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    [n_pole.x() as f32, n_pole.y() as f32, n_pole.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p3x as f32, p3y as f32, p3z as f32],
-                    [n_pole_x as f32, n_pole_y as f32, n_pole_z as f32],
+                    [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                    [n_pole.x() as f32, n_pole.y() as f32, n_pole.z() as f32],
                 ));
                 continue;
             }
 
             if i == v_divisions - 1 {
                 // 南極付近
-                let (p1x, p1y, p1z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::point_at_uv(surface, u1, v1);
-                let (p2x, p2y, p2z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::point_at_uv(surface, u2, v1);
-                let (p_pole_x, p_pole_y, p_pole_z) =
+                let p1 =
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                        surface, u1, v1,
+                    );
+                let p2 =
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                        surface, u2, v1,
+                    );
+                let p_pole =
                     <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                         surface, u1, v2,
                     );
 
-                let (n1x, n1y, n1z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::normal_at(surface, u1, v1);
+                let n1 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                    surface, u1, v1,
+                );
 
                 vertices.push(VertexData::new(
-                    [p1x as f32, p1y as f32, p1z as f32],
-                    [n1x as f32, n1y as f32, n1z as f32],
+                    [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                    [n1.x() as f32, n1.y() as f32, n1.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p2x as f32, p2y as f32, p2z as f32],
-                    [n1x as f32, n1y as f32, n1z as f32],
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    [n1.x() as f32, n1.y() as f32, n1.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p_pole_x as f32, p_pole_y as f32, p_pole_z as f32],
-                    [n1x as f32, n1y as f32, n1z as f32],
+                    [p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32],
+                    [n1.x() as f32, n1.y() as f32, n1.z() as f32],
                 ));
                 continue;
             }
 
             // 通常の4頂点クワッド
-            let (p1x, p1y, p1z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u1, v2,
-                );
+            let p1 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                surface, u1, v1,
+            );
+            let p2 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                surface, u2, v1,
+            );
+            let p3 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                surface, u2, v2,
+            );
+            let p4 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                surface, u1, v2,
+            );
 
-            let (n1x, n1y, n1z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
-                    surface, u1, v1,
-                );
-            let (n2x, n2y, n2z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
-                    surface, u2, v1,
-                );
-            let (n3x, n3y, n3z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
-                    surface, u2, v2,
-                );
-            let (n4x, n4y, n4z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
-                    surface, u1, v2,
-                );
+            let n1 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                surface, u1, v1,
+            );
+            let n2 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                surface, u2, v1,
+            );
+            let n3 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                surface, u2, v2,
+            );
+            let n4 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                surface, u1, v2,
+            );
 
             // 2つの三角形
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
             ));
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n4x as f32, n4y as f32, n4z as f32],
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                [n4.x() as f32, n4.y() as f32, n4.z() as f32],
             ));
         }
     }
@@ -1309,56 +1306,52 @@ pub fn torus_surface_to_vertices(
             let v1 = (j as f64 / v_divisions as f64) * 2.0 * PI;
             let v2 = ((j + 1) as f64 / v_divisions as f64) * 2.0 * PI;
 
-            let (p1x, p1y, p1z) =
-                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
-                    surface, u1, v2,
-                );
+            let p1 = <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                surface, u1, v1,
+            );
+            let p2 = <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                surface, u2, v1,
+            );
+            let p3 = <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                surface, u2, v2,
+            );
+            let p4 = <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                surface, u1, v2,
+            );
 
-            let (n1x, n1y, n1z) =
+            let n1 =
                 <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(surface, u1, v1);
-            let (n2x, n2y, n2z) =
+            let n2 =
                 <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(surface, u2, v1);
-            let (n3x, n3y, n3z) =
+            let n3 =
                 <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(surface, u2, v2);
-            let (n4x, n4y, n4z) =
+            let n4 =
                 <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(surface, u1, v2);
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
             ));
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n4x as f32, n4y as f32, n4z as f32],
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                [n4.x() as f32, n4.y() as f32, n4.z() as f32],
             ));
         }
     }
@@ -1387,7 +1380,7 @@ pub fn ellipsoidal_surface_to_vertices(
 
             // 極点の退化処理（球面と同様）
             if i == 0 || i == v_divisions - 1 {
-                let ((p1x, p1y, p1z), (p2x, p2y, p2z), (p3x, p3y, p3z)) = if i == 0 {
+                let (p1, p2, p3) = if i == 0 {
                     let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u1, v2);
                     let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u1, v2);
                     let p3 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u2, v2);
@@ -1399,77 +1392,82 @@ pub fn ellipsoidal_surface_to_vertices(
                     (p1, p2, pole)
                 };
 
-                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                    f64,
-                >>::normal_at(
-                    surface, u1, if i == 0 { v2 } else { v1 }
-                );
+                let n =
+                    <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                        surface,
+                        u1,
+                        if i == 0 { v2 } else { v1 },
+                    );
 
                 vertices.push(VertexData::new(
-                    [p1x as f32, p1y as f32, p1z as f32],
-                    [nx as f32, ny as f32, nz as f32],
+                    [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                    [n.x() as f32, n.y() as f32, n.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p2x as f32, p2y as f32, p2z as f32],
-                    [nx as f32, ny as f32, nz as f32],
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    [n.x() as f32, n.y() as f32, n.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p3x as f32, p3y as f32, p3z as f32],
-                    [nx as f32, ny as f32, nz as f32],
+                    [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                    [n.x() as f32, n.y() as f32, n.z() as f32],
                 ));
                 continue;
             }
 
-            let (p1x, p1y, p1z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(surface, u1, v1);
-            let (p2x, p2y, p2z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(surface, u2, v1);
-            let (p3x, p3y, p3z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(surface, u2, v2);
-            let (p4x, p4y, p4z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(surface, u1, v2);
+            let p1 =
+                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u1, v1,
+                );
+            let p2 =
+                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u2, v1,
+                );
+            let p3 =
+                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u2, v2,
+                );
+            let p4 =
+                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u1, v2,
+                );
 
-            let (n1x, n1y, n1z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::normal_at(surface, u1, v1);
-            let (n2x, n2y, n2z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::normal_at(surface, u2, v1);
-            let (n3x, n3y, n3z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::normal_at(surface, u2, v2);
-            let (n4x, n4y, n4z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::normal_at(surface, u1, v2);
-
-            vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
-            ));
+            let n1 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                surface, u1, v1,
+            );
+            let n2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                surface, u2, v1,
+            );
+            let n3 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                surface, u2, v2,
+            );
+            let n4 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                surface, u1, v2,
+            );
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n4x as f32, n4y as f32, n4z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
+            ));
+
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                [n4.x() as f32, n4.y() as f32, n4.z() as f32],
             ));
         }
     }
@@ -1600,17 +1598,13 @@ pub fn spherical_solid_to_vertices(
     let v_divisions = quality.sphere_v_divisions;
 
     // Solid プロパティから Surface 構築
-    let center_tuple = <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::center(solid);
-    let axis_tuple = <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple =
-        <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::ref_direction(solid);
-    let radius = <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::radius(solid);
-
-    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
-    let axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
-    let ref_direction = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
-
-    let surface = SphericalSurface3D::new(center, axis, ref_direction, radius).unwrap();
+    let surface = <SphericalSurface3D<f64> as SphericalSurface3DConstructor<f64>>::new(
+        solid.center(),
+        solid.axis(),
+        solid.ref_direction(),
+        solid.radius(),
+    )
+    .unwrap();
 
     let mut vertices = Vec::new();
 
@@ -1622,124 +1616,120 @@ pub fn spherical_solid_to_vertices(
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
             if i == 0 {
-                let (p_pole_x, p_pole_y, p_pole_z) =
+                let p_pole =
                     <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                         &surface, u1, v2,
                     );
-                let (p2x, p2y, p2z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::point_at_uv(&surface, u1, v2);
-                let (p3x, p3y, p3z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::point_at_uv(&surface, u2, v2);
-                let (n_pole_x, n_pole_y, n_pole_z) =
+                let p2 =
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                        &surface, u1, v2,
+                    );
+                let p3 =
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                        &surface, u2, v2,
+                    );
+                let n_pole =
                     <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                         &surface, u1, v2,
                     );
 
                 vertices.push(VertexData::new(
-                    [p_pole_x as f32, p_pole_y as f32, p_pole_z as f32],
-                    [n_pole_x as f32, n_pole_y as f32, n_pole_z as f32],
+                    [p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32],
+                    [n_pole.x() as f32, n_pole.y() as f32, n_pole.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p2x as f32, p2y as f32, p2z as f32],
-                    [n_pole_x as f32, n_pole_y as f32, n_pole_z as f32],
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    [n_pole.x() as f32, n_pole.y() as f32, n_pole.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p3x as f32, p3y as f32, p3z as f32],
-                    [n_pole_x as f32, n_pole_y as f32, n_pole_z as f32],
+                    [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                    [n_pole.x() as f32, n_pole.y() as f32, n_pole.z() as f32],
                 ));
                 continue;
             }
 
             if i == v_divisions - 1 {
-                let (p1x, p1y, p1z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::point_at_uv(&surface, u1, v1);
-                let (p2x, p2y, p2z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::point_at_uv(&surface, u2, v1);
-                let (p_pole_x, p_pole_y, p_pole_z) =
+                let p1 =
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                        &surface, u1, v1,
+                    );
+                let p2 =
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                        &surface, u2, v1,
+                    );
+                let p_pole =
                     <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                         &surface, u1, v2,
                     );
-                let (n1x, n1y, n1z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
-                    f64,
-                >>::normal_at(&surface, u1, v1);
+                let n1 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                    &surface, u1, v1,
+                );
 
                 vertices.push(VertexData::new(
-                    [p1x as f32, p1y as f32, p1z as f32],
-                    [n1x as f32, n1y as f32, n1z as f32],
+                    [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                    [n1.x() as f32, n1.y() as f32, n1.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p2x as f32, p2y as f32, p2z as f32],
-                    [n1x as f32, n1y as f32, n1z as f32],
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    [n1.x() as f32, n1.y() as f32, n1.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p_pole_x as f32, p_pole_y as f32, p_pole_z as f32],
-                    [n1x as f32, n1y as f32, n1z as f32],
+                    [p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32],
+                    [n1.x() as f32, n1.y() as f32, n1.z() as f32],
                 ));
                 continue;
             }
 
-            let (p1x, p1y, p1z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u1, v2,
-                );
+            let p1 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, u1, v1,
+            );
+            let p2 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, u2, v1,
+            );
+            let p3 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, u2, v2,
+            );
+            let p4 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, u1, v2,
+            );
 
-            let (n1x, n1y, n1z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
-                    &surface, u1, v1,
-                );
-            let (n2x, n2y, n2z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
-                    &surface, u2, v1,
-                );
-            let (n3x, n3y, n3z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
-                    &surface, u2, v2,
-                );
-            let (n4x, n4y, n4z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
-                    &surface, u1, v2,
-                );
+            let n1 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u1, v1,
+            );
+            let n2 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u2, v1,
+            );
+            let n3 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u2, v2,
+            );
+            let n4 = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u1, v2,
+            );
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
             ));
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n4x as f32, n4y as f32, n4z as f32],
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                [n4.x() as f32, n4.y() as f32, n4.z() as f32],
             ));
         }
     }
@@ -1858,20 +1848,14 @@ pub fn torus_solid_to_vertices(
     let v_divisions = quality.circle_segments / 2;
 
     // Solid プロパティから Surface 構築
-    let center_tuple = <TorusSolid3D<f64> as TorusSolid3DProperties<f64>>::center(solid);
-    let axis_tuple = <TorusSolid3D<f64> as TorusSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple = <TorusSolid3D<f64> as TorusSolid3DProperties<f64>>::ref_direction(solid);
-    let major_radius = <TorusSolid3D<f64> as TorusSolid3DProperties<f64>>::major_radius(solid);
-    let minor_radius = <TorusSolid3D<f64> as TorusSolid3DProperties<f64>>::minor_radius(solid);
-
-    let origin = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
-    let z_axis_vec = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
-    let x_axis_vec = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
-
-    let z_axis = Direction3D::from_vector(z_axis_vec).unwrap();
-    let x_axis = Direction3D::from_vector(x_axis_vec).unwrap();
-
-    let surface = TorusSurface3D::new(origin, z_axis, x_axis, major_radius, minor_radius).unwrap();
+    let surface = <TorusSurface3D<f64> as TorusSurface3DConstructor<f64>>::new(
+        solid.center(),
+        solid.axis(),
+        solid.ref_direction(),
+        solid.major_radius(),
+        solid.minor_radius(),
+    )
+    .unwrap();
 
     let mut vertices = Vec::new();
 
@@ -1882,56 +1866,52 @@ pub fn torus_solid_to_vertices(
             let v1 = (j as f64 / v_divisions as f64) * 2.0 * PI;
             let v2 = ((j + 1) as f64 / v_divisions as f64) * 2.0 * PI;
 
-            let (p1x, p1y, p1z) =
-                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
-                    &surface, u1, v2,
-                );
+            let p1 = <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, u1, v1,
+            );
+            let p2 = <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, u2, v1,
+            );
+            let p3 = <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, u2, v2,
+            );
+            let p4 = <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, u1, v2,
+            );
 
-            let (n1x, n1y, n1z) =
+            let n1 =
                 <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(&surface, u1, v1);
-            let (n2x, n2y, n2z) =
+            let n2 =
                 <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(&surface, u2, v1);
-            let (n3x, n3y, n3z) =
+            let n3 =
                 <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(&surface, u2, v2);
-            let (n4x, n4y, n4z) =
+            let n4 =
                 <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(&surface, u1, v2);
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
             ));
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n4x as f32, n4y as f32, n4z as f32],
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                [n4.x() as f32, n4.y() as f32, n4.z() as f32],
             ));
         }
     }
@@ -1950,20 +1930,15 @@ pub fn ellipsoidal_solid_to_vertices(
     let v_divisions = quality.sphere_v_divisions;
 
     // Solid プロパティから Surface 構築
-    let center_tuple =
-        <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::center(solid);
-    let axis_tuple = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple =
-        <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::ref_direction(solid);
-    let a = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::a_radius(solid);
-    let b = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::b_radius(solid);
-    let c = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::c_radius(solid);
-
-    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
-    let axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
-    let ref_direction = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
-
-    let surface = EllipsoidalSurface3D::new(center, axis, ref_direction, a, b, c).unwrap();
+    let surface = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DConstructor<f64>>::new(
+        solid.center(),
+        solid.axis(),
+        solid.ref_direction(),
+        solid.a_radius(),
+        solid.b_radius(),
+        solid.c_radius(),
+    )
+    .unwrap();
 
     let mut vertices = Vec::new();
 
@@ -1975,7 +1950,7 @@ pub fn ellipsoidal_solid_to_vertices(
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
             if i == 0 || i == v_divisions - 1 {
-                let ((p1x, p1y, p1z), (p2x, p2y, p2z), (p3x, p3y, p3z)) = if i == 0 {
+                let (p1, p2, p3) = if i == 0 {
                     let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u1, v2);
                     let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u1, v2);
                     let p3 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u2, v2);
@@ -1987,77 +1962,82 @@ pub fn ellipsoidal_solid_to_vertices(
                     (p1, p2, pole)
                 };
 
-                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                    f64,
-                >>::normal_at(
-                    &surface, u1, if i == 0 { v2 } else { v1 }
-                );
+                let n =
+                    <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                        &surface,
+                        u1,
+                        if i == 0 { v2 } else { v1 },
+                    );
 
                 vertices.push(VertexData::new(
-                    [p1x as f32, p1y as f32, p1z as f32],
-                    [nx as f32, ny as f32, nz as f32],
+                    [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                    [n.x() as f32, n.y() as f32, n.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p2x as f32, p2y as f32, p2z as f32],
-                    [nx as f32, ny as f32, nz as f32],
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    [n.x() as f32, n.y() as f32, n.z() as f32],
                 ));
                 vertices.push(VertexData::new(
-                    [p3x as f32, p3y as f32, p3z as f32],
-                    [nx as f32, ny as f32, nz as f32],
+                    [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                    [n.x() as f32, n.y() as f32, n.z() as f32],
                 ));
                 continue;
             }
 
-            let (p1x, p1y, p1z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(&surface, u1, v1);
-            let (p2x, p2y, p2z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(&surface, u2, v1);
-            let (p3x, p3y, p3z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(&surface, u2, v2);
-            let (p4x, p4y, p4z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::point_at_uv(&surface, u1, v2);
+            let p1 =
+                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u1, v1,
+                );
+            let p2 =
+                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u2, v1,
+                );
+            let p3 =
+                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u2, v2,
+                );
+            let p4 =
+                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u1, v2,
+                );
 
-            let (n1x, n1y, n1z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::normal_at(&surface, u1, v1);
-            let (n2x, n2y, n2z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::normal_at(&surface, u2, v1);
-            let (n3x, n3y, n3z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::normal_at(&surface, u2, v2);
-            let (n4x, n4y, n4z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
-                f64,
-            >>::normal_at(&surface, u1, v2);
-
-            vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p2x as f32, p2y as f32, p2z as f32],
-                [n2x as f32, n2y as f32, n2z as f32],
-            ));
-            vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
-            ));
+            let n1 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u1, v1,
+            );
+            let n2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u2, v1,
+            );
+            let n3 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u2, v2,
+            );
+            let n4 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::normal_at(
+                &surface, u1, v2,
+            );
 
             vertices.push(VertexData::new(
-                [p1x as f32, p1y as f32, p1z as f32],
-                [n1x as f32, n1y as f32, n1z as f32],
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p3x as f32, p3y as f32, p3z as f32],
-                [n3x as f32, n3y as f32, n3z as f32],
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                [n2.x() as f32, n2.y() as f32, n2.z() as f32],
             ));
             vertices.push(VertexData::new(
-                [p4x as f32, p4y as f32, p4z as f32],
-                [n4x as f32, n4y as f32, n4z as f32],
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
+            ));
+
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                [n1.x() as f32, n1.y() as f32, n1.z() as f32],
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                [n3.x() as f32, n3.y() as f32, n3.z() as f32],
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                [n4.x() as f32, n4.y() as f32, n4.z() as f32],
             ));
         }
     }
@@ -2113,12 +2093,11 @@ fn generate_circle_cap(
 mod tests {
     use super::*;
     use geo_algorithms::Direction3D;
-    use geo_contracts::Arc3DConstructor;
-    use geo_contracts::Circle3DConstructor;
-    use geo_contracts::LineSegment3DConstructor;
-    use geo_contracts::{Ellipse3DConstructor, EllipseArc3DConstructor};
-    use geo_contracts::{InfiniteLine3DConstructor, Ray3DConstructor};
-    use geo_contracts::{Plane3DConstructor, Triangle3DConstructor};
+    use geo_contracts::{
+        Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, EllipseArc3DConstructor,
+        InfiniteLine3DConstructor, LineSegment3DConstructor, Plane3DConstructor, Ray3DConstructor,
+        SphericalSolid3DConstructor, Triangle3DConstructor,
+    };
 
     #[test]
     fn test_line_segment_conversion() {
@@ -2331,6 +2310,9 @@ mod tests {
     #[test]
     fn test_all_15_shapes_conversion() {
         use geo_algorithms::{Angle, ConicalSurface3D, Ellipse3D};
+        use geo_contracts::{
+            EllipsoidalSolid3DConstructor, SphericalSolid3DConstructor, TorusSolid3DConstructor,
+        };
 
         let quality = TessellationQuality::default();
 
@@ -2400,13 +2382,7 @@ mod tests {
         );
 
         // 7. SphericalSurface3D
-        let sphere_surface = SphericalSurface3D::new(
-            Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            1.0,
-        )
-        .unwrap();
+        let sphere_surface = SphericalSurface3D::new_standard(Point3D::origin(), 1.0).unwrap();
         let sphere_surface_vertices = spherical_surface_to_vertices(&sphere_surface, &quality);
         assert!(
             !sphere_surface_vertices.is_empty(),
@@ -2429,7 +2405,7 @@ mod tests {
         );
 
         // 9. TorusSurface3D
-        let torus_surface = TorusSurface3D::standard(2.0, 0.5).unwrap();
+        let torus_surface = TorusSurface3D::new_standard(Point3D::origin(), 2.0, 0.5).unwrap();
         let torus_surface_vertices = torus_surface_to_vertices(&torus_surface, &quality);
         assert!(
             !torus_surface_vertices.is_empty(),
@@ -2437,15 +2413,8 @@ mod tests {
         );
 
         // 10. EllipsoidalSurface3D
-        let ellipsoid_surface = EllipsoidalSurface3D::new(
-            Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            2.0,
-            1.5,
-            1.0,
-        )
-        .unwrap();
+        let ellipsoid_surface =
+            EllipsoidalSurface3D::new_standard(Point3D::origin(), 2.0, 1.5, 1.0).unwrap();
         let ellipsoid_surface_vertices =
             ellipsoidal_surface_to_vertices(&ellipsoid_surface, &quality);
         assert!(
@@ -2469,13 +2438,7 @@ mod tests {
         );
 
         // 12. SphericalSolid3D
-        let sphere_solid = SphericalSolid3D::new(
-            Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            1.0,
-        )
-        .unwrap();
+        let sphere_solid = SphericalSolid3D::new_standard(Point3D::origin(), 1.0).unwrap();
         let sphere_solid_vertices = spherical_solid_to_vertices(&sphere_solid, &quality);
         assert!(
             !sphere_solid_vertices.is_empty(),
@@ -2498,7 +2461,7 @@ mod tests {
         );
 
         // 14. TorusSolid3D
-        let torus_solid = TorusSolid3D::standard(2.0, 0.5).unwrap();
+        let torus_solid = TorusSolid3D::new_standard(Point3D::origin(), 2.0, 0.5).unwrap();
         let torus_solid_vertices = torus_solid_to_vertices(&torus_solid, &quality);
         assert!(
             !torus_solid_vertices.is_empty(),
@@ -2506,15 +2469,8 @@ mod tests {
         );
 
         // 15. EllipsoidalSolid3D
-        let ellipsoid_solid = EllipsoidalSolid3D::new(
-            Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            2.0,
-            1.5,
-            1.0,
-        )
-        .unwrap();
+        let ellipsoid_solid =
+            EllipsoidalSolid3D::new_standard(Point3D::origin(), 2.0, 1.5, 1.0).unwrap();
         let ellipsoid_solid_vertices = ellipsoidal_solid_to_vertices(&ellipsoid_solid, &quality);
         assert!(
             !ellipsoid_solid_vertices.is_empty(),
@@ -2587,13 +2543,7 @@ mod tests {
             ..Default::default()
         };
 
-        let sphere = SphericalSolid3D::new(
-            Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-            1.0,
-        )
-        .unwrap();
+        let sphere = SphericalSolid3D::new_standard(Point3D::origin(), 1.0).unwrap();
 
         let default_vertices = spherical_solid_to_vertices(&sphere, &quality);
         let high_quality_vertices = spherical_solid_to_vertices(&sphere, &high_quality);

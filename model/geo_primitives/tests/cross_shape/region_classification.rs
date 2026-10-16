@@ -3,24 +3,28 @@
 use geo_contracts::PointClassification::{Inside, OnBoundary, Outside};
 use geo_contracts::{
     default_distance_tolerance, ConicalSolid3DContainment, CylindricalSolid3DContainment,
-    EllipsoidalSolid3DContainment, PointClassification, Rect2DConstructor, Rect2DContainment,
-    Rect3DConstructor, Rect3DContainment, SphericalSolid3DContainment, TorusSolid3DContainment,
-    Triangle2DConstructor, Triangle2DContainment, Triangle3DConstructor, Triangle3DContainment,
+    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, PointClassification,
+    Rect2DConstructor, Rect2DContainment, Rect3DConstructor, Rect3DContainment,
+    SphericalSolid3DConstructor, SphericalSolid3DContainment, TorusSolid3DConstructor,
+    TorusSolid3DContainment, Triangle2DConstructor, Triangle2DContainment, Triangle3DConstructor,
+    Triangle3DContainment,
 };
 use geo_primitives::{
     ConicalSolid3D, CylindricalSolid3D, Direction3D, EllipsoidalSolid3D, Point2D, Point3D, Rect2D,
     Rect3D, SphericalSolid3D, TorusSolid3D, Triangle2D, Triangle3D, Vector3D,
 };
 
+/// 円柱・円錐の分類に渡す許容誤差
 const TOLERANCE: f64 = 1e-3;
 
-/// 境界上の点 `on` と、境界の内向き単位ベクトル `inward` について、許容誤差の境目の分類を確かめる
+/// 境界上の点 `on` と、境界の内向き単位ベクトル `inward` について、許容誤差 `tolerance` の境目の分類を確かめる
 fn assert_boundary_band_3d(
     classify: impl Fn(Point3D<f64>) -> PointClassification,
     on: Point3D<f64>,
     inward: Vector3D<f64>,
+    tolerance: f64,
 ) {
-    let shifted = |scale: f64| on + inward * (scale * TOLERANCE);
+    let shifted = |scale: f64| on + inward * (scale * tolerance);
     assert_eq!(classify(on), OnBoundary);
     assert_eq!(classify(shifted(0.5)), OnBoundary);
     assert_eq!(classify(shifted(-0.5)), OnBoundary);
@@ -159,7 +163,7 @@ fn triangle3d_classify_point() {
 #[test]
 fn spherical_solid_classify_point() {
     let sphere = SphericalSolid3D::new_standard(Point3D::new(1.0, 2.0, 3.0), 2.0).unwrap();
-    let classify = |point: Point3D<f64>| sphere.classify_point(point, TOLERANCE);
+    let classify = |point: Point3D<f64>| sphere.classify_point(point);
 
     assert_eq!(classify(Point3D::new(1.0, 2.0, 3.0)), Inside);
     assert_eq!(classify(Point3D::new(5.0, 2.0, 3.0)), Outside);
@@ -167,8 +171,10 @@ fn spherical_solid_classify_point() {
         classify,
         Point3D::new(3.0, 2.0, 3.0),
         Vector3D::new(-1.0, 0.0, 0.0),
+        default_distance_tolerance::<f64>(),
     );
 
+    // 境界を含む厳密な contains_point は、これらの点では分類が Outside でないことと一致する
     for point in [
         Point3D::new(1.0, 2.0, 3.0),
         Point3D::new(3.0, 2.0, 3.0),
@@ -176,11 +182,11 @@ fn spherical_solid_classify_point() {
     ] {
         assert_eq!(
             sphere.contains_point(point),
-            sphere.classify_point(point, 0.0) != Outside
+            sphere.classify_point(point) != Outside
         );
     }
     assert_eq!(
-        SphericalSolid3DContainment::classify_point(&sphere, (1.0, 2.0, 3.0)),
+        SphericalSolid3DContainment::classify_point(&sphere, Point3D::new(1.0, 2.0, 3.0)),
         Inside
     );
 }
@@ -189,7 +195,7 @@ fn spherical_solid_classify_point() {
 fn ellipsoidal_solid_classify_point() {
     let ellipsoid =
         EllipsoidalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 3.0, 2.0, 1.0).unwrap();
-    let classify = |point: Point3D<f64>| ellipsoid.classify_point(&point, TOLERANCE);
+    let classify = |point: Point3D<f64>| ellipsoid.classify_point(point);
 
     assert_eq!(classify(Point3D::new(0.0, 0.0, 0.0)), Inside);
     assert_eq!(classify(Point3D::new(0.0, 0.0, 1.5)), Outside);
@@ -197,15 +203,17 @@ fn ellipsoidal_solid_classify_point() {
         classify,
         Point3D::new(0.0, 0.0, 1.0),
         Vector3D::new(0.0, 0.0, -1.0),
+        default_distance_tolerance::<f64>(),
     );
     assert_boundary_band_3d(
         classify,
         Point3D::new(3.0, 0.0, 0.0),
         Vector3D::new(-1.0, 0.0, 0.0),
+        default_distance_tolerance::<f64>(),
     );
 
     assert_eq!(
-        EllipsoidalSolid3DContainment::classify_point(&ellipsoid, (0.0, 2.0, 0.0)),
+        EllipsoidalSolid3DContainment::classify_point(&ellipsoid, Point3D::new(0.0, 2.0, 0.0)),
         OnBoundary
     );
 }
@@ -225,16 +233,19 @@ fn cylindrical_solid_classify_point() {
         classify,
         Point3D::new(2.0, 0.0, 2.0),
         Vector3D::new(-1.0, 0.0, 0.0),
+        TOLERANCE,
     );
     assert_boundary_band_3d(
         classify,
         Point3D::new(0.5, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
+        TOLERANCE,
     );
     assert_boundary_band_3d(
         classify,
         Point3D::new(0.5, 0.0, 4.0),
         Vector3D::new(0.0, 0.0, -1.0),
+        TOLERANCE,
     );
     assert_eq!(classify(Point3D::new(2.0, 0.0, 4.0)), OnBoundary);
 
@@ -258,12 +269,14 @@ fn conical_solid_classify_point() {
         classify,
         Point3D::new(0.5, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
+        TOLERANCE,
     );
     let sqrt5 = 5.0_f64.sqrt();
     assert_boundary_band_3d(
         classify,
         Point3D::new(1.0, 0.0, 2.0),
         Vector3D::new(-2.0 / sqrt5, 0.0, -1.0 / sqrt5),
+        TOLERANCE,
     );
     assert_eq!(classify(Point3D::new(0.0, 0.0, 4.0)), OnBoundary);
 
@@ -279,8 +292,8 @@ fn conical_solid_classify_point() {
 #[test]
 fn torus_solid_classify_point() {
     // 大半径 3・小半径 1、Z 軸まわりのトーラス
-    let torus = TorusSolid3D::standard(3.0, 1.0).unwrap();
-    let classify = |point: Point3D<f64>| torus.classify_point(&point, TOLERANCE);
+    let torus = TorusSolid3D::new_standard(Point3D::origin(), 3.0, 1.0).unwrap();
+    let classify = |point: Point3D<f64>| torus.classify_point(point);
 
     assert_eq!(classify(Point3D::new(3.0, 0.0, 0.0)), Inside);
     assert_eq!(classify(Point3D::new(0.0, 0.0, 0.0)), Outside);
@@ -288,25 +301,28 @@ fn torus_solid_classify_point() {
         classify,
         Point3D::new(4.0, 0.0, 0.0),
         Vector3D::new(-1.0, 0.0, 0.0),
+        default_distance_tolerance::<f64>(),
     );
     assert_boundary_band_3d(
         classify,
         Point3D::new(0.0, 3.0, 1.0),
         Vector3D::new(0.0, 0.0, -1.0),
+        default_distance_tolerance::<f64>(),
     );
 
+    // 境界を含む厳密な contains_point は、これらの点では分類が Outside でないことと一致する
     for point in [
         Point3D::new(3.0, 0.0, 0.0),
         Point3D::new(2.0, 0.0, 0.0),
         Point3D::new(0.0, 0.0, 0.0),
     ] {
         assert_eq!(
-            torus.contains_point(&point),
-            torus.classify_point(&point, 0.0) != Outside
+            torus.contains_point(point),
+            torus.classify_point(point) != Outside
         );
     }
     assert_eq!(
-        TorusSolid3DContainment::classify_point(&torus, (0.0, 3.0, 0.0)),
+        TorusSolid3DContainment::classify_point(&torus, Point3D::new(0.0, 3.0, 0.0)),
         Inside
     );
 }

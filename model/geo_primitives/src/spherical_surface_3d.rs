@@ -2,7 +2,6 @@
 //!
 //! STEP準拠のSPHERICAL_SURFACE + AXIS2_PLACEMENT_3Dに対応
 //! 完全ハイブリッドモデラー対応：サーフェス（純粋面）として明確に定義
-//! 拡張機能は extensions.rs を参照
 //!
 //! ## STEP標準対応
 //! ```step
@@ -13,18 +12,17 @@
 //! - ref_direction: X軸方向（参照方向）- 正規化済み
 //! - derived Y軸: axis × ref_direction で自動計算
 //! - radius: 球の半径
-//!
-//! **作成日: 2025年11月1日**
-//! **最終更新: 2025年11月1日**
 
 mod bounds;
 #[cfg(test)]
 mod tests;
 mod transform;
 
-// use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
+use geo_contracts::{
+    Scalar, SphericalSurface3DConstructor, SphericalSurface3DDistance,
+    SphericalSurface3DEvaluation, SphericalSurface3DProperties,
+};
 
 /// 3次元球サーフェス（STEP準拠のCore実装）
 ///
@@ -42,25 +40,15 @@ use geo_contracts::Scalar;
 /// - u ∈ [0, 2π]: 方位角パラメータ（経度）
 /// - v ∈ [-π/2, π/2]: 仰角パラメータ（緯度）
 /// - Point(u, v) = center + radius * (cos(v)*cos(u)*X + cos(v)*sin(u)*Y + sin(v)*Z)
-///
-/// ## サーフェス特性
-/// - 厚みなし：純粋な2次元多様体
-/// - パラメータ化：連続的なUV座標系
-/// - 法線計算：各点での外向き法線ベクトル
-/// - 曲率解析：主曲率・平均曲率・ガウス曲率
-/// - 境界操作：トリム・分割・結合
 #[derive(Debug, Clone, PartialEq)]
 pub struct SphericalSurface3D<T: Scalar> {
     /// 球の中心点（STEP: location）
     center: Point3D<T>,
 
     /// 参照軸方向（STEP: axis）- Z軸、正規化済み
-    /// Direction3D<T>により正規化が保証される
     axis: Direction3D<T>,
 
-    /// 参照方向（STEP: ref_direction）- X軸、正規化済み
-    /// Direction3D<T>により正規化が保証される
-    /// axis と直交していなくても自動調整
+    /// 参照方向（STEP: ref_direction）- X軸、axis と直交
     ref_direction: Direction3D<T>,
 
     /// 球の半径
@@ -74,344 +62,85 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for SphericalSurface3D<T> {
 }
 
 impl<T: Scalar> SphericalSurface3D<T> {
-    /// STEP AXIS2_PLACEMENT_3D 形式で球サーフェスを作成
-    ///
-    /// # Arguments
-    /// * `center` - 球の中心点
-    /// * `axis` - 参照軸ベクトル（Z軸）
-    /// * `ref_direction` - 参照方向ベクトル（X軸）、軸と直交していなくても自動調整
-    /// * `radius` - 半径（正の値）
-    ///
-    /// # Returns
-    /// 有効な球サーフェスが作成できた場合は `Some(SphericalSurface3D)`、
-    /// 無効なパラメータの場合は `None`
-    ///
-    /// # アルゴリズム
-    /// 1. 軸を正規化してZ軸とする
-    /// 2. 参照方向から軸成分を除去（グラム・シュミット正規直交化）
-    /// 3. 正規化して参照方向とする
-    pub fn new(
+    /// Y軸方向（axis × ref_direction）
+    fn y_axis(&self) -> Vector3D<T> {
+        self.axis.as_vector().cross(self.ref_direction.as_vector())
+    }
+
+    /// 経度 `u`・緯度 `v` の方向の単位ベクトル
+    fn unit_direction_at(&self, u: T, v: T) -> Vector3D<T> {
+        self.ref_direction.as_vector() * (v.cos() * u.cos())
+            + self.y_axis() * (v.cos() * u.sin())
+            + self.axis.as_vector() * v.sin()
+    }
+}
+
+impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
+    fn new(
         center: Point3D<T>,
-        axis: Vector3D<T>,
-        ref_direction: Vector3D<T>,
+        axis: Direction3D<T>,
+        ref_direction: Direction3D<T>,
         radius: T,
     ) -> Option<Self> {
-        // 半径の検証
         if radius <= T::ZERO {
             return None;
         }
 
-        // 軸の正規化
-        let z_axis = Direction3D::from_vector(axis)?;
-
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let axis_component = ref_direction.dot(z_axis.as_vector());
-        let orthogonal_ref = ref_direction - z_axis.as_vector() * axis_component;
-
-        // 参照方向の正規化
-        let x_axis = Direction3D::from_vector(orthogonal_ref)?;
+        let ref_direction = Direction3D::from_vector(
+            ref_direction.as_vector() - axis.as_vector() * ref_direction.dot(axis),
+        )?;
 
         Some(Self {
             center,
-            axis: z_axis,
-            ref_direction: x_axis,
+            axis,
+            ref_direction,
             radius,
         })
     }
 
-    /// Z軸標準の球サーフェスを作成（簡易コンストラクタ）
-    pub fn new_standard(center: Point3D<T>, radius: T) -> Option<Self> {
+    fn new_standard(center: Point3D<T>, radius: T) -> Option<Self> {
         Self::new(
             center,
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE),
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO),
+            Direction3D::positive_z(),
+            Direction3D::positive_x(),
             radius,
         )
     }
-
-    /// 原点中心の球サーフェスを作成（簡易コンストラクタ）
-    pub fn new_at_origin(radius: T) -> Option<Self> {
-        Self::new_standard(Point3D::new(T::ZERO, T::ZERO, T::ZERO), radius)
-    }
-
-    /// Y軸方向を計算（axis × ref_direction）
-    #[allow(dead_code)]
-    fn y_axis_internal(&self) -> Direction3D<T> {
-        let y_vector = self.axis.as_vector().cross(self.ref_direction.as_vector());
-        Direction3D::from_vector(y_vector)
-            .expect("Y-axis calculation should always succeed with orthogonal axes")
-    }
-
-    /// 球の直径を取得
-    pub fn diameter(&self) -> T {
-        self.radius * T::from_f64(2.0)
-    }
-
-    /// 球サーフェスの位置（座標系）を取得
-    // 一時的にコメントアウト: Plane3DCoordinateSystemが未定義
-    // pub fn position(&self) -> Plane3DCoordinateSystem<T> {
-    //     // Plane3DCoordinateSystemを原点と軸から構築
-    //     Plane3DCoordinateSystem::from_origin_and_axes(
-    //         self.center,
-    //         self.axis.as_vector(),          // 法線方向
-    //         self.ref_direction.as_vector(), // U軸方向
-    //     )
-    //     .expect("Coordinate system creation should succeed with valid sphere parameters")
-    // }
-    /// パラメトリック座標での点を計算
-    /// u: 極角 (0 ≤ u ≤ π) - 北極からの角度
-    /// v: 方位角 (0 ≤ v ≤ 2π) - 赤道面での角度
-    pub fn point_at(&self, u: T, v: T) -> Point3D<T> {
-        let sin_u = u.sin();
-        let cos_u = u.cos();
-        let sin_v = v.sin();
-        let cos_v = v.cos();
-
-        let x_component = self.ref_direction.as_vector() * (self.radius * sin_u * cos_v);
-        let y_component = self.y_axis_internal().as_vector() * (self.radius * sin_u * sin_v);
-        let z_component = self.axis.as_vector() * (self.radius * cos_u);
-
-        let local_point = x_component + y_component + z_component;
-        Point3D::new(
-            self.center.x() + local_point.x(),
-            self.center.y() + local_point.y(),
-            self.center.z() + local_point.z(),
-        )
-    }
-
-    /// パラメトリック座標での法線ベクトルを計算
-    pub fn normal_at(&self, u: T, v: T) -> Direction3D<T> {
-        let sin_u = u.sin();
-        let cos_u = u.cos();
-        let sin_v = v.sin();
-        let cos_v = v.cos();
-
-        let x_component = self.ref_direction.as_vector() * (sin_u * cos_v);
-        let y_component = self.y_axis_internal().as_vector() * (sin_u * sin_v);
-        let z_component = self.axis.as_vector() * cos_u;
-
-        let normal_vector = x_component + y_component + z_component;
-        Direction3D::from_vector(normal_vector)
-            .expect("Normal vector calculation should always succeed")
-    }
-
-    /// 球サーフェスの表面積を計算
-    pub fn area(&self) -> T {
-        T::from_f64(4.0) * T::PI * self.radius * self.radius
-    }
-
-    /// 球面から無限直線までの最短距離を計算
-    ///
-    /// # Arguments
-    /// * `line_point` - 直線上の任意の点
-    /// * `line_direction` - 直線の方向ベクトル（正規化不要）
-    ///
-    /// # Returns
-    /// 球面から無限直線までの最短距離
-    pub fn distance_to_infinite_line(
-        &self,
-        line_point: &Point3D<T>,
-        line_direction: &Vector3D<T>,
-    ) -> T {
-        let to_center = self.center - *line_point;
-        let dir_dot = line_direction.dot(*line_direction);
-        let t = to_center.dot(*line_direction) / dir_dot;
-        let closest = *line_point + *line_direction * t;
-        let distance_from_center = (self.center - closest).length();
-        (distance_from_center - self.radius).abs()
-    }
-
-    /// 球面から光線（Ray）までの最短距離を計算
-    ///
-    /// # Arguments
-    /// * `ray_origin` - 光線の始点
-    /// * `ray_direction` - 光線の方向ベクトル（正規化不要）
-    ///
-    /// # Returns
-    /// 球面から光線までの最短距離
-    pub fn distance_to_ray(&self, ray_origin: &Point3D<T>, ray_direction: &Vector3D<T>) -> T {
-        let to_center = self.center - *ray_origin;
-        let dir_dot = ray_direction.dot(*ray_direction);
-        let t = to_center.dot(*ray_direction) / dir_dot;
-
-        if t < T::ZERO {
-            let dist_to_origin = to_center.length();
-            (dist_to_origin - self.radius).abs()
-        } else {
-            let closest = *ray_origin + *ray_direction * t;
-            let distance_from_center = (self.center - closest).length();
-            (distance_from_center - self.radius).abs()
-        }
-    }
-
-    /// 球面から線分までの最短距離を計算
-    ///
-    /// # Arguments
-    /// * `segment_start` - 線分の始点
-    /// * `segment_end` - 線分の終点
-    ///
-    /// # Returns
-    /// 球面から線分までの最短距離
-    pub fn distance_to_line_segment(
-        &self,
-        segment_start: &Point3D<T>,
-        segment_end: &Point3D<T>,
-    ) -> T {
-        let direction = *segment_end - *segment_start;
-        let to_center = self.center - *segment_start;
-        let dir_dot = direction.dot(direction);
-        let t = to_center.dot(direction) / dir_dot;
-
-        let nearest = if t < T::ZERO {
-            *segment_start
-        } else if t > T::ONE {
-            *segment_end
-        } else {
-            *segment_start + direction * t
-        };
-
-        let distance_from_center = (self.center - nearest).length();
-        (distance_from_center - self.radius).abs()
-    }
-
-    /// 球サーフェスの表面積を計算
-    ///
-    /// 表面積 = 4π × r²
-    pub fn surface_area(&self) -> T {
-        T::from_f64(4.0) * T::PI * self.radius * self.radius
-    }
-
-    /// 球サーフェスの境界ボックスを計算
-    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
-        let min_point = geo_core::Point3D::new(
-            self.center.x() - self.radius,
-            self.center.y() - self.radius,
-            self.center.z() - self.radius,
-        );
-        let max_point = geo_core::Point3D::new(
-            self.center.x() + self.radius,
-            self.center.y() + self.radius,
-            self.center.z() + self.radius,
-        );
-        geo_core::Aabb3D::new(min_point, max_point)
-    }
-
-    /// 点から球サーフェスまでの最短距離を計算
-    /// 球内部の点の場合は負の値を返す
-    pub fn distance_to_surface(&self, point: Point3D<T>) -> T {
-        let distance_to_center = self.center.distance_to(point);
-        distance_to_center - self.radius
-    }
 }
 
-use geo_contracts::{
-    SphericalSurface3DConstructor, SphericalSurface3DDerived, SphericalSurface3DDistance,
-    SphericalSurface3DEvaluation, SphericalSurface3DProjection,
-    SphericalSurface3DProperties as ContractsSphericalSurface3DProperties,
-};
-
-impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
-    fn new(
-        center: (T, T, T),
-        axis: (T, T, T),
-        ref_direction: (T, T, T),
-        radius: T,
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
-        let ref_vector = Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2);
-        Self::new(center_point, axis_vector, ref_vector, radius)
-    }
-
-    fn new_standard(center: (T, T, T), radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::new_standard(center_point, radius)
-    }
-}
-
-impl<T: Scalar> ContractsSphericalSurface3DProperties<T> for SphericalSurface3D<T> {
-    fn center(&self) -> (T, T, T) {
-        let c = self.center;
-        (c.x(), c.y(), c.z())
+impl<T: Scalar> SphericalSurface3DProperties<T> for SphericalSurface3D<T> {
+    fn center(&self) -> Point3D<T> {
+        self.center
     }
 
     fn radius(&self) -> T {
         self.radius
     }
 
-    fn axis(&self) -> (T, T, T) {
-        let a = self.axis;
-        (a.x(), a.y(), a.z())
+    fn axis(&self) -> Direction3D<T> {
+        self.axis
     }
 
-    fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction;
-        (r.x(), r.y(), r.z())
-    }
-
-    fn diameter(&self) -> T {
-        self.radius * T::from_f64(2.0)
-    }
-}
-
-impl<T: Scalar> SphericalSurface3DDerived<T> for SphericalSurface3D<T> {
-    fn surface_area(&self) -> T {
-        self.surface_area()
-    }
-
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let c = self.center;
-        let r = self.radius;
-
-        let min = (c.x() - r, c.y() - r, c.z() - r);
-        let max = (c.x() + r, c.y() + r, c.z() + r);
-
-        (min, max)
+    fn ref_direction(&self) -> Direction3D<T> {
+        self.ref_direction
     }
 }
 
 impl<T: Scalar> SphericalSurface3DEvaluation<T> for SphericalSurface3D<T> {
-    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
-        let point = self.point_at(u, v);
-        (point.x(), point.y(), point.z())
+    fn point_at_uv(&self, u: T, v: T) -> Point3D<T> {
+        self.center + self.unit_direction_at(u, v) * self.radius
     }
 
-    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
-        let normal = self.normal_at(u, v);
-        (normal.x(), normal.y(), normal.z())
+    fn normal_at(&self, u: T, v: T) -> Direction3D<T> {
+        Direction3D::from_vector(self.unit_direction_at(u, v))
+            .expect("unit direction on sphere should be normalizable")
     }
-
-    // Phase 2: 追加測定
 }
 
 impl<T: Scalar> SphericalSurface3DDistance<T> for SphericalSurface3D<T> {
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let point_3d = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_surface(point_3d).abs()
-    }
-}
-
-impl<T: Scalar> SphericalSurface3DProjection<T> for SphericalSurface3D<T> {
-    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
-        let c = self.center;
-        let r = self.radius;
-        let p = Point3D::new(point.0, point.1, point.2);
-
-        let dir = Vector3D::from_points(c, p);
-        let len = dir.length();
-
-        if len < T::EPSILON {
-            return (c.x() + r, c.y(), c.z());
-        }
-
-        let normalized = dir / len;
-        let surface_point = Point3D::new(
-            c.x() + normalized.x() * r,
-            c.y() + normalized.y() * r,
-            c.z() + normalized.z() * r,
-        );
-
-        (surface_point.x(), surface_point.y(), surface_point.z())
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
+        (self.center.distance_to(point) - self.radius).abs()
     }
 }
 

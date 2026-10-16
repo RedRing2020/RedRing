@@ -2,7 +2,9 @@
 
 use crate::SimilarityTransform3D;
 use crate::SphericalSurface3D;
-use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
+use geo_contracts::{
+    Scalar, SimilarityTransformable3D, SphericalSurface3DConstructor, TransformError,
+};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for SphericalSurface3D<T> {
     fn transform_similarity(
@@ -12,8 +14,8 @@ impl<T: Scalar> SimilarityTransformable3D<T> for SphericalSurface3D<T> {
         let scale = transform.scale_factor();
         Self::new(
             transform.apply_point(self.center),
-            transform.apply_direction(self.axis).as_vector(),
-            transform.apply_direction(self.ref_direction).as_vector(),
+            transform.apply_direction(self.axis),
+            transform.apply_direction(self.ref_direction),
             self.radius * scale,
         )
         .ok_or_else(|| TransformError::InvalidGeometry("invalid sphere".to_string()))

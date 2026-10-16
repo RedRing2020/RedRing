@@ -20,8 +20,9 @@ use crate::{
 use analysis::test_constants;
 use geo_contracts::{
     Arc3DConstructor, Circle3DConstructor, Ellipse3DConstructor, InfiniteLine3DConstructor,
-    LineSegment3DConstructor, Plane3DConstructor, Ray3DConstructor, Triangle3DConstructor,
-    TriangleMesh3DConstructor,
+    LineSegment3DConstructor, Plane3DConstructor, Ray3DConstructor, SphericalSolid3DConstructor,
+    SphericalSurface3DConstructor, TorusSolid3DConstructor, TorusSurface3DConstructor,
+    Triangle3DConstructor, TriangleMesh3DConstructor,
 };
 
 fn standard_distance_tol() -> f64 {
@@ -203,13 +204,7 @@ fn triangle_ellipsoid_and_torus_solid_point_collisions() {
 #[test]
 fn spherical_and_cylindrical_point_collisions_use_distance_based_checks() {
     let tol = standard_distance_tol();
-    let sphere = SphericalSolid3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Vector3D::new(0.0, 0.0, 1.0),
-        Vector3D::new(1.0, 0.0, 0.0),
-        2.0,
-    )
-    .unwrap();
+    let sphere = SphericalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 2.0).unwrap();
     assert!(spherical_solid3d_point3d_collides(
         &sphere,
         &Point3D::new(1.0, 0.0, 0.0),

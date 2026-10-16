@@ -2,7 +2,9 @@
 
 use crate::EllipsoidalSolid3D;
 use crate::SimilarityTransform3D;
-use geo_contracts::{Scalar, SimilarityTransformable3D, TransformError};
+use geo_contracts::{
+    EllipsoidalSolid3DConstructor, Scalar, SimilarityTransformable3D, TransformError,
+};
 
 impl<T: Scalar> SimilarityTransformable3D<T> for EllipsoidalSolid3D<T> {
     fn transform_similarity(
@@ -12,8 +14,8 @@ impl<T: Scalar> SimilarityTransformable3D<T> for EllipsoidalSolid3D<T> {
         let scale = transform.scale_factor();
         Self::new(
             transform.apply_point(self.center),
-            transform.apply_direction(self.axis).as_vector(),
-            transform.apply_direction(self.ref_direction).as_vector(),
+            transform.apply_direction(self.axis),
+            transform.apply_direction(self.ref_direction),
             self.a_radius * scale,
             self.b_radius * scale,
             self.c_radius * scale,

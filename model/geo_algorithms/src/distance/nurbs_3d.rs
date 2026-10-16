@@ -9,8 +9,9 @@ use crate::{
     Plane3D, Point3D, Ray3D, SphericalSolid3D,
 };
 use geo_contracts::{
-    Circle3DDistance, CylindricalSolid3DDistance, DistanceConvergenceError, InfiniteLine3DDistance,
-    LineSegment3DDistance, Plane3DDistance, Ray3DDistance, Scalar,
+    Circle3DDistance, CylindricalSolid3DDistance, DistanceConvergenceError,
+    EllipsoidalSolid3DDistance, InfiniteLine3DDistance, LineSegment3DDistance, Plane3DDistance,
+    Ray3DDistance, Scalar, SphericalSolid3DDistance,
 };
 
 /// NurbsCurve3D-点 間の最短距離（フォールバック付き）
@@ -363,7 +364,7 @@ pub fn nurbscurve3d_spherical_solid3d_try_distance<T: Scalar>(
         let u = u_min + delta_u * T::from_usize(i);
         let curve_vec = curve.evaluate_at(u);
         let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
-        min_distance = min_distance.min(sphere.distance_to_surface(curve_point));
+        min_distance = min_distance.min(sphere.distance_to_point(curve_point));
     }
 
     if min_distance == T::INFINITY {
@@ -417,11 +418,7 @@ pub fn nurbscurve3d_ellipsoidal_solid3d_try_distance<T: Scalar>(
         let u = u_min + delta_u * T::from_usize(i);
         let curve_vec = curve.evaluate_at(u);
         let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
-        let d = if ellipsoid.contains_point(&curve_point) {
-            T::ZERO
-        } else {
-            ellipsoid.distance_to_surface(&curve_point)
-        };
+        let d = ellipsoid.distance_to_point(curve_point);
         min_distance = min_distance.min(d);
     }
 
@@ -494,14 +491,10 @@ pub fn nurbscurve3d_cylindrical_solid3d_try_distance<T: Scalar>(
 mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
-    use geo_contracts::Circle3DConstructor;
-    use geo_contracts::InfiniteLine3DConstructor;
-    use geo_contracts::LineSegment3DConstructor;
-    use geo_contracts::Plane3DConstructor;
-    use geo_contracts::Ray3DConstructor;
     use geo_contracts::{
-        CylindricalSolid3DConstructor, EllipsoidalSolid3DConstructor, NurbsCurve3DConstructor,
-        SphericalSolid3DConstructor, ToleranceSettings,
+        Circle3DConstructor, CylindricalSolid3DConstructor, EllipsoidalSolid3DConstructor,
+        InfiniteLine3DConstructor, LineSegment3DConstructor, NurbsCurve3DConstructor,
+        Plane3DConstructor, Ray3DConstructor, SphericalSolid3DConstructor, ToleranceSettings,
     };
 
     fn create_test_curve() -> NurbsCurve3D<f64> {
@@ -893,7 +886,7 @@ mod tests {
     fn nurbscurve3d_spherical_solid3d_distance_normal() {
         let curve = create_test_curve();
         let sphere = <SphericalSolid3D<f64> as SphericalSolid3DConstructor<f64>>::new_standard(
-            (5.0, 5.0, 5.0),
+            Point3D::new(5.0, 5.0, 5.0),
             0.5,
         )
         .unwrap();
@@ -905,14 +898,14 @@ mod tests {
     #[test]
     fn nurbscurve3d_spherical_solid3d_distance_intersecting() {
         let curve = create_test_curve();
-        // 曲線全体を包含する球（曲線が内部にあるため distance_to_surface は負値）
+        // 曲線全体を包含する球（立体の内部の点との距離は 0）
         let sphere = <SphericalSolid3D<f64> as SphericalSolid3DConstructor<f64>>::new_standard(
-            (0.5, 0.5, 0.0),
+            Point3D::new(0.5, 0.5, 0.0),
             2.0,
         )
         .unwrap();
         let distance = nurbscurve3d_spherical_solid3d_distance(&curve, &sphere);
-        assert!(distance < 0.0);
+        assert_eq!(distance, 0.0);
     }
 
     #[test]
@@ -920,7 +913,7 @@ mod tests {
         let tol = standard_distance_tol();
         let curve = create_test_curve();
         let sphere = <SphericalSolid3D<f64> as SphericalSolid3DConstructor<f64>>::new_standard(
-            (5.0, 5.0, 5.0),
+            Point3D::new(5.0, 5.0, 5.0),
             0.5,
         )
         .unwrap();
@@ -933,7 +926,7 @@ mod tests {
     fn nurbscurve3d_spherical_solid3d_try_distance_invalid_samples() {
         let curve = create_test_curve();
         let sphere = <SphericalSolid3D<f64> as SphericalSolid3DConstructor<f64>>::new_standard(
-            (5.0, 5.0, 5.0),
+            Point3D::new(5.0, 5.0, 5.0),
             0.5,
         )
         .unwrap();
@@ -948,7 +941,7 @@ mod tests {
     fn nurbscurve3d_spherical_solid3d_try_distance_one_sample() {
         let curve = create_test_curve();
         let sphere = <SphericalSolid3D<f64> as SphericalSolid3DConstructor<f64>>::new_standard(
-            (5.0, 5.0, 5.0),
+            Point3D::new(5.0, 5.0, 5.0),
             0.5,
         )
         .unwrap();
@@ -964,7 +957,7 @@ mod tests {
         let curve = create_test_curve();
         let ellipsoid =
             <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DConstructor<f64>>::new_standard(
-                (5.0, 5.0, 5.0),
+                Point3D::new(5.0, 5.0, 5.0),
                 0.5,
                 0.5,
                 0.5,
@@ -981,7 +974,7 @@ mod tests {
         // 曲線全体を包含する楕円体（内部では 0 を返す）
         let ellipsoid =
             <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DConstructor<f64>>::new_standard(
-                (0.5, 0.5, 0.0),
+                Point3D::new(0.5, 0.5, 0.0),
                 2.0,
                 2.0,
                 2.0,
@@ -998,7 +991,7 @@ mod tests {
         let curve = create_test_curve();
         let ellipsoid =
             <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DConstructor<f64>>::new_standard(
-                (5.0, 5.0, 5.0),
+                Point3D::new(5.0, 5.0, 5.0),
                 0.5,
                 0.5,
                 0.5,
@@ -1014,7 +1007,7 @@ mod tests {
         let curve = create_test_curve();
         let ellipsoid =
             <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DConstructor<f64>>::new_standard(
-                (5.0, 5.0, 5.0),
+                Point3D::new(5.0, 5.0, 5.0),
                 0.5,
                 0.5,
                 0.5,
@@ -1032,7 +1025,7 @@ mod tests {
         let curve = create_test_curve();
         let ellipsoid =
             <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DConstructor<f64>>::new_standard(
-                (5.0, 5.0, 5.0),
+                Point3D::new(5.0, 5.0, 5.0),
                 0.5,
                 0.5,
                 0.5,

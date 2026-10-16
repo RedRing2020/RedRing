@@ -2,11 +2,14 @@
 
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    ConicalSolid3DDistance, SphericalSolid3DDistance, TorusSolid3DDistance, Triangle3DConstructor,
+    ConicalSolid3DDistance, EllipsoidalSolid3DConstructor, EllipsoidalSolid3DDistance,
+    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DDistance, SphericalSolid3DConstructor,
+    SphericalSolid3DDistance, TorusSolid3DConstructor, TorusSolid3DDistance, Triangle3DConstructor,
     Triangle3DDistance,
 };
 use geo_primitives::{
-    ConicalSolid3D, EllipsoidalSolid3D, Point3D, SphericalSolid3D, TorusSolid3D, Triangle3D,
+    ConicalSolid3D, EllipsoidalSolid3D, EllipsoidalSurface3D, Point3D, SphericalSolid3D,
+    TorusSolid3D, Triangle3D,
 };
 
 #[test]
@@ -28,24 +31,22 @@ fn triangle3d_distance_from_both_sides_of_plane() {
 #[test]
 fn sphere_distance_is_distance_to_region() {
     let sphere = SphericalSolid3D::new_standard(Point3D::new(0.0_f64, 0.0, 0.0), 2.0).unwrap();
-    let distance =
-        |x: f64, y: f64, z: f64| SphericalSolid3DDistance::distance_to_point(&sphere, (x, y, z));
+    let distance = |x: f64, y: f64, z: f64| {
+        SphericalSolid3DDistance::distance_to_point(&sphere, Point3D::new(x, y, z))
+    };
 
     // 内部・表面上は 0、外部は表面までの距離
     assert!(distance(0.0, 0.0, 0.0).abs() < TOLERANCE_F64);
     assert!(distance(2.0, 0.0, 0.0).abs() < TOLERANCE_F64);
     assert!((distance(0.0, 3.0, 4.0) - 3.0).abs() < TOLERANCE_F64);
-
-    // 符号付きの表面までの距離は維持する
-    let signed = sphere.distance_to_surface(Point3D::new(0.0, 0.0, 0.0));
-    assert!((signed + 2.0).abs() < TOLERANCE_F64);
 }
 
 #[test]
 fn torus_distance_is_distance_to_region() {
-    let torus = TorusSolid3D::standard(3.0_f64, 1.0).unwrap();
-    let distance =
-        |x: f64, y: f64, z: f64| TorusSolid3DDistance::distance_to_point(&torus, (x, y, z));
+    let torus = TorusSolid3D::new_standard(Point3D::origin(), 3.0_f64, 1.0).unwrap();
+    let distance = |x: f64, y: f64, z: f64| {
+        TorusSolid3DDistance::distance_to_point(&torus, Point3D::new(x, y, z))
+    };
 
     // トーラスの内部は 0、外部はトーラスの表面までの距離
     assert!(distance(3.0, 0.0, 0.0).abs() < TOLERANCE_F64);
@@ -75,22 +76,20 @@ fn cone_distance_is_exact_distance_to_region() {
 }
 
 #[test]
-fn ellipsoid_distance_to_surface_is_exact() {
-    let ellipsoid =
+fn ellipsoid_distance_is_exact() {
+    let solid =
         EllipsoidalSolid3D::new_standard(Point3D::new(0.0_f64, 0.0, 0.0), 4.0, 1.0, 1.0).unwrap();
+    let surface =
+        EllipsoidalSurface3D::new_standard(Point3D::new(0.0_f64, 0.0, 0.0), 4.0, 1.0, 1.0).unwrap();
 
     // 赤道面上の点は、その面の楕円までの距離（楕円の距離の参照値）
     let outside = Point3D::new(5.0, 2.0, 0.0);
-    assert!(
-        (ellipsoid.distance_to_surface(&outside) - 2.070_522_627_212_593).abs() < TOLERANCE_F64
-    );
+    let expected = 2.070_522_627_212_593;
+    assert!((solid.distance_to_point(outside) - expected).abs() < TOLERANCE_F64);
+    assert!((surface.distance_to_point(outside) - expected).abs() < TOLERANCE_F64);
 
-    // 内部の点も表面までの距離（中心からは最も短い半軸の長さ）
+    // 立体の内部は 0、面までの距離は表面までの距離（中心からは最も短い半軸の長さ）
     let center = Point3D::new(0.0, 0.0, 0.0);
-    assert!((ellipsoid.distance_to_surface(&center) - 1.0).abs() < TOLERANCE_F64);
-
-    // 最近点は表面上にある
-    let closest = ellipsoid.closest_point_on_surface(&outside);
-    let on_surface = (closest.x() / 4.0).powi(2) + closest.y().powi(2) + closest.z().powi(2) - 1.0;
-    assert!(on_surface.abs() < TOLERANCE_F64);
+    assert_eq!(solid.distance_to_point(center), 0.0);
+    assert!((surface.distance_to_point(center) - 1.0).abs() < TOLERANCE_F64);
 }

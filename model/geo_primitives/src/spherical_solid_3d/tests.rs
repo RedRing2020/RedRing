@@ -1,7 +1,9 @@
 //! SphericalSolid3D の relation 回帰テスト
 
 use crate::{Point3D, SphericalSolid3D};
-use geo_contracts::{Bounded, IntersectsRelation, PrimitiveKind, PrimitiveMetadata};
+use geo_contracts::{
+    Bounded, IntersectsRelation, PrimitiveKind, PrimitiveMetadata, SphericalSolid3DConstructor,
+};
 
 #[test]
 fn test_spherical_solid_intersection_is_exposed_via_relation_trait() {
@@ -31,8 +33,4 @@ fn test_spherical_solid_foundation() {
     let bbox = solid.aabb().expect("should have aabb");
     assert_eq!(bbox.min(), Point3D::new(-1.0, 0.0, 1.0));
     assert_eq!(bbox.max(), Point3D::new(3.0, 4.0, 5.0));
-
-    let volume = solid.volume();
-    let expected_volume = 4.0 * std::f64::consts::PI * 8.0 / 3.0;
-    assert!((volume - expected_volume).abs() < 1e-10);
 }

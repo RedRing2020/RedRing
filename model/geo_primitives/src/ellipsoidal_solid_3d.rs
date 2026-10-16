@@ -2,7 +2,6 @@
 //!
 //! STEP準拠の ELLIPSOIDAL_SOLID + AXIS2_PLACEMENT_3Dに対応
 //! 完全ハイブリッドモデラー対応：ソリッド（立体）として明確に定義
-//! 拡張機能は extensions.rs を参照
 //!
 //! ## STEP標準対応
 //! ```step
@@ -22,7 +21,10 @@ mod tests;
 mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::{default_distance_tolerance, PointClassification, Scalar};
+use geo_contracts::{
+    default_distance_tolerance, EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment,
+    EllipsoidalSolid3DDistance, EllipsoidalSolid3DProperties, PointClassification, Scalar,
+};
 
 /// 3次元楕円体ソリッド（STEP準拠のCore実装）
 ///
@@ -42,19 +44,15 @@ use geo_contracts::{default_distance_tolerance, PointClassification, Scalar};
 /// - 体積計算：V = (4/3)π × a × b × c
 /// - 内部判定：点の包含テスト (x/a)² + (y/b)² + (z/c)² ≤ 1
 /// - 表面積計算：Knudの近似式を使用
-/// - 境界ボックス：中心を基準とした直方体
 #[derive(Debug, Clone, PartialEq)]
 pub struct EllipsoidalSolid3D<T: Scalar> {
     /// 楕円体の中心点（STEP: location）
     center: Point3D<T>,
 
     /// 楕円体の軸方向（STEP: axis）- Z軸、正規化済み
-    /// Direction3D<T>により正規化が保証される
     axis: Direction3D<T>,
 
-    /// 参照方向（STEP: ref_direction）- X軸、正規化済み
-    /// Direction3D<T>により正規化が保証される
-    /// axis と直交していなくても自動調整
+    /// 参照方向（STEP: ref_direction）- X軸、axis と直交
     ref_direction: Direction3D<T>,
 
     /// X軸方向の半径
@@ -74,246 +72,69 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for EllipsoidalSolid3D<T> {
 }
 
 impl<T: Scalar> EllipsoidalSolid3D<T> {
-    /// STEP AXIS2_PLACEMENT_3D 形式で楕円体ソリッドを作成
-    ///
-    /// # Arguments
-    /// * `center` - 中心点
-    /// * `axis` - 軸方向ベクトル（楕円体軸、Z軸）
-    /// * `ref_direction` - 参照方向ベクトル（X軸）、軸と直交していなくても自動調整
-    /// * `a_radius` - X軸方向の半径（正の値）
-    /// * `b_radius` - Y軸方向の半径（正の値）
-    /// * `c_radius` - Z軸方向の半径（正の値）
-    ///
-    /// # Returns
-    /// 有効な楕円体ソリッドが作成できた場合は `Some(EllipsoidalSolid3D)`、
-    /// 無効なパラメータの場合は `None`
-    ///
-    /// # アルゴリズム
-    /// 1. 軸を正規化してZ軸とする
-    /// 2. 参照方向から軸成分を除去（グラム・シュミット正規直交化）
-    /// 3. 正規化して参照方向とする
-    pub fn new(
+    /// Y軸方向（axis × ref_direction）
+    fn y_axis(&self) -> Vector3D<T> {
+        self.axis.as_vector().cross(self.ref_direction.as_vector())
+    }
+
+    /// 点の局所座標 (x, y, z)
+    fn local_coordinates(&self, point: Point3D<T>) -> (T, T, T) {
+        let offset = point - self.center;
+        (
+            offset.dot(self.ref_direction.as_vector()),
+            offset.dot(self.y_axis()),
+            offset.dot(self.axis.as_vector()),
+        )
+    }
+
+    /// 点から表面までの距離（内部・外部とも正）
+    fn distance_to_surface(&self, point: Point3D<T>) -> T {
+        let (x, y, z) = self.local_coordinates(point);
+        let (surface_x, surface_y, surface_z) = geo_commons::ellipsoid_closest_point(
+            x,
+            y,
+            z,
+            self.a_radius,
+            self.b_radius,
+            self.c_radius,
+        );
+        Vector3D::new(x - surface_x, y - surface_y, z - surface_z).length()
+    }
+}
+
+impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
+    fn new(
         center: Point3D<T>,
-        axis: Vector3D<T>,
-        ref_direction: Vector3D<T>,
+        axis: Direction3D<T>,
+        ref_direction: Direction3D<T>,
         a_radius: T,
         b_radius: T,
         c_radius: T,
     ) -> Option<Self> {
-        // 半径の検証
         if a_radius <= T::ZERO || b_radius <= T::ZERO || c_radius <= T::ZERO {
             return None;
         }
 
-        // 軸の正規化
-        let z_axis = Direction3D::from_vector(axis)?;
-
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let axis_component = ref_direction.dot(z_axis.as_vector());
-        let orthogonal_ref = ref_direction - z_axis.as_vector() * axis_component;
-
-        // 参照方向の正規化
-        let x_axis = Direction3D::from_vector(orthogonal_ref)?;
+        let ref_direction = Direction3D::from_vector(
+            ref_direction.as_vector() - axis.as_vector() * ref_direction.dot(axis),
+        )?;
 
         Some(Self {
             center,
-            axis: z_axis,
-            ref_direction: x_axis,
+            axis,
+            ref_direction,
             a_radius,
             b_radius,
             c_radius,
         })
     }
 
-    /// Z軸標準の楕円体ソリッドを作成（簡易コンストラクタ）
-    pub fn new_standard(center: Point3D<T>, a_radius: T, b_radius: T, c_radius: T) -> Option<Self> {
+    fn new_standard(center: Point3D<T>, a_radius: T, b_radius: T, c_radius: T) -> Option<Self> {
         Self::new(
             center,
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE),
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO),
-            a_radius,
-            b_radius,
-            c_radius,
-        )
-    }
-
-    /// 原点中心の楕円体ソリッドを作成（簡易コンストラクタ）
-    pub fn new_at_origin(a_radius: T, b_radius: T, c_radius: T) -> Option<Self> {
-        Self::new_standard(
-            Point3D::new(T::ZERO, T::ZERO, T::ZERO),
-            a_radius,
-            b_radius,
-            c_radius,
-        )
-    }
-
-    /// Y軸方向を計算（axis × ref_direction）
-    fn y_axis_internal(&self) -> Direction3D<T> {
-        let y_vector = self.axis.as_vector().cross(self.ref_direction.as_vector());
-        Direction3D::from_vector(y_vector)
-            .expect("Y-axis calculation should always succeed with orthogonal axes")
-    }
-
-    /// 楕円体ソリッドの体積を計算
-    ///
-    /// # Formula
-    /// V = (4/3)π × a × b × c
-    ///
-    /// # Returns
-    /// 体積
-    pub fn volume(&self) -> T {
-        let pi = T::PI;
-        let four_thirds = T::from_f64(4.0) / T::from_f64(3.0);
-        four_thirds * pi * self.a_radius * self.b_radius * self.c_radius
-    }
-
-    /// 楕円体ソリッドの表面積を近似計算（Knudの近似式）
-    ///
-    /// # Formula
-    /// S ≈ 4π × [(a^p × b^p + b^p × c^p + c^p × a^p) / 3]^(1/p)
-    /// where p ≈ 1.6075
-    ///
-    /// # Returns
-    /// 表面積の近似値
-    pub fn surface_area(&self) -> T {
-        let pi = T::PI;
-        let p = T::from_f64(1.6075);
-        let a = self.a_radius;
-        let b = self.b_radius;
-        let c = self.c_radius;
-
-        // a^p, b^p, c^p を計算
-        let a_p = a.powf(p);
-        let b_p = b.powf(p);
-        let c_p = c.powf(p);
-
-        // (a^p × b^p + b^p × c^p + c^p × a^p) / 3
-        let sum = (a_p * b_p + b_p * c_p + c_p * a_p) / T::from_f64(3.0);
-
-        // 4π × sum^(1/p)
-        T::from_f64(4.0) * pi * sum.powf(T::ONE / p)
-    }
-
-    /// 点が楕円体ソリッドの内部にあるかを判定
-    ///
-    /// # Arguments
-    /// * `point` - 判定する点
-    ///
-    /// # Returns
-    /// 内部にある場合は `true`、外部または表面の場合は `false`
-    ///
-    /// # Algorithm
-    /// ローカル座標系に変換して (x/a)² + (y/b)² + (z/c)² ≤ 1 で判定
-    pub fn contains_point(&self, point: &Point3D<T>) -> bool {
-        // 中心からのオフセット
-        let offset = *point - self.center;
-
-        // ローカル座標軸
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.y_axis_internal().as_vector();
-        let z_axis = self.axis.as_vector();
-
-        // ローカル座標に投影
-        let local_x = offset.dot(x_axis);
-        let local_y = offset.dot(y_axis);
-        let local_z = offset.dot(z_axis);
-
-        // 正規化された楕円体方程式
-        let x_norm = local_x / self.a_radius;
-        let y_norm = local_y / self.b_radius;
-        let z_norm = local_z / self.c_radius;
-
-        // (x/a)² + (y/b)² + (z/c)² ≤ 1
-        let sum = x_norm * x_norm + y_norm * y_norm + z_norm * z_norm;
-        sum <= T::ONE
-    }
-
-    /// 楕円体ソリッドの領域に対する点の位置を分類する
-    ///
-    /// 表面までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
-    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
-    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
-        let boundary_distance = self.distance_to_surface(point);
-
-        if boundary_distance <= tolerance {
-            PointClassification::OnBoundary
-        } else if self.contains_point(point) {
-            PointClassification::Inside
-        } else {
-            PointClassification::Outside
-        }
-    }
-
-    /// 点と楕円体ソリッド表面との距離を計算
-    ///
-    /// # Arguments
-    /// * `point` - 判定する点
-    ///
-    /// # Returns
-    /// 表面までの最短距離（内部の点でも表面までの距離）
-    pub fn distance_to_surface(&self, point: &Point3D<T>) -> T {
-        let closest = self.closest_point_on_surface(point);
-        let diff = *point - closest;
-        (diff.x() * diff.x() + diff.y() * diff.y() + diff.z() * diff.z()).sqrt()
-    }
-
-    /// 指定点に最も近い表面上の点を取得
-    ///
-    /// # Arguments
-    /// * `point` - 基準点
-    ///
-    /// # Returns
-    /// 表面上の最近接点
-    pub fn closest_point_on_surface(&self, point: &Point3D<T>) -> Point3D<T> {
-        let offset = *point - self.center;
-
-        // ローカル座標軸
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.y_axis_internal().as_vector();
-        let z_axis = self.axis.as_vector();
-
-        let (surface_x, surface_y, surface_z) = geo_commons::ellipsoid_closest_point(
-            offset.dot(x_axis),
-            offset.dot(y_axis),
-            offset.dot(z_axis),
-            self.a_radius,
-            self.b_radius,
-            self.c_radius,
-        );
-
-        // ワールド座標系に変換
-        self.center + x_axis * surface_x + y_axis * surface_y + z_axis * surface_z
-    }
-}
-
-use geo_contracts::{
-    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived,
-    EllipsoidalSolid3DDistance,
-    EllipsoidalSolid3DProperties as ContractsEllipsoidalSolid3DProperties,
-};
-
-impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
-    fn new(
-        center: (T, T, T),
-        axis: (T, T, T),
-        ref_direction: (T, T, T),
-        a_radius: T,
-        b_radius: T,
-        c_radius: T,
-    ) -> Option<Self> {
-        Self::new(
-            Point3D::new(center.0, center.1, center.2),
-            Vector3D::new(axis.0, axis.1, axis.2),
-            Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2),
-            a_radius,
-            b_radius,
-            c_radius,
-        )
-    }
-
-    fn new_standard(center: (T, T, T), a_radius: T, b_radius: T, c_radius: T) -> Option<Self> {
-        Self::new_standard(
-            Point3D::new(center.0, center.1, center.2),
+            Direction3D::positive_z(),
+            Direction3D::positive_x(),
             a_radius,
             b_radius,
             c_radius,
@@ -321,10 +142,17 @@ impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> ContractsEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
-    fn center(&self) -> (T, T, T) {
-        let c = self.center;
-        (c.x(), c.y(), c.z())
+impl<T: Scalar> EllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
+    fn center(&self) -> Point3D<T> {
+        self.center
+    }
+
+    fn axis(&self) -> Direction3D<T> {
+        self.axis
+    }
+
+    fn ref_direction(&self) -> Direction3D<T> {
+        self.ref_direction
     }
 
     fn a_radius(&self) -> T {
@@ -338,51 +166,35 @@ impl<T: Scalar> ContractsEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<
     fn c_radius(&self) -> T {
         self.c_radius
     }
-
-    fn axis(&self) -> (T, T, T) {
-        let a = self.axis;
-        (a.x(), a.y(), a.z())
-    }
-
-    fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction;
-        (r.x(), r.y(), r.z())
-    }
-}
-
-impl<T: Scalar> EllipsoidalSolid3DDerived<T> for EllipsoidalSolid3D<T> {
-    fn volume(&self) -> T {
-        self.volume()
-    }
-
-    fn surface_area(&self) -> T {
-        self.surface_area()
-    }
-
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let bbox = self.bounding_box();
-        let min = bbox.min();
-        let max = bbox.max();
-        ((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
-    }
 }
 
 impl<T: Scalar> EllipsoidalSolid3DContainment<T> for EllipsoidalSolid3D<T> {
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        self.contains_point(&Point3D::new(point.0, point.1, point.2))
+    fn contains_point(&self, point: Point3D<T>) -> bool {
+        // (x/a)² + (y/b)² + (z/c)² ≤ 1
+        let (x, y, z) = self.local_coordinates(point);
+        let x = x / self.a_radius;
+        let y = y / self.b_radius;
+        let z = z / self.c_radius;
+        x * x + y * y + z * z <= T::ONE
     }
 
-    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
-        EllipsoidalSolid3D::classify_point(
-            self,
-            &Point3D::new(point.0, point.1, point.2),
-            default_distance_tolerance::<T>(),
-        )
+    fn classify_point(&self, point: Point3D<T>) -> PointClassification {
+        if self.distance_to_surface(point) <= default_distance_tolerance::<T>() {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 }
 
 impl<T: Scalar> EllipsoidalSolid3DDistance<T> for EllipsoidalSolid3D<T> {
-    fn distance_to_surface(&self, point: (T, T, T)) -> T {
-        self.distance_to_surface(&Point3D::new(point.0, point.1, point.2))
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
+        if self.contains_point(point) {
+            T::ZERO
+        } else {
+            self.distance_to_surface(point)
+        }
     }
 }
