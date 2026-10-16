@@ -2,8 +2,8 @@ use analysis::consts::test_constants::TOLERANCE_F64 as EPS;
 use cam_core::{CoordinateFrame, LengthUnit, SegmentType, Tool};
 use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
 use geo_contracts::{
-    NurbsSurface3DConstructor, TriangleMesh3DConstructor, TriangleMesh3DProperties,
-    default_distance_tolerance,
+    NurbsSurface3DConstructor, NurbsSurface3DEvaluation, TriangleMesh3DConstructor,
+    TriangleMesh3DProperties, default_distance_tolerance,
 };
 
 use crate::{
@@ -37,12 +37,24 @@ fn flat_square(z: f64) -> TriangleMesh3D<f64> {
 /// 中央が盛り上がった双二次 NURBS 曲面（XY: 0..40、Z: 80..90 付近）
 fn dome_surface() -> NurbsSurface3D<f64> {
     let control_points = vec![
-        vec![(0.0, 0.0, 80.0), (0.0, 20.0, 80.0), (0.0, 40.0, 80.0)],
-        vec![(20.0, 0.0, 80.0), (20.0, 20.0, 100.0), (20.0, 40.0, 80.0)],
-        vec![(40.0, 0.0, 80.0), (40.0, 20.0, 80.0), (40.0, 40.0, 80.0)],
+        vec![
+            Point3D::new(0.0, 0.0, 80.0),
+            Point3D::new(0.0, 20.0, 80.0),
+            Point3D::new(0.0, 40.0, 80.0),
+        ],
+        vec![
+            Point3D::new(20.0, 0.0, 80.0),
+            Point3D::new(20.0, 20.0, 100.0),
+            Point3D::new(20.0, 40.0, 80.0),
+        ],
+        vec![
+            Point3D::new(40.0, 0.0, 80.0),
+            Point3D::new(40.0, 20.0, 80.0),
+            Point3D::new(40.0, 40.0, 80.0),
+        ],
     ];
     let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-    NurbsSurface3D::new(control_points, None, knots.clone(), knots, 2, 2).unwrap()
+    NurbsSurface3D::new(2, 2, knots.clone(), knots, &control_points, None).unwrap()
 }
 
 fn ball(radius: f64) -> CutterShape {
@@ -244,7 +256,9 @@ fn flat_bottom_does_not_gouge_and_touches_dome() {
     let samples: Vec<[f64; 3]> = (0..=200)
         .flat_map(|i| (0..=200).map(move |j| (i as f64 / 200.0, j as f64 / 200.0)))
         .map(|(u, v)| {
-            let p = surface.evaluate_at(u, v);
+            let p = surface
+                .point_at_uv(u, v)
+                .expect("sample parameter should be within the surface domain");
             [p.x(), p.y(), p.z()]
         })
         .collect();
@@ -337,7 +351,9 @@ fn tessellation_respects_chord_tolerance() {
     let probe = DropCutter::new(&dome, ball(1e-9)).unwrap();
     for i in 0..=20 {
         for j in 0..=20 {
-            let p = surface.evaluate_at(i as f64 / 20.0, j as f64 / 20.0);
+            let p = surface
+                .point_at_uv(i as f64 / 20.0, j as f64 / 20.0)
+                .expect("sample parameter should be within the surface domain");
             let Some(tip) = probe.tip_point_at(p.x(), p.y()) else {
                 panic!("no contact at i={i} j={j} ({:?}, {:?})", p.x(), p.y())
             };
@@ -626,17 +642,23 @@ fn rectangle_touching_reach_is_out_of_domain_not_no_solution() {
 /// u 方向のみ曲がる 40 x 400mm の樋形状（v 方向は直線）
 fn gutter_surface() -> NurbsSurface3D<f64> {
     let control_points = vec![
-        vec![(0.0, 0.0, 80.0), (0.0, 400.0, 80.0)],
-        vec![(20.0, 0.0, 100.0), (20.0, 400.0, 100.0)],
-        vec![(40.0, 0.0, 80.0), (40.0, 400.0, 80.0)],
+        vec![Point3D::new(0.0, 0.0, 80.0), Point3D::new(0.0, 400.0, 80.0)],
+        vec![
+            Point3D::new(20.0, 0.0, 100.0),
+            Point3D::new(20.0, 400.0, 100.0),
+        ],
+        vec![
+            Point3D::new(40.0, 0.0, 80.0),
+            Point3D::new(40.0, 400.0, 80.0),
+        ],
     ];
     NurbsSurface3D::new(
-        control_points,
-        None,
-        vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
-        vec![0.0, 0.0, 1.0, 1.0],
         2,
         1,
+        vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        vec![0.0, 0.0, 1.0, 1.0],
+        &control_points,
+        None,
     )
     .unwrap()
 }
@@ -646,8 +668,10 @@ fn uniform_grid_mesh(surface: &NurbsSurface3D<f64>, nu: usize, nv: usize) -> Tri
     let mut vertices = Vec::with_capacity((nu + 1) * (nv + 1));
     for i in 0..=nu {
         for j in 0..=nv {
-            let p = surface.evaluate_at(i as f64 / nu as f64, j as f64 / nv as f64);
-            vertices.push(Point3D::new(p.x(), p.y(), p.z()));
+            let p = surface
+                .point_at_uv(i as f64 / nu as f64, j as f64 / nv as f64)
+                .expect("sample parameter should be within the surface domain");
+            vertices.push(p);
         }
     }
     let mut indices = Vec::with_capacity(nu * nv * 2);

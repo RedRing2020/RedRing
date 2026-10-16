@@ -10,7 +10,9 @@
 
 use geo_algorithms::{AdaptiveTessellationSettings, NurbsSurfaceAdaptiveTessellation};
 use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
-use geo_contracts::{TriangleMesh3DConstructor, default_kernel_numerical_zero_tolerance};
+use geo_contracts::{
+    NurbsSurface3DEvaluation, TriangleMesh3DConstructor, default_kernel_numerical_zero_tolerance,
+};
 
 use crate::solver::CamSolverError;
 
@@ -253,8 +255,9 @@ fn uses_main_diagonal(
 }
 
 fn evaluate(surface: &NurbsSurface3D<f64>, u: f64, v: f64) -> Point3D<f64> {
-    let p = surface.evaluate_at(u, v);
-    Point3D::new(p.x(), p.y(), p.z())
+    surface
+        .point_at_uv(u, v)
+        .expect("sample parameter should be within the surface domain")
 }
 
 fn midpoint(a: Point3D<f64>, b: Point3D<f64>) -> Point3D<f64> {
@@ -287,16 +290,28 @@ mod tests {
     fn dome() -> NurbsSurface3D<f64> {
         let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         NurbsSurface3D::new(
-            vec![
-                vec![(0.0, 0.0, 80.0), (0.0, 20.0, 80.0), (0.0, 40.0, 80.0)],
-                vec![(20.0, 0.0, 80.0), (20.0, 20.0, 100.0), (20.0, 40.0, 80.0)],
-                vec![(40.0, 0.0, 80.0), (40.0, 20.0, 80.0), (40.0, 40.0, 80.0)],
-            ],
-            None,
+            2,
+            2,
             knots.clone(),
             knots,
-            2,
-            2,
+            &[
+                vec![
+                    Point3D::new(0.0, 0.0, 80.0),
+                    Point3D::new(0.0, 20.0, 80.0),
+                    Point3D::new(0.0, 40.0, 80.0),
+                ],
+                vec![
+                    Point3D::new(20.0, 0.0, 80.0),
+                    Point3D::new(20.0, 20.0, 100.0),
+                    Point3D::new(20.0, 40.0, 80.0),
+                ],
+                vec![
+                    Point3D::new(40.0, 0.0, 80.0),
+                    Point3D::new(40.0, 20.0, 80.0),
+                    Point3D::new(40.0, 40.0, 80.0),
+                ],
+            ],
+            None,
         )
         .unwrap()
     }
