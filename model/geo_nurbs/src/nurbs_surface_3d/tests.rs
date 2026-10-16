@@ -109,9 +109,69 @@ fn test_normal_at() {
     }
 }
 
+/// 単位球の 1/8（x, y, z ≥ 0）。Z 軸まわりの 1/4 円（u）と、赤道から北極への 1/4 円（v）の有理 2 次の回転面。
+/// v = 1 の辺は北極の 1 点に縮退する
+fn sphere_octant() -> NurbsSurface3D<f64> {
+    let circle = [(1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+    let profile = [(1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+    let weights = [1.0, FRAC_1_SQRT_2, 1.0];
+    let control_points: Vec<Vec<Point3D<f64>>> = circle
+        .iter()
+        .map(|&(x, y)| {
+            profile
+                .iter()
+                .map(|&(radius, z)| Point3D::new(radius * x, radius * y, z))
+                .collect()
+        })
+        .collect();
+    let weight_grid = weights
+        .iter()
+        .map(|&wu| weights.iter().map(|&wv| wu * wv).collect())
+        .collect();
+    NurbsSurface3D::new(
+        2,
+        2,
+        clamped_knot_vector(2, 3),
+        clamped_knot_vector(2, 3),
+        &control_points,
+        Some(weight_grid),
+    )
+    .unwrap()
+}
+
+#[test]
+fn test_normal_at_sphere_pole() {
+    let sphere = sphere_octant();
+
+    // 極以外では、単位球の法線は位置ベクトルと一致する
+    for (u, v) in [(0.0, 0.0), (0.3, 0.4), (0.8, 0.9)] {
+        let point = sphere.point_at_uv(u, v).unwrap();
+        let normal = sphere.normal_at(u, v).unwrap();
+        assert!(
+            (normal.as_vector() - Vector3D::from_points(Point3D::origin(), point)).length() < 1e-9
+        );
+    }
+
+    // 縮退した北極（v = 1）でも、内側へずらした点の法線として北極の方向を返す
+    for u in [0.0, 0.5, 1.0] {
+        assert!(
+            sphere
+                .point_at_uv(u, 1.0)
+                .unwrap()
+                .distance_to(Point3D::new(0.0, 0.0, 1.0))
+                < 1e-12
+        );
+        let normal = sphere.normal_at(u, 1.0).unwrap();
+        assert!(
+            (normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < 1e-5,
+            "u = {u}"
+        );
+    }
+}
+
 #[test]
 fn test_normal_at_degenerate_edge() {
-    // u = 0 の辺が 1 点に縮退した曲面（三角形）では、その辺の法線は定まらない
+    // u = 0 の辺が 1 点に縮退した平面上の曲面（三角形）でも、法線は平面の法線
     let surface = NurbsSurface3D::new(
         1,
         1,
@@ -124,8 +184,21 @@ fn test_normal_at_degenerate_edge() {
         None,
     )
     .unwrap();
-    assert!(surface.normal_at(0.0, 0.5).is_none());
-    assert!(surface.normal_at(0.5, 0.5).is_some());
+    let normal = surface.normal_at(0.0, 0.5).unwrap();
+    assert!((normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < 1e-12);
+
+    // 曲面全体が 1 点に縮退している場合は定まらない
+    let p = Point3D::new(1.0, 2.0, 3.0);
+    let point_surface = NurbsSurface3D::new(
+        1,
+        1,
+        clamped_knot_vector(1, 2),
+        clamped_knot_vector(1, 2),
+        &[vec![p, p], vec![p, p]],
+        None,
+    )
+    .unwrap();
+    assert!(point_surface.normal_at(0.5, 0.5).is_none());
 }
 
 #[test]

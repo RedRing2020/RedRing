@@ -11,7 +11,7 @@ mod transform;
 
 use crate::basis::{basis_first_derivatives, basis_functions};
 use crate::curve_evaluation::clamp_to_domain;
-use crate::{KnotVector, Scalar, WeightStorage};
+use crate::{constants, KnotVector, Scalar, WeightStorage};
 use geo_contracts::{
     default_parallel_cross_error_tolerance, NurbsError, NurbsSurface3DConstructor,
     NurbsSurface3DEvaluation, NurbsSurface3DProperties,
@@ -127,6 +127,29 @@ impl<T: Scalar> NurbsSurface3D<T> {
             )
         };
         (point, partial(numerator_u), partial(numerator_v))
+    }
+
+    /// 定義域内の `(u, v)` での ∂u × ∂v の向きの法線（偏導関数が平行または 0 の場合は `None`）
+    fn normal_from_partials(&self, u: T, v: T) -> Option<Direction3D<T>> {
+        let (_, partial_u, partial_v) = self.point_and_partials(u, v);
+        let normal = partial_u.cross(partial_v);
+        if normal.length()
+            <= default_parallel_cross_error_tolerance::<T>()
+                * partial_u.length()
+                * partial_v.length()
+        {
+            return None;
+        }
+        Direction3D::from_vector(normal)
+    }
+}
+
+/// `value` を `target` に向けて `step` だけ動かす（`target` を越えない）
+fn move_toward<T: Scalar>(value: T, target: T, step: T) -> T {
+    if value < target {
+        (value + step).min(target)
+    } else {
+        (value - step).max(target)
     }
 }
 
@@ -277,16 +300,25 @@ impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
 
     fn normal_at(&self, u: T, v: T) -> Option<Direction3D<T>> {
         let (u, v) = self.clamp_to_domain(u, v)?;
-        let (_, partial_u, partial_v) = self.point_and_partials(u, v);
-        let normal = partial_u.cross(partial_v);
-        // 偏導関数が平行または 0 の場合（極など）は定まらない
-        if normal.length()
-            <= default_parallel_cross_error_tolerance::<T>()
-                * partial_u.length()
-                * partial_v.length()
-        {
-            return None;
+        if let Some(normal) = self.normal_from_partials(u, v) {
+            return Some(normal);
         }
-        Direction3D::from_vector(normal)
+
+        // 偏導関数が平行または 0 の点（極など）では、定義域の中心へ少しずらした点の法線を使う。
+        // ずらす量は定義域の幅に対する割合で、法線が定まるまで 10 倍ずつ大きくする
+        let ((u_start, u_end), (v_start, v_end)) = self.parameter_domain();
+        let two = T::ONE + T::ONE;
+        let (u_center, v_center) = ((u_start + u_end) / two, (v_start + v_end) / two);
+        let mut ratio = T::from_f64(constants::NORMAL_OFFSET_INITIAL_RATIO);
+        let max_ratio = T::from_f64(constants::NORMAL_OFFSET_MAX_RATIO);
+        while ratio <= max_ratio {
+            let shifted_u = move_toward(u, u_center, (u_end - u_start) * ratio);
+            let shifted_v = move_toward(v, v_center, (v_end - v_start) * ratio);
+            if let Some(normal) = self.normal_from_partials(shifted_u, shifted_v) {
+                return Some(normal);
+            }
+            ratio *= T::from_f64(10.0);
+        }
+        None
     }
 }
