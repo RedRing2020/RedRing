@@ -117,11 +117,10 @@ fn cylindrical_surface3d_plane3d_intersection_raw<T: Scalar>(
     plane: &Plane3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (cx, cy, cz) = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(cyl);
-    let center = Point3D::new(cx, cy, cz);
+    let center = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(cyl);
     let radius = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(cyl);
     if plane.distance_to_point(center).abs() <= radius + tolerance {
-        Some(Point3D::new(cx, cy, cz))
+        Some(center)
     } else {
         None
     }
@@ -144,20 +143,14 @@ fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
     rhs: &CylindricalSurface3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let lhs_center_tuple =
-        <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(lhs);
-    let rhs_center_tuple =
-        <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(rhs);
-    let lhs_center = Point3D::new(lhs_center_tuple.0, lhs_center_tuple.1, lhs_center_tuple.2);
-    let rhs_center = Point3D::new(rhs_center_tuple.0, rhs_center_tuple.1, rhs_center_tuple.2);
+    let lhs_center = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(lhs);
+    let rhs_center = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(rhs);
 
     let lhs_dist = crate::distance::cylindrical_surface3d_point3d_distance(lhs, &rhs_center);
     let rhs_dist = crate::distance::cylindrical_surface3d_point3d_distance(rhs, &lhs_center);
 
-    let lhs_axis_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(lhs);
-    let rhs_axis_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(rhs);
-    let lhs_axis = Vector3D::new(lhs_axis_tuple.0, lhs_axis_tuple.1, lhs_axis_tuple.2);
-    let rhs_axis = Vector3D::new(rhs_axis_tuple.0, rhs_axis_tuple.1, rhs_axis_tuple.2);
+    let lhs_axis = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(lhs);
+    let rhs_axis = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(rhs);
     let center_delta = Vector3D::from_points(lhs_center, rhs_center);
 
     let angle_tolerance = if tolerance > T::from_f64(1.0e-6) {
@@ -166,7 +159,7 @@ fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
         T::from_f64(1.0e-6)
     };
     let axes_parallel = (lhs_axis.dot(rhs_axis).abs() - T::ONE).abs() <= angle_tolerance;
-    let axis_distance = center_delta.cross(lhs_axis).length();
+    let axis_distance = center_delta.cross(lhs_axis.as_vector()).length();
     let radii_match = (<CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(lhs)
         - <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(rhs))
     .abs()
@@ -304,10 +297,8 @@ fn conical_solid3d_plane3d_intersection_raw<T: Scalar>(
     plane: &Plane3D<T>,
     _tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (ax, ay, az) = ConicalSolid3DProperties::apex(cone);
-    let (bx, by, bz) = ConicalSolid3DProperties::base_center(cone);
-    let apex = Point3D::new(ax, ay, az);
-    let base = Point3D::new(bx, by, bz);
+    let apex = ConicalSolid3DProperties::apex(cone);
+    let base = ConicalSolid3DProperties::base_center(cone);
     let radius = ConicalSolid3DProperties::radius(cone);
     let dist_apex = plane.distance_to_point(apex);
     let dist_base = plane.distance_to_point(base);

@@ -475,7 +475,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_try_distance<T: Scalar>(
         let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
         let d = <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
             cylinder,
-            (curve_point.x(), curve_point.y(), curve_point.z()),
+            curve_point,
         );
         min_distance = min_distance.min(d);
     }
@@ -1043,7 +1043,7 @@ mod tests {
         let curve = create_test_curve();
         let cylinder =
             <CylindricalSolid3D<f64> as CylindricalSolid3DConstructor<f64>>::new_standard(
-                (5.0, 5.0, 5.0),
+                Point3D::new(5.0, 5.0, 5.0),
                 0.5,
                 2.0,
             )
@@ -1059,7 +1059,7 @@ mod tests {
         // 曲線全体を包含する円柱（z軸方向、z=-1〜z=2 の範囲）
         let cylinder =
             <CylindricalSolid3D<f64> as CylindricalSolid3DConstructor<f64>>::new_standard(
-                (0.5, 0.5, -1.0),
+                Point3D::new(0.5, 0.5, -1.0),
                 2.0,
                 3.0,
             )
@@ -1075,7 +1075,7 @@ mod tests {
         let curve = create_test_curve();
         let cylinder =
             <CylindricalSolid3D<f64> as CylindricalSolid3DConstructor<f64>>::new_standard(
-                (5.0, 5.0, 5.0),
+                Point3D::new(5.0, 5.0, 5.0),
                 0.5,
                 2.0,
             )
@@ -1090,7 +1090,7 @@ mod tests {
         let curve = create_test_curve();
         let cylinder =
             <CylindricalSolid3D<f64> as CylindricalSolid3DConstructor<f64>>::new_standard(
-                (5.0, 5.0, 5.0),
+                Point3D::new(5.0, 5.0, 5.0),
                 0.5,
                 2.0,
             )
@@ -1107,7 +1107,7 @@ mod tests {
         let curve = create_test_curve();
         let cylinder =
             <CylindricalSolid3D<f64> as CylindricalSolid3DConstructor<f64>>::new_standard(
-                (5.0, 5.0, 5.0),
+                Point3D::new(5.0, 5.0, 5.0),
                 0.5,
                 2.0,
             )

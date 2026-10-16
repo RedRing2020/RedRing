@@ -38,20 +38,20 @@ pub use circle_traits::{
     Circle3DDistance, Circle3DEvaluation, Circle3DProjection, Circle3DProperties,
 };
 pub use conical_solid_traits::{
-    ConicalSolid3DConstructor, ConicalSolid3DContainment, ConicalSolid3DDerived,
-    ConicalSolid3DDistance, ConicalSolid3DProperties,
+    ConicalSolid3DConstructor, ConicalSolid3DContainment, ConicalSolid3DDistance,
+    ConicalSolid3DProperties,
 };
 pub use conical_surface_traits::{
-    ConicalSurface3DConstructor, ConicalSurface3DDerived, ConicalSurface3DDistance,
-    ConicalSurface3DEvaluation, ConicalSurface3DProperties,
+    ConicalSurface3DConstructor, ConicalSurface3DDistance, ConicalSurface3DEvaluation,
+    ConicalSurface3DProperties,
 };
 pub use cylindrical_solid_traits::{
-    CylindricalSolid3DConstructor, CylindricalSolid3DContainment, CylindricalSolid3DDerived,
-    CylindricalSolid3DDistance, CylindricalSolid3DProperties,
+    CylindricalSolid3DConstructor, CylindricalSolid3DContainment, CylindricalSolid3DDistance,
+    CylindricalSolid3DProperties,
 };
 pub use cylindrical_surface_traits::{
-    CylindricalSurface3DConstructor, CylindricalSurface3DDerived, CylindricalSurface3DDistance,
-    CylindricalSurface3DEvaluation, CylindricalSurface3DProperties,
+    CylindricalSurface3DConstructor, CylindricalSurface3DDistance, CylindricalSurface3DEvaluation,
+    CylindricalSurface3DProperties,
 };
 
 pub use ellipse_arc_traits::{

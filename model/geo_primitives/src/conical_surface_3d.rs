@@ -2,7 +2,6 @@
 //!
 //! STEP準拠のCONICAL_SURFACE + AXIS2_PLACEMENT_3Dに対応
 //! 完全ハイブリッドモデラー対応：サーフェス（純粋面）として明確に定義
-//! 拡張機能は extensions.rs を参照
 //!
 //! ## STEP標準対応
 //! ```step
@@ -13,14 +12,18 @@
 //! - ref_direction: X軸方向（参照方向）- 正規化済み
 //! - derived Y軸: axis × ref_direction で自動計算
 //! - radius: 基準点での半径
-//! - semi_angle: 半頂角（ラジアン）
+//! - semi_angle: 半頂角
 
 mod bounds;
-mod extensions;
+#[cfg(test)]
+mod tests;
 mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
+use geo_contracts::{
+    default_distance_tolerance, Angle, ConicalSurface3DConstructor, ConicalSurface3DDistance,
+    ConicalSurface3DEvaluation, ConicalSurface3DProperties, Scalar,
+};
 
 /// 3次元円錐サーフェス（STEP準拠のCore実装）
 ///
@@ -33,38 +36,29 @@ use geo_contracts::Scalar;
 /// - ref_direction: X軸方向（STEP: ref_direction）- 参照方向、正規化済み
 /// - derived Y軸: axis × ref_direction で自動計算
 /// - radius: 基準点での半径
-/// - semi_angle: 半頂角（ラジアン）- 円錐の開き角度
+/// - semi_angle: 半頂角 - 円錐の開き角度
 ///
 /// ## パラメータ化 (u, v)
 /// - u ∈ [0, 2π]: 円周方向パラメータ（角度）
 /// - v ∈ ℝ: 軸方向パラメータ（無限範囲、境界で制限）
 /// - Point(u, v) = center + (radius + v * tan(semi_angle)) * (cos(u) * X + sin(u) * Y) + v * Z
-///
-/// ## サーフェス特性
-/// - 厚みなし：純粋な2次元多様体
-/// - パラメータ化：連続的なUV座標系
-/// - 法線計算：各点での垂直ベクトル
-/// - 曲率解析：主曲率・平均曲率・ガウス曲率
-/// - 境界操作：トリム・分割・結合
+/// - 頂点（v = -radius / tan(semi_angle)）の先では半径が負になり、頂点の反対側の円錐を表す
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConicalSurface3D<T: Scalar> {
     /// 円錐軸上の基準点（STEP: location）
     center: Point3D<T>,
 
     /// 円錐の軸方向（STEP: axis）- Z軸、正規化済み
-    /// Direction3D<T>により正規化が保証される
     axis: Direction3D<T>,
 
-    /// 参照方向（STEP: ref_direction）- X軸、正規化済み
-    /// Direction3D<T>により正規化が保証される
-    /// axis と直交していなくても自動調整
+    /// 参照方向（STEP: ref_direction）- X軸、axis と直交
     ref_direction: Direction3D<T>,
 
     /// 基準点での半径
     radius: T,
 
-    /// 半頂角（ラジアン）- 円錐の開き角度
-    semi_angle: T,
+    /// 半頂角
+    semi_angle: Angle<T>,
 }
 
 impl<T: Scalar> geo_contracts::PrimitiveMetadata for ConicalSurface3D<T> {
@@ -74,464 +68,148 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for ConicalSurface3D<T> {
 }
 
 impl<T: Scalar> ConicalSurface3D<T> {
-    /// STEP AXIS2_PLACEMENT_3D 形式で円錐サーフェスを作成
-    ///
-    /// # Arguments
-    /// * `center` - 軸上の基準点
-    /// * `axis` - 軸方向ベクトル（円錐軸、Z軸）
-    /// * `ref_direction` - 参照方向ベクトル（X軸）、軸と直交していなくても自動調整
-    /// * `radius` - 基準点での半径（正の値）
-    /// * `semi_angle` - 半頂角（ラジアン、0 < semi_angle < π/2）
-    ///
-    /// # Returns
-    /// 有効な円錐サーフェスが作成できた場合は `Some(ConicalSurface3D)`、
-    /// 無効なパラメータの場合は `None`
-    ///
-    /// # アルゴリズム
-    /// 1. 軸を正規化してZ軸とする
-    /// 2. 参照方向から軸成分を除去（グラム・シュミット正規直交化）
-    /// 3. 正規化して参照方向とする
-    pub fn new(
+    /// Y軸方向（axis × ref_direction）
+    fn y_axis(&self) -> Vector3D<T> {
+        self.axis.as_vector().cross(self.ref_direction.as_vector())
+    }
+
+    /// 円周方向の角度 `u` の、軸から離れる向きの単位ベクトル
+    fn radial_direction_at(&self, u: T) -> Vector3D<T> {
+        self.ref_direction.as_vector() * u.cos() + self.y_axis() * u.sin()
+    }
+
+    /// 軸方向の距離 `v` での半径（頂点の先では負）
+    fn radius_at(&self, v: T) -> T {
+        self.radius + v * self.semi_angle.tan()
+    }
+
+    /// 基準点から頂点までの軸方向の距離（負の値）
+    fn apex_parameter(&self) -> T {
+        -self.radius / self.semi_angle.tan()
+    }
+}
+
+/// 2D の点から、始点と単位方向で表す半直線までの距離
+fn distance_to_ray_2d<T: Scalar>(point: (T, T), origin: (T, T), direction: (T, T)) -> T {
+    let to_point = (point.0 - origin.0, point.1 - origin.1);
+    let t = (to_point.0 * direction.0 + to_point.1 * direction.1).max(T::ZERO);
+    let dx = to_point.0 - direction.0 * t;
+    let dy = to_point.1 - direction.1 * t;
+    (dx * dx + dy * dy).sqrt()
+}
+
+impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
+    fn new(
         center: Point3D<T>,
-        axis: Vector3D<T>,
-        ref_direction: Vector3D<T>,
+        axis: Direction3D<T>,
+        ref_direction: Direction3D<T>,
         radius: T,
-        semi_angle: T,
+        semi_angle: Angle<T>,
     ) -> Option<Self> {
-        // 半径の検証
         if radius <= T::ZERO {
             return None;
         }
 
-        // 半頂角の検証（0 < semi_angle < π/2）
-        if semi_angle <= T::ZERO || semi_angle >= T::PI / (T::ONE + T::ONE) {
+        // 半頂角は 0 < semi_angle < π/2
+        let half_pi = T::PI / (T::ONE + T::ONE);
+        if semi_angle.to_radians() <= T::ZERO || semi_angle.to_radians() >= half_pi {
             return None;
         }
 
-        // 軸方向を正規化
-        let axis_direction = Direction3D::from_vector(axis)?;
-
-        // グラム・シュミット正規直交化で参照方向を調整
-        let axis_vec = axis_direction.as_vector();
-        let dot_product = ref_direction.x() * axis_vec.x()
-            + ref_direction.y() * axis_vec.y()
-            + ref_direction.z() * axis_vec.z();
-
-        // 参照方向から軸成分を除去
-        let orthogonal_ref = Vector3D::new(
-            ref_direction.x() - dot_product * axis_vec.x(),
-            ref_direction.y() - dot_product * axis_vec.y(),
-            ref_direction.z() - dot_product * axis_vec.z(),
-        );
-
-        // 正規化して参照方向とする
-        let ref_dir = Direction3D::from_vector(orthogonal_ref)?;
+        // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
+        let ref_direction = Direction3D::from_vector(
+            ref_direction.as_vector() - axis.as_vector() * ref_direction.dot(axis),
+        )?;
 
         Some(Self {
             center,
-            axis: axis_direction,
-            ref_direction: ref_dir,
+            axis,
+            ref_direction,
             radius,
             semi_angle,
         })
     }
 
-    /// 原点を中心とした標準円錐サーフェスを作成
-    ///
-    /// # Arguments
-    /// * `radius` - 基準点での半径
-    /// * `semi_angle` - 半頂角（ラジアン）
-    ///
-    /// # Returns
-    /// Z軸を軸とし、X軸を参照方向とする円錐サーフェス
-    pub fn new_at_origin(radius: T, semi_angle: T) -> Option<Self> {
+    fn new_standard(center: Point3D<T>, radius: T, semi_angle: Angle<T>) -> Option<Self> {
         Self::new(
-            Point3D::origin(),
-            Vector3D::new(T::ZERO, T::ZERO, T::ONE),
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO),
+            center,
+            Direction3D::positive_z(),
+            Direction3D::positive_x(),
             radius,
             semi_angle,
         )
     }
-
-    /// Y軸方向を計算（派生軸）
-    ///
-    /// STEP標準：Y = Z × X（右手系）
-    fn derived_y_axis_internal(&self) -> Direction3D<T> {
-        let z = self.axis.as_vector();
-        let x = self.ref_direction.as_vector();
-
-        // 外積: Z × X = Y
-        let y = Vector3D::new(
-            z.y() * x.z() - z.z() * x.y(),
-            z.z() * x.x() - z.x() * x.z(),
-            z.x() * x.y() - z.y() * x.x(),
-        );
-
-        // Direction3D は正規化を保証する
-        Direction3D::from_vector(y).expect("Y軸の計算は常に成功する（直交軸系のため）")
-    }
-
-    /// 指定した軸方向距離での半径を計算
-    ///
-    /// # Arguments
-    /// * `v` - 軸方向パラメータ（基準点からの距離）
-    ///
-    /// # Returns
-    /// その位置での円錐の半径
-    #[allow(dead_code)]
-    fn radius_at_v_internal(&self, v: T) -> T {
-        self.radius + v * self.semi_angle.tan()
-    }
-
-    /// パラメータ (u, v) での点を計算
-    ///
-    /// # Arguments
-    /// * `u` - 円周方向パラメータ（ラジアン）
-    /// * `v` - 軸方向パラメータ
-    ///
-    /// # Returns
-    /// サーフェス上の点
-    pub fn point_at_uv(&self, u: T, v: T) -> Point3D<T> {
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-        let r_at_v = self.radius_at_v_internal(v);
-
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis_internal().as_vector();
-        let z_axis = self.axis.as_vector();
-
-        // 放射方向ベクトル
-        let radial = Vector3D::new(
-            r_at_v * (cos_u * x_axis.x() + sin_u * y_axis.x()),
-            r_at_v * (cos_u * x_axis.y() + sin_u * y_axis.y()),
-            r_at_v * (cos_u * x_axis.z() + sin_u * y_axis.z()),
-        );
-
-        // 軸方向ベクトル
-        let axial = Vector3D::new(v * z_axis.x(), v * z_axis.y(), v * z_axis.z());
-
-        Point3D::new(
-            self.center.x() + radial.x() + axial.x(),
-            self.center.y() + radial.y() + axial.y(),
-            self.center.z() + radial.z() + axial.z(),
-        )
-    }
-
-    /// パラメータ (u, v) での法線ベクトルを計算
-    ///
-    /// # Arguments
-    /// * `u` - 円周方向パラメータ（ラジアン）
-    /// * `v` - 軸方向パラメータ
-    ///
-    /// # Returns
-    /// その点での単位法線ベクトル
-    pub fn normal_at_uv(&self, u: T, _v: T) -> Option<Direction3D<T>> {
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-        let tan_angle = self.semi_angle.tan();
-
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis_internal().as_vector();
-        let z_axis = self.axis.as_vector();
-
-        // 放射方向成分
-        let radial_dir = Vector3D::new(
-            cos_u * x_axis.x() + sin_u * y_axis.x(),
-            cos_u * x_axis.y() + sin_u * y_axis.y(),
-            cos_u * x_axis.z() + sin_u * y_axis.z(),
-        );
-
-        // 法線 = 放射方向 - tan(角度) * 軸方向
-        let normal = Vector3D::new(
-            radial_dir.x() - tan_angle * z_axis.x(),
-            radial_dir.y() - tan_angle * z_axis.y(),
-            radial_dir.z() - tan_angle * z_axis.z(),
-        );
-
-        Direction3D::from_vector(normal)
-    }
-
-    /// 頂点（apex）の位置を計算
-    ///
-    /// # Returns
-    /// 円錐の頂点位置
-    #[allow(dead_code)]
-    fn apex_internal(&self) -> Point3D<T> {
-        let distance_to_apex = -self.radius / self.semi_angle.tan();
-        let axis_vec = self.axis.as_vector();
-
-        Point3D::new(
-            self.center.x() + distance_to_apex * axis_vec.x(),
-            self.center.y() + distance_to_apex * axis_vec.y(),
-            self.center.z() + distance_to_apex * axis_vec.z(),
-        )
-    }
-
-    /// 指定点がサーフェス上にあるかを判定
-    ///
-    /// # Arguments
-    /// * `point` - 判定する点
-    /// * `tolerance` - 許容誤差
-    ///
-    /// # Returns
-    /// サーフェス上にある場合は true
-    pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        // 点を円錐の局所座標系に変換
-        let center = self.center;
-        let relative = Vector3D::new(
-            point.x() - center.x(),
-            point.y() - center.y(),
-            point.z() - center.z(),
-        );
-
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis_internal().as_vector();
-        let z_axis = self.axis.as_vector();
-
-        // 軸方向成分
-        let v = relative.x() * z_axis.x() + relative.y() * z_axis.y() + relative.z() * z_axis.z();
-
-        // 放射方向成分
-        let radial_x =
-            relative.x() * x_axis.x() + relative.y() * x_axis.y() + relative.z() * x_axis.z();
-        let radial_y =
-            relative.x() * y_axis.x() + relative.y() * y_axis.y() + relative.z() * y_axis.z();
-        let radial_distance = (radial_x * radial_x + radial_y * radial_y).sqrt();
-
-        // 期待される半径
-        let expected_radius = self.radius_at_v_internal(v);
-
-        // 許容誤差内での判定
-        (radial_distance - expected_radius).abs() <= tolerance
-    }
-
-    /// サーフェスからの距離を計算
-    ///
-    /// # Arguments
-    /// * `point` - 距離を計算する点
-    ///
-    /// # Returns
-    /// サーフェスまでの最短距離
-    pub fn distance_to_surface(&self, point: &Point3D<T>) -> T {
-        // 簡略実装：正確な最短距離は複雑な最適化問題
-        // ここでは近似として、軸方向を固定した放射距離を使用
-        let relative = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
-        );
-
-        let z_axis = self.axis.as_vector();
-        let v = relative.x() * z_axis.x() + relative.y() * z_axis.y() + relative.z() * z_axis.z();
-
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis_internal().as_vector();
-
-        let radial_x =
-            relative.x() * x_axis.x() + relative.y() * x_axis.y() + relative.z() * x_axis.z();
-        let radial_y =
-            relative.x() * y_axis.x() + relative.y() * y_axis.y() + relative.z() * y_axis.z();
-        let radial_distance = (radial_x * radial_x + radial_y * radial_y).sqrt();
-
-        let expected_radius = self.radius_at_v_internal(v);
-        (radial_distance - expected_radius).abs()
-    }
-
-    /// サーフェスの有効性を検証
-    pub fn is_valid(&self) -> bool {
-        // 基本的な有効性チェック
-        self.radius > T::ZERO
-            && self.semi_angle > T::ZERO
-            && self.semi_angle < T::PI / (T::ONE + T::ONE)
-    }
-
-    /// 境界ボックスを計算
-    ///
-    /// # Arguments
-    /// * `min_v` - 軸方向の最小範囲
-    /// * `max_v` - 軸方向の最大範囲
-    ///
-    /// # Returns
-    /// 指定範囲での境界ボックス
-    pub fn bounding_box(&self, min_v: T, max_v: T) -> geo_core::Aabb3D<T> {
-        let r_min = self.radius_at_v_internal(min_v);
-        let r_max = self.radius_at_v_internal(max_v);
-        let max_radius = if r_min > r_max { r_min } else { r_max };
-
-        // 軸方向の範囲
-        let axis_vec = self.axis.as_vector();
-        let min_point = Point3D::new(
-            self.center.x() + min_v * axis_vec.x(),
-            self.center.y() + min_v * axis_vec.y(),
-            self.center.z() + min_v * axis_vec.z(),
-        );
-        let max_point = Point3D::new(
-            self.center.x() + max_v * axis_vec.x(),
-            self.center.y() + max_v * axis_vec.y(),
-            self.center.z() + max_v * axis_vec.z(),
-        );
-
-        // 保守的な境界ボックス（最大半径で囲む）
-        let min_x = if min_point.x() < max_point.x() {
-            min_point.x() - max_radius
-        } else {
-            max_point.x() - max_radius
-        };
-        let max_x = if min_point.x() > max_point.x() {
-            min_point.x() + max_radius
-        } else {
-            max_point.x() + max_radius
-        };
-
-        let min_y = if min_point.y() < max_point.y() {
-            min_point.y() - max_radius
-        } else {
-            max_point.y() - max_radius
-        };
-        let max_y = if min_point.y() > max_point.y() {
-            min_point.y() + max_radius
-        } else {
-            max_point.y() + max_radius
-        };
-
-        let min_z = if min_point.z() < max_point.z() {
-            min_point.z() - max_radius
-        } else {
-            max_point.z() - max_radius
-        };
-        let max_z = if min_point.z() > max_point.z() {
-            min_point.z() + max_radius
-        } else {
-            max_point.z() + max_radius
-        };
-
-        geo_core::Aabb3D::new(
-            geo_core::Point3D::new(min_x, min_y, min_z),
-            geo_core::Point3D::new(max_x, max_y, max_z),
-        )
-    }
 }
 
-use geo_contracts::{
-    ConicalSurface3DConstructor, ConicalSurface3DDerived, ConicalSurface3DDistance,
-    ConicalSurface3DEvaluation, ConicalSurface3DProperties as ContractsConicalSurface3DProperties,
-};
-
-impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
-    fn new(
-        apex: (T, T, T),
-        _base_center: (T, T, T), // 未使用
-        axis: (T, T, T),
-        ref_direction: (T, T, T),
-        radius: T,
-        height: T,
-    ) -> Option<Self> {
-        let apex_point = Point3D::new(apex.0, apex.1, apex.2);
-        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
-        let ref_vector = Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2);
-        // semi_angle = arctan(radius / height)
-        let semi_angle = (radius / height).atan();
-        Self::new(apex_point, axis_vector, ref_vector, radius, semi_angle)
-    }
-
-    fn new_standard(_base_center: (T, T, T), radius: T, height: T) -> Option<Self> {
-        let semi_angle = (radius / height).atan();
-        Self::new_at_origin(radius, semi_angle)
-    }
-}
-
-impl<T: Scalar> ContractsConicalSurface3DProperties<T> for ConicalSurface3D<T> {
-    fn apex(&self) -> (T, T, T) {
-        let a = self.center;
-        (a.x(), a.y(), a.z())
-    }
-
-    fn base_center(&self) -> (T, T, T) {
-        let axis_vec = self.axis.as_vector();
-        let radius = self.radius;
-        let semi_angle = self.semi_angle;
-        let height = radius / semi_angle.tan();
-        let center = self.center;
-        let b = Point3D::new(
-            center.x() + axis_vec.x() * height,
-            center.y() + axis_vec.y() * height,
-            center.z() + axis_vec.z() * height,
-        );
-        (b.x(), b.y(), b.z())
+impl<T: Scalar> ConicalSurface3DProperties<T> for ConicalSurface3D<T> {
+    fn center(&self) -> Point3D<T> {
+        self.center
     }
 
     fn radius(&self) -> T {
         self.radius
     }
 
-    fn height(&self) -> T {
-        self.radius / self.semi_angle.tan()
+    fn semi_angle(&self) -> Angle<T> {
+        self.semi_angle
     }
 
-    fn axis(&self) -> (T, T, T) {
-        let a = self.axis;
-        (a.x(), a.y(), a.z())
+    fn axis(&self) -> Direction3D<T> {
+        self.axis
     }
 
-    fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction;
-        (r.x(), r.y(), r.z())
+    fn ref_direction(&self) -> Direction3D<T> {
+        self.ref_direction
     }
 
-    fn slant_height(&self) -> T {
-        let height = self.radius / self.semi_angle.tan();
-        let radius = self.radius;
-        (height * height + radius * radius).sqrt()
-    }
-}
-
-impl<T: Scalar> ConicalSurface3DDerived<T> for ConicalSurface3D<T> {
-    fn surface_area(&self) -> T {
-        T::PI
-            * ContractsConicalSurface3DProperties::radius(self)
-            * ContractsConicalSurface3DProperties::slant_height(self)
+    fn apex(&self) -> Point3D<T> {
+        self.center + self.axis.as_vector() * self.apex_parameter()
     }
 }
 
 impl<T: Scalar> ConicalSurface3DEvaluation<T> for ConicalSurface3D<T> {
-    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
-        let p = self.point_at_uv(u, v);
-        (p.x(), p.y(), p.z())
+    fn point_at_uv(&self, u: T, v: T) -> Point3D<T> {
+        self.center + self.radial_direction_at(u) * self.radius_at(v) + self.axis.as_vector() * v
     }
 
-    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
-        if let Some(n) = self.normal_at_uv(u, v) {
-            (n.x(), n.y(), n.z())
-        } else {
-            (T::ZERO, T::ZERO, T::ONE) // フォールバック
+    fn normal_at(&self, u: T, v: T) -> Option<Direction3D<T>> {
+        // ∂u × ∂v = radius(v) * (径方向 - tan(semi_angle) * 軸方向)。頂点（半径 0）では定まらない
+        let radius = self.radius_at(v);
+        if radius.abs() <= default_distance_tolerance::<T>() {
+            return None;
         }
+        let generator_normal =
+            self.radial_direction_at(u) - self.axis.as_vector() * self.semi_angle.tan();
+        Direction3D::from_vector(generator_normal * radius)
     }
 }
 
 impl<T: Scalar> ConicalSurface3DDistance<T> for ConicalSurface3D<T> {
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let point_3d = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_surface(&point_3d)
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
+        // 点と軸を含む断面の上で、頂点から両側に延びる母線（半直線）までの距離の最小値
+        let offset = point - self.center;
+        let axial = offset.dot(self.axis.as_vector());
+        let radial = (offset - self.axis.as_vector() * axial).length();
+        let apex = (T::ZERO, self.apex_parameter());
+        let (sin, cos) = (self.semi_angle.sin(), self.semi_angle.cos());
+        distance_to_ray_2d((radial, axial), apex, (sin, cos)).min(distance_to_ray_2d(
+            (radial, axial),
+            apex,
+            (sin, -cos),
+        ))
     }
 }
 
 impl<T: Scalar> std::fmt::Display for ConicalSurface3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let center = self.center;
-        let axis = self.axis;
-        let ref_dir = self.ref_direction;
         write!(
             f,
             "ConicalSurface3D {{ center: {:?}, axis: {:?}, ref_direction: {:?}, radius: {}, semi_angle: {} }}",
-            center,
-            axis.as_vector(),
-            ref_dir.as_vector(),
+            self.center,
+            self.axis.as_vector(),
+            self.ref_direction.as_vector(),
             self.radius,
-            self.semi_angle
+            self.semi_angle.to_radians()
         )
     }
 }
-
-/// ConeRim3D のエイリアス（後方互換性）
-pub type ConeRim3D<T> = ConicalSurface3D<T>;

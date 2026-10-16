@@ -28,6 +28,18 @@ model/geo_topology/src/topology_validator.rs:tolerances
 # 形状の基本の生成
 model/geo_primitives/src/arc_2d.rs:from_center_radius
 
+# 解析曲面・立体の標準の向き（軸が Z 軸正方向・参照方向が X 軸正方向）での生成
+model/geo_contracts/src/geometry/core/spherical_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/spherical_solid_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/ellipsoidal_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/ellipsoidal_solid_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/torus_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/torus_solid_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/cylindrical_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/cylindrical_solid_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/conical_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/conical_solid_traits.rs:new_standard
+
 # 表示の経路の実装の途中の表示属性・形状の種類（trait定義）
 model/geo_contracts/src/entity/entity_traits.rs:entity_id
 model/geo_contracts/src/entity/entity_traits.rs:entity_visible
