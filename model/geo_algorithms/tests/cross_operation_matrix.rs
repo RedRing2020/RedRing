@@ -7,13 +7,14 @@ use geo_algorithms::{
     Aabb3D, Angle, Arc2D, Circle2D, ConicalSolid3D, ConicalSurface3D, CrossCollision,
     CrossDistance, CrossIntersection, InfiniteLine2D, InfiniteLine3D, IntersectionResult,
     LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D, Ray2D, Ray3D, SphericalSolid3D,
-    SphericalSurface3D, Triangle3D, Vector2D, Vector3D,
+    SphericalSurface3D, Triangle2D, Triangle3D, Vector2D, Vector3D,
 };
 use geo_contracts::{
     Arc2DConstructor, Circle2DConstructor, ConicalSolid3DConstructor, ConicalSurface3DConstructor,
     InfiniteLine2DConstructor, InfiniteLine3DConstructor, LineSegment2DConstructor,
     LineSegment3DConstructor, Plane3DConstructor, Ray2DConstructor, Ray3DConstructor,
-    SphericalSolid3DConstructor, SphericalSurface3DConstructor, Triangle3DConstructor,
+    SphericalSolid3DConstructor, SphericalSurface3DConstructor, Triangle2DConstructor,
+    Triangle3DConstructor,
 };
 
 const TOLERANCE: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
@@ -42,10 +43,14 @@ fn implemented_2d_pairs() {
     symmetric!(collision, Ray2D, Circle2D);
     symmetric!(collision, Ray2D, LineSegment2D);
     symmetric!(collision, LineSegment2D, Arc2D);
+    symmetric!(collision, Arc2D, Circle2D);
+    symmetric!(collision, Triangle2D, Circle2D);
+    symmetric!(collision, Triangle2D, LineSegment2D);
     symmetric!(collision, InfiniteLine2D, Circle2D);
     symmetric!(collision, InfiniteLine2D, LineSegment2D);
     symmetric!(collision, InfiniteLine2D, Ray2D);
 
+    symmetric!(intersection, Triangle2D, LineSegment2D);
     symmetric!(intersection, Ray2D, Circle2D);
     symmetric!(intersection, Ray2D, LineSegment2D);
     symmetric!(intersection, InfiniteLine2D, Circle2D);
@@ -129,6 +134,97 @@ fn collision_2d_detects_contact_in_both_directions() {
     assert!(segment.collides(&upper_arc, TOLERANCE));
     assert!(upper_arc.collides(&segment, TOLERANCE));
     assert!(!lower_segment.collides(&upper_arc, TOLERANCE));
+}
+
+#[test]
+fn collision_2d_arc_and_circle_follow_the_arc_range() {
+    let upper_arc = Arc2D::new(
+        Point2D::new(0.0, 0.0),
+        1.0,
+        Angle::from_degrees(0.0),
+        Angle::from_degrees(180.0),
+    )
+    .unwrap();
+    let above = Circle2D::new(Point2D::new(0.0, 1.5), 1.0).unwrap();
+    // 円弧の母円とは下半分（y = -0.75）で交わるが、円弧とは交わらない
+    let below = Circle2D::new(Point2D::new(0.0, -1.5), 1.0).unwrap();
+    let inner = Circle2D::new(Point2D::new(0.0, 0.0), 0.5).unwrap();
+    let enclosing = Circle2D::new(Point2D::new(0.0, 0.0), 3.0).unwrap();
+    let tangent = Circle2D::new(Point2D::new(0.0, 3.0), 2.0).unwrap();
+
+    assert!(upper_arc.collides(&above, TOLERANCE));
+    assert!(above.collides(&upper_arc, TOLERANCE));
+    assert!(upper_arc.collides(&tangent, TOLERANCE));
+    assert!(!upper_arc.collides(&below, TOLERANCE));
+    assert!(!upper_arc.collides(&inner, TOLERANCE));
+    assert!(!upper_arc.collides(&enclosing, TOLERANCE));
+}
+
+#[test]
+fn collision_2d_triangle_and_circle_treat_the_circle_as_a_curve() {
+    let triangle = Triangle2D::new(
+        Point2D::new(0.0, 0.0),
+        Point2D::new(4.0, 0.0),
+        Point2D::new(0.0, 4.0),
+    )
+    .unwrap();
+    let crossing = Circle2D::new(Point2D::new(1.0, 1.0), 1.5).unwrap();
+    let touching = Circle2D::new(Point2D::new(1.0, 1.0), 1.0).unwrap();
+    let inside = Circle2D::new(Point2D::new(1.0, 1.0), 0.2).unwrap();
+    let enclosing = Circle2D::new(Point2D::new(1.0, 1.0), 10.0).unwrap();
+    let apart = Circle2D::new(Point2D::new(10.0, 10.0), 1.0).unwrap();
+
+    assert!(triangle.collides(&crossing, TOLERANCE));
+    assert!(crossing.collides(&triangle, TOLERANCE));
+    assert!(triangle.collides(&touching, TOLERANCE));
+    // 三角形は領域なので、内部にある円とは交わる
+    assert!(triangle.collides(&inside, TOLERANCE));
+    assert!(!triangle.collides(&enclosing, TOLERANCE));
+    assert!(!triangle.collides(&apart, TOLERANCE));
+}
+
+#[test]
+fn intersection_2d_triangle_clips_the_segment() {
+    use geo_algorithms::{IntersectionGeometry, IntersectionTopology};
+    use geo_contracts::LineSegment2DProperties;
+
+    let triangle = Triangle2D::new(
+        Point2D::new(0.0, 0.0),
+        Point2D::new(4.0, 0.0),
+        Point2D::new(0.0, 4.0),
+    )
+    .unwrap();
+    let overlap_of = |segment: &LineSegment2D<f64>| match triangle.intersection(segment, TOLERANCE)
+    {
+        IntersectionResult {
+            geometry: IntersectionGeometry::Segment2D(overlap),
+            ..
+        } => Some((overlap.start_point(), overlap.end_point())),
+        _ => None,
+    };
+
+    let inside = LineSegment2D::new(Point2D::new(0.5, 0.5), Point2D::new(1.5, 1.0)).unwrap();
+    let (start, end) = overlap_of(&inside).unwrap();
+    assert!(start.distance_to(Point2D::new(0.5, 0.5)) < TOLERANCE);
+    assert!(end.distance_to(Point2D::new(1.5, 1.0)) < TOLERANCE);
+    assert!(triangle.collides(&inside, TOLERANCE));
+    assert!(inside.collides(&triangle, TOLERANCE));
+
+    let crossing = LineSegment2D::new(Point2D::new(-1.0, 1.0), Point2D::new(5.0, 1.0)).unwrap();
+    let (start, end) = overlap_of(&crossing).unwrap();
+    assert!(start.distance_to(Point2D::new(0.0, 1.0)) < TOLERANCE);
+    assert!(end.distance_to(Point2D::new(3.0, 1.0)) < TOLERANCE);
+    assert!(crossing.intersection(&triangle, TOLERANCE).intersects());
+
+    let through_vertex =
+        LineSegment2D::new(Point2D::new(4.0, -1.0), Point2D::new(4.0, 1.0)).unwrap();
+    let touching = triangle.intersection(&through_vertex, TOLERANCE);
+    assert_eq!(touching.topology, IntersectionTopology::Touching);
+    assert_eq!(point_count(&touching), 1);
+
+    let outside = LineSegment2D::new(Point2D::new(3.0, 3.0), Point2D::new(5.0, 5.0)).unwrap();
+    assert!(!triangle.intersection(&outside, TOLERANCE).intersects());
+    assert!(!triangle.collides(&outside, TOLERANCE));
 }
 
 #[test]
