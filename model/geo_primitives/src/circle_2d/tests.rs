@@ -4,7 +4,7 @@ use crate::{Circle2D, Point2D};
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
 use geo_contracts::{
     default_distance_tolerance, Bounded, Circle2DConstructor, Circle2DContainment,
-    Circle2DDistance, Circle2DEvaluation, Circle2DProjection, Circle2DProperties, CrossDistance,
+    Circle2DDistance, Circle2DEvaluation, Circle2DProjection, Circle2DProperties,
     PointClassification,
 };
 use std::f64::consts::{PI, TAU};
@@ -152,24 +152,6 @@ fn test_distance_calculations() {
 
     // 内部の点からも円周までの距離（3 - 1 = 2）
     assert_eq!(circle.distance_to_point(Point2D::new(1.0, 0.0)), 2.0);
-}
-
-/// 円同士の距離テスト
-#[test]
-fn test_distance_between_circles() {
-    let circle = Circle2D::new(Point2D::new(0.0_f64, 0.0), 1.0).unwrap();
-
-    // 外部にある円は中心間の距離から半径の和を引く
-    let apart = Circle2D::new(Point2D::new(5.0, 0.0), 2.0).unwrap();
-    assert!((circle.distance_to(&apart) - 2.0).abs() < TOLERANCE_F64);
-
-    // 交差する円は 0
-    let crossing = Circle2D::new(Point2D::new(1.5, 0.0), 1.0).unwrap();
-    assert_eq!(circle.distance_to(&crossing), 0.0);
-
-    // 内部にある円は半径の差から中心間の距離を引く
-    let inner = Circle2D::new(Point2D::new(0.5, 0.0), 0.25).unwrap();
-    assert!((inner.distance_to(&circle) - 0.25).abs() < TOLERANCE_F64);
 }
 
 /// 最近点テスト

@@ -6,7 +6,7 @@ mod transform;
 
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, AngularRelation, InfiniteLine2DConstructor,
+    default_distance_tolerance, Angle, AngularRelation, InfiniteLine2DConstructor,
     InfiniteLine2DContainment, InfiniteLine2DDistance, InfiniteLine2DEvaluation,
     InfiniteLine2DProjection, InfiniteLine2DProperties, ParallelRelation, PerpendicularRelation,
     PrimitiveKind, PrimitiveMetadata, Scalar,
@@ -104,9 +104,9 @@ impl<T: Scalar> PerpendicularRelation<Self> for InfiniteLine2D<T> {
 }
 
 impl<T: Scalar> AngularRelation<T, Self> for InfiniteLine2D<T> {
-    fn angle_to(&self, other: &Self) -> T {
+    fn angle_to(&self, other: &Self) -> Angle<T> {
         let dot = self.direction.dot(other.direction);
         let clamped = dot.max(-T::ONE).min(T::ONE);
-        clamped.acos()
+        Angle::from_radians(clamped.acos())
     }
 }

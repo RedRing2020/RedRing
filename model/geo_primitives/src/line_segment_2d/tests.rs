@@ -3,9 +3,9 @@
 use super::*;
 use crate::{LineSegment2D, Point2D};
 use geo_contracts::{
-    default_distance_tolerance, Bounded, CrossDistance, LineSegment2DConstructor,
-    LineSegment2DContainment, LineSegment2DDistance, LineSegment2DEvaluation,
-    LineSegment2DProjection, LineSegment2DProperties, ParallelRelation,
+    default_distance_tolerance, Bounded, LineSegment2DConstructor, LineSegment2DContainment,
+    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
+    LineSegment2DProperties, ParallelRelation,
 };
 
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
@@ -146,15 +146,6 @@ fn test_support_lines_are_parallel() {
 
     assert!(segment1.line.is_parallel_to(&segment2.line));
     assert!(!segment1.line.is_parallel_to(&segment3.line));
-}
-
-#[test]
-fn test_distance_between_segments() {
-    let segment1 = LineSegment2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
-    let segment2 = LineSegment2D::new(Point2D::new(0.0, 3.0), Point2D::new(2.0, 3.0)).unwrap();
-
-    let distance = segment1.distance_to(&segment2);
-    assert!((distance - 3.0).abs() < TOLERANCE_F64);
 }
 
 #[test]

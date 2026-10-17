@@ -110,14 +110,6 @@ fn test_origin() {
 }
 
 #[test]
-fn test_from_tuple() {
-    let p = Point3D::from_tuple((1.0, 2.0, 3.0));
-    assert_eq!(p.x(), 1.0);
-    assert_eq!(p.y(), 2.0);
-    assert_eq!(p.z(), 3.0);
-}
-
-#[test]
 fn test_distance_to() {
     let p1 = Point3D::new(0.0, 0.0, 0.0);
     let p2 = Point3D::new(3.0, 4.0, 0.0);

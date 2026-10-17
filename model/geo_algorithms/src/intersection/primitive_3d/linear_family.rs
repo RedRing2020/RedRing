@@ -1,39 +1,14 @@
 use super::super::common::{
     line_line_intersection_raw, ray_ray_intersection_raw, segment_segment_intersection_raw,
 };
-use super::planar_and_mesh_family::{
-    plane3d_line_segment3d_intersection, plane3d_ray3d_intersection,
-};
-use super::shared::{point_intersection_if, spherical_surface_intersection_parameters};
+use super::shared::spherical_surface_intersection_parameters;
 use crate::{
-    InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D,
-    Vector3D,
+    InfiniteLine3D, IntersectionResult, LineSegment3D, Point3D, Ray3D, SphericalSurface3D, Vector3D,
 };
 use geo_contracts::{
-    InfiniteLine3DConstructor, InfiniteLine3DDistance, InfiniteLine3DProperties,
-    LineSegment3DDistance, LineSegment3DProperties, LineSegment3DSupportLine, Ray3DDistance,
-    Ray3DProperties, Scalar,
+    InfiniteLine3DConstructor, InfiniteLine3DDistance, LineSegment3DDistance,
+    LineSegment3DProperties, LineSegment3DSupportLine, Ray3DDistance, Ray3DProperties, Scalar,
 };
-
-fn ray3d_point3d_intersection_raw<T: Scalar>(
-    ray: &Ray3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    point_intersection_if(point, ray.distance_to_point(*point) <= tolerance)
-}
-
-pub fn ray3d_point3d_intersection<T: Scalar>(
-    ray: &Ray3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        ray3d_point3d_intersection_raw(ray, point, tolerance),
-        false,
-        tolerance,
-    )
-}
 
 pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
     ray: &Ray3D<T>,
@@ -69,14 +44,6 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
     IntersectionResult::from_option_points(intersections, false, tolerance)
 }
 
-pub fn spherical_surface3d_ray3d_intersections<T: Scalar>(
-    sphere: &SphericalSurface3D<T>,
-    ray: &Ray3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    ray3d_spherical_surface3d_intersections(ray, sphere, tolerance)
-}
-
 fn ray3d_ray3d_intersection_raw<T: Scalar>(
     ray_a: &Ray3D<T>,
     ray_b: &Ray3D<T>,
@@ -92,87 +59,6 @@ pub fn ray3d_ray3d_intersection<T: Scalar>(
 ) -> IntersectionResult<T> {
     IntersectionResult::from_option_point(
         ray3d_ray3d_intersection_raw(ray_a, ray_b, tolerance),
-        false,
-        tolerance,
-    )
-}
-
-fn ray3d_line_segment3d_intersection_raw<T: Scalar>(
-    ray: &Ray3D<T>,
-    segment: &LineSegment3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction().as_vector())?;
-    let segment_line = segment.support_line();
-    let point = line_line_intersection_raw(&ray_line, segment_line)?;
-    if ray.distance_to_point(point) <= tolerance && segment.distance_to_point(point) <= tolerance {
-        Some(point)
-    } else {
-        None
-    }
-}
-
-pub fn ray3d_line_segment3d_intersection<T: Scalar>(
-    ray: &Ray3D<T>,
-    segment: &LineSegment3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        ray3d_line_segment3d_intersection_raw(ray, segment, tolerance),
-        false,
-        tolerance,
-    )
-}
-
-fn ray3d_infinite_line3d_intersection_raw<T: Scalar>(
-    ray: &Ray3D<T>,
-    line: &InfiniteLine3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction().as_vector())?;
-    let point = line_line_intersection_raw(&ray_line, line)?;
-    if line.distance_to_point(point) <= tolerance && ray.distance_to_point(point) <= tolerance {
-        Some(point)
-    } else {
-        None
-    }
-}
-
-pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
-    ray: &Ray3D<T>,
-    line: &InfiniteLine3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        ray3d_infinite_line3d_intersection_raw(ray, line, tolerance),
-        false,
-        tolerance,
-    )
-}
-
-pub fn ray3d_plane3d_intersection<T: Scalar>(
-    ray: &Ray3D<T>,
-    plane: &Plane3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    plane3d_ray3d_intersection(plane, ray, tolerance)
-}
-
-fn line_segment3d_point3d_intersection_raw<T: Scalar>(
-    segment: &LineSegment3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    point_intersection_if(point, segment.distance_to_point(*point) <= tolerance)
-}
-
-pub fn line_segment3d_point3d_intersection<T: Scalar>(
-    segment: &LineSegment3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        line_segment3d_point3d_intersection_raw(segment, point, tolerance),
         false,
         tolerance,
     )
@@ -231,82 +117,6 @@ pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
         false,
         tolerance,
     )
-}
-
-pub fn line_segment3d_ray3d_intersection<T: Scalar>(
-    segment: &LineSegment3D<T>,
-    ray: &Ray3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    ray3d_line_segment3d_intersection(ray, segment, tolerance)
-}
-
-pub fn line_segment3d_infinite_line3d_intersection<T: Scalar>(
-    segment: &LineSegment3D<T>,
-    line: &InfiniteLine3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    infinite_line3d_line_segment3d_intersection(line, segment, tolerance)
-}
-
-pub fn line_segment3d_plane3d_intersection<T: Scalar>(
-    segment: &LineSegment3D<T>,
-    plane: &Plane3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    plane3d_line_segment3d_intersection(plane, segment, tolerance)
-}
-
-fn infinite_line3d_point3d_intersection_raw<T: Scalar>(
-    line: &InfiniteLine3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    point_intersection_if(point, line.distance_to_point(*point) <= tolerance)
-}
-
-pub fn infinite_line3d_point3d_intersection<T: Scalar>(
-    line: &InfiniteLine3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        infinite_line3d_point3d_intersection_raw(line, point, tolerance),
-        false,
-        tolerance,
-    )
-}
-
-pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
-    line: &InfiniteLine3D<T>,
-    sphere: &SphericalSurface3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    let mut intersections = Vec::new();
-    let start = line.point();
-    let direction = line.direction().as_vector();
-
-    let Some((t1, t2)) =
-        spherical_surface_intersection_parameters(&start, &direction, sphere, tolerance)
-    else {
-        return IntersectionResult::from_option_points(intersections, false, tolerance);
-    };
-
-    intersections.push(Point3D::new(
-        start.x() + t1 * direction.x(),
-        start.y() + t1 * direction.y(),
-        start.z() + t1 * direction.z(),
-    ));
-
-    if (t2 - t1).abs() > tolerance {
-        intersections.push(Point3D::new(
-            start.x() + t2 * direction.x(),
-            start.y() + t2 * direction.y(),
-            start.z() + t2 * direction.z(),
-        ));
-    }
-
-    IntersectionResult::from_option_points(intersections, false, tolerance)
 }
 
 fn infinite_line3d_infinite_line3d_intersection_raw<T: Scalar>(

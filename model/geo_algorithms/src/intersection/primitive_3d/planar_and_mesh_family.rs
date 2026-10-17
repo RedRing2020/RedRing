@@ -1,35 +1,8 @@
-use super::shared::point_intersection_if;
-use crate::{
-    InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
-    TriangleMesh3D, Vector3D,
-};
+use crate::{IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D, Vector3D};
 use geo_contracts::{
-    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DDistance, Plane3DProperties,
-    Ray3DConstructor, Ray3DEvaluation, Ray3DProperties, Scalar, Triangle3DBoundaryAccess,
+    LineSegment3DProperties, Plane3DDistance, Plane3DProperties, Ray3DConstructor, Ray3DEvaluation,
+    Ray3DProperties, Scalar, Triangle3DBoundaryAccess,
 };
-
-fn triangle3d_point3d_intersection_raw<T: Scalar>(
-    triangle: &Triangle3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    point_intersection_if(
-        point,
-        crate::distance::triangle3d_point3d_distance(triangle, point) <= tolerance,
-    )
-}
-
-pub fn triangle3d_point3d_intersection<T: Scalar>(
-    triangle: &Triangle3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        triangle3d_point3d_intersection_raw(triangle, point, tolerance),
-        false,
-        tolerance,
-    )
-}
 
 fn triangle3d_line_segment3d_intersection_raw<T: Scalar>(
     triangle: &Triangle3D<T>,
@@ -64,14 +37,6 @@ pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
         false,
         tolerance,
     )
-}
-
-pub fn line_segment3d_triangle3d_intersection<T: Scalar>(
-    segment: &LineSegment3D<T>,
-    triangle: &Triangle3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    triangle3d_line_segment3d_intersection(triangle, segment, tolerance)
 }
 
 fn triangle3d_ray3d_intersection_raw<T: Scalar>(
@@ -128,57 +93,6 @@ pub fn triangle3d_ray3d_intersection<T: Scalar>(
 ) -> IntersectionResult<T> {
     IntersectionResult::from_option_point(
         triangle3d_ray3d_intersection_raw(triangle, ray, tolerance),
-        false,
-        tolerance,
-    )
-}
-
-pub fn ray3d_triangle3d_intersection<T: Scalar>(
-    ray: &Ray3D<T>,
-    triangle: &Triangle3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    triangle3d_ray3d_intersection(triangle, ray, tolerance)
-}
-
-fn triangle_mesh3d_point3d_intersection_raw<T: Scalar>(
-    mesh: &TriangleMesh3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    point_intersection_if(
-        point,
-        crate::distance::triangle_mesh3d_point3d_distance(mesh, point) <= tolerance,
-    )
-}
-
-pub fn triangle_mesh3d_point3d_intersection<T: Scalar>(
-    mesh: &TriangleMesh3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        triangle_mesh3d_point3d_intersection_raw(mesh, point, tolerance),
-        false,
-        tolerance,
-    )
-}
-
-fn plane3d_point3d_intersection_raw<T: Scalar>(
-    plane: &Plane3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    point_intersection_if(point, plane.distance_to_point(*point).abs() <= tolerance)
-}
-
-pub fn plane3d_point3d_intersection<T: Scalar>(
-    plane: &Plane3D<T>,
-    point: &Point3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        plane3d_point3d_intersection_raw(plane, point, tolerance),
         false,
         tolerance,
     )
@@ -277,45 +191,6 @@ pub fn plane3d_ray3d_intersection<T: Scalar>(
 ) -> IntersectionResult<T> {
     IntersectionResult::from_option_point(
         plane3d_ray3d_intersection_raw(plane, ray, tolerance),
-        false,
-        tolerance,
-    )
-}
-
-fn plane3d_infinite_line3d_intersection_raw<T: Scalar>(
-    plane: &Plane3D<T>,
-    line: &InfiniteLine3D<T>,
-    tolerance: T,
-) -> Option<Point3D<T>> {
-    let line_point = line.point();
-    let line_dir_vec = line.direction().as_vector();
-    let normal = plane.normal().as_vector();
-    let denom = line_dir_vec.dot(normal);
-
-    if denom.abs() <= tolerance {
-        return if plane.distance_to_point(line_point).abs() <= tolerance {
-            Some(line_point)
-        } else {
-            None
-        };
-    }
-
-    let to_plane = Vector3D::from_points(line_point, plane.origin());
-    let t = to_plane.dot(normal) / denom;
-    Some(Point3D::new(
-        line_point.x() + t * line_dir_vec.x(),
-        line_point.y() + t * line_dir_vec.y(),
-        line_point.z() + t * line_dir_vec.z(),
-    ))
-}
-
-pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
-    plane: &Plane3D<T>,
-    line: &InfiniteLine3D<T>,
-    tolerance: T,
-) -> IntersectionResult<T> {
-    IntersectionResult::from_option_point(
-        plane3d_infinite_line3d_intersection_raw(plane, line, tolerance),
         false,
         tolerance,
     )

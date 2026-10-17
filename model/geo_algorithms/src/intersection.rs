@@ -1,15 +1,9 @@
-//! 交点計算アルゴリズム
+//! 交差の実装
 //!
-//! 各形状組み合わせの交点計算エントリポイントを提供する。
-//! `common` と `pair_base` はクレート内部の基礎計算を担い、
-//! `primitive_*` と `nurbs_3d` が形状種別ごとの公開 API（正本）を提供する。
+//! 形状の組み合わせごとの関数を置き、`operations::CrossIntersection` の実装から呼ぶ。
+//! `common` と `pair_base` は基礎計算を担う。
 
 pub(crate) mod common;
-pub mod nurbs_3d;
 pub(crate) mod pair_base;
-pub mod primitive_2d;
-pub mod primitive_3d;
-
-pub use nurbs_3d::*;
-pub use primitive_2d::*;
-pub use primitive_3d::*;
+pub(crate) mod primitive_2d;
+pub(crate) mod primitive_3d;

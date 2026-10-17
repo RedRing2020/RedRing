@@ -1,8 +1,8 @@
 //! 幾何 relation のtrait定義
 //!
-//! 平行・垂直・同一直線・向き一致のような、相手との関係を返す契約を集約する。
+//! 平行・垂直・角度のような、同じ種類の形状どうしの関係を返す契約を集約する。
 
-use crate::Scalar;
+use crate::{Angle, Scalar};
 
 /// 平行関係
 pub trait ParallelRelation<Other> {
@@ -16,14 +16,8 @@ pub trait PerpendicularRelation<Other> {
     fn is_perpendicular_to(&self, other: &Other) -> bool;
 }
 
-/// 交差関係
-pub trait IntersectsRelation<Other> {
-    /// 相手と交差するかを返す
-    fn intersects(&self, other: &Other) -> bool;
-}
-
 /// 角度 relation
 pub trait AngularRelation<T: Scalar, Other> {
     /// 相手との角度を返す
-    fn angle_to(&self, other: &Other) -> T;
+    fn angle_to(&self, other: &Other) -> Angle<T>;
 }

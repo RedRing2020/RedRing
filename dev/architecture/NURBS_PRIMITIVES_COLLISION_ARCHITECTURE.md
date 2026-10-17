@@ -3,6 +3,8 @@
 **作成日**: 2025年12月23日  
 **目的**: NURBS と Primitives 間の collision/intersection 実装の実現性検証
 
+> **#855 で改めた点**: 本書の `BasicCollision` と Collider 型（`NurbsCurveCollider` 等）は削除した。形状をまたぐ演算の trait（`CrossCollision`・`CrossIntersection`・`CrossDistance`）を `geo_algorithms::operations` に置くことで、`geo_primitives` と `geo_nurbs` の形状の組み合わせを Collider 型なしで直接実装できる（`CROSS_OPERATION_COVERAGE_MATRIX_SPEC.md`）。本書は検討の記録として残す。
+
 ## 📊 現状分析
 
 ### 依存関係の制約

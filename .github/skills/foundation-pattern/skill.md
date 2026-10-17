@@ -93,8 +93,7 @@ pub trait Bounded<T: Scalar = f64>: PrimitiveMetadata {
 
 | ファイル | trait定義 |
 | --- | --- |
-| `distance.rs` | `CrossDistance`（形状どうしの距離）、`DistanceConvergenceError` |
-| `collision.rs` | `BasicCollision` / `PointDistance` / `BBoxCollision` |
+| `collision.rs` | `PointDistance` / `BBoxCollision` |
 | `relation.rs` | 平行・垂直・同一直線・角度等の関係（`PointClassification` は `geo_core` から再エクスポート） |
 | `transform.rs` | 相似変換（`SimilarityTransformable2D/3D`）。`TransformError` は `geo_core` から再エクスポート |
 

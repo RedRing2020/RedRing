@@ -54,20 +54,6 @@ impl<T: Scalar> Point3D<T> {
         Self::new(T::ZERO, T::ZERO, T::ZERO)
     }
 
-    /// タプルから点を作成
-    ///
-    /// # Examples
-    /// ```
-    /// use geo_core::Point3D;
-    ///
-    /// let p = Point3D::from_tuple((1.0, 2.0, 3.0));
-    /// assert_eq!(p.x(), 1.0);
-    /// ```
-    #[inline]
-    pub fn from_tuple(coords: (T, T, T)) -> Self {
-        Self::new(coords.0, coords.1, coords.2)
-    }
-
     /// X座標を取得
     #[inline]
     pub fn x(&self) -> T {

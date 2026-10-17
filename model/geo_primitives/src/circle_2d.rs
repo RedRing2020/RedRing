@@ -11,8 +11,7 @@ use crate::{Direction2D, Point2D};
 use geo_contracts::{
     default_distance_tolerance, default_kernel_numerical_zero_tolerance, Circle2DConstructor,
     Circle2DContainment, Circle2DDistance, Circle2DEvaluation, Circle2DProjection,
-    Circle2DProperties, CrossDistance, PointClassification, PrimitiveKind, PrimitiveMetadata,
-    Scalar,
+    Circle2DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元円
@@ -156,24 +155,6 @@ impl<T: Scalar> Circle2DProjection<T> for Circle2D<T> {
         } else {
             let scale = self.radius / distance;
             Point2D::new(self.center.x() + dx * scale, self.center.y() + dy * scale)
-        }
-    }
-}
-
-impl<T: Scalar> CrossDistance<T, Self> for Circle2D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        let center_distance = self.center.distance_to(other.center);
-        let radii_sum = self.radius + other.radius;
-
-        if center_distance >= radii_sum {
-            // 円が外部にある
-            center_distance - radii_sum
-        } else if center_distance <= (self.radius - other.radius).abs() {
-            // 一方が他方の内部にある
-            (self.radius - other.radius).abs() - center_distance
-        } else {
-            // 円が交差している
-            T::ZERO
         }
     }
 }

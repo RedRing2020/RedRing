@@ -9,9 +9,9 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, default_kernel_numerical_zero_tolerance, CrossDistance,
-    ParallelRelation, PrimitiveKind, PrimitiveMetadata, Ray3DConstructor, Ray3DContainment,
-    Ray3DDistance, Ray3DEvaluation, Ray3DProjection, Ray3DProperties, Scalar, TolerantEq,
+    default_distance_tolerance, ParallelRelation, PrimitiveKind, PrimitiveMetadata,
+    Ray3DConstructor, Ray3DContainment, Ray3DDistance, Ray3DEvaluation, Ray3DProjection,
+    Ray3DProperties, Scalar, TolerantEq,
 };
 
 /// 3次元半無限直線
@@ -110,29 +110,6 @@ impl<T: Scalar> Ray3DDistance<T> for Ray3D<T> {
 impl<T: Scalar> Ray3DContainment<T> for Ray3D<T> {
     fn contains_point(&self, point: Point3D<T>) -> bool {
         self.distance_to_point(point) <= default_distance_tolerance::<T>()
-    }
-}
-
-impl<T: Scalar> CrossDistance<T, Self> for Ray3D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        let w = self.origin - other.origin;
-        let a = self.direction.dot(self.direction);
-        let b = self.direction.dot(other.direction);
-        let c = other.direction.dot(other.direction);
-        let d = self.direction.as_vector().dot(w);
-        let e = other.direction.as_vector().dot(w);
-
-        let denom = a * c - b * b;
-        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
-            return self.distance_to_point(other.origin);
-        }
-
-        let sc = ((b * e - c * d) / denom).max(T::ZERO);
-        let tc = ((a * e - b * d) / denom).max(T::ZERO);
-
-        let p1 = self.point_at_parameter(sc);
-        let p2 = other.point_at_parameter(tc);
-        p1.distance_to(p2)
     }
 }
 

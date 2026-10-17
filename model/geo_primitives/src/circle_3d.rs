@@ -11,8 +11,8 @@ use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
     Circle3DConstructor, Circle3DContainment, Circle3DDistance, Circle3DEvaluation,
-    Circle3DProjection, Circle3DProperties, CrossDistance, PointClassification, PrimitiveKind,
-    PrimitiveMetadata, Scalar, TolerantEq,
+    Circle3DProjection, Circle3DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata,
+    Scalar, TolerantEq,
 };
 
 /// 3次元空間の円
@@ -202,19 +202,6 @@ impl<T: Scalar> Circle3DProjection<T> for Circle3D<T> {
             self.center + self.ref_direction.as_vector() * self.radius
         } else {
             self.center + in_plane * (self.radius / distance)
-        }
-    }
-}
-
-impl<T: Scalar> CrossDistance<T, Self> for Circle3D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        let center_distance = self.center.distance_to(other.center);
-        let radii_sum = self.radius + other.radius;
-
-        if center_distance >= radii_sum {
-            center_distance - radii_sum
-        } else {
-            T::ZERO
         }
     }
 }

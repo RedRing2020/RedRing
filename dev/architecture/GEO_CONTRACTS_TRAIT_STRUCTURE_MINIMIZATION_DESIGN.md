@@ -769,8 +769,9 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 `geometry/operations` には横断演算系 trait がある。
 
-- `collision.rs`: `BasicCollision`, `PointDistance`, `BBoxCollision`
-- `distance.rs`: `CrossDistance`, `DistanceConvergenceError`
+- `collision.rs`: `PointDistance`, `BBoxCollision`
+
+#855 で `BasicCollision`・`CrossDistance`・`DistanceConvergenceError` を削除し、形状をまたぐ距離・衝突判定・交差の trait は `geo_algorithms::operations` に置いた。
 
 ## 一次分類
 
@@ -801,8 +802,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 この層には、shape 間演算や計算戦略を置く。
 
-- `BasicCollision`, `PointDistance`, `BBoxCollision`
-- `CrossDistance`, `DistanceConvergenceError`
+- `PointDistance`, `BBoxCollision`
 - `LineSegment3DCollisionDetection`
 
 ## 曖昧境界の個別判定

@@ -8,13 +8,14 @@
 //! - `CompositeCurve3D` / `CurveSegment3D` は `geo_topology` の語彙をそのまま再公開する
 //!   ため、whole-curve の public endpoint は拘束端点基準
 
-pub mod collision;
 pub mod curve_discretization;
-pub mod distance;
-pub mod intersection;
+mod intersection;
 pub mod nurbs_fixtures;
 pub mod octree;
+pub mod operations;
 pub mod result;
+
+pub use operations::{CrossCollision, CrossDistance, CrossIntersection};
 
 // Octree関連の公開API
 pub use octree::{Octree, OctreeNode, OctreeTolerance};
@@ -30,7 +31,8 @@ pub use result::{IntersectionGeometry, IntersectionResult, IntersectionTopology}
 pub use geo_contracts::{default_kernel_numerical_zero_tolerance, Scalar};
 // 形状の API（trait定義）の再エクスポート（cam_sim 等、geo_contracts に依存しない層からのアクセス用）
 pub use geo_contracts::{
-    LineSegment3DConstructor, LineSegment3DProperties, TriangleMesh3DConstructor,
+    LineSegment3DConstructor, LineSegment3DDistance, LineSegment3DProperties,
+    TriangleMesh3DConstructor,
 };
 // NURBS型の再エクスポート（ViewModel層からのアクセス用）
 pub use geo_nurbs::{

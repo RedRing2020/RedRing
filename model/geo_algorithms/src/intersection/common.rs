@@ -1,6 +1,6 @@
 //! 交点計算の共通ヘルパー関数
 //!
-//! primitive_3d の交点計算が利用する基礎計算を提供する。
+//! 3D の直線・半直線・線分の交点の基礎計算を提供する。
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, Vector3D};
 use geo_contracts::{
