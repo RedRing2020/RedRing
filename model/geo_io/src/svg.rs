@@ -23,6 +23,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+use geo_contracts::{Angle, Direction3D, Point3D};
 use std::fs;
 use std::path::Path;
 use thiserror::Error;
@@ -52,10 +53,10 @@ pub enum SvgError {
 /// 円形状データ
 #[derive(Debug, Clone, PartialEq)]
 pub struct CircleData {
-    /// 中心座標 (x, y, z) - SVGは2Dなのでz=0
-    pub center: (f64, f64, f64),
-    /// 法線ベクトル (x, y, z) - 常に(0, 0, 1)
-    pub normal: (f64, f64, f64),
+    /// 中心 - SVGは2Dなのでz=0
+    pub center: Point3D<f64>,
+    /// 法線 - 常に Z 軸正方向
+    pub normal: Direction3D<f64>,
     /// 半径
     pub radius: f64,
 }
@@ -63,38 +64,38 @@ pub struct CircleData {
 /// 線分データ
 #[derive(Debug, Clone, PartialEq)]
 pub struct LineData {
-    /// 始点 (x, y, z)
-    pub start: (f64, f64, f64),
-    /// 終点 (x, y, z)
-    pub end: (f64, f64, f64),
+    /// 始点
+    pub start: Point3D<f64>,
+    /// 終点
+    pub end: Point3D<f64>,
 }
 
 /// 三角形データ
 #[derive(Debug, Clone, PartialEq)]
 pub struct TriangleData {
-    /// 頂点0 (x, y, z)
-    pub p0: (f64, f64, f64),
-    /// 頂点1 (x, y, z)
-    pub p1: (f64, f64, f64),
-    /// 頂点2 (x, y, z)
-    pub p2: (f64, f64, f64),
+    /// 頂点0
+    pub p0: Point3D<f64>,
+    /// 頂点1
+    pub p1: Point3D<f64>,
+    /// 頂点2
+    pub p2: Point3D<f64>,
 }
 
 /// 円弧データ
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArcData {
-    /// 中心座標 (x, y, z)
-    pub center: (f64, f64, f64),
+    /// 中心
+    pub center: Point3D<f64>,
     /// 半径
     pub radius: f64,
-    /// 法線ベクトル (x, y, z)
-    pub normal: (f64, f64, f64),
-    /// 開始方向ベクトル (x, y, z)
-    pub start_direction: (f64, f64, f64),
-    /// 開始角度（ラジアン）
-    pub start_angle: f64,
-    /// 終了角度（ラジアン）
-    pub end_angle: f64,
+    /// 円弧平面の法線
+    pub normal: Direction3D<f64>,
+    /// 角度 0 の方向
+    pub start_direction: Direction3D<f64>,
+    /// 開始角
+    pub start_angle: Angle<f64>,
+    /// 終了角（開始角から反時計回り）
+    pub end_angle: Angle<f64>,
 }
 
 /// NURBS曲線データ
@@ -102,8 +103,8 @@ pub struct ArcData {
 pub struct NurbsCurveData {
     /// 次数
     pub degree: usize,
-    /// 制御点 (x, y, z)
-    pub control_points: Vec<(f64, f64, f64)>,
+    /// 制御点
+    pub control_points: Vec<Point3D<f64>>,
     /// ノットベクトル
     pub knots: Vec<f64>,
     /// 重み（None = 非有理NURBS）
@@ -204,8 +205,8 @@ fn parse_circle(node: &roxmltree::Node) -> Result<Option<CircleData>, SvgError> 
     }
 
     Ok(Some(CircleData {
-        center: (cx, cy, 0.0),
-        normal: (0.0, 0.0, 1.0),
+        center: Point3D::new(cx, cy, 0.0),
+        normal: Direction3D::positive_z(),
         radius: r,
     }))
 }
@@ -225,8 +226,8 @@ fn parse_line(node: &roxmltree::Node) -> Result<Option<LineData>, SvgError> {
     }
 
     Ok(Some(LineData {
-        start: (x1, y1, 0.0),
-        end: (x2, y2, 0.0),
+        start: Point3D::new(x1, y1, 0.0),
+        end: Point3D::new(x2, y2, 0.0),
     }))
 }
 
@@ -241,9 +242,9 @@ fn parse_polygon(node: &roxmltree::Node) -> Result<Option<TriangleData>, SvgErro
     // 3点のみ三角形として扱う
     if points.len() == 3 {
         Ok(Some(TriangleData {
-            p0: (points[0].0, points[0].1, 0.0),
-            p1: (points[1].0, points[1].1, 0.0),
-            p2: (points[2].0, points[2].1, 0.0),
+            p0: Point3D::new(points[0].0, points[0].1, 0.0),
+            p1: Point3D::new(points[1].0, points[1].1, 0.0),
+            p2: Point3D::new(points[2].0, points[2].1, 0.0),
         }))
     } else {
         // 3点以外は現時点では非対応
@@ -313,7 +314,7 @@ fn parse_nurbs_path(node: &roxmltree::Node) -> Result<Option<NurbsCurveData>, Sv
 }
 
 /// 制御点リストをパース（"x1,y1,z1; x2,y2,z2; ..."形式）
-fn parse_control_points(s: &str) -> Result<Vec<(f64, f64, f64)>, SvgError> {
+fn parse_control_points(s: &str) -> Result<Vec<Point3D<f64>>, SvgError> {
     let mut points = Vec::new();
 
     for point_str in s.split(';') {
@@ -335,7 +336,7 @@ fn parse_control_points(s: &str) -> Result<Vec<(f64, f64, f64)>, SvgError> {
             .parse::<f64>()
             .map_err(|_| SvgError::InvalidAttribute(format!("Invalid z: {}", coords[2])))?;
 
-        points.push((x, y, z));
+        points.push(Point3D::new(x, y, z));
     }
 
     Ok(points)
@@ -402,7 +403,7 @@ mod tests {
         let shapes = parse_svg_string(svg).unwrap();
         assert_eq!(shapes.circles.len(), 1);
         let circle = &shapes.circles[0];
-        assert_eq!(circle.center, (10.0, 20.0, 0.0));
+        assert_eq!(circle.center, Point3D::new(10.0, 20.0, 0.0));
         assert_eq!(circle.radius, 5.0);
     }
 
@@ -415,8 +416,8 @@ mod tests {
         let shapes = parse_svg_string(svg).unwrap();
         assert_eq!(shapes.lines.len(), 1);
         let line = &shapes.lines[0];
-        assert_eq!(line.start, (-2.0, 0.0, 0.0));
-        assert_eq!(line.end, (2.0, 0.0, 0.0));
+        assert_eq!(line.start, Point3D::new(-2.0, 0.0, 0.0));
+        assert_eq!(line.end, Point3D::new(2.0, 0.0, 0.0));
     }
 
     #[test]
@@ -428,9 +429,9 @@ mod tests {
         let shapes = parse_svg_string(svg).unwrap();
         assert_eq!(shapes.triangles.len(), 1);
         let tri = &shapes.triangles[0];
-        assert_eq!(tri.p0, (0.0, 0.0, 0.0));
-        assert_eq!(tri.p1, (1.0, 0.0, 0.0));
-        assert_eq!(tri.p2, (0.5, 1.0, 0.0));
+        assert_eq!(tri.p0, Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(tri.p1, Point3D::new(1.0, 0.0, 0.0));
+        assert_eq!(tri.p2, Point3D::new(0.5, 1.0, 0.0));
     }
 
     #[test]
@@ -484,8 +485,8 @@ mod tests {
         let nurbs = &shapes.nurbs_curves[0];
         assert_eq!(nurbs.degree, 3);
         assert_eq!(nurbs.control_points.len(), 4);
-        assert_eq!(nurbs.control_points[0], (0.0, 0.0, 0.0));
-        assert_eq!(nurbs.control_points[3], (0.0, 1.0, 0.0));
+        assert_eq!(nurbs.control_points[0], Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(nurbs.control_points[3], Point3D::new(0.0, 1.0, 0.0));
         assert_eq!(nurbs.knots.len(), 8);
         assert_eq!(nurbs.weights.as_ref().unwrap().len(), 4);
     }
