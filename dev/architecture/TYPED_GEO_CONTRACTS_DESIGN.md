@@ -124,12 +124,18 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 | D-5a | 球（`SphericalSurface3D` / `SphericalSolid3D`）・楕円体（`EllipsoidalSurface3D` / `EllipsoidalSolid3D`）・トーラス（`TorusSurface3D` / `TorusSolid3D`）の型付け。完了 | 球・楕円体・トーラス |
 | D-5b | 円柱（`CylindricalSurface3D` / `CylindricalSolid3D`）・円錐（`ConicalSurface3D` / `ConicalSolid3D`）の型付け。円錐面は STEP の CONICAL_SURFACE と同じく基準点・半径・半頂角で定義し、軸方向に無限に続く面は境界ボックスを持たない（`None`）。完了 | 円柱・円錐 |
 | D-6a | NURBS 曲線（`NurbsCurve2D` / `NurbsCurve3D`）の型付け。制御点は点で 1 つずつ取得するものと、GPU 等への受け渡し用の座標の配列の両方を持つ。導関数は解析的に求め、長さは既定の距離トレランスまで数値積分する。完了 | NURBS 曲線 |
-| D-6b | NURBS 曲面（`NurbsSurface3D`）の型付け。曲線と同じく、制御点は点で取得するものと座標の配列の両方を持ち、偏導関数は解析的に求める。法線は偏導関数が平行・0 の点で `None`。完了 | NURBS 曲面 |
-| 最後 | `geo_algorithms` 等の Point / タプルの境界の残りの整理と、規約の文書の仕上げ | — |
+| D-6b | NURBS 曲面（`NurbsSurface3D`）の型付け。曲線と同じく、制御点は点で取得するものと座標の配列の両方を持ち、偏導関数は解析的に求める。法線は偏導関数が平行・0 の点（球の極等）では定義域の内側へ少しずらした点の法線とし、曲面全体が縮退する場合は `None`。完了 | NURBS 曲面 |
+| D-7 | エンティティの trait定義（線・円・円弧・平面上の 2D の線）と、SVG の読み込み結果のデータ（`geo_io`）の型付け、本設計書の仕上げ。完了 | エンティティ |
 
 - 旧 API の別名・互換用の変換は置かない（各段階で呼び出し元まで更新する）
 - 段階の作業で呼び出し元がなくなった公開 API は、その段階の系統（と、その系統からしか使われていなかった値型のメソッド）の分を削除する。他の系統の分は、その系統の段階で扱う（それまでは未使用の公開 API の検出の警告として残る）
 - 各段階で `scripts/check_all_before_push.ps1` と依存関係のチェックを通す
+
+### 5.1 本設計書の範囲外として残すもの
+
+- `geo_algorithms` の形状をまたぐ演算（衝突判定・距離・交差）の公開関数と、演算の trait定義（`BasicCollision`・`CrossDistance`・関係の trait定義）。形状の組み合わせの網羅表（`CROSS_OPERATION_COVERAGE_MATRIX_SPEC.md`）と最小 API の規則の整合、呼び出し元のない関数・引数の順序を入れ替えた関数の扱い、結果が誤った簡易実装の修正、点の値渡しへの型付けを、別の issue でまとめて扱う
+- 実装のない演算の trait定義（`PointDistance`・`BBoxCollision`）は、将来必要かを判断して別のタスクで扱う
+- 実装の内部の計算用の値の組（断面の座標・重心座標・パラメータの範囲等）はタプルのままとする
 
 ## 6. 関連
 

@@ -1,8 +1,8 @@
 use crate::{Attributes, DisplayAttributes, EntityId, Metadata};
 use geo_contracts::{
-    Arc3DProperties, ArcEntity3DProperties, Circle3DProperties, CircleEntity3DProperties,
-    EntityDisplayProperties, EntityIdentity, LineEntity3DProperties, LineSegment3DProperties,
-    Scalar, StrokeDisplayProperties,
+    Angle, Arc3DProperties, ArcEntity3DProperties, Circle3DProperties, CircleEntity3DProperties,
+    Direction3D, EntityDisplayProperties, EntityIdentity, LineEntity3DProperties,
+    LineSegment3DProperties, Point3D, Scalar, StrokeDisplayProperties,
 };
 
 #[derive(Debug, Clone)]
@@ -124,58 +124,51 @@ impl<T: Scalar, G> StrokeDisplayProperties for GeometricEntity<T, G> {
 }
 
 impl<T: Scalar> LineEntity3DProperties<T> for GeometricEntity<T, geo_primitives::LineSegment3D<T>> {
-    fn line_start(&self) -> (T, T, T) {
-        let point = self.geometry.start_point();
-        (point.x(), point.y(), point.z())
+    fn line_start(&self) -> Point3D<T> {
+        self.geometry.start_point()
     }
 
-    fn line_end(&self) -> (T, T, T) {
-        let point = self.geometry.end_point();
-        (point.x(), point.y(), point.z())
+    fn line_end(&self) -> Point3D<T> {
+        self.geometry.end_point()
     }
 }
 
 impl<T: Scalar> CircleEntity3DProperties<T> for GeometricEntity<T, geo_primitives::Circle3D<T>> {
-    fn circle_center(&self) -> (T, T, T) {
-        let center = Circle3DProperties::center(self.geometry());
-        (center.x(), center.y(), center.z())
+    fn circle_center(&self) -> Point3D<T> {
+        Circle3DProperties::center(self.geometry())
     }
 
     fn circle_radius(&self) -> T {
         Circle3DProperties::radius(self.geometry())
     }
 
-    fn circle_axis(&self) -> (T, T, T) {
-        let axis = Circle3DProperties::axis(self.geometry());
-        (axis.x(), axis.y(), axis.z())
+    fn circle_axis(&self) -> Direction3D<T> {
+        Circle3DProperties::axis(self.geometry())
     }
 }
 
 impl<T: Scalar> ArcEntity3DProperties<T> for GeometricEntity<T, geo_primitives::Arc3D<T>> {
-    fn arc_center(&self) -> (T, T, T) {
-        let center = Arc3DProperties::center(self.geometry());
-        (center.x(), center.y(), center.z())
+    fn arc_center(&self) -> Point3D<T> {
+        Arc3DProperties::center(self.geometry())
     }
 
     fn arc_radius(&self) -> T {
         Arc3DProperties::radius(self.geometry())
     }
 
-    fn arc_start_angle(&self) -> T {
-        Arc3DProperties::start_angle(self.geometry()).to_radians()
+    fn arc_start_angle(&self) -> Angle<T> {
+        Arc3DProperties::start_angle(self.geometry())
     }
 
-    fn arc_end_angle(&self) -> T {
-        Arc3DProperties::end_angle(self.geometry()).to_radians()
+    fn arc_end_angle(&self) -> Angle<T> {
+        Arc3DProperties::end_angle(self.geometry())
     }
 
-    fn arc_normal(&self) -> (T, T, T) {
-        let normal = self.geometry.normal().as_vector();
-        (normal.x(), normal.y(), normal.z())
+    fn arc_normal(&self) -> Direction3D<T> {
+        self.geometry.normal()
     }
 
-    fn arc_start_direction(&self) -> (T, T, T) {
-        let direction = self.geometry.start_direction().as_vector();
-        (direction.x(), direction.y(), direction.z())
+    fn arc_start_direction(&self) -> Direction3D<T> {
+        self.geometry.start_direction()
     }
 }

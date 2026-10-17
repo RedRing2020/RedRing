@@ -23,8 +23,11 @@ where
     let normal = [0.0f32, 0.0, 0.0];
 
     vec![
-        VertexData::new([start.0 as f32, start.1 as f32, start.2 as f32], normal),
-        VertexData::new([end.0 as f32, end.1 as f32, end.2 as f32], normal),
+        VertexData::new(
+            [start.x() as f32, start.y() as f32, start.z() as f32],
+            normal,
+        ),
+        VertexData::new([end.x() as f32, end.y() as f32, end.z() as f32], normal),
     ]
 }
 
@@ -35,8 +38,7 @@ where
     let segments = quality.circle_segments;
     let center = entity.circle_center();
     let radius = entity.circle_radius();
-    let axis = entity.circle_axis();
-    let normal_vec = Vector3D::new(axis.0, axis.1, axis.2).normalize();
+    let normal_vec = entity.circle_axis().as_vector();
     let normal = [
         normal_vec.x() as f32,
         normal_vec.y() as f32,
@@ -57,14 +59,14 @@ where
         let angle2 = std::f64::consts::TAU * ((index + 1) as f64) / (segments as f64);
 
         let point1 = [
-            (center.0 + radius * (angle1.cos() * u.x() + angle1.sin() * v.x())) as f32,
-            (center.1 + radius * (angle1.cos() * u.y() + angle1.sin() * v.y())) as f32,
-            (center.2 + radius * (angle1.cos() * u.z() + angle1.sin() * v.z())) as f32,
+            (center.x() + radius * (angle1.cos() * u.x() + angle1.sin() * v.x())) as f32,
+            (center.y() + radius * (angle1.cos() * u.y() + angle1.sin() * v.y())) as f32,
+            (center.z() + radius * (angle1.cos() * u.z() + angle1.sin() * v.z())) as f32,
         ];
         let point2 = [
-            (center.0 + radius * (angle2.cos() * u.x() + angle2.sin() * v.x())) as f32,
-            (center.1 + radius * (angle2.cos() * u.y() + angle2.sin() * v.y())) as f32,
-            (center.2 + radius * (angle2.cos() * u.z() + angle2.sin() * v.z())) as f32,
+            (center.x() + radius * (angle2.cos() * u.x() + angle2.sin() * v.x())) as f32,
+            (center.y() + radius * (angle2.cos() * u.y() + angle2.sin() * v.y())) as f32,
+            (center.z() + radius * (angle2.cos() * u.z() + angle2.sin() * v.z())) as f32,
         ];
 
         vertices.push(VertexData::new(point1, normal));
@@ -78,8 +80,8 @@ pub fn arc_entity_to_vertices<E>(entity: &E, quality: &TessellationQuality) -> V
 where
     E: ArcEntity3DProperties<f64>,
 {
-    let start_angle = entity.arc_start_angle();
-    let end_angle = entity.arc_end_angle();
+    let start_angle = entity.arc_start_angle().to_radians();
+    let end_angle = entity.arc_end_angle().to_radians();
     let mut angle_range = end_angle - start_angle;
     if angle_range < 0.0 {
         angle_range += std::f64::consts::TAU;
@@ -90,10 +92,8 @@ where
         .max(quality.min_segments as f64) as usize;
     let center = entity.arc_center();
     let radius = entity.arc_radius();
-    let normal_dir = entity.arc_normal();
-    let start_dir = entity.arc_start_direction();
-    let normal_vec = Vector3D::new(normal_dir.0, normal_dir.1, normal_dir.2).normalize();
-    let start_dir_vec = Vector3D::new(start_dir.0, start_dir.1, start_dir.2).normalize();
+    let normal_vec = entity.arc_normal().as_vector();
+    let start_dir_vec = entity.arc_start_direction().as_vector();
     let v = normal_vec.cross(start_dir_vec).normalize();
     let normal = [
         normal_vec.x() as f32,
@@ -109,14 +109,20 @@ where
         let angle2 = start_angle + t2 * angle_range;
 
         let point1 = [
-            (center.0 + radius * (angle1.cos() * start_dir_vec.x() + angle1.sin() * v.x())) as f32,
-            (center.1 + radius * (angle1.cos() * start_dir_vec.y() + angle1.sin() * v.y())) as f32,
-            (center.2 + radius * (angle1.cos() * start_dir_vec.z() + angle1.sin() * v.z())) as f32,
+            (center.x() + radius * (angle1.cos() * start_dir_vec.x() + angle1.sin() * v.x()))
+                as f32,
+            (center.y() + radius * (angle1.cos() * start_dir_vec.y() + angle1.sin() * v.y()))
+                as f32,
+            (center.z() + radius * (angle1.cos() * start_dir_vec.z() + angle1.sin() * v.z()))
+                as f32,
         ];
         let point2 = [
-            (center.0 + radius * (angle2.cos() * start_dir_vec.x() + angle2.sin() * v.x())) as f32,
-            (center.1 + radius * (angle2.cos() * start_dir_vec.y() + angle2.sin() * v.y())) as f32,
-            (center.2 + radius * (angle2.cos() * start_dir_vec.z() + angle2.sin() * v.z())) as f32,
+            (center.x() + radius * (angle2.cos() * start_dir_vec.x() + angle2.sin() * v.x()))
+                as f32,
+            (center.y() + radius * (angle2.cos() * start_dir_vec.y() + angle2.sin() * v.y()))
+                as f32,
+            (center.z() + radius * (angle2.cos() * start_dir_vec.z() + angle2.sin() * v.z()))
+                as f32,
         ];
 
         vertices.push(VertexData::new(point1, normal));
@@ -147,6 +153,7 @@ pub fn cam_entity_to_vertices(
 mod tests {
     use super::*;
     use crate::shape_converter::TessellationQuality;
+    use geo_algorithms::{Angle, Direction3D, Point3D};
     use geo_contracts::{
         ArcEntity3DProperties, CircleEntity3DProperties, EntityDisplayProperties, EntityIdentity,
         LineEntity3DProperties,
@@ -174,12 +181,12 @@ mod tests {
     }
 
     impl LineEntity3DProperties<f64> for MockLineEntity {
-        fn line_start(&self) -> (f64, f64, f64) {
-            (0.0, 0.0, 0.0)
+        fn line_start(&self) -> Point3D<f64> {
+            Point3D::new(0.0, 0.0, 0.0)
         }
 
-        fn line_end(&self) -> (f64, f64, f64) {
-            (1.0, 0.0, 0.0)
+        fn line_end(&self) -> Point3D<f64> {
+            Point3D::new(1.0, 0.0, 0.0)
         }
     }
 
@@ -205,16 +212,16 @@ mod tests {
     }
 
     impl CircleEntity3DProperties<f64> for MockCircleEntity {
-        fn circle_center(&self) -> (f64, f64, f64) {
-            (0.0, 0.0, 0.0)
+        fn circle_center(&self) -> Point3D<f64> {
+            Point3D::new(0.0, 0.0, 0.0)
         }
 
         fn circle_radius(&self) -> f64 {
             1.0
         }
 
-        fn circle_axis(&self) -> (f64, f64, f64) {
-            (0.0, 0.0, 1.0)
+        fn circle_axis(&self) -> Direction3D<f64> {
+            Direction3D::positive_z()
         }
     }
 
@@ -240,28 +247,28 @@ mod tests {
     }
 
     impl ArcEntity3DProperties<f64> for MockArcEntity {
-        fn arc_center(&self) -> (f64, f64, f64) {
-            (0.0, 0.0, 0.0)
+        fn arc_center(&self) -> Point3D<f64> {
+            Point3D::new(0.0, 0.0, 0.0)
         }
 
         fn arc_radius(&self) -> f64 {
             1.0
         }
 
-        fn arc_start_angle(&self) -> f64 {
-            0.0
+        fn arc_start_angle(&self) -> Angle<f64> {
+            Angle::from_radians(0.0)
         }
 
-        fn arc_end_angle(&self) -> f64 {
-            std::f64::consts::FRAC_PI_2
+        fn arc_end_angle(&self) -> Angle<f64> {
+            Angle::from_radians(std::f64::consts::FRAC_PI_2)
         }
 
-        fn arc_normal(&self) -> (f64, f64, f64) {
-            (0.0, 0.0, 1.0)
+        fn arc_normal(&self) -> Direction3D<f64> {
+            Direction3D::positive_z()
         }
 
-        fn arc_start_direction(&self) -> (f64, f64, f64) {
-            (1.0, 0.0, 0.0)
+        fn arc_start_direction(&self) -> Direction3D<f64> {
+            Direction3D::positive_x()
         }
     }
 

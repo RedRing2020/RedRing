@@ -5,7 +5,7 @@ use crate::geometry_orchestration::{
     DebugShapeGeometryMutationPort, GeometryOrchestrationError, GeometryOrchestrator,
     LineGeometryMutationPort,
 };
-use crate::primitives::{Arc3D, Circle3D, LineSegment3D};
+use crate::primitives::{Angle, Arc3D, Circle3D, Direction3D, LineSegment3D, Point3D};
 use crate::topology_orchestration::{
     CreateArcTopologyRequest, CreateCircleTopologyRequest, CreateLineTopologyRequest,
     DebugShapeTopologyMutationPort, LineTopologyMutationPort, TopologyOrchestrationError,
@@ -161,12 +161,12 @@ impl EntityDisplayProperties for StoredLineEntityDto {
 }
 
 impl LineEntity3DProperties<f64> for StoredLineEntityDto {
-    fn line_start(&self) -> (f64, f64, f64) {
-        (self.start[0], self.start[1], self.start[2])
+    fn line_start(&self) -> Point3D<f64> {
+        Point3D::new(self.start[0], self.start[1], self.start[2])
     }
 
-    fn line_end(&self) -> (f64, f64, f64) {
-        (self.end[0], self.end[1], self.end[2])
+    fn line_end(&self) -> Point3D<f64> {
+        Point3D::new(self.end[0], self.end[1], self.end[2])
     }
 }
 
@@ -199,16 +199,17 @@ impl EntityDisplayProperties for StoredCircleEntityDto {
 }
 
 impl CircleEntity3DProperties<f64> for StoredCircleEntityDto {
-    fn circle_center(&self) -> (f64, f64, f64) {
-        (self.center[0], self.center[1], self.center[2])
+    fn circle_center(&self) -> Point3D<f64> {
+        Point3D::new(self.center[0], self.center[1], self.center[2])
     }
 
     fn circle_radius(&self) -> f64 {
         self.radius
     }
 
-    fn circle_axis(&self) -> (f64, f64, f64) {
-        (self.axis[0], self.axis[1], self.axis[2])
+    fn circle_axis(&self) -> Direction3D<f64> {
+        Direction3D::new(self.axis[0], self.axis[1], self.axis[2])
+            .expect("stored direction should be non-zero")
     }
 }
 
@@ -241,32 +242,34 @@ impl EntityDisplayProperties for StoredArcEntityDto {
 }
 
 impl ArcEntity3DProperties<f64> for StoredArcEntityDto {
-    fn arc_center(&self) -> (f64, f64, f64) {
-        (self.center[0], self.center[1], self.center[2])
+    fn arc_center(&self) -> Point3D<f64> {
+        Point3D::new(self.center[0], self.center[1], self.center[2])
     }
 
     fn arc_radius(&self) -> f64 {
         self.radius
     }
 
-    fn arc_start_angle(&self) -> f64 {
-        self.start_angle_radians
+    fn arc_start_angle(&self) -> Angle<f64> {
+        Angle::from_radians(self.start_angle_radians)
     }
 
-    fn arc_end_angle(&self) -> f64 {
-        self.end_angle_radians
+    fn arc_end_angle(&self) -> Angle<f64> {
+        Angle::from_radians(self.end_angle_radians)
     }
 
-    fn arc_normal(&self) -> (f64, f64, f64) {
-        (self.normal[0], self.normal[1], self.normal[2])
+    fn arc_normal(&self) -> Direction3D<f64> {
+        Direction3D::new(self.normal[0], self.normal[1], self.normal[2])
+            .expect("stored direction should be non-zero")
     }
 
-    fn arc_start_direction(&self) -> (f64, f64, f64) {
-        (
+    fn arc_start_direction(&self) -> Direction3D<f64> {
+        Direction3D::new(
             self.start_direction[0],
             self.start_direction[1],
             self.start_direction[2],
         )
+        .expect("stored direction should be non-zero")
     }
 }
 
