@@ -51,6 +51,19 @@ impl<T: Scalar> Ellipse2D<T> {
         }
     }
 
+    /// 点までの距離が極値になる楕円上のパラメータ（`point_at_parameter` の引数）
+    ///
+    /// 楕円弧が範囲内の最近点を求めるため pub(crate)。
+    pub(crate) fn distance_critical_parameters(&self, point: Point2D<T>) -> Vec<T> {
+        let (x_local, y_local) = self.local_coordinates(point);
+        geo_commons::ellipse_2d_distance_critical_parameters(
+            x_local,
+            y_local,
+            self.semi_major,
+            self.semi_minor,
+        )
+    }
+
     /// 楕円の周回長の近似（ラマヌジャンの公式）
     ///
     /// 楕円弧の長さに使うため pub(crate)。

@@ -9,8 +9,12 @@
 //! ```
 
 mod distance;
+mod ellipse;
 
 pub use distance::{
     ellipse_2d_closest_point, ellipse_2d_distance_to_point, ellipse_3d_distance_to_point,
     ellipsoid_closest_point, line_segment_to_aabb_distance,
+};
+pub use ellipse::{
+    ellipse_2d_circle_intersection_parameters, ellipse_2d_distance_critical_parameters,
 };

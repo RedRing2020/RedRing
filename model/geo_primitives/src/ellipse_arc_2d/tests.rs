@@ -67,3 +67,13 @@ fn test_distance_and_containment() {
     assert!(!ellipse_arc.contains_point(outside));
     assert!((ellipse_arc.distance_to_point(outside) - 20.0_f64.sqrt()).abs() < 1e-10);
 }
+
+/// 楕円全体の最近点が範囲外でも、範囲内に距離の極小点があればその点までの距離になる
+#[test]
+fn test_distance_uses_local_minimum_inside_the_range() {
+    // 中心 (2, 3)・長半軸 4・短半軸 2 の楕円の下半分。点 (2, 4) の楕円全体の最近点は上側の短軸の端
+    let lower_half = arc(180.0, 360.0);
+    let point = Point2D::new(2.0, 4.0);
+    // 下側の短軸の端 (2, 1) が範囲内の最近点
+    assert!((lower_half.distance_to_point(point) - 3.0).abs() < 1e-12);
+}
