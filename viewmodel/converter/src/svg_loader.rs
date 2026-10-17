@@ -5,15 +5,17 @@
 
 use crate::mesh_converter::VertexData;
 use crate::shape_converter::{
-    arc_to_wireframe_line_segments, circle_to_wireframe_line_segments, line_segment_to_vertices,
-    triangle_to_solid_vertices, TessellationQuality,
+    arc_to_wireframe_line_segments, circle_to_wireframe_line_segments,
+    ellipse_arc_to_wireframe_line_segments, line_segment_to_vertices, triangle_to_solid_vertices,
+    TessellationQuality,
 };
 use geo_contracts::{
-    Arc3DConstructor, Circle3DConstructor, LineSegment3DConstructor, NurbsCurve3DConstructor,
-    NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties, Triangle3DConstructor,
+    Arc3DConstructor, Circle3DConstructor, EllipseArc3DConstructor, LineSegment3DConstructor,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    Triangle3DConstructor,
 };
 // geo_algorithms は geo_primitives を再エクスポート（アーキテクチャルール上許可）
-use geo_algorithms::{Arc3D, Circle3D, LineSegment3D, NurbsCurve3D, Triangle3D};
+use geo_algorithms::{Arc3D, Circle3D, EllipseArc3D, LineSegment3D, NurbsCurve3D, Triangle3D};
 use geo_io::svg::{parse_svg_file, NurbsCurveData, SvgError, SvgShapeData};
 use std::path::Path;
 use thiserror::Error;
@@ -80,7 +82,7 @@ fn convert_svg_to_vertices(
         vertices.extend(triangle_to_solid_vertices(&triangle));
     }
 
-    // 円弧を変換（TODO: SVGパーサーでarc抽出実装後）
+    // 円弧を変換
     for arc_data in &svg_data.arcs {
         let arc = Arc3D::new(
             arc_data.center,
@@ -93,6 +95,24 @@ fn convert_svg_to_vertices(
         .ok_or_else(|| SvgLoaderError::ConstructionError("Failed to create Arc3D".to_string()))?;
 
         vertices.extend(arc_to_wireframe_line_segments(&arc, &quality));
+    }
+
+    // 楕円弧を変換
+    for arc_data in &svg_data.ellipse_arcs {
+        let arc = EllipseArc3D::new(
+            arc_data.center,
+            arc_data.semi_major,
+            arc_data.semi_minor,
+            arc_data.normal,
+            arc_data.major_axis_direction,
+            arc_data.start_angle,
+            arc_data.end_angle,
+        )
+        .ok_or_else(|| {
+            SvgLoaderError::ConstructionError("Failed to create EllipseArc3D".to_string())
+        })?;
+
+        vertices.extend(ellipse_arc_to_wireframe_line_segments(&arc, &quality));
     }
 
     // NURBS曲線を変換
@@ -243,5 +263,15 @@ mod tests {
             vertices.len() > 10,
             "NURBS curve should have many vertices from tessellation"
         );
+    }
+
+    #[test]
+    fn test_load_fixture_svgs_with_path_arcs_and_lines() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/shapes");
+        // arc.svg は円弧と楕円弧、clip_square.svg は直線の path
+        for name in ["arc.svg", "clip_square.svg"] {
+            let vertices = load_svg_shapes(&fixtures.join(name), 0.01).unwrap();
+            assert!(!vertices.is_empty(), "{name} should have vertices");
+        }
     }
 }

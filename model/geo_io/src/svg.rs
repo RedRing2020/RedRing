@@ -1,15 +1,15 @@
 //! SVG形状データパーサー
 //!
-//! SVGファイルから基本的な幾何形状（Circle, Line, Triangle, Arc）を抽出します。
-//! テストデータおよびサンプルデータの
-//! 外部管理を目的としています。
+//! SVGファイルから基本的な幾何形状を抽出します。
+//! 形状の表示を実機でデバッグするための、テストデータの読み込みに使います。
 //!
 //! # サポート要素
 //!
 //! - `<circle>` - 円形状
 //! - `<line>` - 線分
-//! - `<polygon>` - 多角形（3点の場合は三角形として扱う）
-//! - `<path d="M... A...">` - 円弧（楕円弧コマンド）
+//! - `<polygon>` - 三角形（3 点の場合。4 点以上は未対応のエラー）
+//! - `<path d="...">` - 線分・円弧・楕円弧（M / L / H / V / Z / A コマンド。Bézier 曲線は未対応のエラー）
+//! - `<path data-nurbs="true" ...>` - NURBS 曲線
 //!
 //! # 使用例
 //!
@@ -98,6 +98,25 @@ pub struct ArcData {
     pub end_angle: Angle<f64>,
 }
 
+/// 楕円弧データ
+#[derive(Debug, Clone, PartialEq)]
+pub struct EllipseArcData {
+    /// 中心
+    pub center: Point3D<f64>,
+    /// 長半軸
+    pub semi_major: f64,
+    /// 短半軸
+    pub semi_minor: f64,
+    /// 楕円弧平面の法線
+    pub normal: Direction3D<f64>,
+    /// 長軸の方向（角度 0 の方向）
+    pub major_axis_direction: Direction3D<f64>,
+    /// 開始角（楕円のパラメータの角度）
+    pub start_angle: Angle<f64>,
+    /// 終了角（開始角から反時計回り）
+    pub end_angle: Angle<f64>,
+}
+
 /// NURBS曲線データ
 #[derive(Debug, Clone, PartialEq)]
 pub struct NurbsCurveData {
@@ -122,6 +141,8 @@ pub struct SvgShapeData {
     pub triangles: Vec<TriangleData>,
     /// 円弧のリスト
     pub arcs: Vec<ArcData>,
+    /// 楕円弧のリスト
+    pub ellipse_arcs: Vec<EllipseArcData>,
     /// NURBS曲線のリスト
     pub nurbs_curves: Vec<NurbsCurveData>,
 }
@@ -173,12 +194,11 @@ fn traverse_elements(node: &roxmltree::Node, shapes: &mut SvgShapeData) -> Resul
             }
         }
         "path" => {
-            // NURBS曲線をチェック（data-nurbs属性があれば）
+            // data-nurbs 属性があれば NURBS 曲線、なければ d 属性の線分・円弧・楕円弧
             if let Some(nurbs) = parse_nurbs_path(node)? {
                 shapes.nurbs_curves.push(nurbs);
-            } else if let Some(arc) = parse_path_arc(node)? {
-                // pathからarcを抽出
-                shapes.arcs.push(arc);
+            } else {
+                parse_path_data(node, shapes)?;
             }
         }
         _ => {
@@ -239,24 +259,290 @@ fn parse_polygon(node: &roxmltree::Node) -> Result<Option<TriangleData>, SvgErro
 
     let points = parse_points_attribute(points_str)?;
 
-    // 3点のみ三角形として扱う
-    if points.len() == 3 {
-        Ok(Some(TriangleData {
+    // 3 点は三角形。4 点以上の多角形の扱いは決まっていないので未対応のエラーにする
+    match points.len() {
+        3 => Ok(Some(TriangleData {
             p0: Point3D::new(points[0].0, points[0].1, 0.0),
             p1: Point3D::new(points[1].0, points[1].1, 0.0),
             p2: Point3D::new(points[2].0, points[2].1, 0.0),
-        }))
-    } else {
-        // 3点以外は現時点では非対応
-        Ok(None)
+        })),
+        count if count > 3 => Err(SvgError::UnsupportedFeature(format!(
+            "polygon with {count} points"
+        ))),
+        _ => Ok(None),
     }
 }
 
-/// path要素から円弧を抽出（簡易実装）
-fn parse_path_arc(_node: &roxmltree::Node) -> Result<Option<ArcData>, SvgError> {
-    // TODO: pathのd属性をパースしてArcコマンドを抽出
-    // 現時点では未実装
-    Ok(None)
+/// path要素の d 属性から線分・円弧・楕円弧を抽出
+///
+/// 読み取るコマンドは M / L / H / V / Z / A（小文字は相対座標）。Bézier 曲線（C / S / Q / T）は
+/// 未対応のエラーにする。円弧の中心と角度は SVG の仕様（SVG 1.1 付録 F.6.5・F.6.6）に従って求める。
+fn parse_path_data(node: &roxmltree::Node, shapes: &mut SvgShapeData) -> Result<(), SvgError> {
+    let data = node
+        .attribute("d")
+        .ok_or_else(|| SvgError::MissingAttribute("d".to_string()))?;
+    let mut reader = PathDataReader::new(data);
+    let mut current = (0.0, 0.0);
+    let mut subpath_start = (0.0, 0.0);
+    let mut command = None;
+
+    while let Some(next) = reader.next_command_or_implicit(command)? {
+        let relative = next.is_ascii_lowercase();
+        let offset = if relative { current } else { (0.0, 0.0) };
+        match next.to_ascii_uppercase() {
+            'M' => {
+                let (x, y) = reader.coordinate_pair()?;
+                current = (offset.0 + x, offset.1 + y);
+                subpath_start = current;
+                // 続く座標の組は直線（L / l）として扱う
+                command = Some(if relative { 'l' } else { 'L' });
+                continue;
+            }
+            'L' => {
+                let (x, y) = reader.coordinate_pair()?;
+                current = push_line(shapes, current, (offset.0 + x, offset.1 + y));
+            }
+            'H' => {
+                let x = reader.number()?;
+                current = push_line(shapes, current, (offset.0 + x, current.1));
+            }
+            'V' => {
+                let y = reader.number()?;
+                current = push_line(shapes, current, (current.0, offset.1 + y));
+            }
+            'Z' => {
+                current = push_line(shapes, current, subpath_start);
+            }
+            'A' => {
+                let rx = reader.number()?;
+                let ry = reader.number()?;
+                let rotation = reader.number()?;
+                let large_arc = reader.flag()?;
+                let sweep = reader.flag()?;
+                let (x, y) = reader.coordinate_pair()?;
+                let end = (offset.0 + x, offset.1 + y);
+                push_arc(shapes, current, end, (rx, ry), rotation, large_arc, sweep)?;
+                current = end;
+            }
+            other => {
+                return Err(SvgError::UnsupportedFeature(format!(
+                    "path command '{other}'"
+                )));
+            }
+        }
+        command = Some(next);
+    }
+    Ok(())
+}
+
+/// 長さが 0 でない線分を加え、終点を返す
+fn push_line(shapes: &mut SvgShapeData, start: (f64, f64), end: (f64, f64)) -> (f64, f64) {
+    if start != end {
+        shapes.lines.push(LineData {
+            start: Point3D::new(start.0, start.1, 0.0),
+            end: Point3D::new(end.0, end.1, 0.0),
+        });
+    }
+    end
+}
+
+/// 端点で表した楕円弧（A コマンド）を中心と角度で表し、円弧または楕円弧として加える
+///
+/// SVG の座標をそのまま使うので、向きのフラグ 1（角度が増える向き）は法線が Z 軸正方向の反時計回りになる。
+/// 端点が一致する場合は何も加えず、半径が 0 の場合は線分とする（F.6.2）。
+fn push_arc(
+    shapes: &mut SvgShapeData,
+    start: (f64, f64),
+    end: (f64, f64),
+    radii: (f64, f64),
+    rotation_degrees: f64,
+    large_arc: bool,
+    sweep: bool,
+) -> Result<(), SvgError> {
+    if start == end {
+        return Ok(());
+    }
+    let (mut rx, mut ry) = (radii.0.abs(), radii.1.abs());
+    if rx == 0.0 || ry == 0.0 {
+        push_line(shapes, start, end);
+        return Ok(());
+    }
+    let rotation = rotation_degrees.to_radians();
+    let (cos, sin) = (rotation.cos(), rotation.sin());
+
+    // F.6.5 の手順 1: 端点の中点を原点とし、楕円の軸に揃えた座標
+    let (half_dx, half_dy) = ((start.0 - end.0) / 2.0, (start.1 - end.1) / 2.0);
+    let x1 = cos * half_dx + sin * half_dy;
+    let y1 = -sin * half_dx + cos * half_dy;
+
+    // F.6.6: 端点に届かない半径を拡大する
+    let lambda = (x1 * x1) / (rx * rx) + (y1 * y1) / (ry * ry);
+    if lambda > 1.0 {
+        let scale = lambda.sqrt();
+        rx *= scale;
+        ry *= scale;
+    }
+
+    // F.6.5 の手順 2〜3: 中心
+    let numerator = rx * rx * ry * ry - rx * rx * y1 * y1 - ry * ry * x1 * x1;
+    let denominator = rx * rx * y1 * y1 + ry * ry * x1 * x1;
+    let magnitude = (numerator / denominator).max(0.0).sqrt();
+    let coefficient = if large_arc == sweep {
+        -magnitude
+    } else {
+        magnitude
+    };
+    let center_x1 = coefficient * rx * y1 / ry;
+    let center_y1 = -coefficient * ry * x1 / rx;
+    let center = Point3D::new(
+        cos * center_x1 - sin * center_y1 + (start.0 + end.0) / 2.0,
+        sin * center_x1 + cos * center_y1 + (start.1 + end.1) / 2.0,
+        0.0,
+    );
+
+    // F.6.5 の手順 4: 開始角と角度の幅（向きのフラグで符号を決める）
+    let start_angle = ((y1 - center_y1) / ry).atan2((x1 - center_x1) / rx);
+    let end_angle = ((-y1 - center_y1) / ry).atan2((-x1 - center_x1) / rx);
+    let mut span = end_angle - start_angle;
+    if sweep && span < 0.0 {
+        span += std::f64::consts::TAU;
+    } else if !sweep && span > 0.0 {
+        span -= std::f64::consts::TAU;
+    }
+    // 反時計回りの開始角と終了角（時計回りの弧は終点の側から始める）
+    let (from, to) = if sweep {
+        (start_angle, start_angle + span)
+    } else {
+        (start_angle + span, start_angle)
+    };
+
+    if rx == ry {
+        shapes.arcs.push(ArcData {
+            center,
+            radius: rx,
+            normal: Direction3D::positive_z(),
+            start_direction: direction(cos, sin)?,
+            start_angle: Angle::from_radians(from),
+            end_angle: Angle::from_radians(to),
+        });
+    } else if rx > ry {
+        shapes.ellipse_arcs.push(EllipseArcData {
+            center,
+            semi_major: rx,
+            semi_minor: ry,
+            normal: Direction3D::positive_z(),
+            major_axis_direction: direction(cos, sin)?,
+            start_angle: Angle::from_radians(from),
+            end_angle: Angle::from_radians(to),
+        });
+    } else {
+        // y 方向の半径が長い場合は、長軸を 90 度回した方向とし、角度を 90 度戻す
+        let quarter = std::f64::consts::FRAC_PI_2;
+        shapes.ellipse_arcs.push(EllipseArcData {
+            center,
+            semi_major: ry,
+            semi_minor: rx,
+            normal: Direction3D::positive_z(),
+            major_axis_direction: direction(-sin, cos)?,
+            start_angle: Angle::from_radians(from - quarter),
+            end_angle: Angle::from_radians(to - quarter),
+        });
+    }
+    Ok(())
+}
+
+/// XY 平面上の方向
+fn direction(x: f64, y: f64) -> Result<Direction3D<f64>, SvgError> {
+    Direction3D::new(x, y, 0.0)
+        .ok_or_else(|| SvgError::InvalidAttribute(format!("Invalid direction: ({x}, {y})")))
+}
+
+/// path要素の d 属性の字句の読み取り
+struct PathDataReader<'a> {
+    chars: std::iter::Peekable<std::str::Chars<'a>>,
+}
+
+impl<'a> PathDataReader<'a> {
+    fn new(data: &'a str) -> Self {
+        Self {
+            chars: data.chars().peekable(),
+        }
+    }
+
+    fn skip_separators(&mut self) {
+        while self
+            .chars
+            .peek()
+            .is_some_and(|c| c.is_whitespace() || *c == ',')
+        {
+            self.chars.next();
+        }
+    }
+
+    /// 次のコマンド。コマンドの文字がなく数値が続く場合は、前のコマンドを繰り返す
+    fn next_command_or_implicit(
+        &mut self,
+        previous: Option<char>,
+    ) -> Result<Option<char>, SvgError> {
+        self.skip_separators();
+        match self.chars.peek() {
+            None => Ok(None),
+            Some(c) if c.is_ascii_alphabetic() => Ok(self.chars.next()),
+            Some(_) => match previous {
+                Some(previous) if !previous.eq_ignore_ascii_case(&'Z') => Ok(Some(previous)),
+                _ => Err(SvgError::InvalidAttribute(
+                    "path data must start with a command".to_string(),
+                )),
+            },
+        }
+    }
+
+    fn number(&mut self) -> Result<f64, SvgError> {
+        self.skip_separators();
+        let mut text = String::new();
+        if let Some(sign) = self.chars.next_if(|c| *c == '+' || *c == '-') {
+            text.push(sign);
+        }
+        let mut seen_point = false;
+        let mut seen_exponent = false;
+        while let Some(c) = self.chars.peek().copied() {
+            if c.is_ascii_digit() {
+                text.push(c);
+            } else if c == '.' && !seen_point && !seen_exponent {
+                seen_point = true;
+                text.push(c);
+            } else if (c == 'e' || c == 'E') && !seen_exponent && !text.is_empty() {
+                seen_exponent = true;
+                text.push(c);
+                self.chars.next();
+                if let Some(sign) = self.chars.next_if(|c| *c == '+' || *c == '-') {
+                    text.push(sign);
+                }
+                continue;
+            } else {
+                break;
+            }
+            self.chars.next();
+        }
+        text.parse::<f64>()
+            .map_err(|_| SvgError::InvalidAttribute(format!("Invalid path number: '{text}'")))
+    }
+
+    fn coordinate_pair(&mut self) -> Result<(f64, f64), SvgError> {
+        Ok((self.number()?, self.number()?))
+    }
+
+    /// A コマンドのフラグ（区切りなしで続けて書かれることがあるので 1 文字で読む）
+    fn flag(&mut self) -> Result<bool, SvgError> {
+        self.skip_separators();
+        match self.chars.next() {
+            Some('0') => Ok(false),
+            Some('1') => Ok(true),
+            other => Err(SvgError::InvalidAttribute(format!(
+                "Invalid arc flag: {other:?}"
+            ))),
+        }
+    }
 }
 
 /// path要素からNURBS曲線を抽出
@@ -507,5 +793,161 @@ mod tests {
         assert_eq!(nurbs.degree, 2);
         assert_eq!(nurbs.control_points.len(), 3);
         assert!(nurbs.weights.is_none());
+    }
+
+    fn path_shapes(d: &str) -> Result<SvgShapeData, SvgError> {
+        parse_svg_string(&format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="{d}" /></svg>"#
+        ))
+    }
+
+    fn point(x: f64, y: f64) -> Point3D<f64> {
+        Point3D::new(x, y, 0.0)
+    }
+
+    /// 円弧の開始角・終了角の点
+    fn arc_ends(arc: &ArcData) -> (Point3D<f64>, Point3D<f64>) {
+        let at = |angle: Angle<f64>| {
+            let reference = arc.start_direction.as_vector();
+            let normal = arc.normal.as_vector();
+            let side = normal.cross(reference);
+            let (cos, sin) = (angle.to_radians().cos(), angle.to_radians().sin());
+            arc.center + (reference * cos + side * sin) * arc.radius
+        };
+        (at(arc.start_angle), at(arc.end_angle))
+    }
+
+    /// 楕円弧の開始角・終了角の点
+    fn ellipse_arc_ends(arc: &EllipseArcData) -> (Point3D<f64>, Point3D<f64>) {
+        let at = |angle: Angle<f64>| {
+            let major = arc.major_axis_direction.as_vector();
+            let minor = arc.normal.as_vector().cross(major);
+            let (cos, sin) = (angle.to_radians().cos(), angle.to_radians().sin());
+            arc.center + major * (arc.semi_major * cos) + minor * (arc.semi_minor * sin)
+        };
+        (at(arc.start_angle), at(arc.end_angle))
+    }
+
+    /// 反時計回りの両端が、SVG の始点・終点（順不同）と一致する
+    fn assert_same_ends(actual: (Point3D<f64>, Point3D<f64>), a: Point3D<f64>, b: Point3D<f64>) {
+        let close = |p: Point3D<f64>, q: Point3D<f64>| p.distance_to(q) < 1e-12;
+        assert!(
+            (close(actual.0, a) && close(actual.1, b))
+                || (close(actual.0, b) && close(actual.1, a)),
+            "ends: {actual:?}"
+        );
+    }
+
+    fn span_degrees(start: Angle<f64>, end: Angle<f64>) -> f64 {
+        (end.to_radians() - start.to_radians()).to_degrees()
+    }
+
+    #[test]
+    fn test_parse_path_lines() {
+        let shapes = path_shapes("M 0 0 L 1 0 H 2 V 1 Z").unwrap();
+        let segments: Vec<_> = shapes.lines.iter().map(|l| (l.start, l.end)).collect();
+        assert_eq!(
+            segments,
+            vec![
+                (point(0.0, 0.0), point(1.0, 0.0)),
+                (point(1.0, 0.0), point(2.0, 0.0)),
+                (point(2.0, 0.0), point(2.0, 1.0)),
+                (point(2.0, 1.0), point(0.0, 0.0)),
+            ]
+        );
+
+        // 相対座標と、M の後に続く座標の組（直線として扱う）
+        let shapes = path_shapes("m 1 1 2 0 0 2 z").unwrap();
+        let segments: Vec<_> = shapes.lines.iter().map(|l| (l.start, l.end)).collect();
+        assert_eq!(
+            segments,
+            vec![
+                (point(1.0, 1.0), point(3.0, 1.0)),
+                (point(3.0, 1.0), point(3.0, 3.0)),
+                (point(3.0, 3.0), point(1.0, 1.0)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_parse_path_circular_arcs() {
+        // 小さい弧・角度が増える向き: 中心 (0, 0)、0 度から 90 度
+        let shapes = path_shapes("M 1 0 A 1 1 0 0 1 0 1").unwrap();
+        let arc = &shapes.arcs[0];
+        assert!(arc.center.distance_to(point(0.0, 0.0)) < 1e-12);
+        assert!((span_degrees(arc.start_angle, arc.end_angle) - 90.0).abs() < 1e-9);
+        assert_same_ends(arc_ends(arc), point(1.0, 0.0), point(0.0, 1.0));
+
+        // 小さい弧・角度が減る向き: 中心 (1, 1)
+        let shapes = path_shapes("M 1 0 A 1 1 0 0 0 0 1").unwrap();
+        let arc = &shapes.arcs[0];
+        assert!(arc.center.distance_to(point(1.0, 1.0)) < 1e-12);
+        assert!((span_degrees(arc.start_angle, arc.end_angle) - 90.0).abs() < 1e-9);
+        assert_same_ends(arc_ends(arc), point(1.0, 0.0), point(0.0, 1.0));
+
+        // 大きい弧・角度が増える向き（フラグを区切らずに書く）: 中心 (1, 1)、270 度
+        let shapes = path_shapes("M1,0A1,1,0,11,0,1").unwrap();
+        let arc = &shapes.arcs[0];
+        assert!(arc.center.distance_to(point(1.0, 1.0)) < 1e-12);
+        assert!((span_degrees(arc.start_angle, arc.end_angle) - 270.0).abs() < 1e-9);
+        assert_same_ends(arc_ends(arc), point(1.0, 0.0), point(0.0, 1.0));
+
+        // 端点に届かない半径は拡大する（半径 1、中心 (1, 0) の半円）
+        let shapes = path_shapes("M 0 0 A 0.5 0.5 0 0 1 2 0").unwrap();
+        let arc = &shapes.arcs[0];
+        assert!((arc.radius - 1.0).abs() < 1e-12);
+        assert!(arc.center.distance_to(point(1.0, 0.0)) < 1e-12);
+        assert_same_ends(arc_ends(arc), point(0.0, 0.0), point(2.0, 0.0));
+    }
+
+    #[test]
+    fn test_parse_path_elliptical_arcs() {
+        // x 方向の半径が長い楕円弧
+        let shapes = path_shapes("M 2 0 A 2 1 0 0 1 0 1").unwrap();
+        let arc = &shapes.ellipse_arcs[0];
+        assert!(arc.center.distance_to(point(0.0, 0.0)) < 1e-12);
+        assert_eq!((arc.semi_major, arc.semi_minor), (2.0, 1.0));
+        assert_same_ends(ellipse_arc_ends(arc), point(2.0, 0.0), point(0.0, 1.0));
+
+        // y 方向の半径が長い楕円弧（長軸は y 方向）
+        let shapes = path_shapes("M 1 0 A 1 2 0 0 1 0 2").unwrap();
+        let arc = &shapes.ellipse_arcs[0];
+        assert_eq!((arc.semi_major, arc.semi_minor), (2.0, 1.0));
+        assert!(arc.major_axis_direction.as_vector().y().abs() > 1.0 - 1e-12);
+        assert_same_ends(ellipse_arc_ends(arc), point(1.0, 0.0), point(0.0, 2.0));
+
+        // 回転した楕円弧（長軸が 45 度）
+        let shapes =
+            path_shapes("M 0 0 A 2 1 45 0 1 1.4142135623730951 1.4142135623730951").unwrap();
+        let arc = &shapes.ellipse_arcs[0];
+        assert_same_ends(
+            ellipse_arc_ends(arc),
+            point(0.0, 0.0),
+            point(2.0_f64.sqrt(), 2.0_f64.sqrt()),
+        );
+    }
+
+    #[test]
+    fn test_parse_path_degenerate_arcs() {
+        // 端点が一致する円弧は加えず、半径 0 の円弧は線分とする
+        let shapes = path_shapes("M 1 1 A 1 1 0 0 1 1 1").unwrap();
+        assert!(shapes.arcs.is_empty() && shapes.lines.is_empty());
+        let shapes = path_shapes("M 0 0 A 0 1 0 0 1 2 0").unwrap();
+        assert_eq!(shapes.lines.len(), 1);
+    }
+
+    #[test]
+    fn test_unsupported_path_and_polygon_are_errors() {
+        assert!(matches!(
+            path_shapes("M 0 0 C 1 1 2 1 3 0"),
+            Err(SvgError::UnsupportedFeature(_))
+        ));
+        let square = r#"<svg xmlns="http://www.w3.org/2000/svg">
+                <polygon points="0,0 1,0 1,1 0,1" />
+            </svg>"#;
+        assert!(matches!(
+            parse_svg_string(square),
+            Err(SvgError::UnsupportedFeature(_))
+        ));
     }
 }
