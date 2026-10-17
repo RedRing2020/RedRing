@@ -7,9 +7,7 @@
 //! - `IntersectionTopology`: 位相的な関係
 //! - `IntersectionResult`: 幾何と位相を統合した結果
 
-use crate::{
-    CompositeCurve3D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D, Ray2D,
-};
+use crate::{LineSegment2D, LineSegment3D, Point2D, Point3D, Ray2D};
 use geo_contracts::Scalar;
 
 /// 交差結果の幾何内容
@@ -18,9 +16,6 @@ use geo_contracts::Scalar;
 /// （設計: GEOMETRY_SHAPE_SEMANTICS_DESIGN.md）に従い
 /// bounded geometry の ideal endpoint 基準の線分を表す。
 /// topology 上の拘束端点を含意しない。
-///
-/// `CompositeCurve` は `geo_topology` の語彙をそのまま保持するため、
-/// whole-curve の public endpoint は拘束端点基準で解釈する。
 #[derive(Clone, Debug)]
 pub enum IntersectionGeometry<T: Scalar> {
     /// 交差なし
@@ -29,17 +24,10 @@ pub enum IntersectionGeometry<T: Scalar> {
     Point(Point3D<T>),
     /// 複数の孤立点
     Points(Vec<Point3D<T>>),
-    /// 無限直線（例: 非平行な平面同士の交差）
-    InfiniteLine(InfiniteLine3D<T>),
     /// 線分（例: 有界な面同士の交差）
     ///
     /// ここで返す線分は ideal endpoint 基準の幾何線分。
     Segment(LineSegment3D<T>),
-    /// 複合曲線（例: 連結した複数セグメント）
-    ///
-    /// `CompositeCurve3D` の public endpoint 語彙は `geo_topology` に従い、
-    /// 拘束端点を返す。
-    CompositeCurve(CompositeCurve3D<T>),
     /// 完全一致（形状が全域で重なる）
     Coincident,
     /// 単一点交差（2D）
@@ -61,9 +49,7 @@ impl<T: Scalar> IntersectionGeometry<T> {
             Self::None => "no intersection",
             Self::Point(_) => "single point",
             Self::Points(_) => "multiple points",
-            Self::InfiniteLine(_) => "infinite line",
             Self::Segment(_) => "line segment",
-            Self::CompositeCurve(_) => "composite curve",
             Self::Coincident => "coincident (complete overlap)",
             Self::Point2D(_) => "single point (2D)",
             Self::Points2D(_) => "multiple points (2D)",
@@ -86,11 +72,7 @@ impl<T: Scalar> IntersectionGeometry<T> {
         match self {
             Self::None => -1,
             Self::Point(_) | Self::Points(_) | Self::Point2D(_) | Self::Points2D(_) => 0,
-            Self::InfiniteLine(_)
-            | Self::Segment(_)
-            | Self::CompositeCurve(_)
-            | Self::Segment2D(_)
-            | Self::Ray2D(_) => 1,
+            Self::Segment(_) | Self::Segment2D(_) | Self::Ray2D(_) => 1,
             Self::Coincident => 2,
         }
     }

@@ -8,7 +8,6 @@ analysis = { path = "../../foundation/analysis" }
 geo_commons = { path = "../geo_commons" }
 geo_contracts = { path = "../geo_contracts" }
 geo_primitives = { path = "../geo_primitives" }
-geo_topology = { path = "../geo_topology" }
 geo_nurbs = { path = "../geo_nurbs" }
 geo_core = { path = "../geo_core" }
 

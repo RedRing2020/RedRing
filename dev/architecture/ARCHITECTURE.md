@@ -20,7 +20,8 @@ viewmodel（converter / graphics / cam_demo）
   ↓
 model
   application → cam_sim → cam_algorithms → cam_core
-  application → geo_algorithms → geo_topology → geo_primitives / geo_nurbs → geo_contracts → geo_core
+  application → geo_algorithms → geo_primitives / geo_nurbs → geo_contracts → geo_core
+  application → geo_topology → geo_primitives / geo_nurbs
   geo_primitives → geo_commons
   geo_entity / geo_io → geo_primitives
   cam_sim / application → job_domain → job_runtime
@@ -40,7 +41,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **`geo_primitives`**: 解析形状の実装。`geo_contracts` の trait定義を実装し、必要に応じて `geo_commons` の計算へ委譲する
 - **`geo_nurbs`**: NURBS 曲線・曲面の実装。`geo_contracts` の trait定義を実装し、`geo_core` の型を使う
 - **`geo_topology`**: 位相構造（エッジ・ワイヤ・複合曲線等）
-- **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` / `geo_topology` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
+- **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
 - **`geo_entity`**: エンティティの識別子・属性・関係の基盤
 - **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）
 - **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小の機械制約）
