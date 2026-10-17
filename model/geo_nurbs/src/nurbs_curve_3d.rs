@@ -12,8 +12,8 @@ mod transform;
 use crate::curve_evaluation::{validate_curve, CurveDefinition};
 use crate::{KnotVector, Scalar, WeightStorage};
 use geo_contracts::{
-    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
-    NurbsError,
+    default_distance_tolerance, NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DDistance,
+    NurbsCurve3DEvaluation, NurbsCurve3DProperties, NurbsError,
 };
 use geo_core::{Point3D, Vector3D};
 
@@ -146,6 +146,19 @@ impl<T: Scalar> NurbsCurve3DEvaluation<T> for NurbsCurve3D<T> {
         let definition = self.definition();
         let (_, [x, y, z]) = definition.point_and_derivative(definition.clamp_to_domain(t)?);
         Some(Vector3D::new(x, y, z))
+    }
+}
+
+impl<T: Scalar> NurbsCurve3DDistance<T> for NurbsCurve3D<T> {
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
+        geo_commons::nurbs_curve_minimum_distance(
+            self.degree(),
+            self.knot_vector(),
+            self.coordinates(),
+            self.weights(),
+            |x, y, z| point.distance_to(Point3D::new(x, y, z)),
+            default_distance_tolerance(),
+        )
     }
 }
 

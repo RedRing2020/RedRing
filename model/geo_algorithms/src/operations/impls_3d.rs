@@ -3,11 +3,15 @@
 use super::{CrossCollision, CrossDistance, CrossIntersection};
 use crate::intersection::primitive_3d as intersection;
 use crate::{
-    Aabb3D, ConicalSolid3D, ConicalSurface3D, InfiniteLine3D, IntersectionResult, LineSegment3D,
-    Plane3D, Point3D, Ray3D, Scalar, SphericalSolid3D, SphericalSurface3D, Triangle3D, Vector3D,
+    Aabb3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, EllipsoidalSolid3D,
+    InfiniteLine3D, IntersectionResult, LineSegment3D, NurbsCurve3D, Plane3D, Point3D, Ray3D,
+    Scalar, SphericalSolid3D, SphericalSurface3D, Triangle3D, Vector3D,
 };
 use geo_contracts::{
-    default_parallel_cross_error_tolerance, InfiniteLine3DProperties, LineSegment3DProperties,
+    default_distance_tolerance, default_parallel_cross_error_tolerance, Circle3DDistance,
+    CylindricalSolid3DDistance, EllipsoidalSolid3DDistance, InfiniteLine3DDistance,
+    InfiniteLine3DProperties, LineSegment3DDistance, LineSegment3DProperties,
+    NurbsCurve3DProperties, Plane3DDistance, Ray3DDistance, SphericalSolid3DDistance,
 };
 
 /// 交点の有無で衝突判定し、逆の向きは代表の向きを呼ぶ
@@ -82,6 +86,52 @@ impl<T: Scalar> CrossDistance<T, Aabb3D<T>> for LineSegment3D<T> {
         )
     }
 }
+
+/// NURBS 曲線上で、相手の形状までの距離 `distance` が最小になる点の距離（既定の距離トレランスの精度）
+fn nurbs_curve_distance<T: Scalar>(
+    curve: &NurbsCurve3D<T>,
+    distance: impl Fn(Point3D<T>) -> T,
+) -> T {
+    geo_commons::nurbs_curve_minimum_distance(
+        curve.degree(),
+        curve.knot_vector(),
+        curve.coordinates(),
+        curve.weights(),
+        |x, y, z| distance(Point3D::new(x, y, z)),
+        default_distance_tolerance(),
+    )
+}
+
+/// NURBS 曲線と `$shape` の距離を `$distance`（点から `$shape` までの距離）で書き、逆の向きはそれを呼ぶ
+macro_rules! nurbs_curve_distance {
+    ($shape:ident, |$other:ident, $point:ident| $distance:expr) => {
+        impl<T: Scalar> CrossDistance<T, $shape<T>> for NurbsCurve3D<T> {
+            fn distance_to(&self, $other: &$shape<T>) -> T {
+                nurbs_curve_distance(self, |$point| $distance)
+            }
+        }
+
+        impl<T: Scalar> CrossDistance<T, NurbsCurve3D<T>> for $shape<T> {
+            fn distance_to(&self, curve: &NurbsCurve3D<T>) -> T {
+                curve.distance_to(self)
+            }
+        }
+    };
+}
+
+nurbs_curve_distance!(Circle3D, |circle, point| circle.distance_to_point(point));
+nurbs_curve_distance!(CylindricalSolid3D, |cylinder, point| cylinder
+    .distance_to_point(point));
+nurbs_curve_distance!(EllipsoidalSolid3D, |ellipsoid, point| ellipsoid
+    .distance_to_point(point));
+nurbs_curve_distance!(InfiniteLine3D, |line, point| line.distance_to_point(point));
+nurbs_curve_distance!(LineSegment3D, |segment, point| segment
+    .distance_to_point(point));
+// 平面の点との距離は符号付き
+nurbs_curve_distance!(Plane3D, |plane, point| plane.distance_to_point(point).abs());
+nurbs_curve_distance!(Ray3D, |ray, point| ray.distance_to_point(point));
+nurbs_curve_distance!(SphericalSolid3D, |sphere, point| sphere
+    .distance_to_point(point));
 
 intersection!(
     InfiniteLine3D,

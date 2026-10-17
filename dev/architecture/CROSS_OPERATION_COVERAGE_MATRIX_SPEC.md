@@ -1,4 +1,4 @@
-# Cross Operation Coverage Matrix Spec (v2.3)
+# Cross Operation Coverage Matrix Spec (v2.4)
 
 対象Issue: #364（v1.0）、#855（v2.0）
 関連: #343, #350, #351, #366
@@ -76,6 +76,14 @@ pub trait CrossIntersection<T: Scalar, Other> {
 | 衝突判定 | InfiniteLine3D | Ray3D | 対称 |
 | 距離 | InfiniteLine3D | InfiniteLine3D | 片方向 |
 | 距離 | LineSegment3D | Aabb3D | 片方向 |
+| 距離 | NurbsCurve3D | Circle3D | 対称 |
+| 距離 | NurbsCurve3D | CylindricalSolid3D | 対称 |
+| 距離 | NurbsCurve3D | EllipsoidalSolid3D | 対称 |
+| 距離 | NurbsCurve3D | InfiniteLine3D | 対称 |
+| 距離 | NurbsCurve3D | LineSegment3D | 対称 |
+| 距離 | NurbsCurve3D | Plane3D | 対称 |
+| 距離 | NurbsCurve3D | Ray3D | 対称 |
+| 距離 | NurbsCurve3D | SphericalSolid3D | 対称 |
 | 交差 | InfiniteLine3D | LineSegment3D | 片方向 |
 | 交差 | InfiniteLine3D | Ray3D | 対称 |
 | 交差 | InfiniteLine3D | InfiniteLine3D | 片方向 |
@@ -107,16 +115,6 @@ v1.0 の網羅表に登録されていたが、結果が誤った簡易実装だ
 |---|---|---|---|---|
 | 3D 2 次曲面 | 交差 | CylindricalSurface3D | CylindricalSurface3D | 交線ではなく、2 つの中心の中点を返す。交線（軸が平行なら直線 0〜2 本、平行でなければ一般に 4 次の空間曲線）を表す結果の種類の設計が必要（#861） |
 | 3D 2 次曲面 | 交差 | ConicalSolid3D | Plane3D | 断面ではなく底面の中心を返す。断面（円錐曲線と底面の弦で囲まれた平面上の領域）を表す結果の種類の設計が必要（#861） |
-| NURBS | 距離 | NurbsCurve3D | Circle3D | 曲線上の等間隔のサンプル点の距離の最小値で近似する |
-| NURBS | 距離 | NurbsCurve3D | CylindricalSolid3D | 同上 |
-| NURBS | 距離 | NurbsCurve3D | EllipsoidalSolid3D | 同上 |
-| NURBS | 距離 | NurbsCurve3D | InfiniteLine3D | 同上 |
-| NURBS | 距離 | NurbsCurve3D | LineSegment3D | 同上 |
-| NURBS | 距離 | NurbsCurve3D | Plane3D | 同上 |
-| NURBS | 距離 | NurbsCurve3D | Ray3D | 同上 |
-| NURBS | 距離 | NurbsCurve3D | SphericalSolid3D | 同上 |
-
-NURBS 曲線と点の距離（v1.0 の `NurbsCurve3D`-`Point3D`）も同じ近似だったため削除した。点との距離は網羅表の範囲外のため、NURBS 曲線の trait定義の点との距離として扱う。
 
 ## 6. 確認
 
@@ -126,6 +124,12 @@ NURBS 曲線と点の距離（v1.0 の `NurbsCurve3D`-`Point3D`）も同じ近�
 - 実装済みの表へ組み合わせを移すときは、本仕様書の表とテストの両方を更新する
 
 ## 7. 改訂の履歴
+
+### v2.4（#855）
+
+- NURBS 曲線と 8 つの形状の距離を実装し、実装済みの表へ移した。NURBS 曲線の点との距離は、形状の trait定義（`NurbsCurve3DDistance::distance_to_point`）として追加した
+- 方法は `geo_commons::nurbs_curve_minimum_distance` の分枝限定法。曲線を Bézier の区間に分解し、制御点を囲む球で距離の下界を求めて、下界が最も小さい区間を分割する。返す距離は曲線上の点での距離で、真の最小値以上、真の最小値 + 既定の距離トレランス以下
+- 制約: 曲線の長い範囲で距離がほぼ一定の場合（平面に平行な曲線、同心の円等）は、区間を許容誤差の大きさまで分割するため遅く、分割の回数の上限で探索を終えることがある（その場合は精度を保証しない）
 
 ### v2.3（#855）
 

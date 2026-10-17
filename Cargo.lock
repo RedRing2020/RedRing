@@ -1148,6 +1148,7 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "approx",
+ "geo_commons",
  "geo_contracts",
  "geo_core",
  "nalgebra 0.33.3",

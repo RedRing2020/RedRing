@@ -10,6 +10,7 @@
 
 mod distance;
 mod ellipse;
+mod nurbs_curve;
 
 pub use distance::{
     ellipse_2d_closest_point, ellipse_2d_distance_to_point, ellipse_3d_distance_to_point,
@@ -18,3 +19,4 @@ pub use distance::{
 pub use ellipse::{
     ellipse_2d_circle_intersection_parameters, ellipse_2d_distance_critical_parameters,
 };
+pub use nurbs_curve::nurbs_curve_minimum_distance;

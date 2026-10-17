@@ -45,6 +45,11 @@ pub trait NurbsCurve3DEvaluation<T: Scalar> {
     fn derivative_at(&self, t: T) -> Option<Vector3D<T>>;
 }
 
+pub trait NurbsCurve3DDistance<T: Scalar> {
+    /// 点から曲線までの最短距離（既定の距離トレランスの精度）
+    fn distance_to_point(&self, point: Point3D<T>) -> T;
+}
+
 pub trait NurbsCurve3DDerived<T: Scalar> {
     /// 定義域全体の曲線の長さ（既定の距離トレランスまでの数値積分）
     fn length(&self) -> T;
