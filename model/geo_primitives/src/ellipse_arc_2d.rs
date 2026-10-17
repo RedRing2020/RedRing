@@ -11,10 +11,9 @@ use crate::{Ellipse2D, Point2D};
 use analysis::AngleRange;
 use geo_contracts::{
     default_angle_tolerance, default_distance_tolerance, Angle, Ellipse2DConstructor,
-    Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProperties, EllipseArc2DConstructor,
-    EllipseArc2DContainment, EllipseArc2DDerived, EllipseArc2DDistance, EllipseArc2DEndpoint,
-    EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange, PrimitiveKind,
-    PrimitiveMetadata, Scalar,
+    Ellipse2DEvaluation, Ellipse2DProperties, EllipseArc2DConstructor, EllipseArc2DContainment,
+    EllipseArc2DDerived, EllipseArc2DDistance, EllipseArc2DEndpoint, EllipseArc2DEvaluation,
+    EllipseArc2DProperties, EllipseArc2DTrimRange, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元楕円弧
@@ -120,14 +119,16 @@ impl<T: Scalar> EllipseArc2DEvaluation<T> for EllipseArc2D<T> {
 }
 
 impl<T: Scalar> EllipseArc2DDistance<T> for EllipseArc2D<T> {
+    /// 範囲内で距離が極値になる点と、両端の点までの距離の最小値
     fn distance_to_point(&self, point: Point2D<T>) -> T {
-        if self.contains_point_angle(point) {
-            self.ellipse.distance_to_point(point)
-        } else {
-            point
-                .distance_to(self.start_point())
-                .min(point.distance_to(self.end_point()))
-        }
+        self.ellipse
+            .distance_critical_parameters(point)
+            .into_iter()
+            .filter(|parameter| self.contains_angle(Angle::from_radians(*parameter)))
+            .map(|parameter| self.ellipse.point_at_parameter(parameter))
+            .chain([self.start_point(), self.end_point()])
+            .map(|candidate| point.distance_to(candidate))
+            .fold(T::INFINITY, T::min)
     }
 }
 

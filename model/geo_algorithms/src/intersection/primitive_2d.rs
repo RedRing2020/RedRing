@@ -1,13 +1,13 @@
 //! 2D の形状同士の交差
 
 use crate::{
-    Circle2D, InfiniteLine2D, IntersectionGeometry, IntersectionResult, IntersectionTopology,
-    LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D,
+    Angle, Circle2D, Ellipse2D, InfiniteLine2D, IntersectionGeometry, IntersectionResult,
+    IntersectionTopology, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    Circle2DProperties, InfiniteLine2DDistance, InfiniteLine2DProjection, InfiniteLine2DProperties,
-    LineSegment2DConstructor, LineSegment2DProperties, Ray2DProperties, Scalar,
-    Triangle2DBoundaryAccess,
+    Circle2DProperties, Ellipse2DEvaluation, Ellipse2DProperties, InfiniteLine2DDistance,
+    InfiniteLine2DProjection, InfiniteLine2DProperties, LineSegment2DConstructor,
+    LineSegment2DProperties, Ray2DProperties, Scalar, Triangle2DBoundaryAccess,
 };
 
 pub fn ray2d_line_segment2d_intersection<T: Scalar>(
@@ -202,6 +202,71 @@ pub fn infinite_line2d_ray2d_intersection<T: Scalar>(
         None
     };
     IntersectionResult::from_option_point2d(opt, false, tolerance)
+}
+
+/// 円と楕円の交点
+///
+/// 円の中心までの距離が極値になる楕円上の点のうち、`tolerance` の範囲で円上にある点を接する点とする。
+/// 楕円のパラメータについての 4 次多項式の根のうち、接する点から `tolerance` より離れた点を横断する交点とする。
+/// 円と楕円が一致する場合は `Coincident` を返す。
+pub fn circle2d_ellipse2d_intersections<T: Scalar>(
+    circle: &Circle2D<T>,
+    ellipse: &Ellipse2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let center = circle.center();
+    let radius = circle.radius();
+    let (a, b) = (ellipse.semi_major_axis(), ellipse.semi_minor_axis());
+    let (u, v) = ellipse2d_local_coordinates(ellipse.center(), ellipse.rotation(), center);
+    if (a - b).abs() <= tolerance
+        && (u * u + v * v).sqrt() <= tolerance
+        && (a - radius).abs() <= tolerance
+    {
+        return IntersectionResult::new(
+            IntersectionGeometry::Coincident,
+            IntersectionTopology::Coincident,
+            false,
+            tolerance,
+        );
+    }
+
+    let distinct_from = |point: Point2D<T>, points: &[Point2D<T>]| {
+        points
+            .iter()
+            .all(|other| other.distance_to(point) > tolerance)
+    };
+    let mut tangent_points: Vec<Point2D<T>> = Vec::new();
+    for parameter in geo_commons::ellipse_2d_distance_critical_parameters(u, v, a, b) {
+        let point = ellipse.point_at_parameter(parameter);
+        if (point.distance_to(center) - radius).abs() <= tolerance
+            && distinct_from(point, &tangent_points)
+        {
+            tangent_points.push(point);
+        }
+    }
+    let mut points = tangent_points.clone();
+    for parameter in geo_commons::ellipse_2d_circle_intersection_parameters(u, v, a, b, radius) {
+        let point = ellipse.point_at_parameter(parameter);
+        if distinct_from(point, &points) {
+            points.push(point);
+        }
+    }
+    let is_tangent = points.len() == tangent_points.len();
+    IntersectionResult::from_option_points2d(points, is_tangent, tolerance)
+}
+
+/// 楕円の中心を原点とし、長軸を x 軸とする局所座標での点の座標
+pub(crate) fn ellipse2d_local_coordinates<T: Scalar>(
+    ellipse_center: Point2D<T>,
+    rotation: Angle<T>,
+    point: Point2D<T>,
+) -> (T, T) {
+    let offset = Vector2D::from_points(ellipse_center, point);
+    let (cos, sin) = (rotation.cos(), rotation.sin());
+    (
+        offset.x() * cos + offset.y() * sin,
+        -offset.x() * sin + offset.y() * cos,
+    )
 }
 
 /// 三角形（領域）と線分の重なり

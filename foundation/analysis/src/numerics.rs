@@ -1,17 +1,19 @@
 //! 数値計算基盤モジュール
 //!
-//! ベクトル・距離計算、数値積分を提供します。
+//! ベクトル・距離計算、数値積分、多項式の実根を提供します。
 //! ソルバー機能は `crate::linalg::solver` モジュールに移動しました。
 //! 特殊数学定数は `crate::consts::special` モジュールを使用してください。
 
 pub mod integration;
 pub mod partition;
+pub mod polynomial;
 pub mod range;
 pub mod vector_distance;
 
 // 数値積分の再エクスポート
 pub use integration::{newton_arc_length, trapezoidal_rule, NormedVector};
 pub use partition::find_span_in_non_decreasing_sequence;
+pub use polynomial::polynomial_real_roots_in_interval;
 pub use range::is_within_closed_range;
 
 // 非線形方程式ソルバーは linalg::solver::newton を使用してください

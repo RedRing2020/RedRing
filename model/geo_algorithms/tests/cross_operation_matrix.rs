@@ -5,16 +5,16 @@
 
 use geo_algorithms::{
     Aabb3D, Angle, Arc2D, Circle2D, ConicalSolid3D, ConicalSurface3D, CrossCollision,
-    CrossDistance, CrossIntersection, InfiniteLine2D, InfiniteLine3D, IntersectionResult,
-    LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D, Ray2D, Ray3D, SphericalSolid3D,
-    SphericalSurface3D, Triangle2D, Triangle3D, Vector2D, Vector3D,
+    CrossDistance, CrossIntersection, Ellipse2D, EllipseArc2D, InfiniteLine2D, InfiniteLine3D,
+    IntersectionResult, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D, Ray2D, Ray3D,
+    SphericalSolid3D, SphericalSurface3D, Triangle2D, Triangle3D, Vector2D, Vector3D,
 };
 use geo_contracts::{
     Arc2DConstructor, Circle2DConstructor, ConicalSolid3DConstructor, ConicalSurface3DConstructor,
-    InfiniteLine2DConstructor, InfiniteLine3DConstructor, LineSegment2DConstructor,
-    LineSegment3DConstructor, Plane3DConstructor, Ray2DConstructor, Ray3DConstructor,
-    SphericalSolid3DConstructor, SphericalSurface3DConstructor, Triangle2DConstructor,
-    Triangle3DConstructor,
+    Ellipse2DConstructor, EllipseArc2DConstructor, InfiniteLine2DConstructor,
+    InfiniteLine3DConstructor, LineSegment2DConstructor, LineSegment3DConstructor,
+    Plane3DConstructor, Ray2DConstructor, Ray3DConstructor, SphericalSolid3DConstructor,
+    SphericalSurface3DConstructor, Triangle2DConstructor, Triangle3DConstructor,
 };
 
 const TOLERANCE: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
@@ -46,10 +46,13 @@ fn implemented_2d_pairs() {
     symmetric!(collision, Arc2D, Circle2D);
     symmetric!(collision, Triangle2D, Circle2D);
     symmetric!(collision, Triangle2D, LineSegment2D);
+    symmetric!(collision, Ellipse2D, Circle2D);
+    symmetric!(collision, EllipseArc2D, Circle2D);
     symmetric!(collision, InfiniteLine2D, Circle2D);
     symmetric!(collision, InfiniteLine2D, LineSegment2D);
     symmetric!(collision, InfiniteLine2D, Ray2D);
 
+    symmetric!(intersection, Circle2D, Ellipse2D);
     symmetric!(intersection, Triangle2D, LineSegment2D);
     symmetric!(intersection, Ray2D, Circle2D);
     symmetric!(intersection, Ray2D, LineSegment2D);
@@ -181,6 +184,104 @@ fn collision_2d_triangle_and_circle_treat_the_circle_as_a_curve() {
     assert!(triangle.collides(&inside, TOLERANCE));
     assert!(!triangle.collides(&enclosing, TOLERANCE));
     assert!(!triangle.collides(&apart, TOLERANCE));
+}
+
+fn ellipse() -> Ellipse2D<f64> {
+    Ellipse2D::new(Point2D::new(0.0, 0.0), 2.0, 1.0, Angle::from_degrees(0.0)).unwrap()
+}
+
+fn ellipse_arc(start_degrees: f64, end_degrees: f64) -> EllipseArc2D<f64> {
+    EllipseArc2D::new(
+        Point2D::new(0.0, 0.0),
+        2.0,
+        1.0,
+        Angle::from_degrees(0.0),
+        Angle::from_degrees(start_degrees),
+        Angle::from_degrees(end_degrees),
+    )
+    .unwrap()
+}
+
+#[test]
+fn collision_2d_ellipse_and_circle_treat_both_as_curves() {
+    let ellipse = ellipse();
+    let crossing = Circle2D::new(Point2D::new(2.0, 0.0), 0.5).unwrap();
+    let tangent = Circle2D::new(Point2D::new(0.0, 2.0), 1.0).unwrap();
+    let inside = Circle2D::new(Point2D::new(0.0, 0.0), 0.5).unwrap();
+    let enclosing = Circle2D::new(Point2D::new(0.0, 0.0), 3.0).unwrap();
+
+    assert!(ellipse.collides(&crossing, TOLERANCE));
+    assert!(crossing.collides(&ellipse, TOLERANCE));
+    assert!(ellipse.collides(&tangent, TOLERANCE));
+    assert!(!ellipse.collides(&inside, TOLERANCE));
+    assert!(!ellipse.collides(&enclosing, TOLERANCE));
+
+    // 90 度回転した楕円は長軸が y 軸に沿い、長軸の端が (0, 2) にある
+    let rotated =
+        Ellipse2D::new(Point2D::new(0.0, 0.0), 2.0, 1.0, Angle::from_degrees(90.0)).unwrap();
+    let at_rotated_vertex = Circle2D::new(Point2D::new(0.0, 2.5), 0.5).unwrap();
+    assert!(rotated.collides(&at_rotated_vertex, TOLERANCE));
+    assert!(!ellipse.collides(&at_rotated_vertex, TOLERANCE));
+    assert_eq!(
+        point_count(&at_rotated_vertex.intersection(&rotated, TOLERANCE)),
+        1
+    );
+}
+
+#[test]
+fn collision_2d_ellipse_arc_and_circle_follow_the_arc_range() {
+    let upper = ellipse_arc(0.0, 180.0);
+    let near_top = Circle2D::new(Point2D::new(0.0, 1.0), 0.2).unwrap();
+    // 母楕円とは下側の短軸の端の近くで交わるが、上半分の楕円弧とは交わらない
+    let near_bottom = Circle2D::new(Point2D::new(0.0, -1.0), 0.2).unwrap();
+    assert!(upper.collides(&near_top, TOLERANCE));
+    assert!(near_top.collides(&upper, TOLERANCE));
+    assert!(!upper.collides(&near_bottom, TOLERANCE));
+
+    // 楕円全体の最近点（上側の短軸の端）は範囲外だが、範囲内の極小点（下側の短軸の端）で接する
+    let lower = ellipse_arc(180.0, 360.0);
+    let touching_bottom = Circle2D::new(Point2D::new(0.0, 0.5), 1.5).unwrap();
+    let short_of_bottom = Circle2D::new(Point2D::new(0.0, 0.5), 1.4).unwrap();
+    assert!(lower.collides(&touching_bottom, TOLERANCE));
+    assert!(!lower.collides(&short_of_bottom, TOLERANCE));
+}
+
+#[test]
+fn intersection_2d_circle_and_ellipse() {
+    use geo_algorithms::IntersectionTopology;
+
+    let ellipse = ellipse();
+    let crossing = Circle2D::new(Point2D::new(0.0, 0.0), 1.5).unwrap();
+    let result = crossing.intersection(&ellipse, TOLERANCE);
+    assert_eq!(result.topology, IntersectionTopology::Crossing);
+    assert_eq!(point_count(&result), 4);
+    assert_eq!(point_count(&ellipse.intersection(&crossing, TOLERANCE)), 4);
+
+    let off_center = Circle2D::new(Point2D::new(1.0, 0.5), 1.2).unwrap();
+    assert_eq!(
+        point_count(&off_center.intersection(&ellipse, TOLERANCE)),
+        2
+    );
+
+    for tangent in [
+        Circle2D::new(Point2D::new(0.0, 2.0), 1.0).unwrap(),
+        Circle2D::new(Point2D::new(3.0, 0.0), 1.0).unwrap(),
+    ] {
+        let result = tangent.intersection(&ellipse, TOLERANCE);
+        assert_eq!(result.topology, IntersectionTopology::Touching);
+        assert_eq!(point_count(&result), 1);
+    }
+
+    let enclosing = Circle2D::new(Point2D::new(0.0, 0.0), 3.0).unwrap();
+    assert!(!enclosing.intersection(&ellipse, TOLERANCE).intersects());
+
+    let circular =
+        Ellipse2D::new(Point2D::new(0.0, 0.0), 1.0, 1.0, Angle::from_degrees(0.0)).unwrap();
+    let same = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+    assert_eq!(
+        same.intersection(&circular, TOLERANCE).topology,
+        IntersectionTopology::Coincident
+    );
 }
 
 #[test]
