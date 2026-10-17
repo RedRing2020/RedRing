@@ -70,12 +70,12 @@ pub use geometry::core::{
 };
 pub use geometry::core::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
-    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
-    NurbsError, NurbsSurface3DConstructor, NurbsSurface3DEvaluation, NurbsSurface3DProperties,
-    Triangle2DBoundaryAccess, Triangle2DConstructor, Triangle2DContainment, Triangle2DDistance,
-    Triangle3DBoundaryAccess, Triangle3DConstructor, Triangle3DContainment, Triangle3DDerived,
-    Triangle3DDistance, TriangleMesh3DConstructor, TriangleMesh3DProperties,
-    TriangleMesh3DTriangleAccess, TriangleMeshError,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DDistance, NurbsCurve3DEvaluation,
+    NurbsCurve3DProperties, NurbsError, NurbsSurface3DConstructor, NurbsSurface3DEvaluation,
+    NurbsSurface3DProperties, Triangle2DBoundaryAccess, Triangle2DConstructor,
+    Triangle2DContainment, Triangle2DDistance, Triangle3DBoundaryAccess, Triangle3DConstructor,
+    Triangle3DContainment, Triangle3DDerived, Triangle3DDistance, TriangleMesh3DConstructor,
+    TriangleMesh3DProperties, TriangleMesh3DTriangleAccess, TriangleMeshError,
 };
 pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{

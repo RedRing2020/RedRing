@@ -4,10 +4,11 @@
 //! 未対応の組み合わせは仕様書の未対応表で管理する。
 
 use geo_algorithms::{
-    Aabb3D, Angle, Arc2D, Circle2D, ConicalSolid3D, ConicalSurface3D, CrossCollision,
-    CrossDistance, CrossIntersection, Ellipse2D, EllipseArc2D, InfiniteLine2D, InfiniteLine3D,
-    IntersectionResult, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D, Ray2D, Ray3D,
-    SphericalSolid3D, SphericalSurface3D, Triangle2D, Triangle3D, Vector2D, Vector3D,
+    Aabb3D, Angle, Arc2D, Circle2D, Circle3D, ConicalSolid3D, ConicalSurface3D, CrossCollision,
+    CrossDistance, CrossIntersection, CylindricalSolid3D, Direction3D, Ellipse2D, EllipseArc2D,
+    EllipsoidalSolid3D, InfiniteLine2D, InfiniteLine3D, IntersectionResult, LineSegment2D,
+    LineSegment3D, NurbsCurve3D, Plane3D, Point2D, Point3D, Ray2D, Ray3D, SphericalSolid3D,
+    SphericalSurface3D, Triangle2D, Triangle3D, Vector2D, Vector3D,
 };
 use geo_contracts::{
     Arc2DConstructor, Circle2DConstructor, ConicalSolid3DConstructor, ConicalSurface3DConstructor,
@@ -68,6 +69,14 @@ fn implemented_3d_pairs() {
 
     one_way!(distance, InfiniteLine3D, InfiniteLine3D);
     one_way!(distance, LineSegment3D, Aabb3D);
+    symmetric!(distance, NurbsCurve3D, Circle3D);
+    symmetric!(distance, NurbsCurve3D, CylindricalSolid3D);
+    symmetric!(distance, NurbsCurve3D, EllipsoidalSolid3D);
+    symmetric!(distance, NurbsCurve3D, InfiniteLine3D);
+    symmetric!(distance, NurbsCurve3D, LineSegment3D);
+    symmetric!(distance, NurbsCurve3D, Plane3D);
+    symmetric!(distance, NurbsCurve3D, Ray3D);
+    symmetric!(distance, NurbsCurve3D, SphericalSolid3D);
 
     one_way!(intersection, InfiniteLine3D, LineSegment3D);
     symmetric!(intersection, InfiniteLine3D, Ray3D);
@@ -433,11 +442,9 @@ fn intersection_3d_linear_and_planar() {
     assert!(other_line.intersection(&ray_a, TOLERANCE).intersects());
     assert!(ray_a.intersection(&other_line, TOLERANCE).intersects());
 
-    let plane = Plane3D::from_point_and_normal(
-        Point3D::new(0.0, 0.0, 0.0),
-        geo_algorithms::Direction3D::positive_z(),
-    )
-    .unwrap();
+    let plane =
+        Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0), Direction3D::positive_z())
+            .unwrap();
     let vertical =
         LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
     let up = Ray3D::new(Point3D::new(0.0, 0.0, -1.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
@@ -651,8 +658,8 @@ fn intersection_3d_conical_solid_returns_the_inside_interval() {
     // 軸が x 軸正方向の円錐（底面の中心 (1, 0, 0)、頂点 (3, 0, 0)）
     let tilted = ConicalSolid3D::new(
         Point3D::new(1.0, 0.0, 0.0),
-        geo_algorithms::Direction3D::positive_x(),
-        geo_algorithms::Direction3D::positive_z(),
+        Direction3D::positive_x(),
+        Direction3D::positive_z(),
         1.0,
         2.0,
     )
@@ -670,4 +677,91 @@ fn intersection_3d_conical_solid_returns_the_inside_interval() {
         Point3D::new(2.0, -0.5, 0.0),
         Point3D::new(2.0, 0.5, 0.0),
     );
+}
+
+/// 中心が原点・半径 1 の xy 平面上の円（次数 2 の有理曲線、4 つの 4 分円）
+fn nurbs_unit_circle() -> NurbsCurve3D<f64> {
+    use geo_contracts::NurbsCurve3DConstructor;
+    let s = std::f64::consts::FRAC_1_SQRT_2;
+    let points = [
+        (1.0, 0.0),
+        (1.0, 1.0),
+        (0.0, 1.0),
+        (-1.0, 1.0),
+        (-1.0, 0.0),
+        (-1.0, -1.0),
+        (0.0, -1.0),
+        (1.0, -1.0),
+        (1.0, 0.0),
+    ]
+    .map(|(x, y)| Point3D::new(x, y, 0.0));
+    NurbsCurve3D::new(
+        2,
+        vec![
+            0.0, 0.0, 0.0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0, 1.0, 1.0,
+        ],
+        &points,
+        Some(vec![1.0, s, 1.0, s, 1.0, s, 1.0, s, 1.0]),
+    )
+    .unwrap()
+}
+
+#[test]
+fn distance_3d_nurbs_curve_to_shapes() {
+    use geo_contracts::{
+        default_distance_tolerance, Circle3DConstructor, CylindricalSolid3DConstructor,
+        EllipsoidalSolid3DConstructor,
+    };
+
+    let tolerance = default_distance_tolerance::<f64>();
+    let assert_distance = |actual: f64, expected: f64| {
+        // 曲線上の点での距離を返すので、真の値以上・真の値 + 許容誤差以下
+        assert!(
+            expected - 1e-12 <= actual && actual <= expected + tolerance,
+            "distance: {actual}, expected: {expected}"
+        );
+    };
+    let curve = nurbs_unit_circle();
+
+    let circle =
+        Circle3D::new(Point3D::new(4.0, 0.0, 0.0), Direction3D::positive_z(), 1.0).unwrap();
+    assert_distance(curve.distance_to(&circle), 2.0);
+    assert_distance(circle.distance_to(&curve), 2.0);
+
+    // 軸が z 軸方向で (3, 0, -1) から高さ 2 の円柱
+    let cylinder =
+        CylindricalSolid3D::new_standard(Point3D::new(3.0, 0.0, -1.0), 1.0, 2.0).unwrap();
+    assert_distance(curve.distance_to(&cylinder), 1.0);
+    // x 方向の半径 1 の楕円体。曲線上の (1, 0, 0) と楕円体の (2, 0, 0) が最も近い
+    let ellipsoid =
+        EllipsoidalSolid3D::new_standard(Point3D::new(3.0, 0.0, 0.0), 1.0, 2.0, 2.0).unwrap();
+    assert_distance(curve.distance_to(&ellipsoid), 1.0);
+
+    let vertical =
+        InfiniteLine3D::from_two_points(Point3D::new(3.0, 0.0, 0.0), Point3D::new(3.0, 0.0, 1.0))
+            .unwrap();
+    assert_distance(curve.distance_to(&vertical), 2.0);
+    let segment =
+        LineSegment3D::new(Point3D::new(2.0, 0.0, 0.0), Point3D::new(5.0, 0.0, 0.0)).unwrap();
+    assert_distance(curve.distance_to(&segment), 1.0);
+    let crossing =
+        LineSegment3D::new(Point3D::new(0.0, -2.0, 0.0), Point3D::new(0.0, 2.0, 0.0)).unwrap();
+    assert_distance(curve.distance_to(&crossing), 0.0);
+    let ray = Ray3D::new(Point3D::new(3.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    assert_distance(curve.distance_to(&ray), 2.0);
+
+    let above =
+        Plane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 2.0), Direction3D::positive_z())
+            .unwrap();
+    assert_distance(curve.distance_to(&above), 2.0);
+    assert_distance(above.distance_to(&curve), 2.0);
+    let through =
+        Plane3D::from_point_and_normal(Point3D::new(0.5, 0.0, 0.0), Direction3D::positive_x())
+            .unwrap();
+    assert_distance(curve.distance_to(&through), 0.0);
+
+    let sphere = SphericalSolid3D::new_standard(Point3D::new(3.0, 0.0, 0.0), 1.0).unwrap();
+    assert_distance(curve.distance_to(&sphere), 1.0);
+    let inside = SphericalSolid3D::new_standard(Point3D::new(1.0, 0.0, 0.0), 0.5).unwrap();
+    assert_distance(curve.distance_to(&inside), 0.0);
 }

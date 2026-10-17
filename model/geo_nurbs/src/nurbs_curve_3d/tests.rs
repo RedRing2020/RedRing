@@ -174,3 +174,31 @@ fn test_curve_adaptive_params_line() {
     assert!((params.params.first().unwrap() - t_min).abs() < 1e-10);
     assert!((params.params.last().unwrap() - t_max).abs() < 1e-10);
 }
+
+#[test]
+fn test_distance_to_point() {
+    use geo_contracts::{default_distance_tolerance, NurbsCurve3DDistance};
+    let tolerance = default_distance_tolerance::<f64>();
+    // bezier() は (2t, 2t(1 - t), 2t(1 - t))
+    let curve = bezier();
+    assert!(curve.distance_to_point(Point3D::new(1.0, 0.5, 0.5)) <= tolerance);
+    assert!(
+        (curve.distance_to_point(Point3D::new(1.0, 0.0, 0.0)) - 0.5_f64.sqrt()).abs() <= tolerance
+    );
+    assert!((curve.distance_to_point(Point3D::new(5.0, 0.0, 0.0)) - 3.0).abs() <= tolerance);
+
+    // 有理の曲線: 細かく評価した点の距離の最小値と一致する
+    let curve = spline_with_interior_knot();
+    let point = Point3D::new(2.0, 3.0, -1.0);
+    let sampled = (0..=10_000)
+        .map(|i| {
+            curve
+                .point_at_parameter(f64::from(i) / 10_000.0)
+                .unwrap()
+                .distance_to(point)
+        })
+        .fold(f64::INFINITY, f64::min);
+    let distance = curve.distance_to_point(point);
+    assert!(distance <= sampled + tolerance);
+    assert!(distance >= sampled - 1e-6);
+}
