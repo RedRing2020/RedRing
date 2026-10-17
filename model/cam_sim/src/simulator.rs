@@ -313,7 +313,7 @@ fn validate_hybrid_config(config: &HybridGateConfig) -> Result<(), SimulationErr
     if config.octree_depth >= (i32::BITS as usize - 1) {
         return Err(SimulationError::InvalidOctreeDepth);
     }
-    if !point_is_finite(&config.bounds.min()) || !point_is_finite(&config.bounds.max()) {
+    if !point_is_finite(config.bounds.min()) || !point_is_finite(config.bounds.max()) {
         return Err(SimulationError::InvalidHybridBounds);
     }
     if config.bounds.is_empty() {
@@ -328,7 +328,7 @@ fn validate_hybrid_config(config: &HybridGateConfig) -> Result<(), SimulationErr
     Ok(())
 }
 
-fn point_is_finite(point: &Point3D<f64>) -> bool {
+fn point_is_finite(point: Point3D<f64>) -> bool {
     point.x().is_finite() && point.y().is_finite() && point.z().is_finite()
 }
 
@@ -446,7 +446,7 @@ impl SolidBoundsSpatialIndex {
         }
     }
 
-    fn contains_material_at(&self, point: &Point3D<f64>) -> bool {
+    fn contains_material_at(&self, point: Point3D<f64>) -> bool {
         let key = (
             floor_bucket(point.x(), self.bucket_size),
             floor_bucket(point.y(), self.bucket_size),
@@ -456,7 +456,7 @@ impl SolidBoundsSpatialIndex {
         self.buckets.get(&key).is_some_and(|candidate_indexes| {
             candidate_indexes
                 .iter()
-                .any(|&idx| self.solid_bounds[idx].contains_point(*point))
+                .any(|&idx| self.solid_bounds[idx].contains_point(point))
         })
     }
 }
@@ -468,7 +468,7 @@ fn floor_bucket(value: f64, bucket_size: f64) -> i32 {
 fn is_voxel_boundary_point(
     bounds: &Aabb3D<f64>,
     voxel_index: &SolidBoundsSpatialIndex,
-    point: &Point3D<f64>,
+    point: Point3D<f64>,
     center_state: bool,
     probe_offset: f64,
 ) -> bool {
@@ -483,7 +483,7 @@ fn is_voxel_boundary_point(
 
     offsets.into_iter().any(|(dx, dy, dz)| {
         let p = Point3D::new(point.x() + dx, point.y() + dy, point.z() + dz);
-        bounds.contains_point(p) && voxel_index.contains_material_at(&p) != center_state
+        bounds.contains_point(p) && voxel_index.contains_material_at(p) != center_state
     })
 }
 
@@ -530,14 +530,14 @@ fn compute_boundary_disagreement_rate(
             for iz in 0..z_samples {
                 let z = min.z() + ((iz as f64) + 0.5) * dz;
                 let point = Point3D::new(x, y, z);
-                let dist = exact_work.nearest_removed_surface_distance(&point);
-                let voxel_has_material = voxel_index.contains_material_at(&point);
+                let dist = exact_work.nearest_removed_surface_distance(point);
+                let voxel_has_material = voxel_index.contains_material_at(point);
 
                 if dist > boundary_band
                     && !is_voxel_boundary_point(
                         bounds,
                         voxel_index,
-                        &point,
+                        point,
                         voxel_has_material,
                         probe_offset,
                     )
@@ -547,7 +547,7 @@ fn compute_boundary_disagreement_rate(
 
                 boundary_points += 1;
                 let exact_has_material =
-                    exact_work.contains_material_at(&point) && dist > exact_conservative_margin;
+                    exact_work.contains_material_at(point) && dist > exact_conservative_margin;
                 if exact_has_material != voxel_has_material {
                     disagreements += 1;
                     if exact_has_material {

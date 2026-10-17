@@ -58,7 +58,7 @@ fn test_nearest_search() {
     });
 
     let query_point = Point3D::new(12.0, 12.0, 12.0);
-    let result = octree.nearest(&query_point);
+    let result = octree.nearest(query_point);
 
     assert!(result.is_some());
     let (_nearest, distance) = result.unwrap();
@@ -146,7 +146,7 @@ fn test_optimized_nearest_search() {
     });
 
     let query_point = Point3D::new(11.0, 11.0, 11.0);
-    let result = octree.nearest(&query_point);
+    let result = octree.nearest(query_point);
 
     assert!(result.is_some());
     let (nearest, distance) = result.unwrap();

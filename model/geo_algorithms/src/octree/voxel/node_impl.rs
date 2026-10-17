@@ -528,7 +528,7 @@ impl<T: Scalar> VoxelNode<T> {
                     return;
                 }
 
-                let distance_2d = self.circle_to_aabb_2d_distance(center_x, center_y, &min, &max);
+                let distance_2d = self.circle_to_aabb_2d_distance(center_x, center_y, min, max);
 
                 if distance_2d > radius {
                     return;
@@ -579,8 +579,8 @@ impl<T: Scalar> VoxelNode<T> {
         &self,
         center_x: T,
         center_y: T,
-        aabb_min: &Point3D<T>,
-        aabb_max: &Point3D<T>,
+        aabb_min: Point3D<T>,
+        aabb_max: Point3D<T>,
     ) -> T {
         let closest_x = center_x.clamp(aabb_min.x(), aabb_max.x());
         let closest_y = center_y.clamp(aabb_min.y(), aabb_max.y());
