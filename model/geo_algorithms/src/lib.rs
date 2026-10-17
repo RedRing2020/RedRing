@@ -5,8 +5,6 @@
 //!
 //! endpoint semantics に関する前提:
 //! - `LineSegment2D` / `LineSegment3D` は bounded geometry の ideal endpoint 基準
-//! - `CompositeCurve3D` / `CurveSegment3D` は `geo_topology` の語彙をそのまま再公開する
-//!   ため、whole-curve の public endpoint は拘束端点基準
 
 pub mod curve_discretization;
 mod intersection;
@@ -39,10 +37,6 @@ pub use geo_nurbs::{
     AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings, NurbsCurve3D,
     NurbsCurveAdaptiveTessellation, NurbsSurface3D, NurbsSurfaceAdaptiveTessellation,
 };
-
-// Topology types from geo_topology
-// `CompositeCurve3D` の public endpoint は拘束端点基準であることに注意。
-pub use geo_topology::{CompositeCurve3D, CurveSegment3D};
 
 // geo_primitives の基本型を再エクスポート（ViewModel層がgeo_primitivesに直接依存しないように）
 // 基本ポイント・ベクトル型（geo_coreから）

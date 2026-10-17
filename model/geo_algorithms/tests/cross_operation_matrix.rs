@@ -1,7 +1,7 @@
 //! 形状をまたぐ演算の網羅表（`dev/architecture/CROSS_OPERATION_COVERAGE_MATRIX_SPEC.md`）
 //!
 //! 実装済みの組み合わせは trait の実装をコンパイル時に確かめ、代表的な配置で結果を確かめる。
-//! 未対応の組み合わせは仕様書の未対応表で管理する。
+//! 網羅表から外した組み合わせは、仕様書に外した理由と設計の検討を記録する。
 
 use geo_algorithms::{
     Aabb3D, Angle, Arc2D, Circle2D, Circle3D, ConicalSolid3D, ConicalSurface3D, CrossCollision,

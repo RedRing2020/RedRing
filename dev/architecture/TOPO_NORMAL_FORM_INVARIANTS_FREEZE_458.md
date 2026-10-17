@@ -109,6 +109,8 @@ Issue #406 の完了条件「正規形不変条件の合意」を、#338 再開�
 | 線×面 | None+Disjoint | Point+Crossing | Segment+Coincident | - |
 | 面×面 | None+Disjoint | Point+Touching | InfiniteLine/CompositeCurve+Crossing | Coincident |
 
+注（#861）: `IntersectionGeometry` の `InfiniteLine` と `CompositeCurve` は、作る演算がなくなったため削除した。面と面の交線など 1 次元の交差の結果の種類は、呼び出し元が必要になったときに設計する（`CROSS_OPERATION_COVERAGE_MATRIX_SPEC.md` の 5 章）。
+
 ## 判定優先順位（固定）
 
 1. Coincident
