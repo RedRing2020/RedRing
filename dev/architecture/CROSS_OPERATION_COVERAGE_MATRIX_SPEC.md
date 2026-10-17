@@ -1,4 +1,4 @@
-# Cross Operation Coverage Matrix Spec (v2.0)
+# Cross Operation Coverage Matrix Spec (v2.1)
 
 対象Issue: #364（v1.0）、#855（v2.0）
 関連: #343, #350, #351, #366
@@ -52,9 +52,13 @@ pub trait CrossIntersection<T: Scalar, Other> {
 | 衝突判定 | Ray2D | Circle2D | 対称 |
 | 衝突判定 | Ray2D | LineSegment2D | 対称 |
 | 衝突判定 | LineSegment2D | Arc2D | 対称 |
+| 衝突判定 | Arc2D | Circle2D | 対称 |
+| 衝突判定 | Triangle2D | Circle2D | 対称 |
+| 衝突判定 | Triangle2D | LineSegment2D | 対称 |
 | 衝突判定 | InfiniteLine2D | Circle2D | 対称 |
 | 衝突判定 | InfiniteLine2D | LineSegment2D | 対称 |
 | 衝突判定 | InfiniteLine2D | Ray2D | 対称 |
+| 交差 | Triangle2D | LineSegment2D | 対称 |
 | 交差 | Ray2D | Circle2D | 対称 |
 | 交差 | Ray2D | LineSegment2D | 対称 |
 | 交差 | InfiniteLine2D | Circle2D | 対称 |
@@ -89,17 +93,13 @@ pub trait CrossIntersection<T: Scalar, Other> {
 
 ## 5. 未対応の組み合わせ
 
-v1.0 の網羅表に登録されていたが、結果が誤った簡易実装だったため削除した組み合わせ。系統ごとに正しい実装を追加し、実装済みの表へ移す（2D → 3D の線形・円 → 2 次曲面 → NURBS の順）。
+v1.0 の網羅表に登録されていたが、結果が誤った簡易実装だったため削除した組み合わせ（実装済みの表へ移したものは除く）。系統ごとに正しい実装を追加し、実装済みの表へ移す（2D → 3D の線形・円 → 2 次曲面 → NURBS の順）。
 
 | 系統 | 演算 | A | B | 削除した実装の問題 |
 |---|---|---|---|---|
-| 2D | 衝突判定 | Arc2D | Circle2D | 円弧の角度の範囲を考慮しない |
-| 2D | 衝突判定 | Triangle2D | Circle2D | 円を円板（領域）として扱う。円が三角形を囲む場合も衝突とする |
-| 2D | 衝突判定 | Triangle2D | LineSegment2D | 辺との交点のみで判定し、三角形の内部にある線分を検出しない |
 | 2D | 衝突判定 | Ellipse2D | Circle2D | 円を円板として扱う。円が楕円を囲む場合も衝突とする |
 | 2D | 衝突判定 | EllipseArc2D | Circle2D | 円の中心が楕円弧の角度の範囲にあれば衝突とする |
 | 2D | 交差 | Circle2D | Ellipse2D | 交点ではなく円の中心を返す |
-| 2D | 交差 | Triangle2D | LineSegment2D | 辺との交点のみで、三角形の内部の重なりを返さない |
 | 3D 2 次曲面 | 交差 | CylindricalSurface3D | CylindricalSurface3D | 交線ではなく、2 つの中心の中点を返す |
 | 3D 2 次曲面 | 交差 | ConicalSolid3D | InfiniteLine3D | 直線の基準点が立体の内部にあるかだけを調べる |
 | 3D 2 次曲面 | 交差 | ConicalSolid3D | Ray3D | 半直線の始点が立体の内部にあるかだけを調べる |
@@ -126,6 +126,10 @@ NURBS 曲線と点の距離（v1.0 の `NurbsCurve3D`-`Point3D`）も同じ近�
 - 実装済みの表へ組み合わせを移すときは、本仕様書の表とテストの両方を更新する
 
 ## 7. 改訂の履歴
+
+### v2.1（#855）
+
+- 2D の円弧と円・三角形と円の衝突判定、三角形と線分の交差・衝突判定を実装し、実装済みの表へ移した
 
 ### v2.0（#855）
 

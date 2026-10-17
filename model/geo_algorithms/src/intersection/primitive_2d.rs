@@ -2,11 +2,12 @@
 
 use crate::{
     Circle2D, InfiniteLine2D, IntersectionGeometry, IntersectionResult, IntersectionTopology,
-    LineSegment2D, Point2D, Ray2D, Vector2D,
+    LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D,
 };
 use geo_contracts::{
     Circle2DProperties, InfiniteLine2DDistance, InfiniteLine2DProjection, InfiniteLine2DProperties,
     LineSegment2DConstructor, LineSegment2DProperties, Ray2DProperties, Scalar,
+    Triangle2DBoundaryAccess,
 };
 
 pub fn ray2d_line_segment2d_intersection<T: Scalar>(
@@ -201,6 +202,90 @@ pub fn infinite_line2d_ray2d_intersection<T: Scalar>(
         None
     };
     IntersectionResult::from_option_point2d(opt, false, tolerance)
+}
+
+/// 三角形（領域）と線分の重なり
+///
+/// 線分を三角形の各辺の内側の半平面で切り取る（凸な領域による切り取り）。
+/// 三角形で切り取った区間が `tolerance` より長ければ重なる線分を返す。そうでなく、三角形を `tolerance` だけ
+/// 広げた領域と重なる場合は、その区間の中点を接する点として返す。
+pub fn triangle2d_line_segment2d_intersection<T: Scalar>(
+    triangle: &Triangle2D<T>,
+    segment: &LineSegment2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let start = segment.start_point();
+    let direction = Vector2D::from_points(start, segment.end_point());
+    let point_at = |parameter: T| start + direction * parameter;
+
+    if let Some((enter, exit)) = clip_segment_by_triangle(triangle, start, direction, T::ZERO) {
+        let (overlap_start, overlap_end) = (point_at(enter), point_at(exit));
+        if overlap_start.distance_to(overlap_end) > tolerance {
+            if let Some(overlap) = LineSegment2D::new(overlap_start, overlap_end) {
+                return IntersectionResult::new(
+                    IntersectionGeometry::Segment2D(overlap),
+                    IntersectionTopology::Crossing,
+                    false,
+                    tolerance,
+                );
+            }
+        }
+    }
+    let touching = clip_segment_by_triangle(triangle, start, direction, tolerance)
+        .map(|(enter, exit)| point_at((enter + exit) / (T::ONE + T::ONE)));
+    IntersectionResult::from_option_point2d(touching, true, tolerance)
+}
+
+/// 線分 `start + direction * t`（`0 <= t <= 1`）のうち、三角形を `margin` だけ広げた領域に入るパラメータの区間
+fn clip_segment_by_triangle<T: Scalar>(
+    triangle: &Triangle2D<T>,
+    start: Point2D<T>,
+    direction: Vector2D<T>,
+    margin: T,
+) -> Option<(T, T)> {
+    let vertices = [
+        triangle.vertex_a(),
+        triangle.vertex_b(),
+        triangle.vertex_c(),
+    ];
+    let counterclockwise = Vector2D::from_points(vertices[0], vertices[1])
+        .cross(Vector2D::from_points(vertices[0], vertices[2]))
+        > T::ZERO;
+
+    let mut enter = T::ZERO;
+    let mut exit = T::ONE;
+    for i in 0..3 {
+        let edge_start = vertices[i];
+        let edge = Vector2D::from_points(edge_start, vertices[(i + 1) % 3]);
+        let edge_length = edge.length();
+        // 辺から三角形の内側へ向かう符号付き距離
+        let inward = |vector: Vector2D<T>| {
+            let value = edge.cross(vector) / edge_length;
+            if counterclockwise {
+                value
+            } else {
+                -value
+            }
+        };
+        let offset = inward(Vector2D::from_points(edge_start, start)) + margin;
+        let rate = inward(direction);
+        if rate == T::ZERO {
+            if offset < T::ZERO {
+                return None;
+            }
+            continue;
+        }
+        let parameter = -offset / rate;
+        if rate > T::ZERO {
+            enter = enter.max(parameter);
+        } else {
+            exit = exit.min(parameter);
+        }
+        if enter > exit {
+            return None;
+        }
+    }
+    Some((enter, exit))
 }
 
 fn is_point_on_line<T: Scalar>(
