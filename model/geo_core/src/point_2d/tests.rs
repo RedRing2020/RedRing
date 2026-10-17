@@ -15,15 +15,6 @@ fn test_basic_creation_and_accessors() {
     let origin = Point2D::<f64>::origin();
     assert_eq!(origin.x(), 0.0);
     assert_eq!(origin.y(), 0.0);
-
-    // タプル変換
-    let tuple = point.to_tuple();
-    assert_eq!(tuple, (3.0, 4.0));
-
-    // タプルから作成
-    let from_tuple = Point2D::from_tuple((5.0_f64, 6.0_f64));
-    assert_eq!(from_tuple.x(), 5.0);
-    assert_eq!(from_tuple.y(), 6.0);
 }
 
 #[test]

@@ -133,7 +133,7 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 
 ### 5.1 本設計書の範囲外として残すもの
 
-- `geo_algorithms` の形状をまたぐ演算（衝突判定・距離・交差）の公開関数と、演算の trait定義（`BasicCollision`・`CrossDistance`・関係の trait定義）。形状の組み合わせの網羅表（`CROSS_OPERATION_COVERAGE_MATRIX_SPEC.md`）と最小 API の規則の整合、呼び出し元のない関数・引数の順序を入れ替えた関数の扱い、結果が誤った簡易実装の修正、点の値渡しへの型付けを、別の issue でまとめて扱う
+- `geo_algorithms` の形状をまたぐ演算（衝突判定・距離・交差）の公開関数と、演算の trait定義（`BasicCollision`・`CrossDistance`・関係の trait定義）。#855 で、形状の組み合わせごとの公開関数を `geo_algorithms::operations` の trait（`CrossCollision`・`CrossIntersection`・`CrossDistance`）の実装に置き換え、`BasicCollision`・`geo_contracts` の `CrossDistance`・`IntersectsRelation` を削除し、`AngularRelation::angle_to` は `Angle<T>` を返すようにした。結果が誤った簡易実装だった組み合わせは、網羅表（`CROSS_OPERATION_COVERAGE_MATRIX_SPEC.md`）の未対応の表で管理し、系統ごとに実装する
 - 実装のない演算の trait定義（`PointDistance`・`BBoxCollision`）は、将来必要かを判断して別のタスクで扱う
 - 実装の内部の計算用の値の組（断面の座標・重心座標・パラメータの範囲等）はタプルのままとする
 

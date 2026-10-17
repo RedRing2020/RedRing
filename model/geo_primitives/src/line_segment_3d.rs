@@ -9,12 +9,11 @@ mod transform;
 
 use crate::{InfiniteLine3D, Point3D};
 use geo_contracts::{
-    default_distance_tolerance, CrossDistance, InfiniteLine3DConstructor, InfiniteLine3DEvaluation,
+    default_distance_tolerance, InfiniteLine3DConstructor, InfiniteLine3DEvaluation,
     LineSegment3DConstructor, LineSegment3DContainment, LineSegment3DDistance,
     LineSegment3DEvaluation, LineSegment3DProjection, LineSegment3DProperties,
     LineSegment3DSupportLine, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
-use geo_core::Aabb3D;
 
 /// 3次元空間の線分。
 ///
@@ -165,28 +164,5 @@ impl<T: Scalar> LineSegment3DProjection<T> for LineSegment3D<T> {
         let clamped_param = projected_param.max(min_param).min(max_param);
 
         self.line.point_at_parameter(clamped_param)
-    }
-}
-
-impl<T: Scalar> CrossDistance<T, Self> for LineSegment3D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        self.distance_to_point(other.start_point())
-            .min(self.distance_to_point(other.end_point()))
-            .min(other.distance_to_point(self.start_point()))
-            .min(other.distance_to_point(self.end_point()))
-    }
-}
-
-impl<T: Scalar> CrossDistance<T, Aabb3D<T>> for LineSegment3D<T> {
-    fn distance_to(&self, aabb: &Aabb3D<T>) -> T {
-        let start = self.start_point();
-        let end = self.end_point();
-        let (min, max) = (aabb.min(), aabb.max());
-        geo_commons::line_segment_to_aabb_distance(
-            (start.x(), start.y(), start.z()),
-            (end.x(), end.y(), end.z()),
-            (min.x(), min.y(), min.z()),
-            (max.x(), max.y(), max.z()),
-        )
     }
 }

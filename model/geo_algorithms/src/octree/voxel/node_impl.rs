@@ -1,6 +1,7 @@
 use super::*;
+use crate::operations::CrossDistance;
 use analysis::linalg::vector::Vector2;
-use geo_contracts::{CrossDistance, LineSegment3DProperties};
+use geo_contracts::LineSegment3DProperties;
 
 impl<T: Scalar> VoxelNode<T> {
     /// 新しいソリッドノードを作成

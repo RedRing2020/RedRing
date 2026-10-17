@@ -28,11 +28,6 @@ impl<T: Scalar> Point2D<T> {
         Self::new(T::ZERO, T::ZERO)
     }
 
-    /// タプルから点を作成
-    pub fn from_tuple(coords: (T, T)) -> Self {
-        Self::new(coords.0, coords.1)
-    }
-
     /// X座標を取得
     pub fn x(&self) -> T {
         self.x
@@ -41,11 +36,6 @@ impl<T: Scalar> Point2D<T> {
     /// Y座標を取得
     pub fn y(&self) -> T {
         self.y
-    }
-
-    /// 座標をタプルとして取得
-    pub fn to_tuple(&self) -> (T, T) {
-        (self.x, self.y)
     }
 
     /// 他の点との距離を計算

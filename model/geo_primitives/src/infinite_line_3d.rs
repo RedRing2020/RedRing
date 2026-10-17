@@ -7,10 +7,10 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, AngularRelation, CrossDistance, InfiniteLine3DConstructor,
+    default_distance_tolerance, Angle, AngularRelation, InfiniteLine3DConstructor,
     InfiniteLine3DContainment, InfiniteLine3DDistance, InfiniteLine3DEvaluation,
-    InfiniteLine3DProjection, InfiniteLine3DProperties, IntersectsRelation, ParallelRelation,
-    PerpendicularRelation, PrimitiveKind, PrimitiveMetadata, Scalar,
+    InfiniteLine3DProjection, InfiniteLine3DProperties, ParallelRelation, PerpendicularRelation,
+    PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 3次元空間の無限直線（Core実装）
@@ -85,26 +85,6 @@ impl<T: Scalar> InfiniteLine3DProjection<T> for InfiniteLine3D<T> {
     }
 }
 
-impl<T: Scalar> CrossDistance<T, Self> for InfiniteLine3D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        if self.is_parallel_to(other) {
-            // 平行な場合、任意の点からの距離
-            return self.distance_to_point(other.point);
-        }
-
-        let cross = self
-            .direction
-            .as_vector()
-            .cross(other.direction.as_vector());
-        if cross.is_zero() {
-            return T::ZERO; // 同一直線
-        }
-
-        let dp = Vector3D::from_points(self.point, other.point);
-        dp.dot(cross).abs() / cross.length()
-    }
-}
-
 impl<T: Scalar> ParallelRelation<Self> for InfiniteLine3D<T> {
     fn is_parallel_to(&self, other: &Self) -> bool {
         self.direction.is_parallel_to(other.direction)
@@ -117,20 +97,14 @@ impl<T: Scalar> PerpendicularRelation<Self> for InfiniteLine3D<T> {
     }
 }
 
-impl<T: Scalar> IntersectsRelation<Self> for InfiniteLine3D<T> {
-    fn intersects(&self, other: &Self) -> bool {
-        self.distance_to(other) <= default_distance_tolerance::<T>()
-    }
-}
-
 impl<T: Scalar> AngularRelation<T, Self> for InfiniteLine3D<T> {
-    /// 鋭角側の角度（ラジアン）
-    fn angle_to(&self, other: &Self) -> T {
+    /// 鋭角側の角度
+    fn angle_to(&self, other: &Self) -> Angle<T> {
         let dot = self
             .direction
             .as_vector()
             .dot(other.direction.as_vector())
             .abs();
-        dot.max(T::ZERO).min(T::ONE).acos()
+        Angle::from_radians(dot.max(T::ZERO).min(T::ONE).acos())
     }
 }

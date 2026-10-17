@@ -1,9 +1,7 @@
-use crate::{
-    ConicalSolid3D, ConicalSurface3D, LineSegment3D, Point3D, SphericalSurface3D, Triangle3D,
-};
+use crate::{ConicalSolid3D, ConicalSurface3D, Point3D, SphericalSurface3D};
 use geo_contracts::{
-    ConicalSolid3DDistance, ConicalSurface3DDistance, ConicalSurface3DProperties,
-    LineSegment3DProperties, Scalar, SphericalSurface3DProperties, Triangle3DBoundaryAccess,
+    ConicalSolid3DDistance, ConicalSurface3DDistance, ConicalSurface3DProperties, Scalar,
+    SphericalSurface3DProperties,
 };
 
 pub(crate) fn point_intersection_if<T: Scalar>(
@@ -11,19 +9,10 @@ pub(crate) fn point_intersection_if<T: Scalar>(
     condition: bool,
 ) -> Option<Point3D<T>> {
     if condition {
-        Some(Point3D::new(point.x(), point.y(), point.z()))
+        Some(*point)
     } else {
         None
     }
-}
-
-pub(crate) fn point_matches_either_segment_endpoint<T: Scalar>(
-    point: Point3D<T>,
-    segment: &LineSegment3D<T>,
-    tolerance: T,
-) -> bool {
-    point.distance_to(segment.start_point()) <= tolerance
-        || point.distance_to(segment.end_point()) <= tolerance
 }
 
 pub(crate) fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(
@@ -32,32 +21,6 @@ pub(crate) fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(
     tolerance: T,
 ) -> bool {
     cone.distance_to_point(*point) <= tolerance
-}
-
-pub(crate) fn triangle3d_vertex_points<T: Scalar>(triangle: &Triangle3D<T>) -> [Point3D<T>; 3] {
-    let triangle_vertex_a = Triangle3DBoundaryAccess::vertex_a(triangle);
-    let (ax, ay, az) = (
-        triangle_vertex_a.x(),
-        triangle_vertex_a.y(),
-        triangle_vertex_a.z(),
-    );
-    let triangle_vertex_b = Triangle3DBoundaryAccess::vertex_b(triangle);
-    let (bx, by, bz) = (
-        triangle_vertex_b.x(),
-        triangle_vertex_b.y(),
-        triangle_vertex_b.z(),
-    );
-    let triangle_vertex_c = Triangle3DBoundaryAccess::vertex_c(triangle);
-    let (cx, cy, cz) = (
-        triangle_vertex_c.x(),
-        triangle_vertex_c.y(),
-        triangle_vertex_c.z(),
-    );
-    [
-        Point3D::new(ax, ay, az),
-        Point3D::new(bx, by, bz),
-        Point3D::new(cx, cy, cz),
-    ]
 }
 
 pub(crate) fn spherical_surface_intersection_parameters<T: Scalar>(

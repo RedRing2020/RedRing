@@ -92,3 +92,11 @@ cross-shape distance の一次参照先と実装正本の境界が曖昧にな�
 
 - #344 完了後、代表ペア（line/point, line/line, NURBS代表）の実装対象が確定
 - 失敗モデルの型とテスト方針が確定
+
+## 改訂（#855）
+
+本ノートの判断の一部を #855 で改めた。詳細は `dev/architecture/CROSS_OPERATION_COVERAGE_MATRIX_SPEC.md` の改訂の履歴を参照。
+
+- 判断軸 1: 形状をまたぐ演算の trait の一次参照先は、`geo_contracts::geometry::operations` ではなく `geo_algorithms::operations` とする（`geo_primitives` と `geo_nurbs` の形状の組み合わせを orphan rule の範囲で実装するため）
+- 判断軸 5: 収束の失敗を明示する結果型（`DistanceConvergenceError`）は、使う実装がなくなったため削除した。収束演算を実装する段階で改めて設計する
+- 判断軸 3・4・6 は維持する

@@ -79,7 +79,6 @@ pub use geometry::core::{
 };
 pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{
-    AngularRelation, BBoxCollision, BasicCollision, CrossDistance, DistanceConvergenceError,
-    IntersectsRelation, ParallelRelation, PerpendicularRelation, PointDistance,
+    AngularRelation, BBoxCollision, ParallelRelation, PerpendicularRelation, PointDistance,
     SimilarityTransformable2D, SimilarityTransformable3D,
 };

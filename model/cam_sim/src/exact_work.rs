@@ -1,5 +1,6 @@
-use geo_algorithms::distance::line_segment3d_point3d_distance;
-use geo_algorithms::{Aabb3D, LineSegment3D, LineSegment3DProperties, Point3D, Scalar};
+use geo_algorithms::{
+    Aabb3D, LineSegment3D, LineSegment3DDistance, LineSegment3DProperties, Point3D, Scalar,
+};
 
 /// SAT-Cut PoCで扱う工具掃引プリミティブ。
 #[derive(Debug, Clone, Copy)]
@@ -213,7 +214,7 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
 
             let surface_distance = match primitive {
                 ExactToolPrimitive::Ball { segment, radius } => {
-                    (point_to_segment_distance(point, segment) - *radius).abs()
+                    (segment.distance_to_point(*point) - *radius).abs()
                 }
                 ExactToolPrimitive::Flat { segment, radius } => {
                     point_to_flat_swept_surface_distance(point, segment, *radius)
@@ -462,7 +463,7 @@ fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {
 fn primitive_contains(primitive: &ExactToolPrimitive<f64>, point: &Point3D<f64>) -> bool {
     match primitive {
         ExactToolPrimitive::Ball { segment, radius } => {
-            point_to_segment_distance(point, segment) <= *radius
+            segment.distance_to_point(*point) <= *radius
         }
         ExactToolPrimitive::Flat { segment, radius } => {
             flat_swept_contains(point, segment, *radius)
@@ -481,18 +482,14 @@ fn primitive_contains_with_margin(
 
     match primitive {
         ExactToolPrimitive::Ball { segment, radius } => {
-            point_to_segment_distance(point, segment) <= (*radius + margin)
+            segment.distance_to_point(*point) <= (*radius + margin)
         }
         ExactToolPrimitive::Flat { segment, radius } => {
             // Voxel leaf classification at coarse depths tends to remove flat end regions
             // conservatively; capsule-style inclusion reduces systematic underestimation.
-            point_to_segment_distance(point, segment) <= (*radius + margin)
+            segment.distance_to_point(*point) <= (*radius + margin)
         }
     }
-}
-
-fn point_to_segment_distance(point: &Point3D<f64>, segment: &LineSegment3D<f64>) -> f64 {
-    line_segment3d_point3d_distance(segment, point)
 }
 
 pub(crate) fn exact_work_single_flat_dirty_expand(sample_pitch: f64) -> f64 {

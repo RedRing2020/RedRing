@@ -1,177 +1,142 @@
-# Cross Operation Coverage Matrix Spec (v1.0)
+# Cross Operation Coverage Matrix Spec (v2.0)
 
-対象Issue: #364
-関連: #362, #366, #367, #365, #363, #350, #351
+対象Issue: #364（v1.0）、#855（v2.0）
+関連: #343, #350, #351, #366
 
 ## 1. 目的
 
-- 2D/3D の形状ペア演算（collision/intersection/distance）の網羅性を機械判定可能にする。
-- 実装漏れ、対称漏れ、重複登録をテストで検出できるようにする。
-- #351 の段階削減時に、削除後の回帰を同じ判定軸で検証できるようにする。
+- 2D/3D の形状の組み合わせごとの演算（衝突判定・交差・距離）の網羅表を、実装と一致した状態で保つ。
+- 実装済みの組み合わせは trait の実装としてコンパイル時に確かめ、結果が誤った簡易実装を網羅表の実装済みに含めない。
+- 未対応の組み合わせを明示し、系統ごとの実装のタスクの起点にする。
 
-## 2. スコープ
+## 2. 範囲
 
-- 演算: `collision`, `intersection`, `distance`
-- 次元: `2d`, `3d`
-- 対象層: `geo_algorithms` の正本エントリ（free-function / pair-base）
+- 演算: 衝突判定（`CrossCollision`）、交差（`CrossIntersection`）、距離（`CrossDistance`）
+- 次元: 2D、3D
+- 対象: `geo_primitives` と `geo_nurbs` の形状の組み合わせ
 
-非スコープ:
-- 個別アルゴリズムの高精度化
-- Foundationパターンへの回帰
+範囲外:
+- 1 つの形状と点の距離。各形状の trait定義（`*Distance::distance_to_point`）で扱い、網羅表には含めない
+- 個別のアルゴリズムの高精度化
 
-## 3. Taxonomy
+## 3. trait の配置と実装の規則
 
-### 3.1 Shape taxonomy
+- trait は `geo_algorithms::operations` に置く（`geo_algorithms` から再エクスポートする）。`geo_primitives` と `geo_nurbs` の形状の組み合わせを、どちらのクレートにも依存する `geo_algorithms` で実装するため（orphan rule）
+- 形状は参照、点は値ではなく相手の形状として参照で渡す（`Other` が `Point3D` の場合も `&Point3D`）
+- 代表の向き（A-B）を実装し、対称な組み合わせの逆の向き（B-A）は代表の向きを呼ぶ
+- 衝突判定は「意味論の上での距離が `tolerance` 以内か」とする。交差を実装した組み合わせの衝突判定は、交差の有無で判定する
+- 曲線（線分・円・円弧・楕円等）は曲線、領域・立体（三角形・球・円錐等）は領域として扱う（`GEOMETRY_SHAPE_SEMANTICS_DESIGN.md`）
 
-2D:
-- Arc2D
-- Circle2D
-- Ellipse2D
-- EllipseArc2D
-- InfiniteLine2D
-- LineSegment2D
-- Ray2D
-- Triangle2D
+```rust
+pub trait CrossDistance<T: Scalar, Other> {
+    fn distance_to(&self, other: &Other) -> T;
+}
 
-3D:
-- Arc3D
-- Circle3D
-- CylindricalSolid3D
-- CylindricalSurface3D
-- Ellipse3D
-- EllipsoidalSolid3D
-- EllipsoidalSurface3D
-- InfiniteLine3D
-- LineSegment3D
-- Plane3D
-- Ray3D
-- SphericalSolid3D
-- SphericalSurface3D
-- TorusSolid3D
-- TorusSurface3D
-- Triangle3D
-- TriangleMesh3D
+pub trait CrossCollision<T: Scalar, Other> {
+    fn collides(&self, other: &Other, tolerance: T) -> bool;
+}
 
-### 3.2 Operation taxonomy
-
-- collision
-- intersection
-- distance
-
-### 3.3 Intersection cardinality taxonomy
-
-- none
-- single
-- multiple
-- optional
-
-### 3.4 Tolerance profile taxonomy
-
-- strict
-- standard
-- relaxed
-
-## 4. 用語
-
-- `shape pair`: 形状型の組（shape_a, shape_b）
-- `operation`: 演算種別（collision/intersection/distance）
-- `required`: 必須実装であること
-- `symmetric`: A-B と B-A の整合が必須であること
-- `cardinality`: intersection の期待交点種別（none/single/multiple/optional）
-
-## 5. データモデル（論理スキーマ）
-
-1レコードは次の項目を持つ。
-
-```text
-id: string                      # 一意ID（例: 2d:circle-ray:intersection）
-dimension: enum(2d, 3d)
-operation: enum(collision, intersection, distance)
-shape_a: string                 # 例: Circle2D
-shape_b: string                 # 例: Ray2D
-required: bool
-symmetric: bool
-cardinality: enum(none, single, multiple, optional) | null
-tolerance_profile: enum(strict, standard, relaxed) | null
-entrypoint_a_to_b: string | null
-entrypoint_b_to_a: string | null
-notes: string | null
+pub trait CrossIntersection<T: Scalar, Other> {
+    fn intersection(&self, other: &Other, tolerance: T) -> IntersectionResult<T>;
+}
 ```
 
-制約:
-- `operation=intersection` のとき `cardinality` は必須。
-- `operation!=intersection` のとき `cardinality` は `null`。
-- `symmetric=true` のとき `entrypoint_a_to_b` と `entrypoint_b_to_a` は原則必須。
-- 同一 `(dimension, operation, shape_a, shape_b)` の重複登録は禁止。
+## 4. 実装済みの組み合わせ
 
-## 6. 判定ルール
+「対称」は A-B と B-A の両方を実装する組み合わせ、「片方向」は A-B のみを実装する組み合わせ。
 
-- 未登録検知: `required=true` レコードに対応エントリが未設定なら fail。
-- 対称性検知: `symmetric=true` で A-B/B-A の片側欠落または結果不一致なら fail。
-- 重複検知: 主キー重複を fail。
-- 交点種別検知: `intersection` で `cardinality` が期待外なら fail。
+### 4.1 2D
 
-## 7. 実装配置方針
+| 演算 | A | B | 向き |
+|---|---|---|---|
+| 衝突判定 | Ray2D | Circle2D | 対称 |
+| 衝突判定 | Ray2D | LineSegment2D | 対称 |
+| 衝突判定 | LineSegment2D | Arc2D | 対称 |
+| 衝突判定 | InfiniteLine2D | Circle2D | 対称 |
+| 衝突判定 | InfiniteLine2D | LineSegment2D | 対称 |
+| 衝突判定 | InfiniteLine2D | Ray2D | 対称 |
+| 交差 | Ray2D | Circle2D | 対称 |
+| 交差 | Ray2D | LineSegment2D | 対称 |
+| 交差 | InfiniteLine2D | Circle2D | 対称 |
+| 交差 | InfiniteLine2D | LineSegment2D | 対称 |
+| 交差 | InfiniteLine2D | Ray2D | 対称 |
 
-#366 実装までの暫定方針:
-- 仕様正本: 本ドキュメント
-- 初期実装: Rust 定数配列（テストモジュール内）
-- 将来拡張: TOML/JSON外部化（必要時）
+### 4.2 3D
 
-## 8. シードデータ（最小セット）
+| 演算 | A | B | 向き |
+|---|---|---|---|
+| 衝突判定 | InfiniteLine3D | LineSegment3D | 対称 |
+| 衝突判定 | InfiniteLine3D | Ray3D | 対称 |
+| 距離 | InfiniteLine3D | InfiniteLine3D | 片方向 |
+| 距離 | LineSegment3D | Aabb3D | 片方向 |
+| 交差 | InfiniteLine3D | LineSegment3D | 片方向 |
+| 交差 | InfiniteLine3D | Ray3D | 対称 |
+| 交差 | InfiniteLine3D | InfiniteLine3D | 片方向 |
+| 交差 | LineSegment3D | LineSegment3D | 片方向 |
+| 交差 | Ray3D | Ray3D | 片方向 |
+| 交差 | Plane3D | LineSegment3D | 片方向 |
+| 交差 | Plane3D | Ray3D | 片方向 |
+| 交差 | Triangle3D | LineSegment3D | 対称 |
+| 交差 | Triangle3D | Ray3D | 対称 |
+| 交差 | ConicalSolid3D | Point3D | 片方向 |
+| 交差 | ConicalSurface3D | Point3D | 片方向 |
+| 交差 | ConicalSurface3D | InfiniteLine3D | 片方向 |
+| 交差 | ConicalSurface3D | Ray3D | 対称 |
+| 交差 | ConicalSurface3D | LineSegment3D | 片方向 |
+| 交差 | SphericalSolid3D | Point3D | 片方向 |
+| 交差 | SphericalSurface3D | Ray3D | 対称 |
+| 交差 | LineSegment3D | SphericalSurface3D | 片方向 |
 
-### 8.1 2Dシード（#350反映）
+## 5. 未対応の組み合わせ
 
-| id | op | shape_a | shape_b | required | symmetric | cardinality | a_to_b | b_to_a |
-|---|---|---|---|---|---|---|---|---|
-| 2d:circle-ray:collision | collision | Circle2D | Ray2D | true | true | null | circle2d_ray2d_collides | ray2d_circle2d_collides |
-| 2d:segment-ray:collision | collision | LineSegment2D | Ray2D | true | true | null | line_segment2d_ray2d_collides | ray2d_line_segment2d_collides |
-| 2d:circle-ray:intersection | intersection | Circle2D | Ray2D | true | true | multiple | circle2d_ray2d_intersections | ray2d_circle2d_intersections |
-| 2d:segment-ray:intersection | intersection | LineSegment2D | Ray2D | true | true | single | line_segment2d_ray2d_intersection | ray2d_line_segment2d_intersection |
-| 2d:circle-ellipse:intersection | intersection | Circle2D | Ellipse2D | true | true | optional | circle2d_ellipse2d_intersection | ellipse2d_circle2d_intersection |
-| 2d:line-circle:intersection | intersection | InfiniteLine2D | Circle2D | true | true | multiple | infinite_line2d_circle2d_intersections | circle2d_infinite_line2d_intersections |
+v1.0 の網羅表に登録されていたが、結果が誤った簡易実装だったため削除した組み合わせ。系統ごとに正しい実装を追加し、実装済みの表へ移す（2D → 3D の線形・円 → 2 次曲面 → NURBS の順）。
 
-### 8.2 3Dシード（#351反映）
+| 系統 | 演算 | A | B | 削除した実装の問題 |
+|---|---|---|---|---|
+| 2D | 衝突判定 | Arc2D | Circle2D | 円弧の角度の範囲を考慮しない |
+| 2D | 衝突判定 | Triangle2D | Circle2D | 円を円板（領域）として扱う。円が三角形を囲む場合も衝突とする |
+| 2D | 衝突判定 | Triangle2D | LineSegment2D | 辺との交点のみで判定し、三角形の内部にある線分を検出しない |
+| 2D | 衝突判定 | Ellipse2D | Circle2D | 円を円板として扱う。円が楕円を囲む場合も衝突とする |
+| 2D | 衝突判定 | EllipseArc2D | Circle2D | 円の中心が楕円弧の角度の範囲にあれば衝突とする |
+| 2D | 交差 | Circle2D | Ellipse2D | 交点ではなく円の中心を返す |
+| 2D | 交差 | Triangle2D | LineSegment2D | 辺との交点のみで、三角形の内部の重なりを返さない |
+| 3D 2 次曲面 | 交差 | CylindricalSurface3D | CylindricalSurface3D | 交線ではなく、2 つの中心の中点を返す |
+| 3D 2 次曲面 | 交差 | ConicalSolid3D | InfiniteLine3D | 直線の基準点が立体の内部にあるかだけを調べる |
+| 3D 2 次曲面 | 交差 | ConicalSolid3D | Ray3D | 半直線の始点が立体の内部にあるかだけを調べる |
+| 3D 2 次曲面 | 交差 | ConicalSolid3D | LineSegment3D | 線分の始点が立体の内部にあるかだけを調べる |
+| 3D 2 次曲面 | 交差 | ConicalSolid3D | Plane3D | 断面ではなく底面の中心を返す |
+| 3D 2 次曲面 | 交差 | SphericalSolid3D | InfiniteLine3D | 立体の内部を通る区間ではなく、中心に最も近い点を 1 つ返す |
+| 3D 2 次曲面 | 交差 | SphericalSolid3D | Ray3D | 同上 |
+| NURBS | 距離 | NurbsCurve3D | Circle3D | 曲線上の等間隔のサンプル点の距離の最小値で近似する |
+| NURBS | 距離 | NurbsCurve3D | CylindricalSolid3D | 同上 |
+| NURBS | 距離 | NurbsCurve3D | EllipsoidalSolid3D | 同上 |
+| NURBS | 距離 | NurbsCurve3D | InfiniteLine3D | 同上 |
+| NURBS | 距離 | NurbsCurve3D | LineSegment3D | 同上 |
+| NURBS | 距離 | NurbsCurve3D | Plane3D | 同上 |
+| NURBS | 距離 | NurbsCurve3D | Ray3D | 同上 |
+| NURBS | 距離 | NurbsCurve3D | SphericalSolid3D | 同上 |
 
-| id | op | shape_a | shape_b | required | symmetric | cardinality | a_to_b | b_to_a |
-|---|---|---|---|---|---|---|---|---|
-| 3d:plane-segment:intersection | intersection | Plane3D | LineSegment3D | true | false | optional | plane3d_line_segment3d_intersection | null |
-| 3d:plane-ray:intersection | intersection | Plane3D | Ray3D | true | false | optional | plane3d_ray3d_intersection | null |
-| 3d:line-segment:intersection | intersection | InfiniteLine3D | LineSegment3D | true | false | optional | infinite_line3d_line_segment3d_intersection | null |
-| 3d:ray-line:intersection | intersection | Ray3D | InfiniteLine3D | true | false | optional | ray3d_infinite_line3d_intersection | null |
-| 3d:line-sphere:collision | collision | InfiniteLine3D | SphericalSurface3D | true | false | null | infinite_line3d_spherical_surface3d_collides | null |
-| 3d:segment-sphere:intersection | intersection | LineSegment3D | SphericalSurface3D | true | false | multiple | line_segment3d_spherical_surface3d_intersections | null |
+NURBS 曲線と点の距離（v1.0 の `NurbsCurve3D`-`Point3D`）も同じ近似だったため削除した。点との距離は網羅表の範囲外のため、NURBS 曲線の trait定義の点との距離として扱う。
 
-補足:
-- 上記3Dシードは #351 の移管後エントリで運用可能であることを最小確認するための起点。
-- distance は #366 実装時に collision/intersection と同等粒度へ拡張する。
+## 6. 確認
 
-## 9. #364 完了定義（DoD）
+- `model/geo_algorithms/tests/cross_operation_matrix.rs`
+  - 実装済みの組み合わせの trait の実装をコンパイル時に確かめる（対称な組み合わせは両方の向き）
+  - 実装済みの組み合わせの代表的な配置で、接触・交点の有無と交点の数を確かめる
+- 実装済みの表へ組み合わせを移すときは、本仕様書の表とテストの両方を更新する
 
-- schema が `dev/architecture` に文書化される。
-- 2D/3D 共通で運用可能な必須属性が確定する。
-- #350/#351 の現行対象を表現できる。
-- #366 がこの仕様を直接実装できるレベルで記述される。
+## 7. 改訂の履歴
 
-## 10. 次アクション
+### v2.0（#855）
 
-1. #364 で本仕様へのレビューコメントを反映して v1.0 確定
-2. #366 で「未登録/非対称/重複」検出テストを実装
-3. #367/#365/#363 で演算ごとに登録範囲を拡張
+- 文字列の関数名で照合していた網羅表のテスト（`coverage_matrix_engine.rs`）を、trait の実装のコンパイル時の確認に置き換えた
+- 形状の組み合わせごとの公開関数（`geo_algorithms::collision` / `distance` / `intersection`）を、`geo_algorithms::operations` の trait の実装に置き換えた。網羅表にない関数・引数の順序を入れ替えただけの関数・結果が誤った簡易実装は削除した
+- 点との距離の組み合わせを網羅表から外した
+- #343 の判断を次のとおり改める
+  - 形状をまたぐ演算の trait の一次参照先は `geo_contracts::geometry::operations` ではなく `geo_algorithms::operations` とする（`geo_primitives` と `geo_nurbs` の形状の組み合わせを orphan rule の範囲で実装するため）
+  - 収束の失敗を明示する結果型（`DistanceConvergenceError`）は、使う実装がなくなったため削除した。収束演算を実装する段階で改めて設計する
+  - 代表の向きを実装し逆の向きはそれを呼ぶ規則、段階的に導入する方針は維持する
 
-## 11. #366 検証契約
+### v1.0（#364）
 
-matrix-driven テストエンジンは、最低限以下を fail として検出する。
-
-- 必須未登録:
-	- 条件: `required=true` かつ `entrypoint_a_to_b=null`
-	- 出力: `missing required entrypoints` セクションに `id` 一覧を列挙
-- 非対称:
-	- 条件: `symmetric=true` で逆向きレコード `(shape_b, shape_a)` が存在しない
-	- 条件: `symmetric=true` で逆向きの `cardinality` が不一致
-	- 出力: `symmetry mismatch` セクションに mismatch 内容を列挙
-- 重複登録:
-	- 条件: 同一主キー `(dimension, operation, shape_a, shape_b)` が複数存在
-	- 出力: `duplicate matrix keys` セクションに重複キーを列挙
-
-失敗メッセージは、最初の1件のみではなく不足/不整合の一覧をまとめて表示する。
+- 形状の組み合わせ・演算・必須・対称・交点の数の種別を持つ網羅表の論理スキーマと、未登録・非対称・重複の検出の規則を定めた

@@ -1,39 +1,8 @@
-//! 衝突検出・距離計算のtrait定義
+//! 点との距離・境界ボックスの trait定義
 //!
-//! 実装は `geo_algorithms::collision` 以下に配置される。
+//! 形状をまたぐ距離・衝突判定・交差の trait定義は `geo_algorithms::operations` に置く。
 
 use analysis::abstract_types::Scalar;
-
-/// 基本衝突検出trait
-///
-/// 2つの幾何オブジェクト間の基本的な衝突検出・距離計算を提供。
-/// 全ての幾何プリミティブ間の組み合わせに対して実装される。
-pub trait BasicCollision<T: Scalar, Other> {
-    /// 2D 点型
-    type Point2D;
-
-    /// 衝突しているかどうか
-    ///
-    /// # 引数
-    /// * `other` - 衝突判定を行う相手オブジェクト
-    /// * `tolerance` - 判定精度の許容誤差
-    ///
-    /// # 戻り値
-    /// 衝突している場合は `true`
-    fn intersects(&self, other: &Other, tolerance: T) -> bool;
-
-    /// 最短距離
-    ///
-    /// 2つのオブジェクト間の最短距離を計算。
-    /// 重なりがある場合は `0` を返す。
-    ///
-    /// # 引数
-    /// * `other` - 距離計算を行う相手オブジェクト
-    ///
-    /// # 戻り値
-    /// 最短距離
-    fn distance_to(&self, other: &Other) -> T;
-}
 
 /// 点との特化距離計算
 ///

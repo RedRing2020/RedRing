@@ -9,7 +9,7 @@ mod transform;
 
 use crate::{InfiniteLine2D, Point2D};
 use geo_contracts::{
-    default_distance_tolerance, CrossDistance, InfiniteLine2DConstructor, InfiniteLine2DEvaluation,
+    default_distance_tolerance, InfiniteLine2DConstructor, InfiniteLine2DEvaluation,
     LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DDistance,
     LineSegment2DEvaluation, LineSegment2DProjection, LineSegment2DProperties, PrimitiveKind,
     PrimitiveMetadata, Scalar,
@@ -120,14 +120,5 @@ impl<T: Scalar> LineSegment2DProjection<T> for LineSegment2D<T> {
         let clamped_param = projected_param.max(min_param).min(max_param);
 
         self.line.point_at_parameter(clamped_param)
-    }
-}
-
-impl<T: Scalar> CrossDistance<T, Self> for LineSegment2D<T> {
-    fn distance_to(&self, other: &Self) -> T {
-        self.distance_to_point(other.start_point())
-            .min(self.distance_to_point(other.end_point()))
-            .min(other.distance_to_point(self.start_point()))
-            .min(other.distance_to_point(self.end_point()))
     }
 }
