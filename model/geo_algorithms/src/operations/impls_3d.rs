@@ -126,6 +126,21 @@ intersection!(
     intersection::conical_solid3d_point3d_intersection
 );
 intersection!(
+    ConicalSolid3D,
+    InfiniteLine3D,
+    intersection::conical_solid3d_infinite_line3d_intersection
+);
+intersection!(
+    ConicalSolid3D,
+    Ray3D,
+    intersection::conical_solid3d_ray3d_intersection
+);
+intersection!(
+    ConicalSolid3D,
+    LineSegment3D,
+    intersection::conical_solid3d_line_segment3d_intersection
+);
+intersection!(
     ConicalSurface3D,
     Point3D,
     intersection::conical_surface3d_point3d_intersection
@@ -149,6 +164,16 @@ intersection!(
     SphericalSolid3D,
     Point3D,
     intersection::spherical_solid3d_point3d_intersection
+);
+intersection!(
+    SphericalSolid3D,
+    InfiniteLine3D,
+    intersection::spherical_solid3d_infinite_line3d_intersection
+);
+intersection!(
+    SphericalSolid3D,
+    Ray3D,
+    intersection::spherical_solid3d_ray3d_intersection
 );
 symmetric_intersection!(
     Ray3D,

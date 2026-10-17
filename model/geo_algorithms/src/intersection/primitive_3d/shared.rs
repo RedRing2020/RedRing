@@ -1,7 +1,10 @@
-use crate::{ConicalSolid3D, ConicalSurface3D, Point3D, SphericalSurface3D};
+use crate::{
+    ConicalSolid3D, ConicalSurface3D, IntersectionGeometry, IntersectionResult,
+    IntersectionTopology, LineSegment3D, Point3D, SphericalSurface3D, Vector3D,
+};
 use geo_contracts::{
-    ConicalSolid3DDistance, ConicalSurface3DDistance, ConicalSurface3DProperties, Scalar,
-    SphericalSurface3DProperties,
+    ConicalSolid3DDistance, ConicalSurface3DDistance, ConicalSurface3DProperties,
+    LineSegment3DConstructor, Scalar, SphericalSurface3DProperties,
 };
 
 pub(crate) fn point_intersection_if<T: Scalar>(
@@ -131,4 +134,43 @@ pub(crate) fn conical_surface3d_filter_params<T: Scalar>(
         pts.truncate(1);
     }
     pts
+}
+
+/// 凸な立体と、直線 `origin + direction * t` のパラメータの範囲の交差の結果
+///
+/// `overlap` は、範囲のうち立体の内部にあるパラメータの区間。区間の長さが `tolerance` より長ければ重なる線分、
+/// そうでなければ区間の中点を接する点とする。区間がない場合は、範囲内で立体に最も近い点のパラメータと距離
+/// （`closest`）を求め、距離が `tolerance` 以内ならその点を接する点とする。
+pub(crate) fn convex_solid_linear_intersection<T: Scalar>(
+    origin: Point3D<T>,
+    direction: Vector3D<T>,
+    overlap: Option<(T, T)>,
+    closest: impl FnOnce() -> (T, T),
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let point_at = |parameter: T| origin + direction * parameter;
+    if let Some((enter, exit)) = overlap {
+        let (start, end) = (point_at(enter), point_at(exit));
+        if start.distance_to(end) > tolerance {
+            if let Some(segment) = LineSegment3D::new(start, end) {
+                return IntersectionResult::new(
+                    IntersectionGeometry::Segment(segment),
+                    IntersectionTopology::Crossing,
+                    false,
+                    tolerance,
+                );
+            }
+        }
+        return IntersectionResult::point(
+            point_at((enter + exit) / (T::ONE + T::ONE)),
+            true,
+            tolerance,
+        );
+    }
+    let (parameter, distance) = closest();
+    if distance <= tolerance {
+        IntersectionResult::point(point_at(parameter), true, tolerance)
+    } else {
+        IntersectionResult::disjoint(tolerance)
+    }
 }

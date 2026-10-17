@@ -1,4 +1,4 @@
-# Cross Operation Coverage Matrix Spec (v2.2)
+# Cross Operation Coverage Matrix Spec (v2.3)
 
 対象Issue: #364（v1.0）、#855（v2.0）
 関連: #343, #350, #351, #366
@@ -86,11 +86,16 @@ pub trait CrossIntersection<T: Scalar, Other> {
 | 交差 | Triangle3D | LineSegment3D | 対称 |
 | 交差 | Triangle3D | Ray3D | 対称 |
 | 交差 | ConicalSolid3D | Point3D | 片方向 |
+| 交差 | ConicalSolid3D | InfiniteLine3D | 片方向 |
+| 交差 | ConicalSolid3D | Ray3D | 片方向 |
+| 交差 | ConicalSolid3D | LineSegment3D | 片方向 |
 | 交差 | ConicalSurface3D | Point3D | 片方向 |
 | 交差 | ConicalSurface3D | InfiniteLine3D | 片方向 |
 | 交差 | ConicalSurface3D | Ray3D | 対称 |
 | 交差 | ConicalSurface3D | LineSegment3D | 片方向 |
 | 交差 | SphericalSolid3D | Point3D | 片方向 |
+| 交差 | SphericalSolid3D | InfiniteLine3D | 片方向 |
+| 交差 | SphericalSolid3D | Ray3D | 片方向 |
 | 交差 | SphericalSurface3D | Ray3D | 対称 |
 | 交差 | LineSegment3D | SphericalSurface3D | 片方向 |
 
@@ -100,13 +105,8 @@ v1.0 の網羅表に登録されていたが、結果が誤った簡易実装だ
 
 | 系統 | 演算 | A | B | 削除した実装の問題 |
 |---|---|---|---|---|
-| 3D 2 次曲面 | 交差 | CylindricalSurface3D | CylindricalSurface3D | 交線ではなく、2 つの中心の中点を返す |
-| 3D 2 次曲面 | 交差 | ConicalSolid3D | InfiniteLine3D | 直線の基準点が立体の内部にあるかだけを調べる |
-| 3D 2 次曲面 | 交差 | ConicalSolid3D | Ray3D | 半直線の始点が立体の内部にあるかだけを調べる |
-| 3D 2 次曲面 | 交差 | ConicalSolid3D | LineSegment3D | 線分の始点が立体の内部にあるかだけを調べる |
-| 3D 2 次曲面 | 交差 | ConicalSolid3D | Plane3D | 断面ではなく底面の中心を返す |
-| 3D 2 次曲面 | 交差 | SphericalSolid3D | InfiniteLine3D | 立体の内部を通る区間ではなく、中心に最も近い点を 1 つ返す |
-| 3D 2 次曲面 | 交差 | SphericalSolid3D | Ray3D | 同上 |
+| 3D 2 次曲面 | 交差 | CylindricalSurface3D | CylindricalSurface3D | 交線ではなく、2 つの中心の中点を返す。交線（軸が平行なら直線 0〜2 本、平行でなければ一般に 4 次の空間曲線）を表す結果の種類の設計が必要 |
+| 3D 2 次曲面 | 交差 | ConicalSolid3D | Plane3D | 断面ではなく底面の中心を返す。断面（円錐曲線と底面の弦で囲まれた平面上の領域）を表す結果の種類の設計が必要 |
 | NURBS | 距離 | NurbsCurve3D | Circle3D | 曲線上の等間隔のサンプル点の距離の最小値で近似する |
 | NURBS | 距離 | NurbsCurve3D | CylindricalSolid3D | 同上 |
 | NURBS | 距離 | NurbsCurve3D | EllipsoidalSolid3D | 同上 |
@@ -126,6 +126,11 @@ NURBS 曲線と点の距離（v1.0 の `NurbsCurve3D`-`Point3D`）も同じ近�
 - 実装済みの表へ組み合わせを移すときは、本仕様書の表とテストの両方を更新する
 
 ## 7. 改訂の履歴
+
+### v2.3（#855）
+
+- 3D の球・円錐の立体と直線・半直線（円錐は線分も）の交差を実装し、実装済みの表へ移した。凸な立体の内部を通る区間を線分として返し、外側を許容誤差以内の距離で通る場合は接する点を返す（円錐は、直線に沿った立体までの距離の最小値を `analysis::minimize_unimodal` で求める）
+- 円柱面同士、円錐の立体と平面は、交線・断面を表す結果の種類の設計が必要なため、未対応に残した
 
 ### v2.2（#855）
 
