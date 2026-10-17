@@ -94,10 +94,7 @@ impl<T: Scalar, D: Clone> OctreeNode<T, D> {
         // ビット演算に基づく配置: (z_bit << 2) | (y_bit << 1) | x_bit
         let child_bounds = [
             // 0: (x_min, y_min, z_min) ~ (x_mid, y_mid, z_mid)
-            Aabb3D::new(
-                Point3D::new(min.x(), min.y(), min.z()),
-                Point3D::new(center.x(), center.y(), center.z()),
-            ),
+            Aabb3D::new(min, center),
             // 1: (x_max, y_min, z_min) ~ (x_max, y_mid, z_mid)
             Aabb3D::new(
                 Point3D::new(center.x(), min.y(), min.z()),
@@ -129,10 +126,7 @@ impl<T: Scalar, D: Clone> OctreeNode<T, D> {
                 Point3D::new(center.x(), max.y(), max.z()),
             ),
             // 7: (x_max, y_max, z_max) ~ (x_max, y_max, z_max)
-            Aabb3D::new(
-                Point3D::new(center.x(), center.y(), center.z()),
-                Point3D::new(max.x(), max.y(), max.z()),
-            ),
+            Aabb3D::new(center, max),
         ];
 
         // 子ノードを作成

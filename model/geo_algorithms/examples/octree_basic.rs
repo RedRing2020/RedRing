@@ -124,7 +124,7 @@ fn main() {
     println!("4. 最近傍探索");
     let query_point = Point3D::new(50.0, 50.0, 50.0);
 
-    if let Some((nearest, distance)) = octree.nearest(&query_point) {
+    if let Some((nearest, distance)) = octree.nearest(query_point) {
         println!("   検索点: (50.0, 50.0, 50.0)");
         println!(
             "   最近傍: ID={}, 中心=({:.1}, {:.1}, {:.1})",

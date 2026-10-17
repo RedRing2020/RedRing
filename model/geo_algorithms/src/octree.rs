@@ -58,7 +58,7 @@
 //! let candidates = octree.query_region(&search_region);
 //!
 //! // 最近傍検索
-//! if let Some((nearest, distance)) = octree.nearest(&query_point) {
+//! if let Some((nearest, distance)) = octree.nearest(query_point) {
 //!     println!("Found nearest at distance: {}", distance);
 //! }
 //! ```

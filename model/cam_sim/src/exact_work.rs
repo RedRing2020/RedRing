@@ -27,11 +27,11 @@ pub trait ExactWorkModel<T: Scalar> {
     fn apply_primitive(&mut self, primitive: ExactToolPrimitive<T>);
 
     /// 点が材料内部かどうかを返す。
-    fn contains_material_at(&self, point: &Point3D<T>) -> bool;
+    fn contains_material_at(&self, point: Point3D<T>) -> bool;
 
     /// 除去境界までの最近傍距離を返す。
     /// 除去プリミティブが未適用の場合は `T::INFINITY` を返す。
-    fn nearest_removed_surface_distance(&self, point: &Point3D<T>) -> T;
+    fn nearest_removed_surface_distance(&self, point: Point3D<T>) -> T;
 
     /// サンプリングで残存体積を推定する。
     /// `sample_pitch` が非有限値または `<= 0` の場合は `0` を返す。
@@ -121,7 +121,7 @@ impl PrimitiveSetExactWork {
             + self.primitive_bounds.capacity() * std::mem::size_of::<Aabb3D<f64>>()
     }
 
-    fn contains_material(&self, point: &Point3D<f64>) -> bool {
+    fn contains_material(&self, point: Point3D<f64>) -> bool {
         debug_assert_eq!(
             self.removed_primitives.len(),
             self.primitive_bounds.len(),
@@ -141,7 +141,7 @@ impl PrimitiveSetExactWork {
             })
     }
 
-    fn contains_material_with_margin(&self, point: &Point3D<f64>, margin: f64) -> bool {
+    fn contains_material_with_margin(&self, point: Point3D<f64>, margin: f64) -> bool {
         debug_assert_eq!(
             self.removed_primitives.len(),
             self.primitive_bounds.len(),
@@ -186,11 +186,11 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
         );
     }
 
-    fn contains_material_at(&self, point: &Point3D<f64>) -> bool {
+    fn contains_material_at(&self, point: Point3D<f64>) -> bool {
         self.contains_material(point)
     }
 
-    fn nearest_removed_surface_distance(&self, point: &Point3D<f64>) -> f64 {
+    fn nearest_removed_surface_distance(&self, point: Point3D<f64>) -> f64 {
         debug_assert_eq!(
             self.removed_primitives.len(),
             self.primitive_bounds.len(),
@@ -214,7 +214,7 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
 
             let surface_distance = match primitive {
                 ExactToolPrimitive::Ball { segment, radius } => {
-                    (segment.distance_to_point(*point) - *radius).abs()
+                    (segment.distance_to_point(point) - *radius).abs()
                 }
                 ExactToolPrimitive::Flat { segment, radius } => {
                     point_to_flat_swept_surface_distance(point, segment, *radius)
@@ -308,20 +308,20 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
 
 const MAX_AXIS_SAMPLES: usize = 128;
 
-fn point_is_finite(point: &Point3D<f64>) -> bool {
+fn point_is_finite(point: Point3D<f64>) -> bool {
     point.x().is_finite() && point.y().is_finite() && point.z().is_finite()
 }
 
 fn segment_is_finite(segment: &LineSegment3D<f64>) -> bool {
-    point_is_finite(&segment.start_point()) && point_is_finite(&segment.end_point())
+    point_is_finite(segment.start_point()) && point_is_finite(segment.end_point())
 }
 
 fn aabb_is_finite(aabb: &Aabb3D<f64>) -> bool {
-    point_is_finite(&aabb.min()) && point_is_finite(&aabb.max())
+    point_is_finite(aabb.min()) && point_is_finite(aabb.max())
 }
 
-fn bounds_contains_point(bounds: &Aabb3D<f64>, point: &Point3D<f64>) -> bool {
-    bounds.contains_point(*point)
+fn bounds_contains_point(bounds: &Aabb3D<f64>, point: Point3D<f64>) -> bool {
+    bounds.contains_point(point)
 }
 
 fn primitive_bounds(primitive: &ExactToolPrimitive<f64>) -> Aabb3D<f64> {
@@ -415,11 +415,11 @@ fn intersect_aabb(a: &Aabb3D<f64>, b: &Aabb3D<f64>) -> Option<Aabb3D<f64>> {
     ))
 }
 
-fn point_to_aabb_distance(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
+fn point_to_aabb_distance(point: Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
     point_to_aabb_distance_squared(point, bounds).sqrt()
 }
 
-fn point_to_aabb_distance_squared(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
+fn point_to_aabb_distance_squared(point: Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
     let dx = if point.x() < bounds.min().x() {
         bounds.min().x() - point.x()
     } else if point.x() > bounds.max().x() {
@@ -460,11 +460,9 @@ fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {
     raw.clamp(1.0, MAX_AXIS_SAMPLES as f64) as usize
 }
 
-fn primitive_contains(primitive: &ExactToolPrimitive<f64>, point: &Point3D<f64>) -> bool {
+fn primitive_contains(primitive: &ExactToolPrimitive<f64>, point: Point3D<f64>) -> bool {
     match primitive {
-        ExactToolPrimitive::Ball { segment, radius } => {
-            segment.distance_to_point(*point) <= *radius
-        }
+        ExactToolPrimitive::Ball { segment, radius } => segment.distance_to_point(point) <= *radius,
         ExactToolPrimitive::Flat { segment, radius } => {
             flat_swept_contains(point, segment, *radius)
         }
@@ -473,7 +471,7 @@ fn primitive_contains(primitive: &ExactToolPrimitive<f64>, point: &Point3D<f64>)
 
 fn primitive_contains_with_margin(
     primitive: &ExactToolPrimitive<f64>,
-    point: &Point3D<f64>,
+    point: Point3D<f64>,
     margin: f64,
 ) -> bool {
     if margin <= 0.0 {
@@ -482,12 +480,12 @@ fn primitive_contains_with_margin(
 
     match primitive {
         ExactToolPrimitive::Ball { segment, radius } => {
-            segment.distance_to_point(*point) <= (*radius + margin)
+            segment.distance_to_point(point) <= (*radius + margin)
         }
         ExactToolPrimitive::Flat { segment, radius } => {
             // Voxel leaf classification at coarse depths tends to remove flat end regions
             // conservatively; capsule-style inclusion reduces systematic underestimation.
-            segment.distance_to_point(*point) <= (*radius + margin)
+            segment.distance_to_point(point) <= (*radius + margin)
         }
     }
 }
@@ -530,7 +528,7 @@ fn estimate_remaining_volume_with_dirty_bounds(
             for iz in 0..z_samples {
                 let z = min.z() + ((iz as f64) + 0.5) * dz;
                 let point = Point3D::new(x, y, z);
-                if work.contains_material_with_margin(&point, conservative_margin) {
+                if work.contains_material_with_margin(point, conservative_margin) {
                     solid_count += 1;
                 }
             }
@@ -543,7 +541,7 @@ fn estimate_remaining_volume_with_dirty_bounds(
 }
 
 fn point_to_flat_swept_surface_distance(
-    point: &Point3D<f64>,
+    point: Point3D<f64>,
     segment: &LineSegment3D<f64>,
     radius: f64,
 ) -> f64 {
@@ -606,7 +604,7 @@ fn point_to_flat_swept_surface_distance(
     }
 }
 
-fn flat_swept_contains(point: &Point3D<f64>, segment: &LineSegment3D<f64>, radius: f64) -> bool {
+fn flat_swept_contains(point: Point3D<f64>, segment: &LineSegment3D<f64>, radius: f64) -> bool {
     let start_x = segment.start_point().x();
     let start_y = segment.start_point().y();
     let start_z = segment.start_point().z();
@@ -705,9 +703,9 @@ mod tests {
             radius: 1.0,
         });
 
-        assert!(!work.contains_material_at(&Point3D::new(5.0, 5.0, 5.0)));
-        assert!(work.contains_material_at(&Point3D::new(5.0, 8.0, 8.0)));
-        assert!(work.nearest_removed_surface_distance(&Point3D::new(5.0, 5.0, 5.0)) <= 1.0);
+        assert!(!work.contains_material_at(Point3D::new(5.0, 5.0, 5.0)));
+        assert!(work.contains_material_at(Point3D::new(5.0, 8.0, 8.0)));
+        assert!(work.nearest_removed_surface_distance(Point3D::new(5.0, 5.0, 5.0)) <= 1.0);
     }
 
     #[test]
@@ -746,8 +744,8 @@ mod tests {
         });
 
         let endpoint_side = Point3D::new(1.5, 5.0, 5.0);
-        assert!(flat_work.contains_material_at(&endpoint_side));
-        assert!(!ball_work.contains_material_at(&endpoint_side));
+        assert!(flat_work.contains_material_at(endpoint_side));
+        assert!(!ball_work.contains_material_at(endpoint_side));
     }
 
     #[test]
@@ -885,7 +883,7 @@ mod tests {
         });
 
         let near_start_cap_axis = Point3D::new(2.1, 5.0, 5.0);
-        let distance = work.nearest_removed_surface_distance(&near_start_cap_axis);
+        let distance = work.nearest_removed_surface_distance(near_start_cap_axis);
         assert!((distance - 0.1).abs() <= 1.0e-9, "distance={}", distance);
     }
 
@@ -901,7 +899,7 @@ mod tests {
         });
 
         let near_cap_but_outside = Point3D::new(2.1, 6.2, 5.0);
-        let distance = work.nearest_removed_surface_distance(&near_cap_but_outside);
+        let distance = work.nearest_removed_surface_distance(near_cap_but_outside);
         assert!((distance - 0.2).abs() <= 1.0e-9, "distance={}", distance);
     }
 
@@ -916,7 +914,7 @@ mod tests {
             radius: 1.0,
         });
 
-        let distance = work.nearest_removed_surface_distance(&Point3D::new(f64::NAN, 5.0, 5.0));
+        let distance = work.nearest_removed_surface_distance(Point3D::new(f64::NAN, 5.0, 5.0));
         assert!(distance.is_infinite());
     }
 }
