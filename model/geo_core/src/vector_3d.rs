@@ -58,11 +58,6 @@ impl<T: Scalar> Vector3D<T> {
         Self::new(T::ZERO, T::ZERO, T::ONE)
     }
 
-    /// タプルから作成
-    pub fn from_tuple(components: (T, T, T)) -> Self {
-        Self::new(components.0, components.1, components.2)
-    }
-
     /// x成分を取得
     pub fn x(&self) -> T {
         self.x
