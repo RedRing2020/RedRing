@@ -79,11 +79,16 @@ fn implemented_3d_pairs() {
     symmetric!(intersection, Triangle3D, LineSegment3D);
     symmetric!(intersection, Triangle3D, Ray3D);
     one_way!(intersection, ConicalSolid3D, Point3D);
+    one_way!(intersection, ConicalSolid3D, InfiniteLine3D);
+    one_way!(intersection, ConicalSolid3D, Ray3D);
+    one_way!(intersection, ConicalSolid3D, LineSegment3D);
     one_way!(intersection, ConicalSurface3D, Point3D);
     one_way!(intersection, ConicalSurface3D, InfiniteLine3D);
     symmetric!(intersection, ConicalSurface3D, Ray3D);
     one_way!(intersection, ConicalSurface3D, LineSegment3D);
     one_way!(intersection, SphericalSolid3D, Point3D);
+    one_way!(intersection, SphericalSolid3D, InfiniteLine3D);
+    one_way!(intersection, SphericalSolid3D, Ray3D);
     symmetric!(intersection, SphericalSurface3D, Ray3D);
     one_way!(intersection, LineSegment3D, SphericalSurface3D);
 }
@@ -518,5 +523,151 @@ fn intersection_3d_quadric() {
     assert_eq!(
         point_count(&cone.intersection(&horizontal_segment, TOLERANCE)),
         1
+    );
+}
+
+/// 交差の結果が線分なら両端の点を返す
+fn segment_ends(result: &IntersectionResult<f64>) -> Option<(Point3D<f64>, Point3D<f64>)> {
+    use geo_algorithms::IntersectionGeometry;
+    use geo_contracts::LineSegment3DProperties;
+    match &result.geometry {
+        IntersectionGeometry::Segment(segment) => {
+            Some((segment.start_point(), segment.end_point()))
+        }
+        _ => None,
+    }
+}
+
+fn assert_segment(result: &IntersectionResult<f64>, start: Point3D<f64>, end: Point3D<f64>) {
+    let (actual_start, actual_end) = segment_ends(result).expect("expected a segment");
+    assert!(
+        actual_start.distance_to(start) < 1e-9,
+        "start: {actual_start:?}"
+    );
+    assert!(actual_end.distance_to(end) < 1e-9, "end: {actual_end:?}");
+}
+
+fn line_along_x(y: f64, z: f64) -> InfiniteLine3D<f64> {
+    InfiniteLine3D::from_two_points(Point3D::new(-3.0, y, z), Point3D::new(3.0, y, z)).unwrap()
+}
+
+#[test]
+fn intersection_3d_spherical_solid_returns_the_chord() {
+    use geo_algorithms::IntersectionTopology;
+
+    let sphere = SphericalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
+    assert_segment(
+        &sphere.intersection(&line_along_x(0.0, 0.0), TOLERANCE),
+        Point3D::new(-1.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+    );
+
+    let tangent = sphere.intersection(&line_along_x(1.0, 0.0), TOLERANCE);
+    assert_eq!(tangent.topology, IntersectionTopology::Touching);
+    let near_tangent = sphere.intersection(&line_along_x(1.0 + TOLERANCE / 2.0, 0.0), TOLERANCE);
+    assert_eq!(near_tangent.topology, IntersectionTopology::Touching);
+    assert!(!sphere
+        .intersection(&line_along_x(1.1, 0.0), TOLERANCE)
+        .intersects());
+
+    let from_center =
+        Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    assert_segment(
+        &sphere.intersection(&from_center, TOLERANCE),
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+    );
+    let toward = Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(-1.0, 0.0, 0.0)).unwrap();
+    assert_segment(
+        &sphere.intersection(&toward, TOLERANCE),
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(-1.0, 0.0, 0.0),
+    );
+    let away = Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    assert!(!sphere.intersection(&away, TOLERANCE).intersects());
+}
+
+#[test]
+fn intersection_3d_conical_solid_returns_the_inside_interval() {
+    use geo_algorithms::IntersectionTopology;
+
+    // 底面の中心が原点・半径 1・高さ 2（頂点は (0, 0, 2)）。高さ 1 の断面の半径は 0.5
+    let cone = ConicalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0, 2.0).unwrap();
+    assert_segment(
+        &cone.intersection(&line_along_x(0.0, 1.0), TOLERANCE),
+        Point3D::new(-0.5, 0.0, 1.0),
+        Point3D::new(0.5, 0.0, 1.0),
+    );
+    let along_axis =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 5.0))
+            .unwrap();
+    assert_segment(
+        &cone.intersection(&along_axis, TOLERANCE),
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(0.0, 0.0, 2.0),
+    );
+    // 底面上の直線は底面の円板と重なる
+    assert_segment(
+        &cone.intersection(&line_along_x(0.0, 0.0), TOLERANCE),
+        Point3D::new(-1.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+    );
+
+    let tangent = cone.intersection(&line_along_x(0.5, 1.0), TOLERANCE);
+    assert_eq!(tangent.topology, IntersectionTopology::Touching);
+    assert_eq!(point_count(&tangent), 1);
+    let near_tangent = cone.intersection(&line_along_x(0.5 + TOLERANCE / 2.0, 1.0), TOLERANCE);
+    assert_eq!(near_tangent.topology, IntersectionTopology::Touching);
+    assert!(!cone
+        .intersection(&line_along_x(0.6, 1.0), TOLERANCE)
+        .intersects());
+    assert!(!cone
+        .intersection(&line_along_x(0.0, -0.5), TOLERANCE)
+        .intersects());
+    assert!(!cone
+        .intersection(&line_along_x(0.0, 2.5), TOLERANCE)
+        .intersects());
+
+    let from_axis = Ray3D::new(Point3D::new(0.0, 0.0, 1.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    assert_segment(
+        &cone.intersection(&from_axis, TOLERANCE),
+        Point3D::new(0.0, 0.0, 1.0),
+        Point3D::new(0.5, 0.0, 1.0),
+    );
+    let away = Ray3D::new(Point3D::new(2.0, 0.0, 1.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    assert!(!cone.intersection(&away, TOLERANCE).intersects());
+
+    let half =
+        LineSegment3D::new(Point3D::new(-2.0, 0.0, 1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
+    assert_segment(
+        &cone.intersection(&half, TOLERANCE),
+        Point3D::new(-0.5, 0.0, 1.0),
+        Point3D::new(0.0, 0.0, 1.0),
+    );
+    let short =
+        LineSegment3D::new(Point3D::new(-2.0, 0.0, 1.0), Point3D::new(-1.0, 0.0, 1.0)).unwrap();
+    assert!(!cone.intersection(&short, TOLERANCE).intersects());
+
+    // 軸が x 軸正方向の円錐（底面の中心 (1, 0, 0)、頂点 (3, 0, 0)）
+    let tilted = ConicalSolid3D::new(
+        Point3D::new(1.0, 0.0, 0.0),
+        geo_algorithms::Direction3D::positive_x(),
+        geo_algorithms::Direction3D::positive_z(),
+        1.0,
+        2.0,
+    )
+    .unwrap();
+    assert_segment(
+        &tilted.intersection(&line_along_x(0.0, 0.0), TOLERANCE),
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(3.0, 0.0, 0.0),
+    );
+    let across =
+        InfiniteLine3D::from_two_points(Point3D::new(2.0, -3.0, 0.0), Point3D::new(2.0, 3.0, 0.0))
+            .unwrap();
+    assert_segment(
+        &tilted.intersection(&across, TOLERANCE),
+        Point3D::new(2.0, -0.5, 0.0),
+        Point3D::new(2.0, 0.5, 0.0),
     );
 }
