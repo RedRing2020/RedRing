@@ -19,4 +19,6 @@ pub use distance::{
 pub use ellipse::{
     ellipse_2d_circle_intersection_parameters, ellipse_2d_distance_critical_parameters,
 };
-pub use nurbs_curve::nurbs_curve_minimum_distance;
+pub use nurbs_curve::{
+    nurbs_curve_minimum_distance, CircleDistance, ConvexSetDistance, DistanceField,
+};

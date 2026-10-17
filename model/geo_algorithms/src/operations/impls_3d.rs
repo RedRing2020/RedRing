@@ -8,10 +8,10 @@ use crate::{
     Scalar, SphericalSolid3D, SphericalSurface3D, Triangle3D, Vector3D,
 };
 use geo_contracts::{
-    default_distance_tolerance, default_parallel_cross_error_tolerance, Circle3DDistance,
-    CylindricalSolid3DDistance, EllipsoidalSolid3DDistance, InfiniteLine3DDistance,
-    InfiniteLine3DProperties, LineSegment3DDistance, LineSegment3DProperties,
-    NurbsCurve3DProperties, Plane3DDistance, Ray3DDistance, SphericalSolid3DDistance,
+    default_distance_tolerance, default_parallel_cross_error_tolerance, Circle3DProperties,
+    CylindricalSolid3DProjection, EllipsoidalSolid3DProjection, InfiniteLine3DProjection,
+    InfiniteLine3DProperties, LineSegment3DProjection, LineSegment3DProperties,
+    NurbsCurve3DProperties, Plane3DProjection, Ray3DProjection, SphericalSolid3DProjection,
 };
 
 /// 交点の有無で衝突判定し、逆の向きは代表の向きを呼ぶ
@@ -87,27 +87,37 @@ impl<T: Scalar> CrossDistance<T, Aabb3D<T>> for LineSegment3D<T> {
     }
 }
 
-/// NURBS 曲線上で、相手の形状までの距離 `distance` が最小になる点の距離（既定の距離トレランスの精度）
+/// NURBS 曲線上で、相手の形状までの距離 `field` が最小になる点の距離（既定の距離トレランスの精度）
 fn nurbs_curve_distance<T: Scalar>(
     curve: &NurbsCurve3D<T>,
-    distance: impl Fn(Point3D<T>) -> T,
+    field: &impl geo_commons::DistanceField<T>,
 ) -> T {
     geo_commons::nurbs_curve_minimum_distance(
         curve.degree(),
         curve.knot_vector(),
         curve.coordinates(),
         curve.weights(),
-        |x, y, z| distance(Point3D::new(x, y, z)),
+        field,
         default_distance_tolerance(),
     )
 }
 
-/// NURBS 曲線と `$shape` の距離を `$distance`（点から `$shape` までの距離）で書き、逆の向きはそれを呼ぶ
+/// 凸な形状までの距離の場（`closest_point` は点に最も近い形状上の点）
+fn convex_set<T: Scalar>(
+    closest_point: impl Fn(Point3D<T>) -> Point3D<T>,
+) -> geo_commons::ConvexSetDistance<impl Fn([T; 3]) -> [T; 3]> {
+    geo_commons::ConvexSetDistance::new(move |[x, y, z]: [T; 3]| {
+        let closest = closest_point(Point3D::new(x, y, z));
+        [closest.x(), closest.y(), closest.z()]
+    })
+}
+
+/// NURBS 曲線と `$shape` の距離を、距離の場 `$field` で書き、逆の向きはそれを呼ぶ
 macro_rules! nurbs_curve_distance {
-    ($shape:ident, |$other:ident, $point:ident| $distance:expr) => {
+    ($shape:ident, |$other:ident| $field:expr) => {
         impl<T: Scalar> CrossDistance<T, $shape<T>> for NurbsCurve3D<T> {
             fn distance_to(&self, $other: &$shape<T>) -> T {
-                nurbs_curve_distance(self, |$point| $distance)
+                nurbs_curve_distance(self, &$field)
             }
         }
 
@@ -119,19 +129,33 @@ macro_rules! nurbs_curve_distance {
     };
 }
 
-nurbs_curve_distance!(Circle3D, |circle, point| circle.distance_to_point(point));
-nurbs_curve_distance!(CylindricalSolid3D, |cylinder, point| cylinder
-    .distance_to_point(point));
-nurbs_curve_distance!(EllipsoidalSolid3D, |ellipsoid, point| ellipsoid
-    .distance_to_point(point));
-nurbs_curve_distance!(InfiniteLine3D, |line, point| line.distance_to_point(point));
-nurbs_curve_distance!(LineSegment3D, |segment, point| segment
-    .distance_to_point(point));
-// 平面の点との距離は符号付き
-nurbs_curve_distance!(Plane3D, |plane, point| plane.distance_to_point(point).abs());
-nurbs_curve_distance!(Ray3D, |ray, point| ray.distance_to_point(point));
-nurbs_curve_distance!(SphericalSolid3D, |sphere, point| sphere
-    .distance_to_point(point));
+nurbs_curve_distance!(Circle3D, |circle| {
+    let (center, normal) = (circle.center(), circle.axis());
+    geo_commons::CircleDistance::new(
+        [center.x(), center.y(), center.z()],
+        [normal.x(), normal.y(), normal.z()],
+        circle.radius(),
+    )
+});
+nurbs_curve_distance!(CylindricalSolid3D, |cylinder| convex_set(
+    |point| cylinder.closest_point(point)
+));
+nurbs_curve_distance!(EllipsoidalSolid3D, |ellipsoid| convex_set(|point| {
+    ellipsoid.closest_point(point)
+}));
+nurbs_curve_distance!(InfiniteLine3D, |line| convex_set(
+    |point| line.closest_point(point)
+));
+nurbs_curve_distance!(LineSegment3D, |segment| convex_set(
+    |point| segment.closest_point(point)
+));
+nurbs_curve_distance!(Plane3D, |plane| convex_set(
+    |point| plane.project_point(point)
+));
+nurbs_curve_distance!(Ray3D, |ray| convex_set(|point| ray.closest_point(point)));
+nurbs_curve_distance!(SphericalSolid3D, |sphere| convex_set(
+    |point| sphere.closest_point(point)
+));
 
 intersection!(
     InfiniteLine3D,

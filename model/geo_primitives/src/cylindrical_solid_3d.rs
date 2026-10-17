@@ -22,7 +22,8 @@ mod transform;
 use crate::{Direction3D, Point3D};
 use geo_contracts::{
     default_distance_tolerance, CylindricalSolid3DConstructor, CylindricalSolid3DContainment,
-    CylindricalSolid3DDistance, CylindricalSolid3DProperties, PointClassification, Scalar,
+    CylindricalSolid3DDistance, CylindricalSolid3DProjection, CylindricalSolid3DProperties,
+    PointClassification, Scalar,
 };
 
 /// 3次元円柱ソリッド（STEP準拠のCore実装）
@@ -173,6 +174,23 @@ impl<T: Scalar> CylindricalSolid3DDistance<T> for CylindricalSolid3D<T> {
         };
         let radial_excess = (radial - self.radius).max(T::ZERO);
         (axial_excess * axial_excess + radial_excess * radial_excess).sqrt()
+    }
+}
+
+impl<T: Scalar> CylindricalSolid3DProjection<T> for CylindricalSolid3D<T> {
+    /// 軸方向の位置を底面と上面の間に、軸からの距離を半径以下に切り詰めた点
+    fn closest_point(&self, point: Point3D<T>) -> Point3D<T> {
+        let axis = self.axis.as_vector();
+        let offset = point - self.center;
+        let axial = offset.dot(axis);
+        let radial = offset - axis * axial;
+        let radial_length = radial.length();
+        let radial = if radial_length > self.radius {
+            radial * (self.radius / radial_length)
+        } else {
+            radial
+        };
+        self.center + axis * axial.max(T::ZERO).min(self.height) + radial
     }
 }
 

@@ -139,3 +139,20 @@ fn test_bounds_tilted_axis() {
     assert!((bbox.min() - Point3D::new(0.0, -2.0, -2.0)).length() < 1e-12);
     assert!((bbox.max() - Point3D::new(6.0, 2.0, 2.0)).length() < 1e-12);
 }
+
+#[test]
+fn test_closest_point() {
+    use geo_contracts::CylindricalSolid3DProjection;
+    // 底面の中心が原点・半径 1・高さ 2
+    let cylinder = CylindricalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0, 2.0).unwrap();
+    let cases = [
+        // 側面の外・上面の上・底面の縁の外側・内部
+        (Point3D::new(3.0, 0.0, 1.0), Point3D::new(1.0, 0.0, 1.0)),
+        (Point3D::new(0.5, 0.0, 5.0), Point3D::new(0.5, 0.0, 2.0)),
+        (Point3D::new(0.0, -3.0, -1.0), Point3D::new(0.0, -1.0, 0.0)),
+        (Point3D::new(0.2, 0.3, 1.5), Point3D::new(0.2, 0.3, 1.5)),
+    ];
+    for (point, expected) in cases {
+        assert!(cylinder.closest_point(point).distance_to(expected) < 1e-12);
+    }
+}

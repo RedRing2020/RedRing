@@ -48,7 +48,7 @@ pub use conical_surface_traits::{
 };
 pub use cylindrical_solid_traits::{
     CylindricalSolid3DConstructor, CylindricalSolid3DContainment, CylindricalSolid3DDistance,
-    CylindricalSolid3DProperties,
+    CylindricalSolid3DProjection, CylindricalSolid3DProperties,
 };
 pub use cylindrical_surface_traits::{
     CylindricalSurface3DConstructor, CylindricalSurface3DDistance, CylindricalSurface3DEvaluation,
@@ -68,7 +68,7 @@ pub use ellipse_traits::{
 };
 pub use ellipsoidal_solid_traits::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance,
-    EllipsoidalSolid3DProperties,
+    EllipsoidalSolid3DProjection, EllipsoidalSolid3DProperties,
 };
 pub use ellipsoidal_surface_traits::{
     EllipsoidalSurface3DConstructor, EllipsoidalSurface3DDistance, EllipsoidalSurface3DEvaluation,
@@ -113,7 +113,7 @@ pub use rectangle_traits::{
 };
 pub use spherical_solid_traits::{
     SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DDistance,
-    SphericalSolid3DProperties,
+    SphericalSolid3DProjection, SphericalSolid3DProperties,
 };
 pub use spherical_surface_traits::{
     SphericalSurface3DConstructor, SphericalSurface3DDistance, SphericalSurface3DEvaluation,

@@ -69,6 +69,5 @@ model/geo_nurbs/src/constants.rs:newton_diff_step
 model/geo_contracts/src/geometry/core/nurbs_curve_2d_traits.rs:derivative_at
 model/geo_contracts/src/geometry/core/nurbs_curve_3d_traits.rs:derivative_at
 
-# 平面の基本の生成・投影（網羅表の未対応の平面との組み合わせの実装時に調整する）
+# 平面の基本の生成（網羅表の未対応の平面との組み合わせの実装時に調整する）
 model/geo_contracts/src/geometry/core/plane3d_traits.rs:from_point_and_normal
-model/geo_contracts/src/geometry/core/plane3d_traits.rs:project_point

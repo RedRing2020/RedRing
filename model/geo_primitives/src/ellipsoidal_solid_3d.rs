@@ -23,7 +23,8 @@ mod transform;
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment,
-    EllipsoidalSolid3DDistance, EllipsoidalSolid3DProperties, PointClassification, Scalar,
+    EllipsoidalSolid3DDistance, EllipsoidalSolid3DProjection, EllipsoidalSolid3DProperties,
+    PointClassification, Scalar,
 };
 
 /// 3次元楕円体ソリッド（STEP準拠のCore実装）
@@ -186,6 +187,27 @@ impl<T: Scalar> EllipsoidalSolid3DContainment<T> for EllipsoidalSolid3D<T> {
         } else {
             PointClassification::Outside
         }
+    }
+}
+
+impl<T: Scalar> EllipsoidalSolid3DProjection<T> for EllipsoidalSolid3D<T> {
+    fn closest_point(&self, point: Point3D<T>) -> Point3D<T> {
+        if self.contains_point(point) {
+            return point;
+        }
+        let (x, y, z) = self.local_coordinates(point);
+        let (surface_x, surface_y, surface_z) = geo_commons::ellipsoid_closest_point(
+            x,
+            y,
+            z,
+            self.a_radius,
+            self.b_radius,
+            self.c_radius,
+        );
+        self.center
+            + self.ref_direction.as_vector() * surface_x
+            + self.y_axis() * surface_y
+            + self.axis.as_vector() * surface_z
     }
 }
 

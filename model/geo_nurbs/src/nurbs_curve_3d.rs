@@ -156,7 +156,7 @@ impl<T: Scalar> NurbsCurve3DDistance<T> for NurbsCurve3D<T> {
             self.knot_vector(),
             self.coordinates(),
             self.weights(),
-            |x, y, z| point.distance_to(Point3D::new(x, y, z)),
+            &geo_commons::ConvexSetDistance::new(|_| [point.x(), point.y(), point.z()]),
             default_distance_tolerance(),
         )
     }

@@ -41,3 +41,8 @@ pub trait CylindricalSolid3DDistance<T: Scalar> {
     /// 立体（領域）までの距離（内部・表面上は 0）
     fn distance_to_point(&self, point: Point3D<T>) -> T;
 }
+
+pub trait CylindricalSolid3DProjection<T: Scalar> {
+    /// 立体（領域）上で点に最も近い点（内部・表面上の点はその点）
+    fn closest_point(&self, point: Point3D<T>) -> Point3D<T>;
+}
