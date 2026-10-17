@@ -3,6 +3,8 @@
 //! 形状の型と、形状が使う基本型を再エクスポートする。形状のモジュールは private とし、
 //! trait定義は `geo_contracts` から使う。
 
+mod constants;
+
 // 2D の形状
 mod arc_2d;
 mod circle_2d;

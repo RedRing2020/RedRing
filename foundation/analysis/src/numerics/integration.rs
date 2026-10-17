@@ -3,6 +3,8 @@
 //! 弧長計算や一般的な数値積分機能を提供する。
 //! 台形公式やシンプソン公式など、様々な積分手法を実装。
 
+use crate::Scalar;
+
 /// 曲線の弧長を数値積分で近似計算（汎用ベクトル向け）
 ///
 /// パラメトリック曲線 r(t) の弧長を台形公式により数値積分で計算。
@@ -121,9 +123,67 @@ where
     sum * h
 }
 
+/// 2 等分した結果との差が `tolerance` に収まるまで区間を分割する、5 点ガウス・ルジャンドル求積
+///
+/// 区間 `[a, b]` の 5 点の求積と、2 等分した 2 区間の求積の和との差が `tolerance` 以下なら後者を返す。
+/// そうでなければ、それぞれの半分の区間を `tolerance` の半分で同じように積分する。分割の深さが `max_depth` に
+/// 達した区間は、その時点の 2 区間の求積の和を返す。
+pub fn adaptive_gauss_legendre<T: Scalar>(
+    f: impl Fn(T) -> T,
+    a: T,
+    b: T,
+    tolerance: T,
+    max_depth: usize,
+) -> T {
+    adaptive_gauss_legendre_by_ref(&f, a, b, tolerance, max_depth)
+}
+
+fn adaptive_gauss_legendre_by_ref<T: Scalar>(
+    f: &impl Fn(T) -> T,
+    a: T,
+    b: T,
+    tolerance: T,
+    depth: usize,
+) -> T {
+    let whole = gauss_legendre_5(f, a, b);
+    let middle = (a + b) / (T::ONE + T::ONE);
+    let halves = gauss_legendre_5(f, a, middle) + gauss_legendre_5(f, middle, b);
+    if depth == 0 || (whole - halves).abs() <= tolerance {
+        return halves;
+    }
+    let half_tolerance = tolerance / (T::ONE + T::ONE);
+    adaptive_gauss_legendre_by_ref(f, a, middle, half_tolerance, depth - 1)
+        + adaptive_gauss_legendre_by_ref(f, middle, b, half_tolerance, depth - 1)
+}
+
+/// 5 点ガウス・ルジャンドル求積
+fn gauss_legendre_5<T: Scalar>(f: &impl Fn(T) -> T, a: T, b: T) -> T {
+    const NODES: [f64; 5] = [
+        0.0,
+        -0.538_469_310_105_683_1,
+        0.538_469_310_105_683_1,
+        -0.906_179_845_938_664,
+        0.906_179_845_938_664,
+    ];
+    const WEIGHTS: [f64; 5] = [
+        0.568_888_888_888_888_9,
+        0.478_628_670_499_366_5,
+        0.478_628_670_499_366_5,
+        0.236_926_885_056_189_1,
+        0.236_926_885_056_189_1,
+    ];
+    let half = (b - a) / (T::ONE + T::ONE);
+    let middle = (a + b) / (T::ONE + T::ONE);
+    let mut sum = T::ZERO;
+    for (node, weight) in NODES.iter().zip(WEIGHTS) {
+        sum += T::from_f64(weight) * f(middle + half * T::from_f64(*node));
+    }
+    sum * half
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{newton_arc_length, trapezoidal_rule, NormedVector};
+    use super::{adaptive_gauss_legendre, newton_arc_length, trapezoidal_rule, NormedVector};
     use crate::consts::test_constants::{
         INTEGRATION_TOLERANCE, INTEGRATION_TOLERANCE_LOOSE, INTEGRATION_TOLERANCE_STRICT,
         TOLERANCE_F64,
@@ -170,5 +230,14 @@ mod tests {
     fn test_trapezoidal_rule_sine() {
         let result = trapezoidal_rule(|x| x.sin(), 0.0, std::f64::consts::PI, 10000);
         assert!((result - 2.0).abs() < INTEGRATION_TOLERANCE);
+    }
+
+    #[test]
+    fn adaptive_gauss_legendre_integrates_smooth_functions() {
+        // ∫₀^π sin x dx = 2、∫₀¹ e^x dx = e - 1
+        let sine = adaptive_gauss_legendre(f64::sin, 0.0, std::f64::consts::PI, 1e-12, 20);
+        assert!((sine - 2.0).abs() < 1e-12);
+        let exponential = adaptive_gauss_legendre(f64::exp, 0.0, 1.0, 1e-12, 20);
+        assert!((exponential - (std::f64::consts::E - 1.0)).abs() < 1e-12);
     }
 }

@@ -31,21 +31,6 @@ impl<T: Scalar> PrimitiveMetadata for Ellipse3D<T> {
 }
 
 impl<T: Scalar> Ellipse3D<T> {
-    /// 楕円の周回長の近似（ラマヌジャンの公式）
-    ///
-    /// 楕円弧の長さに使うため pub(crate)。
-    pub(crate) fn circumference(&self) -> T {
-        let a = self.semi_major_axis;
-        let b = self.semi_minor_axis;
-        let h = ((a - b) / (a + b)).powi(2);
-
-        T::PI
-            * (a + b)
-            * (T::ONE
-                + (T::from_f64(3.0) * h)
-                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
-    }
-
     /// 点に最も近い楕円上の点の local angle parameter（`0 <= t < 2π`）を取得
     ///
     /// 楕円弧が点のパラメータを求めるため pub(crate)。平面外の点は平面へ投影した点の最近点を使う。

@@ -127,8 +127,8 @@ impl<T: Scalar, const N: usize> CurveDefinition<'_, T, N> {
         for window in self.knots.windows(2) {
             let (a, b) = (window[0].max(start), window[1].min(end));
             if b > a {
-                total += adaptive_gauss_legendre(
-                    &speed,
+                total += analysis::adaptive_gauss_legendre(
+                    speed,
                     a,
                     b,
                     tolerance,
@@ -138,48 +138,4 @@ impl<T: Scalar, const N: usize> CurveDefinition<'_, T, N> {
         }
         total
     }
-}
-
-/// 5 点ガウス・ルジャンドル求積
-fn gauss_legendre_5<T: Scalar>(f: &impl Fn(T) -> T, a: T, b: T) -> T {
-    const NODES: [f64; 5] = [
-        0.0,
-        -0.538_469_310_105_683_1,
-        0.538_469_310_105_683_1,
-        -0.906_179_845_938_664,
-        0.906_179_845_938_664,
-    ];
-    const WEIGHTS: [f64; 5] = [
-        0.568_888_888_888_888_9,
-        0.478_628_670_499_366_5,
-        0.478_628_670_499_366_5,
-        0.236_926_885_056_189_1,
-        0.236_926_885_056_189_1,
-    ];
-    let half = (b - a) / (T::ONE + T::ONE);
-    let middle = (a + b) / (T::ONE + T::ONE);
-    let mut sum = T::ZERO;
-    for (node, weight) in NODES.iter().zip(WEIGHTS) {
-        sum += T::from_f64(weight) * f(middle + half * T::from_f64(*node));
-    }
-    sum * half
-}
-
-/// 2 等分した結果との差が `tolerance` に収まるまで分割するガウス・ルジャンドル求積
-fn adaptive_gauss_legendre<T: Scalar>(
-    f: &impl Fn(T) -> T,
-    a: T,
-    b: T,
-    tolerance: T,
-    depth: usize,
-) -> T {
-    let whole = gauss_legendre_5(f, a, b);
-    let middle = (a + b) / (T::ONE + T::ONE);
-    let halves = gauss_legendre_5(f, a, middle) + gauss_legendre_5(f, middle, b);
-    if depth == 0 || (whole - halves).abs() <= tolerance {
-        return halves;
-    }
-    let half_tolerance = tolerance / (T::ONE + T::ONE);
-    adaptive_gauss_legendre(f, a, middle, half_tolerance, depth - 1)
-        + adaptive_gauss_legendre(f, middle, b, half_tolerance, depth - 1)
 }

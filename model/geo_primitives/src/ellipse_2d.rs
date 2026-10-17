@@ -25,6 +25,23 @@ pub struct Ellipse2D<T: Scalar> {
     rotation: Angle<T>, // 回転角（X軸から長軸まで）
 }
 
+/// 楕円（長半軸 `semi_major`・短半軸 `semi_minor`）のパラメータ `start` から `start + span` までの弧長
+///
+/// 楕円上の点の速さ `√(a² sin² t + b² cos² t)` を、既定の距離トレランスまで数値積分する（2D・3D の楕円弧で共通）。
+pub(crate) fn ellipse_arc_length<T: Scalar>(semi_major: T, semi_minor: T, start: T, span: T) -> T {
+    let speed = |t: T| {
+        let (sin, cos) = (t.sin(), t.cos());
+        (semi_major * semi_major * sin * sin + semi_minor * semi_minor * cos * cos).sqrt()
+    };
+    analysis::adaptive_gauss_legendre(
+        speed,
+        start,
+        start + span,
+        default_distance_tolerance::<T>(),
+        crate::constants::ELLIPSE_ARC_LENGTH_MAX_BISECTION_DEPTH,
+    )
+}
+
 impl<T: Scalar> PrimitiveMetadata for Ellipse2D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Ellipse
@@ -62,21 +79,6 @@ impl<T: Scalar> Ellipse2D<T> {
             self.semi_major,
             self.semi_minor,
         )
-    }
-
-    /// 楕円の周回長の近似（ラマヌジャンの公式）
-    ///
-    /// 楕円弧の長さに使うため pub(crate)。
-    pub(crate) fn circumference(&self) -> T {
-        let a = self.semi_major;
-        let b = self.semi_minor;
-        let h = ((a - b) * (a - b)) / ((a + b) * (a + b));
-
-        let three = T::ONE + T::ONE + T::ONE;
-        let ten = three + three + three + T::ONE;
-        let four = T::ONE + T::ONE + T::ONE + T::ONE;
-
-        T::PI * (a + b) * (T::ONE + (three * h) / (ten + (four - three * h).sqrt()))
     }
 
     /// 長軸方向の単位ベクトル

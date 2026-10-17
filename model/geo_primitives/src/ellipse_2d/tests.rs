@@ -98,25 +98,6 @@ fn test_aabb() {
 }
 
 #[test]
-fn test_circumference_approximation() {
-    // 円の場合
-    let circle_ellipse = Ellipse2D::new(Point2D::origin(), 3.0, 3.0, no_rotation()).unwrap();
-    let expected_circle_circumference = 2.0 * std::f64::consts::PI * 3.0;
-    assert!(
-        (circle_ellipse.circumference() - expected_circle_circumference).abs()
-            / expected_circle_circumference
-            < 0.01
-    );
-
-    // 一般的な楕円
-    let circumference = Ellipse2D::new(Point2D::origin(), 5.0, 3.0, no_rotation())
-        .unwrap()
-        .circumference();
-    assert!(circumference > 2.0 * std::f64::consts::PI * 3.0);
-    assert!(circumference < 2.0 * std::f64::consts::PI * 5.0);
-}
-
-#[test]
 fn test_f32_compatibility() {
     let ellipse = Ellipse2D::new(
         Point2D::new(0.0f32, 0.0f32),

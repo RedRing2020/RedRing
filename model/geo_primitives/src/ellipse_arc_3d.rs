@@ -100,9 +100,14 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
 }
 
 impl<T: Scalar> EllipseArc3DDerived<T> for EllipseArc3D<T> {
-    /// 母楕円の周長（ラマヌジャンの近似）に掃引角の比を掛けた値
+    /// 弧長（楕円上の点の速さを既定の距離トレランスまで数値積分した値）
     fn length(&self) -> T {
-        self.ellipse.circumference() * (self.angle_span().to_radians() / T::TAU)
+        crate::ellipse_2d::ellipse_arc_length(
+            self.ellipse.semi_major_axis(),
+            self.ellipse.semi_minor_axis(),
+            self.start_angle.to_radians(),
+            self.angle_span().to_radians(),
+        )
     }
 }
 

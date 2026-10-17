@@ -36,8 +36,9 @@ pub use crate::linalg::solver::newton::{
     MultivariateNewtonOptions,
 };
 pub use crate::numerics::{
-    find_span_in_non_decreasing_sequence, is_within_closed_range, minimize_unimodal,
-    newton_arc_length, polynomial_real_roots_in_interval, trapezoidal_rule, NormedVector,
+    adaptive_gauss_legendre, find_span_in_non_decreasing_sequence, is_within_closed_range,
+    minimize_unimodal, newton_arc_length, polynomial_real_roots_in_interval, trapezoidal_rule,
+    NormedVector,
 };
 
 // 単位系の再エクスポート
