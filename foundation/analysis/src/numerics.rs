@@ -12,7 +12,7 @@ pub mod range;
 pub mod vector_distance;
 
 // 数値積分の再エクスポート
-pub use integration::{newton_arc_length, trapezoidal_rule, NormedVector};
+pub use integration::{adaptive_gauss_legendre, newton_arc_length, trapezoidal_rule, NormedVector};
 pub use minimization::minimize_unimodal;
 pub use partition::find_span_in_non_decreasing_sequence;
 pub use polynomial::polynomial_real_roots_in_interval;
