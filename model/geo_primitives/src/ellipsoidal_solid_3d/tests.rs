@@ -116,3 +116,24 @@ fn test_bbox_rotated_is_tight() {
     assert!((bbox.max().y() - extent).abs() < 1e-12);
     assert!((bbox.max().z() - 1.0).abs() < 1e-12);
 }
+
+#[test]
+fn test_closest_point() {
+    use geo_contracts::{EllipsoidalSolid3DDistance, EllipsoidalSolid3DProjection};
+    let ellipsoid =
+        EllipsoidalSolid3D::new_standard(Point3D::new(0.0, 0.0, 1.0), 3.0, 2.0, 1.0).unwrap();
+    // 軸上の外部の点は軸の端
+    assert!(
+        ellipsoid
+            .closest_point(Point3D::new(5.0, 0.0, 1.0))
+            .distance_to(Point3D::new(3.0, 0.0, 1.0))
+            < 1e-12
+    );
+    // 一般の外部の点: 最近点までの距離が立体までの距離と一致する
+    let point = Point3D::new(2.0, 2.0, 2.5);
+    let closest = ellipsoid.closest_point(point);
+    assert!((closest.distance_to(point) - ellipsoid.distance_to_point(point)).abs() < 1e-12);
+    // 内部の点はその点
+    let inside = Point3D::new(0.5, 0.5, 1.0);
+    assert_eq!(ellipsoid.closest_point(inside), inside);
+}

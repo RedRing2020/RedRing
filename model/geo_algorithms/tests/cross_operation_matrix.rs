@@ -765,3 +765,28 @@ fn distance_3d_nurbs_curve_to_shapes() {
     let inside = SphericalSolid3D::new_standard(Point3D::new(1.0, 0.0, 0.0), 0.5).unwrap();
     assert_distance(curve.distance_to(&inside), 0.0);
 }
+
+#[test]
+fn distance_3d_nurbs_curve_with_constant_distance() {
+    use geo_contracts::{
+        default_distance_tolerance, Circle3DConstructor, CylindricalSolid3DConstructor,
+    };
+
+    // 曲線全体で距離が一定になる配置（区間の下界が 2 次で近づくので、分割の回数の上限に達しない）
+    let tolerance = default_distance_tolerance::<f64>();
+    let curve = nurbs_unit_circle();
+    let concentric =
+        Circle3D::new(Point3D::new(0.0, 0.0, 0.0), Direction3D::positive_z(), 2.0).unwrap();
+    assert!((curve.distance_to(&concentric) - 1.0).abs() <= tolerance);
+    let lifted =
+        Circle3D::new(Point3D::new(0.0, 0.0, 1.0), Direction3D::positive_z(), 1.0).unwrap();
+    assert!((curve.distance_to(&lifted) - 1.0).abs() <= tolerance);
+    let axis =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, 0.0), Point3D::new(0.0, 0.0, 1.0))
+            .unwrap();
+    assert!((curve.distance_to(&axis) - 1.0).abs() <= tolerance);
+    let around = CylindricalSolid3D::new_standard(Point3D::new(0.0, 0.0, -1.0), 0.5, 2.0).unwrap();
+    assert!((curve.distance_to(&around) - 0.5).abs() <= tolerance);
+    let on_axis = SphericalSolid3D::new_standard(Point3D::new(0.0, 0.0, 1.0), 0.5).unwrap();
+    assert!((curve.distance_to(&on_axis) - (2.0_f64.sqrt() - 0.5)).abs() <= tolerance);
+}

@@ -1,4 +1,4 @@
-# Cross Operation Coverage Matrix Spec (v2.5)
+# Cross Operation Coverage Matrix Spec (v2.6)
 
 対象Issue: #364（v1.0）、#855（v2.0）
 関連: #343, #350, #351, #366
@@ -136,6 +136,12 @@ v1.0 の網羅表に登録されていたが、結果が誤った簡易実装を
 - 実装済みの表へ組み合わせを移すときは、本仕様書の表とテストの両方を更新する
 
 ## 7. 改訂の履歴
+
+### v2.6（#863）
+
+- NURBS 曲線の距離の区間の下界を、相手の形状の距離の場（`geo_commons::DistanceField`）から求めるようにした。凸な形状（立体・直線・半直線・線分・平面・点）は最近点で形状を支える平面による下界（`geo_commons::ConvexSetDistance`）、円は軸からの距離と高さの範囲による下界（`geo_commons::CircleDistance`）を使い、どちらも区間の大きさの 2 乗で真の値に近づく
+- 距離がほぼ一定の配置（平面に平行な曲線、同心の円、円の軸上の点）でも、既定の距離トレランスで分割の回数の上限に達しない（v2.4 の制約を解消）
+- 立体の最近点の trait定義（`SphericalSolid3DProjection` / `CylindricalSolid3DProjection` / `EllipsoidalSolid3DProjection`）を追加した
 
 ### v2.5（#861）
 

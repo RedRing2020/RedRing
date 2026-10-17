@@ -10,7 +10,8 @@ mod transform;
 use crate::{Direction3D, Point3D};
 use geo_contracts::{
     default_distance_tolerance, PointClassification, Scalar, SphericalSolid3DConstructor,
-    SphericalSolid3DContainment, SphericalSolid3DDistance, SphericalSolid3DProperties,
+    SphericalSolid3DContainment, SphericalSolid3DDistance, SphericalSolid3DProjection,
+    SphericalSolid3DProperties,
 };
 
 /// STEP 準拠の 3 次元球ソリッド
@@ -116,6 +117,18 @@ impl<T: Scalar> SphericalSolid3DContainment<T> for SphericalSolid3D<T> {
 impl<T: Scalar> SphericalSolid3DDistance<T> for SphericalSolid3D<T> {
     fn distance_to_point(&self, point: Point3D<T>) -> T {
         self.signed_distance_to_surface(point).max(T::ZERO)
+    }
+}
+
+impl<T: Scalar> SphericalSolid3DProjection<T> for SphericalSolid3D<T> {
+    fn closest_point(&self, point: Point3D<T>) -> Point3D<T> {
+        let offset = point - self.center;
+        let distance = offset.length();
+        if distance <= self.radius {
+            point
+        } else {
+            self.center + offset * (self.radius / distance)
+        }
     }
 }
 
