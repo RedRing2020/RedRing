@@ -9,12 +9,12 @@ mod extensions;
 mod tests;
 mod transform;
 
-use crate::basis::{basis_first_derivatives, basis_functions};
+use crate::basis::basis_derivatives;
 use crate::curve_evaluation::clamp_to_domain;
-use crate::{constants, KnotVector, Scalar, WeightStorage};
+use crate::{KnotVector, Scalar, WeightStorage};
 use geo_contracts::{
-    default_parallel_cross_error_tolerance, NurbsError, NurbsSurface3DConstructor,
-    NurbsSurface3DEvaluation, NurbsSurface3DProperties,
+    default_distance_tolerance, default_parallel_cross_error_tolerance, NurbsError,
+    NurbsSurface3DConstructor, NurbsSurface3DEvaluation, NurbsSurface3DProperties,
 };
 use geo_core::{Direction3D, Point3D, Vector3D};
 
@@ -79,78 +79,115 @@ impl<T: Scalar> NurbsSurface3D<T> {
         Some((clamp_to_domain(u, u_domain)?, clamp_to_domain(v, v_domain)?))
     }
 
-    /// 定義域内の `(u, v)` での点と、u・v 方向の偏導関数
+    /// 定義域内の `(u, v)` での、`k + l <= order` の偏導関数 `∂^(k+l) S / ∂u^k ∂v^l`（`[k][l]`。`[0][0]` は点）
     ///
-    /// 同次座標 `A = ΣΣ N_i M_j w_ij P_ij`、`w = ΣΣ N_i M_j w_ij` から、
-    /// `S = A / w`、`S_u = (A_u - S w_u) / w`（v 方向も同様）とする。
-    pub(super) fn point_and_partials(&self, u: T, v: T) -> (Point3D<T>, Vector3D<T>, Vector3D<T>) {
+    /// 同次座標 `A = ΣΣ N_i M_j w_ij P_ij`、`w = ΣΣ N_i M_j w_ij` の偏導関数から、`A = w S` を
+    /// ライプニッツの公式で微分した式を `S` の偏導関数について解く（The NURBS Book の A4.4）。
+    fn partial_derivatives(&self, u: T, v: T, order: usize) -> Vec<Vec<[T; 3]>> {
         let u_span = crate::knot::find_knot_span(u, &self.u_knots, self.u_degree);
         let v_span = crate::knot::find_knot_span(v, &self.v_knots, self.v_degree);
-        let u_basis = basis_functions(u_span, self.u_degree, u, &self.u_knots);
-        let v_basis = basis_functions(v_span, self.v_degree, v, &self.v_knots);
-        let u_basis_derivatives = basis_first_derivatives(u_span, self.u_degree, u, &self.u_knots);
-        let v_basis_derivatives = basis_first_derivatives(v_span, self.v_degree, v, &self.v_knots);
+        let u_basis = basis_derivatives(u_span, self.u_degree, u, &self.u_knots, order);
+        let v_basis = basis_derivatives(v_span, self.v_degree, v, &self.v_knots, order);
 
-        // [x, y, z, w] の同次座標とその偏導関数
-        let mut numerator = [T::ZERO; 4];
-        let mut numerator_u = [T::ZERO; 4];
-        let mut numerator_v = [T::ZERO; 4];
+        // スパンに効く制御点の [x, y, z, w] の同次座標（u 方向優先）
+        let mut control_points = Vec::with_capacity((self.u_degree + 1) * (self.v_degree + 1));
         for i in 0..=self.u_degree {
             for j in 0..=self.v_degree {
                 let index =
                     (u_span - self.u_degree + i) * self.v_count + (v_span - self.v_degree + j);
                 let weight = self.weights.weight(index);
-                let point = [
+                control_points.push([
                     self.coordinates[index * 3] * weight,
                     self.coordinates[index * 3 + 1] * weight,
                     self.coordinates[index * 3 + 2] * weight,
                     weight,
-                ];
-                let value = u_basis[i] * v_basis[j];
-                let value_u = u_basis_derivatives[i] * v_basis[j];
-                let value_v = u_basis[i] * v_basis_derivatives[j];
-                for k in 0..4 {
-                    numerator[k] += value * point[k];
-                    numerator_u[k] += value_u * point[k];
-                    numerator_v[k] += value_v * point[k];
+                ]);
+            }
+        }
+
+        // 同次座標の偏導関数
+        let mut homogeneous = vec![vec![[T::ZERO; 4]; order + 1]; order + 1];
+        for k in 0..=order {
+            for l in 0..=order - k {
+                let mut points = control_points.iter();
+                for &u_value in &u_basis[k] {
+                    for &v_value in &v_basis[l] {
+                        let basis = u_value * v_value;
+                        let point = points
+                            .next()
+                            .expect("スパンに効く制御点の数は基底関数の数の積");
+                        for (sum, &coordinate) in homogeneous[k][l].iter_mut().zip(point) {
+                            *sum += basis * coordinate;
+                        }
+                    }
                 }
             }
         }
 
-        let w = numerator[3];
-        let point = Point3D::new(numerator[0] / w, numerator[1] / w, numerator[2] / w);
-        let partial = |n: [T; 4]| {
-            Vector3D::new(
-                (n[0] - point.x() * n[3]) / w,
-                (n[1] - point.y() * n[3]) / w,
-                (n[2] - point.z() * n[3]) / w,
-            )
-        };
-        (point, partial(numerator_u), partial(numerator_v))
+        let weight_sum = homogeneous[0][0][3];
+        let mut derivatives = vec![vec![[T::ZERO; 3]; order + 1]; order + 1];
+        for k in 0..=order {
+            for l in 0..=order - k {
+                let mut value = [
+                    homogeneous[k][l][0],
+                    homogeneous[k][l][1],
+                    homogeneous[k][l][2],
+                ];
+                for i in 0..=k {
+                    for j in 0..=l {
+                        if i == 0 && j == 0 {
+                            continue;
+                        }
+                        let factor =
+                            binomial::<T>(k, i) * binomial::<T>(l, j) * homogeneous[i][j][3];
+                        for (c, lower) in value.iter_mut().zip(derivatives[k - i][l - j]) {
+                            *c -= factor * lower;
+                        }
+                    }
+                }
+                derivatives[k][l] = value.map(|c| c / weight_sum);
+            }
+        }
+        derivatives
     }
 
-    /// 定義域内の `(u, v)` での ∂u × ∂v の向きの法線（偏導関数が平行または 0 の場合は `None`）
-    fn normal_from_partials(&self, u: T, v: T) -> Option<Direction3D<T>> {
-        let (_, partial_u, partial_v) = self.point_and_partials(u, v);
-        let normal = partial_u.cross(partial_v);
-        if normal.length()
-            <= default_parallel_cross_error_tolerance::<T>()
-                * partial_u.length()
-                * partial_v.length()
-        {
-            return None;
-        }
-        Direction3D::from_vector(normal)
+    /// 定義域内の `(u, v)` での点と、u・v 方向の偏導関数
+    pub(super) fn point_and_partials(&self, u: T, v: T) -> (Point3D<T>, Vector3D<T>, Vector3D<T>) {
+        let derivatives = self.partial_derivatives(u, v, 1);
+        let point = derivatives[0][0];
+        (
+            Point3D::new(point[0], point[1], point[2]),
+            to_vector(derivatives[1][0]),
+            to_vector(derivatives[0][1]),
+        )
     }
 }
 
-/// `value` を `target` に向けて `step` だけ動かす（`target` を越えない）
-fn move_toward<T: Scalar>(value: T, target: T, step: T) -> T {
-    if value < target {
-        (value + step).min(target)
-    } else {
-        (value - step).max(target)
+fn to_vector<T: Scalar>([x, y, z]: [T; 3]) -> Vector3D<T> {
+    Vector3D::new(x, y, z)
+}
+
+/// 二項係数 `n` C `k`
+fn binomial<T: Scalar>(n: usize, k: usize) -> T {
+    (0..k).fold(T::ONE, |value, i| {
+        value * T::from_usize(n - i) / T::from_usize(i + 1)
+    })
+}
+
+/// 外積の和 `Σ a × b` の向き
+///
+/// 和の大きさが、各項の大きさ `|a||b|` の和に対して外積が平行の判定の許容誤差以下の場合は `None`。
+fn cross_sum_direction<T: Scalar>(terms: &[(Vector3D<T>, Vector3D<T>)]) -> Option<Direction3D<T>> {
+    let mut sum = Vector3D::zero();
+    let mut scale = T::ZERO;
+    for &(a, b) in terms {
+        sum = sum + a.cross(b);
+        scale += a.length() * b.length();
     }
+    if sum.length() <= default_parallel_cross_error_tolerance::<T>() * scale {
+        return None;
+    }
+    Direction3D::from_vector(sum)
 }
 
 impl<T: Scalar> NurbsSurface3DConstructor<T> for NurbsSurface3D<T> {
@@ -298,27 +335,53 @@ impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
         Some(self.point_and_partials(u, v).0)
     }
 
+    /// `∂u × ∂v` の向きの法線
+    ///
+    /// 偏導関数が平行または 0 の点（極、1 点に縮退した辺など）では、定義域の中心へ向かう向き `(du, dv)`
+    /// （各成分 ±1）から近づいたときの極限を返す。`ε` だけ近づいた点の `∂u × ∂v` を `ε` で展開し、
+    /// 0 でない最初の項の向きとする（2 次の項まで 0 の場合は `None`）。展開は定義域の幅を掛けて長さの次元に
+    /// した偏導関数で行い、長さが距離トレランス以下の偏導関数は 0 とみなす。
     fn normal_at(&self, u: T, v: T) -> Option<Direction3D<T>> {
         let (u, v) = self.clamp_to_domain(u, v)?;
-        if let Some(normal) = self.normal_from_partials(u, v) {
+        let ((u_start, u_end), (v_start, v_end)) = self.parameter_domain();
+        let (u_width, v_width) = (u_end - u_start, v_end - v_start);
+        let tolerance = default_distance_tolerance::<T>();
+        let scaled = |derivative: Vector3D<T>, factor: T| {
+            let vector = derivative * factor;
+            if vector.length() <= tolerance {
+                Vector3D::zero()
+            } else {
+                vector
+            }
+        };
+
+        let first = self.partial_derivatives(u, v, 1);
+        let partial_u = scaled(to_vector(first[1][0]), u_width);
+        let partial_v = scaled(to_vector(first[0][1]), v_width);
+        if let Some(normal) = cross_sum_direction(&[(partial_u, partial_v)]) {
             return Some(normal);
         }
 
-        // 偏導関数が平行または 0 の点（極など）では、定義域の中心へ少しずらした点の法線を使う。
-        // ずらす量は定義域の幅に対する割合で、法線が定まるまで 10 倍ずつ大きくする
-        let ((u_start, u_end), (v_start, v_end)) = self.parameter_domain();
         let two = T::ONE + T::ONE;
-        let (u_center, v_center) = ((u_start + u_end) / two, (v_start + v_end) / two);
-        let mut ratio = T::from_f64(constants::NORMAL_OFFSET_INITIAL_RATIO);
-        let max_ratio = T::from_f64(constants::NORMAL_OFFSET_MAX_RATIO);
-        while ratio <= max_ratio {
-            let shifted_u = move_toward(u, u_center, (u_end - u_start) * ratio);
-            let shifted_v = move_toward(v, v_center, (v_end - v_start) * ratio);
-            if let Some(normal) = self.normal_from_partials(shifted_u, shifted_v) {
-                return Some(normal);
+        let toward_center = |value: T, start: T, end: T| {
+            if value <= (start + end) / two {
+                T::ONE
+            } else {
+                -T::ONE
             }
-            ratio *= T::from_f64(10.0);
-        }
-        None
+        };
+        let du = toward_center(u, u_start, u_end) * u_width;
+        let dv = toward_center(v, v_start, v_end) * v_width;
+        let second = self.partial_derivatives(u, v, 2);
+        let [second_along_u, second_mixed, second_along_v] =
+            [second[2][0], second[1][1], second[0][2]].map(to_vector);
+        // 近づく向きへの ∂u・∂v の変化率
+        let rate_of_partial_u = scaled(second_along_u * du + second_mixed * dv, u_width);
+        let rate_of_partial_v = scaled(second_mixed * du + second_along_v * dv, v_width);
+        cross_sum_direction(&[
+            (partial_u, rate_of_partial_v),
+            (rate_of_partial_u, partial_v),
+        ])
+        .or_else(|| cross_sum_direction(&[(rate_of_partial_u, rate_of_partial_v)]))
     }
 }

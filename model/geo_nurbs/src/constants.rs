@@ -51,12 +51,6 @@ pub const NEWTON_MAX_ITER: usize = 20;
 /// 曲線の長さの数値積分で、ノット区間を 2 等分する最大の深さ
 pub const LENGTH_MAX_BISECTION_DEPTH: usize = 20;
 
-/// 曲面の法線が定まらない点（極など）で、定義域の中心へずらす量の初期値（定義域の幅に対する割合）
-pub const NORMAL_OFFSET_INITIAL_RATIO: f64 = 1e-6;
-
-/// 曲面の法線が定まらない点で、定義域の中心へずらす量の上限（定義域の幅に対する割合）
-pub const NORMAL_OFFSET_MAX_RATIO: f64 = 1e-2;
-
 #[cfg(test)]
 mod tests {
     use super::*;
