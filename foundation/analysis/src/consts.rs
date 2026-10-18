@@ -223,6 +223,12 @@ pub mod test_constants {
 
     /// 数値積分用許容誤差（高精度）
     pub const INTEGRATION_TOLERANCE_STRICT: f64 = 1e-6;
+
+    /// 導関数を確かめる中心差分の刻み幅（f64）
+    pub const FINITE_DIFFERENCE_STEP_F64: f64 = 1e-6;
+
+    /// 導関数と中心差分を比べるときの許容誤差（f64。刻み幅の 1 次の誤差が残る、2 階導関数が不連続な点も含む）
+    pub const FINITE_DIFFERENCE_TOLERANCE_F64: f64 = 1e-5;
 }
 
 #[cfg(test)]
