@@ -2,7 +2,7 @@
 //!
 //! 制御点の座標を `[x0, y0, (z0,) x1, ...]` と並べた配列から、点・1 階導関数・長さを求める。
 
-use crate::basis::{basis_first_derivatives, basis_functions};
+use crate::basis::basis_derivatives;
 use crate::{constants, WeightStorage};
 use geo_contracts::{default_distance_tolerance, NurbsError, Scalar};
 
@@ -77,8 +77,8 @@ impl<T: Scalar, const N: usize> CurveDefinition<'_, T, N> {
     /// 同次座標 `A(t) = Σ N_i w_i P_i`、`w(t) = Σ N_i w_i` から、`C = A / w`、`C' = (A' - C w') / w` とする。
     pub(crate) fn point_and_derivative(&self, t: T) -> ([T; N], [T; N]) {
         let span = crate::knot::find_knot_span(t, self.knots, self.degree);
-        let basis = basis_functions(span, self.degree, t, self.knots);
-        let basis_derivatives = basis_first_derivatives(span, self.degree, t, self.knots);
+        let basis = basis_derivatives(span, self.degree, t, self.knots, 1);
+        let (values, rates) = (&basis[0], &basis[1]);
 
         let mut numerator = [T::ZERO; N];
         let mut numerator_derivative = [T::ZERO; N];
@@ -87,8 +87,8 @@ impl<T: Scalar, const N: usize> CurveDefinition<'_, T, N> {
         for i in 0..=self.degree {
             let index = span - self.degree + i;
             let weight = self.weights.weight(index);
-            let value = basis[i] * weight;
-            let derivative = basis_derivatives[i] * weight;
+            let value = values[i] * weight;
+            let derivative = rates[i] * weight;
             for k in 0..N {
                 let coordinate = self.coordinates[index * N + k];
                 numerator[k] += value * coordinate;

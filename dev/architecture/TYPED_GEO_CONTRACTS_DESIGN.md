@@ -124,7 +124,7 @@ trait のメソッドを呼ぶには、その trait定義が `use` されてい�
 | D-5a | 球（`SphericalSurface3D` / `SphericalSolid3D`）・楕円体（`EllipsoidalSurface3D` / `EllipsoidalSolid3D`）・トーラス（`TorusSurface3D` / `TorusSolid3D`）の型付け。完了 | 球・楕円体・トーラス |
 | D-5b | 円柱（`CylindricalSurface3D` / `CylindricalSolid3D`）・円錐（`ConicalSurface3D` / `ConicalSolid3D`）の型付け。円錐面は STEP の CONICAL_SURFACE と同じく基準点・半径・半頂角で定義し、軸方向に無限に続く面は境界ボックスを持たない（`None`）。完了 | 円柱・円錐 |
 | D-6a | NURBS 曲線（`NurbsCurve2D` / `NurbsCurve3D`）の型付け。制御点は点で 1 つずつ取得するものと、GPU 等への受け渡し用の座標の配列の両方を持つ。導関数は解析的に求め、長さは既定の距離トレランスまで数値積分する。完了 | NURBS 曲線 |
-| D-6b | NURBS 曲面（`NurbsSurface3D`）の型付け。曲線と同じく、制御点は点で取得するものと座標の配列の両方を持ち、偏導関数は解析的に求める。法線は偏導関数が平行・0 の点（球の極等）では定義域の内側へ少しずらした点の法線とし、曲面全体が縮退する場合は `None`。完了 | NURBS 曲面 |
+| D-6b | NURBS 曲面（`NurbsSurface3D`）の型付け。曲線と同じく、制御点は点で取得するものと座標の配列の両方を持ち、偏導関数は解析的に求める。法線は偏導関数が平行・0 の点（球の極等）では定義域の内側から近づいたときの極限を 2 階の偏導関数から求め（#853）、曲面全体が縮退する場合は `None`。完了 | NURBS 曲面 |
 | D-7 | エンティティの trait定義（線・円・円弧・平面上の 2D の線）と、SVG の読み込み結果のデータ（`geo_io`）の型付け、本設計書の仕上げ。完了 | エンティティ |
 
 - 旧 API の別名・互換用の変換は置かない（各段階で呼び出し元まで更新する）
