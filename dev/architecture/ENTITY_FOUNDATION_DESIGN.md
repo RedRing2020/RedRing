@@ -6,6 +6,8 @@
 **優先度**: 🟠 Tier 2（形状可視化・CAM可視化完了後）  
 **関連Issue**: #206（エンティティ層基礎）, #205（Phase 4完全版）
 
+> **現状との差分（#761）**: `geo_entity` は業務に依らない CAD のエンティティ基盤とする。`CAMEntity` は `cam_entity` クレートへ分離済みで、本書の `model/geo_entity/src/cam_entity.rs` の記述は当時の設計である。`DisplayAttributes` の色のプリセット（`cad_red`・`cad_green`・`cam_cutting`・`cam_rapid`）は削除し、`CAMEntity` は `DisplayAttributes::default()` を使う。属性コードのドメインの所有は `ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md` を参照。
+
 ---
 
 ## 📋 目次

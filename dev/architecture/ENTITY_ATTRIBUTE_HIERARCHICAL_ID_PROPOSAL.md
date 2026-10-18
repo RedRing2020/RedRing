@@ -1,7 +1,7 @@
 # エンティティ属性ID階層化 提案書（Phase 4.0 / #208 対応）
 
 **作成日**: 2026年2月21日  
-**最終更新**: 2026年2月21日  
+**最終更新**: 2026年10月18日（#761: ドメインの所有と業務属性の扱い）  
 **ステータス**: 提案  
 **関連Issue**: #208（エンティティ層基礎）, #205（Phase 4完全版）
 
@@ -119,9 +119,25 @@ CAM穴あけや寸法拘束など、用途別の意味をコードから復元�
 - `30`: スケッチ
 - `40`: 表示
 
+### ドメインの所有と業務属性の扱い（#761）
+
+`geo_entity` は業務に依らない CAD のエンティティ基盤とし、業務（CAM 等）の属性は定義しない。
+
+| ドメイン | 所有するクレート |
+|---|---|
+| `01` 共通メタ・`20` 寸法・`30` スケッチ・`40` 表示 | `geo_entity`（業務に依らない属性） |
+| `10` CAM | CAM の業務層（`cam_entity` 等） |
+
+- `geo_entity` の `SYSTEM_ATTRIBUTE_DEFS` には、`geo_entity` が所有するドメインの属性だけを置く
+- 業務のパラメータ（穴あけの送り速度・主軸回転数等）は、現時点では業務層の型（`cam_entity` の `MachiningAttributes` 等）のフィールドで持つ
+- 業務層が属性コードで system 属性を定義する必要が生じた時点で、業務層が自身のドメインの定義テーブルを `Attributes` の型の検証へ渡す仕組みを設計する（呼び出し元のない登録の仕組みは先に置かない）
+- 以前 `geo_entity` に置いていた `CAM_PATH_DRILL_*`（`-10_01_02_xx`）は、使われておらず `MachiningAttributes` と重なるため削除した
+
 ---
 
 ## 階層IDの具体例（CAM穴あけパス）
+
+以下はコード体系の例である。ドメイン `10` は CAM の業務層が所有し、`geo_entity` には定義しない（上記「ドメインの所有と業務属性の扱い」）。
 
 例として `DD=10 (CAM)`, `CC=01 (Path)`, `SS=02 (Drill)` を割り当てる。
 
@@ -174,14 +190,14 @@ pub struct SystemAttributeDef {
     pub description: &'static str,
 }
 
-pub const CAM_PATH_DRILL_FEED_RATE: AttributeCode = AttributeCode::new(-10010202);
+pub const DIMENSION_LENGTH_VALUE: AttributeCode = AttributeCode::new(-20010101);
 
 pub const SYSTEM_ATTRIBUTE_DEFS: &[SystemAttributeDef] = &[
     SystemAttributeDef {
-        code: CAM_PATH_DRILL_FEED_RATE,
-        name: "cam.path.drill.feed_rate",
+        code: DIMENSION_LENGTH_VALUE,
+        name: "dimension.length.value",
         value_kind: AttributeValueKind::Float,
-        description: "穴あけ加工の送り速度",
+        description: "寸法長さ値",
     },
 ];
 ```
