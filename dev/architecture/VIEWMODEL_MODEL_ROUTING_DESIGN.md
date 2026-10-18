@@ -49,7 +49,7 @@ Entity/Topology追加後の責務境界を明確化し、ViewModelからModelへ
 
 禁止事項:
 - Modelクレート側にApplicationのPort trait実装を置かない
-- ViewModelからModelクレートの具象型/具象処理へ直接依存しない
+- ViewModelからModelの更新・ユースケースの実行を直接呼ばない（Model の値型の読み取りと描画用の計算の直接の使用は `VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1 で認める）
 
 このルールにより、導線追加時の判断は「PortをApplicationに追加し、実装をApplicationに置く」を標準手順とする。
 

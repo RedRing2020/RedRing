@@ -12,6 +12,7 @@
 
 - `model/geo_entity` に `EntityId` / `DisplayAttributes` / `Metadata` / `GeometricEntity` / 属性・関係管理を実装済み
 - `model/cam_entity` に `CAMEntity` を分離実装済み（CAD/CAM分離）
+- `cam_entity_to_vertices` は呼び出し元がないため削除した（#857）。本書の `cam_entity_to_vertices` の記述は当時の設計で、CAM のエンティティを Model に持つようになった時点で Application 経由でつなぐ
 - 依存境界ルール（`geo_* -> cam_*` 禁止）をスクリプト/CIで検証可能
 
 ### 1.2 未対応（Issue #208 の残り）

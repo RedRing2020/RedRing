@@ -65,11 +65,12 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` の依存は許可だが、`geo_algorithms` の実装ファイルでの `use geo_primitives::...` の直接 import は禁止（`use crate::...` の再エクスポート経由を使う）
 - **`geo_topology` の曲線依存**: `geo_topology -> geo_primitives` を許可し、曲線のエッジの段階導入に限って `geo_topology -> geo_nurbs` も許可する。`geo_nurbs -> geo_topology` の逆依存は禁止する
 - **循環依存の回避**: `geo_primitives` と `geo_nurbs` は互いに直接依存しない（形状をまたぐ処理は `geo_algorithms` に集約する）
-- **上位責務の分離**: テセレーション・シミュレーション・ジョブ管理の orchestration は `geo_algorithms` より上位の application 層へ集約する
+- **上位責務の分離**: テセレーション・シミュレーション・ジョブ管理の orchestration（処理の順序と実行方式の選択）は `geo_algorithms` より上位の application 層へ集約する。ViewModel が描画用の変換で計算を直接呼ぶことは含まない（下記の ViewModel → Model の経路）
 - **Application Layer の役割**: 非同期の実装詳細そのものは持たず、同期 / 非同期 / ジョブ投入の実行方式の境界だけを管理する
 - **CAM の責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` は CAM 特化のユースケースの実行として分離する
 - **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋なデータ層ではなく CAM ドメイン専用の application 層に近い
 - **エンティティ層の業務分離**: 依存は `geo_*` → `geo_entity` → 業務別の entity（`cam_entity` 等）の向きとする。属性コードのドメインは、業務に依らないもの（メタ・寸法等）を `geo_entity`、業務のもの（CAM）を業務層が所有する（`ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md`）
+- **ViewModel → Model の経路**: 更新とユースケースの実行は application 経由、描画用の変換と表示確認用のデータは Model の値型・描画用の計算を直接使ってよい（`VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1）
 - **ビューはモデルに直接依存しない**: `view/*` はモデルのクレートに依存せず、描画に必要なデータは `viewmodel/*` で変換したものを受け取る
 
 ### CAD/CAM 境界ルール（2026年3月更新）

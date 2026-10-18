@@ -3743,7 +3743,6 @@ dependencies = [
  "analysis",
  "application",
  "cam_core",
- "cam_entity",
  "cam_sim",
  "geo_algorithms",
  "geo_contracts",

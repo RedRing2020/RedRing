@@ -362,7 +362,7 @@ viewmodel/converter
 ├── geo_contracts (NURBSトレイト拡張: 制御点/重み/ノット取得)
 ├── geo_core (低レイヤー型のみ)
 ├── geo_primitives (必要最小限)
-├── geo_algorithms (許可されるがA方針では使用しない)
+├── geo_algorithms (描画用の計算に使う。`VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1)
 └── analysis
 
 view/app
@@ -372,7 +372,7 @@ view/app
 
 **補足**:
 - geo_contractsのNURBSトレイト拡張はFoundationパターンの修正に該当
-- 既存の依存ルールに従い、**ViewModel→geo_algorithms**は許可されるが本方針では採用しない
+- **ViewModel→geo_algorithms** は描画用の計算（テセレーション等）に使う（経路の正本は `VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1）
 
 **移管方針（デバッグ表示）**:
 - app層のNURBSデバッグ表示は ViewModel に移管し、appは`viewmodel::nurbs_debug`経由で評価データを取得
