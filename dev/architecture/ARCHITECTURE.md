@@ -42,12 +42,12 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **`geo_nurbs`**: NURBS 曲線・曲面の実装。`geo_contracts` の trait定義を実装し、`geo_core` の型を使う
 - **`geo_topology`**: 位相構造（エッジ・ワイヤ・複合曲線等）
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
-- **`geo_entity`**: エンティティの識別子・属性・関係の基盤
+- **`geo_entity`**: 業務に依らない CAD のエンティティ基盤（識別子・属性・関係）。業務（CAM 等）の属性・表示の定義は持たない
 - **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）
 - **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小の機械制約）
 - **`cam_algorithms`**: CAM 固有のアルゴリズム（経路生成、順序最適化、干渉回避、機械制約の検証）
 - **`cam_sim`**: CAM 特化の実行・ユースケース（ToolPath の実行、除去量の更新、結果のキャッシュ）
-- **`cam_entity`**: CAM 向けの表示・属性の統合
+- **`cam_entity`**: CAM 向けの表示・属性の統合（CAM の業務の属性は、ここで定義する）
 - **`job_runtime`** / **`job_domain`**: CAD / CAM / CAE に依存しない実行制御 / ジョブ投入のポリシー
 - **`application`**: テセレーション・シミュレーション・ジョブ投入などのユースケースの orchestration（`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`）
 - **`test_support`**（`redring_test_support`）: 共有のテスト補助
@@ -69,6 +69,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **Application Layer の役割**: 非同期の実装詳細そのものは持たず、同期 / 非同期 / ジョブ投入の実行方式の境界だけを管理する
 - **CAM の責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` は CAM 特化のユースケースの実行として分離する
 - **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋なデータ層ではなく CAM ドメイン専用の application 層に近い
+- **エンティティ層の業務分離**: 依存は `geo_*` → `geo_entity` → 業務別の entity（`cam_entity` 等）の向きとする。属性コードのドメインは、業務に依らないもの（メタ・寸法等）を `geo_entity`、業務のもの（CAM）を業務層が所有する（`ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md`）
 - **ビューはモデルに直接依存しない**: `view/*` はモデルのクレートに依存せず、描画に必要なデータは `viewmodel/*` で変換したものを受け取る
 
 ### CAD/CAM 境界ルール（2026年3月更新）

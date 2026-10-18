@@ -23,33 +23,3 @@ impl Default for DisplayAttributes {
         }
     }
 }
-
-impl DisplayAttributes {
-    pub fn cad_red() -> Self {
-        Self {
-            color: [1.0, 0.0, 0.0, 1.0],
-            ..Default::default()
-        }
-    }
-
-    pub fn cad_green() -> Self {
-        Self {
-            color: [0.0, 1.0, 0.0, 1.0],
-            ..Default::default()
-        }
-    }
-
-    pub fn cam_cutting() -> Self {
-        Self {
-            color: [1.0, 1.0, 1.0, 1.0],
-            ..Default::default()
-        }
-    }
-
-    pub fn cam_rapid() -> Self {
-        Self {
-            color: [0.2, 0.5, 1.0, 1.0],
-            ..Default::default()
-        }
-    }
-}

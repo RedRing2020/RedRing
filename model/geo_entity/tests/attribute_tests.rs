@@ -1,6 +1,4 @@
-use geo_entity::{
-    AttributeCode, AttributeValue, Attributes, CAM_PATH_DRILL_FEED_RATE, EntityError,
-};
+use geo_entity::{AttributeCode, AttributeValue, Attributes, DIMENSION_LENGTH_VALUE, EntityError};
 
 #[test]
 fn zero_code_is_invalid() {
@@ -12,18 +10,15 @@ fn zero_code_is_invalid() {
 fn known_system_code_accepts_matching_type() {
     let mut attrs = Attributes::new();
     attrs
-        .set(CAM_PATH_DRILL_FEED_RATE, AttributeValue::Float(120.0))
+        .set(DIMENSION_LENGTH_VALUE, AttributeValue::Float(120.0))
         .expect("system code with correct type should be accepted");
-    assert!(attrs.contains(CAM_PATH_DRILL_FEED_RATE));
+    assert!(attrs.contains(DIMENSION_LENGTH_VALUE));
 }
 
 #[test]
 fn known_system_code_rejects_type_mismatch() {
     let mut attrs = Attributes::new();
-    let result = attrs.set(
-        CAM_PATH_DRILL_FEED_RATE,
-        AttributeValue::String("bad".into()),
-    );
+    let result = attrs.set(DIMENSION_LENGTH_VALUE, AttributeValue::String("bad".into()));
     assert!(matches!(
         result,
         Err(EntityError::AttributeTypeMismatch { .. })

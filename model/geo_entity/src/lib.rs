@@ -1,4 +1,6 @@
-//! geo_entity - エンティティ基盤クレート（Phase 4.0）
+//! geo_entity - 業務に依らない CAD のエンティティ基盤クレート（Phase 4.0）
+//!
+//! 業務（CAM 等）の属性・表示の定義は持たず、業務層のクレート（`cam_entity` 等）が持つ。
 //!
 //! - EntityId: エンティティ同一性ID（決定的生成対応）
 //! - AttributeCode: 属性種別コード（負=system, 正=user, 0禁止）
@@ -30,7 +32,6 @@ pub use relations::{
     RelationStore,
 };
 pub use system_attributes::{
-    CAM_PATH_DRILL_CYCLE, CAM_PATH_DRILL_DWELL, CAM_PATH_DRILL_FEED_RATE, CAM_PATH_DRILL_PECK_STEP,
-    CAM_PATH_DRILL_SPINDLE_SPEED, DIMENSION_LENGTH_VALUE, META_DESCRIPTION, META_NAME, META_TAG,
-    SYSTEM_ATTRIBUTE_DEFS, SystemAttributeDef, find_system_attribute_def,
+    DIMENSION_LENGTH_VALUE, META_DESCRIPTION, META_NAME, META_TAG, SYSTEM_ATTRIBUTE_DEFS,
+    SystemAttributeDef, find_system_attribute_def,
 };
