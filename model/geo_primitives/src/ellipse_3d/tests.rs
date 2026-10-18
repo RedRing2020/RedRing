@@ -8,7 +8,7 @@ use geo_contracts::{
     Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, PointClassification,
 };
 
-use analysis::test_constants::TOLERANCE_F32;
+use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
 
 #[test]
 fn test_basic_creation() {
@@ -85,9 +85,9 @@ fn test_axis_directions() {
     let dot1: f64 = major_dir.dot(minor_dir);
     let dot2: f64 = major_dir.dot(ellipse.normal());
     let dot3: f64 = minor_dir.dot(ellipse.normal());
-    assert!(dot1.abs() < 1e-10f64);
-    assert!(dot2.abs() < 1e-10f64);
-    assert!(dot3.abs() < 1e-10f64);
+    assert!(dot1.abs() < TOLERANCE_F64);
+    assert!(dot2.abs() < TOLERANCE_F64);
+    assert!(dot3.abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -103,14 +103,14 @@ fn test_simple_parametric() {
 
     // 基本的なパラメータでの点
     let point_0 = ellipse.point_at_parameter(0.0);
-    assert!((point_0.x() - 4.0f64).abs() < 1e-10);
-    assert!((point_0.y() - 0.0f64).abs() < 1e-10);
-    assert!((point_0.z() - 0.0f64).abs() < 1e-10);
+    assert!((point_0.x() - 4.0f64).abs() < TOLERANCE_F64);
+    assert!((point_0.y() - 0.0f64).abs() < TOLERANCE_F64);
+    assert!((point_0.z() - 0.0f64).abs() < TOLERANCE_F64);
 
     let point_pi2 = ellipse.point_at_parameter(std::f64::consts::PI / 2.0);
-    assert!((point_pi2.x() - 0.0f64).abs() < 1e-10);
-    assert!((point_pi2.y() - 2.0f64).abs() < 1e-10);
-    assert!((point_pi2.z() - 0.0f64).abs() < 1e-10);
+    assert!((point_pi2.x() - 0.0f64).abs() < TOLERANCE_F64);
+    assert!((point_pi2.y() - 2.0f64).abs() < TOLERANCE_F64);
+    assert!((point_pi2.z() - 0.0f64).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -142,13 +142,11 @@ fn test_closest_point_projection() {
     .unwrap();
     let closest = ellipse.closest_point(Point3D::new(10.0, 0.0, 3.0));
 
-    assert!(closest.distance_to(Point3D::new(4.0, 0.0, 0.0)) < 1e-4);
+    assert!(closest.distance_to(Point3D::new(4.0, 0.0, 0.0)) < TOLERANCE_F64);
 }
 
 #[test]
 fn test_distance_and_closest_point_to_curve() {
-    use analysis::test_constants::TOLERANCE_F64;
-
     // XY 平面上、長半軸 2（X 軸方向）・短半軸 1 の楕円
     let ellipse = Ellipse3D::new(
         Point3D::new(0.0_f64, 0.0, 0.0),
@@ -226,8 +224,6 @@ fn test_contains_and_classify_point() {
 
 #[test]
 fn test_parameter_for_point_returns_parameter_angle_of_closest_point() {
-    use analysis::test_constants::TOLERANCE_F64;
-
     // XY 平面上、長半軸 2（X 軸方向）・短半軸 1 の楕円
     let ellipse = Ellipse3D::new(
         Point3D::new(0.0_f64, 0.0, 0.0),

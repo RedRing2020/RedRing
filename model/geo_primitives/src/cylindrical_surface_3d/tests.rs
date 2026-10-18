@@ -1,7 +1,7 @@
 //! CylindricalSurface3D のテストスイート
 
 use crate::{CylindricalSurface3D, Direction3D, Point3D, Vector3D};
-use analysis::test_constants::TOLERANCE_F32;
+use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
 use approx::assert_relative_eq;
 use geo_contracts::{
     Bounded, CylindricalSurface3DConstructor, CylindricalSurface3DDistance,
@@ -68,7 +68,7 @@ fn test_ref_direction_orthogonalization() {
     assert_relative_eq!(
         surface.ref_direction().dot(surface.axis()),
         0.0,
-        epsilon = 1e-10
+        epsilon = TOLERANCE_F64
     );
 }
 
@@ -82,7 +82,7 @@ fn test_point_at_uv() {
         (0.0, 10.0, Point3D::new(5.0, 0.0, 10.0)),
     ];
     for (u, v, expected) in cases {
-        assert!(surface.point_at_uv(u, v).distance_to(expected) < 1e-10);
+        assert!(surface.point_at_uv(u, v).distance_to(expected) < TOLERANCE_F64);
     }
 }
 
@@ -91,10 +91,10 @@ fn test_normal_at() {
     let surface = CylindricalSurface3D::new_standard(Point3D::origin(), 5.0).unwrap();
 
     let normal = surface.normal_at(0.0, 0.0).as_vector();
-    assert!((normal - Vector3D::new(1.0, 0.0, 0.0)).length() < 1e-10);
+    assert!((normal - Vector3D::new(1.0, 0.0, 0.0)).length() < TOLERANCE_F64);
 
     let normal = surface.normal_at(PI / 2.0, 5.0).as_vector();
-    assert!((normal - Vector3D::new(0.0, 1.0, 0.0)).length() < 1e-10);
+    assert!((normal - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64);
 }
 
 #[test]
@@ -109,7 +109,11 @@ fn test_distance_to_point() {
         (Point3D::new(0.0, 0.0, -7.0), 5.0),
     ];
     for (point, expected) in cases {
-        assert_relative_eq!(surface.distance_to_point(point), expected, epsilon = 1e-10);
+        assert_relative_eq!(
+            surface.distance_to_point(point),
+            expected,
+            epsilon = TOLERANCE_F64
+        );
     }
 }
 
@@ -129,7 +133,7 @@ fn test_step_compliance() {
     // u = π/2 の方向は axis × ref_direction
     let point = surface.point_at_uv(PI / 2.0, 0.0);
     let expected = center + axis.as_vector().cross(ref_direction.as_vector()) * 15.0;
-    assert!(point.distance_to(expected) < 1e-10);
+    assert!(point.distance_to(expected) < TOLERANCE_F64);
 }
 
 #[test]
@@ -148,19 +152,22 @@ fn test_parametric_continuity() {
 
     let point_0 = surface.point_at_uv(0.0, 5.0);
     let point_2pi = surface.point_at_uv(2.0 * PI, 5.0);
-    assert!(point_0.distance_to(point_2pi) < 1e-10);
+    assert!(point_0.distance_to(point_2pi) < TOLERANCE_F64);
 }
 
 #[test]
 fn test_tolerant_eq() {
     let surface1 = CylindricalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 5.0).unwrap();
+    // 中心と半径をそれぞれ offset だけずらした円筒面
+    let offset = 0.0001;
     let surface2 =
-        CylindricalSurface3D::new_standard(Point3D::new(0.0001, 0.0001, 0.0001), 5.0001).unwrap();
+        CylindricalSurface3D::new_standard(Point3D::new(offset, offset, offset), 5.0 + offset)
+            .unwrap();
     let surface3 = CylindricalSurface3D::new_standard(Point3D::new(10.0, 0.0, 0.0), 5.0).unwrap();
 
-    assert!(surface1.tolerant_eq(&surface2, 1e-3));
-    assert!(!surface1.tolerant_eq(&surface2, 1e-5));
-    assert!(!surface1.tolerant_eq(&surface3, 1e-3));
+    assert!(surface1.tolerant_eq(&surface2, 10.0 * offset));
+    assert!(!surface1.tolerant_eq(&surface2, 0.1 * offset));
+    assert!(!surface1.tolerant_eq(&surface3, 10.0 * offset));
 }
 
 #[test]

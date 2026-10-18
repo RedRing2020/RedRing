@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::{Direction3D, Point3D, Vector3D};
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata};
 
 #[test]
@@ -17,12 +18,12 @@ fn test_bounding_box_standard_torus() {
 
     // 標準トーラス（Z軸中心）の境界ボックス
     // 総半径 = 3.0 + 1.0 = 4.0
-    assert!((bbox.min().x() - (-4.0)).abs() < 1e-10);
-    assert!((bbox.max().x() - 4.0).abs() < 1e-10);
-    assert!((bbox.min().y() - (-4.0)).abs() < 1e-10);
-    assert!((bbox.max().y() - 4.0).abs() < 1e-10);
-    assert!((bbox.min().z() - (-1.0)).abs() < 1e-10);
-    assert!((bbox.max().z() - 1.0).abs() < 1e-10);
+    assert!((bbox.min().x() - (-4.0)).abs() < TOLERANCE_F64);
+    assert!((bbox.max().x() - 4.0).abs() < TOLERANCE_F64);
+    assert!((bbox.min().y() - (-4.0)).abs() < TOLERANCE_F64);
+    assert!((bbox.max().y() - 4.0).abs() < TOLERANCE_F64);
+    assert!((bbox.min().z() - (-1.0)).abs() < TOLERANCE_F64);
+    assert!((bbox.max().z() - 1.0).abs() < TOLERANCE_F64);
 }
 
 #[test]

@@ -255,12 +255,12 @@ fn test_arc_points() {
     let end_pt = arc.end_point();
 
     // 開始点：(center_x + radius, center_y) = (3.0, 1.0)
-    assert!((start_pt.x() - 3.0).abs() < 1e-10);
-    assert!((start_pt.y() - 1.0).abs() < 1e-10);
+    assert!((start_pt.x() - 3.0).abs() < TOLERANCE_F64);
+    assert!((start_pt.y() - 1.0).abs() < TOLERANCE_F64);
 
     // 終了点：(center_x, center_y + radius) = (1.0, 3.0)
-    assert!((end_pt.x() - 1.0).abs() < 1e-10);
-    assert!((end_pt.y() - 3.0).abs() < 1e-10);
+    assert!((end_pt.x() - 1.0).abs() < TOLERANCE_F64);
+    assert!((end_pt.y() - 3.0).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -274,7 +274,7 @@ fn test_length() {
 
     // 90度円弧の長さ = π/2
     let expected_length = std::f64::consts::PI / 2.0;
-    assert!((arc.length() - expected_length).abs() < 1e-10);
+    assert!((arc.length() - expected_length).abs() < TOLERANCE_F64);
 }
 
 #[test]

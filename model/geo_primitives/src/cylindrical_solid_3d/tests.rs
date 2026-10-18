@@ -1,6 +1,7 @@
 //! CylindricalSolid3D のテスト（STEP準拠）
 
 use crate::{CylindricalSolid3D, Direction3D, Point3D};
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Bounded, CylindricalSolid3DConstructor, CylindricalSolid3DContainment,
     CylindricalSolid3DDistance, CylindricalSolid3DProperties, PrimitiveKind, PrimitiveMetadata,
@@ -66,7 +67,7 @@ fn test_ref_direction_orthogonalization() {
     )
     .unwrap();
 
-    assert!(solid.ref_direction().dot(solid.axis()).abs() < 1e-10);
+    assert!(solid.ref_direction().dot(solid.axis()).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -96,7 +97,7 @@ fn test_distance_to_point() {
     ];
     for (point, expected) in cases {
         assert!(
-            (solid.distance_to_point(point) - expected).abs() < 1e-10,
+            (solid.distance_to_point(point) - expected).abs() < TOLERANCE_F64,
             "{point:?}"
         );
     }
@@ -136,8 +137,8 @@ fn test_bounds_tilted_axis() {
     .unwrap();
 
     let bbox = solid.aabb().unwrap();
-    assert!((bbox.min() - Point3D::new(0.0, -2.0, -2.0)).length() < 1e-12);
-    assert!((bbox.max() - Point3D::new(6.0, 2.0, 2.0)).length() < 1e-12);
+    assert!((bbox.min() - Point3D::new(0.0, -2.0, -2.0)).length() < TOLERANCE_F64);
+    assert!((bbox.max() - Point3D::new(6.0, 2.0, 2.0)).length() < TOLERANCE_F64);
 }
 
 #[test]
@@ -153,6 +154,6 @@ fn test_closest_point() {
         (Point3D::new(0.2, 0.3, 1.5), Point3D::new(0.2, 0.3, 1.5)),
     ];
     for (point, expected) in cases {
-        assert!(cylinder.closest_point(point).distance_to(expected) < 1e-12);
+        assert!(cylinder.closest_point(point).distance_to(expected) < TOLERANCE_F64);
     }
 }

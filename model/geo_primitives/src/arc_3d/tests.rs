@@ -317,12 +317,12 @@ fn test_metadata_and_bounds_capabilities() {
     assert_eq!(arc.length(), 5.0 * std::f64::consts::PI);
 
     let aabb = arc.aabb().expect("Arc should have an AABB");
-    assert!((aabb.min().x() + 5.0).abs() < 1e-10);
-    assert!((aabb.max().x() - 5.0).abs() < 1e-10);
-    assert!((aabb.min().y() - 0.0).abs() < 1e-10);
-    assert!((aabb.max().y() - 5.0).abs() < 1e-10);
-    assert!((aabb.min().z() - 0.0).abs() < 1e-10);
-    assert!((aabb.max().z() - 0.0).abs() < 1e-10);
+    assert!((aabb.min().x() + 5.0).abs() < TOLERANCE_F64);
+    assert!((aabb.max().x() - 5.0).abs() < TOLERANCE_F64);
+    assert!((aabb.min().y() - 0.0).abs() < TOLERANCE_F64);
+    assert!((aabb.max().y() - 5.0).abs() < TOLERANCE_F64);
+    assert!((aabb.min().z() - 0.0).abs() < TOLERANCE_F64);
+    assert!((aabb.max().z() - 0.0).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -341,10 +341,10 @@ fn test_arc_3d_aabb_respects_trimmed_range() {
     .unwrap();
 
     let aabb = arc.aabb().expect("Arc should have an AABB");
-    assert!((aabb.min().x() + 2.0).abs() < 1e-10);
-    assert!((aabb.max().x() - 2.0).abs() < 1e-10);
-    assert!((aabb.min().y() - 0.0).abs() < 1e-10);
-    assert!((aabb.max().y() - 0.0).abs() < 1e-10);
-    assert!((aabb.min().z() + 2.0).abs() < 1e-10);
-    assert!((aabb.max().z() - 0.0).abs() < 1e-10);
+    assert!((aabb.min().x() + 2.0).abs() < TOLERANCE_F64);
+    assert!((aabb.max().x() - 2.0).abs() < TOLERANCE_F64);
+    assert!((aabb.min().y() - 0.0).abs() < TOLERANCE_F64);
+    assert!((aabb.max().y() - 0.0).abs() < TOLERANCE_F64);
+    assert!((aabb.min().z() + 2.0).abs() < TOLERANCE_F64);
+    assert!((aabb.max().z() - 0.0).abs() < TOLERANCE_F64);
 }
