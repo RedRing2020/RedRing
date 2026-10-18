@@ -2,9 +2,10 @@
 
 use crate::knot::clamped_knot_vector;
 use crate::NurbsCurve2D;
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    Bounded, NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
-    NurbsCurve2DProperties, NurbsError, PrimitiveKind, PrimitiveMetadata,
+    default_distance_tolerance, Bounded, NurbsCurve2DConstructor, NurbsCurve2DDerived,
+    NurbsCurve2DEvaluation, NurbsCurve2DProperties, NurbsError, PrimitiveKind, PrimitiveMetadata,
 };
 use geo_core::{Point2D, Vector2D};
 use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2};
@@ -60,9 +61,9 @@ fn test_point_and_derivative() {
     // C(t) = (2t, 2t(1-t))、C'(t) = (2, 2 - 4t)
     for t in [0.0, 0.25, 0.5, 1.0] {
         let point = curve.point_at_parameter(t).unwrap();
-        assert!(point.distance_to(Point2D::new(2.0 * t, 2.0 * t * (1.0 - t))) < 1e-12);
+        assert!(point.distance_to(Point2D::new(2.0 * t, 2.0 * t * (1.0 - t))) < TOLERANCE_F64);
         let derivative = curve.derivative_at(t).unwrap();
-        assert!((derivative - Vector2D::new(2.0, 2.0 - 4.0 * t)).length() < 1e-12);
+        assert!((derivative - Vector2D::new(2.0, 2.0 - 4.0 * t)).length() < TOLERANCE_F64);
     }
 }
 
@@ -73,9 +74,9 @@ fn test_rational_point_and_derivative() {
     // 有理曲線の点は単位円上、接線は半径に直交
     for t in [0.0, 0.3, 0.5, 0.8, 1.0] {
         let point = curve.point_at_parameter(t).unwrap();
-        assert!((point.distance_to(Point2D::origin()) - 1.0).abs() < 1e-12);
+        assert!((point.distance_to(Point2D::origin()) - 1.0).abs() < TOLERANCE_F64);
         let derivative = curve.derivative_at(t).unwrap();
-        assert!((derivative.x() * point.x() + derivative.y() * point.y()).abs() < 1e-12);
+        assert!((derivative.x() * point.x() + derivative.y() * point.y()).abs() < TOLERANCE_F64);
     }
 }
 
@@ -102,10 +103,10 @@ fn test_length() {
         None,
     )
     .unwrap();
-    assert!((line.length() - 2.0).abs() < 1e-9);
+    assert!((line.length() - 2.0).abs() <= default_distance_tolerance());
 
     // 単位円の 1/4 の長さは π/2
-    assert!((quarter_circle().length() - FRAC_PI_2).abs() < 1e-9);
+    assert!((quarter_circle().length() - FRAC_PI_2).abs() <= default_distance_tolerance());
 }
 
 #[test]

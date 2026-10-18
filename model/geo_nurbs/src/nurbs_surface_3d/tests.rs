@@ -3,6 +3,9 @@
 use super::*;
 use crate::clamped_knot_vector;
 use crate::{AdaptiveTessellationSettings, NurbsSurfaceAdaptiveTessellation};
+use analysis::test_constants::{
+    FINITE_DIFFERENCE_STEP_F64, FINITE_DIFFERENCE_TOLERANCE_F64, TOLERANCE_F64,
+};
 use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata};
 use std::f64::consts::FRAC_1_SQRT_2;
 
@@ -78,15 +81,15 @@ fn test_point_at_uv() {
             .point_at_uv(0.25, 0.75)
             .unwrap()
             .distance_to(Point3D::new(0.25, 0.75, 0.0))
-            < 1e-12
+            < TOLERANCE_F64
     );
 
     // 有理曲面の点は円柱面上
     let cylinder = quarter_cylinder();
     for (u, v) in [(0.0, 0.0), (0.3, 0.5), (0.7, 1.0), (1.0, 0.2)] {
         let point = cylinder.point_at_uv(u, v).unwrap();
-        assert!((point.x().hypot(point.y()) - 1.0).abs() < 1e-12);
-        assert!((point.z() - 2.0 * v).abs() < 1e-12);
+        assert!((point.x().hypot(point.y()) - 1.0).abs() < TOLERANCE_F64);
+        assert!((point.z() - 2.0 * v).abs() < TOLERANCE_F64);
     }
 }
 
@@ -94,7 +97,7 @@ fn test_point_at_uv() {
 fn test_normal_at() {
     // 平面の法線は Z 方向
     let normal = unit_square().normal_at(0.5, 0.5).unwrap();
-    assert!((normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < 1e-12);
+    assert!((normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < TOLERANCE_F64);
 
     // 円柱面の法線は軸から離れる向き（∂u × ∂v の向き）
     let cylinder = quarter_cylinder();
@@ -103,7 +106,7 @@ fn test_normal_at() {
         let radial = Vector3D::new(point.x(), point.y(), 0.0);
         let normal = cylinder.normal_at(u, v).unwrap();
         assert!(
-            (normal.as_vector() - radial).length() < 1e-9,
+            (normal.as_vector() - radial).length() < TOLERANCE_F64,
             "(u, v) = ({u}, {v})"
         );
     }
@@ -148,7 +151,8 @@ fn test_normal_at_sphere_pole() {
         let point = sphere.point_at_uv(u, v).unwrap();
         let normal = sphere.normal_at(u, v).unwrap();
         assert!(
-            (normal.as_vector() - Vector3D::from_points(Point3D::origin(), point)).length() < 1e-9
+            (normal.as_vector() - Vector3D::from_points(Point3D::origin(), point)).length()
+                < TOLERANCE_F64
         );
     }
 
@@ -159,11 +163,11 @@ fn test_normal_at_sphere_pole() {
                 .point_at_uv(u, 1.0)
                 .unwrap()
                 .distance_to(Point3D::new(0.0, 0.0, 1.0))
-                < 1e-12
+                < TOLERANCE_F64
         );
         let normal = sphere.normal_at(u, 1.0).unwrap();
         assert!(
-            (normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < 1e-12,
+            (normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < TOLERANCE_F64,
             "u = {u}"
         );
     }
@@ -173,7 +177,7 @@ fn test_normal_at_sphere_pole() {
 fn test_second_partial_derivatives() {
     // 有理曲面の 2 階の偏導関数を、1 階の偏導関数の中心差分と比べる
     let sphere = sphere_octant();
-    let (u, v, h) = (0.3, 0.4, 1e-5);
+    let (u, v, h) = (0.3, 0.4, FINITE_DIFFERENCE_STEP_F64);
     let derivatives = sphere.partial_derivatives(u, v, 2);
     let first = |u, v| {
         let d = sphere.partial_derivatives(u, v, 1);
@@ -188,7 +192,7 @@ fn test_second_partial_derivatives() {
         ((v_ahead.1 - v_behind.1) * (0.5 / h), derivatives[0][2]),
     ];
     for (difference, derivative) in expected {
-        assert!((difference - to_vector(derivative)).length() < 1e-6);
+        assert!((difference - to_vector(derivative)).length() < FINITE_DIFFERENCE_TOLERANCE_F64);
     }
 }
 
@@ -208,7 +212,7 @@ fn test_normal_at_degenerate_edge() {
     )
     .unwrap();
     let normal = surface.normal_at(0.0, 0.5).unwrap();
-    assert!((normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < 1e-12);
+    assert!((normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < TOLERANCE_F64);
 
     // v = 1 の辺（定義域の終了側）が 1 点に縮退した曲面でも、近づく側から求めた法線は平面の法線
     let surface = NurbsSurface3D::new(
@@ -226,7 +230,7 @@ fn test_normal_at_degenerate_edge() {
     for u in [0.0, 0.5, 1.0] {
         let normal = surface.normal_at(u, 1.0).unwrap();
         assert!(
-            (normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < 1e-12,
+            (normal.as_vector() - Vector3D::new(0.0, 0.0, 1.0)).length() < TOLERANCE_F64,
             "u = {u}"
         );
     }
@@ -307,8 +311,8 @@ fn test_surface_adaptive_params_plane() {
     assert!(grid.v_params.len() > settings.min_segments as usize);
 
     let ((u_min, u_max), (v_min, v_max)) = surface.parameter_domain();
-    assert!((grid.u_params.first().unwrap() - u_min).abs() < 1e-10);
-    assert!((grid.u_params.last().unwrap() - u_max).abs() < 1e-10);
-    assert!((grid.v_params.first().unwrap() - v_min).abs() < 1e-10);
-    assert!((grid.v_params.last().unwrap() - v_max).abs() < 1e-10);
+    assert!((grid.u_params.first().unwrap() - u_min).abs() < TOLERANCE_F64);
+    assert!((grid.u_params.last().unwrap() - u_max).abs() < TOLERANCE_F64);
+    assert!((grid.v_params.first().unwrap() - v_min).abs() < TOLERANCE_F64);
+    assert!((grid.v_params.last().unwrap() - v_max).abs() < TOLERANCE_F64);
 }

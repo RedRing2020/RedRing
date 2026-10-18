@@ -97,6 +97,9 @@ pub(crate) fn basis_derivatives<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use analysis::test_constants::{
+        FINITE_DIFFERENCE_STEP_F64, FINITE_DIFFERENCE_TOLERANCE_F64, TOLERANCE_F64,
+    };
 
     #[test]
     fn test_basis_derivatives_of_bezier() {
@@ -113,7 +116,7 @@ mod tests {
         ];
         for (row, expected_row) in derivatives.iter().zip(expected) {
             for (value, expected) in row.iter().zip(expected_row) {
-                assert!((value - expected).abs() < 1e-12);
+                assert!((value - expected).abs() < TOLERANCE_F64);
             }
         }
     }
@@ -122,7 +125,7 @@ mod tests {
     fn test_basis_derivatives_with_interior_knot() {
         // 内部ノットを持つ 3 次の基底関数の 1 階・2 階の導関数を、1 つ低い階の中心差分と比べる
         let knots = vec![0.0, 0.0, 0.0, 0.0, 0.4, 1.0, 1.0, 1.0, 1.0];
-        let (span, t, h) = (4, 0.7, 1e-5);
+        let (span, t, h) = (4, 0.7, FINITE_DIFFERENCE_STEP_F64);
         let derivatives = basis_derivatives(span, 3, t, &knots, 2);
         let ahead = basis_derivatives(span, 3, t + h, &knots, 1);
         let behind = basis_derivatives(span, 3, t - h, &knots, 1);
@@ -130,15 +133,15 @@ mod tests {
             for i in 0..4 {
                 let difference = (ahead[k - 1][i] - behind[k - 1][i]) / (2.0 * h);
                 assert!(
-                    (derivatives[k][i] - difference).abs() < 1e-6,
+                    (derivatives[k][i] - difference).abs() < FINITE_DIFFERENCE_TOLERANCE_F64,
                     "k = {k}, i = {i}"
                 );
             }
         }
         // 基底関数の和は 1、導関数の和は 0
-        assert!((derivatives[0].iter().sum::<f64>() - 1.0).abs() < 1e-12);
+        assert!((derivatives[0].iter().sum::<f64>() - 1.0).abs() < TOLERANCE_F64);
         for row in &derivatives[1..] {
-            assert!(row.iter().sum::<f64>().abs() < 1e-12);
+            assert!(row.iter().sum::<f64>().abs() < TOLERANCE_F64);
         }
     }
 }
