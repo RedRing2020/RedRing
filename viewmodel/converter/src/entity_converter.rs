@@ -1,12 +1,8 @@
-use cam_entity::CAMEntity;
 use geo_algorithms::Vector3D;
 use geo_contracts::{ArcEntity3DProperties, CircleEntity3DProperties, LineEntity3DProperties};
 
 use crate::mesh_converter::VertexData;
 use crate::shape_converter::TessellationQuality;
-use crate::toolpath_converter::{
-    toolpath_to_vertices, ToolPathVertices, ToolPathVisualizationSettings,
-};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EntityConvertError {
@@ -140,13 +136,6 @@ where
     E: LineEntity3DProperties<f64>,
 {
     Ok(line_entity_to_vertices(entity))
-}
-
-pub fn cam_entity_to_vertices(
-    entity: &CAMEntity,
-    settings: &ToolPathVisualizationSettings,
-) -> ToolPathVertices {
-    toolpath_to_vertices(entity.toolpath(), settings)
 }
 
 #[cfg(test)]

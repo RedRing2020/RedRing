@@ -1,7 +1,8 @@
 # ViewModel→Model導線再定義設計
 
 **作成日**: 2026年4月9日
-**関連Issue**: #500
+**最終更新**: 2026年10月18日（#857: 用途ごとの経路）
+**関連Issue**: #500, #857
 **ステータス**: 設計整理中
 
 ---
@@ -116,6 +117,33 @@ job はこの直列の内部段階ではなく、
   - 例: entity 一覧取得、topology 検証結果参照、job 状態照会、既存結果の表示用変換
 
 本書で「初期導線」と呼ぶ直列は command 系に対する基本順序であり、query 系は read-only な参照導線として別に扱う。
+
+#### 3.4.1 用途ごとの経路（#857）
+
+ViewModel から Model を呼ぶ経路は、用途で分ける。本節を ViewModel → Model の経路の正本とし、依存関係のルール（`scripts/_arch_rules_data.ps1`）もこれに揃える。
+
+| 用途 | 経路 | 例 |
+|---|---|---|
+| 更新（command） | Application の port | 形状作成・feature 実行（`feature_command_converter`） |
+| ユースケースの実行 | Application | CAM シミュレーションの実行（`cam_orchestration`）、工具の干渉の検査（`cam_inspection`）、ジョブの投入 |
+| 描画用の変換（query） | Model の値型・trait定義と、描画用の計算を直接使う | 形状のテセレーション（`geo_algorithms`）、ツールパスの線分化（`cam_sim`）、ジョブの記録・検証エラー・スナップショットの値型の表示用の変換（`job_domain`・`cam_core`・`cam_sim`） |
+| 表示確認用のデータ | 直接使う | テスト形状のファイル読み込み（`geo_io` の SVG / STL）、fixtures のサンプル |
+
+- 直接使ってよいのは、Model の状態を更新しない読み取りと計算に限る。Model の状態の更新、処理の順序や実行方式（同期 / ジョブ）の選択は ViewModel に持たせず、Application 経由にする
+- 読み込んだファイルの形状を Model のエンティティとして取り込むインポートは更新なので、Application 経由にする
+- 描画用の変換でも、複数の Model のクレートにまたがる処理の組み立てが必要になった場合は、Application の query として用意する
+- `geo_contracts` の trait定義・値型は、DTO に置き換えず直接使う
+- 描画用の計算を Application で中継するだけの関数は置かない（`GEO_API_ADDITION_RULES.md` の、呼び出し元のない API・別名を置かない方針）
+
+依存関係のルールで ViewModel に許可する Model のクレート:
+
+| クレート | 許可する依存 |
+|---|---|
+| `viewmodel` | `application`、`geo_contracts`・`geo_algorithms`（描画用の変換）、`geo_io`（表示確認用の読み込み）、`cam_core`・`cam_sim`・`job_domain`（値型と描画用の変換） |
+| `viewmodel-cam-demo` | `application`（シミュレーションの実行）、`cam_core`（fixtures）、`cam_sim`（スナップショットの間隔の値型）、`geo_algorithms` |
+| `viewmodel-graphics` | なし（`analysis` のみ） |
+
+`cam_entity` への依存は持たない。CAM のエンティティを Model に持つようになった時点で、Application 経由でつなぐ。
 
 ### 3.5 描画導線は 2D / 3D を分離して扱う
 
