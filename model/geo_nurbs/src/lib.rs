@@ -37,8 +37,5 @@ pub use knot::{
 pub use nurbs_curve_2d::NurbsCurve2D;
 pub use nurbs_curve_3d::NurbsCurve3D;
 pub use nurbs_surface_3d::NurbsSurface3D;
-pub use operations::{
-    DegreeElevateResult2D, DegreeElevateResult3D, DegreeElevation, KnotInsertResult2D,
-    KnotInsertResult3D, KnotInsertion,
-};
+pub use operations::{KnotInsertResult2D, KnotInsertResult3D, KnotInsertion};
 pub use weight_storage::WeightStorage;

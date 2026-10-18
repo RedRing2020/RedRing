@@ -54,7 +54,6 @@ model/geo_contracts/src/geometry/foundation/metadata.rs:primitive_kind
 
 # NURBS の編集の中核のアルゴリズム（ノット挿入・次数上げ）
 model/geo_nurbs/src/operations/knot_insertion.rs:insert_knot_2d
-model/geo_nurbs/src/operations/degree_elevation.rs:elevate_degree_2d
 
 # 位相データの基本の取得と、設計途中の検査・生成
 model/geo_topology/src/topology_core.rs:value

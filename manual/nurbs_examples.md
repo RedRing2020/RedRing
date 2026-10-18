@@ -53,12 +53,9 @@ let normal = surface.normal_at(0.5, 0.5);
 ## NURBS 変換操作
 
 ```rust
-use geo_nurbs::{DegreeElevation, KnotInsertion};
+use geo_nurbs::KnotInsertion;
 
 let (new_points, new_weights, new_knots) =
     KnotInsertion::insert_knot_2d(&control_points, &weights, &knots, degree, 0.5)?;
-
-let (elev_points, elev_weights, elev_knots, new_degree) =
-    DegreeElevation::elevate_degree_2d(&control_points, &weights, &knots, degree)?;
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
