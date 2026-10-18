@@ -63,7 +63,7 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 - **NurbsCurve2D/3D**: メモリ最適化されたNURBS曲線実装
 - **NurbsSurface3D**: 双方向パラメトリックNURBSサーフェス
 - **基底関数計算**: Cox-de Boorアルゴリズムによる高効率B-スプライン基底関数
-- **変換操作**: ノット挿入、次数上昇、曲線分割
+- **変換操作**: ノット挿入、曲線分割
 - **Foundation統合**: ExtensionFoundation完全対応
 - **型安全性**: Scalarトレイト境界による数値型抽象化
 - **エラーハンドリング**: 包括的NurbsErrorによる堅牢性

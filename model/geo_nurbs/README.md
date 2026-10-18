@@ -212,7 +212,6 @@ geo_nurbs/src/
 ├── surface_3d_transform.rs      # NurbsSurface3D - Transform実装
 │
 └── operations/                  # NURBS編集操作
-    ├── degree_elevation.rs      # 次数上昇
     ├── knot_insertion.rs        # ノット挿入
     └── knot_removal.rs          # ノット削除
 ```

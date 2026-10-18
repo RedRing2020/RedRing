@@ -35,7 +35,7 @@ model/geo_nurbs/
 ├── curve_3d.rs          # 3D NURBS曲線実装
 ├── surface.rs           # 3D NURBSサーフェス実装
 ├── knot.rs              # ノットベクトル操作
-├── transform.rs         # 変換操作（挿入・分割・次数上昇）
+├── transform.rs         # 変換操作（挿入・分割）
 ├── error.rs             # エラー型定義
 ├── weight_storage.rs    # 重み格納方式
 └── foundation_impl.rs   # Foundation trait実装
