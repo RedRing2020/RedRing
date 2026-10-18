@@ -1,6 +1,7 @@
 //! SphericalSolid3D の relation 回帰テスト
 
 use crate::{Point3D, SphericalSolid3D};
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, SphericalSolid3DConstructor};
 
 #[test]
@@ -24,7 +25,7 @@ fn test_closest_point() {
         sphere
             .closest_point(Point3D::new(5.0, 0.0, 0.0))
             .distance_to(Point3D::new(3.0, 0.0, 0.0))
-            < 1e-12
+            < TOLERANCE_F64
     );
     let inside = Point3D::new(1.5, 0.5, 0.0);
     assert_eq!(sphere.closest_point(inside), inside);

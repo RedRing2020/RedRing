@@ -1,6 +1,7 @@
 //! EllipseArc3D のテスト
 
 use crate::{Direction3D, EllipseArc3D, Point3D};
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, Bounded, EllipseArc3DConstructor, EllipseArc3DEndpoint, EllipseArc3DEvaluation,
     EllipseArc3DProperties,
@@ -24,7 +25,7 @@ fn create_test_ellipse_arc() -> EllipseArc3D<f64> {
 fn test_ellipse_arc_creation() {
     let ellipse_arc = create_test_ellipse_arc();
 
-    let tolerance = 1e-10_f64;
+    let tolerance = TOLERANCE_F64;
     assert!(
         ellipse_arc
             .center()
@@ -44,9 +45,9 @@ fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
 
     let mid_from_parameter = ellipse_arc.point_at_parameter(0.5);
     let mid_from_angle = ellipse_arc.point_at_angle(Angle::from_degrees(90.0));
-    assert!(mid_from_parameter.distance_to(mid_from_angle) < 1e-10);
+    assert!(mid_from_parameter.distance_to(mid_from_angle) < TOLERANCE_F64);
     // パラメータ角 90° は短軸方向の端
-    assert!(mid_from_angle.distance_to(Point3D::new(2.0, 5.0, 1.0)) < 1e-10);
+    assert!(mid_from_angle.distance_to(Point3D::new(2.0, 5.0, 1.0)) < TOLERANCE_F64);
 }
 
 #[test]
@@ -55,14 +56,17 @@ fn test_aabb_contains_arc_and_touches_extremes() {
     let aabb = ellipse_arc.aabb().unwrap();
 
     // 45°〜135° は短軸方向の端（y 最大）を含む
-    assert!((aabb.max().y() - 5.0).abs() < 1e-10);
-    assert!((aabb.min().x() - ellipse_arc.end_point().x()).abs() < 1e-10);
-    assert!((aabb.max().x() - ellipse_arc.start_point().x()).abs() < 1e-10);
-    assert!((aabb.min().z() - 1.0).abs() < 1e-10 && (aabb.max().z() - 1.0).abs() < 1e-10);
+    assert!((aabb.max().y() - 5.0).abs() < TOLERANCE_F64);
+    assert!((aabb.min().x() - ellipse_arc.end_point().x()).abs() < TOLERANCE_F64);
+    assert!((aabb.max().x() - ellipse_arc.start_point().x()).abs() < TOLERANCE_F64);
+    assert!(
+        (aabb.min().z() - 1.0).abs() < TOLERANCE_F64
+            && (aabb.max().z() - 1.0).abs() < TOLERANCE_F64
+    );
     for i in 0..=100 {
         let p = ellipse_arc.point_at_parameter(f64::from(i) / 100.0);
-        assert!(p.y() <= aabb.max().y() + 1e-12 && p.y() >= aabb.min().y() - 1e-12);
-        assert!(p.x() <= aabb.max().x() + 1e-12 && p.x() >= aabb.min().x() - 1e-12);
+        assert!(p.y() <= aabb.max().y() + TOLERANCE_F64 && p.y() >= aabb.min().y() - TOLERANCE_F64);
+        assert!(p.x() <= aabb.max().x() + TOLERANCE_F64 && p.x() >= aabb.min().x() - TOLERANCE_F64);
     }
 }
 

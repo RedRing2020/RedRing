@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::{Point3D, Triangle3D};
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 
 #[test]
@@ -40,9 +41,9 @@ fn test_triangle_normal() {
     let normal = triangle.normal();
 
     // XY平面の三角形なので法線はZ方向
-    assert!((normal.z() - 1.0).abs() < 1e-10);
-    assert!(normal.x().abs() < 1e-10);
-    assert!(normal.y().abs() < 1e-10);
+    assert!((normal.z() - 1.0).abs() < TOLERANCE_F64);
+    assert!(normal.x().abs() < TOLERANCE_F64);
+    assert!(normal.y().abs() < TOLERANCE_F64);
 }
 
 #[test]

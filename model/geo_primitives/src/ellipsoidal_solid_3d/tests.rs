@@ -1,6 +1,7 @@
 //! EllipsoidalSolid3D のテスト
 
 use super::*;
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata};
 
 #[test]
@@ -112,9 +113,9 @@ fn test_bbox_rotated_is_tight() {
     // 各座標軸方向の広がりは √((2 cos45°)² + (1 sin45°)²) = √2.5
     let bbox = solid.aabb().unwrap();
     let extent = 2.5_f64.sqrt();
-    assert!((bbox.max().x() - extent).abs() < 1e-12);
-    assert!((bbox.max().y() - extent).abs() < 1e-12);
-    assert!((bbox.max().z() - 1.0).abs() < 1e-12);
+    assert!((bbox.max().x() - extent).abs() < TOLERANCE_F64);
+    assert!((bbox.max().y() - extent).abs() < TOLERANCE_F64);
+    assert!((bbox.max().z() - 1.0).abs() < TOLERANCE_F64);
 }
 
 #[test]
@@ -127,12 +128,14 @@ fn test_closest_point() {
         ellipsoid
             .closest_point(Point3D::new(5.0, 0.0, 1.0))
             .distance_to(Point3D::new(3.0, 0.0, 1.0))
-            < 1e-12
+            < TOLERANCE_F64
     );
     // 一般の外部の点: 最近点までの距離が立体までの距離と一致する
     let point = Point3D::new(2.0, 2.0, 2.5);
     let closest = ellipsoid.closest_point(point);
-    assert!((closest.distance_to(point) - ellipsoid.distance_to_point(point)).abs() < 1e-12);
+    assert!(
+        (closest.distance_to(point) - ellipsoid.distance_to_point(point)).abs() < TOLERANCE_F64
+    );
     // 内部の点はその点
     let inside = Point3D::new(0.5, 0.5, 1.0);
     assert_eq!(ellipsoid.closest_point(inside), inside);

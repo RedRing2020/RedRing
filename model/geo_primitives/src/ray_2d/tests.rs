@@ -1,6 +1,7 @@
 //! Ray2D のテスト
 
 use crate::{Point2D, Ray2D, Vector2D};
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Ray2DConstructor, Ray2DContainment, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
 };
@@ -8,7 +9,7 @@ use geo_contracts::{
 #[test]
 fn test_distance_to_point() {
     let ray = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
-    let tolerance = 1e-3;
+    let tolerance = geo_contracts::default_distance_tolerance::<f64>();
 
     assert!(ray.distance_to_point(Point2D::new(5.0, 0.0)) <= tolerance);
     assert!(ray.distance_to_point(Point2D::new(5.0, 0.5 * tolerance)) <= tolerance);
@@ -37,14 +38,14 @@ fn test_closest_point() {
     assert!(
         ray.closest_point(Point2D::new(3.0, 4.0))
             .distance_to(Point2D::new(1.0, 4.0))
-            < 1e-12
+            < TOLERANCE_F64
     );
     assert!(
         ray.closest_point(Point2D::new(3.0, -2.0))
             .distance_to(Point2D::new(1.0, 1.0))
-            < 1e-12
+            < TOLERANCE_F64
     );
 
     // parameter_for_point は起点の後方で負の値を返す
-    assert!((ray.parameter_for_point(Point2D::new(3.0, -2.0)) + 3.0).abs() < 1e-12);
+    assert!((ray.parameter_for_point(Point2D::new(3.0, -2.0)) + 3.0).abs() < TOLERANCE_F64);
 }

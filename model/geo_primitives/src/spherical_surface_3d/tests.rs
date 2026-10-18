@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::Point3D;
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Bounded, PrimitiveKind, PrimitiveMetadata, SphericalSurface3DConstructor,
     SphericalSurface3DEvaluation,
@@ -33,8 +34,8 @@ fn test_point_at_uv_is_longitude_and_latitude() {
         (0.0, -FRAC_PI_2, Point3D::new(1.0, 2.0, 1.0)),
     ];
     for (u, v, expected) in cases {
-        assert!(surface.point_at_uv(u, v).distance_to(expected) < 1e-12);
+        assert!(surface.point_at_uv(u, v).distance_to(expected) < TOLERANCE_F64);
         let normal = surface.normal_at(u, v).as_vector();
-        assert!((normal - (expected - Point3D::new(1.0, 2.0, 3.0)) / 2.0).length() < 1e-12);
+        assert!((normal - (expected - Point3D::new(1.0, 2.0, 3.0)) / 2.0).length() < TOLERANCE_F64);
     }
 }

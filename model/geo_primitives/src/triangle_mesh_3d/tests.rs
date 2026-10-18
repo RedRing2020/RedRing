@@ -1,6 +1,7 @@
 //! TriangleMesh3D のテスト
 
 use crate::{Point3D, TriangleMesh3D};
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq, Triangle3DBoundaryAccess,
     TriangleMesh3DConstructor, TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,
@@ -194,7 +195,7 @@ fn test_normals_stay_unit_after_similarity_transform() {
     };
     let moved = mesh.transform_similarity(&transform).unwrap();
     let normal = moved.normals.unwrap()[0];
-    assert!((normal - Vector3D::new(0.0, 1.0, 0.0)).length() < 1e-10);
+    assert!((normal - Vector3D::new(0.0, 1.0, 0.0)).length() < TOLERANCE_F64);
 }
 
 #[test]

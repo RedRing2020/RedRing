@@ -41,7 +41,10 @@ impl<T: Scalar> Bounded<T> for EllipseArc2D<T> {
 #[cfg(test)]
 mod tests {
     use crate::{EllipseArc2D, Point2D};
-    use geo_contracts::{Angle, Bounded, EllipseArc2DConstructor, EllipseArc2DEvaluation};
+    use analysis::test_constants::TOLERANCE_F64;
+    use geo_contracts::{
+        default_distance_tolerance, Angle, Bounded, EllipseArc2DConstructor, EllipseArc2DEvaluation,
+    };
 
     #[test]
     fn aabb_contains_every_point_of_rotated_arc() {
@@ -56,18 +59,21 @@ mod tests {
         .unwrap();
         let aabb = arc.aabb().unwrap();
 
-        let tolerance = 1e-12;
+        let tolerance = TOLERANCE_F64;
+        // 10000 分割の点の間隔では、端の値の取りこぼしは距離トレランスより小さい
+        let touch_tolerance = default_distance_tolerance::<f64>();
+        let samples = 10_000;
         let mut touches = [false; 4];
-        for i in 0..=1000 {
-            let p = arc.point_at_parameter(f64::from(i) / 1000.0);
+        for i in 0..=samples {
+            let p = arc.point_at_parameter(f64::from(i) / f64::from(samples));
             assert!(p.x() >= aabb.min_point().x() - tolerance);
             assert!(p.x() <= aabb.max_point().x() + tolerance);
             assert!(p.y() >= aabb.min_point().y() - tolerance);
             assert!(p.y() <= aabb.max_point().y() + tolerance);
-            touches[0] |= (p.x() - aabb.min_point().x()).abs() < 1e-4;
-            touches[1] |= (p.x() - aabb.max_point().x()).abs() < 1e-4;
-            touches[2] |= (p.y() - aabb.min_point().y()).abs() < 1e-4;
-            touches[3] |= (p.y() - aabb.max_point().y()).abs() < 1e-4;
+            touches[0] |= (p.x() - aabb.min_point().x()).abs() < touch_tolerance;
+            touches[1] |= (p.x() - aabb.max_point().x()).abs() < touch_tolerance;
+            touches[2] |= (p.y() - aabb.min_point().y()).abs() < touch_tolerance;
+            touches[3] |= (p.y() - aabb.max_point().y()).abs() < touch_tolerance;
         }
         // 境界ボックスは弧に接する（必要以上に大きくない）
         assert!(touches.iter().all(|&t| t));

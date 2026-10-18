@@ -34,7 +34,7 @@ fn test_from_point_and_normal_normalization() {
     let plane = Plane3D::from_point_and_normal(point, normal).unwrap();
 
     // 法線ベクトルが正規化されているかチェック
-    assert_relative_eq!(plane.normal().length(), 1.0, epsilon = 1e-10);
+    assert_relative_eq!(plane.normal().length(), 1.0, epsilon = TOLERANCE_F64);
     assert_relative_eq!(plane.normal().x(), 0.6); // 3/5
     assert_relative_eq!(plane.normal().y(), 0.8); // 4/5
     assert_relative_eq!(plane.normal().z(), 0.0);
@@ -49,9 +49,9 @@ fn test_from_three_points() {
     let plane = Plane3D::from_three_points(p1, p2, p3).unwrap();
 
     // XY平面になるはず
-    assert_relative_eq!(plane.normal().x(), 0.0, epsilon = 1e-10);
-    assert_relative_eq!(plane.normal().y(), 0.0, epsilon = 1e-10);
-    assert_relative_eq!(plane.normal().z(), 1.0, epsilon = 1e-10);
+    assert_relative_eq!(plane.normal().x(), 0.0, epsilon = TOLERANCE_F64);
+    assert_relative_eq!(plane.normal().y(), 0.0, epsilon = TOLERANCE_F64);
+    assert_relative_eq!(plane.normal().z(), 1.0, epsilon = TOLERANCE_F64);
 }
 
 #[test]

@@ -1,6 +1,7 @@
 //! EllipseArc2D のテスト
 
 use crate::{EllipseArc2D, Point2D};
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Angle, EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DDerived,
     EllipseArc2DDistance, EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties,
@@ -26,22 +27,22 @@ fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
 
     let point_from_parameter = ellipse_arc.point_at_parameter(0.5);
     let point_from_angle = ellipse_arc.point_at_angle(Angle::from_degrees(45.0));
-    assert!(point_from_parameter.distance_to(point_from_angle) < 1e-10);
+    assert!(point_from_parameter.distance_to(point_from_angle) < TOLERANCE_F64);
 
     assert!(
         ellipse_arc
             .start_point()
             .distance_to(Point2D::new(6.0, 3.0))
-            < 1e-10
+            < TOLERANCE_F64
     );
-    assert!(ellipse_arc.end_point().distance_to(Point2D::new(2.0, 5.0)) < 1e-10);
+    assert!(ellipse_arc.end_point().distance_to(Point2D::new(2.0, 5.0)) < TOLERANCE_F64);
 }
 
 #[test]
 fn test_range_crossing_zero_goes_counterclockwise() {
     // 300° から反時計回りに 60° まで（掃引角 120°）
     let crossing = arc(300.0, 60.0);
-    assert!((crossing.angle_span().to_degrees() - 120.0).abs() < 1e-10);
+    assert!((crossing.angle_span().to_degrees() - 120.0).abs() < TOLERANCE_F64);
     assert!(crossing.contains_angle(Angle::from_degrees(0.0)));
     assert!(!crossing.contains_angle(Angle::from_degrees(180.0)));
     // t=0.5 はパラメータ角 0 の点
@@ -49,11 +50,14 @@ fn test_range_crossing_zero_goes_counterclockwise() {
         crossing
             .point_at_parameter(0.5)
             .distance_to(Point2D::new(6.0, 3.0))
-            < 1e-10
+            < TOLERANCE_F64
     );
     // 長軸について対称な範囲なので、0° から 60° までの長さの 2 倍
     let upper = arc(0.0, 60.0);
-    assert!((crossing.length() - 2.0 * upper.length()).abs() < 1e-9);
+    assert!(
+        (crossing.length() - 2.0 * upper.length()).abs()
+            <= geo_contracts::default_distance_tolerance()
+    );
 }
 
 #[test]
@@ -65,7 +69,7 @@ fn test_distance_and_containment() {
     // 角度範囲外の楕円上の点は、近い端点までの距離
     let outside = Point2D::new(-2.0, 3.0);
     assert!(!ellipse_arc.contains_point(outside));
-    assert!((ellipse_arc.distance_to_point(outside) - 20.0_f64.sqrt()).abs() < 1e-10);
+    assert!((ellipse_arc.distance_to_point(outside) - 20.0_f64.sqrt()).abs() < TOLERANCE_F64);
 }
 
 /// 楕円全体の最近点が範囲外でも、範囲内に距離の極小点があればその点までの距離になる
@@ -75,7 +79,7 @@ fn test_distance_uses_local_minimum_inside_the_range() {
     let lower_half = arc(180.0, 360.0);
     let point = Point2D::new(2.0, 4.0);
     // 下側の短軸の端 (2, 1) が範囲内の最近点
-    assert!((lower_half.distance_to_point(point) - 3.0).abs() < 1e-12);
+    assert!((lower_half.distance_to_point(point) - 3.0).abs() < TOLERANCE_F64);
 }
 
 /// 楕円（長半軸 a・短半軸 b）のパラメータ start から end までの弧長（細かく分割したシンプソン則）

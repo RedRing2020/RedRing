@@ -1,6 +1,7 @@
 //! ConicalSurface3D のテスト
 
 use super::*;
+use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata};
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 
@@ -16,7 +17,7 @@ fn test_creation_and_properties() {
     assert_eq!(cone.center(), Point3D::origin());
     assert_eq!(cone.radius(), 1.0);
     assert_eq!(cone.semi_angle(), Angle::from_radians(FRAC_PI_4));
-    assert!(cone.apex().distance_to(Point3D::new(0.0, 0.0, -1.0)) < 1e-12);
+    assert!(cone.apex().distance_to(Point3D::new(0.0, 0.0, -1.0)) < TOLERANCE_F64);
 }
 
 #[test]
@@ -39,7 +40,7 @@ fn test_point_at_uv() {
         (0.0, -3.0, Point3D::new(-2.0, 0.0, -3.0)),
     ];
     for (u, v, expected) in cases {
-        assert!(cone.point_at_uv(u, v).distance_to(expected) < 1e-12);
+        assert!(cone.point_at_uv(u, v).distance_to(expected) < TOLERANCE_F64);
     }
 }
 
@@ -50,11 +51,11 @@ fn test_normal_at() {
 
     // 母線に直交し、径方向に外向き
     let normal = cone.normal_at(0.0, 0.0).unwrap().as_vector();
-    assert!((normal - Vector3D::new(s, 0.0, -s)).length() < 1e-12);
+    assert!((normal - Vector3D::new(s, 0.0, -s)).length() < TOLERANCE_F64);
 
     // 頂点の反対側の円錐でも、∂u × ∂v の向き（その点での径方向に外向き）
     let normal = cone.normal_at(0.0, -3.0).unwrap().as_vector();
-    assert!((normal - Vector3D::new(-s, 0.0, s)).length() < 1e-12);
+    assert!((normal - Vector3D::new(-s, 0.0, s)).length() < TOLERANCE_F64);
 
     // 頂点では定まらない
     assert!(cone.normal_at(PI, -1.0).is_none());
@@ -79,7 +80,7 @@ fn test_distance_to_point() {
     ];
     for (point, expected) in cases {
         assert!(
-            (cone.distance_to_point(point) - expected).abs() < 1e-12,
+            (cone.distance_to_point(point) - expected).abs() < TOLERANCE_F64,
             "{point:?}"
         );
     }
