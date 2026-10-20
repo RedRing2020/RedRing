@@ -237,7 +237,7 @@ CAM では、用途を次の 3 種に分けてトレランスを選択する。
 - `NotReady`（満たさない条件をすべて返す）: ツールパスが空、切削セグメントがない、工具の ID がツールパスと一致しない、工具の種類に対応していない（フラット・ボールエンドミルのみ）、精度が素材の表現で達成できない
 - 機械制約とポスト由来の加工条件（回避高さ・速度設定）は、設定する経路ができた時点で必須の受理条件に加える。それまでは機械制約が未設定でも本番の導線で実行する
 
-精度から素材の Octree の深さを「最も深いボクセルの大きさ（最大の辺の長さ / 2^深さ）≦ 精度」となる最小の深さとして求める。深さの上限（`cam_sim` の `STOCK_OCTREE_MAX_DEPTH`）は、現在の Octree（状態のみを持つボクセル）の暫定の制約であり、大きな素材で高い精度を扱う素材の表現の設計で見直す。
+精度から素材の Octree の深さを「最も深いボクセルの大きさ（最大の辺の長さ / 2^深さ）≦ 精度」となる最小の深さとして求める。深さの上限（`cam_sim` の `STOCK_OCTREE_MAX_DEPTH`）は、現在の Octree（状態のみを持つボクセル）の暫定の制約である。`CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md`（#886）の段階 1 で素材の正本を掃引プリミティブの列にした時点で、深さの上限と「精度が達成できない」の条件を削除し、精度は判定の許容誤差として使う。
 
 #### 本番導線で先に固定する前提
 
@@ -346,6 +346,8 @@ CAM では、用途を次の 3 種に分けてトレランスを選択する。
 ### SAT-Cut 内部表現（Voxel/Octree非正本）
 
 高精度方式を評価するため、ワーク形状の正本を Voxel/Octree から分離する。
+
+> 本節の方針を本番化する設計（正本の空間索引・派生表現のトリデクセル・履歴によるスナップショット・段階）は `CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md`（#886）を正本とする。
 
 #### 目的
 
@@ -493,6 +495,7 @@ Issue #728 の既定化判断およびロールバック判断は、次の3指�
 - [OCTREE_DESIGN.md](./OCTREE_DESIGN.md) - Octree基本設計
 - [CAM_VISUALIZATION_REQUIREMENTS.md](./CAM_VISUALIZATION_REQUIREMENTS.md) - CAM可視化要求
 - [CAM_CRATE_DESIGN_PROPOSAL.md](./CAM_CRATE_DESIGN_PROPOSAL.md) - cam_core設計
+- [CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md](./CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md) - 素材の表現（正本・派生表現・スナップショット・段階）
 
 ---
 
