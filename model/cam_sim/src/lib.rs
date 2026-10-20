@@ -5,9 +5,12 @@
 //! Phase 1a では 3軸固定・フラットエンドミル限定の最小実装を提供します。
 //! あわせて SAT-Cut PoC の ExactWork API を併存公開します（設計: CUTTING_SIMULATION_DESIGN.md）。
 
+mod constants;
 mod error;
 mod exact_work;
 mod job_adapter;
+mod preflight;
+mod simulation_input;
 mod simulator;
 mod solver_input;
 mod workflow;
@@ -21,6 +24,10 @@ pub use exact_work::{
 };
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
+/// CuttingSimulation の InputRef -> 素材・工具・精度の設定の解決境界。
+pub use simulation_input::{
+    CuttingSimulationInput, CuttingSimulationInputProvider, InMemoryCuttingSimulationInputStore,
+};
 /// シミュレーション実行APIとスナップショット関連型。
 pub use simulator::{
     CuttingSimulator, HybridGateConfig, HybridGateMetrics, PathPosition, SimulationSnapshot,
