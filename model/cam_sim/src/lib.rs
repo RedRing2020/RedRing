@@ -2,26 +2,21 @@
 //!
 //! CAMドメインのシミュレーション実行責務を提供します。
 //! 幾何計算カーネルは `geo_algorithms` に委譲します。
-//! Phase 1a では 3軸固定・フラットエンドミル限定の最小実装を提供します。
-//! あわせて SAT-Cut PoC の ExactWork API を併存公開します（設計: CUTTING_SIMULATION_DESIGN.md）。
+//! 3 軸固定で、フラット・ボールエンドミルを扱います。
+//! 素材の正本は工具の掃引プリミティブの列で表します（設計: CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md）。
 
 mod constants;
 mod error;
-mod exact_work;
 mod job_adapter;
 mod preflight;
 mod simulation_input;
 mod simulator;
 mod solver_input;
+mod stock_model;
 mod workflow;
 
 /// シミュレーション実行時のエラー型。
 pub use error::SimulationError;
-/// SAT-Cut PoC向けのExactWork trait定義・プリミティブ型・PoC実装。
-pub use exact_work::{
-    ExactToolPrimitive, ExactWorkError, ExactWorkModel, ExactWorkProjectionCache,
-    PrimitiveSetExactWork,
-};
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
 /// CuttingSimulation の InputRef -> 素材・工具・精度の設定の解決境界。
@@ -30,15 +25,15 @@ pub use simulation_input::{
 };
 /// シミュレーション実行APIとスナップショット関連型。
 pub use simulator::{
-    CuttingSimulator, HybridGateConfig, HybridGateMetrics, PathPosition, SimulationSnapshot,
-    SimulationSnapshotExport, SnapshotInterval, collect_toolpath_line_segments,
-    collect_toolpath_line_segments_with_arc_options, run_hybrid_gate_case,
-    run_hybrid_gate_case_with_config,
+    CuttingSimulator, PathPosition, SimulationSnapshot, SimulationSnapshotExport, SnapshotInterval,
+    collect_toolpath_line_segments, collect_toolpath_line_segments_with_arc_options,
 };
 /// CamProcess の InputRef -> solver 入力解決境界。
 pub use solver_input::{
     CAM_INPUT_DOMAIN, CamSolverInputProvider, InMemoryCamSolverInputStore, validate_cam_input_ref,
 };
+/// 素材の正本（初期素材と工具の掃引プリミティブの列）。
+pub use stock_model::StockModel;
 /// CAM工程向けワークフロー制約ファサード。
 pub use workflow::{CamWorkflowError, CamWorkflowSubmitter};
 

@@ -81,8 +81,8 @@
 
 ## 7. 既存のコードへの影響
 
-- `cam_sim::PrimitiveSetExactWork`・`ExactWorkModel` は、段階 1 の正本で置き換える
-- `run_hybrid_gate_case`・`run_hybrid_gate_case_with_config`（Voxel と ExactWork の比較）は、Voxel を使わなくなった時点で役割を終える。正本と派生表現の検証に置き換える
+- `cam_sim::PrimitiveSetExactWork`・`ExactWorkModel` は、段階 1 の正本（`cam_sim::StockModel`。#888）で置き換えた
+- `run_hybrid_gate_case`・`run_hybrid_gate_case_with_config`（Voxel と ExactWork の比較）は、方式を決めるための検証で、本書で方式を決めたため #888 で削除した。試作と Voxel はどちらもフラットエンドミルを「移動の経路を軸とする円柱」として扱っていた（水平の移動で横向きの円柱を除去する）ため、比較では一致していた。正本は工具軸 +Z の工具を刃長まで掃引する
 - `geo_algorithms` の `VoxelOctree` は、`cam_sim` 以外の用途（Octree の表示の確認等）の有無を確認して扱いを決める
 - `viewmodel` の `cam_sim_visualization_converter` が行っている材料除去の再生（`apply_cutting_progress`）は、#882 で成果物の変換に置き換える
 

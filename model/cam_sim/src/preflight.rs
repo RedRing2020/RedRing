@@ -65,7 +65,8 @@ pub(crate) fn preflight_cutting_simulation(
         return Err(PreflightFailure::InvalidInput(InvalidInputReason::Stock));
     }
     let tool = &input.tool;
-    if !(tool.radius().is_finite() && tool.radius() > 0.0) || !tool.validate_parameters() {
+    let positive = |value: f64| value.is_finite() && value > 0.0;
+    if !positive(tool.radius()) || !positive(tool.cutting_length) || !tool.validate_parameters() {
         return Err(PreflightFailure::InvalidInput(InvalidInputReason::Tool));
     }
     if !(input.precision.is_finite() && input.precision > 0.0) {
@@ -283,8 +284,13 @@ mod tests {
             },
             ..input(1.0)
         };
+        let no_cutting_length = CuttingSimulationInput {
+            tool: Tool::flat_end_mill("EM2".to_string(), 2.0, 0.0),
+            ..input(1.0)
+        };
         for (value, reason) in [
             (flat_stock, InvalidInputReason::Stock),
+            (no_cutting_length, InvalidInputReason::Tool),
             (input(0.0), InvalidInputReason::Precision),
             (input(f64::INFINITY), InvalidInputReason::Precision),
             (invalid_interval, InvalidInputReason::SnapshotInterval),

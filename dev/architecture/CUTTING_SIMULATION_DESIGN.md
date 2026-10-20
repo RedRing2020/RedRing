@@ -347,7 +347,7 @@ CAM では、用途を次の 3 種に分けてトレランスを選択する。
 
 高精度方式を評価するため、ワーク形状の正本を Voxel/Octree から分離する。
 
-> 本節の方針を本番化する設計（正本の空間索引・派生表現のトリデクセル・履歴によるスナップショット・段階）は `CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md`（#886）を正本とする。
+> 本節の方針を本番化する設計（正本の空間索引・派生表現のトリデクセル・履歴によるスナップショット・段階）は `CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md`（#886）を正本とする。正本は `cam_sim::StockModel`（#888）として実装し、本節の PoC（`PrimitiveSetExactWork`）とハイブリッド判定（`run_hybrid_gate_case` 等・3 指標）は削除した。以下は当時の検証の記録である。
 
 #### 目的
 
