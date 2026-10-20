@@ -19,7 +19,7 @@ use bvh::BoundingVolumeHierarchy;
 
 /// 掃引する工具の形（3 軸。工具軸は +Z、高さは工具の先端から測る）
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum SweptToolShape {
+pub(crate) enum SweptToolShape {
     /// 先端から刃長までの円柱
     FlatEndMill { radius: f64, cutting_length: f64 },
     /// 先端の球と、球の中心から刃長までの円柱（刃長が直径より短い場合も、球の全体を工具に含める）
@@ -28,15 +28,17 @@ enum SweptToolShape {
 
 /// 工具の先端が線分に沿って直線移動したときの掃引体
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct SweptToolPrimitive {
-    start: Point3D<f64>,
-    end: Point3D<f64>,
-    shape: SweptToolShape,
+pub(crate) struct SweptToolPrimitive {
+    /// 移動の始点の工具の先端
+    pub(crate) start: Point3D<f64>,
+    /// 移動の終点の工具の先端
+    pub(crate) end: Point3D<f64>,
+    pub(crate) shape: SweptToolShape,
 }
 
 impl SweptToolPrimitive {
     /// 掃引体の包含箱（移動の両端の工具の包含箱の和）
-    fn bounds(&self) -> Aabb3D<f64> {
+    pub(crate) fn bounds(&self) -> Aabb3D<f64> {
         let (radius, top) = match self.shape {
             SweptToolShape::FlatEndMill {
                 radius,
@@ -63,7 +65,7 @@ impl SweptToolPrimitive {
     }
 
     /// 点が掃引体に含まれるか
-    fn contains(&self, point: Point3D<f64>) -> bool {
+    pub(crate) fn contains(&self, point: Point3D<f64>) -> bool {
         match self.shape {
             SweptToolShape::FlatEndMill {
                 radius,
@@ -147,7 +149,7 @@ impl SweptToolPrimitive {
         distance_squared <= radius * radius
     }
 
-    fn direction(&self) -> [f64; 3] {
+    pub(crate) fn direction(&self) -> [f64; 3] {
         [
             self.end.x() - self.start.x(),
             self.end.y() - self.start.y(),
@@ -206,6 +208,16 @@ impl StockModel {
             hierarchy: BoundingVolumeHierarchy::build(&bounds),
             primitives,
         })
+    }
+
+    /// 素材（直方体）
+    pub(crate) fn stock(&self) -> Aabb3D<f64> {
+        self.stock
+    }
+
+    /// 掃引体の時系列
+    pub(crate) fn primitives(&self) -> &[SweptToolPrimitive] {
+        &self.primitives
     }
 
     /// 点が残った材料の内部か（境界を含む素材に含まれ、どの掃引体にも含まれない）

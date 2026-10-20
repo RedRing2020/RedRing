@@ -13,6 +13,7 @@ mod simulation_input;
 mod simulator;
 mod solver_input;
 mod stock_model;
+mod tri_dexel;
 mod workflow;
 
 /// シミュレーション実行時のエラー型。
@@ -34,6 +35,8 @@ pub use solver_input::{
 };
 /// 素材の正本（初期素材と工具の掃引プリミティブの列）。
 pub use stock_model::StockModel;
+/// 素材の派生表現のトリデクセル（変化の履歴つき）。
+pub use tri_dexel::TriDexelModel;
 /// CAM工程向けワークフロー制約ファサード。
 pub use workflow::{CamWorkflowError, CamWorkflowSubmitter};
 
