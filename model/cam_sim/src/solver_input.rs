@@ -56,13 +56,21 @@ impl CamSolverInputProvider for InMemoryCamSolverInputStore {
 
 /// `input://cam/<name>...` 形式であることを検証する。
 pub fn validate_cam_input_ref(input_ref: &str) -> Result<(), RefValidationError> {
+    validate_input_ref(input_ref, CAM_INPUT_DOMAIN)
+}
+
+/// `input://<domain>/<name>...` 形式であることを検証する。
+pub(crate) fn validate_input_ref(
+    input_ref: &str,
+    expected_domain: &str,
+) -> Result<(), RefValidationError> {
     let parsed = RefParser::parse_input(input_ref)?;
     let segments = parsed.segments();
     match segments.first() {
-        Some(domain) if domain == CAM_INPUT_DOMAIN => {}
+        Some(domain) if domain == expected_domain => {}
         Some(domain) => {
             return Err(RefValidationError::DomainMismatch {
-                expected: CAM_INPUT_DOMAIN.to_string(),
+                expected: expected_domain.to_string(),
                 actual: domain.clone(),
             });
         }

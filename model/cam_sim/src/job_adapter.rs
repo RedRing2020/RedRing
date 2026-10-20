@@ -4,48 +4,65 @@ use std::time::Instant;
 
 use cam_algorithms::{CamSolverError, solve_toolpath};
 use cam_core::{
-    ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, LengthUnit, Tool, ToolPath,
+    ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, LengthUnit, ToolPath,
     read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
 #[cfg(any(test, debug_assertions))]
 use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType};
-use geo_algorithms::{Aabb3D, Point3D};
+#[cfg(any(test, debug_assertions))]
+use geo_algorithms::Point3D;
+use geo_algorithms::octree::VoxelOctree;
 use job_runtime::{
     JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType, RefFactory, RefParser,
     RefValidationError,
 };
 
+use crate::CuttingSimulator;
+use crate::preflight::{PreflightFailure, preflight_cutting_simulation};
+use crate::simulation_input::{CuttingSimulationInputProvider, validate_sim_input_ref};
 use crate::solver_input::{CamSolverInputProvider, validate_cam_input_ref};
-use crate::{HybridGateConfig, HybridGateMetrics, run_hybrid_gate_case_with_config};
 
 /// cam_sim から JobManager へ接続するアダプタ
 ///
 /// CamProcess は `CamSolverInputProvider` で `InputRef` を solver 入力へ解決し、
 /// `cam_algorithms::solve_toolpath` の結果を `toolpath` artifact として返す。
+/// CuttingSimulation は `CuttingSimulationInputProvider` で `InputRef` を素材・工具・精度の設定へ解決し、
+/// 親の CamProcess の `toolpath` artifact を Preflight 判定のうえで実行する。
 #[derive(Clone, Default)]
 pub struct CamJobExecutorAdapter {
     input_provider: Option<Arc<dyn CamSolverInputProvider>>,
+    simulation_input_provider: Option<Arc<dyn CuttingSimulationInputProvider>>,
 }
 
 impl std::fmt::Debug for CamJobExecutorAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CamJobExecutorAdapter")
             .field("input_provider_configured", &self.input_provider.is_some())
+            .field(
+                "simulation_input_provider_configured",
+                &self.simulation_input_provider.is_some(),
+            )
             .finish()
     }
 }
-
-const JOB_SIM_DEFAULT_WORK_MIN: (f64, f64, f64) = (0.0, 0.0, 0.0);
-const JOB_SIM_DEFAULT_WORK_MAX: (f64, f64, f64) = (100.0, 100.0, 100.0);
-const JOB_SIM_DEFAULT_MAX_DEPTH: usize = 4;
-const JOB_SIM_DEFAULT_SAMPLE_PITCH: f64 = 2.0;
 
 impl CamJobExecutorAdapter {
     /// solver 入力 provider を接続したアダプタを作成する。
     pub fn with_input_provider(provider: Arc<dyn CamSolverInputProvider>) -> Self {
         Self {
             input_provider: Some(provider),
+            simulation_input_provider: None,
         }
+    }
+
+    /// 切削シミュレーションの入力 provider を接続する。
+    #[must_use]
+    pub fn with_simulation_input_provider(
+        mut self,
+        provider: Arc<dyn CuttingSimulationInputProvider>,
+    ) -> Self {
+        self.simulation_input_provider = Some(provider);
+        self
     }
 
     fn run_cam_process(&self, job: &JobRecord) -> JobExecutionResult {
@@ -115,136 +132,97 @@ impl CamJobExecutorAdapter {
         job: &JobRecord,
         input_artifact_bytes: Option<&[u8]>,
     ) -> JobExecutionResult {
-        let Some((cam_job_id_from_ref, result_suffix)) = parse_cam_result_ref(&job.spec.input_ref)
-        else {
-            return JobExecutionResult {
-                status: JobStatus::Failed,
-                elapsed_millis: 10,
-                result_ref: None,
-                artifact_bytes: None,
-                log_ref: Some(build_log_ref("sim", job.id.0, "invalid")),
-                error: Some(format!(
-                    "invalid input_ref for cutting simulation: {}",
+        if let Err(err) = validate_sim_input_ref(&job.spec.input_ref) {
+            return sim_failure(
+                job,
+                "invalid",
+                format!(
+                    "invalid input_ref for cutting simulation: {}: {}",
+                    job.spec.input_ref, err
+                ),
+            );
+        }
+
+        if job.parent_job_id.is_none() {
+            return sim_failure(
+                job,
+                "invalid",
+                "cutting simulation requires parent_job_id".to_string(),
+            );
+        }
+
+        let resolved = self
+            .simulation_input_provider
+            .as_ref()
+            .and_then(|provider| provider.resolve(&job.spec.input_ref));
+        let Some(input) = resolved else {
+            return sim_failure(
+                job,
+                "input-not-registered",
+                format!(
+                    "cutting simulation input is not registered for input_ref: {}",
                     job.spec.input_ref
-                )),
-            };
+                ),
+            );
         };
-
-        let Some(parent_job_id) = job.parent_job_id else {
-            return JobExecutionResult {
-                status: JobStatus::Failed,
-                elapsed_millis: 10,
-                result_ref: None,
-                artifact_bytes: None,
-                log_ref: Some(build_log_ref("sim", job.id.0, "invalid")),
-                error: Some("cutting simulation requires parent_job_id".to_string()),
-            };
-        };
-
-        if parent_job_id.0 != cam_job_id_from_ref {
-            return JobExecutionResult {
-                status: JobStatus::Failed,
-                elapsed_millis: 10,
-                result_ref: None,
-                artifact_bytes: None,
-                log_ref: Some(build_log_ref("sim", job.id.0, "invalid")),
-                error: Some(format!(
-                    "input_ref cam job id mismatch: parent_job_id={}, input_ref={}",
-                    parent_job_id.0, job.spec.input_ref
-                )),
-            };
-        }
-
-        if result_suffix != "ok" {
-            return JobExecutionResult {
-                status: JobStatus::Failed,
-                elapsed_millis: 10,
-                result_ref: None,
-                artifact_bytes: None,
-                log_ref: Some(build_log_ref("sim", job.id.0, "invalid")),
-                error: Some(format!(
-                    "invalid cam result_ref suffix for cutting simulation: {}",
-                    result_suffix
-                )),
-            };
-        }
 
         let Some(input_artifact_bytes) = input_artifact_bytes else {
-            return JobExecutionResult {
-                status: JobStatus::Failed,
-                elapsed_millis: 10,
-                result_ref: None,
-                artifact_bytes: None,
-                log_ref: Some(build_log_ref("sim", job.id.0, "missing-input")),
-                error: Some("missing input artifact bytes for cutting simulation".to_string()),
-            };
+            return sim_failure(
+                job,
+                "missing-input",
+                "missing input artifact bytes for cutting simulation".to_string(),
+            );
         };
 
         let mut cursor = Cursor::new(input_artifact_bytes);
         let (_, toolpath) = match read_toolpath_artifact_v1(&mut cursor) {
             Ok(value) => value,
             Err(err) => {
-                let log_ref = format!(
-                    "log://sim/{}/{}",
-                    job.id.0,
-                    classify_artifact_read_error(&err)
+                return sim_failure(
+                    job,
+                    classify_artifact_read_error(&err),
+                    format!("failed to read cutting simulation input artifact: {}", err),
                 );
-                return JobExecutionResult {
-                    status: JobStatus::Failed,
-                    elapsed_millis: 20,
-                    result_ref: None,
-                    artifact_bytes: None,
-                    log_ref: Some(log_ref),
-                    error: Some(format!(
-                        "failed to read cutting simulation input artifact: {}",
-                        err
-                    )),
-                };
             }
         };
 
-        let work_bounds = Aabb3D::new(
-            Point3D::new(
-                JOB_SIM_DEFAULT_WORK_MIN.0,
-                JOB_SIM_DEFAULT_WORK_MIN.1,
-                JOB_SIM_DEFAULT_WORK_MIN.2,
-            ),
-            Point3D::new(
-                JOB_SIM_DEFAULT_WORK_MAX.0,
-                JOB_SIM_DEFAULT_WORK_MAX.1,
-                JOB_SIM_DEFAULT_WORK_MAX.2,
-            ),
-        );
-        let tool = Tool::flat_end_mill("sim-tool".to_string(), 10.0, 30.0);
-        let hybrid_config = HybridGateConfig {
-            bounds: work_bounds,
-            octree_depth: JOB_SIM_DEFAULT_MAX_DEPTH,
-            sample_pitch: JOB_SIM_DEFAULT_SAMPLE_PITCH,
+        let ready = match preflight_cutting_simulation(&toolpath, &input) {
+            Ok(ready) => ready,
+            Err(failure) => {
+                let log_suffix = match failure {
+                    PreflightFailure::NotReady(_) => "preflight-not-ready",
+                    PreflightFailure::InvalidInput(_) => "preflight-invalid-input",
+                };
+                return sim_failure(job, log_suffix, failure.to_string());
+            }
         };
 
         let started = Instant::now();
-        let hybrid_metrics = match run_hybrid_gate_case_with_config(&toolpath, &tool, hybrid_config)
-        {
-            Ok(metrics) => metrics,
-            Err(err) => {
-                return JobExecutionResult {
-                    status: JobStatus::Failed,
-                    elapsed_millis: started.elapsed().as_millis().max(1) as u64,
-                    result_ref: None,
-                    artifact_bytes: None,
-                    log_ref: Some(build_log_ref("sim", job.id.0, "sim-failure")),
-                    error: Some(format!("failed to run cutting simulation: {}", err)),
-                };
-            }
-        };
-        let elapsed_millis = started.elapsed().as_millis().max(1) as u64;
+        let mut simulator = CuttingSimulator::new(
+            VoxelOctree::new(input.stock, ready.octree_depth),
+            input.snapshot_interval.clone(),
+        );
+        if let Err(err) = simulator.simulate(&toolpath, &input.tool) {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: elapsed_millis_since(started),
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("sim", job.id.0, "sim-failure")),
+                error: Some(format!("failed to run cutting simulation: {}", err)),
+            };
+        }
 
         JobExecutionResult {
             status: JobStatus::Succeeded,
-            elapsed_millis,
+            elapsed_millis: elapsed_millis_since(started),
             result_ref: Some(build_result_ref("sim", job.id.0, "ok")),
             artifact_bytes: None,
-            log_ref: Some(format_hybrid_success_log_ref(job.id.0, &hybrid_metrics)),
+            log_ref: Some(build_log_ref(
+                "sim",
+                job.id.0,
+                &format!("ok/snapshots-{}", simulator.snapshots().len()),
+            )),
             error: None,
         }
     }
@@ -435,17 +413,6 @@ fn classify_fixture_cam_process_failure(input_ref: &str) -> Option<CamSolverErro
     None
 }
 
-fn format_hybrid_success_log_ref(job_id: u64, metrics: &HybridGateMetrics) -> String {
-    build_log_ref(
-        "sim",
-        job_id,
-        &format!(
-            "ok/hybrid-gap-{:.4}-boundary-{:.4}-ratio-{:.3}",
-            metrics.gap, metrics.boundary_disagreement_rate, metrics.elapsed_ratio
-        ),
-    )
-}
-
 #[cfg(any(test, debug_assertions))]
 fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFormatError> {
     if input_ref.ends_with("/kind-mismatch") {
@@ -465,6 +432,18 @@ fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFo
     }
 
     make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)
+}
+
+/// 切削シミュレーションを実行前に拒否した結果
+fn sim_failure(job: &JobRecord, log_suffix: &str, error: String) -> JobExecutionResult {
+    JobExecutionResult {
+        status: JobStatus::Failed,
+        elapsed_millis: 10,
+        result_ref: None,
+        artifact_bytes: None,
+        log_ref: Some(build_log_ref("sim", job.id.0, log_suffix)),
+        error: Some(error),
+    }
 }
 
 fn parse_cam_result_ref(input_ref: &str) -> Option<(u64, String)> {

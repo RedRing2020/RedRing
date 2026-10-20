@@ -3,6 +3,7 @@ use geo_algorithms::{
 };
 use std::io::Cursor;
 use std::path::Path;
+use std::sync::Arc;
 
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
@@ -12,9 +13,9 @@ use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType
 use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
 
 use crate::{
-    CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
-    HybridGateConfig, HybridGateMetrics, SimulationError, SnapshotInterval, run_hybrid_gate_case,
-    run_hybrid_gate_case_with_config,
+    CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulationInput,
+    CuttingSimulator, HybridGateConfig, HybridGateMetrics, InMemoryCuttingSimulationInputStore,
+    SimulationError, SnapshotInterval, run_hybrid_gate_case, run_hybrid_gate_case_with_config,
 };
 
 fn cam_spec(input: &str) -> JobSpec {
@@ -33,6 +34,23 @@ fn sim_spec(input: &str) -> JobSpec {
         timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     }
+}
+
+/// テスト用の固定のツールパス（工具 ID `nc-post-src`）を切削する入力を、`input://sim/sample` に登録したアダプタ
+fn adapter_with_sim_input() -> CamJobExecutorAdapter {
+    let store = InMemoryCuttingSimulationInputStore::new();
+    store
+        .register(
+            "input://sim/sample",
+            CuttingSimulationInput {
+                stock: Aabb3D::new(Point3D::new(-5.0, -5.0, -5.0), Point3D::new(5.0, 5.0, 1.0)),
+                tool: Tool::flat_end_mill("nc-post-src".to_string(), 2.0, 10.0),
+                precision: 0.5,
+                snapshot_interval: SnapshotInterval::default(),
+            },
+        )
+        .unwrap();
+    CamJobExecutorAdapter::default().with_simulation_input_provider(Arc::new(store))
 }
 
 fn nc_post_from_cam_spec(input: &str) -> JobSpec {
@@ -258,7 +276,7 @@ fn test_snapshot_exports_f64_maps_snapshot_fields() {
 #[test]
 fn test_job_adapter_runs_cam_and_sim_jobs() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter::default();
+    let adapter = adapter_with_sim_input();
 
     let cam_id = manager.submit(JobSpec {
         job_type: JobType::CamProcess,
@@ -271,7 +289,7 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
         .submit_with_relation(
             JobSpec {
                 job_type: JobType::CuttingSimulation,
-                input_ref: format!("result://cam/{}/ok", cam_id.0),
+                input_ref: "input://sim/sample".to_string(),
                 timeout_secs: 30,
                 retry_policy: RetryPolicy::default(),
             },
@@ -308,7 +326,7 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
                 status: JobStatus::Succeeded,
                 log_ref: Some(log_ref),
                 ..
-            } if *job_id == sim_id && log_ref.contains("/ok/hybrid-gap-")
+            } if *job_id == sim_id && log_ref.contains("/ok/snapshots-")
         )
     }));
 }
@@ -483,15 +501,16 @@ fn test_job_adapter_reports_convergence_failure_for_cam_process() {
 }
 
 #[test]
-fn test_job_adapter_rejects_cutting_sim_parent_mismatch() {
+fn test_job_adapter_rejects_unregistered_cutting_sim_input() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter::default();
+    let adapter = adapter_with_sim_input();
 
     let cam_id = manager.submit(cam_spec("input://cam/sample"));
+    manager.execute_with(cam_id, &adapter).unwrap();
 
     let id = manager
         .submit_with_relation(
-            sim_spec("result://cam/999/ok"),
+            sim_spec("input://sim/unregistered"),
             JobRelation {
                 parent_job_id: Some(cam_id),
                 group_id: None,
@@ -506,20 +525,33 @@ fn test_job_adapter_rejects_cutting_sim_parent_mismatch() {
         job.last_error
             .as_deref()
             .unwrap_or_default()
-            .contains("input_ref cam job id mismatch")
+            .contains("cutting simulation input is not registered")
     );
 }
 
 #[test]
-fn test_job_adapter_rejects_cutting_sim_non_ok_suffix() {
+fn test_job_adapter_rejects_cutting_sim_with_mismatched_tool() {
+    let store = InMemoryCuttingSimulationInputStore::new();
+    store
+        .register(
+            "input://sim/other-tool",
+            CuttingSimulationInput {
+                stock: Aabb3D::new(Point3D::new(-5.0, -5.0, -5.0), Point3D::new(5.0, 5.0, 1.0)),
+                tool: Tool::flat_end_mill("other-tool".to_string(), 2.0, 10.0),
+                precision: 0.5,
+                snapshot_interval: SnapshotInterval::default(),
+            },
+        )
+        .unwrap();
+    let adapter = CamJobExecutorAdapter::default().with_simulation_input_provider(Arc::new(store));
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/sample"));
+    manager.execute_with(cam_id, &adapter).unwrap();
 
     let id = manager
         .submit_with_relation(
-            sim_spec(&format!("result://cam/{}/artifact-read-failed", cam_id.0)),
+            sim_spec("input://sim/other-tool"),
             JobRelation {
                 parent_job_id: Some(cam_id),
                 group_id: None,
@@ -534,21 +566,21 @@ fn test_job_adapter_rejects_cutting_sim_non_ok_suffix() {
         job.last_error
             .as_deref()
             .unwrap_or_default()
-            .contains("invalid cam result_ref suffix for cutting simulation")
+            .contains("tool id does not match the toolpath")
     );
 }
 
 #[test]
 fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure_from_parent_artifact() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter::default();
+    let adapter = adapter_with_sim_input();
 
     let cam_id = manager.submit(cam_spec("input://cam/artifact-read-failed"));
     manager.execute_with(cam_id, &adapter).unwrap();
 
     let sim_id = manager
         .submit_with_relation(
-            sim_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            sim_spec("input://sim/sample"),
             JobRelation {
                 parent_job_id: Some(cam_id),
                 group_id: None,
@@ -581,16 +613,16 @@ fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure_from_parent_artif
 }
 
 #[test]
-fn test_job_adapter_surfaces_cutting_sim_execution_failure_from_parent_artifact() {
+fn test_job_adapter_rejects_cutting_sim_of_empty_toolpath_in_preflight() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter::default();
+    let adapter = adapter_with_sim_input();
 
     let cam_id = manager.submit(cam_spec("input://cam/sim-failure"));
     manager.execute_with(cam_id, &adapter).unwrap();
 
     let sim_id = manager
         .submit_with_relation(
-            sim_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            sim_spec("input://sim/sample"),
             JobRelation {
                 parent_job_id: Some(cam_id),
                 group_id: None,
@@ -605,7 +637,7 @@ fn test_job_adapter_surfaces_cutting_sim_execution_failure_from_parent_artifact(
         sim.last_error
             .as_deref()
             .unwrap_or_default()
-            .contains("failed to run cutting simulation")
+            .contains("toolpath is empty")
     );
 
     let events = manager.take_events();
@@ -617,7 +649,7 @@ fn test_job_adapter_surfaces_cutting_sim_execution_failure_from_parent_artifact(
                 status: JobStatus::Failed,
                 log_ref: Some(log_ref),
                 ..
-            } if *job_id == sim_id && log_ref.ends_with("/sim-failure")
+            } if *job_id == sim_id && log_ref.ends_with("/preflight-not-ready")
         )
     }));
 }
@@ -627,7 +659,7 @@ fn test_job_adapter_rejects_cutting_sim_without_parent() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter::default();
 
-    let id = manager.submit(sim_spec("result://cam/42/ok"));
+    let id = manager.submit(sim_spec("input://sim/sample"));
     manager.execute_with(id, &adapter).unwrap();
 
     let job = manager.get(id).unwrap();
@@ -803,14 +835,14 @@ fn test_job_adapter_rejects_nc_post_from_cam_parent_mismatch() {
 #[test]
 fn test_job_adapter_nc_post_can_use_superseded_cam_output_history() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter::default();
+    let adapter = adapter_with_sim_input();
 
     let cam_id = manager.submit(cam_spec("input://cam/for-nc-post"));
     manager.execute_with(cam_id, &adapter).unwrap();
 
     let sim_id = manager
         .submit_with_relation(
-            sim_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            sim_spec("input://sim/sample"),
             JobRelation {
                 parent_job_id: Some(cam_id),
                 group_id: None,

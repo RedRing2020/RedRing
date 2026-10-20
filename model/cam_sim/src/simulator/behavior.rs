@@ -10,7 +10,7 @@ use crate::error::SimulationError;
 ///
 /// cam_core の `Tool` は純粋なデータ構造として保ち、
 /// シミュレーション固有の振る舞いはこのtraitに集約する。
-pub(super) trait ToolCuttingBehavior<T: Scalar> {
+pub(crate) trait ToolCuttingBehavior<T: Scalar> {
     /// セグメントを工具中心軌跡へ変換する。
     ///
     /// ボールエンドミルはZ方向へradius分オフセット、
@@ -76,7 +76,7 @@ impl<T: Scalar> ToolCuttingBehavior<T> for BallEndMillBehavior<T> {
 /// `Tool` から対応する切削動作を生成するファクトリ関数。
 ///
 /// 工具種別の分岐はここ1箇所に集約する。
-pub(super) fn tool_cutting_behavior<T: Scalar>(
+pub(crate) fn tool_cutting_behavior<T: Scalar>(
     tool: &Tool<T>,
 ) -> Result<Box<dyn ToolCuttingBehavior<T>>, SimulationError> {
     if tool.is_flat_end_mill() {

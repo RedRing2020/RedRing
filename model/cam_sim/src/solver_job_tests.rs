@@ -14,7 +14,11 @@ use job_runtime::{
     RefValidationError, RetryPolicy,
 };
 
-use crate::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
+use crate::{
+    CamJobExecutorAdapter, CuttingSimulationInput, InMemoryCamSolverInputStore,
+    InMemoryCuttingSimulationInputStore, SnapshotInterval,
+};
+use geo_algorithms::Aabb3D;
 
 fn spec(job_type: JobType, input_ref: String) -> JobSpec {
     JobSpec {
@@ -106,10 +110,26 @@ fn cam_parent_to_cutting_simulation_child_succeeds_with_solver_output() {
 
 fn assert_cam_to_simulation_succeeds(tool: Tool<f64>) {
     let input_ref = "input://cam/pyramid";
+    let simulation_inputs = InMemoryCuttingSimulationInputStore::new();
+    simulation_inputs
+        .register(
+            "input://sim/pyramid",
+            CuttingSimulationInput {
+                stock: Aabb3D::new(
+                    Point3D::new(0.0, 0.0, 0.0),
+                    Point3D::new(100.0, 100.0, 100.0),
+                ),
+                tool: tool.clone(),
+                precision: 6.25,
+                snapshot_interval: SnapshotInterval::default(),
+            },
+        )
+        .unwrap();
     let adapter = adapter_with(vec![(
         input_ref,
         scanline_input(SolverGeometry::TriangleMesh(pyramid_mesh()), tool),
-    )]);
+    )])
+    .with_simulation_input_provider(Arc::new(simulation_inputs));
     let mut manager = JobManager::new();
 
     let cam_id = manager.submit(spec(JobType::CamProcess, input_ref.to_string()));
@@ -117,7 +137,7 @@ fn assert_cam_to_simulation_succeeds(tool: Tool<f64>) {
         .submit_with_relation(
             spec(
                 JobType::CuttingSimulation,
-                format!("result://cam/{}/ok", cam_id.0),
+                "input://sim/pyramid".to_string(),
             ),
             JobRelation {
                 parent_job_id: Some(cam_id),

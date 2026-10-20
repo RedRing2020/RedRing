@@ -381,7 +381,7 @@ mod tests {
         let error = orchestrator
             .submit_workflow(JobWorkflowSubmitRequest {
                 job_type: CamJobType::CuttingSimulation,
-                input_ref: "result://cam/1/ok".to_string(),
+                input_ref: "input://sim/sample".to_string(),
                 parent_job_id: None,
             })
             .expect_err("cutting simulation without parent should be rejected");
@@ -394,7 +394,32 @@ mod tests {
 
     #[test]
     fn cutting_simulation_submit_and_result_query_work_with_cam_parent() {
-        let mut orchestrator = JobWorkflowOrchestrator::new();
+        use cam_core::Tool;
+        use cam_sim::{
+            CamJobExecutorAdapter, CuttingSimulationInput, InMemoryCuttingSimulationInputStore,
+            SnapshotInterval,
+        };
+        use geo_algorithms::{Aabb3D, Point3D};
+        use job_runtime::JobManager;
+        use std::sync::Arc;
+
+        let simulation_inputs = InMemoryCuttingSimulationInputStore::new();
+        simulation_inputs
+            .register(
+                "input://sim/sample",
+                CuttingSimulationInput {
+                    stock: Aabb3D::new(Point3D::new(-5.0, -5.0, -5.0), Point3D::new(5.0, 5.0, 1.0)),
+                    tool: Tool::flat_end_mill("nc-post-src".to_string(), 2.0, 10.0),
+                    precision: 0.5,
+                    snapshot_interval: SnapshotInterval::default(),
+                },
+            )
+            .unwrap();
+        let mut orchestrator = JobWorkflowOrchestrator::with_runtime(
+            JobManager::new(),
+            CamJobExecutorAdapter::default()
+                .with_simulation_input_provider(Arc::new(simulation_inputs)),
+        );
 
         let cam_submit = orchestrator
             .submit_workflow(JobWorkflowSubmitRequest {
@@ -407,7 +432,7 @@ mod tests {
         let sim_submit = orchestrator
             .submit_workflow(JobWorkflowSubmitRequest {
                 job_type: CamJobType::CuttingSimulation,
-                input_ref: format!("result://cam/{}/ok", cam_submit.job_id),
+                input_ref: "input://sim/sample".to_string(),
                 parent_job_id: Some(cam_submit.job_id),
             })
             .expect("cutting simulation should succeed");
@@ -435,7 +460,7 @@ mod tests {
                     status: CamJobStatus::Succeeded,
                     log_ref: Some(log_ref),
                     ..
-                } if *job_id == sim_submit.job_id && log_ref.contains("/ok/hybrid-gap-")
+                } if *job_id == sim_submit.job_id && log_ref.contains("/ok/snapshots-")
             )
         }));
     }
@@ -542,8 +567,11 @@ mod tests {
             CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits,
         };
         use cam_core::{CoordinateFrame, LengthUnit, Tool};
-        use cam_sim::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
-        use geo_algorithms::{Point3D, TriangleMesh3D};
+        use cam_sim::{
+            CamJobExecutorAdapter, CuttingSimulationInput, InMemoryCamSolverInputStore,
+            InMemoryCuttingSimulationInputStore, SnapshotInterval,
+        };
+        use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D};
         use job_runtime::JobManager;
 
         let pyramid = TriangleMesh3D::new(
@@ -557,13 +585,29 @@ mod tests {
             vec![[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]],
         )
         .unwrap();
+        let tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
+        let simulation_inputs = InMemoryCuttingSimulationInputStore::new();
+        simulation_inputs
+            .register(
+                "input://sim/pyramid",
+                CuttingSimulationInput {
+                    stock: Aabb3D::new(
+                        Point3D::new(0.0, 0.0, 0.0),
+                        Point3D::new(100.0, 100.0, 100.0),
+                    ),
+                    tool: tool.clone(),
+                    precision: 6.25,
+                    snapshot_interval: SnapshotInterval::default(),
+                },
+            )
+            .unwrap();
         let store = InMemoryCamSolverInputStore::new();
         store
             .register(
                 "input://cam/pyramid",
                 CamSolverInput {
                     operation_id: "op-scan-1".to_string(),
-                    tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+                    tool,
                     geometry: SolverGeometry::TriangleMesh(pyramid),
                     operation: OperationSpec::Scanline(ScanlineParams {
                         stepover: 4.0,
@@ -581,7 +625,8 @@ mod tests {
             .unwrap();
         let mut orchestrator = JobWorkflowOrchestrator::with_runtime(
             JobManager::new(),
-            CamJobExecutorAdapter::with_input_provider(Arc::new(store)),
+            CamJobExecutorAdapter::with_input_provider(Arc::new(store))
+                .with_simulation_input_provider(Arc::new(simulation_inputs)),
         );
 
         let cam_submit = orchestrator
@@ -596,7 +641,7 @@ mod tests {
         let sim_submit = orchestrator
             .submit_workflow(JobWorkflowSubmitRequest {
                 job_type: CamJobType::CuttingSimulation,
-                input_ref: format!("result://cam/{}/ok", cam_submit.job_id),
+                input_ref: "input://sim/pyramid".to_string(),
                 parent_job_id: Some(cam_submit.job_id),
             })
             .expect("cutting simulation submit should succeed");

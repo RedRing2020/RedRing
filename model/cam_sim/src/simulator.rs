@@ -18,7 +18,8 @@ mod config;
 mod engine;
 mod segments;
 
-use behavior::{FlatEndMillBehavior, tool_cutting_behavior};
+use behavior::FlatEndMillBehavior;
+pub(crate) use behavior::tool_cutting_behavior;
 
 pub use segments::{
     collect_toolpath_line_segments, collect_toolpath_line_segments_with_arc_options,
@@ -36,6 +37,20 @@ pub enum SnapshotInterval {
         min_interval_mm: f64,
         include_segment_endpoints: bool,
     },
+}
+
+impl SnapshotInterval {
+    /// 間隔の指定が有効か（間隔・最小の間隔が正の有限値、目標の記録数が 1 以上）
+    pub(crate) fn is_valid(&self) -> bool {
+        match *self {
+            Self::ByDistance { interval_mm, .. } => interval_mm.is_finite() && interval_mm > 0.0,
+            Self::ByAutoDistance {
+                target_count,
+                min_interval_mm,
+                ..
+            } => target_count > 0 && min_interval_mm.is_finite() && min_interval_mm > 0.0,
+        }
+    }
 }
 
 impl Default for SnapshotInterval {
