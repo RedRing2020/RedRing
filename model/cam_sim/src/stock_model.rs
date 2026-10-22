@@ -10,7 +10,8 @@ mod tests;
 
 use cam_core::{Tool, ToolPath};
 use geo_algorithms::{
-    Aabb3D, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM, LineSegment3DProperties, Point3D,
+    Aabb3D, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM, LineSegment3D, LineSegment3DProperties,
+    Point3D,
 };
 
 use crate::collect_toolpath_line_segments;
@@ -34,6 +35,25 @@ pub(crate) struct SweptToolPrimitive {
     /// 移動の終点の工具の先端
     pub(crate) end: Point3D<f64>,
     pub(crate) shape: SweptToolShape,
+}
+
+impl SweptToolShape {
+    /// 工具の形（フラット・ボールエンドミル以外は `None`）
+    pub(crate) fn from_tool(tool: &Tool<f64>) -> Option<Self> {
+        if tool.is_flat_end_mill() {
+            Some(Self::FlatEndMill {
+                radius: tool.radius(),
+                cutting_length: tool.cutting_length,
+            })
+        } else if tool.is_ball_end_mill() {
+            Some(Self::BallEndMill {
+                radius: tool.radius(),
+                cutting_length: tool.cutting_length,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 impl SweptToolPrimitive {
@@ -179,29 +199,27 @@ impl StockModel {
         toolpath: &ToolPath<f64>,
         tool: &Tool<f64>,
     ) -> Result<Self, SimulationError> {
-        let shape = if tool.is_flat_end_mill() {
-            SweptToolShape::FlatEndMill {
-                radius: tool.radius(),
-                cutting_length: tool.cutting_length,
-            }
-        } else if tool.is_ball_end_mill() {
-            SweptToolShape::BallEndMill {
-                radius: tool.radius(),
-                cutting_length: tool.cutting_length,
-            }
-        } else {
-            return Err(SimulationError::UnsupportedToolType);
-        };
-        let primitives: Vec<_> =
-            collect_toolpath_line_segments(toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM)
-                .into_iter()
-                .filter(|(_, is_cutting)| *is_cutting)
-                .map(|(segment, _)| SweptToolPrimitive {
-                    start: segment.start_point(),
-                    end: segment.end_point(),
-                    shape,
-                })
-                .collect();
+        let segments =
+            collect_toolpath_line_segments(toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM);
+        Self::from_segments(stock, &segments, tool)
+    }
+
+    /// 直方体の素材を、切削フラグ付きの線分列のうち切削の区間に沿って工具で除去した正本を作る
+    pub(crate) fn from_segments(
+        stock: Aabb3D<f64>,
+        segments: &[(LineSegment3D<f64>, bool)],
+        tool: &Tool<f64>,
+    ) -> Result<Self, SimulationError> {
+        let shape = SweptToolShape::from_tool(tool).ok_or(SimulationError::UnsupportedToolType)?;
+        let primitives: Vec<_> = segments
+            .iter()
+            .filter(|(_, is_cutting)| *is_cutting)
+            .map(|(segment, _)| SweptToolPrimitive {
+                start: segment.start_point(),
+                end: segment.end_point(),
+                shape,
+            })
+            .collect();
         let bounds: Vec<_> = primitives.iter().map(SweptToolPrimitive::bounds).collect();
         Ok(Self {
             stock,

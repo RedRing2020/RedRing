@@ -13,7 +13,7 @@
 ## 2. 背景
 
 - 現在の `cam_sim` は、素材を `VoxelOctree`（ノードに「中身あり・空・混在」の状態だけを持つ）で表す。削った面をすべて最も深い階層まで分割するため、ノード数は「削った面の面積 ÷ 精度²」で増える。100 mm の素材の全面を 0.01 mm で表すと 10⁸ 個規模になる
-- #881 では暫定で深さの上限（`STOCK_OCTREE_MAX_DEPTH`）を置き、上限で達成できない精度を Preflight で `NotReady` としている
+- #881 では暫定で深さの上限（`STOCK_OCTREE_MAX_DEPTH`）を置き、上限で達成できない精度を Preflight で `NotReady` としていた（#890 で削除）
 - `CUTTING_SIMULATION_DESIGN.md` の「SAT-Cut 内部表現」で、素材の正本を工具の掃引プリミティブの差分集合とし、Voxel / Octree を表示用のキャッシュとする方針が決まっている。試作（`PrimitiveSetExactWork`）は空間索引がなく、本番の実行には使われていない
 
 ## 3. 構成
@@ -84,7 +84,8 @@
 
 - `cam_sim::PrimitiveSetExactWork`・`ExactWorkModel` は、段階 1 の正本（`cam_sim::StockModel`。#888）で置き換えた
 - `run_hybrid_gate_case`・`run_hybrid_gate_case_with_config`（Voxel と ExactWork の比較）は、方式を決めるための検証で、本書で方式を決めたため #888 で削除した。試作と Voxel はどちらもフラットエンドミルを「移動の経路を軸とする円柱」として扱っていた（水平の移動で横向きの円柱を除去する）ため、比較では一致していた。正本は工具軸 +Z の工具を刃長まで掃引する
-- `geo_algorithms` の `VoxelOctree` は、`cam_sim` 以外の用途（Octree の表示の確認等）の有無を確認して扱いを決める
+- `cam_sim::CuttingSimulator` は、正本と表示用のトリデクセル（最大の辺を `TRI_DEXEL_DISPLAY_LINES` = 512 本）の上に作り直し、スナップショットの残りの体積をトリデクセルから求める（#890）。`cam_sim` は `VoxelOctree` に依存しない
+- `geo_algorithms` の `VoxelOctree` は、Octree の表示の確認（`octree_converter`・fixtures）と、#882 までの ViewModel のデモの除去の再生で使うため残す
 - `viewmodel` の `cam_sim_visualization_converter` が行っている材料除去の再生（`apply_cutting_progress`）は、#882 で成果物の変換に置き換える
 
 ## 8. 参考文献

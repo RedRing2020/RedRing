@@ -83,7 +83,6 @@ pub fn create_demo_snapshot_exports_for_scenario(
             Point3D::new(-60.0, -60.0, -20.0),
             Point3D::new(60.0, 60.0, 30.0),
         ),
-        max_depth: 4,
         snapshot_interval: SnapshotInterval::default(),
     };
 

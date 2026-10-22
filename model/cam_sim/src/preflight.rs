@@ -7,16 +7,8 @@ use std::fmt::{Display, Formatter};
 
 use cam_core::ToolPath;
 
-use crate::constants::STOCK_OCTREE_MAX_DEPTH;
 use crate::simulation_input::CuttingSimulationInput;
-use crate::simulator::tool_cutting_behavior;
-
-/// Preflight 判定を通過した入力から求めた、実行の設定
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct PreflightReady {
-    /// 精度から求めた素材の Octree の分割の深さ
-    pub(crate) octree_depth: usize,
-}
+use crate::stock_model::SweptToolShape;
 
 /// Preflight 判定で実行を拒否する理由
 #[derive(Debug, Clone, PartialEq)]
@@ -37,9 +29,6 @@ pub(crate) enum NotReadyReason {
         tool_id: String,
     },
     UnsupportedTool,
-    PrecisionNotAchievable {
-        achievable_precision: f64,
-    },
 }
 
 /// 契約に違反している入力の値
@@ -55,7 +44,7 @@ pub(crate) enum InvalidInputReason {
 pub(crate) fn preflight_cutting_simulation(
     toolpath: &ToolPath<f64>,
     input: &CuttingSimulationInput,
-) -> Result<PreflightReady, PreflightFailure> {
+) -> Result<(), PreflightFailure> {
     let stock = &input.stock;
     let stock_is_finite = [stock.min(), stock.max()]
         .iter()
@@ -96,34 +85,15 @@ pub(crate) fn preflight_cutting_simulation(
             tool_id: tool.id.clone(),
         });
     }
-    if tool_cutting_behavior(tool).is_err() {
+    if SweptToolShape::from_tool(tool).is_none() {
         reasons.push(NotReadyReason::UnsupportedTool);
     }
 
-    let max_extent = stock.width().max(stock.height()).max(stock.depth());
-    let octree_depth = required_octree_depth(max_extent, input.precision);
-    if octree_depth > STOCK_OCTREE_MAX_DEPTH {
-        reasons.push(NotReadyReason::PrecisionNotAchievable {
-            achievable_precision: max_extent / f64::from(1_u32 << STOCK_OCTREE_MAX_DEPTH),
-        });
-    }
-
     if reasons.is_empty() {
-        Ok(PreflightReady { octree_depth })
+        Ok(())
     } else {
         Err(PreflightFailure::NotReady(reasons))
     }
-}
-
-/// 最も深いボクセルの大きさ（最大の辺の長さ / 2^深さ）が精度以下になる最小の深さ
-fn required_octree_depth(max_extent: f64, precision: f64) -> usize {
-    let mut depth = 0;
-    let mut voxel_size = max_extent;
-    while voxel_size > precision && depth <= STOCK_OCTREE_MAX_DEPTH {
-        voxel_size /= 2.0;
-        depth += 1;
-    }
-    depth
 }
 
 impl Display for PreflightFailure {
@@ -154,12 +124,6 @@ impl Display for NotReadyReason {
                 "tool id does not match the toolpath (toolpath: {toolpath_tool_id}, tool: {tool_id})"
             ),
             Self::UnsupportedTool => write!(f, "only flat and ball end mills are supported"),
-            Self::PrecisionNotAchievable {
-                achievable_precision,
-            } => write!(
-                f,
-                "precision is finer than the stock model supports (achievable: {achievable_precision})"
-            ),
         }
     }
 }
@@ -216,20 +180,10 @@ mod tests {
     }
 
     #[test]
-    fn octree_depth_is_the_smallest_depth_finer_than_precision() {
-        // 16 / 2^4 = 1.0 ≤ 1.0、16 / 2^3 = 2.0 > 1.5
+    fn ready_input_passes() {
         assert_eq!(
-            preflight_cutting_simulation(&toolpath("EM2", cutting()), &input(1.0)),
-            Ok(PreflightReady { octree_depth: 4 })
-        );
-        assert_eq!(
-            preflight_cutting_simulation(&toolpath("EM2", cutting()), &input(1.5)),
-            Ok(PreflightReady { octree_depth: 4 })
-        );
-        // 素材より粗い精度は分割しない
-        assert_eq!(
-            preflight_cutting_simulation(&toolpath("EM2", cutting()), &input(20.0)),
-            Ok(PreflightReady { octree_depth: 0 })
+            preflight_cutting_simulation(&toolpath("EM2", cutting()), &input(1.0e-6)),
+            Ok(())
         );
     }
 
@@ -249,9 +203,6 @@ mod tests {
                     tool_id: "R".to_string(),
                 },
                 NotReadyReason::UnsupportedTool,
-                NotReadyReason::PrecisionNotAchievable {
-                    achievable_precision: 16.0 / 1024.0,
-                },
             ]))
         );
 

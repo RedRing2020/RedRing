@@ -1,10 +1,8 @@
 use cam_core::{ArcDirection, PathGeometry, PathSegment, ToolPath};
 use geo_algorithms::{
     CircularArcDirection, CircularArcPolylineOptions, LineSegment3D, LineSegment3DConstructor,
-    LineSegment3DProperties, Scalar, circular_arc_to_polyline,
+    Scalar, circular_arc_to_polyline,
 };
-
-use crate::error::SimulationError;
 
 /// ToolPathから線分セグメントを抽出し、切削フラグ付きで返す。
 ///
@@ -72,28 +70,6 @@ fn push_path_segment_lines<T: Scalar>(
                 out.push((line, is_cutting));
             }
         }
-    }
-}
-
-impl<T: Scalar> super::CuttingSimulator<T> {
-    /// 線分長を `f64` で計算する（距離ベース間隔計算用）。
-    pub(super) fn segment_length(&self, segment: &LineSegment3D<T>) -> f64 {
-        let start = segment.start_point();
-        let end = segment.end_point();
-        start.distance_to(end).to_f64()
-    }
-
-    /// ToolPathから線分セグメントを抽出し、切削フラグ付きで返す。
-    ///
-    /// Arc は polyline 近似して展開する。
-    pub(super) fn collect_line_segments(
-        &self,
-        toolpath: &ToolPath<T>,
-    ) -> Result<Vec<(LineSegment3D<T>, bool)>, SimulationError> {
-        Ok(collect_toolpath_line_segments(
-            toolpath,
-            self.arc_chord_tolerance_mm,
-        ))
     }
 }
 
