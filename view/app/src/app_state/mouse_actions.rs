@@ -27,7 +27,7 @@ impl AppState {
                         self.cursor_position
                             .unwrap_or((viewport_width * 0.5, viewport_height * 0.5)),
                     );
-                    tracing::info!(
+                    tracing::debug!(
                         "Ctrl+左ドラッグ: カメラ回転モード開始 start={:?} current={:?} virtual_start={:?}",
                         self.arcball_drag_start,
                         self.cursor_position,
@@ -49,7 +49,7 @@ impl AppState {
                     }
                 }
 
-                tracing::info!("左ドラッグ: ビュー矩形選択モード（カメラ操作はCtrl+ドラッグ）");
+                tracing::debug!("左ドラッグ: ビュー矩形選択モード（カメラ操作はCtrl+ドラッグ）");
 
                 if let Some(cursor) = self.cursor_position {
                     self.selection_rect_drag_origin = Some(cursor);
@@ -65,7 +65,7 @@ impl AppState {
                 }
 
                 if let Some(start) = self.arcball_drag_start.take() {
-                    tracing::info!(
+                    tracing::debug!(
                         "Ctrl+左ドラッグ: カメラ回転モード終了 start={:?} end={:?} virtual_end={:?}",
                         start,
                         self.cursor_position,
