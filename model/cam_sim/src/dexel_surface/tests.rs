@@ -194,3 +194,28 @@ fn partial_rebuild_matches_a_full_rebuild_at_each_snapshot() {
         }
     }
 }
+
+#[test]
+fn searching_mixed_cells_gives_the_same_mesh_as_scanning_every_cell() {
+    let (artifact, _) = cut();
+    for snapshot in [
+        0,
+        artifact.snapshots.len() / 2,
+        artifact.snapshots.len() - 1,
+    ] {
+        let surface = DexelSurface::at_snapshot(&artifact, snapshot);
+        let [bx, by, bz] = surface.block_counts();
+        for x in 0..bx {
+            for y in 0..by {
+                for z in 0..bz {
+                    assert_eq!(
+                        surface.mesh_block([x, y, z]),
+                        surface.mesh_block_by_scanning([x, y, z]),
+                        "snapshot {snapshot} block {:?}",
+                        [x, y, z]
+                    );
+                }
+            }
+        }
+    }
+}
