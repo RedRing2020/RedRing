@@ -2,7 +2,7 @@ use crate::error::SimulationError;
 
 use super::{SnapshotConfig, SnapshotInterval};
 
-impl<T: geo_algorithms::Scalar> super::CuttingSimulator<T> {
+impl super::CuttingSimulator {
     /// スナップショット間隔設定を実行可能な値へ正規化する。
     ///
     /// - 不正な設定は `SimulationError::InvalidInterval` を返す

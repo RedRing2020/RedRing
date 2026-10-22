@@ -11,7 +11,6 @@ use cam_core::{
 use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType};
 #[cfg(any(test, debug_assertions))]
 use geo_algorithms::Point3D;
-use geo_algorithms::octree::VoxelOctree;
 use job_runtime::{
     JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType, RefFactory, RefParser,
     RefValidationError,
@@ -186,22 +185,16 @@ impl CamJobExecutorAdapter {
             }
         };
 
-        let ready = match preflight_cutting_simulation(&toolpath, &input) {
-            Ok(ready) => ready,
-            Err(failure) => {
-                let log_suffix = match failure {
-                    PreflightFailure::NotReady(_) => "preflight-not-ready",
-                    PreflightFailure::InvalidInput(_) => "preflight-invalid-input",
-                };
-                return sim_failure(job, log_suffix, failure.to_string());
-            }
-        };
+        if let Err(failure) = preflight_cutting_simulation(&toolpath, &input) {
+            let log_suffix = match failure {
+                PreflightFailure::NotReady(_) => "preflight-not-ready",
+                PreflightFailure::InvalidInput(_) => "preflight-invalid-input",
+            };
+            return sim_failure(job, log_suffix, failure.to_string());
+        }
 
         let started = Instant::now();
-        let mut simulator = CuttingSimulator::new(
-            VoxelOctree::new(input.stock, ready.octree_depth),
-            input.snapshot_interval.clone(),
-        );
+        let mut simulator = CuttingSimulator::new(input.stock, input.snapshot_interval.clone());
         if let Err(err) = simulator.simulate(&toolpath, &input.tool) {
             return JobExecutionResult {
                 status: JobStatus::Failed,

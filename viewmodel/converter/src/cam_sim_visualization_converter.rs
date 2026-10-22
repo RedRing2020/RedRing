@@ -695,7 +695,6 @@ pub fn build_cam_simulation_visualization_bundle_with_tool_settings(
             toolpath: toolpath.clone(),
             tool: tool.clone(),
             work_bounds,
-            max_depth: settings.max_depth,
             snapshot_interval: SnapshotInterval::default(),
         })?
         .exports;

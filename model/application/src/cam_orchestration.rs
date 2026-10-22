@@ -2,7 +2,7 @@
 
 use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
-use geo_algorithms::{Aabb3D, LineSegment3D, Point3D, octree::VoxelOctree};
+use geo_algorithms::{Aabb3D, LineSegment3D, Point3D};
 use geo_contracts::LineSegment3DProperties;
 #[cfg(test)]
 use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
@@ -109,8 +109,8 @@ pub fn create_snapshot_series_from_exports(
 pub struct CamSimulationExecutionRequest {
     pub toolpath: ToolPath<f64>,
     pub tool: Tool<f64>,
+    /// 素材（直方体）
     pub work_bounds: Aabb3D<f64>,
-    pub max_depth: usize,
     pub snapshot_interval: SnapshotInterval,
 }
 
@@ -145,8 +145,7 @@ impl CamSimulationExecutionOrchestration for CamSimulationExecutionOrchestrator 
 pub fn execute_simulation_snapshot_exports(
     request: CamSimulationExecutionRequest,
 ) -> Result<CamSimulationExecutionResult, SimulationError> {
-    let voxel_tree = VoxelOctree::new(request.work_bounds, request.max_depth);
-    let mut simulator = CuttingSimulator::new(voxel_tree, request.snapshot_interval);
+    let mut simulator = CuttingSimulator::new(request.work_bounds, request.snapshot_interval);
     simulator.simulate(&request.toolpath, &request.tool)?;
 
     Ok(CamSimulationExecutionResult {
@@ -355,7 +354,6 @@ mod tests {
                 Point3D::new(-60.0, -60.0, -20.0),
                 Point3D::new(60.0, 60.0, 30.0),
             ),
-            max_depth: 4,
             snapshot_interval: SnapshotInterval::default(),
         };
 
@@ -378,7 +376,6 @@ mod tests {
                 Point3D::new(-60.0, -60.0, -20.0),
                 Point3D::new(60.0, 60.0, 30.0),
             ),
-            max_depth: 4,
             snapshot_interval: SnapshotInterval::default(),
         };
 
