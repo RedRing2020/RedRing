@@ -29,8 +29,6 @@ pub const TOOLPATH_MAGIC: [u8; 4] = *b"RRTP";
 pub const INTERFERENCE_MAGIC: [u8; 4] = *b"RRIN";
 
 /// cutting simulation artifact magic: `RRCS`
-///
-/// 中身の構造は切削シミュレーションのクレート（cam_sim）が定義し、本モジュールは種別と共通のヘッダだけを扱う。
 pub const CUTTING_SIMULATION_MAGIC: [u8; 4] = *b"RRCS";
 
 pub const FORMAT_VERSION_MAJOR_V1: u16 = 0;
@@ -50,7 +48,6 @@ pub enum CompatibilityDecision {
 pub enum ArtifactKind {
     ToolPath,
     Interference,
-    /// 切削シミュレーションの結果（中身は cam_sim が定義する）
     CuttingSimulation,
 }
 
@@ -135,7 +132,6 @@ pub enum BinaryFormatError {
     UnknownGeometryType(u8),
     UnknownInterferenceKind(u8),
     LengthOverflow(&'static str),
-    /// ペイロードの値が契約に違反している（項目名）
     InvalidPayload(&'static str),
 }
 
@@ -518,7 +514,7 @@ pub fn read_interference_payload_v1<R: Read>(
 pub enum ArtifactPayload {
     ToolPath(ToolPath<f64>),
     Interference(InterferencePayload),
-    /// 切削シミュレーションの結果のペイロード（解釈は cam_sim が行う）
+    /// 本モジュールでは中身を解釈しないバイト列
     CuttingSimulation(Vec<u8>),
 }
 
