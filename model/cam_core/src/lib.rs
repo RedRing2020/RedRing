@@ -44,10 +44,10 @@ pub mod validation;
 
 // 主要型の再エクスポート
 pub use artifact_binary::{
-    ArtifactHeaderV1, ArtifactKind, ArtifactPayload, BinaryFormatError, CompatibilityDecision,
-    CoordinateFrame, ExtAttribute, FORMAT_VERSION_MAJOR_V1, FORMAT_VERSION_MINOR_V1,
-    INTERFERENCE_MAGIC, InterferenceEvent, InterferenceKind, InterferencePayload,
-    KNOWN_MINOR_VERSIONS_V0, LengthUnit, TOOLPATH_MAGIC, read_artifact_v1,
+    ArtifactHeaderV1, ArtifactKind, ArtifactPayload, BinaryFormatError, CUTTING_SIMULATION_MAGIC,
+    CompatibilityDecision, CoordinateFrame, ExtAttribute, FORMAT_VERSION_MAJOR_V1,
+    FORMAT_VERSION_MINOR_V1, INTERFERENCE_MAGIC, InterferenceEvent, InterferenceKind,
+    InterferencePayload, KNOWN_MINOR_VERSIONS_V0, LengthUnit, TOOLPATH_MAGIC, read_artifact_v1,
     read_interference_artifact_v1, read_interference_payload_v1, read_toolpath_artifact_v1,
     read_toolpath_payload_v1, write_interference_payload_v1, write_toolpath_payload_v1,
 };

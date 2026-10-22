@@ -28,6 +28,11 @@ pub const TOOLPATH_MAGIC: [u8; 4] = *b"RRTP";
 /// interference artifact magic: `RRIN`
 pub const INTERFERENCE_MAGIC: [u8; 4] = *b"RRIN";
 
+/// cutting simulation artifact magic: `RRCS`
+///
+/// 中身の構造は切削シミュレーションのクレート（cam_sim）が定義し、本モジュールは種別と共通のヘッダだけを扱う。
+pub const CUTTING_SIMULATION_MAGIC: [u8; 4] = *b"RRCS";
+
 pub const FORMAT_VERSION_MAJOR_V1: u16 = 0;
 pub const FORMAT_VERSION_MINOR_V1: u16 = 1;
 
@@ -45,6 +50,8 @@ pub enum CompatibilityDecision {
 pub enum ArtifactKind {
     ToolPath,
     Interference,
+    /// 切削シミュレーションの結果（中身は cam_sim が定義する）
+    CuttingSimulation,
 }
 
 impl ArtifactKind {
@@ -52,6 +59,7 @@ impl ArtifactKind {
         match self {
             Self::ToolPath => TOOLPATH_MAGIC,
             Self::Interference => INTERFERENCE_MAGIC,
+            Self::CuttingSimulation => CUTTING_SIMULATION_MAGIC,
         }
     }
 
@@ -60,6 +68,8 @@ impl ArtifactKind {
             Some(Self::ToolPath)
         } else if magic == INTERFERENCE_MAGIC {
             Some(Self::Interference)
+        } else if magic == CUTTING_SIMULATION_MAGIC {
+            Some(Self::CuttingSimulation)
         } else {
             None
         }
@@ -125,6 +135,8 @@ pub enum BinaryFormatError {
     UnknownGeometryType(u8),
     UnknownInterferenceKind(u8),
     LengthOverflow(&'static str),
+    /// ペイロードの値が契約に違反している（項目名）
+    InvalidPayload(&'static str),
 }
 
 impl fmt::Display for BinaryFormatError {
@@ -179,6 +191,7 @@ impl fmt::Display for BinaryFormatError {
                 write!(f, "unknown interference kind: {value}")
             }
             Self::LengthOverflow(field) => write!(f, "length overflow: field={field}"),
+            Self::InvalidPayload(field) => write!(f, "invalid payload: field={field}"),
         }
     }
 }
@@ -505,6 +518,8 @@ pub fn read_interference_payload_v1<R: Read>(
 pub enum ArtifactPayload {
     ToolPath(ToolPath<f64>),
     Interference(InterferencePayload),
+    /// 切削シミュレーションの結果のペイロード（解釈は cam_sim が行う）
+    CuttingSimulation(Vec<u8>),
 }
 
 /// ヘッダ + ペイロードを一括読み込みするエントリーポイント。
@@ -523,6 +538,13 @@ pub fn read_artifact_v1<R: Read>(
         ArtifactKind::Interference => {
             ArtifactPayload::Interference(read_interference_payload_v1(reader)?)
         }
+        ArtifactKind::CuttingSimulation => {
+            let length = usize::try_from(header.payload_len)
+                .map_err(|_| BinaryFormatError::LengthOverflow("payload_len"))?;
+            let mut payload = vec![0_u8; length];
+            reader.read_exact(&mut payload)?;
+            ArtifactPayload::CuttingSimulation(payload)
+        }
     };
     Ok((header, payload))
 }
@@ -533,10 +555,12 @@ pub fn read_toolpath_artifact_v1<R: Read>(
     let (header, payload) = read_artifact_v1(reader)?;
     match payload {
         ArtifactPayload::ToolPath(toolpath) => Ok((header, toolpath)),
-        ArtifactPayload::Interference(_) => Err(BinaryFormatError::ArtifactKindMismatch {
-            expected: ArtifactKind::ToolPath,
-            found: header.kind,
-        }),
+        ArtifactPayload::Interference(_) | ArtifactPayload::CuttingSimulation(_) => {
+            Err(BinaryFormatError::ArtifactKindMismatch {
+                expected: ArtifactKind::ToolPath,
+                found: header.kind,
+            })
+        }
     }
 }
 
@@ -546,10 +570,12 @@ pub fn read_interference_artifact_v1<R: Read>(
     let (header, payload) = read_artifact_v1(reader)?;
     match payload {
         ArtifactPayload::Interference(interference) => Ok((header, interference)),
-        ArtifactPayload::ToolPath(_) => Err(BinaryFormatError::ArtifactKindMismatch {
-            expected: ArtifactKind::Interference,
-            found: header.kind,
-        }),
+        ArtifactPayload::ToolPath(_) | ArtifactPayload::CuttingSimulation(_) => {
+            Err(BinaryFormatError::ArtifactKindMismatch {
+                expected: ArtifactKind::Interference,
+                found: header.kind,
+            })
+        }
     }
 }
 

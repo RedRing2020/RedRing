@@ -349,6 +349,19 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
             .starts_with("result://sim/")
     );
 
+    // 成果物は切削シミュレーションの成果物として読め、スナップショットの数がログと一致する
+    let output = &manager.output_history(sim_id).unwrap()[0];
+    let (_, artifact) =
+        crate::read_cutting_simulation_artifact_v1(&mut output.artifact_bytes.as_deref().unwrap())
+            .unwrap();
+    assert!(
+        output
+            .log_ref
+            .as_deref()
+            .unwrap()
+            .ends_with(&format!("/ok/snapshots-{}", artifact.snapshots.len()))
+    );
+
     let events = manager.take_events();
     assert!(events.iter().any(|event| {
         matches!(

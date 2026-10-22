@@ -9,6 +9,7 @@ mod constants;
 mod error;
 mod job_adapter;
 mod preflight;
+mod simulation_artifact;
 mod simulation_input;
 mod simulator;
 mod solver_input;
@@ -20,6 +21,11 @@ mod workflow;
 pub use error::SimulationError;
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
+/// 切削シミュレーションの成果物（中身の型と書き出し・読み込み）。
+pub use simulation_artifact::{
+    CuttingSimulationArtifact, DexelChange, DexelGridLayout, read_cutting_simulation_artifact_v1,
+    write_cutting_simulation_artifact_v1,
+};
 /// CuttingSimulation の InputRef -> 素材・工具・精度の設定の解決境界。
 pub use simulation_input::{
     CuttingSimulationInput, CuttingSimulationInputProvider, InMemoryCuttingSimulationInputStore,

@@ -10,6 +10,7 @@ mod tests;
 
 use geo_algorithms::{Aabb3D, Point3D};
 
+use crate::simulation_artifact::{DexelChange, DexelGridLayout};
 use crate::stock_model::StockModel;
 use ray_interval::{AxisLine, swept_primitive_intervals};
 
@@ -182,6 +183,62 @@ impl TriDexelModel {
     /// `applied` 個の掃引体を差し引いた時点の残りの体積（Z の向きのデクセルの区間から求める）
     pub fn remaining_volume_at(&self, applied: usize) -> f64 {
         self.grids[2].volume_at(applied)
+    }
+
+    /// 格子 `grid` のデクセル `index` の、`applied` 個の掃引体を差し引いた時点の区間
+    #[cfg(test)]
+    pub(crate) fn intervals_at(&self, grid: usize, index: usize, applied: usize) -> &[(f64, f64)] {
+        self.grids[grid].dexels[index].intervals_at(applied)
+    }
+
+    /// 格子の配置（X・Y・Z の順）
+    pub(crate) fn layouts(&self) -> [DexelGridLayout; 3] {
+        self.grids.each_ref().map(|grid| DexelGridLayout {
+            axis: grid.axis as u8,
+            origin: grid.origin,
+            pitch: grid.pitch,
+            count: grid.count.map(|count| {
+                u32::try_from(count).expect("dexel line count is bounded by the display resolution")
+            }),
+            initial: grid.dexels[0].initial,
+        })
+    }
+
+    /// スナップショットの時点（各時点までに差し引いた掃引体の数。昇順）ごとの、前の時点からのデクセルの変化
+    ///
+    /// 掃引体ごとの履歴を、最初に `applied[k]` 個に達する時点 `k` にまとめ、時点ごとに最後の区間を変化とする。
+    /// 最後の時点より後の変化は含めない。
+    pub(crate) fn snapshot_changes(&self, applied: &[usize]) -> Vec<Vec<DexelChange>> {
+        let mut changes = vec![Vec::new(); applied.len()];
+        for (grid_index, grid) in self.grids.iter().enumerate() {
+            for (dexel_index, dexel) in grid.dexels.iter().enumerate() {
+                let mut pending: Option<(usize, &Vec<(f64, f64)>)> = None;
+                for (primitive, intervals) in &dexel.history {
+                    let snapshot = applied.partition_point(|&count| count <= *primitive);
+                    if snapshot >= applied.len() {
+                        break;
+                    }
+                    if let Some((previous, previous_intervals)) = pending
+                        && previous != snapshot
+                    {
+                        changes[previous].push(change(grid_index, dexel_index, previous_intervals));
+                    }
+                    pending = Some((snapshot, intervals));
+                }
+                if let Some((snapshot, intervals)) = pending {
+                    changes[snapshot].push(change(grid_index, dexel_index, intervals));
+                }
+            }
+        }
+        changes
+    }
+}
+
+fn change(grid: usize, index: usize, intervals: &[(f64, f64)]) -> DexelChange {
+    DexelChange {
+        grid: grid as u8,
+        index: u32::try_from(index).expect("dexel count is bounded by the display resolution"),
+        intervals: intervals.to_vec(),
     }
 }
 

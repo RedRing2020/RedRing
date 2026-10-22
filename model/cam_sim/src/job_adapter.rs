@@ -18,6 +18,7 @@ use job_runtime::{
 
 use crate::CuttingSimulator;
 use crate::preflight::{PreflightFailure, preflight_cutting_simulation};
+use crate::simulation_artifact::write_cutting_simulation_artifact_v1;
 use crate::simulation_input::{CuttingSimulationInputProvider, validate_sim_input_ref};
 use crate::solver_input::{CamSolverInputProvider, validate_cam_input_ref};
 
@@ -174,7 +175,7 @@ impl CamJobExecutorAdapter {
         };
 
         let mut cursor = Cursor::new(input_artifact_bytes);
-        let (_, toolpath) = match read_toolpath_artifact_v1(&mut cursor) {
+        let (toolpath_header, toolpath) = match read_toolpath_artifact_v1(&mut cursor) {
             Ok(value) => value,
             Err(err) => {
                 return sim_failure(
@@ -206,11 +207,37 @@ impl CamJobExecutorAdapter {
             };
         }
 
+        let mut artifact_bytes = Vec::new();
+        let written = simulator
+            .artifact()
+            .ok_or(BinaryFormatError::InvalidPayload("simulation result"))
+            .and_then(|artifact| {
+                write_cutting_simulation_artifact_v1(
+                    &mut artifact_bytes,
+                    &artifact,
+                    toolpath_header.unit,
+                    toolpath_header.frame,
+                )
+            });
+        if let Err(err) = written {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: elapsed_millis_since(started),
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("sim", job.id.0, "artifact-error")),
+                error: Some(format!(
+                    "failed to write cutting simulation artifact: {}",
+                    err
+                )),
+            };
+        }
+
         JobExecutionResult {
             status: JobStatus::Succeeded,
             elapsed_millis: elapsed_millis_since(started),
             result_ref: Some(build_result_ref("sim", job.id.0, "ok")),
-            artifact_bytes: None,
+            artifact_bytes: Some(artifact_bytes),
             log_ref: Some(build_log_ref(
                 "sim",
                 job.id.0,

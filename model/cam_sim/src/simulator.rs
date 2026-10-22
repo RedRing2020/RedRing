@@ -6,6 +6,7 @@ use cam_core::{Tool, ToolPath};
 
 use crate::constants::TRI_DEXEL_DISPLAY_LINES;
 use crate::error::SimulationError;
+use crate::simulation_artifact::CuttingSimulationArtifact;
 use crate::stock_model::StockModel;
 use crate::tri_dexel::TriDexelModel;
 
@@ -89,6 +90,10 @@ pub struct CuttingSimulator {
     stock: Aabb3D<f64>,
     interval: SnapshotInterval,
     snapshots: Vec<SimulationSnapshot>,
+    /// 各スナップショットの時点までに差し引いた掃引体（切削の区間）の数
+    pub(crate) snapshot_applied: Vec<usize>,
+    /// 最後に実行した結果の表示用のトリデクセル
+    pub(crate) dexels: Option<TriDexelModel>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -104,6 +109,8 @@ impl CuttingSimulator {
             stock,
             interval,
             snapshots: Vec::new(),
+            snapshot_applied: Vec::new(),
+            dexels: None,
         }
     }
 
@@ -123,6 +130,16 @@ impl CuttingSimulator {
                 remaining_volume_mm3: snapshot.remaining_volume,
             })
             .collect()
+    }
+
+    /// 最後に実行した結果の成果物の中身（実行していない場合は `None`）
+    pub fn artifact(&self) -> Option<CuttingSimulationArtifact> {
+        let dexels = self.dexels.as_ref()?;
+        Some(CuttingSimulationArtifact {
+            snapshots: self.snapshot_exports_f64(),
+            grids: dexels.layouts(),
+            snapshot_changes: dexels.snapshot_changes(&self.snapshot_applied),
+        })
     }
 
     /// ToolPathをシミュレーションする。
@@ -158,6 +175,7 @@ impl CuttingSimulator {
         let dexels =
             TriDexelModel::from_stock_model(&model, max_extent / TRI_DEXEL_DISPLAY_LINES as f64);
         self.record_snapshots(&segments, &dexels, config);
+        self.dexels = Some(dexels);
         Ok(())
     }
 }
