@@ -1,6 +1,6 @@
 //! snapshot_converter - 時系列スナップショットのドメインモデル変換
 //!
-//! ViewModel層で利用するための汎用スナップショットDTOを定義します。
+//! 汎用のスナップショットDTOを定義します。
 //! ドメイン固有情報は `payload` に閉じ込め、CAM以外（例: プレス）にも
 //! 同じ構造で適用できることを目的とします。
 
@@ -81,7 +81,7 @@ impl<TPayload> DomainSnapshotSeries<TPayload> {
 
 /// CAM切削シミュレーション由来の最小スナップショット入力
 ///
-/// cam_sim への直接依存を持たず、境界越しに必要情報のみ受け取るためのDTO。
+/// 切削シミュレーションのスナップショットのうち、表示に必要な情報だけを持つDTO。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CamSimulationSnapshotInput {
     pub segment_index: usize,

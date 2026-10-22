@@ -1,12 +1,8 @@
-//! mesh_convert - TriangleMesh3D から MeshVertex への変換（MVVM準拠版）
-//!
-//! MVVM アーキテクチャに従い、viewmodel の mesh_converter を使用して変換を実行。
-//! render レイヤーから直接 geo_* クレートへの依存を削除。
+//! mesh_convert - メッシュの頂点データから MeshVertex への変換
 
 use crate::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 
-/// ジェネリック版のメッシュ変換（型消去経由）
-/// geo_primitives への直接依存を避けるため、型消去されたインターフェースを使用
+/// メッシュの頂点データを MeshVertex に変換する
 pub fn triangle_mesh_to_mesh_vertices_generic(
     vertex_data: Vec<viewmodel::mesh_converter::VertexData>,
 ) -> Vec<MeshVertex> {

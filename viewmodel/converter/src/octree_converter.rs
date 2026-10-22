@@ -1,7 +1,6 @@
 //! octree_converter - Octree から GPU用ワイヤーフレームデータへの変換
 //!
-//! MVVMアーキテクチャにおけるViewModel層の責務として、
-//! geo_algorithms の Octree を GPU レンダリング用のワイヤーフレーム頂点データに変換します。
+//! Octree を GPU レンダリング用のワイヤーフレーム頂点データに変換します。
 
 use geo_algorithms::{
     octree::{Octree, OctreeTolerance, VoxelOctree, VoxelState},
@@ -11,7 +10,7 @@ use geo_contracts::Scalar;
 use std::collections::HashSet;
 use std::ops::Range;
 
-/// GPU用ワイヤーフレーム頂点データ（renderクレートのVertex3Dと同じ構造）
+/// GPU用ワイヤーフレーム頂点データ
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct WireframeVertex {

@@ -1,7 +1,6 @@
-//! STL読み込み機能（ViewModel層）
+//! STL読み込み機能
 //!
-//! MVVMアーキテクチャに準拠したSTLファイル読み込みとGPU変換
-//! Model層（geo_io）からView層（render）への架け橋
+//! STLファイルを読み込み、GPU用のデータに変換する。
 
 use crate::mesh_converter::{
     triangle_mesh_to_vertices, triangle_mesh_to_vertices_with_indices, VertexData,
@@ -22,7 +21,7 @@ pub struct StlMeshData {
 
 /// STLファイルを読み込み、GPU用データに変換
 pub fn load_stl_mesh(path: &Path) -> Result<StlMeshData, Box<dyn std::error::Error>> {
-    // Model層（geo_io）からSTLデータを取得
+    // STLデータを取得
     let mesh = stl::load_stl::<f64>(path)?;
 
     tracing::info!(
@@ -40,7 +39,7 @@ pub fn load_stl_mesh(path: &Path) -> Result<StlMeshData, Box<dyn std::error::Err
         bounds.1
     );
 
-    // ViewModel層でGPU用データに変換
+    // GPU用データに変換
     let vertices = triangle_mesh_to_vertices(&mesh);
     let (_vertex_positions, indices) = triangle_mesh_to_vertices_with_indices(&mesh);
 

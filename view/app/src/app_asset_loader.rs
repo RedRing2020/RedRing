@@ -1,7 +1,6 @@
-//! app層向けアセット読み込みFacade。
+//! アセット読み込みFacade。
 //!
-//! `debug_scene` などの呼び出し側が、個別loader実装詳細
-//! (`stl_loader` / `svg_loader`) に直接依存しないための薄い接続層。
+//! STL・SVG のファイルとサンプルを読み込み、描画用の頂点データを返す。
 
 use render::vertex_3d::MeshVertex;
 use std::path::Path;

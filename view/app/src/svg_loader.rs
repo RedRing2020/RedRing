@@ -1,4 +1,4 @@
-//! SVGローダー（View層）
+//! SVGローダー
 //!
 //! SVG形状ファイルを読み込んでレンダリング用のMeshVertexに変換します。
 
@@ -18,7 +18,7 @@ pub fn load_svg_for_rendering(path: &Path, tolerance: Option<f64>) -> SvgLoadRes
     tracing::info!("SVGファイル読み込み: {:?}", path);
 
     let tol = tolerance.unwrap_or(0.01);
-    // ViewModel層でSVGをVertexDataに変換
+    // SVGをVertexDataに変換
     let vertex_data = load_svg_shapes(path, tol)?;
 
     tracing::info!("SVG変換完了: {} 頂点", vertex_data.len());

@@ -1,17 +1,9 @@
 //! geo_core - 幾何計算基盤クレート
 //!
-//! geo_primitives と geo_nurbs が共通利用する低レベル実装を提供します。
 //! AABB（軸平行境界ボックス）などの基本幾何型を実装。
 //!
 //! ## 主要機能
 //! - **aabb2d/aabb3d**: 軸平行境界ボックス（AABB）実装
-//!
-//! ## レイヤーでの役割
-//! ```text
-//! analysis → geo_core → geo_primitives, geo_nurbs
-//! ```
-//!
-//! geo_core は低レベル共通実装を提供
 //!
 //! ---
 //! © RedRing Project
