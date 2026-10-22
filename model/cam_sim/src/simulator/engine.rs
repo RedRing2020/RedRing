@@ -14,6 +14,7 @@ impl super::CuttingSimulator {
         config: SnapshotConfig,
     ) {
         self.snapshots.clear();
+        self.snapshot_applied.clear();
 
         let mut applied = 0;
         let mut accumulated_distance = 0.0;
@@ -30,7 +31,8 @@ impl super::CuttingSimulator {
                         t: 0.0,
                         accumulated_distance,
                     },
-                    dexels.remaining_volume_at(applied),
+                    applied,
+                    dexels,
                 );
             } else {
                 while next_snapshot_distance <= accumulated_distance {
@@ -40,7 +42,8 @@ impl super::CuttingSimulator {
                             t: 0.0,
                             accumulated_distance: next_snapshot_distance,
                         },
-                        dexels.remaining_volume_at(applied),
+                        applied,
+                        dexels,
                     );
                     next_snapshot_distance += config.actual_interval_mm;
                     if config.actual_interval_mm <= f64::EPSILON {
@@ -53,7 +56,6 @@ impl super::CuttingSimulator {
                 applied += 1;
             }
             accumulated_distance += seg_length;
-            let remaining_volume = dexels.remaining_volume_at(applied);
 
             if config.actual_interval_mm > f64::EPSILON {
                 while next_snapshot_distance < accumulated_distance {
@@ -70,7 +72,8 @@ impl super::CuttingSimulator {
                             t,
                             accumulated_distance: next_snapshot_distance,
                         },
-                        remaining_volume,
+                        applied,
+                        dexels,
                     );
                     next_snapshot_distance += config.actual_interval_mm;
                 }
@@ -83,14 +86,15 @@ impl super::CuttingSimulator {
                         t: 1.0,
                         accumulated_distance,
                     },
-                    remaining_volume,
+                    applied,
+                    dexels,
                 );
             }
         }
     }
 
     /// 重複記録を抑制しながらスナップショットを追加する。
-    fn save_snapshot(&mut self, position: PathPosition, remaining_volume: f64) {
+    fn save_snapshot(&mut self, position: PathPosition, applied: usize, dexels: &TriDexelModel) {
         if let Some(last) = self.snapshots.last()
             && last.position.segment_index == position.segment_index
             && (last.position.t - position.t).abs() <= 1e-12
@@ -100,7 +104,8 @@ impl super::CuttingSimulator {
 
         self.snapshots.push(SimulationSnapshot {
             position,
-            remaining_volume,
+            remaining_volume: dexels.remaining_volume_at(applied),
         });
+        self.snapshot_applied.push(applied);
     }
 }

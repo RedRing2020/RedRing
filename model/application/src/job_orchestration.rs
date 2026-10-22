@@ -2,7 +2,7 @@
 
 use cam_sim::{CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter};
 use job_domain::{CamJobEvent, CamJobRecord, CamJobStatus, CamJobType};
-use job_runtime::{JobError, JobId, JobManager, JobSpec, JobType, RetryPolicy};
+use job_runtime::{JobError, JobId, JobManager, JobOutputValidity, JobSpec, JobType, RetryPolicy};
 
 const DEFAULT_TIMEOUT_SECS: u64 = 60;
 
@@ -77,6 +77,8 @@ pub struct JobWorkflowResultQuery {
 pub struct JobWorkflowResult {
     pub job: CamJobRecord,
     pub active_result_ref: Option<String>,
+    /// 有効な成果物のバイト列（成果物を返さないジョブ・成果物がない場合は `None`）
+    pub active_artifact: Option<Vec<u8>>,
 }
 
 /// ViewModel 向けイベント batch。
@@ -154,11 +156,18 @@ impl JobWorkflowOrchestration for JobWorkflowOrchestrator {
     ) -> Result<JobWorkflowResult, JobOrchestrationError> {
         let job_id = JobId(query.job_id);
         let active_result_ref = self.manager.active_result_ref(job_id)?.map(str::to_owned);
+        let active_artifact = self
+            .manager
+            .output_history(job_id)?
+            .into_iter()
+            .find(|output| output.validity == JobOutputValidity::Active)
+            .and_then(|output| output.artifact_bytes.clone());
         let job = CamJobRecord::from(self.manager.get(job_id)?);
 
         Ok(JobWorkflowResult {
             job,
             active_result_ref,
+            active_artifact,
         })
     }
 
@@ -450,6 +459,13 @@ mod tests {
             result.active_result_ref.as_deref(),
             Some("result://sim/2/ok")
         );
+        // 有効な成果物は切削シミュレーションの成果物として読める
+        let artifact = result
+            .active_artifact
+            .expect("simulation returns an artifact");
+        let (_, artifact) =
+            cam_sim::read_cutting_simulation_artifact_v1(&mut artifact.as_slice()).unwrap();
+        assert!(!artifact.snapshots.is_empty());
 
         let batch = orchestrator.take_event_batch();
         assert!(batch.events.iter().any(|event| {
