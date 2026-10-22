@@ -1,7 +1,6 @@
 //! NURBS評価データの読込・生成
 //!
-//! app層が直接geo_*に依存しないよう、
-//! ViewModel層でNURBS評価データを生成します。
+//! SVG やサンプルの形状から、NURBS の GPU 評価データを生成します。
 
 use std::path::Path;
 

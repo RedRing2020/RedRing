@@ -1,4 +1,4 @@
-//! SVG形状ローダー（ViewModel層）
+//! SVG形状ローダー
 //!
 //! geo_ioのSVGパーサーを使用して形状データを読み込み、
 //! GPU用のVertexDataに変換します。
@@ -9,13 +9,12 @@ use crate::shape_converter::{
     ellipse_arc_to_wireframe_line_segments, line_segment_to_vertices, triangle_to_solid_vertices,
     TessellationQuality,
 };
+use geo_algorithms::{Arc3D, Circle3D, EllipseArc3D, LineSegment3D, NurbsCurve3D, Triangle3D};
 use geo_contracts::{
     Arc3DConstructor, Circle3DConstructor, EllipseArc3DConstructor, LineSegment3DConstructor,
     NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
     Triangle3DConstructor,
 };
-// geo_algorithms は geo_primitives を再エクスポート（アーキテクチャルール上許可）
-use geo_algorithms::{Arc3D, Circle3D, EllipseArc3D, LineSegment3D, NurbsCurve3D, Triangle3D};
 use geo_io::svg::{parse_svg_file, NurbsCurveData, SvgError, SvgShapeData};
 use std::path::Path;
 use thiserror::Error;

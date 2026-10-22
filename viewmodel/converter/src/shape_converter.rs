@@ -1,27 +1,17 @@
 //! shape_converter - 幾何形状からGPU頂点データへの変換
 //!
-//! MVVMアーキテクチャにおけるViewModel層の責務として、
-//! geo_primitives の各種形状を GPU レンダリング用の頂点データに変換します。
-//!
-//! ## アーキテクチャ設計
-//!
-//! ```text
-//! Model層 (geo_primitives)
-//!   LineSegment3D, Circle3D, Arc3D, etc.
-//!          ↓
-//! ViewModel層 (このモジュール)
-//!   shape_to_vertices() - 形状種別に応じた変換
-//!          ↓
-//! View層 (render/stage)
-//!   MeshVertex (GPU形式)
-//! ```
-//!
-//! ## Foundation Patternとの統合
+//! 各種形状を GPU レンダリング用の頂点データに変換します。
 //!
 //! `PrimitiveMetadata` trait の `primitive_kind()` を活用して、
 //! 型消去された形状オブジェクトを適切に変換します。
 
 use crate::mesh_converter::VertexData;
+use geo_algorithms::{
+    Angle, Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D,
+    CylindricalSurface3D, Direction3D, Ellipse3D, EllipseArc3D, EllipsoidalSolid3D,
+    EllipsoidalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
+    SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, Vector3D,
+};
 use geo_contracts::{
     Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DConstructor,
     ConicalSurface3DEvaluation, CylindricalSolid3DProperties, CylindricalSurface3DConstructor,
@@ -31,15 +21,6 @@ use geo_contracts::{
     Ray3DProperties, SphericalSolid3DProperties, SphericalSurface3DConstructor,
     SphericalSurface3DEvaluation, TorusSolid3DProperties, TorusSurface3DConstructor,
     TorusSurface3DEvaluation, Triangle3DBoundaryAccess,
-};
-// geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
-// - 基本型 (Point3D, Vector3D from geo_core)
-// - 形状型 (Arc3D等 from geo_primitives)
-use geo_algorithms::{
-    Angle, Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D,
-    CylindricalSurface3D, Direction3D, Ellipse3D, EllipseArc3D, EllipsoidalSolid3D,
-    EllipsoidalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
-    SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, Vector3D,
 };
 use std::f64::consts::PI;
 

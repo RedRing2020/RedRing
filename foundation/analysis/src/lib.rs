@@ -1,7 +1,6 @@
 //! RedRing Analysis Crate
 //!
-//! 数値解析、幾何サンプリング、統計解析機能を提供する独立クレート。
-//! 他のクレートに依存しない純粋な数値計算機能を提供します。
+//! 数値解析、幾何サンプリング、統計解析機能を提供する。
 
 pub mod abstract_types; // 数値計算の基盤型（Scalar, Angle, Tolerance等）
 pub mod consts;

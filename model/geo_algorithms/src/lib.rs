@@ -27,18 +27,17 @@ pub use curve_discretization::{
 pub use result::{IntersectionGeometry, IntersectionResult, IntersectionTopology};
 
 pub use geo_contracts::{default_kernel_numerical_zero_tolerance, Scalar};
-// 形状の API（trait定義）の再エクスポート（cam_sim 等、geo_contracts に依存しない層からのアクセス用）
+// 形状の API（trait定義）の再エクスポート
 pub use geo_contracts::{
     LineSegment3DConstructor, LineSegment3DDistance, LineSegment3DProperties,
     TriangleMesh3DConstructor,
 };
-// NURBS型の再エクスポート（ViewModel層からのアクセス用）
+// NURBS型の再エクスポート
 pub use geo_nurbs::{
     AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings, NurbsCurve3D,
     NurbsCurveAdaptiveTessellation, NurbsSurface3D, NurbsSurfaceAdaptiveTessellation,
 };
 
-// geo_primitives の基本型を再エクスポート（ViewModel層がgeo_primitivesに直接依存しないように）
 // 基本ポイント・ベクトル型（geo_coreから）
 pub use geo_core::{
     Aabb3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D, Vector2D, Vector3D,

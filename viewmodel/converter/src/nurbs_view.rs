@@ -1,7 +1,6 @@
 //! NURBS GPU評価用のデータ変換
 //!
-//! Model層（geo_nurbs）のNURBS形状とパラメータリストを、
-//! View層（render）でGPU評価可能な形式に変換します。
+//! NURBS形状とパラメータリストを、GPU で評価できる形式に変換します。
 
 use geo_algorithms::{AdaptiveParamGrid, AdaptiveParamList};
 use geo_contracts::Scalar;

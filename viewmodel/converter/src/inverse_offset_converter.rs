@@ -12,7 +12,7 @@
 
 use std::collections::HashSet;
 
-/// View 層が application へ直接依存しないよう、工具種別を再エクスポートする
+/// 工具種別の再エクスポート
 pub use application::cam_inspection::InspectionToolKind;
 use application::cam_inspection::{
     inspect_inverse_offset, InverseOffsetEnvelopeGrid, InverseOffsetInspection,

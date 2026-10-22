@@ -1,14 +1,13 @@
 //! mesh_converter - TriangleMesh3D から GPU用頂点データへの変換
 //!
-//! MVVMアーキテクチャにおけるViewModel層の責務として、
-//! geo_primitives の具体型を使用して TriangleMesh3D を GPU レンダリング用の頂点データに変換します。
+//! TriangleMesh3D を GPU レンダリング用の頂点データに変換します。
 
 use geo_algorithms::{TriangleMesh3D, Vector3D};
 use geo_contracts::{
     Triangle3DBoundaryAccess, TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,
 };
 
-/// GPU用頂点データ（renderクレートのMeshVertexと同じ構造）
+/// GPU用頂点データ
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct VertexData {

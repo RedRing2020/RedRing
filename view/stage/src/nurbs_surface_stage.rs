@@ -1,6 +1,6 @@
 //! NURBS曲面 GPU評価レンダリングステージ
 //!
-//! ViewModel層で作成したGPU評価用データを受け取り、
+//! GPU評価用データを受け取り、
 //! GPU上でNURBS曲面を直接評価・描画します。
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};

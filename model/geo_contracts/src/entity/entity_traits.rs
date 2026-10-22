@@ -1,7 +1,6 @@
 //! Entity Core Traits
 //!
-//! ViewModel 層はこのトレイト経由で Entity を扱い、
-//! 具体実装（geo_entity など）への直接依存を避ける。
+//! エンティティの識別子・表示属性・形状の値を取り出す trait定義。
 
 use crate::{Angle, Direction3D, Point3D, Scalar};
 use serde::{Deserialize, Serialize};

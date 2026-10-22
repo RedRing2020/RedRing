@@ -4,7 +4,7 @@
 //!
 //! # 設計方針
 //!
-//! - **色設定の注入**: App層から `ToolPathColorScheme` を受け取る
+//! - **色設定の注入**: `ToolPathColorScheme` を受け取る
 //! - **3フェーズ構造対応**: approach → cutting → retract の分離
 //! - **セグメント種別の識別**: Cutting, Rapid, Approach, Retract, PassRetract
 //! - **円弧テッセレーション**: 円弧を線分に分割（設定可能な分割数）
@@ -18,7 +18,7 @@ use geo_algorithms::{
 };
 use geo_contracts::LineSegment3DSupportLine;
 
-/// 工具経路の色設定（App層から注入）
+/// 工具経路の色設定
 #[derive(Debug, Clone, Copy)]
 pub struct ToolPathColorScheme {
     /// 切削セグメントの色（デフォルト: 白色）
@@ -57,7 +57,7 @@ impl Default for ToolPathColorScheme {
     }
 }
 
-/// 表示用の曲線離散化設定（App層から注入）
+/// 表示用の曲線離散化設定
 #[derive(Debug, Clone, Copy)]
 pub struct DisplayCurveDiscretizationSettings {
     /// 円弧 polyline 近似の弦誤差上限（mm）
@@ -117,7 +117,7 @@ impl DisplayCurveDiscretizationSettings {
     }
 }
 
-/// 工具経路可視化設定（App層から注入される全設定）
+/// 工具経路可視化設定
 #[derive(Debug, Clone)]
 pub struct ToolPathVisualizationSettings {
     /// 色設定
@@ -192,7 +192,7 @@ pub struct PhaseRanges {
 /// # 引数
 ///
 /// - `toolpath`: 変換元の工具経路
-/// - `settings`: 可視化設定（App層から注入）
+/// - `settings`: 可視化設定
 ///
 /// # 戻り値
 ///
