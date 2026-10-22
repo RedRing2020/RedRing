@@ -6,6 +6,7 @@
 //! 素材の正本は工具の掃引プリミティブの列で表します（設計: CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md）。
 
 mod constants;
+mod dexel_surface;
 mod error;
 mod job_adapter;
 mod preflight;
@@ -18,6 +19,8 @@ mod tri_dexel;
 mod workflow;
 
 /// シミュレーション実行時のエラー型。
+/// トリデクセルの表示用の面。
+pub use dexel_surface::{DexelSurface, SurfaceMesh};
 pub use error::SimulationError;
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
