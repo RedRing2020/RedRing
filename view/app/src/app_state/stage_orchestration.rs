@@ -85,7 +85,7 @@ impl AppState {
         let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
         let projection_matrix = self.camera.projection_matrix(aspect);
 
-        tracing::info!(
+        tracing::debug!(
             "🎥 カメラ更新: mode={:?}, aspect={:.3}, target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds={:?}",
             self.camera.projection_mode,
             aspect,
