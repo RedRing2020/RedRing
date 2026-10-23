@@ -12,6 +12,7 @@
 //! - NURBS GPU評価用データ変換（NURBS形状 + パラメータリスト → GPU形式）
 
 pub mod cam_sim_visualization_converter;
+pub mod cutting_animation;
 pub mod entity_converter;
 pub mod feature_command_converter;
 pub mod inverse_offset_converter;
