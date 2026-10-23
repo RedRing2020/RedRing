@@ -303,7 +303,7 @@ fn lerp_point_on_segment(segment: &LineSegment3D<f64>, t: f64) -> Point3D<f64> {
     )
 }
 
-fn tool_tip_position(
+pub(crate) fn tool_tip_position(
     segments: &[(LineSegment3D<f64>, bool)],
     segment_index: usize,
     segment_t: f64,
@@ -312,7 +312,7 @@ fn tool_tip_position(
     Some(lerp_point_on_segment(segment, segment_t))
 }
 
-fn create_toolpath_wireframe_vertices(
+pub(crate) fn create_toolpath_wireframe_vertices(
     toolpath: &ToolPath<f64>,
     settings: &ToolPathVisualizationSettings,
 ) -> Vec<WireframeVertex> {
@@ -333,7 +333,7 @@ fn create_toolpath_wireframe_vertices(
         .collect()
 }
 
-fn create_flat_end_mill_wireframe(
+pub(crate) fn create_flat_end_mill_wireframe(
     tip: Point3D<f64>,
     radius: f64,
     cutting_length: f64,
@@ -377,7 +377,7 @@ fn create_flat_end_mill_wireframe(
     vertices
 }
 
-fn create_ball_end_mill_wireframe(
+pub(crate) fn create_ball_end_mill_wireframe(
     tip: Point3D<f64>,
     radius: f64,
     cutting_length: f64,
