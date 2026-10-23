@@ -86,7 +86,10 @@ fn line_intervals_match_the_closed_form_containment_of_the_swept_volume() {
                         -3.0 + 14.0 * next(),
                     ),
                 };
-                let intervals = swept_primitive_intervals(&primitive, line);
+                let intervals: Vec<(f64, f64)> = swept_primitive_intervals(&primitive, line)
+                    .into_iter()
+                    .flatten()
+                    .collect();
                 for i in 0..=400 {
                     let s = -8.0 + 0.04 * f64::from(i);
                     let inside = intervals
@@ -189,6 +192,27 @@ fn restored_states_match_models_built_up_to_each_time() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn accumulated_remaining_volumes_match_the_intervals_at_each_time() {
+    let (model, _, _) = sample_model();
+    let dexels = TriDexelModel::from_stock_model(&model, 0.5);
+    let grid = &dexels.grids[2];
+    for applied in 0..=dexels.primitive_count() {
+        let length: f64 = grid
+            .dexels
+            .iter()
+            .flat_map(|dexel| dexel.intervals_at(applied))
+            .map(|(low, high)| high - low)
+            .sum();
+        let expected = length * grid.pitch[0] * grid.pitch[1];
+        let remaining = dexels.remaining_volume_at(applied);
+        assert!(
+            (remaining - expected).abs() < 1e-9 * expected,
+            "applied = {applied}: {remaining} != {expected}"
+        );
     }
 }
 
