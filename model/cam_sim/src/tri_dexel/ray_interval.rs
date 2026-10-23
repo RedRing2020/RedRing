@@ -20,11 +20,11 @@ impl AxisLine {
     }
 }
 
-/// 線と掃引体の交差の区間（掃引体を分けた凸な形ごと。交わらない形は含まない）
+/// 線と掃引体の交差の区間（掃引体を分けた凸な形（円柱・球）ごと。交わらない形は `None`）
 pub(super) fn swept_primitive_intervals(
     primitive: &SweptToolPrimitive,
     line: AxisLine,
-) -> Vec<(f64, f64)> {
+) -> [Option<(f64, f64)>; 2] {
     let start = [
         primitive.start.x(),
         primitive.start.y(),
@@ -41,19 +41,14 @@ pub(super) fn swept_primitive_intervals(
             cutting_length,
         } => (Some((radius, radius, cutting_length)), Some(radius)),
     };
-    let mut intervals = Vec::new();
-    if let Some((radius, bottom, top)) = cylinder
-        && let Some(interval) = swept_cylinder_interval(start, direction, radius, bottom, top, line)
-    {
-        intervals.push(interval);
-    }
-    if let Some(radius) = sphere {
+    let cylinder = cylinder.and_then(|(radius, bottom, top)| {
+        swept_cylinder_interval(start, direction, radius, bottom, top, line)
+    });
+    let sphere = sphere.and_then(|radius| {
         let center = [start[0], start[1], start[2] + radius];
-        if let Some(interval) = swept_sphere_interval(center, direction, radius, line) {
-            intervals.push(interval);
-        }
-    }
-    intervals
+        swept_sphere_interval(center, direction, radius, line)
+    });
+    [cylinder, sphere]
 }
 
 /// 先端からの高さ `[bottom, top]`・半径 `radius` の垂直の円柱を、先端 `start + t·direction` に沿って掃引した形
@@ -168,33 +163,34 @@ fn extreme_interval(l: (f64, f64), q: [f64; 3], range: (f64, f64)) -> Option<(f6
     let a = 4.0 * q2 * q2 - 4.0 * l1 * l1 * q2;
     let b = 4.0 * q1 * q2 - 4.0 * l1 * l1 * q1;
     let c = q1 * q1 - 4.0 * l1 * l1 * q0;
-    let mut candidates = vec![low, high];
-    let mut stationary = quadratic_roots(a, b, c);
-    if a != 0.0 {
-        stationary.push(-b / (2.0 * a));
-    }
-    candidates.extend(stationary.into_iter().filter(|t| (low..=high).contains(t)));
+    let vertex = (a != 0.0).then(|| -b / (2.0 * a));
+    let [first, second] = quadratic_roots(a, b, c);
+    let stationary = [first, second, vertex]
+        .into_iter()
+        .flatten()
+        .filter(|t| (low..=high).contains(t));
     let room = |t: f64| (q0 + q1 * t + q2 * t * t).max(0.0).sqrt();
-    let minimum = candidates
-        .iter()
-        .map(|&t| l0 + l1 * t - room(t))
-        .fold(f64::INFINITY, f64::min);
-    let maximum = candidates
-        .iter()
-        .map(|&t| l0 + l1 * t + room(t))
-        .fold(f64::NEG_INFINITY, f64::max);
+    let (minimum, maximum) = [low, high].into_iter().chain(stationary).fold(
+        (f64::INFINITY, f64::NEG_INFINITY),
+        |(minimum, maximum), t| {
+            (
+                minimum.min(l0 + l1 * t - room(t)),
+                maximum.max(l0 + l1 * t + room(t)),
+            )
+        },
+    );
     Some((minimum, maximum))
 }
 
-/// `a t² + b t + c = 0` の実数解（`a = b = 0` の場合は空）
-fn quadratic_roots(a: f64, b: f64, c: f64) -> Vec<f64> {
+/// `a t² + b t + c = 0` の実数解（`a = b = 0` の場合は両方 `None`）
+fn quadratic_roots(a: f64, b: f64, c: f64) -> [Option<f64>; 2] {
     if a == 0.0 {
-        return if b == 0.0 { Vec::new() } else { vec![-c / b] };
+        return [(b != 0.0).then(|| -c / b), None];
     }
     let discriminant = b * b - 4.0 * a * c;
     if discriminant < 0.0 {
-        return Vec::new();
+        return [None, None];
     }
     let sqrt = discriminant.sqrt();
-    vec![(-b + sqrt) / (2.0 * a), (-b - sqrt) / (2.0 * a)]
+    [Some((-b + sqrt) / (2.0 * a)), Some((-b - sqrt) / (2.0 * a))]
 }

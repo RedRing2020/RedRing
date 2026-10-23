@@ -24,7 +24,17 @@ struct Dexel {
 }
 
 impl Dexel {
+    /// 履歴の最後（なければ初期）の区間
+    fn current(&self) -> &[(f64, f64)] {
+        self.history
+            .last()
+            .map_or(std::slice::from_ref(&self.initial), |(_, intervals)| {
+                intervals
+            })
+    }
+
     /// `applied` 個の掃引体を差し引いた時点の区間
+    #[cfg(test)]
     fn intervals_at(&self, applied: usize) -> &[(f64, f64)] {
         let changed = self
             .history
@@ -107,39 +117,56 @@ impl DexelGrid {
         first..(last as usize + 1).min(self.count[index])
     }
 
-    /// `index` 番目の掃引体を差し引き、変化したデクセルの履歴に記録する
-    fn subtract(&mut self, index: usize, primitive: &crate::stock_model::SweptToolPrimitive) {
+    /// `index` 番目の掃引体を差し引き、変化したデクセルの履歴に記録する。除去した区間の長さの和を返す
+    ///
+    /// 掃引体は時系列の順に差し引くため、各デクセルの今の区間は履歴の最後（なければ初期の区間）である。
+    fn subtract(
+        &mut self,
+        index: usize,
+        primitive: &crate::stock_model::SweptToolPrimitive,
+    ) -> f64 {
         let bounds = primitive.bounds();
         let (low, high) = (coordinates(bounds.min()), coordinates(bounds.max()));
         let [u, v] = self.plane_axes;
+        let (along_low, along_high) = (low[self.axis], high[self.axis]);
+        let mut removed_length = 0.0;
         for i in self.index_range(0, low[u], high[u]) {
             for j in self.index_range(1, low[v], high[v]) {
-                let removed = swept_primitive_intervals(primitive, self.line(i, j));
-                if removed.is_empty() {
+                let line = self.line(i, j);
+                let dexel = &mut self.dexels[i * self.count[1] + j];
+                let current = dexel.current();
+                // 除去する区間は掃引体の外接する箱の中にあるため、箱の中に材料がない線は変わらない
+                if !current
+                    .iter()
+                    .any(|&(low, high)| along_low < high && low < along_high)
+                {
                     continue;
                 }
-                let dexel = &mut self.dexels[i * self.count[1] + j];
-                let current = dexel.intervals_at(index + 1).to_vec();
-                let mut next = current.clone();
-                for &interval in &removed {
+                let removed = swept_primitive_intervals(primitive, line);
+                // 除去する区間が材料の区間と重ならない線は変わらない
+                let overlaps = removed.iter().flatten().any(|&(start, end)| {
+                    current.iter().any(|&(low, high)| start < high && low < end)
+                });
+                if !overlaps {
+                    continue;
+                }
+                let mut next = current.to_vec();
+                for &interval in removed.iter().flatten() {
                     next = subtract_interval(&next, interval);
                 }
                 if next != current {
+                    removed_length += total_length(current) - total_length(&next);
                     dexel.history.push((index, next));
                 }
             }
         }
+        removed_length
     }
 
-    /// `applied` 個の掃引体を差し引いた時点の、材料の区間の長さの和 × 格子のセルの面積
-    fn volume_at(&self, applied: usize) -> f64 {
-        let length: f64 = self
-            .dexels
-            .iter()
-            .flat_map(|dexel| dexel.intervals_at(applied))
-            .map(|(low, high)| high - low)
-            .sum();
-        length * self.pitch[0] * self.pitch[1]
+    /// 素材の範囲の、材料の区間の長さの和
+    fn initial_length(&self) -> f64 {
+        let (low, high) = self.dexels[0].initial;
+        (high - low) * self.dexels.len() as f64
     }
 }
 
@@ -148,7 +175,8 @@ impl DexelGrid {
 pub struct TriDexelModel {
     /// X・Y・Z の向きの格子
     grids: [DexelGrid; 3],
-    primitive_count: usize,
+    /// `remaining_volumes[applied]` は、`applied` 個の掃引体を差し引いた時点の残りの体積（Z の向きのデクセルから）
+    remaining_volumes: Vec<f64>,
 }
 
 impl TriDexelModel {
@@ -164,25 +192,36 @@ impl TriDexelModel {
         );
         let stock = model.stock();
         let mut grids = [0, 1, 2].map(|axis| DexelGrid::new(&stock, axis, spacing));
+        // 残りの体積は、Z の向きのデクセルの区間の長さの和 × 格子のセルの面積。除去した長さを時系列に足し込む
+        let cell_area = grids[2].pitch[0] * grids[2].pitch[1];
+        let mut length = grids[2].initial_length();
+        let mut remaining_volumes = Vec::with_capacity(model.primitives().len() + 1);
+        remaining_volumes.push(length * cell_area);
         for (index, primitive) in model.primitives().iter().enumerate() {
-            for grid in &mut grids {
-                grid.subtract(index, primitive);
-            }
+            let [x_grid, y_grid, z_grid] = &mut grids;
+            x_grid.subtract(index, primitive);
+            y_grid.subtract(index, primitive);
+            length -= z_grid.subtract(index, primitive);
+            remaining_volumes.push(length * cell_area);
         }
         Self {
             grids,
-            primitive_count: model.primitives().len(),
+            remaining_volumes,
         }
     }
 
     /// 掃引体の数（時点の上限）
     pub fn primitive_count(&self) -> usize {
-        self.primitive_count
+        self.remaining_volumes.len() - 1
     }
 
     /// `applied` 個の掃引体を差し引いた時点の残りの体積（Z の向きのデクセルの区間から求める）
+    ///
+    /// # Panics
+    ///
+    /// `applied` が掃引体の数より大きい場合。
     pub fn remaining_volume_at(&self, applied: usize) -> f64 {
-        self.grids[2].volume_at(applied)
+        self.remaining_volumes[applied]
     }
 
     /// 格子 `grid` のデクセル `index` の、`applied` 個の掃引体を差し引いた時点の区間
@@ -258,6 +297,11 @@ fn subtract_interval(intervals: &[(f64, f64)], (low, high): (f64, f64)) -> Vec<(
         }
     }
     result
+}
+
+/// 区間の長さの和
+fn total_length(intervals: &[(f64, f64)]) -> f64 {
+    intervals.iter().map(|(low, high)| high - low).sum()
 }
 
 fn coordinates(point: Point3D<f64>) -> [f64; 3] {
