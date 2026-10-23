@@ -63,8 +63,6 @@ pub struct JobSpec {
     pub job_type: JobType,
     /// 入力参照
     pub input_ref: String,
-    /// タイムアウト秒
-    pub timeout_secs: u64,
     /// リトライ設定
     pub retry_policy: RetryPolicy,
 }

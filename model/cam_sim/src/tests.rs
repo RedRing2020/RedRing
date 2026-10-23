@@ -19,7 +19,6 @@ fn cam_spec(input: &str) -> JobSpec {
     JobSpec {
         job_type: JobType::CamProcess,
         input_ref: input.to_string(),
-        timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     }
 }
@@ -28,7 +27,6 @@ fn sim_spec(input: &str) -> JobSpec {
     JobSpec {
         job_type: JobType::CuttingSimulation,
         input_ref: input.to_string(),
-        timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     }
 }
@@ -54,7 +52,6 @@ fn nc_post_from_cam_spec(input: &str) -> JobSpec {
     JobSpec {
         job_type: JobType::NcPostFromCam,
         input_ref: input.to_string(),
-        timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     }
 }
@@ -313,7 +310,6 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
     let cam_id = manager.submit(JobSpec {
         job_type: JobType::CamProcess,
         input_ref: "input://cam/sample".to_string(),
-        timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     });
 
@@ -322,7 +318,6 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
             JobSpec {
                 job_type: JobType::CuttingSimulation,
                 input_ref: "input://sim/sample".to_string(),
-                timeout_secs: 30,
                 retry_policy: RetryPolicy::default(),
             },
             JobRelation {
@@ -467,7 +462,6 @@ fn test_job_adapter_rejects_invalid_input_ref() {
     let id = manager.submit(JobSpec {
         job_type: JobType::CuttingSimulation,
         input_ref: "input://cam/wrong".to_string(),
-        timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     });
 

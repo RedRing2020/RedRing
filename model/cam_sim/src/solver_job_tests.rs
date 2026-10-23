@@ -24,7 +24,6 @@ fn spec(job_type: JobType, input_ref: String) -> JobSpec {
     JobSpec {
         job_type,
         input_ref,
-        timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     }
 }
