@@ -12,6 +12,7 @@ pub mod nurbs_fixtures;
 pub mod octree;
 pub mod operations;
 pub mod result;
+pub mod surface_discretization;
 
 pub use operations::{CrossCollision, CrossDistance, CrossIntersection};
 
@@ -21,6 +22,10 @@ pub use octree::{Octree, OctreeNode, OctreeTolerance};
 pub use curve_discretization::{
     circular_arc_to_polyline, CircularArcDirection, CircularArcPolylineOptions,
     DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
+};
+
+pub use surface_discretization::{
+    tessellate_surfaces, SurfaceTessellationError, TessellationLimits,
 };
 
 // geo_algorithms が提供する交差結果型

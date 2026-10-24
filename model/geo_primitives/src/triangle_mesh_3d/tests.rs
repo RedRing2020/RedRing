@@ -1,6 +1,6 @@
 //! TriangleMesh3D のテスト
 
-use crate::{Point3D, TriangleMesh3D};
+use crate::{Point3D, TriangleMesh3D, Vector3D};
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
     Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq, Triangle3DBoundaryAccess,
@@ -45,6 +45,35 @@ fn test_invalid_indices() {
             corner: 2,
             index: 3,
             vertex_count: 2,
+        })
+    );
+}
+
+#[test]
+fn test_with_normals_keeps_one_normal_per_vertex() {
+    let vertices = vec![
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(0.0, 1.0, 0.0),
+    ];
+    let up = Vector3D::new(0.0, 0.0, 1.0);
+    let mesh =
+        TriangleMesh3D::with_normals(vertices.clone(), vec![[0, 1, 2]], vec![up; 3]).unwrap();
+    assert_eq!(mesh.normals(), Some([up; 3].as_slice()));
+    assert!(mesh.is_valid());
+    assert_eq!(
+        TriangleMesh3D::new(vertices.clone(), vec![[0, 1, 2]])
+            .unwrap()
+            .normals(),
+        None
+    );
+
+    // 頂点法線の数が頂点の数と異なる
+    assert_eq!(
+        TriangleMesh3D::with_normals(vertices, vec![[0, 1, 2]], vec![up; 2]),
+        Err(TriangleMeshError::NormalCountMismatch {
+            normal_count: 2,
+            vertex_count: 3,
         })
     );
 }

@@ -550,7 +550,8 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 - `model/cam_algorithms`: solver 本体（純粋計算）
   - `solver`: 入力契約 `CamSolverInput`、失敗分類 `CamSolverError`、入口 `solve_toolpath`
-  - `tessellation`: NURBS 曲面集合 → 三角形メッシュ
+  - `tessellation`: 三角形の形状品質（アスペクト比）
+  - NURBS 曲面集合 → 三角形メッシュの離散化は `geo_algorithms::surface_discretization`（`tessellate_surfaces`。表示と共通。#918）
   - `inverse_offset`: 逆オフセット法による CL 算出（`DropCutter` / `CutterShape`）
   - `scanline`: `operation_type = scanline` の経路化
 - `model/cam_sim`: Job アダプタと参照解決

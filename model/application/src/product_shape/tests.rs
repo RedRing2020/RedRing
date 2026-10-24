@@ -3,9 +3,10 @@
 use std::path::PathBuf;
 
 use cam_algorithms::SolverGeometry;
-use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
+use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D, Vector3D};
 use geo_contracts::{
-    NurbsSurface3DConstructor, TriangleMesh3DConstructor, TriangleMesh3DProperties,
+    FaceSetEntity3DProperties, NurbsSurface3DConstructor, TriangleMesh3DConstructor,
+    TriangleMesh3DProperties,
 };
 
 use super::*;
@@ -66,8 +67,8 @@ fn importing_an_stl_holds_a_single_face_entity_with_a_face_id() {
         panic!("one entity is held");
     };
     assert_eq!(entity.id(), added.entity_id);
-    assert_eq!(entity.geometry().id(), added.face_id);
-    let ProductFaceGeometry::Mesh(mesh) = entity.geometry().geometry() else {
+    assert_eq!(entity.face().id(), added.face_id);
+    let ProductFaceGeometry::Mesh(mesh) = entity.face().geometry() else {
         panic!("an STL becomes a mesh face");
     };
     assert_eq!(mesh.triangle_count(), 4);
@@ -181,5 +182,47 @@ fn invalid_face_sets_are_rejected() {
     assert_eq!(
         store.set_visible(missing, false).unwrap_err(),
         ProductShapeError::UnknownEntity(missing)
+    );
+}
+
+#[test]
+fn mesh_faces_are_displayed_with_one_normal_per_triangle() {
+    let mut store = ProductShapeStore::new();
+    let added = store.add_face(ProductFaceGeometry::Mesh(pyramid(8.0)));
+    let entity = &store.entities()[0];
+    assert_eq!(entity.face_ids(), vec![added.face_id]);
+
+    let mesh = entity.face_display_mesh(added.face_id, 0.1).unwrap();
+    // 三角形ごとに頂点を分け、3 つの頂点は三角形の法線を持つ
+    assert_eq!(mesh.triangle_count(), 4);
+    assert_eq!(mesh.vertex_count(), 12);
+    let normals = mesh.normals().unwrap();
+    for &[a, b, c] in mesh.indices() {
+        let vertices = mesh.vertices();
+        let face = Vector3D::from_points(vertices[a], vertices[b])
+            .cross(Vector3D::from_points(vertices[a], vertices[c]))
+            .normalize();
+        for index in [a, b, c] {
+            assert!((normals[index].dot(face) - 1.0).abs() < 1e-12);
+        }
+    }
+}
+
+#[test]
+fn surface_faces_are_displayed_with_surface_normals() {
+    let mut store = ProductShapeStore::new();
+    let added = store.add_face(ProductFaceGeometry::Surface(dome()));
+    let mesh = store.entities()[0]
+        .face_display_mesh(added.face_id, 0.05)
+        .unwrap();
+    assert!(mesh.triangle_count() > 2);
+    assert_eq!(mesh.normals().unwrap().len(), mesh.vertex_count());
+
+    let unknown = FaceId::new_random();
+    assert_eq!(
+        store.entities()[0]
+            .face_display_mesh(unknown, 0.05)
+            .unwrap_err(),
+        ProductShapeError::UnknownFace(unknown)
     );
 }

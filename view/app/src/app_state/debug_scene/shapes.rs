@@ -65,29 +65,6 @@ impl AppState {
         self.update_camera_uniforms();
     }
 
-    /// STLファイルを読み込んでメッシュステージに設定
-    pub fn load_stl_file(&mut self, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-        tracing::info!("STLファイル読み込み開始: {:?}", path);
-
-        let (vertices, indices, _bounds) = AppAssetLoaderFacade::load_stl(path)?;
-        self.apply_mesh_stage(vertices, indices, true);
-
-        tracing::info!("STLファイル読み込み完了");
-
-        Ok(())
-    }
-
-    /// サンプルSTLファイルを作成して読み込み
-    pub fn load_sample_stl(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let sample_path = std::env::temp_dir().join("redring_sample.stl");
-
-        let (vertices, indices, _bounds) =
-            AppAssetLoaderFacade::load_sample_stl_with_bounds(&sample_path)?;
-        self.apply_mesh_stage(vertices, indices, true);
-
-        Ok(())
-    }
-
     /// デバッグ用：LineSegment3Dを表示（SVGから読み込み）
     /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_line(&mut self) {

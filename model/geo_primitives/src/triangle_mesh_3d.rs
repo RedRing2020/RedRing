@@ -91,6 +91,24 @@ impl<T: Scalar> TriangleMesh3DConstructor<T> for TriangleMesh3D<T> {
             normals: None,
         })
     }
+
+    fn with_normals(
+        vertices: Vec<Point3D<T>>,
+        indices: Vec<[usize; 3]>,
+        normals: Vec<Vector3D<T>>,
+    ) -> Result<Self, TriangleMeshError> {
+        if normals.len() != vertices.len() {
+            return Err(TriangleMeshError::NormalCountMismatch {
+                normal_count: normals.len(),
+                vertex_count: vertices.len(),
+            });
+        }
+        let mesh = Self::new(vertices, indices)?;
+        Ok(Self {
+            normals: Some(normals),
+            ..mesh
+        })
+    }
 }
 
 impl<T: Scalar> TriangleMesh3DProperties<T> for TriangleMesh3D<T> {
@@ -100,6 +118,10 @@ impl<T: Scalar> TriangleMesh3DProperties<T> for TriangleMesh3D<T> {
 
     fn indices(&self) -> &[[usize; 3]] {
         &self.indices
+    }
+
+    fn normals(&self) -> Option<&[Vector3D<T>]> {
+        self.normals.as_deref()
     }
 
     fn vertex_count(&self) -> usize {

@@ -69,6 +69,7 @@ impl ApplicationHandler for App {
                 WindowEvent::MouseWheel { delta, .. } if !settings_ui_consumed => {
                     state.handle_mouse_wheel(delta);
                 }
+                WindowEvent::DroppedFile(path) => state.import_product_shape(&path),
                 _ => {}
             }
         }

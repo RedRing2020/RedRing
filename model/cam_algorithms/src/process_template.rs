@@ -20,7 +20,7 @@ use geo_contracts::default_distance_tolerance;
 use crate::solver::{
     CamSolverError, CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry,
 };
-use crate::tessellation::TessellationLimits;
+use geo_algorithms::TessellationLimits;
 
 /// オペレーション種別（`operation_type`）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -346,7 +346,6 @@ mod tests {
 
     use super::*;
     use crate::solver::{CamSolverError, ScanlineParams, SolverGeometry};
-    use crate::tessellation::TessellationLimits;
 
     fn template(profile: Option<&str>, operation_type: Option<&str>) -> ProcessTemplate {
         ProcessTemplate {

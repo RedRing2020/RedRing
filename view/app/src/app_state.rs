@@ -14,6 +14,7 @@ use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettin
 use viewmodel::inverse_offset_converter::InverseOffsetVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
+use viewmodel::product_shape_converter::ProductShapeScene;
 use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
@@ -32,6 +33,8 @@ mod foundation_settings;
 mod input_actions;
 // AppState のマウス入力ハンドリング
 mod mouse_actions;
+// AppState の製品形状の取り込みと表示
+mod product_shapes;
 // AppState の設定アクセサ（種類別: Snapshot/Octree/Camera）
 mod settings_accessors;
 // AppState の設定パネル状態と適用
@@ -114,6 +117,9 @@ pub struct AppState {
     /// 最後に表示したCAMデモの種別
     current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
 
+    /// 取り込んだ製品形状
+    product_shapes: ProductShapeScene,
+
     /// 設定パネル表示状態
     settings_panel_open: bool,
 
@@ -166,6 +172,7 @@ impl AppState {
             inverse_offset_visualization_settings: InverseOffsetVisualizationSettings::default(),
             inverse_offset_debug: InverseOffsetDebugState::default(),
             current_cam_demo_scenario: None,
+            product_shapes: ProductShapeScene::default(),
             settings_panel_open: false,
             settings_panel_active_tab: SettingsPanelTab::default(),
             settings_panel_locale: UiLocale::Ja,

@@ -555,11 +555,10 @@ mod tests {
     fn registered_nurbs_input_reports_real_convergence_failure() {
         use std::sync::Arc;
 
-        use cam_algorithms::{
-            CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits,
-        };
+        use cam_algorithms::{CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry};
         use cam_core::{CoordinateFrame, LengthUnit, Tool};
         use cam_sim::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
+        use geo_algorithms::TessellationLimits;
         use geo_algorithms::{NurbsSurface3D, Point3D};
         use geo_contracts::NurbsSurface3DConstructor;
         use job_runtime::JobManager;
@@ -653,14 +652,13 @@ mod tests {
     fn registered_solver_input_flows_from_cam_process_to_cutting_simulation() {
         use std::sync::Arc;
 
-        use cam_algorithms::{
-            CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits,
-        };
+        use cam_algorithms::{CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry};
         use cam_core::{CoordinateFrame, LengthUnit, Tool};
         use cam_sim::{
             CamJobExecutorAdapter, CuttingSimulationInput, InMemoryCamSolverInputStore,
             InMemoryCuttingSimulationInputStore, SnapshotInterval,
         };
+        use geo_algorithms::TessellationLimits;
         use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D};
         use job_runtime::JobManager;
 
