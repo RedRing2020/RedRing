@@ -3,6 +3,7 @@
 //! 業務（CAM 等）の属性・表示の定義は持たず、業務層のクレート（`cam_entity` 等）が持つ。
 //!
 //! - EntityId: エンティティ同一性ID（決定的生成対応）
+//! - FaceId: 面の同一性ID（全体で一意）
 //! - AttributeCode: 属性種別コード（負=system, 正=user, 0禁止）
 //! - Attributes: 型検証付き属性コンテナ
 //! - Group/Layer 関係モデル: group 複数所属 / layer 単一所属の relation 管理
@@ -13,6 +14,7 @@ pub mod attributes;
 pub mod display;
 pub mod entity_id;
 pub mod error;
+pub mod face_id;
 pub mod geometric_entity;
 pub mod metadata;
 pub mod relations;
@@ -24,6 +26,7 @@ pub use attributes::Attributes;
 pub use display::{DisplayAttributes, LineStyle};
 pub use entity_id::EntityId;
 pub use error::{EntityError, EntityResult};
+pub use face_id::FaceId;
 pub use geo_contracts::StrokePattern;
 pub use geometric_entity::GeometricEntity;
 pub use metadata::Metadata;

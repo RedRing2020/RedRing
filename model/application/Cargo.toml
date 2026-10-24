@@ -14,6 +14,7 @@ analysis = { path = "../../foundation/analysis" }
 geo_contracts = { path = "../geo_contracts" }
 geo_algorithms = { path = "../geo_algorithms" }
 geo_entity = { path = "../geo_entity" }
+geo_io = { path = "../geo_io" }
 geo_primitives = { path = "../geo_primitives" }
 geo_topology = { path = "../geo_topology" }
 cam_algorithms = { path = "../cam_algorithms" }

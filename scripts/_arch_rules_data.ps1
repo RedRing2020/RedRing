@@ -42,7 +42,7 @@ $ARCH_ALLOWED_DEPS = @{
     job_runtime    = @("analysis", "redring_test_support")
     job_domain     = @("analysis", "job_runtime")
 
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_sim", "job_runtime", "job_domain", "redring_test_support")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_sim", "job_runtime", "job_domain", "redring_test_support")
 
     viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application", "geo_contracts", "geo_algorithms", "geo_io", "cam_core", "cam_sim", "job_domain")
     "viewmodel-cam-demo" = @("application", "cam_core", "cam_sim", "geo_algorithms", "viewmodel")
