@@ -8,9 +8,15 @@ use std::fmt;
 use std::path::Path;
 
 use cam_algorithms::SolverGeometry;
-use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
-use geo_contracts::{TriangleMesh3DConstructor, TriangleMesh3DProperties};
-use geo_entity::{EntityId, FaceId, GeometricEntity};
+use geo_algorithms::{
+    NurbsSurface3D, Point3D, SurfaceTessellationError, TessellationLimits, TriangleMesh3D,
+    Vector3D, tessellate_surfaces,
+};
+use geo_contracts::{
+    EntityDisplayProperties, EntityIdentity, FaceSetEntity3DProperties, TriangleMesh3DConstructor,
+    TriangleMesh3DProperties,
+};
+use geo_entity::{DisplayAttributes, EntityId, FaceId, GeometricEntity};
 
 /// 面の形状
 #[derive(Debug, Clone)]
@@ -39,7 +45,91 @@ impl ProductFace {
 }
 
 /// 面単体の製品形状のエンティティ
-pub type ProductFaceEntity = GeometricEntity<f64, ProductFace>;
+#[derive(Debug, Clone)]
+pub struct ProductFaceEntity(GeometricEntity<f64, ProductFace>);
+
+impl ProductFaceEntity {
+    pub fn id(&self) -> EntityId {
+        self.0.id()
+    }
+
+    pub fn face(&self) -> &ProductFace {
+        self.0.geometry()
+    }
+
+    pub fn display(&self) -> &DisplayAttributes {
+        self.0.display()
+    }
+}
+
+impl EntityIdentity for ProductFaceEntity {
+    type Id = EntityId;
+
+    fn entity_id(&self) -> EntityId {
+        self.0.id()
+    }
+}
+
+impl EntityDisplayProperties for ProductFaceEntity {
+    fn entity_visible(&self) -> bool {
+        self.0.entity_visible()
+    }
+
+    fn entity_color(&self) -> [f32; 4] {
+        self.0.entity_color()
+    }
+}
+
+impl FaceSetEntity3DProperties<f64> for ProductFaceEntity {
+    type FaceId = FaceId;
+    type DisplayMesh = TriangleMesh3D<f64>;
+    type DisplayMeshError = ProductShapeError;
+
+    fn face_ids(&self) -> Vec<FaceId> {
+        vec![self.face().id()]
+    }
+
+    fn face_display_mesh(
+        &self,
+        face_id: FaceId,
+        chord_tolerance: f64,
+    ) -> Result<TriangleMesh3D<f64>, ProductShapeError> {
+        if face_id != self.face().id() {
+            return Err(ProductShapeError::UnknownFace(face_id));
+        }
+        match self.face().geometry() {
+            ProductFaceGeometry::Surface(surface) => tessellate_surfaces(
+                std::slice::from_ref(surface),
+                chord_tolerance,
+                TessellationLimits::default(),
+            )
+            .map_err(ProductShapeError::Tessellation),
+            ProductFaceGeometry::Mesh(mesh) => Ok(with_triangle_normals(mesh)),
+        }
+    }
+}
+
+/// 頂点法線を持たないメッシュは、三角形ごとに頂点を分け、三角形の法線を頂点法線とする
+fn with_triangle_normals(mesh: &TriangleMesh3D<f64>) -> TriangleMesh3D<f64> {
+    if mesh.normals().is_some() {
+        return mesh.clone();
+    }
+    let source = mesh.vertices();
+    let mut vertices = Vec::with_capacity(mesh.triangle_count() * 3);
+    let mut normals = Vec::with_capacity(mesh.triangle_count() * 3);
+    let mut indices = Vec::with_capacity(mesh.triangle_count());
+    for &[a, b, c] in mesh.indices() {
+        let normal = Vector3D::from_points(source[a], source[b])
+            .cross(Vector3D::from_points(source[a], source[c]))
+            .normalize();
+        let first = vertices.len();
+        vertices.extend([source[a], source[b], source[c]]);
+        normals.extend([normal; 3]);
+        indices.push([first, first + 1, first + 2]);
+    }
+    TriangleMesh3D::with_normals(vertices, indices, normals)
+        .expect("one normal is given for each vertex of valid triangles")
+}
 
 /// 加えた面単体のエンティティと、その面
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +149,8 @@ pub enum ProductShapeError {
     UnknownFace(FaceId),
     /// NURBS 曲面と三角形メッシュの面が混ざっている
     MixedFaceKinds,
+    /// 表示用の三角形への離散化の失敗
+    Tessellation(SurfaceTessellationError),
     /// 面がない
     NoFaces,
 }
@@ -70,6 +162,7 @@ impl fmt::Display for ProductShapeError {
             Self::UnknownEntity(id) => write!(f, "unknown product shape entity: {id}"),
             Self::UnknownFace(id) => write!(f, "unknown product face: {id}"),
             Self::MixedFaceKinds => write!(f, "NURBS surface faces and mesh faces are mixed"),
+            Self::Tessellation(error) => write!(f, "failed to tessellate a surface face: {error}"),
             Self::NoFaces => write!(f, "no faces are given"),
         }
     }
@@ -91,10 +184,10 @@ impl ProductShapeStore {
     /// 形状 `geometry` の面を 1 つ持つ面単体のエンティティを加える
     pub fn add_face(&mut self, geometry: ProductFaceGeometry) -> AddedProductFace {
         let face_id = FaceId::new_random();
-        let entity = GeometricEntity::new(ProductFace {
+        let entity = ProductFaceEntity(GeometricEntity::new(ProductFace {
             id: face_id,
             geometry,
-        });
+        }));
         let added = AddedProductFace {
             entity_id: entity.id(),
             face_id,
@@ -134,7 +227,7 @@ impl ProductShapeStore {
             .iter_mut()
             .find(|entity| entity.id() == entity_id)
             .ok_or(ProductShapeError::UnknownEntity(entity_id))?;
-        entity.display_mut().visible = visible;
+        entity.0.display_mut().visible = visible;
         Ok(())
     }
 
@@ -143,7 +236,7 @@ impl ProductShapeStore {
         self.entities
             .iter()
             .filter(|entity| entity.display().visible)
-            .map(|entity| entity.geometry().id())
+            .map(|entity| entity.face().id())
             .collect()
     }
 
@@ -167,7 +260,7 @@ impl ProductShapeStore {
             let face = self
                 .entities
                 .iter()
-                .map(GeometricEntity::geometry)
+                .map(ProductFaceEntity::face)
                 .find(|face| face.id() == face_id)
                 .ok_or(ProductShapeError::UnknownFace(face_id))?;
             faces.push(face.geometry());

@@ -3,11 +3,8 @@
 //! 形状入力を離散化し、逆オフセット法の包絡面を格子で評価して返す。
 //! ToolPath 生成（Job 経由の本番導線）とは独立した、検査・可視化用の入口。
 
-use cam_algorithms::{
-    CamSolverError, CutterShape, DropCutter, TessellationLimits, sample_cl_grid,
-    tessellate_surfaces,
-};
-use geo_algorithms::NurbsSurface3D;
+use cam_algorithms::{CamSolverError, CutterShape, DropCutter, sample_cl_grid};
+use geo_algorithms::{NurbsSurface3D, TessellationLimits, tessellate_surfaces};
 use geo_contracts::TriangleMesh3DProperties;
 
 /// 検査対象の工具種別
@@ -148,7 +145,8 @@ pub fn inspect_inverse_offset(
         &request.surfaces,
         request.chord_tolerance,
         TessellationLimits::default(),
-    )?;
+    )
+    .map_err(CamSolverError::from)?;
     let shape = match request.tool_kind {
         InspectionToolKind::BallEndMill => CutterShape::Ball {
             radius: request.tool_radius,

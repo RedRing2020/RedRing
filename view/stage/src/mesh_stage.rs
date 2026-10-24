@@ -4,7 +4,12 @@
 //! Phase 2拡張: 線分描画モード（RenderMode::Lines）に対応しました。
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
-use render::{line::LineResources, mesh::MeshResources, vertex_3d::MeshVertex};
+use render::{
+    line::LineResources,
+    mesh::MeshResources,
+    mesh_list::{MeshListItem, MeshListResources},
+    vertex_3d::MeshVertex,
+};
 use std::sync::atomic::{AtomicU64, Ordering};
 use wgpu::{CommandEncoder, Device, TextureFormat, TextureView};
 
@@ -36,6 +41,8 @@ pub struct MeshStage {
     overlay_line_resources: Option<LineResources>,
     overlay_toolpath_line_resources: Option<LineResources>,
     overlay_tool_line_resources: Option<LineResources>,
+    /// 色の異なる複数のメッシュ（ソリッド表示に重ねて描く）
+    mesh_list_resources: Option<MeshListResources>,
     render_mode: RenderMode,
     format: TextureFormat,
 }
@@ -51,6 +58,7 @@ impl MeshStage {
             overlay_line_resources: None,
             overlay_toolpath_line_resources: None,
             overlay_tool_line_resources: None,
+            mesh_list_resources: None,
             render_mode: RenderMode::Solid,
             format,
         }
@@ -124,6 +132,14 @@ impl MeshStage {
         }
     }
 
+    /// ソリッド表示に重ねて描く、色の異なる複数のメッシュを設定（すべて置き換える）
+    pub fn set_mesh_list(&mut self, device: &Device, items: Vec<MeshListItem>) {
+        let format = self.format;
+        self.mesh_list_resources
+            .get_or_insert_with(|| MeshListResources::new(device, format))
+            .set_meshes(device, items);
+    }
+
     /// ソリッド表示への線分重畳を無効化
     pub fn clear_overlay_line_data(&mut self) {
         self.overlay_line_resources = None;
@@ -140,6 +156,10 @@ impl MeshStage {
     ) {
         self.mesh_resources
             .update_camera(queue, view_matrix, proj_matrix);
+
+        if let Some(mesh_list) = &self.mesh_list_resources {
+            mesh_list.update_camera(queue, view_matrix, proj_matrix);
+        }
 
         // 線分リソースのカメラも更新
         if let Some(line_res) = &mut self.line_resources {
@@ -303,6 +323,9 @@ impl RenderStage for MeshStage {
         match self.render_mode {
             RenderMode::Solid | RenderMode::Wireframe => {
                 self.mesh_resources.render(&mut render_pass);
+                if let Some(mesh_list) = &self.mesh_list_resources {
+                    mesh_list.render(&mut render_pass);
+                }
             }
             RenderMode::Lines => {
                 if let Some(line_res) = &self.line_resources {

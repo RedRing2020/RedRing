@@ -4,11 +4,9 @@ use geo_algorithms::TriangleMesh3DConstructor;
 use std::io::Cursor;
 use std::sync::Arc;
 
-use cam_algorithms::{
-    CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits,
-};
+use cam_algorithms::{CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry};
 use cam_core::{CoordinateFrame, LengthUnit, Tool, read_toolpath_artifact_v1};
-use geo_algorithms::{Point3D, TriangleMesh3D};
+use geo_algorithms::{Point3D, TessellationLimits, TriangleMesh3D};
 use job_runtime::{
     JobEvent, JobExecutor, JobManager, JobRelation, JobSpec, JobStatus, JobType,
     RefValidationError, RetryPolicy,

@@ -2,7 +2,7 @@
 //!
 //! エンティティの識別子・表示属性・形状の値を取り出す trait定義。
 
-use crate::{Angle, Direction3D, Point3D, Scalar};
+use crate::{Angle, Direction3D, Point3D, Scalar, TriangleMesh3DProperties};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -62,4 +62,24 @@ pub trait ArcEntity3DProperties<T: Scalar>: EntityIdentity + EntityDisplayProper
     fn arc_normal(&self) -> Direction3D<T>;
     /// 角度 0 の方向
     fn arc_start_direction(&self) -> Direction3D<T>;
+}
+
+/// 面を持つエンティティ（シェル・面単体）
+pub trait FaceSetEntity3DProperties<T: Scalar>: EntityIdentity + EntityDisplayProperties {
+    /// 面の ID（全体で一意）
+    type FaceId: Copy + Eq + std::hash::Hash;
+    /// 表示用の三角形メッシュ
+    type DisplayMesh: TriangleMesh3DProperties<T>;
+    /// 表示用の三角形を作れない理由
+    type DisplayMeshError;
+
+    /// 面の ID（面の並びの順）
+    fn face_ids(&self) -> Vec<Self::FaceId>;
+
+    /// 面 `face_id` の表示用の三角形（頂点法線つき。曲面は許容弦誤差 `chord_tolerance` で離散化する）
+    fn face_display_mesh(
+        &self,
+        face_id: Self::FaceId,
+        chord_tolerance: T,
+    ) -> Result<Self::DisplayMesh, Self::DisplayMeshError>;
 }

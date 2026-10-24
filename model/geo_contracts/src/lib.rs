@@ -12,7 +12,8 @@ pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
 pub use entity::{
     ArcEntity3DProperties, CircleEntity3DProperties, EntityDisplayProperties, EntityIdentity,
-    LineEntity3DProperties, PlanarStroke2DProperties, StrokeDisplayProperties, StrokePattern,
+    FaceSetEntity3DProperties, LineEntity3DProperties, PlanarStroke2DProperties,
+    StrokeDisplayProperties, StrokePattern,
 };
 pub use geometry::core::plane3d_traits::{
     Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,

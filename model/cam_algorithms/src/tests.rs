@@ -1,6 +1,8 @@
 use analysis::consts::test_constants::TOLERANCE_F64 as EPS;
 use cam_core::{CoordinateFrame, LengthUnit, SegmentType, Tool};
-use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
+use geo_algorithms::{
+    NurbsSurface3D, Point3D, TessellationLimits, TriangleMesh3D, tessellate_surfaces,
+};
 use geo_contracts::{
     NurbsSurface3DConstructor, NurbsSurface3DEvaluation, TriangleMesh3DConstructor,
     TriangleMesh3DProperties, default_distance_tolerance,
@@ -8,7 +10,7 @@ use geo_contracts::{
 
 use crate::{
     CamSolverError, CamSolverInput, CutterShape, DropCutter, OperationSpec, ScanlineParams,
-    SolverGeometry, TessellationLimits, solve_toolpath, tessellate_surfaces,
+    SolverGeometry, solve_toolpath,
 };
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {

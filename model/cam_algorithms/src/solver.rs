@@ -5,12 +5,14 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 use cam_core::{CoordinateFrame, LengthUnit, Tool, ToolPath};
-use geo_algorithms::{NurbsSurface3D, TriangleMesh3D};
+use geo_algorithms::{
+    NurbsSurface3D, SurfaceTessellationError, TessellationLimits, TriangleMesh3D,
+    tessellate_surfaces,
+};
 
 use crate::inverse_offset::{CutterShape, DropCutter};
 use crate::process_template::{MachiningBoundary, TemplateFailure};
 use crate::scanline::generate_scanline_toolpath;
-use crate::tessellation::{TessellationLimits, tessellate_surfaces};
 
 /// solver の失敗分類。
 ///
@@ -118,6 +120,17 @@ impl OperationSpec {
     }
 }
 
+impl From<SurfaceTessellationError> for CamSolverError {
+    fn from(value: SurfaceTessellationError) -> Self {
+        match value {
+            SurfaceTessellationError::ConvergenceFailure { .. } => {
+                Self::ConvergenceFailure(value.to_string())
+            }
+            SurfaceTessellationError::InvalidMesh(error) => Self::InvalidInput(error.to_string()),
+        }
+    }
+}
+
 /// solver 入力契約（`InputRef` の参照先 payload）
 #[derive(Debug, Clone)]
 pub struct CamSolverInput {
@@ -185,7 +198,8 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
         SolverGeometry::TriangleMesh(mesh) => mesh,
         SolverGeometry::NurbsSurfaceSet(surfaces) => {
             tessellated =
-                tessellate_surfaces(surfaces, input.chord_tolerance, input.tessellation_limits)?;
+                tessellate_surfaces(surfaces, input.chord_tolerance, input.tessellation_limits)
+                    .map_err(CamSolverError::from)?;
             &tessellated
         }
     };

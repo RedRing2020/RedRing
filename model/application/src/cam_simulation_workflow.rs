@@ -211,8 +211,9 @@ impl CamSimulationWorkflow {
 mod tests {
     use std::time::Instant;
 
-    use cam_algorithms::{OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits};
+    use cam_algorithms::{OperationSpec, ScanlineParams, SolverGeometry};
     use cam_core::{CoordinateFrame, LengthUnit, Tool, read_toolpath_artifact_v1};
+    use geo_algorithms::TessellationLimits;
     use geo_algorithms::{Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 
     use super::*;
