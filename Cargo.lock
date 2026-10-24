@@ -131,6 +131,7 @@ dependencies = [
  "geo_algorithms",
  "geo_contracts",
  "geo_entity",
+ "geo_io",
  "geo_primitives",
  "geo_topology",
  "job_domain",

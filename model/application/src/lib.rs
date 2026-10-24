@@ -11,4 +11,5 @@ pub mod cam_simulation_workflow;
 pub mod feature_orchestration;
 pub mod geometry_orchestration;
 pub mod job_orchestration;
+pub mod product_shape;
 pub mod topology_orchestration;
