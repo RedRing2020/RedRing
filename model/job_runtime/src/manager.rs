@@ -585,7 +585,6 @@ mod tests {
     }
 
     struct StubExecutor {
-        elapsed_millis: u64,
         succeed: bool,
     }
 
@@ -604,7 +603,6 @@ mod tests {
             if self.succeed {
                 JobExecutionResult {
                     status: JobStatus::Succeeded,
-                    elapsed_millis: self.elapsed_millis,
                     result_ref,
                     artifact_bytes: None,
                     log_ref: Some("log://ok".to_string()),
@@ -613,7 +611,6 @@ mod tests {
             } else {
                 JobExecutionResult {
                     status: JobStatus::Failed,
-                    elapsed_millis: self.elapsed_millis,
                     result_ref: None,
                     artifact_bytes: None,
                     log_ref: Some("log://ng".to_string()),
@@ -657,10 +654,7 @@ mod tests {
         let mut manager = JobManager::new();
         let cam_id = manager.submit(sample_spec());
         let sim_id = manager.submit(simulation_spec());
-        let executor = StubExecutor {
-            elapsed_millis: 300,
-            succeed: true,
-        };
+        let executor = StubExecutor { succeed: true };
 
         manager.execute_with(cam_id, &executor).unwrap();
         manager.execute_with(sim_id, &executor).unwrap();
@@ -686,10 +680,7 @@ mod tests {
         spec.retry_policy.max_retries = 2;
         let id = manager.submit(spec);
 
-        let failing_executor = StubExecutor {
-            elapsed_millis: 100,
-            succeed: false,
-        };
+        let failing_executor = StubExecutor { succeed: false };
 
         manager.execute_with(id, &failing_executor).unwrap();
         assert_eq!(manager.status(id).unwrap(), JobStatus::Failed);
@@ -705,10 +696,7 @@ mod tests {
     fn progress_artifact_completed_events_can_be_taken() {
         let mut manager = JobManager::new();
         let id = manager.submit(sample_spec());
-        let executor = StubExecutor {
-            elapsed_millis: 100,
-            succeed: true,
-        };
+        let executor = StubExecutor { succeed: true };
 
         manager.emit_progress(id, 0.5, Some("half".to_string()));
         manager.execute_with(id, &executor).unwrap();
@@ -946,10 +934,7 @@ mod tests {
         let parent = manager.submit(sample_spec());
         let child = submit_child(&mut manager, parent);
         let other = manager.submit(sample_spec());
-        let executor = StubExecutor {
-            elapsed_millis: 100,
-            succeed: true,
-        };
+        let executor = StubExecutor { succeed: true };
 
         // 親が実行中の間は、子より後に投入した親のないジョブを先に実行する
         manager.start(parent).unwrap();
@@ -970,10 +955,7 @@ mod tests {
         let mut manager = JobManager::new();
         let parent = manager.submit(sample_spec());
         let child = submit_child(&mut manager, parent);
-        let failing = StubExecutor {
-            elapsed_millis: 100,
-            succeed: false,
-        };
+        let failing = StubExecutor { succeed: false };
 
         assert_eq!(manager.execute_next_ready(&failing).unwrap(), Some(parent));
         assert_eq!(manager.execute_next_ready(&failing).unwrap(), None);
