@@ -82,6 +82,17 @@ impl JobManager {
             .map(|o| o.result_ref.as_str()))
     }
 
+    /// ジョブ `id` の入力に使う、親のジョブの成果物（親がない・親に成果物がない場合は `None`）
+    ///
+    /// 親の成果物のうち、依存の更新で無効になっていない最新のもの（子が正常終了して置き換え済みになったものを含む）。
+    pub fn input_artifact_bytes(&self, id: JobId) -> Result<Option<&[u8]>, JobError> {
+        let record = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?;
+        match record.parent_job_id {
+            Some(parent_job_id) => self.latest_input_result_bytes(parent_job_id),
+            None => Ok(None),
+        }
+    }
+
     fn latest_input_result_bytes(&self, id: JobId) -> Result<Option<&[u8]>, JobError> {
         let record = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?;
         Ok(record
@@ -427,23 +438,8 @@ impl JobManager {
         self.start(id)?;
 
         let snapshot = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?.clone();
-        let input_artifact_bytes = match snapshot.parent_job_id {
-            Some(parent_job_id) => self.latest_input_result_bytes(parent_job_id)?,
-            None => None,
-        };
+        let input_artifact_bytes = self.input_artifact_bytes(id)?;
         let execution = executor.execute(&snapshot, input_artifact_bytes);
-
-        let timeout_millis = snapshot.spec.timeout_secs.saturating_mul(1000);
-        if execution.elapsed_millis > timeout_millis {
-            return self.mark_failed(
-                id,
-                format!(
-                    "timeout exceeded: elapsed={}ms, timeout={}ms",
-                    execution.elapsed_millis, timeout_millis
-                ),
-                execution.log_ref,
-            );
-        }
 
         match execution.status {
             JobStatus::Succeeded => {
@@ -474,6 +470,44 @@ impl JobManager {
         }
     }
 
+    /// 実行できる待機中のジョブのうち最も古いものを 1 件実行し、その ID を返す（なければ `None`）
+    ///
+    /// 実行できるのは、親がないか、親が正常終了した待機中のジョブである。親が失敗・キャンセルで終わった
+    /// 待機中のジョブは実行せず、親の ID と状態を理由として失敗にする。
+    pub fn execute_next_ready<E: JobExecutor>(
+        &mut self,
+        executor: &E,
+    ) -> Result<Option<JobId>, JobError> {
+        let queued: Vec<(JobId, Option<JobId>)> = self
+            .list()
+            .into_iter()
+            .filter(|record| record.status == JobStatus::Queued)
+            .map(|record| (record.id, record.parent_job_id))
+            .collect();
+        for (id, parent_job_id) in queued {
+            let parent_status = match parent_job_id {
+                Some(parent_id) => Some(self.status(parent_id)?),
+                None => None,
+            };
+            match parent_status {
+                None | Some(JobStatus::Succeeded) => {
+                    self.execute_with(id, executor)?;
+                    return Ok(Some(id));
+                }
+                Some(status @ (JobStatus::Failed | JobStatus::Canceled)) => {
+                    let parent_id = parent_job_id.expect("a parent status implies a parent");
+                    self.mark_failed(
+                        id,
+                        format!("parent job {} ended with status {:?}", parent_id.0, status),
+                        None,
+                    )?;
+                }
+                Some(JobStatus::Queued | JobStatus::Running | JobStatus::NeedsRecompute) => {}
+            }
+        }
+        Ok(None)
+    }
+
     /// 保留イベントを取り出して空にする
     pub fn take_events(&mut self) -> Vec<JobEvent> {
         std::mem::take(&mut self.event_queue)
@@ -491,6 +525,7 @@ impl JobManager {
             (JobStatus::Queued, JobStatus::Running)
                 | (JobStatus::NeedsRecompute, JobStatus::Running)
                 | (JobStatus::Queued, JobStatus::Canceled)
+                | (JobStatus::Queued, JobStatus::Failed)
                 | (JobStatus::NeedsRecompute, JobStatus::Canceled)
                 | (JobStatus::Running, JobStatus::Succeeded)
                 | (JobStatus::Running, JobStatus::Failed)
@@ -531,7 +566,6 @@ mod tests {
         JobSpec {
             job_type: JobType::CamProcess,
             input_ref: "input://sample".to_string(),
-            timeout_secs: 60,
             retry_policy: RetryPolicy {
                 max_retries: 1,
                 backoff_millis: 100,
@@ -543,7 +577,6 @@ mod tests {
         JobSpec {
             job_type: JobType::CuttingSimulation,
             input_ref: "input://sim".to_string(),
-            timeout_secs: 60,
             retry_policy: RetryPolicy {
                 max_retries: 1,
                 backoff_millis: 100,
@@ -552,7 +585,6 @@ mod tests {
     }
 
     struct StubExecutor {
-        elapsed_millis: u64,
         succeed: bool,
     }
 
@@ -571,7 +603,6 @@ mod tests {
             if self.succeed {
                 JobExecutionResult {
                     status: JobStatus::Succeeded,
-                    elapsed_millis: self.elapsed_millis,
                     result_ref,
                     artifact_bytes: None,
                     log_ref: Some("log://ok".to_string()),
@@ -580,7 +611,6 @@ mod tests {
             } else {
                 JobExecutionResult {
                     status: JobStatus::Failed,
-                    elapsed_millis: self.elapsed_millis,
                     result_ref: None,
                     artifact_bytes: None,
                     log_ref: Some("log://ng".to_string()),
@@ -624,10 +654,7 @@ mod tests {
         let mut manager = JobManager::new();
         let cam_id = manager.submit(sample_spec());
         let sim_id = manager.submit(simulation_spec());
-        let executor = StubExecutor {
-            elapsed_millis: 300,
-            succeed: true,
-        };
+        let executor = StubExecutor { succeed: true };
 
         manager.execute_with(cam_id, &executor).unwrap();
         manager.execute_with(sim_id, &executor).unwrap();
@@ -647,19 +674,15 @@ mod tests {
     }
 
     #[test]
-    fn timeout_retry_cancel_flow_works_with_stub() {
+    fn retry_cancel_flow_works_with_stub() {
         let mut manager = JobManager::new();
         let mut spec = sample_spec();
-        spec.timeout_secs = 1;
         spec.retry_policy.max_retries = 2;
         let id = manager.submit(spec);
 
-        let slow_executor = StubExecutor {
-            elapsed_millis: 2_000,
-            succeed: true,
-        };
+        let failing_executor = StubExecutor { succeed: false };
 
-        manager.execute_with(id, &slow_executor).unwrap();
+        manager.execute_with(id, &failing_executor).unwrap();
         assert_eq!(manager.status(id).unwrap(), JobStatus::Failed);
 
         manager.retry(id).unwrap();
@@ -673,10 +696,7 @@ mod tests {
     fn progress_artifact_completed_events_can_be_taken() {
         let mut manager = JobManager::new();
         let id = manager.submit(sample_spec());
-        let executor = StubExecutor {
-            elapsed_millis: 100,
-            succeed: true,
-        };
+        let executor = StubExecutor { succeed: true };
 
         manager.emit_progress(id, 0.5, Some("half".to_string()));
         manager.execute_with(id, &executor).unwrap();
@@ -893,6 +913,62 @@ mod tests {
         assert_eq!(
             child_history[0].validity,
             JobOutputValidity::InvalidatedByDependency
+        );
+    }
+
+    fn submit_child(manager: &mut JobManager, parent: JobId) -> JobId {
+        manager
+            .submit_with_relation(
+                simulation_spec(),
+                JobRelation {
+                    parent_job_id: Some(parent),
+                    group_id: None,
+                },
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn ready_jobs_run_oldest_first_and_children_wait_for_their_parent() {
+        let mut manager = JobManager::new();
+        let parent = manager.submit(sample_spec());
+        let child = submit_child(&mut manager, parent);
+        let other = manager.submit(sample_spec());
+        let executor = StubExecutor { succeed: true };
+
+        // 親が実行中の間は、子より後に投入した親のないジョブを先に実行する
+        manager.start(parent).unwrap();
+        assert_eq!(manager.execute_next_ready(&executor).unwrap(), Some(other));
+        assert_eq!(manager.status(child).unwrap(), JobStatus::Queued);
+        assert_eq!(manager.execute_next_ready(&executor).unwrap(), None);
+
+        manager
+            .mark_succeeded(parent, Some("result://cam".to_string()), None, None)
+            .unwrap();
+        assert_eq!(manager.execute_next_ready(&executor).unwrap(), Some(child));
+        assert_eq!(manager.status(child).unwrap(), JobStatus::Succeeded);
+        assert_eq!(manager.execute_next_ready(&executor).unwrap(), None);
+    }
+
+    #[test]
+    fn children_of_a_failed_parent_fail_without_running() {
+        let mut manager = JobManager::new();
+        let parent = manager.submit(sample_spec());
+        let child = submit_child(&mut manager, parent);
+        let failing = StubExecutor { succeed: false };
+
+        assert_eq!(manager.execute_next_ready(&failing).unwrap(), Some(parent));
+        assert_eq!(manager.execute_next_ready(&failing).unwrap(), None);
+        let record = manager.get(child).unwrap();
+        assert_eq!(record.status, JobStatus::Failed);
+        assert_eq!(record.attempts, 0);
+        assert!(
+            record
+                .last_error
+                .as_deref()
+                .is_some_and(|error| error.contains(&format!("parent job {}", parent.0))),
+            "{:?}",
+            record.last_error
         );
     }
 }

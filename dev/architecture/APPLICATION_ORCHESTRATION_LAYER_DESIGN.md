@@ -154,8 +154,12 @@ Domain / Algorithm / Runtime / Adapter
 
 - `model/application::job_orchestration` は `JobManager` を内部保持し、`CamJobExecutorAdapter` を使って local 実行モードを提供する
 - command は `submit_workflow` のみを持ち、query は `query_status` / `query_result` に分離する
+- 投入（`submit_workflow`）は、ジョブをキューに入れた（`Queued`）時点で完了し、実行しない。投入の側が関心を持つのはキューに追加されたことだけで、計算中の監視・完了の通知は受けない（#913）
+- 実行はジョブマネージャーの入口（`run_queued_jobs`）だけが行う。当面は同じプロセスの中で明示的に呼び、実行できる待機中のジョブ（親がないか、親が正常終了したもの）を古い順に実行する。親が失敗・キャンセルで終わった待機中のジョブは、実行せずに理由つきで失敗にする。ジョブマネージャーを別のアプリケーションにする保存先は #914
+- 結果の取り込みは、正常終了したジョブ（`list_succeeded_jobs`）だけを対象とする。`query_result` は、ジョブの有効な成果物と、入力に使う親のジョブの成果物を返す
 - `job_runtime` の内部型は直接露出せず、ViewModel 側が扱う job DTO は `job_domain::job_view_bridge` の `CamJobRecord` / `CamJobEvent` を経由して返す
-- timeout や retry の詳細設定は初期実装では Application 内部既定値に寄せ、境界 DTO は `job_type` / `input_ref` / `parent_job_id` の最小集合から始める
+- retry の詳細設定は初期実装では Application 内部既定値に寄せ、境界 DTO は `job_type` / `input_ref` / `parent_job_id` の最小集合から始める
+- 投入の側は上限時間を扱わない。上限時間・取り消しが必要な場合は、実行中に中断の要求を確かめる仕組みとあわせてジョブマネージャーの側で扱う
 - これにより `job` が geometry / topology / entity 更新と別系統の execution mode であることを module と trait 境界で追跡できる
 
 ### 6.3 geometry / topology / entity 経路の整理

@@ -1,10 +1,13 @@
 //! Job向け orchestration 境界。
+//!
+//! 投入はジョブをキューに入れた時点で完了し、実行しない。実行はジョブマネージャーの入口
+//! （`run_queued_jobs`）が行い、結果は正常終了したジョブから取り込む。
 
 use cam_sim::{CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter};
 use job_domain::{CamJobEvent, CamJobRecord, CamJobStatus, CamJobType};
-use job_runtime::{JobError, JobId, JobManager, JobOutputValidity, JobSpec, JobType, RetryPolicy};
-
-const DEFAULT_TIMEOUT_SECS: u64 = 60;
+use job_runtime::{
+    JobError, JobId, JobManager, JobOutputValidity, JobSpec, JobStatus, JobType, RetryPolicy,
+};
 
 /// Job orchestration で返却する統一エラー。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,6 +82,8 @@ pub struct JobWorkflowResult {
     pub active_result_ref: Option<String>,
     /// 有効な成果物のバイト列（成果物を返さないジョブ・成果物がない場合は `None`）
     pub active_artifact: Option<Vec<u8>>,
+    /// 入力に使う親のジョブの成果物のバイト列（親がない・親に成果物がない場合は `None`）
+    pub input_artifact: Option<Vec<u8>>,
 }
 
 /// ViewModel 向けイベント batch。
@@ -89,10 +94,19 @@ pub struct JobWorkflowEventBatch {
 
 /// job 実行ユースケースの orchestration port。
 pub trait JobWorkflowOrchestration {
+    /// ジョブをキューに入れる（実行しない。親のジョブの完了を待たずに子を投入できる）
     fn submit_workflow(
         &mut self,
         request: JobWorkflowSubmitRequest,
     ) -> Result<JobWorkflowSubmitResult, JobOrchestrationError>;
+
+    /// 実行できる待機中のジョブがなくなるまで実行し、実行したジョブの数を返す（ジョブマネージャーの実行の入口）
+    ///
+    /// 親が失敗・キャンセルで終わった待機中のジョブは、実行せずに失敗にする。
+    fn run_queued_jobs(&mut self) -> Result<usize, JobOrchestrationError>;
+
+    /// 種類が `job_type` で正常終了したジョブ（ID の昇順）
+    fn list_succeeded_jobs(&self, job_type: CamJobType) -> Vec<CamJobRecord>;
 
     fn query_status(
         &self,
@@ -131,12 +145,31 @@ impl JobWorkflowOrchestration for JobWorkflowOrchestrator {
     ) -> Result<JobWorkflowSubmitResult, JobOrchestrationError> {
         let spec = build_job_spec(&request);
         let job_id = submit_to_runtime(&mut self.manager, &request, spec)?;
-        self.manager.execute_with(job_id, &self.executor)?;
 
         Ok(JobWorkflowSubmitResult {
             job_id: job_id.0,
             status: self.manager.status(job_id)?.into(),
         })
+    }
+
+    fn run_queued_jobs(&mut self) -> Result<usize, JobOrchestrationError> {
+        let mut executed = 0;
+        while self.manager.execute_next_ready(&self.executor)?.is_some() {
+            executed += 1;
+        }
+        Ok(executed)
+    }
+
+    fn list_succeeded_jobs(&self, job_type: CamJobType) -> Vec<CamJobRecord> {
+        let job_type = map_job_type(job_type);
+        self.manager
+            .list()
+            .into_iter()
+            .filter(|record| {
+                record.status == JobStatus::Succeeded && record.spec.job_type == job_type
+            })
+            .map(CamJobRecord::from)
+            .collect()
     }
 
     fn query_status(
@@ -162,12 +195,17 @@ impl JobWorkflowOrchestration for JobWorkflowOrchestrator {
             .into_iter()
             .find(|output| output.validity == JobOutputValidity::Active)
             .and_then(|output| output.artifact_bytes.clone());
+        let input_artifact = self
+            .manager
+            .input_artifact_bytes(job_id)?
+            .map(<[u8]>::to_vec);
         let job = CamJobRecord::from(self.manager.get(job_id)?);
 
         Ok(JobWorkflowResult {
             job,
             active_result_ref,
             active_artifact,
+            input_artifact,
         })
     }
 
@@ -183,7 +221,6 @@ fn build_job_spec(request: &JobWorkflowSubmitRequest) -> JobSpec {
     JobSpec {
         job_type: map_job_type(request.job_type.clone()),
         input_ref: request.input_ref.clone(),
-        timeout_secs: DEFAULT_TIMEOUT_SECS,
         retry_policy: RetryPolicy::default(),
     }
 }
@@ -237,6 +274,18 @@ mod tests {
         JobWorkflowStatusQuery, JobWorkflowSubmitRequest,
     };
 
+    /// 待機中のジョブを実行し、ジョブ `job_id` の状態を返す
+    fn run_and_query_status(
+        orchestrator: &mut JobWorkflowOrchestrator,
+        job_id: u64,
+    ) -> CamJobStatus {
+        orchestrator.run_queued_jobs().unwrap();
+        orchestrator
+            .query_status(JobWorkflowStatusQuery { job_id })
+            .unwrap()
+            .status
+    }
+
     #[test]
     fn submit_status_and_result_queries_work_for_cam_process() {
         let mut orchestrator = JobWorkflowOrchestrator::new();
@@ -249,7 +298,11 @@ mod tests {
             .expect("cam process should succeed");
 
         assert_eq!(submit.job_id, 1);
-        assert_eq!(submit.status, CamJobStatus::Succeeded);
+        assert_eq!(submit.status, CamJobStatus::Queued);
+        assert_eq!(
+            run_and_query_status(&mut orchestrator, submit.job_id),
+            CamJobStatus::Succeeded
+        );
 
         let status = orchestrator
             .query_status(JobWorkflowStatusQuery {
@@ -282,7 +335,11 @@ mod tests {
             })
             .expect("submit should still complete with failed runtime status");
 
-        assert_eq!(submit.status, CamJobStatus::Failed);
+        assert_eq!(submit.status, CamJobStatus::Queued);
+        assert_eq!(
+            run_and_query_status(&mut orchestrator, submit.job_id),
+            CamJobStatus::Failed
+        );
 
         let result = orchestrator
             .query_result(JobWorkflowResultQuery {
@@ -311,7 +368,11 @@ mod tests {
             })
             .expect("submit should complete with failed runtime status");
 
-        assert_eq!(submit.status, CamJobStatus::Failed);
+        assert_eq!(submit.status, CamJobStatus::Queued);
+        assert_eq!(
+            run_and_query_status(&mut orchestrator, submit.job_id),
+            CamJobStatus::Failed
+        );
 
         let result = orchestrator
             .query_result(JobWorkflowResultQuery {
@@ -339,7 +400,11 @@ mod tests {
             })
             .expect("submit should complete with failed runtime status");
 
-        assert_eq!(submit.status, CamJobStatus::Failed);
+        assert_eq!(submit.status, CamJobStatus::Queued);
+        assert_eq!(
+            run_and_query_status(&mut orchestrator, submit.job_id),
+            CamJobStatus::Failed
+        );
 
         let result = orchestrator
             .query_result(JobWorkflowResultQuery {
@@ -366,6 +431,7 @@ mod tests {
                 parent_job_id: None,
             })
             .expect("cam process should succeed");
+        orchestrator.run_queued_jobs().unwrap();
 
         let batch = orchestrator.take_event_batch();
 
@@ -446,7 +512,11 @@ mod tests {
             })
             .expect("cutting simulation should succeed");
 
-        assert_eq!(sim_submit.status, CamJobStatus::Succeeded);
+        assert_eq!(sim_submit.status, CamJobStatus::Queued);
+        assert_eq!(
+            run_and_query_status(&mut orchestrator, sim_submit.job_id),
+            CamJobStatus::Succeeded
+        );
 
         let result = orchestrator
             .query_result(JobWorkflowResultQuery {
@@ -559,7 +629,11 @@ mod tests {
                 parent_job_id: None,
             })
             .expect("submit should complete with failed runtime status");
-        assert_eq!(submit.status, CamJobStatus::Failed);
+        assert_eq!(submit.status, CamJobStatus::Queued);
+        assert_eq!(
+            run_and_query_status(&mut orchestrator, submit.job_id),
+            CamJobStatus::Failed
+        );
 
         let result = orchestrator
             .query_result(JobWorkflowResultQuery {
@@ -652,7 +726,7 @@ mod tests {
                 parent_job_id: None,
             })
             .expect("cam submit should succeed");
-        assert_eq!(cam_submit.status, CamJobStatus::Succeeded);
+        assert_eq!(cam_submit.status, CamJobStatus::Queued);
 
         let sim_submit = orchestrator
             .submit_workflow(JobWorkflowSubmitRequest {
@@ -661,7 +735,11 @@ mod tests {
                 parent_job_id: Some(cam_submit.job_id),
             })
             .expect("cutting simulation submit should succeed");
-        assert_eq!(sim_submit.status, CamJobStatus::Succeeded);
+        assert_eq!(sim_submit.status, CamJobStatus::Queued);
+        assert_eq!(
+            run_and_query_status(&mut orchestrator, sim_submit.job_id),
+            CamJobStatus::Succeeded
+        );
 
         let result = orchestrator
             .query_result(JobWorkflowResultQuery {
@@ -688,6 +766,42 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "nc post from cam requires parent_job_id".to_string()
+        );
+    }
+
+    #[test]
+    fn only_succeeded_jobs_of_the_type_are_listed_for_import() {
+        let mut orchestrator = JobWorkflowOrchestrator::new();
+        let submit = |orchestrator: &mut JobWorkflowOrchestrator, input_ref: &str| {
+            orchestrator
+                .submit_workflow(JobWorkflowSubmitRequest {
+                    job_type: CamJobType::CamProcess,
+                    input_ref: input_ref.to_string(),
+                    parent_job_id: None,
+                })
+                .unwrap()
+                .job_id
+        };
+        let succeeded = submit(&mut orchestrator, "input://cam/sample");
+        let failed = submit(&mut orchestrator, "input://invalid");
+        assert!(
+            orchestrator
+                .list_succeeded_jobs(CamJobType::CamProcess)
+                .is_empty()
+        );
+
+        assert_eq!(orchestrator.run_queued_jobs().unwrap(), 2);
+        let listed: Vec<u64> = orchestrator
+            .list_succeeded_jobs(CamJobType::CamProcess)
+            .iter()
+            .map(|job| job.id)
+            .collect();
+        assert_eq!(listed, vec![succeeded]);
+        assert!(!listed.contains(&failed));
+        assert!(
+            orchestrator
+                .list_succeeded_jobs(CamJobType::CuttingSimulation)
+                .is_empty()
         );
     }
 }

@@ -1,6 +1,5 @@
 use std::io::Cursor;
 use std::sync::Arc;
-use std::time::Instant;
 
 use cam_algorithms::{CamSolverError, solve_toolpath};
 use cam_core::{
@@ -73,7 +72,6 @@ impl CamJobExecutorAdapter {
                     "invalid input_ref for cam process: {}: {}",
                     job.spec.input_ref, err
                 )),
-                10,
             );
         }
 
@@ -85,14 +83,13 @@ impl CamJobExecutorAdapter {
             return self.run_cam_process_without_solver_input(job);
         };
 
-        let started = Instant::now();
         let toolpath = match solve_toolpath(&input) {
             Ok(toolpath) => toolpath,
-            Err(err) => return cam_process_failure(job, &err, elapsed_millis_since(started)),
+            Err(err) => return cam_process_failure(job, &err),
         };
 
         match encode_toolpath_artifact(&toolpath, input.units, input.coordinate_frame) {
-            Ok(bytes) => cam_process_success(job, bytes, elapsed_millis_since(started)),
+            Ok(bytes) => cam_process_success(job, bytes),
             Err(err) => cam_artifact_error(job, &err),
         }
     }
@@ -117,11 +114,11 @@ impl CamJobExecutorAdapter {
         #[cfg(any(test, debug_assertions))]
         {
             if let Some(err) = classify_fixture_cam_process_failure(&job.spec.input_ref) {
-                return cam_process_failure(job, &err, 10);
+                return cam_process_failure(job, &err);
             }
 
             match build_cam_process_artifact_bytes(&job.spec.input_ref) {
-                Ok(bytes) => cam_process_success(job, bytes, 200),
+                Ok(bytes) => cam_process_success(job, bytes),
                 Err(err) => cam_artifact_error(job, &err),
             }
         }
@@ -194,12 +191,10 @@ impl CamJobExecutorAdapter {
             return sim_failure(job, log_suffix, failure.to_string());
         }
 
-        let started = Instant::now();
         let mut simulator = CuttingSimulator::new(input.stock, input.snapshot_interval.clone());
         if let Err(err) = simulator.simulate(&toolpath, &input.tool) {
             return JobExecutionResult {
                 status: JobStatus::Failed,
-                elapsed_millis: elapsed_millis_since(started),
                 result_ref: None,
                 artifact_bytes: None,
                 log_ref: Some(build_log_ref("sim", job.id.0, "sim-failure")),
@@ -222,7 +217,6 @@ impl CamJobExecutorAdapter {
         if let Err(err) = written {
             return JobExecutionResult {
                 status: JobStatus::Failed,
-                elapsed_millis: elapsed_millis_since(started),
                 result_ref: None,
                 artifact_bytes: None,
                 log_ref: Some(build_log_ref("sim", job.id.0, "artifact-error")),
@@ -235,7 +229,6 @@ impl CamJobExecutorAdapter {
 
         JobExecutionResult {
             status: JobStatus::Succeeded,
-            elapsed_millis: elapsed_millis_since(started),
             result_ref: Some(build_result_ref("sim", job.id.0, "ok")),
             artifact_bytes: Some(artifact_bytes),
             log_ref: Some(build_log_ref(
@@ -256,7 +249,6 @@ impl CamJobExecutorAdapter {
         else {
             return JobExecutionResult {
                 status: JobStatus::Failed,
-                elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
                 log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
@@ -270,7 +262,6 @@ impl CamJobExecutorAdapter {
         let Some(parent_job_id) = job.parent_job_id else {
             return JobExecutionResult {
                 status: JobStatus::Failed,
-                elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
                 log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
@@ -281,7 +272,6 @@ impl CamJobExecutorAdapter {
         if parent_job_id.0 != cam_job_id_from_ref {
             return JobExecutionResult {
                 status: JobStatus::Failed,
-                elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
                 log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
@@ -295,7 +285,6 @@ impl CamJobExecutorAdapter {
         if result_suffix != "ok" {
             return JobExecutionResult {
                 status: JobStatus::Failed,
-                elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
                 log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
@@ -309,7 +298,6 @@ impl CamJobExecutorAdapter {
         let Some(input_artifact_bytes) = input_artifact_bytes else {
             return JobExecutionResult {
                 status: JobStatus::Failed,
-                elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
                 log_ref: Some(build_log_ref("nc-post", job.id.0, "missing-input")),
@@ -326,7 +314,6 @@ impl CamJobExecutorAdapter {
             );
             return JobExecutionResult {
                 status: JobStatus::Failed,
-                elapsed_millis: 20,
                 result_ref: None,
                 artifact_bytes: None,
                 log_ref: Some(log_ref),
@@ -336,7 +323,6 @@ impl CamJobExecutorAdapter {
 
         JobExecutionResult {
             status: JobStatus::Succeeded,
-            elapsed_millis: 240,
             result_ref: Some(build_result_ref("nc-post", job.id.0, "ok")),
             artifact_bytes: None,
             log_ref: Some(build_log_ref("nc-post", job.id.0, "ok")),
@@ -345,14 +331,9 @@ impl CamJobExecutorAdapter {
     }
 }
 
-fn cam_process_success(
-    job: &JobRecord,
-    artifact_bytes: Vec<u8>,
-    elapsed_millis: u64,
-) -> JobExecutionResult {
+fn cam_process_success(job: &JobRecord, artifact_bytes: Vec<u8>) -> JobExecutionResult {
     JobExecutionResult {
         status: JobStatus::Succeeded,
-        elapsed_millis,
         result_ref: Some(build_result_ref("cam", job.id.0, "ok")),
         artifact_bytes: Some(artifact_bytes),
         log_ref: Some(build_log_ref("cam", job.id.0, "ok")),
@@ -360,14 +341,9 @@ fn cam_process_success(
     }
 }
 
-fn cam_process_failure(
-    job: &JobRecord,
-    error: &CamSolverError,
-    elapsed_millis: u64,
-) -> JobExecutionResult {
+fn cam_process_failure(job: &JobRecord, error: &CamSolverError) -> JobExecutionResult {
     JobExecutionResult {
         status: JobStatus::Failed,
-        elapsed_millis,
         result_ref: None,
         artifact_bytes: None,
         log_ref: Some(build_log_ref("cam", job.id.0, error.code())),
@@ -378,16 +354,11 @@ fn cam_process_failure(
 fn cam_artifact_error(job: &JobRecord, error: &BinaryFormatError) -> JobExecutionResult {
     JobExecutionResult {
         status: JobStatus::Failed,
-        elapsed_millis: 20,
         result_ref: None,
         artifact_bytes: None,
         log_ref: Some(build_log_ref("cam", job.id.0, "artifact-error")),
         error: Some(format!("failed to build cam artifact bytes: {}", error)),
     }
-}
-
-fn elapsed_millis_since(started: Instant) -> u64 {
-    started.elapsed().as_millis().max(1) as u64
 }
 
 fn encode_toolpath_artifact(
@@ -458,7 +429,6 @@ fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFo
 fn sim_failure(job: &JobRecord, log_suffix: &str, error: String) -> JobExecutionResult {
     JobExecutionResult {
         status: JobStatus::Failed,
-        elapsed_millis: 10,
         result_ref: None,
         artifact_bytes: None,
         log_ref: Some(build_log_ref("sim", job.id.0, log_suffix)),
