@@ -142,13 +142,6 @@ impl MeshStage {
         self.mesh_list(device).set_mesh(device, key, item);
     }
 
-    /// 重ねて描くメッシュのうち、キーが `keys` の範囲のものを削除する
-    pub fn remove_mesh_list_items(&mut self, keys: std::ops::RangeInclusive<u64>) {
-        if let Some(mesh_list) = &mut self.mesh_list_resources {
-            mesh_list.remove_meshes(keys);
-        }
-    }
-
     fn mesh_list(&mut self, device: &Device) -> &mut MeshListResources {
         let format = self.format;
         let wireframe = self.mesh_resources.is_wireframe();
