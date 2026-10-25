@@ -9,8 +9,8 @@ use std::path::Path;
 
 use cam_algorithms::SolverGeometry;
 use geo_algorithms::{
-    NurbsSurface3D, Point3D, SurfaceTessellationError, TessellationLimits, TriangleMesh3D,
-    Vector3D, tessellate_surfaces,
+    NurbsSurface3D, SurfaceTessellationError, TessellationLimits, TriangleMesh3D, Vector3D,
+    concatenate_triangle_meshes, tessellate_surfaces,
 };
 use geo_contracts::{
     EntityDisplayProperties, EntityIdentity, FaceSetEntity3DProperties, TriangleMesh3DConstructor,
@@ -283,22 +283,14 @@ impl ProductShapeStore {
             return Ok(SolverGeometry::NurbsSurfaceSet(surfaces));
         }
 
-        let mut vertices: Vec<Point3D<f64>> = Vec::new();
-        let mut indices: Vec<[usize; 3]> = Vec::new();
-        for geometry in faces {
-            let ProductFaceGeometry::Mesh(mesh) = geometry else {
-                return Err(ProductShapeError::MixedFaceKinds);
-            };
-            let offset = vertices.len();
-            vertices.extend_from_slice(mesh.vertices());
-            indices.extend(
-                mesh.indices()
-                    .iter()
-                    .map(|triangle| triangle.map(|index| index + offset)),
-            );
-        }
-        let mesh = TriangleMesh3D::new(vertices, indices)
-            .expect("concatenating valid meshes keeps every index in range");
+        let meshes = faces
+            .into_iter()
+            .map(|geometry| match geometry {
+                ProductFaceGeometry::Mesh(mesh) => Ok(mesh),
+                ProductFaceGeometry::Surface(_) => Err(ProductShapeError::MixedFaceKinds),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mesh = concatenate_triangle_meshes(&meshes);
         Ok(SolverGeometry::TriangleMesh(mesh))
     }
 }

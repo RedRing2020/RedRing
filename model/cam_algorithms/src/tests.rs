@@ -777,3 +777,37 @@ fn triangle_aspect_ratio_is_infinite_for_coincident_points() {
     let p = Point3D::new(1.0, 2.0, 3.0);
     assert!(crate::triangle_aspect_ratio(p, p, p).is_infinite());
 }
+
+#[test]
+fn solver_geometry_bounds_enclose_the_mesh_and_the_surface_control_points() {
+    let triangle = mesh(
+        &[(0.0, 0.0, 1.0), (4.0, 0.0, 2.0), (0.0, 3.0, 5.0)],
+        &[[0, 1, 2]],
+    );
+    let aabb = SolverGeometry::TriangleMesh(triangle).aabb().unwrap();
+    assert_eq!(aabb.min(), Point3D::new(0.0, 0.0, 1.0));
+    assert_eq!(aabb.max(), Point3D::new(4.0, 3.0, 5.0));
+
+    let surfaces = SolverGeometry::NurbsSurfaceSet(vec![dome_surface(), dome_surface()]);
+    let aabb = surfaces.aabb().unwrap();
+    let surface = dome_surface();
+    for i in 0..=10 {
+        for j in 0..=10 {
+            let point = surface
+                .point_at_uv(f64::from(i) / 10.0, f64::from(j) / 10.0)
+                .unwrap();
+            // 曲面の評価の丸め誤差の範囲で、境界ボックスに含まれる
+            let tolerance = default_distance_tolerance::<f64>();
+            let inside = |value: f64, low: f64, high: f64| {
+                low - tolerance <= value && value <= high + tolerance
+            };
+            assert!(
+                inside(point.x(), aabb.min().x(), aabb.max().x())
+                    && inside(point.y(), aabb.min().y(), aabb.max().y())
+                    && inside(point.z(), aabb.min().z(), aabb.max().z()),
+                "{point:?}"
+            );
+        }
+    }
+    assert!(SolverGeometry::NurbsSurfaceSet(Vec::new()).aabb().is_none());
+}
