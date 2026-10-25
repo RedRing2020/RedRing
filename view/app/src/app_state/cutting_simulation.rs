@@ -69,28 +69,38 @@ impl AppState {
         );
     }
 
-    /// 取り込んだ切削アニメーションの表示を、今の設定で描き直す（今のコマ・カメラ・ワイヤーフレームの状態は保つ）
+    /// 取り込んだ切削アニメーションの、設定で変わる線（ツールパスの線・工具の線）を今の設定で描き直す
+    ///
+    /// 素材の面と製品形状のメッシュは設定で変わらないため作り直さない。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
     pub(super) fn redraw_cutting_animation(&mut self) {
-        let Some(animation) = self.cutting_animation.take() else {
+        let Some(animation) = &self.cutting_animation else {
             tracing::info!(
                 "切削シミュレーションが取り込まれていないため、設定は次の取り込みから反映します"
             );
             return;
         };
-        let wireframe = self
+        let toolpath_lines = line_vertices(
+            &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
+            None,
+        );
+        let tool_lines = line_vertices(
+            &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
+            Some(self.snapshot_shaded_color_settings.tool_wire_color),
+        );
+        let device = &self.graphic.device;
+        let Some(mesh_stage) = self
             .renderer
             .get_stage_mut()
             .as_any_mut()
             .downcast_mut::<MeshStage>()
-            .is_some_and(|stage| stage.is_wireframe());
-        let (mut mesh_stage, _) = self.build_cutting_animation_stage(&animation);
-        if wireframe {
-            mesh_stage.toggle_wireframe();
-        }
-        self.renderer.set_stage(mesh_stage);
-        self.cutting_animation = Some(animation);
+        else {
+            tracing::warn!("切削アニメーションの表示中ではないため、設定を反映できません");
+            return;
+        };
+        mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
+        mesh_stage.set_overlay_tool_line_data(device, tool_lines);
         self.update_camera_uniforms();
-        tracing::info!("切削アニメーションの表示を、変えた設定で描き直しました");
+        tracing::info!("ツールパスの線と工具の線を、変えた設定で描き直しました");
     }
 
     /// 切削アニメーションの今のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置
