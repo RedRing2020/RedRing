@@ -9,10 +9,9 @@
 # Layer groups
 $ARCH_LAYERS = [ordered]@{
     Foundation  = @("analysis", "i18n_foundation", "logging_foundation")
-    TestSupport = @("redring_test_support")
     Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain")
     Application = @("application")
-    ViewModel   = @("viewmodel", "viewmodel-cam-demo", "viewmodel-graphics")
+    ViewModel   = @("viewmodel", "viewmodel-graphics")
     View        = @("render", "stage", "redring")
 }
 
@@ -24,7 +23,6 @@ $ARCH_ALLOWED_DEPS = @{
     analysis             = @()
     i18n_foundation      = @()
     logging_foundation   = @()
-    redring_test_support = @()
 
     geo_contracts  = @("analysis", "geo_core")
     geo_commons    = @("analysis")
@@ -38,24 +36,23 @@ $ARCH_ALLOWED_DEPS = @{
     cam_core       = @("analysis", "geo_contracts", "geo_primitives", "geo_algorithms")
     cam_algorithms = @("analysis", "cam_core", "geo_contracts", "geo_algorithms")
     cam_entity     = @("cam_core", "geo_entity")
-    cam_sim        = @("analysis", "cam_core", "cam_algorithms", "geo_algorithms", "job_runtime", "job_domain", "redring_test_support")
-    job_runtime    = @("analysis", "redring_test_support")
+    cam_sim        = @("analysis", "cam_core", "cam_algorithms", "geo_algorithms", "job_runtime", "job_domain")
+    job_runtime    = @("analysis")
     job_domain     = @("analysis", "job_runtime")
 
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_sim", "job_runtime", "job_domain", "redring_test_support")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_sim", "job_runtime", "job_domain")
 
     viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application", "geo_contracts", "geo_algorithms", "geo_io", "cam_algorithms", "cam_core", "cam_sim", "job_domain")
-    "viewmodel-cam-demo" = @("application", "cam_core", "cam_sim", "geo_algorithms", "viewmodel")
     "viewmodel-graphics" = @("analysis")
 
     render  = @("analysis", "logging_foundation", "viewmodel", "viewmodel-graphics")
     stage   = @("analysis", "logging_foundation", "render", "viewmodel", "viewmodel-graphics")
-    redring = @("analysis", "logging_foundation", "render", "stage", "viewmodel", "viewmodel-cam-demo", "viewmodel-graphics")
+    redring = @("analysis", "logging_foundation", "render", "stage", "viewmodel", "viewmodel-graphics")
 }
 
 # Forbidden dependency rules
 # 許可されていない依存はすべてエラーになる。ここには、特に守る境界を明示する。
-$ARCH_VIEW_AND_VIEWMODEL = @("viewmodel", "viewmodel-cam-demo", "viewmodel-graphics", "render", "stage", "redring")
+$ARCH_VIEW_AND_VIEWMODEL = @("viewmodel", "viewmodel-graphics", "render", "stage", "redring")
 $ARCH_CAM_CRATES = @("cam_core", "cam_algorithms", "cam_entity", "cam_sim")
 $ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity")
 $ARCH_FORBIDDEN_DEPS = @{

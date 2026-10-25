@@ -136,7 +136,6 @@ dependencies = [
  "geo_topology",
  "job_domain",
  "job_runtime",
- "redring_test_support",
 ]
 
 [[package]]
@@ -388,7 +387,6 @@ dependencies = [
  "geo_algorithms",
  "job_domain",
  "job_runtime",
- "redring_test_support",
 ]
 
 [[package]]
@@ -1683,9 +1681,6 @@ dependencies = [
 [[package]]
 name = "job_runtime"
 version = "0.1.0"
-dependencies = [
- "redring_test_support",
-]
 
 [[package]]
 name = "jobserver"
@@ -2860,15 +2855,10 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "viewmodel",
- "viewmodel-cam-demo",
  "viewmodel-graphics",
  "wgpu",
  "winit",
 ]
-
-[[package]]
-name = "redring_test_support"
-version = "0.1.0"
 
 [[package]]
 name = "regex"
@@ -3755,17 +3745,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
-]
-
-[[package]]
-name = "viewmodel-cam-demo"
-version = "0.1.0"
-dependencies = [
- "application",
- "cam_core",
- "cam_sim",
- "geo_algorithms",
- "viewmodel",
 ]
 
 [[package]]

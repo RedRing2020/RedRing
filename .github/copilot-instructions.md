@@ -109,16 +109,10 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 
 経緯の明確化:
 
-- `viewmodel/cam_demo` は Issue #717 の CAM 混在解消を目的に導入した
-- CAD を含む demo 全体設計は別タスクで扱う（同時完了していない）
+- デモ専用の `viewmodel/cam_demo` は Issue #926 で削除した。切削シミュレーションの実行・再生は本番の導線（製品形状 → 投入 → 実行 → 取り込み → 再生）だけとする
 
-- `model/application` / `model/cam_sim` / `model/job_runtime` は本番導線のみを扱い、demo専用シナリオ・demo専用ロード関数を追加しない
-- demo専用の生成・再生ロジックは `view` / `viewmodel` 側に限定し、`model` 層へ逆流させない
-- CAMデモ機能の追加先は `viewmodel/cam_demo` を正本とし、demo専用ロジックを `viewmodel/converter` に再導入しない
-- CADとCAMのdemoを単一クレートへ統合しない。責務境界に沿って個別に管理する
-- `view/app` は当面別クレート化しない。`view/app` は起動トリガーと表示状態管理を担い、demoロジック本体は持たない
-- `CamSimulationDemoScenario`、`build_demo_artifacts_for_cam_simulation`、`create_demo_snapshot_exports_for_scenario` を `model/application` で再導入しない
-- demo導線の変更時は「本番導線に影響しないこと」をテストで固定する
+- デモ専用のクレート・シナリオ・実行経路・ロード関数を、どの層にも追加しない。確かめるための操作も本番の導線を使う
+- `view/app` は当面別クレート化しない。`view/app` は起動トリガーと表示状態管理を担う
 
 `view/app` 分離の再評価は次の場合のみ行う:
 

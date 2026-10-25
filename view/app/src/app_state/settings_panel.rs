@@ -1,6 +1,5 @@
 use super::AppState;
 use crate::settings_panel_ui::SettingsPanelUiState;
-use cam_demo::CamSimulationDemoScenario;
 
 impl AppState {
     pub fn is_settings_panel_open(&self) -> bool {
@@ -43,8 +42,10 @@ impl AppState {
             snapshot_shaded_colors: self.snapshot_shaded_color_settings,
             tool_wireframe_settings: self.tool_wireframe_visualization_settings,
             toolpath_settings: self.toolpath_visualization_settings.clone(),
-            current_demo_label: self.current_cam_demo_scenario.map(demo_scenario_label),
-            reload_demo_requested: false,
+            current_animation_label: self
+                .cutting_animation_job_id
+                .map(|job_id| job_id.to_string()),
+            redraw_animation_requested: false,
         }
     }
 
@@ -55,17 +56,8 @@ impl AppState {
         self.tool_wireframe_visualization_settings = panel_state.tool_wireframe_settings;
         self.toolpath_visualization_settings = panel_state.toolpath_settings;
 
-        if panel_state.reload_demo_requested {
-            // 設定反映後も表示状態の整合を保つため、共通のstage復元経路で再読込する。
-            self.reload_current_demo_with_stage_restore("設定パネル");
+        if panel_state.redraw_animation_requested {
+            self.redraw_cutting_animation();
         }
-    }
-}
-
-fn demo_scenario_label(scenario: CamSimulationDemoScenario) -> String {
-    match scenario {
-        CamSimulationDemoScenario::Success => "ボールエンドミル".to_string(),
-        CamSimulationDemoScenario::SuccessFlatEndMill => "フラットエンドミル".to_string(),
-        CamSimulationDemoScenario::FailureEmptyToolpath => "空ToolPath".to_string(),
     }
 }

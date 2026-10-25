@@ -6,7 +6,6 @@ use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use analysis::{LengthUnit, Tolerance};
-use cam_demo::CamSimulationDemoScenario;
 use debug_scene::InverseOffsetDebugState;
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
@@ -45,8 +44,6 @@ mod settings_accessors;
 mod settings_panel;
 // AppState の Snapshot 再生・スクラブ制御
 mod snapshot_playback;
-// AppState の stage復元スナップショット
-mod stage_restore;
 // AppState のステージ更新オーケストレーション
 mod stage_orchestration;
 
@@ -118,9 +115,6 @@ pub struct AppState {
     /// 逆オフセット包絡面デバッグ表示の状態（工具種別・表示モード）
     inverse_offset_debug: InverseOffsetDebugState,
 
-    /// 最後に表示したCAMデモの種別
-    current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
-
     /// 取り込んだ製品形状
     product_shapes: ProductShapeScene,
 
@@ -129,6 +123,9 @@ pub struct AppState {
 
     /// 取り込んだ切削シミュレーションの切削アニメーション
     cutting_animation: Option<CuttingAnimation>,
+
+    /// 取り込んだ切削シミュレーションのジョブの番号
+    cutting_animation_job_id: Option<u64>,
 
     /// 設定パネル表示状態
     settings_panel_open: bool,
@@ -181,10 +178,10 @@ impl AppState {
             toolpath_visualization_settings: ToolPathVisualizationSettings::default(),
             inverse_offset_visualization_settings: InverseOffsetVisualizationSettings::default(),
             inverse_offset_debug: InverseOffsetDebugState::default(),
-            current_cam_demo_scenario: None,
             product_shapes: ProductShapeScene::default(),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
+            cutting_animation_job_id: None,
             settings_panel_open: false,
             settings_panel_active_tab: SettingsPanelTab::default(),
             settings_panel_locale: UiLocale::Ja,

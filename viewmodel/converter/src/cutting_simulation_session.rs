@@ -69,6 +69,15 @@ impl CuttingSimulationConditions {
     }
 }
 
+/// 取り込んだ切削シミュレーション
+#[derive(Debug)]
+pub struct ImportedCuttingSimulation {
+    /// 切削シミュレーションのジョブの番号
+    pub job_id: u64,
+    /// 切削アニメーション
+    pub animation: CuttingAnimation,
+}
+
 /// 投入・実行・取り込みの失敗
 #[derive(Debug)]
 pub enum CuttingSimulationSessionError {
@@ -162,7 +171,9 @@ impl CuttingSimulationSession {
     /// # Errors
     ///
     /// 取り込める切削シミュレーションがない場合、取り込みの失敗、切削アニメーションを作れない場合。
-    pub fn import_latest(&self) -> Result<CuttingAnimation, CuttingSimulationSessionError> {
+    pub fn import_latest(
+        &self,
+    ) -> Result<ImportedCuttingSimulation, CuttingSimulationSessionError> {
         let latest = self
             .workflow
             .succeeded_simulations()
@@ -170,12 +181,16 @@ impl CuttingSimulationSession {
             .map(|job| job.id)
             .ok_or(CuttingSimulationSessionError::NoSucceededSimulation)?;
         let result = self.workflow.import(latest)?;
-        CuttingAnimation::new(
+        let animation = CuttingAnimation::new(
             &result.toolpath_artifact,
             &result.simulation_artifact,
             result.tool,
         )
-        .map_err(CuttingSimulationSessionError::Animation)
+        .map_err(CuttingSimulationSessionError::Animation)?;
+        Ok(ImportedCuttingSimulation {
+            job_id: latest,
+            animation,
+        })
     }
 }
 
@@ -240,9 +255,10 @@ mod tests {
         ));
 
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
-        let animation = session.import_latest().unwrap();
-        assert!(animation.frame_count() > 1);
-        assert!(!animation.stock_blocks().is_empty());
+        let imported = session.import_latest().unwrap();
+        assert_eq!(imported.job_id, 2);
+        assert!(imported.animation.frame_count() > 1);
+        assert!(!imported.animation.stock_blocks().is_empty());
     }
 
     #[test]

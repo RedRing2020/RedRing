@@ -16,8 +16,5 @@ geo_algorithms = { path = "../geo_algorithms" }
 job_domain = { path = "../job_domain" }
 job_runtime = { path = "../job_runtime" }
 
-[dev-dependencies]
-redring_test_support = { path = "../test_support" }
-
 [lints]
 workspace = true

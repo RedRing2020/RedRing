@@ -7,11 +7,11 @@ const SETTINGS_PANEL_TEMPLATE_JA: &[(&str, &str)] = &[
     ("settings.intro", "カテゴリごとに設定を確認・調整します。"),
     ("settings.tab.display", "表示"),
     ("settings.tab.tool", "工具"),
-    ("settings.current_demo", "現在のデモ: {label}"),
+    ("settings.current_animation", "表示中の切削シミュレーション: ジョブ {label}"),
     ("settings.apply", "設定を反映"),
     (
-        "settings.no_active_demo",
-        "現在アクティブな切削デモはありません。変更は次回のデモ開始時に反映されます。",
+        "settings.no_active_animation",
+        "切削シミュレーションが取り込まれていません。変更は次の取り込みから反映されます。",
     ),
     ("settings.header.view_controls", "View 操作設定"),
     (
@@ -79,11 +79,11 @@ const SETTINGS_PANEL_TEMPLATE_EN: &[(&str, &str)] = &[
     ("settings.intro", "Review and adjust settings by category."),
     ("settings.tab.display", "Display"),
     ("settings.tab.tool", "Tool"),
-    ("settings.current_demo", "Current demo: {label}"),
+    ("settings.current_animation", "Displayed cutting simulation: job {label}"),
     ("settings.apply", "Apply Settings"),
     (
-        "settings.no_active_demo",
-        "No CAM demo is active. Changes will be applied the next time a demo starts.",
+        "settings.no_active_animation",
+        "No cutting simulation is imported. Changes will be applied the next time one is imported.",
     ),
     ("settings.header.view_controls", "View Controls"),
     (
@@ -197,16 +197,16 @@ mod tests {
     fn resolves_settings_panel_text_with_args() {
         let ja = resolve_settings_panel_text_with_args(
             UiLocale::Ja,
-            "settings.current_demo",
-            &[("label", "ボールエンドミル".to_string())],
+            "settings.current_animation",
+            &[("label", "2".to_string())],
         );
         let en = resolve_settings_panel_text_with_args(
             UiLocale::En,
-            "settings.current_demo",
-            &[("label", "Ball End Mill".to_string())],
+            "settings.current_animation",
+            &[("label", "2".to_string())],
         );
 
-        assert_eq!(ja, "現在のデモ: ボールエンドミル");
-        assert_eq!(en, "Current demo: Ball End Mill");
+        assert_eq!(ja, "表示中の切削シミュレーション: ジョブ 2");
+        assert_eq!(en, "Displayed cutting simulation: job 2");
     }
 }

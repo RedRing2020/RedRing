@@ -375,25 +375,6 @@ impl RenderStage for OctreeStage {
         self.start_depth_animation();
         true
     }
-
-    fn apply_snapshot_wireframe_frame(
-        &mut self,
-        device: &wgpu::Device,
-        snapshot_wireframes: Vec<Vec<WireframeVertex>>,
-        frame_index: usize,
-    ) -> bool {
-        if snapshot_wireframes.is_empty() {
-            return false;
-        }
-
-        if self.max_depth().saturating_add(1) != snapshot_wireframes.len() {
-            self.set_depth_levels(device, snapshot_wireframes.clone());
-        }
-
-        let index = frame_index.min(snapshot_wireframes.len().saturating_sub(1));
-        self.set_depth(device, index);
-        true
-    }
 }
 
 #[cfg(test)]
