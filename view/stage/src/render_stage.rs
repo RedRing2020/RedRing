@@ -58,29 +58,6 @@ pub trait RenderStage {
         false
     }
 
-    /// Snapshotのソリッドフレームを適用（未対応ならfalse）
-    fn apply_snapshot_solid_frame(
-        &mut self,
-        _device: &wgpu::Device,
-        _vertices: Vec<render::vertex_3d::MeshVertex>,
-        _indices: Vec<u32>,
-        _base_color: [f32; 4],
-        _toolpath_lines: Vec<render::vertex_3d::MeshVertex>,
-        _tool_lines: Vec<render::vertex_3d::MeshVertex>,
-    ) -> bool {
-        false
-    }
-
-    /// Snapshotのワイヤーフレームフレームを適用（未対応ならfalse）
-    fn apply_snapshot_wireframe_frame(
-        &mut self,
-        _device: &wgpu::Device,
-        _snapshot_wireframes: Vec<Vec<viewmodel::octree_converter::WireframeVertex>>,
-        _frame_index: usize,
-    ) -> bool {
-        false
-    }
-
     /// Anyトレイトへのダウンキャスト用
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }

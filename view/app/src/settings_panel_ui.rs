@@ -30,8 +30,8 @@ pub struct SettingsPanelUiState {
     pub snapshot_shaded_colors: SnapshotShadedColorSettings,
     pub tool_wireframe_settings: ToolWireframeVisualizationSettings,
     pub toolpath_settings: ToolPathVisualizationSettings,
-    pub current_demo_label: Option<String>,
-    pub reload_demo_requested: bool,
+    pub current_animation_label: Option<String>,
+    pub redraw_animation_requested: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,20 +129,18 @@ impl SettingsPanelUiState {
                 }
 
                 ui.separator();
-                match &self.current_demo_label {
+                match &self.current_animation_label {
                     Some(label) => {
-                        ui.label(
-                            self.text_with_args(
-                                "settings.current_demo",
-                                &[("label", label.clone())],
-                            ),
-                        );
+                        ui.label(self.text_with_args(
+                            "settings.current_animation",
+                            &[("label", label.clone())],
+                        ));
                         if ui.button(self.text("settings.apply")).clicked() {
-                            self.reload_demo_requested = true;
+                            self.redraw_animation_requested = true;
                         }
                     }
                     None => {
-                        ui.label(self.text("settings.no_active_demo"));
+                        ui.label(self.text("settings.no_active_animation"));
                     }
                 }
             });

@@ -23,14 +23,3 @@ pub use types::{
     JobError, JobGroupSummary, JobId, JobOutputRecord, JobOutputValidity, JobRecord, JobRelation,
     JobSpec, JobStatus, JobType, RetryPolicy,
 };
-
-#[cfg(test)]
-mod tests {
-    use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
-    use std::path::Path;
-
-    #[test]
-    fn test_job_runtime_source_does_not_reference_demo_symbols() {
-        assert_layer_does_not_reference_demo_symbols_in(Path::new("src"), "job_runtime");
-    }
-}

@@ -16,7 +16,7 @@ RedRing のレイヤー構成、クレートの責務と依存の規則を定義
 ```text
 view（render / stage / app）
   ↓
-viewmodel（converter / graphics / cam_demo）
+viewmodel（converter / graphics）
   ↓
 model
   application → cam_sim → cam_algorithms → cam_core
@@ -51,8 +51,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **`cam_entity`**: CAM 向けの表示・属性の統合（CAM の業務の属性は、ここで定義する）
 - **`job_runtime`** / **`job_domain`**: CAD / CAM / CAE に依存しない実行制御 / ジョブ投入のポリシー
 - **`application`**: テセレーション・シミュレーション・ジョブ投入などのユースケースの orchestration（`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`）
-- **`test_support`**（`redring_test_support`）: 共有のテスト補助
-- **`viewmodel/*`**: モデルのデータの描画用への変換（`converter`）、カメラ等のグラフィックス制御（`graphics`）、CAM のデモ導線（`cam_demo`）
+- **`viewmodel/*`**: モデルのデータの描画用への変換（`converter`）、カメラ等のグラフィックス制御（`graphics`）
 - **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）
 
 ### レイヤー設計の重要ポイント
@@ -248,7 +247,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 ### 共有テスト補助コード配置方針（2026年7月更新）
 
 - 共有テスト補助コードは、実際に同時利用している層の最小範囲で配置する
-- 層をまたいで継続利用する補助コードは、ワークスペース共通のテスト補助クレート（`model/test_support`、パッケージ名 `redring_test_support`）に置き、dev-dependencies で使う
+- 層をまたいで継続利用する補助コードが必要になった場合は、ワークスペース共通のテスト補助クレートを置き、dev-dependencies で使う（デモの名前の参照を確かめる補助だけを持っていた `redring_test_support` は、デモの導線の削除とともに削除した）
 - テストの置き場所は `TEST_PLACEMENT_RULES.md` に従う
 
 ### 実行時文言の言語ポリシー（2026年8月更新）
@@ -290,7 +289,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 ```text
 redring（view/app） → stage → render
           ↓             ↓        ↓
-              viewmodel（converter / graphics / cam_demo） → model
+              viewmodel（converter / graphics） → model
 ```
 
 - **`render`**: GPU 描画基盤（wgpu + WGSL）。デバイス・パイプライン・シェーダ・頂点型・描画対象ごとの GPU リソース

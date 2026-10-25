@@ -20,6 +20,7 @@ impl AppState {
     /// 表示中の製品形状をメッシュステージに描き、全体が見えるようにカメラを合わせる
     fn show_product_shapes(&mut self) {
         self.cutting_animation = None;
+        self.cutting_animation_job_id = None;
         self.debug_snapshot.clear();
         let meshes = self.product_shapes.visible_meshes();
         let positions: Vec<[f32; 3]> = meshes

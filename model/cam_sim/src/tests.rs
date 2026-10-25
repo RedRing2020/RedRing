@@ -1,6 +1,5 @@
 use geo_algorithms::{Aabb3D, Point3D};
 use std::io::Cursor;
-use std::path::Path;
 use std::sync::Arc;
 
 use cam_core::{
@@ -8,7 +7,6 @@ use cam_core::{
     ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
 use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
-use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
 
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulationInput,
@@ -1036,9 +1034,4 @@ fn test_ball_end_mill_z_offset_removes_material_at_shifted_z() {
         "Z=10 の水平経路でフラット（底面 Z=10）とボール（球の中心 Z=15）は除去する形が異なるはず: \
          flat={flat_remaining}, ball={ball_remaining}"
     );
-}
-
-#[test]
-fn test_cam_sim_source_does_not_reference_demo_symbols() {
-    assert_layer_does_not_reference_demo_symbols_in(Path::new("src"), "cam_sim");
 }

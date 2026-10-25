@@ -43,7 +43,10 @@ impl AppState {
     /// 正常に実行済みの最も新しい切削シミュレーションを取り込み、製品形状に重ねて再生できるようにする
     pub(crate) fn import_cutting_simulation(&mut self) {
         match self.cutting_simulation.import_latest() {
-            Ok(animation) => self.start_cutting_animation(animation),
+            Ok(imported) => {
+                self.cutting_animation_job_id = Some(imported.job_id);
+                self.start_cutting_animation(imported.animation);
+            }
             Err(error) => tracing::warn!("切削シミュレーションを取り込めません: {error}"),
         }
     }
@@ -53,6 +56,58 @@ impl AppState {
         self.debug_snapshot.series = Some(animation.snapshot_series("cam_sim"));
         self.rebuild_snapshot_weighted_progress_axis_cache();
 
+        let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation);
+        if let Some(fit) = Self::build_camera_fit(&positions) {
+            self.apply_camera_fit(fit);
+        }
+        self.renderer.set_stage(mesh_stage);
+        self.cutting_animation = Some(animation);
+        self.update_camera_uniforms();
+        self.log_current_snapshot_frame(true);
+        tracing::info!(
+            "切削シミュレーションを取り込みました（Space で再生、k/j でコマ送り、左上の進捗バーでスクラブ、w でワイヤーフレーム）"
+        );
+    }
+
+    /// 取り込んだ切削アニメーションの、設定で変わる線（ツールパスの線・工具の線）を今の設定で描き直す
+    ///
+    /// 素材の面と製品形状のメッシュは設定で変わらないため作り直さない。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
+    pub(super) fn redraw_cutting_animation(&mut self) {
+        let Some(animation) = &self.cutting_animation else {
+            tracing::info!(
+                "切削シミュレーションが取り込まれていないため、設定は次の取り込みから反映します"
+            );
+            return;
+        };
+        let toolpath_lines = line_vertices(
+            &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
+            None,
+        );
+        let tool_lines = line_vertices(
+            &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
+            Some(self.snapshot_shaded_color_settings.tool_wire_color),
+        );
+        let device = &self.graphic.device;
+        let Some(mesh_stage) = self
+            .renderer
+            .get_stage_mut()
+            .as_any_mut()
+            .downcast_mut::<MeshStage>()
+        else {
+            tracing::warn!("切削アニメーションの表示中ではないため、設定を反映できません");
+            return;
+        };
+        mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
+        mesh_stage.set_overlay_tool_line_data(device, tool_lines);
+        self.update_camera_uniforms();
+        tracing::info!("ツールパスの線と工具の線を、変えた設定で描き直しました");
+    }
+
+    /// 切削アニメーションの今のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置
+    fn build_cutting_animation_stage(
+        &self,
+        animation: &CuttingAnimation,
+    ) -> (Box<MeshStage>, Vec<[f32; 3]>) {
         let stock_blocks = animation.stock_blocks();
         let positions: Vec<[f32; 3]> = stock_blocks
             .iter()
@@ -79,28 +134,24 @@ impl AppState {
                 .map(|block| stock_block_item(block, stock_color)),
         );
 
-        let mut mesh_stage = Box::new(MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        mesh_stage.set_mesh_list(&self.graphic.device, items);
+        let device = &self.graphic.device;
+        let mut mesh_stage = Box::new(MeshStage::new(device, self.graphic.config.format));
+        mesh_stage.set_mesh_list(device, items);
         mesh_stage.set_overlay_toolpath_line_data(
-            &self.graphic.device,
+            device,
             line_vertices(
                 &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
                 None,
             ),
         );
-        if let Some(fit) = Self::build_camera_fit(&positions) {
-            self.apply_camera_fit(fit);
-        }
-        self.renderer.set_stage(mesh_stage);
-        self.cutting_animation = Some(animation);
-        self.update_camera_uniforms();
-        self.log_current_snapshot_frame(true);
-        tracing::info!(
-            "切削シミュレーションを取り込みました（Space で再生、k/j でコマ送り、左上の進捗バーでスクラブ、w でワイヤーフレーム）"
+        mesh_stage.set_overlay_tool_line_data(
+            device,
+            line_vertices(
+                &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
+                Some(self.snapshot_shaded_color_settings.tool_wire_color),
+            ),
         );
+        (mesh_stage, positions)
     }
 
     /// 切削アニメーションを今のコマへ移し、素材のブロックと工具の形を差し替える（取り込んでいなければ `false`）

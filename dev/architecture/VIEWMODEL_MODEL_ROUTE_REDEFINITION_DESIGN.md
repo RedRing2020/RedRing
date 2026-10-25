@@ -125,7 +125,7 @@ ViewModel から Model を呼ぶ経路は、用途で分ける。本節を ViewM
 | 用途 | 経路 | 例 |
 |---|---|---|
 | 更新（command） | Application の port | 形状作成・feature 実行（`feature_command_converter`） |
-| ユースケースの実行 | Application | CAM シミュレーションの実行（`cam_orchestration`）、工具の干渉の検査（`cam_inspection`）、ジョブの投入 |
+| ユースケースの実行 | Application | 切削シミュレーションの投入・取り込み（`cam_simulation_workflow`）、工具の干渉の検査（`cam_inspection`）、ジョブの投入 |
 | 描画用の変換（query） | Model の値型・trait定義と、描画用の計算を直接使う | 形状のテセレーション（`geo_algorithms`）、ツールパスの線分化（`cam_sim`）、ジョブの記録・検証エラー・スナップショットの値型の表示用の変換（`job_domain`・`cam_core`・`cam_sim`） |
 | 表示確認用のデータ | 直接使う | テスト形状のファイル読み込み（`geo_io` の SVG）、fixtures のサンプル（なくす方針: #920） |
 
@@ -140,7 +140,6 @@ ViewModel から Model を呼ぶ経路は、用途で分ける。本節を ViewM
 | クレート | 許可する依存 |
 |---|---|
 | `viewmodel` | `application`、`geo_contracts`・`geo_algorithms`（描画用の変換）、`geo_io`（表示確認用の SVG の読み込み）、`cam_core`・`cam_algorithms`・`cam_sim`・`job_domain`（値型と描画用の変換。`cam_algorithms` は走査線の条件・工程テンプレートなどの値の型） |
-| `viewmodel-cam-demo` | `application`（シミュレーションの実行）、`cam_core`（fixtures）、`cam_sim`（スナップショットの間隔の値型）、`geo_algorithms` |
 | `viewmodel-graphics` | なし（`analysis` のみ） |
 
 `cam_entity` への依存は持たない。CAM のエンティティを Model に持つようになった時点で、Application 経由でつなぐ。

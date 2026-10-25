@@ -311,72 +311,7 @@ impl AppState {
     }
 
     pub(super) fn sync_snapshot_visual_frame(&mut self) {
-        if self.sync_cutting_animation_frame() {
-            return;
-        }
-        if self.debug_snapshot.shaded_mode {
-            let Some(snapshot_solids) = &self.debug_snapshot.solids else {
-                return;
-            };
-            if snapshot_solids.is_empty() {
-                return;
-            }
-
-            let frame_index = self
-                .debug_snapshot
-                .cursor
-                .min(snapshot_solids.len().saturating_sub(1));
-            let (vertices, indices) = snapshot_solids[frame_index].clone();
-
-            let stage = self.renderer.get_stage_mut();
-            let toolpath_lines = self
-                .debug_snapshot
-                .toolpath_lines
-                .clone()
-                .unwrap_or_default();
-            let tool_lines = if let Some(tool_lines_per_frame) = &self.debug_snapshot.tool_lines {
-                let overlay_index = frame_index.min(tool_lines_per_frame.len().saturating_sub(1));
-                tool_lines_per_frame[overlay_index].clone()
-            } else {
-                Vec::new()
-            };
-
-            let applied = stage.apply_snapshot_solid_frame(
-                &self.graphic.device,
-                vertices,
-                indices,
-                self.snapshot_shaded_color_settings.work_solid_color,
-                toolpath_lines,
-                tool_lines,
-            );
-
-            if !applied {
-                return;
-            }
-            return;
-        }
-
-        let Some(snapshot_wireframes) = &self.debug_snapshot.wireframes else {
-            return;
-        };
-        if snapshot_wireframes.is_empty() {
-            return;
-        }
-
-        let frame_index = self
-            .debug_snapshot
-            .cursor
-            .min(snapshot_wireframes.len().saturating_sub(1));
-
-        let stage = self.renderer.get_stage_mut();
-        let applied = stage.apply_snapshot_wireframe_frame(
-            &self.graphic.device,
-            snapshot_wireframes.clone(),
-            frame_index,
-        );
-        if !applied {
-            tracing::debug!("snapshot wireframe frameの適用対象ステージではありません");
-        }
+        self.sync_cutting_animation_frame();
     }
 
     pub(super) fn log_current_snapshot_frame(&mut self, emit_log: bool) {

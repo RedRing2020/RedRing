@@ -29,7 +29,6 @@
 - Application Layer の実体は `*_orchestration` を基本命名とする
 - 例:
   - `job_orchestration`
-  - `cam_orchestration`
   - `feature_orchestration`
   - `geometry_orchestration`
 
@@ -167,7 +166,7 @@ Domain / Algorithm / Runtime / Adapter
 - Application には少なくとも `preview/display` 系と `entity commit/import` 系の 2 経路が存在する
 - `preview/display` 系は、座標軸、コマンド矢印、一時プレビュー、デバッグ表示などを対象とし、EntityID を前提にしない
 - `entity commit/import` 系は、geometry を CAD データとして保存・参照可能な形に正規化する経路であり、EntityID と必要時の topology を伴う
-- `job_orchestration` と `cam_orchestration` はこの分類とは独立した execution mode / simulation 系の経路であり、geometry 後段責務の議論には含めない
+- `job_orchestration` と `cam_simulation_workflow` はこの分類とは独立した execution mode / simulation 系の経路であり、geometry 後段責務の議論には含めない
 - この分離を明示せずに `feature` へ寄せると、preview と entity commit の責務が混線し、topology が必須か optional かの議論も不安定になる
 
 ### 6.4 preview 系で topology が必要になりうるケース
