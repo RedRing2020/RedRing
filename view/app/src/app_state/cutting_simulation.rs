@@ -1,0 +1,170 @@
+//! AppState の切削シミュレーションの投入・実行・取り込みと、切削アニメーションの描画を扱うモジュール。
+
+use std::ops::RangeInclusive;
+
+use super::AppState;
+use render::mesh_list::MeshListItem;
+use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
+use stage::MeshStage;
+use viewmodel::cutting_animation::{CuttingAnimation, StockBlockMesh, StockMeshUpdate};
+use viewmodel::cutting_simulation_session::CuttingToolKind;
+use viewmodel::octree_converter::WireframeVertex;
+
+/// 重ねて描くメッシュのうち、素材のブロックのキーの範囲（製品形状のキーは 0 から）
+const STOCK_BLOCK_KEYS: RangeInclusive<u64> = (1 << 63)..=u64::MAX;
+
+/// 素材のブロック `block` のメッシュのキー（各座標軸のブロックの番号は 2²¹ 未満）
+fn stock_block_key(block: [usize; 3]) -> u64 {
+    let [x, y, z] = block.map(|index| index as u64);
+    STOCK_BLOCK_KEYS.start() | (x << 42) | (y << 21) | z
+}
+
+impl AppState {
+    /// 表示中の製品形状で、切削シミュレーションを投入する（実行しない）
+    pub(crate) fn submit_cutting_simulation(&mut self, tool: CuttingToolKind) {
+        match self.cutting_simulation.submit(&self.product_shapes, tool) {
+            Ok(()) => tracing::info!(
+                ?tool,
+                "切削シミュレーションを投入しました（Shift+R で実行、Shift+L で取り込み）"
+            ),
+            Err(error) => tracing::warn!("切削シミュレーションを投入できません: {error}"),
+        }
+    }
+
+    /// キューにあるジョブを実行する（ジョブマネージャーの代わり。終わるまで戻らない）
+    pub(crate) fn run_cutting_simulation_jobs(&mut self) {
+        tracing::info!("キューにあるジョブを実行します");
+        match self.cutting_simulation.run_queued_jobs() {
+            Ok(executed) => tracing::info!(executed, "ジョブの実行が終わりました"),
+            Err(error) => tracing::warn!("ジョブを実行できません: {error}"),
+        }
+    }
+
+    /// 正常に実行済みの最も新しい切削シミュレーションを取り込み、製品形状に重ねて再生できるようにする
+    pub(crate) fn import_cutting_simulation(&mut self) {
+        match self.cutting_simulation.import_latest() {
+            Ok(animation) => self.start_cutting_animation(animation),
+            Err(error) => tracing::warn!("切削シミュレーションを取り込めません: {error}"),
+        }
+    }
+
+    fn start_cutting_animation(&mut self, animation: CuttingAnimation) {
+        self.debug_snapshot.clear();
+        self.debug_snapshot.series = Some(animation.snapshot_series("cam_sim"));
+        self.rebuild_snapshot_weighted_progress_axis_cache();
+
+        let stock_blocks = animation.stock_blocks();
+        let positions: Vec<[f32; 3]> = stock_blocks
+            .iter()
+            .flat_map(|block| block.vertices.iter().map(|vertex| vertex.position))
+            .collect();
+        let mut items: Vec<(u64, MeshListItem)> = self
+            .product_shapes
+            .visible_meshes()
+            .into_iter()
+            .enumerate()
+            .map(|(index, mesh)| {
+                let item = MeshListItem {
+                    vertices: convert_vertex_data_to_mesh_vertices(&mesh.vertices),
+                    indices: mesh.indices,
+                    color: mesh.color,
+                };
+                (index as u64, item)
+            })
+            .collect();
+        let stock_color = self.snapshot_shaded_color_settings.work_solid_color;
+        items.extend(
+            stock_blocks
+                .into_iter()
+                .map(|block| stock_block_item(block, stock_color)),
+        );
+
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_mesh_list(&self.graphic.device, items);
+        mesh_stage.set_overlay_toolpath_line_data(
+            &self.graphic.device,
+            line_vertices(
+                &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
+                None,
+            ),
+        );
+        if let Some(fit) = Self::build_camera_fit(&positions) {
+            self.apply_camera_fit(fit);
+        }
+        self.renderer.set_stage(mesh_stage);
+        self.cutting_animation = Some(animation);
+        self.update_camera_uniforms();
+        self.log_current_snapshot_frame(true);
+        tracing::info!(
+            "切削シミュレーションを取り込みました（Space で再生、k/j でコマ送り、左上の進捗バーでスクラブ、w でワイヤーフレーム）"
+        );
+    }
+
+    /// 切削アニメーションを今のコマへ移し、素材のブロックと工具の形を差し替える（取り込んでいなければ `false`）
+    pub(super) fn sync_cutting_animation_frame(&mut self) -> bool {
+        let Some(animation) = &mut self.cutting_animation else {
+            return false;
+        };
+        let update = animation.seek(self.debug_snapshot.cursor);
+        let tool_lines = line_vertices(
+            &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
+            Some(self.snapshot_shaded_color_settings.tool_wire_color),
+        );
+        let stock_color = self.snapshot_shaded_color_settings.work_solid_color;
+        let device = &self.graphic.device;
+        let stage = self.renderer.get_stage_mut();
+        let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() else {
+            return true;
+        };
+        let blocks = match update {
+            StockMeshUpdate::Blocks(blocks) => blocks,
+            StockMeshUpdate::All(blocks) => {
+                mesh_stage.remove_mesh_list_items(STOCK_BLOCK_KEYS);
+                blocks
+            }
+        };
+        for block in blocks {
+            let (key, item) = stock_block_item(block, stock_color);
+            mesh_stage.set_mesh_list_item(device, key, item);
+        }
+        mesh_stage.set_overlay_tool_line_data(device, tool_lines);
+        true
+    }
+}
+
+fn stock_block_item(block: StockBlockMesh, color: [f32; 4]) -> (u64, MeshListItem) {
+    let item = MeshListItem {
+        vertices: convert_vertex_data_to_mesh_vertices(&block.vertices),
+        indices: block.indices,
+        color,
+    };
+    (stock_block_key(block.block), item)
+}
+
+/// 線の頂点を描画用にする（`color` を指定しない場合は頂点の色）
+fn line_vertices(vertices: &[WireframeVertex], color: Option<[f32; 3]>) -> Vec<MeshVertex> {
+    vertices
+        .iter()
+        .map(|vertex| MeshVertex::new(vertex.position, color.unwrap_or(vertex.color)))
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stock_block_keys_are_distinct_and_above_product_shape_keys() {
+        let blocks = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [15, 15, 15]];
+        let keys: Vec<u64> = blocks.iter().map(|&block| stock_block_key(block)).collect();
+        for (index, key) in keys.iter().enumerate() {
+            assert!(STOCK_BLOCK_KEYS.contains(key));
+            assert!(!keys[index + 1..].contains(key));
+        }
+        // 製品形状のキー（0 から）は素材のブロックの範囲に入らない
+        assert!(!STOCK_BLOCK_KEYS.contains(&1_000_000));
+    }
+}

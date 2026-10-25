@@ -3,19 +3,12 @@
 use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
 use crate::selection_rect::SelectionRect;
-use cam_demo::CamSimulationDemoScenario;
 use std::time::Instant;
 
 const AUTO_PLAY_BASE_DURATION_SEC: f64 = 12.0;
 const PLAYBACK_SPEED_MIN: f64 = 0.1;
 const PLAYBACK_SPEED_MAX: f64 = 10.0;
 const SEGMENT_WEIGHT_RATIO: f64 = 0.5;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SnapshotLoadReadiness {
-    Ready(CamSimulationDemoScenario),
-    NotReady,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SnapshotLoadTrigger {
@@ -35,40 +28,6 @@ impl SnapshotLoadTrigger {
             SnapshotLoadTrigger::KeyJ => "j",
             SnapshotLoadTrigger::Pause => "pause",
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum SnapshotLoadDecision {
-    Ready {
-        scenario: CamSimulationDemoScenario,
-        trigger_label: &'static str,
-    },
-    NotReady {
-        trigger_label: &'static str,
-    },
-}
-
-fn resolve_snapshot_load_readiness(
-    current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
-) -> SnapshotLoadReadiness {
-    match current_cam_demo_scenario {
-        Some(scenario) => SnapshotLoadReadiness::Ready(scenario),
-        None => SnapshotLoadReadiness::NotReady,
-    }
-}
-
-pub(super) fn resolve_snapshot_load_decision(
-    trigger: SnapshotLoadTrigger,
-    current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
-) -> SnapshotLoadDecision {
-    let trigger_label = trigger.label();
-    match resolve_snapshot_load_readiness(current_cam_demo_scenario) {
-        SnapshotLoadReadiness::Ready(scenario) => SnapshotLoadDecision::Ready {
-            scenario,
-            trigger_label,
-        },
-        SnapshotLoadReadiness::NotReady => SnapshotLoadDecision::NotReady { trigger_label },
     }
 }
 
@@ -163,25 +122,11 @@ impl AppState {
         if self.debug_snapshot.series.is_some() {
             return true;
         }
-
-        let (scenario, trigger_label) = match resolve_snapshot_load_decision(
-            trigger,
-            self.current_cam_demo_scenario,
-        ) {
-            SnapshotLoadDecision::Ready {
-                scenario,
-                trigger_label,
-            } => (scenario, trigger_label),
-            SnapshotLoadDecision::NotReady { trigger_label } => {
-                tracing::warn!(
-                    "CAMシミュレーションデモが未開始です。trigger={trigger_label}, Shift+B または Shift+F で開始してください"
-                );
-                return false;
-            }
-        };
-
-        self.load_sample_toolpath_with_scenario(scenario, trigger_label);
-        self.debug_snapshot.series.is_some()
+        tracing::warn!(
+            "切削シミュレーションが取り込まれていません。trigger={}, Shift+L で取り込んでください",
+            trigger.label()
+        );
+        false
     }
 
     pub(super) fn rebuild_snapshot_weighted_progress_axis_cache(&mut self) {
@@ -366,6 +311,9 @@ impl AppState {
     }
 
     pub(super) fn sync_snapshot_visual_frame(&mut self) {
+        if self.sync_cutting_animation_frame() {
+            return;
+        }
         if self.debug_snapshot.shaded_mode {
             let Some(snapshot_solids) = &self.debug_snapshot.solids else {
                 return;
@@ -597,73 +545,6 @@ impl AppState {
     fn sync_playback_progress_from_cursor(&mut self) {
         if let Some(progress) = self.snapshot_weighted_progress_from_cursor() {
             self.debug_snapshot.playback_progress = progress;
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use cam_demo::CamSimulationDemoScenario;
-
-    use super::{
-        resolve_snapshot_load_decision, resolve_snapshot_load_readiness, SnapshotLoadDecision,
-        SnapshotLoadReadiness, SnapshotLoadTrigger,
-    };
-
-    #[test]
-    fn resolve_snapshot_load_readiness_returns_not_ready_when_scenario_is_absent() {
-        assert_eq!(
-            resolve_snapshot_load_readiness(None),
-            SnapshotLoadReadiness::NotReady
-        );
-    }
-
-    #[test]
-    fn resolve_snapshot_load_readiness_returns_ready_when_scenario_exists() {
-        assert_eq!(
-            resolve_snapshot_load_readiness(Some(CamSimulationDemoScenario::SuccessFlatEndMill)),
-            SnapshotLoadReadiness::Ready(CamSimulationDemoScenario::SuccessFlatEndMill)
-        );
-    }
-
-    #[test]
-    fn resolve_snapshot_load_decision_returns_not_ready_for_all_ui_triggers_without_scenario() {
-        let triggers = [
-            SnapshotLoadTrigger::SnapshotScrub,
-            SnapshotLoadTrigger::Space,
-            SnapshotLoadTrigger::KeyK,
-            SnapshotLoadTrigger::KeyJ,
-            SnapshotLoadTrigger::Pause,
-        ];
-
-        for trigger in triggers {
-            assert_eq!(
-                resolve_snapshot_load_decision(trigger, None),
-                SnapshotLoadDecision::NotReady {
-                    trigger_label: trigger.label()
-                }
-            );
-        }
-    }
-
-    #[test]
-    fn resolve_snapshot_load_decision_returns_ready_for_all_ui_triggers_with_scenario() {
-        let triggers = [
-            SnapshotLoadTrigger::SnapshotScrub,
-            SnapshotLoadTrigger::Space,
-            SnapshotLoadTrigger::KeyK,
-            SnapshotLoadTrigger::KeyJ,
-            SnapshotLoadTrigger::Pause,
-        ];
-
-        for trigger in triggers {
-            assert_eq!(
-                resolve_snapshot_load_decision(trigger, Some(CamSimulationDemoScenario::Success)),
-                SnapshotLoadDecision::Ready {
-                    scenario: CamSimulationDemoScenario::Success,
-                    trigger_label: trigger.label()
-                }
-            );
         }
     }
 }

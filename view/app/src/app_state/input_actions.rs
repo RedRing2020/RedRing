@@ -1,18 +1,14 @@
 //! AppState のキーボード入力ハンドリングを扱うモジュール。
 
 use super::AppState;
+use viewmodel::cutting_simulation_session::CuttingToolKind;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CamDemoStartTrigger {
-    BallEndMill,
-    FlatEndMill,
-}
-
-fn resolve_cam_demo_start_trigger_with_modifiers(
+/// 切削シミュレーションの投入のキー（Shift+B: ボールエンドミル、Shift+F: フラットエンドミル）の工具
+fn resolve_cutting_tool_trigger(
     key: &winit::keyboard::Key,
     physical_key: &winit::keyboard::PhysicalKey,
     shift_pressed: bool,
-) -> Option<CamDemoStartTrigger> {
+) -> Option<CuttingToolKind> {
     if !shift_pressed {
         return None;
     }
@@ -21,11 +17,11 @@ fn resolve_cam_demo_start_trigger_with_modifiers(
         (
             winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyB),
             winit::keyboard::Key::Character(ch),
-        ) if ch.as_str() == "B" => Some(CamDemoStartTrigger::BallEndMill),
+        ) if ch.as_str() == "B" => Some(CuttingToolKind::BallEndMill),
         (
             winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyF),
             winit::keyboard::Key::Character(ch),
-        ) if ch.as_str() == "F" => Some(CamDemoStartTrigger::FlatEndMill),
+        ) if ch.as_str() == "F" => Some(CuttingToolKind::FlatEndMill),
         _ => None,
     }
 }
@@ -44,15 +40,10 @@ impl AppState {
             return;
         }
 
-        if let Some(trigger) = resolve_cam_demo_start_trigger_with_modifiers(
-            key,
-            physical_key,
-            self.mouse_input.is_shift_pressed(),
-        ) {
-            match trigger {
-                CamDemoStartTrigger::BallEndMill => self.load_sample_toolpath_ball_end_mill(),
-                CamDemoStartTrigger::FlatEndMill => self.load_sample_toolpath_flat_end_mill(),
-            }
+        if let Some(tool) =
+            resolve_cutting_tool_trigger(key, physical_key, self.mouse_input.is_shift_pressed())
+        {
+            self.submit_cutting_simulation(tool);
             return;
         }
 
@@ -66,6 +57,12 @@ impl AppState {
 
         if let winit::keyboard::Key::Character(ch) = key {
             match ch.as_str() {
+                "R" => {
+                    self.run_cutting_simulation_jobs();
+                }
+                "L" => {
+                    self.import_cutting_simulation();
+                }
                 "r" => {
                     self.camera.reset();
                     self.update_camera_uniforms();
@@ -97,9 +94,17 @@ impl AppState {
                     tracing::info!("3: Shadingステージ");
                     tracing::info!("=== 切削シミュレーション ===");
                     tracing::info!(
-                        "【開始】 Shift+F: フラットエンドミルのシミュレーションデモ開始"
+                        "【取込】 STL ファイルをウィンドウにドロップ: 製品形状として取り込み"
                     );
-                    tracing::info!("【開始】 Shift+B: ボールエンドミルのシミュレーションデモ開始");
+                    tracing::info!(
+                        "【投入】 Shift+B / Shift+F: 表示中の製品形状で投入（ボール / フラット）"
+                    );
+                    tracing::info!(
+                        "【実行】 Shift+R: キューにあるジョブを実行（終わるまで画面は止まる）"
+                    );
+                    tracing::info!(
+                        "【取込】 Shift+L: 最も新しい切削シミュレーションを取り込んで再生"
+                    );
                     tracing::info!("【設定】 Shift+S: 設定パネル表示切替");
                     tracing::info!("【開始】 p: ToolPath のみ表示（シミュレーションなし）");
                     tracing::info!("【移動】 k: 次のスナップショットフレームへ");
@@ -235,35 +240,31 @@ impl AppState {
 
 #[cfg(test)]
 mod tests {
-    use cam_demo::CamSimulationDemoScenario;
     use winit::keyboard::{Key, KeyCode, PhysicalKey};
 
-    use super::super::snapshot_playback::{
-        resolve_snapshot_load_decision, SnapshotLoadDecision, SnapshotLoadTrigger,
-    };
-    use super::{resolve_cam_demo_start_trigger_with_modifiers, CamDemoStartTrigger};
+    use super::{resolve_cutting_tool_trigger, CuttingToolKind};
 
     #[test]
-    fn resolve_cam_demo_start_trigger_accepts_only_shift_plus_uppercase_bf() {
+    fn cutting_tool_trigger_accepts_only_shift_plus_uppercase_bf() {
         assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
+            resolve_cutting_tool_trigger(
                 &Key::Character("B".into()),
                 &PhysicalKey::Code(KeyCode::KeyB),
                 true,
             ),
-            Some(CamDemoStartTrigger::BallEndMill)
+            Some(CuttingToolKind::BallEndMill)
         );
         assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
+            resolve_cutting_tool_trigger(
                 &Key::Character("F".into()),
                 &PhysicalKey::Code(KeyCode::KeyF),
                 true,
             ),
-            Some(CamDemoStartTrigger::FlatEndMill)
+            Some(CuttingToolKind::FlatEndMill)
         );
 
         assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
+            resolve_cutting_tool_trigger(
                 &Key::Character("B".into()),
                 &PhysicalKey::Code(KeyCode::KeyB),
                 false,
@@ -271,7 +272,7 @@ mod tests {
             None
         );
         assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
+            resolve_cutting_tool_trigger(
                 &Key::Character("b".into()),
                 &PhysicalKey::Code(KeyCode::KeyB),
                 true,
@@ -279,7 +280,7 @@ mod tests {
             None
         );
         assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
+            resolve_cutting_tool_trigger(
                 &Key::Character("F".into()),
                 &PhysicalKey::Code(KeyCode::KeyB),
                 true,
@@ -287,7 +288,7 @@ mod tests {
             None
         );
         assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
+            resolve_cutting_tool_trigger(
                 &Key::Character("k".into()),
                 &PhysicalKey::Code(KeyCode::KeyK),
                 true,
@@ -295,82 +296,12 @@ mod tests {
             None
         );
         assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
+            resolve_cutting_tool_trigger(
                 &Key::Named(winit::keyboard::NamedKey::Space),
                 &PhysicalKey::Code(KeyCode::Space),
                 true,
             ),
             None
         );
-    }
-
-    #[test]
-    fn cam_demo_start_sequence_stays_not_ready_until_explicit_shift_start() {
-        let ui_triggers = [
-            SnapshotLoadTrigger::SnapshotScrub,
-            SnapshotLoadTrigger::KeyK,
-            SnapshotLoadTrigger::KeyJ,
-            SnapshotLoadTrigger::Space,
-            SnapshotLoadTrigger::Pause,
-        ];
-
-        let mut current_cam_demo_scenario = None;
-        for trigger in ui_triggers {
-            assert_eq!(
-                resolve_snapshot_load_decision(trigger, current_cam_demo_scenario),
-                SnapshotLoadDecision::NotReady {
-                    trigger_label: trigger.label()
-                }
-            );
-        }
-
-        assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
-                &Key::Character("k".into()),
-                &PhysicalKey::Code(KeyCode::KeyK),
-                true,
-            ),
-            None
-        );
-
-        assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
-                &Key::Character("B".into()),
-                &PhysicalKey::Code(KeyCode::KeyB),
-                true,
-            ),
-            Some(CamDemoStartTrigger::BallEndMill)
-        );
-        current_cam_demo_scenario = Some(CamSimulationDemoScenario::Success);
-
-        for trigger in ui_triggers {
-            assert_eq!(
-                resolve_snapshot_load_decision(trigger, current_cam_demo_scenario),
-                SnapshotLoadDecision::Ready {
-                    scenario: CamSimulationDemoScenario::Success,
-                    trigger_label: trigger.label()
-                }
-            );
-        }
-
-        assert_eq!(
-            resolve_cam_demo_start_trigger_with_modifiers(
-                &Key::Character("F".into()),
-                &PhysicalKey::Code(KeyCode::KeyF),
-                true,
-            ),
-            Some(CamDemoStartTrigger::FlatEndMill)
-        );
-        current_cam_demo_scenario = Some(CamSimulationDemoScenario::SuccessFlatEndMill);
-
-        for trigger in ui_triggers {
-            assert_eq!(
-                resolve_snapshot_load_decision(trigger, current_cam_demo_scenario),
-                SnapshotLoadDecision::Ready {
-                    scenario: CamSimulationDemoScenario::SuccessFlatEndMill,
-                    trigger_label: trigger.label()
-                }
-            );
-        }
     }
 }

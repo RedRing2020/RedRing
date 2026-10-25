@@ -11,6 +11,8 @@ use debug_scene::InverseOffsetDebugState;
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
+use viewmodel::cutting_animation::CuttingAnimation;
+use viewmodel::cutting_simulation_session::CuttingSimulationSession;
 use viewmodel::inverse_offset_converter::InverseOffsetVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
@@ -21,6 +23,8 @@ use winit::window::Window;
 
 // AppState の画面ライフサイクル処理（主にリサイズ）
 mod app_lifecycle;
+// AppState の切削シミュレーションの投入・実行・取り込みと切削アニメーションの描画
+mod cutting_simulation;
 // AppState のデバッグスナップショット状態
 mod debug_snapshot_state;
 // AppState のデバッグ表示ロード（octree/toolpath/svg/nurbs）
@@ -120,6 +124,12 @@ pub struct AppState {
     /// 取り込んだ製品形状
     product_shapes: ProductShapeScene,
 
+    /// 切削シミュレーションの投入・実行・取り込み
+    cutting_simulation: CuttingSimulationSession,
+
+    /// 取り込んだ切削シミュレーションの切削アニメーション
+    cutting_animation: Option<CuttingAnimation>,
+
     /// 設定パネル表示状態
     settings_panel_open: bool,
 
@@ -173,6 +183,8 @@ impl AppState {
             inverse_offset_debug: InverseOffsetDebugState::default(),
             current_cam_demo_scenario: None,
             product_shapes: ProductShapeScene::default(),
+            cutting_simulation: CuttingSimulationSession::default(),
+            cutting_animation: None,
             settings_panel_open: false,
             settings_panel_active_tab: SettingsPanelTab::default(),
             settings_panel_locale: UiLocale::Ja,

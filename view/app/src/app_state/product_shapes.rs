@@ -19,6 +19,8 @@ impl AppState {
 
     /// 表示中の製品形状をメッシュステージに描き、全体が見えるようにカメラを合わせる
     fn show_product_shapes(&mut self) {
+        self.cutting_animation = None;
+        self.debug_snapshot.clear();
         let meshes = self.product_shapes.visible_meshes();
         let positions: Vec<[f32; 3]> = meshes
             .iter()
@@ -26,10 +28,14 @@ impl AppState {
             .collect();
         let items = meshes
             .into_iter()
-            .map(|mesh| MeshListItem {
-                vertices: convert_vertex_data_to_mesh_vertices(&mesh.vertices),
-                indices: mesh.indices,
-                color: mesh.color,
+            .enumerate()
+            .map(|(index, mesh)| {
+                let item = MeshListItem {
+                    vertices: convert_vertex_data_to_mesh_vertices(&mesh.vertices),
+                    indices: mesh.indices,
+                    color: mesh.color,
+                };
+                (index as u64, item)
             })
             .collect();
 

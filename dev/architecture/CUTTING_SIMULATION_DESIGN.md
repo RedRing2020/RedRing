@@ -265,18 +265,12 @@ Application の入口は `application::cam_simulation_workflow::CamSimulationWor
 - View は demo用ロード関数を本番フローで使用しない
 - ViewModel は本番フローで demo fixture を生成しない
 
-#### 現行デモ導線（開発検証限定）
+#### View の操作（#925）
 
-現時点の実装には、次のデモ限定導線が存在する。
-
-- `view/app/src/app_state/input_actions.rs`
-   - `Shift+B` / `Shift+F` からデモ可視化を起動
-- `view/app/src/app_state/debug_scene/toolpath.rs`
-   - `build_demo_cam_simulation_visualization_bundle_with_tool_settings` を呼び出す
-- `view/app/src/app_state/snapshot_playback.rs`
-   - `load_demo_cam_snapshot_domain_series` を呼び出す
-
-この経路は検証目的に限定し、本番導線の正本として扱わない。
+- 製品形状は STL のドロップで取り込む（#918）。`Shift+B` / `Shift+F` で表示中の製品形状から投入し、`Shift+R` でキューにあるジョブを実行し（ジョブマネージャーができるまでの同じプロセスの中の実行）、`Shift+L` で正常に実行済みの最も新しい切削シミュレーションを取り込む
+- 取り込んだ結果は `CuttingAnimation`（#904）として AppState が持ち、再生・スクラブのコマの移動で `seek` を呼ぶ。素材の面はブロックごとに数値のキーを付けたメッシュとして描き、前へ進む場合は変化したブロックだけを差し替え、戻る場合はすべてのブロックを作り直す。製品形状の面・ツールパスの線・工具の線を重ねる
+- ワイヤーフレームの表示は、素材の面・製品形状の三角形の辺とする
+- 古いデモの導線（`cam_demo` と Voxel による再生）は呼ばれなくなり、#926 で削除する
 
 実装追加の固定ルール:
 
