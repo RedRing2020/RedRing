@@ -132,12 +132,31 @@ impl MeshStage {
         }
     }
 
-    /// ソリッド表示に重ねて描く、色の異なる複数のメッシュを設定（すべて置き換える）
-    pub fn set_mesh_list(&mut self, device: &Device, items: Vec<MeshListItem>) {
+    /// ソリッド表示に重ねて描く、色の異なる複数のメッシュを設定（キーとメッシュの組。すべて置き換える）
+    pub fn set_mesh_list(&mut self, device: &Device, items: Vec<(u64, MeshListItem)>) {
+        self.mesh_list(device).set_meshes(device, items);
+    }
+
+    /// 重ねて描くメッシュのうち、キー `key` のメッシュを差し替える（三角形がなければ削除する）
+    pub fn set_mesh_list_item(&mut self, device: &Device, key: u64, item: MeshListItem) {
+        self.mesh_list(device).set_mesh(device, key, item);
+    }
+
+    /// 重ねて描くメッシュのうち、キーが `keys` の範囲のものを削除する
+    pub fn remove_mesh_list_items(&mut self, keys: std::ops::RangeInclusive<u64>) {
+        if let Some(mesh_list) = &mut self.mesh_list_resources {
+            mesh_list.remove_meshes(keys);
+        }
+    }
+
+    fn mesh_list(&mut self, device: &Device) -> &mut MeshListResources {
         let format = self.format;
-        self.mesh_list_resources
-            .get_or_insert_with(|| MeshListResources::new(device, format))
-            .set_meshes(device, items);
+        let wireframe = self.mesh_resources.is_wireframe();
+        self.mesh_list_resources.get_or_insert_with(|| {
+            let mut mesh_list = MeshListResources::new(device, format);
+            mesh_list.set_wireframe(wireframe);
+            mesh_list
+        })
     }
 
     /// ソリッド表示への線分重畳を無効化
@@ -157,7 +176,7 @@ impl MeshStage {
         self.mesh_resources
             .update_camera(queue, view_matrix, proj_matrix);
 
-        if let Some(mesh_list) = &self.mesh_list_resources {
+        if let Some(mesh_list) = &mut self.mesh_list_resources {
             mesh_list.update_camera(queue, view_matrix, proj_matrix);
         }
 
@@ -182,6 +201,10 @@ impl MeshStage {
     /// ワイヤーフレームモードを切り替え
     pub fn toggle_wireframe(&mut self) {
         self.mesh_resources.toggle_wireframe();
+        let wireframe = self.mesh_resources.is_wireframe();
+        if let Some(mesh_list) = &mut self.mesh_list_resources {
+            mesh_list.set_wireframe(wireframe);
+        }
     }
 
     /// ワイヤーフレームモードかどうか

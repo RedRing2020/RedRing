@@ -1,6 +1,9 @@
 //! 色の異なる複数のメッシュの描画（半透明を含む）
 //!
-//! 不透明なメッシュを先に描き、半透明（色のアルファ < 1）のメッシュは色を混ぜて、深度を書かずに後から描く。
+//! メッシュは数値のキーで持ち、キーごとに差し替え・削除できる。不透明なメッシュを先に描き、半透明（色のアルファ < 1）の
+//! メッシュは色を混ぜて、深度を書かずに後から描く。ワイヤーフレームの表示では、すべてのメッシュの三角形の辺を描く。
+
+use std::collections::BTreeMap;
 
 use crate::mesh::MeshUniforms;
 use crate::shader;
@@ -35,8 +38,12 @@ impl GpuMesh {
 pub struct MeshListResources {
     opaque_pipeline: wgpu::RenderPipeline,
     translucent_pipeline: wgpu::RenderPipeline,
+    wireframe_pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
-    meshes: Vec<GpuMesh>,
+    meshes: BTreeMap<u64, GpuMesh>,
+    /// 最後に設定したビュー・プロジェクション行列（後から加えたメッシュにも使う）
+    view_proj: [[f32; 4]; 4],
+    wireframe: bool,
 }
 
 impl MeshListResources {
@@ -60,7 +67,10 @@ impl MeshListResources {
             bind_group_layouts: &[Some(&bind_group_layout)],
             immediate_size: 0,
         });
-        let pipeline = |label: &str, blend: wgpu::BlendState, depth_write: bool| {
+        let pipeline = |label: &str,
+                        blend: wgpu::BlendState,
+                        depth_write: bool,
+                        polygon_mode: wgpu::PolygonMode| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(label),
                 layout: Some(&layout),
@@ -85,7 +95,7 @@ impl MeshListResources {
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
                     cull_mode: None,
-                    polygon_mode: wgpu::PolygonMode::Fill,
+                    polygon_mode,
                     unclipped_depth: false,
                     conservative: false,
                 },
@@ -106,7 +116,12 @@ impl MeshListResources {
             })
         };
         Self {
-            opaque_pipeline: pipeline("Mesh List Opaque Pipeline", wgpu::BlendState::REPLACE, true),
+            opaque_pipeline: pipeline(
+                "Mesh List Opaque Pipeline",
+                wgpu::BlendState::REPLACE,
+                true,
+                wgpu::PolygonMode::Fill,
+            ),
             translucent_pipeline: pipeline(
                 "Mesh List Translucent Pipeline",
                 // 色だけを混ぜ、描画先のアルファは変えない（ウィンドウが透けないようにする）
@@ -119,63 +134,91 @@ impl MeshListResources {
                     },
                 },
                 false,
+                wgpu::PolygonMode::Fill,
+            ),
+            wireframe_pipeline: pipeline(
+                "Mesh List Wireframe Pipeline",
+                wgpu::BlendState::REPLACE,
+                true,
+                wgpu::PolygonMode::Line,
             ),
             bind_group_layout,
-            meshes: Vec::new(),
+            meshes: BTreeMap::new(),
+            view_proj: MeshUniforms::default().view_proj,
+            wireframe: false,
         }
     }
 
     /// 描画するメッシュをすべて置き換える（三角形のないメッシュは描かない）
-    pub fn set_meshes(&mut self, device: &wgpu::Device, items: Vec<MeshListItem>) {
-        self.meshes = items
-            .into_iter()
-            .filter(|item| !item.vertices.is_empty() && !item.indices.is_empty())
-            .map(|item| {
-                let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Mesh List Uniform Buffer"),
-                    contents: bytemuck::cast_slice(&[MeshUniforms {
-                        base_color: item.color,
-                        ..MeshUniforms::default()
-                    }]),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
-                let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    layout: &self.bind_group_layout,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: uniform_buffer.as_entire_binding(),
-                    }],
-                    label: Some("mesh_list_bind_group"),
-                });
-                GpuMesh {
-                    vertex_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("Mesh List Vertex Buffer"),
-                        contents: bytemuck::cast_slice(&item.vertices),
-                        usage: wgpu::BufferUsages::VERTEX,
-                    }),
-                    index_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("Mesh List Index Buffer"),
-                        contents: bytemuck::cast_slice(&item.indices),
-                        usage: wgpu::BufferUsages::INDEX,
-                    }),
-                    index_count: item.indices.len() as u32,
-                    color: item.color,
-                    uniform_buffer,
-                    bind_group,
-                }
-            })
-            .collect();
+    pub fn set_meshes(&mut self, device: &wgpu::Device, items: Vec<(u64, MeshListItem)>) {
+        self.meshes.clear();
+        for (key, item) in items {
+            self.set_mesh(device, key, item);
+        }
+    }
+
+    /// キー `key` のメッシュを差し替える（三角形がなければ削除する）
+    pub fn set_mesh(&mut self, device: &wgpu::Device, key: u64, item: MeshListItem) {
+        if item.vertices.is_empty() || item.indices.is_empty() {
+            self.meshes.remove(&key);
+            return;
+        }
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Mesh List Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[MeshUniforms {
+                view_proj: self.view_proj,
+                base_color: item.color,
+                ..MeshUniforms::default()
+            }]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+            label: Some("mesh_list_bind_group"),
+        });
+        let mesh = GpuMesh {
+            vertex_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Mesh List Vertex Buffer"),
+                contents: bytemuck::cast_slice(&item.vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            }),
+            index_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Mesh List Index Buffer"),
+                contents: bytemuck::cast_slice(&item.indices),
+                usage: wgpu::BufferUsages::INDEX,
+            }),
+            index_count: item.indices.len() as u32,
+            color: item.color,
+            uniform_buffer,
+            bind_group,
+        };
+        self.meshes.insert(key, mesh);
+    }
+
+    /// キーが `keys` の範囲のメッシュをすべて削除する
+    pub fn remove_meshes(&mut self, keys: std::ops::RangeInclusive<u64>) {
+        self.meshes.retain(|key, _| !keys.contains(key));
+    }
+
+    /// ワイヤーフレームの表示にするか
+    pub fn set_wireframe(&mut self, wireframe: bool) {
+        self.wireframe = wireframe;
     }
 
     /// カメラ行列を更新する
     pub fn update_camera(
-        &self,
+        &mut self,
         queue: &wgpu::Queue,
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
     ) {
         let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
-        for mesh in &self.meshes {
+        self.view_proj = view_proj;
+        for mesh in self.meshes.values() {
             let uniforms = MeshUniforms {
                 view_proj,
                 base_color: mesh.color,
@@ -185,8 +228,15 @@ impl MeshListResources {
         }
     }
 
-    /// 不透明なメッシュ、半透明のメッシュの順に描く
+    /// 不透明なメッシュ、半透明のメッシュの順に描く（ワイヤーフレームの表示では、すべてのメッシュの辺を描く）
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+        if self.wireframe {
+            render_pass.set_pipeline(&self.wireframe_pipeline);
+            for mesh in self.meshes.values() {
+                draw(render_pass, mesh);
+            }
+            return;
+        }
         for translucent in [false, true] {
             let pipeline = if translucent {
                 &self.translucent_pipeline
@@ -196,15 +246,18 @@ impl MeshListResources {
             render_pass.set_pipeline(pipeline);
             for mesh in self
                 .meshes
-                .iter()
+                .values()
                 .filter(|mesh| mesh.is_translucent() == translucent)
             {
-                render_pass.set_bind_group(0, &mesh.bind_group, &[]);
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                render_pass
-                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+                draw(render_pass, mesh);
             }
         }
     }
+}
+
+fn draw<'a>(render_pass: &mut wgpu::RenderPass<'a>, mesh: &'a GpuMesh) {
+    render_pass.set_bind_group(0, &mesh.bind_group, &[]);
+    render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+    render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+    render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
 }
