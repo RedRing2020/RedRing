@@ -87,6 +87,11 @@ impl ProductShapeScene {
         }
     }
 
+    /// 保持している製品形状
+    pub fn store(&self) -> &ProductShapeStore {
+        &self.store
+    }
+
     /// STL ファイルを製品形状として取り込む
     ///
     /// # Errors

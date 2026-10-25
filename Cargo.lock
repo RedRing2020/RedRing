@@ -3743,6 +3743,7 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "application",
+ "cam_algorithms",
  "cam_core",
  "cam_sim",
  "geo_algorithms",

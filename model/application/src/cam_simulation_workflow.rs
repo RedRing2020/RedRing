@@ -2,17 +2,24 @@
 //!
 //! 投入は、ツールパス生成の入力と切削シミュレーションの入力を登録先に登録し、ツールパス生成（CamProcess）の
 //! ジョブと、それを親とする切削シミュレーション（CuttingSimulation）のジョブをキューに入れた時点で完了する。
-//! 取り込みは、正常終了した切削シミュレーションのジョブだけを対象に、ツールパスと切削シミュレーションの成果物を返す。
+//! 取り込みは、正常終了した切削シミュレーションのジョブだけを対象に、ツールパスと切削シミュレーションの成果物と工具を返す。
+//! 製品形状からの投入は、形状の解決・ツールパス生成の入力の組み立て・素材の計算をそれぞれの担当に任せ、つなぐだけとする。
 
 use std::fmt;
 use std::sync::Arc;
 
-use cam_algorithms::CamSolverInput;
-use cam_sim::{
-    CamJobExecutorAdapter, CuttingSimulationInput, InMemoryCamSolverInputStore,
-    InMemoryCuttingSimulationInputStore, SnapshotInterval,
+use cam_algorithms::{
+    CamSolverInput, OperationDefinition, ProcessTemplate, ScanlineParams, SolverDefaults,
+    TemplateFailure, build_solver_input, resolve_operation,
 };
-use geo_algorithms::Aabb3D;
+use cam_core::Tool;
+use cam_sim::{
+    CamJobExecutorAdapter, CuttingSimulationInput, CuttingSimulationInputProvider,
+    InMemoryCamSolverInputStore, InMemoryCuttingSimulationInputStore, SnapshotInterval,
+    stock_around_product,
+};
+use geo_algorithms::{Aabb3D, TessellationLimits};
+use geo_entity::FaceId;
 use job_domain::{CamJobRecord, CamJobStatus, CamJobType};
 use job_runtime::JobManager;
 
@@ -20,6 +27,7 @@ use crate::job_orchestration::{
     JobOrchestrationError, JobWorkflowOrchestration, JobWorkflowOrchestrator,
     JobWorkflowResultQuery, JobWorkflowSubmitRequest,
 };
+use crate::product_shape::{ProductShapeError, ProductShapeStore};
 
 /// ツールパス生成から切削シミュレーションまでの入力
 #[derive(Debug, Clone)]
@@ -28,6 +36,27 @@ pub struct CamSimulationWorkflowRequest {
     pub solver_input: CamSolverInput,
     /// 素材（直方体）
     pub stock: Aabb3D<f64>,
+    /// 素材の形状の許容誤差
+    pub precision: f64,
+    /// スナップショットの記録の間隔
+    pub snapshot_interval: SnapshotInterval,
+}
+
+/// 製品形状から切削シミュレーションを投入する入力
+#[derive(Debug, Clone)]
+pub struct ProductShapeSimulationRequest {
+    /// 加工の対象の面
+    pub face_ids: Vec<FaceId>,
+    /// 工程テンプレート（オペレーションの既定値）
+    pub template: ProcessTemplate,
+    /// オペレーションの定義
+    pub operation: OperationDefinition,
+    /// 工具
+    pub tool: Tool<f64>,
+    /// 走査線の条件
+    pub scanline: ScanlineParams,
+    /// 製品形状を囲む箱に足す素材の余裕（XY の周りと上）
+    pub stock_margin: f64,
     /// 素材の形状の許容誤差
     pub precision: f64,
     /// スナップショットの記録の間隔
@@ -50,6 +79,8 @@ pub struct CamSimulationWorkflowResult {
     pub toolpath_artifact: Vec<u8>,
     /// 切削シミュレーションの成果物のバイト列
     pub simulation_artifact: Vec<u8>,
+    /// 切削シミュレーションの入力の工具
+    pub tool: Tool<f64>,
 }
 
 /// 投入・取り込みの失敗
@@ -61,6 +92,14 @@ pub enum CamSimulationWorkflowError {
     NotSucceededSimulation(u64),
     /// 正常終了した切削シミュレーションのジョブに、成果物または入力のツールパスがない（ジョブの番号）
     MissingArtifact(u64),
+    /// 正常終了した切削シミュレーションのジョブの入力（工具）がない（ジョブの番号）
+    MissingInput(u64),
+    /// 加工の対象の面を形状にできない
+    ProductShape(ProductShapeError),
+    /// 加工の対象の形状が空
+    EmptyProductShape,
+    /// オペレーションの定義を解決できない
+    Operation(TemplateFailure),
     /// ジョブの投入・問い合わせの失敗
     Orchestration(JobOrchestrationError),
 }
@@ -73,6 +112,10 @@ impl fmt::Display for CamSimulationWorkflowError {
                 write!(f, "job {job_id} is not a succeeded cutting simulation")
             }
             Self::MissingArtifact(job_id) => write!(f, "job {job_id} has no artifact"),
+            Self::MissingInput(job_id) => write!(f, "job {job_id} has no registered input"),
+            Self::ProductShape(error) => write!(f, "product shape cannot be machined: {error}"),
+            Self::EmptyProductShape => write!(f, "product shape is empty"),
+            Self::Operation(error) => write!(f, "operation cannot be resolved: {error}"),
             Self::Orchestration(error) => write!(f, "job orchestration failed: {error}"),
         }
     }
@@ -164,6 +207,46 @@ impl CamSimulationWorkflow {
         })
     }
 
+    /// 製品形状の面からツールパス生成と切削シミュレーションのジョブをキューに入れる（実行しない）
+    ///
+    /// 面の形状の解決、ツールパス生成の入力の組み立て、製品形状を囲む素材の計算をつなぐ。
+    ///
+    /// # Errors
+    ///
+    /// 面を形状にできない場合、形状が空の場合、オペレーションの定義を解決できない場合、入力の登録・投入の失敗。
+    pub fn submit_product_shapes(
+        &mut self,
+        shapes: &ProductShapeStore,
+        request: ProductShapeSimulationRequest,
+    ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
+        let geometry = shapes
+            .resolve_solver_geometry(&request.face_ids)
+            .map_err(CamSimulationWorkflowError::ProductShape)?;
+        let bounds = geometry
+            .aabb()
+            .ok_or(CamSimulationWorkflowError::EmptyProductShape)?;
+        let resolved = resolve_operation(
+            &request.template,
+            &request.operation,
+            SolverDefaults::default(),
+        )
+        .map_err(CamSimulationWorkflowError::Operation)?;
+        let solver_input = build_solver_input(
+            &resolved,
+            request.tool,
+            geometry,
+            request.scanline,
+            TessellationLimits::default(),
+        )
+        .map_err(CamSimulationWorkflowError::Operation)?;
+        self.submit(CamSimulationWorkflowRequest {
+            solver_input,
+            stock: stock_around_product(bounds, request.stock_margin),
+            precision: request.precision,
+            snapshot_interval: request.snapshot_interval,
+        })
+    }
+
     /// 実行できる待機中のジョブがなくなるまで実行し、実行したジョブの数を返す（ジョブマネージャーの実行の入口）
     ///
     /// # Errors
@@ -179,11 +262,11 @@ impl CamSimulationWorkflow {
             .list_succeeded_jobs(CamJobType::CuttingSimulation)
     }
 
-    /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物
+    /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と工具
     ///
     /// # Errors
     ///
-    /// ジョブが正常終了した切削シミュレーションでない場合、成果物がない場合、問い合わせの失敗。
+    /// ジョブが正常終了した切削シミュレーションでない場合、成果物・入力がない場合、問い合わせの失敗。
     pub fn import(
         &self,
         simulation_job_id: u64,
@@ -199,10 +282,15 @@ impl CamSimulationWorkflow {
             ));
         }
         let missing = || CamSimulationWorkflowError::MissingArtifact(simulation_job_id);
+        let input = self
+            .simulation_inputs
+            .resolve(&result.job.spec.input_ref)
+            .ok_or(CamSimulationWorkflowError::MissingInput(simulation_job_id))?;
         Ok(CamSimulationWorkflowResult {
             // 切削シミュレーションの入力に使ったツールパス（親のジョブの成果物）
             toolpath_artifact: result.input_artifact.ok_or_else(missing)?,
             simulation_artifact: result.active_artifact.ok_or_else(missing)?,
+            tool: input.tool,
         })
     }
 }
@@ -342,5 +430,80 @@ mod tests {
                 rejected.toolpath_job_id
             ))
         );
+    }
+
+    fn product_shape_request(face_ids: Vec<geo_entity::FaceId>) -> ProductShapeSimulationRequest {
+        use cam_algorithms::{OperationDefinition, ProcessTemplate};
+
+        ProductShapeSimulationRequest {
+            face_ids,
+            template: ProcessTemplate {
+                template_id: "template-1".to_string(),
+                default_operation_type: Some("scanline".to_string()),
+                default_tolerance_profile: Some("press_rough".to_string()),
+            },
+            operation: OperationDefinition {
+                operation_id: "op-scan-1".to_string(),
+                machining_stage: "finish".to_string(),
+                operation_type: None,
+                tolerance_profile: None,
+                boundary: None,
+            },
+            tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+            scanline: ScanlineParams {
+                stepover: 6.0,
+                sample_pitch: 10.0,
+                feed_rate: 1200.0,
+                clearance_height: 5.0,
+            },
+            stock_margin: 5.0,
+            precision: 0.01,
+            snapshot_interval: SnapshotInterval::default(),
+        }
+    }
+
+    #[test]
+    fn product_shapes_are_submitted_and_imported_with_the_tool() {
+        use crate::product_shape::{ProductFaceGeometry, ProductShapeStore};
+
+        let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
+            panic!("the test request uses a mesh");
+        };
+        let mut shapes = ProductShapeStore::new();
+        let face = shapes.add_face(ProductFaceGeometry::Mesh(pyramid)).face_id;
+        let mut workflow = CamSimulationWorkflow::new();
+        let submission = workflow
+            .submit_product_shapes(&shapes, product_shape_request(vec![face]))
+            .unwrap();
+        assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
+
+        let result = workflow.import(submission.simulation_job_id).unwrap();
+        assert_eq!(result.tool.id, "BEM6");
+        let (_, simulation) = cam_sim::read_cutting_simulation_artifact_v1(
+            &mut result.simulation_artifact.as_slice(),
+        )
+        .unwrap();
+        // 素材は四角錐（20〜60, 20〜60, 80〜90）を囲む箱に、XY の周りと上に 5 を足したもの
+        let initial = simulation.snapshots[0].remaining_volume_mm3;
+        let expected = 50.0 * 50.0 * 15.0;
+        assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
+        let last = simulation.snapshots.last().unwrap().remaining_volume_mm3;
+        assert!(last < initial);
+    }
+
+    #[test]
+    fn product_shapes_that_cannot_be_machined_are_not_submitted() {
+        use crate::product_shape::{ProductShapeError, ProductShapeStore};
+
+        let mut workflow = CamSimulationWorkflow::new();
+        let shapes = ProductShapeStore::new();
+        assert_eq!(
+            workflow
+                .submit_product_shapes(&shapes, product_shape_request(Vec::new()))
+                .unwrap_err(),
+            CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces)
+        );
+        assert!(workflow.succeeded_simulations().is_empty());
+        assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
     }
 }

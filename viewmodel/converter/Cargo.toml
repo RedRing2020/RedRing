@@ -8,6 +8,7 @@ description = "Data conversion layer for MVVM architecture - Model to View trans
 geo_contracts = { path = "../../model/geo_contracts" }
 geo_algorithms = { path = "../../model/geo_algorithms" }
 geo_io = { path = "../../model/geo_io" }
+cam_algorithms = { path = "../../model/cam_algorithms" }
 cam_core = { path = "../../model/cam_core" }
 cam_sim = { path = "../../model/cam_sim" }
 application = { path = "../../model/application" }

@@ -1,12 +1,12 @@
 //! CAM ソルバー入力契約と実行入口（設計: CAM_ALGORITHMS_DESIGN.md §8.2-§8.5）
 
-use geo_contracts::TriangleMesh3DProperties;
+use geo_contracts::{Bounded, TriangleMesh3DProperties};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 use cam_core::{CoordinateFrame, LengthUnit, Tool, ToolPath};
 use geo_algorithms::{
-    NurbsSurface3D, SurfaceTessellationError, TessellationLimits, TriangleMesh3D,
+    Aabb3D, NurbsSurface3D, Point3D, SurfaceTessellationError, TessellationLimits, TriangleMesh3D,
     tessellate_surfaces,
 };
 
@@ -86,6 +86,23 @@ impl SolverGeometry {
         match self {
             Self::NurbsSurfaceSet(_) => GeometryKind::NurbsSurfaceSet,
             Self::TriangleMesh(_) => GeometryKind::TriangleMesh,
+        }
+    }
+
+    /// 形状を囲む境界ボックス（形状が空の場合は `None`）
+    ///
+    /// 曲面は制御点を包む境界ボックス（曲面は制御点の凸包に含まれる）とする。
+    pub fn aabb(&self) -> Option<Aabb3D<f64>> {
+        match self {
+            Self::TriangleMesh(mesh) => mesh.aabb(),
+            Self::NurbsSurfaceSet(surfaces) => {
+                let corners: Vec<Point3D<f64>> = surfaces
+                    .iter()
+                    .filter_map(Bounded::aabb)
+                    .flat_map(|aabb| [aabb.min(), aabb.max()])
+                    .collect();
+                Aabb3D::from_points(&corners)
+            }
         }
     }
 }

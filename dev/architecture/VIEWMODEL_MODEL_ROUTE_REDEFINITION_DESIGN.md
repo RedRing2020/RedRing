@@ -139,7 +139,7 @@ ViewModel から Model を呼ぶ経路は、用途で分ける。本節を ViewM
 
 | クレート | 許可する依存 |
 |---|---|
-| `viewmodel` | `application`、`geo_contracts`・`geo_algorithms`（描画用の変換）、`geo_io`（表示確認用の SVG の読み込み）、`cam_core`・`cam_sim`・`job_domain`（値型と描画用の変換） |
+| `viewmodel` | `application`、`geo_contracts`・`geo_algorithms`（描画用の変換）、`geo_io`（表示確認用の SVG の読み込み）、`cam_core`・`cam_algorithms`・`cam_sim`・`job_domain`（値型と描画用の変換。`cam_algorithms` は走査線の条件・工程テンプレートなどの値の型） |
 | `viewmodel-cam-demo` | `application`（シミュレーションの実行）、`cam_core`（fixtures）、`cam_sim`（スナップショットの間隔の値型）、`geo_algorithms` |
 | `viewmodel-graphics` | なし（`analysis` のみ） |
 

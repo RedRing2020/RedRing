@@ -8,6 +8,7 @@
 
 pub mod curve_discretization;
 mod intersection;
+pub mod mesh_concatenation;
 pub mod nurbs_fixtures;
 pub mod octree;
 pub mod operations;
@@ -24,6 +25,7 @@ pub use curve_discretization::{
     DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
 };
 
+pub use mesh_concatenation::concatenate_triangle_meshes;
 pub use surface_discretization::{
     tessellate_surfaces, SurfaceTessellationError, TessellationLimits,
 };

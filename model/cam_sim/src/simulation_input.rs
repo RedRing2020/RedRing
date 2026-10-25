@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use cam_core::Tool;
-use geo_algorithms::Aabb3D;
+use geo_algorithms::{Aabb3D, Point3D};
 use job_runtime::RefValidationError;
 
 use crate::SnapshotInterval;
@@ -29,6 +29,17 @@ pub struct CuttingSimulationInput {
     pub precision: f64,
     /// スナップショットの記録の間隔
     pub snapshot_interval: SnapshotInterval,
+}
+
+/// 製品形状を囲む境界ボックス `bounds` から、素材（直方体）を作る
+///
+/// XY の周りと上に余裕 `margin` を足し、底は製品形状の最も低い点の高さとする。
+pub fn stock_around_product(bounds: Aabb3D<f64>, margin: f64) -> Aabb3D<f64> {
+    let (min, max) = (bounds.min(), bounds.max());
+    Aabb3D::new(
+        Point3D::new(min.x() - margin, min.y() - margin, min.z()),
+        Point3D::new(max.x() + margin, max.y() + margin, max.z() + margin),
+    )
 }
 
 /// `InputRef` から切削シミュレーションの入力を解決する境界
@@ -76,4 +87,17 @@ impl CuttingSimulationInputProvider for InMemoryCuttingSimulationInputStore {
 /// `input://sim/<name>...` 形式であることを検証する。
 pub(crate) fn validate_sim_input_ref(input_ref: &str) -> Result<(), RefValidationError> {
     validate_input_ref(input_ref, SIM_INPUT_DOMAIN)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stock_has_a_margin_around_and_above_the_product() {
+        let bounds = Aabb3D::new(Point3D::new(-10.0, 0.0, 2.0), Point3D::new(10.0, 20.0, 8.0));
+        let stock = stock_around_product(bounds, 5.0);
+        assert_eq!(stock.min(), Point3D::new(-15.0, -5.0, 2.0));
+        assert_eq!(stock.max(), Point3D::new(15.0, 25.0, 13.0));
+    }
 }
