@@ -112,19 +112,35 @@ impl DexelSurface {
             .map(|count| (count + 1).div_ceil(SURFACE_BLOCK_CELLS))
     }
 
-    /// 次のスナップショットへの変化を当て、作り直すブロックを返す
+    /// デクセルの変化を当て、作り直すブロックを返す（前の時点へ戻す変化も同じように当てられる）
+    ///
+    /// 作り直すのは、区間が変わった範囲（変化前と変化後で一致しない端点の間）の格子点・辺に接するセルを含むブロック。
     pub fn apply_changes(&mut self, changes: &[DexelChange]) -> Vec<[usize; 3]> {
         let blocks = self.block_counts();
         let mut dirty = BTreeSet::new();
         for change in changes {
             let grid = change.grid as usize;
-            self.intervals[grid][change.index as usize].clone_from(&change.intervals);
+            let dexel = &mut self.intervals[grid][change.index as usize];
+            let Some((low, high)) = changed_range(dexel, &change.intervals) else {
+                continue;
+            };
+            dexel.clone_from(&change.intervals);
             let plane_axes = plane_axes(grid);
             let count = self.grids[grid].count[1] as usize;
             let line = [change.index as usize / count, change.index as usize % count];
-            // 線上の格子点・辺に接するセル（外側へ広げたセルの番号は格子点の番号 + 1 と + 0）
             let mut ranges = [0..0, 0..0, 0..0];
-            ranges[grid] = 0..blocks[grid];
+            // 線の向き: 変わった範囲の端点を挟む格子点（前後に 1 つの余裕）に接するセル
+            // （外側へ広げたセルの番号は、格子点の番号 + 1 と + 0）
+            let point =
+                |value: f64| ((value - self.origin[grid]) / self.pitch[grid]).floor() as i64;
+            let last_cell = self.count[grid] as i64;
+            let (first, last) = (
+                (point(low) - 1).clamp(0, last_cell) as usize,
+                (point(high) + 3).clamp(0, last_cell) as usize,
+            );
+            ranges[grid] =
+                first / SURFACE_BLOCK_CELLS..(last / SURFACE_BLOCK_CELLS + 1).min(blocks[grid]);
+            // 線の周り: 線上の格子点・辺に接するセル
             for (index, &axis) in plane_axes.iter().enumerate() {
                 let first = line[index] / SURFACE_BLOCK_CELLS;
                 let last = (line[index] + 1) / SURFACE_BLOCK_CELLS;
@@ -139,6 +155,31 @@ impl DexelSurface {
             }
         }
         dirty.into_iter().collect()
+    }
+
+    /// ブロックの列 `blocks` の面（複数のコアで並べて作る。並びは `blocks` と同じ）
+    pub fn mesh_blocks(&self, blocks: &[[usize; 3]]) -> Vec<SurfaceMesh> {
+        let threads = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+        if threads <= 1 || blocks.len() <= 1 {
+            return blocks.iter().map(|&block| self.mesh_block(block)).collect();
+        }
+        let chunk = blocks.len().div_ceil(threads);
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = blocks
+                .chunks(chunk)
+                .map(|part| {
+                    scope.spawn(move || {
+                        part.iter()
+                            .map(|&block| self.mesh_block(block))
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .flat_map(|handle| handle.join().expect("meshing a block does not panic"))
+                .collect()
+        })
     }
 
     /// ブロック `block` の面
@@ -403,6 +444,25 @@ impl DexelSurface {
     fn coordinate(&self, axis: usize, index: i64) -> f64 {
         self.origin[axis] + index as f64 * self.pitch[axis]
     }
+}
+
+/// 区間の列 `before` から `after` に変わる範囲（一致しない端点の最小と最大。変わらなければ `None`）
+fn changed_range(before: &[(f64, f64)], after: &[(f64, f64)]) -> Option<(f64, f64)> {
+    let endpoints = |intervals: &[(f64, f64)]| -> Vec<f64> {
+        intervals
+            .iter()
+            .flat_map(|&(low, high)| [low, high])
+            .collect()
+    };
+    let (before, after) = (endpoints(before), endpoints(after));
+    let differing = before
+        .iter()
+        .filter(|value| !after.contains(value))
+        .chain(after.iter().filter(|value| !before.contains(value)));
+    differing.fold(None, |range, &value| match range {
+        None => Some((value, value)),
+        Some((low, high)) => Some((low.min(value), high.max(value))),
+    })
 }
 
 /// デクセルの向き `axis` の格子の 2 方向（`axis` 以外の座標軸の昇順）

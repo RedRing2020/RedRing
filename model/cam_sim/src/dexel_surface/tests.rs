@@ -219,3 +219,70 @@ fn searching_mixed_cells_gives_the_same_mesh_as_scanning_every_cell() {
         }
     }
 }
+
+#[test]
+fn reverse_changes_restore_the_previous_snapshot_with_a_partial_rebuild() {
+    let (artifact, _) = cut();
+    let reverse = artifact.reverse_snapshot_changes();
+    assert_eq!(reverse.len(), artifact.snapshot_changes.len());
+    assert!(reverse[0].is_empty());
+
+    let last = artifact.snapshots.len() - 1;
+    let mut surface = DexelSurface::at_snapshot(&artifact, last);
+    let [bx, by, bz] = surface.block_counts();
+    let mut meshes: HashMap<[usize; 3], SurfaceMesh> = HashMap::new();
+    for x in 0..bx {
+        for y in 0..by {
+            for z in 0..bz {
+                meshes.insert([x, y, z], surface.mesh_block([x, y, z]));
+            }
+        }
+    }
+    for snapshot in (1..=last).rev() {
+        for block in surface.apply_changes(&reverse[snapshot]) {
+            meshes.insert(block, surface.mesh_block(block));
+        }
+        let expected = DexelSurface::at_snapshot(&artifact, snapshot - 1);
+        assert_eq!(
+            surface.intervals,
+            expected.intervals,
+            "snapshot {}",
+            snapshot - 1
+        );
+        for (block, mesh) in &meshes {
+            assert_eq!(
+                mesh,
+                &expected.mesh_block(*block),
+                "snapshot {} block {block:?}",
+                snapshot - 1
+            );
+        }
+    }
+}
+
+#[test]
+fn meshing_blocks_in_parallel_matches_meshing_them_one_by_one() {
+    let (artifact, _) = cut();
+    let surface = DexelSurface::at_snapshot(&artifact, artifact.snapshots.len() - 1);
+    let [bx, by, bz] = surface.block_counts();
+    let blocks: Vec<[usize; 3]> = (0..bx)
+        .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
+        .collect();
+    let parallel = surface.mesh_blocks(&blocks);
+    assert_eq!(parallel.len(), blocks.len());
+    for (block, mesh) in blocks.iter().zip(&parallel) {
+        assert_eq!(mesh, &surface.mesh_block(*block), "block {block:?}");
+    }
+}
+
+#[test]
+fn unchanged_dexels_make_no_block_dirty() {
+    let (artifact, _) = cut();
+    let mut surface = DexelSurface::at_snapshot(&artifact, 1);
+    // 同じ時点の変化をもう一度当てても、区間は変わらない
+    assert!(
+        surface
+            .apply_changes(&artifact.snapshot_changes[1])
+            .is_empty()
+    );
+}

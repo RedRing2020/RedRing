@@ -1,12 +1,12 @@
 //! cutting_animation - 切削シミュレーションの成果物から、切削アニメーションの描画用のデータを作る
 //!
-//! 今の時点の素材の面（ブロックごと）を 1 つだけ持ち、時点を進める場合は変化したブロックだけ、戻る場合は
-//! 全体を作り直して返す。工具の形とツールパスの線は、ツールパスの成果物と工具から作る。
+//! 今の時点の素材の面（ブロックごと）を 1 つだけ持ち、時点を進める・戻す場合は、区間が変わった部分のブロック
+//! だけを作り直して返す。工具の形とツールパスの線は、ツールパスの成果物と工具から作る。
 
 use cam_core::{read_toolpath_artifact_v1, BinaryFormatError, Tool, ToolPath};
 use cam_sim::{
     collect_toolpath_line_segments, read_cutting_simulation_artifact_v1, CuttingSimulationArtifact,
-    DexelSurface, SurfaceMesh,
+    DexelChange, DexelSurface, SurfaceMesh,
 };
 use geo_algorithms::{LineSegment3D, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM};
 
@@ -56,19 +56,12 @@ pub struct StockBlockMesh {
     pub indices: Vec<u32>,
 }
 
-/// 時点を移したときの素材の面の更新
-#[derive(Debug, Clone)]
-pub enum StockMeshUpdate {
-    /// 示したブロックの面だけを差し替える
-    Blocks(Vec<StockBlockMesh>),
-    /// すべてのブロックの面を差し替える
-    All(Vec<StockBlockMesh>),
-}
-
 /// 切削アニメーションの状態
 #[derive(Debug, Clone)]
 pub struct CuttingAnimation {
     artifact: CuttingSimulationArtifact,
+    /// 時点ごとの、前の時点へ戻す変化（`artifact.snapshot_changes` と同じ並び）
+    reverse_changes: Vec<Vec<DexelChange>>,
     surface: DexelSurface,
     frame: usize,
     toolpath: ToolPath<f64>,
@@ -97,6 +90,7 @@ impl CuttingAnimation {
             collect_toolpath_line_segments(&toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM);
         Ok(Self {
             surface: DexelSurface::at_snapshot(&artifact, 0),
+            reverse_changes: artifact.reverse_snapshot_changes(),
             artifact,
             frame: 0,
             toolpath,
@@ -127,44 +121,37 @@ impl CuttingAnimation {
     /// 今の時点の、すべてのブロックの素材の面（三角形のないブロックは含めない）
     pub fn stock_blocks(&self) -> Vec<StockBlockMesh> {
         let [bx, by, bz] = self.surface.block_counts();
-        let mut blocks = Vec::new();
-        for x in 0..bx {
-            for y in 0..by {
-                for z in 0..bz {
-                    let mesh = self.block_mesh([x, y, z]);
-                    if !mesh.indices.is_empty() {
-                        blocks.push(mesh);
-                    }
-                }
-            }
-        }
-        blocks
+        let blocks: Vec<[usize; 3]> = (0..bx)
+            .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
+            .collect();
+        self.block_meshes(&blocks)
+            .into_iter()
+            .filter(|mesh| !mesh.indices.is_empty())
+            .collect()
     }
 
-    /// 時点 `frame` へ移し、素材の面の更新を返す（範囲外は最後の時点にする）
+    /// 時点 `frame` へ移し、面が変わりうるブロックの、移った後の素材の面を返す（範囲外は最後の時点にする）
     ///
-    /// 進む場合は、その間の変化で作り直すブロックだけを返す。戻る場合は全体を作り直す。
-    pub fn seek(&mut self, frame: usize) -> StockMeshUpdate {
+    /// 進む場合はその間の変化を、戻る場合はその間の戻す変化を当て、区間が変わった部分のブロックだけを作り直す。
+    /// 三角形がなくなったブロックは、三角形のない面として返す。
+    pub fn seek(&mut self, frame: usize) -> Vec<StockBlockMesh> {
         let target = frame.min(self.frame_count() - 1);
-        if target < self.frame {
-            self.surface = DexelSurface::at_snapshot(&self.artifact, target);
-            self.frame = target;
-            return StockMeshUpdate::All(self.stock_blocks());
-        }
         let mut dirty = std::collections::BTreeSet::new();
-        for snapshot in (self.frame + 1)..=target {
-            dirty.extend(
-                self.surface
-                    .apply_changes(&self.artifact.snapshot_changes[snapshot]),
-            );
+        if target < self.frame {
+            for snapshot in ((target + 1)..=self.frame).rev() {
+                dirty.extend(self.surface.apply_changes(&self.reverse_changes[snapshot]));
+            }
+        } else {
+            for snapshot in (self.frame + 1)..=target {
+                dirty.extend(
+                    self.surface
+                        .apply_changes(&self.artifact.snapshot_changes[snapshot]),
+                );
+            }
         }
         self.frame = target;
-        StockMeshUpdate::Blocks(
-            dirty
-                .into_iter()
-                .map(|block| self.block_mesh(block))
-                .collect(),
-        )
+        let blocks: Vec<[usize; 3]> = dirty.into_iter().collect();
+        self.block_meshes(&blocks)
     }
 
     /// 今の時点の工具の形（工具の先端の位置。位置が分からない場合は空）
@@ -194,22 +181,31 @@ impl CuttingAnimation {
         create_toolpath_wireframe_vertices(&self.toolpath, settings)
     }
 
-    fn block_mesh(&self, block: [usize; 3]) -> StockBlockMesh {
-        let SurfaceMesh {
-            positions,
-            normals,
-            indices,
-        } = self.surface.mesh_block(block);
+    /// ブロックの列 `blocks` の素材の面（複数のコアで並べて作る）
+    fn block_meshes(&self, blocks: &[[usize; 3]]) -> Vec<StockBlockMesh> {
         let to_f32 = |value: [f64; 3]| value.map(|component| component as f32);
-        StockBlockMesh {
-            block,
-            vertices: positions
-                .into_iter()
-                .zip(normals)
-                .map(|(position, normal)| VertexData::new(to_f32(position), to_f32(normal)))
-                .collect(),
-            indices,
-        }
+        blocks
+            .iter()
+            .zip(self.surface.mesh_blocks(blocks))
+            .map(
+                |(
+                    &block,
+                    SurfaceMesh {
+                        positions,
+                        normals,
+                        indices,
+                    },
+                )| StockBlockMesh {
+                    block,
+                    vertices: positions
+                        .into_iter()
+                        .zip(normals)
+                        .map(|(position, normal)| VertexData::new(to_f32(position), to_f32(normal)))
+                        .collect(),
+                    indices,
+                },
+            )
+            .collect()
     }
 }
 
@@ -329,32 +325,21 @@ mod tests {
     }
 
     #[test]
-    fn updating_blocks_forward_and_rebuilding_backward_match_the_state_at_each_frame() {
+    fn updating_changed_blocks_forward_and_backward_matches_the_state_at_each_frame() {
         let mut animation = animation();
         let mut shown = by_block(animation.stock_blocks());
         let last = animation.frame_count() - 1;
-        for frame in [1, last / 2, last] {
-            match animation.seek(frame) {
-                StockMeshUpdate::Blocks(blocks) => {
-                    for mesh in blocks {
-                        shown.insert(mesh.block, mesh);
-                    }
-                }
-                StockMeshUpdate::All(_) => panic!("moving forward updates only changed blocks"),
+        for frame in [1, last / 2, last, last / 2, 1, 0, last] {
+            for mesh in animation.seek(frame) {
+                shown.insert(mesh.block, mesh);
             }
             assert_eq!(animation.frame(), frame);
             assert_eq!(
                 positions(&shown),
-                positions(&by_block(animation.stock_blocks()))
+                positions(&by_block(animation.stock_blocks())),
+                "frame {frame}"
             );
         }
-        let StockMeshUpdate::All(blocks) = animation.seek(1) else {
-            panic!("moving backward rebuilds every block");
-        };
-        assert_eq!(
-            positions(&by_block(blocks)),
-            positions(&by_block(animation.stock_blocks()))
-        );
     }
 
     #[test]

@@ -199,11 +199,6 @@ impl MeshListResources {
         self.meshes.insert(key, mesh);
     }
 
-    /// キーが `keys` の範囲のメッシュをすべて削除する
-    pub fn remove_meshes(&mut self, keys: std::ops::RangeInclusive<u64>) {
-        self.meshes.retain(|key, _| !keys.contains(key));
-    }
-
     /// ワイヤーフレームの表示にするか
     pub fn set_wireframe(&mut self, wireframe: bool) {
         self.wireframe = wireframe;

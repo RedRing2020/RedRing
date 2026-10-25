@@ -64,15 +64,44 @@ impl CuttingSimulationArtifact {
             snapshot < self.snapshot_changes.len(),
             "snapshot index out of range"
         );
-        let mut grids = self
-            .grids
-            .map(|grid| vec![vec![grid.initial]; grid.count[0] as usize * grid.count[1] as usize]);
+        let mut grids = self.initial_intervals();
         for changes in &self.snapshot_changes[..=snapshot] {
             for change in changes {
                 grids[change.grid as usize][change.index as usize].clone_from(&change.intervals);
             }
         }
         grids
+    }
+
+    /// 時点ごとの、前の時点へ戻す変化（`k` 番目は時点 `k` から時点 `k - 1` へ戻す変化。`0` 番目は空）
+    pub fn reverse_snapshot_changes(&self) -> Vec<Vec<DexelChange>> {
+        let mut grids = self.initial_intervals();
+        self.snapshot_changes
+            .iter()
+            .enumerate()
+            .map(|(snapshot, changes)| {
+                let reverse: Vec<DexelChange> = changes
+                    .iter()
+                    .map(|change| {
+                        let dexel = &mut grids[change.grid as usize][change.index as usize];
+                        let before = std::mem::replace(dexel, change.intervals.clone());
+                        DexelChange {
+                            grid: change.grid,
+                            index: change.index,
+                            intervals: before,
+                        }
+                    })
+                    .collect();
+                // 時点 0 の変化は初期の状態からの変化で、戻す先の時点がない
+                if snapshot == 0 { Vec::new() } else { reverse }
+            })
+            .collect()
+    }
+
+    /// 初期の状態の、各格子のデクセルの区間
+    fn initial_intervals(&self) -> [Vec<Vec<(f64, f64)>>; 3] {
+        self.grids
+            .map(|grid| vec![vec![grid.initial]; grid.count[0] as usize * grid.count[1] as usize])
     }
 }
 

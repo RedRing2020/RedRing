@@ -6,7 +6,7 @@ use super::AppState;
 use render::mesh_list::MeshListItem;
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
-use viewmodel::cutting_animation::{CuttingAnimation, StockBlockMesh, StockMeshUpdate};
+use viewmodel::cutting_animation::{CuttingAnimation, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingToolKind;
 use viewmodel::octree_converter::WireframeVertex;
 
@@ -159,7 +159,7 @@ impl AppState {
         let Some(animation) = &mut self.cutting_animation else {
             return false;
         };
-        let update = animation.seek(self.debug_snapshot.cursor);
+        let blocks = animation.seek(self.debug_snapshot.cursor);
         let tool_lines = line_vertices(
             &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
             Some(self.snapshot_shaded_color_settings.tool_wire_color),
@@ -169,13 +169,6 @@ impl AppState {
         let stage = self.renderer.get_stage_mut();
         let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() else {
             return true;
-        };
-        let blocks = match update {
-            StockMeshUpdate::Blocks(blocks) => blocks,
-            StockMeshUpdate::All(blocks) => {
-                mesh_stage.remove_mesh_list_items(STOCK_BLOCK_KEYS);
-                blocks
-            }
         };
         for block in blocks {
             let (key, item) = stock_block_item(block, stock_color);
