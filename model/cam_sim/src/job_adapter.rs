@@ -107,7 +107,6 @@ impl CamJobExecutorAdapter {
                     "solver input is not registered for input_ref: {}",
                     job.spec.input_ref
                 )),
-                10,
             )
         }
 
