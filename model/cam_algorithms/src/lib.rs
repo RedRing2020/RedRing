@@ -23,8 +23,8 @@ pub use process_template::{
 };
 pub use scanline::generate_scanline_toolpath;
 pub use solver::{
-    CamSolverError, CamSolverInput, GeometryKind, OperationSpec, ScanlineParams, SolverGeometry,
-    solve_toolpath,
+    CamSolverError, CamSolverInput, GeometryKind, OperationSpec, ScanlineParams, ScanlineToolRange,
+    SolverGeometry, solve_toolpath,
 };
 pub use tessellation::triangle_aspect_ratio;
 

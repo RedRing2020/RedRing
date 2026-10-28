@@ -120,6 +120,21 @@ pub struct ScanlineParams {
     pub feed_rate: f64,
     /// CL 最高点から早送り高さまでの逃げ量（mm）
     pub clearance_height: f64,
+    /// 加工範囲（境界）を指定しない場合の、工具の中心の移動範囲
+    pub tool_range: ScanlineToolRange,
+}
+
+/// 加工範囲（境界）を指定しないスキャン加工の、工具の中心の移動範囲
+///
+/// 形状の範囲の外へ出た工具は、形状の端の稜線の上を転がって高さが下がり、端の外側の素材を丸く削る（角がだれる）。
+/// 角をだれさせない場合は、見切り面を加工の対象に含める。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScanlineToolRange {
+    /// 形状の XY の範囲を、各辺で工具の半径だけ外へ広げた範囲（平坦面の端の外側の素材を残さない）
+    #[default]
+    ExtendByToolRadius,
+    /// 形状の XY の範囲
+    GeometryExtent,
 }
 
 /// オペレーション定義
@@ -222,7 +237,8 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
     };
 
     let cutter = DropCutter::new(mesh, cutter_shape(&input.tool)?)?;
-    let region = machining_region(&cutter, input.boundary)?;
+    let OperationSpec::Scanline(params) = &input.operation;
+    let region = machining_region(&cutter, input.boundary, params.tool_range)?;
 
     match input.operation {
         OperationSpec::Scanline(params) => {
@@ -241,18 +257,20 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
 fn machining_region(
     cutter: &DropCutter,
     boundary: Option<MachiningBoundary>,
+    tool_range: ScanlineToolRange,
 ) -> Result<([f64; 2], [f64; 2]), CamSolverError> {
     let (xy_min, xy_max) = cutter.xy_bounds();
+    let r = cutter.shape().radius();
+    let reach_min = [xy_min[0] - r, xy_min[1] - r];
+    let reach_max = [xy_max[0] + r, xy_max[1] + r];
     match boundary {
-        None => Ok((xy_min, xy_max)),
-        Some(MachiningBoundary::Rectangle(rectangle)) => {
-            let r = cutter.shape().radius();
-            let reach_min = [xy_min[0] - r, xy_min[1] - r];
-            let reach_max = [xy_max[0] + r, xy_max[1] + r];
-            rectangle
-                .clip_to(reach_min, reach_max)
-                .ok_or_else(|| TemplateFailure::OperationBoundaryOutOfDomain.into())
-        }
+        None => match tool_range {
+            ScanlineToolRange::ExtendByToolRadius => Ok((reach_min, reach_max)),
+            ScanlineToolRange::GeometryExtent => Ok((xy_min, xy_max)),
+        },
+        Some(MachiningBoundary::Rectangle(rectangle)) => rectangle
+            .clip_to(reach_min, reach_max)
+            .ok_or_else(|| TemplateFailure::OperationBoundaryOutOfDomain.into()),
     }
 }
 

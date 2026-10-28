@@ -4,7 +4,9 @@ use geo_algorithms::TriangleMesh3DConstructor;
 use std::io::Cursor;
 use std::sync::Arc;
 
-use cam_algorithms::{CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry};
+use cam_algorithms::{
+    CamSolverInput, OperationSpec, ScanlineParams, ScanlineToolRange, SolverGeometry,
+};
 use cam_core::{CoordinateFrame, LengthUnit, Tool, read_toolpath_artifact_v1};
 use geo_algorithms::{Point3D, TessellationLimits, TriangleMesh3D};
 use job_runtime::{
@@ -49,6 +51,7 @@ fn scanline_input(geometry: SolverGeometry, tool: Tool<f64>) -> CamSolverInput {
             sample_pitch: 2.0,
             feed_rate: 1200.0,
             clearance_height: 5.0,
+            tool_range: ScanlineToolRange::default(),
         }),
         units: LengthUnit::Millimeter,
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -265,6 +268,7 @@ fn template_resolved_input_runs_and_out_of_domain_rectangle_is_invalid_input() {
                 sample_pitch: 2.0,
                 feed_rate: 1200.0,
                 clearance_height: 5.0,
+                tool_range: ScanlineToolRange::default(),
             },
             TessellationLimits::default(),
         )
@@ -297,4 +301,49 @@ fn template_resolved_input_runs_and_out_of_domain_rectangle_is_invalid_input() {
     assert_eq!(manager.get(id).unwrap().status, JobStatus::Succeeded);
 
     assert_cam_failure(&adapter, "input://cam/pyramid-far", "invalid_input");
+}
+
+/// 平坦面（z = 0、10 × 10）の周りに工具の半径分の余裕を持つ素材を削り、平坦面より上に残る素材の体積を返す
+fn material_left_above_flat_face(tool_range: ScanlineToolRange) -> f64 {
+    let flat = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+            Point3D::new(10.0, 10.0, 0.0),
+            Point3D::new(0.0, 10.0, 0.0),
+        ],
+        vec![[0, 1, 2], [0, 2, 3]],
+    )
+    .unwrap();
+    let tool = ball_tool();
+    let r = tool.radius();
+    let mut input = scanline_input(SolverGeometry::TriangleMesh(flat), tool.clone());
+    let OperationSpec::Scanline(params) = &mut input.operation;
+    params.tool_range = tool_range;
+    let toolpath = cam_algorithms::solve_toolpath(&input).unwrap();
+
+    // 素材の底は z = -2、上は z = 2（平坦面より上の 2 の厚さを削る）
+    let stock = Aabb3D::new(
+        Point3D::new(-r, -r, -2.0),
+        Point3D::new(10.0 + r, 10.0 + r, 2.0),
+    );
+    let mut simulator = crate::CuttingSimulator::new(stock, SnapshotInterval::default());
+    simulator.simulate(&toolpath, &tool).unwrap();
+    let remaining = simulator.snapshots().last().unwrap().remaining_volume;
+    let below_face = (10.0 + 2.0 * r) * (10.0 + 2.0 * r) * 2.0;
+    remaining - below_face
+}
+
+#[test]
+fn extending_the_tool_range_removes_the_material_around_a_flat_face() {
+    let extended = material_left_above_flat_face(ScanlineToolRange::ExtendByToolRadius);
+    let within = material_left_above_flat_face(ScanlineToolRange::GeometryExtent);
+    let side = 10.0 + 2.0 * ball_tool().radius();
+    // 工具の半径分広げると、平坦面より上には走査線の間の削り残し（カスプ）しか残らない
+    assert!(extended < 0.1 * side * side, "extended: {extended}");
+    // 形状の範囲では、平坦面の端の外側の素材が残る
+    assert!(
+        within > 2.0 * extended,
+        "within: {within}, extended: {extended}"
+    );
 }

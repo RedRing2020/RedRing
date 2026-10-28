@@ -10,7 +10,7 @@ use geo_contracts::{
 
 use crate::{
     CamSolverError, CamSolverInput, CutterShape, DropCutter, OperationSpec, ScanlineParams,
-    SolverGeometry, solve_toolpath,
+    ScanlineToolRange, SolverGeometry, solve_toolpath,
 };
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {
@@ -84,6 +84,7 @@ fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
             sample_pitch: 1.0,
             feed_rate: 1200.0,
             clearance_height: 5.0,
+            tool_range: ScanlineToolRange::default(),
         }),
         units: LengthUnit::Millimeter,
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -91,6 +92,13 @@ fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
         tessellation_limits: TessellationLimits::default(),
         boundary: None,
     }
+}
+
+/// 工具の中心の移動範囲を `tool_range` にした入力
+fn with_tool_range(mut input: CamSolverInput, tool_range: ScanlineToolRange) -> CamSolverInput {
+    let OperationSpec::Scanline(params) = &mut input.operation;
+    params.tool_range = tool_range;
+    input
 }
 
 #[test]
@@ -280,7 +288,10 @@ fn flat_bottom_does_not_gouge_and_touches_dome() {
 
 #[test]
 fn solve_toolpath_supports_flat_end_mill() {
-    let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    let mut input = with_tool_range(
+        solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()])),
+        ScanlineToolRange::GeometryExtent,
+    );
     input.tool = Tool::flat_end_mill("EM6".to_string(), 6.0, 30.0);
     let toolpath = solve_toolpath(&input).unwrap();
 
@@ -373,7 +384,10 @@ fn tessellation_respects_chord_tolerance() {
 
 #[test]
 fn solve_toolpath_generates_scanline_passes_for_nurbs_surface() {
-    let input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    let input = with_tool_range(
+        solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()])),
+        ScanlineToolRange::GeometryExtent,
+    );
     let toolpath = solve_toolpath(&input).unwrap();
 
     assert_eq!(toolpath.tool_id, "BEM6");
@@ -415,6 +429,7 @@ fn invalid_input_for_stepover_larger_than_diameter() {
         sample_pitch: 1.0,
         feed_rate: 1200.0,
         clearance_height: 5.0,
+        tool_range: ScanlineToolRange::default(),
     });
     assert_eq!(solve_toolpath(&input).unwrap_err().code(), "invalid_input");
 }
@@ -810,4 +825,60 @@ fn solver_geometry_bounds_enclose_the_mesh_and_the_surface_control_points() {
         }
     }
     assert!(SolverGeometry::NurbsSurfaceSet(Vec::new()).aabb().is_none());
+}
+
+/// 切削の区間の端点（ツールパスの全レベル）
+fn cutting_points(toolpath: &cam_core::ToolPath<f64>) -> Vec<Point3D<f64>> {
+    toolpath
+        .contour_levels
+        .iter()
+        .flat_map(|level| level.cutting_segments())
+        .flat_map(|segment| [segment.start, segment.end_point()])
+        .collect()
+}
+
+#[test]
+fn ball_end_mill_moves_one_radius_beyond_the_geometry_by_default() {
+    // 10 × 10 の平坦面（z = 0）を、直径 6 のボールエンドミルで走査する
+    let input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
+    let extended = cutting_points(&solve_toolpath(&input).unwrap());
+    let within = cutting_points(
+        &solve_toolpath(&with_tool_range(
+            input.clone(),
+            ScanlineToolRange::GeometryExtent,
+        ))
+        .unwrap(),
+    );
+    let r = 3.0;
+    let extent = |points: &[Point3D<f64>]| {
+        points.iter().fold(
+            [
+                f64::INFINITY,
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+                f64::NEG_INFINITY,
+            ],
+            |[x0, x1, y0, y1], p| [x0.min(p.x()), x1.max(p.x()), y0.min(p.y()), y1.max(p.y())],
+        )
+    };
+
+    // 既定では、工具の中心が平坦面の外側に半径分出る
+    let [x0, x1, y0, y1] = extent(&extended);
+    for (actual, expected) in [(x0, -r), (x1, 10.0 + r), (y0, -r), (y1, 10.0 + r)] {
+        assert!((actual - expected).abs() < EPS, "{actual} != {expected}");
+    }
+    // 形状の範囲では、工具の中心は平坦面の範囲に収まる
+    let [x0, x1, y0, y1] = extent(&within);
+    for (actual, expected) in [(x0, 0.0), (x1, 10.0), (y0, 0.0), (y1, 10.0)] {
+        assert!((actual - expected).abs() < EPS, "{actual} != {expected}");
+    }
+    // 平坦面の上では工具の先端は面の高さ、外側では端の稜線を転がって下がる（面より上には出ない）
+    for p in &extended {
+        let inside = (0.0..=10.0).contains(&p.x()) && (0.0..=10.0).contains(&p.y());
+        if inside {
+            assert!(p.z().abs() < EPS, "{p:?}");
+        } else {
+            assert!(p.z() < EPS && p.z() >= -r - EPS, "{p:?}");
+        }
+    }
 }

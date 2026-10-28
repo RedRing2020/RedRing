@@ -753,7 +753,7 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - `cam_algorithms::process_template`: 工程テンプレートの解決と solver への適用
   - `resolve_operation(template, operation, defaults)`: 優先順位に従い `tolerance_profile` / `operation_type` / `machining_stage` / 加工範囲を解決
   - `build_solver_input(resolved, ...)`: 解決結果を `CamSolverInput` へ適用（`chord_tolerance` = プロファイルの加工トレランス）
-- `CamSolverInput.boundary`: 加工範囲（未指定なら形状の XY 範囲全体）
+- `CamSolverInput.boundary`: 加工範囲（未指定なら、走査線の条件の工具の移動範囲 `ScanlineParams::tool_range` に従う）
 
 優先順位の解決規則:
 
@@ -772,6 +772,12 @@ ToolPathの複雑化抑制のため、以下を分離する。
 | `unsupported_operation_type` | token は正しいが solver が未対応（現状 `scanline` 以外） |
 
 `invalid_input` の reason は先頭を `<内部分類>` とし、詳細がある場合のみ `<内部分類>: <詳細>` とする（`missing_*` や `operation_boundary_out_of_domain` のように詳細を持たない分類もある）。判定は先頭の内部分類で行い、Job Manager へは分類コード `invalid_input` のみを伝達する。
+
+加工範囲を指定しない場合の工具の中心の移動範囲（`ScanlineToolRange`、#940）:
+
+- `ExtendByToolRadius`（既定値）: 形状の XY 範囲を、各辺で工具の半径だけ外へ広げた範囲（reach）。工具の中心が形状の端までしか行かないと、ボールエンドミルの断面の形により平坦面の端の外側の素材が残るため、これを既定とする
+- `GeometryExtent`: 形状の XY 範囲
+- 形状の外へ出た工具は、逆オフセットのとおり形状の端の稜線に触れる位置まで下がり（ボールは稜線の上を転がる）、製品形状には食い込まないが、端の外側の素材を丸く削る（角がだれる）。角をだれさせない場合は、見切り面を加工の対象に含める運用とする（面を仮想的に延ばす処理は持たない）
 
 矩形加工範囲（`boundary_mode = rectangle`）:
 

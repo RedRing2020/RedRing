@@ -6,7 +6,7 @@
 use application::cam_simulation_workflow::{
     CamSimulationWorkflow, CamSimulationWorkflowError, ProductShapeSimulationRequest,
 };
-use cam_algorithms::{OperationDefinition, ProcessTemplate, ScanlineParams};
+use cam_algorithms::{OperationDefinition, ProcessTemplate, ScanlineParams, ScanlineToolRange};
 use cam_core::Tool;
 use cam_sim::SnapshotInterval;
 
@@ -45,6 +45,7 @@ impl Default for CuttingSimulationConditions {
                 sample_pitch: 1.0,
                 feed_rate: 1200.0,
                 clearance_height: 5.0,
+                tool_range: ScanlineToolRange::default(),
             },
             stock_margin: 5.0,
             precision: 0.01,
@@ -213,6 +214,7 @@ mod tests {
                 sample_pitch: 10.0,
                 feed_rate: 1200.0,
                 clearance_height: 5.0,
+                tool_range: ScanlineToolRange::default(),
             },
             ..CuttingSimulationConditions::default()
         }
