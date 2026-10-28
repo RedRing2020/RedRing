@@ -254,7 +254,7 @@ CAM では、用途を次の 3 種に分けてトレランスを選択する。
 4. cam_sim は Preflight（入力契約・切削条件充足）を通過した入力のみ実行する
 5. 実行結果は artifact として返却し、ViewModel は可視化DTOへ変換して View へ返す
 
-Application の入口は `application::cam_simulation_workflow::CamSimulationWorkflow`（#902）とする。ツールパス生成の入力（製品形状・工具・加工の条件）と切削シミュレーションの入力（素材・精度・記録の間隔）を受け、入力を登録先に登録してツールパス生成と切削シミュレーションのジョブをキューに入れる（`submit`。実行しない）。実行はジョブマネージャーの入口（`run_queued_jobs`）が行う。取り込み（`import`）は、正常終了した切削シミュレーションのジョブ（`succeeded_simulations`）だけを対象に、入力に使ったツールパスと切削シミュレーションの成果物と工具を返す（#913）。製品形状からの投入（`submit_product_shapes`）は、面の ID の集合の形状への解決（`ProductShapeStore`）、ツールパス生成の入力の組み立て（`cam_algorithms` の `resolve_operation`・`build_solver_input`）、製品形状を囲む素材の計算（`SolverGeometry::aabb` と `cam_sim::stock_around_product`。XY の周りと上に余裕を足し、底は製品形状の最も低い点）をつなぐだけとする（#924）。
+Application の入口は `application::cam_simulation_workflow::CamSimulationWorkflow`（#902）とする。ツールパス生成の入力（製品形状・工具・加工の条件）と切削シミュレーションの入力（素材・精度・記録の間隔）を受け、入力を登録先に登録してツールパス生成と切削シミュレーションのジョブをキューに入れる（`submit`。実行しない）。実行はジョブマネージャーの入口（`run_queued_jobs`）が行う。取り込み（`import`）は、正常終了した切削シミュレーションのジョブ（`succeeded_simulations`）だけを対象に、入力に使ったツールパスと切削シミュレーションの成果物と工具を返す（#913）。製品形状からの投入（`submit_product_shapes`）は、面の ID の集合の形状への解決（`ProductShapeStore`）、ツールパス生成の入力の組み立て（`cam_algorithms` の `resolve_operation`・`build_solver_input`）、製品形状を囲む素材の計算（`SolverGeometry::aabb` と `cam_sim::stock_around_product`）をつなぐだけとする（#924）。素材は、製品形状を囲む箱の各面（−X・+X・−Y・+Y・底・上）の外側に、投入の入力の余裕（`StockMargins`。既定はすべて 0 で、製品形状を囲む箱そのもの）を足した直方体とする。余裕が負または有限でない場合は投入しない。素材の大きさは加工範囲（工具の移動範囲）とは別の指定である。多角形を Z 方向に押し出した素材と、画面の上で素材を指示する UI は後続で扱う（#942）。
 
 責務境界（固定）:
 

@@ -31,15 +31,46 @@ pub struct CuttingSimulationInput {
     pub snapshot_interval: SnapshotInterval,
 }
 
-/// 製品形状を囲む境界ボックス `bounds` から、素材（直方体）を作る
+/// 製品形状を囲む箱から素材の箱の各面までの余裕（既定はすべて 0。製品形状を囲む箱そのもの）
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct StockMargins {
+    /// −X 側
+    pub minus_x: f64,
+    /// +X 側
+    pub plus_x: f64,
+    /// −Y 側
+    pub minus_y: f64,
+    /// +Y 側
+    pub plus_y: f64,
+    /// 底（−Z 側）
+    pub bottom: f64,
+    /// 上（+Z 側）
+    pub top: f64,
+}
+
+/// 製品形状を囲む境界ボックス `bounds` の各面の外側に余裕 `margins` を足して、素材（直方体）を作る
 ///
-/// XY の周りと上に余裕 `margin` を足し、底は製品形状の最も低い点の高さとする。
-pub fn stock_around_product(bounds: Aabb3D<f64>, margin: f64) -> Aabb3D<f64> {
+/// 余裕のいずれかが負または有限でない場合は `None`。
+pub fn stock_around_product(bounds: Aabb3D<f64>, margins: StockMargins) -> Option<Aabb3D<f64>> {
+    let StockMargins {
+        minus_x,
+        plus_x,
+        minus_y,
+        plus_y,
+        bottom,
+        top,
+    } = margins;
+    if ![minus_x, plus_x, minus_y, plus_y, bottom, top]
+        .iter()
+        .all(|margin| margin.is_finite() && *margin >= 0.0)
+    {
+        return None;
+    }
     let (min, max) = (bounds.min(), bounds.max());
-    Aabb3D::new(
-        Point3D::new(min.x() - margin, min.y() - margin, min.z()),
-        Point3D::new(max.x() + margin, max.y() + margin, max.z() + margin),
-    )
+    Some(Aabb3D::new(
+        Point3D::new(min.x() - minus_x, min.y() - minus_y, min.z() - bottom),
+        Point3D::new(max.x() + plus_x, max.y() + plus_y, max.z() + top),
+    ))
 }
 
 /// `InputRef` から切削シミュレーションの入力を解決する境界
@@ -93,11 +124,45 @@ pub(crate) fn validate_sim_input_ref(input_ref: &str) -> Result<(), RefValidatio
 mod tests {
     use super::*;
 
+    fn bounds() -> Aabb3D<f64> {
+        Aabb3D::new(Point3D::new(-10.0, 0.0, 2.0), Point3D::new(10.0, 20.0, 8.0))
+    }
+
     #[test]
-    fn stock_has_a_margin_around_and_above_the_product() {
-        let bounds = Aabb3D::new(Point3D::new(-10.0, 0.0, 2.0), Point3D::new(10.0, 20.0, 8.0));
-        let stock = stock_around_product(bounds, 5.0);
-        assert_eq!(stock.min(), Point3D::new(-15.0, -5.0, 2.0));
-        assert_eq!(stock.max(), Point3D::new(15.0, 25.0, 13.0));
+    fn stock_adds_each_margin_outside_the_matching_face_of_the_product_bounds() {
+        let margins = StockMargins {
+            minus_x: 1.0,
+            plus_x: 2.0,
+            minus_y: 3.0,
+            plus_y: 4.0,
+            bottom: 5.0,
+            top: 6.0,
+        };
+        let stock = stock_around_product(bounds(), margins).unwrap();
+        assert_eq!(stock.min(), Point3D::new(-11.0, -3.0, -3.0));
+        assert_eq!(stock.max(), Point3D::new(12.0, 24.0, 14.0));
+    }
+
+    #[test]
+    fn stock_is_the_product_bounds_by_default() {
+        let stock = stock_around_product(bounds(), StockMargins::default()).unwrap();
+        assert_eq!(stock.min(), bounds().min());
+        assert_eq!(stock.max(), bounds().max());
+    }
+
+    #[test]
+    fn negative_or_non_finite_margins_make_no_stock() {
+        for margins in [
+            StockMargins {
+                plus_y: -0.5,
+                ..StockMargins::default()
+            },
+            StockMargins {
+                top: f64::NAN,
+                ..StockMargins::default()
+            },
+        ] {
+            assert_eq!(stock_around_product(bounds(), margins), None);
+        }
     }
 }

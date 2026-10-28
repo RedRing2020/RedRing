@@ -42,6 +42,7 @@ impl AppState {
             snapshot_shaded_colors: self.snapshot_shaded_color_settings,
             tool_wireframe_settings: self.tool_wireframe_visualization_settings,
             toolpath_settings: self.toolpath_visualization_settings.clone(),
+            stock_margins: self.cutting_simulation.stock_margins(),
             current_animation_label: self
                 .cutting_animation_job_id
                 .map(|job_id| job_id.to_string()),
@@ -55,6 +56,8 @@ impl AppState {
         self.settings_panel_locale = panel_state.locale;
         self.tool_wireframe_visualization_settings = panel_state.tool_wireframe_settings;
         self.toolpath_visualization_settings = panel_state.toolpath_settings;
+        self.cutting_simulation
+            .set_stock_margins(panel_state.stock_margins);
 
         if panel_state.redraw_animation_requested {
             self.redraw_cutting_animation();

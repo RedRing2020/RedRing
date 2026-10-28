@@ -32,7 +32,7 @@ pub use simulation_artifact::{
 /// CuttingSimulation の InputRef -> 素材・工具・精度の設定の解決境界。
 pub use simulation_input::{
     CuttingSimulationInput, CuttingSimulationInputProvider, InMemoryCuttingSimulationInputStore,
-    stock_around_product,
+    StockMargins, stock_around_product,
 };
 /// シミュレーション実行APIとスナップショット関連型。
 pub use simulator::{

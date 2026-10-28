@@ -9,6 +9,7 @@ use application::cam_simulation_workflow::{
 use cam_algorithms::{OperationDefinition, ProcessTemplate, ScanlineParams, ScanlineToolRange};
 use cam_core::Tool;
 use cam_sim::SnapshotInterval;
+pub use cam_sim::StockMargins;
 
 use crate::cutting_animation::{CuttingAnimation, CuttingAnimationError};
 use crate::product_shape_converter::ProductShapeScene;
@@ -29,8 +30,8 @@ pub struct CuttingSimulationConditions {
     pub cutting_length: f64,
     /// 走査線の条件
     pub scanline: ScanlineParams,
-    /// 製品形状を囲む箱に足す素材の余裕（XY の周りと上。mm）
-    pub stock_margin: f64,
+    /// 製品形状を囲む箱から素材の箱の各面までの余裕（mm）
+    pub stock_margins: StockMargins,
     /// 素材の形状の許容誤差（mm）
     pub precision: f64,
 }
@@ -47,7 +48,7 @@ impl Default for CuttingSimulationConditions {
                 clearance_height: 5.0,
                 tool_range: ScanlineToolRange::default(),
             },
-            stock_margin: 5.0,
+            stock_margins: StockMargins::default(),
             precision: 0.01,
         }
     }
@@ -123,6 +124,16 @@ impl CuttingSimulationSession {
         }
     }
 
+    /// 次の投入に使う素材の余裕
+    pub fn stock_margins(&self) -> StockMargins {
+        self.conditions.stock_margins
+    }
+
+    /// 次の投入から使う素材の余裕を `margins` にする
+    pub fn set_stock_margins(&mut self, margins: StockMargins) {
+        self.conditions.stock_margins = margins;
+    }
+
     /// 表示中の製品形状のすべての面を加工の対象として、工具 `tool` で投入する（実行しない）
     ///
     /// # Errors
@@ -149,7 +160,7 @@ impl CuttingSimulationSession {
             },
             tool: self.conditions.tool(tool),
             scanline: self.conditions.scanline,
-            stock_margin: self.conditions.stock_margin,
+            stock_margins: self.conditions.stock_margins,
             precision: self.conditions.precision,
             snapshot_interval: SnapshotInterval::default(),
         };
