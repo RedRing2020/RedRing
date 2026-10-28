@@ -3,8 +3,9 @@ use crate::settings_panel_messages::{
     resolve_settings_panel_text, resolve_settings_panel_text_with_args,
 };
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
-use egui::{Align2, CollapsingHeader, Context, RichText, Slider, Window};
+use egui::{Align2, CollapsingHeader, Context, DragValue, RichText, Slider, Window};
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
+use viewmodel::cutting_simulation_session::StockMargins;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
 use viewmodel::toolpath_converter::{
@@ -30,6 +31,7 @@ pub struct SettingsPanelUiState {
     pub snapshot_shaded_colors: SnapshotShadedColorSettings,
     pub tool_wireframe_settings: ToolWireframeVisualizationSettings,
     pub toolpath_settings: ToolPathVisualizationSettings,
+    pub stock_margins: StockMargins,
     pub current_animation_label: Option<String>,
     pub redraw_animation_requested: bool,
 }
@@ -497,6 +499,47 @@ impl SettingsPanelUiState {
                         &mut self.toolpath_settings,
                         max_divisions as usize,
                     );
+                }
+            });
+
+        self.show_stock_margins(ui);
+    }
+
+    fn show_stock_margins(&mut self, ui: &mut egui::Ui) {
+        let labels = [
+            "settings.stock.minus_x",
+            "settings.stock.plus_x",
+            "settings.stock.minus_y",
+            "settings.stock.plus_y",
+            "settings.stock.top",
+            "settings.stock.bottom",
+        ]
+        .map(|key| self.text(key));
+        CollapsingHeader::new(self.text("settings.header.stock"))
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.label(RichText::new(self.text("settings.stock.next_submission")).strong());
+                let StockMargins {
+                    minus_x,
+                    plus_x,
+                    minus_y,
+                    plus_y,
+                    bottom,
+                    top,
+                } = &mut self.stock_margins;
+                for (label, margin) in labels
+                    .into_iter()
+                    .zip([minus_x, plus_x, minus_y, plus_y, top, bottom])
+                {
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            DragValue::new(margin)
+                                .range(0.0..=f64::MAX)
+                                .speed(0.1)
+                                .suffix(" mm"),
+                        );
+                        ui.label(label);
+                    });
                 }
             });
     }

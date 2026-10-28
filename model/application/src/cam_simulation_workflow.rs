@@ -16,7 +16,7 @@ use cam_core::Tool;
 use cam_sim::{
     CamJobExecutorAdapter, CuttingSimulationInput, CuttingSimulationInputProvider,
     InMemoryCamSolverInputStore, InMemoryCuttingSimulationInputStore, SnapshotInterval,
-    stock_around_product,
+    StockMargins, stock_around_product,
 };
 use geo_algorithms::{Aabb3D, TessellationLimits};
 use geo_entity::FaceId;
@@ -55,8 +55,8 @@ pub struct ProductShapeSimulationRequest {
     pub tool: Tool<f64>,
     /// 走査線の条件
     pub scanline: ScanlineParams,
-    /// 製品形状を囲む箱に足す素材の余裕（XY の周りと上）
-    pub stock_margin: f64,
+    /// 製品形状を囲む箱から素材の箱の各面までの余裕
+    pub stock_margins: StockMargins,
     /// 素材の形状の許容誤差
     pub precision: f64,
     /// スナップショットの記録の間隔
@@ -98,6 +98,8 @@ pub enum CamSimulationWorkflowError {
     ProductShape(ProductShapeError),
     /// 加工の対象の形状が空
     EmptyProductShape,
+    /// 素材の余裕が負または有限でない
+    InvalidStockMargins(StockMargins),
     /// オペレーションの定義を解決できない
     Operation(TemplateFailure),
     /// ジョブの投入・問い合わせの失敗
@@ -115,6 +117,12 @@ impl fmt::Display for CamSimulationWorkflowError {
             Self::MissingInput(job_id) => write!(f, "job {job_id} has no registered input"),
             Self::ProductShape(error) => write!(f, "product shape cannot be machined: {error}"),
             Self::EmptyProductShape => write!(f, "product shape is empty"),
+            Self::InvalidStockMargins(margins) => {
+                write!(
+                    f,
+                    "stock margins must be finite and non-negative: {margins:?}"
+                )
+            }
             Self::Operation(error) => write!(f, "operation cannot be resolved: {error}"),
             Self::Orchestration(error) => write!(f, "job orchestration failed: {error}"),
         }
@@ -213,7 +221,8 @@ impl CamSimulationWorkflow {
     ///
     /// # Errors
     ///
-    /// 面を形状にできない場合、形状が空の場合、オペレーションの定義を解決できない場合、入力の登録・投入の失敗。
+    /// 面を形状にできない場合、形状が空の場合、素材の余裕が負または有限でない場合、オペレーションの定義を解決できない場合、
+    /// 入力の登録・投入の失敗。
     pub fn submit_product_shapes(
         &mut self,
         shapes: &ProductShapeStore,
@@ -225,6 +234,9 @@ impl CamSimulationWorkflow {
         let bounds = geometry
             .aabb()
             .ok_or(CamSimulationWorkflowError::EmptyProductShape)?;
+        let stock = stock_around_product(bounds, request.stock_margins).ok_or(
+            CamSimulationWorkflowError::InvalidStockMargins(request.stock_margins),
+        )?;
         let resolved = resolve_operation(
             &request.template,
             &request.operation,
@@ -241,7 +253,7 @@ impl CamSimulationWorkflow {
         .map_err(CamSimulationWorkflowError::Operation)?;
         self.submit(CamSimulationWorkflowRequest {
             solver_input,
-            stock: stock_around_product(bounds, request.stock_margin),
+            stock,
             precision: request.precision,
             snapshot_interval: request.snapshot_interval,
         })
@@ -458,7 +470,14 @@ mod tests {
                 clearance_height: 5.0,
                 tool_range: cam_algorithms::ScanlineToolRange::default(),
             },
-            stock_margin: 5.0,
+            stock_margins: StockMargins {
+                minus_x: 5.0,
+                plus_x: 5.0,
+                minus_y: 5.0,
+                plus_y: 5.0,
+                bottom: 0.0,
+                top: 5.0,
+            },
             precision: 0.01,
             snapshot_interval: SnapshotInterval::default(),
         }
@@ -485,7 +504,7 @@ mod tests {
             &mut result.simulation_artifact.as_slice(),
         )
         .unwrap();
-        // 素材は四角錐（20〜60, 20〜60, 80〜90）を囲む箱に、XY の周りと上に 5 を足したもの
+        // 素材は四角錐（20〜60, 20〜60, 80〜90）を囲む箱に、XY の周りと上に 5 を足したもの（底の余裕は 0）
         let initial = simulation.snapshots[0].remaining_volume_mm3;
         let expected = 50.0 * 50.0 * 15.0;
         assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
@@ -506,6 +525,57 @@ mod tests {
             CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces)
         );
         assert!(workflow.succeeded_simulations().is_empty());
+        assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
+    }
+
+    #[test]
+    fn stock_without_xy_margins_has_the_xy_size_of_the_product_shape() {
+        use crate::product_shape::{ProductFaceGeometry, ProductShapeStore};
+
+        let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
+            panic!("the test request uses a mesh");
+        };
+        let mut shapes = ProductShapeStore::new();
+        let face = shapes.add_face(ProductFaceGeometry::Mesh(pyramid)).face_id;
+        let mut request = product_shape_request(vec![face]);
+        request.stock_margins = StockMargins {
+            top: 5.0,
+            ..StockMargins::default()
+        };
+        let mut workflow = CamSimulationWorkflow::new();
+        let submission = workflow.submit_product_shapes(&shapes, request).unwrap();
+        assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
+
+        let result = workflow.import(submission.simulation_job_id).unwrap();
+        let (_, simulation) = cam_sim::read_cutting_simulation_artifact_v1(
+            &mut result.simulation_artifact.as_slice(),
+        )
+        .unwrap();
+        // 素材は四角錐（20〜60, 20〜60, 80〜90）を囲む箱の XY の範囲のまま、上に 5 を足したもの
+        let initial = simulation.snapshots[0].remaining_volume_mm3;
+        let expected = 40.0 * 40.0 * 15.0;
+        assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
+    }
+
+    #[test]
+    fn negative_stock_margins_are_not_submitted() {
+        use crate::product_shape::{ProductFaceGeometry, ProductShapeStore};
+
+        let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
+            panic!("the test request uses a mesh");
+        };
+        let mut shapes = ProductShapeStore::new();
+        let face = shapes.add_face(ProductFaceGeometry::Mesh(pyramid)).face_id;
+        let mut request = product_shape_request(vec![face]);
+        request.stock_margins.minus_x = -1.0;
+        let margins = request.stock_margins;
+        let mut workflow = CamSimulationWorkflow::new();
+        assert_eq!(
+            workflow
+                .submit_product_shapes(&shapes, request)
+                .unwrap_err(),
+            CamSimulationWorkflowError::InvalidStockMargins(margins)
+        );
         assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
     }
 }
