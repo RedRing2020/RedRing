@@ -114,6 +114,8 @@ impl AppState {
                     tracing::info!("【再生】 Shift+J: 自動再生停止（先頭へ）");
                     tracing::info!("【再生】 + / - : 再生速度変更（現在倍率はタイトル表示）");
                     tracing::info!("【表示】 w: ワイヤー表示 / ソリッド表示を切り替え");
+                    tracing::info!("【表示】 v: ツールパスの線の表示 / 非表示を切り替え");
+                    tracing::info!("【表示】 Shift+V: 工具の線の表示 / 非表示を切り替え");
                     tracing::info!("=== デバッグ形状表示 ===");
                     tracing::info!("s: クリップ空間正方形（単位行列テスト）");
                     tracing::info!("l: LineSegment3D表示");
@@ -134,6 +136,12 @@ impl AppState {
                 }
                 "w" => {
                     self.toggle_wireframe();
+                }
+                "v" => {
+                    self.toggle_toolpath_lines();
+                }
+                "V" => {
+                    self.toggle_tool_lines();
                 }
                 "q" => {
                     self.load_debug_clip_square();

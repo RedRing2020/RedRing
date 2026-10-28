@@ -41,6 +41,10 @@ pub struct MeshStage {
     overlay_line_resources: Option<LineResources>,
     overlay_toolpath_line_resources: Option<LineResources>,
     overlay_tool_line_resources: Option<LineResources>,
+    /// 重畳するツールパス線分を描くか
+    overlay_toolpath_visible: bool,
+    /// 重畳する工具線分を描くか
+    overlay_tool_visible: bool,
     /// 色の異なる複数のメッシュ（ソリッド表示に重ねて描く）
     mesh_list_resources: Option<MeshListResources>,
     render_mode: RenderMode,
@@ -58,6 +62,8 @@ impl MeshStage {
             overlay_line_resources: None,
             overlay_toolpath_line_resources: None,
             overlay_tool_line_resources: None,
+            overlay_toolpath_visible: true,
+            overlay_tool_visible: true,
             mesh_list_resources: None,
             render_mode: RenderMode::Solid,
             format,
@@ -132,6 +138,16 @@ impl MeshStage {
         }
     }
 
+    /// 重畳するツールパス線分を描くか（線分データは保つ）
+    pub fn set_overlay_toolpath_visible(&mut self, visible: bool) {
+        self.overlay_toolpath_visible = visible;
+    }
+
+    /// 重畳する工具線分を描くか（線分データは保つ）
+    pub fn set_overlay_tool_visible(&mut self, visible: bool) {
+        self.overlay_tool_visible = visible;
+    }
+
     /// ソリッド表示に重ねて描く、色の異なる複数のメッシュを設定（キーとメッシュの組。すべて置き換える）
     pub fn set_mesh_list(&mut self, device: &Device, items: Vec<(u64, MeshListItem)>) {
         self.mesh_list(device).set_meshes(device, items);
@@ -204,6 +220,18 @@ impl MeshStage {
     pub fn is_wireframe(&self) -> bool {
         self.mesh_resources.is_wireframe()
     }
+
+    fn visible_overlay_toolpath_lines(&self) -> Option<&LineResources> {
+        self.overlay_toolpath_line_resources
+            .as_ref()
+            .filter(|_| self.overlay_toolpath_visible)
+    }
+
+    fn visible_overlay_tool_lines(&self) -> Option<&LineResources> {
+        self.overlay_tool_line_resources
+            .as_ref()
+            .filter(|_| self.overlay_tool_visible)
+    }
 }
 
 impl RenderStage for MeshStage {
@@ -238,10 +266,10 @@ impl RenderStage for MeshStage {
                 if let Some(line_res) = &self.overlay_line_resources {
                     line_res.render(&mut render_pass);
                 }
-                if let Some(line_res) = &self.overlay_toolpath_line_resources {
+                if let Some(line_res) = self.visible_overlay_toolpath_lines() {
                     line_res.render(&mut render_pass);
                 }
-                if let Some(line_res) = &self.overlay_tool_line_resources {
+                if let Some(line_res) = self.visible_overlay_tool_lines() {
                     line_res.render(&mut render_pass);
                 }
             }
@@ -381,10 +409,10 @@ impl RenderStage for MeshStage {
             if let Some(line_res) = &self.overlay_line_resources {
                 line_res.render(&mut overlay_pass);
             }
-            if let Some(line_res) = &self.overlay_toolpath_line_resources {
+            if let Some(line_res) = self.visible_overlay_toolpath_lines() {
                 line_res.render(&mut overlay_pass);
             }
-            if let Some(line_res) = &self.overlay_tool_line_resources {
+            if let Some(line_res) = self.visible_overlay_tool_lines() {
                 line_res.render(&mut overlay_pass);
             }
         }

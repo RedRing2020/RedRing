@@ -137,6 +137,8 @@ impl AppState {
         let device = &self.graphic.device;
         let mut mesh_stage = Box::new(MeshStage::new(device, self.graphic.config.format));
         mesh_stage.set_mesh_list(device, items);
+        mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
+        mesh_stage.set_overlay_tool_visible(self.tool_lines_visible);
         mesh_stage.set_overlay_toolpath_line_data(
             device,
             line_vertices(
@@ -152,6 +154,41 @@ impl AppState {
             ),
         );
         (mesh_stage, positions)
+    }
+
+    /// 切削アニメーションのツールパスの線の表示・非表示を切り替える
+    pub(super) fn toggle_toolpath_lines(&mut self) {
+        self.toolpath_lines_visible = !self.toolpath_lines_visible;
+        let visible = self.toolpath_lines_visible;
+        if let Some(mesh_stage) = self.cutting_animation_stage() {
+            mesh_stage.set_overlay_toolpath_visible(visible);
+        }
+        tracing::info!(
+            "ツールパスの線を{}にしました（v キー）",
+            if visible { "表示" } else { "非表示" }
+        );
+    }
+
+    /// 切削アニメーションの工具の線の表示・非表示を切り替える
+    pub(super) fn toggle_tool_lines(&mut self) {
+        self.tool_lines_visible = !self.tool_lines_visible;
+        let visible = self.tool_lines_visible;
+        if let Some(mesh_stage) = self.cutting_animation_stage() {
+            mesh_stage.set_overlay_tool_visible(visible);
+        }
+        tracing::info!(
+            "工具の線を{}にしました（Shift+V キー）",
+            if visible { "表示" } else { "非表示" }
+        );
+    }
+
+    /// 切削アニメーションの表示中のメッシュステージ（表示中でなければ `None`）
+    fn cutting_animation_stage(&mut self) -> Option<&mut MeshStage> {
+        self.cutting_animation.as_ref()?;
+        self.renderer
+            .get_stage_mut()
+            .as_any_mut()
+            .downcast_mut::<MeshStage>()
     }
 
     /// 切削アニメーションを今のコマへ移し、素材のブロックと工具の形を差し替える（取り込んでいなければ `false`）

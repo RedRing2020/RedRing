@@ -124,6 +124,12 @@ pub struct AppState {
     /// 取り込んだ切削シミュレーションの切削アニメーション
     cutting_animation: Option<CuttingAnimation>,
 
+    /// 切削アニメーションのツールパスの線を描くか
+    toolpath_lines_visible: bool,
+
+    /// 切削アニメーションの工具の線を描くか
+    tool_lines_visible: bool,
+
     /// 取り込んだ切削シミュレーションのジョブの番号
     cutting_animation_job_id: Option<u64>,
 
@@ -181,6 +187,8 @@ impl AppState {
             product_shapes: ProductShapeScene::default(),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
+            toolpath_lines_visible: true,
+            tool_lines_visible: true,
             cutting_animation_job_id: None,
             settings_panel_open: false,
             settings_panel_active_tab: SettingsPanelTab::default(),
