@@ -356,21 +356,21 @@ mod tests {
     }
 
     #[test]
-    fn restored_states_match_the_dexels_at_each_snapshot() {
+    fn restored_states_match_the_dexels_after_the_simulation() {
         let simulator = simulated();
         let artifact = simulator.artifact().unwrap();
         let dexels = simulator.dexels.as_ref().unwrap();
         assert!(artifact.snapshots.len() > 2);
-        for (snapshot, &applied) in simulator.snapshot_applied.iter().enumerate() {
-            let restored = artifact.dexel_intervals_at(snapshot);
-            for (grid, restored_grid) in restored.iter().enumerate() {
-                for (index, intervals) in restored_grid.iter().enumerate() {
-                    assert_eq!(
-                        intervals.as_slice(),
-                        dexels.intervals_at(grid, index, applied),
-                        "snapshot {snapshot} grid {grid} dexel {index}"
-                    );
-                }
+        // 最後の時点の復元は、シミュレーションの後のデクセルと一致する（途中の時点はトリデクセルのテストで確かめる）
+        let last = artifact.snapshots.len() - 1;
+        let restored = artifact.dexel_intervals_at(last);
+        for (grid, restored_grid) in restored.iter().enumerate() {
+            for (index, intervals) in restored_grid.iter().enumerate() {
+                assert_eq!(
+                    intervals.as_slice(),
+                    dexels.current_intervals(grid, index),
+                    "grid {grid} dexel {index}"
+                );
             }
         }
         // 最初の時点は切削の前で、変化がない

@@ -138,7 +138,7 @@ impl CuttingSimulator {
         Some(CuttingSimulationArtifact {
             snapshots: self.snapshot_exports_f64(),
             grids: dexels.layouts(),
-            snapshot_changes: dexels.snapshot_changes(&self.snapshot_applied),
+            snapshot_changes: dexels.snapshot_changes().to_vec(),
         })
     }
 
@@ -172,9 +172,15 @@ impl CuttingSimulator {
             .width()
             .max(self.stock.height())
             .max(self.stock.depth());
-        let dexels =
-            TriDexelModel::from_stock_model(&model, max_extent / TRI_DEXEL_DISPLAY_LINES as f64);
-        self.record_snapshots(&segments, &dexels, config);
+        self.record_snapshots(&segments, config);
+        let dexels = TriDexelModel::from_stock_model(
+            &model,
+            max_extent / TRI_DEXEL_DISPLAY_LINES as f64,
+            &self.snapshot_applied,
+        );
+        for (snapshot, &applied) in self.snapshots.iter_mut().zip(&self.snapshot_applied) {
+            snapshot.remaining_volume = dexels.remaining_volume_at(applied);
+        }
         self.dexels = Some(dexels);
         Ok(())
     }

@@ -131,16 +131,36 @@ fn sample_model() -> (StockModel, Tool<f64>, Vec<Point3D<f64>>) {
     (model, tool, points)
 }
 
+/// X・Y・Z の格子の、デクセルごとの区間
+type DexelStates = [Vec<Vec<(f64, f64)>>; 3];
+
+/// 各スナップショットの時点の区間（初期の区間に、時点ごとの変化を順に当てる）
+fn states_at_each_snapshot(dexels: &TriDexelModel) -> Vec<DexelStates> {
+    let mut state = dexels
+        .grids
+        .each_ref()
+        .map(|grid| vec![vec![grid.initial]; grid.slots.len()]);
+    dexels
+        .snapshot_changes()
+        .iter()
+        .map(|changes| {
+            for change in changes {
+                state[change.grid as usize][change.index as usize] = change.intervals.clone();
+            }
+            state.clone()
+        })
+        .collect()
+}
+
 #[test]
 fn dexel_intervals_agree_with_the_stock_model() {
     let (model, _, _) = sample_model();
-    let dexels = TriDexelModel::from_stock_model(&model, 0.5);
-    for grid in &dexels.grids {
+    let dexels = TriDexelModel::from_stock_model(&model, 0.5, &[model.primitives().len()]);
+    for (grid_index, grid) in dexels.grids.iter().enumerate() {
         for i in 0..grid.count[0] {
             for j in (0..grid.count[1]).step_by(3) {
                 let line = grid.line(i, j);
-                let intervals =
-                    grid.dexels[i * grid.count[1] + j].intervals_at(model.primitives().len());
+                let intervals = dexels.current_intervals(grid_index, i * grid.count[1] + j);
                 let [low, high] = [
                     [
                         model.stock().min().x(),
@@ -173,21 +193,27 @@ fn dexel_intervals_agree_with_the_stock_model() {
 #[test]
 fn restored_states_match_models_built_up_to_each_time() {
     let (model, tool, points) = sample_model();
-    let dexels = TriDexelModel::from_stock_model(&model, 0.5);
-    assert_eq!(dexels.primitive_count(), points.len() - 1);
-    for applied in 0..points.len() {
+    // 同じ時点が続く場合と、掃引体を飛ばす場合を含める
+    let applied = [0, 0, 1, 3];
+    let dexels = TriDexelModel::from_stock_model(&model, 0.5, &applied);
+    let states = states_at_each_snapshot(&dexels);
+    assert_eq!(states.len(), applied.len());
+    // 同じ時点が続くスナップショットには変化がない
+    assert!(dexels.snapshot_changes()[1].is_empty());
+    for (state, &applied) in states.iter().zip(&applied) {
         let partial = if applied == 0 {
             StockModel::from_toolpath(model.stock(), &toolpath("BEM3", &[]), &tool).unwrap()
         } else {
             StockModel::from_toolpath(model.stock(), &toolpath("BEM3", &points[..=applied]), &tool)
                 .unwrap()
         };
-        let expected = TriDexelModel::from_stock_model(&partial, 0.5);
-        for (grid, expected_grid) in dexels.grids.iter().zip(&expected.grids) {
-            for (dexel, expected_dexel) in grid.dexels.iter().zip(&expected_grid.dexels) {
+        let expected =
+            TriDexelModel::from_stock_model(&partial, 0.5, &[partial.primitives().len()]);
+        for (grid, restored_grid) in state.iter().enumerate() {
+            for (index, intervals) in restored_grid.iter().enumerate() {
                 assert_eq!(
-                    dexel.intervals_at(applied),
-                    expected_dexel.intervals_at(applied),
+                    intervals.as_slice(),
+                    expected.current_intervals(grid, index),
                     "applied = {applied}"
                 );
             }
@@ -196,15 +222,30 @@ fn restored_states_match_models_built_up_to_each_time() {
 }
 
 #[test]
+fn dexels_relocated_to_hold_more_intervals_keep_the_other_dexels() {
+    let stock = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 1.0, 1.0));
+    let mut grid = DexelGrid::new(&stock, 2, 1.0);
+    assert_eq!(grid.slots.len(), 2);
+    let split = [(0.0, 0.2), (0.4, 0.6), (0.8, 1.0)];
+    grid.set(0, &split);
+    grid.set(0, &split[..1]);
+    grid.set(1, &[(0.5, 1.0)]);
+    assert_eq!(grid.current(0), &split[..1]);
+    assert_eq!(grid.current(1), &[(0.5, 1.0)]);
+    grid.set(0, &split);
+    assert_eq!(grid.current(0), &split);
+}
+
+#[test]
 fn accumulated_remaining_volumes_match_the_intervals_at_each_time() {
     let (model, _, _) = sample_model();
-    let dexels = TriDexelModel::from_stock_model(&model, 0.5);
+    let applied: Vec<usize> = (0..=model.primitives().len()).collect();
+    let dexels = TriDexelModel::from_stock_model(&model, 0.5, &applied);
     let grid = &dexels.grids[2];
-    for applied in 0..=dexels.primitive_count() {
-        let length: f64 = grid
-            .dexels
+    for (state, &applied) in states_at_each_snapshot(&dexels).iter().zip(&applied) {
+        let length: f64 = state[2]
             .iter()
-            .flat_map(|dexel| dexel.intervals_at(applied))
+            .flatten()
             .map(|(low, high)| high - low)
             .sum();
         let expected = length * grid.pitch[0] * grid.pitch[1];
@@ -226,7 +267,7 @@ fn remaining_volume_of_a_flat_slot() {
         &[Point3D::new(0.0, 0.0, -2.0), Point3D::new(10.0, 0.0, -2.0)],
     );
     let model = StockModel::from_toolpath(stock, &path, &tool).unwrap();
-    let dexels = TriDexelModel::from_stock_model(&model, 0.05);
+    let dexels = TriDexelModel::from_stock_model(&model, 0.05, &[0, 1]);
 
     let initial = 20.0 * 10.0 * 5.0;
     let removed = (4.0 * 10.0 + PI * 4.0) * 2.0;
@@ -241,17 +282,16 @@ fn remaining_volume_of_a_flat_slot() {
 #[test]
 fn subtracting_intervals() {
     let intervals = [(0.0, 2.0), (3.0, 5.0)];
+    let subtracted = |interval| {
+        let mut result = Vec::new();
+        subtract_interval(&intervals, interval, &mut result);
+        result
+    };
+    assert_eq!(subtracted((1.0, 4.0)), vec![(0.0, 1.0), (4.0, 5.0)]);
+    assert_eq!(subtracted((-1.0, 6.0)), vec![]);
+    assert_eq!(subtracted((2.0, 3.0)), intervals.to_vec());
     assert_eq!(
-        subtract_interval(&intervals, (1.0, 4.0)),
-        vec![(0.0, 1.0), (4.0, 5.0)]
-    );
-    assert_eq!(subtract_interval(&intervals, (-1.0, 6.0)), vec![]);
-    assert_eq!(
-        subtract_interval(&intervals, (2.0, 3.0)),
-        intervals.to_vec()
-    );
-    assert_eq!(
-        subtract_interval(&intervals, (0.5, 1.5)),
+        subtracted((0.5, 1.5)),
         vec![(0.0, 0.5), (1.5, 2.0), (3.0, 5.0)]
     );
 }
