@@ -9,7 +9,7 @@ fn test_flat_end_mill_creation() {
     assert_eq!(tool.diameter(), 10.0);
     assert_eq!(tool.radius(), 5.0);
     assert_eq!(tool.corner_radius(), 0.0);
-    assert_eq!(tool.cutting_length, 50.0);
+    assert_eq!(tool.cutting_length, Some(50.0));
     assert_eq!(tool.tip_offset(), 0.0);
 }
 
@@ -22,7 +22,7 @@ fn test_ball_end_mill_creation() {
     assert_eq!(tool.diameter(), 6.0);
     assert_eq!(tool.radius(), 3.0);
     assert_eq!(tool.corner_radius(), 3.0);
-    assert_eq!(tool.cutting_length, 30.0);
+    assert_eq!(tool.cutting_length, Some(30.0));
     assert_eq!(tool.tip_offset(), 3.0);
 }
 
@@ -35,7 +35,7 @@ fn test_radius_end_mill_creation() {
     assert_eq!(tool.diameter(), 10.0);
     assert_eq!(tool.radius(), 5.0);
     assert_eq!(tool.corner_radius(), 1.0);
-    assert_eq!(tool.cutting_length, 50.0);
+    assert_eq!(tool.cutting_length, Some(50.0));
     assert_eq!(tool.tip_offset(), 1.0);
 }
 

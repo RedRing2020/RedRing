@@ -55,7 +55,10 @@ pub(crate) fn preflight_cutting_simulation(
     }
     let tool = &input.tool;
     let positive = |value: f64| value.is_finite() && value > 0.0;
-    if !positive(tool.radius()) || !positive(tool.cutting_length) || !tool.validate_parameters() {
+    if !positive(tool.radius())
+        || !tool.cutting_length.is_none_or(positive)
+        || !tool.validate_parameters()
+    {
         return Err(PreflightFailure::InvalidInput(InvalidInputReason::Tool));
     }
     if !(input.precision.is_finite() && input.precision > 0.0) {
@@ -85,7 +88,8 @@ pub(crate) fn preflight_cutting_simulation(
             tool_id: tool.id.clone(),
         });
     }
-    if SweptToolShape::from_tool(tool).is_none() {
+    // 工具の種類だけを確かめる（工具長を指定しない工具の長さは使わない）
+    if SweptToolShape::from_tool(tool, 0.0).is_none() {
         reasons.push(NotReadyReason::UnsupportedTool);
     }
 

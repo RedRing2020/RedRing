@@ -165,8 +165,14 @@ impl CuttingAnimation {
         else {
             return Vec::new();
         };
-        let (radius, length) = (self.tool.radius(), self.tool.cutting_length);
-        if self.tool.is_ball_end_mill() {
+        let radius = self.tool.radius();
+        let is_ball = self.tool.is_ball_end_mill();
+        // 工具長を指定しない工具は、素材の上面の高さまで描く（ボールは球の中心から測る）
+        let length = self.tool.cutting_length.unwrap_or_else(|| {
+            let stock_top = self.artifact.grids[2].initial.1;
+            stock_top - tip.z() - if is_ball { radius } else { 0.0 }
+        });
+        if is_ball {
             create_ball_end_mill_wireframe(tip, radius, length, settings)
         } else {
             create_flat_end_mill_wireframe(tip, radius, length, settings)

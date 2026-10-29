@@ -43,6 +43,8 @@ impl AppState {
             tool_wireframe_settings: self.tool_wireframe_visualization_settings,
             toolpath_settings: self.toolpath_visualization_settings.clone(),
             stock_margins: self.cutting_simulation.stock_margins(),
+            tool_length: self.cutting_simulation.tool_length(),
+            tool_length_input: self.tool_length_input,
             current_animation_label: self
                 .cutting_animation_job_id
                 .map(|job_id| job_id.to_string()),
@@ -58,6 +60,9 @@ impl AppState {
         self.toolpath_visualization_settings = panel_state.toolpath_settings;
         self.cutting_simulation
             .set_stock_margins(panel_state.stock_margins);
+        self.cutting_simulation
+            .set_tool_length(panel_state.tool_length);
+        self.tool_length_input = panel_state.tool_length_input;
 
         if panel_state.redraw_animation_requested {
             self.redraw_cutting_animation();

@@ -32,6 +32,10 @@ pub struct SettingsPanelUiState {
     pub tool_wireframe_settings: ToolWireframeVisualizationSettings,
     pub toolpath_settings: ToolPathVisualizationSettings,
     pub stock_margins: StockMargins,
+    /// 工具長（`None` は指定しない）
+    pub tool_length: Option<f64>,
+    /// 工具長を指定するときの入力値（指定しない間も保つ）
+    pub tool_length_input: f64,
     pub current_animation_label: Option<String>,
     pub redraw_animation_requested: bool,
 }
@@ -502,7 +506,29 @@ impl SettingsPanelUiState {
                 }
             });
 
+        self.show_cutting_tool(ui);
         self.show_stock_margins(ui);
+    }
+
+    fn show_cutting_tool(&mut self, ui: &mut egui::Ui) {
+        let specify_label = self.text("settings.cutting_tool.specify_length");
+        CollapsingHeader::new(self.text("settings.header.cutting_tool"))
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.label(RichText::new(self.text("settings.stock.next_submission")).strong());
+                let mut specified = self.tool_length.is_some();
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut specified, specify_label);
+                    ui.add_enabled(
+                        specified,
+                        DragValue::new(&mut self.tool_length_input)
+                            .range(0.1..=f64::MAX)
+                            .speed(0.5)
+                            .suffix(" mm"),
+                    );
+                });
+                self.tool_length = specified.then_some(self.tool_length_input);
+            });
     }
 
     fn show_stock_margins(&mut self, ui: &mut egui::Ui) {
