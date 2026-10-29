@@ -8,7 +8,9 @@ use cam_sim::{
     collect_toolpath_line_segments, read_cutting_simulation_artifact_v1, CuttingSimulationArtifact,
     DexelChange, DexelSurface, SurfaceMesh,
 };
-use geo_algorithms::{LineSegment3D, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM};
+use geo_algorithms::{
+    LineSegment3D, LineSegment3DProperties, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
+};
 
 use crate::cam_sim_visualization_converter::{
     create_ball_end_mill_wireframe, create_flat_end_mill_wireframe,
@@ -68,6 +70,8 @@ pub struct CuttingAnimation {
     /// 切削シミュレーションと同じ分け方の、ツールパスの直線の区間（スナップショットの区間の番号の対象）
     segments: Vec<(LineSegment3D<f64>, bool)>,
     tool: Tool<f64>,
+    /// 描く工具の長さ（工具長を指定しない工具は、最も深い切削の位置で素材の上面に届く長さ。時点によらない）
+    drawn_tool_length: f64,
 }
 
 impl CuttingAnimation {
@@ -88,6 +92,21 @@ impl CuttingAnimation {
         }
         let segments =
             collect_toolpath_line_segments(&toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM);
+        let drawn_tool_length = tool.cutting_length.unwrap_or_else(|| {
+            let lowest_tip = segments
+                .iter()
+                .filter(|(_, is_cutting)| *is_cutting)
+                .flat_map(|(segment, _)| [segment.start_point().z(), segment.end_point().z()])
+                .fold(f64::INFINITY, f64::min);
+            let stock_top = artifact.grids[2].initial.1;
+            // ボールエンドミルの線は、球の中心から長さを測る
+            let ball_center = if tool.is_ball_end_mill() {
+                tool.radius()
+            } else {
+                0.0
+            };
+            stock_top - lowest_tip - ball_center
+        });
         Ok(Self {
             surface: DexelSurface::at_snapshot(&artifact, 0),
             reverse_changes: artifact.reverse_snapshot_changes(),
@@ -96,6 +115,7 @@ impl CuttingAnimation {
             toolpath,
             segments,
             tool,
+            drawn_tool_length,
         })
     }
 
@@ -165,7 +185,7 @@ impl CuttingAnimation {
         else {
             return Vec::new();
         };
-        let (radius, length) = (self.tool.radius(), self.tool.cutting_length);
+        let (radius, length) = (self.tool.radius(), self.drawn_tool_length);
         if self.tool.is_ball_end_mill() {
             create_ball_end_mill_wireframe(tip, radius, length, settings)
         } else {
@@ -363,6 +383,39 @@ mod tests {
                 .fold(f32::INFINITY, f32::min);
             assert!((f64::from(lowest) - tip.z()).abs() < 1e-3, "frame {frame}");
         }
+    }
+
+    #[test]
+    fn tool_without_a_length_is_drawn_with_the_same_length_in_every_frame() {
+        let (toolpath, simulation) = artifacts();
+        let mut tool = tool();
+        tool.cutting_length = None;
+        let mut animation = CuttingAnimation::new(toolpath, simulation, tool).unwrap();
+        let settings = ToolWireframeVisualizationSettings::default();
+        let mut heights = Vec::new();
+        for frame in 0..animation.frame_count() {
+            animation.seek(frame);
+            let wireframe = animation.tool_wireframe(&settings);
+            let (lowest, highest) = wireframe.iter().fold(
+                (f32::INFINITY, f32::NEG_INFINITY),
+                |(lowest, highest), vertex| {
+                    (
+                        lowest.min(vertex.position[2]),
+                        highest.max(vertex.position[2]),
+                    )
+                },
+            );
+            heights.push(highest - lowest);
+        }
+        // 先端の高さ（1.6・1.2）が変わっても、工具の長さは変わらない
+        assert!(
+            heights
+                .iter()
+                .all(|height| (height - heights[0]).abs() < 1e-4),
+            "{heights:?}"
+        );
+        // 最も深い切削の位置（先端 1.2）から素材の上面（2.0）までは球の半径より短いため、球の上に線の最小の長さ 1 を描く
+        assert!((heights[0] - 2.0).abs() < 1e-4, "{}", heights[0]);
     }
 
     #[test]

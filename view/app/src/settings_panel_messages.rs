@@ -60,6 +60,8 @@ const SETTINGS_PANEL_TEMPLATE_JA: &[(&str, &str)] = &[
         "ToolPath 離散化設定",
     ),
     ("settings.toolpath.display_only", "表示ワイヤーフレーム専用"),
+    ("settings.header.cutting_tool", "切削シミュレーションの工具"),
+    ("settings.cutting_tool.specify_length", "工具長を指定する（指定しない場合は長さの制限なし）"),
     ("settings.header.stock", "素材（製品形状を囲む箱からの余裕）"),
     (
         "settings.stock.next_submission",
@@ -143,6 +145,11 @@ const SETTINGS_PANEL_TEMPLATE_EN: &[(&str, &str)] = &[
         "ToolPath Discretization",
     ),
     ("settings.toolpath.display_only", "For display wireframe only"),
+    ("settings.header.cutting_tool", "Cutting Simulation Tool"),
+    (
+        "settings.cutting_tool.specify_length",
+        "Specify the tool length (unlimited if not specified)",
+    ),
     ("settings.header.stock", "Stock (margins around the product bounds)"),
     (
         "settings.stock.next_submission",

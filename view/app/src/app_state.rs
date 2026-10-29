@@ -124,6 +124,9 @@ pub struct AppState {
     /// 取り込んだ切削シミュレーションの切削アニメーション
     cutting_animation: Option<CuttingAnimation>,
 
+    /// 設定パネルの、工具長を指定するときの入力値（mm）
+    tool_length_input: f64,
+
     /// 切削アニメーションのツールパスの線を描くか
     toolpath_lines_visible: bool,
 
@@ -187,6 +190,7 @@ impl AppState {
             product_shapes: ProductShapeScene::default(),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
+            tool_length_input: 50.0,
             toolpath_lines_visible: true,
             tool_lines_visible: true,
             cutting_animation_job_id: None,

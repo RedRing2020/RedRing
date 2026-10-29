@@ -70,6 +70,23 @@ fn flat_end_mill_sweeps_a_vertical_cylinder_with_a_flat_bottom() {
 }
 
 #[test]
+fn a_tool_without_a_length_removes_up_to_the_top_of_the_stock() {
+    for mut tool in [
+        Tool::flat_end_mill("EM4".to_string(), 4.0, 10.0),
+        Tool::ball_end_mill("BEM4".to_string(), 4.0, 10.0),
+    ] {
+        tool.cutting_length = None;
+        let model = horizontal_cut(&tool);
+        // 工具長 10 より上も、素材の上面（z = 20）まで除去する
+        for z in [10.1, 19.9, 20.0] {
+            assert!(!model.contains_material(Point3D::new(5.0, 0.0, z)), "{z}");
+        }
+        // 工具の半径の外側は残る
+        assert!(model.contains_material(Point3D::new(5.0, 2.1, 15.0)));
+    }
+}
+
+#[test]
 fn ball_end_mill_sweeps_a_ball_and_a_cylinder_above_its_center() {
     let model = horizontal_cut(&Tool::ball_end_mill("BEM4".to_string(), 4.0, 10.0));
     for (point, removed) in [

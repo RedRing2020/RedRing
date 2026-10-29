@@ -26,8 +26,8 @@ pub enum CuttingToolKind {
 pub struct CuttingSimulationConditions {
     /// 工具の直径（mm）
     pub tool_diameter: f64,
-    /// 工具の刃長（mm）
-    pub cutting_length: f64,
+    /// 工具長（mm。`None` は長さに制限のない工具）
+    pub cutting_length: Option<f64>,
     /// 走査線の条件
     pub scanline: ScanlineParams,
     /// 製品形状を囲む箱から素材の箱の各面までの余裕（mm）
@@ -40,7 +40,7 @@ impl Default for CuttingSimulationConditions {
     fn default() -> Self {
         Self {
             tool_diameter: 10.0,
-            cutting_length: 50.0,
+            cutting_length: None,
             scanline: ScanlineParams {
                 stepover: 2.0,
                 sample_pitch: 1.0,
@@ -56,18 +56,21 @@ impl Default for CuttingSimulationConditions {
 
 impl CuttingSimulationConditions {
     fn tool(&self, kind: CuttingToolKind) -> Tool<f64> {
-        match kind {
+        // 工具長は、作った後に条件の値（指定しない場合は `None`）にする
+        let mut tool = match kind {
             CuttingToolKind::BallEndMill => Tool::ball_end_mill(
                 format!("ball_endmill_{}mm", self.tool_diameter),
                 self.tool_diameter,
-                self.cutting_length,
+                0.0,
             ),
             CuttingToolKind::FlatEndMill => Tool::flat_end_mill(
                 format!("flat_endmill_{}mm", self.tool_diameter),
                 self.tool_diameter,
-                self.cutting_length,
+                0.0,
             ),
-        }
+        };
+        tool.cutting_length = self.cutting_length;
+        tool
     }
 }
 
@@ -122,6 +125,16 @@ impl CuttingSimulationSession {
             workflow: CamSimulationWorkflow::new(),
             conditions,
         }
+    }
+
+    /// 次の投入に使う工具長（`None` は長さに制限のない工具）
+    pub fn tool_length(&self) -> Option<f64> {
+        self.conditions.cutting_length
+    }
+
+    /// 次の投入から使う工具長を `length` にする（`None` は長さに制限のない工具）
+    pub fn set_tool_length(&mut self, length: Option<f64>) {
+        self.conditions.cutting_length = length;
     }
 
     /// 次の投入に使う素材の余裕
@@ -219,7 +232,7 @@ mod tests {
     fn coarse() -> CuttingSimulationConditions {
         CuttingSimulationConditions {
             tool_diameter: 6.0,
-            cutting_length: 30.0,
+            cutting_length: Some(30.0),
             scanline: ScanlineParams {
                 stepover: 6.0,
                 sample_pitch: 10.0,

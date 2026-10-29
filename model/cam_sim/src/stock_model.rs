@@ -39,16 +39,19 @@ pub(crate) struct SweptToolPrimitive {
 
 impl SweptToolShape {
     /// 工具の形（フラット・ボールエンドミル以外は `None`）
-    pub(crate) fn from_tool(tool: &Tool<f64>) -> Option<Self> {
+    ///
+    /// 工具長を指定しない工具の長さは `unlimited_length`（素材の上面より上まで届く長さ）とする。
+    pub(crate) fn from_tool(tool: &Tool<f64>, unlimited_length: f64) -> Option<Self> {
+        let cutting_length = tool.cutting_length.unwrap_or(unlimited_length);
         if tool.is_flat_end_mill() {
             Some(Self::FlatEndMill {
                 radius: tool.radius(),
-                cutting_length: tool.cutting_length,
+                cutting_length,
             })
         } else if tool.is_ball_end_mill() {
             Some(Self::BallEndMill {
                 radius: tool.radius(),
-                cutting_length: tool.cutting_length,
+                cutting_length,
             })
         } else {
             None
@@ -210,11 +213,22 @@ impl StockModel {
         segments: &[(LineSegment3D<f64>, bool)],
         tool: &Tool<f64>,
     ) -> Result<Self, SimulationError> {
-        let shape = SweptToolShape::from_tool(tool).ok_or(SimulationError::UnsupportedToolType)?;
-        let primitives: Vec<_> = segments
+        let cutting: Vec<_> = segments
             .iter()
             .filter(|(_, is_cutting)| *is_cutting)
-            .map(|(segment, _)| SweptToolPrimitive {
+            .map(|(segment, _)| segment)
+            .collect();
+        // 工具長を指定しない工具は、最も低い先端からも素材の上面まで届く長さにする（素材の上には材料がない）
+        let lowest_tip = cutting
+            .iter()
+            .flat_map(|segment| [segment.start_point().z(), segment.end_point().z()])
+            .fold(f64::INFINITY, f64::min);
+        let unlimited_length = (stock.max().z() - lowest_tip).max(0.0);
+        let shape = SweptToolShape::from_tool(tool, unlimited_length)
+            .ok_or(SimulationError::UnsupportedToolType)?;
+        let primitives: Vec<_> = cutting
+            .into_iter()
+            .map(|segment| SweptToolPrimitive {
                 start: segment.start_point(),
                 end: segment.end_point(),
                 shape,

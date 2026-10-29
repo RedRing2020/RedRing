@@ -84,7 +84,7 @@ pub enum ToolReferencePoint {
 /// - **tool_type**: 工具種別（明示的に指定）
 /// - **radius**: 工具半径（mm）
 /// - **corner_radius**: コーナーR（mm）
-/// - **cutting_length**: 工具長（mm）
+/// - **cutting_length**: 工具長（mm。指定しない場合は長さに制限のない工具）
 ///
 /// 工具種別を明示的に指定することで、将来的な拡張（ブルノーズ、Tスロット等）に対応可能。
 ///
@@ -114,10 +114,11 @@ pub struct Tool<T: Scalar = f64> {
     /// - ボールエンドミル: radius（半径と同値）
     corner_radius: T,
 
-    /// 刃長（mm）
+    /// 工具長（mm）
     ///
-    /// 工具の有効切削長さ。
-    pub cutting_length: T,
+    /// 工具の先端から測った、素材を除去する部分の長さ。`None` は長さに制限のない工具
+    /// （工具より高い位置で接触した素材も除去する）。コンストラクタは長さを指定した工具を作る。
+    pub cutting_length: Option<T>,
 }
 
 impl<T: Scalar> Tool<T> {
@@ -129,7 +130,7 @@ impl<T: Scalar> Tool<T> {
     /// - `tool_type`: 工具種別（明示的に指定）
     /// - `diameter`: 工具径（mm）
     /// - `corner_radius`: コーナーR（mm）
-    /// - `cutting_length`: 刃長（mm）
+    /// - `cutting_length`: 工具長（mm）
     ///
     /// # 例
     ///
@@ -158,7 +159,7 @@ impl<T: Scalar> Tool<T> {
             tool_type,
             radius,
             corner_radius,
-            cutting_length,
+            cutting_length: Some(cutting_length),
         }
     }
 
@@ -168,7 +169,7 @@ impl<T: Scalar> Tool<T> {
     ///
     /// - `id`: 工具識別子
     /// - `diameter`: 工具径（mm）
-    /// - `cutting_length`: 刃長（mm）
+    /// - `cutting_length`: 工具長（mm）
     ///
     /// # 例
     ///
@@ -194,7 +195,7 @@ impl<T: Scalar> Tool<T> {
     ///
     /// - `id`: 工具識別子
     /// - `diameter`: 工具径（mm）
-    /// - `cutting_length`: 刃長（mm）
+    /// - `cutting_length`: 工具長（mm）
     ///
     /// # 例
     ///
@@ -216,7 +217,7 @@ impl<T: Scalar> Tool<T> {
     /// - `id`: 工具識別子
     /// - `diameter`: 工具径（mm）
     /// - `corner_radius`: コーナーR（mm）
-    /// - `cutting_length`: 刃長（mm）
+    /// - `cutting_length`: 工具長（mm）
     ///
     /// # 例
     ///

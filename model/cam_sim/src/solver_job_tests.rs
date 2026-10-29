@@ -304,7 +304,12 @@ fn template_resolved_input_runs_and_out_of_domain_rectangle_is_invalid_input() {
 }
 
 /// 平坦面（z = 0、10 × 10）の周りに工具の半径分の余裕を持つ素材を削り、平坦面より上に残る素材の体積を返す
-fn material_left_above_flat_face(tool_range: ScanlineToolRange) -> f64 {
+/// 平坦面（z = 0、10 × 10）を工具 `tool` で走査線加工し、上面の高さ `stock_top` の素材の平坦面より上に残る体積
+fn material_left_above_flat_face(
+    tool_range: ScanlineToolRange,
+    tool: Tool<f64>,
+    stock_top: f64,
+) -> f64 {
     let flat = TriangleMesh3D::new(
         vec![
             Point3D::new(0.0, 0.0, 0.0),
@@ -315,17 +320,16 @@ fn material_left_above_flat_face(tool_range: ScanlineToolRange) -> f64 {
         vec![[0, 1, 2], [0, 2, 3]],
     )
     .unwrap();
-    let tool = ball_tool();
     let r = tool.radius();
     let mut input = scanline_input(SolverGeometry::TriangleMesh(flat), tool.clone());
     let OperationSpec::Scanline(params) = &mut input.operation;
     params.tool_range = tool_range;
     let toolpath = cam_algorithms::solve_toolpath(&input).unwrap();
 
-    // 素材の底は z = -2、上は z = 2（平坦面より上の 2 の厚さを削る）
+    // 素材の底は z = -2（平坦面より上の `stock_top` の厚さを削る）
     let stock = Aabb3D::new(
         Point3D::new(-r, -r, -2.0),
-        Point3D::new(10.0 + r, 10.0 + r, 2.0),
+        Point3D::new(10.0 + r, 10.0 + r, stock_top),
     );
     let mut simulator = crate::CuttingSimulator::new(stock, SnapshotInterval::default());
     simulator.simulate(&toolpath, &tool).unwrap();
@@ -336,8 +340,9 @@ fn material_left_above_flat_face(tool_range: ScanlineToolRange) -> f64 {
 
 #[test]
 fn extending_the_tool_range_removes_the_material_around_a_flat_face() {
-    let extended = material_left_above_flat_face(ScanlineToolRange::ExtendByToolRadius);
-    let within = material_left_above_flat_face(ScanlineToolRange::GeometryExtent);
+    let extended =
+        material_left_above_flat_face(ScanlineToolRange::ExtendByToolRadius, ball_tool(), 2.0);
+    let within = material_left_above_flat_face(ScanlineToolRange::GeometryExtent, ball_tool(), 2.0);
     let side = 10.0 + 2.0 * ball_tool().radius();
     // 工具の半径分広げると、平坦面より上には走査線の間の削り残し（カスプ）しか残らない
     assert!(extended < 0.1 * side * side, "extended: {extended}");
@@ -345,5 +350,32 @@ fn extending_the_tool_range_removes_the_material_around_a_flat_face() {
     assert!(
         within > 2.0 * extended,
         "within: {within}, extended: {extended}"
+    );
+}
+
+#[test]
+fn a_tool_without_a_length_removes_the_material_above_its_length() {
+    // 工具長 30 の工具より深い 50 の厚さを、平坦面まで削る
+    let stock_top = 50.0;
+    let mut unlimited = ball_tool();
+    unlimited.cutting_length = None;
+    let without_length =
+        material_left_above_flat_face(ScanlineToolRange::ExtendByToolRadius, unlimited, stock_top);
+    let with_length = material_left_above_flat_face(
+        ScanlineToolRange::ExtendByToolRadius,
+        ball_tool(),
+        stock_top,
+    );
+    let side = 10.0 + 2.0 * ball_tool().radius();
+    // 工具長を指定しない工具では、平坦面より上には走査線の間の削り残し（カスプ）しか残らない
+    assert!(
+        without_length < 0.1 * side * side,
+        "without length: {without_length}"
+    );
+    // 工具長 30 の工具では、工具より高い位置（球の中心から 30 より上）の素材が残る
+    let above_tool = side * side * (stock_top - 30.0 - ball_tool().radius());
+    assert!(
+        with_length > 0.9 * above_tool,
+        "with length: {with_length}, above the tool: {above_tool}"
     );
 }
