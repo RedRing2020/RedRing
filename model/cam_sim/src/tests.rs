@@ -274,6 +274,109 @@ fn test_include_segment_endpoints_changes_snapshot_count() {
 }
 
 #[test]
+fn test_default_interval_is_the_shorter_of_the_tool_radius_and_the_grid_spacing_multiple() {
+    let toolpath = cutting_toolpath(
+        "EM10",
+        &[
+            Point3D::new(10.0, 50.0, 90.0),
+            Point3D::new(90.0, 50.0, 90.0),
+        ],
+    );
+    let tool = Tool::flat_end_mill("EM10".to_string(), 10.0, 30.0);
+    // 格子の間隔は 100 / 512 で、その 4 倍（0.78125）は工具の半径 5 より短い。小さい素材では半径になる
+    for (stock, expected) in [
+        (unit_cube_stock(), 4.0 * 100.0 / 512.0),
+        (
+            Aabb3D::new(
+                Point3D::new(0.0, 0.0, 0.0),
+                Point3D::new(1000.0, 100.0, 100.0),
+            ),
+            5.0,
+        ),
+    ] {
+        let mut simulator = CuttingSimulator::new(stock, SnapshotInterval::default());
+        simulator.simulate(&toolpath, &tool).unwrap();
+        let distances: Vec<f64> = simulator
+            .snapshots()
+            .iter()
+            .map(|snapshot| snapshot.position.accumulated_distance)
+            .collect();
+        // 最後の時点（ツールパスの終わり）の前までは、間隔ごとに置く
+        for pair in distances[..distances.len() - 1].windows(2) {
+            assert!((pair[1] - pair[0] - expected).abs() < 1e-9, "{pair:?}");
+        }
+        assert!((distances.last().unwrap() - 80.0).abs() < 1e-9);
+    }
+}
+
+#[test]
+fn test_snapshots_are_placed_around_switches_and_breaks_of_the_path_and_at_the_end() {
+    let segment =
+        |start, end, segment_type| cam_core::PathSegment::new_line(start, end, segment_type);
+    let cutting = SegmentType::Cutting { feed_rate: 300.0 };
+    let [a, b, c, d, e, f] = [
+        Point3D::new(10.0, 10.0, 90.0),
+        Point3D::new(50.0, 10.0, 90.0),
+        Point3D::new(50.0, 50.0, 90.0),
+        Point3D::new(90.0, 50.0, 90.0),
+        Point3D::new(90.0, 80.0, 90.0),
+        Point3D::new(10.0, 80.0, 90.0),
+    ];
+    let toolpath = ToolPath::new(
+        "EM10".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(
+            0,
+            90.0,
+            vec![
+                segment(a, b, cutting),
+                segment(b, c, SegmentType::Rapid),
+                segment(c, d, cutting),
+                // 前の区間の終点から途切れた切削のパス
+                segment(e, f, cutting),
+            ],
+        )],
+        vec![],
+    );
+    let tool = Tool::flat_end_mill("EM10".to_string(), 10.0, 30.0);
+    let simulate = |include_segment_endpoints| {
+        let mut simulator = CuttingSimulator::new(
+            unit_cube_stock(),
+            SnapshotInterval::ByDistance {
+                interval_mm: 1000.0,
+                include_segment_endpoints,
+            },
+        );
+        simulator.simulate(&toolpath, &tool).unwrap();
+        simulator.snapshots().to_vec()
+    };
+    let sparse = simulate(false);
+    let positions: Vec<(usize, f64)> = sparse
+        .iter()
+        .map(|snapshot| (snapshot.position.segment_index, snapshot.position.t))
+        .collect();
+    // 始まり・切り替わりと途切れたところの前後・ツールパスの終わり
+    assert_eq!(
+        positions,
+        vec![
+            (0, 0.0),
+            (0, 1.0),
+            (1, 0.0),
+            (1, 1.0),
+            (2, 0.0),
+            (2, 1.0),
+            (3, 0.0),
+            (3, 1.0)
+        ]
+    );
+    let last = sparse.last().unwrap().remaining_volume;
+    let with_endpoints = simulate(true).last().unwrap().remaining_volume;
+    assert!((last - with_endpoints).abs() < 1e-9 * with_endpoints);
+    assert!(last < unit_cube_stock().volume());
+}
+
+#[test]
 fn test_snapshot_exports_f64_maps_snapshot_fields() {
     let mut simulator = CuttingSimulator::new(unit_cube_stock(), SnapshotInterval::default());
     let toolpath = cutting_toolpath(
