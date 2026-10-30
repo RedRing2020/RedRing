@@ -3,7 +3,6 @@
 use super::AppState;
 use crate::stage_factory;
 use stage::{MeshStage, RenderStage};
-use viewmodel::cutting_animation::CuttingAnimation;
 
 impl AppState {
     fn set_stage_and_update_camera(&mut self, stage: Box<dyn RenderStage>) {
@@ -63,7 +62,6 @@ impl AppState {
             self.graphic.config.height,
         );
         self.graphic.render(&mut self.renderer);
-        self.drawn_animation_frame = self.cutting_animation.as_ref().map(CuttingAnimation::frame);
     }
 
     pub fn set_stage_draft(&mut self) {
