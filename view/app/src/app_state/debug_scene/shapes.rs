@@ -4,47 +4,12 @@ use super::super::AppState;
 use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
 use render::vertex_3d::MeshVertex;
 use stage::MeshStage;
-use std::path::Path;
 use viewmodel::feature_command_converter::{
     create_debug_arc_vertices, create_debug_circle_vertices, create_debug_line_vertices,
     create_debug_triangle_vertices,
 };
 
-use crate::app_asset_loader::AppAssetLoaderFacade;
-
 impl AppState {
-    fn load_svg_vertices_for_debug(&self, svg_path: &Path) -> Option<Vec<MeshVertex>> {
-        match AppAssetLoaderFacade::load_svg(svg_path, None) {
-            Ok(vertices) => {
-                tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
-                Some(vertices)
-            }
-            Err(error) => {
-                tracing::error!(
-                    error_kind = logging_foundation::ERROR_KIND_APP,
-                    "svg load failed: {}",
-                    error
-                );
-                None
-            }
-        }
-    }
-
-    fn apply_line_stage(&mut self, vertices: Vec<MeshVertex>, reset_camera: bool) {
-        if reset_camera {
-            self.camera.reset_to_standard_cad_view();
-        }
-
-        let mut mesh_stage = Box::new(MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        mesh_stage.set_line_data(&self.graphic.device, vertices);
-
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
-    }
-
     fn apply_mesh_stage(
         &mut self,
         vertices: Vec<MeshVertex>,
@@ -106,19 +71,6 @@ impl AppState {
 
         self.camera.reset_to_standard_cad_view();
         self.rebuild_stage_from_entities();
-    }
-
-    /// デバッグ用：クリップ空間座標の単純な正方形（SVGから読み込み）
-    /// 直接MeshStage経路で扱う。
-    pub fn load_debug_clip_square(&mut self) {
-        tracing::warn!("DEBUG: クリップ空間正方形を表示（SVGから）");
-
-        let svg_path = Path::new("tests/fixtures/shapes/clip_square.svg");
-        let Some(vertices) = self.load_svg_vertices_for_debug(svg_path) else {
-            return;
-        };
-
-        self.apply_line_stage(vertices, false);
     }
 
     /// デバッグ用：Triangle3Dを表示（SVGから読み込み）

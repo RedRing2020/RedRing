@@ -63,6 +63,11 @@ impl AppRenderer {
         self.settings_panel_renderer.is_using_pointer()
     }
 
+    /// 設定パネルの入力欄を編集中（打った文字は入力欄に入る）
+    pub fn is_settings_using_keyboard(&self) -> bool {
+        self.settings_panel_renderer.is_using_keyboard()
+    }
+
     pub fn handle_settings_mouse_motion(&mut self, delta: (f64, f64)) {
         self.settings_panel_renderer.handle_mouse_motion(delta);
     }

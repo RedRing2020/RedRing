@@ -40,6 +40,11 @@ impl AppState {
             return;
         }
 
+        // 設定パネルの入力欄の編集中は、打った文字をキー操作にしない
+        if self.is_settings_panel_open() && self.renderer.is_settings_using_keyboard() {
+            return;
+        }
+
         if let Some(tool) =
             resolve_cutting_tool_trigger(key, physical_key, self.mouse_input.is_shift_pressed())
         {
@@ -103,7 +108,6 @@ impl AppState {
                         "【取込】 Shift+L: 最も新しい切削シミュレーションを取り込んで再生"
                     );
                     tracing::info!("【設定】 Shift+S: 設定パネル表示切替");
-                    tracing::info!("【開始】 p: ToolPath のみ表示（シミュレーションなし）");
                     tracing::info!("【移動】 k: コマ送りの移動量だけ先のフレームへ（移動量は設定パネルの表示タブ）");
                     tracing::info!("【移動】 j: コマ送りの移動量だけ前のフレームへ");
                     tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
@@ -115,20 +119,9 @@ impl AppState {
                     tracing::info!("【表示】 w: ワイヤー表示 / ソリッド表示を切り替え");
                     tracing::info!("【表示】 v: ツールパスの線の表示 / 非表示を切り替え");
                     tracing::info!("【表示】 Shift+V: 工具の線の表示 / 非表示を切り替え");
-                    tracing::info!("=== デバッグ形状表示 ===");
-                    tracing::info!("s: クリップ空間正方形（単位行列テスト）");
-                    tracing::info!("l: LineSegment3D表示");
-                    tracing::info!("c: Circle3D表示");
-                    tracing::info!("T: Triangle3D表示 (Shift+T)");
-                    tracing::info!("a: Arc3D表示");
-                    tracing::info!("n: NurbsCurve3D表示（GPU評価）");
-                    tracing::info!("m: NurbsSurface3D表示（GPU評価）");
-                    tracing::info!("i: 逆オフセット包絡面表示（サンプルNURBS曲面）");
-                    tracing::info!("I: 逆オフセット包絡面の工具切替（ボール/フラット） (Shift+I)");
-                    tracing::info!("g: 逆オフセット包絡面の表示切替（包絡面/一定ピッチ格子線）");
-                    tracing::info!("o: Octree再分割表示/深さ送り（同一最終形状の粗→細）");
-                    tracing::info!("Shift+O: Octree深さアニメーション再生（粗→細）");
                     tracing::info!("=== その他 ===");
+                    tracing::info!("デバッグ用の表示: 設定パネル（Shift+S）のデバッグタブ");
+                    tracing::info!("Esc: 終了");
                     tracing::info!(
                         "マウス操作: Ctrl+左ドラッグ=回転, Ctrl+中ドラッグ=パン, Ctrl+右ドラッグ=ズーム"
                     );
@@ -141,70 +134,6 @@ impl AppState {
                 }
                 "V" => {
                     self.toggle_tool_lines();
-                }
-                "q" => {
-                    self.load_debug_clip_square();
-                }
-                "l" => {
-                    self.load_debug_line();
-                }
-                "c" => {
-                    self.load_debug_circle();
-                }
-                "a" => {
-                    self.load_debug_arc();
-                }
-                "n" => {
-                    self.load_debug_nurbs();
-                }
-                "m" => {
-                    self.load_debug_nurbs_surface();
-                }
-                "i" => {
-                    self.load_debug_inverse_offset();
-                }
-                "I" => {
-                    self.toggle_debug_inverse_offset_tool();
-                }
-                "g" => {
-                    self.toggle_debug_inverse_offset_mode();
-                }
-                "o" => {
-                    let mut handled = false;
-                    {
-                        let stage = self.renderer.get_stage_mut();
-                        if let Some((current_depth, max_depth)) =
-                            stage.cycle_octree_depth(&self.graphic.device)
-                        {
-                            tracing::info!("Octree深さ表示: {}/{}", current_depth, max_depth);
-                            handled = true;
-                        }
-                    }
-
-                    if !handled {
-                        self.load_debug_octree();
-                    }
-                }
-                "O" => {
-                    let mut handled = false;
-                    {
-                        let stage = self.renderer.get_stage_mut();
-                        if stage.start_octree_depth_animation() {
-                            tracing::info!("Octree深さアニメーション再生開始");
-                            handled = true;
-                        }
-                    }
-
-                    if !handled {
-                        self.load_debug_octree();
-                        let stage = self.renderer.get_stage_mut();
-                        if stage.start_octree_depth_animation() {
-                            tracing::info!("Octree深さアニメーション再生開始");
-                        }
-                    }
-                }
-                "p" => {
-                    self.load_sample_toolpath_only();
                 }
                 "S" => {
                     self.toggle_settings_panel();
@@ -223,9 +152,6 @@ impl AppState {
                 }
                 "-" | "_" => {
                     self.scale_snapshot_playback_speed(0.5);
-                }
-                "T" => {
-                    self.load_debug_triangle();
                 }
                 _ => {}
             }

@@ -249,26 +249,22 @@ This runs:
 | `t` | Return to standard CAD view |
 | `w` | Toggle display mode (Wire/Solid in CAM view) |
 
-#### CAM Debug Workflow
+#### Cutting Simulation
 
 | Key | Action |
 | --- | ------ |
-| `p` | Show cutter path only (color-coded lines) |
-| `Shift+B` | Show ball end mill CAM simulation visualization |
-| `Shift+F` | Show flat end mill CAM simulation visualization |
-| `k` | Next snapshot frame |
-| `j` | Previous snapshot frame |
+| `Shift+B` / `Shift+F` | Submit a cutting simulation for the displayed product shape (ball / flat end mill) |
+| `Shift+R` | Run the queued jobs |
+| `Shift+L` | Import the latest cutting simulation |
+| `k` / `j` | Step forward / backward by the frame step distance |
 | `Space` | Toggle autoplay / pause |
 | `Shift+J` | Stop autoplay and return to the first frame |
 | `+` / `-` | Adjust playback speed (current multiplier is shown in the title) |
+| `v` / `Shift+V` | Toggle toolpath lines / tool lines |
 | `Shift+S` | Toggle settings panel |
+| `Esc` | Quit |
 
-#### Octree Inspection
-
-| Key | Action |
-| --- | ------ |
-| `o` | Show Octree / advance depth |
-| `Shift+O` | Play Octree depth animation |
+Debug views (shapes, NURBS, inverse offset envelope, Octree, toolpath only) are in the Debug tab of the settings panel. See `manual/cutting_simulation_demo.md` for the full key list.
 
 #### Mouse Controls
 

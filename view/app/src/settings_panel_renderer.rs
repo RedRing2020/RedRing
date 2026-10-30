@@ -52,6 +52,11 @@ impl SettingsPanelRenderer {
         self.egui_context.egui_is_using_pointer()
     }
 
+    /// eguiが現在キーボード入力を受け取っている（入力欄の編集中）
+    pub(crate) fn is_using_keyboard(&self) -> bool {
+        self.egui_context.egui_wants_keyboard_input()
+    }
+
     pub(crate) fn handle_mouse_motion(&mut self, delta: (f64, f64)) {
         self.egui_state.on_mouse_motion(delta);
     }

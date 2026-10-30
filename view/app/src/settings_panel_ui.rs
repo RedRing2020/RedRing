@@ -18,7 +18,78 @@ pub enum SettingsPanelTab {
     #[default]
     Display,
     Tool,
+    Debug,
 }
+
+/// 設定パネルのデバッグタブから表示する、デバッグ用の表示
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DebugSceneAction {
+    Line,
+    Circle,
+    Arc,
+    Triangle,
+    NurbsCurve,
+    NurbsSurface,
+    InverseOffset,
+    InverseOffsetTool,
+    InverseOffsetMode,
+    /// Octree を表示する（表示中は深さを 1 段送る）
+    Octree,
+    OctreeDepthAnimation,
+    ToolPathOnly,
+}
+
+/// デバッグタブのボタンの並び（見出しの文言のキーと、ボタンの文言のキー・表示）
+const DEBUG_SCENE_GROUPS: &[(&str, &[(&str, DebugSceneAction)])] = &[
+    (
+        "settings.debug.header.shapes",
+        &[
+            ("settings.debug.line", DebugSceneAction::Line),
+            ("settings.debug.circle", DebugSceneAction::Circle),
+            ("settings.debug.arc", DebugSceneAction::Arc),
+            ("settings.debug.triangle", DebugSceneAction::Triangle),
+            ("settings.debug.nurbs_curve", DebugSceneAction::NurbsCurve),
+            (
+                "settings.debug.nurbs_surface",
+                DebugSceneAction::NurbsSurface,
+            ),
+        ],
+    ),
+    (
+        "settings.debug.header.inverse_offset",
+        &[
+            (
+                "settings.debug.inverse_offset",
+                DebugSceneAction::InverseOffset,
+            ),
+            (
+                "settings.debug.inverse_offset_tool",
+                DebugSceneAction::InverseOffsetTool,
+            ),
+            (
+                "settings.debug.inverse_offset_mode",
+                DebugSceneAction::InverseOffsetMode,
+            ),
+        ],
+    ),
+    (
+        "settings.debug.header.octree",
+        &[
+            ("settings.debug.octree", DebugSceneAction::Octree),
+            (
+                "settings.debug.octree_animation",
+                DebugSceneAction::OctreeDepthAnimation,
+            ),
+        ],
+    ),
+    (
+        "settings.debug.header.toolpath",
+        &[(
+            "settings.debug.toolpath_only",
+            DebugSceneAction::ToolPathOnly,
+        )],
+    ),
+];
 
 #[derive(Debug, Clone)]
 pub struct SettingsPanelUiState {
@@ -42,6 +113,8 @@ pub struct SettingsPanelUiState {
     pub initial_frame_step_distance_mm: Option<f64>,
     pub current_animation_label: Option<String>,
     pub redraw_animation_requested: bool,
+    /// デバッグタブで押されたデバッグ用の表示
+    pub debug_scene_requested: Option<DebugSceneAction>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,6 +188,7 @@ impl SettingsPanelUiState {
             .show(ctx, |ui| {
                 let display_tab_label = self.text("settings.tab.display");
                 let tool_tab_label = self.text("settings.tab.tool");
+                let debug_tab_label = self.text("settings.tab.debug");
 
                 ui.label(self.text("settings.intro"));
                 ui.separator();
@@ -130,12 +204,18 @@ impl SettingsPanelUiState {
                         SettingsPanelTab::Tool,
                         tool_tab_label,
                     );
+                    ui.selectable_value(
+                        &mut self.active_tab,
+                        SettingsPanelTab::Debug,
+                        debug_tab_label,
+                    );
                 });
                 ui.separator();
 
                 match self.active_tab {
                     SettingsPanelTab::Display => self.show_display_tab(ui),
                     SettingsPanelTab::Tool => self.show_tool_tab(ui),
+                    SettingsPanelTab::Debug => self.show_debug_tab(ui),
                 }
 
                 ui.separator();
@@ -537,6 +617,23 @@ impl SettingsPanelUiState {
 
         self.show_cutting_tool(ui);
         self.show_stock_margins(ui);
+    }
+
+    fn show_debug_tab(&mut self, ui: &mut egui::Ui) {
+        ui.label(self.text("settings.debug.intro"));
+        for &(header, buttons) in DEBUG_SCENE_GROUPS {
+            CollapsingHeader::new(self.text(header))
+                .default_open(true)
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        for &(label, action) in buttons {
+                            if ui.button(self.text(label)).clicked() {
+                                self.debug_scene_requested = Some(action);
+                            }
+                        }
+                    });
+                });
+        }
     }
 
     fn show_cutting_tool(&mut self, ui: &mut egui::Ui) {

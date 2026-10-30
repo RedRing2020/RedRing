@@ -51,6 +51,7 @@ impl AppState {
                 .cutting_animation_job_id
                 .map(|job_id| job_id.to_string()),
             redraw_animation_requested: false,
+            debug_scene_requested: None,
         }
     }
 
@@ -69,6 +70,9 @@ impl AppState {
 
         if panel_state.redraw_animation_requested {
             self.redraw_cutting_animation();
+        }
+        if let Some(action) = panel_state.debug_scene_requested {
+            self.show_debug_scene(action);
         }
     }
 }
