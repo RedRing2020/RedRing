@@ -36,6 +36,8 @@ pub struct SettingsPanelUiState {
     pub tool_length: Option<f64>,
     /// 工具長を指定するときの入力値（指定しない間も保つ）
     pub tool_length_input: f64,
+    /// コマ送り（k キー・j キー）で経路に沿って移る距離（mm）
+    pub frame_step_distance_mm: f64,
     pub current_animation_label: Option<String>,
     pub redraw_animation_requested: bool,
 }
@@ -155,6 +157,22 @@ impl SettingsPanelUiState {
     }
 
     fn show_display_tab(&mut self, ui: &mut egui::Ui) {
+        let frame_step_label = self.text("settings.frame_step.distance");
+        CollapsingHeader::new(self.text("settings.header.frame_step"))
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.label(self.text("settings.frame_step.reset_on_import"));
+                ui.horizontal(|ui| {
+                    ui.add(
+                        DragValue::new(&mut self.frame_step_distance_mm)
+                            .range(0.0..=f64::MAX)
+                            .speed(1.0)
+                            .suffix(" mm"),
+                    );
+                    ui.label(frame_step_label);
+                });
+            });
+
         CollapsingHeader::new(self.text("settings.header.view_controls"))
             .default_open(true)
             .show(ui, |ui| {

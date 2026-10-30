@@ -45,6 +45,7 @@ impl AppState {
             stock_margins: self.cutting_simulation.stock_margins(),
             tool_length: self.cutting_simulation.tool_length(),
             tool_length_input: self.tool_length_input,
+            frame_step_distance_mm: self.debug_snapshot.frame_step_distance_mm,
             current_animation_label: self
                 .cutting_animation_job_id
                 .map(|job_id| job_id.to_string()),
@@ -63,6 +64,7 @@ impl AppState {
         self.cutting_simulation
             .set_tool_length(panel_state.tool_length);
         self.tool_length_input = panel_state.tool_length_input;
+        self.debug_snapshot.frame_step_distance_mm = panel_state.frame_step_distance_mm;
 
         if panel_state.redraw_animation_requested {
             self.redraw_cutting_animation();

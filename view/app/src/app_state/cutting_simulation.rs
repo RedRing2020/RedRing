@@ -10,6 +10,9 @@ use viewmodel::cutting_animation::{CuttingAnimation, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingToolKind;
 use viewmodel::octree_converter::WireframeVertex;
 
+/// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
+const FRAME_STEP_DIVISIONS: f64 = 100.0;
+
 /// 重ねて描くメッシュのうち、素材のブロックのキーの範囲（製品形状のキーは 0 から）
 const STOCK_BLOCK_KEYS: RangeInclusive<u64> = (1 << 63)..=u64::MAX;
 
@@ -64,7 +67,14 @@ impl AppState {
         started: std::time::Instant,
     ) {
         self.debug_snapshot.clear();
-        self.debug_snapshot.series = Some(animation.snapshot_series("cam_sim"));
+        let series = animation.snapshot_series("cam_sim");
+        // コマ送りの移動量の初期値は、1 回の送りが進捗バーの約 1% になる、ツールパスの全長の 1/100
+        self.debug_snapshot.frame_step_distance_mm = series
+            .frames
+            .last()
+            .map_or(0.0, |frame| frame.payload.accumulated_distance_mm)
+            / FRAME_STEP_DIVISIONS;
+        self.debug_snapshot.series = Some(series);
         self.rebuild_snapshot_weighted_progress_axis_cache();
 
         let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation);

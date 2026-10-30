@@ -107,8 +107,8 @@ impl AppState {
                     );
                     tracing::info!("【設定】 Shift+S: 設定パネル表示切替");
                     tracing::info!("【開始】 p: ToolPath のみ表示（シミュレーションなし）");
-                    tracing::info!("【移動】 k: 次のスナップショットフレームへ");
-                    tracing::info!("【移動】 j: 前のスナップショットフレームへ");
+                    tracing::info!("【移動】 k: コマ送りの移動量だけ先のフレームへ（移動量は設定パネルの表示タブ）");
+                    tracing::info!("【移動】 j: コマ送りの移動量だけ前のフレームへ");
                     tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
                     tracing::info!("【再生】 Space: 自動再生/一時停止");
                     tracing::info!("【再生】 Shift+J: 自動再生停止（先頭へ）");

@@ -56,6 +56,38 @@ fn select_frame_index_by_distance_target(distances: &[f64], target_distance: f64
     index
 }
 
+/// コマ送りで移る先のコマ（今のコマ `cursor` から経路に沿って `step_mm` 以上離れた最初のコマ。最低 1 コマ移る）
+///
+/// `distances` はコマごとの累積距離（昇順）。進む場合に最後のコマからは最初のコマへ、戻る場合に最初のコマからは
+/// 最後のコマへ移る。`step_mm` 以上離れたコマがなければ、最後のコマ・最初のコマへ移る。
+fn frame_stepped_by_distance(
+    distances: &[f64],
+    cursor: usize,
+    step_mm: f64,
+    forward: bool,
+) -> usize {
+    let last = distances.len().saturating_sub(1);
+    let current = distances[cursor.min(last)];
+    if forward {
+        if cursor >= last {
+            return 0;
+        }
+        let target = current + step_mm;
+        distances
+            .partition_point(|&distance| distance < target)
+            .clamp(cursor + 1, last)
+    } else {
+        if cursor == 0 {
+            return last;
+        }
+        let target = current - step_mm;
+        distances
+            .partition_point(|&distance| distance <= target)
+            .saturating_sub(1)
+            .min(cursor - 1)
+    }
+}
+
 fn build_segment_weighted_progress_axis(
     frames: &[viewmodel::snapshot_converter::DomainSnapshotFrame<
         viewmodel::snapshot_converter::CamSimulationSnapshotInput,
@@ -147,6 +179,23 @@ impl AppState {
         self.debug_snapshot.weighted_progress_axis = Some(axis);
     }
 
+    /// コマ送りの移動量だけ進む・戻る先のコマ
+    fn frame_stepped(&self, forward: bool) -> usize {
+        let distances: Vec<f64> = self
+            .debug_snapshot
+            .series
+            .iter()
+            .flat_map(|series| &series.frames)
+            .map(|frame| frame.payload.accumulated_distance_mm)
+            .collect();
+        frame_stepped_by_distance(
+            &distances,
+            self.debug_snapshot.cursor,
+            self.debug_snapshot.frame_step_distance_mm,
+            forward,
+        )
+    }
+
     /// デバッグ用: 次フレームへ進めて内容をログ表示
     pub fn cycle_debug_simulation_snapshot(&mut self) {
         if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::KeyK) {
@@ -164,7 +213,7 @@ impl AppState {
 
         self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Manual;
         self.debug_snapshot.last_playback_tick = None;
-        self.debug_snapshot.cursor = (self.debug_snapshot.cursor + 1) % series.frames.len();
+        self.debug_snapshot.cursor = self.frame_stepped(true);
         self.sync_playback_progress_from_cursor();
         self.log_current_snapshot_frame(true);
     }
@@ -186,11 +235,7 @@ impl AppState {
 
         self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Manual;
         self.debug_snapshot.last_playback_tick = None;
-        self.debug_snapshot.cursor = if self.debug_snapshot.cursor == 0 {
-            series.frames.len() - 1
-        } else {
-            self.debug_snapshot.cursor - 1
-        };
+        self.debug_snapshot.cursor = self.frame_stepped(false);
         self.sync_playback_progress_from_cursor();
         self.log_current_snapshot_frame(true);
     }
@@ -496,5 +541,36 @@ impl AppState {
         if let Some(progress) = self.snapshot_weighted_progress_from_cursor() {
             self.debug_snapshot.playback_progress = progress;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::frame_stepped_by_distance;
+
+    const DISTANCES: [f64; 6] = [0.0, 0.3, 0.6, 1.0, 1.0, 2.5];
+
+    #[test]
+    fn frame_step_moves_to_the_first_frame_at_least_the_distance_away() {
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 0, 0.5, true), 2);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 0, 0.6, true), 2);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 5, 1.5, false), 4);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 5, 2.0, false), 1);
+    }
+
+    #[test]
+    fn frame_step_moves_at_least_one_frame() {
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 1, 0.0, true), 2);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 3, 0.0, true), 4);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 3, 0.1, true), 5);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 4, 0.0, false), 3);
+    }
+
+    #[test]
+    fn frame_step_stops_at_the_ends_and_wraps_from_them() {
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 3, 10.0, true), 5);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 5, 0.5, true), 0);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 2, 10.0, false), 0);
+        assert_eq!(frame_stepped_by_distance(&DISTANCES, 0, 0.5, false), 5);
     }
 }
