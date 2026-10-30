@@ -102,6 +102,8 @@ pub enum CamSimulationWorkflowError {
     EmptyProductShape,
     /// 素材の余裕が負または有限でない
     InvalidStockMargins(StockMargins),
+    /// 素材の精度が、ツールパス生成のトレランスより細かい（素材は CL より正確である必要がない）
+    PrecisionFinerThanTolerance { precision: f64, tolerance: f64 },
     /// オペレーションの定義を解決できない
     Operation(TemplateFailure),
     /// ジョブの投入・問い合わせの失敗
@@ -125,6 +127,13 @@ impl fmt::Display for CamSimulationWorkflowError {
                     "stock margins must be finite and non-negative: {margins:?}"
                 )
             }
+            Self::PrecisionFinerThanTolerance {
+                precision,
+                tolerance,
+            } => write!(
+                f,
+                "stock precision {precision} must not be finer than the toolpath tolerance {tolerance}"
+            ),
             Self::Operation(error) => write!(f, "operation cannot be resolved: {error}"),
             Self::Orchestration(error) => write!(f, "job orchestration failed: {error}"),
         }
@@ -173,11 +182,18 @@ impl CamSimulationWorkflow {
     ///
     /// # Errors
     ///
-    /// 入力の登録の失敗、ジョブの投入の失敗。
+    /// 素材の精度がツールパス生成のトレランスより細かい場合、入力の登録の失敗、ジョブの投入の失敗。
     pub fn submit(
         &mut self,
         request: CamSimulationWorkflowRequest,
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
+        let tolerance = request.solver_input.chord_tolerance;
+        if request.precision < tolerance {
+            return Err(CamSimulationWorkflowError::PrecisionFinerThanTolerance {
+                precision: request.precision,
+                tolerance,
+            });
+        }
         self.next_run += 1;
         let cam_input_ref = format!("input://cam/run-{}", self.next_run);
         let simulation_input_ref = format!("input://sim/run-{}", self.next_run);
@@ -224,7 +240,7 @@ impl CamSimulationWorkflow {
     /// # Errors
     ///
     /// 面を形状にできない場合、形状が空の場合、素材の余裕が負または有限でない場合、オペレーションの定義を解決できない場合、
-    /// 入力の登録・投入の失敗。
+    /// 素材の精度がツールパス生成のトレランスより細かい場合、入力の登録・投入の失敗。
     pub fn submit_product_shapes(
         &mut self,
         shapes: &ProductShapeStore,
@@ -426,7 +442,15 @@ mod tests {
         let mut invalid = request(0.01);
         invalid.solver_input.operation_id = String::new();
         let failed_toolpath = workflow.submit(invalid).unwrap();
-        let rejected = workflow.submit(request(0.0)).unwrap();
+        let rejected = workflow
+            .submit(CamSimulationWorkflowRequest {
+                snapshot_interval: SnapshotInterval::ByDistance {
+                    interval_mm: f64::NAN,
+                    include_segment_endpoints: true,
+                },
+                ..request(0.01)
+            })
+            .unwrap();
         workflow.run_queued_jobs().unwrap();
 
         assert!(workflow.succeeded_simulations().is_empty());
@@ -445,6 +469,19 @@ mod tests {
                 rejected.toolpath_job_id
             ))
         );
+    }
+
+    #[test]
+    fn precision_finer_than_the_toolpath_tolerance_is_not_submitted() {
+        let mut workflow = CamSimulationWorkflow::new();
+        assert_eq!(
+            workflow.submit(request(0.005)),
+            Err(CamSimulationWorkflowError::PrecisionFinerThanTolerance {
+                precision: 0.005,
+                tolerance: 0.01,
+            })
+        );
+        assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
     }
 
     fn product_shape_request(face_ids: Vec<geo_entity::FaceId>) -> ProductShapeSimulationRequest {

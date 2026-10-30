@@ -4,11 +4,11 @@ use geo_algorithms::{
 
 use cam_core::{Tool, ToolPath};
 
-use crate::constants::{SNAPSHOT_GRID_SPACING_MULTIPLE, TRI_DEXEL_DISPLAY_LINES};
+use crate::constants::SNAPSHOT_GRID_SPACING_MULTIPLE;
 use crate::error::SimulationError;
 use crate::simulation_artifact::CuttingSimulationArtifact;
 use crate::stock_model::StockModel;
-use crate::tri_dexel::TriDexelModel;
+use crate::tri_dexel::{TriDexelModel, dexel_spacing};
 
 mod config;
 mod engine;
@@ -139,8 +139,8 @@ impl CuttingSimulator {
 
     /// ToolPathをシミュレーションする。
     ///
-    /// 円弧は既定の弦の許容誤差で直線の区間の列にする。表示用のトリデクセルは、素材の最大の辺を
-    /// `TRI_DEXEL_DISPLAY_LINES` 本の格子線に分ける。
+    /// 円弧は既定の弦の許容誤差で直線の区間の列にする。トリデクセルの格子の間隔は、素材の精度 `precision` と
+    /// 工具の半径から決める（`dexel_spacing`）。
     ///
     /// # Errors
     ///
@@ -149,6 +149,7 @@ impl CuttingSimulator {
         &mut self,
         toolpath: &ToolPath<f64>,
         tool: &Tool<f64>,
+        precision: f64,
     ) -> Result<(), SimulationError> {
         let segments =
             collect_toolpath_line_segments(toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM);
@@ -156,12 +157,7 @@ impl CuttingSimulator {
             return Err(SimulationError::EmptyToolpath);
         }
         let model = StockModel::from_segments(self.stock, &segments, tool)?;
-        let max_extent = self
-            .stock
-            .width()
-            .max(self.stock.height())
-            .max(self.stock.depth());
-        let spacing = max_extent / TRI_DEXEL_DISPLAY_LINES as f64;
+        let spacing = dexel_spacing(tool.radius(), precision);
         let config = self.calculate_snapshot_config(
             segments
                 .iter()

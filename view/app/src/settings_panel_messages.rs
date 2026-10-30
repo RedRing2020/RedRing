@@ -90,7 +90,11 @@ const SETTINGS_PANEL_TEMPLATE_JA: &[(&str, &str)] = &[
     ("settings.toolpath.display_only", "表示ワイヤーフレーム専用"),
     ("settings.header.cutting_tool", "切削シミュレーションの工具"),
     ("settings.cutting_tool.specify_length", "工具長を指定する（指定しない場合は長さの制限なし）"),
-    ("settings.header.stock", "素材（製品形状を囲む箱からの余裕）"),
+    ("settings.header.stock", "素材（精度と、製品形状を囲む箱からの余裕）"),
+    (
+        "settings.stock.precision",
+        "精度（格子の間隔を決める。細かいほど時間とメモリが増える）",
+    ),
     (
         "settings.stock.next_submission",
         "次の投入（Shift+B / Shift+F）から使います",
@@ -206,7 +210,14 @@ const SETTINGS_PANEL_TEMPLATE_EN: &[(&str, &str)] = &[
         "settings.cutting_tool.specify_length",
         "Specify the tool length (unlimited if not specified)",
     ),
-    ("settings.header.stock", "Stock (margins around the product bounds)"),
+    (
+        "settings.header.stock",
+        "Stock (precision and margins around the product bounds)",
+    ),
+    (
+        "settings.stock.precision",
+        "precision (sets the grid spacing; finer costs more time and memory)",
+    ),
     (
         "settings.stock.next_submission",
         "Used from the next submission (Shift+B / Shift+F)",

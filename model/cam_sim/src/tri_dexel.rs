@@ -16,6 +16,28 @@ use crate::simulation_artifact::{DexelChanges, DexelGridLayout};
 use crate::stock_model::StockModel;
 use ray_interval::{AxisLine, ToolInterval, swept_primitive_intervals};
 
+/// 精度 `precision` の素材を、半径 `tool_radius` の工具で削るときの格子の間隔
+///
+/// 線の間の面のずれはおよそ「間隔² ÷ (8 × 面の曲率半径)」で、曲率半径を工具の半径として、ずれが精度以下になる
+/// 間隔 √(8 × 工具の半径 × 精度) とする。
+pub(crate) fn dexel_spacing(tool_radius: f64, precision: f64) -> f64 {
+    (8.0 * tool_radius * precision).sqrt()
+}
+
+/// 素材 `stock` を間隔 `spacing` 以下にする、3 方向の格子の線の本数の合計
+pub(crate) fn dexel_line_count(stock: &Aabb3D<f64>, spacing: f64) -> usize {
+    let extents = [stock.width(), stock.height(), stock.depth()];
+    let [x, y, z] = extents.map(|extent| lines_along(extent, spacing));
+    y.saturating_mul(z)
+        .saturating_add(x.saturating_mul(z))
+        .saturating_add(x.saturating_mul(y))
+}
+
+/// 長さ `extent` を間隔 `spacing` 以下に分ける最小の線の本数
+fn lines_along(extent: f64, spacing: f64) -> usize {
+    ((extent / spacing).ceil() as usize).max(1)
+}
+
 /// 1 本のデクセルの区間の、格子の区間の配列の中の位置
 #[derive(Debug, Clone, Copy)]
 struct Slot {
@@ -67,7 +89,7 @@ impl DexelGrid {
         for (index, &plane_axis) in plane_axes.iter().enumerate() {
             let extent = max[plane_axis] - min[plane_axis];
             // 間隔が `spacing` 以下になる最小の本数で、各セルの中心に線を置く
-            let lines = ((extent / spacing).ceil() as usize).max(1);
+            let lines = lines_along(extent, spacing);
             pitch[index] = extent / lines as f64;
             origin[index] = min[plane_axis] + 0.5 * pitch[index];
             count[index] = lines;
@@ -217,7 +239,7 @@ impl DexelGrid {
             self.changed[index] = false;
             changes.push(
                 grid,
-                u32::try_from(index).expect("dexel count is bounded by the display resolution"),
+                u32::try_from(index).expect("dexel count is bounded by the line limit"),
                 self.current(index),
                 self.current_normals(index),
             );
@@ -322,7 +344,7 @@ impl TriDexelModel {
             origin: grid.origin,
             pitch: grid.pitch,
             count: grid.count.map(|count| {
-                u32::try_from(count).expect("dexel line count is bounded by the display resolution")
+                u32::try_from(count).expect("dexel line count is bounded by the line limit")
             }),
             initial: grid.initial,
         })

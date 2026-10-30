@@ -78,6 +78,9 @@ fn cutting_toolpath(tool_id: &str, points: &[Point3D<f64>]) -> ToolPath<f64> {
     )
 }
 
+/// 素材の精度（半径 5 の工具で格子の間隔が約 0.28 になる）
+const PRECISION: f64 = 0.002;
+
 fn unit_cube_stock() -> Aabb3D<f64> {
     Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
@@ -114,6 +117,7 @@ fn test_simulate_records_remaining_volume_before_and_after_cutting() {
         .simulate(
             &toolpath,
             &Tool::flat_end_mill("EM10".to_string(), 10.0, 30.0),
+            PRECISION,
         )
         .unwrap();
 
@@ -148,6 +152,7 @@ fn test_auto_distance_interval_generates_snapshots() {
         .simulate(
             &toolpath,
             &Tool::flat_end_mill("EM4".to_string(), 4.0, 30.0),
+            PRECISION,
         )
         .unwrap();
     assert!(!simulator.snapshots().is_empty());
@@ -177,7 +182,7 @@ fn test_simulate_toolpath_flat_end_mill() {
     let toolpath = roundtrip_toolpath_via_artifact(&source_toolpath);
 
     let tool = Tool::flat_end_mill("flat-tool".to_string(), 10.0, 30.0);
-    let result = simulator.simulate(&toolpath, &tool);
+    let result = simulator.simulate(&toolpath, &tool, PRECISION);
 
     assert!(result.is_ok());
     assert!(!simulator.snapshots().is_empty());
@@ -207,7 +212,7 @@ fn test_simulate_toolpath_ball_end_mill() {
     let toolpath = roundtrip_toolpath_via_artifact(&source_toolpath);
 
     let tool = Tool::ball_end_mill("ball-tool".to_string(), 10.0, 30.0);
-    let result = simulator.simulate(&toolpath, &tool);
+    let result = simulator.simulate(&toolpath, &tool, PRECISION);
 
     assert!(result.is_ok());
     assert!(!simulator.snapshots().is_empty());
@@ -237,7 +242,7 @@ fn test_simulate_toolpath_radius_end_mill_is_rejected() {
     let toolpath = roundtrip_toolpath_via_artifact(&source_toolpath);
 
     let tool = Tool::radius_end_mill("radius-tool".to_string(), 10.0, 1.0, 30.0);
-    let result = simulator.simulate(&toolpath, &tool);
+    let result = simulator.simulate(&toolpath, &tool, PRECISION);
 
     assert_eq!(result, Err(SimulationError::UnsupportedToolType));
 }
@@ -267,8 +272,12 @@ fn test_include_segment_endpoints_changes_snapshot_count() {
             include_segment_endpoints: false,
         },
     );
-    with_endpoints.simulate(&toolpath, &tool).unwrap();
-    without_endpoints.simulate(&toolpath, &tool).unwrap();
+    with_endpoints
+        .simulate(&toolpath, &tool, PRECISION)
+        .unwrap();
+    without_endpoints
+        .simulate(&toolpath, &tool, PRECISION)
+        .unwrap();
 
     assert!(with_endpoints.snapshots().len() > without_endpoints.snapshots().len());
 }
@@ -283,19 +292,11 @@ fn test_default_interval_is_the_shorter_of_the_tool_radius_and_the_grid_spacing_
         ],
     );
     let tool = Tool::flat_end_mill("EM10".to_string(), 10.0, 30.0);
-    // 格子の間隔は 100 / 512 で、その 4 倍（0.78125）は工具の半径 5 より短い。小さい素材では半径になる
-    for (stock, expected) in [
-        (unit_cube_stock(), 4.0 * 100.0 / 512.0),
-        (
-            Aabb3D::new(
-                Point3D::new(0.0, 0.0, 0.0),
-                Point3D::new(1000.0, 100.0, 100.0),
-            ),
-            5.0,
-        ),
-    ] {
-        let mut simulator = CuttingSimulator::new(stock, SnapshotInterval::default());
-        simulator.simulate(&toolpath, &tool).unwrap();
+    // 精度 0.01 の格子の間隔は √(8 × 5 × 0.01) で、その 4 倍（約 2.53）は工具の半径 5 より短い。粗い精度 0.2 では
+    // 間隔の 4 倍が 16 になり、半径になる
+    for (precision, expected) in [(0.01, 4.0 * 0.4_f64.sqrt()), (0.2, 5.0)] {
+        let mut simulator = CuttingSimulator::new(unit_cube_stock(), SnapshotInterval::default());
+        simulator.simulate(&toolpath, &tool, precision).unwrap();
         let distances: Vec<f64> = simulator
             .snapshots()
             .iter()
@@ -348,7 +349,7 @@ fn test_snapshots_are_placed_around_switches_and_breaks_of_the_path_and_at_the_e
                 include_segment_endpoints,
             },
         );
-        simulator.simulate(&toolpath, &tool).unwrap();
+        simulator.simulate(&toolpath, &tool, PRECISION).unwrap();
         simulator.snapshots().to_vec()
     };
     let sparse = simulate(false);
@@ -387,6 +388,7 @@ fn test_snapshot_exports_f64_maps_snapshot_fields() {
         .simulate(
             &toolpath,
             &Tool::flat_end_mill("EM4".to_string(), 4.0, 30.0),
+            PRECISION,
         )
         .unwrap();
     let exports = simulator.snapshot_exports_f64();
@@ -1047,6 +1049,7 @@ fn test_flat_vs_ball_end_mill_remaining_volume_differs() {
         .simulate(
             &toolpath_flat,
             &Tool::flat_end_mill("flat".to_string(), 10.0, 30.0),
+            PRECISION,
         )
         .unwrap();
 
@@ -1055,6 +1058,7 @@ fn test_flat_vs_ball_end_mill_remaining_volume_differs() {
         .simulate(
             &toolpath_ball,
             &Tool::ball_end_mill("ball".to_string(), 10.0, 30.0),
+            PRECISION,
         )
         .unwrap();
 
@@ -1118,6 +1122,7 @@ fn test_ball_end_mill_z_offset_removes_material_at_shifted_z() {
         .simulate(
             &toolpath_flat,
             &Tool::flat_end_mill("flat-z".to_string(), 10.0, 30.0),
+            PRECISION,
         )
         .unwrap();
 
@@ -1126,6 +1131,7 @@ fn test_ball_end_mill_z_offset_removes_material_at_shifted_z() {
         .simulate(
             &toolpath_ball,
             &Tool::ball_end_mill("ball-z".to_string(), 10.0, 30.0),
+            PRECISION,
         )
         .unwrap();
 

@@ -102,6 +102,8 @@ pub struct SettingsPanelUiState {
     pub snapshot_shaded_colors: SnapshotShadedColorSettings,
     pub tool_wireframe_settings: ToolWireframeVisualizationSettings,
     pub toolpath_settings: ToolPathVisualizationSettings,
+    /// 素材の精度（mm）
+    pub stock_precision: f64,
     pub stock_margins: StockMargins,
     /// 工具長（`None` は指定しない）
     pub tool_length: Option<f64>,
@@ -667,10 +669,21 @@ impl SettingsPanelUiState {
             "settings.stock.bottom",
         ]
         .map(|key| self.text(key));
+        let precision_label = self.text("settings.stock.precision");
         CollapsingHeader::new(self.text("settings.header.stock"))
             .default_open(true)
             .show(ui, |ui| {
                 ui.label(RichText::new(self.text("settings.stock.next_submission")).strong());
+                ui.horizontal(|ui| {
+                    ui.add(
+                        DragValue::new(&mut self.stock_precision)
+                            .range(0.0..=f64::MAX)
+                            .speed(0.001)
+                            .fixed_decimals(3)
+                            .suffix(" mm"),
+                    );
+                    ui.label(precision_label);
+                });
                 let StockMargins {
                     minus_x,
                     plus_x,

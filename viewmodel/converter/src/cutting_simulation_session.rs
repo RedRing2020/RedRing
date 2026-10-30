@@ -32,7 +32,7 @@ pub struct CuttingSimulationConditions {
     pub scanline: ScanlineParams,
     /// 製品形状を囲む箱から素材の箱の各面までの余裕（mm）
     pub stock_margins: StockMargins,
-    /// 素材の形状の許容誤差（mm）
+    /// 素材の形状の許容誤差（mm。トリデクセルの格子の間隔を決める）
     pub precision: f64,
 }
 
@@ -48,7 +48,7 @@ impl Default for CuttingSimulationConditions {
                 tool_range: ScanlineToolRange::default(),
             },
             stock_margins: StockMargins::default(),
-            precision: 0.01,
+            precision: 0.05,
         }
     }
 }
@@ -144,6 +144,16 @@ impl CuttingSimulationSession {
     /// 次の投入から使う素材の余裕を `margins` にする
     pub fn set_stock_margins(&mut self, margins: StockMargins) {
         self.conditions.stock_margins = margins;
+    }
+
+    /// 次の投入に使う素材の精度（mm）
+    pub fn precision(&self) -> f64 {
+        self.conditions.precision
+    }
+
+    /// 次の投入から使う素材の精度を `precision`（mm）にする
+    pub fn set_precision(&mut self, precision: f64) {
+        self.conditions.precision = precision;
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、工具 `tool` で投入する（実行しない）
