@@ -38,6 +38,8 @@ pub struct SettingsPanelUiState {
     pub tool_length_input: f64,
     /// コマ送り（k キー・j キー）で経路に沿って移る距離（mm）
     pub frame_step_distance_mm: f64,
+    /// コマ送りの移動量の初期値（取り込んでいなければ `None`）
+    pub initial_frame_step_distance_mm: Option<f64>,
     pub current_animation_label: Option<String>,
     pub redraw_animation_requested: bool,
 }
@@ -171,6 +173,15 @@ impl SettingsPanelUiState {
                     );
                     ui.label(frame_step_label);
                 });
+                if let Some(initial) = self.initial_frame_step_distance_mm {
+                    let reset_label = self.text_with_args(
+                        "settings.frame_step.reset",
+                        &[("distance", format!("{initial:.3}"))],
+                    );
+                    if ui.button(reset_label).clicked() {
+                        self.frame_step_distance_mm = initial;
+                    }
+                }
             });
 
         CollapsingHeader::new(self.text("settings.header.view_controls"))

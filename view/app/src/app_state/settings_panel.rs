@@ -46,6 +46,7 @@ impl AppState {
             tool_length: self.cutting_simulation.tool_length(),
             tool_length_input: self.tool_length_input,
             frame_step_distance_mm: self.debug_snapshot.frame_step_distance_mm,
+            initial_frame_step_distance_mm: self.initial_frame_step_distance_mm(),
             current_animation_label: self
                 .cutting_animation_job_id
                 .map(|job_id| job_id.to_string()),

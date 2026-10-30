@@ -67,14 +67,9 @@ impl AppState {
         started: std::time::Instant,
     ) {
         self.debug_snapshot.clear();
-        let series = animation.snapshot_series("cam_sim");
-        // コマ送りの移動量の初期値は、1 回の送りが進捗バーの約 1% になる、ツールパスの全長の 1/100
-        self.debug_snapshot.frame_step_distance_mm = series
-            .frames
-            .last()
-            .map_or(0.0, |frame| frame.payload.accumulated_distance_mm)
-            / FRAME_STEP_DIVISIONS;
-        self.debug_snapshot.series = Some(series);
+        self.debug_snapshot.series = Some(animation.snapshot_series("cam_sim"));
+        self.debug_snapshot.frame_step_distance_mm =
+            self.initial_frame_step_distance_mm().unwrap_or(0.0);
         self.rebuild_snapshot_weighted_progress_axis_cache();
 
         let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation);
@@ -89,6 +84,12 @@ impl AppState {
             "切削シミュレーションを取り込みました（{:.1} 秒。Space で再生、k/j でコマ送り、左上の進捗バーでスクラブ、w でワイヤーフレーム）",
             started.elapsed().as_secs_f64()
         );
+    }
+
+    /// コマ送りの移動量の初期値（1 回の送りが進捗バーの約 1% になる、ツールパスの全長の 1/100。取り込んでいなければ `None`）
+    pub(super) fn initial_frame_step_distance_mm(&self) -> Option<f64> {
+        let last = self.debug_snapshot.series.as_ref()?.frames.last()?;
+        Some(last.payload.accumulated_distance_mm / FRAME_STEP_DIVISIONS)
     }
 
     /// 取り込んだ切削アニメーションの、設定で変わる線（ツールパスの線・工具の線）を今の設定で描き直す
