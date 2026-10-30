@@ -146,16 +146,6 @@ impl CuttingSimulationSession {
         self.conditions.stock_margins = margins;
     }
 
-    /// 次の投入に使う素材の精度（mm）
-    pub fn precision(&self) -> f64 {
-        self.conditions.precision
-    }
-
-    /// 次の投入から使う素材の精度を `precision`（mm）にする
-    pub fn set_precision(&mut self, precision: f64) {
-        self.conditions.precision = precision;
-    }
-
     /// 表示中の製品形状のすべての面を加工の対象として、工具 `tool` で投入する（実行しない）
     ///
     /// # Errors
