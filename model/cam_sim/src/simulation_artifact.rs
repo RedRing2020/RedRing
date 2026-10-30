@@ -160,23 +160,34 @@ pub struct CuttingSimulationArtifact {
 }
 
 impl CuttingSimulationArtifact {
-    /// スナップショット `snapshot` の時点の、各格子のデクセルの区間（初期の状態に変化を順に当てる）
+    /// スナップショット `snapshot` の時点の、各格子のデクセルの区間と区間の端の法線（初期の状態に変化を順に当てる）
     ///
     /// # Panics
     ///
     /// `snapshot` がスナップショットの数以上の場合。
-    pub fn dexel_intervals_at(&self, snapshot: usize) -> [Vec<Vec<(f64, f64)>>; 3] {
+    pub fn dexel_states_at(&self, snapshot: usize) -> DexelGridStates {
         assert!(
             snapshot < self.snapshot_changes.snapshot_count(),
             "snapshot index out of range"
         );
-        let mut grids = self.initial_intervals();
+        let mut states = DexelGridStates {
+            intervals: self
+                .grids
+                .map(|grid| vec![vec![grid.initial]; dexel_count(&grid)]),
+            normals: std::array::from_fn(|axis| {
+                vec![vec![initial_normals(axis)]; dexel_count(&self.grids[axis])]
+            }),
+        };
         for change in self.forward_changes(0..=snapshot) {
-            let dexel = &mut grids[change.grid as usize][change.index as usize];
-            dexel.clear();
-            dexel.extend_from_slice(change.intervals);
+            let (grid, index) = (change.grid as usize, change.index as usize);
+            let intervals = &mut states.intervals[grid][index];
+            intervals.clear();
+            intervals.extend_from_slice(change.intervals);
+            let normals = &mut states.normals[grid][index];
+            normals.clear();
+            normals.extend_from_slice(change.normals);
         }
-        grids
+        states
     }
 
     /// 時点の範囲 `snapshots` の変化を、時点の順に並べた変化後の区間
@@ -238,12 +249,18 @@ impl CuttingSimulationArtifact {
             }
         })
     }
+}
 
-    /// 初期の状態の、各格子のデクセルの区間
-    fn initial_intervals(&self) -> [Vec<Vec<(f64, f64)>>; 3] {
-        self.grids
-            .map(|grid| vec![vec![grid.initial]; grid.count[0] as usize * grid.count[1] as usize])
-    }
+/// 各格子（X・Y・Z の順）のデクセルごとの区間と、区間の始まり・終わりの法線
+#[derive(Debug, Clone, PartialEq)]
+pub struct DexelGridStates {
+    pub intervals: [Vec<Vec<(f64, f64)>>; 3],
+    pub normals: [Vec<Vec<[DexelNormal; 2]>>; 3],
+}
+
+/// 格子のデクセルの数
+fn dexel_count(grid: &DexelGridLayout) -> usize {
+    grid.count[0] as usize * grid.count[1] as usize
 }
 
 /// 成果物（共通のヘッダと中身）を書き出す
@@ -517,12 +534,17 @@ mod tests {
         assert!(artifact.snapshots.len() > 2);
         // 最後の時点の復元は、シミュレーションの後のデクセルと一致する（途中の時点はトリデクセルのテストで確かめる）
         let last = artifact.snapshots.len() - 1;
-        let restored = artifact.dexel_intervals_at(last);
-        for (grid, restored_grid) in restored.iter().enumerate() {
-            for (index, intervals) in restored_grid.iter().enumerate() {
+        let restored = artifact.dexel_states_at(last);
+        for grid in 0..3 {
+            for (index, intervals) in restored.intervals[grid].iter().enumerate() {
                 assert_eq!(
                     intervals.as_slice(),
                     dexels.current_intervals(grid, index),
+                    "grid {grid} dexel {index}"
+                );
+                assert_eq!(
+                    restored.normals[grid][index].as_slice(),
+                    dexels.current_normals(grid, index),
                     "grid {grid} dexel {index}"
                 );
             }

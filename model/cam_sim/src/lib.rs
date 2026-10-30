@@ -29,7 +29,7 @@ pub use error::SimulationError;
 pub use job_adapter::CamJobExecutorAdapter;
 /// 切削シミュレーションの成果物（中身の型と書き出し・読み込み）。
 pub use simulation_artifact::{
-    CuttingSimulationArtifact, DexelChanges, DexelGridLayout, DexelState,
+    CuttingSimulationArtifact, DexelChanges, DexelGridLayout, DexelGridStates, DexelState,
     read_cutting_simulation_artifact_v1, write_cutting_simulation_artifact_v1,
 };
 /// CuttingSimulation の InputRef -> 素材・工具・精度の設定の解決境界。

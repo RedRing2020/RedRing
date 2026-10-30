@@ -115,7 +115,7 @@ impl CuttingAnimation {
             stock_top - lowest_tip - ball_center
         });
         Ok(Self {
-            surface: DexelSurface::at_snapshot(&artifact, 0, precision),
+            surface: DexelSurface::at_snapshot(&artifact, 0, precision, tool.radius()),
             precision,
             previous_changes: artifact.previous_changes(),
             artifact,
@@ -166,7 +166,12 @@ impl CuttingAnimation {
         if target < self.frame
             && changes_up_to(target) < changes_up_to(self.frame) - changes_up_to(target)
         {
-            self.surface = DexelSurface::at_snapshot(&self.artifact, target, self.precision);
+            self.surface = DexelSurface::at_snapshot(
+                &self.artifact,
+                target,
+                self.precision,
+                self.tool.radius(),
+            );
             self.frame = target;
             return self.block_meshes(&self.all_blocks());
         }
