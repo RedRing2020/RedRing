@@ -1,7 +1,8 @@
 //! cutting_animation - 切削シミュレーションの成果物から、切削アニメーションの描画用のデータを作る
 //!
 //! 今の時点の素材の面（ブロックごと）を 1 つだけ持ち、時点を進める・戻す場合は、区間が変わった部分のブロック
-//! だけを作り直して返す。工具の形とツールパスの線は、ツールパスの成果物と工具から作る。
+//! だけを作り直して返す。大きく戻す場合は、初期の状態から作り直すほうが当てる変化が少なければ作り直す。
+//! 工具の形とツールパスの線は、ツールパスの成果物と工具から作る。
 
 use cam_core::{read_toolpath_artifact_v1, BinaryFormatError, Tool, ToolPath};
 use cam_sim::{
@@ -64,6 +65,8 @@ pub struct CuttingAnimation {
     artifact: CuttingSimulationArtifact,
     /// 時点ごとの、前の時点へ戻す変化（`artifact.snapshot_changes` と同じ並び）
     reverse_changes: Vec<Vec<DexelChange>>,
+    /// `accumulated_changes[k]` は、時点 `k` より前の時点の変化の件数の和（最後は全件）
+    accumulated_changes: Vec<usize>,
     surface: DexelSurface,
     frame: usize,
     toolpath: ToolPath<f64>,
@@ -107,7 +110,14 @@ impl CuttingAnimation {
             };
             stock_top - lowest_tip - ball_center
         });
+        let accumulated_changes = std::iter::once(0)
+            .chain(artifact.snapshot_changes.iter().scan(0, |sum, changes| {
+                *sum += changes.len();
+                Some(*sum)
+            }))
+            .collect();
         Ok(Self {
+            accumulated_changes,
             surface: DexelSurface::at_snapshot(&artifact, 0),
             reverse_changes: artifact.reverse_snapshot_changes(),
             artifact,
@@ -140,11 +150,7 @@ impl CuttingAnimation {
 
     /// 今の時点の、すべてのブロックの素材の面（三角形のないブロックは含めない）
     pub fn stock_blocks(&self) -> Vec<StockBlockMesh> {
-        let [bx, by, bz] = self.surface.block_counts();
-        let blocks: Vec<[usize; 3]> = (0..bx)
-            .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
-            .collect();
-        self.block_meshes(&blocks)
+        self.block_meshes(&self.all_blocks())
             .into_iter()
             .filter(|mesh| !mesh.indices.is_empty())
             .collect()
@@ -153,9 +159,18 @@ impl CuttingAnimation {
     /// 時点 `frame` へ移し、面が変わりうるブロックの、移った後の素材の面を返す（範囲外は最後の時点にする）
     ///
     /// 進む場合はその間の変化を、戻る場合はその間の戻す変化を当て、区間が変わった部分のブロックだけを作り直す。
+    /// 戻る場合に、初期の状態から移った後の時点までの変化のほうが少なければ、初期の状態から作り直してすべてのブロックを返す。
     /// 三角形がなくなったブロックは、三角形のない面として返す。
     pub fn seek(&mut self, frame: usize) -> Vec<StockBlockMesh> {
         let target = frame.min(self.frame_count() - 1);
+        let changes_up_to = |snapshot: usize| self.accumulated_changes[snapshot + 1];
+        if target < self.frame
+            && changes_up_to(target) < changes_up_to(self.frame) - changes_up_to(target)
+        {
+            self.surface = DexelSurface::at_snapshot(&self.artifact, target);
+            self.frame = target;
+            return self.block_meshes(&self.all_blocks());
+        }
         let mut dirty = std::collections::BTreeSet::new();
         if target < self.frame {
             for snapshot in ((target + 1)..=self.frame).rev() {
@@ -199,6 +214,14 @@ impl CuttingAnimation {
         settings: &ToolPathVisualizationSettings,
     ) -> Vec<WireframeVertex> {
         create_toolpath_wireframe_vertices(&self.toolpath, settings)
+    }
+
+    /// すべてのブロック
+    fn all_blocks(&self) -> Vec<[usize; 3]> {
+        let [bx, by, bz] = self.surface.block_counts();
+        (0..bx)
+            .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
+            .collect()
     }
 
     /// ブロックの列 `blocks` の素材の面（複数のコアで並べて作る）
@@ -349,7 +372,8 @@ mod tests {
         let mut animation = animation();
         let mut shown = by_block(animation.stock_blocks());
         let last = animation.frame_count() - 1;
-        for frame in [1, last / 2, last, last / 2, 1, 0, last] {
+        // 少し戻る場合は戻す変化を当て、大きく戻る場合は初期の状態から作り直す
+        for frame in [1, last / 2, last, last - 1, last / 2, 1, 0, last] {
             for mesh in animation.seek(frame) {
                 shown.insert(mesh.block, mesh);
             }

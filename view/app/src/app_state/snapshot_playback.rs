@@ -6,8 +6,10 @@ use crate::selection_rect::SelectionRect;
 use std::time::Instant;
 
 const AUTO_PLAY_BASE_DURATION_SEC: f64 = 12.0;
-const PLAYBACK_SPEED_MIN: f64 = 0.1;
-const PLAYBACK_SPEED_MAX: f64 = 10.0;
+/// 1 回の描画で進める再生の時間の上限（描画が遅れても飛ばさず、再生をゆっくりにする）
+const AUTO_PLAY_MAX_TICK_SEC: f64 = 1.0 / 30.0;
+const PLAYBACK_SPEED_MIN: f64 = 0.25;
+const PLAYBACK_SPEED_MAX: f64 = 32.0;
 const SEGMENT_WEIGHT_RATIO: f64 = 0.5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -217,7 +219,7 @@ impl AppState {
                 self.debug_snapshot.last_playback_tick = Some(Instant::now());
                 self.refresh_snapshot_window_title();
                 tracing::info!(
-                    "Snapshot自動再生を開始: {:.1}x",
+                    "Snapshot自動再生を開始: {}x",
                     self.debug_snapshot.playback_speed_factor
                 );
             }
@@ -243,7 +245,7 @@ impl AppState {
         self.debug_snapshot.last_playback_tick = None;
         self.refresh_snapshot_window_title();
         tracing::info!(
-            "Snapshot自動再生を一時停止: {:.1}x",
+            "Snapshot自動再生を一時停止: {}x",
             self.debug_snapshot.playback_speed_factor
         );
     }
@@ -257,13 +259,14 @@ impl AppState {
         tracing::info!("Snapshot自動再生を停止（先頭へ移動）");
     }
 
-    pub fn adjust_snapshot_playback_speed(&mut self, delta: f64) {
-        let next = (self.debug_snapshot.playback_speed_factor + delta)
+    /// 再生速度を `scale` 倍にする（0.25 倍から 32 倍まで）
+    pub fn scale_snapshot_playback_speed(&mut self, scale: f64) {
+        let next = (self.debug_snapshot.playback_speed_factor * scale)
             .clamp(PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX);
         self.debug_snapshot.playback_speed_factor = next;
         self.refresh_snapshot_window_title();
         tracing::info!(
-            "Snapshot再生速度: {:.1}x",
+            "Snapshot再生速度: {}x",
             self.debug_snapshot.playback_speed_factor
         );
     }
@@ -277,7 +280,7 @@ impl AppState {
         };
 
         let last = self.debug_snapshot.last_playback_tick.unwrap_or(now);
-        let dt = (now - last).as_secs_f64();
+        let dt = (now - last).as_secs_f64().min(AUTO_PLAY_MAX_TICK_SEC);
         self.debug_snapshot.last_playback_tick = Some(now);
         if dt <= 0.0 {
             return;
@@ -359,7 +362,7 @@ impl AppState {
         let speed_factor = self.debug_snapshot.playback_speed_factor;
 
         self.window.set_title(&format!(
-            "RedRing | Snapshot {}/{} | seg={} t={:.3} dist={:.3}mm remain={:.3}mm3 | {} {:.1}x",
+            "RedRing | Snapshot {}/{} | seg={} t={:.3} dist={:.3}mm remain={:.3}mm3 | {} {}x",
             index + 1,
             frame_count,
             payload.segment_index,
