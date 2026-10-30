@@ -5,7 +5,8 @@ use super::AppState;
 use crate::selection_rect::SelectionRect;
 use std::time::Instant;
 
-const AUTO_PLAY_BASE_DURATION_SEC: f64 = 12.0;
+/// 1.0 倍の自動再生で、工具が経路に沿って進む速さ（mm/s）
+const AUTO_PLAY_TOOL_SPEED_MM_PER_SEC: f64 = 1000.0;
 /// 1 回の描画で進める再生の時間の上限（描画が遅れても飛ばさず、再生をゆっくりにする）
 const AUTO_PLAY_MAX_TICK_SEC: f64 = 1.0 / 30.0;
 const PLAYBACK_SPEED_MIN: f64 = 0.25;
@@ -275,9 +276,15 @@ impl AppState {
         if self.debug_snapshot.playback_mode != SnapshotPlaybackMode::AutoPlaying {
             return;
         }
-        let Some(_series) = &self.debug_snapshot.series else {
+        let Some(series) = &self.debug_snapshot.series else {
             return;
         };
+        // 1.0 倍で全体を再生する時間（経路の距離がなければ進捗を一度に進める）
+        let total_distance = series
+            .frames
+            .last()
+            .map_or(0.0, |frame| frame.payload.accumulated_distance_mm);
+        let duration = total_distance / AUTO_PLAY_TOOL_SPEED_MM_PER_SEC;
 
         let last = self.debug_snapshot.last_playback_tick.unwrap_or(now);
         let dt = (now - last).as_secs_f64().min(AUTO_PLAY_MAX_TICK_SEC);
@@ -286,7 +293,11 @@ impl AppState {
             return;
         }
 
-        let step = (dt * self.debug_snapshot.playback_speed_factor) / AUTO_PLAY_BASE_DURATION_SEC;
+        let step = if duration > 0.0 {
+            dt * self.debug_snapshot.playback_speed_factor / duration
+        } else {
+            1.0
+        };
         self.debug_snapshot.playback_progress =
             (self.debug_snapshot.playback_progress + step).clamp(0.0, 1.0);
         let reached_end = self.debug_snapshot.playback_progress >= 1.0;
