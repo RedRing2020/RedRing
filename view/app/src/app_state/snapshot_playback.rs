@@ -314,6 +314,7 @@ impl AppState {
     }
 
     pub(super) fn sync_snapshot_visual_frame(&mut self) {
+        self.debug_snapshot.frame_update_required = false;
         self.sync_cutting_animation_frame();
     }
 
@@ -408,8 +409,8 @@ impl AppState {
             self.debug_snapshot.cursor = next_index;
             self.log_current_snapshot_frame(emit_log);
             if !emit_log {
-                // ドラッグ中（emit_log=false）もリアルタイムでビジュアルを更新する
-                self.sync_snapshot_visual_frame();
+                // ドラッグ中（emit_log=false）は、描き直しのときに 1 回だけ素材の面に反映する
+                self.debug_snapshot.frame_update_required = true;
             }
         }
 

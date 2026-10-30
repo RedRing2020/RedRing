@@ -32,6 +32,9 @@ impl AppState {
     }
 
     pub fn render(&mut self) {
+        if self.debug_snapshot.frame_update_required {
+            self.sync_snapshot_visual_frame();
+        }
         self.renderer.update();
         {
             let stage = self.renderer.get_stage_mut();

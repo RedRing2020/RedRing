@@ -4,7 +4,7 @@ use geo_algorithms::{
 
 use cam_core::{Tool, ToolPath};
 
-use crate::constants::TRI_DEXEL_DISPLAY_LINES;
+use crate::constants::{SNAPSHOT_GRID_SPACING_MULTIPLE, TRI_DEXEL_DISPLAY_LINES};
 use crate::error::SimulationError;
 use crate::simulation_artifact::CuttingSimulationArtifact;
 use crate::stock_model::StockModel;
@@ -19,8 +19,11 @@ pub use segments::{
 };
 
 /// スナップショット保存間隔の指定方法。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum SnapshotInterval {
+    /// 工具の半径と、素材の格子の間隔の数倍の、短いほうの移動距離ごと（区間の端点は含めない）
+    #[default]
+    ByToolAndGrid,
     ByDistance {
         interval_mm: f64,
         include_segment_endpoints: bool,
@@ -36,21 +39,13 @@ impl SnapshotInterval {
     /// 間隔の指定が有効か（間隔・最小の間隔が正の有限値、目標の記録数が 1 以上）
     pub(crate) fn is_valid(&self) -> bool {
         match *self {
+            Self::ByToolAndGrid => true,
             Self::ByDistance { interval_mm, .. } => interval_mm.is_finite() && interval_mm > 0.0,
             Self::ByAutoDistance {
                 target_count,
                 min_interval_mm,
                 ..
             } => target_count > 0 && min_interval_mm.is_finite() && min_interval_mm > 0.0,
-        }
-    }
-}
-
-impl Default for SnapshotInterval {
-    fn default() -> Self {
-        Self::ByDistance {
-            interval_mm: 10.0,
-            include_segment_endpoints: true,
         }
     }
 }
@@ -161,23 +156,21 @@ impl CuttingSimulator {
             return Err(SimulationError::EmptyToolpath);
         }
         let model = StockModel::from_segments(self.stock, &segments, tool)?;
-        let config = self.calculate_snapshot_config(
-            segments
-                .iter()
-                .map(|(segment, _)| segment_length(segment))
-                .sum(),
-        )?;
         let max_extent = self
             .stock
             .width()
             .max(self.stock.height())
             .max(self.stock.depth());
+        let spacing = max_extent / TRI_DEXEL_DISPLAY_LINES as f64;
+        let config = self.calculate_snapshot_config(
+            segments
+                .iter()
+                .map(|(segment, _)| segment_length(segment))
+                .sum(),
+            tool.radius().min(SNAPSHOT_GRID_SPACING_MULTIPLE * spacing),
+        )?;
         self.record_snapshots(&segments, config);
-        let dexels = TriDexelModel::from_stock_model(
-            &model,
-            max_extent / TRI_DEXEL_DISPLAY_LINES as f64,
-            &self.snapshot_applied,
-        );
+        let dexels = TriDexelModel::from_stock_model(&model, spacing, &self.snapshot_applied);
         for (snapshot, &applied) in self.snapshots.iter_mut().zip(&self.snapshot_applied) {
             snapshot.remaining_volume = dexels.remaining_volume_at(applied);
         }
