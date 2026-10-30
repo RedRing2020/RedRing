@@ -105,11 +105,17 @@ impl EntityManager {
         false
     }
 
+    /// 表示する図形の線の頂点（線の色は図形の色）
     pub fn line_list_vertices(&self) -> Vec<MeshVertex> {
         let mut result = Vec::new();
         for item in self.geometric.values() {
             if item.visible {
-                result.extend(item.line_list_vertices.iter().copied());
+                let [r, g, b, _] = item.color;
+                result.extend(
+                    item.line_list_vertices
+                        .iter()
+                        .map(|vertex| MeshVertex::new(vertex.position, [r, g, b])),
+                );
             }
         }
         result
@@ -140,6 +146,16 @@ mod tests {
 
         assert!(manager.select(id));
         assert_eq!(manager.selected(), Some(id));
+        // 線の色は、頂点の値ではなく図形の色（既定は白）
+        assert!(manager
+            .line_list_vertices()
+            .iter()
+            .all(|vertex| vertex.normal == [1.0, 1.0, 1.0]));
+        assert!(manager.set_color(id, [1.0, 0.0, 0.0, 1.0]));
+        assert!(manager
+            .line_list_vertices()
+            .iter()
+            .all(|vertex| vertex.normal == [1.0, 0.0, 0.0]));
         assert!(manager.remove(id));
         assert_eq!(manager.selected(), None);
     }

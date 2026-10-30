@@ -1,5 +1,4 @@
 pub mod app;
-pub mod app_asset_loader;
 pub mod app_renderer;
 pub mod app_state;
 pub mod entity_manager;
@@ -13,5 +12,3 @@ pub(crate) mod settings_panel_messages;
 pub(crate) mod settings_panel_renderer;
 pub(crate) mod settings_panel_ui;
 pub mod snapshot_overlay_renderer;
-pub mod stage_factory;
-pub mod svg_loader;
