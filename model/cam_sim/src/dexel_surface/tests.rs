@@ -57,7 +57,7 @@ fn artifact(
     let artifact = CuttingSimulationArtifact {
         snapshots,
         grids: dexels.layouts(),
-        snapshot_changes: dexels.snapshot_changes().to_vec(),
+        snapshot_changes: dexels.snapshot_changes().clone(),
     };
     (artifact, model)
 }
@@ -248,7 +248,7 @@ fn partial_rebuild_matches_a_full_rebuild_at_each_snapshot() {
         }
     }
     for snapshot in 1..artifact.snapshots.len() {
-        for block in surface.apply_changes([artifact.snapshot_changes[snapshot].as_slice()]) {
+        for block in surface.apply_changes(artifact.snapshot_changes.snapshot(snapshot)) {
             meshes.insert(block, surface.mesh_block(block));
         }
         let expected = DexelSurface::at_snapshot(&artifact, snapshot, PRECISION);
@@ -290,9 +290,7 @@ fn searching_mixed_cells_gives_the_same_mesh_as_scanning_every_cell() {
 #[test]
 fn reverse_changes_restore_the_previous_snapshot_with_a_partial_rebuild() {
     let (artifact, _) = cut();
-    let reverse = artifact.reverse_snapshot_changes();
-    assert_eq!(reverse.len(), artifact.snapshot_changes.len());
-    assert!(reverse[0].is_empty());
+    let previous = artifact.previous_changes();
 
     let last = artifact.snapshots.len() - 1;
     let mut surface = DexelSurface::at_snapshot(&artifact, last, PRECISION);
@@ -306,7 +304,9 @@ fn reverse_changes_restore_the_previous_snapshot_with_a_partial_rebuild() {
         }
     }
     for snapshot in (1..=last).rev() {
-        for block in surface.apply_changes([reverse[snapshot].as_slice()]) {
+        for block in
+            surface.apply_changes(artifact.backward_changes(&previous, snapshot..=snapshot))
+        {
             meshes.insert(block, surface.mesh_block(block));
         }
         let expected = DexelSurface::at_snapshot(&artifact, snapshot - 1, PRECISION);
@@ -349,7 +349,7 @@ fn unchanged_dexels_make_no_block_dirty() {
     // 同じ時点の変化をもう一度当てても、区間は変わらない
     assert!(
         surface
-            .apply_changes([artifact.snapshot_changes[1].as_slice()])
+            .apply_changes(artifact.snapshot_changes.snapshot(1))
             .is_empty()
     );
 }

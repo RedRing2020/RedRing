@@ -7,7 +7,7 @@
 use cam_core::{read_toolpath_artifact_v1, BinaryFormatError, Tool, ToolPath};
 use cam_sim::{
     collect_toolpath_line_segments, read_cutting_simulation_artifact_v1, CuttingSimulationArtifact,
-    DexelChange, DexelSurface, SurfaceMesh,
+    DexelSurface, SurfaceMesh,
 };
 use geo_algorithms::{
     LineSegment3D, LineSegment3DProperties, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
@@ -63,10 +63,8 @@ pub struct StockBlockMesh {
 #[derive(Debug, Clone)]
 pub struct CuttingAnimation {
     artifact: CuttingSimulationArtifact,
-    /// 時点ごとの、前の時点へ戻す変化（`artifact.snapshot_changes` と同じ並び）
-    reverse_changes: Vec<Vec<DexelChange>>,
-    /// `accumulated_changes[k]` は、時点 `k` より前の時点の変化の件数の和（最後は全件）
-    accumulated_changes: Vec<usize>,
+    /// 変化ごとの、同じデクセルの 1 つ前の変化の番号（前の時点へ戻すときに使う）
+    previous_changes: Vec<u32>,
     surface: DexelSurface,
     /// 素材の精度（素材の面で、同じ平面とみなす交点の座標の幅）
     precision: f64,
@@ -113,17 +111,10 @@ impl CuttingAnimation {
             };
             stock_top - lowest_tip - ball_center
         });
-        let accumulated_changes = std::iter::once(0)
-            .chain(artifact.snapshot_changes.iter().scan(0, |sum, changes| {
-                *sum += changes.len();
-                Some(*sum)
-            }))
-            .collect();
         Ok(Self {
-            accumulated_changes,
             surface: DexelSurface::at_snapshot(&artifact, 0, precision),
             precision,
-            reverse_changes: artifact.reverse_snapshot_changes(),
+            previous_changes: artifact.previous_changes(),
             artifact,
             frame: 0,
             toolpath,
@@ -167,7 +158,7 @@ impl CuttingAnimation {
     /// 三角形がなくなったブロックは、三角形のない面として返す。
     pub fn seek(&mut self, frame: usize) -> Vec<StockBlockMesh> {
         let target = frame.min(self.frame_count() - 1);
-        let changes_up_to = |snapshot: usize| self.accumulated_changes[snapshot + 1];
+        let changes_up_to = |snapshot: usize| self.artifact.snapshot_changes.count_until(snapshot);
         if target < self.frame
             && changes_up_to(target) < changes_up_to(self.frame) - changes_up_to(target)
         {
@@ -177,17 +168,12 @@ impl CuttingAnimation {
         }
         let blocks = if target < self.frame {
             self.surface.apply_changes(
-                self.reverse_changes[(target + 1)..=self.frame]
-                    .iter()
-                    .rev()
-                    .map(Vec::as_slice),
+                self.artifact
+                    .backward_changes(&self.previous_changes, (target + 1)..=self.frame),
             )
         } else {
-            self.surface.apply_changes(
-                self.artifact.snapshot_changes[(self.frame + 1)..=target]
-                    .iter()
-                    .map(Vec::as_slice),
-            )
+            self.surface
+                .apply_changes(self.artifact.forward_changes((self.frame + 1)..=target))
         };
         self.frame = target;
         self.block_meshes(&blocks)

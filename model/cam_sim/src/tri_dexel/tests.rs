@@ -140,12 +140,11 @@ fn states_at_each_snapshot(dexels: &TriDexelModel) -> Vec<DexelStates> {
         .grids
         .each_ref()
         .map(|grid| vec![vec![grid.initial]; grid.slots.len()]);
-    dexels
-        .snapshot_changes()
-        .iter()
-        .map(|changes| {
-            for change in changes {
-                state[change.grid as usize][change.index as usize] = change.intervals.clone();
+    let changes = dexels.snapshot_changes();
+    (0..changes.snapshot_count())
+        .map(|snapshot| {
+            for change in changes.snapshot(snapshot) {
+                state[change.grid as usize][change.index as usize] = change.intervals.to_vec();
             }
             state.clone()
         })
@@ -199,7 +198,7 @@ fn restored_states_match_models_built_up_to_each_time() {
     let states = states_at_each_snapshot(&dexels);
     assert_eq!(states.len(), applied.len());
     // 同じ時点が続くスナップショットには変化がない
-    assert!(dexels.snapshot_changes()[1].is_empty());
+    assert_eq!(dexels.snapshot_changes().snapshot(1).len(), 0);
     for (state, &applied) in states.iter().zip(&applied) {
         let partial = if applied == 0 {
             StockModel::from_toolpath(model.stock(), &toolpath("BEM3", &[]), &tool).unwrap()

@@ -10,7 +10,7 @@ mod tests;
 
 use geo_algorithms::{Aabb3D, Point3D};
 
-use crate::simulation_artifact::{DexelChange, DexelGridLayout};
+use crate::simulation_artifact::{DexelChanges, DexelGridLayout};
 use crate::stock_model::StockModel;
 use ray_interval::{AxisLine, swept_primitive_intervals};
 
@@ -187,22 +187,18 @@ impl DexelGrid {
         removed_length
     }
 
-    /// 前のスナップショットの時点から変化したデクセルの今の区間（番号の昇順）を返し、変化の記録を空にする
-    fn take_changes(&mut self, grid: u8) -> Vec<DexelChange> {
+    /// 前のスナップショットの時点から変化したデクセルの今の区間（番号の昇順）を `changes` に加え、変化の記録を空にする
+    fn take_changes(&mut self, grid: u8, changes: &mut DexelChanges) {
         let mut indices = std::mem::take(&mut self.changed_indices);
         indices.sort_unstable();
-        indices
-            .into_iter()
-            .map(|index| {
-                self.changed[index] = false;
-                DexelChange {
-                    grid,
-                    index: u32::try_from(index)
-                        .expect("dexel count is bounded by the display resolution"),
-                    intervals: self.current(index).to_vec(),
-                }
-            })
-            .collect()
+        for index in indices {
+            self.changed[index] = false;
+            changes.push(
+                grid,
+                u32::try_from(index).expect("dexel count is bounded by the display resolution"),
+                self.current(index),
+            );
+        }
     }
 
     /// 素材の範囲の、材料の区間の長さの和
@@ -219,8 +215,8 @@ pub struct TriDexelModel {
     grids: [DexelGrid; 3],
     /// `remaining_volumes[applied]` は、`applied` 個の掃引体を差し引いた時点の残りの体積（Z の向きのデクセルから）
     remaining_volumes: Vec<f64>,
-    /// `snapshot_changes[k]` は、スナップショット `k - 1`（`k = 0` では初期の状態）からスナップショット `k` への変化
-    snapshot_changes: Vec<Vec<DexelChange>>,
+    /// 時点 `k` の変化は、スナップショット `k - 1`（`k = 0` では初期の状態）からスナップショット `k` への変化
+    snapshot_changes: DexelChanges,
 }
 
 impl TriDexelModel {
@@ -249,11 +245,11 @@ impl TriDexelModel {
         let mut length = grids[2].initial_length();
         let mut remaining_volumes = Vec::with_capacity(primitives.len() + 1);
         remaining_volumes.push(length * cell_area);
-        let mut snapshot_changes = Vec::with_capacity(snapshot_applied.len());
+        let mut snapshot_changes = DexelChanges::default();
         let mut scratch = [Vec::new(), Vec::new()];
         record_snapshot_changes(&mut grids, snapshot_applied, 0, &mut snapshot_changes);
         for (index, primitive) in primitives.iter().enumerate() {
-            if snapshot_changes.len() == snapshot_applied.len() {
+            if snapshot_changes.snapshot_count() == snapshot_applied.len() {
                 break;
             }
             let [x_grid, y_grid, z_grid] = &mut grids;
@@ -304,7 +300,7 @@ impl TriDexelModel {
     }
 
     /// スナップショットの時点ごとの、前の時点からのデクセルの変化（`snapshot_applied` と同じ並び）
-    pub(crate) fn snapshot_changes(&self) -> &[Vec<DexelChange>] {
+    pub(crate) fn snapshot_changes(&self) -> &DexelChanges {
         &self.snapshot_changes
     }
 }
@@ -314,14 +310,13 @@ fn record_snapshot_changes(
     grids: &mut [DexelGrid; 3],
     snapshot_applied: &[usize],
     applied: usize,
-    snapshot_changes: &mut Vec<Vec<DexelChange>>,
+    snapshot_changes: &mut DexelChanges,
 ) {
-    while snapshot_applied.get(snapshot_changes.len()) == Some(&applied) {
-        let mut changes = Vec::new();
+    while snapshot_applied.get(snapshot_changes.snapshot_count()) == Some(&applied) {
         for (index, grid) in grids.iter_mut().enumerate() {
-            changes.extend(grid.take_changes(index as u8));
+            grid.take_changes(index as u8, snapshot_changes);
         }
-        snapshot_changes.push(changes);
+        snapshot_changes.end_snapshot();
     }
 }
 
