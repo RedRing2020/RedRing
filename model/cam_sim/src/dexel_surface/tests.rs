@@ -186,6 +186,34 @@ fn uncut_stock_has_two_triangles_per_block_face_and_sharp_corners() {
 }
 
 #[test]
+fn uncut_blocks_give_the_same_mesh_as_meshing_cell_by_cell() {
+    let (artifact, _) = cut();
+    for snapshot in [0, artifact.snapshots.len() - 1] {
+        let surface = DexelSurface::at_snapshot(&artifact, snapshot, PRECISION);
+        let [bx, by, bz] = surface.block_counts();
+        let blocks: Vec<[usize; 3]> = (0..bx)
+            .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
+            .collect();
+        // 最初の時点はすべて、最後の時点も削っていないブロックが残る
+        let uncut = blocks
+            .iter()
+            .filter(|&&block| surface.is_uncut_block(block))
+            .count();
+        assert!(
+            uncut > 0 && (snapshot == 0) == (uncut == blocks.len()),
+            "{uncut} uncut blocks"
+        );
+        for block in blocks {
+            assert_eq!(
+                surface.mesh_block(block),
+                surface.mesh_block_by_cells(block),
+                "snapshot {snapshot} block {block:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn cuts_shallower_than_the_precision_are_merged_into_the_flat_face() {
     let triangles = |depth: f64, precision: f64| {
         let (artifact, _) = artifact(

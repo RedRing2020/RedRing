@@ -201,9 +201,35 @@ impl DexelSurface {
 
     /// ブロック `block` の面
     ///
+    /// ブロックを通るデクセルが、ブロックの範囲ですべて素材の範囲（初期の区間）のままなら、セルごとの判定を省き、
+    /// 外側へ広げた層のセルを素材の面に乗るセルとして面を作る（セルごとに処理した場合と同じ面になる）。
+    pub fn mesh_block(&self, block: [usize; 3]) -> SurfaceMesh {
+        if self.is_uncut_block(block) {
+            let [x_cells, y_cells, z_cells] = [0, 1, 2].map(|axis| self.block_cells(block, axis));
+            let mut cells = Vec::new();
+            for x in x_cells {
+                for y in y_cells.clone() {
+                    for z in z_cells.clone() {
+                        let lower = [x as i64 - 1, y as i64 - 1, z as i64 - 1];
+                        let outer = (0..3).any(|axis| {
+                            lower[axis] == -1 || lower[axis] == self.count[axis] as i64 - 1
+                        });
+                        if outer {
+                            cells.push(lower);
+                        }
+                    }
+                }
+            }
+            return self.mesh_cells(block, &cells, true);
+        }
+        self.mesh_block_by_cells(block)
+    }
+
+    /// ブロック `block` の面を、セルごとに判定して作る
+    ///
     /// セルの頂点の内外は Z の向きのデクセルだけで決まるため、Z の向きのセルの列ごとに、列の 4 本の Z の線の
     /// 内外の区間から頂点の内外がそろわないセルを求め、そのセルだけを処理する（時間は面の大きさに比例する）。
-    pub fn mesh_block(&self, block: [usize; 3]) -> SurfaceMesh {
+    fn mesh_block_by_cells(&self, block: [usize; 3]) -> SurfaceMesh {
         let [x_cells, y_cells, z_cells] = [0, 1, 2].map(|axis| self.block_cells(block, axis));
         let mut cells = Vec::new();
         for x in x_cells {
@@ -217,24 +243,75 @@ impl DexelSurface {
                 );
             }
         }
-        self.mesh_cells(block, &cells)
+        self.mesh_cells(block, &cells, false)
+    }
+
+    /// ブロック `block` を通るデクセルが、ブロックの範囲ですべて素材の範囲（初期の区間）とちょうど一致するか
+    fn is_uncut_block(&self, block: [usize; 3]) -> bool {
+        let cells = [0, 1, 2].map(|axis| self.block_cells(block, axis));
+        (0..3).all(|axis| {
+            // 外側へ広げたセルの番号から、セルの最小の格子点の番号（-1 から）
+            let first = cells[axis].start as i64 - 1;
+            let last = cells[axis].end as i64 - 1;
+            let span = (self.coordinate(axis, first), self.coordinate(axis, last));
+            let (low, high) = self.grids[axis].initial;
+            let expected = (low.max(span.0), high.min(span.1));
+            let plane = plane_axes(axis);
+            let lines = |i: usize| {
+                let axis = plane[i];
+                (cells[axis].start.saturating_sub(1))..cells[axis].end.min(self.count[axis])
+            };
+            lines(0).all(|u| {
+                lines(1).all(|v| {
+                    let mut found = false;
+                    for &(start, end) in &self.intervals[axis][u * self.count[plane[1]] + v] {
+                        let clipped = (start.max(span.0), end.min(span.1));
+                        if clipped.0 < clipped.1 {
+                            if found || clipped != expected {
+                                return false;
+                            }
+                            found = true;
+                        }
+                    }
+                    found == (expected.0 < expected.1)
+                })
+            })
+        })
     }
 
     /// ブロック `block` の、最小の格子点が `cells` のセルの面（同じ平面の上の面だけを持つセルは多角形にまとめる）
-    fn mesh_cells(&self, block: [usize; 3], cells: &[[i64; 3]]) -> SurfaceMesh {
+    ///
+    /// `uncut` の場合、`cells` は削っていないブロックの外側へ広げた層のセルで、セルが乗る平面は素材の面とする。
+    fn mesh_cells(&self, block: [usize; 3], cells: &[[i64; 3]], uncut: bool) -> SurfaceMesh {
+        if cells.is_empty() {
+            return SurfaceMesh::default();
+        }
         let mut builder =
             MeshBuilder::new(block.map(|index| (index * SURFACE_BLOCK_CELLS) as i64 - 1));
         let mut planes: BTreeMap<PlaneKey, BTreeSet<[i64; 2]>> = BTreeMap::new();
         let mut cell_planes = HashMap::new();
         let mut sharp_cells = Vec::new();
         for &lower in cells {
-            let inside = self.corner_inside(lower);
-            let sharp = self.is_sharp_cell(lower);
-            let keys = self.planes_of_cell(lower, &inside, sharp);
+            let (sharp, keys) = if uncut {
+                let sides = self.outer_sides(lower);
+                let keys: Vec<PlaneKey> = sides
+                    .iter()
+                    .map(|&(axis, inside_below)| {
+                        self.stock_face_key(axis, inside_below, lower[axis])
+                    })
+                    .collect();
+                (sides.len() >= 2, keys)
+            } else {
+                let inside = self.corner_inside(lower);
+                let sharp = self.is_sharp_cell(lower);
+                let keys = self.planes_of_cell(lower, &inside, sharp);
+                if !sharp && keys.is_empty() {
+                    self.mesh_cell(lower, &inside, &mut builder);
+                }
+                (sharp, keys)
+            };
             if sharp {
                 sharp_cells.push(lower);
-            } else if keys.is_empty() {
-                self.mesh_cell(lower, &inside, &mut builder);
             }
             for &key in &keys {
                 let [u, v] = plane_axes(key.axis);
@@ -685,7 +762,7 @@ impl DexelSurface {
                 }
             }
         }
-        self.mesh_cells(block, &cells)
+        self.mesh_cells(block, &cells, false)
     }
 
     /// 最小の格子点が `lower` のセルの頂点の内外（`CORNERS` の順）
