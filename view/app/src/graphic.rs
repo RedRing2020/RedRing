@@ -1,4 +1,5 @@
 use crate::app_renderer::{AppRenderer, RenderFrameContext};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use wgpu::{Device, Queue, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureView};
 use winit::window::Window;
@@ -11,6 +12,8 @@ pub struct Graphic {
     pub surface_texture: Option<SurfaceTexture>,
     pub depth_texture: Texture,
     pub depth_view: TextureView,
+    /// GPU のデバイスが失われたか（失われた後はバッファを作れない）
+    device_lost: Arc<AtomicBool>,
 }
 
 pub fn init_graphic(window: Arc<Window>) -> Graphic {
@@ -37,6 +40,21 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         experimental_features: wgpu::ExperimentalFeatures::default(),
     }))
     .expect("Device creation failed");
+
+    let device_lost = Arc::new(AtomicBool::new(false));
+    let lost = device_lost.clone();
+    device.set_device_lost_callback(move |reason, message| {
+        // 終了のときにデバイスを破棄した場合も呼ばれる
+        if reason == wgpu::DeviceLostReason::Destroyed {
+            return;
+        }
+        lost.store(true, Ordering::Release);
+        tracing::error!("GPU のデバイスが失われました（{reason:?}）: {message}");
+    });
+    device.on_uncaptured_error(Arc::new(|error| {
+        tracing::error!("GPU のエラー: {error}");
+        panic!("wgpu error: {error}");
+    }));
 
     let caps = surface.get_capabilities(&adapter);
     let format = caps
@@ -83,10 +101,16 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         surface_texture: None,
         depth_texture,
         depth_view,
+        device_lost,
     }
 }
 
 impl Graphic {
+    /// GPU のデバイスが失われたか
+    pub fn is_device_lost(&self) -> bool {
+        self.device_lost.load(Ordering::Acquire)
+    }
+
     pub fn render(&mut self, renderer: &mut AppRenderer) {
         match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(frame) => {
