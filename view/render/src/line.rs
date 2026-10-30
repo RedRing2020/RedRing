@@ -235,9 +235,6 @@ impl LineResources {
                 },
             ));
             self.vertex_count = vertices.len() as u32;
-        } else {
-            self.vertex_buffer = None;
-            self.vertex_count = 0;
         }
     }
 
