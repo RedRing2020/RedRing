@@ -6,6 +6,7 @@
 //! 素材の正本は工具の掃引プリミティブの列で表します（設計: CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md）。
 
 mod constants;
+mod dexel_normal;
 mod dexel_surface;
 mod error;
 mod job_adapter;
@@ -18,6 +19,8 @@ mod stock_model;
 mod tri_dexel;
 mod workflow;
 
+/// デクセルの区間の端の、量子化した法線。
+pub use dexel_normal::DexelNormal;
 /// シミュレーション実行時のエラー型。
 /// トリデクセルの表示用の面。
 pub use dexel_surface::{DexelSurface, SurfaceMesh};
