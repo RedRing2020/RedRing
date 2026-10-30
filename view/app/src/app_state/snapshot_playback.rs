@@ -244,6 +244,8 @@ impl AppState {
 
         self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Paused;
         self.debug_snapshot.last_playback_tick = None;
+        // 自動再生の間だけ描かない工具の線を描く
+        self.sync_snapshot_visual_frame();
         self.refresh_snapshot_window_title();
         tracing::info!(
             "Snapshot自動再生を一時停止: {}x",
@@ -310,6 +312,9 @@ impl AppState {
         }
 
         if reached_end {
+            // 止めてから最後のコマを描く（自動再生の間だけ描かない工具の線を描く）
+            self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Paused;
+            self.debug_snapshot.last_playback_tick = None;
             if let Some(series) = &self.debug_snapshot.series {
                 if !series.frames.is_empty() {
                     self.debug_snapshot.cursor = series.frames.len() - 1;
@@ -317,8 +322,6 @@ impl AppState {
                     self.sync_snapshot_visual_frame();
                 }
             }
-            self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Paused;
-            self.debug_snapshot.last_playback_tick = None;
             self.refresh_snapshot_window_title();
             tracing::info!("Snapshot自動再生が末尾に到達して停止");
         }

@@ -2,6 +2,7 @@
 
 use std::ops::RangeInclusive;
 
+use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
 use render::mesh_list::MeshListItem;
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
@@ -73,6 +74,7 @@ impl AppState {
         }
         self.renderer.set_stage(mesh_stage);
         self.cutting_animation = Some(animation);
+        self.drawn_animation_frame = None;
         self.update_camera_uniforms();
         self.log_current_snapshot_frame(true);
         tracing::info!(
@@ -208,11 +210,19 @@ impl AppState {
         let Some(animation) = &mut self.cutting_animation else {
             return false;
         };
+        let previous = self.drawn_animation_frame.unwrap_or(animation.frame());
         let blocks = animation.seek(self.debug_snapshot.cursor);
-        let tool_lines = line_vertices(
-            &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
-            Some(self.snapshot_shaded_color_settings.tool_wire_color),
-        );
+        // 速い自動再生で画面の 1 回の描画に工具が大きく進む間は、残像で工具が複数に見えるため工具の線を描かない
+        // （コマの移動は描画より多く起きることがあるため、前に画面を描いたときの時点から測る）
+        let auto_playing = self.debug_snapshot.playback_mode == SnapshotPlaybackMode::AutoPlaying;
+        let tool_lines = if auto_playing && animation.travels_too_far_to_draw_tool(previous) {
+            Vec::new()
+        } else {
+            line_vertices(
+                &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
+                Some(self.snapshot_shaded_color_settings.tool_wire_color),
+            )
+        };
         let stock_color = self.snapshot_shaded_color_settings.work_solid_color;
         let device = &self.graphic.device;
         let stage = self.renderer.get_stage_mut();

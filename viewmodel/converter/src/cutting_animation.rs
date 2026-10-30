@@ -25,6 +25,9 @@ use crate::snapshot_converter::{
 };
 use crate::toolpath_converter::ToolPathVisualizationSettings;
 
+/// 1 回の描画で工具がこの倍率の工具の直径より多く進むと、描いた工具が残像で複数に見える
+const TOOL_GHOSTING_TRAVEL_DIAMETERS: f64 = 5.0;
+
 /// 切削アニメーションを作れない理由
 #[derive(Debug)]
 pub enum CuttingAnimationError {
@@ -141,6 +144,14 @@ impl CuttingAnimation {
     /// 今の時点
     pub fn frame(&self) -> usize {
         self.frame
+    }
+
+    /// 時点 `from` から今の時点までに工具が経路に沿って進んだ距離が、工具を描くと残像で複数に見える距離
+    /// （工具の直径の `TOOL_GHOSTING_TRAVEL_DIAMETERS` 倍）を超えるか
+    pub fn travels_too_far_to_draw_tool(&self, from: usize) -> bool {
+        let distance = |frame: usize| self.artifact.snapshots[frame].accumulated_distance_mm;
+        let travel = (distance(self.frame) - distance(from.min(self.frame_count() - 1))).abs();
+        travel > TOOL_GHOSTING_TRAVEL_DIAMETERS * self.tool.diameter()
     }
 
     /// 各時点の位置と統計の系列
@@ -446,6 +457,19 @@ mod tests {
         );
         // 最も深い切削の位置（先端 1.2）から素材の上面（2.0）までは球の半径より短いため、球の上に線の最小の長さ 1 を描く
         assert!((heights[0] - 2.0).abs() < 1e-4, "{}", heights[0]);
+    }
+
+    #[test]
+    fn tool_is_not_drawn_only_when_it_travels_more_than_five_diameters() {
+        let mut animation = animation();
+        let last = animation.frame_count() - 1;
+        animation.seek(1);
+        // 1 コマの移動は工具の直径（2）の 5 倍より短い
+        assert!(!animation.travels_too_far_to_draw_tool(0));
+        animation.seek(last);
+        // 全体（3 本の往復の線、約 100）は 5 倍より長い
+        assert!(animation.travels_too_far_to_draw_tool(1));
+        assert!(!animation.travels_too_far_to_draw_tool(last));
     }
 
     #[test]

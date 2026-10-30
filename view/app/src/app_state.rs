@@ -123,6 +123,8 @@ pub struct AppState {
 
     /// 取り込んだ切削シミュレーションの切削アニメーション
     cutting_animation: Option<CuttingAnimation>,
+    /// 前に画面を描いたときの切削アニメーションの時点（工具の線を描くかを、画面の 1 回の描画で工具が進む距離で決める）
+    drawn_animation_frame: Option<usize>,
 
     /// 設定パネルの、工具長を指定するときの入力値（mm）
     tool_length_input: f64,
@@ -190,6 +192,7 @@ impl AppState {
             product_shapes: ProductShapeScene::default(),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
+            drawn_animation_frame: None,
             tool_length_input: 50.0,
             toolpath_lines_visible: true,
             tool_lines_visible: true,
