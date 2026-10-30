@@ -124,13 +124,3 @@ pub fn draw_non_indexed(
     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
     render_pass.draw(0..vertex_count, 0..1);
 }
-
-/// ワイヤーフレーム描画用ヘルパ。
-pub fn draw_wireframe<'a>(
-    render_pass: &mut wgpu::RenderPass<'a>,
-    pipeline: &'a wgpu::RenderPipeline,
-    vertex_buffer: &'a wgpu::Buffer,
-    vertex_count: u32,
-) {
-    draw_non_indexed(render_pass, pipeline, vertex_buffer, vertex_count);
-}

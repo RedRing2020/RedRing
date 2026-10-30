@@ -1,7 +1,6 @@
 //! AppState のステージ更新オーケストレーションを扱うモジュール。
 
 use super::AppState;
-use crate::stage_factory;
 use stage::{MeshStage, RenderStage};
 
 impl AppState {
@@ -62,24 +61,6 @@ impl AppState {
             self.graphic.config.height,
         );
         self.graphic.render(&mut self.renderer);
-    }
-
-    pub fn set_stage_draft(&mut self) {
-        let stage =
-            stage_factory::create_draft_stage(&self.graphic.device, self.graphic.config.format);
-        self.set_stage_and_update_camera(stage);
-    }
-
-    pub fn set_stage_outline(&mut self) {
-        let stage =
-            stage_factory::create_outline_stage(&self.graphic.device, self.graphic.config.format);
-        self.set_stage_and_update_camera(stage);
-    }
-
-    pub fn set_stage_shading(&mut self) {
-        let stage =
-            stage_factory::create_shading_stage(&self.graphic.device, self.graphic.config.format);
-        self.set_stage_and_update_camera(stage);
     }
 
     /// カメラのユニフォームを更新

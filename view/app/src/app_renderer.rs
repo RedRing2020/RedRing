@@ -51,42 +51,9 @@ impl AppRendererFactory {
         let stage = stage_factory::create_draft_stage(device, config.format);
         Self::create_with_stage(window, device, config, stage)
     }
-
-    pub fn create_outline(
-        window: &Window,
-        device: &Device,
-        config: &SurfaceConfiguration,
-    ) -> AppRenderer {
-        let stage = stage_factory::create_outline_stage(device, config.format);
-        Self::create_with_stage(window, device, config, stage)
-    }
-
-    pub fn create_shading(
-        window: &Window,
-        device: &Device,
-        config: &SurfaceConfiguration,
-    ) -> AppRenderer {
-        let stage = stage_factory::create_shading_stage(device, config.format);
-        Self::create_with_stage(window, device, config, stage)
-    }
 }
 
 impl AppRenderer {
-    /// 初期化：Draftステージを生成
-    pub fn new_draft(window: &Window, device: &Device, config: &SurfaceConfiguration) -> Self {
-        AppRendererFactory::create_draft(window, device, config)
-    }
-
-    /// 初期化：Outlineステージを生成
-    pub fn new_outline(window: &Window, device: &Device, config: &SurfaceConfiguration) -> Self {
-        AppRendererFactory::create_outline(window, device, config)
-    }
-
-    /// 初期化：Shadingステージを生成
-    pub fn new_shading(window: &Window, device: &Device, config: &SurfaceConfiguration) -> Self {
-        AppRendererFactory::create_shading(window, device, config)
-    }
-
     pub fn handle_settings_window_event(&mut self, window: &Window, event: &WindowEvent) -> bool {
         self.settings_panel_renderer
             .handle_window_event(window, event)

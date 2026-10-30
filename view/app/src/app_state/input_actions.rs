@@ -89,9 +89,6 @@ impl AppState {
                     tracing::info!("t: 標準CAD視点");
                     tracing::info!("f: 正面視点");
                     tracing::info!("e: 緊急脱出");
-                    tracing::info!("1: Draftステージ");
-                    tracing::info!("2: Outlineステージ");
-                    tracing::info!("3: Shadingステージ");
                     tracing::info!("=== 切削シミュレーション ===");
                     tracing::info!(
                         "【取込】 STL ファイルをウィンドウにドロップ: 製品形状として取り込み"
@@ -147,18 +144,6 @@ impl AppState {
                 }
                 "q" => {
                     self.load_debug_clip_square();
-                }
-                "1" => {
-                    self.set_stage_draft();
-                    tracing::info!("ステージ切替: Draft");
-                }
-                "2" => {
-                    self.set_stage_outline();
-                    tracing::info!("ステージ切替: Outline");
-                }
-                "3" => {
-                    self.set_stage_shading();
-                    tracing::info!("ステージ切替: Shading");
                 }
                 "l" => {
                     self.load_debug_line();
