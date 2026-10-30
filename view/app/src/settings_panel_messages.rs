@@ -13,6 +13,13 @@ const SETTINGS_PANEL_TEMPLATE_JA: &[(&str, &str)] = &[
         "settings.no_active_animation",
         "切削シミュレーションが取り込まれていません。変更は次の取り込みから反映されます。",
     ),
+    ("settings.header.frame_step", "コマ送り（k / j キー）"),
+    ("settings.frame_step.distance", "コマ送りの移動量（経路に沿った距離）"),
+    ("settings.frame_step.reset", "初期値に戻す（{distance} mm）"),
+    (
+        "settings.frame_step.reset_on_import",
+        "取り込むたびに、ツールパスの全長の 1/100 に戻します。1 コマより短い場合は 1 コマ移ります。",
+    ),
     ("settings.header.view_controls", "View 操作設定"),
     (
         "settings.view.controls_summary",
@@ -97,6 +104,13 @@ const SETTINGS_PANEL_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "settings.no_active_animation",
         "No cutting simulation is imported. Changes will be applied the next time one is imported.",
+    ),
+    ("settings.header.frame_step", "Frame Step (k / j keys)"),
+    ("settings.frame_step.distance", "Frame step distance (along the path)"),
+    ("settings.frame_step.reset", "Reset to the initial value ({distance} mm)"),
+    (
+        "settings.frame_step.reset_on_import",
+        "Reset to 1/100 of the toolpath length on each import. Moves at least one frame.",
     ),
     ("settings.header.view_controls", "View Controls"),
     (

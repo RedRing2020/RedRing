@@ -10,6 +10,9 @@ use viewmodel::cutting_animation::{CuttingAnimation, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingToolKind;
 use viewmodel::octree_converter::WireframeVertex;
 
+/// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
+const FRAME_STEP_DIVISIONS: f64 = 100.0;
+
 /// 重ねて描くメッシュのうち、素材のブロックのキーの範囲（製品形状のキーは 0 から）
 const STOCK_BLOCK_KEYS: RangeInclusive<u64> = (1 << 63)..=u64::MAX;
 
@@ -65,6 +68,8 @@ impl AppState {
     ) {
         self.debug_snapshot.clear();
         self.debug_snapshot.series = Some(animation.snapshot_series("cam_sim"));
+        self.debug_snapshot.frame_step_distance_mm =
+            self.initial_frame_step_distance_mm().unwrap_or(0.0);
         self.rebuild_snapshot_weighted_progress_axis_cache();
 
         let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation);
@@ -79,6 +84,12 @@ impl AppState {
             "切削シミュレーションを取り込みました（{:.1} 秒。Space で再生、k/j でコマ送り、左上の進捗バーでスクラブ、w でワイヤーフレーム）",
             started.elapsed().as_secs_f64()
         );
+    }
+
+    /// コマ送りの移動量の初期値（1 回の送りが進捗バーの約 1% になる、ツールパスの全長の 1/100。取り込んでいなければ `None`）
+    pub(super) fn initial_frame_step_distance_mm(&self) -> Option<f64> {
+        let last = self.debug_snapshot.series.as_ref()?.frames.last()?;
+        Some(last.payload.accumulated_distance_mm / FRAME_STEP_DIVISIONS)
     }
 
     /// 取り込んだ切削アニメーションの、設定で変わる線（ツールパスの線・工具の線）を今の設定で描き直す

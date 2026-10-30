@@ -89,9 +89,6 @@ impl AppState {
                     tracing::info!("t: 標準CAD視点");
                     tracing::info!("f: 正面視点");
                     tracing::info!("e: 緊急脱出");
-                    tracing::info!("1: Draftステージ");
-                    tracing::info!("2: Outlineステージ");
-                    tracing::info!("3: Shadingステージ");
                     tracing::info!("=== 切削シミュレーション ===");
                     tracing::info!(
                         "【取込】 STL ファイルをウィンドウにドロップ: 製品形状として取り込み"
@@ -107,8 +104,8 @@ impl AppState {
                     );
                     tracing::info!("【設定】 Shift+S: 設定パネル表示切替");
                     tracing::info!("【開始】 p: ToolPath のみ表示（シミュレーションなし）");
-                    tracing::info!("【移動】 k: 次のスナップショットフレームへ");
-                    tracing::info!("【移動】 j: 前のスナップショットフレームへ");
+                    tracing::info!("【移動】 k: コマ送りの移動量だけ先のフレームへ（移動量は設定パネルの表示タブ）");
+                    tracing::info!("【移動】 j: コマ送りの移動量だけ前のフレームへ");
                     tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
                     tracing::info!("【再生】 Space: 自動再生/一時停止");
                     tracing::info!("【再生】 Shift+J: 自動再生停止（先頭へ）");
@@ -147,18 +144,6 @@ impl AppState {
                 }
                 "q" => {
                     self.load_debug_clip_square();
-                }
-                "1" => {
-                    self.set_stage_draft();
-                    tracing::info!("ステージ切替: Draft");
-                }
-                "2" => {
-                    self.set_stage_outline();
-                    tracing::info!("ステージ切替: Outline");
-                }
-                "3" => {
-                    self.set_stage_shading();
-                    tracing::info!("ステージ切替: Shading");
                 }
                 "l" => {
                     self.load_debug_line();

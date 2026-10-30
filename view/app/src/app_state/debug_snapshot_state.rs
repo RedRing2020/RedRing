@@ -16,6 +16,8 @@ pub(super) struct DebugSnapshotState {
     pub(super) playback_mode: SnapshotPlaybackMode,
     pub(super) playback_speed_factor: f64,
     pub(super) playback_progress: f64,
+    /// コマ送り（k キー・j キー）で経路に沿って移る距離（mm）
+    pub(super) frame_step_distance_mm: f64,
     pub(super) last_playback_tick: Option<Instant>,
     pub(super) frame_update_required: bool,
 }
@@ -29,6 +31,7 @@ impl Default for DebugSnapshotState {
             playback_mode: SnapshotPlaybackMode::Manual,
             playback_speed_factor: 1.0,
             playback_progress: 0.0,
+            frame_step_distance_mm: 0.0,
             last_playback_tick: None,
             frame_update_required: true,
         }
@@ -43,6 +46,7 @@ impl DebugSnapshotState {
         self.playback_mode = SnapshotPlaybackMode::Manual;
         self.playback_speed_factor = 1.0;
         self.playback_progress = 0.0;
+        self.frame_step_distance_mm = 0.0;
         self.last_playback_tick = None;
         self.frame_update_required = true;
     }

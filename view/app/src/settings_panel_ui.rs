@@ -36,6 +36,10 @@ pub struct SettingsPanelUiState {
     pub tool_length: Option<f64>,
     /// 工具長を指定するときの入力値（指定しない間も保つ）
     pub tool_length_input: f64,
+    /// コマ送り（k キー・j キー）で経路に沿って移る距離（mm）
+    pub frame_step_distance_mm: f64,
+    /// コマ送りの移動量の初期値（取り込んでいなければ `None`）
+    pub initial_frame_step_distance_mm: Option<f64>,
     pub current_animation_label: Option<String>,
     pub redraw_animation_requested: bool,
 }
@@ -155,6 +159,31 @@ impl SettingsPanelUiState {
     }
 
     fn show_display_tab(&mut self, ui: &mut egui::Ui) {
+        let frame_step_label = self.text("settings.frame_step.distance");
+        CollapsingHeader::new(self.text("settings.header.frame_step"))
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.label(self.text("settings.frame_step.reset_on_import"));
+                ui.horizontal(|ui| {
+                    ui.add(
+                        DragValue::new(&mut self.frame_step_distance_mm)
+                            .range(0.0..=f64::MAX)
+                            .speed(1.0)
+                            .suffix(" mm"),
+                    );
+                    ui.label(frame_step_label);
+                });
+                if let Some(initial) = self.initial_frame_step_distance_mm {
+                    let reset_label = self.text_with_args(
+                        "settings.frame_step.reset",
+                        &[("distance", format!("{initial:.3}"))],
+                    );
+                    if ui.button(reset_label).clicked() {
+                        self.frame_step_distance_mm = initial;
+                    }
+                }
+            });
+
         CollapsingHeader::new(self.text("settings.header.view_controls"))
             .default_open(true)
             .show(ui, |ui| {
