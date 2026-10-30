@@ -68,6 +68,8 @@ pub struct CuttingAnimation {
     /// `accumulated_changes[k]` は、時点 `k` より前の時点の変化の件数の和（最後は全件）
     accumulated_changes: Vec<usize>,
     surface: DexelSurface,
+    /// 素材の精度（素材の面で、同じ平面とみなす交点の座標の幅）
+    precision: f64,
     frame: usize,
     toolpath: ToolPath<f64>,
     /// 切削シミュレーションと同じ分け方の、ツールパスの直線の区間（スナップショットの区間の番号の対象）
@@ -78,7 +80,7 @@ pub struct CuttingAnimation {
 }
 
 impl CuttingAnimation {
-    /// ツールパスと切削シミュレーションの成果物と工具から、最初の時点の切削アニメーションを作る
+    /// ツールパスと切削シミュレーションの成果物と工具と素材の精度から、最初の時点の切削アニメーションを作る
     ///
     /// # Errors
     ///
@@ -87,6 +89,7 @@ impl CuttingAnimation {
         toolpath_artifact: &[u8],
         simulation_artifact: &[u8],
         tool: Tool<f64>,
+        precision: f64,
     ) -> Result<Self, CuttingAnimationError> {
         let (_, toolpath) = read_toolpath_artifact_v1(&mut &toolpath_artifact[..])?;
         let (_, artifact) = read_cutting_simulation_artifact_v1(&mut &simulation_artifact[..])?;
@@ -118,7 +121,8 @@ impl CuttingAnimation {
             .collect();
         Ok(Self {
             accumulated_changes,
-            surface: DexelSurface::at_snapshot(&artifact, 0),
+            surface: DexelSurface::at_snapshot(&artifact, 0, precision),
+            precision,
             reverse_changes: artifact.reverse_snapshot_changes(),
             artifact,
             frame: 0,
@@ -167,25 +171,25 @@ impl CuttingAnimation {
         if target < self.frame
             && changes_up_to(target) < changes_up_to(self.frame) - changes_up_to(target)
         {
-            self.surface = DexelSurface::at_snapshot(&self.artifact, target);
+            self.surface = DexelSurface::at_snapshot(&self.artifact, target, self.precision);
             self.frame = target;
             return self.block_meshes(&self.all_blocks());
         }
-        let mut dirty = std::collections::BTreeSet::new();
-        if target < self.frame {
-            for snapshot in ((target + 1)..=self.frame).rev() {
-                dirty.extend(self.surface.apply_changes(&self.reverse_changes[snapshot]));
-            }
+        let blocks = if target < self.frame {
+            self.surface.apply_changes(
+                self.reverse_changes[(target + 1)..=self.frame]
+                    .iter()
+                    .rev()
+                    .map(Vec::as_slice),
+            )
         } else {
-            for snapshot in (self.frame + 1)..=target {
-                dirty.extend(
-                    self.surface
-                        .apply_changes(&self.artifact.snapshot_changes[snapshot]),
-                );
-            }
-        }
+            self.surface.apply_changes(
+                self.artifact.snapshot_changes[(self.frame + 1)..=target]
+                    .iter()
+                    .map(Vec::as_slice),
+            )
+        };
         self.frame = target;
-        let blocks: Vec<[usize; 3]> = dirty.into_iter().collect();
         self.block_meshes(&blocks)
     }
 
@@ -266,6 +270,8 @@ mod tests {
 
     use super::*;
 
+    const PRECISION: f64 = 0.01;
+
     fn tool() -> Tool<f64> {
         Tool::ball_end_mill("BEM2".to_string(), 2.0, 10.0)
     }
@@ -327,7 +333,7 @@ mod tests {
 
     fn animation() -> CuttingAnimation {
         let (toolpath, simulation) = artifacts();
-        CuttingAnimation::new(toolpath, simulation, tool()).unwrap()
+        CuttingAnimation::new(toolpath, simulation, tool(), PRECISION).unwrap()
     }
 
     /// ブロックごとの面を、頂点の位置と三角形で比べられる形にする
@@ -414,7 +420,7 @@ mod tests {
         let (toolpath, simulation) = artifacts();
         let mut tool = tool();
         tool.cutting_length = None;
-        let mut animation = CuttingAnimation::new(toolpath, simulation, tool).unwrap();
+        let mut animation = CuttingAnimation::new(toolpath, simulation, tool, PRECISION).unwrap();
         let settings = ToolWireframeVisualizationSettings::default();
         let mut heights = Vec::new();
         for frame in 0..animation.frame_count() {
@@ -447,11 +453,11 @@ mod tests {
         let (toolpath, simulation) = artifacts();
         let truncated = &simulation[..simulation.len() - 1];
         assert!(matches!(
-            CuttingAnimation::new(toolpath, truncated, tool()),
+            CuttingAnimation::new(toolpath, truncated, tool(), PRECISION),
             Err(CuttingAnimationError::Artifact(_))
         ));
         assert!(matches!(
-            CuttingAnimation::new(simulation, simulation, tool()),
+            CuttingAnimation::new(simulation, simulation, tool(), PRECISION),
             Err(CuttingAnimationError::Artifact(_))
         ));
     }

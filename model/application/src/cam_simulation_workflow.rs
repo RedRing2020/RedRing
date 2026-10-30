@@ -81,6 +81,8 @@ pub struct CamSimulationWorkflowResult {
     pub simulation_artifact: Vec<u8>,
     /// 切削シミュレーションの入力の工具
     pub tool: Tool<f64>,
+    /// 切削シミュレーションの入力の素材の精度（mm）
+    pub precision: f64,
 }
 
 /// 投入・取り込みの失敗
@@ -303,6 +305,7 @@ impl CamSimulationWorkflow {
             toolpath_artifact: result.input_artifact.ok_or_else(missing)?,
             simulation_artifact: result.active_artifact.ok_or_else(missing)?,
             tool: input.tool,
+            precision: input.precision,
         })
     }
 }

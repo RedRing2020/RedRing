@@ -7,11 +7,16 @@
 //!
 //! 格子を素材の外側へ 1 層広げ、そこを空として扱うことで、素材の外周の面も作る。面はセルのブロックごとに作り、
 //! スナップショットの変化から作り直すブロックを求める。
+//!
+//! 座標軸に垂直な同じ平面の上の面だけを持つセル（削っていない素材の外周や、平らな底など）は、ブロックの中で
+//! 輪郭の多角形にまとめて三角形に分ける。多角形の頂点は、周りのセルが同じ平面にない輪郭の点とブロックの角だけと
+//! し、どちらも点の周りだけで決まるため、隣のセル・ブロックと頂点がそろい、面に穴は開かない。
 
+mod polygon;
 #[cfg(test)]
 mod tests;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::constants::SURFACE_BLOCK_CELLS;
 use crate::simulation_artifact::{CuttingSimulationArtifact, DexelChange, DexelGridLayout};
@@ -80,15 +85,21 @@ pub struct DexelSurface {
     origin: [f64; 3],
     pitch: [f64; 3],
     count: [usize; 3],
+    /// 平らな部分をまとめるときに、同じ平面とみなす交点の座標の幅（素材の精度）
+    flat_tolerance: f64,
 }
 
 impl DexelSurface {
-    /// 成果物のスナップショット `snapshot` の時点の面
+    /// 成果物のスナップショット `snapshot` の時点の面（`flat_tolerance` は同じ平面とみなす交点の座標の幅）
     ///
     /// # Panics
     ///
     /// `snapshot` がスナップショットの数以上の場合。
-    pub fn at_snapshot(artifact: &CuttingSimulationArtifact, snapshot: usize) -> Self {
+    pub fn at_snapshot(
+        artifact: &CuttingSimulationArtifact,
+        snapshot: usize,
+        flat_tolerance: f64,
+    ) -> Self {
         let grids = artifact.grids;
         // Z の格子は X・Y、X の格子は Y・Z の座標を持つ
         let [z_grid, x_grid] = [grids[2], grids[0]];
@@ -102,6 +113,7 @@ impl DexelSurface {
                 z_grid.count[1] as usize,
                 x_grid.count[1] as usize,
             ],
+            flat_tolerance,
         }
     }
 
@@ -114,11 +126,16 @@ impl DexelSurface {
 
     /// デクセルの変化を当て、作り直すブロックを返す（前の時点へ戻す変化も同じように当てられる）
     ///
-    /// 作り直すのは、区間が変わった範囲（変化前と変化後で一致しない端点の間）の格子点・辺に接するセルを含むブロック。
-    pub fn apply_changes(&mut self, changes: &[DexelChange]) -> Vec<[usize; 3]> {
+    /// 複数の時点の変化（`snapshots`）を順に当て、作り直すブロックをまとめて返す。作り直すのは、区間が変わった範囲
+    /// （変化前と変化後で一致しない端点の間）の格子点・辺に接するセルと、その周りの 1 層のセルを含むブロック
+    /// （平らな部分の頂点は、頂点の周りのセルが同じ平面かで決まるため）。
+    pub fn apply_changes<'a>(
+        &mut self,
+        snapshots: impl IntoIterator<Item = &'a [DexelChange]>,
+    ) -> Vec<[usize; 3]> {
         let blocks = self.block_counts();
         let mut dirty = BTreeSet::new();
-        for change in changes {
+        for change in snapshots.into_iter().flatten() {
             let grid = change.grid as usize;
             let dexel = &mut self.intervals[grid][change.index as usize];
             let Some((low, high)) = changed_range(dexel, &change.intervals) else {
@@ -129,21 +146,21 @@ impl DexelSurface {
             let count = self.grids[grid].count[1] as usize;
             let line = [change.index as usize / count, change.index as usize % count];
             let mut ranges = [0..0, 0..0, 0..0];
-            // 線の向き: 変わった範囲の端点を挟む格子点（前後に 1 つの余裕）に接するセル
+            // 線の向き: 変わった範囲の端点を挟む格子点（前後に 1 つの余裕）に接するセルと、その前後の 1 層
             // （外側へ広げたセルの番号は、格子点の番号 + 1 と + 0）
             let point =
                 |value: f64| ((value - self.origin[grid]) / self.pitch[grid]).floor() as i64;
             let last_cell = self.count[grid] as i64;
             let (first, last) = (
-                (point(low) - 1).clamp(0, last_cell) as usize,
-                (point(high) + 3).clamp(0, last_cell) as usize,
+                (point(low) - 2).clamp(0, last_cell) as usize,
+                (point(high) + 4).clamp(0, last_cell) as usize,
             );
             ranges[grid] =
                 first / SURFACE_BLOCK_CELLS..(last / SURFACE_BLOCK_CELLS + 1).min(blocks[grid]);
-            // 線の周り: 線上の格子点・辺に接するセル
+            // 線の周り: 線上の格子点・辺に接するセルと、その周りの 1 層
             for (index, &axis) in plane_axes.iter().enumerate() {
-                let first = line[index] / SURFACE_BLOCK_CELLS;
-                let last = (line[index] + 1) / SURFACE_BLOCK_CELLS;
+                let first = line[index].saturating_sub(1) / SURFACE_BLOCK_CELLS;
+                let last = (line[index] + 2) / SURFACE_BLOCK_CELLS;
                 ranges[axis] = first..(last + 1).min(blocks[axis]);
             }
             for bx in ranges[0].clone() {
@@ -187,19 +204,218 @@ impl DexelSurface {
     /// セルの頂点の内外は Z の向きのデクセルだけで決まるため、Z の向きのセルの列ごとに、列の 4 本の Z の線の
     /// 内外の区間から頂点の内外がそろわないセルを求め、そのセルだけを処理する（時間は面の大きさに比例する）。
     pub fn mesh_block(&self, block: [usize; 3]) -> SurfaceMesh {
-        let mut builder =
-            MeshBuilder::new(block.map(|index| (index * SURFACE_BLOCK_CELLS) as i64 - 1));
         let [x_cells, y_cells, z_cells] = [0, 1, 2].map(|axis| self.block_cells(block, axis));
+        let mut cells = Vec::new();
         for x in x_cells {
             for y in y_cells.clone() {
                 // 外側へ広げたセルの番号から、セルの最小の格子点の番号（-1 から）
                 let (i, j) = (x as i64 - 1, y as i64 - 1);
-                for k in self.mixed_cells_in_column(i, j, z_cells.clone()) {
-                    self.mesh_cell([i, j, k], &mut builder);
-                }
+                cells.extend(
+                    self.mixed_cells_in_column(i, j, z_cells.clone())
+                        .into_iter()
+                        .map(|k| [i, j, k]),
+                );
             }
         }
+        self.mesh_cells(block, &cells)
+    }
+
+    /// ブロック `block` の、最小の格子点が `cells` のセルの面（同じ平面の上の面だけを持つセルは多角形にまとめる）
+    fn mesh_cells(&self, block: [usize; 3], cells: &[[i64; 3]]) -> SurfaceMesh {
+        let mut builder =
+            MeshBuilder::new(block.map(|index| (index * SURFACE_BLOCK_CELLS) as i64 - 1));
+        let mut planes: BTreeMap<PlaneKey, BTreeSet<[i64; 2]>> = BTreeMap::new();
+        let mut cell_planes = HashMap::new();
+        for &lower in cells {
+            let inside = self.corner_inside(lower);
+            let plane = if inside.iter().all(|&flag| flag == inside[0]) {
+                None
+            } else {
+                self.planar_cell(lower, &inside)
+            };
+            cell_planes.insert(lower, plane);
+            match plane {
+                Some(key) => {
+                    let [u, v] = plane_axes(key.axis);
+                    planes.entry(key).or_default().insert([lower[u], lower[v]]);
+                }
+                None => self.mesh_cell(lower, &inside, &mut builder),
+            }
+        }
+        for (key, cells) in planes {
+            self.mesh_plane(key, &cells, &mut cell_planes, &mut builder);
+        }
         builder.finish()
+    }
+
+    /// 最小の格子点が `lower` のセルが乗る平面（`cell_planes` に覚える。格子の外のセルは `None`）
+    fn cell_plane(
+        &self,
+        lower: [i64; 3],
+        cell_planes: &mut HashMap<[i64; 3], Option<PlaneKey>>,
+    ) -> Option<PlaneKey> {
+        *cell_planes
+            .entry(lower)
+            .or_insert_with(|| self.plane_of_cell(lower))
+    }
+
+    /// 最小の格子点が `lower` のセルが乗る平面（格子の外のセル・面のないセル・平らでないセルは `None`）
+    fn plane_of_cell(&self, lower: [i64; 3]) -> Option<PlaneKey> {
+        let outside = (0..3).any(|axis| lower[axis] < -1 || lower[axis] >= self.count[axis] as i64);
+        if outside {
+            return None;
+        }
+        let inside = self.corner_inside(lower);
+        if inside.iter().all(|&flag| flag == inside[0]) {
+            None
+        } else {
+            self.planar_cell(lower, &inside)
+        }
+    }
+
+    /// 最小の格子点が `lower` のセルが、座標軸に垂直な 1 つの平面の上の面だけを持つ場合のその平面
+    ///
+    /// ある座標軸の向きの 4 本の辺だけが面と交わり、4 つの交点のその軸の座標が、座標を `flat_tolerance` の幅で
+    /// 区切った同じ区画に入る場合とする（同じ区画の平面の中の座標の違いは `flat_tolerance` 以下になる）。
+    fn planar_cell(&self, lower: [i64; 3], inside: &[bool; 8]) -> Option<PlaneKey> {
+        let section = |value: f64| (value / self.flat_tolerance).round() as i64;
+        let corner_point = |corner: usize| {
+            let offset = CORNERS[corner];
+            [0, 1, 2].map(|axis| lower[axis] + offset[axis] as i64)
+        };
+        (0..3).find_map(|axis| {
+            let bit = 1 << axis;
+            let low_corners = (0..8).filter(move |corner| corner & bit == 0);
+            let separated = low_corners
+                .clone()
+                .all(|corner| inside[corner] == inside[0] && inside[corner | bit] != inside[0]);
+            if !separated {
+                return None;
+            }
+            let value = section(self.crossing(corner_point(0), corner_point(bit))[axis]);
+            low_corners
+                .skip(1)
+                .all(|corner| {
+                    section(self.crossing(corner_point(corner), corner_point(corner | bit))[axis])
+                        == value
+                })
+                .then_some(PlaneKey {
+                    axis,
+                    inside_below: inside[0],
+                    layer: lower[axis],
+                    value,
+                })
+        })
+    }
+
+    /// 同じ平面の上の面だけを持つセル（平面の 2 方向の最小の格子点の番号）を多角形にまとめて面を加える
+    ///
+    /// 多角形の頂点は、輪郭の格子点のうち、周りの 4 つのセルのどれかが同じ平面にない点と、ブロックの角とする。
+    /// どちらも点の周りだけで決まるため、隣のブロックの多角形・セルの面と頂点がそろう。三角形に分けられない場合は
+    /// セルごとに描く。
+    fn mesh_plane(
+        &self,
+        key: PlaneKey,
+        cells: &BTreeSet<[i64; 2]>,
+        cell_planes: &mut HashMap<[i64; 3], Option<PlaneKey>>,
+        builder: &mut MeshBuilder,
+    ) {
+        let [u_axis, v_axis] = plane_axes(key.axis);
+        let grid_point = |[u, v]: [i64; 2]| {
+            let mut point = [0; 3];
+            point[key.axis] = key.layer;
+            point[u_axis] = u;
+            point[v_axis] = v;
+            point
+        };
+        let block_line = |index: i64| (index + 1).rem_euclid(SURFACE_BLOCK_CELLS as i64) == 0;
+        let mut kept = |[u, v]: [i64; 2]| {
+            (block_line(u) && block_line(v))
+                || [[u - 1, v - 1], [u, v - 1], [u - 1, v], [u, v]]
+                    .into_iter()
+                    .any(|cell| self.cell_plane(grid_point(cell), cell_planes) != Some(key))
+        };
+
+        // 輪郭の輪（左回りが外周、右回りが穴）を、残す頂点の番号の列にする
+        let mut points: Vec<[i64; 2]> = Vec::new();
+        let mut ids: HashMap<[i64; 2], usize> = HashMap::new();
+        let mut outers = Vec::new();
+        let mut holes = Vec::new();
+        for boundary in boundary_loops(cells) {
+            let ring: Vec<usize> = boundary
+                .points
+                .iter()
+                .filter(|&&point| kept(point))
+                .map(|&point| {
+                    *ids.entry(point).or_insert_with(|| {
+                        points.push(point);
+                        points.len() - 1
+                    })
+                })
+                .collect();
+            if boundary.area > 0 {
+                outers.push((boundary, ring));
+            } else {
+                holes.push((boundary, ring));
+            }
+        }
+        // 穴は、穴に接する材料のセルの中心を含む外周のうち、最も小さいものに属する
+        let mut outer_holes: Vec<Vec<Vec<usize>>> = vec![Vec::new(); outers.len()];
+        for (hole, ring) in holes {
+            let sample = hole.inner_cell_center();
+            let owner = outers
+                .iter()
+                .enumerate()
+                .filter(|(_, (outer, _))| outer.contains_doubled(sample))
+                .min_by_key(|(_, (outer, _))| outer.area)
+                .map(|(index, _)| index);
+            match owner {
+                Some(index) => outer_holes[index].push(ring),
+                None => return self.mesh_plane_cells(key, cells, builder),
+            }
+        }
+        let mut triangles = Vec::new();
+        for ((_, ring), holes) in outers.iter().zip(&outer_holes) {
+            match polygon::triangulate(&points, ring, holes) {
+                Some(part) => triangles.extend(part),
+                None => return self.mesh_plane_cells(key, cells, builder),
+            }
+        }
+
+        // 平面の 2 方向で左回りの三角形の法線は、Y に垂直な平面だけ座標軸と逆を向く
+        let counterclockwise_sign = if key.axis == 1 { -1.0 } else { 1.0 };
+        let outward = if key.inside_below { 1.0 } else { -1.0 };
+        let flip = counterclockwise_sign * outward < 0.0;
+        let vertices: Vec<u32> = points
+            .iter()
+            .map(|&point| {
+                let start = grid_point(point);
+                let mut end = start;
+                end[key.axis] += 1;
+                builder.edge_vertex(&EdgeKey::new(start, end), self.crossing(start, end))
+            })
+            .collect();
+        for [a, b, c] in triangles {
+            let (b, c) = if flip { (c, b) } else { (b, c) };
+            builder.add_triangle([vertices[a], vertices[b], vertices[c]]);
+        }
+    }
+
+    /// 同じ平面の上の面だけを持つセルを、セルごとに描く
+    fn mesh_plane_cells(
+        &self,
+        key: PlaneKey,
+        cells: &BTreeSet<[i64; 2]>,
+        builder: &mut MeshBuilder,
+    ) {
+        let [u_axis, v_axis] = plane_axes(key.axis);
+        for &[u, v] in cells {
+            let mut lower = [0; 3];
+            lower[key.axis] = key.layer;
+            lower[u_axis] = u;
+            lower[v_axis] = v;
+            self.mesh_cell(lower, &self.corner_inside(lower), builder);
+        }
     }
 
     /// ブロックの、座標軸 `axis` の向きのセルの番号の範囲（外側へ広げたセルの番号）
@@ -291,28 +507,33 @@ impl DexelSurface {
     /// ブロック `block` の面を、すべてのセルを調べて作る（比較用）
     #[cfg(test)]
     fn mesh_block_by_scanning(&self, block: [usize; 3]) -> SurfaceMesh {
-        let mut builder =
-            MeshBuilder::new(block.map(|index| (index * SURFACE_BLOCK_CELLS) as i64 - 1));
         let [x_cells, y_cells, z_cells] = [0, 1, 2].map(|axis| self.block_cells(block, axis));
+        let mut cells = Vec::new();
         for x in x_cells {
             for y in y_cells.clone() {
                 for z in z_cells.clone() {
-                    let lower = [x as i64 - 1, y as i64 - 1, z as i64 - 1];
-                    self.mesh_cell(lower, &mut builder);
+                    cells.push([x as i64 - 1, y as i64 - 1, z as i64 - 1]);
                 }
             }
         }
-        builder.finish()
+        self.mesh_cells(block, &cells)
     }
 
-    /// 最小の格子点が `lower` のセルの面を加える
-    fn mesh_cell(&self, lower: [i64; 3], builder: &mut MeshBuilder) {
+    /// 最小の格子点が `lower` のセルの頂点の内外（`CORNERS` の順）
+    fn corner_inside(&self, lower: [i64; 3]) -> [bool; 8] {
+        std::array::from_fn(|corner| {
+            let offset = CORNERS[corner];
+            self.is_inside([0, 1, 2].map(|axis| lower[axis] + offset[axis] as i64))
+        })
+    }
+
+    /// 最小の格子点が `lower`、頂点の内外が `inside` のセルの面を加える
+    fn mesh_cell(&self, lower: [i64; 3], inside: &[bool; 8], builder: &mut MeshBuilder) {
         let corner_point = |corner: usize| {
             let offset = CORNERS[corner];
             [0, 1, 2].map(|axis| lower[axis] + offset[axis] as i64)
         };
-        let inside: [bool; 8] = std::array::from_fn(|corner| self.is_inside(corner_point(corner)));
-        if inside.iter().all(|&flag| flag) || inside.iter().all(|&flag| !flag) {
+        if inside.iter().all(|&flag| flag == inside[0]) {
             return;
         }
 
@@ -474,6 +695,110 @@ fn plane_axes(axis: usize) -> [usize; 2] {
     }
 }
 
+/// 平面の上のセルの集まりの輪郭の輪（格子点の列。材料のセルを左に見る向き）
+struct Boundary {
+    points: Vec<[i64; 2]>,
+    /// 2 倍の符号付き面積（外周は正、穴は負）
+    area: i64,
+}
+
+impl Boundary {
+    /// 輪の最初の辺の左にある材料のセルの中心（座標を 2 倍した値）
+    fn inner_cell_center(&self) -> [i64; 2] {
+        let (start, end) = (self.points[0], self.points[1]);
+        let direction = [end[0] - start[0], end[1] - start[1]];
+        [
+            2 * start[0] + direction[0] - direction[1],
+            2 * start[1] + direction[1] + direction[0],
+        ]
+    }
+
+    /// 座標を 2 倍した点 `point`（輪の上にない点）が輪の中にあるか
+    fn contains_doubled(&self, point: [i64; 2]) -> bool {
+        let mut inside = false;
+        for (index, &current) in self.points.iter().enumerate() {
+            let next = self.points[(index + 1) % self.points.len()];
+            let (a, b) = (current.map(|value| 2 * value), next.map(|value| 2 * value));
+            if (a[1] > point[1]) != (b[1] > point[1]) {
+                // 辺は座標軸に平行で、Y の向きの辺だけが横切る
+                if point[0] < a[0] {
+                    inside = !inside;
+                }
+            }
+        }
+        inside
+    }
+}
+
+/// セルの集まり `cells` の輪郭の輪（2 つの輪が 1 点で接する場合は、左に曲がる向きを選んで分ける）
+fn boundary_loops(cells: &BTreeSet<[i64; 2]>) -> Vec<Boundary> {
+    let mut outgoing: BTreeMap<[i64; 2], Vec<[i64; 2]>> = BTreeMap::new();
+    let mut add = |start: [i64; 2], end: [i64; 2]| outgoing.entry(start).or_default().push(end);
+    for &[u, v] in cells {
+        if !cells.contains(&[u, v - 1]) {
+            add([u, v], [u + 1, v]);
+        }
+        if !cells.contains(&[u + 1, v]) {
+            add([u + 1, v], [u + 1, v + 1]);
+        }
+        if !cells.contains(&[u, v + 1]) {
+            add([u + 1, v + 1], [u, v + 1]);
+        }
+        if !cells.contains(&[u - 1, v]) {
+            add([u, v + 1], [u, v]);
+        }
+    }
+    let mut loops = Vec::new();
+    while let Some(&start) = outgoing.keys().next() {
+        let mut points = vec![start];
+        let mut current = start;
+        let mut direction: Option<[i64; 2]> = None;
+        loop {
+            let ends = outgoing
+                .get_mut(&current)
+                .expect("each point has an outgoing edge");
+            let turn = |end: &[i64; 2]| {
+                direction.map_or(0, |[du, dv]| {
+                    let [eu, ev] = [end[0] - current[0], end[1] - current[1]];
+                    du * ev - dv * eu
+                })
+            };
+            let index = (0..ends.len())
+                .max_by_key(|&index| turn(&ends[index]))
+                .expect("outgoing edges are not empty");
+            let end = ends.swap_remove(index);
+            if ends.is_empty() {
+                outgoing.remove(&current);
+            }
+            direction = Some([end[0] - current[0], end[1] - current[1]]);
+            current = end;
+            if current == start {
+                break;
+            }
+            points.push(current);
+        }
+        let area = (0..points.len())
+            .map(|index| {
+                let (a, b) = (points[index], points[(index + 1) % points.len()]);
+                a[0] * b[1] - a[1] * b[0]
+            })
+            .sum();
+        loops.push(Boundary { points, area });
+    }
+    loops
+}
+
+/// 座標軸 `axis` に垂直な平面（`layer` はセルのその軸の最小の格子点の番号、`value` は平面の座標を
+/// 同じ平面とみなす幅で区切った区画の番号）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct PlaneKey {
+    axis: usize,
+    /// 平面より小さい座標の側が材料か
+    inside_below: bool,
+    layer: i64,
+    value: i64,
+}
+
 /// 格子の辺（小さい側の格子点と向き）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct EdgeKey {
@@ -524,26 +849,35 @@ impl MeshBuilder {
     fn add_polygon(&mut self, keys: &[EdgeKey], points: &[[f64; 3]]) {
         let mut indices = [0_u32; 12];
         for (index, (key, point)) in keys.iter().zip(points).enumerate() {
-            let slot = self.slot(key);
-            if self.vertices[slot] == u32::MAX {
-                self.mesh.positions.push(*point);
-                self.mesh.normals.push([0.0; 3]);
-                self.vertices[slot] = (self.mesh.positions.len() - 1) as u32;
-            }
-            indices[index] = self.vertices[slot];
+            indices[index] = self.edge_vertex(key, *point);
         }
         for i in 1..keys.len().saturating_sub(1) {
-            let triangle = [indices[0], indices[i], indices[i + 1]];
-            let [a, b, c] = triangle.map(|index| self.mesh.positions[index as usize]);
-            let normal = cross(sub(b, a), sub(c, a));
-            for index in triangle {
-                let accumulated = &mut self.mesh.normals[index as usize];
-                for axis in 0..3 {
-                    accumulated[axis] += normal[axis];
-                }
-            }
-            self.mesh.indices.extend(triangle);
+            self.add_triangle([indices[0], indices[i], indices[i + 1]]);
         }
+    }
+
+    /// 辺 `key` の頂点の番号（なければ `point` で加える）
+    fn edge_vertex(&mut self, key: &EdgeKey, point: [f64; 3]) -> u32 {
+        let slot = self.slot(key);
+        if self.vertices[slot] == u32::MAX {
+            self.mesh.positions.push(point);
+            self.mesh.normals.push([0.0; 3]);
+            self.vertices[slot] = (self.mesh.positions.len() - 1) as u32;
+        }
+        self.vertices[slot]
+    }
+
+    /// 三角形を加え、面積で重み付けた法線を頂点に足す
+    fn add_triangle(&mut self, triangle: [u32; 3]) {
+        let [a, b, c] = triangle.map(|index| self.mesh.positions[index as usize]);
+        let normal = cross(sub(b, a), sub(c, a));
+        for index in triangle {
+            let accumulated = &mut self.mesh.normals[index as usize];
+            for axis in 0..3 {
+                accumulated[axis] += normal[axis];
+            }
+        }
+        self.mesh.indices.extend(triangle);
     }
 
     fn finish(mut self) -> SurfaceMesh {
