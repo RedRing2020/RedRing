@@ -164,7 +164,7 @@ impl AppState {
 
     pub fn new(window: Arc<Window>) -> Self {
         let graphic = init_graphic(window.clone());
-        let renderer = AppRendererFactory::create_draft(&window, &graphic.device, &graphic.config);
+        let renderer = AppRendererFactory::create_empty(&window, &graphic.device, &graphic.config);
         let viewing_operation_settings = ViewingOperationSettings::default();
 
         let mut app_state = Self {

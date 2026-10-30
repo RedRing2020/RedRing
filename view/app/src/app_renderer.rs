@@ -1,4 +1,4 @@
-use stage::RenderStage;
+use stage::{MeshStage, RenderStage};
 use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 use winit::{event::WindowEvent, window::Window};
 
@@ -7,7 +7,6 @@ use crate::selection_rect_renderer::SelectionRectRenderer;
 use crate::settings_panel_renderer::SettingsPanelRenderer;
 use crate::settings_panel_ui::SettingsPanelUiState;
 use crate::snapshot_overlay_renderer::{SnapshotOverlayRenderer, SnapshotOverlayStyle};
-use crate::stage_factory;
 
 pub struct RenderFrameContext<'a> {
     pub device: &'a Device,
@@ -26,12 +25,13 @@ pub struct AppRenderer {
 pub struct AppRendererFactory;
 
 impl AppRendererFactory {
-    fn create_with_stage(
+    /// 何も表示していない状態（空のメッシュステージ）の描画を作る
+    pub fn create_empty(
         window: &Window,
         device: &Device,
         config: &SurfaceConfiguration,
-        stage: Box<dyn RenderStage>,
     ) -> AppRenderer {
+        let stage = Box::new(MeshStage::new(device, config.format));
         let selection_rect_renderer = SelectionRectRenderer::new(device, config.format);
         let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
         let settings_panel_renderer = SettingsPanelRenderer::new(window, device, config.format);
@@ -41,15 +41,6 @@ impl AppRendererFactory {
             snapshot_overlay_renderer,
             settings_panel_renderer,
         }
-    }
-
-    pub fn create_draft(
-        window: &Window,
-        device: &Device,
-        config: &SurfaceConfiguration,
-    ) -> AppRenderer {
-        let stage = stage_factory::create_draft_stage(device, config.format);
-        Self::create_with_stage(window, device, config, stage)
     }
 }
 

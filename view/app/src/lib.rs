@@ -12,4 +12,3 @@ pub(crate) mod settings_panel_messages;
 pub(crate) mod settings_panel_renderer;
 pub(crate) mod settings_panel_ui;
 pub mod snapshot_overlay_renderer;
-pub mod stage_factory;
