@@ -133,7 +133,7 @@ impl CuttingSimulator {
         Some(CuttingSimulationArtifact {
             snapshots: self.snapshot_exports_f64(),
             grids: dexels.layouts(),
-            snapshot_changes: dexels.snapshot_changes().to_vec(),
+            snapshot_changes: dexels.snapshot_changes().clone(),
         })
     }
 

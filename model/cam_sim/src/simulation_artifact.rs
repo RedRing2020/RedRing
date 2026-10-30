@@ -10,6 +10,7 @@
 //! 3. スナップショットごとの変化: 変化の数 `u32` と、各変化の格子の番号 `u8`・デクセルの番号 `u32`・区間の数 `u32`・区間（`f64`×2）
 
 use std::io::{Read, Write};
+use std::ops::{Range, RangeInclusive};
 
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ArtifactPayload, BinaryFormatError, CoordinateFrame,
@@ -33,15 +34,101 @@ pub struct DexelGridLayout {
     pub initial: (f64, f64),
 }
 
-/// 1 本のデクセルの変化（変化後の区間）
-#[derive(Debug, Clone, PartialEq)]
-pub struct DexelChange {
+/// 1 本のデクセルの変化（変化後の区間は、`DexelChanges` の区間の配列の中にある）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DexelChange {
+    grid: u8,
+    index: u32,
+    /// 変化後の区間の、区間の配列の中の範囲（始まりと終わり）
+    intervals: [u32; 2],
+}
+
+/// 1 本のデクセルの区間（変化後、または戻した後）
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DexelState<'a> {
     /// 格子の番号（`DexelGridLayout` の並びの番号）
     pub grid: u8,
     /// 格子の中のデクセルの番号
     pub index: u32,
-    pub intervals: Vec<(f64, f64)>,
+    pub intervals: &'a [(f64, f64)],
 }
+
+/// 時点ごとのデクセルの変化（全時点の変化と区間を、時点の順にそれぞれ 1 つの配列にまとめて持つ）
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DexelChanges {
+    changes: Vec<DexelChange>,
+    intervals: Vec<(f64, f64)>,
+    /// `snapshot_ends[k]` は、時点 `k` までの変化の件数
+    snapshot_ends: Vec<usize>,
+}
+
+impl DexelChanges {
+    /// 時点の数
+    pub fn snapshot_count(&self) -> usize {
+        self.snapshot_ends.len()
+    }
+
+    /// 時点 `snapshot` までの変化の件数
+    pub fn count_until(&self, snapshot: usize) -> usize {
+        self.snapshot_ends[snapshot]
+    }
+
+    /// 時点 `snapshot` の変化の、変化後の区間
+    pub fn snapshot(&self, snapshot: usize) -> impl ExactSizeIterator<Item = DexelState<'_>> {
+        self.states(self.numbers(snapshot..=snapshot))
+    }
+
+    /// 次に区切る時点の変化に、デクセルの変化後の区間を加える
+    pub(crate) fn push(&mut self, grid: u8, index: u32, intervals: &[(f64, f64)]) {
+        let start = slot(self.intervals.len());
+        self.intervals.extend_from_slice(intervals);
+        self.changes.push(DexelChange {
+            grid,
+            index,
+            intervals: [start, slot(self.intervals.len())],
+        });
+    }
+
+    /// それまでに加えた変化を、1 つの時点の変化として区切る
+    pub(crate) fn end_snapshot(&mut self) {
+        self.snapshot_ends.push(self.changes.len());
+    }
+
+    /// 時点の範囲 `snapshots` の変化の番号の範囲（時点の範囲が空なら空）
+    fn numbers(&self, snapshots: RangeInclusive<usize>) -> Range<usize> {
+        let (first, last) = snapshots.into_inner();
+        let start = first
+            .checked_sub(1)
+            .map_or(0, |before| self.count_until(before));
+        start..self.count_until(last).max(start)
+    }
+
+    fn states(
+        &self,
+        numbers: Range<usize>,
+    ) -> impl ExactSizeIterator<Item = DexelState<'_>> + DoubleEndedIterator {
+        self.changes[numbers]
+            .iter()
+            .map(|change| self.state(change))
+    }
+
+    fn state(&self, change: &DexelChange) -> DexelState<'_> {
+        let [start, end] = change.intervals.map(|position| position as usize);
+        DexelState {
+            grid: change.grid,
+            index: change.index,
+            intervals: &self.intervals[start..end],
+        }
+    }
+}
+
+/// 区間の配列の中の位置
+fn slot(position: usize) -> u32 {
+    u32::try_from(position).expect("dexel change intervals fit in u32 positions")
+}
+
+/// 同じデクセルの前の変化がないことを表す番号（戻すと初期の区間になる）
+const NO_PREVIOUS_CHANGE: u32 = u32::MAX;
 
 /// 切削シミュレーションの成果物の中身
 #[derive(Debug, Clone, PartialEq)]
@@ -49,8 +136,8 @@ pub struct CuttingSimulationArtifact {
     pub snapshots: Vec<SimulationSnapshotExport>,
     /// X・Y・Z の向きの格子
     pub grids: [DexelGridLayout; 3],
-    /// `snapshot_changes[k]` は、スナップショット `k - 1`（`k = 0` では初期の状態）からスナップショット `k` への変化
-    pub snapshot_changes: Vec<Vec<DexelChange>>,
+    /// 時点 `k` の変化は、時点 `k - 1`（`k = 0` では初期の状態）から時点 `k` への変化
+    pub snapshot_changes: DexelChanges,
 }
 
 impl CuttingSimulationArtifact {
@@ -61,41 +148,73 @@ impl CuttingSimulationArtifact {
     /// `snapshot` がスナップショットの数以上の場合。
     pub fn dexel_intervals_at(&self, snapshot: usize) -> [Vec<Vec<(f64, f64)>>; 3] {
         assert!(
-            snapshot < self.snapshot_changes.len(),
+            snapshot < self.snapshot_changes.snapshot_count(),
             "snapshot index out of range"
         );
         let mut grids = self.initial_intervals();
-        for changes in &self.snapshot_changes[..=snapshot] {
-            for change in changes {
-                grids[change.grid as usize][change.index as usize].clone_from(&change.intervals);
-            }
+        for change in self.forward_changes(0..=snapshot) {
+            let dexel = &mut grids[change.grid as usize][change.index as usize];
+            dexel.clear();
+            dexel.extend_from_slice(change.intervals);
         }
         grids
     }
 
-    /// 時点ごとの、前の時点へ戻す変化（`k` 番目は時点 `k` から時点 `k - 1` へ戻す変化。`0` 番目は空）
-    pub fn reverse_snapshot_changes(&self) -> Vec<Vec<DexelChange>> {
-        let mut grids = self.initial_intervals();
+    /// 時点の範囲 `snapshots` の変化を、時点の順に並べた変化後の区間
+    pub fn forward_changes(
+        &self,
+        snapshots: RangeInclusive<usize>,
+    ) -> impl Iterator<Item = DexelState<'_>> {
         self.snapshot_changes
+            .states(self.snapshot_changes.numbers(snapshots))
+    }
+
+    /// 変化ごとの、同じデクセルの 1 つ前の変化の番号（`backward_changes` に渡す）
+    ///
+    /// # Panics
+    ///
+    /// 変化の件数が `u32` の番号に収まらない場合。
+    pub fn previous_changes(&self) -> Vec<u32> {
+        let mut last = self
+            .grids
+            .map(|grid| vec![NO_PREVIOUS_CHANGE; grid.count[0] as usize * grid.count[1] as usize]);
+        self.snapshot_changes
+            .changes
             .iter()
             .enumerate()
-            .map(|(snapshot, changes)| {
-                let reverse: Vec<DexelChange> = changes
-                    .iter()
-                    .map(|change| {
-                        let dexel = &mut grids[change.grid as usize][change.index as usize];
-                        let before = std::mem::replace(dexel, change.intervals.clone());
-                        DexelChange {
-                            grid: change.grid,
-                            index: change.index,
-                            intervals: before,
-                        }
-                    })
-                    .collect();
-                // 時点 0 の変化は初期の状態からの変化で、戻す先の時点がない
-                if snapshot == 0 { Vec::new() } else { reverse }
+            .map(|(number, change)| {
+                let number = u32::try_from(number).expect("dexel change count fits in u32");
+                std::mem::replace(
+                    &mut last[change.grid as usize][change.index as usize],
+                    number,
+                )
             })
             .collect()
+    }
+
+    /// 時点の範囲 `snapshots` の変化を後ろから順に戻した区間（`previous` は `previous_changes` の結果）
+    ///
+    /// すべて当てると、`snapshots` の最初の時点の 1 つ前の時点（最初の時点が 0 なら初期の状態）になる。
+    pub fn backward_changes<'a>(
+        &'a self,
+        previous: &'a [u32],
+        snapshots: RangeInclusive<usize>,
+    ) -> impl Iterator<Item = DexelState<'a>> {
+        let changes = &self.snapshot_changes;
+        changes.numbers(snapshots).rev().map(move |number| {
+            let change = &changes.changes[number];
+            let intervals = match previous[number] {
+                NO_PREVIOUS_CHANGE => {
+                    std::slice::from_ref(&self.grids[change.grid as usize].initial)
+                }
+                before => changes.state(&changes.changes[before as usize]).intervals,
+            };
+            DexelState {
+                grid: change.grid,
+                index: change.index,
+                intervals,
+            }
+        })
     }
 
     /// 初期の状態の、各格子のデクセルの区間
@@ -139,16 +258,18 @@ pub fn write_cutting_simulation_artifact_v1<W: Write>(
         payload.extend_from_slice(&grid.initial.0.to_le_bytes());
         payload.extend_from_slice(&grid.initial.1.to_le_bytes());
     }
-    if artifact.snapshot_changes.len() != artifact.snapshots.len() {
+    let changes = &artifact.snapshot_changes;
+    if changes.snapshot_count() != artifact.snapshots.len() {
         return Err(BinaryFormatError::InvalidPayload("snapshot_changes"));
     }
-    for changes in &artifact.snapshot_changes {
-        write_count(&mut payload, changes.len(), "changes")?;
-        for change in changes {
+    for snapshot in 0..changes.snapshot_count() {
+        let states = changes.snapshot(snapshot);
+        write_count(&mut payload, states.len(), "changes")?;
+        for change in states {
             payload.push(change.grid);
             payload.extend_from_slice(&change.index.to_le_bytes());
             write_count(&mut payload, change.intervals.len(), "intervals")?;
-            for &(low, high) in &change.intervals {
+            for &(low, high) in change.intervals {
                 payload.extend_from_slice(&low.to_le_bytes());
                 payload.extend_from_slice(&high.to_le_bytes());
             }
@@ -213,10 +334,10 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
         };
     }
 
-    let mut snapshot_changes = Vec::with_capacity(snapshot_count.min(bytes.len()));
+    let mut snapshot_changes = DexelChanges::default();
+    let mut intervals = Vec::new();
     for _ in 0..snapshot_count {
         let change_count = read_u32(reader)? as usize;
-        let mut changes = Vec::with_capacity(change_count.min(bytes.len()));
         for _ in 0..change_count {
             let grid = read_u8(reader)?;
             let index = read_u32(reader)?;
@@ -227,17 +348,13 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
                 return Err(BinaryFormatError::InvalidPayload("change.index"));
             }
             let interval_count = read_u32(reader)? as usize;
-            let mut intervals = Vec::with_capacity(interval_count.min(bytes.len()));
+            intervals.clear();
             for _ in 0..interval_count {
                 intervals.push((read_f64(reader)?, read_f64(reader)?));
             }
-            changes.push(DexelChange {
-                grid,
-                index,
-                intervals,
-            });
+            snapshot_changes.push(grid, index, &intervals);
         }
-        snapshot_changes.push(changes);
+        snapshot_changes.end_snapshot();
     }
     if !reader.is_empty() {
         return Err(BinaryFormatError::InvalidPayload("trailing bytes"));
@@ -374,7 +491,7 @@ mod tests {
             }
         }
         // 最初の時点は切削の前で、変化がない
-        assert!(artifact.snapshot_changes[0].is_empty());
+        assert_eq!(artifact.snapshot_changes.snapshot(0).len(), 0);
     }
 
     #[test]

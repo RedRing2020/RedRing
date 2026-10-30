@@ -19,7 +19,7 @@ mod tests;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::constants::SURFACE_BLOCK_CELLS;
-use crate::simulation_artifact::{CuttingSimulationArtifact, DexelChange, DexelGridLayout};
+use crate::simulation_artifact::{CuttingSimulationArtifact, DexelGridLayout, DexelState};
 
 /// 表示用の面（頂点の位置・法線と三角形の頂点番号。三角形は外向きが表）
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -124,24 +124,25 @@ impl DexelSurface {
             .map(|count| (count + 1).div_ceil(SURFACE_BLOCK_CELLS))
     }
 
-    /// デクセルの変化を当て、作り直すブロックを返す（前の時点へ戻す変化も同じように当てられる）
+    /// デクセルの区間を変え、作り直すブロックを返す（前の時点へ戻す区間も同じように当てられる）
     ///
-    /// 複数の時点の変化（`snapshots`）を順に当て、作り直すブロックをまとめて返す。作り直すのは、区間が変わった範囲
+    /// 変化後の区間（`changes`。複数の時点の変化を続けて並べてよい）を順に当て、作り直すブロックをまとめて返す。作り直すのは、区間が変わった範囲
     /// （変化前と変化後で一致しない端点の間）の格子点・辺に接するセルと、その周りの 1 層のセルを含むブロック
     /// （平らな部分の頂点は、頂点の周りのセルが同じ平面かで決まるため）。
     pub fn apply_changes<'a>(
         &mut self,
-        snapshots: impl IntoIterator<Item = &'a [DexelChange]>,
+        changes: impl IntoIterator<Item = DexelState<'a>>,
     ) -> Vec<[usize; 3]> {
         let blocks = self.block_counts();
         let mut dirty = BTreeSet::new();
-        for change in snapshots.into_iter().flatten() {
+        for change in changes {
             let grid = change.grid as usize;
             let dexel = &mut self.intervals[grid][change.index as usize];
-            let Some((low, high)) = changed_range(dexel, &change.intervals) else {
+            let Some((low, high)) = changed_range(dexel, change.intervals) else {
                 continue;
             };
-            dexel.clone_from(&change.intervals);
+            dexel.clear();
+            dexel.extend_from_slice(change.intervals);
             let plane_axes = plane_axes(grid);
             let count = self.grids[grid].count[1] as usize;
             let line = [change.index as usize / count, change.index as usize % count];
