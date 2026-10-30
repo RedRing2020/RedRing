@@ -7,7 +7,8 @@
 //! 1. スナップショットの数 `u32` と、各スナップショットの区間の番号 `u32`・区間のパラメータ・累積距離・残りの体積（`f64`）
 //! 2. 3 方向（X・Y・Z の順）の格子: 向き `u8`、格子の 2 方向の最初の線の座標・間隔（`f64`×4）、本数（`u32`×2）、
 //!    初期の区間（`f64`×2）
-//! 3. スナップショットごとの変化: 変化の数 `u32` と、各変化の格子の番号 `u8`・デクセルの番号 `u32`・区間の数 `u32`・区間（`f64`×2）
+//! 3. スナップショットごとの変化: 変化の数 `u32` と、各変化の格子の番号 `u8`・デクセルの番号 `u32`・区間の数 `u32`・
+//!    区間ごとの始まり・終わりの座標（`f64`×2）と法線（量子化した値 `u16`×2 を 2 つ）
 
 use std::io::{Read, Write};
 use std::ops::{Range, RangeInclusive};
@@ -18,6 +19,8 @@ use cam_core::{
 };
 
 use crate::SimulationSnapshotExport;
+use crate::dexel_normal::DexelNormal;
+use crate::tri_dexel::initial_normals;
 
 /// 1 方向のデクセルの格子の配置
 ///
@@ -51,6 +54,8 @@ pub struct DexelState<'a> {
     /// 格子の中のデクセルの番号
     pub index: u32,
     pub intervals: &'a [(f64, f64)],
+    /// `intervals` と同じ並びの、区間の始まり・終わりの材料の外向きの法線
+    pub normals: &'a [[DexelNormal; 2]],
 }
 
 /// 時点ごとのデクセルの変化（全時点の変化と区間を、時点の順にそれぞれ 1 つの配列にまとめて持つ）
@@ -58,6 +63,8 @@ pub struct DexelState<'a> {
 pub struct DexelChanges {
     changes: Vec<DexelChange>,
     intervals: Vec<(f64, f64)>,
+    /// `intervals` と同じ並びの、区間の始まり・終わりの法線
+    normals: Vec<[DexelNormal; 2]>,
     /// `snapshot_ends[k]` は、時点 `k` までの変化の件数
     snapshot_ends: Vec<usize>,
 }
@@ -78,10 +85,18 @@ impl DexelChanges {
         self.states(self.numbers(snapshot..=snapshot))
     }
 
-    /// 次に区切る時点の変化に、デクセルの変化後の区間を加える
-    pub(crate) fn push(&mut self, grid: u8, index: u32, intervals: &[(f64, f64)]) {
+    /// 次に区切る時点の変化に、デクセルの変化後の区間と法線を加える
+    pub(crate) fn push(
+        &mut self,
+        grid: u8,
+        index: u32,
+        intervals: &[(f64, f64)],
+        normals: &[[DexelNormal; 2]],
+    ) {
+        debug_assert_eq!(intervals.len(), normals.len());
         let start = slot(self.intervals.len());
         self.intervals.extend_from_slice(intervals);
+        self.normals.extend_from_slice(normals);
         self.changes.push(DexelChange {
             grid,
             index,
@@ -118,6 +133,7 @@ impl DexelChanges {
             grid: change.grid,
             index: change.index,
             intervals: &self.intervals[start..end],
+            normals: &self.normals[start..end],
         }
     }
 }
@@ -126,6 +142,9 @@ impl DexelChanges {
 fn slot(position: usize) -> u32 {
     u32::try_from(position).expect("dexel change intervals fit in u32 positions")
 }
+
+/// 各向きのデクセルの、素材の箱の区間の始まり・終わりの法線
+static INITIAL_NORMALS: std::sync::OnceLock<[[DexelNormal; 2]; 3]> = std::sync::OnceLock::new();
 
 /// 同じデクセルの前の変化がないことを表す番号（戻すと初期の区間になる）
 const NO_PREVIOUS_CHANGE: u32 = u32::MAX;
@@ -203,16 +222,19 @@ impl CuttingSimulationArtifact {
         let changes = &self.snapshot_changes;
         changes.numbers(snapshots).rev().map(move |number| {
             let change = &changes.changes[number];
-            let intervals = match previous[number] {
-                NO_PREVIOUS_CHANGE => {
-                    std::slice::from_ref(&self.grids[change.grid as usize].initial)
-                }
-                before => changes.state(&changes.changes[before as usize]).intervals,
-            };
-            DexelState {
-                grid: change.grid,
-                index: change.index,
-                intervals,
+            match previous[number] {
+                NO_PREVIOUS_CHANGE => DexelState {
+                    grid: change.grid,
+                    index: change.index,
+                    intervals: std::slice::from_ref(&self.grids[change.grid as usize].initial),
+                    normals: &INITIAL_NORMALS.get_or_init(|| [0, 1, 2].map(initial_normals))
+                        [change.grid as usize..=change.grid as usize],
+                },
+                before => DexelState {
+                    grid: change.grid,
+                    index: change.index,
+                    ..changes.state(&changes.changes[before as usize])
+                },
             }
         })
     }
@@ -269,9 +291,12 @@ pub fn write_cutting_simulation_artifact_v1<W: Write>(
             payload.push(change.grid);
             payload.extend_from_slice(&change.index.to_le_bytes());
             write_count(&mut payload, change.intervals.len(), "intervals")?;
-            for &(low, high) in change.intervals {
+            for (&(low, high), normals) in change.intervals.iter().zip(change.normals) {
                 payload.extend_from_slice(&low.to_le_bytes());
                 payload.extend_from_slice(&high.to_le_bytes());
+                for value in normals.iter().flat_map(|normal| normal.0) {
+                    payload.extend_from_slice(&value.to_le_bytes());
+                }
             }
         }
     }
@@ -336,6 +361,7 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
 
     let mut snapshot_changes = DexelChanges::default();
     let mut intervals = Vec::new();
+    let mut normals = Vec::new();
     for _ in 0..snapshot_count {
         let change_count = read_u32(reader)? as usize;
         for _ in 0..change_count {
@@ -349,10 +375,15 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
             }
             let interval_count = read_u32(reader)? as usize;
             intervals.clear();
+            normals.clear();
             for _ in 0..interval_count {
                 intervals.push((read_f64(reader)?, read_f64(reader)?));
+                let mut normal = || -> Result<DexelNormal, BinaryFormatError> {
+                    Ok(DexelNormal([read_u16(reader)?, read_u16(reader)?]))
+                };
+                normals.push([normal()?, normal()?]);
             }
-            snapshot_changes.push(grid, index, &intervals);
+            snapshot_changes.push(grid, index, &intervals, &normals);
         }
         snapshot_changes.end_snapshot();
     }
@@ -384,6 +415,12 @@ fn read_u8(reader: &mut &[u8]) -> Result<u8, BinaryFormatError> {
     let mut bytes = [0_u8; 1];
     reader.read_exact(&mut bytes)?;
     Ok(bytes[0])
+}
+
+fn read_u16(reader: &mut &[u8]) -> Result<u16, BinaryFormatError> {
+    let mut bytes = [0_u8; 2];
+    reader.read_exact(&mut bytes)?;
+    Ok(u16::from_le_bytes(bytes))
 }
 
 fn read_u32(reader: &mut &[u8]) -> Result<u32, BinaryFormatError> {

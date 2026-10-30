@@ -1,7 +1,8 @@
 //! 素材の派生表現のトリデクセル（設計: CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md §4・§5）
 //!
-//! X・Y・Z の 3 方向の格子の各線（デクセル）上の、材料のある区間の列。正本（`StockModel`）の掃引体を
-//! 時系列の順に差し引き、今の区間だけを持つ。スナップショットの時点の境で、前の時点から変化したデクセルの
+//! X・Y・Z の 3 方向の格子の各線（デクセル）上の、材料のある区間の列と、区間の端の材料の外向きの法線。
+//! 正本（`StockModel`）の掃引体を時系列の順に差し引き、今の区間だけを持つ。削った端の法線は、端を決めた
+//! 掃引体の面の法線の逆向き（工具の外向きの逆が材料の外向き）とする。スナップショットの時点の境で、前の時点から変化したデクセルの
 //! 区間を記録する（掃引体ごとの変化の履歴は持たない）。
 
 mod ray_interval;
@@ -10,9 +11,10 @@ mod tests;
 
 use geo_algorithms::{Aabb3D, Point3D};
 
+use crate::dexel_normal::DexelNormal;
 use crate::simulation_artifact::{DexelChanges, DexelGridLayout};
 use crate::stock_model::StockModel;
-use ray_interval::{AxisLine, swept_primitive_intervals};
+use ray_interval::{AxisLine, ToolInterval, swept_primitive_intervals};
 
 /// 1 本のデクセルの区間の、格子の区間の配列の中の位置
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +44,8 @@ struct DexelGrid {
     slots: Vec<Slot>,
     /// すべてのデクセルの今の区間（デクセルごとに連続して並ぶ。置き直した後の古い位置は使わない）
     intervals: Vec<(f64, f64)>,
+    /// `intervals` と同じ位置の、区間の始まり・終わりの法線
+    normals: Vec<[DexelNormal; 2]>,
     /// 前のスナップショットの時点から変化したか（デクセルごと）
     changed: Vec<bool>,
     /// 前のスナップショットの時点から変化したデクセルの番号
@@ -85,6 +89,7 @@ impl DexelGrid {
                 })
                 .collect(),
             intervals: vec![initial; dexel_count],
+            normals: vec![initial_normals(axis); dexel_count],
             changed: vec![false; dexel_count],
             changed_indices: Vec::new(),
         }
@@ -107,8 +112,14 @@ impl DexelGrid {
         &self.intervals[start as usize..(start + len) as usize]
     }
 
-    /// デクセル `index` の今の区間を `intervals` にする（書ける数を超える場合は配列の末尾に置き直す）
-    fn set(&mut self, index: usize, intervals: &[(f64, f64)]) {
+    /// デクセル `index` の今の区間の、始まり・終わりの法線
+    fn current_normals(&self, index: usize) -> &[[DexelNormal; 2]] {
+        let Slot { start, len, .. } = self.slots[index];
+        &self.normals[start as usize..(start + len) as usize]
+    }
+
+    /// デクセル `index` の今の区間と法線を `intervals`・`normals` にする（書ける数を超える場合は配列の末尾に置き直す）
+    fn set(&mut self, index: usize, intervals: &[(f64, f64)], normals: &[[DexelNormal; 2]]) {
         let len = u32::try_from(intervals.len()).expect("dexel interval count fits in u32");
         let slot = &mut self.slots[index];
         if len > slot.capacity {
@@ -117,10 +128,13 @@ impl DexelGrid {
             slot.capacity = len.max(2 * slot.capacity);
             self.intervals
                 .resize(self.intervals.len() + slot.capacity as usize, (0.0, 0.0));
+            self.normals
+                .resize(self.intervals.len(), [DexelNormal([0, 0]); 2]);
         }
         slot.len = len;
         let start = slot.start as usize;
         self.intervals[start..start + intervals.len()].copy_from_slice(intervals);
+        self.normals[start..start + normals.len()].copy_from_slice(normals);
         if !self.changed[index] {
             self.changed[index] = true;
             self.changed_indices.push(index);
@@ -141,11 +155,11 @@ impl DexelGrid {
 
     /// 掃引体を差し引き、除去した区間の長さの和を返す
     ///
-    /// `scratch` は区間の計算に使う作業用の 2 つの列（呼び出しの間で使い回し、確保を減らす）。
+    /// `scratch` は区間の計算に使う作業用の列（呼び出しの間で使い回し、確保を減らす）。
     fn subtract(
         &mut self,
         primitive: &crate::stock_model::SweptToolPrimitive,
-        scratch: &mut [Vec<(f64, f64)>; 2],
+        scratch: &mut Scratch,
     ) -> f64 {
         let bounds = primitive.bounds();
         let (low, high) = (coordinates(bounds.min()), coordinates(bounds.max()));
@@ -163,24 +177,32 @@ impl DexelGrid {
                 {
                     continue;
                 }
-                let removed = swept_primitive_intervals(primitive, self.line(i, j));
+                let line = self.line(i, j);
+                let removed = swept_primitive_intervals(primitive, line);
                 // 除去する区間が材料の区間と重ならない線は変わらない
-                let overlaps = removed.iter().flatten().any(|&(start, end)| {
+                let overlaps = removed.iter().flatten().any(|removed| {
+                    let (start, end) = removed.range;
                     current.iter().any(|&(low, high)| start < high && low < end)
                 });
                 if !overlaps {
                     continue;
                 }
-                let [next, other] = scratch;
+                let Scratch {
+                    intervals: [next, other],
+                    normals: [next_normals, other_normals],
+                } = scratch;
                 next.clear();
                 next.extend_from_slice(current);
-                for &interval in removed.iter().flatten() {
-                    subtract_interval(next, interval, other);
+                next_normals.clear();
+                next_normals.extend_from_slice(self.current_normals(index));
+                for removed in removed.iter().flatten() {
+                    subtract_interval(next, next_normals, removed, line, other, other_normals);
                     std::mem::swap(next, other);
+                    std::mem::swap(next_normals, other_normals);
                 }
                 if next.as_slice() != current {
                     removed_length += total_length(current) - total_length(next);
-                    self.set(index, next);
+                    self.set(index, next, next_normals);
                 }
             }
         }
@@ -197,6 +219,7 @@ impl DexelGrid {
                 grid,
                 u32::try_from(index).expect("dexel count is bounded by the display resolution"),
                 self.current(index),
+                self.current_normals(index),
             );
         }
     }
@@ -246,7 +269,7 @@ impl TriDexelModel {
         let mut remaining_volumes = Vec::with_capacity(primitives.len() + 1);
         remaining_volumes.push(length * cell_area);
         let mut snapshot_changes = DexelChanges::default();
-        let mut scratch = [Vec::new(), Vec::new()];
+        let mut scratch = Scratch::default();
         record_snapshot_changes(&mut grids, snapshot_applied, 0, &mut snapshot_changes);
         for (index, primitive) in primitives.iter().enumerate() {
             if snapshot_changes.snapshot_count() == snapshot_applied.len() {
@@ -286,6 +309,12 @@ impl TriDexelModel {
         self.grids[grid].current(index)
     }
 
+    /// 格子 `grid` のデクセル `index` の、最後のスナップショットの時点の区間の始まり・終わりの法線
+    #[cfg(test)]
+    pub(crate) fn current_normals(&self, grid: usize, index: usize) -> &[[DexelNormal; 2]] {
+        self.grids[grid].current_normals(index)
+    }
+
     /// 格子の配置（X・Y・Z の順）
     pub(crate) fn layouts(&self) -> [DexelGridLayout; 3] {
         self.grids.each_ref().map(|grid| DexelGridLayout {
@@ -320,28 +349,56 @@ fn record_snapshot_changes(
     }
 }
 
+/// 区間の差し引きに使う作業用の列（区間と法線を 2 組。差し引くたびに入れ替える）
+#[derive(Debug, Default)]
+struct Scratch {
+    intervals: [Vec<(f64, f64)>; 2],
+    normals: [Vec<[DexelNormal; 2]>; 2],
+}
+
+/// 向き `axis` のデクセルの、素材の箱の区間の始まり・終わりの法線（座標軸の負・正の向き）
+pub(crate) fn initial_normals(axis: usize) -> [DexelNormal; 2] {
+    let unit = |sign: f64| {
+        let mut unit = [0.0; 3];
+        unit[axis] = sign;
+        DexelNormal::from_unit(unit)
+    };
+    [unit(-1.0), unit(1.0)]
+}
+
 /// 区間の配列の中の位置
 fn slot_position(position: usize) -> u32 {
     u32::try_from(position).expect("dexel interval storage fits in u32")
 }
 
-/// 昇順で互いに素な区間の列 `intervals` から区間 `[low, high]` を差し引き、`result` に書く
+/// 昇順で互いに素な区間の列 `intervals`（法線 `normals`）から、線 `line` の上の工具の区間 `removed` を差し引き、
+/// `result`・`result_normals` に書く（削った端の法線は、工具の外向きの法線の逆向き）
 fn subtract_interval(
     intervals: &[(f64, f64)],
-    (low, high): (f64, f64),
+    normals: &[[DexelNormal; 2]],
+    removed: &ToolInterval,
+    line: AxisLine,
     result: &mut Vec<(f64, f64)>,
+    result_normals: &mut Vec<[DexelNormal; 2]>,
 ) {
     result.clear();
-    for &(start, end) in intervals {
+    result_normals.clear();
+    let (low, high) = removed.range;
+    let cut =
+        |end: usize| DexelNormal::from_unit(removed.normal(end, line).map(|component| -component));
+    for (&(start, end), &[start_normal, end_normal]) in intervals.iter().zip(normals) {
         if end <= low || high <= start {
             result.push((start, end));
+            result_normals.push([start_normal, end_normal]);
             continue;
         }
         if start < low {
             result.push((start, low));
+            result_normals.push([start_normal, cut(0)]);
         }
         if high < end {
             result.push((high, end));
+            result_normals.push([cut(1), end_normal]);
         }
     }
 }
