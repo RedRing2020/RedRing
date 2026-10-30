@@ -226,50 +226,207 @@ impl DexelSurface {
             MeshBuilder::new(block.map(|index| (index * SURFACE_BLOCK_CELLS) as i64 - 1));
         let mut planes: BTreeMap<PlaneKey, BTreeSet<[i64; 2]>> = BTreeMap::new();
         let mut cell_planes = HashMap::new();
+        let mut sharp_cells = Vec::new();
         for &lower in cells {
             let inside = self.corner_inside(lower);
-            let plane = if inside.iter().all(|&flag| flag == inside[0]) {
-                None
-            } else {
-                self.planar_cell(lower, &inside)
-            };
-            cell_planes.insert(lower, plane);
-            match plane {
-                Some(key) => {
-                    let [u, v] = plane_axes(key.axis);
-                    planes.entry(key).or_default().insert([lower[u], lower[v]]);
-                }
-                None => self.mesh_cell(lower, &inside, &mut builder),
+            let sharp = self.is_sharp_cell(lower);
+            let keys = self.planes_of_cell(lower, &inside, sharp);
+            if sharp {
+                sharp_cells.push(lower);
+            } else if keys.is_empty() {
+                self.mesh_cell(lower, &inside, &mut builder);
             }
+            for &key in &keys {
+                let [u, v] = plane_axes(key.axis);
+                planes.entry(key).or_default().insert([lower[u], lower[v]]);
+            }
+            cell_planes.insert(lower, keys);
         }
         for (key, cells) in planes {
             self.mesh_plane(key, &cells, &mut cell_planes, &mut builder);
         }
+        for lower in sharp_cells {
+            self.mesh_sharp_cell_seams(lower, &mut builder);
+        }
         builder.finish()
     }
 
-    /// 最小の格子点が `lower` のセルが乗る平面（`cell_planes` に覚える。格子の外のセルは `None`）
-    fn cell_plane(
+    /// 最小の格子点が `lower` のセルが平面 `key` に乗るか（`cell_planes` に覚える）
+    ///
+    /// 外側へ広げた格子のさらに外のセルは、どの平面にも乗るとみなす（素材の辺の上の点の頂点の判定で、
+    /// 格子の外を数えないため）。
+    fn cell_has_plane(
         &self,
         lower: [i64; 3],
-        cell_planes: &mut HashMap<[i64; 3], Option<PlaneKey>>,
-    ) -> Option<PlaneKey> {
-        *cell_planes
+        key: PlaneKey,
+        cell_planes: &mut HashMap<[i64; 3], Vec<PlaneKey>>,
+    ) -> bool {
+        if (0..3).any(|axis| lower[axis] < -1 || lower[axis] >= self.count[axis] as i64) {
+            return true;
+        }
+        cell_planes
             .entry(lower)
-            .or_insert_with(|| self.plane_of_cell(lower))
+            .or_insert_with(|| {
+                self.planes_of_cell(lower, &self.corner_inside(lower), self.is_sharp_cell(lower))
+            })
+            .contains(&key)
     }
 
-    /// 最小の格子点が `lower` のセルが乗る平面（格子の外のセル・面のないセル・平らでないセルは `None`）
-    fn plane_of_cell(&self, lower: [i64; 3]) -> Option<PlaneKey> {
-        let outside = (0..3).any(|axis| lower[axis] < -1 || lower[axis] >= self.count[axis] as i64);
-        if outside {
-            return None;
-        }
-        let inside = self.corner_inside(lower);
+    /// 最小の格子点が `lower`、頂点の内外が `inside` のセルが乗る平面（鋭い角のセル `sharp` は接する素材の面すべて）
+    fn planes_of_cell(&self, lower: [i64; 3], inside: &[bool; 8], sharp: bool) -> Vec<PlaneKey> {
         if inside.iter().all(|&flag| flag == inside[0]) {
-            None
-        } else {
-            self.planar_cell(lower, &inside)
+            return Vec::new();
+        }
+        if sharp {
+            return self
+                .outer_sides(lower)
+                .into_iter()
+                .map(|(axis, inside_below)| self.stock_face_key(axis, inside_below, lower[axis]))
+                .collect();
+        }
+        self.planar_cell(lower, inside).into_iter().collect()
+    }
+
+    /// セルが外側へ広げた層にある座標軸と、その向きで材料が小さい座標の側にあるか（外周の大きい側の層）
+    fn outer_sides(&self, lower: [i64; 3]) -> Vec<(usize, bool)> {
+        (0..3)
+            .filter_map(|axis| {
+                if lower[axis] == -1 {
+                    Some((axis, false))
+                } else if lower[axis] == self.count[axis] as i64 - 1 {
+                    Some((axis, true))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// 素材の辺か角を含み（外側へ広げた層に 2 つ以上の座標軸で入る）、削っていないセルか
+    fn is_sharp_cell(&self, lower: [i64; 3]) -> bool {
+        let outer_axes = (0..3)
+            .filter(|&axis| lower[axis] == -1 || lower[axis] == self.count[axis] as i64 - 1)
+            .count();
+        outer_axes >= 2 && self.is_uncut_cell(lower)
+    }
+
+    /// セルの辺の上のデクセルが、素材の範囲（初期の区間）のまま、または違いが `flat_tolerance` 以内か
+    fn is_uncut_cell(&self, lower: [i64; 3]) -> bool {
+        (0..3).all(|axis| {
+            let plane = plane_axes(axis);
+            let span = (
+                self.coordinate(axis, lower[axis]),
+                self.coordinate(axis, lower[axis] + 1),
+            );
+            let initial = self.grids[axis].initial;
+            [[0, 0], [1, 0], [0, 1], [1, 1]]
+                .into_iter()
+                .all(|[du, dv]| {
+                    let line = [lower[plane[0]] + du, lower[plane[1]] + dv];
+                    let on_grid =
+                        (0..2).all(|i| line[i] >= 0 && line[i] < self.count[plane[i]] as i64);
+                    if !on_grid {
+                        return true;
+                    }
+                    let index = line[0] as usize * self.count[plane[1]] + line[1] as usize;
+                    let actual = clip_intervals(&self.intervals[axis][index], span);
+                    let expected = clip_intervals(&[initial], span);
+                    actual.len() == expected.len()
+                        && actual.iter().zip(&expected).all(|(a, e)| {
+                            (a.0 - e.0).abs() <= self.flat_tolerance
+                                && (a.1 - e.1).abs() <= self.flat_tolerance
+                        })
+                })
+        })
+    }
+
+    /// 素材の面（座標軸 `axis` に垂直で、材料が `inside_below` の側）の、セルの層 `layer` の平面
+    fn stock_face_key(&self, axis: usize, inside_below: bool, layer: i64) -> PlaneKey {
+        let (low, high) = self.grids[axis].initial;
+        PlaneKey {
+            axis,
+            inside_below,
+            layer,
+            value: self.section(if inside_below { high } else { low }),
+        }
+    }
+
+    /// 座標を `flat_tolerance` の幅で区切った区画の番号
+    fn section(&self, value: f64) -> i64 {
+        (value / self.flat_tolerance).round() as i64
+    }
+
+    /// 外側へ広げた格子点を、素材の箱の上の点に寄せた位置（素材の辺・角の点）
+    fn stock_point(&self, point: [i64; 3]) -> [f64; 3] {
+        std::array::from_fn(|axis| {
+            let (low, high) = self.grids[axis].initial;
+            self.coordinate(axis, point[axis]).clamp(low, high)
+        })
+    }
+
+    /// 格子点が外側へ広げた層にある座標軸の数
+    fn outer_count(&self, point: [i64; 3]) -> usize {
+        (0..3)
+            .filter(|&axis| point[axis] < 0 || point[axis] >= self.count[axis] as i64)
+            .count()
+    }
+
+    /// 鋭い角のセル `lower` と、面を共有する削ったセルの間の隙間を埋める
+    ///
+    /// 共有する面に素材の辺が 2 本とも通る（面と素材の交わりが L 字の輪郭を持つ）場合、鋭い角のセルの輪郭は
+    /// 「辺の上の交点 A → 素材の辺の点 E → 辺の上の交点 B」、削ったセルの面は A と B を結ぶ線分になるため、
+    /// 三角形 A・E・B を、削ったセルの側を向けて加える。
+    fn mesh_sharp_cell_seams(&self, lower: [i64; 3], builder: &mut MeshBuilder) {
+        let sides = self.outer_sides(lower);
+        for face_axis in 0..3 {
+            let others: Vec<(usize, bool)> = sides
+                .iter()
+                .copied()
+                .filter(|&(axis, _)| axis != face_axis)
+                .collect();
+            let [(p, p_below), (q, q_below)] = others[..] else {
+                continue;
+            };
+            for step in [-1, 1] {
+                let mut neighbor = lower;
+                neighbor[face_axis] += step;
+                let beyond =
+                    neighbor[face_axis] < -1 || neighbor[face_axis] >= self.count[face_axis] as i64;
+                if beyond || self.is_sharp_cell(neighbor) {
+                    continue;
+                }
+                // 共有する面の上の格子点（面の座標軸の番号）と、素材の側・外側の番号
+                let mut face = lower;
+                face[face_axis] = if step > 0 {
+                    lower[face_axis] + 1
+                } else {
+                    lower[face_axis]
+                };
+                let inner = |axis: usize, below: bool| lower[axis] + i64::from(!below);
+                let outer = |axis: usize, below: bool| lower[axis] + i64::from(below);
+                let point = |p_index: i64, q_index: i64| {
+                    let mut point = face;
+                    point[p] = p_index;
+                    point[q] = q_index;
+                    point
+                };
+                let corner = point(inner(p, p_below), inner(q, q_below));
+                let a_end = point(inner(p, p_below), outer(q, q_below));
+                let b_end = point(outer(p, p_below), inner(q, q_below));
+                let e = point(outer(p, p_below), outer(q, q_below));
+                let a =
+                    builder.edge_vertex(&EdgeKey::new(corner, a_end), self.crossing(corner, a_end));
+                let b =
+                    builder.edge_vertex(&EdgeKey::new(corner, b_end), self.crossing(corner, b_end));
+                let e = builder.stock_vertex(e, face_axis, self.stock_point(e));
+                let toward_neighbor = step as f64;
+                let mut triangle = [a, e, b];
+                let [pa, pe, pb] = triangle.map(|index| builder.mesh.positions[index as usize]);
+                if cross(sub(pe, pa), sub(pb, pa))[face_axis] * toward_neighbor < 0.0 {
+                    triangle.swap(1, 2);
+                }
+                builder.add_triangle(triangle);
+            }
         }
     }
 
@@ -278,7 +435,7 @@ impl DexelSurface {
     /// ある座標軸の向きの 4 本の辺だけが面と交わり、4 つの交点のその軸の座標が、座標を `flat_tolerance` の幅で
     /// 区切った同じ区画に入る場合とする（同じ区画の平面の中の座標の違いは `flat_tolerance` 以下になる）。
     fn planar_cell(&self, lower: [i64; 3], inside: &[bool; 8]) -> Option<PlaneKey> {
-        let section = |value: f64| (value / self.flat_tolerance).round() as i64;
+        let section = |value: f64| self.section(value);
         let corner_point = |corner: usize| {
             let offset = CORNERS[corner];
             [0, 1, 2].map(|axis| lower[axis] + offset[axis] as i64)
@@ -317,7 +474,7 @@ impl DexelSurface {
         &self,
         key: PlaneKey,
         cells: &BTreeSet<[i64; 2]>,
-        cell_planes: &mut HashMap<[i64; 3], Option<PlaneKey>>,
+        cell_planes: &mut HashMap<[i64; 3], Vec<PlaneKey>>,
         builder: &mut MeshBuilder,
     ) {
         let [u_axis, v_axis] = plane_axes(key.axis);
@@ -328,12 +485,17 @@ impl DexelSurface {
             point[v_axis] = v;
             point
         };
-        let block_line = |index: i64| (index + 1).rem_euclid(SURFACE_BLOCK_CELLS as i64) == 0;
+        // ブロックの境の線と、外側へ広げた格子点の線（素材の辺）は、どのブロックからも同じに見える線
+        let fixed_line = |index: i64, axis: usize| {
+            (index + 1).rem_euclid(SURFACE_BLOCK_CELLS as i64) == 0
+                || index == -1
+                || index == self.count[axis] as i64
+        };
         let mut kept = |[u, v]: [i64; 2]| {
-            (block_line(u) && block_line(v))
+            (fixed_line(u, u_axis) && fixed_line(v, v_axis))
                 || [[u - 1, v - 1], [u, v - 1], [u - 1, v], [u, v]]
                     .into_iter()
-                    .any(|cell| self.cell_plane(grid_point(cell), cell_planes) != Some(key))
+                    .any(|cell| !self.cell_has_plane(grid_point(cell), key, cell_planes))
         };
 
         // 輪郭の輪（左回りが外周、右回りが穴）を、残す頂点の番号の列にする
@@ -386,13 +548,20 @@ impl DexelSurface {
         let counterclockwise_sign = if key.axis == 1 { -1.0 } else { 1.0 };
         let outward = if key.inside_below { 1.0 } else { -1.0 };
         let flip = counterclockwise_sign * outward < 0.0;
+        // 頂点は、平面に垂直な辺と平面の交点。辺の材料のない側の端が 2 つ以上の座標軸で外側にある点は、
+        // 素材の辺・角の点（外側へ広げた格子点を素材の箱に寄せた点）とし、平面ごとに別の頂点にする（角を鋭く描く）
         let vertices: Vec<u32> = points
             .iter()
             .map(|&point| {
                 let start = grid_point(point);
                 let mut end = start;
                 end[key.axis] += 1;
-                builder.edge_vertex(&EdgeKey::new(start, end), self.crossing(start, end))
+                let empty_end = if key.inside_below { end } else { start };
+                if self.outer_count(empty_end) >= 2 {
+                    builder.stock_vertex(empty_end, key.axis, self.stock_point(empty_end))
+                } else {
+                    builder.edge_vertex(&EdgeKey::new(start, end), self.crossing(start, end))
+                }
             })
             .collect();
         for [a, b, c] in triangles {
@@ -667,6 +836,15 @@ impl DexelSurface {
     }
 }
 
+/// 区間の列 `intervals` の、範囲 `span` の中の部分
+fn clip_intervals(intervals: &[(f64, f64)], (start, end): (f64, f64)) -> Vec<(f64, f64)> {
+    intervals
+        .iter()
+        .map(|&(low, high)| (low.max(start), high.min(end)))
+        .filter(|(low, high)| low < high)
+        .collect()
+}
+
 /// 区間の列 `before` から `after` に変わる範囲（一致しない端点の最小と最大。変わらなければ `None`）
 fn changed_range(before: &[(f64, f64)], after: &[(f64, f64)]) -> Option<(f64, f64)> {
     let endpoints = |intervals: &[(f64, f64)]| -> Vec<f64> {
@@ -825,6 +1003,8 @@ struct MeshBuilder {
     origin: [i64; 3],
     /// 辺（格子点と向き）ごとの頂点の番号（`u32::MAX` は未登録）
     vertices: Vec<u32>,
+    /// 素材の辺・角の点（外側へ広げた格子点）と、その点を使う面の座標軸ごとの頂点の番号
+    stock_vertices: HashMap<([i64; 3], usize), u32>,
 }
 
 impl MeshBuilder {
@@ -835,7 +1015,20 @@ impl MeshBuilder {
             mesh: SurfaceMesh::default(),
             origin,
             vertices: vec![u32::MAX; side * side * side * 3],
+            stock_vertices: HashMap::new(),
         }
+    }
+
+    /// 素材の辺・角の点 `point` の、座標軸 `axis` に垂直な面の頂点の番号（なければ `position` で加える）
+    fn stock_vertex(&mut self, point: [i64; 3], axis: usize, position: [f64; 3]) -> u32 {
+        if let Some(&index) = self.stock_vertices.get(&(point, axis)) {
+            return index;
+        }
+        self.mesh.positions.push(position);
+        self.mesh.normals.push([0.0; 3]);
+        let index = (self.mesh.positions.len() - 1) as u32;
+        self.stock_vertices.insert((point, axis), index);
+        index
     }
 
     fn slot(&self, key: &EdgeKey) -> usize {

@@ -171,16 +171,18 @@ fn uncut_stock_is_a_box_with_outward_normals() {
 }
 
 #[test]
-fn flat_faces_of_the_uncut_stock_are_merged_into_few_triangles() {
+fn uncut_stock_has_two_triangles_per_block_face_and_sharp_corners() {
     let (artifact, _) = artifact(
         &[Point3D::new(0.0, 0.0, 5.0), Point3D::new(1.0, 0.0, 5.0)],
         SegmentType::Rapid,
     );
     let surface = DexelSurface::at_snapshot(&artifact, 0, PRECISION);
-    let triangles = all_triangles(&surface).len();
-    // セルごとに描くと、外周の面（80×40・80×20・40×20 セルの 2 枚ずつ）のセルごとに 2 三角形になる
-    let per_cell = 2 * 2 * (80 * 40 + 80 * 20 + 40 * 20);
-    assert!(triangles * 5 < per_cell, "{triangles} triangles");
+    let triangles = all_triangles(&surface);
+    let [bx, by, bz] = surface.block_counts();
+    assert_eq!(triangles.len(), 2 * 2 * (bx * by + bx * bz + by * bz));
+    // 素材の角は面取りされない
+    let corner = [20.0, 10.0, 0.0];
+    assert!(triangles.iter().flatten().any(|&point| point == corner));
 }
 
 #[test]
