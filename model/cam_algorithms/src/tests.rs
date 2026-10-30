@@ -1,5 +1,5 @@
 use analysis::consts::test_constants::TOLERANCE_F64 as EPS;
-use cam_core::{CoordinateFrame, LengthUnit, SegmentType, Tool};
+use cam_core::{CoordinateFrame, LengthUnit, Tool};
 use geo_algorithms::{
     NurbsSurface3D, Point3D, TessellationLimits, TriangleMesh3D, tessellate_surfaces,
 };
@@ -83,7 +83,6 @@ fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
             stepover: 2.0,
             sample_pitch: 1.0,
             feed_rate: 1200.0,
-            clearance_height: 5.0,
             tool_range: ScanlineToolRange::default(),
         }),
         units: LengthUnit::Millimeter,
@@ -406,10 +405,8 @@ fn solve_toolpath_generates_scanline_passes_for_nurbs_surface() {
                 "tip z out of range: {z}"
             );
         }
-        assert!(matches!(
-            level.segments.first().unwrap().segment_type,
-            SegmentType::Approach { .. } | SegmentType::Rapid
-        ));
+        // パスの間のエアカットは入れない
+        assert!(level.segments.iter().all(|segment| segment.is_cutting()));
     }
 }
 
@@ -428,7 +425,6 @@ fn invalid_input_for_stepover_larger_than_diameter() {
         stepover: 7.0,
         sample_pitch: 1.0,
         feed_rate: 1200.0,
-        clearance_height: 5.0,
         tool_range: ScanlineToolRange::default(),
     });
     assert_eq!(solve_toolpath(&input).unwrap_err().code(), "invalid_input");

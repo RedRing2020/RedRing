@@ -532,7 +532,6 @@ mod tests {
             stepover: 1.0,
             sample_pitch: 1.0,
             feed_rate: 1000.0,
-            clearance_height: 5.0,
             tool_range: ScanlineToolRange::default(),
         }
     }

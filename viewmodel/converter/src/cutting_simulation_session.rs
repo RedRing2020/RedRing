@@ -45,7 +45,6 @@ impl Default for CuttingSimulationConditions {
                 stepover: 2.0,
                 sample_pitch: 1.0,
                 feed_rate: 1200.0,
-                clearance_height: 5.0,
                 tool_range: ScanlineToolRange::default(),
             },
             stock_margins: StockMargins::default(),
@@ -237,7 +236,6 @@ mod tests {
                 stepover: 6.0,
                 sample_pitch: 10.0,
                 feed_rate: 1200.0,
-                clearance_height: 5.0,
                 tool_range: ScanlineToolRange::default(),
             },
             ..CuttingSimulationConditions::default()
