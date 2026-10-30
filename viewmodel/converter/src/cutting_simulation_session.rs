@@ -209,6 +209,7 @@ impl CuttingSimulationSession {
             &result.toolpath_artifact,
             &result.simulation_artifact,
             result.tool,
+            result.precision,
         )
         .map_err(CuttingSimulationSessionError::Animation)?;
         Ok(ImportedCuttingSimulation {
