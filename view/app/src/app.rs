@@ -30,6 +30,20 @@ impl ApplicationHandler for App {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         if let Some(state) = &mut self.state {
+            // デバイスが失われた後は、描画もバッファの作成もせず、閉じる操作だけを受ける
+            if state.graphic.is_device_lost() {
+                let escape = matches!(
+                    &event,
+                    WindowEvent::KeyboardInput { event, .. }
+                        if event.state == ElementState::Pressed
+                            && matches!(event.logical_key, Key::Named(NamedKey::Escape))
+                );
+                if escape || matches!(event, WindowEvent::CloseRequested) {
+                    self.should_exit = true;
+                    event_loop.exit();
+                }
+                return;
+            }
             let settings_ui_consumed = if state.is_settings_panel_open() {
                 state.handle_settings_window_event(&event);
                 state.is_settings_using_pointer()
@@ -82,6 +96,9 @@ impl ApplicationHandler for App {
         event: DeviceEvent,
     ) {
         if let Some(state) = &mut self.state {
+            if state.graphic.is_device_lost() {
+                return;
+            }
             if let DeviceEvent::MouseMotion { delta } = event {
                 if state.is_settings_panel_open() {
                     state.handle_settings_mouse_motion(delta);
@@ -93,6 +110,9 @@ impl ApplicationHandler for App {
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         if let Some(state) = &mut self.state {
+            if state.graphic.is_device_lost() {
+                return;
+            }
             state.tick_snapshot_playback(std::time::Instant::now());
             state.window.request_redraw();
         }
