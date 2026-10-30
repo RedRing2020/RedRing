@@ -1,13 +1,14 @@
 //! デクセルの区間の端の法線（材料の外向きの単位ベクトル）を 2 × 16 bit に量子化した値
 //!
 //! 単位球を八面体に写し、八面体を正方形に開いた座標（八面体の符号化）を、各成分 16 bit に量子化する。
-//! 量子化による向きの誤差は 0.01 度程度である。
+//! 量子化による向きの誤差は 0.01 度程度で、座標軸の向き（素材の箱の面・平らな底）はちょうど表せる。
 
 /// 量子化した単位法線
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DexelNormal(pub(crate) [u16; 2]);
 
-const QUANTIZATION_MAX: f64 = u16::MAX as f64;
+/// 量子化の最大の値（-1・0・1 をちょうど表せるよう、0 から偶数の 65534 までを使う）
+const QUANTIZATION_MAX: f64 = (u16::MAX - 1) as f64;
 
 impl DexelNormal {
     /// 単位ベクトル `unit` を量子化する
@@ -46,6 +47,17 @@ mod tests {
     fn angle_deg(a: [f64; 3], b: [f64; 3]) -> f64 {
         let dot: f64 = a.iter().zip(b).map(|(a, b)| a * b).sum();
         dot.clamp(-1.0, 1.0).acos().to_degrees()
+    }
+
+    #[test]
+    fn axis_directions_are_restored_exactly() {
+        for axis in 0..3 {
+            for sign in [-1.0, 1.0] {
+                let mut unit = [0.0; 3];
+                unit[axis] = sign;
+                assert_eq!(DexelNormal::from_unit(unit).to_unit(), unit);
+            }
+        }
     }
 
     #[test]
