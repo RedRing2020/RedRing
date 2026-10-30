@@ -40,8 +40,8 @@ fn artifact(
     let tool = Tool::ball_end_mill("BEM3".to_string(), 3.0, 8.0);
     let segments = collect_toolpath_line_segments(&path, 0.01);
     let model = StockModel::from_segments(stock(), &segments, &tool).unwrap();
-    let dexels = TriDexelModel::from_stock_model(&model, 0.25);
     let applied: Vec<usize> = (0..=model.primitives().len()).collect();
+    let dexels = TriDexelModel::from_stock_model(&model, 0.25, &applied);
     let snapshots = applied
         .iter()
         .map(|&count| SimulationSnapshotExport {
@@ -54,7 +54,7 @@ fn artifact(
     let artifact = CuttingSimulationArtifact {
         snapshots,
         grids: dexels.layouts(),
-        snapshot_changes: dexels.snapshot_changes(&applied),
+        snapshot_changes: dexels.snapshot_changes().to_vec(),
     };
     (artifact, model)
 }

@@ -1,8 +1,8 @@
 //! 素材の派生表現のトリデクセル（設計: CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md §4・§5）
 //!
 //! X・Y・Z の 3 方向の格子の各線（デクセル）上の、材料のある区間の列。正本（`StockModel`）の掃引体を
-//! 時系列の順に差し引き、デクセルごとに変化の履歴（何番目の掃引体で変わったかと、変化後の区間）を記録する。
-//! 任意の時点（適用した掃引体の数）の状態を、履歴から復元する。
+//! 時系列の順に差し引き、今の区間だけを持つ。スナップショットの時点の境で、前の時点から変化したデクセルの
+//! 区間を記録する（掃引体ごとの変化の履歴は持たない）。
 
 mod ray_interval;
 #[cfg(test)]
@@ -14,36 +14,15 @@ use crate::simulation_artifact::{DexelChange, DexelGridLayout};
 use crate::stock_model::StockModel;
 use ray_interval::{AxisLine, swept_primitive_intervals};
 
-/// 1 本のデクセル（線上の材料の区間と、その変化の履歴）
-#[derive(Debug, Clone)]
-struct Dexel {
-    /// 初期の区間（素材の範囲）
-    initial: (f64, f64),
-    /// 変化の履歴（掃引体の番号の昇順。変化後の区間の列）
-    history: Vec<(usize, Vec<(f64, f64)>)>,
-}
-
-impl Dexel {
-    /// 履歴の最後（なければ初期）の区間
-    fn current(&self) -> &[(f64, f64)] {
-        self.history
-            .last()
-            .map_or(std::slice::from_ref(&self.initial), |(_, intervals)| {
-                intervals
-            })
-    }
-
-    /// `applied` 個の掃引体を差し引いた時点の区間
-    #[cfg(test)]
-    fn intervals_at(&self, applied: usize) -> &[(f64, f64)] {
-        let changed = self
-            .history
-            .partition_point(|(primitive, _)| *primitive < applied);
-        match changed {
-            0 => std::slice::from_ref(&self.initial),
-            count => &self.history[count - 1].1,
-        }
-    }
+/// 1 本のデクセルの区間の、格子の区間の配列の中の位置
+#[derive(Debug, Clone, Copy)]
+struct Slot {
+    /// 最初の区間の位置
+    start: u32,
+    /// 区間の数
+    len: u32,
+    /// 区間を書ける数（これを超えたら配列の末尾に置き直す）
+    capacity: u32,
 }
 
 /// 1 方向のデクセルの格子
@@ -57,7 +36,16 @@ struct DexelGrid {
     origin: [f64; 2],
     pitch: [f64; 2],
     count: [usize; 2],
-    dexels: Vec<Dexel>,
+    /// 初期の区間（素材の範囲）
+    initial: (f64, f64),
+    /// デクセルごとの、`intervals` の中の今の区間の位置
+    slots: Vec<Slot>,
+    /// すべてのデクセルの今の区間（デクセルごとに連続して並ぶ。置き直した後の古い位置は使わない）
+    intervals: Vec<(f64, f64)>,
+    /// 前のスナップショットの時点から変化したか（デクセルごと）
+    changed: Vec<bool>,
+    /// 前のスナップショットの時点から変化したデクセルの番号
+    changed_indices: Vec<usize>,
 }
 
 impl DexelGrid {
@@ -80,17 +68,25 @@ impl DexelGrid {
             origin[index] = min[plane_axis] + 0.5 * pitch[index];
             count[index] = lines;
         }
-        let dexel = Dexel {
-            initial: (min[axis], max[axis]),
-            history: Vec::new(),
-        };
+        let dexel_count = count[0] * count[1];
+        let initial = (min[axis], max[axis]);
         Self {
             axis,
             plane_axes,
             origin,
             pitch,
             count,
-            dexels: vec![dexel; count[0] * count[1]],
+            initial,
+            slots: (0..dexel_count)
+                .map(|index| Slot {
+                    start: slot_position(index),
+                    len: 1,
+                    capacity: 1,
+                })
+                .collect(),
+            intervals: vec![initial; dexel_count],
+            changed: vec![false; dexel_count],
+            changed_indices: Vec::new(),
         }
     }
 
@@ -102,6 +98,32 @@ impl DexelGrid {
         AxisLine {
             axis: self.axis,
             point: Point3D::new(point[0], point[1], point[2]),
+        }
+    }
+
+    /// デクセル `index` の今の区間
+    fn current(&self, index: usize) -> &[(f64, f64)] {
+        let Slot { start, len, .. } = self.slots[index];
+        &self.intervals[start as usize..(start + len) as usize]
+    }
+
+    /// デクセル `index` の今の区間を `intervals` にする（書ける数を超える場合は配列の末尾に置き直す）
+    fn set(&mut self, index: usize, intervals: &[(f64, f64)]) {
+        let len = u32::try_from(intervals.len()).expect("dexel interval count fits in u32");
+        let slot = &mut self.slots[index];
+        if len > slot.capacity {
+            // 置き直すたびに書ける数を倍にするため、使わない古い位置の合計は今の書ける数の合計を超えない
+            slot.start = slot_position(self.intervals.len());
+            slot.capacity = len.max(2 * slot.capacity);
+            self.intervals
+                .resize(self.intervals.len() + slot.capacity as usize, (0.0, 0.0));
+        }
+        slot.len = len;
+        let start = slot.start as usize;
+        self.intervals[start..start + intervals.len()].copy_from_slice(intervals);
+        if !self.changed[index] {
+            self.changed[index] = true;
+            self.changed_indices.push(index);
         }
     }
 
@@ -117,13 +139,13 @@ impl DexelGrid {
         first..(last as usize + 1).min(self.count[index])
     }
 
-    /// `index` 番目の掃引体を差し引き、変化したデクセルの履歴に記録する。除去した区間の長さの和を返す
+    /// 掃引体を差し引き、除去した区間の長さの和を返す
     ///
-    /// 掃引体は時系列の順に差し引くため、各デクセルの今の区間は履歴の最後（なければ初期の区間）である。
+    /// `scratch` は区間の計算に使う作業用の 2 つの列（呼び出しの間で使い回し、確保を減らす）。
     fn subtract(
         &mut self,
-        index: usize,
         primitive: &crate::stock_model::SweptToolPrimitive,
+        scratch: &mut [Vec<(f64, f64)>; 2],
     ) -> f64 {
         let bounds = primitive.bounds();
         let (low, high) = (coordinates(bounds.min()), coordinates(bounds.max()));
@@ -132,9 +154,8 @@ impl DexelGrid {
         let mut removed_length = 0.0;
         for i in self.index_range(0, low[u], high[u]) {
             for j in self.index_range(1, low[v], high[v]) {
-                let line = self.line(i, j);
-                let dexel = &mut self.dexels[i * self.count[1] + j];
-                let current = dexel.current();
+                let index = i * self.count[1] + j;
+                let current = self.current(index);
                 // 除去する区間は掃引体の外接する箱の中にあるため、箱の中に材料がない線は変わらない
                 if !current
                     .iter()
@@ -142,7 +163,7 @@ impl DexelGrid {
                 {
                     continue;
                 }
-                let removed = swept_primitive_intervals(primitive, line);
+                let removed = swept_primitive_intervals(primitive, self.line(i, j));
                 // 除去する区間が材料の区間と重ならない線は変わらない
                 let overlaps = removed.iter().flatten().any(|&(start, end)| {
                     current.iter().any(|&(low, high)| start < high && low < end)
@@ -150,23 +171,44 @@ impl DexelGrid {
                 if !overlaps {
                     continue;
                 }
-                let mut next = current.to_vec();
+                let [next, other] = scratch;
+                next.clear();
+                next.extend_from_slice(current);
                 for &interval in removed.iter().flatten() {
-                    next = subtract_interval(&next, interval);
+                    subtract_interval(next, interval, other);
+                    std::mem::swap(next, other);
                 }
-                if next != current {
-                    removed_length += total_length(current) - total_length(&next);
-                    dexel.history.push((index, next));
+                if next.as_slice() != current {
+                    removed_length += total_length(current) - total_length(next);
+                    self.set(index, next);
                 }
             }
         }
         removed_length
     }
 
+    /// 前のスナップショットの時点から変化したデクセルの今の区間（番号の昇順）を返し、変化の記録を空にする
+    fn take_changes(&mut self, grid: u8) -> Vec<DexelChange> {
+        let mut indices = std::mem::take(&mut self.changed_indices);
+        indices.sort_unstable();
+        indices
+            .into_iter()
+            .map(|index| {
+                self.changed[index] = false;
+                DexelChange {
+                    grid,
+                    index: u32::try_from(index)
+                        .expect("dexel count is bounded by the display resolution"),
+                    intervals: self.current(index).to_vec(),
+                }
+            })
+            .collect()
+    }
+
     /// 素材の範囲の、材料の区間の長さの和
     fn initial_length(&self) -> f64 {
-        let (low, high) = self.dexels[0].initial;
-        (high - low) * self.dexels.len() as f64
+        let (low, high) = self.initial;
+        (high - low) * self.slots.len() as f64
     }
 }
 
@@ -177,57 +219,75 @@ pub struct TriDexelModel {
     grids: [DexelGrid; 3],
     /// `remaining_volumes[applied]` は、`applied` 個の掃引体を差し引いた時点の残りの体積（Z の向きのデクセルから）
     remaining_volumes: Vec<f64>,
+    /// `snapshot_changes[k]` は、スナップショット `k - 1`（`k = 0` では初期の状態）からスナップショット `k` への変化
+    snapshot_changes: Vec<Vec<DexelChange>>,
 }
 
 impl TriDexelModel {
     /// 正本の素材から、格子の間隔が `spacing` 以下のトリデクセルを作り、掃引体を時系列の順に差し引く
     ///
+    /// `snapshot_applied`（昇順）は、各スナップショットの時点までに差し引く掃引体の数。時点の境ごとに、
+    /// 前の時点から変化したデクセルの区間を記録する。最後の時点より後の変化は記録しない。
+    ///
     /// # Panics
     ///
-    /// `spacing` が正の有限値でない場合。
-    pub fn from_stock_model(model: &StockModel, spacing: f64) -> Self {
+    /// `spacing` が正の有限値でない場合。`snapshot_applied` が昇順でないか、掃引体の数を超える場合。
+    pub fn from_stock_model(model: &StockModel, spacing: f64, snapshot_applied: &[usize]) -> Self {
         assert!(
             spacing.is_finite() && spacing > 0.0,
             "dexel spacing must be finite and positive"
+        );
+        let primitives = model.primitives();
+        assert!(
+            snapshot_applied.is_sorted() && snapshot_applied.last() <= Some(&primitives.len()),
+            "snapshot times must be sorted and within the primitives"
         );
         let stock = model.stock();
         let mut grids = [0, 1, 2].map(|axis| DexelGrid::new(&stock, axis, spacing));
         // 残りの体積は、Z の向きのデクセルの区間の長さの和 × 格子のセルの面積。除去した長さを時系列に足し込む
         let cell_area = grids[2].pitch[0] * grids[2].pitch[1];
         let mut length = grids[2].initial_length();
-        let mut remaining_volumes = Vec::with_capacity(model.primitives().len() + 1);
+        let mut remaining_volumes = Vec::with_capacity(primitives.len() + 1);
         remaining_volumes.push(length * cell_area);
-        for (index, primitive) in model.primitives().iter().enumerate() {
+        let mut snapshot_changes = Vec::with_capacity(snapshot_applied.len());
+        let mut scratch = [Vec::new(), Vec::new()];
+        record_snapshot_changes(&mut grids, snapshot_applied, 0, &mut snapshot_changes);
+        for (index, primitive) in primitives.iter().enumerate() {
+            if snapshot_changes.len() == snapshot_applied.len() {
+                break;
+            }
             let [x_grid, y_grid, z_grid] = &mut grids;
-            x_grid.subtract(index, primitive);
-            y_grid.subtract(index, primitive);
-            length -= z_grid.subtract(index, primitive);
+            x_grid.subtract(primitive, &mut scratch);
+            y_grid.subtract(primitive, &mut scratch);
+            length -= z_grid.subtract(primitive, &mut scratch);
             remaining_volumes.push(length * cell_area);
+            record_snapshot_changes(
+                &mut grids,
+                snapshot_applied,
+                index + 1,
+                &mut snapshot_changes,
+            );
         }
         Self {
             grids,
             remaining_volumes,
+            snapshot_changes,
         }
-    }
-
-    /// 掃引体の数（時点の上限）
-    pub fn primitive_count(&self) -> usize {
-        self.remaining_volumes.len() - 1
     }
 
     /// `applied` 個の掃引体を差し引いた時点の残りの体積（Z の向きのデクセルの区間から求める）
     ///
     /// # Panics
     ///
-    /// `applied` が掃引体の数より大きい場合。
+    /// `applied` が、最後のスナップショットの時点までに差し引いた掃引体の数より大きい場合。
     pub fn remaining_volume_at(&self, applied: usize) -> f64 {
         self.remaining_volumes[applied]
     }
 
-    /// 格子 `grid` のデクセル `index` の、`applied` 個の掃引体を差し引いた時点の区間
+    /// 格子 `grid` のデクセル `index` の、最後のスナップショットの時点の区間
     #[cfg(test)]
-    pub(crate) fn intervals_at(&self, grid: usize, index: usize, applied: usize) -> &[(f64, f64)] {
-        self.grids[grid].dexels[index].intervals_at(applied)
+    pub(crate) fn current_intervals(&self, grid: usize, index: usize) -> &[(f64, f64)] {
+        self.grids[grid].current(index)
     }
 
     /// 格子の配置（X・Y・Z の順）
@@ -239,51 +299,44 @@ impl TriDexelModel {
             count: grid.count.map(|count| {
                 u32::try_from(count).expect("dexel line count is bounded by the display resolution")
             }),
-            initial: grid.dexels[0].initial,
+            initial: grid.initial,
         })
     }
 
-    /// スナップショットの時点（各時点までに差し引いた掃引体の数。昇順）ごとの、前の時点からのデクセルの変化
-    ///
-    /// 掃引体ごとの履歴を、最初に `applied[k]` 個に達する時点 `k` にまとめ、時点ごとに最後の区間を変化とする。
-    /// 最後の時点より後の変化は含めない。
-    pub(crate) fn snapshot_changes(&self, applied: &[usize]) -> Vec<Vec<DexelChange>> {
-        let mut changes = vec![Vec::new(); applied.len()];
-        for (grid_index, grid) in self.grids.iter().enumerate() {
-            for (dexel_index, dexel) in grid.dexels.iter().enumerate() {
-                let mut pending: Option<(usize, &Vec<(f64, f64)>)> = None;
-                for (primitive, intervals) in &dexel.history {
-                    let snapshot = applied.partition_point(|&count| count <= *primitive);
-                    if snapshot >= applied.len() {
-                        break;
-                    }
-                    if let Some((previous, previous_intervals)) = pending
-                        && previous != snapshot
-                    {
-                        changes[previous].push(change(grid_index, dexel_index, previous_intervals));
-                    }
-                    pending = Some((snapshot, intervals));
-                }
-                if let Some((snapshot, intervals)) = pending {
-                    changes[snapshot].push(change(grid_index, dexel_index, intervals));
-                }
-            }
+    /// スナップショットの時点ごとの、前の時点からのデクセルの変化（`snapshot_applied` と同じ並び）
+    pub(crate) fn snapshot_changes(&self) -> &[Vec<DexelChange>] {
+        &self.snapshot_changes
+    }
+}
+
+/// `applied` 個の掃引体を差し引いた時点にあるスナップショットに、前の時点から変化したデクセルを記録する
+fn record_snapshot_changes(
+    grids: &mut [DexelGrid; 3],
+    snapshot_applied: &[usize],
+    applied: usize,
+    snapshot_changes: &mut Vec<Vec<DexelChange>>,
+) {
+    while snapshot_applied.get(snapshot_changes.len()) == Some(&applied) {
+        let mut changes = Vec::new();
+        for (index, grid) in grids.iter_mut().enumerate() {
+            changes.extend(grid.take_changes(index as u8));
         }
-        changes
+        snapshot_changes.push(changes);
     }
 }
 
-fn change(grid: usize, index: usize, intervals: &[(f64, f64)]) -> DexelChange {
-    DexelChange {
-        grid: grid as u8,
-        index: u32::try_from(index).expect("dexel count is bounded by the display resolution"),
-        intervals: intervals.to_vec(),
-    }
+/// 区間の配列の中の位置
+fn slot_position(position: usize) -> u32 {
+    u32::try_from(position).expect("dexel interval storage fits in u32")
 }
 
-/// 昇順で互いに素な区間の列から、区間 `[low, high]` を差し引く
-fn subtract_interval(intervals: &[(f64, f64)], (low, high): (f64, f64)) -> Vec<(f64, f64)> {
-    let mut result = Vec::with_capacity(intervals.len() + 1);
+/// 昇順で互いに素な区間の列 `intervals` から区間 `[low, high]` を差し引き、`result` に書く
+fn subtract_interval(
+    intervals: &[(f64, f64)],
+    (low, high): (f64, f64),
+    result: &mut Vec<(f64, f64)>,
+) {
+    result.clear();
     for &(start, end) in intervals {
         if end <= low || high <= start {
             result.push((start, end));
@@ -296,7 +349,6 @@ fn subtract_interval(intervals: &[(f64, f64)], (low, high): (f64, f64)) -> Vec<(
             result.push((high, end));
         }
     }
-    result
 }
 
 /// 区間の長さの和
