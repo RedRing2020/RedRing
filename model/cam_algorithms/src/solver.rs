@@ -118,8 +118,6 @@ pub struct ScanlineParams {
     pub sample_pitch: f64,
     /// 切削送り速度（mm/min）
     pub feed_rate: f64,
-    /// CL 最高点から早送り高さまでの逃げ量（mm）
-    pub clearance_height: f64,
     /// 加工範囲（境界）を指定しない場合の、工具の中心の移動範囲
     pub tool_range: ScanlineToolRange,
 }
@@ -286,11 +284,6 @@ fn validate_scanline(params: &ScanlineParams, tool: &Tool<f64>) -> Result<(), Ca
     }
     if !is_positive_finite(params.feed_rate) {
         return Err(invalid("scanline feed_rate must be positive and finite"));
-    }
-    if !is_positive_finite(params.clearance_height) {
-        return Err(invalid(
-            "scanline clearance_height must be positive and finite",
-        ));
     }
     Ok(())
 }

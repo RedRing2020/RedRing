@@ -2,7 +2,8 @@
 //!
 //! 加工範囲（既定は形状の XY 範囲）を Y 方向へ `stepover` 以下の等間隔で走査ラインに分け、
 //! 各ライン上を X 正方向に `sample_pitch` 以下の間隔で CL を求める。
-//! 工具が形状に接触する連続区間を 1 パスとし、パス間は早送り高さを経由して移動する。
+//! 工具が形状に接触する連続区間を 1 パスとする。パスの間のエアカットは入れない（CL の編集と工程をそろえた後に
+//! 計算する）。
 
 use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, ToolPath};
 use geo_algorithms::Point3D;
@@ -40,48 +41,21 @@ pub fn generate_scanline_toolpath(
         ));
     }
 
-    let top = passes
-        .iter()
-        .flatten()
-        .map(|p| p.z())
-        .fold(f64::NEG_INFINITY, f64::max);
-    let safe_z = top + params.clearance_height;
     let feed_rate = params.feed_rate;
-
-    let mut levels = Vec::with_capacity(passes.len());
-    let mut previous_exit: Option<Point3D<f64>> = None;
-    for (level_index, pass) in passes.iter().enumerate() {
-        let first = pass[0];
-        let last = pass[pass.len() - 1];
-        let entry = Point3D::new(first.x(), first.y(), safe_z);
-        let exit = Point3D::new(last.x(), last.y(), safe_z);
-
-        let mut segments = Vec::with_capacity(pass.len() + 2);
-        if let Some(from) = previous_exit {
-            segments.push(PathSegment::new_line(from, entry, SegmentType::Rapid));
-        }
-        segments.push(PathSegment::new_line(
-            entry,
-            first,
-            SegmentType::Approach { feed_rate },
-        ));
-        for window in pass.windows(2) {
-            segments.push(PathSegment::new_line(
-                window[0],
-                window[1],
-                SegmentType::Cutting { feed_rate },
-            ));
-        }
-        segments.push(PathSegment::new_line(
-            last,
-            exit,
-            SegmentType::Retract { feed_rate },
-        ));
-
-        let z_level = pass.iter().map(|p| p.z()).fold(f64::NEG_INFINITY, f64::max);
-        levels.push(ContourLevelPath::new(level_index, z_level, segments));
-        previous_exit = Some(exit);
-    }
+    let levels = passes
+        .iter()
+        .enumerate()
+        .map(|(level_index, pass)| {
+            let segments = pass
+                .windows(2)
+                .map(|window| {
+                    PathSegment::new_line(window[0], window[1], SegmentType::Cutting { feed_rate })
+                })
+                .collect();
+            let z_level = pass.iter().map(|p| p.z()).fold(f64::NEG_INFINITY, f64::max);
+            ContourLevelPath::new(level_index, z_level, segments)
+        })
+        .collect();
 
     Ok(ToolPath::new(
         tool_id.to_string(),

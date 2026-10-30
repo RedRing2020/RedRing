@@ -340,7 +340,6 @@ mod tests {
                     stepover: 6.0,
                     sample_pitch: 10.0,
                     feed_rate: 1200.0,
-                    clearance_height: 5.0,
                     tool_range: cam_algorithms::ScanlineToolRange::default(),
                 }),
                 units: LengthUnit::Millimeter,
@@ -467,7 +466,6 @@ mod tests {
                 stepover: 6.0,
                 sample_pitch: 10.0,
                 feed_rate: 1200.0,
-                clearance_height: 5.0,
                 tool_range: cam_algorithms::ScanlineToolRange::default(),
             },
             stock_margins: StockMargins {
