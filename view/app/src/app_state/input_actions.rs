@@ -110,6 +110,9 @@ impl AppState {
                     tracing::info!("【設定】 Shift+S: 設定パネル表示切替");
                     tracing::info!("【移動】 k: コマ送りの移動量だけ先のフレームへ（移動量は設定パネルの表示タブ）");
                     tracing::info!("【移動】 j: コマ送りの移動量だけ前のフレームへ");
+                    tracing::info!(
+                        "【移動】 . / , : 工具を次 / 前の区間の端点へ（素材は工具の手前の時点。タイトルに表示）"
+                    );
                     tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
                     tracing::info!("【再生】 Space: 自動再生/一時停止");
                     tracing::info!("【再生】 Shift+J: 自動再生停止（先頭へ）");
@@ -143,6 +146,12 @@ impl AppState {
                 }
                 "j" => {
                     self.rewind_debug_simulation_snapshot();
+                }
+                "." => {
+                    self.step_tool_to_segment_endpoint(true);
+                }
+                "," => {
+                    self.step_tool_to_segment_endpoint(false);
                 }
                 "J" => {
                     self.stop_auto_snapshot_playback();

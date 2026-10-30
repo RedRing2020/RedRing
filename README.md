@@ -257,6 +257,7 @@ This runs:
 | `Shift+R` | Run the queued jobs |
 | `Shift+L` | Import the latest cutting simulation |
 | `k` / `j` | Step forward / backward by the frame step distance |
+| `.` / `,` | Move the tool to the next / previous segment endpoint |
 | `Space` | Toggle autoplay / pause |
 | `Shift+J` | Stop autoplay and return to the first frame |
 | `+` / `-` | Adjust playback speed (current multiplier is shown in the title) |

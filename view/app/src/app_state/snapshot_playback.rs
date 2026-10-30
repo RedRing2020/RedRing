@@ -19,6 +19,8 @@ pub(super) enum SnapshotLoadTrigger {
     Space,
     KeyK,
     KeyJ,
+    NextEndpoint,
+    PreviousEndpoint,
     Pause,
 }
 
@@ -29,6 +31,8 @@ impl SnapshotLoadTrigger {
             SnapshotLoadTrigger::Space => "Space",
             SnapshotLoadTrigger::KeyK => "k",
             SnapshotLoadTrigger::KeyJ => "j",
+            SnapshotLoadTrigger::NextEndpoint => ".",
+            SnapshotLoadTrigger::PreviousEndpoint => ",",
             SnapshotLoadTrigger::Pause => "pause",
         }
     }
@@ -240,6 +244,31 @@ impl AppState {
         self.log_current_snapshot_frame(true);
     }
 
+    /// 工具を次（`forward`）・前の区間の端点へ移し、素材はその端点の手前の時点を表示する
+    pub fn step_tool_to_segment_endpoint(&mut self, forward: bool) {
+        let trigger = if forward {
+            SnapshotLoadTrigger::NextEndpoint
+        } else {
+            SnapshotLoadTrigger::PreviousEndpoint
+        };
+        if !self.ensure_snapshot_series_ready(trigger) {
+            return;
+        }
+        let Some(animation) = &mut self.cutting_animation else {
+            return;
+        };
+        let Some(frame) = animation.step_tool_endpoint(forward) else {
+            tracing::warn!("ツールパスに区間がないため、工具を区間の端点へ移せません");
+            return;
+        };
+
+        self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Manual;
+        self.debug_snapshot.last_playback_tick = None;
+        self.debug_snapshot.cursor = frame;
+        self.sync_playback_progress_from_cursor();
+        self.log_current_snapshot_frame(true);
+    }
+
     pub fn toggle_auto_snapshot_playback(&mut self) {
         if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::Space) {
             return;
@@ -397,11 +426,12 @@ impl AppState {
             );
         }
 
-        self.refresh_snapshot_window_title();
-
+        // 工具の位置（区間の端点に置いたか）は時点を移した後に決まるため、タイトルは移した後に出す
         if emit_log {
             self.sync_snapshot_visual_frame();
         }
+
+        self.refresh_snapshot_window_title();
     }
 
     fn refresh_snapshot_window_title(&self) {
@@ -418,17 +448,45 @@ impl AppState {
         let mode_label = self.snapshot_playback_mode_label().to_string();
         let speed_factor = self.debug_snapshot.playback_speed_factor;
 
-        self.window.set_title(&format!(
-            "RedRing | Snapshot {}/{} | seg={} t={:.3} dist={:.3}mm remain={:.3}mm3 | {} {}x",
-            index + 1,
-            frame_count,
-            payload.segment_index,
-            payload.segment_t,
-            payload.accumulated_distance_mm,
-            payload.remaining_volume_mm3,
-            mode_label,
-            speed_factor,
-        ));
+        // 素材の面をまだ今のコマへ移していない間（自動再生で描画を待つ間）は、端点に置いた工具を出さない
+        let endpoint = self
+            .cutting_animation
+            .as_ref()
+            .filter(|animation| animation.frame() == index)
+            .and_then(|animation| {
+                animation
+                    .tool_endpoint()
+                    .map(|endpoint| (endpoint, animation.endpoint_count()))
+            });
+        let title = match endpoint {
+            Some((endpoint, count)) => format!(
+                "RedRing | 工具: 区間の端点 {}/{}（{}） | 素材: Snapshot {}/{}（工具の手前） remain={:.3}mm3 | {} {}x",
+                endpoint,
+                count - 1,
+                if endpoint == 0 {
+                    "最初の区間の始点".to_string()
+                } else {
+                    format!("区間 {} の終点", endpoint - 1)
+                },
+                index + 1,
+                frame_count,
+                payload.remaining_volume_mm3,
+                mode_label,
+                speed_factor,
+            ),
+            None => format!(
+                "RedRing | Snapshot {}/{} | seg={} t={:.3} dist={:.3}mm remain={:.3}mm3 | {} {}x",
+                index + 1,
+                frame_count,
+                payload.segment_index,
+                payload.segment_t,
+                payload.accumulated_distance_mm,
+                payload.remaining_volume_mm3,
+                mode_label,
+                speed_factor,
+            ),
+        };
+        self.window.set_title(&title);
     }
 
     pub(super) fn snapshot_progress_ratio(&self) -> Option<f32> {

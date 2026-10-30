@@ -2,12 +2,13 @@
 //!
 //! 今の時点の素材の面（ブロックごと）を 1 つだけ持ち、時点を進める・戻す場合は、区間が変わった部分のブロック
 //! だけを作り直して返す。大きく戻す場合は、初期の状態から作り直すほうが当てる変化が少なければ作り直す。
-//! 工具の形とツールパスの線は、ツールパスの成果物と工具から作る。
+//! 工具の形とツールパスの線は、ツールパスの成果物と工具から作る。工具は、時点の位置のほか、区間の端点にも置ける
+//! （素材は、工具の位置の手前で最も近い時点の状態を表示する）。
 
 use cam_core::{read_toolpath_artifact_v1, BinaryFormatError, Tool, ToolPath};
 use cam_sim::{
     collect_toolpath_line_segments, read_cutting_simulation_artifact_v1, CuttingSimulationArtifact,
-    DexelSurface, SurfaceMesh,
+    DexelSurface, SimulationSnapshotExport, SurfaceMesh,
 };
 use geo_algorithms::{
     LineSegment3D, LineSegment3DProperties, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
@@ -69,6 +70,8 @@ pub struct CuttingAnimation {
     /// 素材の精度（素材の面で、同じ平面とみなす交点の座標の幅）
     precision: f64,
     frame: usize,
+    /// 区間の端点に置いた工具（端点の番号と、置いたときの時点。時点が変わると解除され、工具は時点の位置に戻る）
+    tool_endpoint: Option<(usize, usize)>,
     toolpath: ToolPath<f64>,
     /// 切削シミュレーションと同じ分け方の、ツールパスの直線の区間（スナップショットの区間の番号の対象）
     segments: Vec<(LineSegment3D<f64>, bool)>,
@@ -117,6 +120,7 @@ impl CuttingAnimation {
             previous_changes: artifact.previous_changes(),
             artifact,
             frame: 0,
+            tool_endpoint: None,
             toolpath,
             segments,
             tool,
@@ -179,15 +183,54 @@ impl CuttingAnimation {
         self.block_meshes(&blocks)
     }
 
-    /// 今の時点の工具の形（工具の先端の位置。位置が分からない場合は空）
+    /// 区間の端点の数（端点 `e` は、`e = 0` では最初の区間の始点、それ以外は区間 `e - 1` の終点）
+    pub fn endpoint_count(&self) -> usize {
+        if self.segments.is_empty() {
+            0
+        } else {
+            self.segments.len() + 1
+        }
+    }
+
+    /// 工具を置いている区間の端点（時点の位置に工具がある場合は `None`）
+    pub fn tool_endpoint(&self) -> Option<usize> {
+        self.tool_endpoint
+            .and_then(|(endpoint, frame)| (frame == self.frame).then_some(endpoint))
+    }
+
+    /// 工具を、今の工具の位置から次（`forward`）・前の区間の端点へ置き、素材を表示する時点を返す
+    ///
+    /// 素材を表示する時点は、その端点の手前で最も近い時点。返した時点へ `seek` すると、工具はその端点に描かれる。
+    /// 区間がない場合は `None`。最後の端点より先・最初の端点より前へは移らない。
+    pub fn step_tool_endpoint(&mut self, forward: bool) -> Option<usize> {
+        let count = self.endpoint_count();
+        if count == 0 {
+            return None;
+        }
+        let position = self.tool_endpoint().map_or_else(
+            || snapshot_position(&self.artifact.snapshots[self.frame]),
+            |endpoint| endpoint as f64,
+        );
+        let endpoint = adjacent_endpoint(position, count, forward);
+        let frame = snapshot_before_endpoint(&self.artifact.snapshots, endpoint);
+        self.tool_endpoint = Some((endpoint, frame));
+        Some(frame)
+    }
+
+    /// 今の工具の形（区間の端点、または今の時点の位置に置く。位置が分からない場合は空）
     pub fn tool_wireframe(
         &self,
         settings: &ToolWireframeVisualizationSettings,
     ) -> Vec<WireframeVertex> {
-        let snapshot = &self.artifact.snapshots[self.frame];
-        let Some(tip) =
-            tool_tip_position(&self.segments, snapshot.segment_index, snapshot.segment_t)
-        else {
+        let tip = match self.tool_endpoint() {
+            Some(0) => tool_tip_position(&self.segments, 0, 0.0),
+            Some(endpoint) => tool_tip_position(&self.segments, endpoint - 1, 1.0),
+            None => {
+                let snapshot = &self.artifact.snapshots[self.frame];
+                tool_tip_position(&self.segments, snapshot.segment_index, snapshot.segment_t)
+            }
+        };
+        let Some(tip) = tip else {
             return Vec::new();
         };
         let (radius, length) = (self.tool.radius(), self.drawn_tool_length);
@@ -240,6 +283,28 @@ impl CuttingAnimation {
             )
             .collect()
     }
+}
+
+/// 時点の、経路の上の位置（区間の番号 + 区間の中の位置。端点 `e` の位置は `e`）
+fn snapshot_position(snapshot: &SimulationSnapshotExport) -> f64 {
+    snapshot.segment_index as f64 + snapshot.segment_t
+}
+
+/// 経路の上の位置 `position` の次（`forward`）・前の区間の端点（端点の数は `count`。両端では端にとどまる）
+fn adjacent_endpoint(position: f64, count: usize, forward: bool) -> usize {
+    let last = count - 1;
+    if forward {
+        ((position.floor() as usize) + 1).min(last)
+    } else {
+        (position.ceil() as usize).saturating_sub(1).min(last)
+    }
+}
+
+/// 区間の端点 `endpoint` の手前で最も近い時点（端点ちょうどの時点を含む。時点は経路の上の位置の昇順）
+fn snapshot_before_endpoint(snapshots: &[SimulationSnapshotExport], endpoint: usize) -> usize {
+    snapshots
+        .partition_point(|snapshot| snapshot_position(snapshot) <= endpoint as f64)
+        .saturating_sub(1)
 }
 
 #[cfg(test)]
@@ -399,6 +464,86 @@ mod tests {
                 .fold(f32::INFINITY, f32::min);
             assert!((f64::from(lowest) - tip.z()).abs() < 1e-3, "frame {frame}");
         }
+    }
+
+    fn export(segment_index: usize, segment_t: f64) -> SimulationSnapshotExport {
+        SimulationSnapshotExport {
+            segment_index,
+            segment_t,
+            accumulated_distance_mm: 0.0,
+            remaining_volume_mm3: 0.0,
+        }
+    }
+
+    #[test]
+    fn adjacent_endpoints_step_from_endpoints_and_from_inside_segments() {
+        // 端点ちょうどからは隣の端点へ、区間の途中からはその区間の端点へ
+        assert_eq!(adjacent_endpoint(2.0, 5, true), 3);
+        assert_eq!(adjacent_endpoint(2.0, 5, false), 1);
+        assert_eq!(adjacent_endpoint(2.3, 5, true), 3);
+        assert_eq!(adjacent_endpoint(2.3, 5, false), 2);
+        // 両端では端にとどまる
+        assert_eq!(adjacent_endpoint(4.0, 5, true), 4);
+        assert_eq!(adjacent_endpoint(0.0, 5, false), 0);
+    }
+
+    #[test]
+    fn the_stock_is_shown_at_the_last_snapshot_up_to_the_endpoint() {
+        let snapshots = [
+            export(0, 0.0),
+            export(0, 0.6),
+            export(1, 1.0),
+            export(2, 0.5),
+            export(3, 1.0),
+        ];
+        // 端点の間にある時点は手前の時点、端点ちょうどの時点はその時点
+        assert_eq!(snapshot_before_endpoint(&snapshots, 0), 0);
+        assert_eq!(snapshot_before_endpoint(&snapshots, 1), 1);
+        assert_eq!(snapshot_before_endpoint(&snapshots, 2), 2);
+        assert_eq!(snapshot_before_endpoint(&snapshots, 3), 3);
+        assert_eq!(snapshot_before_endpoint(&snapshots, 4), 4);
+    }
+
+    #[test]
+    fn tool_placed_at_an_endpoint_is_drawn_there_until_the_frame_changes() {
+        let mut animation = animation();
+        let settings = ToolWireframeVisualizationSettings::default();
+        let lowest = |animation: &CuttingAnimation| {
+            animation
+                .tool_wireframe(&settings)
+                .iter()
+                .map(|vertex| vertex.position[0])
+                .fold(f32::INFINITY, f32::min)
+        };
+        let mut endpoint = 0;
+        while endpoint + 1 < animation.endpoint_count() {
+            let frame = animation.step_tool_endpoint(true).unwrap();
+            animation.seek(frame);
+            endpoint += 1;
+            assert_eq!(animation.tool_endpoint(), Some(endpoint));
+            // 素材の時点は、端点の手前
+            let snapshot = animation.artifact.snapshots[frame];
+            assert!(snapshot_position(&snapshot) <= endpoint as f64);
+            // 工具は端点（区間 endpoint - 1 の終点）に描かれる
+            let tip = tool_tip_position(&animation.segments, endpoint - 1, 1.0).unwrap();
+            let radius = animation.tool.radius();
+            assert!(
+                (f64::from(lowest(&animation)) - (tip.x() - radius)).abs() < 1e-3,
+                "endpoint {endpoint}"
+            );
+        }
+        // 最後の端点からは進まない
+        let frame = animation.step_tool_endpoint(true).unwrap();
+        animation.seek(frame);
+        assert_eq!(animation.tool_endpoint(), Some(endpoint));
+        // 戻ると前の端点へ
+        let frame = animation.step_tool_endpoint(false).unwrap();
+        animation.seek(frame);
+        assert_eq!(animation.tool_endpoint(), Some(endpoint - 1));
+        // 時点が変わると、工具は時点の位置に戻る
+        let other = (animation.frame() + 1) % animation.frame_count();
+        animation.seek(other);
+        assert_eq!(animation.tool_endpoint(), None);
     }
 
     #[test]
