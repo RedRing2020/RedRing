@@ -112,7 +112,9 @@ impl AppState {
                     tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
                     tracing::info!("【再生】 Space: 自動再生/一時停止");
                     tracing::info!("【再生】 Shift+J: 自動再生停止（先頭へ）");
-                    tracing::info!("【再生】 + / - : 再生速度変更（現在倍率はタイトル表示）");
+                    tracing::info!(
+                        "【再生】 + / - : 再生速度を 2 倍・半分（現在倍率はタイトル表示）"
+                    );
                     tracing::info!("【表示】 w: ワイヤー表示 / ソリッド表示を切り替え");
                     tracing::info!("【表示】 v: ツールパスの線の表示 / 非表示を切り替え");
                     tracing::info!("【表示】 Shift+V: 工具の線の表示 / 非表示を切り替え");
@@ -232,10 +234,10 @@ impl AppState {
                     self.stop_auto_snapshot_playback();
                 }
                 "+" | "=" => {
-                    self.adjust_snapshot_playback_speed(0.1);
+                    self.scale_snapshot_playback_speed(2.0);
                 }
                 "-" | "_" => {
-                    self.adjust_snapshot_playback_speed(-0.1);
+                    self.scale_snapshot_playback_speed(0.5);
                 }
                 "T" => {
                     self.load_debug_triangle();

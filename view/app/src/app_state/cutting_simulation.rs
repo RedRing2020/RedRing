@@ -34,24 +34,35 @@ impl AppState {
     /// キューにあるジョブを実行する（ジョブマネージャーの代わり。終わるまで戻らない）
     pub(crate) fn run_cutting_simulation_jobs(&mut self) {
         tracing::info!("キューにあるジョブを実行します");
+        let started = std::time::Instant::now();
         match self.cutting_simulation.run_queued_jobs() {
-            Ok(executed) => tracing::info!(executed, "ジョブの実行が終わりました"),
+            Ok(executed) => tracing::info!(
+                executed,
+                "ジョブの実行が終わりました（{:.1} 秒）",
+                started.elapsed().as_secs_f64()
+            ),
             Err(error) => tracing::warn!("ジョブを実行できません: {error}"),
         }
     }
 
     /// 正常に実行済みの最も新しい切削シミュレーションを取り込み、製品形状に重ねて再生できるようにする
     pub(crate) fn import_cutting_simulation(&mut self) {
+        tracing::info!("切削シミュレーションを取り込みます");
+        let started = std::time::Instant::now();
         match self.cutting_simulation.import_latest() {
             Ok(imported) => {
                 self.cutting_animation_job_id = Some(imported.job_id);
-                self.start_cutting_animation(imported.animation);
+                self.start_cutting_animation(imported.animation, started);
             }
             Err(error) => tracing::warn!("切削シミュレーションを取り込めません: {error}"),
         }
     }
 
-    fn start_cutting_animation(&mut self, animation: CuttingAnimation) {
+    fn start_cutting_animation(
+        &mut self,
+        animation: CuttingAnimation,
+        started: std::time::Instant,
+    ) {
         self.debug_snapshot.clear();
         self.debug_snapshot.series = Some(animation.snapshot_series("cam_sim"));
         self.rebuild_snapshot_weighted_progress_axis_cache();
@@ -65,7 +76,8 @@ impl AppState {
         self.update_camera_uniforms();
         self.log_current_snapshot_frame(true);
         tracing::info!(
-            "切削シミュレーションを取り込みました（Space で再生、k/j でコマ送り、左上の進捗バーでスクラブ、w でワイヤーフレーム）"
+            "切削シミュレーションを取り込みました（{:.1} 秒。Space で再生、k/j でコマ送り、左上の進捗バーでスクラブ、w でワイヤーフレーム）",
+            started.elapsed().as_secs_f64()
         );
     }
 
