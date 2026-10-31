@@ -126,7 +126,7 @@ ViewModel から Model を呼ぶ経路は、用途で分ける。本節を ViewM
 |---|---|---|
 | 更新（command） | Application の port | 形状作成・feature 実行（`feature_command_converter`） |
 | ユースケースの実行 | Application | 切削シミュレーションの投入・取り込み（`cam_simulation_workflow`）、工具の干渉の検査（`cam_inspection`）、ジョブの投入 |
-| 描画用の変換（query） | Model の値型・trait定義と、描画用の計算を直接使う | 形状のテセレーション（`geo_algorithms`）、ツールパスの線分化（`cam_sim`）、ジョブの記録・検証エラー・スナップショットの値型の表示用の変換（`job_domain`・`cam_core`・`cam_sim`） |
+| 描画用の変換（query） | Model の値型・trait定義と、描画用の計算を直接使う | 形状のテセレーション（`geo_algorithms`）、ツールパスの線分化（`cam_sim`）、切削シミュレーションの成果物の時点の素材の作り直し（`cam_sim` の再生の入口。#932）、ジョブの記録・検証エラー・スナップショットの値型の表示用の変換（`job_domain`・`cam_core`・`cam_sim`） |
 | 表示確認用のデータ | 直接使う | テスト形状のファイル読み込み（`geo_io` の SVG）、fixtures のサンプル（なくす方針: #920） |
 
 - 直接使ってよいのは、Model の状態を更新しない読み取りと計算に限る。Model の状態の更新、処理の順序や実行方式（同期 / ジョブ）の選択は ViewModel に持たせず、Application 経由にする
