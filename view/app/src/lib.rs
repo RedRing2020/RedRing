@@ -4,6 +4,8 @@ pub mod app_state;
 pub mod entity_manager;
 pub mod graphic;
 pub mod logging;
+pub(crate) mod machining_conditions_messages;
+pub(crate) mod machining_conditions_ui;
 pub mod mouse_input;
 pub mod overlay_coords;
 pub mod selection_rect;

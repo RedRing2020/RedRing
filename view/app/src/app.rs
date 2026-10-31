@@ -24,7 +24,9 @@ impl ApplicationHandler for App {
         );
         self.state = Some(AppState::new(window));
         tracing::info!("=== RedRing 起動完了 ===");
-        tracing::info!("切削シミュレーションデモ開始: Shift+B=ボール, Shift+F=フラット");
+        tracing::info!(
+            "切削シミュレーション: Shift+M で加工条件のウィンドウを開き、「投入」で投入します"
+        );
         tracing::info!("操作ヘルプ全体は h キーで確認できます");
     }
 
@@ -44,7 +46,7 @@ impl ApplicationHandler for App {
                 }
                 return;
             }
-            let settings_ui_consumed = if state.is_settings_panel_open() {
+            let settings_ui_consumed = if state.is_ui_window_open() {
                 state.handle_settings_window_event(&event);
                 state.is_settings_using_pointer()
             } else {
@@ -59,7 +61,7 @@ impl ApplicationHandler for App {
                 WindowEvent::RedrawRequested => state.render(),
                 WindowEvent::KeyboardInput { event, .. } => {
                     let pressed = event.state == ElementState::Pressed;
-                    state.handle_keyboard_input(&event.logical_key, &event.physical_key, pressed);
+                    state.handle_keyboard_input(&event.logical_key, pressed);
 
                     // ESCキーのみここで処理（アプリ終了）
                     if pressed && matches!(event.logical_key, Key::Named(NamedKey::Escape)) {
@@ -100,7 +102,7 @@ impl ApplicationHandler for App {
                 return;
             }
             if let DeviceEvent::MouseMotion { delta } = event {
-                if state.is_settings_panel_open() {
+                if state.is_ui_window_open() {
                     state.handle_settings_mouse_motion(delta);
                 }
                 state.handle_mouse_motion(delta);

@@ -7,7 +7,6 @@ use render::mesh_list::MeshListItem;
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, StockBlockMesh};
-use viewmodel::cutting_simulation_session::CuttingToolKind;
 use viewmodel::octree_converter::WireframeVertex;
 
 /// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
@@ -23,11 +22,11 @@ fn stock_block_key(block: [usize; 3]) -> u64 {
 }
 
 impl AppState {
-    /// 表示中の製品形状で、切削シミュレーションを投入する（実行しない）
-    pub(crate) fn submit_cutting_simulation(&mut self, tool: CuttingToolKind) {
-        match self.cutting_simulation.submit(&self.product_shapes, tool) {
+    /// 表示中の製品形状で、加工条件のウィンドウの計算条件の切削シミュレーションを投入する（実行しない）
+    pub(crate) fn submit_cutting_simulation(&mut self) {
+        match self.cutting_simulation.submit(&self.product_shapes) {
             Ok(()) => tracing::info!(
-                ?tool,
+                conditions = ?self.cutting_simulation.conditions(),
                 "切削シミュレーションを投入しました（Shift+R で実行、Shift+L で取り込み）"
             ),
             Err(error) => tracing::warn!("切削シミュレーションを投入できません: {error}"),
@@ -55,6 +54,7 @@ impl AppState {
         match self.cutting_simulation.import_latest() {
             Ok(imported) => {
                 self.cutting_animation_job_id = Some(imported.job_id);
+                self.imported_conditions = Some(imported.conditions);
                 self.start_cutting_animation(imported.animation, started);
             }
             Err(error) => tracing::warn!("切削シミュレーションを取り込めません: {error}"),

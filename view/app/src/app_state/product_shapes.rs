@@ -14,6 +14,7 @@ impl AppState {
             return;
         }
         tracing::info!(path = %path.display(), "product shape imported");
+        self.condition_issues = None;
         self.show_product_shapes();
     }
 
@@ -21,6 +22,7 @@ impl AppState {
     fn show_product_shapes(&mut self) {
         self.cutting_animation = None;
         self.cutting_animation_job_id = None;
+        self.imported_conditions = None;
         self.debug_snapshot.clear();
         let meshes = self.product_shapes.visible_meshes();
         let positions: Vec<[f32; 3]> = meshes

@@ -42,9 +42,6 @@ impl AppState {
             snapshot_shaded_colors: self.snapshot_shaded_color_settings,
             tool_wireframe_settings: self.tool_wireframe_visualization_settings,
             toolpath_settings: self.toolpath_visualization_settings.clone(),
-            stock_margins: self.cutting_simulation.stock_margins(),
-            tool_length: self.cutting_simulation.tool_length(),
-            tool_length_input: self.tool_length_input,
             frame_step_distance_mm: self.debug_snapshot.frame_step_distance_mm,
             initial_frame_step_distance_mm: self.initial_frame_step_distance_mm(),
             current_animation_label: self
@@ -61,11 +58,6 @@ impl AppState {
         self.settings_panel_locale = panel_state.locale;
         self.tool_wireframe_visualization_settings = panel_state.tool_wireframe_settings;
         self.toolpath_visualization_settings = panel_state.toolpath_settings;
-        self.cutting_simulation
-            .set_stock_margins(panel_state.stock_margins);
-        self.cutting_simulation
-            .set_tool_length(panel_state.tool_length);
-        self.tool_length_input = panel_state.tool_length_input;
         self.debug_snapshot.frame_step_distance_mm = panel_state.frame_step_distance_mm;
 
         if panel_state.redraw_animation_requested {

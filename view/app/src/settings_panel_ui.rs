@@ -5,7 +5,6 @@ use crate::settings_panel_messages::{
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use egui::{Align2, CollapsingHeader, Context, DragValue, RichText, Slider, Window};
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
-use viewmodel::cutting_simulation_session::StockMargins;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
 use viewmodel::toolpath_converter::{
@@ -102,11 +101,6 @@ pub struct SettingsPanelUiState {
     pub snapshot_shaded_colors: SnapshotShadedColorSettings,
     pub tool_wireframe_settings: ToolWireframeVisualizationSettings,
     pub toolpath_settings: ToolPathVisualizationSettings,
-    pub stock_margins: StockMargins,
-    /// 工具長（`None` は指定しない）
-    pub tool_length: Option<f64>,
-    /// 工具長を指定するときの入力値（指定しない間も保つ）
-    pub tool_length_input: f64,
     /// コマ送り（k キー・j キー）で経路に沿って移る距離（mm）
     pub frame_step_distance_mm: f64,
     /// コマ送りの移動量の初期値（取り込んでいなければ `None`）
@@ -614,9 +608,6 @@ impl SettingsPanelUiState {
                     );
                 }
             });
-
-        self.show_cutting_tool(ui);
-        self.show_stock_margins(ui);
     }
 
     fn show_debug_tab(&mut self, ui: &mut egui::Ui) {
@@ -634,66 +625,6 @@ impl SettingsPanelUiState {
                     });
                 });
         }
-    }
-
-    fn show_cutting_tool(&mut self, ui: &mut egui::Ui) {
-        let specify_label = self.text("settings.cutting_tool.specify_length");
-        CollapsingHeader::new(self.text("settings.header.cutting_tool"))
-            .default_open(true)
-            .show(ui, |ui| {
-                ui.label(RichText::new(self.text("settings.stock.next_submission")).strong());
-                let mut specified = self.tool_length.is_some();
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut specified, specify_label);
-                    ui.add_enabled(
-                        specified,
-                        DragValue::new(&mut self.tool_length_input)
-                            .range(0.1..=f64::MAX)
-                            .speed(0.5)
-                            .suffix(" mm"),
-                    );
-                });
-                self.tool_length = specified.then_some(self.tool_length_input);
-            });
-    }
-
-    fn show_stock_margins(&mut self, ui: &mut egui::Ui) {
-        let labels = [
-            "settings.stock.minus_x",
-            "settings.stock.plus_x",
-            "settings.stock.minus_y",
-            "settings.stock.plus_y",
-            "settings.stock.top",
-            "settings.stock.bottom",
-        ]
-        .map(|key| self.text(key));
-        CollapsingHeader::new(self.text("settings.header.stock"))
-            .default_open(true)
-            .show(ui, |ui| {
-                ui.label(RichText::new(self.text("settings.stock.next_submission")).strong());
-                let StockMargins {
-                    minus_x,
-                    plus_x,
-                    minus_y,
-                    plus_y,
-                    bottom,
-                    top,
-                } = &mut self.stock_margins;
-                for (label, margin) in labels
-                    .into_iter()
-                    .zip([minus_x, plus_x, minus_y, plus_y, top, bottom])
-                {
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            DragValue::new(margin)
-                                .range(0.0..=f64::MAX)
-                                .speed(0.1)
-                                .suffix(" mm"),
-                        );
-                        ui.label(label);
-                    });
-                }
-            });
     }
 }
 
