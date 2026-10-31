@@ -2,21 +2,24 @@
 //!
 //! 投入は、ツールパス生成の入力と切削シミュレーションの入力を登録先に登録し、ツールパス生成（CamProcess）の
 //! ジョブと、それを親とする切削シミュレーション（CuttingSimulation）のジョブをキューに入れた時点で完了する。
-//! 取り込みは、正常終了した切削シミュレーションのジョブだけを対象に、ツールパスと切削シミュレーションの成果物と工具を返す。
+//! 投入の前に、計算条件の誤りをすべて確かめる（投入前の確認）。投入は、確認を通った条件だけを受ける。
+//! 取り込みは、正常終了した切削シミュレーションのジョブだけを対象に、ツールパスと切削シミュレーションの成果物と、
+//! 投入した入力を返す。
 //! 製品形状からの投入は、形状の解決・ツールパス生成の入力の組み立て・素材の計算をそれぞれの担当に任せ、つなぐだけとする。
 
 use std::fmt;
 use std::sync::Arc;
 
 use cam_algorithms::{
-    CamSolverInput, OperationDefinition, ProcessTemplate, ScanlineParams, SolverDefaults,
-    TemplateFailure, build_solver_input, resolve_operation,
+    CamSolverError, CamSolverInput, OperationDefinition, ProcessTemplate, ScanlineParams,
+    SolverDefaults, TemplateFailure, build_solver_input, resolve_operation,
 };
 use cam_core::Tool;
 use cam_sim::{
-    CamJobExecutorAdapter, CuttingSimulationInput, CuttingSimulationInputProvider,
-    InMemoryCamSolverInputStore, InMemoryCuttingSimulationInputStore, SnapshotInterval,
-    StockMargins, stock_around_product,
+    CamJobExecutorAdapter, CamSolverInputProvider, CuttingSimulationInput,
+    CuttingSimulationInputError, CuttingSimulationInputProvider, InMemoryCamSolverInputStore,
+    InMemoryCuttingSimulationInputStore, SnapshotInterval, StockMargins,
+    cutting_simulation_input_errors, stock_around_product,
 };
 use geo_algorithms::{Aabb3D, TessellationLimits};
 use geo_entity::FaceId;
@@ -72,17 +75,54 @@ pub struct CamSimulationSubmission {
     pub simulation_job_id: u64,
 }
 
-/// 取り込んだツールパス生成と切削シミュレーションの成果物
-#[derive(Debug, Clone, PartialEq)]
+/// 取り込んだツールパス生成と切削シミュレーションの成果物と、投入した入力
+#[derive(Debug, Clone)]
 pub struct CamSimulationWorkflowResult {
     /// ツールパスの成果物のバイト列
     pub toolpath_artifact: Vec<u8>,
     /// 切削シミュレーションの成果物のバイト列
     pub simulation_artifact: Vec<u8>,
-    /// 切削シミュレーションの入力の工具
-    pub tool: Tool<f64>,
-    /// 切削シミュレーションの入力の素材の精度（mm）
-    pub precision: f64,
+    /// ツールパス生成の入力
+    pub solver_input: CamSolverInput,
+    /// 切削シミュレーションの入力
+    pub simulation_input: CuttingSimulationInput,
+}
+
+/// 計算条件の誤り（入力の欄ごとに分けて知らせる）
+#[derive(Debug, Clone, PartialEq)]
+pub enum CamConditionError {
+    /// 素材の余裕が負または有限でない
+    InvalidStockMargins(StockMargins),
+    /// 素材の精度が、ツールパス生成のトレランスより細かい（素材は CL より正確である必要がない）
+    PrecisionFinerThanTolerance { precision: f64, tolerance: f64 },
+    /// ツールパス生成の入力（工具・走査線の条件など）の誤り
+    ToolpathInput(CamSolverError),
+    /// 切削シミュレーションの入力の誤り
+    SimulationInput(CuttingSimulationInputError),
+}
+
+impl fmt::Display for CamConditionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidStockMargins(margins) => {
+                write!(
+                    f,
+                    "stock margins must be finite and non-negative: {margins:?}"
+                )
+            }
+            Self::PrecisionFinerThanTolerance {
+                precision,
+                tolerance,
+            } => write!(
+                f,
+                "stock precision {precision} must not be finer than the toolpath tolerance {tolerance}"
+            ),
+            Self::ToolpathInput(error) => write!(f, "toolpath input is invalid: {error}"),
+            Self::SimulationInput(error) => {
+                write!(f, "cutting simulation input is invalid: {error}")
+            }
+        }
+    }
 }
 
 /// 投入・取り込みの失敗
@@ -94,16 +134,14 @@ pub enum CamSimulationWorkflowError {
     NotSucceededSimulation(u64),
     /// 正常終了した切削シミュレーションのジョブに、成果物または入力のツールパスがない（ジョブの番号）
     MissingArtifact(u64),
-    /// 正常終了した切削シミュレーションのジョブの入力（工具）がない（ジョブの番号）
+    /// 正常終了した切削シミュレーションのジョブの入力がない（ジョブの番号）
     MissingInput(u64),
     /// 加工の対象の面を形状にできない
     ProductShape(ProductShapeError),
     /// 加工の対象の形状が空
     EmptyProductShape,
-    /// 素材の余裕が負または有限でない
-    InvalidStockMargins(StockMargins),
-    /// 素材の精度が、ツールパス生成のトレランスより細かい（素材は CL より正確である必要がない）
-    PrecisionFinerThanTolerance { precision: f64, tolerance: f64 },
+    /// 計算条件の誤り（すべて）
+    Conditions(Vec<CamConditionError>),
     /// オペレーションの定義を解決できない
     Operation(TemplateFailure),
     /// ジョブの投入・問い合わせの失敗
@@ -121,19 +159,13 @@ impl fmt::Display for CamSimulationWorkflowError {
             Self::MissingInput(job_id) => write!(f, "job {job_id} has no registered input"),
             Self::ProductShape(error) => write!(f, "product shape cannot be machined: {error}"),
             Self::EmptyProductShape => write!(f, "product shape is empty"),
-            Self::InvalidStockMargins(margins) => {
-                write!(
-                    f,
-                    "stock margins must be finite and non-negative: {margins:?}"
-                )
+            Self::Conditions(errors) => {
+                write!(f, "calculation conditions are invalid:")?;
+                for error in errors {
+                    write!(f, " {error};")?;
+                }
+                Ok(())
             }
-            Self::PrecisionFinerThanTolerance {
-                precision,
-                tolerance,
-            } => write!(
-                f,
-                "stock precision {precision} must not be finer than the toolpath tolerance {tolerance}"
-            ),
             Self::Operation(error) => write!(f, "operation cannot be resolved: {error}"),
             Self::Orchestration(error) => write!(f, "job orchestration failed: {error}"),
         }
@@ -182,35 +214,32 @@ impl CamSimulationWorkflow {
     ///
     /// # Errors
     ///
-    /// 素材の精度がツールパス生成のトレランスより細かい場合、入力の登録の失敗、ジョブの投入の失敗。
+    /// 計算条件に誤りがある場合（すべての誤り）、入力の登録の失敗、ジョブの投入の失敗。
     pub fn submit(
         &mut self,
         request: CamSimulationWorkflowRequest,
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        let tolerance = request.solver_input.chord_tolerance;
-        if request.precision < tolerance {
-            return Err(CamSimulationWorkflowError::PrecisionFinerThanTolerance {
-                precision: request.precision,
-                tolerance,
-            });
+        let errors = condition_errors(&request);
+        if !errors.is_empty() {
+            return Err(CamSimulationWorkflowError::Conditions(errors));
         }
+        self.enqueue(request)
+    }
+
+    /// 確認を通った入力を登録し、ジョブをキューに入れる
+    fn enqueue(
+        &mut self,
+        request: CamSimulationWorkflowRequest,
+    ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
         self.next_run += 1;
         let cam_input_ref = format!("input://cam/run-{}", self.next_run);
         let simulation_input_ref = format!("input://sim/run-{}", self.next_run);
-        let tool = request.solver_input.tool.clone();
+        let simulation_input = simulation_input(&request);
         self.solver_inputs
             .register(&cam_input_ref, request.solver_input)
             .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
         self.simulation_inputs
-            .register(
-                &simulation_input_ref,
-                CuttingSimulationInput {
-                    stock: request.stock,
-                    tool,
-                    precision: request.precision,
-                    snapshot_interval: request.snapshot_interval,
-                },
-            )
+            .register(&simulation_input_ref, simulation_input)
             .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
 
         let toolpath = self
@@ -233,48 +262,33 @@ impl CamSimulationWorkflow {
         })
     }
 
+    /// 製品形状の面からの投入の前に、計算条件の誤りをすべて確かめる（投入前の確認。投入と同じ判定）
+    ///
+    /// # Errors
+    ///
+    /// 面を形状にできない場合、形状が空の場合、オペレーションの定義を解決できない場合、
+    /// 計算条件に誤りがある場合（すべての誤り）。
+    pub fn check_product_shapes(
+        shapes: &ProductShapeStore,
+        request: &ProductShapeSimulationRequest,
+    ) -> Result<(), CamSimulationWorkflowError> {
+        resolve_product_shape_request(shapes, request.clone()).map(|_| ())
+    }
+
     /// 製品形状の面からツールパス生成と切削シミュレーションのジョブをキューに入れる（実行しない）
     ///
     /// 面の形状の解決、ツールパス生成の入力の組み立て、製品形状を囲む素材の計算をつなぐ。
     ///
     /// # Errors
     ///
-    /// 面を形状にできない場合、形状が空の場合、素材の余裕が負または有限でない場合、オペレーションの定義を解決できない場合、
-    /// 素材の精度がツールパス生成のトレランスより細かい場合、入力の登録・投入の失敗。
+    /// 投入前の確認（`check_product_shapes`）の誤り、入力の登録・投入の失敗。
     pub fn submit_product_shapes(
         &mut self,
         shapes: &ProductShapeStore,
         request: ProductShapeSimulationRequest,
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        let geometry = shapes
-            .resolve_solver_geometry(&request.face_ids)
-            .map_err(CamSimulationWorkflowError::ProductShape)?;
-        let bounds = geometry
-            .aabb()
-            .ok_or(CamSimulationWorkflowError::EmptyProductShape)?;
-        let stock = stock_around_product(bounds, request.stock_margins).ok_or(
-            CamSimulationWorkflowError::InvalidStockMargins(request.stock_margins),
-        )?;
-        let resolved = resolve_operation(
-            &request.template,
-            &request.operation,
-            SolverDefaults::default(),
-        )
-        .map_err(CamSimulationWorkflowError::Operation)?;
-        let solver_input = build_solver_input(
-            &resolved,
-            request.tool,
-            geometry,
-            request.scanline,
-            TessellationLimits::default(),
-        )
-        .map_err(CamSimulationWorkflowError::Operation)?;
-        self.submit(CamSimulationWorkflowRequest {
-            solver_input,
-            stock,
-            precision: request.precision,
-            snapshot_interval: request.snapshot_interval,
-        })
+        let request = resolve_product_shape_request(shapes, request)?;
+        self.enqueue(request)
     }
 
     /// 実行できる待機中のジョブがなくなるまで実行し、実行したジョブの数を返す（ジョブマネージャーの実行の入口）
@@ -292,7 +306,8 @@ impl CamSimulationWorkflow {
             .list_succeeded_jobs(CamJobType::CuttingSimulation)
     }
 
-    /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と工具
+    /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
+    /// 投入した入力
     ///
     /// # Errors
     ///
@@ -312,17 +327,121 @@ impl CamSimulationWorkflow {
             ));
         }
         let missing = || CamSimulationWorkflowError::MissingArtifact(simulation_job_id);
-        let input = self
+        let missing_input = || CamSimulationWorkflowError::MissingInput(simulation_job_id);
+        let simulation_input = self
             .simulation_inputs
             .resolve(&result.job.spec.input_ref)
-            .ok_or(CamSimulationWorkflowError::MissingInput(simulation_job_id))?;
+            .ok_or_else(missing_input)?;
+        let toolpath_job_id = result.job.parent_job_id.ok_or_else(missing_input)?;
+        let toolpath_job = self.orchestrator.query_result(JobWorkflowResultQuery {
+            job_id: toolpath_job_id,
+        })?;
+        let solver_input = self
+            .solver_inputs
+            .resolve(&toolpath_job.job.spec.input_ref)
+            .ok_or_else(missing_input)?;
         Ok(CamSimulationWorkflowResult {
             // 切削シミュレーションの入力に使ったツールパス（親のジョブの成果物）
             toolpath_artifact: result.input_artifact.ok_or_else(missing)?,
             simulation_artifact: result.active_artifact.ok_or_else(missing)?,
-            tool: input.tool,
-            precision: input.precision,
+            solver_input,
+            simulation_input,
         })
+    }
+}
+
+/// 製品形状の面から、ツールパス生成から切削シミュレーションまでの入力を組み立て、計算条件の誤りをすべて確かめる
+///
+/// 余裕が不正な場合は素材を決められないため、製品形状を囲む箱を素材として残りの条件を確かめ、
+/// 素材の大きさで決まる線の本数は判定しない。
+fn resolve_product_shape_request(
+    shapes: &ProductShapeStore,
+    request: ProductShapeSimulationRequest,
+) -> Result<CamSimulationWorkflowRequest, CamSimulationWorkflowError> {
+    let geometry = shapes
+        .resolve_solver_geometry(&request.face_ids)
+        .map_err(CamSimulationWorkflowError::ProductShape)?;
+    let bounds = geometry
+        .aabb()
+        .ok_or(CamSimulationWorkflowError::EmptyProductShape)?;
+    let stock = stock_around_product(bounds, request.stock_margins);
+    let resolved = resolve_operation(
+        &request.template,
+        &request.operation,
+        SolverDefaults::default(),
+    )
+    .map_err(CamSimulationWorkflowError::Operation)?;
+    let solver_input = build_solver_input(
+        &resolved,
+        request.tool,
+        geometry,
+        request.scanline,
+        TessellationLimits::default(),
+    )
+    .map_err(CamSimulationWorkflowError::Operation)?;
+    let workflow_request = CamSimulationWorkflowRequest {
+        solver_input,
+        stock: stock.unwrap_or(bounds),
+        precision: request.precision,
+        snapshot_interval: request.snapshot_interval,
+    };
+    let errors = match stock {
+        Some(_) => condition_errors(&workflow_request),
+        None => {
+            let mut errors = vec![CamConditionError::InvalidStockMargins(
+                request.stock_margins,
+            )];
+            errors.extend(
+                condition_errors(&workflow_request)
+                    .into_iter()
+                    .filter(|error| {
+                        !matches!(
+                            error,
+                            CamConditionError::SimulationInput(
+                                CuttingSimulationInputError::TooManyDexelLines { .. }
+                            )
+                        )
+                    }),
+            );
+            errors
+        }
+    };
+    if errors.is_empty() {
+        Ok(workflow_request)
+    } else {
+        Err(CamSimulationWorkflowError::Conditions(errors))
+    }
+}
+
+/// 計算条件の誤りをすべて返す（ツールパス生成と切削シミュレーションの実行のときと同じ判定）
+fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionError> {
+    let mut errors = Vec::new();
+    let tolerance = request.solver_input.chord_tolerance;
+    // 正の有限値でない精度は、切削シミュレーションの入力の誤りとして知らせる
+    if request.precision > 0.0 && request.precision < tolerance {
+        errors.push(CamConditionError::PrecisionFinerThanTolerance {
+            precision: request.precision,
+            tolerance,
+        });
+    }
+    if let Err(error) = request.solver_input.validate() {
+        errors.push(CamConditionError::ToolpathInput(error));
+    }
+    errors.extend(
+        cutting_simulation_input_errors(&simulation_input(request))
+            .into_iter()
+            .map(CamConditionError::SimulationInput),
+    );
+    errors
+}
+
+/// 切削シミュレーションの入力（工具はツールパス生成の入力と同じ）
+fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulationInput {
+    CuttingSimulationInput {
+        stock: request.stock,
+        tool: request.solver_input.tool.clone(),
+        precision: request.precision,
+        snapshot_interval: request.snapshot_interval.clone(),
     }
 }
 
@@ -385,10 +504,8 @@ mod tests {
         // 投入しただけでは実行されず、取り込めない
         assert!(workflow.succeeded_simulations().is_empty());
         assert_eq!(
-            workflow.import(submission.simulation_job_id),
-            Err(CamSimulationWorkflowError::NotSucceededSimulation(
-                submission.simulation_job_id
-            ))
+            workflow.import(submission.simulation_job_id).unwrap_err(),
+            CamSimulationWorkflowError::NotSucceededSimulation(submission.simulation_job_id)
         );
 
         let started = Instant::now();
@@ -437,37 +554,33 @@ mod tests {
 
     #[test]
     fn failed_jobs_are_not_imported() {
+        use cam_algorithms::{MachiningBoundary, RectangleBoundary};
+
         let mut workflow = CamSimulationWorkflow::new();
-        // ツールパス生成の失敗（子の切削シミュレーションは実行されずに失敗する）と、Preflight の拒否
-        let mut invalid = request(0.01);
-        invalid.solver_input.operation_id = String::new();
-        let failed_toolpath = workflow.submit(invalid).unwrap();
-        let rejected = workflow
-            .submit(CamSimulationWorkflowRequest {
-                snapshot_interval: SnapshotInterval::ByDistance {
-                    interval_mm: f64::NAN,
-                    include_segment_endpoints: true,
-                },
-                ..request(0.01)
-            })
-            .unwrap();
+        // 工具が形状に接触しない加工範囲では、ツールパス生成が失敗し、子の切削シミュレーションは実行されずに失敗する
+        let mut outside = request(0.01);
+        outside.solver_input.boundary = Some(MachiningBoundary::Rectangle(RectangleBoundary {
+            rect_min: [200.0, 200.0],
+            rect_max: [210.0, 210.0],
+        }));
+        let failed = workflow.submit(outside).unwrap();
+        let succeeded = workflow.submit(request(0.01)).unwrap();
         workflow.run_queued_jobs().unwrap();
 
-        assert!(workflow.succeeded_simulations().is_empty());
-        for submission in [failed_toolpath, rejected] {
-            assert_eq!(
-                workflow.import(submission.simulation_job_id),
-                Err(CamSimulationWorkflowError::NotSucceededSimulation(
-                    submission.simulation_job_id
-                ))
-            );
-        }
+        let simulations: Vec<u64> = workflow
+            .succeeded_simulations()
+            .iter()
+            .map(|job| job.id)
+            .collect();
+        assert_eq!(simulations, vec![succeeded.simulation_job_id]);
+        assert_eq!(
+            workflow.import(failed.simulation_job_id).unwrap_err(),
+            CamSimulationWorkflowError::NotSucceededSimulation(failed.simulation_job_id)
+        );
         // ツールパス生成のジョブは切削シミュレーションとしては取り込めない
         assert_eq!(
-            workflow.import(rejected.toolpath_job_id),
-            Err(CamSimulationWorkflowError::NotSucceededSimulation(
-                rejected.toolpath_job_id
-            ))
+            workflow.import(succeeded.toolpath_job_id).unwrap_err(),
+            CamSimulationWorkflowError::NotSucceededSimulation(succeeded.toolpath_job_id)
         );
     }
 
@@ -475,11 +588,13 @@ mod tests {
     fn precision_finer_than_the_toolpath_tolerance_is_not_submitted() {
         let mut workflow = CamSimulationWorkflow::new();
         assert_eq!(
-            workflow.submit(request(0.005)),
-            Err(CamSimulationWorkflowError::PrecisionFinerThanTolerance {
-                precision: 0.005,
-                tolerance: 0.01,
-            })
+            workflow.submit(request(0.005)).unwrap_err(),
+            CamSimulationWorkflowError::Conditions(vec![
+                CamConditionError::PrecisionFinerThanTolerance {
+                    precision: 0.005,
+                    tolerance: 0.01,
+                }
+            ])
         );
         assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
     }
@@ -521,8 +636,20 @@ mod tests {
         }
     }
 
+    /// 四角錐の 1 面だけの製品形状
+    fn pyramid_shape() -> (ProductShapeStore, geo_entity::FaceId) {
+        use crate::product_shape::ProductFaceGeometry;
+
+        let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
+            panic!("the test request uses a mesh");
+        };
+        let mut shapes = ProductShapeStore::new();
+        let face = shapes.add_face(ProductFaceGeometry::Mesh(pyramid)).face_id;
+        (shapes, face)
+    }
+
     #[test]
-    fn product_shapes_are_submitted_and_imported_with_the_tool() {
+    fn product_shapes_are_submitted_and_imported_with_the_submitted_inputs() {
         use crate::product_shape::{ProductFaceGeometry, ProductShapeStore};
 
         let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
@@ -537,7 +664,23 @@ mod tests {
         assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
 
         let result = workflow.import(submission.simulation_job_id).unwrap();
-        assert_eq!(result.tool.id, "BEM6");
+        let submitted = product_shape_request(vec![face]);
+        assert_eq!(result.solver_input.tool, submitted.tool);
+        assert_eq!(
+            result.solver_input.operation,
+            OperationSpec::Scanline(submitted.scanline)
+        );
+        // 工程テンプレートの press_rough のトレランス
+        assert_eq!(result.solver_input.chord_tolerance, 0.001);
+        assert_eq!(result.simulation_input.tool, submitted.tool);
+        assert_eq!(result.simulation_input.precision, submitted.precision);
+        assert_eq!(
+            result.simulation_input.stock,
+            Aabb3D::new(
+                Point3D::new(15.0, 15.0, 80.0),
+                Point3D::new(65.0, 65.0, 95.0)
+            )
+        );
         let (_, simulation) = cam_sim::read_cutting_simulation_artifact_v1(
             &mut result.simulation_artifact.as_slice(),
         )
@@ -612,8 +755,84 @@ mod tests {
             workflow
                 .submit_product_shapes(&shapes, request)
                 .unwrap_err(),
-            CamSimulationWorkflowError::InvalidStockMargins(margins)
+            CamSimulationWorkflowError::Conditions(vec![CamConditionError::InvalidStockMargins(
+                margins
+            )])
         );
         assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
+    }
+
+    #[test]
+    fn all_condition_errors_are_reported_before_submitting() {
+        let (shapes, face) = pyramid_shape();
+        let mut request = product_shape_request(vec![face]);
+        request.stock_margins.top = f64::NAN;
+        // press_rough のトレランス 0.001 より細かい精度
+        request.precision = 0.0005;
+        // ステップオーバーが工具径 6 を超える
+        request.scanline.stepover = 7.0;
+        // 工具長が 0
+        request.tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 0.0);
+        let margins = request.stock_margins;
+        let Err(CamSimulationWorkflowError::Conditions(errors)) =
+            CamSimulationWorkflow::check_product_shapes(&shapes, &request)
+        else {
+            panic!("the conditions must be rejected");
+        };
+        let [
+            CamConditionError::InvalidStockMargins(rejected_margins),
+            CamConditionError::PrecisionFinerThanTolerance {
+                precision,
+                tolerance,
+            },
+            CamConditionError::ToolpathInput(CamSolverError::InvalidInput(_)),
+            CamConditionError::SimulationInput(CuttingSimulationInputError::Tool),
+        ] = &errors[..]
+        else {
+            panic!("unexpected errors: {errors:?}");
+        };
+        assert!(rejected_margins.top.is_nan() && rejected_margins.minus_x == margins.minus_x);
+        assert_eq!((*precision, *tolerance), (0.0005, 0.001));
+
+        // 投入も同じ誤りで拒み、キューに入れない
+        let mut workflow = CamSimulationWorkflow::new();
+        let Err(CamSimulationWorkflowError::Conditions(rejected)) =
+            workflow.submit_product_shapes(&shapes, request)
+        else {
+            panic!("the conditions must be rejected");
+        };
+        assert_eq!(rejected.len(), errors.len());
+        assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
+    }
+
+    #[test]
+    fn precision_beyond_the_line_limit_is_reported_with_the_finest_precision() {
+        let (shapes, face) = pyramid_shape();
+        let mut request = product_shape_request(vec![face]);
+        request.stock_margins.minus_x = 1000.0;
+        request.stock_margins.plus_x = 1000.0;
+        request.stock_margins.minus_y = 1000.0;
+        request.stock_margins.plus_y = 1000.0;
+        request.precision = 0.001;
+        let Err(CamSimulationWorkflowError::Conditions(errors)) =
+            CamSimulationWorkflow::check_product_shapes(&shapes, &request)
+        else {
+            panic!("the precision must be rejected");
+        };
+        let [
+            CamConditionError::SimulationInput(CuttingSimulationInputError::TooManyDexelLines {
+                finest_precision,
+                ..
+            }),
+        ] = errors[..]
+        else {
+            panic!("unexpected errors: {errors:?}");
+        };
+        assert!(finest_precision > request.precision);
+        request.precision = finest_precision;
+        assert_eq!(
+            CamSimulationWorkflow::check_product_shapes(&shapes, &request),
+            Ok(())
+        );
     }
 }

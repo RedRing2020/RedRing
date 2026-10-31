@@ -2,6 +2,7 @@
 //!
 //! 判定は `ReadyStrict`（`Ok`）・`NotReady`・`InvalidInput` の 3 値とする。機械制約とポスト由来の加工条件
 //! （回避高さ・速度）は、設定する経路ができた時点で必須の受理条件に加える。
+//! ツールパスによらず入力だけで決まる判定（`cutting_simulation_input_errors`）は、投入の前の確認にも使う。
 
 use std::fmt::{Display, Formatter};
 
@@ -18,7 +19,7 @@ pub(crate) enum PreflightFailure {
     /// 必須の条件が満たされていない（設定を補って再実行する）
     NotReady(Vec<NotReadyReason>),
     /// 入力の値が契約に違反している
-    InvalidInput(InvalidInputReason),
+    InvalidInput(CuttingSimulationInputError),
 }
 
 /// 必須の条件のうち、満たされていないもの
@@ -38,27 +39,33 @@ pub(crate) enum NotReadyReason {
     },
 }
 
-/// 契約に違反している入力の値
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum InvalidInputReason {
+/// ツールパスによらず入力だけで決まる、切削シミュレーションの入力の誤り
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CuttingSimulationInputError {
+    /// 素材が有限で体積を持つ直方体でない
     Stock,
+    /// 工具のパラメータが不正
     Tool,
+    /// 精度が正の有限値でない
     Precision,
+    /// 記録の間隔が不正
     SnapshotInterval,
+    /// 精度から決めた格子の線の本数が上限を超える（線の本数と、上限に収まる最も細かい精度）
+    TooManyDexelLines { lines: usize, finest_precision: f64 },
 }
 
-/// ツールパスと入力が実行してよい状態かを判定する。
-pub(crate) fn preflight_cutting_simulation(
-    toolpath: &ToolPath<f64>,
+/// 切削シミュレーションの入力の誤りをすべて返す（線の本数は、素材・工具・精度が正しい場合だけ判定する）
+pub fn cutting_simulation_input_errors(
     input: &CuttingSimulationInput,
-) -> Result<(), PreflightFailure> {
+) -> Vec<CuttingSimulationInputError> {
+    let mut errors = Vec::new();
     let stock = &input.stock;
     let stock_is_finite = [stock.min(), stock.max()]
         .iter()
         .all(|point| point.x().is_finite() && point.y().is_finite() && point.z().is_finite());
     let stock_has_volume = stock.width() > 0.0 && stock.height() > 0.0 && stock.depth() > 0.0;
     if !stock_is_finite || !stock_has_volume {
-        return Err(PreflightFailure::InvalidInput(InvalidInputReason::Stock));
+        errors.push(CuttingSimulationInputError::Stock);
     }
     let tool = &input.tool;
     let positive = |value: f64| value.is_finite() && value > 0.0;
@@ -66,18 +73,41 @@ pub(crate) fn preflight_cutting_simulation(
         || !tool.cutting_length.is_none_or(positive)
         || !tool.validate_parameters()
     {
-        return Err(PreflightFailure::InvalidInput(InvalidInputReason::Tool));
+        errors.push(CuttingSimulationInputError::Tool);
     }
-    if !(input.precision.is_finite() && input.precision > 0.0) {
-        return Err(PreflightFailure::InvalidInput(
-            InvalidInputReason::Precision,
-        ));
+    if !positive(input.precision) {
+        errors.push(CuttingSimulationInputError::Precision);
     }
+    let values_are_valid = errors.is_empty();
     if !input.snapshot_interval.is_valid() {
-        return Err(PreflightFailure::InvalidInput(
-            InvalidInputReason::SnapshotInterval,
-        ));
+        errors.push(CuttingSimulationInputError::SnapshotInterval);
     }
+    if values_are_valid {
+        let lines = dexel_line_count(stock, dexel_spacing(tool.radius(), input.precision));
+        if lines > MAX_DEXEL_LINES {
+            errors.push(CuttingSimulationInputError::TooManyDexelLines {
+                lines,
+                finest_precision: finest_precision(input),
+            });
+        }
+    }
+    errors
+}
+
+/// ツールパスと入力が実行してよい状態かを判定する。
+pub(crate) fn preflight_cutting_simulation(
+    toolpath: &ToolPath<f64>,
+    input: &CuttingSimulationInput,
+) -> Result<(), PreflightFailure> {
+    let input_errors = cutting_simulation_input_errors(input);
+    // 線の本数の上限は設定を補えば満たせるため NotReady とし、ほかは InvalidInput とする
+    if let Some(&error) = input_errors
+        .iter()
+        .find(|error| !matches!(error, CuttingSimulationInputError::TooManyDexelLines { .. }))
+    {
+        return Err(PreflightFailure::InvalidInput(error));
+    }
+    let tool = &input.tool;
 
     let mut reasons = Vec::new();
     if toolpath.total_segments() == 0 {
@@ -99,13 +129,16 @@ pub(crate) fn preflight_cutting_simulation(
     if SweptToolShape::from_tool(tool, 0.0).is_none() {
         reasons.push(NotReadyReason::UnsupportedTool);
     }
-    let lines = dexel_line_count(stock, dexel_spacing(tool.radius(), input.precision));
-    if lines > MAX_DEXEL_LINES {
-        reasons.push(NotReadyReason::TooManyDexelLines {
+    reasons.extend(input_errors.into_iter().filter_map(|error| match error {
+        CuttingSimulationInputError::TooManyDexelLines {
             lines,
-            finest_precision: finest_precision(input),
-        });
-    }
+            finest_precision,
+        } => Some(NotReadyReason::TooManyDexelLines {
+            lines,
+            finest_precision,
+        }),
+        _ => None,
+    }));
 
     if reasons.is_empty() {
         Ok(())
@@ -176,21 +209,29 @@ impl Display for NotReadyReason {
             Self::TooManyDexelLines {
                 lines,
                 finest_precision,
-            } => write!(
-                f,
-                "precision is too fine for the stock size ({lines} dexel lines exceed {MAX_DEXEL_LINES}; the finest precision is {finest_precision:.4})"
-            ),
+            } => CuttingSimulationInputError::TooManyDexelLines {
+                lines: *lines,
+                finest_precision: *finest_precision,
+            }
+            .fmt(f),
         }
     }
 }
 
-impl Display for InvalidInputReason {
+impl Display for CuttingSimulationInputError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Stock => write!(f, "stock must be a finite, non-empty box"),
             Self::Tool => write!(f, "tool parameters are invalid"),
             Self::Precision => write!(f, "precision must be finite and greater than zero"),
             Self::SnapshotInterval => write!(f, "snapshot interval is invalid"),
+            Self::TooManyDexelLines {
+                lines,
+                finest_precision,
+            } => write!(
+                f,
+                "precision is too fine for the stock size ({lines} dexel lines exceed {MAX_DEXEL_LINES}; the finest precision is {finest_precision:.4})"
+            ),
         }
     }
 }
@@ -306,6 +347,31 @@ mod tests {
     }
 
     #[test]
+    fn input_errors_are_all_reported_without_the_toolpath() {
+        let malformed = CuttingSimulationInput {
+            tool: Tool::flat_end_mill("EM2".to_string(), 2.0, 0.0),
+            snapshot_interval: SnapshotInterval::ByDistance {
+                interval_mm: f64::NAN,
+                include_segment_endpoints: true,
+            },
+            ..input(0.0)
+        };
+        assert_eq!(
+            cutting_simulation_input_errors(&malformed),
+            vec![
+                CuttingSimulationInputError::Tool,
+                CuttingSimulationInputError::Precision,
+                CuttingSimulationInputError::SnapshotInterval,
+            ]
+        );
+        assert!(matches!(
+            cutting_simulation_input_errors(&input(1.0e-6))[..],
+            [CuttingSimulationInputError::TooManyDexelLines { .. }]
+        ));
+        assert_eq!(cutting_simulation_input_errors(&input(0.01)), vec![]);
+    }
+
+    #[test]
     fn malformed_values_are_invalid_input() {
         let path = toolpath("EM2", cutting());
         let flat_stock = CuttingSimulationInput {
@@ -324,11 +390,14 @@ mod tests {
             ..input(1.0)
         };
         for (value, reason) in [
-            (flat_stock, InvalidInputReason::Stock),
-            (no_cutting_length, InvalidInputReason::Tool),
-            (input(0.0), InvalidInputReason::Precision),
-            (input(f64::INFINITY), InvalidInputReason::Precision),
-            (invalid_interval, InvalidInputReason::SnapshotInterval),
+            (flat_stock, CuttingSimulationInputError::Stock),
+            (no_cutting_length, CuttingSimulationInputError::Tool),
+            (input(0.0), CuttingSimulationInputError::Precision),
+            (input(f64::INFINITY), CuttingSimulationInputError::Precision),
+            (
+                invalid_interval,
+                CuttingSimulationInputError::SnapshotInterval,
+            ),
         ] {
             assert_eq!(
                 preflight_cutting_simulation(&path, &value),
