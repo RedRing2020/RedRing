@@ -39,6 +39,14 @@ impl Default for DebugSnapshotState {
 }
 
 impl DebugSnapshotState {
+    /// コマ送り（k キー・j キー）を受け付けるか
+    ///
+    /// 前のコマ送りで移ったコマを描くまでは受け付けない。キーを押し続けたときの繰り返しの入力が、描画より速く
+    /// 溜まってコマを飛ばすのを防ぐ。
+    pub(super) fn accepts_frame_step(&self) -> bool {
+        !self.frame_update_required
+    }
+
     pub(super) fn clear(&mut self) {
         self.series = None;
         self.weighted_progress_axis = None;
@@ -49,5 +57,22 @@ impl DebugSnapshotState {
         self.frame_step_distance_mm = 0.0;
         self.last_playback_tick = None;
         self.frame_update_required = true;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DebugSnapshotState;
+
+    #[test]
+    fn frame_steps_wait_until_the_previous_step_is_drawn() {
+        let mut state = DebugSnapshotState::default();
+        // 最初の描画の前は、まだ面を作っていない
+        assert!(!state.accepts_frame_step());
+        state.frame_update_required = false;
+        assert!(state.accepts_frame_step());
+        // コマ送りで移ると、描くまでは次のコマ送りを受け付けない
+        state.frame_update_required = true;
+        assert!(!state.accepts_frame_step());
     }
 }

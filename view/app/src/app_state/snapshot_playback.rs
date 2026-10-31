@@ -201,8 +201,13 @@ impl AppState {
     }
 
     /// デバッグ用: 次フレームへ進めて内容をログ表示
+    ///
+    /// キーを押し続けたときは、前に進めたコマを描くまで次の入力を受け付けない（溜まった入力でコマを飛ばさない）
     pub fn cycle_debug_simulation_snapshot(&mut self) {
         if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::KeyK) {
+            return;
+        }
+        if !self.debug_snapshot.accepts_frame_step() {
             return;
         }
 
@@ -219,12 +224,19 @@ impl AppState {
         self.debug_snapshot.last_playback_tick = None;
         self.debug_snapshot.cursor = self.frame_stepped(true);
         self.sync_playback_progress_from_cursor();
-        self.log_current_snapshot_frame(true);
+        // 素材の面は次の描画の前に作り直す（作り直すまでは次のコマ送りを受け付けない）
+        self.debug_snapshot.frame_update_required = true;
+        self.log_snapshot_frame();
     }
 
     /// デバッグ用: 前フレームへ戻して内容をログ表示
+    ///
+    /// キーを押し続けたときは、前に戻したコマを描くまで次の入力を受け付けない（溜まった入力でコマを飛ばさない）
     pub fn rewind_debug_simulation_snapshot(&mut self) {
         if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::KeyJ) {
+            return;
+        }
+        if !self.debug_snapshot.accepts_frame_step() {
             return;
         }
 
@@ -241,7 +253,9 @@ impl AppState {
         self.debug_snapshot.last_playback_tick = None;
         self.debug_snapshot.cursor = self.frame_stepped(false);
         self.sync_playback_progress_from_cursor();
-        self.log_current_snapshot_frame(true);
+        // 素材の面は次の描画の前に作り直す（作り直すまでは次のコマ送りを受け付けない）
+        self.debug_snapshot.frame_update_required = true;
+        self.log_snapshot_frame();
     }
 
     /// 工具を次（`forward`）・前の区間の端点へ移し、素材はその端点の手前の時点を表示する
@@ -401,6 +415,28 @@ impl AppState {
     pub(super) fn sync_snapshot_visual_frame(&mut self) {
         self.debug_snapshot.frame_update_required = false;
         self.sync_cutting_animation_frame();
+        // 工具の位置（区間の端点に置いたか）は時点を移した後に決まるため、タイトルは移した後に出す
+        self.refresh_snapshot_window_title();
+    }
+
+    /// 今のコマの内容をログに出す
+    fn log_snapshot_frame(&self) {
+        let Some(series) = &self.debug_snapshot.series else {
+            return;
+        };
+        let Some(frame) = series.frames.get(self.debug_snapshot.cursor) else {
+            return;
+        };
+        let payload = frame.payload;
+        tracing::info!(
+            "Snapshot frame {}/{}: seg={}, t={:.3}, dist={:.3}mm, remain={:.3}mm3",
+            self.debug_snapshot.cursor + 1,
+            series.frames.len(),
+            payload.segment_index,
+            payload.segment_t,
+            payload.accumulated_distance_mm,
+            payload.remaining_volume_mm3,
+        );
     }
 
     pub(super) fn log_current_snapshot_frame(&mut self, emit_log: bool) {
