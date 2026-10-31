@@ -34,6 +34,7 @@ impl AppState {
         if self.debug_snapshot.frame_update_required {
             self.sync_snapshot_visual_frame();
         }
+        self.apply_cutting_animation_update();
         self.renderer.update();
         {
             let stage = self.renderer.get_stage_mut();

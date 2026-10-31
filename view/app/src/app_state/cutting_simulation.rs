@@ -91,7 +91,7 @@ impl AppState {
 
     fn start_cutting_animation(
         &mut self,
-        animation: CuttingAnimation,
+        mut animation: CuttingAnimation,
         started: std::time::Instant,
     ) {
         self.debug_snapshot.clear();
@@ -100,7 +100,8 @@ impl AppState {
             self.initial_frame_step_distance_mm().unwrap_or(0.0);
         self.rebuild_snapshot_weighted_progress_axis_cache();
 
-        let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation);
+        let stock_blocks = animation.take_initial_stock_blocks();
+        let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation, stock_blocks);
         if let Some(fit) = Self::build_camera_fit(&positions) {
             self.apply_camera_fit(fit);
         }
@@ -154,12 +155,12 @@ impl AppState {
         tracing::info!("ツールパスの線と工具の線を、変えた設定で描き直しました");
     }
 
-    /// 切削アニメーションの今のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置
+    /// 切削アニメーションの最初のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置
     fn build_cutting_animation_stage(
         &self,
         animation: &CuttingAnimation,
+        stock_blocks: Vec<StockBlockMesh>,
     ) -> (Box<MeshStage>, Vec<[f32; 3]>) {
-        let stock_blocks = animation.stock_blocks();
         let positions: Vec<[f32; 3]> = stock_blocks
             .iter()
             .flat_map(|block| block.vertices.iter().map(|vertex| vertex.position))
@@ -242,12 +243,16 @@ impl AppState {
             .downcast_mut::<MeshStage>()
     }
 
-    /// 切削アニメーションを今のコマへ移し、素材のブロックと工具の形を差し替える（取り込んでいなければ `false`）
-    pub(super) fn sync_cutting_animation_frame(&mut self) -> bool {
+    /// 頼んだコマの素材の面ができていれば、素材のブロックと工具の形を差し替える
+    ///
+    /// 工具は、素材の面を表示しているコマの位置に描く（素材の面より先に工具だけが進まない）。
+    pub(super) fn apply_cutting_animation_update(&mut self) {
         let Some(animation) = &mut self.cutting_animation else {
-            return false;
+            return;
         };
-        let blocks = animation.seek(self.debug_snapshot.cursor);
+        let Some(blocks) = animation.take_stock_update() else {
+            return;
+        };
         let tool_lines = line_vertices(
             &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
             Some(self.snapshot_shaded_color_settings.tool_wire_color),
@@ -255,15 +260,15 @@ impl AppState {
         let stock_color = self.snapshot_shaded_color_settings.work_solid_color;
         let device = &self.graphic.device;
         let stage = self.renderer.get_stage_mut();
-        let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() else {
-            return true;
-        };
-        for block in blocks {
-            let (key, item) = stock_block_item(block, stock_color);
-            mesh_stage.set_mesh_list_item(device, key, item);
+        if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
+            for block in blocks {
+                let (key, item) = stock_block_item(block, stock_color);
+                mesh_stage.set_mesh_list_item(device, key, item);
+            }
+            mesh_stage.set_overlay_tool_line_data(device, tool_lines);
         }
-        mesh_stage.set_overlay_tool_line_data(device, tool_lines);
-        true
+        // 工具の位置（区間の端点に置いたか）は面を受け取った後に決まるため、タイトルは受け取った後にも出す
+        self.refresh_snapshot_window_title();
     }
 }
 

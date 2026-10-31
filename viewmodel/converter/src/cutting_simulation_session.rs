@@ -390,10 +390,10 @@ mod tests {
         ));
 
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
-        let imported = session.import_latest().unwrap();
+        let mut imported = session.import_latest().unwrap();
         assert_eq!(imported.job_id, 2);
         assert!(imported.animation.frame_count() > 1);
-        assert!(!imported.animation.stock_blocks().is_empty());
+        assert!(!imported.animation.take_initial_stock_blocks().is_empty());
     }
 
     #[test]
