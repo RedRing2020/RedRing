@@ -500,6 +500,7 @@ mod tests {
             .simulate(
                 &toolpath,
                 &Tool::ball_end_mill("BEM2".to_string(), 2.0, 6.0),
+                0.001,
             )
             .unwrap();
         simulator

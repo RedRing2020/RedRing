@@ -330,7 +330,7 @@ fn material_left_above_flat_face(
         Point3D::new(10.0 + r, 10.0 + r, stock_top),
     );
     let mut simulator = crate::CuttingSimulator::new(stock, SnapshotInterval::default());
-    simulator.simulate(&toolpath, &tool).unwrap();
+    simulator.simulate(&toolpath, &tool, 0.001).unwrap();
     let remaining = simulator.snapshots().last().unwrap().remaining_volume;
     let below_face = (10.0 + 2.0 * r) * (10.0 + 2.0 * r) * 2.0;
     remaining - below_face

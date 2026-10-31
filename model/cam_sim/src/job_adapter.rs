@@ -191,7 +191,7 @@ impl CamJobExecutorAdapter {
         }
 
         let mut simulator = CuttingSimulator::new(input.stock, input.snapshot_interval.clone());
-        if let Err(err) = simulator.simulate(&toolpath, &input.tool) {
+        if let Err(err) = simulator.simulate(&toolpath, &input.tool, input.precision) {
             return JobExecutionResult {
                 status: JobStatus::Failed,
                 result_ref: None,

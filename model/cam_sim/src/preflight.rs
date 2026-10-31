@@ -7,8 +7,10 @@ use std::fmt::{Display, Formatter};
 
 use cam_core::ToolPath;
 
+use crate::constants::MAX_DEXEL_LINES;
 use crate::simulation_input::CuttingSimulationInput;
 use crate::stock_model::SweptToolShape;
+use crate::tri_dexel::{dexel_line_count, dexel_spacing};
 
 /// Preflight 判定で実行を拒否する理由
 #[derive(Debug, Clone, PartialEq)]
@@ -29,6 +31,11 @@ pub(crate) enum NotReadyReason {
         tool_id: String,
     },
     UnsupportedTool,
+    /// 精度から決めた格子の線の本数が上限を超える（線の本数と、上限に収まる最も細かい精度）
+    TooManyDexelLines {
+        lines: usize,
+        finest_precision: f64,
+    },
 }
 
 /// 契約に違反している入力の値
@@ -92,12 +99,50 @@ pub(crate) fn preflight_cutting_simulation(
     if SweptToolShape::from_tool(tool, 0.0).is_none() {
         reasons.push(NotReadyReason::UnsupportedTool);
     }
+    let lines = dexel_line_count(stock, dexel_spacing(tool.radius(), input.precision));
+    if lines > MAX_DEXEL_LINES {
+        reasons.push(NotReadyReason::TooManyDexelLines {
+            lines,
+            finest_precision: finest_precision(input),
+        });
+    }
 
     if reasons.is_empty() {
         Ok(())
     } else {
         Err(PreflightFailure::NotReady(reasons))
     }
+}
+
+/// 格子の線の本数が上限に収まる、最も細かい精度を有効数字 2 桁に切り上げた値（`input.precision` では上限を超える
+/// 場合）
+fn finest_precision(input: &CuttingSimulationInput) -> f64 {
+    let fits = |precision: f64| {
+        dexel_line_count(&input.stock, dexel_spacing(input.tool.radius(), precision))
+            <= MAX_DEXEL_LINES
+    };
+    // 各方向に 1 本ずつになる精度では必ず収まる。収まる側を保ったまま二分する
+    let longest = input
+        .stock
+        .width()
+        .max(input.stock.height())
+        .max(input.stock.depth());
+    let (mut coarse, mut fine) = (
+        longest * longest / (8.0 * input.tool.radius()),
+        input.precision,
+    );
+    for _ in 0..64 {
+        let middle = 0.5 * (coarse + fine);
+        if fits(middle) {
+            coarse = middle;
+        } else {
+            fine = middle;
+        }
+    }
+    // 切り上げた値は、二分で求めた値より粗いため収まる
+    let digits = 1 - coarse.log10().floor() as i32;
+    let scale = 10_f64.powi(digits);
+    (coarse * scale).ceil() / scale
 }
 
 impl Display for PreflightFailure {
@@ -128,6 +173,13 @@ impl Display for NotReadyReason {
                 "tool id does not match the toolpath (toolpath: {toolpath_tool_id}, tool: {tool_id})"
             ),
             Self::UnsupportedTool => write!(f, "only flat and ball end mills are supported"),
+            Self::TooManyDexelLines {
+                lines,
+                finest_precision,
+            } => write!(
+                f,
+                "precision is too fine for the stock size ({lines} dexel lines exceed {MAX_DEXEL_LINES}; the finest precision is {finest_precision:.4})"
+            ),
         }
     }
 }
@@ -186,7 +238,7 @@ mod tests {
     #[test]
     fn ready_input_passes() {
         assert_eq!(
-            preflight_cutting_simulation(&toolpath("EM2", cutting()), &input(1.0e-6)),
+            preflight_cutting_simulation(&toolpath("EM2", cutting()), &input(0.01)),
             Ok(())
         );
     }
@@ -196,7 +248,7 @@ mod tests {
         let rapid = SegmentType::Rapid;
         let radius = CuttingSimulationInput {
             tool: Tool::radius_end_mill("R".to_string(), 4.0, 0.5, 10.0),
-            ..input(1.0e-6)
+            ..input(0.01)
         };
         assert_eq!(
             preflight_cutting_simulation(&toolpath("EM2", rapid), &radius),
@@ -223,6 +275,34 @@ mod tests {
                 NotReadyReason::EmptyToolPath
             ]))
         );
+    }
+
+    #[test]
+    fn too_fine_precision_reports_the_finest_precision_within_the_line_limit() {
+        let path = toolpath("EM2", cutting());
+        let Err(PreflightFailure::NotReady(reasons)) =
+            preflight_cutting_simulation(&path, &input(1.0e-6))
+        else {
+            panic!("too many dexel lines must be not ready");
+        };
+        let [
+            NotReadyReason::TooManyDexelLines {
+                lines,
+                finest_precision,
+            },
+        ] = reasons[..]
+        else {
+            panic!("unexpected reasons: {reasons:?}");
+        };
+        assert!(lines > MAX_DEXEL_LINES);
+        assert_eq!(
+            preflight_cutting_simulation(&path, &input(finest_precision)),
+            Ok(())
+        );
+        // 有効数字 2 桁で 1 つ細かい精度では収まらない
+        let digits = 1 - finest_precision.log10().floor() as i32;
+        let finer = finest_precision - 10_f64.powi(-digits);
+        assert!(preflight_cutting_simulation(&path, &input(finer)).is_err());
     }
 
     #[test]

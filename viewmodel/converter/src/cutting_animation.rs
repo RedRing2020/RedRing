@@ -374,7 +374,7 @@ mod tests {
 
             let stock = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(30.0, 4.0, 2.0));
             let mut simulator = CuttingSimulator::new(stock, SnapshotInterval::default());
-            simulator.simulate(&toolpath, &tool()).unwrap();
+            simulator.simulate(&toolpath, &tool(), PRECISION).unwrap();
             let mut simulation_artifact = Vec::new();
             write_cutting_simulation_artifact_v1(
                 &mut simulation_artifact,

@@ -32,7 +32,7 @@ pub struct CuttingSimulationConditions {
     pub scanline: ScanlineParams,
     /// 製品形状を囲む箱から素材の箱の各面までの余裕（mm）
     pub stock_margins: StockMargins,
-    /// 素材の形状の許容誤差（mm）
+    /// 素材の形状の許容誤差（mm。トリデクセルの格子の間隔を決める）
     pub precision: f64,
 }
 
@@ -48,7 +48,7 @@ impl Default for CuttingSimulationConditions {
                 tool_range: ScanlineToolRange::default(),
             },
             stock_margins: StockMargins::default(),
-            precision: 0.01,
+            precision: 0.05,
         }
     }
 }
