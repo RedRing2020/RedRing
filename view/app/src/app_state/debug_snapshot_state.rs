@@ -39,12 +39,12 @@ impl Default for DebugSnapshotState {
 }
 
 impl DebugSnapshotState {
-    /// コマ送り（k キー・j キー）を受け付けるか
+    /// コマ送り（k キー・j キー）を受け付けるか（`shown_frame` は素材の面を表示している時点。素材の面がなければ `None`）
     ///
-    /// 前のコマ送りで移ったコマを描くまでは受け付けない。キーを押し続けたときの繰り返しの入力が、描画より速く
-    /// 溜まってコマを飛ばすのを防ぐ。
-    pub(super) fn accepts_frame_step(&self) -> bool {
-        !self.frame_update_required
+    /// 前のコマ送りで移ったコマの素材の面ができて、描くまでは受け付けない。キーを押し続けたときの繰り返しの入力が、
+    /// 面の作成より速く溜まってコマを飛ばすのを防ぐ。
+    pub(super) fn accepts_frame_step(&self, shown_frame: Option<usize>) -> bool {
+        !self.frame_update_required && shown_frame.is_none_or(|frame| frame == self.cursor)
     }
 
     pub(super) fn clear(&mut self) {
@@ -67,12 +67,19 @@ mod tests {
     #[test]
     fn frame_steps_wait_until_the_previous_step_is_drawn() {
         let mut state = DebugSnapshotState::default();
-        // 最初の描画の前は、まだ面を作っていない
-        assert!(!state.accepts_frame_step());
+        // 最初の描画の前は、まだ面を頼んでいない
+        assert!(!state.accepts_frame_step(Some(0)));
         state.frame_update_required = false;
-        assert!(state.accepts_frame_step());
-        // コマ送りで移ると、描くまでは次のコマ送りを受け付けない
+        assert!(state.accepts_frame_step(Some(0)));
+        // コマ送りで移ると、面を頼むまでは次のコマ送りを受け付けない
+        state.cursor = 1;
         state.frame_update_required = true;
-        assert!(!state.accepts_frame_step());
+        assert!(!state.accepts_frame_step(Some(0)));
+        // 頼んだ後も、移った時点の面を受け取るまでは受け付けない
+        state.frame_update_required = false;
+        assert!(!state.accepts_frame_step(Some(0)));
+        assert!(state.accepts_frame_step(Some(1)));
+        // 素材の面がなければ、頼んだ後に受け付ける
+        assert!(state.accepts_frame_step(None));
     }
 }

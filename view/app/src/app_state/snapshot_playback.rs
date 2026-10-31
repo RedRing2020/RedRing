@@ -4,6 +4,7 @@ use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
 use crate::selection_rect::SelectionRect;
 use std::time::Instant;
+use viewmodel::cutting_animation::CuttingAnimation;
 
 /// 1.0 倍の自動再生で、工具が経路に沿って進む速さ（mm/s）
 const AUTO_PLAY_TOOL_SPEED_MM_PER_SEC: f64 = 1000.0;
@@ -207,7 +208,10 @@ impl AppState {
         if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::KeyK) {
             return;
         }
-        if !self.debug_snapshot.accepts_frame_step() {
+        if !self
+            .debug_snapshot
+            .accepts_frame_step(self.cutting_animation.as_ref().map(CuttingAnimation::frame))
+        {
             return;
         }
 
@@ -224,7 +228,7 @@ impl AppState {
         self.debug_snapshot.last_playback_tick = None;
         self.debug_snapshot.cursor = self.frame_stepped(true);
         self.sync_playback_progress_from_cursor();
-        // 素材の面は次の描画の前に作り直す（作り直すまでは次のコマ送りを受け付けない）
+        // 素材の面は次の描画の前に頼む（面を受け取るまでは次のコマ送りを受け付けない）
         self.debug_snapshot.frame_update_required = true;
         self.log_snapshot_frame();
     }
@@ -236,7 +240,10 @@ impl AppState {
         if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::KeyJ) {
             return;
         }
-        if !self.debug_snapshot.accepts_frame_step() {
+        if !self
+            .debug_snapshot
+            .accepts_frame_step(self.cutting_animation.as_ref().map(CuttingAnimation::frame))
+        {
             return;
         }
 
@@ -253,7 +260,7 @@ impl AppState {
         self.debug_snapshot.last_playback_tick = None;
         self.debug_snapshot.cursor = self.frame_stepped(false);
         self.sync_playback_progress_from_cursor();
-        // 素材の面は次の描画の前に作り直す（作り直すまでは次のコマ送りを受け付けない）
+        // 素材の面は次の描画の前に頼む（面を受け取るまでは次のコマ送りを受け付けない）
         self.debug_snapshot.frame_update_required = true;
         self.log_snapshot_frame();
     }
@@ -412,10 +419,12 @@ impl AppState {
         }
     }
 
+    /// 今のコマの素材の面を頼む（面ができたら、描画の前に差し替える）
     pub(super) fn sync_snapshot_visual_frame(&mut self) {
         self.debug_snapshot.frame_update_required = false;
-        self.sync_cutting_animation_frame();
-        // 工具の位置（区間の端点に置いたか）は時点を移した後に決まるため、タイトルは移した後に出す
+        if let Some(animation) = &self.cutting_animation {
+            animation.request_frame(self.debug_snapshot.cursor);
+        }
         self.refresh_snapshot_window_title();
     }
 
@@ -470,7 +479,7 @@ impl AppState {
         self.refresh_snapshot_window_title();
     }
 
-    fn refresh_snapshot_window_title(&self) {
+    pub(super) fn refresh_snapshot_window_title(&self) {
         let Some(series) = &self.debug_snapshot.series else {
             return;
         };

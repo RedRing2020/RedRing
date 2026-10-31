@@ -1,15 +1,17 @@
 //! cutting_animation - 切削シミュレーションの成果物から、切削アニメーションの描画用のデータを作る
 //!
-//! 今の時点の素材の面（ブロックごと）を 1 つだけ持ち、時点を進める・戻す場合は、区間が変わった部分のブロック
-//! だけを作り直して返す。時点の素材の状態は、成果物の差分のキーフレームと正本から cam_sim の再生の入口
+//! 時点を移す場合は、区間が変わった部分のブロックの素材の面だけを、別のスレッドで作り直して渡す（`stock`）。
+//! 時点の素材の状態は、成果物の差分のキーフレームと正本から cam_sim の再生の入口
 //! （`CuttingSimulationReplay`）で作り直す（材料除去の計算は持たない）。
 //! 工具の形とツールパスの線は、ツールパスの成果物と工具から作る。工具は、時点の位置のほか、区間の端点にも置ける
 //! （素材は、工具の位置の手前で最も近い時点の状態を表示する）。
 
+mod stock;
+
 use cam_core::{read_toolpath_artifact_v1, BinaryFormatError, Tool, ToolPath};
 use cam_sim::{
-    collect_toolpath_line_segments, read_cutting_simulation_artifact_v1, CuttingSimulationReplay,
-    DexelSurface, SimulationError, SimulationSnapshotExport, SurfaceMesh,
+    collect_toolpath_line_segments, read_cutting_simulation_artifact_v1, SimulationError,
+    SimulationSnapshotExport,
 };
 use geo_algorithms::{
     LineSegment3D, LineSegment3DProperties, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
@@ -26,6 +28,7 @@ use crate::snapshot_converter::{
     CamSimulationSnapshotInput, DomainSnapshotSeries,
 };
 use crate::toolpath_converter::ToolPathVisualizationSettings;
+use stock::{StockAnimation, StockWorker};
 
 /// 切削アニメーションを作れない理由
 #[derive(Debug)]
@@ -65,11 +68,15 @@ pub struct StockBlockMesh {
 }
 
 /// 切削アニメーションの状態
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CuttingAnimation {
-    /// 成果物の再生（今の時点の素材の状態を持つ）
-    replay: CuttingSimulationReplay,
-    surface: DexelSurface,
+    /// 素材の面を別のスレッドで作る係
+    stock: StockWorker,
+    /// 最初の時点のすべてのブロックの素材の面（取り出すまで持つ）
+    initial_stock_blocks: Vec<StockBlockMesh>,
+    /// 各時点の位置と統計
+    snapshots: Vec<SimulationSnapshotExport>,
+    /// 表示している素材の面の時点
     frame: usize,
     /// 区間の端点に置いた工具（端点の番号と、置いたときの時点。時点が変わると解除され、工具は時点の位置に戻る）
     tool_endpoint: Option<(usize, usize)>,
@@ -115,16 +122,12 @@ impl CuttingAnimation {
             };
             stock_top - lowest_tip - ball_center
         });
-        let replay = CuttingSimulationReplay::new(artifact, &toolpath, &tool)
-            .map_err(CuttingAnimationError::Replay)?;
+        let snapshots = artifact.snapshots.clone();
+        let stock = StockAnimation::new(artifact, &toolpath, &tool, precision)?;
         Ok(Self {
-            surface: DexelSurface::new(
-                replay.artifact().grids,
-                replay.states(),
-                precision,
-                tool.radius(),
-            ),
-            replay,
+            initial_stock_blocks: stock.stock_blocks(),
+            stock: StockWorker::spawn(stock),
+            snapshots,
             frame: 0,
             tool_endpoint: None,
             toolpath,
@@ -136,10 +139,10 @@ impl CuttingAnimation {
 
     /// 時点（スナップショット）の数
     pub fn frame_count(&self) -> usize {
-        self.replay.artifact().snapshots.len()
+        self.snapshots.len()
     }
 
-    /// 今の時点
+    /// 表示している素材の面の時点
     pub fn frame(&self) -> usize {
         self.frame
     }
@@ -149,27 +152,29 @@ impl CuttingAnimation {
         &self,
         source: impl Into<String>,
     ) -> DomainSnapshotSeries<CamSimulationSnapshotInput> {
-        let inputs = cam_snapshot_exports_to_inputs(&self.replay.artifact().snapshots);
+        let inputs = cam_snapshot_exports_to_inputs(&self.snapshots);
         cam_snapshot_inputs_to_domain_series(source, &inputs)
     }
 
-    /// 今の時点の、すべてのブロックの素材の面（三角形のないブロックは含めない）
-    pub fn stock_blocks(&self) -> Vec<StockBlockMesh> {
-        self.block_meshes(&self.all_blocks())
-            .into_iter()
-            .filter(|mesh| !mesh.indices.is_empty())
-            .collect()
+    /// 最初の時点の、すべてのブロックの素材の面を取り出す（三角形のないブロックは含めない。2 回目からは空）
+    pub fn take_initial_stock_blocks(&mut self) -> Vec<StockBlockMesh> {
+        std::mem::take(&mut self.initial_stock_blocks)
     }
 
-    /// 時点 `frame` へ移し、面が変わりうるブロックの、移った後の素材の面を返す（範囲外は最後の時点にする）
+    /// 時点 `frame` の素材の面を、別のスレッドに頼む（範囲外は最後の時点にする）
     ///
-    /// 再生の入口で時点の素材の状態を作り直し、区間が変わった部分のブロックだけを作り直す。
-    /// 三角形がなくなったブロックは、三角形のない面として返す。
-    pub fn seek(&mut self, frame: usize) -> Vec<StockBlockMesh> {
-        let target = frame.min(self.frame_count() - 1);
-        let blocks = self.surface.apply_changes(self.replay.seek(target));
-        self.frame = target;
-        self.block_meshes(&blocks)
+    /// できた面は `take_stock_update` で受け取る。受け取る前に次の時点を頼むと、最後に頼んだ時点の面になる。
+    pub fn request_frame(&self, frame: usize) {
+        self.stock.request(frame);
+    }
+
+    /// 頼んだ時点の素材の面ができていれば、前に受け取ってから面が変わりうるブロックの面を受け取り、表示する時点をその時点にする
+    ///
+    /// 三角形がなくなったブロックは、三角形のない面として返す。まだできていなければ `None`。
+    pub fn take_stock_update(&mut self) -> Option<Vec<StockBlockMesh>> {
+        let (frame, blocks) = self.stock.take_update()?;
+        self.frame = frame;
+        Some(blocks)
     }
 
     /// 区間の端点の数（端点 `e` は、`e = 0` では最初の区間の始点、それ以外は区間 `e - 1` の終点）
@@ -189,7 +194,7 @@ impl CuttingAnimation {
 
     /// 工具を、今の工具の位置から次（`forward`）・前の区間の端点へ置き、素材を表示する時点を返す
     ///
-    /// 素材を表示する時点は、その端点の手前で最も近い時点。返した時点へ `seek` すると、工具はその端点に描かれる。
+    /// 素材を表示する時点は、その端点の手前で最も近い時点。返した時点の素材の面を受け取ると、工具はその端点に描かれる。
     /// 区間がない場合は `None`。最後の端点より先・最初の端点より前へは移らない。
     pub fn step_tool_endpoint(&mut self, forward: bool) -> Option<usize> {
         let count = self.endpoint_count();
@@ -197,11 +202,11 @@ impl CuttingAnimation {
             return None;
         }
         let position = self.tool_endpoint().map_or_else(
-            || snapshot_position(&self.replay.artifact().snapshots[self.frame]),
+            || snapshot_position(&self.snapshots[self.frame]),
             |endpoint| endpoint as f64,
         );
         let endpoint = adjacent_endpoint(position, count, forward);
-        let frame = snapshot_before_endpoint(&self.replay.artifact().snapshots, endpoint);
+        let frame = snapshot_before_endpoint(&self.snapshots, endpoint);
         self.tool_endpoint = Some((endpoint, frame));
         Some(frame)
     }
@@ -215,7 +220,7 @@ impl CuttingAnimation {
             Some(0) => tool_tip_position(&self.segments, 0, 0.0),
             Some(endpoint) => tool_tip_position(&self.segments, endpoint - 1, 1.0),
             None => {
-                let snapshot = &self.replay.artifact().snapshots[self.frame];
+                let snapshot = &self.snapshots[self.frame];
                 tool_tip_position(&self.segments, snapshot.segment_index, snapshot.segment_t)
             }
         };
@@ -236,41 +241,6 @@ impl CuttingAnimation {
         settings: &ToolPathVisualizationSettings,
     ) -> Vec<WireframeVertex> {
         create_toolpath_wireframe_vertices(&self.toolpath, settings)
-    }
-
-    /// すべてのブロック
-    fn all_blocks(&self) -> Vec<[usize; 3]> {
-        let [bx, by, bz] = self.surface.block_counts();
-        (0..bx)
-            .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
-            .collect()
-    }
-
-    /// ブロックの列 `blocks` の素材の面（複数のコアで並べて作る）
-    fn block_meshes(&self, blocks: &[[usize; 3]]) -> Vec<StockBlockMesh> {
-        let to_f32 = |value: [f64; 3]| value.map(|component| component as f32);
-        blocks
-            .iter()
-            .zip(self.surface.mesh_blocks(blocks))
-            .map(
-                |(
-                    &block,
-                    SurfaceMesh {
-                        positions,
-                        normals,
-                        indices,
-                    },
-                )| StockBlockMesh {
-                    block,
-                    vertices: positions
-                        .into_iter()
-                        .zip(normals)
-                        .map(|(position, normal)| VertexData::new(to_f32(position), to_f32(normal)))
-                        .collect(),
-                    indices,
-                },
-            )
-            .collect()
     }
 }
 
@@ -300,6 +270,7 @@ fn snapshot_before_endpoint(snapshots: &[SimulationSnapshotExport], endpoint: us
 mod tests {
     use std::collections::HashMap;
     use std::sync::OnceLock;
+    use std::time::{Duration, Instant};
 
     use cam_core::{
         write_toolpath_payload_v1, ArtifactHeaderV1, ArtifactKind, ContourLevelPath,
@@ -310,14 +281,14 @@ mod tests {
 
     use super::*;
 
-    const PRECISION: f64 = 0.01;
+    pub(super) const PRECISION: f64 = 0.01;
 
-    fn tool() -> Tool<f64> {
+    pub(super) fn tool() -> Tool<f64> {
         Tool::ball_end_mill("BEM2".to_string(), 2.0, 10.0)
     }
 
     /// 素材の上面を 3 本の往復の線で削るツールパスと切削シミュレーションの成果物（テストの間で 1 回だけ作る）
-    fn artifacts() -> &'static (Vec<u8>, Vec<u8>) {
+    pub(super) fn artifacts() -> &'static (Vec<u8>, Vec<u8>) {
         static ARTIFACTS: OnceLock<(Vec<u8>, Vec<u8>)> = OnceLock::new();
         ARTIFACTS.get_or_init(|| {
             let points = [
@@ -377,7 +348,7 @@ mod tests {
     }
 
     /// ブロックごとの面を、頂点の位置と三角形で比べられる形にする
-    fn positions(
+    pub(super) fn positions(
         blocks: &HashMap<[usize; 3], StockBlockMesh>,
     ) -> HashMap<[usize; 3], Vec<[f32; 3]>> {
         blocks
@@ -394,42 +365,30 @@ mod tests {
             .collect()
     }
 
-    fn by_block(blocks: Vec<StockBlockMesh>) -> HashMap<[usize; 3], StockBlockMesh> {
-        blocks.into_iter().map(|mesh| (mesh.block, mesh)).collect()
+    /// 時点 `frame` を頼み、その時点の素材の面を受け取るまで待つ
+    fn show(animation: &mut CuttingAnimation, frame: usize) {
+        let started = Instant::now();
+        animation.request_frame(frame);
+        while animation.take_stock_update().is_none() || animation.frame() != frame {
+            assert!(started.elapsed() < Duration::from_secs(60), "frame {frame}");
+            std::thread::sleep(Duration::from_millis(1));
+        }
     }
 
     #[test]
     fn frames_follow_the_simulation_snapshots() {
-        let animation = animation();
+        let mut animation = animation();
         assert!(animation.frame_count() > 2);
         assert_eq!(animation.frame(), 0);
         assert_eq!(
             animation.snapshot_series("cam_sim").frames.len(),
             animation.frame_count()
         );
-        assert!(!animation.stock_blocks().is_empty());
+        assert!(!animation.take_initial_stock_blocks().is_empty());
+        assert!(animation.take_initial_stock_blocks().is_empty());
         assert!(!animation
             .toolpath_wireframe(&ToolPathVisualizationSettings::default())
             .is_empty());
-    }
-
-    #[test]
-    fn updating_changed_blocks_forward_and_backward_matches_the_state_at_each_frame() {
-        let mut animation = animation();
-        let mut shown = by_block(animation.stock_blocks());
-        let last = animation.frame_count() - 1;
-        // 少し戻る場合は戻す変化を当て、大きく戻る場合は初期の状態から作り直す
-        for frame in [1, last / 2, last, last - 1, last / 2, 1, 0, last] {
-            for mesh in animation.seek(frame) {
-                shown.insert(mesh.block, mesh);
-            }
-            assert_eq!(animation.frame(), frame);
-            assert_eq!(
-                positions(&shown),
-                positions(&by_block(animation.stock_blocks())),
-                "frame {frame}"
-            );
-        }
     }
 
     #[test]
@@ -437,8 +396,8 @@ mod tests {
         let mut animation = animation();
         let settings = ToolWireframeVisualizationSettings::default();
         for frame in 0..animation.frame_count() {
-            animation.seek(frame);
-            let snapshot = animation.replay.artifact().snapshots[frame];
+            show(&mut animation, frame);
+            let snapshot = animation.snapshots[frame];
             let tip = tool_tip_position(
                 &animation.segments,
                 snapshot.segment_index,
@@ -507,11 +466,11 @@ mod tests {
         let mut endpoint = 0;
         while endpoint + 1 < animation.endpoint_count() {
             let frame = animation.step_tool_endpoint(true).unwrap();
-            animation.seek(frame);
+            show(&mut animation, frame);
             endpoint += 1;
             assert_eq!(animation.tool_endpoint(), Some(endpoint));
             // 素材の時点は、端点の手前
-            let snapshot = animation.replay.artifact().snapshots[frame];
+            let snapshot = animation.snapshots[frame];
             assert!(snapshot_position(&snapshot) <= endpoint as f64);
             // 工具は端点（区間 endpoint - 1 の終点）に描かれる
             let tip = tool_tip_position(&animation.segments, endpoint - 1, 1.0).unwrap();
@@ -523,15 +482,15 @@ mod tests {
         }
         // 最後の端点からは進まない
         let frame = animation.step_tool_endpoint(true).unwrap();
-        animation.seek(frame);
+        show(&mut animation, frame);
         assert_eq!(animation.tool_endpoint(), Some(endpoint));
         // 戻ると前の端点へ
         let frame = animation.step_tool_endpoint(false).unwrap();
-        animation.seek(frame);
+        show(&mut animation, frame);
         assert_eq!(animation.tool_endpoint(), Some(endpoint - 1));
         // 時点が変わると、工具は時点の位置に戻る
         let other = (animation.frame() + 1) % animation.frame_count();
-        animation.seek(other);
+        show(&mut animation, other);
         assert_eq!(animation.tool_endpoint(), None);
     }
 
@@ -544,7 +503,7 @@ mod tests {
         let settings = ToolWireframeVisualizationSettings::default();
         let mut heights = Vec::new();
         for frame in 0..animation.frame_count() {
-            animation.seek(frame);
+            show(&mut animation, frame);
             let wireframe = animation.tool_wireframe(&settings);
             let (lowest, highest) = wireframe.iter().fold(
                 (f32::INFINITY, f32::NEG_INFINITY),
