@@ -951,6 +951,9 @@ impl DexelSurface {
     }
 
     /// 内外の異なる 2 つの格子点の間の辺と面の交点（辺上のデクセルの区間の端）と、その端の材料の外向きの法線
+    ///
+    /// 面が格子点を通る場合、格子点の内外（Z の向きのデクセルで判定する）と辺の上のデクセルの端は、丸め誤差で
+    /// 食い違いうる。そのため、辺に最も近い端を辺の範囲に収めて使う。
     fn crossing_with_normal(&self, a: [i64; 3], b: [i64; 3]) -> ([f64; 3], [f64; 3]) {
         let axis = (0..3)
             .find(|&axis| a[axis] != b[axis])
@@ -972,11 +975,14 @@ impl DexelSurface {
                     .flat_map(|(&(start, end), &[start_normal, end_normal])| {
                         [(start, start_normal), (end, end_normal)]
                     })
-                    .find(|(value, _)| (low..=high).contains(value))
-                    .map(|(value, normal)| (value, normal.to_unit()))
+                    .min_by(|(a, _), (b, _)| {
+                        let gap = |value: f64| (low - value).max(value - high).max(0.0);
+                        gap(*a).total_cmp(&gap(*b))
+                    })
+                    .map(|(value, normal)| (value.clamp(low, high), normal.to_unit()))
             })
             .flatten()
-            // 内外の判定と端点が食い違う場合（丸め誤差）は、辺の中点の、材料から空への向きの面とする
+            // 辺の上のデクセルに端がない場合は、辺の中点の、材料から空への向きの面とする
             .unwrap_or_else(|| {
                 let mut normal = [0.0; 3];
                 normal[axis] = if self.is_inside(a) == (a[axis] < b[axis]) {
