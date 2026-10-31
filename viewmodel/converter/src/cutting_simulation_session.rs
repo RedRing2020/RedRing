@@ -208,8 +208,8 @@ impl CuttingSimulationSession {
         let animation = CuttingAnimation::new(
             &result.toolpath_artifact,
             &result.simulation_artifact,
-            result.tool,
-            result.precision,
+            result.simulation_input.tool,
+            result.simulation_input.precision,
         )
         .map_err(CuttingSimulationSessionError::Animation)?;
         Ok(ImportedCuttingSimulation {

@@ -27,6 +27,7 @@ pub use dexel_surface::{DexelSurface, SurfaceMesh};
 pub use error::SimulationError;
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
+pub use preflight::{CuttingSimulationInputError, cutting_simulation_input_errors};
 /// 切削シミュレーションの成果物（中身の型と書き出し・読み込み）。
 pub use simulation_artifact::{
     CuttingSimulationArtifact, DexelChanges, DexelGridLayout, DexelGridStates, DexelState,
