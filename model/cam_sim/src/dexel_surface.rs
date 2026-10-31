@@ -26,7 +26,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::constants::SURFACE_BLOCK_CELLS;
 use crate::dexel_normal::DexelNormal;
-use crate::simulation_artifact::{CuttingSimulationArtifact, DexelGridLayout, DexelState};
+use crate::simulation_artifact::{DexelGridLayout, DexelGridStates, DexelState};
 
 /// 表示用の面（頂点の位置・法線と三角形の頂点番号。三角形は外向きが表）
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -108,25 +108,19 @@ pub struct DexelSurface {
 }
 
 impl DexelSurface {
-    /// 成果物のスナップショット `snapshot` の時点の面
+    /// 格子 `grids` のデクセルが区間 `states` のときの面
     ///
     /// `flat_tolerance` は同じ平面とみなす交点の座標の幅（素材の精度）、`curvature_radius` は削った面の曲率半径の
     /// 最小（工具の半径）。陰影を分ける折れの角度は、隣り合うセルの頂点の距離の最大 √3·間隔 から
     /// √3·間隔 / `curvature_radius` とする。
-    ///
-    /// # Panics
-    ///
-    /// `snapshot` がスナップショットの数以上の場合。
-    pub fn at_snapshot(
-        artifact: &CuttingSimulationArtifact,
-        snapshot: usize,
+    pub fn new(
+        grids: [DexelGridLayout; 3],
+        states: DexelGridStates,
         flat_tolerance: f64,
         curvature_radius: f64,
     ) -> Self {
-        let grids = artifact.grids;
         // Z の格子は X・Y、X の格子は Y・Z の座標を持つ
         let [z_grid, x_grid] = [grids[2], grids[0]];
-        let states = artifact.dexel_states_at(snapshot);
         let pitch = [z_grid.pitch[0], z_grid.pitch[1], x_grid.pitch[1]];
         let spacing = pitch.into_iter().fold(0.0, f64::max);
         Self {

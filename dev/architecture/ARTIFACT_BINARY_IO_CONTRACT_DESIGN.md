@@ -1,7 +1,7 @@
 # Artifact Binary I/O Contract Design
 
 **作成日**: 2026年4月3日  
-**ステータス**: v0.2 仕様正本（v0.1 と同じ wire layout。ToolPath の切削方向の値に `Mixed` を追加。#994）  
+**ステータス**: v0.3 仕様正本（v0.2: v0.1 と同じ wire layout で、ToolPath の切削方向の値に `Mixed` を追加。#994。v0.3: 切削シミュレーションの中身を差分のキーフレームの節の列に変更し、ToolPath・Interference の wire layout は変えていない。#998）  
 **関連Issue**: [#300](https://github.com/RedRing2020/RedRing/issues/300), [#411](https://github.com/RedRing2020/RedRing/issues/411), [#412](https://github.com/RedRing2020/RedRing/issues/412)
 
 ---
@@ -36,7 +36,7 @@
   - `toolpath`: `RRTP`
   - `interference`: `RRIN`
 - `version_major: u16` = 0
-- `version_minor: u16` = 2（v0.1 の artifact は `1`）
+- `version_minor: u16` = 3（v0.1・v0.2 の artifact は `1`・`2`）
 - `units: u8`
   - 1 = Millimeter
 - `coordinate_frame: u8`
@@ -142,9 +142,10 @@
 
 ## 互換性ポリシー
 
-- `major == 0 && minor ∈ {1, 2}`:
-  - accept（v0.2 は v0.1 と同じ wire layout で、値の範囲を広げただけのため、v0.1 の artifact もそのまま読む）
-- `major == 0 && minor ∉ {1, 2}`:
+- `major == 0 && minor ∈ {1, 2, 3}`:
+  - accept（v0.2・v0.3 の ToolPath・Interference は v0.1 と同じ wire layout で、v0.2 は値の範囲を広げただけのため、v0.1 の artifact もそのまま読む）
+  - 切削シミュレーション（`RRCS`）の中身は cam_sim が解釈し、v0.3 だけを受け入れる（`CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md` §5.2）
+- `major == 0 && minor ∉ {1, 2, 3}`:
   - reject
 - `major != 0`:
   - convert 実装がある場合のみ convert、未実装時は reject
@@ -192,7 +193,7 @@ Read/Write の片側だけが変わって契約が壊れることを防ぐため
 
 ```text
 注記: `*_v1` は API 世代識別子を表す。wire format の実バージョンは
-`version_major` / `version_minor` の実値で判定する（現行は v0.2）。
+`version_major` / `version_minor` の実値で判定する（現行は v0.3）。
 ```
 
 ---
