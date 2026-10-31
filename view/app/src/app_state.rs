@@ -1,6 +1,7 @@
 use crate::app_renderer::{AppRenderer, AppRendererFactory};
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
+use crate::machining_conditions_ui::OperationStatus;
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
@@ -140,6 +141,12 @@ pub struct AppState {
     /// 取り込んだ切削シミュレーションの計算に使った条件
     imported_conditions: Option<ImportedConditions>,
 
+    /// 加工条件のウィンドウの「投入」で、投入した後に続けて実行するか
+    run_after_submit: bool,
+
+    /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
+    cutting_simulation_status: Option<OperationStatus>,
+
     /// 切削アニメーションのツールパスの線を描くか
     toolpath_lines_visible: bool,
 
@@ -212,6 +219,8 @@ impl AppState {
             machining_conditions_open: false,
             condition_issues: None,
             imported_conditions: None,
+            run_after_submit: true,
+            cutting_simulation_status: None,
             toolpath_lines_visible: true,
             tool_lines_visible: true,
             cutting_animation_job_id: None,

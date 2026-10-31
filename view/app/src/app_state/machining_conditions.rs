@@ -42,19 +42,26 @@ impl AppState {
             imported: self
                 .cutting_animation_job_id
                 .zip(self.imported_conditions.clone()),
+            run_after_submit: self.run_after_submit,
+            status: self.cutting_simulation_status.clone(),
             submit_requested: false,
+            import_requested: false,
         }
     }
 
     pub(crate) fn apply_machining_conditions_state(&mut self, state: MachiningConditionsUiState) {
         self.machining_conditions_open = state.open;
         self.tool_length_input = state.tool_length_input;
+        self.run_after_submit = state.run_after_submit;
         if state.conditions != self.cutting_simulation.conditions() {
             self.cutting_simulation.set_conditions(state.conditions);
             self.condition_issues = None;
         }
-        if state.submit_requested {
-            self.submit_cutting_simulation();
+        if state.submit_requested && self.submit_cutting_simulation() && self.run_after_submit {
+            self.run_cutting_simulation_jobs();
+        }
+        if state.import_requested {
+            self.import_cutting_simulation();
         }
     }
 }

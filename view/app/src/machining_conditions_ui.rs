@@ -35,6 +35,58 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
     }
 }
 
+/// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum OperationStatus {
+    Submitted,
+    SubmitFailed(String),
+    /// 実行したジョブの数と、かかった秒数
+    Ran {
+        executed: usize,
+        seconds: f64,
+    },
+    RunFailed(String),
+    /// 取り込んだ切削シミュレーションのジョブの番号
+    Imported {
+        job: u64,
+    },
+    /// 取り込める（正常終了した）切削シミュレーションがない
+    NothingToImport,
+    ImportFailed(String),
+}
+
+/// 結果 `status` を出す文言のキーと引数
+pub(crate) fn operation_status_message(
+    status: &OperationStatus,
+) -> (&'static str, Vec<(&'static str, String)>) {
+    match status {
+        OperationStatus::Submitted => ("conditions.status.submitted", vec![]),
+        OperationStatus::SubmitFailed(reason) => (
+            "conditions.status.submit_failed",
+            vec![("reason", reason.clone())],
+        ),
+        OperationStatus::Ran { executed, seconds } => (
+            "conditions.status.ran",
+            vec![
+                ("executed", executed.to_string()),
+                ("seconds", format!("{seconds:.1}")),
+            ],
+        ),
+        OperationStatus::RunFailed(reason) => (
+            "conditions.status.run_failed",
+            vec![("reason", reason.clone())],
+        ),
+        OperationStatus::Imported { job } => {
+            ("conditions.status.imported", vec![("job", job.to_string())])
+        }
+        OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
+        OperationStatus::ImportFailed(reason) => (
+            "conditions.status.import_failed",
+            vec![("reason", reason.clone())],
+        ),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MachiningConditionsUiState {
     pub open: bool,
@@ -51,7 +103,12 @@ pub struct MachiningConditionsUiState {
     pub issues: Vec<ConditionIssue>,
     /// 表示中の結果のジョブの番号と、計算に使った条件
     pub imported: Option<(u64, ImportedConditions)>,
+    /// 「投入」で、投入した後に続けて実行するか
+    pub run_after_submit: bool,
+    /// 最後の操作の結果
+    pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
+    pub import_requested: bool,
 }
 
 impl MachiningConditionsUiState {
@@ -120,6 +177,8 @@ impl MachiningConditionsUiState {
                 self.show_machining(ui);
                 self.show_stock(ui);
                 ui.separator();
+                let run_after_submit_label = self.text("conditions.run_after_submit");
+                ui.checkbox(&mut self.run_after_submit, run_after_submit_label);
                 ui.horizontal(|ui| {
                     let submit = ui.add_enabled(
                         self.issues.is_empty(),
@@ -128,8 +187,15 @@ impl MachiningConditionsUiState {
                     if submit.clicked() {
                         self.submit_requested = true;
                     }
+                    if ui.button(self.text("conditions.import")).clicked() {
+                        self.import_requested = true;
+                    }
                 });
                 self.show_issues(ui, ConditionField::Submission);
+                if let Some(status) = &self.status {
+                    let (key, args) = operation_status_message(status);
+                    ui.label(self.text_with_args(key, &args));
+                }
                 ui.separator();
                 self.show_imported(ui);
             });
@@ -358,8 +424,43 @@ impl MachiningConditionsUiState {
 
 #[cfg(test)]
 mod tests {
-    use super::{condition_field, ConditionField};
+    use super::{condition_field, operation_status_message, ConditionField, OperationStatus};
+    use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::ConditionIssue;
+    use viewmodel::message_catalog::UiLocale;
+
+    #[test]
+    fn every_operation_status_has_a_message() {
+        for status in [
+            OperationStatus::Submitted,
+            OperationStatus::SubmitFailed("reason".to_string()),
+            OperationStatus::Ran {
+                executed: 2,
+                seconds: 1.25,
+            },
+            OperationStatus::RunFailed("reason".to_string()),
+            OperationStatus::Imported { job: 2 },
+            OperationStatus::NothingToImport,
+            OperationStatus::ImportFailed("reason".to_string()),
+        ] {
+            let (key, args) = operation_status_message(&status);
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text = resolve_machining_conditions_text(locale, key, &args);
+                assert!(
+                    !text.contains("__missing__") && !text.contains('{'),
+                    "{status:?}: {text}"
+                );
+            }
+        }
+        let (key, args) = operation_status_message(&OperationStatus::Ran {
+            executed: 2,
+            seconds: 1.25,
+        });
+        assert_eq!(
+            resolve_machining_conditions_text(UiLocale::Ja, key, &args),
+            "実行しました（2 件・1.2 秒）。「取り込み」で結果を表示します"
+        );
+    }
 
     #[test]
     fn issues_are_shown_next_to_the_field_to_fix() {

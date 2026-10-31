@@ -3,10 +3,12 @@
 use std::ops::RangeInclusive;
 
 use super::AppState;
+use crate::machining_conditions_ui::OperationStatus;
 use render::mesh_list::MeshListItem;
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, StockBlockMesh};
+use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
 use viewmodel::octree_converter::WireframeVertex;
 
 /// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
@@ -23,13 +25,24 @@ fn stock_block_key(block: [usize; 3]) -> u64 {
 
 impl AppState {
     /// 表示中の製品形状で、加工条件のウィンドウの計算条件の切削シミュレーションを投入する（実行しない）
-    pub(crate) fn submit_cutting_simulation(&mut self) {
+    ///
+    /// 投入できたかを返す。
+    pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
         match self.cutting_simulation.submit(&self.product_shapes) {
-            Ok(()) => tracing::info!(
-                conditions = ?self.cutting_simulation.conditions(),
-                "切削シミュレーションを投入しました（Shift+R で実行、Shift+L で取り込み）"
-            ),
-            Err(error) => tracing::warn!("切削シミュレーションを投入できません: {error}"),
+            Ok(()) => {
+                tracing::info!(
+                    conditions = ?self.cutting_simulation.conditions(),
+                    "切削シミュレーションを投入しました（Shift+R で実行、Shift+L で取り込み）"
+                );
+                self.cutting_simulation_status = Some(OperationStatus::Submitted);
+                true
+            }
+            Err(error) => {
+                tracing::warn!("切削シミュレーションを投入できません: {error}");
+                self.cutting_simulation_status =
+                    Some(OperationStatus::SubmitFailed(error.to_string()));
+                false
+            }
         }
     }
 
@@ -38,12 +51,16 @@ impl AppState {
         tracing::info!("キューにあるジョブを実行します");
         let started = std::time::Instant::now();
         match self.cutting_simulation.run_queued_jobs() {
-            Ok(executed) => tracing::info!(
-                executed,
-                "ジョブの実行が終わりました（{:.1} 秒）",
-                started.elapsed().as_secs_f64()
-            ),
-            Err(error) => tracing::warn!("ジョブを実行できません: {error}"),
+            Ok(executed) => {
+                let seconds = started.elapsed().as_secs_f64();
+                tracing::info!(executed, "ジョブの実行が終わりました（{seconds:.1} 秒）");
+                self.cutting_simulation_status = Some(OperationStatus::Ran { executed, seconds });
+            }
+            Err(error) => {
+                tracing::warn!("ジョブを実行できません: {error}");
+                self.cutting_simulation_status =
+                    Some(OperationStatus::RunFailed(error.to_string()));
+            }
         }
     }
 
@@ -53,11 +70,22 @@ impl AppState {
         let started = std::time::Instant::now();
         match self.cutting_simulation.import_latest() {
             Ok(imported) => {
+                self.cutting_simulation_status = Some(OperationStatus::Imported {
+                    job: imported.job_id,
+                });
                 self.cutting_animation_job_id = Some(imported.job_id);
                 self.imported_conditions = Some(imported.conditions);
                 self.start_cutting_animation(imported.animation, started);
             }
-            Err(error) => tracing::warn!("切削シミュレーションを取り込めません: {error}"),
+            Err(error) => {
+                tracing::warn!("切削シミュレーションを取り込めません: {error}");
+                self.cutting_simulation_status = Some(match error {
+                    CuttingSimulationSessionError::NoSucceededSimulation => {
+                        OperationStatus::NothingToImport
+                    }
+                    other => OperationStatus::ImportFailed(other.to_string()),
+                });
+            }
         }
     }
 
