@@ -2,6 +2,7 @@ use stage::{MeshStage, RenderStage};
 use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 use winit::{event::WindowEvent, window::Window};
 
+use crate::machining_conditions_ui::MachiningConditionsUiState;
 use crate::selection_rect::SelectionRect;
 use crate::selection_rect_renderer::SelectionRectRenderer;
 use crate::settings_panel_renderer::SettingsPanelRenderer;
@@ -63,8 +64,14 @@ impl AppRenderer {
         self.settings_panel_renderer.handle_mouse_motion(delta);
     }
 
-    pub fn prepare_settings_panel(&mut self, window: &Window, panel: &mut SettingsPanelUiState) {
-        self.settings_panel_renderer.prepare(window, panel);
+    pub fn prepare_ui_windows(
+        &mut self,
+        window: &Window,
+        panel: &mut SettingsPanelUiState,
+        conditions: &mut MachiningConditionsUiState,
+    ) {
+        self.settings_panel_renderer
+            .prepare(window, panel, conditions);
     }
 
     pub fn update_selection_rect_overlay(

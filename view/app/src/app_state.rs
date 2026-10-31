@@ -1,6 +1,7 @@
 use crate::app_renderer::{AppRenderer, AppRendererFactory};
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
+use crate::machining_conditions_ui::OperationStatus;
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
@@ -11,7 +12,9 @@ use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
 use viewmodel::cutting_animation::CuttingAnimation;
-use viewmodel::cutting_simulation_session::CuttingSimulationSession;
+use viewmodel::cutting_simulation_session::{
+    ConditionIssue, CuttingSimulationSession, ImportedConditions,
+};
 use viewmodel::inverse_offset_converter::InverseOffsetVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
@@ -24,6 +27,8 @@ use winit::window::Window;
 mod app_lifecycle;
 // AppState の切削シミュレーションの投入・実行・取り込みと切削アニメーションの描画
 mod cutting_simulation;
+// AppState の加工条件のウィンドウ（計算条件の入力と投入）
+mod machining_conditions;
 // AppState のデバッグスナップショット状態
 mod debug_snapshot_state;
 // AppState のデバッグ表示ロード（octree/toolpath/svg/nurbs）
@@ -124,8 +129,23 @@ pub struct AppState {
     /// 取り込んだ切削シミュレーションの切削アニメーション
     cutting_animation: Option<CuttingAnimation>,
 
-    /// 設定パネルの、工具長を指定するときの入力値（mm）
+    /// 加工条件のウィンドウの、工具長を指定するときの入力値（mm）
     tool_length_input: f64,
+
+    /// 加工条件のウィンドウの表示状態
+    machining_conditions_open: bool,
+
+    /// 次に投入する計算条件の問題（`None` は、条件・製品形状が変わって確かめ直す必要がある）
+    condition_issues: Option<Vec<ConditionIssue>>,
+
+    /// 取り込んだ切削シミュレーションの計算に使った条件
+    imported_conditions: Option<ImportedConditions>,
+
+    /// 加工条件のウィンドウの「投入」で、投入した後に続けて実行するか
+    run_after_submit: bool,
+
+    /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
+    cutting_simulation_status: Option<OperationStatus>,
 
     /// 切削アニメーションのツールパスの線を描くか
     toolpath_lines_visible: bool,
@@ -157,6 +177,11 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// 設定パネルか加工条件のウィンドウ（egui のウィンドウ）が開いている
+    pub fn is_ui_window_open(&self) -> bool {
+        self.is_settings_panel_open() || self.is_machining_conditions_open()
+    }
+
     fn apply_viewing_operation_settings(&mut self) {
         self.camera
             .set_control_sensitivity(self.viewing_operation_settings.camera_control_sensitivity);
@@ -191,6 +216,11 @@ impl AppState {
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
             tool_length_input: 50.0,
+            machining_conditions_open: false,
+            condition_issues: None,
+            imported_conditions: None,
+            run_after_submit: true,
+            cutting_simulation_status: None,
             toolpath_lines_visible: true,
             tool_lines_visible: true,
             cutting_animation_job_id: None,

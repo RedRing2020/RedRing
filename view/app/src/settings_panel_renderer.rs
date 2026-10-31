@@ -1,3 +1,4 @@
+use crate::machining_conditions_ui::MachiningConditionsUiState;
 use crate::settings_panel_ui::SettingsPanelUiState;
 use egui::{ClippedPrimitive, Context, TexturesDelta, ViewportId};
 use egui_wgpu::{Renderer, RendererOptions, ScreenDescriptor};
@@ -61,9 +62,18 @@ impl SettingsPanelRenderer {
         self.egui_state.on_mouse_motion(delta);
     }
 
-    pub(crate) fn prepare(&mut self, window: &Window, panel: &mut SettingsPanelUiState) {
+    /// 設定パネルと加工条件のウィンドウを、同じ egui の文脈で描く
+    pub(crate) fn prepare(
+        &mut self,
+        window: &Window,
+        panel: &mut SettingsPanelUiState,
+        conditions: &mut MachiningConditionsUiState,
+    ) {
         let raw_input = self.egui_state.take_egui_input(window);
-        let full_output = self.egui_context.run_ui(raw_input, |ctx| panel.show(ctx));
+        let full_output = self.egui_context.run_ui(raw_input, |ctx| {
+            panel.show(ctx);
+            conditions.show(ctx);
+        });
         let pixels_per_point = full_output.pixels_per_point;
         let paint_jobs = self
             .egui_context

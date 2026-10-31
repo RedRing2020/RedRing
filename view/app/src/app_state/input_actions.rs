@@ -1,54 +1,18 @@
 //! AppState のキーボード入力ハンドリングを扱うモジュール。
 
 use super::AppState;
-use viewmodel::cutting_simulation_session::CuttingToolKind;
-
-/// 切削シミュレーションの投入のキー（Shift+B: ボールエンドミル、Shift+F: フラットエンドミル）の工具
-fn resolve_cutting_tool_trigger(
-    key: &winit::keyboard::Key,
-    physical_key: &winit::keyboard::PhysicalKey,
-    shift_pressed: bool,
-) -> Option<CuttingToolKind> {
-    if !shift_pressed {
-        return None;
-    }
-
-    match (physical_key, key) {
-        (
-            winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyB),
-            winit::keyboard::Key::Character(ch),
-        ) if ch.as_str() == "B" => Some(CuttingToolKind::BallEndMill),
-        (
-            winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyF),
-            winit::keyboard::Key::Character(ch),
-        ) if ch.as_str() == "F" => Some(CuttingToolKind::FlatEndMill),
-        _ => None,
-    }
-}
 
 impl AppState {
     /// キーボード入力を処理
-    pub fn handle_keyboard_input(
-        &mut self,
-        key: &winit::keyboard::Key,
-        physical_key: &winit::keyboard::PhysicalKey,
-        pressed: bool,
-    ) {
+    pub fn handle_keyboard_input(&mut self, key: &winit::keyboard::Key, pressed: bool) {
         self.mouse_input.update_key(key, pressed);
 
         if !pressed {
             return;
         }
 
-        // 設定パネルの入力欄の編集中は、打った文字をキー操作にしない
-        if self.is_settings_panel_open() && self.renderer.is_settings_using_keyboard() {
-            return;
-        }
-
-        if let Some(tool) =
-            resolve_cutting_tool_trigger(key, physical_key, self.mouse_input.is_shift_pressed())
-        {
-            self.submit_cutting_simulation(tool);
+        // 設定パネル・加工条件のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
+        if self.is_ui_window_open() && self.renderer.is_settings_using_keyboard() {
             return;
         }
 
@@ -62,6 +26,9 @@ impl AppState {
 
         if let winit::keyboard::Key::Character(ch) = key {
             match ch.as_str() {
+                "M" => {
+                    self.toggle_machining_conditions();
+                }
                 "R" => {
                     self.run_cutting_simulation_jobs();
                 }
@@ -99,7 +66,7 @@ impl AppState {
                         "【取込】 STL ファイルをウィンドウにドロップ: 製品形状として取り込み"
                     );
                     tracing::info!(
-                        "【投入】 Shift+B / Shift+F: 表示中の製品形状で投入（ボール / フラット）"
+                        "【投入】 Shift+M: 加工条件のウィンドウの表示切替（「投入」で表示中の製品形状を投入）"
                     );
                     tracing::info!(
                         "【実行】 Shift+R: キューにあるジョブを実行（終わるまで画面は止まる）"
@@ -165,73 +132,5 @@ impl AppState {
                 _ => {}
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use winit::keyboard::{Key, KeyCode, PhysicalKey};
-
-    use super::{resolve_cutting_tool_trigger, CuttingToolKind};
-
-    #[test]
-    fn cutting_tool_trigger_accepts_only_shift_plus_uppercase_bf() {
-        assert_eq!(
-            resolve_cutting_tool_trigger(
-                &Key::Character("B".into()),
-                &PhysicalKey::Code(KeyCode::KeyB),
-                true,
-            ),
-            Some(CuttingToolKind::BallEndMill)
-        );
-        assert_eq!(
-            resolve_cutting_tool_trigger(
-                &Key::Character("F".into()),
-                &PhysicalKey::Code(KeyCode::KeyF),
-                true,
-            ),
-            Some(CuttingToolKind::FlatEndMill)
-        );
-
-        assert_eq!(
-            resolve_cutting_tool_trigger(
-                &Key::Character("B".into()),
-                &PhysicalKey::Code(KeyCode::KeyB),
-                false,
-            ),
-            None
-        );
-        assert_eq!(
-            resolve_cutting_tool_trigger(
-                &Key::Character("b".into()),
-                &PhysicalKey::Code(KeyCode::KeyB),
-                true,
-            ),
-            None
-        );
-        assert_eq!(
-            resolve_cutting_tool_trigger(
-                &Key::Character("F".into()),
-                &PhysicalKey::Code(KeyCode::KeyB),
-                true,
-            ),
-            None
-        );
-        assert_eq!(
-            resolve_cutting_tool_trigger(
-                &Key::Character("k".into()),
-                &PhysicalKey::Code(KeyCode::KeyK),
-                true,
-            ),
-            None
-        );
-        assert_eq!(
-            resolve_cutting_tool_trigger(
-                &Key::Named(winit::keyboard::NamedKey::Space),
-                &PhysicalKey::Code(KeyCode::Space),
-                true,
-            ),
-            None
-        );
     }
 }
