@@ -1,7 +1,7 @@
 # Artifact Binary I/O Contract Design
 
 **作成日**: 2026年4月3日  
-**ステータス**: v0.1 仕様正本  
+**ステータス**: v0.2 仕様正本（v0.1 と同じ wire layout。ToolPath の切削方向の値に `Mixed` を追加。#994）  
 **関連Issue**: [#300](https://github.com/RedRing2020/RedRing/issues/300), [#411](https://github.com/RedRing2020/RedRing/issues/411), [#412](https://github.com/RedRing2020/RedRing/issues/412)
 
 ---
@@ -36,7 +36,7 @@
   - `toolpath`: `RRTP`
   - `interference`: `RRIN`
 - `version_major: u16` = 0
-- `version_minor: u16` = 1
+- `version_minor: u16` = 2（v0.1 の artifact は `1`）
 - `units: u8`
   - 1 = Millimeter
 - `coordinate_frame: u8`
@@ -72,6 +72,7 @@
 - `cutting_direction: u8`
   - 0 = Down
   - 1 = Up
+  - 2 = Mixed（経路の中でダウンカットとアップカットが入れ替わる。v0.2 で追加）
 - `ext_attributes_count: u32`
 - `ext_attributes[]`
   - `tag: i16` (`0` は予約値のため reject)
@@ -141,9 +142,9 @@
 
 ## 互換性ポリシー
 
-- `major == 0 && minor == 1`:
-  - accept
-- `major == 0 && minor != 1`:
+- `major == 0 && minor ∈ {1, 2}`:
+  - accept（v0.2 は v0.1 と同じ wire layout で、値の範囲を広げただけのため、v0.1 の artifact もそのまま読む）
+- `major == 0 && minor ∉ {1, 2}`:
   - reject
 - `major != 0`:
   - convert 実装がある場合のみ convert、未実装時は reject
@@ -191,7 +192,7 @@ Read/Write の片側だけが変わって契約が壊れることを防ぐため
 
 ```text
 注記: `*_v1` は API 世代識別子を表す。wire format の実バージョンは
-`version_major` / `version_minor` の実値で判定する（現行は v0.1）。
+`version_major` / `version_minor` の実値で判定する（現行は v0.2）。
 ```
 
 ---

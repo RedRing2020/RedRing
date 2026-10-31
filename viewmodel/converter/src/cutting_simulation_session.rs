@@ -9,7 +9,7 @@ use application::cam_simulation_workflow::{
     ProductShapeSimulationRequest,
 };
 use cam_algorithms::{OperationDefinition, ProcessTemplate};
-pub use cam_algorithms::{ScanlineParams, ScanlineToolRange};
+pub use cam_algorithms::{ScanlineCutDirection, ScanlineParams, ScanlineToolRange};
 use cam_core::{ToleranceProfile, Tool};
 pub use cam_sim::StockMargins;
 use cam_sim::{CuttingSimulationInputError, SnapshotInterval};
@@ -57,6 +57,7 @@ impl Default for CuttingSimulationConditions {
                 sample_pitch: 1.0,
                 feed_rate: 1200.0,
                 tool_range: ScanlineToolRange::default(),
+                cut_direction: ScanlineCutDirection::default(),
             },
             stock_margins: StockMargins::default(),
             precision: 0.05,
@@ -344,6 +345,7 @@ mod tests {
                 sample_pitch: 10.0,
                 feed_rate: 1200.0,
                 tool_range: ScanlineToolRange::default(),
+                cut_direction: ScanlineCutDirection::default(),
             },
             ..CuttingSimulationConditions::default()
         }
@@ -407,6 +409,13 @@ mod tests {
             },
             precision: 0.2,
             ..session.conditions()
+        };
+        let conditions = CuttingSimulationConditions {
+            scanline: ScanlineParams {
+                cut_direction: ScanlineCutDirection::ZigZag,
+                ..conditions.scanline
+            },
+            ..conditions
         };
         session.set_conditions(conditions);
         session.submit(&scene).unwrap();

@@ -398,6 +398,8 @@ fn get_segment_color(
                 match cutting_direction {
                     CuttingDirection::Down => color_scheme.down_cut,
                     CuttingDirection::Up => color_scheme.up_cut,
+                    // 経路の中で入れ替わる場合は、1 つの色に決められないため通常の切削の色にする
+                    CuttingDirection::Mixed => color_scheme.cutting,
                 }
             } else {
                 // デフォルトの切削色

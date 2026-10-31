@@ -5,7 +5,8 @@ use std::io::Cursor;
 use std::sync::Arc;
 
 use cam_algorithms::{
-    CamSolverInput, OperationSpec, ScanlineParams, ScanlineToolRange, SolverGeometry,
+    CamSolverInput, OperationSpec, ScanlineCutDirection, ScanlineParams, ScanlineToolRange,
+    SolverGeometry,
 };
 use cam_core::{CoordinateFrame, LengthUnit, Tool, read_toolpath_artifact_v1};
 use geo_algorithms::{Point3D, TessellationLimits, TriangleMesh3D};
@@ -51,6 +52,7 @@ fn scanline_input(geometry: SolverGeometry, tool: Tool<f64>) -> CamSolverInput {
             sample_pitch: 2.0,
             feed_rate: 1200.0,
             tool_range: ScanlineToolRange::default(),
+            cut_direction: ScanlineCutDirection::default(),
         }),
         units: LengthUnit::Millimeter,
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -267,6 +269,7 @@ fn template_resolved_input_runs_and_out_of_domain_rectangle_is_invalid_input() {
                 sample_pitch: 2.0,
                 feed_rate: 1200.0,
                 tool_range: ScanlineToolRange::default(),
+                cut_direction: ScanlineCutDirection::default(),
             },
             TessellationLimits::default(),
         )

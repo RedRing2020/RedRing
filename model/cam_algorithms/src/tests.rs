@@ -1,5 +1,5 @@
 use analysis::consts::test_constants::TOLERANCE_F64 as EPS;
-use cam_core::{CoordinateFrame, LengthUnit, Tool};
+use cam_core::{CoordinateFrame, CuttingDirection, LengthUnit, Tool};
 use geo_algorithms::{
     NurbsSurface3D, Point3D, TessellationLimits, TriangleMesh3D, tessellate_surfaces,
 };
@@ -9,8 +9,8 @@ use geo_contracts::{
 };
 
 use crate::{
-    CamSolverError, CamSolverInput, CutterShape, DropCutter, OperationSpec, ScanlineParams,
-    ScanlineToolRange, SolverGeometry, solve_toolpath,
+    CamSolverError, CamSolverInput, CutterShape, DropCutter, OperationSpec, ScanlineCutDirection,
+    ScanlineParams, ScanlineToolRange, SolverGeometry, solve_toolpath,
 };
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {
@@ -84,6 +84,7 @@ fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
             sample_pitch: 1.0,
             feed_rate: 1200.0,
             tool_range: ScanlineToolRange::default(),
+            cut_direction: ScanlineCutDirection::default(),
         }),
         units: LengthUnit::Millimeter,
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -98,6 +99,51 @@ fn with_tool_range(mut input: CamSolverInput, tool_range: ScanlineToolRange) -> 
     let OperationSpec::Scanline(params) = &mut input.operation;
     params.tool_range = tool_range;
     input
+}
+
+/// 送り方 `cut_direction` で平らな正方形をスキャン加工した、各パス（Y の小さい順）の Y と、X 正方向に送るか
+fn feed_directions(cut_direction: ScanlineCutDirection) -> (CuttingDirection, Vec<(f64, bool)>) {
+    let mut input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
+    let OperationSpec::Scanline(params) = &mut input.operation;
+    params.cut_direction = cut_direction;
+    let toolpath = solve_toolpath(&input).unwrap();
+    let passes = toolpath
+        .contour_levels
+        .iter()
+        .map(|level| {
+            let first = level.segments.first().unwrap();
+            let forward = first.end_point().x() > first.start.x();
+            // パスの中のすべての線分が同じ向き
+            assert!(
+                level
+                    .segments
+                    .iter()
+                    .all(|segment| (segment.end_point().x() > segment.start.x()) == forward)
+            );
+            (first.start.y(), forward)
+        })
+        .collect();
+    (toolpath.cutting_direction, passes)
+}
+
+#[test]
+fn scanline_cut_direction_decides_the_feed_direction_of_each_line() {
+    let (recorded, down) = feed_directions(ScanlineCutDirection::DownCut);
+    assert_eq!(recorded, CuttingDirection::Down);
+    assert!(down.len() > 2);
+    assert!(down.iter().all(|&(_, forward)| !forward));
+
+    let (recorded, up) = feed_directions(ScanlineCutDirection::UpCut);
+    assert_eq!(recorded, CuttingDirection::Up);
+    assert!(up.iter().all(|&(_, forward)| forward));
+
+    // ジグザグはダウンカット（X 負方向）から始め、ラインごとに入れ替える
+    let (recorded, zigzag) = feed_directions(ScanlineCutDirection::ZigZag);
+    assert_eq!(recorded, CuttingDirection::Mixed);
+    assert!(zigzag.windows(2).all(|pair| pair[0].0 < pair[1].0));
+    for (line, &(_, forward)) in zigzag.iter().enumerate() {
+        assert_eq!(forward, line % 2 == 1, "line {line}");
+    }
 }
 
 #[test]
@@ -426,6 +472,7 @@ fn invalid_input_for_stepover_larger_than_diameter() {
         sample_pitch: 1.0,
         feed_rate: 1200.0,
         tool_range: ScanlineToolRange::default(),
+        cut_direction: ScanlineCutDirection::default(),
     });
     assert_eq!(solve_toolpath(&input).unwrap_err().code(), "invalid_input");
 }

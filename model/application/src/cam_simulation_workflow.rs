@@ -479,6 +479,7 @@ mod tests {
                     sample_pitch: 10.0,
                     feed_rate: 1200.0,
                     tool_range: cam_algorithms::ScanlineToolRange::default(),
+                    cut_direction: cam_algorithms::ScanlineCutDirection::default(),
                 }),
                 units: LengthUnit::Millimeter,
                 coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -622,6 +623,7 @@ mod tests {
                 sample_pitch: 10.0,
                 feed_rate: 1200.0,
                 tool_range: cam_algorithms::ScanlineToolRange::default(),
+                cut_direction: cam_algorithms::ScanlineCutDirection::default(),
             },
             stock_margins: StockMargins {
                 minus_x: 5.0,
