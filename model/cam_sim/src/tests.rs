@@ -1162,9 +1162,10 @@ fn ball_groove_surface(precision: f64) -> (Vec<[f64; 3]>, usize) {
         .iter()
         .map(|grid| grid.count[0] as usize * grid.count[1] as usize)
         .sum();
-    let surface = crate::DexelSurface::at_snapshot(
-        &artifact,
-        artifact.snapshots.len() - 1,
+    // 最後の時点はいつもキーフレーム
+    let surface = crate::DexelSurface::new(
+        artifact.grids,
+        artifact.dexel_states_at_keyframe(artifact.keyframe_snapshots.len() - 1),
         precision,
         tool.radius(),
     );

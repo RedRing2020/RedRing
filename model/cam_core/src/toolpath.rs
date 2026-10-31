@@ -49,8 +49,9 @@ use crate::ExtAttribute;
 use analysis::Scalar;
 use geo_algorithms::{Point3D, Vector3D};
 
-/// ToolPath wire schema version used by artifact binary（v0.2: 切削方向に `Mixed` を追加）
-pub const TOOLPATH_SCHEMA_VERSION: (u16, u16) = (0, 2);
+/// ToolPath wire schema version used by artifact binary（v0.2: 切削方向に `Mixed` を追加。v0.3 は切削シミュレーションの
+/// 中身だけの変更で、ToolPath は v0.2 と同じ）
+pub const TOOLPATH_SCHEMA_VERSION: (u16, u16) = (0, 3);
 
 /// セグメント拡張属性タグ: 線形加速度ヒント [mm/s^2]
 pub const SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2: i16 = -101;

@@ -135,16 +135,16 @@ fn sample_model() -> (StockModel, Tool<f64>, Vec<Point3D<f64>>) {
 /// X・Y・Z の格子の、デクセルごとの区間
 type DexelStates = [Vec<Vec<(f64, f64)>>; 3];
 
-/// 各スナップショットの時点の区間（初期の区間に、時点ごとの変化を順に当てる）
+/// 各キーフレームの時点の区間（初期の区間に、キーフレームごとの変化を順に当てる）
 fn states_at_each_snapshot(dexels: &TriDexelModel) -> Vec<DexelStates> {
     let mut state = dexels
         .grids
         .each_ref()
         .map(|grid| vec![vec![grid.initial]; grid.slots.len()]);
-    let changes = dexels.snapshot_changes();
-    (0..changes.snapshot_count())
-        .map(|snapshot| {
-            for change in changes.snapshot(snapshot) {
+    let changes = dexels.keyframe_changes();
+    (0..changes.keyframe_count())
+        .map(|keyframe| {
+            for change in changes.keyframe(keyframe) {
                 state[change.grid as usize][change.index as usize] = change.intervals.to_vec();
             }
             state.clone()
@@ -198,8 +198,8 @@ fn restored_states_match_models_built_up_to_each_time() {
     let dexels = TriDexelModel::from_stock_model(&model, 0.5, &applied);
     let states = states_at_each_snapshot(&dexels);
     assert_eq!(states.len(), applied.len());
-    // 同じ時点が続くスナップショットには変化がない
-    assert_eq!(dexels.snapshot_changes().snapshot(1).len(), 0);
+    // 同じ時点が続くキーフレームには変化がない
+    assert_eq!(dexels.keyframe_changes().keyframe(1).len(), 0);
     for (state, &applied) in states.iter().zip(&applied) {
         let partial = if applied == 0 {
             StockModel::from_toolpath(model.stock(), &toolpath("BEM3", &[]), &tool).unwrap()

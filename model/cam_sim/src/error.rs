@@ -9,6 +9,11 @@ pub enum SimulationError {
     UnsupportedToolType,
     UnsupportedGeometry,
     InvalidInterval,
+    /// 成果物の時点が差し引く掃引体の数（`artifact`）が、ツールパスと工具から作った掃引体の数（`toolpath`）を超える
+    PrimitiveCountMismatch {
+        artifact: usize,
+        toolpath: usize,
+    },
 }
 
 impl Display for SimulationError {
@@ -22,6 +27,10 @@ impl Display for SimulationError {
                 write!(f, "unsupported geometry type in toolpath")
             }
             SimulationError::InvalidInterval => write!(f, "snapshot interval is invalid"),
+            SimulationError::PrimitiveCountMismatch { artifact, toolpath } => write!(
+                f,
+                "the artifact applies {artifact} swept primitives, but the toolpath has {toolpath}"
+            ),
         }
     }
 }

@@ -1,13 +1,15 @@
-//! CAM batch artifact binary format (v0.2).
+//! CAM batch artifact binary format (v0.3).
 //!
 //! 共通ヘッダの Reader/Writer と互換性チェックを提供する
 //! （設計: ARTIFACT_BINARY_IO_CONTRACT_DESIGN.md）。
 //!
 //! # Multi-axis 拡張ポリシー
 //!
-//! - 本モジュールは現時点で `version_major=0, version_minor=2` の
+//! - 本モジュールは現時点で `version_major=0, version_minor=3` の
 //!   3軸相当 payload を安定対象として扱う。v0.2 は v0.1 と同じ wire layout で、
-//!   ToolPath の切削方向の値に `Mixed`（2）を足したもの。v0.1 も読み込める。
+//!   ToolPath の切削方向の値に `Mixed`（2）を足したもの。v0.3 は切削シミュレーションの中身を
+//!   差分のキーフレームの節の列にしたもので、ToolPath・Interference の wire layout は変えていない。
+//!   ToolPath・Interference は v0.1 も読み込める（切削シミュレーションの中身の版は cam_sim が検査する）。
 //! - multi-axis 向け payload は将来の version 追加で導入し、
 //!   `v0.1` wire layout は改変しない。
 //! - API名に含まれる `*_v1` は API 世代名であり、wire format の実値は
@@ -33,10 +35,10 @@ pub const INTERFERENCE_MAGIC: [u8; 4] = *b"RRIN";
 pub const CUTTING_SIMULATION_MAGIC: [u8; 4] = *b"RRCS";
 
 pub const FORMAT_VERSION_MAJOR_V1: u16 = 0;
-pub const FORMAT_VERSION_MINOR_V1: u16 = 2;
+pub const FORMAT_VERSION_MINOR_V1: u16 = 3;
 
 /// v0.x 系で受理可能な minor version 一覧。
-pub const KNOWN_MINOR_VERSIONS_V0: &[u16] = &[1, FORMAT_VERSION_MINOR_V1];
+pub const KNOWN_MINOR_VERSIONS_V0: &[u16] = &[1, 2, FORMAT_VERSION_MINOR_V1];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompatibilityDecision {
@@ -1000,8 +1002,9 @@ mod tests {
     fn version_pin_matches_golden_generation() {
         /// golden 定数が生成された時点の FORMAT_VERSION_MINOR_V1。
         /// wire layout を変更して golden を更新する場合はここも同時に変更してください。
-        /// v0.2 は切削方向の値を足しただけで layout は v0.1 と同じため、golden は変えていない。
-        const PINNED_MINOR: u16 = 2;
+        /// v0.2 は切削方向の値を足しただけ、v0.3 は切削シミュレーションの中身だけを変えたもので、
+        /// ToolPath・Interference の layout は v0.1 と同じため、golden は変えていない。
+        const PINNED_MINOR: u16 = 3;
         assert_eq!(
             FORMAT_VERSION_MINOR_V1, PINNED_MINOR,
             "FORMAT_VERSION_MINOR_V1 が変わりました。\

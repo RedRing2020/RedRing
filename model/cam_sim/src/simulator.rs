@@ -4,7 +4,7 @@ use geo_algorithms::{
 
 use cam_core::{Tool, ToolPath};
 
-use crate::constants::SNAPSHOT_GRID_SPACING_MULTIPLE;
+use crate::constants::{KEYFRAME_INTERVAL_MM, SNAPSHOT_GRID_SPACING_MULTIPLE};
 use crate::error::SimulationError;
 use crate::simulation_artifact::CuttingSimulationArtifact;
 use crate::stock_model::StockModel;
@@ -87,6 +87,8 @@ pub struct CuttingSimulator {
     snapshots: Vec<SimulationSnapshot>,
     /// 各スナップショットの時点までに差し引いた掃引体（切削の区間）の数
     pub(crate) snapshot_applied: Vec<usize>,
+    /// 成果物のキーフレームを置くスナップショットの番号
+    keyframe_snapshots: Vec<usize>,
     /// 最後に実行した結果の表示用のトリデクセル
     pub(crate) dexels: Option<TriDexelModel>,
 }
@@ -105,6 +107,7 @@ impl CuttingSimulator {
             interval,
             snapshots: Vec::new(),
             snapshot_applied: Vec::new(),
+            keyframe_snapshots: Vec::new(),
             dexels: None,
         }
     }
@@ -132,8 +135,10 @@ impl CuttingSimulator {
         let dexels = self.dexels.as_ref()?;
         Some(CuttingSimulationArtifact {
             snapshots: self.snapshot_exports_f64(),
+            snapshot_applied: self.snapshot_applied.clone(),
             grids: dexels.layouts(),
-            snapshot_changes: dexels.snapshot_changes().clone(),
+            keyframe_snapshots: self.keyframe_snapshots.clone(),
+            keyframe_changes: dexels.keyframe_changes().clone(),
         })
     }
 
@@ -166,13 +171,34 @@ impl CuttingSimulator {
             tool.radius().min(SNAPSHOT_GRID_SPACING_MULTIPLE * spacing),
         )?;
         self.record_snapshots(&segments, config);
-        let dexels = TriDexelModel::from_stock_model(&model, spacing, &self.snapshot_applied);
+        self.keyframe_snapshots = keyframe_snapshots(&self.snapshots, KEYFRAME_INTERVAL_MM);
+        let keyframe_applied: Vec<usize> = self
+            .keyframe_snapshots
+            .iter()
+            .map(|&snapshot| self.snapshot_applied[snapshot])
+            .collect();
+        let dexels = TriDexelModel::from_stock_model(&model, spacing, &keyframe_applied);
         for (snapshot, &applied) in self.snapshots.iter_mut().zip(&self.snapshot_applied) {
             snapshot.remaining_volume = dexels.remaining_volume_at(applied);
         }
         self.dexels = Some(dexels);
         Ok(())
     }
+}
+
+/// キーフレームを置くスナップショットの番号（前のキーフレーム（最初は経路の始まり）から経路の距離で `interval_mm`
+/// 以上進んだ最初の時点と、最後の時点）
+fn keyframe_snapshots(snapshots: &[SimulationSnapshot], interval_mm: f64) -> Vec<usize> {
+    let mut keyframes = Vec::new();
+    let mut last_distance = 0.0;
+    for (index, snapshot) in snapshots.iter().enumerate() {
+        let distance = snapshot.position.accumulated_distance;
+        if distance - last_distance >= interval_mm || index + 1 == snapshots.len() {
+            keyframes.push(index);
+            last_distance = distance;
+        }
+    }
+    keyframes
 }
 
 /// 線分の長さ

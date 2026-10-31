@@ -6,6 +6,7 @@ use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, Too
 use geo_algorithms::{Aabb3D, Point3D};
 
 use super::*;
+use crate::simulation_artifact::CuttingSimulationArtifact;
 use crate::stock_model::StockModel;
 use crate::tri_dexel::TriDexelModel;
 use crate::{SimulationSnapshotExport, collect_toolpath_line_segments};
@@ -69,12 +70,30 @@ fn artifact_with_tool(
             remaining_volume_mm3: dexels.remaining_volume_at(count),
         })
         .collect();
+    // 掃引体ごとの時点をすべてキーフレームにする
     let artifact = CuttingSimulationArtifact {
         snapshots,
+        keyframe_snapshots: (0..applied.len()).collect(),
+        snapshot_applied: applied,
         grids: dexels.layouts(),
-        snapshot_changes: dexels.snapshot_changes().clone(),
+        keyframe_changes: dexels.keyframe_changes().clone(),
     };
     (artifact, model)
+}
+
+/// すべての時点がキーフレームの成果物 `artifact` の、時点 `snapshot` の面
+fn surface_at(
+    artifact: &CuttingSimulationArtifact,
+    snapshot: usize,
+    flat_tolerance: f64,
+    curvature_radius: f64,
+) -> DexelSurface {
+    DexelSurface::new(
+        artifact.grids,
+        artifact.dexel_states_at_keyframe(snapshot),
+        flat_tolerance,
+        curvature_radius,
+    )
 }
 
 fn cut() -> (CuttingSimulationArtifact, StockModel) {
@@ -113,8 +132,7 @@ fn key(point: [f64; 3]) -> [i64; 3] {
 #[test]
 fn surface_is_closed_across_blocks() {
     let (artifact, _) = cut();
-    let surface =
-        DexelSurface::at_snapshot(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
+    let surface = surface_at(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
     assert!(surface.block_counts().iter().product::<usize>() > 1);
     let triangles = all_triangles(&surface);
     assert!(!triangles.is_empty());
@@ -157,8 +175,7 @@ fn all_vertices(surface: &DexelSurface) -> Vec<([f64; 3], [f64; 3])> {
 #[test]
 fn vertices_lie_near_the_stock_model_boundary() {
     let (artifact, model) = cut();
-    let surface =
-        DexelSurface::at_snapshot(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
+    let surface = surface_at(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
     // 頂点は接平面の交わりに置くため、曲面からは「間隔² / 曲率半径」程度まで離れうる
     let reach = 0.25 * 0.25 / RADIUS;
     // 座標軸・面の対角・体の対角の 13 方向（稜線の上の頂点は、軸の向きにずらすと両側とも面の上に乗る）
@@ -195,8 +212,7 @@ fn flat_end_mill_floor_edges_are_kept_sharp() {
         SegmentType::Cutting { feed_rate: 100.0 },
         &Tool::flat_end_mill("FEM4".to_string(), 4.0, 8.0),
     );
-    let surface =
-        DexelSurface::at_snapshot(&artifact, artifact.snapshots.len() - 1, PRECISION, 2.0);
+    let surface = surface_at(&artifact, artifact.snapshots.len() - 1, PRECISION, 2.0);
     let vertices = all_vertices(&surface);
     for wall in [3.0, 7.0] {
         let on_edge: Vec<[f64; 3]> = vertices
@@ -232,8 +248,7 @@ fn ball_end_mill_cusps_are_not_chamfered() {
         ],
         SegmentType::Cutting { feed_rate: 100.0 },
     );
-    let surface =
-        DexelSurface::at_snapshot(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
+    let surface = surface_at(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
     // 球の中心の高さ 0.5 から、中心の線から 0.5 離れた稜線の高さ
     let ridge = 0.5 - (RADIUS * RADIUS - 0.25_f64).sqrt();
     let highest = all_vertices(&surface)
@@ -256,7 +271,7 @@ fn uncut_stock_is_a_box_with_outward_normals() {
         &[Point3D::new(0.0, 0.0, 5.0), Point3D::new(1.0, 0.0, 5.0)],
         SegmentType::Rapid,
     );
-    let surface = DexelSurface::at_snapshot(&artifact, 0, PRECISION, RADIUS);
+    let surface = surface_at(&artifact, 0, PRECISION, RADIUS);
     let center = [10.0, 5.0, -2.5];
     for triangle in all_triangles(&surface) {
         // 頂点は素材の外周の面の上にある
@@ -278,7 +293,7 @@ fn uncut_stock_has_two_triangles_per_block_face_and_sharp_corners() {
         &[Point3D::new(0.0, 0.0, 5.0), Point3D::new(1.0, 0.0, 5.0)],
         SegmentType::Rapid,
     );
-    let surface = DexelSurface::at_snapshot(&artifact, 0, PRECISION, RADIUS);
+    let surface = surface_at(&artifact, 0, PRECISION, RADIUS);
     let triangles = all_triangles(&surface);
     let [bx, by, bz] = surface.block_counts();
     assert_eq!(triangles.len(), 2 * 2 * (bx * by + bx * bz + by * bz));
@@ -291,7 +306,7 @@ fn uncut_stock_has_two_triangles_per_block_face_and_sharp_corners() {
 fn uncut_blocks_give_the_same_mesh_as_meshing_cell_by_cell() {
     let (artifact, _) = cut();
     for snapshot in [0, artifact.snapshots.len() - 1] {
-        let surface = DexelSurface::at_snapshot(&artifact, snapshot, PRECISION, RADIUS);
+        let surface = surface_at(&artifact, snapshot, PRECISION, RADIUS);
         let [bx, by, bz] = surface.block_counts();
         let blocks: Vec<[usize; 3]> = (0..bx)
             .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
@@ -326,8 +341,7 @@ fn cuts_shallower_than_the_precision_are_merged_into_the_flat_face() {
             ],
             SegmentType::Cutting { feed_rate: 100.0 },
         );
-        let surface =
-            DexelSurface::at_snapshot(&artifact, artifact.snapshots.len() - 1, precision, RADIUS);
+        let surface = surface_at(&artifact, artifact.snapshots.len() - 1, precision, RADIUS);
         all_triangles(&surface).len()
     };
     let uncut = triangles(-1.0, PRECISION);
@@ -340,7 +354,7 @@ fn cuts_shallower_than_the_precision_are_merged_into_the_flat_face() {
 #[test]
 fn partial_rebuild_matches_a_full_rebuild_at_each_snapshot() {
     let (artifact, _) = cut();
-    let mut surface = DexelSurface::at_snapshot(&artifact, 0, PRECISION, RADIUS);
+    let mut surface = surface_at(&artifact, 0, PRECISION, RADIUS);
     let [bx, by, bz] = surface.block_counts();
     let mut meshes: HashMap<[usize; 3], SurfaceMesh> = HashMap::new();
     for x in 0..bx {
@@ -351,10 +365,10 @@ fn partial_rebuild_matches_a_full_rebuild_at_each_snapshot() {
         }
     }
     for snapshot in 1..artifact.snapshots.len() {
-        for block in surface.apply_changes(artifact.snapshot_changes.snapshot(snapshot)) {
+        for block in surface.apply_changes(artifact.keyframe_changes.keyframe(snapshot)) {
             meshes.insert(block, surface.mesh_block(block));
         }
-        let expected = DexelSurface::at_snapshot(&artifact, snapshot, PRECISION, RADIUS);
+        let expected = surface_at(&artifact, snapshot, PRECISION, RADIUS);
         for (block, mesh) in &meshes {
             assert_eq!(
                 mesh,
@@ -373,7 +387,7 @@ fn searching_mixed_cells_gives_the_same_mesh_as_scanning_every_cell() {
         artifact.snapshots.len() / 2,
         artifact.snapshots.len() - 1,
     ] {
-        let surface = DexelSurface::at_snapshot(&artifact, snapshot, PRECISION, RADIUS);
+        let surface = surface_at(&artifact, snapshot, PRECISION, RADIUS);
         let [bx, by, bz] = surface.block_counts();
         for x in 0..bx {
             for y in 0..by {
@@ -393,10 +407,8 @@ fn searching_mixed_cells_gives_the_same_mesh_as_scanning_every_cell() {
 #[test]
 fn reverse_changes_restore_the_previous_snapshot_with_a_partial_rebuild() {
     let (artifact, _) = cut();
-    let previous = artifact.previous_changes();
-
     let last = artifact.snapshots.len() - 1;
-    let mut surface = DexelSurface::at_snapshot(&artifact, last, PRECISION, RADIUS);
+    let mut surface = surface_at(&artifact, last, PRECISION, RADIUS);
     let [bx, by, bz] = surface.block_counts();
     let mut meshes: HashMap<[usize; 3], SurfaceMesh> = HashMap::new();
     for x in 0..bx {
@@ -407,12 +419,21 @@ fn reverse_changes_restore_the_previous_snapshot_with_a_partial_rebuild() {
         }
     }
     for snapshot in (1..=last).rev() {
-        for block in
-            surface.apply_changes(artifact.backward_changes(&previous, snapshot..=snapshot))
-        {
+        // 時点 `snapshot` で変わったデクセルを、1 つ前の時点の区間に戻す
+        let previous = artifact.dexel_states_at_keyframe(snapshot - 1);
+        let restored: Vec<DexelState<'_>> = artifact
+            .keyframe_changes
+            .keyframe(snapshot)
+            .map(|change| DexelState {
+                intervals: &previous.intervals[change.grid as usize][change.index as usize],
+                normals: &previous.normals[change.grid as usize][change.index as usize],
+                ..change
+            })
+            .collect();
+        for block in surface.apply_changes(restored) {
             meshes.insert(block, surface.mesh_block(block));
         }
-        let expected = DexelSurface::at_snapshot(&artifact, snapshot - 1, PRECISION, RADIUS);
+        let expected = surface_at(&artifact, snapshot - 1, PRECISION, RADIUS);
         assert_eq!(
             surface.intervals,
             expected.intervals,
@@ -433,8 +454,7 @@ fn reverse_changes_restore_the_previous_snapshot_with_a_partial_rebuild() {
 #[test]
 fn meshing_blocks_in_parallel_matches_meshing_them_one_by_one() {
     let (artifact, _) = cut();
-    let surface =
-        DexelSurface::at_snapshot(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
+    let surface = surface_at(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
     let [bx, by, bz] = surface.block_counts();
     let blocks: Vec<[usize; 3]> = (0..bx)
         .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
@@ -449,11 +469,11 @@ fn meshing_blocks_in_parallel_matches_meshing_them_one_by_one() {
 #[test]
 fn unchanged_dexels_make_no_block_dirty() {
     let (artifact, _) = cut();
-    let mut surface = DexelSurface::at_snapshot(&artifact, 1, PRECISION, RADIUS);
+    let mut surface = surface_at(&artifact, 1, PRECISION, RADIUS);
     // 同じ時点の変化をもう一度当てても、区間は変わらない
     assert!(
         surface
-            .apply_changes(artifact.snapshot_changes.snapshot(1))
+            .apply_changes(artifact.keyframe_changes.keyframe(1))
             .is_empty()
     );
 }
