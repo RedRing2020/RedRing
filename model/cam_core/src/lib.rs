@@ -45,7 +45,7 @@ pub use toolpath::{
     ArcDirection, ContourLevelPath, CuttingDirection, KinematicMode, MachineAxisKind,
     MachineAxisValue, MachineConfigurationClass, PathGeometry, PathSegment, PoseAnnotatedSegment,
     PoseDataPolicy, PoseInterpolationPolicy, SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2,
-    SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2, SegmentType, TOOLPATH_SCHEMA_VERSION_V0_1, ToolPath,
+    SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2, SegmentType, TOOLPATH_SCHEMA_VERSION, ToolPath,
     ToolPathKinematicMeta, ToolPose, ToolPoseSpan,
 };
 pub use toolset::{

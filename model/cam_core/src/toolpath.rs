@@ -49,8 +49,8 @@ use crate::ExtAttribute;
 use analysis::Scalar;
 use geo_algorithms::{Point3D, Vector3D};
 
-/// ToolPath wire schema version used by artifact binary v0.1.
-pub const TOOLPATH_SCHEMA_VERSION_V0_1: (u16, u16) = (0, 1);
+/// ToolPath wire schema version used by artifact binary（v0.2: 切削方向に `Mixed` を追加）
+pub const TOOLPATH_SCHEMA_VERSION: (u16, u16) = (0, 2);
 
 /// セグメント拡張属性タグ: 線形加速度ヒント [mm/s^2]
 pub const SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2: i16 = -101;
@@ -167,6 +167,7 @@ pub enum SegmentType<T: Scalar = f64> {
 /// 切削方向
 ///
 /// ダウンカット（同方向）とアップカット（逆方向）を識別します。
+/// 主軸は右回り（上から見て時計回り）とし、送りの右側に削る素材がある場合がダウンカットです。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CuttingDirection {
     /// ダウンカット（同方向切削）
@@ -178,6 +179,9 @@ pub enum CuttingDirection {
     ///
     /// 工具回転方向と送り方向が逆。荒加工向き。
     Up,
+
+    /// 往復の加工などで、経路の中でダウンカットとアップカットが入れ替わる
+    Mixed,
 }
 
 /// 機械軸種別

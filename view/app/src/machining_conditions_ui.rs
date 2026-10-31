@@ -6,7 +6,7 @@ use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use egui::{Align2, CollapsingHeader, Context, DragValue, Window};
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, CuttingSimulationConditions, CuttingToolKind, ImportedConditions,
-    ScanlineToolRange, StockMargins,
+    ScanlineCutDirection, ScanlineToolRange, StockMargins,
 };
 use viewmodel::message_catalog::UiLocale;
 
@@ -109,6 +109,15 @@ pub struct MachiningConditionsUiState {
     pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
     pub import_requested: bool,
+}
+
+/// 送り方 `direction` の文言のキー
+fn cut_direction_key(direction: ScanlineCutDirection) -> &'static str {
+    match direction {
+        ScanlineCutDirection::DownCut => "conditions.machining.cut_direction.down",
+        ScanlineCutDirection::UpCut => "conditions.machining.cut_direction.up",
+        ScanlineCutDirection::ZigZag => "conditions.machining.cut_direction.zigzag",
+    }
 }
 
 impl MachiningConditionsUiState {
@@ -267,6 +276,13 @@ impl MachiningConditionsUiState {
         let tool_range_label = self.text("conditions.machining.tool_range");
         let extend_label = self.text("conditions.machining.tool_range.extend");
         let geometry_label = self.text("conditions.machining.tool_range.geometry");
+        let cut_direction_label = self.text("conditions.machining.cut_direction");
+        let cut_direction_labels = [
+            ScanlineCutDirection::DownCut,
+            ScanlineCutDirection::UpCut,
+            ScanlineCutDirection::ZigZag,
+        ]
+        .map(|direction| (direction, self.text(cut_direction_key(direction))));
         let tolerance_label = self.text_with_args(
             "conditions.machining.tolerance",
             &[("tolerance", self.toolpath_tolerance.to_string())],
@@ -290,6 +306,12 @@ impl MachiningConditionsUiState {
                         ui.label(label);
                     });
                 }
+                ui.label(cut_direction_label);
+                ui.horizontal(|ui| {
+                    for (direction, label) in cut_direction_labels {
+                        ui.radio_value(&mut scanline.cut_direction, direction, label);
+                    }
+                });
                 ui.label(tool_range_label);
                 ui.horizontal(|ui| {
                     ui.radio_value(
@@ -396,6 +418,10 @@ impl MachiningConditionsUiState {
                             ("stepover", conditions.scanline.stepover.to_string()),
                             ("sample_pitch", conditions.scanline.sample_pitch.to_string()),
                             ("feed_rate", conditions.scanline.feed_rate.to_string()),
+                            (
+                                "cut_direction",
+                                self.text(cut_direction_key(conditions.scanline.cut_direction)),
+                            ),
                         ],
                     ),
                     self.text_with_args(

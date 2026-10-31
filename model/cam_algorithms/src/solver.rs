@@ -109,7 +109,7 @@ impl SolverGeometry {
 
 /// スキャン加工（`operation_type = scanline`）パラメータ
 ///
-/// X 方向の片方向走査を Y 方向へ `stepover` ずつ送る。
+/// X 方向の走査ラインを Y 方向へ `stepover` ずつ送る。各ラインの送る向きは `cut_direction` で決める。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScanlineParams {
     /// 走査ライン間隔（mm）。工具径以下であること
@@ -120,6 +120,23 @@ pub struct ScanlineParams {
     pub feed_rate: f64,
     /// 加工範囲（境界）を指定しない場合の、工具の中心の移動範囲
     pub tool_range: ScanlineToolRange,
+    /// 各走査ラインの送り方
+    pub cut_direction: ScanlineCutDirection,
+}
+
+/// スキャン加工の送り方
+///
+/// 主軸は右回り（上から見て時計回り）とする。走査ラインは Y 正方向へ進むため、まだ削っていない素材は +Y 側にあり、
+/// X 負方向に送ると素材が送りの右側になってダウンカット、X 正方向に送るとアップカットになる。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScanlineCutDirection {
+    /// すべてのラインを X 負方向に送る一方向の加工
+    #[default]
+    DownCut,
+    /// すべてのラインを X 正方向に送る一方向の加工
+    UpCut,
+    /// 最初のラインをダウンカット（X 負方向）で送り、ラインごとに送る向きを入れ替える往復の加工
+    ZigZag,
 }
 
 /// 加工範囲（境界）を指定しないスキャン加工の、工具の中心の移動範囲

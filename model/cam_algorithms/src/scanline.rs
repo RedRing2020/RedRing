@@ -1,7 +1,7 @@
 //! スキャン加工（`operation_type = scanline`）の経路化
 //!
 //! 加工範囲（既定は形状の XY 範囲）を Y 方向へ `stepover` 以下の等間隔で走査ラインに分け、
-//! 各ライン上を X 正方向に `sample_pitch` 以下の間隔で CL を求める。
+//! 各ライン上を送り方（`ScanlineCutDirection`）で決めた向きに `sample_pitch` 以下の間隔で CL を求める。
 //! 工具が形状に接触する連続区間を 1 パスとする。パスの間のエアカットは入れない（CL の編集と工程をそろえた後に
 //! 計算する）。
 
@@ -9,7 +9,7 @@ use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, Too
 use geo_algorithms::Point3D;
 
 use crate::inverse_offset::DropCutter;
-use crate::solver::{CamSolverError, ScanlineParams};
+use crate::solver::{CamSolverError, ScanlineCutDirection, ScanlineParams};
 
 /// drop-cutter から、XY 範囲 `(min, max)` のスキャン加工 ToolPath を生成する。
 ///
@@ -22,11 +22,19 @@ pub fn generate_scanline_toolpath(
 ) -> Result<ToolPath<f64>, CamSolverError> {
     let ys = uniform_samples(xy_min[1], xy_max[1], params.stepover);
     let xs = uniform_samples(xy_min[0], xy_max[0], params.sample_pitch);
+    let xs_reversed: Vec<f64> = xs.iter().rev().copied().collect();
 
     let mut passes: Vec<Vec<Point3D<f64>>> = Vec::new();
-    for &y in &ys {
+    for (line, &y) in ys.iter().enumerate() {
+        let forward = match params.cut_direction {
+            ScanlineCutDirection::DownCut => false,
+            ScanlineCutDirection::UpCut => true,
+            ScanlineCutDirection::ZigZag => line % 2 == 1,
+        };
         let mut run: Vec<Point3D<f64>> = Vec::new();
-        for &x in &xs {
+        // 送る向きに並べた X
+        let xs_in_feed_order = if forward { &xs } else { &xs_reversed };
+        for &x in xs_in_feed_order {
             match cutter.tip_point_at(x, y) {
                 Some(point) => run.push(point),
                 None => flush_run(&mut run, &mut passes),
@@ -57,9 +65,14 @@ pub fn generate_scanline_toolpath(
         })
         .collect();
 
+    let cutting_direction = match params.cut_direction {
+        ScanlineCutDirection::DownCut => CuttingDirection::Down,
+        ScanlineCutDirection::UpCut => CuttingDirection::Up,
+        ScanlineCutDirection::ZigZag => CuttingDirection::Mixed,
+    };
     Ok(ToolPath::new(
         tool_id.to_string(),
-        CuttingDirection::Down,
+        cutting_direction,
         Vec::new(),
         levels,
         Vec::new(),

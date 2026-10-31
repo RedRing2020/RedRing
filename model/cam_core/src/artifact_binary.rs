@@ -1,12 +1,13 @@
-//! CAM batch artifact binary format (v0.1).
+//! CAM batch artifact binary format (v0.2).
 //!
 //! 共通ヘッダの Reader/Writer と互換性チェックを提供する
 //! （設計: ARTIFACT_BINARY_IO_CONTRACT_DESIGN.md）。
 //!
 //! # Multi-axis 拡張ポリシー
 //!
-//! - 本モジュールは現時点で `version_major=0, version_minor=1` の
-//!   3軸相当 payload を安定対象として扱う。
+//! - 本モジュールは現時点で `version_major=0, version_minor=2` の
+//!   3軸相当 payload を安定対象として扱う。v0.2 は v0.1 と同じ wire layout で、
+//!   ToolPath の切削方向の値に `Mixed`（2）を足したもの。v0.1 も読み込める。
 //! - multi-axis 向け payload は将来の version 追加で導入し、
 //!   `v0.1` wire layout は改変しない。
 //! - API名に含まれる `*_v1` は API 世代名であり、wire format の実値は
@@ -32,10 +33,10 @@ pub const INTERFERENCE_MAGIC: [u8; 4] = *b"RRIN";
 pub const CUTTING_SIMULATION_MAGIC: [u8; 4] = *b"RRCS";
 
 pub const FORMAT_VERSION_MAJOR_V1: u16 = 0;
-pub const FORMAT_VERSION_MINOR_V1: u16 = 1;
+pub const FORMAT_VERSION_MINOR_V1: u16 = 2;
 
 /// v0.x 系で受理可能な minor version 一覧。
-pub const KNOWN_MINOR_VERSIONS_V0: &[u16] = &[FORMAT_VERSION_MINOR_V1];
+pub const KNOWN_MINOR_VERSIONS_V0: &[u16] = &[1, FORMAT_VERSION_MINOR_V1];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompatibilityDecision {
@@ -664,6 +665,7 @@ fn cutting_direction_to_wire(value: CuttingDirection) -> u8 {
     match value {
         CuttingDirection::Down => 0,
         CuttingDirection::Up => 1,
+        CuttingDirection::Mixed => 2,
     }
 }
 
@@ -671,6 +673,7 @@ fn cutting_direction_from_wire(value: u8) -> Result<CuttingDirection, BinaryForm
     match value {
         0 => Ok(CuttingDirection::Down),
         1 => Ok(CuttingDirection::Up),
+        2 => Ok(CuttingDirection::Mixed),
         other => Err(BinaryFormatError::UnknownCuttingDirection(other)),
     }
 }
@@ -918,7 +921,7 @@ const GOLDEN_INTERFERENCE_MINIMAL: &[u8] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::toolpath::TOOLPATH_SCHEMA_VERSION_V0_1;
+    use crate::toolpath::TOOLPATH_SCHEMA_VERSION;
 
     #[test]
     fn header_round_trip_toolpath() {
@@ -981,7 +984,7 @@ mod tests {
     #[test]
     fn version_sync_with_toolpath_schema_constant() {
         assert_eq!(
-            TOOLPATH_SCHEMA_VERSION_V0_1,
+            TOOLPATH_SCHEMA_VERSION,
             (FORMAT_VERSION_MAJOR_V1, FORMAT_VERSION_MINOR_V1)
         );
     }
@@ -997,7 +1000,8 @@ mod tests {
     fn version_pin_matches_golden_generation() {
         /// golden 定数が生成された時点の FORMAT_VERSION_MINOR_V1。
         /// wire layout を変更して golden を更新する場合はここも同時に変更してください。
-        const PINNED_MINOR: u16 = 1;
+        /// v0.2 は切削方向の値を足しただけで layout は v0.1 と同じため、golden は変えていない。
+        const PINNED_MINOR: u16 = 2;
         assert_eq!(
             FORMAT_VERSION_MINOR_V1, PINNED_MINOR,
             "FORMAT_VERSION_MINOR_V1 が変わりました。\
@@ -1109,6 +1113,48 @@ mod tests {
             result,
             Err(BinaryFormatError::ReservedExtAttributeTag(0))
         ));
+    }
+
+    #[test]
+    fn every_cutting_direction_round_trips() {
+        for direction in [
+            CuttingDirection::Down,
+            CuttingDirection::Up,
+            CuttingDirection::Mixed,
+        ] {
+            let toolpath = ToolPath::new(
+                "tool-1".to_string(),
+                direction,
+                vec![],
+                vec![ContourLevelPath::new(
+                    0,
+                    0.0,
+                    vec![PathSegment::new_line(
+                        Point3D::new(0.0, 0.0, 0.0),
+                        Point3D::new(10.0, 0.0, 0.0),
+                        SegmentType::Cutting { feed_rate: 600.0 },
+                    )],
+                )],
+                vec![],
+            );
+            let mut bytes = Vec::new();
+            write_toolpath_payload_v1(&mut bytes, &toolpath).unwrap();
+            assert_eq!(
+                read_toolpath_payload_v1(&mut bytes.as_slice()).unwrap(),
+                toolpath
+            );
+        }
+    }
+
+    #[test]
+    fn v0_1_artifacts_are_still_accepted() {
+        let mut header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, 0);
+        header.version_minor = 1;
+        assert_eq!(
+            header.compatibility_decision(),
+            CompatibilityDecision::Accept
+        );
+        assert!(header.ensure_acceptable_version().is_ok());
     }
 
     #[test]

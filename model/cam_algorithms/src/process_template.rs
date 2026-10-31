@@ -345,7 +345,9 @@ mod tests {
     use geo_contracts::TriangleMesh3DConstructor;
 
     use super::*;
-    use crate::solver::{CamSolverError, ScanlineParams, ScanlineToolRange, SolverGeometry};
+    use crate::solver::{
+        CamSolverError, ScanlineCutDirection, ScanlineParams, ScanlineToolRange, SolverGeometry,
+    };
 
     fn template(profile: Option<&str>, operation_type: Option<&str>) -> ProcessTemplate {
         ProcessTemplate {
@@ -533,6 +535,7 @@ mod tests {
             sample_pitch: 1.0,
             feed_rate: 1000.0,
             tool_range: ScanlineToolRange::default(),
+            cut_direction: ScanlineCutDirection::default(),
         }
     }
 

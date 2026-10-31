@@ -22,6 +22,13 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.machining.stepover", "ステップオーバー"),
     ("conditions.machining.sample_pitch", "サンプル間隔"),
     ("conditions.machining.feed_rate", "送り"),
+    ("conditions.machining.cut_direction", "送り方（主軸は右回り）"),
+    ("conditions.machining.cut_direction.down", "ダウンカット"),
+    ("conditions.machining.cut_direction.up", "アップカット"),
+    (
+        "conditions.machining.cut_direction.zigzag",
+        "ジグザグ（ダウンカットから）",
+    ),
     ("conditions.machining.tool_range", "工具の移動範囲"),
     (
         "conditions.machining.tool_range.extend",
@@ -85,7 +92,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.imported.length_unlimited", "指定なし"),
     (
         "conditions.imported.scanline",
-        "加工: ステップオーバー {stepover} mm・サンプル間隔 {sample_pitch} mm・送り {feed_rate} mm/min",
+        "加工: {cut_direction}・ステップオーバー {stepover} mm・サンプル間隔 {sample_pitch} mm・送り {feed_rate} mm/min",
     ),
     ("conditions.imported.tolerance", "ツールパス生成のトレランス: {tolerance} mm"),
     (
@@ -115,6 +122,16 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.machining.stepover", "Stepover"),
     ("conditions.machining.sample_pitch", "Sample pitch"),
     ("conditions.machining.feed_rate", "Feed rate"),
+    (
+        "conditions.machining.cut_direction",
+        "Cut direction (spindle clockwise)",
+    ),
+    ("conditions.machining.cut_direction.down", "Climb"),
+    ("conditions.machining.cut_direction.up", "Conventional"),
+    (
+        "conditions.machining.cut_direction.zigzag",
+        "Zigzag (from climb)",
+    ),
     ("conditions.machining.tool_range", "Tool range"),
     (
         "conditions.machining.tool_range.extend",
@@ -187,7 +204,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.imported.length_unlimited", "unlimited"),
     (
         "conditions.imported.scanline",
-        "Machining: stepover {stepover} mm, sample pitch {sample_pitch} mm, feed {feed_rate} mm/min",
+        "Machining: {cut_direction}, stepover {stepover} mm, sample pitch {sample_pitch} mm, feed {feed_rate} mm/min",
     ),
     ("conditions.imported.tolerance", "Toolpath tolerance: {tolerance} mm"),
     (
