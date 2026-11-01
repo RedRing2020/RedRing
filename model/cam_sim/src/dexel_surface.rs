@@ -23,6 +23,7 @@ mod polygon;
 mod tests;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::constants::SURFACE_BLOCK_CELLS;
 use crate::dexel_normal::DexelNormal;
@@ -206,20 +207,28 @@ impl DexelSurface {
     }
 
     /// ブロックの列 `blocks` の面（複数のコアで並べて作る。並びは `blocks` と同じ）
+    ///
+    /// ブロックごとに面を作る時間が違うため、空いたスレッドが次のブロックを取る（決めた数ずつ分けると、時間のかかる
+    /// ブロックが 1 つのスレッドに重なりうる）。
     pub fn mesh_blocks(&self, blocks: &[[usize; 3]]) -> Vec<SurfaceMesh> {
-        let threads = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
-        if threads <= 1 || blocks.len() <= 1 {
+        let threads = std::thread::available_parallelism()
+            .map_or(1, std::num::NonZeroUsize::get)
+            .min(blocks.len());
+        if threads <= 1 {
             return blocks.iter().map(|&block| self.mesh_block(block)).collect();
         }
-        let chunk = blocks.len().div_ceil(threads);
-        std::thread::scope(|scope| {
-            let handles: Vec<_> = blocks
-                .chunks(chunk)
-                .map(|part| {
-                    scope.spawn(move || {
-                        part.iter()
-                            .map(|&block| self.mesh_block(block))
-                            .collect::<Vec<_>>()
+        let next = AtomicUsize::new(0);
+        let mut meshes: Vec<(usize, SurfaceMesh)> = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..threads)
+                .map(|_| {
+                    scope.spawn(|| {
+                        std::iter::from_fn(|| {
+                            let position = next.fetch_add(1, Ordering::Relaxed);
+                            blocks
+                                .get(position)
+                                .map(|&block| (position, self.mesh_block(block)))
+                        })
+                        .collect::<Vec<_>>()
                     })
                 })
                 .collect();
@@ -227,7 +236,9 @@ impl DexelSurface {
                 .into_iter()
                 .flat_map(|handle| handle.join().expect("meshing a block does not panic"))
                 .collect()
-        })
+        });
+        meshes.sort_unstable_by_key(|(position, _)| *position);
+        meshes.into_iter().map(|(_, mesh)| mesh).collect()
     }
 
     /// ブロック `block` の面

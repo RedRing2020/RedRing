@@ -528,3 +528,69 @@ fn flat_end_mill_floor_and_wall_normals_are_axis_aligned() {
     }
     assert!(walls > 0);
 }
+
+/// デクセルの番号と区間と法線
+type DexelIntervals = (usize, Vec<(f64, f64)>, Vec<[DexelNormal; 2]>);
+
+/// 変わる前の区間の記録を、デクセルの番号の順の（番号・区間・法線）の列にする
+fn previous_by_dexel(previous: &PreviousIntervals) -> Vec<DexelIntervals> {
+    let mut dexels: Vec<_> = previous
+        .dexels
+        .iter()
+        .map(|&(index, [start, end])| {
+            (
+                index,
+                previous.intervals[start..end].to_vec(),
+                previous.normals[start..end].to_vec(),
+            )
+        })
+        .collect();
+    dexels.sort_by_key(|(index, _, _)| *index);
+    dexels
+}
+
+#[test]
+fn subtracting_frames_in_bands_matches_subtracting_in_order() {
+    let (model, _, _) = sample_model();
+    let primitives = model.primitives();
+    // 最初の掃引体は先に差し引き、残りを 3 つずつの時点に分ける
+    let frames: Vec<&[SweptToolPrimitive]> = primitives[1..].chunks(3).collect();
+    let stock = model.stock();
+    for axis in 0..3 {
+        let mut ordered = DexelGrid::new(&stock, axis, 0.5);
+        let mut scratch = Scratch::default();
+        ordered.subtract(&primitives[0], &mut scratch);
+        ordered.take_changed();
+        let start = ordered.clone();
+        let expected: Vec<_> = frames
+            .iter()
+            .map(|frame| {
+                ordered.record_previous(true);
+                for primitive in *frame {
+                    ordered.subtract(primitive, &mut scratch);
+                }
+                let previous = ordered.take_previous();
+                ordered.record_previous(false);
+                (previous_by_dexel(&previous), ordered.take_changed())
+            })
+            .collect();
+        assert!(expected.iter().any(|(_, changed)| !changed.is_empty()));
+        // 帯が 1 本・数本・線より多い場合
+        for bands in [1, 2, 5, 1000] {
+            let mut banded = start.clone();
+            let steps: Vec<_> = banded
+                .subtract_frames(&frames, bands)
+                .into_iter()
+                .map(|(previous, changed)| (previous_by_dexel(&previous), changed))
+                .collect();
+            assert_eq!(steps, expected, "axis {axis}, bands {bands}");
+            for index in 0..ordered.slots.len() {
+                assert_eq!(banded.current(index), ordered.current(index));
+                assert_eq!(
+                    banded.current_normals(index),
+                    ordered.current_normals(index)
+                );
+            }
+        }
+    }
+}

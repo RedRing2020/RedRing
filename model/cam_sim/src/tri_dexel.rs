@@ -13,7 +13,7 @@ use geo_algorithms::{Aabb3D, Point3D};
 
 use crate::dexel_normal::DexelNormal;
 use crate::simulation_artifact::{DexelChanges, DexelGridLayout};
-use crate::stock_model::StockModel;
+use crate::stock_model::{StockModel, SweptToolPrimitive};
 use ray_interval::{AxisLine, ToolInterval, swept_primitive_intervals};
 
 /// 精度 `precision` の素材を、半径 `tool_radius` の工具で削るときの格子の間隔
@@ -36,6 +36,34 @@ pub(crate) fn dexel_line_count(stock: &Aabb3D<f64>, spacing: f64) -> usize {
 /// 長さ `extent` を間隔 `spacing` 以下に分ける最小の線の本数
 fn lines_along(extent: f64, spacing: f64) -> usize {
     ((extent / spacing).ceil() as usize).max(1)
+}
+
+/// 掃引体の外接する箱に入る、格子の 2 方向の線の番号の範囲と、デクセルの向きの座標の範囲
+struct PrimitiveRanges {
+    rows: std::ops::Range<usize>,
+    columns: std::ops::Range<usize>,
+    along: (f64, f64),
+}
+
+/// 差し引きを帯に分けるときの、1 本の帯の線の数の下限
+const MIN_BAND_LINES: usize = 16;
+
+/// 帯の差し引きで変わったデクセルの、番号と今の区間と法線と、最後に変わった時点
+#[derive(Debug, Default)]
+struct BandDexel {
+    index: usize,
+    intervals: Vec<(f64, f64)>,
+    normals: Vec<[DexelNormal; 2]>,
+    changed_frame: Option<usize>,
+}
+
+/// 帯の差し引きの 1 つの時点で変わったデクセルの、時点の終わりの区間と法線
+#[derive(Debug, Default)]
+struct BandFrame {
+    /// デクセルの番号と、`intervals` の中の区間の範囲（始まりと終わり）
+    dexels: Vec<(usize, [usize; 2])>,
+    intervals: Vec<(f64, f64)>,
+    normals: Vec<[DexelNormal; 2]>,
 }
 
 /// 1 本のデクセルの区間の、格子の区間の配列の中の位置
@@ -230,55 +258,240 @@ impl DexelGrid {
     /// `scratch` は区間の計算に使う作業用の列（呼び出しの間で使い回し、確保を減らす）。
     pub(crate) fn subtract(
         &mut self,
-        primitive: &crate::stock_model::SweptToolPrimitive,
+        primitive: &SweptToolPrimitive,
         scratch: &mut Scratch,
     ) -> f64 {
-        let bounds = primitive.bounds();
-        let (low, high) = (coordinates(bounds.min()), coordinates(bounds.max()));
-        let [u, v] = self.plane_axes;
-        let (along_low, along_high) = (low[self.axis], high[self.axis]);
+        let PrimitiveRanges {
+            rows,
+            columns,
+            along,
+        } = self.primitive_ranges(primitive);
         let mut removed_length = 0.0;
-        for i in self.index_range(0, low[u], high[u]) {
-            for j in self.index_range(1, low[v], high[v]) {
+        for i in rows {
+            for j in columns.clone() {
                 let index = i * self.count[1] + j;
                 let current = self.current(index);
-                // 除去する区間は掃引体の外接する箱の中にあるため、箱の中に材料がない線は変わらない
-                if !current
-                    .iter()
-                    .any(|&(low, high)| along_low < high && low < along_high)
-                {
-                    continue;
-                }
-                let line = self.line(i, j);
-                let removed = swept_primitive_intervals(primitive, line);
-                // 除去する区間が材料の区間と重ならない線は変わらない
-                let overlaps = removed.iter().flatten().any(|removed| {
-                    let (start, end) = removed.range;
-                    current.iter().any(|&(low, high)| start < high && low < end)
-                });
-                if !overlaps {
-                    continue;
-                }
-                let Scratch {
-                    intervals: [next, other],
-                    normals: [next_normals, other_normals],
-                } = scratch;
-                next.clear();
-                next.extend_from_slice(current);
-                next_normals.clear();
-                next_normals.extend_from_slice(self.current_normals(index));
-                for removed in removed.iter().flatten() {
-                    subtract_interval(next, next_normals, removed, line, other, other_normals);
-                    std::mem::swap(next, other);
-                    std::mem::swap(next_normals, other_normals);
-                }
-                if next.as_slice() != current {
+                if self.subtract_line(
+                    primitive,
+                    (i, j),
+                    along,
+                    current,
+                    self.current_normals(index),
+                    scratch,
+                ) {
+                    let [next, _] = &scratch.intervals;
+                    let [next_normals, _] = &scratch.normals;
                     removed_length += total_length(current) - total_length(next);
                     self.set(index, next, next_normals);
                 }
             }
         }
         removed_length
+    }
+
+    /// 掃引体の列を時点ごとに差し引き、時点ごとの変わる前の区間と変わったデクセル（昇順）を返す
+    ///
+    /// `frames` は時点ごとの掃引体の列。差し引く範囲の線が多いほうの格子の方向を `bands` 本の帯に分け、帯ごとに別の
+    /// スレッドですべての時点を差し引く。区間は格子の 1 つの配列に持つため、帯のスレッドは変わったデクセルの区間を
+    /// 手元に持って差し引きを続け、時点の終わりの区間を格子に当てる。1 本のデクセルに当てる掃引体の順は `subtract` と
+    /// 同じため、同じ状態になる。
+    pub(crate) fn subtract_frames(
+        &mut self,
+        frames: &[&[SweptToolPrimitive]],
+        bands: usize,
+    ) -> Vec<(PreviousIntervals, Vec<usize>)> {
+        // 差し引く範囲の、格子の 2 方向の線の番号
+        let mut covered = [(usize::MAX, 0); 2];
+        for primitive in frames.iter().flat_map(|frame| frame.iter()) {
+            let PrimitiveRanges { rows, columns, .. } = self.primitive_ranges(primitive);
+            for ((first, last), range) in covered.iter_mut().zip([rows, columns]) {
+                if !range.is_empty() {
+                    *first = (*first).min(range.start);
+                    *last = (*last).max(range.end);
+                }
+            }
+        }
+        let lengths = covered.map(|(first, last)| last.saturating_sub(first));
+        let split = usize::from(lengths[1] > lengths[0]);
+        let (first, last) = covered[split];
+        let lines = first.min(last)..last;
+        // 線の少ない帯は、スレッドを作る手間が差し引きの時間を上回るため、帯の線の数に下限を置く
+        let band_lines = lines.len().div_ceil(bands.max(1)).max(MIN_BAND_LINES);
+        let grid = &*self;
+        let changes: Vec<Vec<BandFrame>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = lines
+                .clone()
+                .step_by(band_lines)
+                .map(|start| {
+                    let band = start..(start + band_lines).min(lines.end);
+                    scope.spawn(move || grid.subtract_band(frames, split, band))
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().expect("subtracting a band does not panic"))
+                .collect()
+        });
+        (0..frames.len())
+            .map(|frame| {
+                self.record_previous(true);
+                for band in &changes {
+                    let band = &band[frame];
+                    for &(index, [start, end]) in &band.dexels {
+                        self.set(
+                            index,
+                            &band.intervals[start..end],
+                            &band.normals[start..end],
+                        );
+                    }
+                }
+                let previous = self.take_previous();
+                self.record_previous(false);
+                (previous, self.take_changed())
+            })
+            .collect()
+    }
+
+    /// 格子の方向 `split` の線の番号が `band` の範囲のデクセルから、掃引体の列を時点ごとに差し引き、時点ごとに
+    /// 変わったデクセルの時点の終わりの区間を返す（格子は書き換えない）
+    fn subtract_band(
+        &self,
+        frames: &[&[SweptToolPrimitive]],
+        split: usize,
+        band: std::ops::Range<usize>,
+    ) -> Vec<BandFrame> {
+        // 帯の中の位置ごとの、変わったデクセルの `dexels` の中の番号
+        let other = self.count[1 - split];
+        let mut positions = vec![u32::MAX; band.len() * other];
+        let mut dexels: Vec<BandDexel> = Vec::new();
+        let mut scratch = Scratch::default();
+        frames
+            .iter()
+            .enumerate()
+            .map(|(frame, primitives)| {
+                let mut changed = Vec::new();
+                for primitive in *primitives {
+                    let PrimitiveRanges {
+                        mut rows,
+                        mut columns,
+                        along,
+                    } = self.primitive_ranges(primitive);
+                    let clipped = if split == 0 { &mut rows } else { &mut columns };
+                    *clipped = clipped.start.max(band.start)..clipped.end.min(band.end);
+                    for i in rows {
+                        for j in columns.clone() {
+                            let index = i * self.count[1] + j;
+                            let (inside, across) = if split == 0 { (i, j) } else { (j, i) };
+                            let position = (inside - band.start) * other + across;
+                            let local = positions[position];
+                            let (current, current_normals) = match dexels.get(local as usize) {
+                                Some(dexel) => {
+                                    (dexel.intervals.as_slice(), dexel.normals.as_slice())
+                                }
+                                None => (self.current(index), self.current_normals(index)),
+                            };
+                            if !self.subtract_line(
+                                primitive,
+                                (i, j),
+                                along,
+                                current,
+                                current_normals,
+                                &mut scratch,
+                            ) {
+                                continue;
+                            }
+                            if local == u32::MAX {
+                                positions[position] = u32::try_from(dexels.len())
+                                    .expect("dexel count is bounded by the line limit");
+                                dexels.push(BandDexel {
+                                    index,
+                                    ..BandDexel::default()
+                                });
+                            }
+                            let local = positions[position] as usize;
+                            let dexel = &mut dexels[local];
+                            dexel.intervals.clear();
+                            dexel.intervals.extend_from_slice(&scratch.intervals[0]);
+                            dexel.normals.clear();
+                            dexel.normals.extend_from_slice(&scratch.normals[0]);
+                            if dexel.changed_frame != Some(frame) {
+                                dexel.changed_frame = Some(frame);
+                                changed.push(local);
+                            }
+                        }
+                    }
+                }
+                let mut result = BandFrame::default();
+                for local in changed {
+                    let dexel = &dexels[local];
+                    let start = result.intervals.len();
+                    result.intervals.extend_from_slice(&dexel.intervals);
+                    result.normals.extend_from_slice(&dexel.normals);
+                    result
+                        .dexels
+                        .push((dexel.index, [start, result.intervals.len()]));
+                }
+                result
+            })
+            .collect()
+    }
+
+    /// 掃引体の外接する箱に入る、格子の 2 方向の線の番号の範囲と、デクセルの向きの座標の範囲
+    fn primitive_ranges(&self, primitive: &SweptToolPrimitive) -> PrimitiveRanges {
+        let bounds = primitive.bounds();
+        let (low, high) = (coordinates(bounds.min()), coordinates(bounds.max()));
+        let [u, v] = self.plane_axes;
+        PrimitiveRanges {
+            rows: self.index_range(0, low[u], high[u]),
+            columns: self.index_range(1, low[v], high[v]),
+            along: (low[self.axis], high[self.axis]),
+        }
+    }
+
+    /// 格子の位置 `(i, j)` のデクセル（今の区間 `current`・法線 `current_normals`）から掃引体を差し引いた区間と法線を
+    /// `scratch` の 1 組目に作り、区間が変わるかを返す（変わらない場合、`scratch` の中身は使わない）
+    ///
+    /// `along` は、掃引体の外接する箱のデクセルの向きの座標の範囲。
+    fn subtract_line(
+        &self,
+        primitive: &SweptToolPrimitive,
+        (i, j): (usize, usize),
+        (along_low, along_high): (f64, f64),
+        current: &[(f64, f64)],
+        current_normals: &[[DexelNormal; 2]],
+        scratch: &mut Scratch,
+    ) -> bool {
+        // 除去する区間は掃引体の外接する箱の中にあるため、箱の中に材料がない線は変わらない
+        if !current
+            .iter()
+            .any(|&(low, high)| along_low < high && low < along_high)
+        {
+            return false;
+        }
+        let line = self.line(i, j);
+        let removed = swept_primitive_intervals(primitive, line);
+        // 除去する区間が材料の区間と重ならない線は変わらない
+        let overlaps = removed.iter().flatten().any(|removed| {
+            let (start, end) = removed.range;
+            current.iter().any(|&(low, high)| start < high && low < end)
+        });
+        if !overlaps {
+            return false;
+        }
+        let Scratch {
+            intervals: [next, other],
+            normals: [next_normals, other_normals],
+        } = scratch;
+        next.clear();
+        next.extend_from_slice(current);
+        next_normals.clear();
+        next_normals.extend_from_slice(current_normals);
+        for removed in removed.iter().flatten() {
+            subtract_interval(next, next_normals, removed, line, other, other_normals);
+            std::mem::swap(next, other);
+            std::mem::swap(next_normals, other_normals);
+        }
+        next.as_slice() != current
     }
 
     /// 変わる前の区間を記録するか（`record`）を決める。記録をやめると、それまでの記録は捨てる

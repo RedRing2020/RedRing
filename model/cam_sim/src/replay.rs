@@ -17,7 +17,7 @@ use crate::error::SimulationError;
 use crate::simulation_artifact::{
     CuttingSimulationArtifact, DexelGridStates, DexelState, dexel_count,
 };
-use crate::stock_model::StockModel;
+use crate::stock_model::{StockModel, SweptToolPrimitive};
 use crate::tri_dexel::{DexelGrid, PreviousIntervals, Scratch, initial_normals};
 
 /// 同じデクセルの前の変化がないことを表す番号
@@ -184,34 +184,28 @@ impl CuttingSimulationReplay {
     /// 時点を 1 つずつ `target` まで進めて掃引体を差し引き、時点ごとに戻るための記録を残す（記録は、経路の距離で
     /// キーフレームの間隔の分だけ残す）
     ///
-    /// 3 つの格子は互いに独立なため、格子ごとに別のスレッドで、すべての時点を続けて進める。
+    /// 3 つの格子は互いに独立なため、格子ごとに別のスレッドで、すべての時点を続けて進める。格子の中も、帯に分けて
+    /// 別のスレッドで差し引く（`DexelGrid::subtract_frames`）。
     fn step_forward(&mut self, target: usize) {
         let applied = &self.artifact.snapshot_applied[self.snapshot + 1..=target];
         let primitives = self.model.primitives();
         let start = self.applied;
+        let frames: Vec<&[SweptToolPrimitive]> = std::iter::once(start)
+            .chain(applied.iter().copied())
+            .zip(applied)
+            .map(|(from, &until)| &primitives[from..until])
+            .collect();
+        // 格子ごとに別のスレッドで、さらに格子を帯に分けて並べる（コアを 3 つの格子で分ける）
+        let threads = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+        let bands = (threads / 3).max(1);
         // 格子ごとの、時点ごとの変わる前の区間と、変わったデクセル
         let steps: [Vec<(PreviousIntervals, Vec<usize>)>; 3] = std::thread::scope(|scope| {
             let handles: Vec<_> = self
                 .grids
                 .iter_mut()
-                .zip(&mut self.scratch)
-                .map(|(grid, scratch)| {
-                    scope.spawn(move || {
-                        let mut done = start;
-                        applied
-                            .iter()
-                            .map(|&until| {
-                                grid.record_previous(true);
-                                for primitive in &primitives[done..until] {
-                                    grid.subtract(primitive, scratch);
-                                }
-                                done = until;
-                                let previous = grid.take_previous();
-                                grid.record_previous(false);
-                                (previous, grid.take_changed())
-                            })
-                            .collect::<Vec<_>>()
-                    })
+                .map(|grid| {
+                    let frames = &frames;
+                    scope.spawn(move || grid.subtract_frames(frames, bands))
                 })
                 .collect();
             let mut steps = handles
