@@ -57,7 +57,8 @@ fn triangle3d_ray3d_intersection_raw<T: Scalar>(
     let a = edge1.dot(h);
 
     // |a| = |d · (e1 × e2)| は、半直線と面の法線のなす角の余弦に面積の 2 倍を掛けた量
-    if a.abs() <= default_parallel_cross_error_tolerance::<T>() * edge1.cross(edge2).length() {
+    let double_area = edge1.cross(edge2).length();
+    if a.abs() <= default_parallel_cross_error_tolerance::<T>() * double_area {
         return None;
     }
 
@@ -67,13 +68,13 @@ fn triangle3d_ray3d_intersection_raw<T: Scalar>(
     let q = s.cross(edge1);
     let v = f * ray_dir.dot(q);
 
-    // 重心座標に |a| を掛けた量を、半直線の向きから見た辺の長さで割ると、その辺から内側への距離になる。辺から
-    // `tolerance` まで外の点も交点とする（同じ平面の三角形が共有する辺の上の点を、丸め誤差で両方が外さないため）
-    let margin = |edge: Vector3D<T>| tolerance * ray_dir.cross(edge).length();
-    let scale = a.abs();
-    if u * scale < -margin(edge2)
-        || v * scale < -margin(edge1)
-        || (T::ONE - u - v) * scale < -margin(edge2 - edge1)
+    // 重心座標に面積の 2 倍を掛けた量を辺の長さで割ると、面の中での、その辺から内側への距離になる。辺から
+    // `tolerance` まで外の点も交点とする（同じ平面の三角形が共有する辺の上の点を、丸め誤差で両方が外さないため）。
+    // 面の中の距離で判定するため、急な面でも三角形から外れた点を受け入れない
+    let margin = |edge: Vector3D<T>| tolerance * edge.length();
+    if u * double_area < -margin(edge2)
+        || v * double_area < -margin(edge1)
+        || (T::ONE - u - v) * double_area < -margin(edge2 - edge1)
     {
         return None;
     }

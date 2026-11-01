@@ -308,3 +308,90 @@ fn edges_of_a_face_overlapping_its_reverse_side_are_kept() {
         assert!(shape.tip_height_at(5.0, -0.25).is_some(), "{shape:?}");
     }
 }
+
+#[test]
+fn downward_faces_of_open_shapes_exposed_from_above_have_heights() {
+    // 張り出しの下の面 z = 3（外向きは下）が、上面 z = 4（x 0..10）より左（x -5..0）にはみ出し、上から見える
+    let sheet = extruded(&[(0.0, 4.0), (10.0, 4.0), (10.0, 3.0), (-5.0, 3.0)]);
+    for shape in SHAPES {
+        let inverse = InverseOffsetShape::new(&sheet, shape).unwrap();
+        let tip = inverse.tip_height_at(-3.0, 5.0);
+        assert!(
+            tip.is_some_and(|z| (z - 3.0).abs() < 1e-12),
+            "{shape:?}: {tip:?}"
+        );
+        // 上面の下に隠れている部分は、上面で決まる
+        assert!((inverse.tip_height_at(5.0, 5.0).unwrap() - 4.0).abs() < 1e-12);
+        let all = InverseOffsetShape::build(&sheet, shape, false).unwrap();
+        assert_same(&heights(&inverse, 10.0), &heights(&all, 10.0));
+    }
+}
+
+#[test]
+fn downward_faces_of_closed_shapes_are_not_indexed() {
+    // 閉じた四面体の底面（外向きは下）は、上から届かない
+    let tetrahedron = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+            Point3D::new(0.0, 10.0, 0.0),
+            Point3D::new(2.0, 2.0, 5.0),
+        ],
+        vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
+    )
+    .unwrap();
+    for shape in SHAPES {
+        let inverse = InverseOffsetShape::new(&tetrahedron, shape).unwrap();
+        assert!(inverse.upper_sides.is_empty());
+        let all = InverseOffsetShape::build(&tetrahedron, shape, false).unwrap();
+        assert_same(&heights(&inverse, 10.0), &heights(&all, 10.0));
+    }
+}
+
+#[test]
+fn distant_low_triangles_do_not_change_the_heights() {
+    // z = 10 の正方形と、XY で離れた z = -1e20 の三角形
+    let square = |with_low: bool| {
+        let mut vertices = vec![
+            Point3D::new(0.0, 0.0, 10.0),
+            Point3D::new(10.0, 0.0, 10.0),
+            Point3D::new(10.0, 10.0, 10.0),
+            Point3D::new(0.0, 10.0, 10.0),
+        ];
+        let mut triangles = vec![[0, 1, 2], [0, 2, 3]];
+        if with_low {
+            vertices.extend([
+                Point3D::new(100.0, 100.0, -1e20),
+                Point3D::new(110.0, 100.0, -1e20),
+                Point3D::new(100.0, 110.0, -1e20),
+            ]);
+            triangles.push([4, 5, 6]);
+        }
+        TriangleMesh3D::new(vertices, triangles).unwrap()
+    };
+    for shape in SHAPES {
+        let inverse = InverseOffsetShape::new(&square(true), shape).unwrap();
+        let tip = inverse.tip_height_at(5.0, 5.0);
+        assert!(
+            tip.is_some_and(|z| (z - 10.0).abs() < 1e-12),
+            "{shape:?}: {tip:?}"
+        );
+    }
+}
+
+#[test]
+fn steep_faces_do_not_extend_beyond_the_triangle() {
+    // ほぼ鉛直な面。面の外の点を半直線の向きから見た距離で受け入れると、面を延ばした高さ（約 100.0025）が返る
+    let mesh = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(2e-8, 0.0, 100.0),
+            Point3D::new(0.0, -5.0, 0.0),
+        ],
+        vec![[0, 1, 2]],
+    )
+    .unwrap();
+    let inverse = InverseOffsetShape::new(&mesh, CutterShape::Flat { radius: 1.0 }).unwrap();
+    let tip = inverse.tip_height_at(-1.0 + 2e-8 + 5e-13, 0.0);
+    assert!(tip.is_some_and(|z| z <= 100.0), "{tip:?}");
+}
