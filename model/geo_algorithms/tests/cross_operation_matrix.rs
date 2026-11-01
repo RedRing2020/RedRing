@@ -347,6 +347,7 @@ fn intersection_2d_triangle_clips_the_segment() {
 
 #[test]
 fn intersection_2d_returns_points_in_both_directions() {
+    use geo_algorithms::IntersectionTopology;
     let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
     let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
     assert_eq!(point_count(&ray.intersection(&circle, TOLERANCE)), 2);
@@ -363,7 +364,14 @@ fn intersection_2d_returns_points_in_both_directions() {
     assert_eq!(point_count(&through.intersection(&circle, TOLERANCE)), 2);
     assert_eq!(point_count(&circle.intersection(&through, TOLERANCE)), 2);
     let into = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(0.0, 0.0)).unwrap();
-    assert_eq!(point_count(&into.intersection(&circle, TOLERANCE)), 1);
+    let into_result = into.intersection(&circle, TOLERANCE);
+    assert_eq!(point_count(&into_result), 1);
+    assert_eq!(into_result.topology, IntersectionTopology::Crossing);
+    // 接する線分は 1 点で接する
+    let touching = LineSegment2D::new(Point2D::new(-2.0, 1.0), Point2D::new(2.0, 1.0)).unwrap();
+    let touching_result = touching.intersection(&circle, TOLERANCE);
+    assert_eq!(point_count(&touching_result), 1);
+    assert_eq!(touching_result.topology, IntersectionTopology::Touching);
     let within = LineSegment2D::new(Point2D::new(-0.5, 0.0), Point2D::new(0.5, 0.0)).unwrap();
     assert!(!within.intersection(&circle, TOLERANCE).intersects());
 
@@ -482,6 +490,30 @@ fn intersection_3d_linear_and_planar() {
 }
 
 #[test]
+fn intersection_3d_ray_on_the_shared_edge_of_coplanar_triangles_hits_a_triangle() {
+    // 同じ平面の 2 つの三角形 [A, B, C]・[C, D, A] が共有する辺 AC の上の点。重心座標を許容誤差なしで判定すると、
+    // 丸め誤差で両方とも外れる
+    let [a, b, c, d] =
+        [(0.1, 0.2), (9.8, 3.5), (6.5, 13.2), (-3.2, 9.9)].map(|(x, y)| Point3D::new(x, y, 0.0));
+    let up = Ray3D::new(
+        Point3D::new(0.9960000000000001, 2.0200000000000005, -1.2),
+        Vector3D::new(0.0, 0.0, 1.0),
+    )
+    .unwrap();
+    let hits = [Triangle3D::new(a, b, c), Triangle3D::new(c, d, a)]
+        .map(|triangle| triangle.unwrap().intersection(&up, TOLERANCE).intersects());
+    assert!(hits.iter().any(|&hit| hit), "{hits:?}");
+    // 辺から許容誤差より離れた外の点は交わらない
+    let outside = Ray3D::new(
+        Point3D::new(0.1, 0.2 - 1e-3, -1.2),
+        Vector3D::new(0.0, 0.0, 1.0),
+    )
+    .unwrap();
+    let triangle = Triangle3D::new(a, b, c).unwrap();
+    assert!(!triangle.intersection(&outside, TOLERANCE).intersects());
+}
+
+#[test]
 fn intersection_3d_quadric() {
     let sphere = SphericalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
     let ray = Ray3D::new(Point3D::new(-2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
@@ -548,6 +580,7 @@ fn intersection_3d_quadric() {
 /// 交差の結果が線分なら両端の点を返す
 #[test]
 fn intersection_3d_cylindrical_surface_and_ray() {
+    use geo_algorithms::IntersectionTopology;
     // 軸が Z、半径 1 の円柱面
     let cylinder = CylindricalSurface3D::new(
         Point3D::new(0.0, 0.0, 0.0),
@@ -597,12 +630,19 @@ fn intersection_3d_cylindrical_surface_and_ray() {
         &points(cylinder.intersection(&slanted, TOLERANCE)),
         &[[-1.0, 0.0, 1.0], [1.0, 0.0, 3.0]]
     ));
-    // 接する半直線は 1 点
+    // 接する半直線は 1 点で接する
     let tangent = ray([-2.0, 1.0, 0.0], [1.0, 0.0, 0.0]);
-    assert!(close(
-        &points(cylinder.intersection(&tangent, TOLERANCE)),
-        &[[0.0, 1.0, 0.0]]
-    ));
+    let tangent_result = cylinder.intersection(&tangent, TOLERANCE);
+    assert_eq!(tangent_result.topology, IntersectionTopology::Touching);
+    assert!(close(&points(tangent_result), &[[0.0, 1.0, 0.0]]));
+    // 面のすぐ内側から面に沿うように出る半直線は、後ろの解と前の解が近くても前の 1 点で交わる
+    let grazing = ray([1.0 - 1e-14, 0.0, 0.0], [0.0, 1.0, 0.0]);
+    assert_eq!(points(cylinder.intersection(&grazing, TOLERANCE)).len(), 1);
+    // 軸とわずかに傾いた半直線は、遠くで交わる（平行の判定は角度の許容誤差で行う）
+    let steep = ray([0.0, 0.0, 0.0], [5e-7, 0.0, 1.0]);
+    let steep_points = points(cylinder.intersection(&steep, TOLERANCE));
+    assert_eq!(steep_points.len(), 1);
+    assert!((steep_points[0][0] - 1.0).abs() < 1e-9);
     // 円柱の中から出る半直線は 1 点、離れる半直線・外れる半直線・軸と平行な半直線は交わらない
     let inside = ray([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]);
     assert!(close(

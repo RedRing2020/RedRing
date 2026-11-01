@@ -218,3 +218,35 @@ fn the_order_of_triangle_vertices_does_not_change_the_heights() {
         assert_same(&heights(&mixed, 12.0), &heights(&aligned, 12.0));
     }
 }
+
+#[test]
+fn nonpositive_or_nonfinite_radii_are_rejected() {
+    for radius in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        for shape in [CutterShape::Ball { radius }, CutterShape::Flat { radius }] {
+            assert!(
+                InverseOffsetShape::new(&step(), shape).is_err(),
+                "{shape:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn points_on_a_shared_edge_of_a_flat_face_have_a_height() {
+    // 平らな四角形 [A, B, C]・[C, D, A] の共有辺 AC は外す。辺の上の点で、両方の三角形の要素が丸め誤差で外れない
+    let face = TriangleMesh3D::new(
+        [(0.1, 0.2), (9.8, 3.5), (6.5, 13.2), (-3.2, 9.9)]
+            .map(|(x, y)| Point3D::new(x, y, 0.0))
+            .to_vec(),
+        vec![[0, 1, 2], [2, 3, 0]],
+    )
+    .unwrap();
+    for shape in [
+        CutterShape::Ball { radius: 0.1 },
+        CutterShape::Flat { radius: 0.1 },
+    ] {
+        let shape = InverseOffsetShape::new(&face, shape).unwrap();
+        let tip = shape.tip_height_at(0.9960000000000001, 2.0200000000000005);
+        assert!(tip.is_some_and(|z| z.abs() < 1e-12), "{tip:?}");
+    }
+}

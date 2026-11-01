@@ -81,7 +81,7 @@ impl InverseOffsetShape {
     ///
     /// # Errors
     ///
-    /// 面積のある三角形がない場合。
+    /// 工具の半径が正の有限値でない場合と、面積のある三角形がない場合。
     pub fn new(mesh: &TriangleMesh3D<f64>, shape: CutterShape) -> Result<Self, CamSolverError> {
         Self::build(mesh, shape, true)
     }
@@ -92,13 +92,18 @@ impl InverseOffsetShape {
         shape: CutterShape,
         exclude_concave: bool,
     ) -> Result<Self, CamSolverError> {
+        let radius = shape.radius();
+        if !(radius.is_finite() && radius > 0.0) {
+            return Err(CamSolverError::InvalidInput(
+                "inverse offset shape requires a positive finite cutter radius".to_string(),
+            ));
+        }
         let MeshTriangles {
             vertices,
             triangles,
             xy_min,
             xy_max,
         } = MeshTriangles::new(mesh)?;
-        let radius = shape.radius();
         let adjacency = TriangleMeshAdjacency::from_triangles(vertices.len(), &triangles);
         let (triangles, outward_known) = orient_outward(mesh, &adjacency, triangles, &vertices)?;
         let normals: Vec<[f64; 3]> = triangles

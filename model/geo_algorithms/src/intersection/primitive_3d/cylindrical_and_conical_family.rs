@@ -8,9 +8,9 @@ use crate::{
 };
 use analysis::{minimize_unimodal, polynomial_real_roots_in_interval};
 use geo_contracts::{
-    ConicalSolid3DDistance, ConicalSolid3DProperties, ConicalSurface3DDistance,
-    CylindricalSurface3DProperties, InfiniteLine3DProperties, LineSegment3DProperties,
-    Ray3DProperties, Scalar,
+    default_parallel_cross_error_tolerance, ConicalSolid3DDistance, ConicalSolid3DProperties,
+    ConicalSurface3DDistance, CylindricalSurface3DProperties, InfiniteLine3DProperties,
+    LineSegment3DProperties, Ray3DProperties, Scalar,
 };
 
 fn conical_solid3d_point3d_intersection_raw<T: Scalar>(
@@ -73,7 +73,9 @@ pub fn ray3d_cylindrical_surface3d_intersections<T: Scalar>(
     let normal = direction.cross(axis);
     let normal_squared = normal.dot(normal);
     let mut points = Vec::new();
-    if normal_squared > tolerance * tolerance {
+    let mut tangent = false;
+    let parallel = default_parallel_cross_error_tolerance::<T>();
+    if normal_squared > parallel * parallel {
         // 軸に最も近づく点 t_c と、そこでの軸までの距離 h（2 直線の距離）を先に求め、t = t_c ± √(r² − h²) / |n| とする。
         // 始点が軸から半径より大きく離れていても、r² が桁落ちで失われない
         let gap = offset.dot(normal);
@@ -82,16 +84,17 @@ pub fn ray3d_cylindrical_surface3d_intersections<T: Scalar>(
             let closest = -offset.cross(axis).dot(normal) / normal_squared;
             let half = (remaining / normal_squared).sqrt();
             let (t1, t2) = (closest - half, closest + half);
+            // 接する場合（2 つの解が許容誤差の中で一致）は 1 点にする
+            tangent = t2 - t1 <= tolerance;
             if t1 >= T::ZERO {
                 points.push(origin + direction * t1);
             }
-            // 接する場合（2 つの解が許容誤差の中で一致）は 1 点にする
-            if t2 >= T::ZERO && t2 - t1 > tolerance {
+            if t2 >= T::ZERO && !(tangent && t1 >= T::ZERO) {
                 points.push(origin + direction * t2);
             }
         }
     }
-    IntersectionResult::from_option_points(points, false, tolerance)
+    IntersectionResult::from_option_points(points, tangent, tolerance)
 }
 
 pub fn conical_surface3d_infinite_line3d_intersections<T: Scalar>(

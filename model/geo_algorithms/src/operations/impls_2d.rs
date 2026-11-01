@@ -237,9 +237,6 @@ fn line_segment2d_circle2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    IntersectionResult::from_option_points2d(
-        line_segment2d_circle2d_intersections(segment, circle, tolerance),
-        false,
-        tolerance,
-    )
+    let (points, tangent) = line_segment2d_circle2d_intersections(segment, circle, tolerance);
+    IntersectionResult::from_option_points2d(points, tangent, tolerance)
 }
