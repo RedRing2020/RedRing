@@ -2,8 +2,10 @@
 //!
 //! メッシュは数値のキーで持ち、キーごとに差し替え・削除できる。不透明なメッシュを先に描き、半透明（色のアルファ < 1）の
 //! メッシュは色を混ぜて、深度を書かずに後から描く。ワイヤーフレームの表示では、すべてのメッシュの三角形の辺を描く。
+//!
+//! 行列と色の uniform は色ごとに 1 つ持ち、同じ色のメッシュで共有する（カメラが動いたときの書き込みを色の数だけにする）。
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::mesh::MeshUniforms;
 use crate::shader;
@@ -24,14 +26,72 @@ struct GpuMesh {
     index_buffer: wgpu::Buffer,
     index_count: u32,
     color: [f32; 4],
-    uniform_buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
 }
 
 impl GpuMesh {
     fn is_translucent(&self) -> bool {
         self.color[3] < 1.0
     }
+}
+
+/// 1 つの色の、行列と色の uniform
+struct ColorUniform {
+    uniform_buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
+}
+
+/// 色ごとに 1 つ持つ値と、その色を使うメッシュの数（使うメッシュがなくなった色の値は消す）
+struct SharedByColor<T> {
+    entries: HashMap<[u32; 4], (T, usize)>,
+}
+
+impl<T> Default for SharedByColor<T> {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::new(),
+        }
+    }
+}
+
+impl<T> SharedByColor<T> {
+    /// 色 `color` を使うメッシュを 1 つ増やす（その色の値がなければ `make` で作る）
+    fn acquire(&mut self, color: [f32; 4], make: impl FnOnce() -> T) {
+        self.entries
+            .entry(color_key(color))
+            .or_insert_with(|| (make(), 0))
+            .1 += 1;
+    }
+
+    /// 色 `color` を使うメッシュを 1 つ減らす（使うメッシュがなくなれば値を消す）
+    fn release(&mut self, color: [f32; 4]) {
+        let key = color_key(color);
+        if let Some((_, count)) = self.entries.get_mut(&key) {
+            *count -= 1;
+            if *count == 0 {
+                self.entries.remove(&key);
+            }
+        }
+    }
+
+    fn get(&self, color: [f32; 4]) -> Option<&T> {
+        self.entries.get(&color_key(color)).map(|(value, _)| value)
+    }
+
+    /// 色と値の組
+    fn iter(&self) -> impl Iterator<Item = ([f32; 4], &T)> {
+        self.entries
+            .iter()
+            .map(|(key, (value, _))| (key.map(f32::from_bits), value))
+    }
+
+    fn clear(&mut self) {
+        self.entries.clear();
+    }
+}
+
+/// 色を表のキーにする（成分のビット列）
+fn color_key(color: [f32; 4]) -> [u32; 4] {
+    color.map(f32::to_bits)
 }
 
 /// 色の異なる複数のメッシュの描画リソース
@@ -41,6 +101,7 @@ pub struct MeshListResources {
     wireframe_pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
     meshes: BTreeMap<u64, GpuMesh>,
+    colors: SharedByColor<ColorUniform>,
     /// 最後に設定したビュー・プロジェクション行列（後から加えたメッシュにも使う）
     view_proj: [[f32; 4]; 4],
     wireframe: bool,
@@ -144,6 +205,7 @@ impl MeshListResources {
             ),
             bind_group_layout,
             meshes: BTreeMap::new(),
+            colors: SharedByColor::default(),
             view_proj: MeshUniforms::default().view_proj,
             wireframe: false,
         }
@@ -152,6 +214,7 @@ impl MeshListResources {
     /// 描画するメッシュをすべて置き換える（三角形のないメッシュは描かない）
     pub fn set_meshes(&mut self, device: &wgpu::Device, items: Vec<(u64, MeshListItem)>) {
         self.meshes.clear();
+        self.colors.clear();
         for (key, item) in items {
             self.set_mesh(device, key, item);
         }
@@ -159,44 +222,33 @@ impl MeshListResources {
 
     /// キー `key` のメッシュを差し替える（三角形がなければ削除する）
     pub fn set_mesh(&mut self, device: &wgpu::Device, key: u64, item: MeshListItem) {
-        if item.vertices.is_empty() || item.indices.is_empty() {
-            self.meshes.remove(&key);
-            return;
-        }
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Mesh List Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[MeshUniforms {
-                view_proj: self.view_proj,
-                base_color: item.color,
-                ..MeshUniforms::default()
-            }]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &self.bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-            label: Some("mesh_list_bind_group"),
-        });
-        let mesh = GpuMesh {
-            vertex_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Mesh List Vertex Buffer"),
-                contents: bytemuck::cast_slice(&item.vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            }),
-            index_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Mesh List Index Buffer"),
-                contents: bytemuck::cast_slice(&item.indices),
-                usage: wgpu::BufferUsages::INDEX,
-            }),
-            index_count: item.indices.len() as u32,
-            color: item.color,
-            uniform_buffer,
-            bind_group,
+        let previous = if item.vertices.is_empty() || item.indices.is_empty() {
+            self.meshes.remove(&key)
+        } else {
+            // 前の色を減らす前に新しい色を数えるため、同じ色への差し替えでは uniform を作り直さない
+            let (view_proj, layout) = (self.view_proj, &self.bind_group_layout);
+            self.colors.acquire(item.color, || {
+                color_uniform(device, layout, view_proj, item.color)
+            });
+            let mesh = GpuMesh {
+                vertex_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Mesh List Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&item.vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                }),
+                index_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Mesh List Index Buffer"),
+                    contents: bytemuck::cast_slice(&item.indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                }),
+                index_count: item.indices.len() as u32,
+                color: item.color,
+            };
+            self.meshes.insert(key, mesh)
         };
-        self.meshes.insert(key, mesh);
+        if let Some(previous) = previous {
+            self.colors.release(previous.color);
+        }
     }
 
     /// ワイヤーフレームの表示にするか
@@ -213,13 +265,17 @@ impl MeshListResources {
     ) {
         let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
         self.view_proj = view_proj;
-        for mesh in self.meshes.values() {
+        for (color, uniform) in self.colors.iter() {
             let uniforms = MeshUniforms {
                 view_proj,
-                base_color: mesh.color,
+                base_color: color,
                 ..MeshUniforms::default()
             };
-            queue.write_buffer(&mesh.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+            queue.write_buffer(
+                &uniform.uniform_buffer,
+                0,
+                bytemuck::cast_slice(&[uniforms]),
+            );
         }
     }
 
@@ -228,7 +284,7 @@ impl MeshListResources {
         if self.wireframe {
             render_pass.set_pipeline(&self.wireframe_pipeline);
             for mesh in self.meshes.values() {
-                draw(render_pass, mesh);
+                draw(render_pass, &self.colors, mesh);
             }
             return;
         }
@@ -244,15 +300,112 @@ impl MeshListResources {
                 .values()
                 .filter(|mesh| mesh.is_translucent() == translucent)
             {
-                draw(render_pass, mesh);
+                draw(render_pass, &self.colors, mesh);
             }
         }
     }
 }
 
-fn draw<'a>(render_pass: &mut wgpu::RenderPass<'a>, mesh: &'a GpuMesh) {
-    render_pass.set_bind_group(0, &mesh.bind_group, &[]);
+/// 色 `color` の、行列と色の uniform を作る
+fn color_uniform(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    view_proj: [[f32; 4]; 4],
+    color: [f32; 4],
+) -> ColorUniform {
+    let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Mesh List Uniform Buffer"),
+        contents: bytemuck::cast_slice(&[MeshUniforms {
+            view_proj,
+            base_color: color,
+            ..MeshUniforms::default()
+        }]),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        layout,
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: uniform_buffer.as_entire_binding(),
+        }],
+        label: Some("mesh_list_bind_group"),
+    });
+    ColorUniform {
+        uniform_buffer,
+        bind_group,
+    }
+}
+
+fn draw<'a>(
+    render_pass: &mut wgpu::RenderPass<'a>,
+    colors: &'a SharedByColor<ColorUniform>,
+    mesh: &'a GpuMesh,
+) {
+    let uniform = colors
+        .get(mesh.color)
+        .expect("every mesh's color has a uniform");
+    render_pass.set_bind_group(0, &uniform.bind_group, &[]);
     render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
     render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
     render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{color_key, SharedByColor};
+
+    const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+    const GLASS: [f32; 4] = [0.5, 0.5, 0.5, 0.4];
+
+    /// 色と、その色の値（作った順の番号）と、その色を使うメッシュの数（値の順）
+    fn entries(shared: &SharedByColor<usize>) -> Vec<([f32; 4], usize, usize)> {
+        let mut entries: Vec<_> = shared
+            .iter()
+            .map(|(color, &value)| (color, value, shared.entries[&color_key(color)].1))
+            .collect();
+        entries.sort_by_key(|&(_, value, _)| value);
+        entries
+    }
+
+    /// 呼ぶたびに次の番号を返す、値の作り方
+    fn numbering() -> impl FnMut() -> usize {
+        let mut made = 0;
+        move || {
+            made += 1;
+            made
+        }
+    }
+
+    #[test]
+    fn meshes_of_the_same_color_share_one_value_until_the_last_is_released() {
+        let mut shared = SharedByColor::default();
+        let mut make = numbering();
+        shared.acquire(RED, &mut make);
+        shared.acquire(RED, &mut make);
+        shared.acquire(GLASS, &mut make);
+        assert_eq!(entries(&shared), vec![(RED, 1, 2), (GLASS, 2, 1)]);
+        assert_eq!(shared.get(RED), Some(&1));
+        shared.release(RED);
+        assert_eq!(entries(&shared), vec![(RED, 1, 1), (GLASS, 2, 1)]);
+        shared.release(RED);
+        assert_eq!(shared.get(RED), None);
+        assert_eq!(entries(&shared), vec![(GLASS, 2, 1)]);
+        // 使わなくなった色をもう一度使うと、値を作り直す
+        shared.acquire(RED, &mut make);
+        assert_eq!(shared.get(RED), Some(&3));
+    }
+
+    #[test]
+    fn replacing_a_mesh_keeps_the_value_of_the_same_color_and_moves_to_another_color() {
+        let mut shared = SharedByColor::default();
+        let mut make = numbering();
+        // 差し替えは、新しい色を数えてから前の色を減らす
+        shared.acquire(RED, &mut make);
+        shared.acquire(RED, &mut make);
+        shared.release(RED);
+        assert_eq!(entries(&shared), vec![(RED, 1, 1)]);
+        shared.acquire(GLASS, &mut make);
+        shared.release(RED);
+        assert_eq!(entries(&shared), vec![(GLASS, 2, 1)]);
+    }
 }
