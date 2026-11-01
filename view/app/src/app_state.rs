@@ -129,6 +129,9 @@ pub struct AppState {
     /// 取り込んだ切削シミュレーションの切削アニメーション
     cutting_animation: Option<CuttingAnimation>,
 
+    /// 切削アニメーションを描いている色（取り込みと「設定を反映」で、設定の色にする）
+    cutting_animation_colors: SnapshotShadedColorSettings,
+
     /// 加工条件のウィンドウの、工具長を指定するときの入力値（mm）
     tool_length_input: f64,
 
@@ -215,6 +218,7 @@ impl AppState {
             product_shapes: ProductShapeScene::default(),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
+            cutting_animation_colors: SnapshotShadedColorSettings::default(),
             tool_length_input: 50.0,
             machining_conditions_open: false,
             condition_issues: None,

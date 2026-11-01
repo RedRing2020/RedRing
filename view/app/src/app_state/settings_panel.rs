@@ -56,6 +56,7 @@ impl AppState {
         self.settings_panel_open = panel_state.open;
         self.settings_panel_active_tab = panel_state.active_tab;
         self.settings_panel_locale = panel_state.locale;
+        self.set_snapshot_shaded_color_settings(panel_state.snapshot_shaded_colors);
         self.tool_wireframe_visualization_settings = panel_state.tool_wireframe_settings;
         self.toolpath_visualization_settings = panel_state.toolpath_settings;
         self.debug_snapshot.frame_step_distance_mm = panel_state.frame_step_distance_mm;

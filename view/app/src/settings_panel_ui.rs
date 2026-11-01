@@ -402,47 +402,22 @@ impl SettingsPanelUiState {
                 ));
             });
 
+        let work_label = self.text("settings.snapshot_shading.work");
+        let tool_label = self.text("settings.snapshot_shading.tool");
         CollapsingHeader::new(self.text("settings.header.snapshot_shading"))
             .default_open(false)
             .show(ui, |ui| {
-                ui.label(self.text_with_args(
-                    "settings.snapshot_shading.work",
-                    &[
-                        (
-                            "r",
-                            format!("{:.2}", self.snapshot_shaded_colors.work_solid_color[0]),
-                        ),
-                        (
-                            "g",
-                            format!("{:.2}", self.snapshot_shaded_colors.work_solid_color[1]),
-                        ),
-                        (
-                            "b",
-                            format!("{:.2}", self.snapshot_shaded_colors.work_solid_color[2]),
-                        ),
-                        (
-                            "a",
-                            format!("{:.2}", self.snapshot_shaded_colors.work_solid_color[3]),
-                        ),
-                    ],
-                ));
-                ui.label(self.text_with_args(
-                    "settings.snapshot_shading.tool",
-                    &[
-                        (
-                            "r",
-                            format!("{:.2}", self.snapshot_shaded_colors.tool_wire_color[0]),
-                        ),
-                        (
-                            "g",
-                            format!("{:.2}", self.snapshot_shaded_colors.tool_wire_color[1]),
-                        ),
-                        (
-                            "b",
-                            format!("{:.2}", self.snapshot_shaded_colors.tool_wire_color[2]),
-                        ),
-                    ],
-                ));
+                ui.label(self.text("settings.snapshot_shading.apply"));
+                ui.horizontal(|ui| {
+                    ui.color_edit_button_rgba_unmultiplied(
+                        &mut self.snapshot_shaded_colors.work_solid_color,
+                    );
+                    ui.label(work_label);
+                });
+                ui.horizontal(|ui| {
+                    ui.color_edit_button_rgb(&mut self.snapshot_shaded_colors.tool_wire_color);
+                    ui.label(tool_label);
+                });
             });
     }
 

@@ -158,6 +158,16 @@ impl MeshStage {
         self.mesh_list(device).set_mesh(device, key, item);
     }
 
+    /// 重ねて描くメッシュのうち、キーが `keys` の範囲のメッシュの色を変える（メッシュは作り直さない）
+    pub fn set_mesh_list_color(
+        &mut self,
+        device: &Device,
+        keys: std::ops::RangeInclusive<u64>,
+        color: [f32; 4],
+    ) {
+        self.mesh_list(device).set_color(device, keys, color);
+    }
+
     fn mesh_list(&mut self, device: &Device) -> &mut MeshListResources {
         let format = self.format;
         let wireframe = self.mesh_resources.is_wireframe();
