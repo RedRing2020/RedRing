@@ -4,7 +4,8 @@
 //! 先へ進むときは今の状態から続けて掃引体を差し引き、遠くへ飛ぶときは、移る先の手前のキーフレームの状態に戻してから
 //! 差し引く。先へ進むあいだは、時点ごとに変わったデクセルの変わる前の区間を、経路の距離でキーフレームの間隔の分だけ
 //! 残し、近くへ戻るときはそれを当てる。それより前へ戻るときは、キーフレームから作り直す。
-//! 掃引体の差し引きはシミュレーションと同じ計算のため、元の実行と同じ状態になる。
+//! 掃引体の差し引きはシミュレーションと同じ計算のため、元の実行と同じ状態になる。先へ進むときの差し引きは、
+//! 互いに独立な 3 つの格子を別のスレッドで並べて行う。
 
 use std::collections::VecDeque;
 
@@ -50,7 +51,8 @@ pub struct CuttingSimulationReplay {
     previous_change: Vec<u32>,
     /// デクセルごとの、最後のキーフレームの変化の番号
     last_change: [Vec<u32>; 3],
-    scratch: Scratch,
+    /// 格子ごとの作業用の列
+    scratch: [Scratch; 3],
     /// 今の時点まで 1 つずつ進めたときの、戻るための記録（古い順。最後は今の時点の 1 つ前から進めた記録）
     undo: VecDeque<Undo>,
     /// 戻るための記録を残す、経路の距離（mm）
@@ -113,7 +115,7 @@ impl CuttingSimulationReplay {
             since_base_dexels: Vec::new(),
             previous_change,
             last_change,
-            scratch: Scratch::default(),
+            scratch: Default::default(),
             undo: VecDeque::new(),
             undo_distance_mm: KEYFRAME_INTERVAL_MM,
             moved: Vec::new(),
@@ -165,8 +167,8 @@ impl CuttingSimulationReplay {
         if self.snapshot > target || self.applied < self.keyframe_applied(keyframe) {
             self.restore(keyframe);
         }
-        for next in self.snapshot + 1..=target {
-            self.step_forward(next);
+        if self.snapshot < target {
+            self.step_forward(target);
         }
         self.moved.sort_unstable();
         self.moved.dedup();
@@ -179,23 +181,58 @@ impl CuttingSimulationReplay {
         })
     }
 
-    /// 次の時点 `next` まで掃引体を差し引き、戻るための記録を残す（記録は、経路の距離でキーフレームの間隔の分だけ残す）
-    fn step_forward(&mut self, next: usize) {
-        for grid in &mut self.grids {
-            grid.record_previous(true);
+    /// 時点を 1 つずつ `target` まで進めて掃引体を差し引き、時点ごとに戻るための記録を残す（記録は、経路の距離で
+    /// キーフレームの間隔の分だけ残す）
+    ///
+    /// 3 つの格子は互いに独立なため、格子ごとに別のスレッドで、すべての時点を続けて進める。
+    fn step_forward(&mut self, target: usize) {
+        let applied = &self.artifact.snapshot_applied[self.snapshot + 1..=target];
+        let primitives = self.model.primitives();
+        let start = self.applied;
+        // 格子ごとの、時点ごとの変わる前の区間と、変わったデクセル
+        let steps: [Vec<(PreviousIntervals, Vec<usize>)>; 3] = std::thread::scope(|scope| {
+            let handles: Vec<_> = self
+                .grids
+                .iter_mut()
+                .zip(&mut self.scratch)
+                .map(|(grid, scratch)| {
+                    scope.spawn(move || {
+                        let mut done = start;
+                        applied
+                            .iter()
+                            .map(|&until| {
+                                grid.record_previous(true);
+                                for primitive in &primitives[done..until] {
+                                    grid.subtract(primitive, scratch);
+                                }
+                                done = until;
+                                let previous = grid.take_previous();
+                                grid.record_previous(false);
+                                (previous, grid.take_changed())
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            let mut steps = handles
+                .into_iter()
+                .map(|handle| handle.join().expect("subtracting a grid does not panic"));
+            std::array::from_fn(|_| steps.next().unwrap_or_default())
+        });
+        self.applied = applied.last().copied().unwrap_or(start);
+        let [x_steps, y_steps, z_steps] = steps;
+        for (((x_previous, x_changed), (y_previous, y_changed)), (z_previous, z_changed)) in
+            x_steps.into_iter().zip(y_steps).zip(z_steps)
+        {
+            self.undo.push_back(Undo {
+                snapshot: self.snapshot,
+                grids: [x_previous, y_previous, z_previous],
+            });
+            self.snapshot += 1;
+            for (grid, changed) in [x_changed, y_changed, z_changed].into_iter().enumerate() {
+                self.record_moved(grid, changed);
+            }
         }
-        self.subtract_until(self.artifact.snapshot_applied[next]);
-        let grids = std::array::from_fn(|grid| {
-            let previous = self.grids[grid].take_previous();
-            self.grids[grid].record_previous(false);
-            previous
-        });
-        self.undo.push_back(Undo {
-            snapshot: self.snapshot,
-            grids,
-        });
-        self.snapshot = next;
-        self.take_moved();
         let distance = |snapshot: usize| self.artifact.snapshots[snapshot].accumulated_distance_mm;
         while self.undo.front().is_some_and(|oldest| {
             distance(self.snapshot) - distance(oldest.snapshot) > self.undo_distance_mm
@@ -292,8 +329,8 @@ impl CuttingSimulationReplay {
     fn subtract_until(&mut self, applied: usize) {
         let primitives = &self.model.primitives()[self.applied..applied];
         for primitive in primitives {
-            for grid in &mut self.grids {
-                grid.subtract(primitive, &mut self.scratch);
+            for (grid, scratch) in self.grids.iter_mut().zip(&mut self.scratch) {
+                grid.subtract(primitive, scratch);
             }
         }
         self.applied = applied;
@@ -301,13 +338,20 @@ impl CuttingSimulationReplay {
 
     /// 差し引きで変わったデクセルを、前の移動で変わったデクセルと、元にしたキーフレームの後に変わったデクセルに加える
     fn take_moved(&mut self) {
-        for (grid, state) in self.grids.iter_mut().enumerate() {
-            for index in state.take_changed() {
-                let dexel = (grid as u8, dexel_number(index));
-                self.moved.push(dexel);
-                if !std::mem::replace(&mut self.since_base[grid][index], true) {
-                    self.since_base_dexels.push(dexel);
-                }
+        for grid in 0..3 {
+            let changed = self.grids[grid].take_changed();
+            self.record_moved(grid, changed);
+        }
+    }
+
+    /// 格子 `grid` の変わったデクセル `changed` を、前の移動で変わったデクセルと、元にしたキーフレームの後に変わった
+    /// デクセルに加える
+    fn record_moved(&mut self, grid: usize, changed: Vec<usize>) {
+        for index in changed {
+            let dexel = (grid as u8, dexel_number(index));
+            self.moved.push(dexel);
+            if !std::mem::replace(&mut self.since_base[grid][index], true) {
+                self.since_base_dexels.push(dexel);
             }
         }
     }
