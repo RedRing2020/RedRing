@@ -14,7 +14,6 @@ use geo_algorithms::{Aabb3D, Point3D};
 
 use crate::constants::KEYFRAME_INTERVAL_MM;
 use crate::error::SimulationError;
-use crate::parallel;
 use crate::simulation_artifact::{
     CuttingSimulationArtifact, DexelGridStates, DexelState, dexel_count,
 };
@@ -206,7 +205,7 @@ impl CuttingSimulationReplay {
                 .iter_mut()
                 .map(|grid| {
                     let frames = &frames;
-                    parallel::spawn_scoped(scope, move || grid.subtract_frames(frames, bands))
+                    scope.spawn(move || grid.subtract_frames(frames, bands))
                 })
                 .collect();
             let mut steps = handles

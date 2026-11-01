@@ -387,7 +387,6 @@ dependencies = [
  "geo_algorithms",
  "job_domain",
  "job_runtime",
- "thread-priority",
 ]
 
 [[package]]
@@ -3363,20 +3362,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "thread-priority"
-version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d2e834949be5111506bb252643498af1514f600d9e1dceedaa42afae155b67f"
-dependencies = [
- "bitflags 2.11.0",
- "cfg-if",
- "libc",
- "log",
- "rustversion",
- "windows",
-]
-
-[[package]]
 name = "thread_local"
 version = "1.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3759,7 +3744,6 @@ dependencies = [
  "logging_foundation",
  "tempfile",
  "thiserror 2.0.18",
- "thread-priority",
  "tracing",
 ]
 
