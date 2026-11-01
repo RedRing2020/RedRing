@@ -6,6 +6,7 @@
 //! 行列と色の uniform は色ごとに 1 つ持ち、同じ色のメッシュで共有する（カメラが動いたときの書き込みを色の数だけにする）。
 
 use std::collections::{BTreeMap, HashMap};
+use std::ops::RangeInclusive;
 
 use crate::mesh::MeshUniforms;
 use crate::shader;
@@ -251,6 +252,17 @@ impl MeshListResources {
         }
     }
 
+    /// キーが `keys` の範囲のメッシュの色を `color` にする（頂点と頂点番号のバッファは作り直さない）
+    pub fn set_color(&mut self, device: &wgpu::Device, keys: RangeInclusive<u64>, color: [f32; 4]) {
+        let (view_proj, layout) = (self.view_proj, &self.bind_group_layout);
+        for mesh in self.meshes.range_mut(keys).map(|(_, mesh)| mesh) {
+            self.colors
+                .acquire(color, || color_uniform(device, layout, view_proj, color));
+            self.colors.release(mesh.color);
+            mesh.color = color;
+        }
+    }
+
     /// ワイヤーフレームの表示にするか
     pub fn set_wireframe(&mut self, wireframe: bool) {
         self.wireframe = wireframe;
@@ -407,5 +419,25 @@ mod tests {
         shared.acquire(GLASS, &mut make);
         shared.release(RED);
         assert_eq!(entries(&shared), vec![(GLASS, 2, 1)]);
+    }
+
+    #[test]
+    fn recoloring_meshes_makes_the_new_color_once_and_drops_the_old_after_the_last() {
+        let mut shared = SharedByColor::default();
+        let mut make = numbering();
+        for _ in 0..3 {
+            shared.acquire(RED, &mut make);
+        }
+        // メッシュごとに、新しい色を数えてから前の色を減らす（`set_color`）
+        for remaining in (0..3).rev() {
+            shared.acquire(GLASS, &mut make);
+            shared.release(RED);
+            let red = (remaining > 0).then_some((RED, 1, remaining));
+            let glass = (GLASS, 2, 3 - remaining);
+            assert_eq!(
+                entries(&shared),
+                red.into_iter().chain([glass]).collect::<Vec<_>>()
+            );
+        }
     }
 }

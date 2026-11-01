@@ -53,13 +53,14 @@ Series A の切削シミュレーションデモ改善に限り、`view/app` へ
 	- View 操作設定
 	- Octree 可視化設定
 	- Snapshot Overlay 設定
-	- Snapshot Shading 設定
+	- 切削アニメーションの色（旧 Snapshot Shading 設定）
 	- Tool Wireframe 設定
-- Tool Wireframe 設定のみ編集可能
+- Tool Wireframe 設定と切削アニメーションの色を編集可能
 	- flat 円周分割数
 	- ball 円周分割数
 	- ball 半球緯線分割数
 	- ball 半球経線本数
+	- 切削アニメーションの素材の色（透明度を含む）・工具の線の色（#938）
 
 ### 非スコープ
 

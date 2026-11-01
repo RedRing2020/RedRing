@@ -100,6 +100,7 @@ impl AppState {
             self.initial_frame_step_distance_mm().unwrap_or(0.0);
         self.rebuild_snapshot_weighted_progress_axis_cache();
 
+        self.cutting_animation_colors = self.snapshot_shaded_color_settings;
         let stock_blocks = animation.take_initial_stock_blocks();
         let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation, stock_blocks);
         if let Some(fit) = Self::build_camera_fit(&positions) {
@@ -121,9 +122,9 @@ impl AppState {
         Some(last.payload.accumulated_distance_mm / FRAME_STEP_DIVISIONS)
     }
 
-    /// 取り込んだ切削アニメーションの、設定で変わる線（ツールパスの線・工具の線）を今の設定で描き直す
+    /// 取り込んだ切削アニメーションの、設定で変わる線（ツールパスの線・工具の線）と素材の色を今の設定で描き直す
     ///
-    /// 素材の面と製品形状のメッシュは設定で変わらないため作り直さない。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
+    /// 素材の面と製品形状のメッシュは作り直さない（素材は色だけを変える）。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
     pub(super) fn redraw_cutting_animation(&mut self) {
         let Some(animation) = &self.cutting_animation else {
             tracing::info!(
@@ -135,9 +136,10 @@ impl AppState {
             &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
             None,
         );
+        let colors = self.snapshot_shaded_color_settings;
         let tool_lines = line_vertices(
             &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
-            Some(self.snapshot_shaded_color_settings.tool_wire_color),
+            Some(colors.tool_wire_color),
         );
         let device = &self.graphic.device;
         let Some(mesh_stage) = self
@@ -151,8 +153,11 @@ impl AppState {
         };
         mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
         mesh_stage.set_overlay_tool_line_data(device, tool_lines);
+        mesh_stage.set_mesh_list_color(device, STOCK_BLOCK_KEYS, colors.work_solid_color);
+        // 後から届く素材のブロックと工具の線も、この色で描く
+        self.cutting_animation_colors = colors;
         self.update_camera_uniforms();
-        tracing::info!("ツールパスの線と工具の線を、変えた設定で描き直しました");
+        tracing::info!("ツールパスの線・工具の線・素材の色を、変えた設定で描き直しました");
     }
 
     /// 切削アニメーションの最初のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置
@@ -179,7 +184,7 @@ impl AppState {
                 (index as u64, item)
             })
             .collect();
-        let stock_color = self.snapshot_shaded_color_settings.work_solid_color;
+        let stock_color = self.cutting_animation_colors.work_solid_color;
         items.extend(
             stock_blocks
                 .into_iter()
@@ -202,7 +207,7 @@ impl AppState {
             device,
             line_vertices(
                 &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
-                Some(self.snapshot_shaded_color_settings.tool_wire_color),
+                Some(self.cutting_animation_colors.tool_wire_color),
             ),
         );
         (mesh_stage, positions)
@@ -255,9 +260,9 @@ impl AppState {
         };
         let tool_lines = line_vertices(
             &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
-            Some(self.snapshot_shaded_color_settings.tool_wire_color),
+            Some(self.cutting_animation_colors.tool_wire_color),
         );
-        let stock_color = self.snapshot_shaded_color_settings.work_solid_color;
+        let stock_color = self.cutting_animation_colors.work_solid_color;
         let device = &self.graphic.device;
         let stage = self.renderer.get_stage_mut();
         if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
