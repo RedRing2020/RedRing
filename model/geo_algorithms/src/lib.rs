@@ -26,7 +26,7 @@ pub use curve_discretization::{
     DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
 };
 
-pub use mesh_adjacency::{TriangleMeshAdjacency, TriangleMeshEdge};
+pub use mesh_adjacency::{TriangleMeshAdjacency, TriangleMeshEdge, TriangleMeshOrientation};
 pub use mesh_concatenation::concatenate_triangle_meshes;
 pub use surface_discretization::{
     tessellate_surfaces, SurfaceTessellationError, TessellationLimits,

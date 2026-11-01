@@ -1,5 +1,5 @@
 use geo_algorithms::{Point3D, TriangleMesh3D};
-use geo_contracts::TriangleMesh3DConstructor;
+use geo_contracts::{Triangle3DBoundaryAccess, TriangleMesh3DConstructor};
 
 use super::InverseOffsetShape;
 use crate::inverse_offset::CutterShape;
@@ -117,7 +117,7 @@ fn concave_and_flat_edges_and_their_vertices_are_excluded() {
     let all = InverseOffsetShape::build(&mesh, CutterShape::Ball { radius: 1.0 }, false).unwrap();
     assert!(excluded.edges.len() < all.edges.len());
     assert!(excluded.vertices.len() < all.vertices.len());
-    // 真上・真下を向く鉛直な壁の辺は、壁のどちらの側が材料かが決まらないため、上の辺も下の辺も残す
+    // 鉛直な壁の上の辺は凸として残し、下の辺は凹として外す（外を形から決めるため、壁でも判定できる）
     let wall = InverseOffsetShape::build(&step(), CutterShape::Ball { radius: 1.0 }, true).unwrap();
     let on_wall = |x: f64, z: f64| {
         wall.edges
@@ -125,7 +125,64 @@ fn concave_and_flat_edges_and_their_vertices_are_excluded() {
             .any(|edge| edge.ends.iter().all(|end| end[0] == x && end[2] == z))
     };
     assert!(on_wall(5.0, 4.0));
-    assert!(on_wall(5.0, 0.0));
+    assert!(!on_wall(5.0, 0.0));
+}
+
+/// XZ の断面 `profile` を y = 0..10 に押し出した面（1 つおきの三角形は頂点の順を逆にする）
+fn extruded(profile: &[(f64, f64)]) -> TriangleMesh3D<f64> {
+    let mut vertices = Vec::new();
+    for &(x, z) in profile {
+        vertices.push(Point3D::new(x, 0.0, z));
+        vertices.push(Point3D::new(x, 10.0, z));
+    }
+    let mut triangles = Vec::new();
+    for k in 0..profile.len() - 1 {
+        let (a, b, c, d) = (2 * k, 2 * k + 1, 2 * k + 2, 2 * k + 3);
+        triangles.push([a, c, d]);
+        triangles.push(if k % 2 == 0 { [a, b, d] } else { [a, d, b] });
+    }
+    TriangleMesh3D::new(vertices, triangles).unwrap()
+}
+
+/// 張り出しのある形: 上面 z = 4（x 0..10）、張り出しの前の面 x = 10、張り出しの下の面 z = 3（x 6..10、下向き）、
+/// 奥の壁 x = 6、床 z = 0（x 6..14）
+fn overhang() -> TriangleMesh3D<f64> {
+    extruded(&[
+        (0.0, 4.0),
+        (10.0, 4.0),
+        (10.0, 3.0),
+        (6.0, 3.0),
+        (6.0, 0.0),
+        (14.0, 0.0),
+    ])
+}
+
+#[test]
+fn undercut_faces_are_offset_away_from_the_product_and_do_not_change_the_heights() {
+    let radius = 1.0;
+    let shape = InverseOffsetShape::new(&overhang(), CutterShape::Ball { radius }).unwrap();
+    // 張り出しの下の面（z = 3、下向き）の要素は、下（材料のない側）へ工具の半径だけずれる
+    let underside: Vec<_> = shape
+        .faces
+        .iter()
+        .filter(|face| {
+            [face.vertex_a(), face.vertex_b(), face.vertex_c()]
+                .iter()
+                .all(|p| p.x() >= 6.0 && p.x() <= 10.0 && (p.z() - (3.0 - radius)).abs() < 1e-12)
+        })
+        .collect();
+    assert_eq!(underside.len(), 2);
+    // 張り出しの下は上面で決まり、張り出しの外は床で決まる
+    let tip = |x: f64| shape.tip_height_at(x, 5.0).unwrap();
+    assert!((tip(8.0) - 4.0).abs() < 1e-12);
+    assert!((tip(12.0) - 0.0).abs() < 1e-12);
+    // 張り出しの角（10, 4）の上を工具の側面が転がる
+    assert!((tip(10.5) - (4.0 + (1.0_f64 - 0.25).sqrt() - radius)).abs() < 1e-12);
+    for shape in SHAPES {
+        let excluded = InverseOffsetShape::build(&overhang(), shape, true).unwrap();
+        let all = InverseOffsetShape::build(&overhang(), shape, false).unwrap();
+        assert_same(&heights(&excluded, 14.0), &heights(&all, 14.0));
+    }
 }
 
 #[test]

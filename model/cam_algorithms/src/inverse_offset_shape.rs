@@ -5,14 +5,16 @@
 //!
 //! | 要素 | ボール（半径 r2） | フラット（半径 r1） |
 //! |---|---|---|
-//! | 面 | 上向きの法線の向きに r2 ずらした三角形 | 上向きの法線を水平面に射影した向きに r1 ずらした三角形 |
+//! | 面 | 外向きの法線の向きに r2 ずらした三角形 | 外向きの法線を水平面に射影した向きに r1 ずらした三角形 |
 //! | 頂点 | 球面。つながる辺に垂直な平面で切り取った部分 | 頂点の高さの水平な円板 |
 //! | 辺 | 円柱面。軸から離れる向きが、隣り合うどの面の側にも向かない部分 | 水平な円板を辺に沿って動かした形 |
 //!
-//! 形状ポリゴンの位相化（隣接）で、上から見て谷（凹）か平らな辺と、縁でなくつながる辺がすべて谷か平らな頂点を
-//! 外す。外した要素は、隣り合う面の要素の下にあり、上側の面を変えない。判定と範囲には面の向き（法線）を使わず、
-//! 辺から面の内側へ向かう向き（面の 3 つ目の頂点で決まる）を使う（STL・単体の面は向きがそろうとは限らないため）。
-//! 縁の辺・3 つ以上の面の辺・鉛直な辺は判定せず残す。
+//! 形状ポリゴンの位相化（隣接）で、三角形の向きを塊ごとにそろえ、外（材料のない側）を決める。外は、塊の中の上から
+//! 届く面（上側の包絡に出ている面）が上を向く向きとする（STL の頂点の順は外向きとは限らないため、形から決める）。
+//! 外向きの法線で凹か平らな辺と、縁でなくつながる辺がすべて凹か平らな頂点を外す。外した要素は、隣り合う面の要素に
+//! 覆われ、逆オフセット形状の面に出ない。向きをそろえられない塊・上から届く面がない塊は外を決められないため、面ごとに
+//! 上向きにそろえ、辺・頂点を外さない。辺の範囲は、辺から面の内側へ向かう向き（面の 3 つ目の頂点で決まる）で決める
+//! （凸の辺では、外向きの法線の間と同じ範囲）。
 //!
 //! 要素と鉛直線の交点は geo_algorithms の交差演算で、要素の式から求める（要素を三角形に分けない）。
 
@@ -28,6 +30,7 @@ use geo_contracts::{
 };
 
 use crate::inverse_offset::{CutterShape, MeshTriangles, XyBucketIndex, cross, sub};
+use crate::product_surface::ProductSurface;
 use crate::solver::CamSolverError;
 
 /// 逆オフセット形状
@@ -96,11 +99,12 @@ impl InverseOffsetShape {
             xy_max,
         } = MeshTriangles::new(mesh)?;
         let radius = shape.radius();
-        let normals: Vec<Option<[f64; 3]>> = triangles
-            .iter()
-            .map(|triangle| upward_unit_normal(triangle.map(|vertex| vertices[vertex])))
-            .collect();
         let adjacency = TriangleMeshAdjacency::from_triangles(vertices.len(), &triangles);
+        let (triangles, outward_known) = orient_outward(mesh, &adjacency, triangles, &vertices)?;
+        let normals: Vec<[f64; 3]> = triangles
+            .iter()
+            .map(|triangle| unit_normal(triangle.map(|vertex| vertices[vertex])))
+            .collect();
         let into_faces: Vec<Vec<[f64; 3]>> = adjacency
             .edges()
             .iter()
@@ -121,10 +125,9 @@ impl InverseOffsetShape {
         let kept_edges: Vec<bool> = adjacency
             .edges()
             .iter()
-            .zip(&into_faces)
-            .map(|(edge, into_faces)| {
-                let [start, end] = edge.vertices.map(|vertex| vertices[vertex]);
-                !exclude_concave || !is_valley_or_flat(sub(end, start), into_faces)
+            .map(|edge| {
+                !exclude_concave
+                    || !is_concave_or_flat(edge, &triangles, &vertices, &normals, &outward_known)
             })
             .collect();
 
@@ -132,8 +135,6 @@ impl InverseOffsetShape {
         let mut elements = Vec::new();
         let mut faces = Vec::new();
         for (triangle, normal) in triangles.iter().zip(&normals) {
-            // 鉛直な面は、XY で面積がないため鉛直線の高さを決めない（辺・頂点で決まる）
-            let Some(normal) = normal else { continue };
             let offset = match shape {
                 CutterShape::Ball { radius } => normal.map(|component| component * radius),
                 CutterShape::Flat { radius } => {
@@ -152,8 +153,12 @@ impl InverseOffsetShape {
             let Some(face) = Triangle3D::new(a, b, c) else {
                 continue;
             };
-            bounds.push(xy_bounds(&[a, b, c].map(|p| [p.x(), p.y()]), 0.0));
-            elements.push(Element::Face(faces.len()));
+            // 上を向かない面（鉛直な面・アンダーカットの面）の要素は、上から届かず上側の面にならないため、高さを求める
+            // 索引には入れない
+            if normal[2] >= default_orthogonality_dot_error_tolerance::<f64>() {
+                bounds.push(xy_bounds(&[a, b, c].map(|p| [p.x(), p.y()]), 0.0));
+                elements.push(Element::Face(faces.len()));
+            }
             faces.push(face);
         }
 
@@ -386,44 +391,111 @@ fn range_slack(first: [f64; 3], second: [f64; 3]) -> f64 {
         * dot(second, second).sqrt()
 }
 
-/// 上向き（z >= 0 側）の単位法線。鉛直な面は `None`
-fn upward_unit_normal([a, b, c]: [[f64; 3]; 3]) -> Option<[f64; 3]> {
+/// 三角形 `[a, b, c]` の、頂点の順（右ねじ）の単位法線
+fn unit_normal([a, b, c]: [[f64; 3]; 3]) -> [f64; 3] {
     let n = cross(sub(b, a), sub(c, a));
     let norm = dot(n, n).sqrt();
-    let sign = if n[2] < 0.0 { -1.0 } else { 1.0 };
-    let n = n.map(|component| sign * component / norm);
-    (n[2] >= default_orthogonality_dot_error_tolerance::<f64>()).then_some(n)
+    n.map(|component| component / norm)
 }
 
-/// 向き `direction` の辺が、上から見て谷（凹）か平らか（隣り合う面がちょうど 2 つの場合だけ判定し、それ以外は偽）
+/// 三角形の向きを塊ごとにそろえ、法線が外（材料のない側）を向くように頂点の順を決めた三角形と、三角形ごとの、外を
+/// 決められたか
 ///
-/// 辺に垂直な断面で、2 つの面の向き `into_faces`（辺から面の内側へ）を真上の向きから測った角が、真上の両側にあり、
-/// 和が 180° 以下なら谷か平ら。わずかでも 180° を超える辺（尾根）は残す（2 つの面の要素は辺から離れる向きにずれ、
-/// 間を辺の要素が埋めるため。フラットは面ごとに工具の半径だけずれるため、ほぼ平らな尾根でも間が大きく開く）。
-/// 鉛直な辺と、真上・真下を向く面がある辺は判定せず偽とする。
-fn is_valley_or_flat(direction: [f64; 3], into_faces: &[[f64; 3]]) -> bool {
-    let [first, second] = into_faces else {
+/// 外は、塊の中の、上から届く面（上側の包絡に出ている面。3 軸では工具が上から近づく）が上を向く向きとする。向きを
+/// そろえられない塊と、上から届く面がない塊は外を決められないため、面ごとに上向きにそろえる。
+fn orient_outward(
+    mesh: &TriangleMesh3D<f64>,
+    adjacency: &TriangleMeshAdjacency,
+    mut triangles: Vec<[usize; 3]>,
+    vertices: &[[f64; 3]],
+) -> Result<(Vec<[usize; 3]>, Vec<bool>), CamSolverError> {
+    let orientation = adjacency.orient(&triangles);
+    for (triangle, &reversed) in triangles.iter_mut().zip(&orientation.reversed) {
+        if reversed {
+            triangle.swap(1, 2);
+        }
+    }
+    let corners = |triangle: &[usize; 3]| triangle.map(|vertex| vertices[vertex]);
+    let centroid = |triangle: &[usize; 3]| {
+        let [a, b, c] = corners(triangle);
+        [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0)
+    };
+    // 高い面から順に、上から届くかを確かめる（塊ごとに、最初に見つかった面で外を決める）
+    let surface = ProductSurface::new(mesh)?;
+    let mut order: Vec<usize> = (0..triangles.len()).collect();
+    order.sort_by(|&first, &second| {
+        centroid(&triangles[second])[2].total_cmp(&centroid(&triangles[first])[2])
+    });
+    let mut flip: Vec<Option<bool>> = vec![None; orientation.orientable.len()];
+    let mut undecided = orientation
+        .orientable
+        .iter()
+        .filter(|&&orientable| orientable)
+        .count();
+    let tolerance = ToleranceSettings::<f64>::standard().distance_tolerance;
+    for triangle in order {
+        if undecided == 0 {
+            break;
+        }
+        let component = orientation.components[triangle];
+        if !orientation.orientable[component] || flip[component].is_some() {
+            continue;
+        }
+        let normal = unit_normal(corners(&triangles[triangle]));
+        if normal[2].abs() < default_orthogonality_dot_error_tolerance::<f64>() {
+            continue;
+        }
+        let [x, y, z] = centroid(&triangles[triangle]);
+        if surface
+            .height_at(x, y)
+            .is_some_and(|height| z >= height - tolerance)
+        {
+            flip[component] = Some(normal[2] < 0.0);
+            undecided -= 1;
+        }
+    }
+    let mut outward_known = Vec::with_capacity(triangles.len());
+    for (triangle, &component) in triangles.iter_mut().zip(&orientation.components) {
+        let reverse = match flip[component] {
+            Some(flip) => flip,
+            None => unit_normal(corners(triangle))[2] < 0.0,
+        };
+        if reverse {
+            triangle.swap(1, 2);
+        }
+        outward_known.push(flip[component].is_some());
+    }
+    Ok((triangles, outward_known))
+}
+
+/// 辺が凹か平らか（隣り合う面がちょうど 2 つで、ともに外を決められた場合だけ判定し、それ以外は偽）
+///
+/// 一方の面の外向きの法線で、もう一方の面の辺にない頂点が、面を含む平面の外の側にあれば凸。わずかでも凸の辺は残す
+/// （面の要素は辺から離れる向きにずれ、間を辺の要素が埋めるため。フラットは面ごとに工具の半径だけずれるため、ほぼ
+/// 平らな凸の辺でも間が大きく開く）。外向きの法線で決めるため、工具の向きによらない。
+fn is_concave_or_flat(
+    edge: &geo_algorithms::TriangleMeshEdge,
+    triangles: &[[usize; 3]],
+    vertices: &[[f64; 3]],
+    normals: &[[f64; 3]],
+    outward_known: &[bool],
+) -> bool {
+    let [first, second] = edge.triangles[..] else {
         return false;
     };
-    let up = across([0.0, 0.0, 1.0], direction);
-    let angle_tolerance = ToleranceSettings::<f64>::standard().angle_tolerance;
-    if dot(up, up).sqrt() < angle_tolerance {
+    if !outward_known[first] || !outward_known[second] {
         return false;
     }
-    // 真上からの角（0 から 180°）と、真上のどちらの側か
-    let measure = |into_face: [f64; 3]| {
-        let side = cross(up, into_face);
-        let angle = dot(side, side).sqrt().atan2(dot(up, into_face));
-        (angle, dot(side, direction))
+    let Some(&other) = triangles[second]
+        .iter()
+        .find(|vertex| !edge.vertices.contains(vertex))
+    else {
+        return false;
     };
-    let ((first_angle, first_side), (second_angle, second_side)) =
-        (measure(*first), measure(*second));
-    let straight =
-        |angle: f64| angle < angle_tolerance || angle > std::f64::consts::PI - angle_tolerance;
-    if straight(first_angle) || straight(second_angle) {
-        return false;
-    }
-    first_side * second_side < 0.0 && first_angle + second_angle <= std::f64::consts::PI
+    dot(
+        sub(vertices[other], vertices[edge.vertices[0]]),
+        normals[first],
+    ) >= 0.0
 }
 
 /// `vector` の、向き `direction` に垂直な成分
