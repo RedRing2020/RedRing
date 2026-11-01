@@ -2,10 +2,12 @@ use geo_algorithms::{
     Aabb3D, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM, LineSegment3D, LineSegment3DProperties,
 };
 
+use cam_algorithms::ProductSurface;
 use cam_core::{Tool, ToolPath};
 
 use crate::constants::{KEYFRAME_INTERVAL_MM, SNAPSHOT_GRID_SPACING_MULTIPLE};
 use crate::error::SimulationError;
+use crate::product_deviation::{ProductDeviations, compare_with_product};
 use crate::simulation_artifact::CuttingSimulationArtifact;
 use crate::stock_model::StockModel;
 use crate::tri_dexel::{TriDexelModel, dexel_spacing};
@@ -91,6 +93,8 @@ pub struct CuttingSimulator {
     keyframe_snapshots: Vec<usize>,
     /// 最後に実行した結果の表示用のトリデクセル
     pub(crate) dexels: Option<TriDexelModel>,
+    /// 最後に実行した結果の、最後の時点の素材と製品形状の比較
+    product_deviations: Option<ProductDeviations>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -109,6 +113,7 @@ impl CuttingSimulator {
             snapshot_applied: Vec::new(),
             keyframe_snapshots: Vec::new(),
             dexels: None,
+            product_deviations: None,
         }
     }
 
@@ -139,7 +144,16 @@ impl CuttingSimulator {
             grids: dexels.layouts(),
             keyframe_snapshots: self.keyframe_snapshots.clone(),
             keyframe_changes: dexels.keyframe_changes().clone(),
+            product_deviations: self.product_deviations.clone(),
         })
+    }
+
+    /// 最後に実行した結果の最後の時点の素材を、製品形状 `surface` と比べ、成果物に加える（判定の許容値は
+    /// `tolerance`。実行していない場合は何もしない）
+    pub fn compare_with_product(&mut self, surface: &ProductSurface, tolerance: f64) {
+        if let Some(dexels) = &self.dexels {
+            self.product_deviations = Some(compare_with_product(dexels, surface, tolerance));
+        }
     }
 
     /// ToolPathをシミュレーションする。
@@ -182,6 +196,7 @@ impl CuttingSimulator {
             snapshot.remaining_volume = dexels.remaining_volume_at(applied);
         }
         self.dexels = Some(dexels);
+        self.product_deviations = None;
         Ok(())
     }
 }

@@ -24,7 +24,7 @@ impl AxisLine {
     }
 
     /// 線の上の、`axis` の座標が `value` の点
-    fn point_at(&self, value: f64) -> [f64; 3] {
+    pub(super) fn point_at(&self, value: f64) -> [f64; 3] {
         let mut point = [self.point.x(), self.point.y(), self.point.z()];
         point[self.axis] = value;
         point

@@ -10,6 +10,7 @@
 pub mod cl_grid;
 pub mod inverse_offset;
 pub mod process_template;
+pub mod product_surface;
 pub mod scanline;
 pub mod solver;
 pub mod tessellation;
@@ -21,6 +22,7 @@ pub use process_template::{
     RectangleBoundary, ResolvedOperation, SolverDefaults, TemplateFailure, build_solver_input,
     resolve_operation,
 };
+pub use product_surface::ProductSurface;
 pub use scanline::generate_scanline_toolpath;
 pub use solver::{
     CamSolverError, CamSolverInput, GeometryKind, OperationSpec, ScanlineCutDirection,

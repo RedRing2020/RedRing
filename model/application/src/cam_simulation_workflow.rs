@@ -435,13 +435,15 @@ fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionE
     errors
 }
 
-/// 切削シミュレーションの入力（工具はツールパス生成の入力と同じ）
+/// 切削シミュレーションの入力（工具・製品形状・トレランスはツールパス生成の入力と同じ）
 fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulationInput {
     CuttingSimulationInput {
         stock: request.stock,
         tool: request.solver_input.tool.clone(),
         precision: request.precision,
         snapshot_interval: request.snapshot_interval.clone(),
+        product: request.solver_input.geometry.clone(),
+        tolerance: request.solver_input.chord_tolerance,
     }
 }
 

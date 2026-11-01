@@ -14,6 +14,8 @@
 //!    位置と長さ（`u64`×2）
 //! 4. キーフレーム: キーフレームごとに、変化の数 `u32` と、各変化の格子の番号 `u8`・デクセルの番号 `u32`・区間の数
 //!    `u32`・区間ごとの始まり・終わりの座標（`f64`×2）と法線（量子化した値 `u16`×2 を 2 つ）
+//! 5. 製品形状との比較（追加の情報。ない場合もある）: 判定の許容値 `f64` と、3 方向（X・Y・Z の順）ごとの、最後の
+//!    時点の区間の端点の数 `u64` と各端点の製品形状までの符号つきの距離（`f32`。削っていない端点は NaN）
 
 use std::io::{Read, Write};
 use std::ops::Range;
@@ -25,6 +27,7 @@ use cam_core::{
 
 use crate::SimulationSnapshotExport;
 use crate::dexel_normal::DexelNormal;
+use crate::product_deviation::ProductDeviations;
 use crate::tri_dexel::initial_normals;
 
 /// 中身を差分のキーフレームの節の列にした版より前の版は読まない
@@ -35,6 +38,7 @@ const SECTION_SNAPSHOTS: u16 = 1;
 const SECTION_GRIDS: u16 = 2;
 const SECTION_KEYFRAME_INDEX: u16 = 3;
 const SECTION_KEYFRAMES: u16 = 4;
+const SECTION_PRODUCT_DEVIATIONS: u16 = 5;
 
 /// 1 方向のデクセルの格子の配置
 ///
@@ -181,6 +185,8 @@ pub struct CuttingSimulationArtifact {
     pub keyframe_snapshots: Vec<usize>,
     /// キーフレーム `k` の変化は、キーフレーム `k - 1`（`k = 0` では初期の状態）からキーフレーム `k` への変化
     pub keyframe_changes: DexelChanges,
+    /// 最後の時点の素材と製品形状の比較（製品形状と比べていない場合は `None`）
+    pub product_deviations: Option<ProductDeviations>,
 }
 
 impl CuttingSimulationArtifact {
@@ -317,6 +323,16 @@ pub fn write_cutting_simulation_artifact_v1<W: Write>(
     write_section(&mut payload, SECTION_GRIDS, &grids);
     write_section(&mut payload, SECTION_KEYFRAME_INDEX, &index);
     write_section(&mut payload, SECTION_KEYFRAMES, &keyframes);
+    if let Some(deviations) = &artifact.product_deviations {
+        let mut content = deviations.tolerance.to_le_bytes().to_vec();
+        for distances in &deviations.distances {
+            content.extend_from_slice(&(distances.len() as u64).to_le_bytes());
+            for distance in distances {
+                content.extend_from_slice(&distance.to_le_bytes());
+            }
+        }
+        write_section(&mut payload, SECTION_PRODUCT_DEVIATIONS, &content);
+    }
 
     let mut header = ArtifactHeaderV1::new(ArtifactKind::CuttingSimulation, payload.len() as u64);
     header.unit = unit;
@@ -349,7 +365,7 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
         });
     }
 
-    let mut sections: [Option<&[u8]>; 4] = [None; 4];
+    let mut sections: [Option<&[u8]>; 5] = [None; 5];
     let mut cursor = bytes.as_slice();
     while !cursor.is_empty() {
         let kind = read_u16(&mut cursor)?;
@@ -360,7 +376,7 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
         let (content, rest) = cursor.split_at(length);
         cursor = rest;
         // 知らない種類の節は読み飛ばす
-        if let Some(slot) = (SECTION_SNAPSHOTS..=SECTION_KEYFRAMES)
+        if let Some(slot) = (SECTION_SNAPSHOTS..=SECTION_PRODUCT_DEVIATIONS)
             .position(|known| known == kind)
             .map(|position| &mut sections[position])
             && slot.replace(content).is_some()
@@ -368,7 +384,14 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
             return Err(BinaryFormatError::InvalidPayload("section.duplicate"));
         }
     }
-    let [Some(snapshots), Some(grids), Some(index), Some(keyframes)] = sections else {
+    let [
+        Some(snapshots),
+        Some(grids),
+        Some(index),
+        Some(keyframes),
+        deviations,
+    ] = sections
+    else {
         return Err(BinaryFormatError::InvalidPayload("section.missing"));
     };
 
@@ -376,17 +399,60 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
     let grids = read_grids(grids)?;
     let (keyframe_snapshots, keyframe_changes) =
         read_keyframes(index, keyframes, &grids, snapshots.len())?;
+    let mut artifact = CuttingSimulationArtifact {
+        snapshots,
+        snapshot_applied,
+        grids,
+        keyframe_snapshots,
+        keyframe_changes,
+        product_deviations: None,
+    };
+    if let Some(deviations) = deviations {
+        artifact.product_deviations = Some(read_product_deviations(deviations, &artifact)?);
+    }
+    Ok((header, artifact))
+}
 
-    Ok((
-        header,
-        CuttingSimulationArtifact {
-            snapshots,
-            snapshot_applied,
-            grids,
-            keyframe_snapshots,
-            keyframe_changes,
-        },
-    ))
+/// 製品形状との比較の節を読む（端点の数が、最後の時点の区間の端点の数と一致することを確かめる）
+fn read_product_deviations(
+    mut reader: &[u8],
+    artifact: &CuttingSimulationArtifact,
+) -> Result<ProductDeviations, BinaryFormatError> {
+    let reader = &mut reader;
+    let tolerance = read_f64(reader)?;
+    let last = artifact.keyframe_changes.keyframe_count().checked_sub(1);
+    let states = last.map(|keyframe| artifact.dexel_states_at_keyframe(keyframe));
+    let mut distances: [Vec<f32>; 3] = Default::default();
+    for (grid, distances) in distances.iter_mut().enumerate() {
+        let count = usize::try_from(read_u64(reader)?)
+            .map_err(|_| BinaryFormatError::InvalidPayload("product_deviations.count"))?;
+        let endpoints = states.as_ref().map_or(0, |states| {
+            states.intervals[grid]
+                .iter()
+                .map(|intervals| 2 * intervals.len())
+                .sum()
+        });
+        if count != endpoints {
+            return Err(BinaryFormatError::InvalidPayload(
+                "product_deviations.count",
+            ));
+        }
+        distances.reserve(count);
+        for _ in 0..count {
+            let mut bytes = [0_u8; 4];
+            reader.read_exact(&mut bytes)?;
+            distances.push(f32::from_le_bytes(bytes));
+        }
+    }
+    if !reader.is_empty() {
+        return Err(BinaryFormatError::InvalidPayload(
+            "product_deviations.trailing",
+        ));
+    }
+    Ok(ProductDeviations {
+        tolerance,
+        distances,
+    })
 }
 
 fn read_snapshots(
@@ -551,8 +617,9 @@ fn read_f64(reader: &mut &[u8]) -> Result<f64, BinaryFormatError> {
 
 #[cfg(test)]
 mod tests {
+    use cam_algorithms::ProductSurface;
     use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, Tool, ToolPath};
-    use geo_algorithms::{Aabb3D, Point3D};
+    use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 
     use super::*;
     use crate::{CuttingSimulator, SnapshotInterval};
@@ -622,6 +689,46 @@ mod tests {
         let (header, read) = read_cutting_simulation_artifact_v1(&mut bytes.as_slice()).unwrap();
         assert_eq!(header.kind, ArtifactKind::CuttingSimulation);
         assert_eq!(read, artifact);
+    }
+
+    #[test]
+    fn product_deviations_round_trip_and_must_match_the_endpoints_of_the_last_state() {
+        let mut simulator = simulated();
+        let product = TriangleMesh3D::new(
+            vec![
+                Point3D::new(0.0, 0.0, -1.0),
+                Point3D::new(10.0, 0.0, -1.0),
+                Point3D::new(10.0, 10.0, -1.0),
+                Point3D::new(0.0, 10.0, -1.0),
+            ],
+            vec![[0, 1, 2], [0, 2, 3]],
+        )
+        .unwrap();
+        simulator.compare_with_product(&ProductSurface::new(&product).unwrap(), 0.001);
+        let artifact = simulator.artifact().unwrap();
+        let deviations = artifact.product_deviations.as_ref().unwrap();
+        let (_, read) =
+            read_cutting_simulation_artifact_v1(&mut written(&artifact).as_slice()).unwrap();
+        // NaN（削っていない端点）を含むため、ビット列で比べる
+        let bits = |deviations: &ProductDeviations| {
+            deviations
+                .distances
+                .each_ref()
+                .map(|distances| distances.iter().map(|d| d.to_bits()).collect::<Vec<_>>())
+        };
+        let read_deviations = read.product_deviations.as_ref().unwrap();
+        assert_eq!(read_deviations.tolerance, deviations.tolerance);
+        assert_eq!(bits(read_deviations), bits(deviations));
+
+        // 端点の数が最後の時点の区間の端点の数と違う比較は読まない
+        let mut broken = artifact.clone();
+        broken.product_deviations.as_mut().unwrap().distances[2].pop();
+        assert!(matches!(
+            read_cutting_simulation_artifact_v1(&mut written(&broken).as_slice()),
+            Err(BinaryFormatError::InvalidPayload(
+                "product_deviations.count"
+            ))
+        ));
     }
 
     #[test]

@@ -529,6 +529,48 @@ impl DexelGrid {
         }
     }
 
+    /// 今の区間の端点（デクセルの番号の順・区間の順・始まりと終わりの順）ごとの `value` の値。素材の範囲の端にある、
+    /// 削っていない端点は NaN とする（複数のコアで並べて求める）
+    fn endpoint_values(&self, value: &(impl Fn(Point3D<f64>) -> f32 + Sync)) -> Vec<f32> {
+        let dexels = self.slots.len();
+        let threads = std::thread::available_parallelism()
+            .map_or(1, std::num::NonZeroUsize::get)
+            .min(dexels)
+            .max(1);
+        let chunk = dexels.div_ceil(threads);
+        let parts: Vec<Vec<f32>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..dexels)
+                .step_by(chunk.max(1))
+                .map(|first| {
+                    scope.spawn(move || {
+                        let mut values = Vec::new();
+                        for index in first..(first + chunk).min(dexels) {
+                            let line = self.line(index / self.count[1], index % self.count[1]);
+                            for &(low, high) in self.current(index) {
+                                for end in [low, high] {
+                                    values.push(
+                                        if end == self.initial.0 || end == self.initial.1 {
+                                            f32::NAN
+                                        } else {
+                                            let [x, y, z] = line.point_at(end);
+                                            value(Point3D::new(x, y, z))
+                                        },
+                                    );
+                                }
+                            }
+                        }
+                        values
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().expect("evaluating endpoints does not panic"))
+                .collect()
+        });
+        parts.concat()
+    }
+
     /// 素材の範囲の、材料の区間の長さの和
     fn initial_length(&self) -> f64 {
         let (low, high) = self.initial;
@@ -618,6 +660,17 @@ impl TriDexelModel {
     #[cfg(test)]
     pub(crate) fn current_normals(&self, grid: usize, index: usize) -> &[[DexelNormal; 2]] {
         self.grids[grid].current_normals(index)
+    }
+
+    /// 最後のキーフレームの時点の、格子（X・Y・Z の順）ごとの区間の端点（デクセルの番号の順・区間の順・始まりと終わりの
+    /// 順）の `value` の値。素材の範囲の端にある、削っていない端点は NaN とする
+    pub(crate) fn endpoint_values(
+        &self,
+        value: impl Fn(Point3D<f64>) -> f32 + Sync,
+    ) -> [Vec<f32>; 3] {
+        self.grids
+            .each_ref()
+            .map(|grid| grid.endpoint_values(&value))
     }
 
     /// 格子の配置（X・Y・Z の順）

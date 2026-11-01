@@ -1,7 +1,7 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use cam_algorithms::{CamSolverError, solve_toolpath};
+use cam_algorithms::{CamSolverError, ProductSurface, solve_toolpath};
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, LengthUnit, ToolPath,
     read_toolpath_artifact_v1, write_toolpath_payload_v1,
@@ -10,6 +10,7 @@ use cam_core::{
 use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType};
 #[cfg(any(test, debug_assertions))]
 use geo_algorithms::Point3D;
+use geo_algorithms::TessellationLimits;
 use job_runtime::{
     JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType, RefFactory, RefParser,
     RefValidationError,
@@ -199,6 +200,27 @@ impl CamJobExecutorAdapter {
                 log_ref: Some(build_log_ref("sim", job.id.0, "sim-failure")),
                 error: Some(format!("failed to run cutting simulation: {}", err)),
             };
+        }
+
+        // 製品形状は、ツールパス生成と同じ弦の許容誤差・既定の分割の上限で三角形にする
+        let surface = input
+            .product
+            .triangle_mesh(input.tolerance, TessellationLimits::default())
+            .and_then(|mesh| ProductSurface::new(&mesh));
+        match surface {
+            Ok(surface) => simulator.compare_with_product(&surface, input.tolerance),
+            Err(err) => {
+                return JobExecutionResult {
+                    status: JobStatus::Failed,
+                    result_ref: None,
+                    artifact_bytes: None,
+                    log_ref: Some(build_log_ref("sim", job.id.0, "product-failure")),
+                    error: Some(format!(
+                        "failed to compare the stock with the product shape: {}",
+                        err
+                    )),
+                };
+            }
         }
 
         let mut artifact_bytes = Vec::new();

@@ -67,33 +67,12 @@ pub struct DropCutter {
 impl DropCutter {
     /// メッシュと工具形状から drop-cutter を構築する。
     pub fn new(mesh: &TriangleMesh3D<f64>, shape: CutterShape) -> Result<Self, CamSolverError> {
-        let vertices: Vec<[f64; 3]> = mesh
-            .vertices()
-            .iter()
-            .map(|p| [p.x(), p.y(), p.z()])
-            .collect();
-        let triangles: Vec<[usize; 3]> = mesh
-            .indices()
-            .iter()
-            .copied()
-            .filter(|tri| !is_degenerate(&vertices, tri))
-            .collect();
-
-        if triangles.is_empty() {
-            return Err(CamSolverError::NoSolution(
-                "geometry has no non-degenerate triangles".to_string(),
-            ));
-        }
-
-        let mut xy_min = [f64::INFINITY; 2];
-        let mut xy_max = [f64::NEG_INFINITY; 2];
-        for tri in &triangles {
-            for &vi in tri {
-                let v = vertices[vi];
-                xy_min = [xy_min[0].min(v[0]), xy_min[1].min(v[1])];
-                xy_max = [xy_max[0].max(v[0]), xy_max[1].max(v[1])];
-            }
-        }
+        let MeshTriangles {
+            vertices,
+            triangles,
+            xy_min,
+            xy_max,
+        } = MeshTriangles::new(mesh)?;
 
         let index = XyBucketIndex::build(&vertices, &triangles, shape.radius(), xy_min, xy_max);
 
@@ -278,6 +257,53 @@ fn flat_face_contact(a: [f64; 3], b: [f64; 3], c: [f64; 3], x: f64, y: f64, r: f
     Some((plane_d - n[0] * qx - n[1] * qy) / n[2])
 }
 
+/// メッシュの、面積のある三角形と、その XY 範囲
+pub(crate) struct MeshTriangles {
+    pub(crate) vertices: Vec<[f64; 3]>,
+    pub(crate) triangles: Vec<[usize; 3]>,
+    pub(crate) xy_min: [f64; 2],
+    pub(crate) xy_max: [f64; 2],
+}
+
+impl MeshTriangles {
+    /// 面積のない三角形を除く（面積のある三角形がなければ `no_solution`）
+    pub(crate) fn new(mesh: &TriangleMesh3D<f64>) -> Result<Self, CamSolverError> {
+        let vertices: Vec<[f64; 3]> = mesh
+            .vertices()
+            .iter()
+            .map(|p| [p.x(), p.y(), p.z()])
+            .collect();
+        let triangles: Vec<[usize; 3]> = mesh
+            .indices()
+            .iter()
+            .copied()
+            .filter(|tri| !is_degenerate(&vertices, tri))
+            .collect();
+
+        if triangles.is_empty() {
+            return Err(CamSolverError::NoSolution(
+                "geometry has no non-degenerate triangles".to_string(),
+            ));
+        }
+
+        let mut xy_min = [f64::INFINITY; 2];
+        let mut xy_max = [f64::NEG_INFINITY; 2];
+        for tri in &triangles {
+            for &vi in tri {
+                let v = vertices[vi];
+                xy_min = [xy_min[0].min(v[0]), xy_min[1].min(v[1])];
+                xy_max = [xy_max[0].max(v[0]), xy_max[1].max(v[1])];
+            }
+        }
+        Ok(Self {
+            vertices,
+            triangles,
+            xy_min,
+            xy_max,
+        })
+    }
+}
+
 /// 上向き（z >= 0 側）の単位法線。鉛直面は `None`。
 fn upward_unit_normal(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Option<[f64; 3]> {
     let n = cross(sub(b, a), sub(c, a));
@@ -289,7 +315,7 @@ fn upward_unit_normal(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Option<[f64; 3]>
     (n[2] >= default_orthogonality_dot_error_tolerance::<f64>()).then_some(n)
 }
 
-fn contains_xy(a: [f64; 3], b: [f64; 3], c: [f64; 3], x: f64, y: f64) -> bool {
+pub(crate) fn contains_xy(a: [f64; 3], b: [f64; 3], c: [f64; 3], x: f64, y: f64) -> bool {
     let det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
     let zero = default_kernel_numerical_zero_tolerance::<f64>();
     if det.abs() < zero {
@@ -308,11 +334,11 @@ fn is_degenerate(vertices: &[[f64; 3]], tri: &[usize; 3]) -> bool {
     area <= ToleranceSettings::<f64>::standard().area_tolerance
 }
 
-fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+pub(crate) fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+pub(crate) fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -322,7 +348,7 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
 
 /// 三角形の XY 範囲（工具半径で拡張）を登録する一様バケット索引
 #[derive(Debug, Clone)]
-struct XyBucketIndex {
+pub(crate) struct XyBucketIndex {
     origin: [f64; 2],
     cell_size: f64,
     columns: usize,
@@ -333,7 +359,7 @@ struct XyBucketIndex {
 impl XyBucketIndex {
     const MAX_CELLS_PER_AXIS: usize = 256;
 
-    fn build(
+    pub(crate) fn build(
         vertices: &[[f64; 3]],
         triangles: &[[usize; 3]],
         radius: f64,
@@ -381,8 +407,44 @@ impl XyBucketIndex {
         )
     }
 
-    fn candidates(&self, x: f64, y: f64) -> &[usize] {
+    pub(crate) fn candidates(&self, x: f64, y: f64) -> &[usize] {
         let (column, row) = self.cell_of(x, y);
         &self.buckets[row * self.columns + column]
+    }
+
+    /// (x, y) を含む升目（索引の外も含めて数える）から、升目の番号の差が `ring` の升目を、内側から外側へ順に返す
+    ///
+    /// 環ごとに、索引の中の升目の中身と、環の升目と (x, y) の XY の距離の下限（`(ring - 1)` × 升目の幅）を返す。
+    /// 索引のすべての升目を返した後は終わる。
+    pub(crate) fn rings(&self, x: f64, y: f64) -> impl Iterator<Item = (f64, Vec<&[usize]>)> {
+        let column = ((x - self.origin[0]) / self.cell_size).floor() as i64;
+        let row = ((y - self.origin[1]) / self.cell_size).floor() as i64;
+        let (columns, rows) = (self.columns as i64, self.rows as i64);
+        // 索引のいちばん遠い升目までの、升目の番号の差
+        let last = [column, columns - 1 - column, row, rows - 1 - row]
+            .map(i64::abs)
+            .into_iter()
+            .max()
+            .unwrap_or(0);
+        (0..=last).map(move |ring| {
+            let bucket = |c: i64, r: i64| {
+                ((0..columns).contains(&c) && (0..rows).contains(&r))
+                    .then(|| self.buckets[(r * columns + c) as usize].as_slice())
+            };
+            let cells: Vec<&[usize]> = if ring == 0 {
+                bucket(column, row).into_iter().collect()
+            } else {
+                // 環の上下の辺（角を含む）と左右の辺（角を除く）
+                let horizontal = (column - ring..=column + ring)
+                    .flat_map(|c| [(c, row - ring), (c, row + ring)]);
+                let vertical = (row - ring + 1..row + ring)
+                    .flat_map(|r| [(column - ring, r), (column + ring, r)]);
+                horizontal
+                    .chain(vertical)
+                    .filter_map(|(c, r)| bucket(c, r))
+                    .collect()
+            };
+            ((ring - 1).max(0) as f64 * self.cell_size, cells)
+        })
     }
 }

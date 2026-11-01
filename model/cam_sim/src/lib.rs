@@ -11,6 +11,7 @@ mod dexel_surface;
 mod error;
 mod job_adapter;
 mod preflight;
+mod product_deviation;
 mod replay;
 mod simulation_artifact;
 mod simulation_input;
@@ -29,6 +30,7 @@ pub use error::SimulationError;
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
 pub use preflight::{CuttingSimulationInputError, cutting_simulation_input_errors};
+pub use product_deviation::ProductDeviations;
 /// 成果物の差分のキーフレームと正本から、任意の時点の素材を作り直す再生の入口。
 pub use replay::CuttingSimulationReplay;
 /// 切削シミュレーションの成果物（中身の型と書き出し・読み込み）。
