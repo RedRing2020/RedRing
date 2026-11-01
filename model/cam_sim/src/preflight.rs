@@ -238,8 +238,9 @@ impl Display for CuttingSimulationInputError {
 
 #[cfg(test)]
 mod tests {
+    use cam_algorithms::SolverGeometry;
     use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, Tool, ToolPath};
-    use geo_algorithms::{Aabb3D, Point3D};
+    use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 
     use super::*;
     use crate::SnapshotInterval;
@@ -273,6 +274,18 @@ mod tests {
             tool: Tool::flat_end_mill("EM2".to_string(), 2.0, 10.0),
             precision,
             snapshot_interval: SnapshotInterval::default(),
+            product: SolverGeometry::TriangleMesh(
+                TriangleMesh3D::new(
+                    vec![
+                        Point3D::new(0.0, 0.0, -1.0),
+                        Point3D::new(16.0, 0.0, -1.0),
+                        Point3D::new(0.0, 8.0, -1.0),
+                    ],
+                    vec![[0, 1, 2]],
+                )
+                .unwrap(),
+            ),
+            tolerance: 0.001,
         }
     }
 

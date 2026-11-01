@@ -1,6 +1,7 @@
 //! CAM ソルバー入力契約と実行入口（設計: CAM_ALGORITHMS_DESIGN.md §8.2-§8.5）
 
 use geo_contracts::{Bounded, TriangleMesh3DProperties};
+use std::borrow::Cow;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -102,6 +103,26 @@ impl SolverGeometry {
                     .flat_map(|aabb| [aabb.min(), aabb.max()])
                     .collect();
                 Aabb3D::from_points(&corners)
+            }
+        }
+    }
+
+    /// 形状の三角形メッシュ（曲面は弦の許容誤差 `chord_tolerance` で三角形に分ける）
+    ///
+    /// # Errors
+    ///
+    /// 曲面の三角形への分割が収束しない場合。
+    pub fn triangle_mesh(
+        &self,
+        chord_tolerance: f64,
+        limits: TessellationLimits,
+    ) -> Result<Cow<'_, TriangleMesh3D<f64>>, CamSolverError> {
+        match self {
+            Self::TriangleMesh(mesh) => Ok(Cow::Borrowed(mesh)),
+            Self::NurbsSurfaceSet(surfaces) => {
+                tessellate_surfaces(surfaces, chord_tolerance, limits)
+                    .map(Cow::Owned)
+                    .map_err(CamSolverError::from)
             }
         }
     }
@@ -240,18 +261,11 @@ impl CamSolverInput {
 pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolverError> {
     input.validate()?;
 
-    let tessellated;
-    let mesh = match &input.geometry {
-        SolverGeometry::TriangleMesh(mesh) => mesh,
-        SolverGeometry::NurbsSurfaceSet(surfaces) => {
-            tessellated =
-                tessellate_surfaces(surfaces, input.chord_tolerance, input.tessellation_limits)
-                    .map_err(CamSolverError::from)?;
-            &tessellated
-        }
-    };
+    let mesh = input
+        .geometry
+        .triangle_mesh(input.chord_tolerance, input.tessellation_limits)?;
 
-    let cutter = DropCutter::new(mesh, cutter_shape(&input.tool)?)?;
+    let cutter = DropCutter::new(&mesh, cutter_shape(&input.tool)?)?;
     let OperationSpec::Scanline(params) = &input.operation;
     let region = machining_region(&cutter, input.boundary, params.tool_range)?;
 

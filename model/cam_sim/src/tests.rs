@@ -1,4 +1,5 @@
-use geo_algorithms::{Aabb3D, Point3D};
+use cam_algorithms::SolverGeometry;
+use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -12,6 +13,22 @@ use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulationInput,
     CuttingSimulator, InMemoryCuttingSimulationInputStore, SimulationError, SnapshotInterval,
 };
+
+/// 素材（-5..5 × -5..5 × -5..1）の中の、高さ 0 の正方形の製品形状
+fn product() -> SolverGeometry {
+    SolverGeometry::TriangleMesh(
+        TriangleMesh3D::new(
+            vec![
+                Point3D::new(-5.0, -5.0, 0.0),
+                Point3D::new(5.0, -5.0, 0.0),
+                Point3D::new(5.0, 5.0, 0.0),
+                Point3D::new(-5.0, 5.0, 0.0),
+            ],
+            vec![[0, 1, 2], [0, 2, 3]],
+        )
+        .unwrap(),
+    )
+}
 
 fn cam_spec(input: &str) -> JobSpec {
     JobSpec {
@@ -40,6 +57,8 @@ fn adapter_with_sim_input() -> CamJobExecutorAdapter {
                 tool: Tool::flat_end_mill("nc-post-src".to_string(), 2.0, 10.0),
                 precision: 0.5,
                 snapshot_interval: SnapshotInterval::default(),
+                product: product(),
+                tolerance: 0.001,
             },
         )
         .unwrap();
@@ -459,6 +478,16 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
             .unwrap()
             .ends_with(&format!("/ok/snapshots-{}", artifact.snapshots.len()))
     );
+    // 最後の時点の素材を、入力の製品形状と、入力のトレランスで比べている
+    let deviations = artifact.product_deviations.unwrap();
+    assert_eq!(deviations.tolerance, 0.001);
+    assert!(
+        deviations
+            .distances
+            .iter()
+            .flatten()
+            .any(|distance| distance.is_finite())
+    );
 
     let events = manager.take_events();
     assert!(events.iter().any(|event| {
@@ -682,6 +711,8 @@ fn test_job_adapter_rejects_cutting_sim_with_mismatched_tool() {
                 tool: Tool::flat_end_mill("other-tool".to_string(), 2.0, 10.0),
                 precision: 0.5,
                 snapshot_interval: SnapshotInterval::default(),
+                product: product(),
+                tolerance: 0.001,
             },
         )
         .unwrap();

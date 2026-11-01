@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
+use cam_algorithms::SolverGeometry;
 use cam_core::Tool;
 use geo_algorithms::{Aabb3D, Point3D};
 use job_runtime::RefValidationError;
@@ -29,6 +30,10 @@ pub struct CuttingSimulationInput {
     pub precision: f64,
     /// スナップショットの記録の間隔
     pub snapshot_interval: SnapshotInterval,
+    /// 加工の対象の製品形状（ツールパス生成の入力と同じ。最後の時点の素材と比べ、削り込み・削り残しを求める）
+    pub product: SolverGeometry,
+    /// ツールパス生成のトレランス（製品形状の曲面を三角形に分ける弦の許容誤差と、削り込み・削り残しの判定の許容値）
+    pub tolerance: f64,
 }
 
 /// 製品形状を囲む箱から素材の箱の各面までの余裕（既定はすべて 0。製品形状を囲む箱そのもの）

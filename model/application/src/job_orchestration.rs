@@ -469,12 +469,13 @@ mod tests {
 
     #[test]
     fn cutting_simulation_submit_and_result_query_work_with_cam_parent() {
+        use cam_algorithms::SolverGeometry;
         use cam_core::Tool;
         use cam_sim::{
             CamJobExecutorAdapter, CuttingSimulationInput, InMemoryCuttingSimulationInputStore,
             SnapshotInterval,
         };
-        use geo_algorithms::{Aabb3D, Point3D};
+        use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D};
         use job_runtime::JobManager;
         use std::sync::Arc;
 
@@ -487,6 +488,20 @@ mod tests {
                     tool: Tool::flat_end_mill("nc-post-src".to_string(), 2.0, 10.0),
                     precision: 0.5,
                     snapshot_interval: SnapshotInterval::default(),
+                    // 素材の中の、高さ 0 の正方形
+                    product: SolverGeometry::TriangleMesh(
+                        TriangleMesh3D::new(
+                            vec![
+                                Point3D::new(-5.0, -5.0, 0.0),
+                                Point3D::new(5.0, -5.0, 0.0),
+                                Point3D::new(5.0, 5.0, 0.0),
+                                Point3D::new(-5.0, 5.0, 0.0),
+                            ],
+                            vec![[0, 1, 2], [0, 2, 3]],
+                        )
+                        .unwrap(),
+                    ),
+                    tolerance: 0.001,
                 },
             )
             .unwrap();
@@ -687,6 +702,8 @@ mod tests {
                     tool: tool.clone(),
                     precision: 6.25,
                     snapshot_interval: SnapshotInterval::default(),
+                    product: SolverGeometry::TriangleMesh(pyramid.clone()),
+                    tolerance: 0.01,
                 },
             )
             .unwrap();

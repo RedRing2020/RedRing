@@ -77,6 +77,7 @@ fn artifact_with_tool(
         snapshot_applied: applied,
         grids: dexels.layouts(),
         keyframe_changes: dexels.keyframe_changes().clone(),
+        product_deviations: None,
     };
     (artifact, model)
 }
