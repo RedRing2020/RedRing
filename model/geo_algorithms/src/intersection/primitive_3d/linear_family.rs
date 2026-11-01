@@ -25,6 +25,8 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
         return IntersectionResult::from_option_points(intersections, false, tolerance);
     };
 
+    // 接する場合（2 つの解が許容誤差の中で一致）は 1 点にする（半直線の向きは単位ベクトルのため、t は距離）
+    let tangent = t2 - t1 <= tolerance;
     if t1 >= T::ZERO {
         intersections.push(Point3D::new(
             start.x() + t1 * direction.x(),
@@ -33,7 +35,7 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
         ));
     }
 
-    if t2 >= T::ZERO && (t2 - t1).abs() > tolerance {
+    if t2 >= T::ZERO && !(tangent && t1 >= T::ZERO) {
         intersections.push(Point3D::new(
             start.x() + t2 * direction.x(),
             start.y() + t2 * direction.y(),
@@ -41,7 +43,7 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
         ));
     }
 
-    IntersectionResult::from_option_points(intersections, false, tolerance)
+    IntersectionResult::from_option_points(intersections, tangent, tolerance)
 }
 
 fn ray3d_ray3d_intersection_raw<T: Scalar>(

@@ -79,8 +79,10 @@ pub fn ray3d_cylindrical_surface3d_intersections<T: Scalar>(
         // 軸に最も近づく点 t_c と、そこでの軸までの距離 h（2 直線の距離）を先に求め、t = t_c ± √(r² − h²) / |n| とする。
         // 始点が軸から半径より大きく離れていても、r² が桁落ちで失われない
         let gap = offset.dot(normal);
-        let remaining = radius * radius - gap * gap / normal_squared;
-        if remaining >= T::ZERO {
+        let distance_squared = gap * gap / normal_squared;
+        // 軸までの距離が半径より許容誤差を超えて大きければ交わらない。許容誤差の中なら接する（丸め誤差の負の残りは 0）
+        if distance_squared.sqrt() <= radius + tolerance {
+            let remaining = (radius * radius - distance_squared).max(T::ZERO);
             let closest = -offset.cross(axis).dot(normal) / normal_squared;
             let half = (remaining / normal_squared).sqrt();
             let (t1, t2) = (closest - half, closest + half);

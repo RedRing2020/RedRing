@@ -239,7 +239,12 @@ impl InverseOffsetShape {
             });
         }
 
-        let lowest = vertices.iter().map(|p| p[2]).fold(f64::INFINITY, f64::min);
+        // どの三角形にも使われていない頂点は含めない
+        let lowest = triangles
+            .iter()
+            .flatten()
+            .map(|&vertex| vertices[vertex][2])
+            .fold(f64::INFINITY, f64::min);
         Ok(Self {
             shape,
             faces,
@@ -348,11 +353,12 @@ impl InverseOffsetShape {
                 let circle = Circle2D::new(Point2D::new(x, y), self.shape.radius())
                     .expect("the tool radius is positive");
                 let horizontal_squared = direction[0] * direction[0] + direction[1] * direction[1];
+                // 交点は端点から許容誤差まで辺の外を含むため、辺の中に収めて高さを求める（辺の外へ延ばさない）
                 let height = |point: Point2D<f64>| {
                     let along = ((point.x() - start[0]) * direction[0]
                         + (point.y() - start[1]) * direction[1])
                         / horizontal_squared;
-                    start[2] + along * direction[2]
+                    start[2] + along.clamp(0.0, 1.0) * direction[2]
                 };
                 match projected.intersection(&circle, tolerance()).geometry {
                     IntersectionGeometry::Point2D(point) => Some(height(point)),
@@ -497,10 +503,16 @@ fn is_concave_or_flat(
     else {
         return false;
     };
-    dot(
+    let side = dot(
         sub(vertices[other], vertices[edge.vertices[0]]),
         normals[first],
-    ) >= 0.0
+    );
+    // 法線が逆を向く（面が 90 度より深く折り返す）辺で、もう一方の面が同じ平面にある場合は、裏表の面が重なる厚みの
+    // ない縁のため、凸として残す
+    if dot(normals[first], normals[second]) < 0.0 {
+        return side > tolerance();
+    }
+    side >= 0.0
 }
 
 /// `vector` の、向き `direction` に垂直な成分

@@ -659,6 +659,24 @@ fn intersection_3d_cylindrical_surface_and_ray() {
 }
 
 #[test]
+fn intersection_3d_sphere_and_tangent_ray_touch_at_one_point() {
+    use geo_algorithms::IntersectionTopology;
+    // 最近点の残り r² − h² が丸め誤差で負になる接線
+    let sphere = SphericalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
+    let tangent = Ray3D::new(Point3D::new(-2.0, -1.0, 0.0), Vector3D::new(3.0, 4.0, 0.0)).unwrap();
+    let result = sphere.intersection(&tangent, TOLERANCE);
+    assert_eq!(result.topology, IntersectionTopology::Touching);
+    assert_eq!(point_count(&result), 1);
+    // 球の面のすぐ内側から面に沿うように出る半直線は、前の 1 点で交わる
+    let grazing = Ray3D::new(
+        Point3D::new(1.0 - 1e-14, 0.0, 0.0),
+        Vector3D::new(0.0, 1.0, 0.0),
+    )
+    .unwrap();
+    assert_eq!(point_count(&sphere.intersection(&grazing, TOLERANCE)), 1);
+}
+
+#[test]
 fn intersection_3d_tiny_sphere_and_cylinder_from_a_far_ray() {
     // 始点が半径より 10 桁離れていても、半径の 2 乗が桁落ちで失われない
     let radius = 1e-9;

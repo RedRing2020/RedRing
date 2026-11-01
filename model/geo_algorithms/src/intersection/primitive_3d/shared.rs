@@ -45,10 +45,12 @@ pub(crate) fn spherical_surface_intersection_parameters<T: Scalar>(
     // 始点が中心から半径より大きく離れていても、r² が |offset|² の桁落ちで失われない
     let closest = -offset.dot(*direction) / a;
     let nearest = offset + *direction * closest;
-    let remaining = radius * radius - nearest.dot(nearest);
-    if remaining < T::ZERO {
+    // 中心までの距離が半径より許容誤差を超えて大きければ交わらない。許容誤差の中なら接する（丸め誤差の負の残りは 0）
+    let distance_squared = nearest.dot(nearest);
+    if distance_squared.sqrt() > radius + tolerance {
         return None;
     }
+    let remaining = (radius * radius - distance_squared).max(T::ZERO);
     let half = (remaining / a).sqrt();
     Some((closest - half, closest + half))
 }

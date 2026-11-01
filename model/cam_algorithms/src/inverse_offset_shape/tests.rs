@@ -250,3 +250,61 @@ fn points_on_a_shared_edge_of_a_flat_face_have_a_height() {
         assert!(tip.is_some_and(|z| z.abs() < 1e-12), "{tip:?}");
     }
 }
+
+#[test]
+fn flat_edge_heights_do_not_extend_beyond_the_edge() {
+    // ほぼ鉛直な短い辺 (0, 0, 0)–(1e-8, 0, 100) の端のすぐ外で円が辺の延長に接する。交点は端点から許容誤差まで辺の
+    // 外を含むため、辺に沿って延ばすと端点より高くなる
+    let mesh = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1e-8, 0.0, 100.0),
+            Point3D::new(0.0, -5.0, 0.0),
+        ],
+        vec![[0, 1, 2]],
+    )
+    .unwrap();
+    let shape = InverseOffsetShape::new(&mesh, CutterShape::Flat { radius: 1.0 }).unwrap();
+    let tip = shape.tip_height_at(1e-8 + 5e-13, 1.0);
+    assert!(tip.is_some_and(|z| z <= 100.0), "{tip:?}");
+}
+
+#[test]
+fn unused_vertices_do_not_change_the_heights() {
+    // どの三角形にも使われていない、極端に低い頂点
+    let square = |extra: Option<Point3D<f64>>| {
+        let mut vertices = vec![
+            Point3D::new(0.0, 0.0, 10.0),
+            Point3D::new(10.0, 0.0, 10.0),
+            Point3D::new(10.0, 10.0, 10.0),
+            Point3D::new(0.0, 10.0, 10.0),
+        ];
+        vertices.extend(extra);
+        TriangleMesh3D::new(vertices, vec![[0, 1, 2], [0, 2, 3]]).unwrap()
+    };
+    let with_unused = square(Some(Point3D::new(0.0, 0.0, -1e20)));
+    for shape in SHAPES {
+        let expected = InverseOffsetShape::new(&square(None), shape).unwrap();
+        let actual = InverseOffsetShape::new(&with_unused, shape).unwrap();
+        assert_same(&heights(&actual, 10.0), &heights(&expected, 10.0));
+        assert!((actual.tip_height_at(5.0, 5.0).unwrap() - 10.0).abs() < 1e-12);
+    }
+}
+
+#[test]
+fn edges_of_a_face_overlapping_its_reverse_side_are_kept() {
+    // 同じ三角形が 2 枚重なる（向きをそろえると裏表になる）厚みのない板。辺は平らでなく板の縁のため残す
+    let sheet = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+            Point3D::new(0.0, 10.0, 0.0),
+        ],
+        vec![[0, 1, 2], [0, 1, 2]],
+    )
+    .unwrap();
+    for shape in SHAPES {
+        let shape = InverseOffsetShape::new(&sheet, shape).unwrap();
+        assert!(shape.tip_height_at(5.0, -0.25).is_some(), "{shape:?}");
+    }
+}
