@@ -8,6 +8,7 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulationArtifact, CuttingSimulationReplay, DexelSurface, SurfaceMesh};
+use thread_priority::ThreadPriority;
 
 use super::{CuttingAnimationError, StockBlockMesh};
 use crate::mesh_converter::VertexData;
@@ -162,6 +163,10 @@ impl Drop for StockWorker {
 
 /// 別のスレッドの処理
 fn run(shared: &Shared, mut stock: StockAnimation) {
+    // 作り直しはすべてのコアを使いうるため、画面の描画や GPU のドライバーなど、ほかの処理に先を譲るように優先度を下げる
+    if let Err(error) = ThreadPriority::Min.set_for_current() {
+        tracing::warn!("素材の作り直しのスレッドの優先度を下げられませんでした: {error}");
+    }
     loop {
         let frame = {
             let mut state = shared.lock();

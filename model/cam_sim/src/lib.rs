@@ -10,6 +10,7 @@ mod dexel_normal;
 mod dexel_surface;
 mod error;
 mod job_adapter;
+mod parallel;
 mod preflight;
 mod replay;
 mod simulation_artifact;

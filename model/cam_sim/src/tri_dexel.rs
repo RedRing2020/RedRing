@@ -12,6 +12,7 @@ mod tests;
 use geo_algorithms::{Aabb3D, Point3D};
 
 use crate::dexel_normal::DexelNormal;
+use crate::parallel;
 use crate::simulation_artifact::{DexelChanges, DexelGridLayout};
 use crate::stock_model::{StockModel, SweptToolPrimitive};
 use ray_interval::{AxisLine, ToolInterval, swept_primitive_intervals};
@@ -324,7 +325,7 @@ impl DexelGrid {
                 .step_by(band_lines)
                 .map(|start| {
                     let band = start..(start + band_lines).min(lines.end);
-                    scope.spawn(move || grid.subtract_band(frames, split, band))
+                    parallel::spawn_scoped(scope, move || grid.subtract_band(frames, split, band))
                 })
                 .collect();
             handles

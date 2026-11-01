@@ -27,6 +27,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::constants::SURFACE_BLOCK_CELLS;
 use crate::dexel_normal::DexelNormal;
+use crate::parallel;
 use crate::simulation_artifact::{DexelGridLayout, DexelGridStates, DexelState};
 
 /// 表示用の面（頂点の位置・法線と三角形の頂点番号。三角形は外向きが表）
@@ -221,7 +222,7 @@ impl DexelSurface {
         let mut meshes: Vec<(usize, SurfaceMesh)> = std::thread::scope(|scope| {
             let handles: Vec<_> = (0..threads)
                 .map(|_| {
-                    scope.spawn(|| {
+                    parallel::spawn_scoped(scope, || {
                         std::iter::from_fn(|| {
                             let position = next.fetch_add(1, Ordering::Relaxed);
                             blocks
