@@ -8,14 +8,14 @@
 use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, ToolPath};
 use geo_algorithms::Point3D;
 
-use crate::inverse_offset::DropCutter;
+use crate::inverse_offset_shape::InverseOffsetShape;
 use crate::solver::{CamSolverError, ScanlineCutDirection, ScanlineParams};
 
-/// drop-cutter から、XY 範囲 `(min, max)` のスキャン加工 ToolPath を生成する。
+/// 逆オフセット形状から、XY 範囲 `(min, max)` のスキャン加工 ToolPath を生成する。
 ///
 /// 各パスは `ContourLevelPath` 1 件に対応し、`z_level` にはパス内の最高 CL 高さを格納する。
 pub fn generate_scanline_toolpath(
-    cutter: &DropCutter,
+    cutter: &InverseOffsetShape,
     tool_id: &str,
     params: &ScanlineParams,
     (xy_min, xy_max): ([f64; 2], [f64; 2]),

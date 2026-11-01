@@ -63,6 +63,7 @@ pub trait CrossIntersection<T: Scalar, Other> {
 | 交差 | Circle2D | Ellipse2D | 対称 |
 | 交差 | Triangle2D | LineSegment2D | 対称 |
 | 交差 | Ray2D | Circle2D | 対称 |
+| 交差 | LineSegment2D | Circle2D | 対称 |
 | 交差 | Ray2D | LineSegment2D | 対称 |
 | 交差 | InfiniteLine2D | Circle2D | 対称 |
 | 交差 | InfiniteLine2D | LineSegment2D | 対称 |
@@ -105,6 +106,7 @@ pub trait CrossIntersection<T: Scalar, Other> {
 | 交差 | SphericalSolid3D | InfiniteLine3D | 片方向 |
 | 交差 | SphericalSolid3D | Ray3D | 片方向 |
 | 交差 | SphericalSurface3D | Ray3D | 対称 |
+| 交差 | CylindricalSurface3D | Ray3D | 対称 |
 | 交差 | LineSegment3D | SphericalSurface3D | 片方向 |
 
 ## 5. 網羅表から外した組み合わせ

@@ -3,9 +3,9 @@
 use super::{CrossCollision, CrossDistance, CrossIntersection};
 use crate::intersection::primitive_3d as intersection;
 use crate::{
-    Aabb3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, EllipsoidalSolid3D,
-    InfiniteLine3D, IntersectionResult, LineSegment3D, NurbsCurve3D, Plane3D, Point3D, Ray3D,
-    Scalar, SphericalSolid3D, SphericalSurface3D, Triangle3D, Vector3D,
+    Aabb3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D,
+    EllipsoidalSolid3D, InfiniteLine3D, IntersectionResult, LineSegment3D, NurbsCurve3D, Plane3D,
+    Point3D, Ray3D, Scalar, SphericalSolid3D, SphericalSurface3D, Triangle3D, Vector3D,
 };
 use geo_contracts::{
     default_distance_tolerance, default_parallel_cross_error_tolerance, Circle3DProperties,
@@ -253,6 +253,11 @@ symmetric_intersection!(
     Ray3D,
     SphericalSurface3D,
     intersection::ray3d_spherical_surface3d_intersections
+);
+symmetric_intersection!(
+    Ray3D,
+    CylindricalSurface3D,
+    intersection::ray3d_cylindrical_surface3d_intersections
 );
 intersection!(
     LineSegment3D,

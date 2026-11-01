@@ -9,6 +9,7 @@
 
 pub mod cl_grid;
 pub mod inverse_offset;
+pub mod inverse_offset_shape;
 pub mod process_template;
 pub mod product_surface;
 pub mod scanline;
@@ -16,7 +17,8 @@ pub mod solver;
 pub mod tessellation;
 
 pub use cl_grid::{ClGrid, MAX_CL_GRID_SAMPLES, sample_cl_grid};
-pub use inverse_offset::{CutterShape, DropCutter};
+pub use inverse_offset::CutterShape;
+pub use inverse_offset_shape::InverseOffsetShape;
 pub use process_template::{
     MachiningBoundary, MachiningStage, OperationDefinition, OperationType, ProcessTemplate,
     RectangleBoundary, ResolvedOperation, SolverDefaults, TemplateFailure, build_solver_input,

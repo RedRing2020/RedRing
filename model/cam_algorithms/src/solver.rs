@@ -11,7 +11,8 @@ use geo_algorithms::{
     tessellate_surfaces,
 };
 
-use crate::inverse_offset::{CutterShape, DropCutter};
+use crate::inverse_offset::CutterShape;
+use crate::inverse_offset_shape::InverseOffsetShape;
 use crate::process_template::{MachiningBoundary, TemplateFailure};
 use crate::scanline::generate_scanline_toolpath;
 
@@ -265,7 +266,7 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
         .geometry
         .triangle_mesh(input.chord_tolerance, input.tessellation_limits)?;
 
-    let cutter = DropCutter::new(&mesh, cutter_shape(&input.tool)?)?;
+    let cutter = InverseOffsetShape::new(&mesh, cutter_shape(&input.tool)?)?;
     let OperationSpec::Scanline(params) = &input.operation;
     let region = machining_region(&cutter, input.boundary, params.tool_range)?;
 
@@ -284,7 +285,7 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
 /// クリップ結果が面積を持たない（重ならない、または辺・角で接するだけ）場合は、
 /// 経路生成まで進めて `no_solution` にせず、入力契約違反の `operation_boundary_out_of_domain` とする。
 fn machining_region(
-    cutter: &DropCutter,
+    cutter: &InverseOffsetShape,
     boundary: Option<MachiningBoundary>,
     tool_range: ScanlineToolRange,
 ) -> Result<([f64; 2], [f64; 2]), CamSolverError> {

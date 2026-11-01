@@ -41,19 +41,16 @@ pub(crate) fn spherical_surface_intersection_parameters<T: Scalar>(
         return None;
     }
 
-    let b = offset.dot(*direction) * (T::ONE + T::ONE);
-    let c = offset.dot(offset) - radius * radius;
-    let discriminant = b * b - (T::ONE + T::ONE + T::ONE + T::ONE) * a * c;
-    if discriminant < T::ZERO {
+    // 中心に最も近い点 t_c と、そこから中心までの距離 h を先に求め、t = t_c ± √(r² − h²) / |d| とする。
+    // 始点が中心から半径より大きく離れていても、r² が |offset|² の桁落ちで失われない
+    let closest = -offset.dot(*direction) / a;
+    let nearest = offset + *direction * closest;
+    let remaining = radius * radius - nearest.dot(nearest);
+    if remaining < T::ZERO {
         return None;
     }
-
-    let sqrt_discriminant = discriminant.sqrt();
-    let two_a = (T::ONE + T::ONE) * a;
-    Some((
-        (-b - sqrt_discriminant) / two_a,
-        (-b + sqrt_discriminant) / two_a,
-    ))
+    let half = (remaining / a).sqrt();
+    Some((closest - half, closest + half))
 }
 
 pub(crate) fn conical_surface3d_intersect_params<T: Scalar>(

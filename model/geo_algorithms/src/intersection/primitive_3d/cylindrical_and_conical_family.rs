@@ -3,13 +3,14 @@ use super::shared::{
     conical_surface3d_intersect_params, convex_solid_linear_intersection, point_intersection_if,
 };
 use crate::{
-    ConicalSolid3D, ConicalSurface3D, InfiniteLine3D, IntersectionResult, LineSegment3D, Point3D,
-    Ray3D, Vector3D,
+    ConicalSolid3D, ConicalSurface3D, CylindricalSurface3D, InfiniteLine3D, IntersectionResult,
+    LineSegment3D, Point3D, Ray3D, Vector3D,
 };
 use analysis::{minimize_unimodal, polynomial_real_roots_in_interval};
 use geo_contracts::{
     ConicalSolid3DDistance, ConicalSolid3DProperties, ConicalSurface3DDistance,
-    InfiniteLine3DProperties, LineSegment3DProperties, Ray3DProperties, Scalar,
+    CylindricalSurface3DProperties, InfiniteLine3DProperties, LineSegment3DProperties,
+    Ray3DProperties, Scalar,
 };
 
 fn conical_solid3d_point3d_intersection_raw<T: Scalar>(
@@ -53,6 +54,44 @@ pub fn conical_surface3d_point3d_intersection<T: Scalar>(
         false,
         tolerance,
     )
+}
+
+/// 半直線と円柱面（無限の長さ）の交点（半直線の向きに近い順）
+///
+/// 半直線が円柱の軸と平行な場合は、交わらないか面に沿って重なるため、交点を返さない。
+pub fn ray3d_cylindrical_surface3d_intersections<T: Scalar>(
+    ray: &Ray3D<T>,
+    cylinder: &CylindricalSurface3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let origin = ray.origin();
+    let direction = ray.direction().as_vector();
+    let axis = CylindricalSurface3DProperties::axis(cylinder).as_vector();
+    let radius = CylindricalSurface3DProperties::radius(cylinder);
+    let offset = Vector3D::from_points(CylindricalSurface3DProperties::center(cylinder), origin);
+    // 半直線と軸の両方に垂直な向き n = d × a（|n| は d の軸に垂直な成分の長さ）
+    let normal = direction.cross(axis);
+    let normal_squared = normal.dot(normal);
+    let mut points = Vec::new();
+    if normal_squared > tolerance * tolerance {
+        // 軸に最も近づく点 t_c と、そこでの軸までの距離 h（2 直線の距離）を先に求め、t = t_c ± √(r² − h²) / |n| とする。
+        // 始点が軸から半径より大きく離れていても、r² が桁落ちで失われない
+        let gap = offset.dot(normal);
+        let remaining = radius * radius - gap * gap / normal_squared;
+        if remaining >= T::ZERO {
+            let closest = -offset.cross(axis).dot(normal) / normal_squared;
+            let half = (remaining / normal_squared).sqrt();
+            let (t1, t2) = (closest - half, closest + half);
+            if t1 >= T::ZERO {
+                points.push(origin + direction * t1);
+            }
+            // 接する場合（2 つの解が許容誤差の中で一致）は 1 点にする
+            if t2 >= T::ZERO && t2 - t1 > tolerance {
+                points.push(origin + direction * t2);
+            }
+        }
+    }
+    IntersectionResult::from_option_points(points, false, tolerance)
 }
 
 pub fn conical_surface3d_infinite_line3d_intersections<T: Scalar>(

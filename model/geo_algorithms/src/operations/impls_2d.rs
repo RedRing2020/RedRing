@@ -1,7 +1,9 @@
 //! 2D の形状をまたぐ演算の実装
 
 use super::{CrossCollision, CrossIntersection};
-use crate::intersection::pair_base::line_segment2d_arc2d_intersections;
+use crate::intersection::pair_base::{
+    line_segment2d_arc2d_intersections, line_segment2d_circle2d_intersections,
+};
 use crate::intersection::primitive_2d as intersection;
 use crate::intersection::primitive_2d::ellipse2d_local_coordinates;
 use crate::{
@@ -204,6 +206,11 @@ symmetric_intersection!(
 );
 symmetric_intersection!(Ray2D, Circle2D, intersection::ray2d_circle2d_intersections);
 symmetric_intersection!(
+    LineSegment2D,
+    Circle2D,
+    line_segment2d_circle2d_intersection
+);
+symmetric_intersection!(
     Ray2D,
     LineSegment2D,
     intersection::ray2d_line_segment2d_intersection
@@ -223,3 +230,16 @@ symmetric_intersection!(
     Ray2D,
     intersection::infinite_line2d_ray2d_intersection
 );
+
+/// 線分と円の交点（線分の始点に近い順）
+fn line_segment2d_circle2d_intersection<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    circle: &Circle2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_points2d(
+        line_segment2d_circle2d_intersections(segment, circle, tolerance),
+        false,
+        tolerance,
+    )
+}

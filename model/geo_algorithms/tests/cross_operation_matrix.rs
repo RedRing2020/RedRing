@@ -5,17 +5,18 @@
 
 use geo_algorithms::{
     Aabb3D, Angle, Arc2D, Circle2D, Circle3D, ConicalSolid3D, ConicalSurface3D, CrossCollision,
-    CrossDistance, CrossIntersection, CylindricalSolid3D, Direction3D, Ellipse2D, EllipseArc2D,
-    EllipsoidalSolid3D, InfiniteLine2D, InfiniteLine3D, IntersectionResult, LineSegment2D,
-    LineSegment3D, NurbsCurve3D, Plane3D, Point2D, Point3D, Ray2D, Ray3D, SphericalSolid3D,
-    SphericalSurface3D, Triangle2D, Triangle3D, Vector2D, Vector3D,
+    CrossDistance, CrossIntersection, CylindricalSolid3D, CylindricalSurface3D, Direction3D,
+    Ellipse2D, EllipseArc2D, EllipsoidalSolid3D, InfiniteLine2D, InfiniteLine3D,
+    IntersectionResult, LineSegment2D, LineSegment3D, NurbsCurve3D, Plane3D, Point2D, Point3D,
+    Ray2D, Ray3D, SphericalSolid3D, SphericalSurface3D, Triangle2D, Triangle3D, Vector2D, Vector3D,
 };
 use geo_contracts::{
     Arc2DConstructor, Circle2DConstructor, ConicalSolid3DConstructor, ConicalSurface3DConstructor,
-    Ellipse2DConstructor, EllipseArc2DConstructor, InfiniteLine2DConstructor,
-    InfiniteLine3DConstructor, LineSegment2DConstructor, LineSegment3DConstructor,
-    Plane3DConstructor, Ray2DConstructor, Ray3DConstructor, SphericalSolid3DConstructor,
-    SphericalSurface3DConstructor, Triangle2DConstructor, Triangle3DConstructor,
+    CylindricalSurface3DConstructor, Ellipse2DConstructor, EllipseArc2DConstructor,
+    InfiniteLine2DConstructor, InfiniteLine3DConstructor, LineSegment2DConstructor,
+    LineSegment3DConstructor, Plane3DConstructor, Ray2DConstructor, Ray3DConstructor,
+    SphericalSolid3DConstructor, SphericalSurface3DConstructor, Triangle2DConstructor,
+    Triangle3DConstructor,
 };
 
 const TOLERANCE: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
@@ -56,6 +57,7 @@ fn implemented_2d_pairs() {
     symmetric!(intersection, Circle2D, Ellipse2D);
     symmetric!(intersection, Triangle2D, LineSegment2D);
     symmetric!(intersection, Ray2D, Circle2D);
+    symmetric!(intersection, LineSegment2D, Circle2D);
     symmetric!(intersection, Ray2D, LineSegment2D);
     symmetric!(intersection, InfiniteLine2D, Circle2D);
     symmetric!(intersection, InfiniteLine2D, LineSegment2D);
@@ -99,6 +101,7 @@ fn implemented_3d_pairs() {
     one_way!(intersection, SphericalSolid3D, InfiniteLine3D);
     one_way!(intersection, SphericalSolid3D, Ray3D);
     symmetric!(intersection, SphericalSurface3D, Ray3D);
+    symmetric!(intersection, CylindricalSurface3D, Ray3D);
     one_way!(intersection, LineSegment3D, SphericalSurface3D);
 }
 
@@ -355,6 +358,15 @@ fn intersection_2d_returns_points_in_both_directions() {
     let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(0.0, 1.0)).unwrap();
     assert_eq!(point_count(&line.intersection(&circle, TOLERANCE)), 2);
 
+    // 線分は、線分の中にある交点だけ（円の中で終わる線分は 1 点、円の中に収まる線分は交わらない）
+    let through = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+    assert_eq!(point_count(&through.intersection(&circle, TOLERANCE)), 2);
+    assert_eq!(point_count(&circle.intersection(&through, TOLERANCE)), 2);
+    let into = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(0.0, 0.0)).unwrap();
+    assert_eq!(point_count(&into.intersection(&circle, TOLERANCE)), 1);
+    let within = LineSegment2D::new(Point2D::new(-0.5, 0.0), Point2D::new(0.5, 0.0)).unwrap();
+    assert!(!within.intersection(&circle, TOLERANCE).intersects());
+
     let segment = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
     assert!(ray.intersection(&segment, TOLERANCE).intersects());
     assert!(segment.intersection(&ray, TOLERANCE).intersects());
@@ -534,6 +546,101 @@ fn intersection_3d_quadric() {
 }
 
 /// 交差の結果が線分なら両端の点を返す
+#[test]
+fn intersection_3d_cylindrical_surface_and_ray() {
+    // 軸が Z、半径 1 の円柱面
+    let cylinder = CylindricalSurface3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Direction3D::new(0.0, 0.0, 1.0).unwrap(),
+        Direction3D::new(1.0, 0.0, 0.0).unwrap(),
+        1.0,
+    )
+    .unwrap();
+    let ray = |origin: [f64; 3], direction: [f64; 3]| {
+        Ray3D::new(
+            Point3D::new(origin[0], origin[1], origin[2]),
+            Vector3D::new(direction[0], direction[1], direction[2]),
+        )
+        .unwrap()
+    };
+    let points = |result: IntersectionResult<f64>| -> Vec<[f64; 3]> {
+        use geo_algorithms::IntersectionGeometry;
+        let coordinates = |p: &Point3D<f64>| [p.x(), p.y(), p.z()];
+        match result.geometry {
+            IntersectionGeometry::Points(points) => points.iter().map(coordinates).collect(),
+            IntersectionGeometry::Point(point) => vec![coordinates(&point)],
+            IntersectionGeometry::None => Vec::new(),
+            other => panic!("{other:?}"),
+        }
+    };
+    let close = |actual: &[[f64; 3]], expected: &[[f64; 3]]| {
+        actual.len() == expected.len()
+            && actual
+                .iter()
+                .zip(expected)
+                .all(|(a, e)| a.iter().zip(e).all(|(a, e)| (a - e).abs() < 1e-12))
+    };
+    // 軸を横切る半直線は、近い順に 2 点で交わる（逆の順の呼び出しも同じ）
+    let across = ray([-2.0, 0.0, 0.5], [1.0, 0.0, 0.0]);
+    let expected = [[-1.0, 0.0, 0.5], [1.0, 0.0, 0.5]];
+    assert!(close(
+        &points(cylinder.intersection(&across, TOLERANCE)),
+        &expected
+    ));
+    assert!(close(
+        &points(across.intersection(&cylinder, TOLERANCE)),
+        &expected
+    ));
+    // 斜めの半直線（軸の向きの成分は交点の高さだけを変える）
+    let slanted = ray([-2.0, 0.0, 0.0], [1.0, 0.0, 1.0]);
+    assert!(close(
+        &points(cylinder.intersection(&slanted, TOLERANCE)),
+        &[[-1.0, 0.0, 1.0], [1.0, 0.0, 3.0]]
+    ));
+    // 接する半直線は 1 点
+    let tangent = ray([-2.0, 1.0, 0.0], [1.0, 0.0, 0.0]);
+    assert!(close(
+        &points(cylinder.intersection(&tangent, TOLERANCE)),
+        &[[0.0, 1.0, 0.0]]
+    ));
+    // 円柱の中から出る半直線は 1 点、離れる半直線・外れる半直線・軸と平行な半直線は交わらない
+    let inside = ray([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]);
+    assert!(close(
+        &points(cylinder.intersection(&inside, TOLERANCE)),
+        &[[1.0, 0.0, 0.0]]
+    ));
+    for missing in [
+        ray([2.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
+        ray([-2.0, 2.0, 0.0], [1.0, 0.0, 0.0]),
+        ray([0.5, 0.0, 0.0], [0.0, 0.0, 1.0]),
+    ] {
+        assert!(!cylinder.intersection(&missing, TOLERANCE).intersects());
+    }
+}
+
+#[test]
+fn intersection_3d_tiny_sphere_and_cylinder_from_a_far_ray() {
+    // 始点が半径より 10 桁離れていても、半径の 2 乗が桁落ちで失われない
+    let radius = 1e-9;
+    let up = Ray3D::new(
+        Point3D::new(0.5e-9, 0.0, -80.0),
+        Vector3D::new(0.0, 0.0, 1.0),
+    )
+    .unwrap();
+    let sphere = SphericalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), radius).unwrap();
+    assert_eq!(point_count(&sphere.intersection(&up, TOLERANCE * 1e-6)), 2);
+    // 斜めの軸の円柱
+    let cylinder = CylindricalSurface3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Direction3D::new(1.0, 0.0, 0.5).unwrap(),
+        Direction3D::new(0.0, 1.0, 0.0).unwrap(),
+        radius,
+    )
+    .unwrap();
+    let result = cylinder.intersection(&up, TOLERANCE * 1e-6);
+    assert_eq!(point_count(&result), 2);
+}
+
 fn segment_ends(result: &IntersectionResult<f64>) -> Option<(Point3D<f64>, Point3D<f64>)> {
     use geo_algorithms::IntersectionGeometry;
     use geo_contracts::LineSegment3DProperties;
