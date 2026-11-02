@@ -28,7 +28,8 @@ pub use product_surface::ProductSurface;
 pub use scanline::generate_scanline_toolpath;
 pub use solver::{
     CamSolverError, CamSolverInput, GeometryKind, OperationSpec, ScanlineCutDirection,
-    ScanlineParams, ScanlineToolRange, SolverGeometry, build_inverse_offset_shape, solve_toolpath,
+    ScanlineInputError, ScanlineParams, ScanlineToolRange, SolverGeometry,
+    build_inverse_offset_shape, solve_toolpath,
 };
 pub use tessellation::triangle_aspect_ratio;
 

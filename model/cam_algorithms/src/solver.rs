@@ -23,6 +23,8 @@ use crate::scanline::generate_scanline_toolpath;
 pub enum CamSolverError {
     /// 入力契約エラー（必須項目欠落、値域外、未対応の組み合わせ）
     InvalidInput(String),
+    /// 走査線の条件の誤り（入力契約エラーの 1 つ）
+    InvalidScanline(ScanlineInputError),
     /// 入力契約は妥当だが、幾何制約下で有効経路を構築できない
     NoSolution(String),
     /// 入力契約は妥当だが、反復解法が収束条件を満たさない
@@ -33,7 +35,7 @@ impl CamSolverError {
     /// 失敗分類の契約キー
     pub fn code(&self) -> &'static str {
         match self {
-            Self::InvalidInput(_) => "invalid_input",
+            Self::InvalidInput(_) | Self::InvalidScanline(_) => "invalid_input",
             Self::NoSolution(_) => "no_solution",
             Self::ConvergenceFailure(_) => "convergence_failure",
         }
@@ -45,6 +47,29 @@ impl CamSolverError {
             Self::InvalidInput(reason)
             | Self::NoSolution(reason)
             | Self::ConvergenceFailure(reason) => reason,
+            Self::InvalidScanline(error) => error.reason(),
+        }
+    }
+}
+
+/// 走査線の条件（`ScanlineParams`）の誤り
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScanlineInputError {
+    /// ピックフィードが正の有限値でない
+    StepoverNotPositive,
+    /// ピックフィードが工具径を超える
+    StepoverExceedsToolDiameter,
+    /// 送りが正の有限値でない
+    FeedRateNotPositive,
+}
+
+impl ScanlineInputError {
+    /// 失敗理由
+    pub fn reason(self) -> &'static str {
+        match self {
+            Self::StepoverNotPositive => "scanline stepover must be positive and finite",
+            Self::StepoverExceedsToolDiameter => "scanline stepover must not exceed tool diameter",
+            Self::FeedRateNotPositive => "scanline feed_rate must be positive and finite",
         }
     }
 }
@@ -320,16 +345,16 @@ fn machining_region(
 }
 
 fn validate_scanline(params: &ScanlineParams, tool: &Tool<f64>) -> Result<(), CamSolverError> {
-    if !is_positive_finite(params.stepover) {
-        return Err(invalid("scanline stepover must be positive and finite"));
-    }
-    if params.stepover > tool.diameter() {
-        return Err(invalid("scanline stepover must not exceed tool diameter"));
-    }
-    if !is_positive_finite(params.feed_rate) {
-        return Err(invalid("scanline feed_rate must be positive and finite"));
-    }
-    Ok(())
+    let error = if !is_positive_finite(params.stepover) {
+        ScanlineInputError::StepoverNotPositive
+    } else if params.stepover > tool.diameter() {
+        ScanlineInputError::StepoverExceedsToolDiameter
+    } else if !is_positive_finite(params.feed_rate) {
+        ScanlineInputError::FeedRateNotPositive
+    } else {
+        return Ok(());
+    };
+    Err(CamSolverError::InvalidScanline(error))
 }
 
 /// 工具種別を逆オフセット形状へ対応付ける。未対応工具は `invalid_input`。

@@ -10,7 +10,7 @@ use geo_contracts::{
 
 use crate::{
     CamSolverError, CamSolverInput, CutterShape, InverseOffsetShape, OperationSpec,
-    ScanlineCutDirection, ScanlineParams, ScanlineToolRange, SolverGeometry,
+    ScanlineCutDirection, ScanlineInputError, ScanlineParams, ScanlineToolRange, SolverGeometry,
     build_inverse_offset_shape, solve_toolpath,
 };
 
@@ -475,7 +475,12 @@ fn invalid_input_for_stepover_larger_than_diameter() {
         tool_range: ScanlineToolRange::default(),
         cut_direction: ScanlineCutDirection::default(),
     });
-    assert_eq!(solve_toolpath(&input).unwrap_err().code(), "invalid_input");
+    let error = solve_toolpath(&input).unwrap_err();
+    assert_eq!(error.code(), "invalid_input");
+    assert_eq!(
+        error,
+        CamSolverError::InvalidScanline(ScanlineInputError::StepoverExceedsToolDiameter)
+    );
 }
 
 #[test]

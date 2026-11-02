@@ -9,7 +9,9 @@ use application::cam_simulation_workflow::{
     ProductShapeSimulationRequest,
 };
 use cam_algorithms::{CamSolverError, OperationDefinition, ProcessTemplate};
-pub use cam_algorithms::{ScanlineCutDirection, ScanlineParams, ScanlineToolRange};
+pub use cam_algorithms::{
+    ScanlineCutDirection, ScanlineInputError, ScanlineParams, ScanlineToolRange,
+};
 use cam_core::{ToleranceProfile, Tool};
 pub use cam_sim::StockMargins;
 use cam_sim::{CuttingSimulationInputError, SnapshotInterval};
@@ -142,7 +144,12 @@ pub enum ConditionIssue {
     InvalidStock,
     /// 工具の値が不正
     InvalidTool,
-    /// ツールパス生成の入力（工具・走査線の条件）の誤り（理由）
+    /// 走査線の条件の誤り（確かめた条件の工具径。mm）
+    InvalidScanline {
+        error: ScanlineInputError,
+        tool_diameter: f64,
+    },
+    /// そのほかのツールパス生成の入力の誤り（理由）
     InvalidToolpathInput(String),
     /// 精度が正の有限値でない
     InvalidPrecision,
@@ -155,12 +162,18 @@ pub enum ConditionIssue {
 }
 
 impl ConditionIssue {
-    fn from_condition_error(error: &CamConditionError) -> Self {
+    fn from_condition_error(error: &CamConditionError, tool_diameter: f64) -> Self {
         match error {
             CamConditionError::InvalidStockMargins(_) => Self::InvalidStockMargins,
             CamConditionError::PrecisionFinerThanTolerance { tolerance, .. } => {
                 Self::PrecisionFinerThanTolerance {
                     tolerance: *tolerance,
+                }
+            }
+            CamConditionError::ToolpathInput(CamSolverError::InvalidScanline(error)) => {
+                Self::InvalidScanline {
+                    error: *error,
+                    tool_diameter,
                 }
             }
             CamConditionError::ToolpathInput(error) => {
@@ -180,11 +193,12 @@ impl ConditionIssue {
         }
     }
 
-    fn from_workflow_error(error: &CamSimulationWorkflowError) -> Vec<Self> {
+    fn from_workflow_error(error: &CamSimulationWorkflowError, tool_diameter: f64) -> Vec<Self> {
         match error {
-            CamSimulationWorkflowError::Conditions(errors) => {
-                errors.iter().map(Self::from_condition_error).collect()
-            }
+            CamSimulationWorkflowError::Conditions(errors) => errors
+                .iter()
+                .map(|error| Self::from_condition_error(error, tool_diameter))
+                .collect(),
             CamSimulationWorkflowError::ProductShape(_)
             | CamSimulationWorkflowError::EmptyProductShape => {
                 vec![Self::NoProductShape(error.to_string())]
@@ -262,7 +276,9 @@ impl CuttingSimulationSession {
     pub fn check(&self, shapes: &ProductShapeScene) -> Vec<ConditionIssue> {
         match CamSimulationWorkflow::check_product_shapes(shapes.store(), &self.request(shapes)) {
             Ok(()) => Vec::new(),
-            Err(error) => ConditionIssue::from_workflow_error(&error),
+            Err(error) => {
+                ConditionIssue::from_workflow_error(&error, self.conditions.tool_diameter)
+            }
         }
     }
 
@@ -508,6 +524,11 @@ mod tests {
                 ..StockMargins::default()
             },
             precision: 0.0005,
+            // ピックフィードが工具径 6 mm を超える
+            scanline: ScanlineParams {
+                stepover: 7.0,
+                ..session.conditions().scanline
+            },
             ..session.conditions()
         });
         let issues = session.check(&scene);
@@ -517,6 +538,10 @@ mod tests {
                 ConditionIssue::InvalidStockMargins,
                 ConditionIssue::PrecisionFinerThanTolerance {
                     tolerance: session.toolpath_tolerance()
+                },
+                ConditionIssue::InvalidScanline {
+                    error: ScanlineInputError::StepoverExceedsToolDiameter,
+                    tool_diameter: 6.0,
                 },
             ]
         );

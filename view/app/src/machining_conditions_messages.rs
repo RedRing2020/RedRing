@@ -78,6 +78,15 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.issue.invalid_toolpath_input",
         "工具・加工の条件が正しくありません（{reason}）",
     ),
+    (
+        "conditions.issue.stepover_not_positive",
+        "ピックフィードは正の数値にしてください",
+    ),
+    (
+        "conditions.issue.stepover_exceeds_tool_diameter",
+        "ピックフィードは工具径（{diameter} mm）以下にしてください",
+    ),
+    ("conditions.issue.feed_rate_not_positive", "送りは正の数値にしてください"),
     ("conditions.issue.invalid_precision", "精度は正の数値にしてください"),
     (
         "conditions.issue.precision_finer_than_tolerance",
@@ -190,6 +199,12 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.issue.invalid_toolpath_input",
         "Tool or machining conditions are invalid ({reason})",
     ),
+    ("conditions.issue.stepover_not_positive", "Stepover must be positive"),
+    (
+        "conditions.issue.stepover_exceeds_tool_diameter",
+        "Stepover must not exceed the tool diameter ({diameter} mm)",
+    ),
+    ("conditions.issue.feed_rate_not_positive", "Feed rate must be positive"),
     ("conditions.issue.invalid_precision", "Precision must be positive"),
     (
         "conditions.issue.precision_finer_than_tolerance",
@@ -269,6 +284,24 @@ mod tests {
                 &args
             ),
             "Precision must not be finer than the toolpath tolerance (0.001 mm)"
+        );
+
+        let args = [("diameter", "10".to_string())];
+        assert_eq!(
+            resolve_machining_conditions_text(
+                UiLocale::Ja,
+                "conditions.issue.stepover_exceeds_tool_diameter",
+                &args
+            ),
+            "ピックフィードは工具径（10 mm）以下にしてください"
+        );
+        assert_eq!(
+            resolve_machining_conditions_text(
+                UiLocale::En,
+                "conditions.issue.stepover_exceeds_tool_diameter",
+                &args
+            ),
+            "Stepover must not exceed the tool diameter (10 mm)"
         );
 
         let args = [("height", "0.1010".to_string())];
