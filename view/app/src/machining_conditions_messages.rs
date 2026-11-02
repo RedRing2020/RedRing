@@ -19,7 +19,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "工具長を指定する（指定しない場合は長さの制限なし）",
     ),
     ("conditions.header.machining", "加工（スキャン加工）"),
-    ("conditions.machining.stepover", "ステップオーバー"),
+    ("conditions.machining.stepover", "ピックフィード"),
     ("conditions.machining.sample_pitch", "サンプル間隔"),
     ("conditions.machining.feed_rate", "送り"),
     ("conditions.machining.cut_direction", "送り方（主軸は右回り）"),
@@ -37,7 +37,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.machining.tool_range.geometry", "形状の範囲"),
     (
         "conditions.machining.cusp_height",
-        "パスの間に残る山の高さ（平らな面）: {height} mm 以下",
+        "カスプハイト（平らな面）: {height} mm 以下",
     ),
     (
         "conditions.machining.tolerance",
@@ -96,7 +96,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.imported.length_unlimited", "指定なし"),
     (
         "conditions.imported.scanline",
-        "加工: {cut_direction}・ステップオーバー {stepover} mm・サンプル間隔 {sample_pitch} mm・送り {feed_rate} mm/min",
+        "加工: {cut_direction}・ピックフィード {stepover} mm・サンプル間隔 {sample_pitch} mm・送り {feed_rate} mm/min",
     ),
     ("conditions.imported.tolerance", "ツールパス生成のトレランス: {tolerance} mm"),
     (
@@ -144,7 +144,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.machining.tool_range.geometry", "Shape extent"),
     (
         "conditions.machining.cusp_height",
-        "Cusp height between passes (flat surface): up to {height} mm",
+        "Cusp height (flat surface): up to {height} mm",
     ),
     (
         "conditions.machining.tolerance",
@@ -280,7 +280,7 @@ mod tests {
                 "conditions.machining.cusp_height",
                 &args
             ),
-            "パスの間に残る山の高さ（平らな面）: 0.1010 mm 以下"
+            "カスプハイト（平らな面）: 0.1010 mm 以下"
         );
         assert_eq!(
             resolve_machining_conditions_text(
@@ -288,7 +288,7 @@ mod tests {
                 "conditions.machining.cusp_height",
                 &args
             ),
-            "Cusp height between passes (flat surface): up to 0.1010 mm"
+            "Cusp height (flat surface): up to 0.1010 mm"
         );
     }
 }

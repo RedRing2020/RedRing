@@ -67,7 +67,7 @@ impl Default for CuttingSimulationConditions {
 }
 
 impl CuttingSimulationConditions {
-    /// 平らな面で、隣り合うパスの間がステップオーバーのときに残る山の高さ（mm。ステップオーバーが工具径を超える
+    /// 平らな面で、隣り合うパスの間がピックフィードのときに残る山の高さ（mm。ピックフィードが工具径を超える
     /// 場合は `None`）
     ///
     /// ボールエンドミルは r − √(r² − (s/2)²)、フラットエンドミルは底が平らなので 0 とする。パスの間はステップ
@@ -436,10 +436,10 @@ mod tests {
 
         // r = 5 mm、s = 2 mm: 5 − √24
         assert!((with(ball, 2.0).unwrap() - (5.0 - 24.0_f64.sqrt())).abs() < 1e-12);
-        // ステップオーバーが工具径と同じなら、山の高さは工具の半径
+        // ピックフィードが工具径と同じなら、山の高さは工具の半径
         assert_eq!(with(ball, 10.0), Some(5.0));
         assert_eq!(with(flat, 2.0), Some(0.0));
-        // ステップオーバーが工具径を超える場合は、値を持たない
+        // ピックフィードが工具径を超える場合は、値を持たない
         assert_eq!(with(ball, 10.5), None);
         assert_eq!(with(flat, 10.5), None);
     }
