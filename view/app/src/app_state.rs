@@ -29,6 +29,8 @@ mod app_lifecycle;
 mod cutting_simulation;
 // AppState の加工条件のウィンドウ（計算条件の入力と投入）
 mod machining_conditions;
+// AppState のメニューバーの項目
+mod menu_bar;
 // AppState のデバッグスナップショット状態
 mod debug_snapshot_state;
 // AppState のデバッグ表示ロード（octree/toolpath/svg/nurbs）
@@ -147,6 +149,9 @@ pub struct AppState {
     /// 加工条件のウィンドウの「投入」で、投入した後に続けて実行するか
     run_after_submit: bool,
 
+    /// メニューバーの「ファイル」→「読み込み…」が選ばれ、まだファイルを開く画面を開いていない
+    shape_file_load_requested: bool,
+
     /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
     cutting_simulation_status: Option<OperationStatus>,
 
@@ -180,11 +185,6 @@ pub struct AppState {
 }
 
 impl AppState {
-    /// 設定パネルか加工条件のウィンドウ（egui のウィンドウ）が開いている
-    pub fn is_ui_window_open(&self) -> bool {
-        self.is_settings_panel_open() || self.is_machining_conditions_open()
-    }
-
     fn apply_viewing_operation_settings(&mut self) {
         self.camera
             .set_control_sensitivity(self.viewing_operation_settings.camera_control_sensitivity);
@@ -224,6 +224,7 @@ impl AppState {
             condition_issues: None,
             imported_conditions: None,
             run_after_submit: true,
+            shape_file_load_requested: false,
             cutting_simulation_status: None,
             toolpath_lines_visible: true,
             tool_lines_visible: true,

@@ -46,12 +46,10 @@ impl ApplicationHandler for App {
                 }
                 return;
             }
-            let settings_ui_consumed = if state.is_ui_window_open() {
-                state.handle_settings_window_event(&event);
-                state.is_settings_using_pointer()
-            } else {
-                false
-            };
+            // メニューバーは常に出ているため、egui には常にイベントを渡す。egui のウィンドウ・メニューの上の
+            // ポインタの操作は、3D の表示に渡さない
+            state.handle_settings_window_event(&event);
+            let settings_ui_consumed = state.ui_wants_pointer();
             match event {
                 WindowEvent::CloseRequested => {
                     self.should_exit = true;
@@ -102,9 +100,7 @@ impl ApplicationHandler for App {
                 return;
             }
             if let DeviceEvent::MouseMotion { delta } = event {
-                if state.is_ui_window_open() {
-                    state.handle_settings_mouse_motion(delta);
-                }
+                state.handle_settings_mouse_motion(delta);
                 state.handle_mouse_motion(delta);
             }
         }
@@ -115,6 +111,8 @@ impl ApplicationHandler for App {
             if state.graphic.is_device_lost() {
                 return;
             }
+            // ファイルを開く画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に開く
+            state.run_requested_menu_actions();
             state.tick_snapshot_playback(std::time::Instant::now());
             state.window.request_redraw();
         }

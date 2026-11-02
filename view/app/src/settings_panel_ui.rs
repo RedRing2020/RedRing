@@ -3,7 +3,7 @@ use crate::settings_panel_messages::{
     resolve_settings_panel_text, resolve_settings_panel_text_with_args,
 };
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
-use egui::{Align2, CollapsingHeader, Context, DragValue, RichText, Slider, Window};
+use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, RichText, Slider, Window};
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
@@ -176,7 +176,8 @@ impl SettingsPanelUiState {
         resolve_settings_panel_text_with_args(self.locale, key, args)
     }
 
-    pub fn show(&mut self, ctx: &Context) {
+    /// ウィンドウを、範囲 `area`（メニューバーの下）の右上に置く
+    pub fn show(&mut self, ctx: &Context, area: Rect) {
         if !self.open {
             return;
         }
@@ -185,6 +186,7 @@ impl SettingsPanelUiState {
 
         Window::new(self.text("settings.window.title"))
             .anchor(Align2::RIGHT_TOP, [-16.0, 16.0])
+            .constrain_to(area)
             .default_width(360.0)
             .resizable(true)
             .open(&mut open)

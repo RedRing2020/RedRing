@@ -3,6 +3,7 @@ use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 use winit::{event::WindowEvent, window::Window};
 
 use crate::machining_conditions_ui::MachiningConditionsUiState;
+use crate::menu_bar_ui::MenuBarUiState;
 use crate::selection_rect::SelectionRect;
 use crate::selection_rect_renderer::SelectionRectRenderer;
 use crate::settings_panel_renderer::SettingsPanelRenderer;
@@ -51,8 +52,8 @@ impl AppRenderer {
             .handle_window_event(window, event)
     }
 
-    pub fn is_settings_using_pointer(&self) -> bool {
-        self.settings_panel_renderer.is_using_pointer()
+    pub fn ui_wants_pointer(&self) -> bool {
+        self.settings_panel_renderer.wants_pointer_input()
     }
 
     /// 設定パネルの入力欄を編集中（打った文字は入力欄に入る）
@@ -67,11 +68,12 @@ impl AppRenderer {
     pub fn prepare_ui_windows(
         &mut self,
         window: &Window,
+        menu: &mut MenuBarUiState,
         panel: &mut SettingsPanelUiState,
         conditions: &mut MachiningConditionsUiState,
     ) {
         self.settings_panel_renderer
-            .prepare(window, panel, conditions);
+            .prepare(window, menu, panel, conditions);
     }
 
     pub fn update_selection_rect_overlay(
@@ -89,6 +91,11 @@ impl AppRenderer {
         );
     }
 
+    /// メニューバーなど上端の UI の高さ（物理ピクセル）
+    pub fn top_inset(&self) -> f32 {
+        self.settings_panel_renderer.top_inset()
+    }
+
     pub fn update_snapshot_overlay(
         &mut self,
         queue: &wgpu::Queue,
@@ -101,6 +108,7 @@ impl AppRenderer {
             queue,
             progress,
             style,
+            self.settings_panel_renderer.top_inset(),
             viewport_width,
             viewport_height,
         );
