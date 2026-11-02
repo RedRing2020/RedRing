@@ -3,7 +3,7 @@
 //! 形状入力を離散化し、逆オフセット法の包絡面を格子で評価して返す。
 //! ToolPath 生成（Job 経由の本番導線）とは独立した、検査・可視化用の入口。
 
-use cam_algorithms::{CamSolverError, CutterShape, DropCutter, sample_cl_grid};
+use cam_algorithms::{CamSolverError, CutterShape, InverseOffsetShape, sample_cl_grid};
 use geo_algorithms::{NurbsSurface3D, TessellationLimits, tessellate_surfaces};
 use geo_contracts::TriangleMesh3DProperties;
 
@@ -155,7 +155,7 @@ pub fn inspect_inverse_offset(
             radius: request.tool_radius,
         },
     };
-    let cutter = DropCutter::new(&mesh, shape)?;
+    let cutter = InverseOffsetShape::new(&mesh, shape)?;
     let grid = sample_cl_grid(&cutter, request.grid_pitch, request.tool_radius)?;
 
     let reference_offset = shape.reference_offset();

@@ -9,8 +9,8 @@ use geo_contracts::{
 };
 
 use crate::{
-    CamSolverError, CamSolverInput, CutterShape, DropCutter, OperationSpec, ScanlineCutDirection,
-    ScanlineParams, ScanlineToolRange, SolverGeometry, solve_toolpath,
+    CamSolverError, CamSolverInput, CutterShape, InverseOffsetShape, OperationSpec,
+    ScanlineCutDirection, ScanlineParams, ScanlineToolRange, SolverGeometry, solve_toolpath,
 };
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {
@@ -68,7 +68,7 @@ fn flat(radius: f64) -> CutterShape {
 }
 
 /// ボール工具中心高さ（= 先端高さ + r）
-fn ball_center(cutter: &DropCutter, x: f64, y: f64) -> Option<f64> {
+fn ball_center(cutter: &InverseOffsetShape, x: f64, y: f64) -> Option<f64> {
     cutter
         .tip_height_at(x, y)
         .map(|z| z + cutter.shape().radius())
@@ -148,7 +148,7 @@ fn scanline_cut_direction_decides_the_feed_direction_of_each_line() {
 
 #[test]
 fn face_offset_places_ball_center_one_radius_above_flat_face() {
-    let cutter = DropCutter::new(&flat_square(0.0), ball(3.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&flat_square(0.0), ball(3.0)).unwrap();
     let center = ball_center(&cutter, 5.0, 5.0).unwrap();
     assert!((center - 3.0).abs() < EPS);
     assert!(cutter.tip_point_at(5.0, 5.0).unwrap().z().abs() < EPS);
@@ -168,7 +168,7 @@ fn face_offset_follows_inclined_plane() {
         &[[0, 1, 2], [0, 2, 3]],
     );
     let r = 2.0;
-    let cutter = DropCutter::new(&inclined, ball(r)).unwrap();
+    let cutter = InverseOffsetShape::new(&inclined, ball(r)).unwrap();
     let expected = slope * 5.0 + r * (1.0 + slope * slope).sqrt();
     assert!((ball_center(&cutter, 5.0, 5.0).unwrap() - expected).abs() < EPS);
 }
@@ -176,7 +176,7 @@ fn face_offset_follows_inclined_plane() {
 #[test]
 fn edge_offset_is_cylinder_outside_face() {
     // 辺 y=0（z=0）から水平距離 b の位置: 中心高さ = sqrt(r^2 - b^2)
-    let cutter = DropCutter::new(&flat_square(0.0), ball(3.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&flat_square(0.0), ball(3.0)).unwrap();
     let b = 1.5;
     let expected = (9.0_f64 - b * b).sqrt();
     assert!((ball_center(&cutter, 5.0, -b).unwrap() - expected).abs() < EPS);
@@ -184,7 +184,7 @@ fn edge_offset_is_cylinder_outside_face() {
 
 #[test]
 fn vertex_offset_is_sphere_outside_edges() {
-    let cutter = DropCutter::new(&flat_square(0.0), ball(3.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&flat_square(0.0), ball(3.0)).unwrap();
     let (dx, dy) = (-1.0, -2.0);
     let expected = (9.0_f64 - dx * dx - dy * dy).sqrt();
     assert!((ball_center(&cutter, dx, dy).unwrap() - expected).abs() < EPS);
@@ -193,7 +193,7 @@ fn vertex_offset_is_sphere_outside_edges() {
 #[test]
 fn no_contact_outside_tool_radius() {
     for shape in [ball(3.0), flat(3.0)] {
-        let cutter = DropCutter::new(&flat_square(0.0), shape).unwrap();
+        let cutter = InverseOffsetShape::new(&flat_square(0.0), shape).unwrap();
         assert!(cutter.tip_height_at(-3.5, 5.0).is_none());
     }
 }
@@ -203,7 +203,7 @@ fn ball_center_does_not_gouge_tessellated_dome() {
     let limits = TessellationLimits::default();
     let dome = tessellate_surfaces(&[dome_surface()], 0.01, limits).unwrap();
     let r = 3.0;
-    let cutter = DropCutter::new(&dome, ball(r)).unwrap();
+    let cutter = InverseOffsetShape::new(&dome, ball(r)).unwrap();
 
     for &(x, y) in &[
         (20.0, 20.0),
@@ -235,14 +235,14 @@ fn ball_center_does_not_gouge_tessellated_dome() {
 
 #[test]
 fn flat_face_contact_on_horizontal_face_is_face_height() {
-    let cutter = DropCutter::new(&flat_square(2.0), flat(3.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&flat_square(2.0), flat(3.0)).unwrap();
     assert!((cutter.tip_height_at(5.0, 5.0).unwrap() - 2.0).abs() < EPS);
 }
 
 #[test]
 fn flat_disc_reaches_edge_outside_face() {
     // 円板が辺 x=0 に水平距離 2 (< r=3) で掛かる
-    let cutter = DropCutter::new(&flat_square(2.0), flat(3.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&flat_square(2.0), flat(3.0)).unwrap();
     assert!((cutter.tip_height_at(-2.0, 5.0).unwrap() - 2.0).abs() < EPS);
 }
 
@@ -259,7 +259,7 @@ fn flat_face_contact_is_on_disc_rim_uphill() {
         ],
         &[[0, 1, 2], [0, 2, 3]],
     );
-    let cutter = DropCutter::new(&inclined, flat(2.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&inclined, flat(2.0)).unwrap();
     assert!((cutter.tip_height_at(5.0, 5.0).unwrap() - slope * 7.0).abs() < EPS);
     // 形状外側 (x = -1) でも円周が斜面に掛かる
     assert!((cutter.tip_height_at(-1.0, 5.0).unwrap() - slope * 1.0).abs() < EPS);
@@ -272,7 +272,7 @@ fn flat_edge_sweep_takes_highest_point_within_disc() {
         &[(0.0, 0.0, 0.0), (10.0, 0.0, 5.0), (0.0, 10.0, 0.0)],
         &[[0, 1, 2]],
     );
-    let cutter = DropCutter::new(&triangle, flat(3.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&triangle, flat(3.0)).unwrap();
     let expected = 0.5 * (5.0 + 5.0_f64.sqrt());
     assert!((cutter.tip_height_at(5.0, -2.0).unwrap() - expected).abs() < EPS);
 }
@@ -289,7 +289,7 @@ fn flat_vertex_disc_contacts_apex() {
         ],
         &[[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]],
     );
-    let cutter = DropCutter::new(&pyramid, flat(3.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&pyramid, flat(3.0)).unwrap();
     assert!((cutter.tip_height_at(7.0, 5.0).unwrap() - 4.0).abs() < EPS);
 }
 
@@ -304,7 +304,7 @@ fn flat_bottom_does_not_gouge_and_touches_dome() {
     )
     .unwrap();
     let r = 3.0;
-    let cutter = DropCutter::new(&dome, flat(r)).unwrap();
+    let cutter = InverseOffsetShape::new(&dome, flat(r)).unwrap();
 
     // 曲面を密にサンプルし、円板内の曲面最高点が先端高さに一致する
     // （食い込みなし・接触あり）ことを弦誤差の範囲で確認する
@@ -404,9 +404,9 @@ fn tessellation_respects_chord_tolerance() {
     .unwrap();
     assert!(dome.triangle_count() > 2);
 
-    // 極小半径の drop-cutter でメッシュ高さを取り、曲面上の点との鉛直差を検証する。
+    // 極小半径の逆オフセット形状でメッシュ高さを取り、曲面上の点との鉛直差を検証する。
     // 曲面の最大傾斜は 1 未満のため、法線方向の弦誤差 tol は鉛直差 2*tol 以内に収まる。
-    let probe = DropCutter::new(&dome, ball(1e-9)).unwrap();
+    let probe = InverseOffsetShape::new(&dome, ball(1e-9)).unwrap();
     for i in 0..=20 {
         for j in 0..=20 {
             let p = surface
@@ -508,8 +508,8 @@ fn convergence_failure_when_chord_tolerance_unreachable() {
 }
 
 #[test]
-fn cl_grid_covers_margin_and_matches_drop_cutter() {
-    let cutter = DropCutter::new(&flat_square(0.0), ball(1.0)).unwrap();
+fn cl_grid_covers_margin_and_matches_inverse_offset_shape() {
+    let cutter = InverseOffsetShape::new(&flat_square(0.0), ball(1.0)).unwrap();
     let grid = crate::sample_cl_grid(&cutter, 0.5, 1.0).unwrap();
 
     // XY 範囲 0..10 を margin 1 で拡張 → -1..11 を 0.5 間隔で 25 点
@@ -527,7 +527,7 @@ fn cl_grid_covers_margin_and_matches_drop_cutter() {
 
 #[test]
 fn cl_grid_rejects_invalid_pitch() {
-    let cutter = DropCutter::new(&flat_square(0.0), flat(1.0)).unwrap();
+    let cutter = InverseOffsetShape::new(&flat_square(0.0), flat(1.0)).unwrap();
     assert_eq!(
         crate::sample_cl_grid(&cutter, 0.0, 0.0).unwrap_err().code(),
         "invalid_input"
@@ -538,7 +538,7 @@ fn cl_grid_rejects_invalid_pitch() {
 fn cl_grid_boundary_points_lie_on_contact_limit() {
     // 平面正方形の角 (0,0) 周辺: 接触境界は角頂点から水平距離 r の円弧、辺外側は距離 r の直線
     let r = 1.0;
-    let cutter = DropCutter::new(&flat_square(0.0), flat(r)).unwrap();
+    let cutter = InverseOffsetShape::new(&flat_square(0.0), flat(r)).unwrap();
     let grid = crate::sample_cl_grid(&cutter, 0.3, r).unwrap();
     let tolerance = default_distance_tolerance::<f64>();
 
@@ -788,8 +788,8 @@ fn slivers_do_not_change_cutter_location() {
 
     let reference = uniform_grid_mesh(&gutter_surface(), 256, 400);
     for shape in [ball(3.0), flat(3.0)] {
-        let a = DropCutter::new(&sliver, shape).unwrap();
-        let b = DropCutter::new(&reference, shape).unwrap();
+        let a = InverseOffsetShape::new(&sliver, shape).unwrap();
+        let b = InverseOffsetShape::new(&reference, shape).unwrap();
         for &(x, y) in &[
             (1.0, 5.0),
             (12.5, 100.0),

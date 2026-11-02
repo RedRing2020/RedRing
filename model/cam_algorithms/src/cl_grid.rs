@@ -1,6 +1,6 @@
 //! 逆オフセット包絡面（CL 面）の格子サンプリング
 //!
-//! drop-cutter を等間隔格子で評価し、工具先端高さの格子を返す。
+//! 逆オフセット形状を等間隔格子で評価し、工具先端高さの格子を返す。
 //! 経路生成とは独立した検査・可視化用途の入口であり、ToolPath は生成しない。
 //!
 //! 接触あり/なしが切り替わる格子辺では、二分法で接触境界の位置を求める。
@@ -8,7 +8,7 @@
 
 use geo_contracts::default_distance_tolerance;
 
-use crate::inverse_offset::DropCutter;
+use crate::inverse_offset_shape::InverseOffsetShape;
 use crate::solver::CamSolverError;
 
 /// 1 格子あたりの最大サンプル数（検査用途での過大な評価を防ぐ上限）
@@ -64,7 +64,7 @@ impl ClGrid {
 ///
 /// `margin` に工具半径を与えると、形状外周で工具が接触する範囲まで包絡面を含められる。
 pub fn sample_cl_grid(
-    cutter: &DropCutter,
+    cutter: &InverseOffsetShape,
     pitch: f64,
     margin: f64,
 ) -> Result<ClGrid, CamSolverError> {
@@ -132,7 +132,7 @@ pub fn sample_cl_grid(
 ///
 /// 区間長が既定の距離トレランス以下になるまで二分する。
 fn edge_boundary(
-    cutter: &DropCutter,
+    cutter: &InverseOffsetShape,
     (a, a_height): ([f64; 2], Option<f64>),
     (b, b_height): ([f64; 2], Option<f64>),
 ) -> Option<[f64; 3]> {

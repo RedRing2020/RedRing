@@ -1,7 +1,8 @@
 use crate::{IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D, Vector3D};
 use geo_contracts::{
-    LineSegment3DProperties, Plane3DDistance, Plane3DProperties, Ray3DConstructor, Ray3DEvaluation,
-    Ray3DProperties, Scalar, Triangle3DBoundaryAccess,
+    default_parallel_cross_error_tolerance, LineSegment3DProperties, Plane3DDistance,
+    Plane3DProperties, Ray3DConstructor, Ray3DEvaluation, Ray3DProperties, Scalar,
+    Triangle3DBoundaryAccess,
 };
 
 fn triangle3d_line_segment3d_intersection_raw<T: Scalar>(
@@ -55,22 +56,26 @@ fn triangle3d_ray3d_intersection_raw<T: Scalar>(
     let h = ray_dir.cross(edge2);
     let a = edge1.dot(h);
 
-    if a.abs() <= tolerance {
+    // |a| = |d · (e1 × e2)| は、半直線と面の法線のなす角の余弦に面積の 2 倍を掛けた量
+    let double_area = edge1.cross(edge2).length();
+    if a.abs() <= default_parallel_cross_error_tolerance::<T>() * double_area {
         return None;
     }
 
     let f = T::ONE / a;
     let s = Vector3D::from_points(v0, ray.origin());
     let u = f * s.dot(h);
-
-    if u < T::ZERO || u > T::ONE {
-        return None;
-    }
-
     let q = s.cross(edge1);
     let v = f * ray_dir.dot(q);
 
-    if v < T::ZERO || u + v > T::ONE {
+    // 重心座標に面積の 2 倍を掛けた量を辺の長さで割ると、面の中での、その辺から内側への距離になる。辺から
+    // `tolerance` まで外の点も交点とする（同じ平面の三角形が共有する辺の上の点を、丸め誤差で両方が外さないため）。
+    // 面の中の距離で判定するため、急な面でも三角形から外れた点を受け入れない
+    let margin = |edge: Vector3D<T>| tolerance * edge.length();
+    if u * double_area < -margin(edge2)
+        || v * double_area < -margin(edge1)
+        || (T::ONE - u - v) * double_area < -margin(edge2 - edge1)
+    {
         return None;
     }
 
