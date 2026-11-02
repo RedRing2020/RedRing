@@ -266,7 +266,15 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
 
     match input.operation {
         OperationSpec::Scanline(params) => {
-            generate_scanline_toolpath(&cutter, &input.tool.id, &params, region)
+            // 三角形メッシュは三角形そのものが製品形状のため、トレランスをすべて経路に使う（曲面の三角形への分割の
+            // 誤差との配分は後続）
+            generate_scanline_toolpath(
+                &cutter,
+                &input.tool.id,
+                &params,
+                region,
+                input.chord_tolerance,
+            )
         }
     }
 }

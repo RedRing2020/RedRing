@@ -263,7 +263,9 @@ fn line_points(conic: [f64; 6], level: f64, [alpha, beta, gamma]: [f64; 3]) -> V
 }
 
 /// a s² + b s + c = 0 の実数の解（桁落ちしない式）。解がなくても、2 次式の値の 0 からの離れの最小（|判別式| / 4|a|）
-/// が `level` 以下の場合は、その点を接する重解とする
+/// が `level` 以下の場合は、その点を接する重解とする。代入した値が `level` の 2 倍を超える解は除く（係数がどれも丸め
+/// 誤差の大きさになる重解では、もう一方の解が丸め誤差どうしの比になり、曲線の上にない。接する重解の値は `level` まで
+/// あるため、丸め誤差で除かないように 2 倍とする）
 fn quadratic_roots(a: f64, b: f64, c: f64, level: f64) -> Vec<f64> {
     let mut discriminant = b * b - 4.0 * a * c;
     if discriminant < 0.0 {
@@ -280,6 +282,7 @@ fn quadratic_roots(a: f64, b: f64, c: f64, level: f64) -> Vec<f64> {
     if q != 0.0 {
         roots.push(c / q);
     }
+    roots.retain(|&s| ((a * s + b) * s + c).abs() <= 2.0 * level);
     roots
 }
 
@@ -304,6 +307,12 @@ mod tests {
             assert_near(root, -1.0);
         }
         assert!(quadratic_roots(1.0, 2.0, 1.0 + 1e-11, 1e-12).is_empty());
+        // 係数がどれも丸め誤差の大きさの重解（s = 0）では、もう一方の解 c / q が曲線の上にない
+        let roots = quadratic_roots(1.0, 1e-18, 1e-17, 1e-12);
+        assert!(!roots.is_empty());
+        for root in roots {
+            assert!(root.abs() < 1e-6, "{root}");
+        }
     }
 
     #[test]
