@@ -260,13 +260,7 @@ impl CamSolverInput {
 /// 2. 形状離散化（収束しなければ `convergence_failure`）
 /// 3. 逆オフセットによる CL 算出と経路化（経路が得られなければ `no_solution`）
 pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolverError> {
-    input.validate()?;
-
-    let mesh = input
-        .geometry
-        .triangle_mesh(input.chord_tolerance, input.tessellation_limits)?;
-
-    let cutter = InverseOffsetShape::new(&mesh, cutter_shape(&input.tool)?)?;
+    let cutter = build_inverse_offset_shape(input)?;
     let OperationSpec::Scanline(params) = &input.operation;
     let region = machining_region(&cutter, input.boundary, params.tool_range)?;
 
@@ -275,6 +269,21 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
             generate_scanline_toolpath(&cutter, &input.tool.id, &params, region)
         }
     }
+}
+
+/// 入力を確かめ、ツールパス生成と同じ形状と工具で逆オフセット形状を作る
+///
+/// # Errors
+///
+/// 入力の誤り、形状の三角形への分割の失敗、未対応の工具。
+pub fn build_inverse_offset_shape(
+    input: &CamSolverInput,
+) -> Result<InverseOffsetShape, CamSolverError> {
+    input.validate()?;
+    let mesh = input
+        .geometry
+        .triangle_mesh(input.chord_tolerance, input.tessellation_limits)?;
+    InverseOffsetShape::new(&mesh, cutter_shape(&input.tool)?)
 }
 
 /// 経路生成の XY 範囲を決める。

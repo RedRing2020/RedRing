@@ -11,8 +11,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use cam_algorithms::{
-    CamSolverError, CamSolverInput, OperationDefinition, ProcessTemplate, ScanlineParams,
-    SolverDefaults, TemplateFailure, build_solver_input, resolve_operation,
+    CamSolverError, CamSolverInput, InverseOffsetShape, OperationDefinition, ProcessTemplate,
+    ScanlineParams, SolverDefaults, TemplateFailure, build_inverse_offset_shape,
+    build_solver_input, resolve_operation,
 };
 use cam_core::Tool;
 use cam_sim::{
@@ -146,6 +147,8 @@ pub enum CamSimulationWorkflowError {
     Operation(TemplateFailure),
     /// ジョブの投入・問い合わせの失敗
     Orchestration(JobOrchestrationError),
+    /// 逆オフセット形状を作れない
+    InverseOffsetShape(CamSolverError),
 }
 
 impl fmt::Display for CamSimulationWorkflowError {
@@ -168,6 +171,9 @@ impl fmt::Display for CamSimulationWorkflowError {
             }
             Self::Operation(error) => write!(f, "operation cannot be resolved: {error}"),
             Self::Orchestration(error) => write!(f, "job orchestration failed: {error}"),
+            Self::InverseOffsetShape(error) => {
+                write!(f, "inverse offset shape cannot be built: {error}")
+            }
         }
     }
 }
@@ -273,6 +279,20 @@ impl CamSimulationWorkflow {
         request: &ProductShapeSimulationRequest,
     ) -> Result<(), CamSimulationWorkflowError> {
         resolve_product_shape_request(shapes, request.clone()).map(|_| ())
+    }
+
+    /// 製品形状の面と計算条件から、投入したときのツールパス生成と同じ逆オフセット形状を作る（デバッグ表示に使う）
+    ///
+    /// # Errors
+    ///
+    /// 投入前の確認（[`Self::check_product_shapes`]）の誤りと、逆オフセット形状を作れない場合。
+    pub fn inverse_offset_shape(
+        shapes: &ProductShapeStore,
+        request: &ProductShapeSimulationRequest,
+    ) -> Result<InverseOffsetShape, CamSimulationWorkflowError> {
+        let resolved = resolve_product_shape_request(shapes, request.clone())?;
+        build_inverse_offset_shape(&resolved.solver_input)
+            .map_err(CamSimulationWorkflowError::InverseOffsetShape)
     }
 
     /// 製品形状の面からツールパス生成と切削シミュレーションのジョブをキューに入れる（実行しない）
@@ -695,6 +715,30 @@ mod tests {
         assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
         let last = simulation.snapshots.last().unwrap().remaining_volume_mm3;
         assert!(last < initial);
+    }
+
+    #[test]
+    fn inverse_offset_shapes_are_built_from_the_product_shapes_and_the_submitted_tool() {
+        let (shapes, face) = pyramid_shape();
+        let request = product_shape_request(vec![face]);
+        let shape = CamSimulationWorkflow::inverse_offset_shape(&shapes, &request).unwrap();
+        // 投入と同じ工具（半径 3 のボール）で、四角錐（頂点 (40, 40, 90)）の頂点の上の工具先端は頂点の高さ
+        assert_eq!(
+            shape.shape(),
+            cam_algorithms::CutterShape::Ball { radius: 3.0 }
+        );
+        assert!((shape.tip_height_at(40.0, 40.0).unwrap() - 90.0).abs() < 1e-9);
+        // 投入前の確認の誤りは、そのまま返す
+        assert_eq!(
+            CamSimulationWorkflow::inverse_offset_shape(
+                &shapes,
+                &product_shape_request(Vec::new())
+            )
+            .unwrap_err(),
+            CamSimulationWorkflowError::ProductShape(
+                crate::product_shape::ProductShapeError::NoFaces
+            )
+        );
     }
 
     #[test]

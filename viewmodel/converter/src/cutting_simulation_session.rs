@@ -8,7 +8,7 @@ use application::cam_simulation_workflow::{
     CamConditionError, CamSimulationWorkflow, CamSimulationWorkflowError,
     ProductShapeSimulationRequest,
 };
-use cam_algorithms::{OperationDefinition, ProcessTemplate};
+use cam_algorithms::{CamSolverError, OperationDefinition, ProcessTemplate};
 pub use cam_algorithms::{ScanlineCutDirection, ScanlineParams, ScanlineToolRange};
 use cam_core::{ToleranceProfile, Tool};
 pub use cam_sim::StockMargins;
@@ -16,6 +16,7 @@ use cam_sim::{CuttingSimulationInputError, SnapshotInterval};
 use geo_algorithms::Aabb3D;
 
 use crate::cutting_animation::{CuttingAnimation, CuttingAnimationError};
+use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
 use crate::product_shape_converter::ProductShapeScene;
 
 /// ツールパス生成のトレランスを決める精度プロファイル（工程テンプレートの既定値）
@@ -183,6 +184,8 @@ pub enum CuttingSimulationSessionError {
     NoSucceededSimulation,
     /// 取り込んだ結果から切削アニメーションを作れない
     Animation(CuttingAnimationError),
+    /// 逆オフセット形状を表示用に分けられない（表示のきざみの誤り）
+    InverseOffsetDisplay(CamSolverError),
 }
 
 impl std::fmt::Display for CuttingSimulationSessionError {
@@ -191,6 +194,9 @@ impl std::fmt::Display for CuttingSimulationSessionError {
             Self::Workflow(error) => write!(f, "{error}"),
             Self::NoSucceededSimulation => write!(f, "no succeeded cutting simulation to import"),
             Self::Animation(error) => write!(f, "{error}"),
+            Self::InverseOffsetDisplay(error) => {
+                write!(f, "inverse offset shape cannot be displayed: {error}")
+            }
         }
     }
 }
@@ -239,6 +245,23 @@ impl CuttingSimulationSession {
             Ok(()) => Vec::new(),
             Err(error) => ConditionIssue::from_workflow_error(&error),
         }
+    }
+
+    /// 表示中の製品形状と次に投入する計算条件で、投入したときのツールパス生成と同じ逆オフセット形状を作り、角度
+    /// `angle_step`（ラジアン）のきざみで種類ごとのメッシュにする（デバッグ表示）
+    ///
+    /// # Errors
+    ///
+    /// 投入前の確認の誤り、逆オフセット形状を作れない場合、`angle_step` が表示用のきざみの範囲の外の場合。
+    pub fn inverse_offset_shape_meshes(
+        &self,
+        shapes: &ProductShapeScene,
+        angle_step: f64,
+    ) -> Result<Vec<InverseOffsetShapeMesh>, CuttingSimulationSessionError> {
+        let shape =
+            CamSimulationWorkflow::inverse_offset_shape(shapes.store(), &self.request(shapes))?;
+        inverse_offset_shape_meshes(&shape, angle_step)
+            .map_err(CuttingSimulationSessionError::InverseOffsetDisplay)
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、次に投入する計算条件で投入する（実行しない）
