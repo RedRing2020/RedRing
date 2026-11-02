@@ -6,8 +6,8 @@
 //! | 要素 | ボール（半径 r2） | フラット（半径 r1） |
 //! |---|---|---|
 //! | 面 | 外向きの法線の向きに r2 ずらした三角形 | 外向きの法線を水平面に射影した向きに r1 ずらした三角形 |
-//! | 頂点 | 球面。つながる辺に垂直な平面で切り取った部分 | 頂点の高さの水平な円板 |
-//! | 辺 | 円柱面。軸から離れる向きが、隣り合うどの面の側にも向かない部分 | 水平な円板を辺に沿って動かした形 |
+//! | 頂点 | 球面。つながる辺に垂直な平面で切り取った部分 | 範囲に真上の向きがある（工具の底が乗る）頂点だけ、頂点の高さの水平な円板 |
+//! | 辺 | 円柱面。軸から離れる向きが、隣り合うどの面の側にも向かない部分 | 水平な円板の縁を辺に沿って動かした形（斜円柱）のうち、隣り合う面ベクトルの間の向きで接する部分 |
 //!
 //! 形状ポリゴンの位相化（隣接）で、三角形の向きを塊ごとにそろえ、外（材料のない側）を決める。外は、塊の中の上から
 //! 届く面（上側の包絡に出ている面）が上を向く向きとする（STL の頂点の順は外向きとは限らないため、形から決める）。
@@ -94,8 +94,10 @@ struct EdgeElement {
     ends: [[f64; 3]; 2],
     /// ボールの円柱面（フラットは `None`）
     cylinder: Option<CylindricalSurface3D<f64>>,
-    /// 隣り合う面ごとの、辺から面の内側へ向かう向き（辺に垂直）
-    into_faces: Vec<[f64; 3]>,
+    /// 範囲を決める向き g（範囲は、どの g とも内積が 0 以下の向きの部分）。ボールは、隣り合う面ごとの、辺から面の
+    /// 内側へ向かう向き（辺に垂直。軸から離れる向きの範囲を決める）。フラットは水平な向き（辺の点から (x, y) への
+    /// 水平な向きの範囲を決める。`flat_edge_range`）
+    range: Vec<[f64; 3]>,
 }
 
 impl InverseOffsetShape {
@@ -205,7 +207,7 @@ impl InverseOffsetShape {
             if interior && edges.iter().all(|&edge| !kept_edges[edge]) {
                 continue;
             }
-            let neighbors = edges
+            let neighbors: Vec<[f64; 3]> = edges
                 .iter()
                 .map(|&edge| {
                     let [first, second] = adjacency.edges()[edge].vertices;
@@ -217,7 +219,18 @@ impl InverseOffsetShape {
                     SphericalSurface3D::new_standard(point_of(point), radius)
                         .expect("the tool radius is positive"),
                 ),
-                CutterShape::Flat { .. } => None,
+                // フラットの頂点は、範囲に真上の向きがある（工具の底が頂点に乗る）場合だけ円板になる。それ以外の範囲は
+                // 工具の底の縁が頂点に接する円弧（面積がない）で、つながる辺の要素の端と同じため外す
+                CutterShape::Flat { .. } => {
+                    let alongs: Vec<[f64; 3]> = neighbors
+                        .iter()
+                        .map(|&neighbor| sub(neighbor, point))
+                        .collect();
+                    if !in_range([0.0, 0.0, 1.0], &alongs) {
+                        continue;
+                    }
+                    None
+                }
             };
             bounds.push(xy_bounds(&[[point[0], point[1]]], radius));
             elements.push(Element::Vertex(vertex_elements.len()));
@@ -237,6 +250,10 @@ impl InverseOffsetShape {
             }
             let ends = edge.vertices.map(|vertex| vertices[vertex]);
             let direction = sub(ends[1], ends[0]);
+            let range = match shape {
+                CutterShape::Ball { .. } => into_faces,
+                CutterShape::Flat { .. } => flat_edge_range(direction, &into_faces),
+            };
             let cylinder = match shape {
                 CutterShape::Ball { radius } => {
                     // 長さのない辺は、端点の球で決まる
@@ -262,7 +279,7 @@ impl InverseOffsetShape {
             edge_elements.push(EdgeElement {
                 ends,
                 cylinder,
-                into_faces,
+                range,
             });
         }
 
@@ -347,7 +364,7 @@ impl InverseOffsetShape {
         let EdgeElement {
             ends: [start, end],
             cylinder,
-            into_faces,
+            range,
         } = &self.edges[edge];
         let direction = sub(*end, *start);
         let length_squared = dot(direction, direction);
@@ -362,12 +379,12 @@ impl InverseOffsetShape {
                 }
                 let foot = [0, 1, 2].map(|k| start[k] + along * direction[k]);
                 let outward = sub(center, foot);
-                into_faces
-                    .iter()
-                    .all(|&into_face| dot(outward, into_face) <= range_slack(outward, into_face))
+                in_range(outward, range)
             }),
-            // 円板を辺に沿って動かした形: XY に投影した辺と、(x, y) を中心とする半径 r1 の円の交点の高さ。辺の高さは
-            // 辺に沿って線形に変わるため、円の内側の部分の最も高い点は交点か端点（端点は頂点の円板で決まる）
+            // 円板を辺に沿って動かした形のうち範囲の部分: XY に投影した辺と、(x, y) を中心とする半径 r1 の円の交点の
+            // うち、交点から (x, y) への向きが範囲にある点の高さ。辺の高さは辺に沿って線形に変わるため、円の内側の部分の
+            // 最も高い点は交点か端点（端点が最も高い場合は、頂点の範囲に真上の向きがあり頂点の円板で決まるか、頂点に
+            // つながる辺・面の要素がより高い）
             None => {
                 let projected = LineSegment2D::new(
                     Point2D::new(start[0], start[1]),
@@ -383,13 +400,17 @@ impl InverseOffsetShape {
                         / horizontal_squared;
                     start[2] + along.clamp(0.0, 1.0) * direction[2]
                 };
-                match projected.intersection(&circle, tolerance()).geometry {
-                    IntersectionGeometry::Point2D(point) => Some(height(point)),
-                    IntersectionGeometry::Points2D(points) => {
-                        points.into_iter().map(height).reduce(f64::max)
-                    }
-                    _ => None,
-                }
+                let geometry = projected.intersection(&circle, tolerance()).geometry;
+                let points = match &geometry {
+                    IntersectionGeometry::Point2D(point) => std::slice::from_ref(point),
+                    IntersectionGeometry::Points2D(points) => points.as_slice(),
+                    _ => &[],
+                };
+                points
+                    .iter()
+                    .filter(|point| in_range([x - point.x(), y - point.y(), 0.0], range))
+                    .map(|&point| height(point))
+                    .reduce(f64::max)
             }
         }
     }
@@ -463,6 +484,40 @@ fn range_slack(first: [f64; 3], second: [f64; 3]) -> f64 {
     default_orthogonality_dot_error_tolerance::<f64>()
         * dot(first, first).sqrt()
         * dot(second, second).sqrt()
+}
+
+/// 向き `direction` が範囲にあるか（範囲を決めるどの向き g とも、内積が余裕を含めて 0 以下）
+fn in_range(direction: [f64; 3], range: &[[f64; 3]]) -> bool {
+    range
+        .iter()
+        .all(|&bound| dot(direction, bound) <= range_slack(direction, bound))
+}
+
+/// フラットの辺の範囲を決める水平な向き（`into_faces` は、隣り合う面ごとの、辺から面の内側へ向かう向き）
+///
+/// 工具は上から近づくため、工具の底の縁が辺の点に接するのは、隣り合う面ベクトルの間（辺に垂直で、どの面の内側へも
+/// 向かない向き w）に、水平な成分が、辺の点から工具の中心 (x, y) への水平な向き h の向きで、上下の成分が下を向かない
+/// ものがある場合。辺の向きを a（a_z >= 0 にそろえる）とすると、辺に垂直で水平な成分が h の向きの w は (a_z h, −h·a)
+/// の向きのため、w の条件 w·t <= 0（t は面の内側への向き）は h の条件 h·(a_z t − t_z a)_xy <= 0 に、上下の成分の
+/// 条件は h·a_xy <= 0（h は下りの向き）になる。水平な辺で、隣り合う面ベクトルの間に真上の向きがある場合（尾根）は、
+/// 工具の底が辺に乗るため、すべての h を範囲にする（空の列を返す）
+fn flat_edge_range(direction: [f64; 3], into_faces: &[[f64; 3]]) -> Vec<[f64; 3]> {
+    let up = [0.0, 0.0, 1.0];
+    let a = if direction[2] < 0.0 {
+        direction.map(|component| -component)
+    } else {
+        direction
+    };
+    if a[2] <= range_slack(a, up) && in_range(up, into_faces) {
+        return Vec::new();
+    }
+    // 長さのない向き（鉛直な辺の上下の条件、水平な面の内側への向き）は条件にならない
+    into_faces
+        .iter()
+        .map(|&t| [a[2] * t[0] - t[2] * a[0], a[2] * t[1] - t[2] * a[1], 0.0])
+        .chain([[a[0], a[1], 0.0]])
+        .filter(|bound| bound[0] != 0.0 || bound[1] != 0.0)
+        .collect()
 }
 
 /// 三角形 `[a, b, c]` の、頂点の順（右ねじ）の単位法線
