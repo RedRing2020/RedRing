@@ -10,7 +10,8 @@ use geo_contracts::{
 
 use crate::{
     CamSolverError, CamSolverInput, CutterShape, InverseOffsetShape, OperationSpec,
-    ScanlineCutDirection, ScanlineParams, ScanlineToolRange, SolverGeometry, solve_toolpath,
+    ScanlineCutDirection, ScanlineParams, ScanlineToolRange, SolverGeometry,
+    build_inverse_offset_shape, solve_toolpath,
 };
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {
@@ -111,14 +112,16 @@ fn feed_directions(cut_direction: ScanlineCutDirection) -> (CuttingDirection, Ve
         .contour_levels
         .iter()
         .map(|level| {
-            let first = level.segments.first().unwrap();
+            // 段（形状の縁で工具が転がり落ちる所の、CL の面のほぼ鉛直な部分）の鉛直な線分は、送る向きを持たない
+            let mut horizontal = level
+                .segments
+                .iter()
+                .filter(|segment| segment.end_point().x() != segment.start.x());
+            let first = horizontal.next().unwrap();
             let forward = first.end_point().x() > first.start.x();
             // パスの中のすべての線分が同じ向き
             assert!(
-                level
-                    .segments
-                    .iter()
-                    .all(|segment| (segment.end_point().x() > segment.start.x()) == forward)
+                horizontal.all(|segment| (segment.end_point().x() > segment.start.x()) == forward)
             );
             (first.start.y(), forward)
         })
@@ -923,5 +926,149 @@ fn ball_end_mill_moves_one_radius_beyond_the_geometry_by_default() {
         } else {
             assert!(p.z() < EPS && p.z() >= -r - EPS, "{p:?}");
         }
+    }
+}
+
+/// x < 5 が高さ 4、x >= 5 が高さ 0 の段（x = 5 に鉛直な壁）
+fn step_block() -> TriangleMesh3D<f64> {
+    mesh(
+        &[
+            (0.0, 0.0, 4.0),
+            (5.0, 0.0, 4.0),
+            (5.0, 10.0, 4.0),
+            (0.0, 10.0, 4.0),
+            (5.0, 0.0, 0.0),
+            (10.0, 0.0, 0.0),
+            (10.0, 10.0, 0.0),
+            (5.0, 10.0, 0.0),
+        ],
+        &[
+            [0, 1, 2],
+            [0, 2, 3],
+            [1, 4, 7],
+            [1, 7, 2],
+            [4, 5, 6],
+            [4, 6, 7],
+        ],
+    )
+}
+
+/// 格子の点の高さ 3 sin(x / 2) + 2 cos(y / 3) の、尾根と谷のある地形（0..12）
+fn ridged_terrain() -> TriangleMesh3D<f64> {
+    let count = 12;
+    let mut vertices = Vec::new();
+    for j in 0..=count {
+        for i in 0..=count {
+            let (x, y) = (i as f64, j as f64);
+            vertices.push((x, y, 3.0 * (x / 2.0).sin() + 2.0 * (y / 3.0).cos()));
+        }
+    }
+    let at = |i: usize, j: usize| j * (count + 1) + i;
+    let mut triangles = Vec::new();
+    for j in 0..count {
+        for i in 0..count {
+            triangles.push([at(i, j), at(i + 1, j), at(i + 1, j + 1)]);
+            triangles.push([at(i, j), at(i + 1, j + 1), at(i, j + 1)]);
+        }
+    }
+    mesh(&vertices, &triangles)
+}
+
+/// 経路の線分を細かく分けた点で、経路の高さが CL の面の高さからトレランスを超えて下を通らない
+fn assert_path_does_not_gouge(input: &CamSolverInput) {
+    let cutter = build_inverse_offset_shape(input).unwrap();
+    let toolpath = solve_toolpath(input).unwrap();
+    let tolerance = input.chord_tolerance;
+    for level in &toolpath.contour_levels {
+        for segment in level.cutting_segments() {
+            let (start, end) = (segment.start, segment.end_point());
+            for k in 0..=10 {
+                let t = k as f64 / 10.0;
+                let x = start.x() + t * (end.x() - start.x());
+                let z = start.z() + t * (end.z() - start.z());
+                if let Some(tip) = cutter.tip_height_at(x, start.y()) {
+                    assert!(
+                        z >= tip - tolerance - EPS,
+                        "y = {}, x = {x}: path {z} below the CL surface {tip}",
+                        start.y()
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn scanline_paths_do_not_pass_below_the_cl_surface_beyond_the_tolerance() {
+    let geometries = [
+        SolverGeometry::TriangleMesh(step_block()),
+        SolverGeometry::TriangleMesh(ridged_terrain()),
+        SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]),
+    ];
+    for geometry in geometries {
+        for tool in [
+            Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+            Tool::flat_end_mill("EM6".to_string(), 6.0, 30.0),
+        ] {
+            let mut input = solver_input(geometry.clone());
+            input.tool = tool;
+            let OperationSpec::Scanline(params) = &mut input.operation;
+            params.stepover = 1.3;
+            assert_path_does_not_gouge(&input);
+        }
+    }
+}
+
+#[test]
+fn steps_of_the_cl_surface_become_vertical_moves_on_the_high_side() {
+    // ボールの中心は壁の上の辺を回って x = 8 まで下り、そこで床の高さへ跳ぶ。経路は高い側の高さのまま進んでから下りる
+    let input = solver_input(SolverGeometry::TriangleMesh(step_block()));
+    let cutter = build_inverse_offset_shape(&input).unwrap();
+    let toolpath = solve_toolpath(&input).unwrap();
+    let vertical: Vec<_> = toolpath
+        .contour_levels
+        .iter()
+        .flat_map(|level| level.cutting_segments())
+        .filter(|segment| segment.start.x() == segment.end_point().x())
+        .collect();
+    assert!(!vertical.is_empty());
+    for segment in vertical {
+        let (start, end) = (segment.start, segment.end_point());
+        // 段の下の端は、CL の面より下にならない
+        let tip = cutter.tip_height_at(start.x(), start.y()).unwrap();
+        assert!(start.z().min(end.z()) >= tip - input.chord_tolerance - EPS);
+    }
+}
+
+#[test]
+fn points_are_not_added_on_flat_faces() {
+    // 平坦面の上だけを送る（工具の中心は形状の範囲）と、点はサンプル間隔の等間隔のまま（0..10 を 1.0 で 11 点）
+    let input = with_tool_range(
+        solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))),
+        ScanlineToolRange::GeometryExtent,
+    );
+    let toolpath = solve_toolpath(&input).unwrap();
+    for level in &toolpath.contour_levels {
+        assert_eq!(level.cutting_segments().len(), 10);
+    }
+}
+
+#[test]
+fn scanline_toolpaths_require_a_positive_finite_tolerance() {
+    let cutter = InverseOffsetShape::new(&flat_square(0.0), ball(3.0)).unwrap();
+    let OperationSpec::Scanline(params) =
+        solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))).operation;
+    for tolerance in [0.0, -0.01, f64::NAN, f64::INFINITY] {
+        let result = crate::generate_scanline_toolpath(
+            &cutter,
+            "BEM6",
+            &params,
+            cutter.xy_bounds(),
+            tolerance,
+        );
+        assert!(
+            matches!(result, Err(CamSolverError::InvalidInput(_))),
+            "{tolerance}"
+        );
     }
 }

@@ -958,3 +958,24 @@ fn rises_above_chords_keep_contacts_at_the_tool_radius_from_an_edge() {
         }
     }
 }
+
+#[test]
+fn rises_above_chords_on_planes_tangent_to_sloped_edges_stay_on_the_edges() {
+    // 曲面を三角形に分けた形の三角形。傾いた辺 y = 5 から、走査線 y = 2 がちょうど工具の半径だけ離れる。円柱面を接する
+    // 平面で切った形は 1 本の直線になり、辺の端の条件の直線との交点を求める 2 次式の係数がどれも丸め誤差の大きさになる
+    // （もう一方の解が曲線の上になく、区間に入ると 14 mm 余り上に出るとしていた）。区間は辺から x の向きに工具の半径
+    // より離れ、工具は接しない
+    let triangle = TriangleMesh3D::new(
+        vec![
+            Point3D::new(35.0, 5.0, 80.95703125),
+            Point3D::new(35.625, 5.0, 80.85235595703125),
+            Point3D::new(35.625, 5.625, 80.94177722930908),
+        ],
+        vec![[0, 1, 2]],
+    )
+    .unwrap();
+    let inverse = InverseOffsetShape::new(&triangle, CutterShape::Ball { radius: 3.0 }).unwrap();
+    let (start, end) = ([38.476679, 80.158529], [38.481679, 80.157989]);
+    assert_eq!(inverse.tip_height_at(start[0], 2.0), None);
+    assert_eq!(inverse.rise_above_chord(2.0, start, end), None);
+}
