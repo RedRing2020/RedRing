@@ -498,7 +498,6 @@ mod tests {
                 geometry: SolverGeometry::TriangleMesh(pyramid),
                 operation: OperationSpec::Scanline(ScanlineParams {
                     stepover: 6.0,
-                    sample_pitch: 10.0,
                     feed_rate: 1200.0,
                     tool_range: cam_algorithms::ScanlineToolRange::default(),
                     cut_direction: cam_algorithms::ScanlineCutDirection::default(),
@@ -642,7 +641,6 @@ mod tests {
             tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
             scanline: ScanlineParams {
                 stepover: 6.0,
-                sample_pitch: 10.0,
                 feed_rate: 1200.0,
                 tool_range: cam_algorithms::ScanlineToolRange::default(),
                 cut_direction: cam_algorithms::ScanlineCutDirection::default(),

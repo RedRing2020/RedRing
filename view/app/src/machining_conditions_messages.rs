@@ -20,7 +20,6 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("conditions.header.machining", "加工（スキャン加工）"),
     ("conditions.machining.stepover", "ピックフィード"),
-    ("conditions.machining.sample_pitch", "サンプル間隔"),
     ("conditions.machining.feed_rate", "送り"),
     ("conditions.machining.cut_direction", "送り方（主軸は右回り）"),
     ("conditions.machining.cut_direction.down", "ダウンカット"),
@@ -96,7 +95,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.imported.length_unlimited", "指定なし"),
     (
         "conditions.imported.scanline",
-        "加工: {cut_direction}・ピックフィード {stepover} mm・サンプル間隔 {sample_pitch} mm・送り {feed_rate} mm/min",
+        "加工: {cut_direction}・ピックフィード {stepover} mm・送り {feed_rate} mm/min",
     ),
     ("conditions.imported.tolerance", "ツールパス生成のトレランス: {tolerance} mm"),
     (
@@ -124,7 +123,6 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     ("conditions.header.machining", "Machining (scanline)"),
     ("conditions.machining.stepover", "Stepover"),
-    ("conditions.machining.sample_pitch", "Sample pitch"),
     ("conditions.machining.feed_rate", "Feed rate"),
     (
         "conditions.machining.cut_direction",
@@ -212,7 +210,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.imported.length_unlimited", "unlimited"),
     (
         "conditions.imported.scanline",
-        "Machining: {cut_direction}, stepover {stepover} mm, sample pitch {sample_pitch} mm, feed {feed_rate} mm/min",
+        "Machining: {cut_direction}, stepover {stepover} mm, feed {feed_rate} mm/min",
     ),
     ("conditions.imported.tolerance", "Toolpath tolerance: {tolerance} mm"),
     (

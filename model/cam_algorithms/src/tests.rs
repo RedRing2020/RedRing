@@ -82,7 +82,6 @@ fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
         geometry,
         operation: OperationSpec::Scanline(ScanlineParams {
             stepover: 2.0,
-            sample_pitch: 1.0,
             feed_rate: 1200.0,
             tool_range: ScanlineToolRange::default(),
             cut_direction: ScanlineCutDirection::default(),
@@ -472,7 +471,6 @@ fn invalid_input_for_stepover_larger_than_diameter() {
     let mut input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
     input.operation = OperationSpec::Scanline(ScanlineParams {
         stepover: 7.0,
-        sample_pitch: 1.0,
         feed_rate: 1200.0,
         tool_range: ScanlineToolRange::default(),
         cut_direction: ScanlineCutDirection::default(),
@@ -1042,15 +1040,66 @@ fn steps_of_the_cl_surface_become_vertical_moves_on_the_high_side() {
 
 #[test]
 fn points_are_not_added_on_flat_faces() {
-    // 平坦面の上だけを送る（工具の中心は形状の範囲）と、点はサンプル間隔の等間隔のまま（0..10 を 1.0 で 11 点）
+    // 平坦面の上だけを送る（工具の中心は形状の範囲）と、点は工具の半径以下の等間隔のまま（0..10 を r = 3 以下の
+    // 4 等分で 5 点）
     let input = with_tool_range(
         solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))),
         ScanlineToolRange::GeometryExtent,
     );
     let toolpath = solve_toolpath(&input).unwrap();
     for level in &toolpath.contour_levels {
-        assert_eq!(level.cutting_segments().len(), 10);
+        assert_eq!(level.cutting_segments().len(), 4);
     }
+}
+
+#[test]
+fn pass_ends_are_at_the_contact_boundaries_within_the_tolerance() {
+    // X に 0..10 と 20..30 の 2 つの平坦面（Y は 0..10）。ボール r = 3 の工具が接する区間は、面からの Y の距離 d で
+    // 面の X の範囲を √(r² − d²) だけ広げた区間で、間（13..17 付近）は接しない。点の並び（r 以下の間隔）は区間の
+    // 端に重ならない
+    let squares = mesh(
+        &[
+            (0.0, 0.0, 0.0),
+            (10.0, 0.0, 0.0),
+            (10.0, 10.0, 0.0),
+            (0.0, 10.0, 0.0),
+            (20.0, 0.0, 0.0),
+            (30.0, 0.0, 0.0),
+            (30.0, 10.0, 0.0),
+            (20.0, 10.0, 0.0),
+        ],
+        &[[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7]],
+    );
+    let input = solver_input(SolverGeometry::TriangleMesh(squares));
+    let radius = 3.0;
+    let toolpath = solve_toolpath(&input).unwrap();
+    let mut passes_per_line = std::collections::BTreeMap::new();
+    for level in &toolpath.contour_levels {
+        let segments = level.cutting_segments();
+        let y = segments[0].start.y();
+        let xs = segments
+            .iter()
+            .flat_map(|segment| [segment.start.x(), segment.end_point().x()]);
+        let (start, end) = xs.fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), x| {
+            (low.min(x), high.max(x))
+        });
+        let d = (-y).max(y - 10.0).max(0.0);
+        let half = (radius * radius - d * d).sqrt();
+        let face = if start < 15.0 { 0.0 } else { 20.0 };
+        assert!(
+            (start - (face - half)).abs() <= input.chord_tolerance + EPS,
+            "{y}: {start}"
+        );
+        assert!(
+            (end - (face + 10.0 + half)).abs() <= input.chord_tolerance + EPS,
+            "{y}: {end}"
+        );
+        *passes_per_line.entry(y.to_bits()).or_insert(0) += 1;
+    }
+    // 走査線は Y = -3..13 の 2 mm ごとの 9 本で、どれも間で分かれた 2 本のパスになる（両端の d = r でも、面の辺に
+    // 沿って接する）
+    assert_eq!(passes_per_line.len(), 9);
+    assert!(passes_per_line.values().all(|&count| count == 2));
 }
 
 #[test]
