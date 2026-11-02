@@ -26,9 +26,9 @@ pub enum InverseOffsetPartKind {
     UpperSide,
     /// 外を決められなかった塊の面（面ごとに上向きにそろえたもの）
     UnorientedFace,
-    /// 頂点（ボール: 切り取った球面、フラット: 円板）
+    /// 頂点（ボール: 切り取った球面、フラット: 工具の底が乗る頂点の円板）
     Vertex,
-    /// 辺（ボール: 範囲を限った円柱面、フラット: 円板を辺に沿って動かした形の上側の面）
+    /// 辺（ボール: 範囲を限った円柱面、フラット: 円板の縁のうち範囲の円弧を辺に沿って動かした面）
     Edge,
 }
 
@@ -198,7 +198,7 @@ impl Icosphere {
     }
 }
 
-/// 頂点の要素の三角形（ボール: 球面のうち範囲の部分、フラット: 頂点の高さの円板）
+/// 頂点の要素の三角形（ボール: 球面のうち範囲の部分、フラット: 工具の底が乗る頂点の高さの円板）
 fn vertex_triangles(
     vertex: &VertexElement,
     radius: f64,
@@ -268,7 +268,7 @@ fn clipped(polygon: &[[f64; 3]], plane: [f64; 3]) -> Vec<[f64; 3]> {
     result
 }
 
-/// 辺の要素の三角形（ボール: 円柱面のうち範囲の円弧の部分、フラット: 円板を辺に沿って動かした形の上側の面）
+/// 辺の要素の三角形（ボール: 円柱面のうち範囲の円弧の部分、フラット: 円板の縁のうち範囲の円弧を辺に沿って動かした面）
 fn edge_triangles(edge: &EdgeElement, radius: f64, angle_step: f64) -> Vec<[[f64; 3]; 3]> {
     let [start, end] = edge.ends;
     let direction = sub(end, start);
@@ -277,26 +277,20 @@ fn edge_triangles(edge: &EdgeElement, radius: f64, angle_step: f64) -> Vec<[[f64
         return Vec::new();
     }
     if edge.cylinder.is_none() {
-        // 円板を動かした形の上側の面: (x, y) の高さは、半径の中にある辺の点の最も高い高さで、その点は (x, y) から
-        // 辺の上りの向きにある。そのため、辺の点の高さのまま、円板の縁のうち上りと逆の側の半円を辺に沿って動かした
-        // 面（斜めの円柱の半分）になる（両端の外は頂点の円板が埋める）
-        let horizontal = direction[0].hypot(direction[1]);
-        if horizontal <= tolerance() {
+        // 円板の縁のうち、辺の点から (x, y) への水平な向きが範囲の円弧を、辺の点の高さのまま辺に沿って動かした面
+        // （斜円柱の一部。鉛直な辺は XY に面積を持たない）
+        if direction[0].hypot(direction[1]) <= tolerance() {
             return Vec::new();
         }
-        let sign = if direction[2] < 0.0 { -1.0 } else { 1.0 };
-        let uphill = [
-            sign * direction[0] / horizontal,
-            sign * direction[1] / horizontal,
-        ];
-        let side = [-uphill[1], uphill[0]];
-        let count = divisions(std::f64::consts::PI, angle_step);
+        let Some((from, span)) = edge_arc(&edge.range, [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]) else {
+            return Vec::new();
+        };
+        let count = divisions(span, angle_step);
         let rim = |p: [f64; 3], k: usize| {
-            let angle = std::f64::consts::PI * k as f64 / count as f64;
-            let (along, across) = (-angle.sin(), angle.cos());
+            let angle = from + span * k as f64 / count as f64;
             [
-                p[0] + radius * (along * uphill[0] + across * side[0]),
-                p[1] + radius * (along * uphill[1] + across * side[1]),
+                p[0] + radius * angle.cos(),
+                p[1] + radius * angle.sin(),
                 p[2],
             ]
         };
@@ -325,7 +319,7 @@ fn edge_triangles(edge: &EdgeElement, radius: f64, angle_step: f64) -> Vec<[[f64
     };
     let first = normalized(cross(axis, helper));
     let second = cross(axis, first);
-    let Some((from, span)) = edge_arc(&edge.into_faces, first, second) else {
+    let Some((from, span)) = edge_arc(&edge.range, first, second) else {
         return Vec::new();
     };
     let count = divisions(span, angle_step);
@@ -345,16 +339,16 @@ fn edge_triangles(edge: &EdgeElement, radius: f64, angle_step: f64) -> Vec<[[f64
     triangles
 }
 
-/// 軸のまわりの向き cos θ · `first` + sin θ · `second` のうち、隣り合うどの面の側にも向かない（`into_faces` との内積が
-/// 0 以下の）範囲の円弧（始まりの角と長さ）。範囲がなければ `None`
+/// 向き cos θ · `first` + sin θ · `second` のうち、範囲を決めるどの向き（`range`）とも内積が 0 以下の範囲の円弧（始まりの
+/// 角と長さ。`range` が空なら全周）。範囲がなければ `None`
 ///
 /// 頂点の範囲と同じく、高さの計算の内積の余裕は持たない。
-fn edge_arc(into_faces: &[[f64; 3]], first: [f64; 3], second: [f64; 3]) -> Option<(f64, f64)> {
+fn edge_arc(range: &[[f64; 3]], first: [f64; 3], second: [f64; 3]) -> Option<(f64, f64)> {
     use std::f64::consts::{PI, TAU};
     let mut arc = (0.0, TAU);
-    for &into_face in into_faces {
-        // 面の内側への向きの角 φ に対して、範囲は [φ + π/2, φ + 3π/2] の半円
-        let angle = dot(into_face, second).atan2(dot(into_face, first));
+    for &bound in range {
+        // 範囲を決める向きの角 φ に対して、範囲は [φ + π/2, φ + 3π/2] の半円
+        let angle = dot(bound, second).atan2(dot(bound, first));
         let half = angle + PI / 2.0;
         let (start, span) = arc;
         let offset = (half - start).rem_euclid(TAU);

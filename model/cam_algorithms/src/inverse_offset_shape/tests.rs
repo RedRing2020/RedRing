@@ -1,9 +1,10 @@
 use geo_algorithms::{Point3D, TriangleMesh3D};
 use geo_contracts::{
     Triangle3DBoundaryAccess, TriangleMesh3DConstructor, TriangleMesh3DProperties,
+    TriangleMesh3DTriangleAccess,
 };
 
-use super::{InverseOffsetPart, InverseOffsetPartKind, InverseOffsetShape};
+use super::{InverseOffsetPart, InverseOffsetPartKind, InverseOffsetShape, in_range};
 use crate::inverse_offset::CutterShape;
 
 /// 格子の点の高さ `height` の地形（1 つおきの三角形は頂点の順を逆にして、面の向きをそろえない）
@@ -67,16 +68,17 @@ fn step() -> TriangleMesh3D<f64> {
     TriangleMesh3D::new(vertices, triangles).unwrap()
 }
 
-/// 形状の外も含む、細かい格子の点ごとの工具先端の高さ
-fn heights(shape: &InverseOffsetShape, span: f64) -> Vec<Option<f64>> {
+/// 形状の外も含む、細かい格子の点
+fn grid(span: f64) -> impl Iterator<Item = (f64, f64)> {
     let steps = (span * 4.0) as usize + 8;
     (0..=steps)
-        .flat_map(|j| (0..=steps).map(move |i| (i, j)))
-        .map(|(i, j)| {
-            let (x, y) = (-1.0 + i as f64 * 0.27, -1.0 + j as f64 * 0.27);
-            shape.tip_height_at(x, y)
-        })
-        .collect()
+        .flat_map(move |j| (0..=steps).map(move |i| (i, j)))
+        .map(|(i, j)| (-1.0 + i as f64 * 0.27, -1.0 + j as f64 * 0.27))
+}
+
+/// 格子の点ごとの工具先端の高さ
+fn heights(shape: &InverseOffsetShape, span: f64) -> Vec<Option<f64>> {
+    grid(span).map(|(x, y)| shape.tip_height_at(x, y)).collect()
 }
 
 fn assert_same(actual: &[Option<f64>], expected: &[Option<f64>]) {
@@ -422,6 +424,169 @@ fn steep_faces_do_not_extend_beyond_the_triangle() {
     let inverse = InverseOffsetShape::new(&mesh, CutterShape::Flat { radius: 1.0 }).unwrap();
     let tip = inverse.tip_height_at(-1.0 + 2e-8 + 5e-13, 0.0);
     assert!(tip.is_some_and(|z| z <= 100.0), "{tip:?}");
+}
+
+/// フラットの工具先端の高さを、すべての三角形の、(x, y) を中心とする半径 `radius` の円の内側の部分の最も高い点から
+/// 総当たりで求める（逆オフセット形状を使わない）
+///
+/// 円の内側の部分の高さは線形のため、最も高い点は、円の内側の頂点、辺と円の交点、面の上りの向きの円の縁の点、
+/// （水平な面では）円の中心のどれか。
+fn flat_reference_height(mesh: &TriangleMesh3D<f64>, radius: f64, x: f64, y: f64) -> Option<f64> {
+    let mut highest: Option<f64> = None;
+    let mut candidate = |z: f64| highest = Some(highest.map_or(z, |h| h.max(z)));
+    for index in 0..mesh.triangle_count() {
+        let triangle = mesh.triangle(index).unwrap();
+        let corners = [
+            triangle.vertex_a(),
+            triangle.vertex_b(),
+            triangle.vertex_c(),
+        ]
+        .map(|p| [p.x(), p.y(), p.z()]);
+        for k in 0..3 {
+            let (p, q) = (corners[k], corners[(k + 1) % 3]);
+            if (p[0] - x).hypot(p[1] - y) <= radius {
+                candidate(p[2]);
+            }
+            // 辺 p + t (q − p) と円の交点
+            let d = [q[0] - p[0], q[1] - p[1]];
+            let e = [p[0] - x, p[1] - y];
+            let a = d[0] * d[0] + d[1] * d[1];
+            if a == 0.0 {
+                continue;
+            }
+            let b = d[0] * e[0] + d[1] * e[1];
+            let discriminant = b * b - a * (e[0] * e[0] + e[1] * e[1] - radius * radius);
+            if discriminant < 0.0 {
+                continue;
+            }
+            for t in [
+                (-b - discriminant.sqrt()) / a,
+                (-b + discriminant.sqrt()) / a,
+            ] {
+                if (0.0..=1.0).contains(&t) {
+                    candidate(p[2] + t * (q[2] - p[2]));
+                }
+            }
+        }
+        // 面を含む平面 z = z0 + g·(x − x0, y − y0) の、円の縁の上りの向きの点と円の中心
+        let [a, b, c] = corners;
+        let n = [
+            (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]),
+            (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]),
+            (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]),
+        ];
+        if n[2] == 0.0 {
+            continue;
+        }
+        let gradient = [-n[0] / n[2], -n[1] / n[2]];
+        let slope = gradient[0].hypot(gradient[1]);
+        let mut points = vec![[x, y]];
+        if slope > 0.0 {
+            points.push([
+                x + radius * gradient[0] / slope,
+                y + radius * gradient[1] / slope,
+            ]);
+        }
+        for [px, py] in points {
+            let inside = (0..3).all(|k| {
+                let (p, q) = (corners[k], corners[(k + 1) % 3]);
+                ((q[0] - p[0]) * (py - p[1]) - (q[1] - p[1]) * (px - p[0])) * n[2] >= 0.0
+            });
+            if inside {
+                candidate(a[2] + gradient[0] * (px - a[0]) + gradient[1] * (py - a[1]));
+            }
+        }
+    }
+    highest
+}
+
+#[test]
+fn flat_heights_match_the_highest_points_under_the_bottom_of_the_tool() {
+    // 頂点・辺の要素を範囲（隣り合う面ベクトルの間）に限っても、工具の底の円の内側の最も高い点と同じ高さになる
+    // 尾根の高さ `top`、尾根の両端の高さの差 `tilt` の屋根
+    let roof = |top: f64, tilt: f64| {
+        TriangleMesh3D::new(
+            vec![
+                Point3D::new(0.0, 0.0, 0.0),
+                Point3D::new(5.0, 0.0, top),
+                Point3D::new(5.0, 10.0, top + tilt),
+                Point3D::new(0.0, 10.0, 0.0),
+                Point3D::new(10.0, 0.0, 0.0),
+                Point3D::new(10.0, 10.0, 0.0),
+            ],
+            vec![[0, 1, 2], [0, 2, 3], [1, 4, 5], [1, 5, 2]],
+        )
+        .unwrap()
+    };
+    let tetrahedron = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+            Point3D::new(0.0, 10.0, 0.0),
+            Point3D::new(2.0, 2.0, 5.0),
+        ],
+        vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
+    )
+    .unwrap();
+    for (mesh, span) in [
+        (terrain(12, ridges, true), 12.0),
+        (
+            terrain(8, |x, y| ridges(x, y) + 0.7 * x - 0.4 * y, false),
+            8.0,
+        ),
+        (step(), 10.0),
+        (overhang(), 14.0),
+        (roof(3.0, 0.0), 10.0),
+        (roof(3.0, 2.0), 10.0),
+        (roof(1e-9, 0.0), 10.0),
+        (roof(1e-9, 1e-9), 10.0),
+        (tetrahedron, 10.0),
+    ] {
+        for radius in [0.6, 1.5] {
+            let shape = InverseOffsetShape::new(&mesh, CutterShape::Flat { radius }).unwrap();
+            let expected: Vec<Option<f64>> = grid(span)
+                .map(|(x, y)| flat_reference_height(&mesh, radius, x, y))
+                .collect();
+            assert_same(&heights(&shape, span), &expected);
+        }
+    }
+}
+
+#[test]
+fn flat_vertices_and_edges_are_limited_to_their_ranges() {
+    // 尾根と谷のある地形では、工具の底が乗らない（つながる辺の先がより高い）頂点を外す
+    let mesh = terrain(12, ridges, true);
+    let flat = InverseOffsetShape::new(&mesh, CutterShape::Flat { radius: 1.0 }).unwrap();
+    let ball = InverseOffsetShape::new(&mesh, CutterShape::Ball { radius: 1.0 }).unwrap();
+    assert!(flat.vertices.len() < ball.vertices.len());
+    // 斜めの辺は、辺の点から (x, y) への水平な向きのうち、上りの向きを範囲に持たない
+    let directions = |edge: &super::EdgeElement| {
+        (0..36)
+            .map(|k| {
+                let angle = std::f64::consts::TAU * k as f64 / 36.0;
+                [angle.cos(), angle.sin(), 0.0]
+            })
+            .filter(|&h| in_range(h, &edge.range))
+            .collect::<Vec<_>>()
+    };
+    for edge in &flat.edges {
+        let [start, end] = edge.ends;
+        let rise = end[2] - start[2];
+        if rise.abs() < 1e-9 {
+            continue;
+        }
+        let uphill = [rise * (end[0] - start[0]), rise * (end[1] - start[1]), 0.0];
+        let length = super::dot(uphill, uphill).sqrt();
+        // 辺に垂直な向きは、境目として丸め誤差の分だけ範囲に入りうる
+        assert!(
+            directions(edge)
+                .iter()
+                .all(|&h| super::dot(h, uphill) <= 1e-9 * length)
+        );
+    }
+    // 水平な尾根の辺は、工具の底が辺に乗るため全周
+    let ridge = InverseOffsetShape::new(&step(), CutterShape::Flat { radius: 1.0 }).unwrap();
+    assert!(ridge.edges.iter().any(|edge| directions(edge).len() == 36));
 }
 
 /// 表示用の三角形と鉛直線の交点のうち、最も高い点の高さ
