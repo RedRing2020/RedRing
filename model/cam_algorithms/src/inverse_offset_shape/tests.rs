@@ -380,6 +380,32 @@ fn distant_low_triangles_do_not_change_the_heights() {
 }
 
 #[test]
+fn low_triangles_below_a_face_do_not_change_its_height() {
+    // z = 10 の正方形の真下に z = -1e20 の三角形がある（同じ XY で両方の要素を調べる）
+    let mesh = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 10.0),
+            Point3D::new(10.0, 0.0, 10.0),
+            Point3D::new(10.0, 10.0, 10.0),
+            Point3D::new(0.0, 10.0, 10.0),
+            Point3D::new(0.0, 0.0, -1e20),
+            Point3D::new(10.0, 0.0, -1e20),
+            Point3D::new(0.0, 10.0, -1e20),
+        ],
+        vec![[0, 1, 2], [0, 2, 3], [4, 5, 6]],
+    )
+    .unwrap();
+    for shape in SHAPES {
+        let inverse = InverseOffsetShape::new(&mesh, shape).unwrap();
+        let tip = inverse.tip_height_at(5.0, 5.0);
+        assert!(
+            tip.is_some_and(|z| (z - 10.0).abs() < 1e-12),
+            "{shape:?}: {tip:?}"
+        );
+    }
+}
+
+#[test]
 fn steep_faces_do_not_extend_beyond_the_triangle() {
     // ほぼ鉛直な面。面の外の点を半直線の向きから見た距離で受け入れると、面を延ばした高さ（約 100.0025）が返る
     let mesh = TriangleMesh3D::new(

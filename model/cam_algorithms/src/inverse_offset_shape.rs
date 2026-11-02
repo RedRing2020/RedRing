@@ -49,7 +49,7 @@ pub struct InverseOffsetShape {
     /// 要素の XY 範囲の索引（`elements` の添字を返す）
     index: XyBucketIndex,
     elements: Vec<Element>,
-    /// 要素ごとの、最も低い点の高さ（鉛直線を表す半直線の始点を、調べる要素の近くに置くため）
+    /// 要素ごとの、最も低い点の高さ（鉛直線を表す半直線の始点を、要素ごとにそのすぐ下に置くため）
     lowest: Vec<f64>,
     xy_min: [f64; 2],
     xy_max: [f64; 2],
@@ -282,22 +282,23 @@ impl InverseOffsetShape {
     /// (x, y) における工具先端の高さ（逆オフセット形状の上側の面の高さから求める）。工具が形状に接触しない場合は
     /// `None`
     pub fn tip_height_at(&self, x: f64, y: f64) -> Option<f64> {
-        let candidates = self.index.candidates(x, y);
-        // 半直線の始点は、調べる要素のすぐ下に置く（離れた低い形状の高さで、交点の高さが桁落ちしない）
-        let start = candidates
+        let highest = self
+            .index
+            .candidates(x, y)
             .iter()
-            .map(|&element| self.lowest[element])
-            .reduce(f64::min)?
-            - 1.0;
-        let ray = Ray3D::new(Point3D::new(x, y, start), Vector3D::new(0.0, 0.0, 1.0))
-            .expect("the vertical direction is not zero");
-        let highest = candidates
-            .iter()
-            .filter_map(|&element| match self.elements[element] {
-                Element::Face(face) => face_height(&self.faces[face], &ray),
-                Element::UpperSide(face) => face_height(&self.upper_sides[face], &ray),
-                Element::Vertex(vertex) => self.vertex_height(vertex, x, y, &ray),
-                Element::Edge(edge) => self.edge_height(edge, x, y, &ray),
+            .filter_map(|&element| {
+                // 半直線の始点は要素ごとに、その要素のすぐ下に置く（ほかの要素の高さで、交点の高さが桁落ちしない）
+                let ray = Ray3D::new(
+                    Point3D::new(x, y, self.lowest[element] - 1.0),
+                    Vector3D::new(0.0, 0.0, 1.0),
+                )
+                .expect("the vertical direction is not zero");
+                match self.elements[element] {
+                    Element::Face(face) => face_height(&self.faces[face], &ray),
+                    Element::UpperSide(face) => face_height(&self.upper_sides[face], &ray),
+                    Element::Vertex(vertex) => self.vertex_height(vertex, x, y, &ray),
+                    Element::Edge(edge) => self.edge_height(edge, x, y, &ray),
+                }
             })
             .reduce(f64::max)?;
         // 基準点（ボールは球の中心、フラットは底面の中心）から工具先端へ
