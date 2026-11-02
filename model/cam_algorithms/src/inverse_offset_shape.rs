@@ -37,11 +37,15 @@ use crate::inverse_offset::{CutterShape, MeshTriangles, XyBucketIndex, cross, su
 use crate::product_surface::ProductSurface;
 use crate::solver::CamSolverError;
 
+pub use display::{InverseOffsetPart, InverseOffsetPartKind, MIN_DISPLAY_ANGLE_STEP};
+
 /// 逆オフセット形状
 #[derive(Debug, Clone)]
 pub struct InverseOffsetShape {
     shape: CutterShape,
     faces: Vec<Triangle3D<f64>>,
+    /// 面ごとの役割（高さを求める索引に入るか、外を決められなかった塊の面か）
+    face_kinds: Vec<InverseOffsetPartKind>,
     /// 開いた塊の下を向く面を、上側（外向きと逆の向き）にずらした三角形
     upper_sides: Vec<Triangle3D<f64>>,
     vertices: Vec<VertexElement>,
@@ -158,6 +162,7 @@ impl InverseOffsetShape {
         let mut elements = Vec::new();
         let mut lowest = Vec::new();
         let mut faces = Vec::new();
+        let mut face_kinds = Vec::new();
         let mut upper_sides = Vec::new();
         let flat = default_orthogonality_dot_error_tolerance::<f64>();
         for ((triangle, normal), &outward) in triangles.iter().zip(&normals).zip(&outward) {
@@ -171,6 +176,11 @@ impl InverseOffsetShape {
                 push_face(&face, element, &mut bounds, &mut elements, &mut lowest);
             }
             faces.push(face);
+            face_kinds.push(match outward {
+                Outward::Unknown => InverseOffsetPartKind::UnorientedFace,
+                _ if normal[2] >= flat => InverseOffsetPartKind::IndexedFace,
+                _ => InverseOffsetPartKind::UnindexedFace,
+            });
             // 開いた塊の下を向く面は、上から届くことがあるため、上側にずらした要素を索引に入れる
             if outward == Outward::Open && normal[2] <= -flat {
                 let reversed = normal.map(|component| -component);
@@ -259,6 +269,7 @@ impl InverseOffsetShape {
         Ok(Self {
             shape,
             faces,
+            face_kinds,
             upper_sides,
             vertices: vertex_elements,
             edges: edge_elements,
@@ -628,5 +639,6 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
+mod display;
 #[cfg(test)]
 mod tests;

@@ -18,7 +18,9 @@ pub mod tessellation;
 
 pub use cl_grid::{ClGrid, MAX_CL_GRID_SAMPLES, sample_cl_grid};
 pub use inverse_offset::CutterShape;
-pub use inverse_offset_shape::InverseOffsetShape;
+pub use inverse_offset_shape::{
+    InverseOffsetPart, InverseOffsetPartKind, InverseOffsetShape, MIN_DISPLAY_ANGLE_STEP,
+};
 pub use process_template::{
     MachiningBoundary, MachiningStage, OperationDefinition, OperationType, ProcessTemplate,
     RectangleBoundary, ResolvedOperation, SolverDefaults, TemplateFailure, build_solver_input,
@@ -28,7 +30,7 @@ pub use product_surface::ProductSurface;
 pub use scanline::generate_scanline_toolpath;
 pub use solver::{
     CamSolverError, CamSolverInput, GeometryKind, OperationSpec, ScanlineCutDirection,
-    ScanlineParams, ScanlineToolRange, SolverGeometry, solve_toolpath,
+    ScanlineParams, ScanlineToolRange, SolverGeometry, build_inverse_offset_shape, solve_toolpath,
 };
 pub use tessellation::triangle_aspect_ratio;
 

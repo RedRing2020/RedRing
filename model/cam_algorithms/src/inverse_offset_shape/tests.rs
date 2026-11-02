@@ -1,7 +1,9 @@
 use geo_algorithms::{Point3D, TriangleMesh3D};
-use geo_contracts::{Triangle3DBoundaryAccess, TriangleMesh3DConstructor};
+use geo_contracts::{
+    Triangle3DBoundaryAccess, TriangleMesh3DConstructor, TriangleMesh3DProperties,
+};
 
-use super::InverseOffsetShape;
+use super::{InverseOffsetPart, InverseOffsetPartKind, InverseOffsetShape};
 use crate::inverse_offset::CutterShape;
 
 /// 格子の点の高さ `height` の地形（1 つおきの三角形は頂点の順を逆にして、面の向きをそろえない）
@@ -420,4 +422,211 @@ fn steep_faces_do_not_extend_beyond_the_triangle() {
     let inverse = InverseOffsetShape::new(&mesh, CutterShape::Flat { radius: 1.0 }).unwrap();
     let tip = inverse.tip_height_at(-1.0 + 2e-8 + 5e-13, 0.0);
     assert!(tip.is_some_and(|z| z <= 100.0), "{tip:?}");
+}
+
+/// 表示用の三角形と鉛直線の交点のうち、最も高い点の高さ
+fn display_height(parts: &[InverseOffsetPart], x: f64, y: f64) -> Option<f64> {
+    use geo_algorithms::{CrossIntersection, IntersectionGeometry, Ray3D, Triangle3D, Vector3D};
+    use geo_contracts::{Ray3DConstructor, Triangle3DConstructor};
+    let ray = Ray3D::new(Point3D::new(x, y, -100.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+    parts
+        .iter()
+        .flat_map(|part| &part.triangles)
+        .filter_map(|corners| {
+            let [a, b, c] = corners.map(|p| Point3D::new(p[0], p[1], p[2]));
+            match Triangle3D::new(a, b, c)?.intersection(&ray, 1e-12).geometry {
+                IntersectionGeometry::Point(point) => Some(point.z()),
+                _ => None,
+            }
+        })
+        .reduce(f64::max)
+}
+
+fn kinds(parts: &[InverseOffsetPart]) -> Vec<InverseOffsetPartKind> {
+    parts.iter().map(|part| part.kind).collect()
+}
+
+/// 表示用の三角形が、上側の面より上に出ず、弦の誤差より下に下がらないことを確かめる
+///
+/// 三角形は要素の面の弦（範囲の外まで残す部分は、工具を動かした形の中にあり上側の面の下）。弦と面の隔たりは、
+/// 面に垂直な向きに r × (1 − cos きざみ) 以下のため、鉛直な向きでは、上側の面の傾き s の点で √(1 + s²) 倍以下になる。
+fn assert_display_follows(inverse: &InverseOffsetShape, step: f64, span: f64) {
+    let parts = inverse.display_parts(step).unwrap();
+    let shape = inverse.shape();
+    let chord = shape.radius() * (1.0 - step.cos());
+    let center = |x: f64, y: f64| {
+        inverse
+            .tip_height_at(x, y)
+            .map(|z| z + shape.reference_offset())
+    };
+    let steps = (span * 4.0) as usize;
+    for j in 0..=steps {
+        for i in 0..=steps {
+            let (x, y) = (i as f64 * 0.25, j as f64 * 0.25);
+            let Some(expected) = center(x, y) else {
+                continue;
+            };
+            // 傾きは、前後の差のうち急な方（上側の面の折れ目でも小さく見積もらない）
+            let h = 1e-4;
+            let slope = |dx: f64, dy: f64| {
+                center(x + dx, y + dy).map_or(0.0, |z| ((z - expected) / h).abs())
+            };
+            let sx = slope(h, 0.0).max(slope(-h, 0.0));
+            let sy = slope(0.0, h).max(slope(0.0, -h));
+            let allowed = chord * (1.0 + sx * sx + sy * sy).sqrt() + 1e-9;
+            let actual = display_height(&parts, x, y)
+                .unwrap_or_else(|| panic!("{shape:?} ({x}, {y}): no display triangle"));
+            assert!(
+                actual <= expected + 1e-9 && actual >= expected - allowed,
+                "{shape:?} ({x}, {y}): {actual}, {expected}, allowed {allowed}"
+            );
+        }
+    }
+}
+
+#[test]
+fn display_parts_follow_the_upper_surface() {
+    let step = 5.0_f64.to_radians();
+    for shape in SHAPES {
+        let inverse = InverseOffsetShape::new(&terrain(4, ridges, true), shape).unwrap();
+        assert_display_follows(&inverse, step, 4.0);
+    }
+}
+
+#[test]
+fn narrow_ranges_of_nearly_flat_convex_elements_are_displayed() {
+    // 尾根の高さ 1e-3 のほぼ平らな屋根（尾根の辺の範囲と、尾根の端の頂点の範囲は、きざみ 10° より狭い）
+    let roof = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(5.0, 0.0, 1e-3),
+            Point3D::new(5.0, 10.0, 1e-3),
+            Point3D::new(0.0, 10.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+            Point3D::new(10.0, 10.0, 0.0),
+        ],
+        vec![[0, 1, 2], [0, 2, 3], [1, 4, 5], [1, 5, 2]],
+    )
+    .unwrap();
+    for shape in SHAPES {
+        let inverse = InverseOffsetShape::new(&roof, shape).unwrap();
+        assert_display_follows(&inverse, 10.0_f64.to_radians(), 10.0);
+    }
+}
+
+#[test]
+fn display_triangles_of_ball_vertices_and_edges_lie_on_the_offset_surfaces() {
+    let radius = 1.5;
+    let mesh = terrain(3, ridges, true);
+    let inverse = InverseOffsetShape::new(&mesh, CutterShape::Ball { radius }).unwrap();
+    let parts = inverse.display_parts(10.0_f64.to_radians()).unwrap();
+    let points: Vec<[f64; 3]> = mesh
+        .vertices()
+        .iter()
+        .map(|p| [p.x(), p.y(), p.z()])
+        .collect();
+    let distance_to_segment = |p: [f64; 3], a: [f64; 3], b: [f64; 3]| {
+        let d = [0, 1, 2].map(|k| b[k] - a[k]);
+        let length_squared = d.iter().map(|v| v * v).sum::<f64>();
+        let t = if length_squared == 0.0 {
+            0.0
+        } else {
+            ([0, 1, 2].map(|k| (p[k] - a[k]) * d[k]).iter().sum::<f64>() / length_squared)
+                .clamp(0.0, 1.0)
+        };
+        [0, 1, 2]
+            .map(|k| p[k] - a[k] - t * d[k])
+            .iter()
+            .map(|v| v * v)
+            .sum::<f64>()
+            .sqrt()
+    };
+    // 頂点の三角形の頂点はどれかの頂点から、辺の三角形の頂点はどれかの辺から、ちょうど半径の距離にある（ほかの
+    // 要素の方が近い位置もありうる）
+    fn on_surface(mut distances: impl Iterator<Item = f64>, radius: f64) -> bool {
+        distances.any(|distance| (distance - radius).abs() < 1e-9)
+    }
+    for part in &parts {
+        for corner in part.triangles.iter().flatten() {
+            let found = match part.kind {
+                InverseOffsetPartKind::Vertex => on_surface(
+                    points.iter().map(|&p| distance_to_segment(*corner, p, p)),
+                    radius,
+                ),
+                InverseOffsetPartKind::Edge => on_surface(
+                    mesh.indices()
+                        .iter()
+                        .flat_map(|t| [[t[0], t[1]], [t[1], t[2]], [t[2], t[0]]])
+                        .map(|[a, b]| distance_to_segment(*corner, points[a], points[b])),
+                    radius,
+                ),
+                _ => continue,
+            };
+            assert!(found, "{:?}: {corner:?}", part.kind);
+        }
+    }
+}
+
+#[test]
+fn display_parts_are_classified_by_the_role_of_the_elements() {
+    let step = 10.0_f64.to_radians();
+    use InverseOffsetPartKind::*;
+    // 開いた張り出し: 上を向く面・鉛直な面と下を向く面・下を向く面の上側の要素
+    let open = InverseOffsetShape::new(&overhang(), CutterShape::Ball { radius: 1.0 }).unwrap();
+    assert_eq!(
+        kinds(&open.display_parts(step).unwrap()),
+        [IndexedFace, UnindexedFace, UpperSide, Vertex, Edge]
+    );
+    // 閉じた四面体の底面は、上側の要素を持たない
+    let tetrahedron = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+            Point3D::new(0.0, 10.0, 0.0),
+            Point3D::new(2.0, 2.0, 5.0),
+        ],
+        vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
+    )
+    .unwrap();
+    let closed = InverseOffsetShape::new(&tetrahedron, CutterShape::Flat { radius: 1.0 }).unwrap();
+    assert_eq!(
+        kinds(&closed.display_parts(step).unwrap()),
+        [IndexedFace, UnindexedFace, Vertex, Edge]
+    );
+    // 上の面に隠れた別の塊は、上から届く面がなく外を決められない
+    let hidden = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 5.0),
+            Point3D::new(10.0, 0.0, 5.0),
+            Point3D::new(0.0, 10.0, 5.0),
+            Point3D::new(1.0, 1.0, 0.0),
+            Point3D::new(3.0, 1.0, 0.0),
+            Point3D::new(1.0, 3.0, 0.0),
+        ],
+        vec![[0, 1, 2], [3, 5, 4]],
+    )
+    .unwrap();
+    let parts = InverseOffsetShape::new(&hidden, CutterShape::Ball { radius: 1.0 })
+        .unwrap()
+        .display_parts(step)
+        .unwrap();
+    let unoriented = parts
+        .iter()
+        .find(|part| part.kind == UnorientedFace)
+        .unwrap();
+    assert_eq!(unoriented.triangles.len(), 1);
+    // 面ごとに上向きにそろえ、工具の半径だけ上にずれる
+    assert!(
+        unoriented.triangles[0]
+            .iter()
+            .all(|p| (p[2] - 1.0).abs() < 1e-12)
+    );
+}
+
+#[test]
+fn display_angle_steps_out_of_range_are_rejected() {
+    let inverse = InverseOffsetShape::new(&step(), CutterShape::Ball { radius: 1.0 }).unwrap();
+    for angle_step in [0.0, -0.1, f64::NAN, 2.0] {
+        assert!(inverse.display_parts(angle_step).is_err(), "{angle_step}");
+    }
 }
