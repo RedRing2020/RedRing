@@ -12,7 +12,7 @@ impl AppState {
         }
 
         // 設定パネル・加工条件のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
-        if self.is_ui_window_open() && self.renderer.is_settings_using_keyboard() {
+        if self.renderer.is_settings_using_keyboard() {
             return;
         }
 

@@ -6,6 +6,8 @@ pub mod graphic;
 pub mod logging;
 pub(crate) mod machining_conditions_messages;
 pub(crate) mod machining_conditions_ui;
+pub(crate) mod menu_bar_messages;
+pub(crate) mod menu_bar_ui;
 pub mod mouse_input;
 pub mod overlay_coords;
 pub mod selection_rect;

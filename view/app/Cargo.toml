@@ -27,6 +27,7 @@ egui = "0.34.1"
 egui-wgpu = "0.34.1"
 egui-winit = "0.34.1"
 fontdb = "0.23"
+rfd = "0.17.2"
 
 [lints]
 workspace = true

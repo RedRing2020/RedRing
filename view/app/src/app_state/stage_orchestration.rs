@@ -41,15 +41,18 @@ impl AppState {
             stage.update_with_device(&self.graphic.device);
         }
 
+        let mut menu_bar_state = self.prepare_menu_bar_state();
         let mut settings_panel_state = self.prepare_settings_panel_state();
         let mut machining_conditions_state = self.prepare_machining_conditions_state();
         self.renderer.prepare_ui_windows(
             &self.window,
+            &mut menu_bar_state,
             &mut settings_panel_state,
             &mut machining_conditions_state,
         );
         self.apply_settings_panel_state(settings_panel_state);
         self.apply_machining_conditions_state(machining_conditions_state);
+        self.apply_menu_bar_state(menu_bar_state);
 
         self.update_camera_uniforms();
 

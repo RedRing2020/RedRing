@@ -3,7 +3,7 @@
 //! 表示の設定（設定パネル）とは分けて、次に投入する計算条件と、表示中の結果の計算に使った条件を扱う。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
-use egui::{Align2, CollapsingHeader, Context, DragValue, Window};
+use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, Window};
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, CuttingSimulationConditions, CuttingToolKind, ImportedConditions,
     ScanlineCutDirection, ScanlineToolRange, StockMargins,
@@ -167,7 +167,8 @@ impl MachiningConditionsUiState {
         }
     }
 
-    pub fn show(&mut self, ctx: &Context) {
+    /// ウィンドウを、範囲 `area`（メニューバーの下）の左上に置く
+    pub fn show(&mut self, ctx: &Context, area: Rect) {
         if !self.open {
             return;
         }
@@ -175,6 +176,7 @@ impl MachiningConditionsUiState {
         let mut open = self.open;
         Window::new(self.text("conditions.window.title"))
             .anchor(Align2::LEFT_TOP, [16.0, 16.0])
+            .constrain_to(area)
             .default_width(360.0)
             .resizable(true)
             .open(&mut open)

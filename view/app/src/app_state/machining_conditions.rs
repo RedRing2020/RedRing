@@ -4,10 +4,6 @@ use super::AppState;
 use crate::machining_conditions_ui::MachiningConditionsUiState;
 
 impl AppState {
-    pub fn is_machining_conditions_open(&self) -> bool {
-        self.machining_conditions_open
-    }
-
     pub fn toggle_machining_conditions(&mut self) {
         self.machining_conditions_open = !self.machining_conditions_open;
         tracing::info!(

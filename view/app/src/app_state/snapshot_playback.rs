@@ -3,6 +3,7 @@
 use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
 use crate::selection_rect::SelectionRect;
+use crate::snapshot_overlay_renderer::snapshot_track_rect;
 use std::time::Instant;
 use viewmodel::cutting_animation::CuttingAnimation;
 
@@ -543,12 +544,7 @@ impl AppState {
     }
 
     fn snapshot_track_rect(&self) -> SelectionRect {
-        SelectionRect {
-            x: 16.0,
-            y: 16.0,
-            width: 220.0,
-            height: 14.0,
-        }
+        snapshot_track_rect(self.renderer.top_inset())
     }
 
     pub(super) fn is_cursor_on_snapshot_track(&self, cursor: (f32, f32)) -> bool {
