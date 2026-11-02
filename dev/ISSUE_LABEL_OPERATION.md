@@ -36,8 +36,8 @@ Issueの優先度・リリース対象・進行段階を、ラベルで一貫し
 
 ### リリース分類の判定基準
 
-- 判定時は `dev/architecture/RELEASE_VERSION_PLAN_2026Q1.md` を参照する
-- v0.1.0のMust要件に直接対応するものを `release:in` とする
+- 判定時は `dev/architecture/RELEASE_VERSION_PLAN.md` を参照する
+- 次に出す版（`RELEASE_VERSION_PLAN.md` 2.）の目標に直接対応するものを `release:in` とする
 
 ---
 
