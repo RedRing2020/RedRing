@@ -203,6 +203,19 @@ impl XyBucketIndex {
         &self.buckets[row * self.columns + column]
     }
 
+    /// XY 範囲 `min`〜`max` にかかる升目の候補（重複を除き、番号の小さい順）
+    pub(crate) fn candidates_within(&self, min: [f64; 2], max: [f64; 2]) -> Vec<usize> {
+        let (c0, r0) = self.cell_of(min[0], min[1]);
+        let (c1, r1) = self.cell_of(max[0], max[1]);
+        let mut items: Vec<usize> = (r0..=r1)
+            .flat_map(|row| (c0..=c1).map(move |column| row * self.columns + column))
+            .flat_map(|cell| self.buckets[cell].iter().copied())
+            .collect();
+        items.sort_unstable();
+        items.dedup();
+        items
+    }
+
     /// (x, y) を含む升目（索引の外も含めて数える）から、升目の番号の差が `ring` の升目を、内側から外側へ順に返す
     ///
     /// 環ごとに、索引の中の升目の中身と、環の升目と (x, y) の XY の距離の下限（`(ring - 1)` × 升目の幅）を返す。
