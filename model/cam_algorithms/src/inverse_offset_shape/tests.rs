@@ -76,6 +76,20 @@ fn grid(span: f64) -> impl Iterator<Item = (f64, f64)> {
         .map(|(i, j)| (-1.0 + i as f64 * 0.27, -1.0 + j as f64 * 0.27))
 }
 
+/// 閉じた四面体（底面 z = 0、頂点 (2, 2, 5)）
+fn tetrahedron() -> TriangleMesh3D<f64> {
+    TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+            Point3D::new(0.0, 10.0, 0.0),
+            Point3D::new(2.0, 2.0, 5.0),
+        ],
+        vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
+    )
+    .unwrap()
+}
+
 /// 格子の点ごとの工具先端の高さ
 fn heights(shape: &InverseOffsetShape, span: f64) -> Vec<Option<f64>> {
     grid(span).map(|(x, y)| shape.tip_height_at(x, y)).collect()
@@ -334,16 +348,7 @@ fn downward_faces_of_open_shapes_exposed_from_above_have_heights() {
 #[test]
 fn downward_faces_of_closed_shapes_are_not_indexed() {
     // 閉じた四面体の底面（外向きは下）は、上から届かない
-    let tetrahedron = TriangleMesh3D::new(
-        vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(10.0, 0.0, 0.0),
-            Point3D::new(0.0, 10.0, 0.0),
-            Point3D::new(2.0, 2.0, 5.0),
-        ],
-        vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
-    )
-    .unwrap();
+    let tetrahedron = tetrahedron();
     for shape in SHAPES {
         let inverse = InverseOffsetShape::new(&tetrahedron, shape).unwrap();
         assert!(inverse.upper_sides.is_empty());
@@ -518,16 +523,7 @@ fn flat_heights_match_the_highest_points_under_the_bottom_of_the_tool() {
         )
         .unwrap()
     };
-    let tetrahedron = TriangleMesh3D::new(
-        vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(10.0, 0.0, 0.0),
-            Point3D::new(0.0, 10.0, 0.0),
-            Point3D::new(2.0, 2.0, 5.0),
-        ],
-        vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
-    )
-    .unwrap();
+    let tetrahedron = tetrahedron();
     for (mesh, span) in [
         (terrain(12, ridges, true), 12.0),
         (
@@ -587,6 +583,44 @@ fn flat_vertices_and_edges_are_limited_to_their_ranges() {
     // 水平な尾根の辺は、工具の底が辺に乗るため全周
     let ridge = InverseOffsetShape::new(&step(), CutterShape::Flat { radius: 1.0 }).unwrap();
     assert!(ridge.edges.iter().any(|edge| directions(edge).len() == 36));
+}
+
+#[test]
+fn cutting_off_by_upper_bounds_keeps_the_heights_and_evaluates_fewer_elements() {
+    // 上を向く面の要素は高さの上限が低い要素より先に評価され、隠れた要素の評価を打ち切る。外を決められない塊
+    // （上の面に隠れた塊）・開いた形でも結果は変わらない
+    let hidden = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 5.0),
+            Point3D::new(10.0, 0.0, 5.0),
+            Point3D::new(0.0, 10.0, 5.0),
+            Point3D::new(1.0, 1.0, 0.0),
+            Point3D::new(3.0, 1.0, 0.0),
+            Point3D::new(1.0, 3.0, 0.0),
+        ],
+        vec![[0, 1, 2], [3, 5, 4]],
+    )
+    .unwrap();
+    for shape in SHAPES {
+        for (mesh, span) in [
+            (terrain(12, ridges, true), 12.0),
+            (step(), 10.0),
+            (overhang(), 14.0),
+            (tetrahedron(), 10.0),
+            (hidden.clone(), 10.0),
+        ] {
+            let inverse = InverseOffsetShape::new(&mesh, shape).unwrap();
+            let (mut cut, mut all) = (0, 0);
+            for (x, y) in grid(span) {
+                let (highest, evaluated) = inverse.highest_at(x, y, true);
+                let (expected, candidates) = inverse.highest_at(x, y, false);
+                assert_eq!(highest, expected, "{shape:?} ({x}, {y})");
+                cut += evaluated;
+                all += candidates;
+            }
+            assert!(cut < all, "{shape:?}: {cut} / {all}");
+        }
+    }
 }
 
 /// 表示用の三角形と鉛直線の交点のうち、最も高い点の高さ
@@ -743,16 +777,7 @@ fn display_parts_are_classified_by_the_role_of_the_elements() {
         [IndexedFace, UnindexedFace, UpperSide, Vertex, Edge]
     );
     // 閉じた四面体の底面は、上側の要素を持たない
-    let tetrahedron = TriangleMesh3D::new(
-        vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(10.0, 0.0, 0.0),
-            Point3D::new(0.0, 10.0, 0.0),
-            Point3D::new(2.0, 2.0, 5.0),
-        ],
-        vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
-    )
-    .unwrap();
+    let tetrahedron = tetrahedron();
     let closed = InverseOffsetShape::new(&tetrahedron, CutterShape::Flat { radius: 1.0 }).unwrap();
     assert_eq!(
         kinds(&closed.display_parts(step).unwrap()),
