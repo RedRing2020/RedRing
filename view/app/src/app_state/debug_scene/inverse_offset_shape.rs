@@ -9,11 +9,11 @@ use viewmodel::inverse_offset_shape_converter::InverseOffsetPartKind;
 /// 球面・円柱面・円板を三角形に分ける角度のきざみ（度）
 const ANGLE_STEP_DEGREES: f64 = 10.0;
 
-/// 種類ごとの色（RGBA）
+/// 種類ごとの色（RGBA。製品形状の白・素材の橙と見分けられる色にする）
 fn part_color(kind: InverseOffsetPartKind) -> [f32; 4] {
     match kind {
-        InverseOffsetPartKind::IndexedFace => [0.95, 0.55, 0.25, 1.0],
-        InverseOffsetPartKind::UnindexedFace => [0.55, 0.6, 0.8, 1.0],
+        InverseOffsetPartKind::IndexedFace => [0.9, 0.85, 0.25, 1.0],
+        InverseOffsetPartKind::UnindexedFace => [0.25, 0.35, 0.8, 1.0],
         InverseOffsetPartKind::UpperSide => [0.85, 0.35, 0.85, 1.0],
         InverseOffsetPartKind::UnorientedFace => [0.9, 0.15, 0.15, 1.0],
         InverseOffsetPartKind::Vertex => [0.35, 0.8, 0.4, 1.0],
