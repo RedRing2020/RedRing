@@ -19,7 +19,9 @@
 //! 低いため、高さを変えない）。辺の範囲は、辺から面の内側へ向かう向き（面の 3 つ目の頂点で決まる）で決める
 //! （凸の辺では、外向きの法線の間と同じ範囲）。
 //!
-//! 要素と鉛直線の交点は geo_algorithms の交差演算で、要素の式から求める（要素を三角形に分けない）。
+//! 要素と鉛直線の交点は geo_algorithms の交差演算で、要素の式から求める（要素を三角形に分けない）。要素は、決める
+//! 高さの上限（最も高い点の高さ）の高い順に評価し、それまでの最も高い点が次の要素の上限以上になった時点で打ち切る
+//! （面の向きによらず、結果を変えない）。
 
 use geo_algorithms::{
     Circle2D, CrossIntersection, CylindricalSurface3D, Direction3D, IntersectionGeometry,
@@ -53,10 +55,20 @@ pub struct InverseOffsetShape {
     /// 要素の XY 範囲の索引（`elements` の添字を返す）
     index: XyBucketIndex,
     elements: Vec<Element>,
-    /// 要素ごとの、最も低い点の高さ（鉛直線を表す半直線の始点を、要素ごとにそのすぐ下に置くため）
-    lowest: Vec<f64>,
+    /// 要素ごとの、最も低い点の高さ（鉛直線を表す半直線の始点を、要素ごとにそのすぐ下に置くため）と、要素が決める
+    /// 高さの上限（最も高い点の高さ）。要素は上限の高い順に並べる（升目の候補もこの順になり、評価を打ち切れる）
+    z_ranges: Vec<ZRange>,
     xy_min: [f64; 2],
     xy_max: [f64; 2],
+}
+
+/// 要素の高さの範囲
+#[derive(Debug, Clone, Copy)]
+struct ZRange {
+    /// 最も低い点の高さ
+    lowest: f64,
+    /// 要素が決める高さの上限
+    upper: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -162,7 +174,7 @@ impl InverseOffsetShape {
 
         let mut bounds = Vec::new();
         let mut elements = Vec::new();
-        let mut lowest = Vec::new();
+        let mut z_ranges = Vec::new();
         let mut faces = Vec::new();
         let mut face_kinds = Vec::new();
         let mut upper_sides = Vec::new();
@@ -175,7 +187,7 @@ impl InverseOffsetShape {
             // 上を向かない面（鉛直な面・アンダーカットの面）の要素は、高さを求める索引に入れない
             if normal[2] >= flat {
                 let element = Element::Face(faces.len());
-                push_face(&face, element, &mut bounds, &mut elements, &mut lowest);
+                push_face(&face, element, &mut bounds, &mut elements, &mut z_ranges);
             }
             faces.push(face);
             face_kinds.push(match outward {
@@ -188,12 +200,17 @@ impl InverseOffsetShape {
                 let reversed = normal.map(|component| -component);
                 if let Some(upper) = offset_triangle(corners, reversed, shape) {
                     let element = Element::UpperSide(upper_sides.len());
-                    push_face(&upper, element, &mut bounds, &mut elements, &mut lowest);
+                    push_face(&upper, element, &mut bounds, &mut elements, &mut z_ranges);
                     upper_sides.push(upper);
                 }
             }
         }
 
+        // 頂点・辺の要素の最も高い点の、頂点・辺からの高さ（ボールは球面・円柱面の半径、フラットは円板の高さのまま）
+        let rise = match shape {
+            CutterShape::Ball { radius } => radius,
+            CutterShape::Flat { .. } => 0.0,
+        };
         let mut vertex_elements = Vec::new();
         for (vertex, &point) in vertices.iter().enumerate() {
             let edges = adjacency.vertex_edges(vertex);
@@ -234,7 +251,10 @@ impl InverseOffsetShape {
             };
             bounds.push(xy_bounds(&[[point[0], point[1]]], radius));
             elements.push(Element::Vertex(vertex_elements.len()));
-            lowest.push(point[2] - radius);
+            z_ranges.push(ZRange {
+                lowest: point[2] - radius,
+                upper: point[2] + rise,
+            });
             vertex_elements.push(VertexElement {
                 point,
                 sphere,
@@ -275,7 +295,10 @@ impl InverseOffsetShape {
             };
             bounds.push(xy_bounds(&ends.map(|p| [p[0], p[1]]), radius));
             elements.push(Element::Edge(edge_elements.len()));
-            lowest.push(ends[0][2].min(ends[1][2]) - radius);
+            z_ranges.push(ZRange {
+                lowest: ends[0][2].min(ends[1][2]) - radius,
+                upper: ends[0][2].max(ends[1][2]) + rise,
+            });
             edge_elements.push(EdgeElement {
                 ends,
                 cylinder,
@@ -283,6 +306,10 @@ impl InverseOffsetShape {
             });
         }
 
+        // 上限の高い順に並べてから索引に入れる（升目の候補も同じ順になる）
+        let mut sorted: Vec<_> = bounds.into_iter().zip(elements).zip(z_ranges).collect();
+        sorted.sort_by(|(_, first), (_, second)| second.upper.total_cmp(&first.upper));
+        let ((bounds, elements), z_ranges): ((Vec<_>, Vec<_>), Vec<_>) = sorted.into_iter().unzip();
         Ok(Self {
             shape,
             faces,
@@ -292,7 +319,7 @@ impl InverseOffsetShape {
             edges: edge_elements,
             index: XyBucketIndex::from_bounds(&bounds, radius, xy_min, xy_max),
             elements,
-            lowest,
+            z_ranges,
             xy_min,
             xy_max,
         })
@@ -310,27 +337,42 @@ impl InverseOffsetShape {
     /// (x, y) における工具先端の高さ（逆オフセット形状の上側の面の高さから求める）。工具が形状に接触しない場合は
     /// `None`
     pub fn tip_height_at(&self, x: f64, y: f64) -> Option<f64> {
-        let highest = self
-            .index
-            .candidates(x, y)
-            .iter()
-            .filter_map(|&element| {
-                // 半直線の始点は要素ごとに、その要素のすぐ下に置く（ほかの要素の高さで、交点の高さが桁落ちしない）
-                let ray = Ray3D::new(
-                    Point3D::new(x, y, self.lowest[element] - 1.0),
-                    Vector3D::new(0.0, 0.0, 1.0),
-                )
-                .expect("the vertical direction is not zero");
-                match self.elements[element] {
-                    Element::Face(face) => face_height(&self.faces[face], &ray),
-                    Element::UpperSide(face) => face_height(&self.upper_sides[face], &ray),
-                    Element::Vertex(vertex) => self.vertex_height(vertex, x, y, &ray),
-                    Element::Edge(edge) => self.edge_height(edge, x, y, &ray),
-                }
-            })
-            .reduce(f64::max)?;
+        let (highest, _) = self.highest_at(x, y, true);
         // 基準点（ボールは球の中心、フラットは底面の中心）から工具先端へ
-        Some(highest - self.shape.reference_offset())
+        Some(highest? - self.shape.reference_offset())
+    }
+
+    /// (x, y) の鉛直線と要素の交点のうち最も高い点の高さと、評価した要素の数
+    ///
+    /// 候補は上限の高い順のため、`cut_off` が真の場合は、それまでの最も高い点が次の候補の上限以上になった時点で
+    /// 打ち切る（残りの候補はそれより高くならない。外を決められない塊・開いた形でも結果を変えない）。交点は許容
+    /// 誤差の分だけ要素の外を含み、上限をわずかに超えうるため、上限に許容誤差を足して比べる。
+    fn highest_at(&self, x: f64, y: f64, cut_off: bool) -> (Option<f64>, usize) {
+        let mut highest: Option<f64> = None;
+        let mut evaluated = 0;
+        for &element in self.index.candidates(x, y) {
+            let ZRange { lowest, upper } = self.z_ranges[element];
+            if cut_off && highest.is_some_and(|height| height >= upper + tolerance()) {
+                break;
+            }
+            evaluated += 1;
+            // 半直線の始点は要素ごとに、その要素のすぐ下に置く（ほかの要素の高さで、交点の高さが桁落ちしない）
+            let ray = Ray3D::new(
+                Point3D::new(x, y, lowest - 1.0),
+                Vector3D::new(0.0, 0.0, 1.0),
+            )
+            .expect("the vertical direction is not zero");
+            let height = match self.elements[element] {
+                Element::Face(face) => face_height(&self.faces[face], &ray),
+                Element::UpperSide(face) => face_height(&self.upper_sides[face], &ray),
+                Element::Vertex(vertex) => self.vertex_height(vertex, x, y, &ray),
+                Element::Edge(edge) => self.edge_height(edge, x, y, &ray),
+            };
+            if let Some(height) = height {
+                highest = Some(highest.map_or(height, |current| current.max(height)));
+            }
+        }
+        (highest, evaluated)
     }
 
     /// (x, y) における工具先端位置（ToolPath 座標）
@@ -448,12 +490,16 @@ fn push_face(
     element: Element,
     bounds: &mut Vec<([f64; 2], [f64; 2])>,
     elements: &mut Vec<Element>,
-    lowest: &mut Vec<f64>,
+    z_ranges: &mut Vec<ZRange>,
 ) {
     let corners = [face.vertex_a(), face.vertex_b(), face.vertex_c()];
     bounds.push(xy_bounds(&corners.map(|p| [p.x(), p.y()]), 0.0));
     elements.push(element);
-    lowest.push(corners.iter().map(|p| p.z()).fold(f64::INFINITY, f64::min));
+    let heights = corners.map(|p| p.z());
+    z_ranges.push(ZRange {
+        lowest: heights.into_iter().fold(f64::INFINITY, f64::min),
+        upper: heights.into_iter().fold(f64::NEG_INFINITY, f64::max),
+    });
 }
 
 /// 交点のうち、`in_range` を満たす最も高い点の高さ
