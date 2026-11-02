@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### Added
+- `dev/architecture/RELEASE_VERSION_PLAN.md` を追加し、v0.1.0〜v0.3.0 の版の目標を明文化。
 - `dev/architecture/RELEASE_VERSION_PLAN_2026Q1.md` を追加し、リリース版数計画を明文化。
 - `VERSIONING_POLICY.md` を追加し、0.x運用時の版数ルールを明文化。
 
