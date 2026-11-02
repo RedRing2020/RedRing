@@ -32,6 +32,8 @@ pub enum DebugSceneAction {
     InverseOffset,
     InverseOffsetTool,
     InverseOffsetMode,
+    /// 表示中の製品形状と計算条件の工具で、逆オフセット形状の要素を表示する
+    InverseOffsetShape,
     /// Octree を表示する（表示中は深さを 1 段送る）
     Octree,
     OctreeDepthAnimation,
@@ -70,6 +72,13 @@ const DEBUG_SCENE_GROUPS: &[(&str, &[(&str, DebugSceneAction)])] = &[
                 DebugSceneAction::InverseOffsetMode,
             ),
         ],
+    ),
+    (
+        "settings.debug.header.inverse_offset_shape",
+        &[(
+            "settings.debug.inverse_offset_shape",
+            DebugSceneAction::InverseOffsetShape,
+        )],
     ),
     (
         "settings.debug.header.octree",

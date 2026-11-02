@@ -2,6 +2,7 @@
 
 pub(super) mod camera_fit;
 mod inverse_offset;
+mod inverse_offset_shape;
 mod nurbs;
 mod octree;
 mod shapes;
@@ -25,6 +26,7 @@ impl AppState {
             DebugSceneAction::InverseOffset => self.load_debug_inverse_offset(),
             DebugSceneAction::InverseOffsetTool => self.toggle_debug_inverse_offset_tool(),
             DebugSceneAction::InverseOffsetMode => self.toggle_debug_inverse_offset_mode(),
+            DebugSceneAction::InverseOffsetShape => self.load_debug_inverse_offset_shape(),
             DebugSceneAction::Octree => {
                 let stage = self.renderer.get_stage_mut();
                 match stage.cycle_octree_depth(&self.graphic.device) {

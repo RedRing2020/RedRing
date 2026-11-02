@@ -17,6 +17,7 @@ pub mod cutting_simulation_session;
 pub mod entity_converter;
 pub mod feature_command_converter;
 pub mod inverse_offset_converter;
+pub mod inverse_offset_shape_converter;
 pub mod job_converter;
 pub mod job_message_catalog;
 pub mod job_message_mapper;
