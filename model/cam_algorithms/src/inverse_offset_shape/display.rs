@@ -9,10 +9,11 @@ use super::{
     EdgeElement, InverseOffsetShape, VertexElement, cross,
     default_orthogonality_dot_error_tolerance, dot, sub, tolerance,
 };
+use crate::inverse_offset::CutterShape;
 use crate::solver::CamSolverError;
 
 /// 表示用の角度のきざみの下限（1°。細かくすると三角形の数がきざみの 2 乗に反比例して増えるため）
-pub const MIN_DISPLAY_ANGLE_STEP: f64 = std::f64::consts::PI / 180.0;
+const MIN_DISPLAY_ANGLE_STEP: f64 = std::f64::consts::PI / 180.0;
 
 /// 表示用の三角形の種類
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -31,7 +32,31 @@ pub enum InverseOffsetPartKind {
     Edge,
 }
 
-/// 種類ごとの表示用の三角形（頂点の順は、要素の外の側から見て左回り）
+impl InverseOffsetPartKind {
+    /// すべての種類（`display_parts` が返す順）
+    const ALL: [Self; 6] = [
+        Self::IndexedFace,
+        Self::UnindexedFace,
+        Self::UpperSide,
+        Self::UnorientedFace,
+        Self::Vertex,
+        Self::Edge,
+    ];
+
+    /// `ALL` の中の位置
+    fn slot(self) -> usize {
+        match self {
+            Self::IndexedFace => 0,
+            Self::UnindexedFace => 1,
+            Self::UpperSide => 2,
+            Self::UnorientedFace => 3,
+            Self::Vertex => 4,
+            Self::Edge => 5,
+        }
+    }
+}
+
+/// 種類ごとの表示用の三角形（頂点の順は、要素の外の側から見て左回り。面積のない三角形は含めない）
 #[derive(Debug, Clone, PartialEq)]
 pub struct InverseOffsetPart {
     pub kind: InverseOffsetPartKind,
@@ -45,7 +70,7 @@ impl InverseOffsetShape {
     ///
     /// # Errors
     ///
-    /// `angle_step` が有限でないか、[`MIN_DISPLAY_ANGLE_STEP`] から π / 2 の外の場合。
+    /// `angle_step` が有限でないか、1° から π / 2 の外の場合。
     pub fn display_parts(&self, angle_step: f64) -> Result<Vec<InverseOffsetPart>, CamSolverError> {
         if !(angle_step.is_finite()
             && (MIN_DISPLAY_ANGLE_STEP..=std::f64::consts::FRAC_PI_2).contains(&angle_step))
@@ -57,19 +82,11 @@ impl InverseOffsetShape {
         let corners = |face: &geo_algorithms::Triangle3D<f64>| {
             [face.vertex_a(), face.vertex_b(), face.vertex_c()].map(|p| [p.x(), p.y(), p.z()])
         };
-        let kinds = [
-            InverseOffsetPartKind::IndexedFace,
-            InverseOffsetPartKind::UnindexedFace,
-            InverseOffsetPartKind::UpperSide,
-            InverseOffsetPartKind::UnorientedFace,
-            InverseOffsetPartKind::Vertex,
-            InverseOffsetPartKind::Edge,
-        ];
-        let mut parts = kinds.map(|kind| InverseOffsetPart {
+        let mut parts = InverseOffsetPartKind::ALL.map(|kind| InverseOffsetPart {
             kind,
             triangles: Vec::new(),
         });
-        let slot = |kind| kinds.iter().position(|&k| k == kind).expect("listed kind");
+        let slot = InverseOffsetPartKind::slot;
         for (face, &kind) in self.faces.iter().zip(&self.face_kinds) {
             parts[slot(kind)].triangles.push(corners(face));
         }
@@ -83,11 +100,13 @@ impl InverseOffsetShape {
             })
             .collect();
         let radius = self.shape.radius();
-        let sphere = Icosphere::new(angle_step);
+        // 球面の三角形は、ボールの頂点だけに使う
+        let sphere =
+            matches!(self.shape, CutterShape::Ball { .. }).then(|| Icosphere::new(angle_step));
         parts[slot(InverseOffsetPartKind::Vertex)].triangles = self
             .vertices
             .iter()
-            .flat_map(|vertex| vertex_triangles(vertex, radius, angle_step, &sphere))
+            .flat_map(|vertex| vertex_triangles(vertex, radius, angle_step, sphere.as_ref()))
             .collect();
         parts[slot(InverseOffsetPartKind::Edge)].triangles = self
             .edges
@@ -184,19 +203,20 @@ fn vertex_triangles(
     vertex: &VertexElement,
     radius: f64,
     angle_step: f64,
-    sphere: &Icosphere,
+    sphere: Option<&Icosphere>,
 ) -> Vec<[[f64; 3]; 3]> {
     let center = vertex.point;
     let at = |direction: [f64; 3]| [0, 1, 2].map(|k| center[k] + radius * direction[k]);
-    if vertex.sphere.is_none() {
+    let (Some(_), Some(sphere)) = (&vertex.sphere, sphere) else {
         let count = divisions(std::f64::consts::TAU, angle_step);
         let rim = |k: usize| {
             let angle = std::f64::consts::TAU * k as f64 / count as f64;
             at([angle.cos(), angle.sin(), 0.0])
         };
         return (0..count).map(|k| [center, rim(k), rim(k + 1)]).collect();
-    }
-    // 範囲: つながる辺の向き along ごとに dot(向き, along) <= 0（球の中心を通る平面の片側）
+    };
+    // 範囲: つながる辺の向き along ごとに dot(向き, along) <= 0（球の中心を通る平面の片側）。高さの計算の内積の余裕は
+    // 境目の丸め誤差のためのもので、表示では持たない（持つと、範囲のない頂点にも余裕の幅の見えない細い三角形が残る）
     let planes: Vec<[f64; 3]> = vertex
         .neighbors
         .iter()
@@ -284,8 +304,16 @@ fn edge_triangles(edge: &EdgeElement, radius: f64, angle_step: f64) -> Vec<[[f64
         for k in 0..count {
             let (start_from, start_to) = (rim(start, k), rim(start, k + 1));
             let (end_from, end_to) = (rim(end, k), rim(end, k + 1));
-            triangles.push(facing_up([start_from, start_to, end_to]));
-            triangles.push(facing_up([start_from, end_to, end_from]));
+            // 水平な辺では、辺と平行な縁の弦の三角形が面積を持たない
+            triangles.extend(
+                [
+                    [start_from, start_to, end_to],
+                    [start_from, end_to, end_from],
+                ]
+                .into_iter()
+                .filter(|triangle| has_area(triangle, radius))
+                .map(facing_up),
+            );
         }
         return triangles;
     }
@@ -319,6 +347,8 @@ fn edge_triangles(edge: &EdgeElement, radius: f64, angle_step: f64) -> Vec<[[f64
 
 /// 軸のまわりの向き cos θ · `first` + sin θ · `second` のうち、隣り合うどの面の側にも向かない（`into_faces` との内積が
 /// 0 以下の）範囲の円弧（始まりの角と長さ）。範囲がなければ `None`
+///
+/// 頂点の範囲と同じく、高さの計算の内積の余裕は持たない。
 fn edge_arc(into_faces: &[[f64; 3]], first: [f64; 3], second: [f64; 3]) -> Option<(f64, f64)> {
     use std::f64::consts::{PI, TAU};
     let mut arc = (0.0, TAU);

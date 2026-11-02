@@ -20,12 +20,6 @@ impl AppState {
 
     /// 表示中の製品形状をメッシュステージに描き、全体が見えるようにカメラを合わせる
     fn show_product_shapes(&mut self) {
-        self.show_product_shapes_with(Vec::new());
-    }
-
-    /// 表示中の製品形状に、メッシュ `overlays`（キーと色の異なるメッシュの組）を重ねて描き、製品形状の全体が見える
-    /// ようにカメラを合わせる（`overlays` のキーは、製品形状のメッシュの番号と重ならないこと）
-    pub(super) fn show_product_shapes_with(&mut self, overlays: Vec<(u64, MeshListItem)>) {
         self.cutting_animation = None;
         self.cutting_animation_job_id = None;
         self.imported_conditions = None;
@@ -46,7 +40,6 @@ impl AppState {
                 };
                 (index as u64, item)
             })
-            .chain(overlays)
             .collect();
 
         let mut mesh_stage = Box::new(MeshStage::new(

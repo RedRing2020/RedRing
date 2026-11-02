@@ -3,13 +3,11 @@
 use super::super::AppState;
 use render::mesh_list::MeshListItem;
 use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
+use stage::MeshStage;
 use viewmodel::inverse_offset_shape_converter::InverseOffsetPartKind;
 
 /// 球面・円柱面・円板を三角形に分ける角度のきざみ（度）
 const ANGLE_STEP_DEGREES: f64 = 10.0;
-
-/// 重ねて描くメッシュのキーの始まり（製品形状のメッシュの番号より大きく、素材のブロックのキーより小さい）
-const PART_KEY_START: u64 = 1 << 62;
 
 /// 種類ごとの色（RGBA）
 fn part_color(kind: InverseOffsetPartKind) -> [f32; 4] {
@@ -24,8 +22,9 @@ fn part_color(kind: InverseOffsetPartKind) -> [f32; 4] {
 }
 
 impl AppState {
-    /// デバッグ用: 表示中の製品形状と計算条件の工具で作った逆オフセット形状の要素を、役割ごとの色で製品形状に重ねて
-    /// 表示する
+    /// デバッグ用: 表示中の製品形状と計算条件の工具で作った逆オフセット形状の要素を、役割ごとの色で表示する
+    ///
+    /// 製品形状は描かない（フラットでは、水平な面の要素が製品形状の面と同じ高さにあり、重ねると見分けられないため）。
     pub fn load_debug_inverse_offset_shape(&mut self) {
         let meshes = match self
             .cutting_simulation
@@ -47,7 +46,11 @@ impl AppState {
             ANGLE_STEP_DEGREES,
             counts.join(" ")
         );
-        let overlays = meshes
+        let positions: Vec<[f32; 3]> = meshes
+            .iter()
+            .flat_map(|mesh| mesh.vertices.iter().map(|vertex| vertex.position))
+            .collect();
+        let items = meshes
             .into_iter()
             .enumerate()
             .map(|(index, mesh)| {
@@ -56,9 +59,18 @@ impl AppState {
                     indices: mesh.indices,
                     color: part_color(mesh.kind),
                 };
-                (PART_KEY_START + index as u64, item)
+                (index as u64, item)
             })
             .collect();
-        self.show_product_shapes_with(overlays);
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_mesh_list(&self.graphic.device, items);
+        if let Some(fit) = Self::build_camera_fit(&positions) {
+            self.apply_camera_fit(fit);
+        }
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
     }
 }

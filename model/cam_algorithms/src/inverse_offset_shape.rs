@@ -37,7 +37,7 @@ use crate::inverse_offset::{CutterShape, MeshTriangles, XyBucketIndex, cross, su
 use crate::product_surface::ProductSurface;
 use crate::solver::CamSolverError;
 
-pub use display::{InverseOffsetPart, InverseOffsetPartKind, MIN_DISPLAY_ANGLE_STEP};
+pub use display::{InverseOffsetPart, InverseOffsetPartKind};
 
 /// 逆オフセット形状
 #[derive(Debug, Clone)]
