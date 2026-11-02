@@ -1,7 +1,7 @@
 use crate::machining_conditions_ui::MachiningConditionsUiState;
 use crate::menu_bar_ui::MenuBarUiState;
 use crate::settings_panel_ui::SettingsPanelUiState;
-use egui::{ClippedPrimitive, Context, Rect, TexturesDelta, ViewportId};
+use egui::{ClippedPrimitive, Context, Order, Rect, TexturesDelta, ViewportId};
 use egui_wgpu::{Renderer, RendererOptions, ScreenDescriptor};
 use egui_winit::State;
 use fontdb::{Database, Family, Query};
@@ -20,8 +20,9 @@ pub(crate) struct SettingsPanelRenderer {
     egui_state: State,
     egui_renderer: Renderer,
     pending_frame: Option<PendingSettingsPanelFrame>,
-    /// メニューバーなど上端の UI の高さ（物理ピクセル）
-    top_inset: f32,
+    /// メニューバーなど上端の UI の高さ（egui の座標）と、その物理ピクセルへの倍率（最後に描いた画面の値）
+    menu_bar_bottom: f32,
+    pixels_per_point: f32,
 }
 
 impl SettingsPanelRenderer {
@@ -44,7 +45,8 @@ impl SettingsPanelRenderer {
             egui_state,
             egui_renderer,
             pending_frame: None,
-            top_inset: 0.0,
+            menu_bar_bottom: 0.0,
+            pixels_per_point: 1.0,
         }
     }
 
@@ -53,8 +55,22 @@ impl SettingsPanelRenderer {
     }
 
     /// ポインタが egui の上にあるか、egui が使っている（スライダーのドラッグ等。egui の外で始めたドラッグは含めない）
+    ///
+    /// egui の上は、メニューバーと、背景より前の層（ウィンドウ・メニューの一覧）。`run_ui` は画面全体を背景の Ui と
+    /// するため、egui の `egui_wants_pointer_input` は 3D の表示の上でも真になり、使えない。
     pub(crate) fn wants_pointer_input(&self) -> bool {
-        self.egui_context.egui_wants_pointer_input()
+        let ctx = &self.egui_context;
+        if ctx.egui_is_using_pointer() {
+            return true;
+        }
+        let (position, any_down) = ctx.input(|i| (i.pointer.interact_pos(), i.pointer.any_down()));
+        let Some(position) = position.filter(|_| !any_down) else {
+            return false;
+        };
+        position.y < self.menu_bar_bottom
+            || ctx
+                .layer_id_at(position)
+                .is_some_and(|layer| layer.order != Order::Background)
     }
 
     /// eguiが現在キーボード入力を受け取っている（入力欄の編集中）
@@ -68,7 +84,7 @@ impl SettingsPanelRenderer {
 
     /// メニューバーなど上端の UI の高さ（物理ピクセル。最後に描いた画面の値）
     pub(crate) fn top_inset(&self) -> f32 {
-        self.top_inset
+        self.menu_bar_bottom * self.pixels_per_point
     }
 
     /// メニューバーと、設定パネル・加工条件のウィンドウを、同じ egui の文脈で描く（ウィンドウはメニューバーの下に置く）
@@ -88,7 +104,8 @@ impl SettingsPanelRenderer {
             conditions.show(ui, area);
         });
         let pixels_per_point = full_output.pixels_per_point;
-        self.top_inset = area.top() * pixels_per_point;
+        self.menu_bar_bottom = area.top();
+        self.pixels_per_point = pixels_per_point;
         let paint_jobs = self
             .egui_context
             .tessellate(full_output.shapes, pixels_per_point);
