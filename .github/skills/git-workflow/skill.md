@@ -70,6 +70,7 @@ pwsh -NoProfile -File .\scripts\check_all_before_push.ps1
 ```
 
 - 検査項目: fmt / clippy / テスト / 実行時文言の言語ポリシー / ソースコード中の GitHub 固有情報 / 呼び出し元のない公開メソッド・trait定義のメソッド（警告のみ）
+- Copilot のコードレビューは利用枠を大きく消費するため、PR を出す前に差分のセルフレビュー（例: Claude Code の `/code-review`）で不具合を直しておく。Copilot の指摘はまとめて直してから push し、再レビューは最後に 1 回だけ依頼する（`dev/GIT_PR_WORKFLOW_OPERATION.md`）
 
 ### 2. タイトル
 
