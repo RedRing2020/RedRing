@@ -289,6 +289,12 @@ impl MachiningConditionsUiState {
             "conditions.machining.tolerance",
             &[("tolerance", self.toolpath_tolerance.to_string())],
         );
+        let cusp_height_label = self.conditions.cusp_height().map(|height| {
+            self.text_with_args(
+                "conditions.machining.cusp_height",
+                &[("height", format!("{height:.4}"))],
+            )
+        });
         CollapsingHeader::new(self.text("conditions.header.machining"))
             .default_open(true)
             .show(ui, |ui| {
@@ -327,6 +333,9 @@ impl MachiningConditionsUiState {
                         geometry_label,
                     );
                 });
+                if let Some(label) = cusp_height_label {
+                    ui.label(label);
+                }
                 ui.label(tolerance_label);
                 self.show_issues(ui, ConditionField::Machining);
             });

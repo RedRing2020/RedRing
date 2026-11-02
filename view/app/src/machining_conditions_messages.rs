@@ -36,6 +36,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("conditions.machining.tool_range.geometry", "形状の範囲"),
     (
+        "conditions.machining.cusp_height",
+        "パスの間に残る山の高さ（平らな面）: {height} mm 以下",
+    ),
+    (
         "conditions.machining.tolerance",
         "ツールパス生成のトレランス: {tolerance} mm（変えられません）",
     ),
@@ -138,6 +142,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "Shape extent widened by the tool radius",
     ),
     ("conditions.machining.tool_range.geometry", "Shape extent"),
+    (
+        "conditions.machining.cusp_height",
+        "Cusp height between passes (flat surface): up to {height} mm",
+    ),
     (
         "conditions.machining.tolerance",
         "Toolpath tolerance: {tolerance} mm (fixed)",
@@ -263,6 +271,24 @@ mod tests {
                 &args
             ),
             "Precision must not be finer than the toolpath tolerance (0.001 mm)"
+        );
+
+        let args = [("height", "0.1010".to_string())];
+        assert_eq!(
+            resolve_machining_conditions_text(
+                UiLocale::Ja,
+                "conditions.machining.cusp_height",
+                &args
+            ),
+            "パスの間に残る山の高さ（平らな面）: 0.1010 mm 以下"
+        );
+        assert_eq!(
+            resolve_machining_conditions_text(
+                UiLocale::En,
+                "conditions.machining.cusp_height",
+                &args
+            ),
+            "Cusp height between passes (flat surface): up to 0.1010 mm"
         );
     }
 }

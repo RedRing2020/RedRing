@@ -67,6 +67,26 @@ impl Default for CuttingSimulationConditions {
 }
 
 impl CuttingSimulationConditions {
+    /// 平らな面で、隣り合うパスの間がステップオーバーのときに残る山の高さ（mm。ステップオーバーが工具径を超える
+    /// 場合は `None`）
+    ///
+    /// ボールエンドミルは r − √(r² − (s/2)²)、フラットエンドミルは底が平らなので 0 とする。パスの間はステップ
+    /// オーバー以下になるため、平らな面での上限の値になる。傾いた面では山の高さが変わるため、目安の値とする。
+    pub fn cusp_height(&self) -> Option<f64> {
+        let stepover = self.scanline.stepover;
+        if stepover > self.tool_diameter {
+            return None;
+        }
+        match self.tool_kind {
+            CuttingToolKind::BallEndMill => {
+                let radius = 0.5 * self.tool_diameter;
+                let half = 0.5 * stepover;
+                Some(radius - (radius * radius - half * half).sqrt())
+            }
+            CuttingToolKind::FlatEndMill => Some(0.0),
+        }
+    }
+
     fn tool(&self) -> Tool<f64> {
         // 工具長は、作った後に条件の値（指定しない場合は `None`）にする
         let mut tool = match self.tool_kind {
@@ -398,6 +418,30 @@ mod tests {
         scene.import_stl(&path).unwrap();
         std::fs::remove_file(&path).unwrap();
         scene
+    }
+
+    #[test]
+    fn cusp_heights_on_flat_surfaces_follow_the_tool_and_the_stepover() {
+        let with = |tool_kind, stepover| {
+            let mut conditions = CuttingSimulationConditions {
+                tool_kind,
+                tool_diameter: 10.0,
+                ..CuttingSimulationConditions::default()
+            };
+            conditions.scanline.stepover = stepover;
+            conditions.cusp_height()
+        };
+        let ball = CuttingToolKind::BallEndMill;
+        let flat = CuttingToolKind::FlatEndMill;
+
+        // r = 5 mm、s = 2 mm: 5 − √24
+        assert!((with(ball, 2.0).unwrap() - (5.0 - 24.0_f64.sqrt())).abs() < 1e-12);
+        // ステップオーバーが工具径と同じなら、山の高さは工具の半径
+        assert_eq!(with(ball, 10.0), Some(5.0));
+        assert_eq!(with(flat, 2.0), Some(0.0));
+        // ステップオーバーが工具径を超える場合は、値を持たない
+        assert_eq!(with(ball, 10.5), None);
+        assert_eq!(with(flat, 10.5), None);
     }
 
     #[test]
