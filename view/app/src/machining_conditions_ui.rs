@@ -6,7 +6,7 @@ use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, Window};
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, CuttingSimulationConditions, CuttingToolKind, ImportedConditions,
-    ScanlineCutDirection, ScanlineToolRange, StockMargins,
+    ScanlineCutDirection, ScanlineInputError, ScanlineToolRange, StockMargins,
 };
 use viewmodel::message_catalog::UiLocale;
 
@@ -26,7 +26,9 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
     match issue {
         ConditionIssue::NoProductShape(_) => ConditionField::Target,
         ConditionIssue::InvalidTool => ConditionField::Tool,
-        ConditionIssue::InvalidToolpathInput(_) => ConditionField::Machining,
+        ConditionIssue::InvalidScanline { .. } | ConditionIssue::InvalidToolpathInput(_) => {
+            ConditionField::Machining
+        }
         ConditionIssue::InvalidStockMargins | ConditionIssue::InvalidStock => ConditionField::Stock,
         ConditionIssue::InvalidPrecision
         | ConditionIssue::PrecisionFinerThanTolerance { .. }
@@ -120,6 +122,17 @@ fn cut_direction_key(direction: ScanlineCutDirection) -> &'static str {
     }
 }
 
+/// 走査線の条件の誤り `error` の文言のキー
+fn scanline_issue_key(error: ScanlineInputError) -> &'static str {
+    match error {
+        ScanlineInputError::StepoverNotPositive => "conditions.issue.stepover_not_positive",
+        ScanlineInputError::StepoverExceedsToolDiameter => {
+            "conditions.issue.stepover_exceeds_tool_diameter"
+        }
+        ScanlineInputError::FeedRateNotPositive => "conditions.issue.feed_rate_not_positive",
+    }
+}
+
 impl MachiningConditionsUiState {
     fn text(&self, key: &str) -> String {
         resolve_machining_conditions_text(self.locale, key, &[])
@@ -137,6 +150,14 @@ impl MachiningConditionsUiState {
             }
             ConditionIssue::InvalidStock => self.text("conditions.issue.invalid_stock"),
             ConditionIssue::InvalidTool => self.text("conditions.issue.invalid_tool"),
+            ConditionIssue::InvalidScanline {
+                error: ScanlineInputError::StepoverExceedsToolDiameter,
+                tool_diameter,
+            } => self.text_with_args(
+                scanline_issue_key(ScanlineInputError::StepoverExceedsToolDiameter),
+                &[("diameter", tool_diameter.to_string())],
+            ),
+            ConditionIssue::InvalidScanline { error, .. } => self.text(scanline_issue_key(*error)),
             ConditionIssue::InvalidToolpathInput(reason) => self.text_with_args(
                 "conditions.issue.invalid_toolpath_input",
                 &[("reason", reason.clone())],
@@ -458,9 +479,12 @@ impl MachiningConditionsUiState {
 
 #[cfg(test)]
 mod tests {
-    use super::{condition_field, operation_status_message, ConditionField, OperationStatus};
+    use super::{
+        condition_field, operation_status_message, scanline_issue_key, ConditionField,
+        OperationStatus,
+    };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
-    use viewmodel::cutting_simulation_session::ConditionIssue;
+    use viewmodel::cutting_simulation_session::{ConditionIssue, ScanlineInputError};
     use viewmodel::message_catalog::UiLocale;
 
     #[test]
@@ -497,6 +521,25 @@ mod tests {
     }
 
     #[test]
+    fn every_scanline_input_error_has_a_message() {
+        let args = [("diameter", "10".to_string())];
+        for error in [
+            ScanlineInputError::StepoverNotPositive,
+            ScanlineInputError::StepoverExceedsToolDiameter,
+            ScanlineInputError::FeedRateNotPositive,
+        ] {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text =
+                    resolve_machining_conditions_text(locale, scanline_issue_key(error), &args);
+                assert!(
+                    !text.contains("__missing__") && !text.contains('{'),
+                    "{error:?}: {text}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn issues_are_shown_next_to_the_field_to_fix() {
         for (issue, field) in [
             (
@@ -504,6 +547,13 @@ mod tests {
                 ConditionField::Target,
             ),
             (ConditionIssue::InvalidTool, ConditionField::Tool),
+            (
+                ConditionIssue::InvalidScanline {
+                    error: ScanlineInputError::StepoverExceedsToolDiameter,
+                    tool_diameter: 6.0,
+                },
+                ConditionField::Machining,
+            ),
             (
                 ConditionIssue::InvalidToolpathInput(String::new()),
                 ConditionField::Machining,

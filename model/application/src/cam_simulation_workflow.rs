@@ -471,7 +471,7 @@ fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulation
 mod tests {
     use std::time::Instant;
 
-    use cam_algorithms::{OperationSpec, ScanlineParams, SolverGeometry};
+    use cam_algorithms::{OperationSpec, ScanlineInputError, ScanlineParams, SolverGeometry};
     use cam_core::{CoordinateFrame, LengthUnit, Tool, read_toolpath_artifact_v1};
     use geo_algorithms::TessellationLimits;
     use geo_algorithms::{Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
@@ -815,7 +815,7 @@ mod tests {
         request.stock_margins.top = f64::NAN;
         // press_rough のトレランス 0.001 より細かい精度
         request.precision = 0.0005;
-        // ステップオーバーが工具径 6 を超える
+        // ピックフィードが工具径 6 を超える
         request.scanline.stepover = 7.0;
         // 工具長が 0
         request.tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 0.0);
@@ -831,7 +831,9 @@ mod tests {
                 precision,
                 tolerance,
             },
-            CamConditionError::ToolpathInput(CamSolverError::InvalidInput(_)),
+            CamConditionError::ToolpathInput(CamSolverError::InvalidScanline(
+                ScanlineInputError::StepoverExceedsToolDiameter,
+            )),
             CamConditionError::SimulationInput(CuttingSimulationInputError::Tool),
         ] = &errors[..]
         else {
