@@ -21,7 +21,8 @@
 //!
 //! 要素と鉛直線の交点は geo_algorithms の交差演算で、要素の式から求める（要素を三角形に分けない）。要素は、決める
 //! 高さの上限（最も高い点の高さ）の高い順に評価し、それまでの最も高い点が次の要素の上限以上になった時点で打ち切る
-//! （面の向きによらず、結果を変えない）。
+//! （面の向きによらず、結果を変えない）。走査線の区間の弦から上側の面が上に出る量の最大も、要素を走査線の鉛直な
+//! 平面で切った形の式から求める（`rise_above_chord`）。
 
 use geo_algorithms::{
     Circle2D, CrossIntersection, CylindricalSurface3D, Direction3D, IntersectionGeometry,
@@ -740,6 +741,7 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
+mod chord_rise;
 mod display;
 #[cfg(test)]
 mod tests;

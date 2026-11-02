@@ -820,3 +820,141 @@ fn display_angle_steps_out_of_range_are_rejected() {
         assert!(inverse.display_parts(angle_step).is_err(), "{angle_step}");
     }
 }
+
+/// 区間を `count` に分けた点の、工具先端の高さが弦から上に出る量の最大（総当たり）
+fn sampled_rise(
+    inverse: &InverseOffsetShape,
+    y: f64,
+    [x0, z0]: [f64; 2],
+    [x1, z1]: [f64; 2],
+    count: usize,
+) -> Option<f64> {
+    (0..=count)
+        .filter_map(|i| {
+            let x = x0 + (x1 - x0) * i as f64 / count as f64;
+            let chord = z0 + (z1 - z0) * (x - x0) / (x1 - x0);
+            inverse.tip_height_at(x, y).map(|tip| tip - chord)
+        })
+        .reduce(f64::max)
+}
+
+/// 走査線の区間ごとに、弦から上に出る量の最大が、総当たりの最大以上で、返した x の工具先端の高さで実際に上に出る
+fn assert_rise_above_chord_is_the_maximum(inverse: &InverseOffsetShape, span: f64) {
+    let lines = (0..)
+        .map(|j| -1.0 + j as f64 * 0.61)
+        .take_while(|&y| y <= span + 1.0);
+    for y in lines {
+        let starts = (0..)
+            .map(|i| -1.0 + i as f64 * 0.83)
+            .take_while(|&x| x <= span + 1.0);
+        for x0 in starts {
+            let x1 = x0 + 1.3;
+            let (Some(z0), Some(z1)) = (inverse.tip_height_at(x0, y), inverse.tip_height_at(x1, y))
+            else {
+                continue;
+            };
+            // CL の点を結ぶ弦と、傾けた弦
+            for [d0, d1] in [[0.0, 0.0], [0.7, -0.4]] {
+                let (start, end) = ([x0, z0 + d0], [x1, z1 + d1]);
+                let sampled = sampled_rise(inverse, y, start, end, 400).unwrap();
+                let (x, rise) = inverse
+                    .rise_above_chord(y, end, start)
+                    .unwrap_or_else(|| panic!("y = {y}, x = {x0}: no rise"));
+                assert!(
+                    rise >= sampled - 1e-9,
+                    "y = {y}, x = {x0}: {rise} < sampled {sampled}"
+                );
+                assert!((x0 - 1e-9..=x1 + 1e-9).contains(&x), "y = {y}: x = {x}");
+                let chord = start[1] + (end[1] - start[1]) * (x - x0) / (x1 - x0);
+                let tip = inverse.tip_height_at(x, y).map(|tip| tip - chord);
+                assert!(
+                    tip.is_some_and(|tip| (tip - rise).abs() < 1e-9),
+                    "y = {y}, x = {x}: {tip:?} != {rise}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn rises_above_chords_are_the_maxima_over_the_intervals() {
+    let meshes = [
+        (terrain(12, ridges, true), 12.0),
+        (step(), 10.0),
+        (tetrahedron(), 10.0),
+        (overhang(), 14.0),
+    ];
+    for shape in SHAPES {
+        for (mesh, span) in &meshes {
+            let inverse = InverseOffsetShape::new(mesh, shape).unwrap();
+            assert_rise_above_chord_is_the_maximum(&inverse, *span);
+        }
+    }
+}
+
+#[test]
+fn rises_above_chords_find_narrow_peaks_between_the_points() {
+    // 区間の両端は床の上、間に幅 0.02 の尖った尾根（両端の点だけでは見えない）。ボールは尾根の真上、フラットは工具の
+    // 底が尾根に乗る範囲で最も上に出る
+    let peak = extruded(&[
+        (0.0, 0.0),
+        (4.99, 0.0),
+        (5.0, 3.0),
+        (5.01, 0.0),
+        (10.0, 0.0),
+    ]);
+    for (shape, width) in [(SHAPES[0], 1e-9), (SHAPES[1], SHAPES[1].radius() + 1e-9)] {
+        let inverse = InverseOffsetShape::new(&peak, shape).unwrap();
+        let tip = |x: f64| inverse.tip_height_at(x, 5.0).unwrap();
+        let (start, end) = ([0.5, tip(0.5)], [9.5, tip(9.5)]);
+        let (x, rise) = inverse.rise_above_chord(5.0, start, end).unwrap();
+        assert!((x - 5.0).abs() <= width, "{shape:?}: x = {x}");
+        assert!((rise - 3.0).abs() < 1e-9, "{shape:?}: rise = {rise}");
+    }
+}
+
+#[test]
+fn rises_above_chords_are_none_without_contact_or_length() {
+    let inverse = InverseOffsetShape::new(&step(), CutterShape::Ball { radius: 1.0 }).unwrap();
+    assert!(
+        inverse
+            .rise_above_chord(5.0, [20.0, 0.0], [30.0, 0.0])
+            .is_none()
+    );
+    assert!(
+        inverse
+            .rise_above_chord(5.0, [2.0, 4.0], [2.0, 4.0])
+            .is_none()
+    );
+}
+
+#[test]
+fn rises_above_chords_keep_contacts_at_the_tool_radius_from_an_edge() {
+    // 縁の辺（y = 0.3、z = 4）から、走査線がちょうど工具の半径だけ離れる（丸め誤差で、わずかに外れる）
+    let plate = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.3, 4.0),
+            Point3D::new(10.0, 0.3, 4.0),
+            Point3D::new(10.0, 10.0, 4.0),
+            Point3D::new(0.0, 10.0, 4.0),
+        ],
+        vec![[0, 1, 2], [0, 2, 3]],
+    )
+    .unwrap();
+    for shape in SHAPES {
+        let inverse = InverseOffsetShape::new(&plate, shape).unwrap();
+        let radius = shape.radius();
+        let mut y = 0.3 - radius;
+        for _ in 0..8 {
+            if let (Some(z0), Some(z1)) =
+                (inverse.tip_height_at(2.0, y), inverse.tip_height_at(8.0, y))
+            {
+                let (_, rise) = inverse
+                    .rise_above_chord(y, [2.0, z0], [8.0, z1])
+                    .unwrap_or_else(|| panic!("{shape:?}: y = {y}: no rise"));
+                assert!(rise.abs() < 1e-9, "{shape:?}: y = {y}: rise = {rise}");
+            }
+            y = y.next_down();
+        }
+    }
+}
