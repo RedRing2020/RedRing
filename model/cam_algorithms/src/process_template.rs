@@ -532,7 +532,6 @@ mod tests {
     fn scanline_params() -> ScanlineParams {
         ScanlineParams {
             stepover: 1.0,
-            sample_pitch: 1.0,
             feed_rate: 1000.0,
             tool_range: ScanlineToolRange::default(),
             cut_direction: ScanlineCutDirection::default(),

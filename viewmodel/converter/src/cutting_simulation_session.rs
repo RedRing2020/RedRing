@@ -55,7 +55,6 @@ impl Default for CuttingSimulationConditions {
             cutting_length: None,
             scanline: ScanlineParams {
                 stepover: 2.0,
-                sample_pitch: 1.0,
                 feed_rate: 1200.0,
                 tool_range: ScanlineToolRange::default(),
                 cut_direction: ScanlineCutDirection::default(),
@@ -385,7 +384,6 @@ mod tests {
             cutting_length: Some(30.0),
             scanline: ScanlineParams {
                 stepover: 6.0,
-                sample_pitch: 10.0,
                 feed_rate: 1200.0,
                 tool_range: ScanlineToolRange::default(),
                 cut_direction: ScanlineCutDirection::default(),

@@ -49,7 +49,6 @@ fn scanline_input(geometry: SolverGeometry, tool: Tool<f64>) -> CamSolverInput {
         geometry,
         operation: OperationSpec::Scanline(ScanlineParams {
             stepover: 4.0,
-            sample_pitch: 2.0,
             feed_rate: 1200.0,
             tool_range: ScanlineToolRange::default(),
             cut_direction: ScanlineCutDirection::default(),
@@ -268,7 +267,6 @@ fn template_resolved_input_runs_and_out_of_domain_rectangle_is_invalid_input() {
             SolverGeometry::TriangleMesh(pyramid_mesh()),
             ScanlineParams {
                 stepover: 4.0,
-                sample_pitch: 2.0,
                 feed_rate: 1200.0,
                 tool_range: ScanlineToolRange::default(),
                 cut_direction: ScanlineCutDirection::default(),

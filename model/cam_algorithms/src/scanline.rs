@@ -1,8 +1,9 @@
 //! スキャン加工（`operation_type = scanline`）の経路化
 //!
 //! 加工範囲（既定は形状の XY 範囲）を Y 方向へ `stepover` 以下の等間隔で走査ラインに分け、
-//! 各ライン上を送り方（`ScanlineCutDirection`）で決めた向きに `sample_pitch` 以下の間隔で CL を求める。
-//! 工具が形状に接触する連続区間を 1 パスとする。パスの間のエアカットは入れない（CL の編集と工程をそろえた後に
+//! 各ライン上を送り方（`ScanlineCutDirection`）で決めた向きに、工具の半径以下の間隔で CL を求める。
+//! 工具が形状に接触する連続区間を 1 パスとし、接触する点と接触しない点の間は二分して、パスの端をトレランスまで
+//! 求める。パスの間のエアカットは入れない（CL の編集と工程をそろえた後に
 //! 計算する）。
 //!
 //! パスの点と点を結ぶ直線が CL の面からトレランスを超えて下を通らないように、区間ごとに CL の面が弦から上に出る量の
@@ -35,7 +36,7 @@ pub fn generate_scanline_toolpath(
         ));
     }
     let ys = uniform_samples(xy_min[1], xy_max[1], params.stepover);
-    let xs = uniform_samples(xy_min[0], xy_max[0], params.sample_pitch);
+    let xs = uniform_samples(xy_min[0], xy_max[0], cutter.shape().radius());
     let xs_reversed: Vec<f64> = xs.iter().rev().copied().collect();
 
     let mut passes: Vec<Vec<Point3D<f64>>> = Vec::new();
@@ -46,12 +47,31 @@ pub fn generate_scanline_toolpath(
             ScanlineCutDirection::ZigZag => line % 2 == 1,
         };
         let mut run: Vec<Point3D<f64>> = Vec::new();
+        // 直前の点が工具が形状に接触しない点の場合の X
+        let mut outside = None;
         // 送る向きに並べた X
         let xs_in_feed_order = if forward { &xs } else { &xs_reversed };
         for &x in xs_in_feed_order {
             match cutter.tip_point_at(x, y) {
-                Some(point) => run.push(point),
-                None => flush_run(&mut run, &mut passes, cutter, y, tolerance),
+                Some(point) => {
+                    if let Some(start) = outside
+                        .take()
+                        .and_then(|outside| contact_end(cutter, y, point, outside, tolerance))
+                    {
+                        run.push(start);
+                    }
+                    run.push(point);
+                }
+                None => {
+                    if let Some(end) = run
+                        .last()
+                        .and_then(|&inside| contact_end(cutter, y, inside, x, tolerance))
+                    {
+                        run.push(end);
+                    }
+                    flush_run(&mut run, &mut passes, cutter, y, tolerance);
+                    outside = Some(x);
+                }
             }
         }
         flush_run(&mut run, &mut passes, cutter, y, tolerance);
@@ -91,6 +111,36 @@ pub fn generate_scanline_toolpath(
         levels,
         Vec::new(),
     ))
+}
+
+/// 工具が形状に接触する点 `inside` と、接触しない X `outside` の間を二分し、`outside` からトレランス以内の接触する
+/// 点を求める。`inside` がすでにトレランス以内の場合は `None`
+///
+/// 2 点の間で接触する・しないが何度か入れ替わる場合は、そのうちの 1 つの境目を求める。
+fn contact_end(
+    cutter: &InverseOffsetShape,
+    y: f64,
+    inside: Point3D<f64>,
+    outside: f64,
+    tolerance: f64,
+) -> Option<Point3D<f64>> {
+    let (mut inside_x, mut outside_x) = (inside.x(), outside);
+    let mut end = None;
+    while (outside_x - inside_x).abs() > tolerance {
+        let x = 0.5 * (inside_x + outside_x);
+        // 2 点が隣り合う浮動小数点数になり、それ以上分けられない場合
+        if x == inside_x || x == outside_x {
+            break;
+        }
+        match cutter.tip_point_at(x, y) {
+            Some(point) => {
+                inside_x = x;
+                end = Some(point);
+            }
+            None => outside_x = x,
+        }
+    }
+    end
 }
 
 /// 接触区間の点の間を確かめてパスにする。1 点のみの接触区間は切削線分を持たないため破棄する。

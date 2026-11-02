@@ -615,7 +615,6 @@ mod tests {
                     geometry: SolverGeometry::NurbsSurfaceSet(vec![dome]),
                     operation: OperationSpec::Scanline(ScanlineParams {
                         stepover: 2.0,
-                        sample_pitch: 1.0,
                         feed_rate: 1200.0,
                         tool_range: cam_algorithms::ScanlineToolRange::default(),
                         cut_direction: cam_algorithms::ScanlineCutDirection::default(),
@@ -717,7 +716,6 @@ mod tests {
                     geometry: SolverGeometry::TriangleMesh(pyramid),
                     operation: OperationSpec::Scanline(ScanlineParams {
                         stepover: 4.0,
-                        sample_pitch: 2.0,
                         feed_rate: 1200.0,
                         tool_range: cam_algorithms::ScanlineToolRange::default(),
                         cut_direction: cam_algorithms::ScanlineCutDirection::default(),

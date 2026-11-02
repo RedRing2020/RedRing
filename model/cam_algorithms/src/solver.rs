@@ -136,8 +136,6 @@ impl SolverGeometry {
 pub struct ScanlineParams {
     /// 走査ライン間隔（mm）。工具径以下であること
     pub stepover: f64,
-    /// 走査方向の CL サンプリング間隔（mm）
-    pub sample_pitch: f64,
     /// 切削送り速度（mm/min）
     pub feed_rate: f64,
     /// 加工範囲（境界）を指定しない場合の、工具の中心の移動範囲
@@ -327,9 +325,6 @@ fn validate_scanline(params: &ScanlineParams, tool: &Tool<f64>) -> Result<(), Ca
     }
     if params.stepover > tool.diameter() {
         return Err(invalid("scanline stepover must not exceed tool diameter"));
-    }
-    if !is_positive_finite(params.sample_pitch) {
-        return Err(invalid("scanline sample_pitch must be positive and finite"));
     }
     if !is_positive_finite(params.feed_rate) {
         return Err(invalid("scanline feed_rate must be positive and finite"));
