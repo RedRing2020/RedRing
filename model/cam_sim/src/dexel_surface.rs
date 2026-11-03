@@ -17,6 +17,12 @@
 //! 座標軸に垂直な同じ平面の上の面だけを持つセル（削っていない素材の外周や、平らな底など）の頂点だけでできた
 //! 四角形は、ブロックの中で多角形にまとめて三角形に分ける。周りの四角形がすべてまとめた平面に属する頂点は、
 //! 頂点の周りだけで決まる決まりで省くため、隣のブロックの多角形・四角形と頂点がそろい、面に穴は開かない。
+//!
+//! 最後の時点の区間の端点ごとの製品形状までの距離（`ProductDeviations`）を渡すと、三角形を削り込み・トレランスの
+//! 中・削り残し・比べていない、に分ける。頂点は、頂点を決めた交点（区間の端点）のうち最も強い分類とし、四角形は
+//! 4 つの頂点のうち最も強い分類とする。平らな部分は、平面と分類の組ごとに多角形にまとめ、周りの四角形の分類が
+//! そろわない頂点は省かない（省くと、分類の境が残した頂点どうしを結ぶ直線になる。分類は頂点の周りの交点だけで
+//! 決まるため、どのブロックから見ても同じ頂点が残る）。
 
 mod polygon;
 #[cfg(test)]
@@ -27,14 +33,59 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::constants::SURFACE_BLOCK_CELLS;
 use crate::dexel_normal::DexelNormal;
+use crate::product_deviation::ProductDeviations;
 use crate::simulation_artifact::{DexelGridLayout, DexelGridStates, DexelState};
 
-/// 表示用の面（頂点の位置・法線と三角形の頂点番号。三角形は外向きが表）
+/// 表示用の面（頂点の位置・法線と三角形の頂点番号・分類。三角形は外向きが表）
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SurfaceMesh {
     pub positions: Vec<[f64; 3]>,
     pub normals: Vec<[f64; 3]>,
     pub indices: Vec<u32>,
+    /// 三角形ごとの、製品形状との比較による分類（距離を渡さずに作った面は、すべて `NotCompared`）
+    pub classes: Vec<DeviationClass>,
+}
+
+/// 面の、最後の時点の製品形状との比較による分類（後ろほど強い）
+///
+/// 削り込みを最も強くして見落とさないようにする。トレランスの中を削り残しより強くするのは、ボールエンドミルの
+/// パスの間の山で、トレランスの中の幅（パスの中心の近く）が格子の間隔より狭く、削り残しの頂点に埋もれるため。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DeviationClass {
+    /// 比べていない（削っていない素材の外周など）
+    #[default]
+    NotCompared,
+    /// 削り残し（製品形状の外側へ、トレランスより離れる）
+    Uncut,
+    /// 製品形状からの距離がトレランスの中
+    Within,
+    /// 削り込み（製品形状の内側へ、トレランスより入る）
+    Gouge,
+}
+
+/// 面の区間の端点ごとの、製品形状までの符号つきの距離（作ったときの面の区間と同じ並び）
+#[derive(Debug, Clone)]
+pub struct SurfaceDeviations<'a> {
+    tolerance: f64,
+    /// 格子・デクセルごとの、`distances` の最初の端点の位置
+    offsets: [Vec<usize>; 3],
+    distances: &'a [Vec<f32>; 3],
+}
+
+impl SurfaceDeviations<'_> {
+    /// 格子 `axis` のデクセル `index` の、`position` 番目の端点（区間の順・始まりと終わりの順）の分類
+    fn class(&self, axis: usize, index: usize, position: usize) -> DeviationClass {
+        let distance = f64::from(self.distances[axis][self.offsets[axis][index] + position]);
+        if distance.is_nan() {
+            DeviationClass::NotCompared
+        } else if distance < -self.tolerance {
+            DeviationClass::Gouge
+        } else if distance > self.tolerance {
+            DeviationClass::Uncut
+        } else {
+            DeviationClass::Within
+        }
+    }
 }
 
 /// セルの頂点（`dx + 2·dy + 4·dz`）
@@ -206,16 +257,69 @@ impl DexelSurface {
         dirty.into_iter().collect()
     }
 
+    /// 今の区間の端点ごとの、製品形状までの距離（`deviations` の端点の数が今の区間の端点の数と違えば `None`）
+    pub fn deviations<'a>(
+        &self,
+        deviations: &'a ProductDeviations,
+    ) -> Option<SurfaceDeviations<'a>> {
+        let mut offsets: [Vec<usize>; 3] = Default::default();
+        for ((offsets, dexels), distances) in offsets
+            .iter_mut()
+            .zip(&self.intervals)
+            .zip(&deviations.distances)
+        {
+            let mut next = 0;
+            *offsets = dexels
+                .iter()
+                .map(|dexel| {
+                    let offset = next;
+                    next += 2 * dexel.len();
+                    offset
+                })
+                .collect();
+            if next != distances.len() {
+                return None;
+            }
+        }
+        Some(SurfaceDeviations {
+            tolerance: deviations.tolerance,
+            offsets,
+            distances: &deviations.distances,
+        })
+    }
+
     /// ブロックの列 `blocks` の面（複数のコアで並べて作る。並びは `blocks` と同じ）
+    pub fn mesh_blocks(&self, blocks: &[[usize; 3]]) -> Vec<SurfaceMesh> {
+        self.mesh_blocks_with(blocks, None)
+    }
+
+    /// ブロックの列 `blocks` の、三角形を製品形状までの距離 `deviations` で分けた面（`deviations` は今の区間から
+    /// 作ったもの）
+    pub fn compared_mesh_blocks(
+        &self,
+        blocks: &[[usize; 3]],
+        deviations: &SurfaceDeviations,
+    ) -> Vec<SurfaceMesh> {
+        self.mesh_blocks_with(blocks, Some(deviations))
+    }
+
+    /// ブロックの列 `blocks` の面（`deviations` があれば三角形を分ける）
     ///
     /// ブロックごとに面を作る時間が違うため、空いたスレッドが次のブロックを取る（決めた数ずつ分けると、時間のかかる
     /// ブロックが 1 つのスレッドに重なりうる）。
-    pub fn mesh_blocks(&self, blocks: &[[usize; 3]]) -> Vec<SurfaceMesh> {
+    fn mesh_blocks_with(
+        &self,
+        blocks: &[[usize; 3]],
+        deviations: Option<&SurfaceDeviations>,
+    ) -> Vec<SurfaceMesh> {
         let threads = std::thread::available_parallelism()
             .map_or(1, std::num::NonZeroUsize::get)
             .min(blocks.len());
         if threads <= 1 {
-            return blocks.iter().map(|&block| self.mesh_block(block)).collect();
+            return blocks
+                .iter()
+                .map(|&block| self.mesh_block_with(block, deviations))
+                .collect();
         }
         let next = AtomicUsize::new(0);
         let mut meshes: Vec<(usize, SurfaceMesh)> = std::thread::scope(|scope| {
@@ -226,7 +330,7 @@ impl DexelSurface {
                             let position = next.fetch_add(1, Ordering::Relaxed);
                             blocks
                                 .get(position)
-                                .map(|&block| (position, self.mesh_block(block)))
+                                .map(|&block| (position, self.mesh_block_with(block, deviations)))
                         })
                         .collect::<Vec<_>>()
                     })
@@ -246,6 +350,14 @@ impl DexelSurface {
     /// ブロックを通るデクセルが、ブロックの範囲ですべて素材の範囲（初期の区間）のままなら、頂点の内外がそろわない
     /// セルを探さず、外側へ広げた層のセルだけで面を作る（セルごとに探した場合と同じ面になる）。
     pub fn mesh_block(&self, block: [usize; 3]) -> SurfaceMesh {
+        self.mesh_block_with(block, None)
+    }
+
+    fn mesh_block_with(
+        &self,
+        block: [usize; 3],
+        deviations: Option<&SurfaceDeviations>,
+    ) -> SurfaceMesh {
         if self.is_uncut_block(block) {
             let [x_cells, y_cells, z_cells] = [0, 1, 2].map(|axis| self.block_cells(block, axis));
             let mut cells = Vec::new();
@@ -262,16 +374,20 @@ impl DexelSurface {
                     }
                 }
             }
-            return self.mesh_cells(&cells, true);
+            return self.mesh_cells(&cells, true, deviations);
         }
-        self.mesh_block_by_cells(block)
+        self.mesh_block_by_cells(block, deviations)
     }
 
     /// ブロック `block` の面を、セルごとに判定して作る
     ///
     /// セルの頂点の内外は Z の向きのデクセルだけで決まるため、Z の向きのセルの列ごとに、列の 4 本の Z の線の
     /// 内外の区間から頂点の内外がそろわないセルを求め、そのセルだけを処理する（時間は面の大きさに比例する）。
-    fn mesh_block_by_cells(&self, block: [usize; 3]) -> SurfaceMesh {
+    fn mesh_block_by_cells(
+        &self,
+        block: [usize; 3],
+        deviations: Option<&SurfaceDeviations>,
+    ) -> SurfaceMesh {
         let [x_cells, y_cells, z_cells] = [0, 1, 2].map(|axis| self.block_cells(block, axis));
         let mut cells = Vec::new();
         for x in x_cells {
@@ -285,7 +401,7 @@ impl DexelSurface {
                 );
             }
         }
-        self.mesh_cells(&cells, false)
+        self.mesh_cells(&cells, false, deviations)
     }
 
     /// ブロック `block` を通るデクセルが、ブロックの範囲ですべて素材の範囲（初期の区間）とちょうど一致するか
@@ -326,9 +442,17 @@ impl DexelSurface {
     /// 同じ平面に乗るセルの頂点だけでできた四角形は、平面ごとに多角形にまとめる。
     ///
     /// `uncut` の場合、`cells` は削っていないブロックの外側へ広げた層のセルで、セルが乗る平面は判定せずに素材の面とする
-    /// （判定した場合と同じ平面になる）。
-    fn mesh_cells(&self, cells: &[[i64; 3]], uncut: bool) -> SurfaceMesh {
-        let mut context = BlockContext::default();
+    /// （判定した場合と同じ平面になる）。`deviations` があれば、三角形を分け、平面は分類ごとにまとめる。
+    fn mesh_cells(
+        &self,
+        cells: &[[i64; 3]],
+        uncut: bool,
+        deviations: Option<&SurfaceDeviations>,
+    ) -> SurfaceMesh {
+        let mut context = BlockContext {
+            deviations,
+            ..BlockContext::default()
+        };
         if uncut {
             for &lower in cells {
                 let planes = self
@@ -350,7 +474,8 @@ impl DexelSurface {
                     .insert(lower, CellSurface::new(inside, planes));
             }
         }
-        let mut planes: BTreeMap<PlaneKey, BTreeSet<[i64; 2]>> = BTreeMap::new();
+        // 平面と四角形の分類の組ごとの四角形
+        let mut planes: BTreeMap<(PlaneKey, DeviationClass), BTreeSet<[i64; 2]>> = BTreeMap::new();
         for &lower in cells {
             let inside = self.cell(lower, &mut context).inside;
             for axis in 0..3 {
@@ -361,8 +486,9 @@ impl DexelSurface {
                     // 四角形は、平面の 2 方向で辺を囲むセルの範囲の正方形（最小のセルの番号）
                     Some(key) => {
                         let [u, v] = plane_axes(axis);
+                        let class = self.quad_class(lower, axis, &mut context);
                         planes
-                            .entry(key)
+                            .entry((key, class))
                             .or_default()
                             .insert([lower[u] - 1, lower[v] - 1]);
                     }
@@ -370,8 +496,8 @@ impl DexelSurface {
                 }
             }
         }
-        for (key, squares) in planes {
-            self.mesh_plane(key, &squares, &mut context);
+        for ((key, class), squares) in planes {
+            self.mesh_plane(key, &squares, class, &mut context);
         }
         context.builder.finish(self.crease_angle)
     }
@@ -393,6 +519,65 @@ impl DexelSurface {
         let edge_loops = self.cell(lower, context).edge_loops;
         let position = self.loop_vertex(lower, &edge_loops, index);
         context.builder.vertex((lower, index), position)
+    }
+
+    /// セル `lower` の輪 `index` の頂点の分類（距離がなければ `NotCompared`。頂点の位置は求めない）
+    fn vertex_class(
+        &self,
+        lower: [i64; 3],
+        index: u8,
+        context: &mut BlockContext,
+    ) -> DeviationClass {
+        let Some(deviations) = context.deviations else {
+            return DeviationClass::NotCompared;
+        };
+        if let Some(&class) = context.vertex_classes.get(&(lower, index)) {
+            return class;
+        }
+        let edge_loops = self.cell(lower, context).edge_loops;
+        let class = self.loop_class(lower, &edge_loops, index, deviations);
+        context.vertex_classes.insert((lower, index), class);
+        class
+    }
+
+    /// 最小の格子点が `lower` のセルの、輪 `index` の交点（区間の端点）のうち最も強い分類（輪の辺は `edge_loops`）
+    fn loop_class(
+        &self,
+        lower: [i64; 3],
+        edge_loops: &[Option<u8>; 12],
+        index: u8,
+        deviations: &SurfaceDeviations,
+    ) -> DeviationClass {
+        let corner_point = |corner: usize| {
+            let offset = CORNERS[corner];
+            [0, 1, 2].map(|axis| lower[axis] + offset[axis] as i64)
+        };
+        (0..12)
+            .filter(|&edge| edge_loops[edge] == Some(index))
+            .filter_map(|edge| {
+                let (a, b) = EDGES[edge];
+                self.nearest_endpoint(corner_point(a), corner_point(b))
+            })
+            .map(|endpoint| deviations.class(endpoint.axis, endpoint.index, endpoint.position))
+            .max()
+            .unwrap_or_default()
+    }
+
+    /// 最小の格子点が `point` の座標軸 `axis` の向きの辺の四角形の、4 つの頂点のうち最も強い分類
+    fn quad_class(
+        &self,
+        point: [i64; 3],
+        axis: usize,
+        context: &mut BlockContext,
+    ) -> DeviationClass {
+        self.cells_around_edge(point, axis)
+            .into_iter()
+            .map(|lower| {
+                let index = self.edge_loop(lower, point, axis, context);
+                self.vertex_class(lower, index, context)
+            })
+            .max()
+            .unwrap_or_default()
     }
 
     /// 最小の格子点が `lower` のセルの、輪 `index` の頂点（QEF の最小点をセルの中に収めた点。輪の辺は `edge_loops`）
@@ -477,14 +662,25 @@ impl DexelSurface {
         axis: usize,
         context: &mut BlockContext,
     ) -> u32 {
+        let index = self.edge_loop(lower, point, axis, context);
+        self.loop_vertex_id(lower, index, context)
+    }
+
+    /// 最小の格子点が `point` の座標軸 `axis` の向きの辺を含む、セル `lower` の輪の番号
+    fn edge_loop(
+        &self,
+        lower: [i64; 3],
+        point: [i64; 3],
+        axis: usize,
+        context: &mut BlockContext,
+    ) -> u8 {
         let start: [usize; 3] = std::array::from_fn(|i| (point[i] - lower[i]) as usize);
         let mut end = start;
         end[axis] += 1;
         let corner = |offset: [usize; 3]| offset[0] + 2 * offset[1] + 4 * offset[2];
         let edge = edge_index(corner(start), corner(end));
-        let index = self.cell(lower, context).edge_loops[edge]
-            .expect("a crossing edge belongs to a loop of the cell");
-        self.loop_vertex_id(lower, index, context)
+        self.cell(lower, context).edge_loops[edge]
+            .expect("a crossing edge belongs to a loop of the cell")
     }
 
     /// 最小の格子点が `point` の座標軸 `axis` の向きの辺の四角形の頂点（外向きが表になる順）
@@ -524,8 +720,11 @@ impl DexelSurface {
         } else {
             splits[0]
         };
+        let class = self.quad_class(point, axis, context);
         for triangle in split {
-            context.builder.add_triangle(triangle.map(|i| quad[i]));
+            context
+                .builder
+                .add_triangle(triangle.map(|i| quad[i]), class);
         }
     }
 
@@ -589,6 +788,7 @@ impl DexelSurface {
             })
             .collect();
         let mut planes: Vec<PlaneKey> = Vec::new();
+        let mut classes: Vec<DeviationClass> = Vec::new();
         for (point, axis) in edges {
             match self.quad_plane(point, axis, context) {
                 None => return true,
@@ -598,6 +798,14 @@ impl DexelSurface {
                     }
                 }
             }
+            let class = self.quad_class(point, axis, context);
+            if !classes.contains(&class) {
+                classes.push(class);
+            }
+        }
+        // 周りの四角形の分類がそろわない頂点は、分類ごとの多角形の境の形を決める
+        if classes.len() > 1 {
+            return true;
         }
         // ブロックの境の線: 四角形は辺を囲むセルの範囲の正方形のため、ブロックの最初のセルの 1 つ手前の線
         let fixed = |axis: usize| {
@@ -620,8 +828,14 @@ impl DexelSurface {
     /// 多角形にまとめて面を加える
     ///
     /// 多角形の輪郭はセルの番号の整数の格子で求め、残す頂点（`keeps_vertex`）だけで耳刈り法で三角形に分ける。
-    /// 三角形に分けられない場合は四角形ごとに描く。
-    fn mesh_plane(&self, key: PlaneKey, squares: &BTreeSet<[i64; 2]>, context: &mut BlockContext) {
+    /// 三角形に分けられない場合は四角形ごとに描く。三角形の分類は、四角形の分類 `class` とする。
+    fn mesh_plane(
+        &self,
+        key: PlaneKey,
+        squares: &BTreeSet<[i64; 2]>,
+        class: DeviationClass,
+        context: &mut BlockContext,
+    ) {
         let [u_axis, v_axis] = plane_axes(key.axis);
         let cell_at = |[u, v]: [i64; 2]| {
             let mut lower = [0; 3];
@@ -689,7 +903,7 @@ impl DexelSurface {
             let (b, c) = if flip { (c, b) } else { (b, c) };
             context
                 .builder
-                .add_triangle([vertices[a], vertices[b], vertices[c]]);
+                .add_triangle([vertices[a], vertices[b], vertices[c]], class);
         }
     }
 
@@ -927,7 +1141,7 @@ impl DexelSurface {
                 }
             }
         }
-        self.mesh_cells(&cells, false)
+        self.mesh_cells(&cells, false, None)
     }
 
     /// 最小の格子点が `lower` のセルの頂点の内外（`CORNERS` の順）
@@ -968,25 +1182,9 @@ impl DexelSurface {
             self.coordinate(axis, lower),
             self.coordinate(axis, lower + 1),
         );
-        let plane = plane_axes(axis);
-        let line = [a[plane[0]], a[plane[1]]];
-        let on_line = (0..2).all(|i| line[i] >= 0 && line[i] < self.count[plane[i]] as i64);
-        let endpoint = on_line
-            .then(|| {
-                let index = line[0] as usize * self.count[plane[1]] + line[1] as usize;
-                self.intervals[axis][index]
-                    .iter()
-                    .zip(&self.normals[axis][index])
-                    .flat_map(|(&(start, end), &[start_normal, end_normal])| {
-                        [(start, start_normal), (end, end_normal)]
-                    })
-                    .min_by(|(a, _), (b, _)| {
-                        let gap = |value: f64| (low - value).max(value - high).max(0.0);
-                        gap(*a).total_cmp(&gap(*b))
-                    })
-                    .map(|(value, normal)| (value.clamp(low, high), normal.to_unit()))
-            })
-            .flatten()
+        let endpoint = self
+            .nearest_endpoint(a, b)
+            .map(|endpoint| (endpoint.value.clamp(low, high), endpoint.normal.to_unit()))
             // 辺の上のデクセルに端がない場合は、辺の中点の、材料から空への向きの面とする
             .unwrap_or_else(|| {
                 let mut normal = [0.0; 3];
@@ -1000,6 +1198,42 @@ impl DexelSurface {
         let mut point = [0, 1, 2].map(|i| self.coordinate(i, a[i]));
         point[axis] = endpoint.0;
         (point, endpoint.1)
+    }
+
+    /// 2 つの格子点の間の辺の上のデクセルの、辺に最も近い区間の端（辺の上にデクセルがないか、端がなければ `None`）
+    fn nearest_endpoint(&self, a: [i64; 3], b: [i64; 3]) -> Option<Endpoint> {
+        let axis = (0..3)
+            .find(|&axis| a[axis] != b[axis])
+            .expect("an edge has one axis");
+        let lower = a[axis].min(b[axis]);
+        let (low, high) = (
+            self.coordinate(axis, lower),
+            self.coordinate(axis, lower + 1),
+        );
+        let plane = plane_axes(axis);
+        let line = [a[plane[0]], a[plane[1]]];
+        if !(0..2).all(|i| line[i] >= 0 && line[i] < self.count[plane[i]] as i64) {
+            return None;
+        }
+        let index = line[0] as usize * self.count[plane[1]] + line[1] as usize;
+        self.intervals[axis][index]
+            .iter()
+            .zip(&self.normals[axis][index])
+            .flat_map(|(&(start, end), &[start_normal, end_normal])| {
+                [(start, start_normal), (end, end_normal)]
+            })
+            .enumerate()
+            .min_by(|(_, (a, _)), (_, (b, _))| {
+                let gap = |value: f64| (low - value).max(value - high).max(0.0);
+                gap(*a).total_cmp(&gap(*b))
+            })
+            .map(|(position, (value, normal))| Endpoint {
+                axis,
+                index,
+                position,
+                value,
+                normal,
+            })
     }
 
     fn coordinate(&self, axis: usize, index: i64) -> f64 {
@@ -1175,9 +1409,22 @@ impl CellSurface {
     }
 }
 
+/// 辺の上のデクセルの区間の端（格子 `axis` のデクセル `index` の `position` 番目の端。区間の順・始まりと終わりの順）
+struct Endpoint {
+    axis: usize,
+    index: usize,
+    position: usize,
+    value: f64,
+    normal: DexelNormal,
+}
+
 /// ブロックの面を作る間に覚えるセル・四角形の平面・頂点を残すかと、組み立て中の面
 #[derive(Default)]
-struct BlockContext {
+struct BlockContext<'a> {
+    /// 三角形を分ける場合の、区間の端点ごとの製品形状までの距離
+    deviations: Option<&'a SurfaceDeviations<'a>>,
+    /// セルの最小の格子点と輪の番号ごとの、頂点の分類
+    vertex_classes: HashMap<([i64; 3], u8), DeviationClass>,
     cells: HashMap<[i64; 3], CellSurface>,
     /// 辺（最小の格子点と向き）ごとの、四角形がまとめる平面
     quad_planes: HashMap<([i64; 3], usize), Option<PlaneKey>>,
@@ -1199,6 +1446,7 @@ struct MeshBuilder {
     /// セルの最小の格子点と輪の番号ごとの頂点の番号
     ids: HashMap<([i64; 3], u8), u32>,
     triangles: Vec<[u32; 3]>,
+    triangle_classes: Vec<DeviationClass>,
 }
 
 impl MeshBuilder {
@@ -1210,8 +1458,9 @@ impl MeshBuilder {
         })
     }
 
-    fn add_triangle(&mut self, triangle: [u32; 3]) {
+    fn add_triangle(&mut self, triangle: [u32; 3], class: DeviationClass) {
         self.triangles.push(triangle);
+        self.triangle_classes.push(class);
     }
 
     /// 面にする（面積が 0 の三角形は除く）
@@ -1277,6 +1526,7 @@ impl MeshBuilder {
         for (triangle, corners) in corner_vertices.iter().enumerate() {
             if normals[triangle] != [0.0; 3] {
                 mesh.indices.extend(corners);
+                mesh.classes.push(self.triangle_classes[triangle]);
             }
         }
         mesh

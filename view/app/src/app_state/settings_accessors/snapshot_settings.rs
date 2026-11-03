@@ -15,6 +15,7 @@ impl AppState {
     pub fn set_snapshot_shaded_color_settings(&mut self, settings: SnapshotShadedColorSettings) {
         self.set_snapshot_work_solid_color(settings.work_solid_color);
         self.set_snapshot_tool_wire_color(settings.tool_wire_color);
+        self.snapshot_shaded_color_settings.deviations = settings.deviations;
     }
 
     /// Snapshotシェーディング時のワークソリッド色を取得
