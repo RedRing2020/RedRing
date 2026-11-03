@@ -25,7 +25,7 @@ mod workflow;
 pub use dexel_normal::DexelNormal;
 /// シミュレーション実行時のエラー型。
 /// トリデクセルの表示用の面。
-pub use dexel_surface::{DexelSurface, SurfaceMesh};
+pub use dexel_surface::{DeviationClass, DexelSurface, SurfaceDeviations, SurfaceMesh};
 pub use error::SimulationError;
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;

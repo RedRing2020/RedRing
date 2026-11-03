@@ -415,6 +415,10 @@ impl SettingsPanelUiState {
 
         let work_label = self.text("settings.snapshot_shading.work");
         let tool_label = self.text("settings.snapshot_shading.tool");
+        let deviations_label = self.text("settings.snapshot_shading.deviations");
+        let gouge_label = self.text("settings.snapshot_shading.gouge");
+        let within_label = self.text("settings.snapshot_shading.within");
+        let uncut_label = self.text("settings.snapshot_shading.uncut");
         CollapsingHeader::new(self.text("settings.header.snapshot_shading"))
             .default_open(false)
             .show(ui, |ui| {
@@ -429,6 +433,18 @@ impl SettingsPanelUiState {
                     ui.color_edit_button_rgb(&mut self.snapshot_shaded_colors.tool_wire_color);
                     ui.label(tool_label);
                 });
+                let deviations = &mut self.snapshot_shaded_colors.deviations;
+                ui.checkbox(&mut deviations.shown, deviations_label);
+                for (color, label) in [
+                    (&mut deviations.gouge_color, gouge_label),
+                    (&mut deviations.within_color, within_label),
+                    (&mut deviations.uncut_color, uncut_label),
+                ] {
+                    ui.horizontal(|ui| {
+                        ui.color_edit_button_rgba_unmultiplied(color);
+                        ui.label(label);
+                    });
+                }
             });
     }
 

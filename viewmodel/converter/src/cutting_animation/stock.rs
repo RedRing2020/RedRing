@@ -7,7 +7,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use cam_core::{Tool, ToolPath};
-use cam_sim::{CuttingSimulationArtifact, CuttingSimulationReplay, DexelSurface, SurfaceMesh};
+use cam_sim::{
+    CuttingSimulationArtifact, CuttingSimulationReplay, DexelSurface, SurfaceDeviations,
+    SurfaceMesh,
+};
 
 use super::{CuttingAnimationError, StockBlockMesh};
 use crate::mesh_converter::VertexData;
@@ -18,6 +21,8 @@ pub(super) struct StockAnimation {
     /// 成果物の再生（今の時点の素材の状態を持つ）
     replay: CuttingSimulationReplay,
     surface: DexelSurface,
+    /// 今の面を、製品形状との比較で分けて作ったか
+    compared: bool,
 }
 
 impl StockAnimation {
@@ -36,7 +41,11 @@ impl StockAnimation {
             precision,
             tool.radius(),
         );
-        Ok(Self { replay, surface })
+        Ok(Self {
+            replay,
+            surface,
+            compared: false,
+        })
     }
 
     /// 時点の数
@@ -46,32 +55,75 @@ impl StockAnimation {
 
     /// 今の時点の、すべてのブロックの素材の面（三角形のないブロックは含めない）
     pub(super) fn stock_blocks(&self) -> Vec<StockBlockMesh> {
-        let [bx, by, bz] = self.surface.block_counts();
-        let blocks: Vec<[usize; 3]> = (0..bx)
-            .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
-            .collect();
-        self.block_meshes(&blocks)
+        let deviations = self.deviations();
+        self.block_meshes(&self.all_blocks(), deviations.as_ref())
             .into_iter()
             .filter(|mesh| !mesh.indices.is_empty())
             .collect()
     }
 
-    /// 時点 `frame` へ移し、面が変わりうるブロックの、移った後の素材の面を返す（範囲外は最後の時点にする）
-    ///
-    /// 再生の入口で時点の素材の状態を作り直し、区間が変わった部分のブロックだけを作り直す。
-    /// 三角形がなくなったブロックは、三角形のない面として返す。
-    fn seek(&mut self, frame: usize) -> Vec<StockBlockMesh> {
-        let target = frame.min(self.frame_count() - 1);
-        let blocks = self.surface.apply_changes(self.replay.seek(target));
-        self.block_meshes(&blocks)
+    /// すべてのブロック
+    fn all_blocks(&self) -> Vec<[usize; 3]> {
+        let [bx, by, bz] = self.surface.block_counts();
+        (0..bx)
+            .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
+            .collect()
     }
 
-    /// ブロックの列 `blocks` の素材の面（複数のコアで並べて作る）
-    fn block_meshes(&self, blocks: &[[usize; 3]]) -> Vec<StockBlockMesh> {
+    /// 今の面を分ける場合の、今の区間の端点ごとの製品形状までの距離
+    fn deviations(&self) -> Option<SurfaceDeviations<'_>> {
+        if !self.compared {
+            return None;
+        }
+        self.comparable_deviations()
+    }
+
+    /// 成果物の製品形状との比較を、今の区間の端点ごとの距離にする（比較がないか、端点の数が違えば `None`）
+    fn comparable_deviations(&self) -> Option<SurfaceDeviations<'_>> {
+        let deviations = self.replay.artifact().product_deviations.as_ref()?;
+        let comparable = self.surface.deviations(deviations);
+        if comparable.is_none() {
+            tracing::warn!(
+                "製品形状との比較の端点の数が素材の区間と違うため、素材の面を色分けしません"
+            );
+        }
+        comparable
+    }
+
+    /// 時点 `frame` へ移し、面が変わりうるブロックの、移った後の素材の面を返す（範囲外は最後の時点にする）
+    ///
+    /// 再生の入口で時点の素材の状態を作り直し、区間が変わった部分のブロックだけを作り直す。最後の時点で `compare`
+    /// の場合は、成果物に製品形状との比較があれば三角形を分ける。分けるかが前の面と変わった場合は、すべてのブロックを
+    /// 作り直す。三角形がなくなったブロックは、三角形のない面として返す。
+    fn seek(&mut self, frame: usize, compare: bool) -> Vec<StockBlockMesh> {
+        let last = self.frame_count() - 1;
+        let target = frame.min(last);
+        let mut blocks = self.surface.apply_changes(self.replay.seek(target));
+        let deviations = (compare && target == last)
+            .then(|| self.comparable_deviations())
+            .flatten();
+        if deviations.is_some() != self.compared {
+            blocks = self.all_blocks();
+        }
+        let meshes = self.block_meshes(&blocks, deviations.as_ref());
+        self.compared = deviations.is_some();
+        meshes
+    }
+
+    /// ブロックの列 `blocks` の素材の面（複数のコアで並べて作る。`deviations` があれば三角形を分ける）
+    fn block_meshes(
+        &self,
+        blocks: &[[usize; 3]],
+        deviations: Option<&SurfaceDeviations>,
+    ) -> Vec<StockBlockMesh> {
         let to_f32 = |value: [f64; 3]| value.map(|component| component as f32);
+        let meshes = match deviations {
+            Some(deviations) => self.surface.compared_mesh_blocks(blocks, deviations),
+            None => self.surface.mesh_blocks(blocks),
+        };
         blocks
             .iter()
-            .zip(self.surface.mesh_blocks(blocks))
+            .zip(meshes)
             .map(
                 |(
                     &block,
@@ -79,6 +131,7 @@ impl StockAnimation {
                         positions,
                         normals,
                         indices,
+                        classes,
                     },
                 )| StockBlockMesh {
                     block,
@@ -88,6 +141,7 @@ impl StockAnimation {
                         .map(|(position, normal)| VertexData::new(to_f32(position), to_f32(normal)))
                         .collect(),
                     indices,
+                    classes,
                 },
             )
             .collect()
@@ -113,8 +167,8 @@ struct Shared {
 
 #[derive(Debug, Default)]
 struct SharedState {
-    /// まだ取りかかっていない、頼まれた時点
-    request: Option<usize>,
+    /// まだ取りかかっていない、頼まれた時点と、最後の時点の面を製品形状との比較で分けるか
+    request: Option<(usize, bool)>,
     /// 画面の側がまだ受け取っていない面（面が表す時点と、ブロックごとの最も新しい面）
     update: Option<(usize, HashMap<[usize; 3], StockBlockMesh>)>,
     /// 画面の側が係を手放した
@@ -139,9 +193,9 @@ impl StockWorker {
         Self { shared }
     }
 
-    /// 時点 `frame` の素材の面を頼む
-    pub(super) fn request(&self, frame: usize) {
-        self.shared.lock().request = Some(frame);
+    /// 時点 `frame` の素材の面を頼む（最後の時点なら、`compare` の場合に製品形状との比較で分ける）
+    pub(super) fn request(&self, frame: usize, compare: bool) {
+        self.shared.lock().request = Some((frame, compare));
         self.shared.wake.notify_one();
     }
 
@@ -163,14 +217,14 @@ impl Drop for StockWorker {
 /// 別のスレッドの処理
 fn run(shared: &Shared, mut stock: StockAnimation) {
     loop {
-        let frame = {
+        let (frame, compare) = {
             let mut state = shared.lock();
             loop {
                 if state.stopped {
                     return;
                 }
-                if let Some(frame) = state.request.take() {
-                    break frame;
+                if let Some(request) = state.request.take() {
+                    break request;
                 }
                 state = shared
                     .wake
@@ -179,7 +233,7 @@ fn run(shared: &Shared, mut stock: StockAnimation) {
             }
         };
         let target = frame.min(stock.frame_count() - 1);
-        let blocks = stock.seek(target);
+        let blocks = stock.seek(target, compare);
         let mut state = shared.lock();
         let (shown, update) = state.update.get_or_insert_with(|| (target, HashMap::new()));
         *shown = target;
@@ -194,7 +248,7 @@ mod tests {
     use super::super::tests::{artifacts, positions, tool, PRECISION};
     use super::*;
     use cam_core::read_toolpath_artifact_v1;
-    use cam_sim::read_cutting_simulation_artifact_v1;
+    use cam_sim::{read_cutting_simulation_artifact_v1, DeviationClass};
 
     fn stock() -> StockAnimation {
         let (toolpath, simulation) = artifacts();
@@ -229,8 +283,38 @@ mod tests {
     /// 同じスレッドで時点 `frame` へ移した素材の面
     fn expected_at(frame: usize) -> HashMap<[usize; 3], Vec<[f32; 3]>> {
         let mut stock = stock();
-        stock.seek(frame);
+        stock.seek(frame, false);
         positions(&by_block(stock.stock_blocks()))
+    }
+
+    #[test]
+    fn only_the_last_frame_is_split_by_the_comparison_when_asked() {
+        let only = |blocks: &[StockBlockMesh], class: DeviationClass| {
+            blocks
+                .iter()
+                .all(|mesh| mesh.classes.iter().all(|&found| found == class))
+        };
+        let mut stock = stock();
+        let last = stock.frame_count() - 1;
+        let all = stock.all_blocks().len();
+        // 頼まなければ、最後の時点も分けない
+        assert!(only(&stock.seek(last, false), DeviationClass::NotCompared));
+        // 頼むと、すべてのブロックを作り直して分ける
+        let compared = stock.seek(last, true);
+        assert_eq!(compared.len(), all);
+        let classes: std::collections::HashSet<DeviationClass> = compared
+            .iter()
+            .flat_map(|mesh| mesh.classes.iter().copied())
+            .collect();
+        assert!(classes.contains(&DeviationClass::Gouge), "{classes:?}");
+        assert!(classes.contains(&DeviationClass::Uncut), "{classes:?}");
+        for mesh in &compared {
+            assert_eq!(mesh.classes.len() * 3, mesh.indices.len());
+        }
+        // 最後の時点のほかは、頼んでも分けず、分けた面からはすべてのブロックを作り直す
+        let before = stock.seek(last - 1, true);
+        assert_eq!(before.len(), all);
+        assert!(only(&before, DeviationClass::NotCompared));
     }
 
     #[test]
@@ -239,7 +323,7 @@ mod tests {
         let mut shown = by_block(stock.stock_blocks());
         let last = stock.frame_count() - 1;
         for frame in [1, last / 2, last, last - 1, last / 2, 1, 0, last] {
-            for mesh in stock.seek(frame) {
+            for mesh in stock.seek(frame, false) {
                 shown.insert(mesh.block, mesh);
             }
             assert_eq!(stock.replay.snapshot(), frame);
@@ -259,13 +343,13 @@ mod tests {
         let worker = StockWorker::spawn(stock);
         // 1 つずつ進む・遠くへ飛ぶ・戻る
         for frame in [1, 2, 3, last, last / 2, 1, 0] {
-            worker.request(frame);
+            worker.request(frame, false);
             wait_for(&worker, frame, &mut shown);
             assert_eq!(positions(&shown), expected_at(frame), "frame {frame}");
         }
         // 受け取る前に次の時点を頼むと、最後に頼んだ時点の面になる（途中の時点で変わったブロックも含む）
         for frame in [last / 3, last / 2, 2 * last / 3] {
-            worker.request(frame);
+            worker.request(frame, false);
         }
         wait_for(&worker, 2 * last / 3, &mut shown);
         assert_eq!(positions(&shown), expected_at(2 * last / 3));

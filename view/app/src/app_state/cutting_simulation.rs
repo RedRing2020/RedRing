@@ -2,12 +2,12 @@
 
 use std::ops::RangeInclusive;
 
-use super::AppState;
+use super::{AppState, SnapshotShadedColorSettings};
 use crate::machining_conditions_ui::OperationStatus;
 use render::mesh_list::MeshListItem;
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
-use viewmodel::cutting_animation::{CuttingAnimation, StockBlockMesh};
+use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
 use viewmodel::octree_converter::WireframeVertex;
 
@@ -17,10 +17,39 @@ const FRAME_STEP_DIVISIONS: f64 = 100.0;
 /// 重ねて描くメッシュのうち、素材のブロックのキーの範囲（製品形状のキーは 0 から）
 const STOCK_BLOCK_KEYS: RangeInclusive<u64> = (1 << 63)..=u64::MAX;
 
-/// 素材のブロック `block` のメッシュのキー（各座標軸のブロックの番号は 2²¹ 未満）
-fn stock_block_key(block: [usize; 3]) -> u64 {
+/// 素材の面の分類の、キーの中の位置（分類ごとのキーは続いた範囲になる）
+const CLASS_SHIFT: u32 = 60;
+
+/// 素材の面の分類の、キーの中の番号
+fn class_index(class: DeviationClass) -> u64 {
+    match class {
+        DeviationClass::NotCompared => 0,
+        DeviationClass::Uncut => 1,
+        DeviationClass::Within => 2,
+        DeviationClass::Gouge => 3,
+    }
+}
+
+/// 素材のブロック `block` の、分類 `class` の面のメッシュのキー（各座標軸のブロックの番号は 2²⁰ 未満）
+fn stock_block_key(block: [usize; 3], class: DeviationClass) -> u64 {
     let [x, y, z] = block.map(|index| index as u64);
-    STOCK_BLOCK_KEYS.start() | (x << 42) | (y << 21) | z
+    STOCK_BLOCK_KEYS.start() | (class_index(class) << CLASS_SHIFT) | (x << 40) | (y << 20) | z
+}
+
+/// 分類 `class` の素材の面のメッシュのキーの範囲
+fn stock_class_keys(class: DeviationClass) -> RangeInclusive<u64> {
+    let start = STOCK_BLOCK_KEYS.start() | (class_index(class) << CLASS_SHIFT);
+    start..=start | ((1 << CLASS_SHIFT) - 1)
+}
+
+/// 分類 `class` の素材の面の色（比べていない所は素材の色）
+fn stock_class_color(colors: &SnapshotShadedColorSettings, class: DeviationClass) -> [f32; 4] {
+    match class {
+        DeviationClass::NotCompared => colors.work_solid_color,
+        DeviationClass::Uncut => colors.deviations.uncut_color,
+        DeviationClass::Within => colors.deviations.within_color,
+        DeviationClass::Gouge => colors.deviations.gouge_color,
+    }
 }
 
 impl AppState {
@@ -101,6 +130,7 @@ impl AppState {
         self.rebuild_snapshot_weighted_progress_axis_cache();
 
         self.cutting_animation_colors = self.snapshot_shaded_color_settings;
+        animation.set_deviations_shown(self.cutting_animation_colors.deviations.shown);
         let stock_blocks = animation.take_initial_stock_blocks();
         let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation, stock_blocks);
         // 取り込み直しても見ていた向き・拡大を保つ。カメラは STL の読み込みで製品形状に合わせているため、表示中の
@@ -128,9 +158,10 @@ impl AppState {
 
     /// 取り込んだ切削アニメーションの、設定で変わる線（ツールパスの線・工具の線）と素材の色を今の設定で描き直す
     ///
-    /// 素材の面と製品形状のメッシュは作り直さない（素材は色だけを変える）。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
+    /// 素材の面と製品形状のメッシュは作り直さない（素材は色だけを変える）。ただし、最後のコマで色分けの入・切が変わった
+    /// 場合は、素材の面がすべて作り直されて届く。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
     pub(super) fn redraw_cutting_animation(&mut self) {
-        let Some(animation) = &self.cutting_animation else {
+        let Some(animation) = &mut self.cutting_animation else {
             tracing::info!(
                 "切削シミュレーションが取り込まれていないため、設定は次の取り込みから反映します"
             );
@@ -157,7 +188,20 @@ impl AppState {
         };
         mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
         mesh_stage.set_overlay_tool_line_data(device, tool_lines);
-        mesh_stage.set_mesh_list_color(device, STOCK_BLOCK_KEYS, colors.work_solid_color);
+        for class in [
+            DeviationClass::NotCompared,
+            DeviationClass::Uncut,
+            DeviationClass::Within,
+            DeviationClass::Gouge,
+        ] {
+            mesh_stage.set_mesh_list_color(
+                device,
+                stock_class_keys(class),
+                stock_class_color(&colors, class),
+            );
+        }
+        // 色分けするかが変わった場合は、最後の時点の素材の面が作り直されて届く
+        animation.set_deviations_shown(colors.deviations.shown);
         // 後から届く素材のブロックと工具の線も、この色で描く
         self.cutting_animation_colors = colors;
         self.update_camera_uniforms();
@@ -188,11 +232,11 @@ impl AppState {
                 (index as u64, item)
             })
             .collect();
-        let stock_color = self.cutting_animation_colors.work_solid_color;
+        let colors = self.cutting_animation_colors;
         items.extend(
             stock_blocks
                 .into_iter()
-                .map(|block| stock_block_item(block, stock_color)),
+                .flat_map(|block| stock_block_items(block, &colors)),
         );
 
         let device = &self.graphic.device;
@@ -266,13 +310,15 @@ impl AppState {
             &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
             Some(self.cutting_animation_colors.tool_wire_color),
         );
-        let stock_color = self.cutting_animation_colors.work_solid_color;
+        let colors = self.cutting_animation_colors;
         let device = &self.graphic.device;
         let stage = self.renderer.get_stage_mut();
         if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
             for block in blocks {
-                let (key, item) = stock_block_item(block, stock_color);
-                mesh_stage.set_mesh_list_item(device, key, item);
+                // 三角形のない分類の面も渡し、前の面の同じ分類のメッシュを除く
+                for (key, item) in stock_block_items(block, &colors) {
+                    mesh_stage.set_mesh_list_item(device, key, item);
+                }
             }
             mesh_stage.set_overlay_tool_line_data(device, tool_lines);
         }
@@ -281,13 +327,20 @@ impl AppState {
     }
 }
 
-fn stock_block_item(block: StockBlockMesh, color: [f32; 4]) -> (u64, MeshListItem) {
-    let item = MeshListItem {
-        vertices: convert_vertex_data_to_mesh_vertices(&block.vertices),
-        indices: block.indices,
-        color,
-    };
-    (stock_block_key(block.block), item)
+/// ブロックの素材の面の、分類ごとのメッシュ（三角形のない分類は空のメッシュ）
+fn stock_block_items(
+    block: StockBlockMesh,
+    colors: &SnapshotShadedColorSettings,
+) -> [(u64, MeshListItem); 4] {
+    let key = block.block;
+    block.into_parts().map(|(class, vertices, indices)| {
+        let item = MeshListItem {
+            vertices: convert_vertex_data_to_mesh_vertices(&vertices),
+            indices,
+            color: stock_class_color(colors, class),
+        };
+        (stock_block_key(key, class), item)
+    })
 }
 
 /// 線の頂点を描画用にする（`color` を指定しない場合は頂点の色）
@@ -305,10 +358,27 @@ mod tests {
     #[test]
     fn stock_block_keys_are_distinct_and_above_product_shape_keys() {
         let blocks = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [15, 15, 15]];
-        let keys: Vec<u64> = blocks.iter().map(|&block| stock_block_key(block)).collect();
-        for (index, key) in keys.iter().enumerate() {
+        let classes = [
+            DeviationClass::NotCompared,
+            DeviationClass::Uncut,
+            DeviationClass::Within,
+            DeviationClass::Gouge,
+        ];
+        let keys: Vec<(DeviationClass, u64)> = classes
+            .iter()
+            .flat_map(|&class| {
+                blocks
+                    .iter()
+                    .map(move |&block| (class, stock_block_key(block, class)))
+            })
+            .collect();
+        for (index, (class, key)) in keys.iter().enumerate() {
             assert!(STOCK_BLOCK_KEYS.contains(key));
-            assert!(!keys[index + 1..].contains(key));
+            assert!(!keys[index + 1..].iter().any(|(_, other)| other == key));
+            // 分類ごとのキーの範囲に入り、ほかの分類の範囲には入らない
+            for other in classes {
+                assert_eq!(stock_class_keys(other).contains(key), other == *class);
+            }
         }
         // 製品形状のキー（0 から）は素材のブロックの範囲に入らない
         assert!(!STOCK_BLOCK_KEYS.contains(&1_000_000));

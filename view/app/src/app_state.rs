@@ -65,6 +65,8 @@ pub struct SnapshotShadedColorSettings {
     pub work_solid_color: [f32; 4],
     // Snapshotシェーディング時の工具ワイヤー色（RGB）
     pub tool_wire_color: [f32; 3],
+    /// 最後の時点の素材の面の、製品形状との比較による色分け
+    pub deviations: DeviationColorSettings,
 }
 
 impl Default for SnapshotShadedColorSettings {
@@ -72,6 +74,32 @@ impl Default for SnapshotShadedColorSettings {
         Self {
             work_solid_color: [0.95, 0.55, 0.25, 1.0],
             tool_wire_color: [0.9, 0.95, 1.0],
+            deviations: DeviationColorSettings::default(),
+        }
+    }
+}
+
+/// 最後の時点の素材の面の、製品形状との比較（削り込み・トレランスの中・削り残し）による色分け（比べていない所は
+/// 素材の色）
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DeviationColorSettings {
+    /// 色分けするか
+    pub shown: bool,
+    /// 削り込みの色（RGBA）
+    pub gouge_color: [f32; 4],
+    /// トレランスの中の色（RGBA）
+    pub within_color: [f32; 4],
+    /// 削り残しの色（RGBA）
+    pub uncut_color: [f32; 4],
+}
+
+impl Default for DeviationColorSettings {
+    fn default() -> Self {
+        Self {
+            shown: true,
+            gouge_color: [0.9, 0.15, 0.15, 1.0],
+            within_color: [0.2, 0.75, 0.3, 1.0],
+            uncut_color: [0.25, 0.45, 0.95, 1.0],
         }
     }
 }

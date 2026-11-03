@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, Tool, ToolPath};
-use geo_algorithms::{Aabb3D, Point3D};
+use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 
 use super::*;
 use crate::simulation_artifact::CuttingSimulationArtifact;
@@ -136,10 +136,14 @@ fn surface_is_closed_across_blocks() {
     let surface = surface_at(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
     assert!(surface.block_counts().iter().product::<usize>() > 1);
     let triangles = all_triangles(&surface);
+    assert_closed(&triangles);
+}
+
+/// 向きのある辺ごとに、逆向きの辺がちょうど 1 つある（閉じていて、向きがそろっている）
+fn assert_closed(triangles: &[[[f64; 3]; 3]]) {
     assert!(!triangles.is_empty());
-    // 向きのある辺ごとに、逆向きの辺がちょうど 1 つある（閉じていて、向きがそろっている）
     let mut edges: HashMap<([i64; 3], [i64; 3]), i32> = HashMap::new();
-    for triangle in &triangles {
+    for triangle in triangles {
         for i in 0..3 {
             let (a, b) = (key(triangle[i]), key(triangle[(i + 1) % 3]));
             if a == b {
@@ -324,7 +328,7 @@ fn uncut_blocks_give_the_same_mesh_as_meshing_cell_by_cell() {
         for block in blocks {
             assert_eq!(
                 surface.mesh_block(block),
-                surface.mesh_block_by_cells(block),
+                surface.mesh_block_by_cells(block, None),
                 "snapshot {snapshot} block {block:?}"
             );
         }
@@ -477,4 +481,160 @@ fn unchanged_dexels_make_no_block_dirty() {
             .apply_changes(artifact.keyframe_changes.keyframe(1))
             .is_empty()
     );
+}
+
+#[test]
+fn triangles_are_classified_by_the_distance_to_the_product_shape() {
+    // 製品形状は高さ -1.875 の平面。y = 3.125 は先端の高さ -1.875（製品形状どおり）、y = 7.125 は -2.375（0.5 深い）で
+    // X の向きに削る（格子の線は素材の端から間隔の半分ずれた位置にあり、溝の底の線と製品形状の高さを格子の線に
+    // 合わせて、トレランスの中の端点を作る）
+    let (artifact, model) = artifact(
+        &[
+            Point3D::new(-2.0, 3.125, -1.875),
+            Point3D::new(22.0, 3.125, -1.875),
+            Point3D::new(22.0, 7.125, -2.375),
+            Point3D::new(-2.0, 7.125, -2.375),
+        ],
+        SegmentType::Cutting { feed_rate: 100.0 },
+    );
+    // 最後の時点のトリデクセル（成果物と同じ格子）
+    let applied: Vec<usize> = (0..=model.primitives().len()).collect();
+    let dexels = TriDexelModel::from_stock_model(&model, 0.25, &applied);
+    let product = cam_algorithms::ProductSurface::new(
+        &TriangleMesh3D::new(
+            vec![
+                Point3D::new(-5.0, -5.0, -1.875),
+                Point3D::new(25.0, -5.0, -1.875),
+                Point3D::new(25.0, 15.0, -1.875),
+                Point3D::new(-5.0, 15.0, -1.875),
+            ],
+            vec![[0, 1, 2], [0, 2, 3]],
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let product_deviations =
+        crate::product_deviation::compare_with_product(&dexels, &product, 0.001);
+    let surface = surface_at(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
+    let deviations = surface.deviations(&product_deviations).unwrap();
+    let [bx, by, bz] = surface.block_counts();
+    let blocks: Vec<[usize; 3]> = (0..bx)
+        .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
+        .collect();
+
+    let mut counts: HashMap<DeviationClass, usize> = HashMap::new();
+    for mesh in surface.compared_mesh_blocks(&blocks, &deviations) {
+        assert_eq!(mesh.classes.len() * 3, mesh.indices.len());
+        for (triangle, &class) in mesh.indices.chunks(3).zip(&mesh.classes) {
+            let center: [f64; 3] = std::array::from_fn(|axis| {
+                triangle
+                    .iter()
+                    .map(|&index| mesh.positions[index as usize][axis])
+                    .sum::<f64>()
+                    / 3.0
+            });
+            *counts.entry(class).or_default() += 1;
+            // 頂点の分類はセルの交点から決め、頂点はセルの中に置くため、位置は格子の間隔 `CELL` だけずれうる
+            const CELL: f64 = 0.25;
+            // 削り込みは、深く削った溝（y = 7.125）の、製品形状より下にかかる三角形だけ（三角形は頂点の分類の最も
+            // 強いものとするため、製品形状より上の頂点も含みうる）
+            if class == DeviationClass::Gouge {
+                let lowest = triangle
+                    .iter()
+                    .map(|&index| mesh.positions[index as usize][2])
+                    .fold(f64::INFINITY, f64::min);
+                assert!((center[1] - 7.125).abs() < RADIUS + CELL, "{center:?}");
+                assert!(lowest < -1.875 + CELL, "{center:?}");
+            }
+            // トレランスの中は、製品形状の高さ -1.875 にかかる三角形（溝の底の線と、深い溝の壁が製品形状を横切る所）
+            // だけ。溝の底も線から離れるとボールの丸みで製品形状より高く、削り残しになる
+            if class == DeviationClass::Within {
+                let heights = triangle
+                    .iter()
+                    .map(|&index| mesh.positions[index as usize][2]);
+                let (low, high) = heights
+                    .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), z| {
+                        (low.min(z), high.max(z))
+                    });
+                assert!(low < -1.875 + CELL && high > -1.875 - CELL, "{center:?}");
+            }
+            // 削り残しは、製品形状より上（素材の側面の三角形は、溝より下の頂点を含むため除く）
+            if class == DeviationClass::Uncut && (1.0..19.0).contains(&center[0]) {
+                assert!(center[2] > -1.875 - CELL, "{center:?}");
+            }
+        }
+    }
+    for class in [
+        DeviationClass::Gouge,
+        DeviationClass::Within,
+        DeviationClass::Uncut,
+        DeviationClass::NotCompared,
+    ] {
+        assert!(
+            counts.get(&class).is_some_and(|&count| count > 0),
+            "{class:?}: {counts:?}"
+        );
+    }
+
+    // 距離を渡さない面は、すべて比べていない
+    for mesh in surface.mesh_blocks(&blocks) {
+        assert!(
+            mesh.classes
+                .iter()
+                .all(|&class| class == DeviationClass::NotCompared)
+        );
+        assert_eq!(mesh.classes.len() * 3, mesh.indices.len());
+    }
+    // 端点の数が違う距離は使わない
+    let mut broken = product_deviations.clone();
+    broken.distances[2].pop();
+    assert!(surface.deviations(&broken).is_none());
+}
+
+#[test]
+fn surfaces_split_by_class_are_closed_across_blocks() {
+    // `cut` の溝（先端の高さ -1〜-3）を高さ -2.5 の製品形状と比べ、削り込み・削り残しの境が素材の側面や平らな面に
+    // かかるようにする
+    let (artifact, model) = cut();
+    let applied: Vec<usize> = (0..=model.primitives().len()).collect();
+    let dexels = TriDexelModel::from_stock_model(&model, 0.25, &applied);
+    let product = cam_algorithms::ProductSurface::new(
+        &TriangleMesh3D::new(
+            vec![
+                Point3D::new(-5.0, -5.0, -2.5),
+                Point3D::new(25.0, -5.0, -2.5),
+                Point3D::new(25.0, 15.0, -2.5),
+                Point3D::new(-5.0, 15.0, -2.5),
+            ],
+            vec![[0, 1, 2], [0, 2, 3]],
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let product_deviations =
+        crate::product_deviation::compare_with_product(&dexels, &product, 0.001);
+    let surface = surface_at(&artifact, artifact.snapshots.len() - 1, PRECISION, RADIUS);
+    let deviations = surface.deviations(&product_deviations).unwrap();
+    let [bx, by, bz] = surface.block_counts();
+    let blocks: Vec<[usize; 3]> = (0..bx)
+        .flat_map(|x| (0..by).flat_map(move |y| (0..bz).map(move |z| [x, y, z])))
+        .collect();
+    let meshes = surface.compared_mesh_blocks(&blocks, &deviations);
+    let classes: std::collections::HashSet<DeviationClass> = meshes
+        .iter()
+        .flat_map(|mesh| mesh.classes.iter().copied())
+        .collect();
+    assert!(classes.contains(&DeviationClass::Gouge), "{classes:?}");
+    assert!(classes.contains(&DeviationClass::Uncut), "{classes:?}");
+    // 分類ごとに多角形にまとめても、ブロックの境・分類の境で面は閉じている
+    let triangles: Vec<[[f64; 3]; 3]> = meshes
+        .iter()
+        .flat_map(|mesh| {
+            mesh.indices
+                .chunks(3)
+                .map(|triangle| [0, 1, 2].map(|i| mesh.positions[triangle[i] as usize]))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    assert_closed(&triangles);
 }
