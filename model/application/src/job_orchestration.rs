@@ -570,8 +570,8 @@ mod tests {
     fn registered_nurbs_input_reports_real_convergence_failure() {
         use std::sync::Arc;
 
-        use cam_algorithms::{CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry};
-        use cam_core::{CoordinateFrame, LengthUnit, Tool};
+        use cam_algorithms::{CamSolverInput, SolverGeometry};
+        use cam_core::{CoordinateFrame, LengthUnit, OperationSpec, ScanlineParams, Tool};
         use cam_sim::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
         use geo_algorithms::TessellationLimits;
         use geo_algorithms::{NurbsSurface3D, Point3D};
@@ -616,8 +616,8 @@ mod tests {
                     operation: OperationSpec::Scanline(ScanlineParams {
                         stepover: 2.0,
                         feed_rate: 1200.0,
-                        tool_range: cam_algorithms::ScanlineToolRange::default(),
-                        cut_direction: cam_algorithms::ScanlineCutDirection::default(),
+                        tool_range: cam_core::ScanlineToolRange::default(),
+                        cut_direction: cam_core::ScanlineCutDirection::default(),
                     }),
                     units: LengthUnit::Millimeter,
                     coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -667,8 +667,8 @@ mod tests {
     fn registered_solver_input_flows_from_cam_process_to_cutting_simulation() {
         use std::sync::Arc;
 
-        use cam_algorithms::{CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry};
-        use cam_core::{CoordinateFrame, LengthUnit, Tool};
+        use cam_algorithms::{CamSolverInput, SolverGeometry};
+        use cam_core::{CoordinateFrame, LengthUnit, OperationSpec, ScanlineParams, Tool};
         use cam_sim::{
             CamJobExecutorAdapter, CuttingSimulationInput, InMemoryCamSolverInputStore,
             InMemoryCuttingSimulationInputStore, SnapshotInterval,
@@ -717,8 +717,8 @@ mod tests {
                     operation: OperationSpec::Scanline(ScanlineParams {
                         stepover: 4.0,
                         feed_rate: 1200.0,
-                        tool_range: cam_algorithms::ScanlineToolRange::default(),
-                        cut_direction: cam_algorithms::ScanlineCutDirection::default(),
+                        tool_range: cam_core::ScanlineToolRange::default(),
+                        cut_direction: cam_core::ScanlineCutDirection::default(),
                     }),
                     units: LengthUnit::Millimeter,
                     coordinate_frame: CoordinateFrame::WorldRightHandedZUp,

@@ -9,6 +9,8 @@
 //! - [`tool`][]: 工具定義（工具径、長さ、種別）
 //! - [`toolset`][]: ツールセット定義（工具＋ホルダー、干渉距離）
 //! - [`machine_constraint`][]: 機械の最小制約定義（軸ラベル、回転軸旋回範囲）
+//! - [`operation`][]: 加工の条件の値（加工の種類と条件、加工ステージ、加工範囲）
+//! - [`stock`][]: 素材の値（製品形状からの余裕）
 //! - [`toolpath`][]: 工具経路データ構造（セグメント、経路全体）
 //! - [`validation`][]: CAM用検証機能（2D輪郭閉判定、トレランスチェック）
 //!
@@ -20,6 +22,8 @@
 pub mod artifact_binary;
 pub mod fixtures;
 pub mod machine_constraint;
+pub mod operation;
+pub mod stock;
 pub mod tolerance;
 pub mod tool;
 pub mod toolpath;
@@ -39,6 +43,11 @@ pub use machine_constraint::{
     LinearAccelerationLimit, LinearAxisLabel, LinearAxisLimit, LinearSpeedLimit, MachineAxisLabel,
     MachineConstraint, RotaryAccelerationLimit, RotaryAxisLabel, RotaryAxisLimit, RotarySpeedLimit,
 };
+pub use operation::{
+    MachiningBoundary, MachiningStage, OperationSpec, RectangleBoundary, ScanlineCutDirection,
+    ScanlineParams, ScanlineToolRange,
+};
+pub use stock::StockMargins;
 pub use tolerance::{CamTolerance, ToleranceProfile};
 pub use tool::{Tool, ToolType};
 pub use toolpath::{

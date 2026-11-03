@@ -14,12 +14,12 @@
 
 use std::fmt::{Display, Formatter};
 
-use cam_core::{CoordinateFrame, LengthUnit, ToleranceProfile, Tool};
-use geo_contracts::default_distance_tolerance;
-
-use crate::solver::{
-    CamSolverError, CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry,
+use cam_core::{
+    CoordinateFrame, LengthUnit, MachiningBoundary, MachiningStage, OperationSpec,
+    RectangleBoundary, ScanlineParams, ToleranceProfile, Tool,
 };
+
+use crate::solver::{CamSolverError, CamSolverInput, SolverGeometry};
 use geo_algorithms::TessellationLimits;
 
 /// オペレーション種別（`operation_type`）
@@ -55,83 +55,6 @@ impl OperationType {
             _ => None,
         }
     }
-}
-
-/// 加工ステージ（`machining_stage`）
-///
-/// 実行順序を強制する状態ではなくタグ分類として扱い、`operation_type` とは直交する。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MachiningStage {
-    /// `rough`: 荒加工
-    Rough,
-    /// `semi_finish`: 中加工
-    SemiFinish,
-    /// `finish`: 仕上げ
-    Finish,
-}
-
-impl MachiningStage {
-    pub fn token(self) -> &'static str {
-        match self {
-            Self::Rough => "rough",
-            Self::SemiFinish => "semi_finish",
-            Self::Finish => "finish",
-        }
-    }
-
-    pub fn from_token(token: &str) -> Option<Self> {
-        match token {
-            "rough" => Some(Self::Rough),
-            "semi_finish" => Some(Self::SemiFinish),
-            "finish" => Some(Self::Finish),
-            _ => None,
-        }
-    }
-}
-
-/// 矩形の加工範囲（`boundary_mode = rectangle`、ワーク局所座標・mm）
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RectangleBoundary {
-    pub rect_min: [f64; 2],
-    pub rect_max: [f64; 2],
-}
-
-impl RectangleBoundary {
-    /// `x_min < x_max` かつ `y_min < y_max`（有限値）であることを検証する。
-    pub fn validate(&self) -> Result<(), TemplateFailure> {
-        let [x_min, y_min] = self.rect_min;
-        let [x_max, y_max] = self.rect_max;
-        let finite = [x_min, y_min, x_max, y_max].iter().all(|v| v.is_finite());
-        if finite && x_min < x_max && y_min < y_max {
-            Ok(())
-        } else {
-            Err(TemplateFailure::InvalidRectangleBoundary {
-                rect_min: self.rect_min,
-                rect_max: self.rect_max,
-            })
-        }
-    }
-
-    /// XY 範囲 [min, max] でクリップした範囲を返す。
-    ///
-    /// クリップ結果の幅・高さのいずれかが距離トレランス以下（辺や角で接するだけ、
-    /// または重ならない）の場合は、走査できる面積を持たないため `None` とする。
-    pub fn clip_to(&self, min: [f64; 2], max: [f64; 2]) -> Option<([f64; 2], [f64; 2])> {
-        let clipped_min = [self.rect_min[0].max(min[0]), self.rect_min[1].max(min[1])];
-        let clipped_max = [self.rect_max[0].min(max[0]), self.rect_max[1].min(max[1])];
-        let tolerance = default_distance_tolerance::<f64>();
-        let has_area = clipped_max[0] - clipped_min[0] > tolerance
-            && clipped_max[1] - clipped_min[1] > tolerance;
-        has_area.then_some((clipped_min, clipped_max))
-    }
-}
-
-/// 加工範囲（`boundary_mode`）
-///
-/// `edge_projected_2d` は後続 Step で追加する。
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum MachiningBoundary {
-    Rectangle(RectangleBoundary),
 }
 
 /// 工程テンプレート（既定値の供給元）
@@ -282,7 +205,7 @@ pub fn resolve_operation(
     .ok_or(TemplateFailure::MissingOperationType)?;
 
     if let Some(MachiningBoundary::Rectangle(rectangle)) = &operation.boundary {
-        rectangle.validate()?;
+        validate_rectangle_boundary(rectangle)?;
     }
 
     Ok(ResolvedOperation {
@@ -338,6 +261,23 @@ pub fn build_solver_input(
     })
 }
 
+/// 矩形の加工範囲が `x_min < x_max` かつ `y_min < y_max`（有限値）であることを検証する。
+pub(crate) fn validate_rectangle_boundary(
+    rectangle: &RectangleBoundary,
+) -> Result<(), TemplateFailure> {
+    let [x_min, y_min] = rectangle.rect_min;
+    let [x_max, y_max] = rectangle.rect_max;
+    let finite = [x_min, y_min, x_max, y_max].iter().all(|v| v.is_finite());
+    if finite && x_min < x_max && y_min < y_max {
+        Ok(())
+    } else {
+        Err(TemplateFailure::InvalidRectangleBoundary {
+            rect_min: rectangle.rect_min,
+            rect_max: rectangle.rect_max,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use cam_core::{ToleranceProfile, Tool};
@@ -345,9 +285,9 @@ mod tests {
     use geo_contracts::TriangleMesh3DConstructor;
 
     use super::*;
-    use crate::solver::{
-        CamSolverError, ScanlineCutDirection, ScanlineParams, ScanlineToolRange, SolverGeometry,
-    };
+    use cam_core::{ScanlineCutDirection, ScanlineToolRange};
+
+    use crate::solver::{CamSolverError, SolverGeometry};
 
     fn template(profile: Option<&str>, operation_type: Option<&str>) -> ProcessTemplate {
         ProcessTemplate {

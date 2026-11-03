@@ -8,12 +8,10 @@ use application::cam_simulation_workflow::{
     CamConditionError, CamSimulationWorkflow, CamSimulationWorkflowError,
     ProductShapeSimulationRequest,
 };
+pub use cam_algorithms::ScanlineInputError;
 use cam_algorithms::{CamSolverError, OperationDefinition, ProcessTemplate};
-pub use cam_algorithms::{
-    ScanlineCutDirection, ScanlineInputError, ScanlineParams, ScanlineToolRange,
-};
+pub use cam_core::{ScanlineCutDirection, ScanlineParams, ScanlineToolRange, StockMargins};
 use cam_core::{ToleranceProfile, Tool};
-pub use cam_sim::StockMargins;
 use cam_sim::{CuttingSimulationInputError, SnapshotInterval};
 use geo_algorithms::Aabb3D;
 
@@ -361,7 +359,7 @@ impl CuttingSimulationSession {
             .map(|job| job.id)
             .ok_or(CuttingSimulationSessionError::NoSucceededSimulation)?;
         let result = self.workflow.import(latest)?;
-        let cam_algorithms::OperationSpec::Scanline(scanline) = result.solver_input.operation;
+        let cam_core::OperationSpec::Scanline(scanline) = result.solver_input.operation;
         let conditions = ImportedConditions {
             tool: result.simulation_input.tool.clone(),
             scanline,
