@@ -103,8 +103,12 @@ impl AppState {
         self.cutting_animation_colors = self.snapshot_shaded_color_settings;
         let stock_blocks = animation.take_initial_stock_blocks();
         let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation, stock_blocks);
-        if let Some(fit) = Self::build_camera_fit(&positions) {
-            self.apply_camera_fit(fit);
+        // 取り込み直しても見ていた向き・拡大を保つ。カメラは STL の読み込みで製品形状に合わせているため、表示中の
+        // 製品形状がない場合だけ合わせる
+        if self.product_shapes.store().visible_face_ids().is_empty() {
+            if let Some(fit) = Self::build_camera_fit(&positions) {
+                self.apply_camera_fit(fit);
+            }
         }
         self.renderer.set_stage(mesh_stage);
         self.cutting_animation = Some(animation);
