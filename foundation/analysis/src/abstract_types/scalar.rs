@@ -18,8 +18,8 @@ use std::fmt::{Debug, Display};
 ///
 /// # 用途
 ///
-/// - **f32**: ゲーム開発、リアルタイム描画、GPUコンピューティング
-/// - **f64**: CAD/CAM、科学技術計算、高精度数値解析
+/// - **f32**: 単精度。GPU 転送やリアルタイム描画など、速度・メモリ効率を優先する場合
+/// - **f64**: 倍精度。幾何演算・数値解析の既定精度
 pub trait Scalar:
     Copy
     + Clone
@@ -37,6 +37,7 @@ pub trait Scalar:
     + std::ops::MulAssign
     + std::ops::DivAssign
     + 'static
+    + crate::consts::GeometricTolerance
 {
     /// ゼロ値
     const ZERO: Self;
@@ -139,10 +140,7 @@ pub trait Scalar:
 
     /// ほぼ等しいかを許容誤差で判定
     /// 注意: GeometricTolerance trait が実装されている型でのみ使用可能
-    fn approx_eq(self, other: Self) -> bool
-    where
-        Self: crate::GeometricTolerance,
-    {
+    fn approx_eq(self, other: Self) -> bool {
         (self - other).abs() < Self::TOLERANCE
     }
 
@@ -479,5 +477,79 @@ impl Scalar for f64 {
     #[inline]
     fn to_bits(self) -> u64 {
         self.to_bits()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Scalar;
+
+    #[test]
+    fn test_f32_scalar_constants() {
+        assert_eq!(f32::ZERO, 0.0f32);
+        assert_eq!(f32::ONE, 1.0f32);
+        assert_eq!(f32::PI, std::f32::consts::PI);
+        assert_eq!(f32::TAU, std::f32::consts::TAU);
+        assert_eq!(f32::E, std::f32::consts::E);
+    }
+
+    #[test]
+    fn test_f64_scalar_constants() {
+        assert_eq!(f64::ZERO, 0.0f64);
+        assert_eq!(f64::ONE, 1.0f64);
+        assert_eq!(f64::PI, std::f64::consts::PI);
+        assert_eq!(f64::TAU, std::f64::consts::TAU);
+        assert_eq!(f64::E, std::f64::consts::E);
+    }
+
+    #[test]
+    fn test_scalar_operations() {
+        let a = 3.0f32;
+        let b = 4.0f32;
+
+        assert_eq!((a * a + b * b).sqrt(), 5.0f32);
+        assert!((f32::PI / 2.0).sin().approx_eq(1.0));
+        assert!((f32::PI).cos().approx_eq(-1.0));
+    }
+
+    #[test]
+    fn test_angle_conversion() {
+        let degrees = 90.0f64;
+        let radians = degrees * f64::DEG_TO_RAD;
+        assert!(radians.approx_eq(f64::PI / 2.0));
+
+        let back_to_degrees = radians * f64::RAD_TO_DEG;
+        assert!(back_to_degrees.approx_eq(90.0));
+    }
+
+    #[test]
+    fn test_approx_eq() {
+        use crate::GeometricTolerance;
+        let a = 1.0f32;
+        let b = 1.0f32 + <f32 as GeometricTolerance>::TOLERANCE / 10.0;
+        assert!(a.approx_eq(b));
+
+        let c = 1.0f32 + <f32 as GeometricTolerance>::TOLERANCE * 10.0;
+        assert!(!a.approx_eq(c));
+    }
+
+    #[test]
+    fn test_type_conversion() {
+        let f32_val = std::f32::consts::PI;
+        let f64_val = f32_val.to_f64();
+        let back_to_f32 = f32::from_f64(f64_val);
+
+        assert!((f32_val - back_to_f32).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_scalar_arithmetic() {
+        let a: f64 = 2.0;
+        let b: f64 = 3.0;
+
+        assert_eq!(a.powf(b), 8.0);
+        assert_eq!(a.max(b), 3.0);
+        assert_eq!(a.min(b), 2.0);
+        assert!((a.sin().powi(2) + a.cos().powi(2) - 1.0).abs() < f64::EPSILON);
     }
 }

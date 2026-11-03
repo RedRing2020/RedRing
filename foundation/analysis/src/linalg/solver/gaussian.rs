@@ -4,6 +4,7 @@
 //! 数値安定性を考慮した一般的な直接法
 use super::{LinearSolver, SolutionInfo};
 use crate::abstract_types::Scalar;
+use crate::linalg::DynamicMatrix;
 
 /// ガウス消去法ソルバー
 pub struct GaussianSolver<T: Scalar> {
@@ -27,12 +28,13 @@ impl<T: Scalar> GaussianSolver<T> {
     }
 
     /// 拡張行列を作成
-    fn create_augmented_matrix(&self, matrix: &[Vec<T>], rhs: &[T]) -> Vec<Vec<T>> {
-        let n = matrix.len();
+    fn create_augmented_matrix(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Vec<Vec<T>> {
+        let n = matrix.rows();
         let mut aug_matrix = Vec::with_capacity(n);
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
-            let mut row = matrix[i].clone();
+            let mut row: Vec<T> = (0..n).map(|j| matrix.get(i, j)).collect();
             row.push(rhs[i]);
             aug_matrix.push(row);
         }
@@ -117,15 +119,15 @@ impl<T: Scalar> GaussianSolver<T> {
     }
 
     /// 残差を計算
-    fn calculate_residual(&self, matrix: &[Vec<T>], rhs: &[T], solution: &[T]) -> T {
-        let n = matrix.len();
+    fn calculate_residual(&self, matrix: &DynamicMatrix<T>, rhs: &[T], solution: &[T]) -> T {
+        let n = matrix.rows();
         let mut residual = T::ZERO;
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             let mut sum = T::ZERO;
-            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum += matrix[i][j] * solution[j];
+                sum += matrix.get(i, j) * solution[j];
             }
             let diff = sum - rhs[i];
             residual += diff * diff;
@@ -136,18 +138,12 @@ impl<T: Scalar> GaussianSolver<T> {
 }
 
 impl<T: Scalar> LinearSolver<T> for GaussianSolver<T> {
-    fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
-        let n = matrix.len();
+    fn solve(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Result<SolutionInfo<T>, String> {
+        let n = matrix.rows();
 
         // 入力検証
-        if n == 0 || matrix[0].len() != n || rhs.len() != n {
+        if n == 0 || matrix.cols() != n || rhs.len() != n {
             return Err("Invalid matrix dimensions".to_string());
-        }
-
-        for row in matrix {
-            if row.len() != n {
-                return Err("Matrix must be square".to_string());
-            }
         }
 
         // 拡張行列を作成
@@ -163,5 +159,81 @@ impl<T: Scalar> LinearSolver<T> for GaussianSolver<T> {
         let residual = self.calculate_residual(matrix, rhs, &solution);
 
         Ok(SolutionInfo::direct(solution, residual))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GaussianSolver, LinearSolver};
+    use crate::consts::test_constants::{
+        SOLVER_TOLERANCE_F32, SOLVER_TOLERANCE_F64, TOLERANCE_F64,
+    };
+    use crate::linalg::DynamicMatrix;
+
+    #[test]
+    fn test_gaussian_2x2() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
+        let rhs = vec![5.0, 6.0];
+
+        let solver = GaussianSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+        let result = solver.solve(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 1.8).abs() < TOLERANCE_F64);
+        assert!((result.solution[1] - 1.4).abs() < TOLERANCE_F64);
+        assert!(result.converged);
+    }
+
+    #[test]
+    fn test_gaussian_3x3() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![
+            vec![2.0, 1.0, -1.0],
+            vec![-3.0, -1.0, 2.0],
+            vec![-2.0, 1.0, 2.0],
+        ])
+        .unwrap();
+        let rhs = vec![8.0, -11.0, -3.0];
+
+        let solver = GaussianSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+        let result = solver.solve(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 2.0).abs() < TOLERANCE_F64);
+        assert!((result.solution[1] - 3.0).abs() < TOLERANCE_F64);
+        assert!((result.solution[2] - (-1.0)).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_gaussian_singular_matrix() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![1.0, 2.0], vec![2.0, 4.0]]).unwrap();
+        let rhs = vec![3.0, 6.0];
+
+        let solver = GaussianSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+        assert!(solver.solve(&matrix, &rhs).is_err());
+    }
+
+    #[test]
+    fn test_gaussian_without_pivoting() {
+        let matrix =
+            DynamicMatrix::<f64>::from_rows(vec![vec![0.001, 1.0], vec![2.0, 1.0]]).unwrap();
+        let rhs = vec![1.0, 3.0];
+
+        let solver = GaussianSolver::<f64>::new(SOLVER_TOLERANCE_F64).with_pivoting(false);
+        let result = solver.solve(&matrix, &rhs);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_gaussian_2x2_f32() {
+        let matrix =
+            DynamicMatrix::<f32>::from_rows(vec![vec![2.0_f32, 1.0_f32], vec![1.0_f32, 3.0_f32]])
+                .unwrap();
+        let rhs = vec![5.0_f32, 6.0_f32];
+
+        let solver = GaussianSolver::<f32>::new(SOLVER_TOLERANCE_F32);
+        let result = solver.solve(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 1.8_f32).abs() < 1e-4_f32);
+        assert!((result.solution[1] - 1.4_f32).abs() < 1e-4_f32);
+        assert!(result.converged);
     }
 }

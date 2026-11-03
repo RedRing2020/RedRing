@@ -1,0 +1,29 @@
+//! 数値計算基盤モジュール
+//!
+//! ベクトル・距離計算、数値積分、多項式の実根、1 変数の関数の最小化を提供します。
+//! ソルバー機能は `crate::linalg::solver` モジュールに移動しました。
+//! 特殊数学定数は `crate::consts::special` モジュールを使用してください。
+
+pub mod integration;
+pub mod minimization;
+pub mod partition;
+pub mod polynomial;
+pub mod range;
+pub mod vector_distance;
+
+// 数値積分の再エクスポート
+pub use integration::{adaptive_gauss_legendre, newton_arc_length, trapezoidal_rule, NormedVector};
+pub use minimization::minimize_unimodal;
+pub use partition::find_span_in_non_decreasing_sequence;
+pub use polynomial::polynomial_real_roots_in_interval;
+pub use range::is_within_closed_range;
+
+// 非線形方程式ソルバーは linalg::solver::newton を使用してください
+// pub use crate::linalg::solver::newton::{newton_solve, newton_inverse};
+
+// ベクトル・距離計算の再エクスポート
+pub use vector_distance::{
+    chebyshev_distance, manhattan_distance, minkowski_distance, point_distance, point_distance_2d,
+    point_distance_3d, point_distance_squared, polyline_length, polyline_length_3d, vector_length,
+    vector_length_2d, vector_length_3d, vector_length_squared,
+};

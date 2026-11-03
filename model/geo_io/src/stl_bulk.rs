@@ -6,7 +6,7 @@
 //! - ASCII STLは事前容量確保で再アロケーション回避
 
 use crate::error::StlError;
-use geo_foundation::Scalar;
+use geo_contracts::{Scalar, TriangleMesh3DConstructor};
 use geo_primitives::{Point3D, TriangleMesh3D};
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use std::collections::HashMap;
@@ -124,7 +124,7 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
 
     /// ASCII STLファイルから読み込み（可変精度対応）
     pub fn from_ascii_stl(path: &Path) -> Result<Self, StlError> {
-        tracing::debug!("ASCII STL読み込み開始: {:?}", path);
+        tracing::debug!("Started reading ASCII STL: {:?}", path);
 
         let file = File::open(path)?;
         let reader = BufReader::new(file);
@@ -178,7 +178,7 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
                     let parsed_triangles = bulk.vertices.len() / 9;
                     if should_log_every_n_frames(parsed_triangles as u64, io_log_interval()) {
                         tracing::trace!(
-                            "ASCII STL読み込み進捗: {}/{} triangles",
+                            "ASCII STL read progress: {}/{} triangles",
                             parsed_triangles,
                             triangle_count
                         );
@@ -188,7 +188,7 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
         }
 
         tracing::debug!(
-            "ASCII STL読み込み完了: {:?}, triangles={}",
+            "Finished reading ASCII STL: {:?}, triangles={}",
             path,
             bulk.triangle_count()
         );
@@ -198,7 +198,7 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
 
     /// Binary STLファイルから読み込み（汎用版、型変換あり）
     pub fn from_binary_stl(path: &Path) -> Result<Self, StlError> {
-        tracing::debug!("Binary STL読み込み開始: {:?}", path);
+        tracing::debug!("Started reading Binary STL: {:?}", path);
 
         let mut file = File::open(path)?;
 
@@ -249,7 +249,7 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
             let parsed_triangles = tri_idx + 1;
             if should_log_every_n_frames(parsed_triangles as u64, io_log_interval()) {
                 tracing::trace!(
-                    "Binary STL読み込み進捗: {}/{} triangles",
+                    "Binary STL read progress: {}/{} triangles",
                     parsed_triangles,
                     triangle_count
                 );
@@ -257,7 +257,7 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
         }
 
         tracing::debug!(
-            "Binary STL読み込み完了: {:?}, triangles={}",
+            "Finished reading Binary STL: {:?}, triangles={}",
             path,
             bulk.triangle_count()
         );
@@ -297,7 +297,8 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
             indices.push(triangle_indices);
         }
 
-        TriangleMesh3D::new(unique_vertices, indices).map_err(StlError::InvalidTriangle)
+        TriangleMesh3D::new(unique_vertices, indices)
+            .map_err(|e| StlError::InvalidTriangle(e.to_string()))
     }
 }
 
@@ -307,7 +308,7 @@ impl StlTriangleBulk<f32> {
     ///
     /// Binary STLはf32固定仕様のため、直接メモリコピーで高速化
     pub fn from_binary_stl_fast(path: &Path) -> Result<Self, StlError> {
-        tracing::debug!("Binary STL高速読み込み開始: {:?}", path);
+        tracing::debug!("Started fast Binary STL read: {:?}", path);
 
         let mut file = File::open(path)?;
 
@@ -353,7 +354,7 @@ impl StlTriangleBulk<f32> {
             let parsed_triangles = tri_idx + 1;
             if should_log_every_n_frames(parsed_triangles as u64, io_log_interval()) {
                 tracing::trace!(
-                    "Binary STL高速読み込み進捗: {}/{} triangles",
+                    "Fast Binary STL read progress: {}/{} triangles",
                     parsed_triangles,
                     triangle_count
                 );
@@ -361,7 +362,7 @@ impl StlTriangleBulk<f32> {
         }
 
         tracing::debug!(
-            "Binary STL高速読み込み完了: {:?}, triangles={}",
+            "Finished fast Binary STL read: {:?}, triangles={}",
             path,
             bulk.triangle_count()
         );
@@ -385,10 +386,6 @@ fn count_ascii_triangles(path: &Path) -> Result<usize, StlError> {
 
     Ok(count)
 }
-
-// ============================================================================
-// StlIndexedBulk 実装（頂点重複削減版）
-// ============================================================================
 
 impl<T: Scalar + FromStr> StlIndexedBulk<T> {
     /// ASCII STLから読み込み（重複削減）
@@ -607,7 +604,8 @@ impl<T: Scalar + FromStr> StlIndexedBulk<T> {
             ]);
         }
 
-        TriangleMesh3D::new(point_vertices, triangle_indices).map_err(StlError::InvalidTriangle)
+        TriangleMesh3D::new(point_vertices, triangle_indices)
+            .map_err(|e| StlError::InvalidTriangle(e.to_string()))
     }
 
     /// メモリ削減率を計算（%）
@@ -694,6 +692,7 @@ impl StlIndexedBulk<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use geo_contracts::TriangleMesh3DProperties;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -752,10 +751,6 @@ endsolid test"
         assert_eq!(mesh.vertex_count(), 3);
         assert_eq!(mesh.triangle_count(), 1);
     }
-
-    // ========================================================================
-    // StlIndexedBulk テスト
-    // ========================================================================
 
     #[test]
     fn test_indexed_bulk_structure() {

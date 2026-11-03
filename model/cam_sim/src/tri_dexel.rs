@@ -1,0 +1,780 @@
+//! 素材の派生表現のトリデクセル（設計: CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md §4・§5）
+//!
+//! X・Y・Z の 3 方向の格子の各線（デクセル）上の、材料のある区間の列と、区間の端の材料の外向きの法線。
+//! 正本（`StockModel`）の掃引体を時系列の順に差し引き、今の区間だけを持つ。削った端の法線は、端を決めた
+//! 掃引体の面の法線の逆向き（工具の外向きの逆が材料の外向き）とする。キーフレームの時点の境で、前のキーフレームから
+//! 変化したデクセルの区間を記録する（掃引体ごと・時点ごとの変化の履歴は持たない）。
+
+mod ray_interval;
+#[cfg(test)]
+mod tests;
+
+use geo_algorithms::{Aabb3D, Point3D};
+
+use crate::dexel_normal::DexelNormal;
+use crate::simulation_artifact::{DexelChanges, DexelGridLayout};
+use crate::stock_model::{StockModel, SweptToolPrimitive};
+use ray_interval::{AxisLine, ToolInterval, swept_primitive_intervals};
+
+/// 精度 `precision` の素材を、半径 `tool_radius` の工具で削るときの格子の間隔
+///
+/// 線の間の面のずれはおよそ「間隔² ÷ (8 × 面の曲率半径)」で、曲率半径を工具の半径として、ずれが精度以下になる
+/// 間隔 √(8 × 工具の半径 × 精度) とする。
+pub(crate) fn dexel_spacing(tool_radius: f64, precision: f64) -> f64 {
+    (8.0 * tool_radius * precision).sqrt()
+}
+
+/// 素材 `stock` を間隔 `spacing` 以下にする、3 方向の格子の線の本数の合計
+pub(crate) fn dexel_line_count(stock: &Aabb3D<f64>, spacing: f64) -> usize {
+    let extents = [stock.width(), stock.height(), stock.depth()];
+    let [x, y, z] = extents.map(|extent| lines_along(extent, spacing));
+    y.saturating_mul(z)
+        .saturating_add(x.saturating_mul(z))
+        .saturating_add(x.saturating_mul(y))
+}
+
+/// 長さ `extent` を間隔 `spacing` 以下に分ける最小の線の本数
+fn lines_along(extent: f64, spacing: f64) -> usize {
+    ((extent / spacing).ceil() as usize).max(1)
+}
+
+/// 掃引体の外接する箱に入る、格子の 2 方向の線の番号の範囲と、デクセルの向きの座標の範囲
+struct PrimitiveRanges {
+    rows: std::ops::Range<usize>,
+    columns: std::ops::Range<usize>,
+    along: (f64, f64),
+}
+
+/// 差し引きを帯に分けるときの、1 本の帯の線の数の下限
+const MIN_BAND_LINES: usize = 16;
+
+/// 帯の差し引きで変わったデクセルの、番号と今の区間と法線と、最後に変わった時点
+#[derive(Debug, Default)]
+struct BandDexel {
+    index: usize,
+    intervals: Vec<(f64, f64)>,
+    normals: Vec<[DexelNormal; 2]>,
+    changed_frame: Option<usize>,
+}
+
+/// 帯の差し引きの 1 つの時点で変わったデクセルの、時点の終わりの区間と法線
+#[derive(Debug, Default)]
+struct BandFrame {
+    /// デクセルの番号と、`intervals` の中の区間の範囲（始まりと終わり）
+    dexels: Vec<(usize, [usize; 2])>,
+    intervals: Vec<(f64, f64)>,
+    normals: Vec<[DexelNormal; 2]>,
+}
+
+/// 1 本のデクセルの区間の、格子の区間の配列の中の位置
+#[derive(Debug, Clone, Copy)]
+struct Slot {
+    /// 最初の区間の位置
+    start: u32,
+    /// 区間の数
+    len: u32,
+    /// 区間を書ける数（これを超えたら配列の末尾に置き直す）
+    capacity: u32,
+}
+
+/// 変わる前の区間の記録（前に変化を取り出した後に初めて変わったデクセルごとの、変わる前の区間と法線）
+#[derive(Debug, Clone, Default)]
+pub(crate) struct PreviousIntervals {
+    /// デクセルの番号と、`intervals` の中の変わる前の区間の範囲（始まりと終わり）
+    pub(crate) dexels: Vec<(usize, [usize; 2])>,
+    pub(crate) intervals: Vec<(f64, f64)>,
+    pub(crate) normals: Vec<[DexelNormal; 2]>,
+}
+
+/// 1 方向のデクセルの格子
+#[derive(Debug, Clone)]
+pub(crate) struct DexelGrid {
+    /// デクセルの向き（0: X、1: Y、2: Z）
+    axis: usize,
+    /// 格子の 2 方向（`axis` 以外の座標軸。昇順）
+    plane_axes: [usize; 2],
+    /// 格子の各方向の、最初の線の座標・間隔・本数
+    origin: [f64; 2],
+    pitch: [f64; 2],
+    count: [usize; 2],
+    /// 初期の区間（素材の範囲）
+    initial: (f64, f64),
+    /// デクセルごとの、`intervals` の中の今の区間の位置
+    slots: Vec<Slot>,
+    /// すべてのデクセルの今の区間（デクセルごとに連続して並ぶ。置き直した後の古い位置は使わない）
+    intervals: Vec<(f64, f64)>,
+    /// `intervals` と同じ位置の、区間の始まり・終わりの法線
+    normals: Vec<[DexelNormal; 2]>,
+    /// 前に変化を取り出した後に変化したか（デクセルごと）
+    changed: Vec<bool>,
+    /// 前に変化を取り出した後に変化したデクセルの番号
+    changed_indices: Vec<usize>,
+    /// 変わる前の区間を記録する場合の記録（記録しない場合は `None`）
+    previous: Option<PreviousIntervals>,
+}
+
+impl DexelGrid {
+    fn new(stock: &Aabb3D<f64>, axis: usize, spacing: f64) -> Self {
+        let min = coordinates(stock.min());
+        let max = coordinates(stock.max());
+        let plane_axes = plane_axes(axis);
+        let mut origin = [0.0; 2];
+        let mut pitch = [0.0; 2];
+        let mut count = [0; 2];
+        for (index, &plane_axis) in plane_axes.iter().enumerate() {
+            let extent = max[plane_axis] - min[plane_axis];
+            // 間隔が `spacing` 以下になる最小の本数で、各セルの中心に線を置く
+            let lines = lines_along(extent, spacing);
+            pitch[index] = extent / lines as f64;
+            origin[index] = min[plane_axis] + 0.5 * pitch[index];
+            count[index] = lines;
+        }
+        Self::with_layout(axis, origin, pitch, count, (min[axis], max[axis]))
+    }
+
+    /// 成果物の格子の配置 `layout` の、初期の状態の格子
+    pub(crate) fn from_layout(layout: &DexelGridLayout) -> Self {
+        Self::with_layout(
+            usize::from(layout.axis),
+            layout.origin,
+            layout.pitch,
+            layout.count.map(|count| count as usize),
+            layout.initial,
+        )
+    }
+
+    fn with_layout(
+        axis: usize,
+        origin: [f64; 2],
+        pitch: [f64; 2],
+        count: [usize; 2],
+        initial: (f64, f64),
+    ) -> Self {
+        let dexel_count = count[0] * count[1];
+        let plane_axes = plane_axes(axis);
+        Self {
+            axis,
+            plane_axes,
+            origin,
+            pitch,
+            count,
+            initial,
+            slots: (0..dexel_count)
+                .map(|index| Slot {
+                    start: slot_position(index),
+                    len: 1,
+                    capacity: 1,
+                })
+                .collect(),
+            intervals: vec![initial; dexel_count],
+            normals: vec![initial_normals(axis); dexel_count],
+            changed: vec![false; dexel_count],
+            changed_indices: Vec::new(),
+            previous: None,
+        }
+    }
+
+    /// 格子の位置 `(i, j)` の線
+    fn line(&self, i: usize, j: usize) -> AxisLine {
+        let mut point = [0.0; 3];
+        point[self.plane_axes[0]] = self.origin[0] + i as f64 * self.pitch[0];
+        point[self.plane_axes[1]] = self.origin[1] + j as f64 * self.pitch[1];
+        AxisLine {
+            axis: self.axis,
+            point: Point3D::new(point[0], point[1], point[2]),
+        }
+    }
+
+    /// デクセル `index` の今の区間
+    pub(crate) fn current(&self, index: usize) -> &[(f64, f64)] {
+        let Slot { start, len, .. } = self.slots[index];
+        &self.intervals[start as usize..(start + len) as usize]
+    }
+
+    /// デクセル `index` の今の区間の、始まり・終わりの法線
+    pub(crate) fn current_normals(&self, index: usize) -> &[[DexelNormal; 2]] {
+        let Slot { start, len, .. } = self.slots[index];
+        &self.normals[start as usize..(start + len) as usize]
+    }
+
+    /// デクセル `index` の今の区間と法線を `intervals`・`normals` にする（書ける数を超える場合は配列の末尾に置き直す）
+    pub(crate) fn set(
+        &mut self,
+        index: usize,
+        intervals: &[(f64, f64)],
+        normals: &[[DexelNormal; 2]],
+    ) {
+        if !self.changed[index]
+            && let Some(previous) = &mut self.previous
+        {
+            let Slot { start, len, .. } = self.slots[index];
+            let (start, end) = (start as usize, (start + len) as usize);
+            let first = previous.intervals.len();
+            previous
+                .intervals
+                .extend_from_slice(&self.intervals[start..end]);
+            previous
+                .normals
+                .extend_from_slice(&self.normals[start..end]);
+            previous
+                .dexels
+                .push((index, [first, previous.intervals.len()]));
+        }
+        let len = u32::try_from(intervals.len()).expect("dexel interval count fits in u32");
+        let slot = &mut self.slots[index];
+        if len > slot.capacity {
+            // 置き直すたびに書ける数を倍にするため、使わない古い位置の合計は今の書ける数の合計を超えない
+            slot.start = slot_position(self.intervals.len());
+            slot.capacity = len.max(2 * slot.capacity);
+            self.intervals
+                .resize(self.intervals.len() + slot.capacity as usize, (0.0, 0.0));
+            self.normals
+                .resize(self.intervals.len(), [DexelNormal([0, 0]); 2]);
+        }
+        slot.len = len;
+        let start = slot.start as usize;
+        self.intervals[start..start + intervals.len()].copy_from_slice(intervals);
+        self.normals[start..start + normals.len()].copy_from_slice(normals);
+        if !self.changed[index] {
+            self.changed[index] = true;
+            self.changed_indices.push(index);
+        }
+    }
+
+    /// 座標の範囲 `[low, high]` に入る線の番号の範囲（格子の方向 `index`）
+    fn index_range(&self, index: usize, low: f64, high: f64) -> std::ops::Range<usize> {
+        let first = ((low - self.origin[index]) / self.pitch[index])
+            .ceil()
+            .max(0.0) as usize;
+        let last = ((high - self.origin[index]) / self.pitch[index]).floor();
+        if last < 0.0 {
+            return 0..0;
+        }
+        first..(last as usize + 1).min(self.count[index])
+    }
+
+    /// 掃引体を差し引き、除去した区間の長さの和を返す
+    ///
+    /// `scratch` は区間の計算に使う作業用の列（呼び出しの間で使い回し、確保を減らす）。
+    pub(crate) fn subtract(
+        &mut self,
+        primitive: &SweptToolPrimitive,
+        scratch: &mut Scratch,
+    ) -> f64 {
+        let PrimitiveRanges {
+            rows,
+            columns,
+            along,
+        } = self.primitive_ranges(primitive);
+        let mut removed_length = 0.0;
+        for i in rows {
+            for j in columns.clone() {
+                let index = i * self.count[1] + j;
+                let current = self.current(index);
+                if self.subtract_line(
+                    primitive,
+                    (i, j),
+                    along,
+                    current,
+                    self.current_normals(index),
+                    scratch,
+                ) {
+                    let [next, _] = &scratch.intervals;
+                    let [next_normals, _] = &scratch.normals;
+                    removed_length += total_length(current) - total_length(next);
+                    self.set(index, next, next_normals);
+                }
+            }
+        }
+        removed_length
+    }
+
+    /// 掃引体の列を時点ごとに差し引き、時点ごとの変わる前の区間と変わったデクセル（昇順）を返す
+    ///
+    /// `frames` は時点ごとの掃引体の列。差し引く範囲の線が多いほうの格子の方向を `bands` 本の帯に分け、帯ごとに別の
+    /// スレッドですべての時点を差し引く。区間は格子の 1 つの配列に持つため、帯のスレッドは変わったデクセルの区間を
+    /// 手元に持って差し引きを続け、時点の終わりの区間を格子に当てる。1 本のデクセルに当てる掃引体の順は `subtract` と
+    /// 同じため、同じ状態になる。
+    pub(crate) fn subtract_frames(
+        &mut self,
+        frames: &[&[SweptToolPrimitive]],
+        bands: usize,
+    ) -> Vec<(PreviousIntervals, Vec<usize>)> {
+        // 差し引く範囲の、格子の 2 方向の線の番号
+        let mut covered = [(usize::MAX, 0); 2];
+        for primitive in frames.iter().flat_map(|frame| frame.iter()) {
+            let PrimitiveRanges { rows, columns, .. } = self.primitive_ranges(primitive);
+            for ((first, last), range) in covered.iter_mut().zip([rows, columns]) {
+                if !range.is_empty() {
+                    *first = (*first).min(range.start);
+                    *last = (*last).max(range.end);
+                }
+            }
+        }
+        let lengths = covered.map(|(first, last)| last.saturating_sub(first));
+        let split = usize::from(lengths[1] > lengths[0]);
+        let (first, last) = covered[split];
+        let lines = first.min(last)..last;
+        // 線の少ない帯は、スレッドを作る手間が差し引きの時間を上回るため、帯の線の数に下限を置く
+        let band_lines = lines.len().div_ceil(bands.max(1)).max(MIN_BAND_LINES);
+        let grid = &*self;
+        let changes: Vec<Vec<BandFrame>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = lines
+                .clone()
+                .step_by(band_lines)
+                .map(|start| {
+                    let band = start..(start + band_lines).min(lines.end);
+                    scope.spawn(move || grid.subtract_band(frames, split, band))
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().expect("subtracting a band does not panic"))
+                .collect()
+        });
+        (0..frames.len())
+            .map(|frame| {
+                self.record_previous(true);
+                for band in &changes {
+                    let band = &band[frame];
+                    for &(index, [start, end]) in &band.dexels {
+                        self.set(
+                            index,
+                            &band.intervals[start..end],
+                            &band.normals[start..end],
+                        );
+                    }
+                }
+                let previous = self.take_previous();
+                self.record_previous(false);
+                (previous, self.take_changed())
+            })
+            .collect()
+    }
+
+    /// 格子の方向 `split` の線の番号が `band` の範囲のデクセルから、掃引体の列を時点ごとに差し引き、時点ごとに
+    /// 変わったデクセルの時点の終わりの区間を返す（格子は書き換えない）
+    fn subtract_band(
+        &self,
+        frames: &[&[SweptToolPrimitive]],
+        split: usize,
+        band: std::ops::Range<usize>,
+    ) -> Vec<BandFrame> {
+        // 帯の中の位置ごとの、変わったデクセルの `dexels` の中の番号
+        let other = self.count[1 - split];
+        let mut positions = vec![u32::MAX; band.len() * other];
+        let mut dexels: Vec<BandDexel> = Vec::new();
+        let mut scratch = Scratch::default();
+        frames
+            .iter()
+            .enumerate()
+            .map(|(frame, primitives)| {
+                let mut changed = Vec::new();
+                for primitive in *primitives {
+                    let PrimitiveRanges {
+                        mut rows,
+                        mut columns,
+                        along,
+                    } = self.primitive_ranges(primitive);
+                    let clipped = if split == 0 { &mut rows } else { &mut columns };
+                    *clipped = clipped.start.max(band.start)..clipped.end.min(band.end);
+                    for i in rows {
+                        for j in columns.clone() {
+                            let index = i * self.count[1] + j;
+                            let (inside, across) = if split == 0 { (i, j) } else { (j, i) };
+                            let position = (inside - band.start) * other + across;
+                            let local = positions[position];
+                            let (current, current_normals) = match dexels.get(local as usize) {
+                                Some(dexel) => {
+                                    (dexel.intervals.as_slice(), dexel.normals.as_slice())
+                                }
+                                None => (self.current(index), self.current_normals(index)),
+                            };
+                            if !self.subtract_line(
+                                primitive,
+                                (i, j),
+                                along,
+                                current,
+                                current_normals,
+                                &mut scratch,
+                            ) {
+                                continue;
+                            }
+                            if local == u32::MAX {
+                                positions[position] = u32::try_from(dexels.len())
+                                    .expect("dexel count is bounded by the line limit");
+                                dexels.push(BandDexel {
+                                    index,
+                                    ..BandDexel::default()
+                                });
+                            }
+                            let local = positions[position] as usize;
+                            let dexel = &mut dexels[local];
+                            dexel.intervals.clear();
+                            dexel.intervals.extend_from_slice(&scratch.intervals[0]);
+                            dexel.normals.clear();
+                            dexel.normals.extend_from_slice(&scratch.normals[0]);
+                            if dexel.changed_frame != Some(frame) {
+                                dexel.changed_frame = Some(frame);
+                                changed.push(local);
+                            }
+                        }
+                    }
+                }
+                let mut result = BandFrame::default();
+                for local in changed {
+                    let dexel = &dexels[local];
+                    let start = result.intervals.len();
+                    result.intervals.extend_from_slice(&dexel.intervals);
+                    result.normals.extend_from_slice(&dexel.normals);
+                    result
+                        .dexels
+                        .push((dexel.index, [start, result.intervals.len()]));
+                }
+                result
+            })
+            .collect()
+    }
+
+    /// 掃引体の外接する箱に入る、格子の 2 方向の線の番号の範囲と、デクセルの向きの座標の範囲
+    fn primitive_ranges(&self, primitive: &SweptToolPrimitive) -> PrimitiveRanges {
+        let bounds = primitive.bounds();
+        let (low, high) = (coordinates(bounds.min()), coordinates(bounds.max()));
+        let [u, v] = self.plane_axes;
+        PrimitiveRanges {
+            rows: self.index_range(0, low[u], high[u]),
+            columns: self.index_range(1, low[v], high[v]),
+            along: (low[self.axis], high[self.axis]),
+        }
+    }
+
+    /// 格子の位置 `(i, j)` のデクセル（今の区間 `current`・法線 `current_normals`）から掃引体を差し引いた区間と法線を
+    /// `scratch` の 1 組目に作り、区間が変わるかを返す（変わらない場合、`scratch` の中身は使わない）
+    ///
+    /// `along` は、掃引体の外接する箱のデクセルの向きの座標の範囲。
+    fn subtract_line(
+        &self,
+        primitive: &SweptToolPrimitive,
+        (i, j): (usize, usize),
+        (along_low, along_high): (f64, f64),
+        current: &[(f64, f64)],
+        current_normals: &[[DexelNormal; 2]],
+        scratch: &mut Scratch,
+    ) -> bool {
+        // 除去する区間は掃引体の外接する箱の中にあるため、箱の中に材料がない線は変わらない
+        if !current
+            .iter()
+            .any(|&(low, high)| along_low < high && low < along_high)
+        {
+            return false;
+        }
+        let line = self.line(i, j);
+        let removed = swept_primitive_intervals(primitive, line);
+        // 除去する区間が材料の区間と重ならない線は変わらない
+        let overlaps = removed.iter().flatten().any(|removed| {
+            let (start, end) = removed.range;
+            current.iter().any(|&(low, high)| start < high && low < end)
+        });
+        if !overlaps {
+            return false;
+        }
+        let Scratch {
+            intervals: [next, other],
+            normals: [next_normals, other_normals],
+        } = scratch;
+        next.clear();
+        next.extend_from_slice(current);
+        next_normals.clear();
+        next_normals.extend_from_slice(current_normals);
+        for removed in removed.iter().flatten() {
+            subtract_interval(next, next_normals, removed, line, other, other_normals);
+            std::mem::swap(next, other);
+            std::mem::swap(next_normals, other_normals);
+        }
+        next.as_slice() != current
+    }
+
+    /// 変わる前の区間を記録するか（`record`）を決める。記録をやめると、それまでの記録は捨てる
+    pub(crate) fn record_previous(&mut self, record: bool) {
+        self.previous = record.then(PreviousIntervals::default);
+    }
+
+    /// 変わる前の区間の記録を取り出し、記録を空にする（記録しない場合は空の記録）
+    pub(crate) fn take_previous(&mut self) -> PreviousIntervals {
+        self.previous
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default()
+    }
+
+    /// 前に変化を取り出した後に変化したデクセルの番号（昇順）を返し、変化の記録を空にする
+    pub(crate) fn take_changed(&mut self) -> Vec<usize> {
+        let mut indices = std::mem::take(&mut self.changed_indices);
+        indices.sort_unstable();
+        for &index in &indices {
+            self.changed[index] = false;
+        }
+        indices
+    }
+
+    /// 前に変化を取り出した後に変化したデクセルの今の区間（番号の昇順）を `changes` に加え、変化の記録を空にする
+    fn take_changes(&mut self, grid: u8, changes: &mut DexelChanges) {
+        for index in self.take_changed() {
+            changes.push(
+                grid,
+                u32::try_from(index).expect("dexel count is bounded by the line limit"),
+                self.current(index),
+                self.current_normals(index),
+            );
+        }
+    }
+
+    /// 今の区間の端点（デクセルの番号の順・区間の順・始まりと終わりの順）ごとの `value` の値。素材の範囲の端にある、
+    /// 削っていない端点は NaN とする（複数のコアで並べて求める）
+    fn endpoint_values(&self, value: &(impl Fn(Point3D<f64>) -> f32 + Sync)) -> Vec<f32> {
+        let dexels = self.slots.len();
+        let threads = std::thread::available_parallelism()
+            .map_or(1, std::num::NonZeroUsize::get)
+            .min(dexels)
+            .max(1);
+        let chunk = dexels.div_ceil(threads);
+        let parts: Vec<Vec<f32>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..dexels)
+                .step_by(chunk.max(1))
+                .map(|first| {
+                    scope.spawn(move || {
+                        let mut values = Vec::new();
+                        for index in first..(first + chunk).min(dexels) {
+                            let line = self.line(index / self.count[1], index % self.count[1]);
+                            for &(low, high) in self.current(index) {
+                                for end in [low, high] {
+                                    values.push(
+                                        if end == self.initial.0 || end == self.initial.1 {
+                                            f32::NAN
+                                        } else {
+                                            let [x, y, z] = line.point_at(end);
+                                            value(Point3D::new(x, y, z))
+                                        },
+                                    );
+                                }
+                            }
+                        }
+                        values
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().expect("evaluating endpoints does not panic"))
+                .collect()
+        });
+        parts.concat()
+    }
+
+    /// 素材の範囲の、材料の区間の長さの和
+    fn initial_length(&self) -> f64 {
+        let (low, high) = self.initial;
+        (high - low) * self.slots.len() as f64
+    }
+}
+
+/// トリデクセル
+#[derive(Debug, Clone)]
+pub struct TriDexelModel {
+    /// X・Y・Z の向きの格子
+    grids: [DexelGrid; 3],
+    /// `remaining_volumes[applied]` は、`applied` 個の掃引体を差し引いた時点の残りの体積（Z の向きのデクセルから）
+    remaining_volumes: Vec<f64>,
+    /// キーフレーム `k` の変化は、キーフレーム `k - 1`（`k = 0` では初期の状態）からキーフレーム `k` への変化
+    keyframe_changes: DexelChanges,
+}
+
+impl TriDexelModel {
+    /// 正本の素材から、格子の間隔が `spacing` 以下のトリデクセルを作り、掃引体を時系列の順に差し引く
+    ///
+    /// `keyframe_applied`（昇順）は、各キーフレームの時点までに差し引く掃引体の数。キーフレームの時点の境ごとに、
+    /// 前のキーフレームから変化したデクセルの区間を記録する。最後のキーフレームより後の変化は記録しない。
+    ///
+    /// # Panics
+    ///
+    /// `spacing` が正の有限値でない場合。`keyframe_applied` が昇順でないか、掃引体の数を超える場合。
+    pub fn from_stock_model(model: &StockModel, spacing: f64, keyframe_applied: &[usize]) -> Self {
+        assert!(
+            spacing.is_finite() && spacing > 0.0,
+            "dexel spacing must be finite and positive"
+        );
+        let primitives = model.primitives();
+        assert!(
+            keyframe_applied.is_sorted() && keyframe_applied.last() <= Some(&primitives.len()),
+            "keyframe times must be sorted and within the primitives"
+        );
+        let stock = model.stock();
+        let mut grids = [0, 1, 2].map(|axis| DexelGrid::new(&stock, axis, spacing));
+        // 残りの体積は、Z の向きのデクセルの区間の長さの和 × 格子のセルの面積。除去した長さを時系列に足し込む
+        let cell_area = grids[2].pitch[0] * grids[2].pitch[1];
+        let mut length = grids[2].initial_length();
+        let mut remaining_volumes = Vec::with_capacity(primitives.len() + 1);
+        remaining_volumes.push(length * cell_area);
+        let mut keyframe_changes = DexelChanges::default();
+        let mut scratch = Scratch::default();
+        record_keyframe_changes(&mut grids, keyframe_applied, 0, &mut keyframe_changes);
+        for (index, primitive) in primitives.iter().enumerate() {
+            if keyframe_changes.keyframe_count() == keyframe_applied.len() {
+                break;
+            }
+            let [x_grid, y_grid, z_grid] = &mut grids;
+            x_grid.subtract(primitive, &mut scratch);
+            y_grid.subtract(primitive, &mut scratch);
+            length -= z_grid.subtract(primitive, &mut scratch);
+            remaining_volumes.push(length * cell_area);
+            record_keyframe_changes(
+                &mut grids,
+                keyframe_applied,
+                index + 1,
+                &mut keyframe_changes,
+            );
+        }
+        Self {
+            grids,
+            remaining_volumes,
+            keyframe_changes,
+        }
+    }
+
+    /// `applied` 個の掃引体を差し引いた時点の残りの体積（Z の向きのデクセルの区間から求める）
+    ///
+    /// # Panics
+    ///
+    /// `applied` が、最後のキーフレームの時点までに差し引いた掃引体の数より大きい場合。
+    pub fn remaining_volume_at(&self, applied: usize) -> f64 {
+        self.remaining_volumes[applied]
+    }
+
+    /// 格子 `grid` のデクセル `index` の、最後のキーフレームの時点の区間
+    #[cfg(test)]
+    pub(crate) fn current_intervals(&self, grid: usize, index: usize) -> &[(f64, f64)] {
+        self.grids[grid].current(index)
+    }
+
+    /// 格子 `grid` のデクセル `index` の、最後のキーフレームの時点の区間の始まり・終わりの法線
+    #[cfg(test)]
+    pub(crate) fn current_normals(&self, grid: usize, index: usize) -> &[[DexelNormal; 2]] {
+        self.grids[grid].current_normals(index)
+    }
+
+    /// 最後のキーフレームの時点の、格子（X・Y・Z の順）ごとの区間の端点（デクセルの番号の順・区間の順・始まりと終わりの
+    /// 順）の `value` の値。素材の範囲の端にある、削っていない端点は NaN とする
+    pub(crate) fn endpoint_values(
+        &self,
+        value: impl Fn(Point3D<f64>) -> f32 + Sync,
+    ) -> [Vec<f32>; 3] {
+        self.grids
+            .each_ref()
+            .map(|grid| grid.endpoint_values(&value))
+    }
+
+    /// 格子の配置（X・Y・Z の順）
+    pub(crate) fn layouts(&self) -> [DexelGridLayout; 3] {
+        self.grids.each_ref().map(|grid| DexelGridLayout {
+            axis: grid.axis as u8,
+            origin: grid.origin,
+            pitch: grid.pitch,
+            count: grid.count.map(|count| {
+                u32::try_from(count).expect("dexel line count is bounded by the line limit")
+            }),
+            initial: grid.initial,
+        })
+    }
+
+    /// キーフレームごとの、前のキーフレームからのデクセルの変化（`keyframe_applied` と同じ並び）
+    pub(crate) fn keyframe_changes(&self) -> &DexelChanges {
+        &self.keyframe_changes
+    }
+}
+
+/// `applied` 個の掃引体を差し引いた時点にあるキーフレームに、前のキーフレームから変化したデクセルを記録する
+fn record_keyframe_changes(
+    grids: &mut [DexelGrid; 3],
+    keyframe_applied: &[usize],
+    applied: usize,
+    keyframe_changes: &mut DexelChanges,
+) {
+    while keyframe_applied.get(keyframe_changes.keyframe_count()) == Some(&applied) {
+        for (index, grid) in grids.iter_mut().enumerate() {
+            grid.take_changes(index as u8, keyframe_changes);
+        }
+        keyframe_changes.end_keyframe();
+    }
+}
+
+/// 格子の 2 方向（向き `axis` 以外の座標軸。昇順）
+fn plane_axes(axis: usize) -> [usize; 2] {
+    match axis {
+        0 => [1, 2],
+        1 => [0, 2],
+        _ => [0, 1],
+    }
+}
+
+/// 区間の差し引きに使う作業用の列（区間と法線を 2 組。差し引くたびに入れ替える）
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Scratch {
+    intervals: [Vec<(f64, f64)>; 2],
+    normals: [Vec<[DexelNormal; 2]>; 2],
+}
+
+/// 向き `axis` のデクセルの、素材の箱の区間の始まり・終わりの法線（座標軸の負・正の向き）
+pub(crate) fn initial_normals(axis: usize) -> [DexelNormal; 2] {
+    let unit = |sign: f64| {
+        let mut unit = [0.0; 3];
+        unit[axis] = sign;
+        DexelNormal::from_unit(unit)
+    };
+    [unit(-1.0), unit(1.0)]
+}
+
+/// 区間の配列の中の位置
+fn slot_position(position: usize) -> u32 {
+    u32::try_from(position).expect("dexel interval storage fits in u32")
+}
+
+/// 昇順で互いに素な区間の列 `intervals`（法線 `normals`）から、線 `line` の上の工具の区間 `removed` を差し引き、
+/// `result`・`result_normals` に書く（削った端の法線は、工具の外向きの法線の逆向き）
+fn subtract_interval(
+    intervals: &[(f64, f64)],
+    normals: &[[DexelNormal; 2]],
+    removed: &ToolInterval,
+    line: AxisLine,
+    result: &mut Vec<(f64, f64)>,
+    result_normals: &mut Vec<[DexelNormal; 2]>,
+) {
+    result.clear();
+    result_normals.clear();
+    let (low, high) = removed.range;
+    let cut =
+        |end: usize| DexelNormal::from_unit(removed.normal(end, line).map(|component| -component));
+    for (&(start, end), &[start_normal, end_normal]) in intervals.iter().zip(normals) {
+        if end <= low || high <= start {
+            result.push((start, end));
+            result_normals.push([start_normal, end_normal]);
+            continue;
+        }
+        if start < low {
+            result.push((start, low));
+            result_normals.push([start_normal, cut(0)]);
+        }
+        if high < end {
+            result.push((high, end));
+            result_normals.push([cut(1), end_normal]);
+        }
+    }
+}
+
+/// 区間の長さの和
+fn total_length(intervals: &[(f64, f64)]) -> f64 {
+    intervals.iter().map(|(low, high)| high - low).sum()
+}
+
+fn coordinates(point: Point3D<f64>) -> [f64; 3] {
+    [point.x(), point.y(), point.z()]
+}

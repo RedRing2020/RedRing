@@ -26,10 +26,9 @@
   - `point_at()`, `tangent_at()`, `curvature_at()`
   - `length()` - 弧長計算
 
-**Extension** (`curve_2d_foundation.rs`)
-- `ExtensionFoundation<T>` - 基本拡張
+**Metadata / Bounds** (`curve_2d.rs` + `curve_2d_bounds.rs`)
+- `PrimitiveMetadata` - 形状種別 metadata
   - `primitive_kind()` → `PrimitiveKind::NurbsCurve2D`
-  - `measure()` → 全体長さ
 - `Bounded<T>` - 境界ボックス
   - `aabb()` → 制御点ベースの境界ボックス
 
@@ -57,10 +56,9 @@
   - `evaluate()`, `tangent()`, `curvature()`
   - `arc_length_total()`, `arc_length()` - 弧長計算
 
-**Extension** (`curve_3d_foundation.rs` + `curve_3d_extensions.rs`)
-- `ExtensionFoundation<T>` - 基本拡張
+**Metadata / Bounds / Extension** (`curve_3d.rs` + `curve_3d_bounds.rs` + `curve_3d_extensions.rs`)
+- `PrimitiveMetadata` - 形状種別 metadata
   - `primitive_kind()` → `PrimitiveKind::NurbsCurve3D`
-  - `measure()` → 全体弧長
 - `Bounded<T>` - 境界ボックス
   - `aabb()` → 制御点ベースの境界ボックス
 - **高度な境界ボックス計算** (`curve_3d_extensions.rs`)
@@ -95,10 +93,9 @@
   - `normal_at()` - 法線ベクトル
   - `area()` - 面積計算
 
-**Extension** (`surface_3d_foundation.rs`)
-- `ExtensionFoundation<T>` - 基本拡張
+**Metadata / Bounds** (`surface_3d.rs` + `surface_3d_bounds.rs`)
+- `PrimitiveMetadata` - 形状種別 metadata
   - `primitive_kind()` → `PrimitiveKind::NurbsSurface3D`
-  - `measure()` → 面積
 - `Bounded<T>` - 境界ボックス
   - `aabb()` → 制御点ベースの境界ボックス
 
@@ -117,23 +114,22 @@
 ### Foundation Pattern 3層構造
 
 ```rust
-// 1. Core Traits（geo_foundation/src/core/）
+// 1. Core Traits（geo_contracts/src/core/）
 pub trait {Shape}Constructor<T: Scalar> { ... }
 pub trait {Shape}Properties<T: Scalar> { ... }
 pub trait {Shape}Measure<T: Scalar> { ... }
 
-// 2. Extension（geo_foundation/src/extension_foundation.rs）
-pub trait ExtensionFoundation<T: Scalar> {
+// 2. Metadata / Bounds（geo_contracts/src/geometry/foundation/）
+pub trait PrimitiveMetadata {
     fn primitive_kind(&self) -> PrimitiveKind;
-    fn measure(&self) -> Option<T>;
 }
 
-pub trait Bounded<T: Scalar>: ExtensionFoundation<T> {
+pub trait Bounded<T: Scalar>: PrimitiveMetadata {
     type Aabb;
     fn aabb(&self) -> Option<Self::Aabb>;
 }
 
-// 3. Transform（geo_foundation/src/core/transform.rs）
+// 3. Transform（geo_contracts/src/core/transform.rs）
 pub trait AnalysisTransform2D<T: Scalar> { ... }
 pub trait AnalysisTransform3D<T: Scalar> { ... }
 ```
@@ -143,14 +139,14 @@ pub trait AnalysisTransform3D<T: Scalar> { ... }
 ```
 geo_nurbs/src/
   ├── curve_2d.rs                    # Core Traits実装
-  ├── curve_2d_foundation.rs         # Extension実装
+  ├── curve_2d_bounds.rs             # Bounds実装
   ├── curve_2d_transform.rs          # Transform実装
   ├── curve_3d.rs                    # Core Traits実装
-  ├── curve_3d_foundation.rs         # Extension実装
+  ├── curve_3d_bounds.rs             # Bounds実装
   ├── curve_3d_extensions.rs         # 拡張機能（境界ボックスオプション等）
   ├── curve_3d_transform.rs          # Transform実装
   ├── surface_3d.rs                  # Core Traits実装
-  ├── surface_3d_foundation.rs       # Extension実装
+  ├── surface_3d_bounds.rs           # Bounds実装
   └── surface_3d_transform.rs        # Transform実装
 ```
 
@@ -158,10 +154,33 @@ geo_nurbs/src/
 
 `.vscode/settings.json`:
 ```jsonc
-"curve_2d.rs": "curve_2d_foundation.rs,curve_2d_transform.rs",
-"curve_3d.rs": "curve_3d_extensions.rs,curve_3d_foundation.rs,curve_3d_transform.rs",
-"surface_3d.rs": "surface_3d_foundation.rs,surface_3d_transform.rs"
+"curve_2d.rs": "curve_2d_bounds.rs,curve_2d_transform.rs",
+"curve_3d.rs": "curve_3d_bounds.rs,curve_3d_extensions.rs,curve_3d_transform.rs",
+"surface_3d.rs": "surface_3d_bounds.rs,surface_3d_transform.rs"
 ```
+
+## 2026-04-05 合意更新: geo_nurbs の Bounded 横展開ルール
+
+`geo_nurbs` でも `Bounded` は finite shape に対する標準 capability として扱う。
+
+合意事項:
+
+- `NurbsCurve2D`、`NurbsCurve3D`、`NurbsSurface3D` のように有限な制御点領域を持つ型は `Bounded` を実装する
+- `Bounded` 実装は本体へ混在させず、`*_bounds.rs` へ分離する
+- 将来 `geo_nurbs` に 2D/3D の同族 shape を追加する場合、`Bounded` を片側だけで止めない
+- 現在 `geo_nurbs` に `NurbsSurface2D` は存在しないため、`NurbsSurface3D` のみが bounds 対象になっているのは未整備ではなく shape 定義差である
+- 標準 `aabb()` は制御点ベースの保守的な境界ボックスとし、より高精度な境界計算は extension 側へ分離する
+
+## 2026-04-07 合意更新: knot span 探索の共通化
+
+`geo_nurbs::knot` にある knot span 探索のうち、非減少列の区間 index を返す二分探索本体は NURBS 固有責務ではない。
+
+合意事項:
+
+- 非減少列に対する span 探索は `analysis` の numerics 層へ置く
+- `geo_nurbs` 側は、degree に基づく有効範囲の決定と NURBS 用語の薄いラッパーだけを持つ
+- knot vector の妥当性検証、parameter domain、重複度など NURBS 意味論を伴う処理は引き続き `geo_nurbs::knot` に残す
+- GPU shader 側の `find_knot_span` は CPU 側 helper の呼び出し先ではなく、同一意味論を持つ別実装として維持する
 
 ## レガシーコードのクリーンアップ
 
@@ -178,7 +197,7 @@ geo_nurbs/src/
 ### エラー型の統一
 
 - `NurbsError` - NURBS固有のエラー（`geo_nurbs/src/error.rs`）
-- `TransformError` - 変換操作のエラー（`geo_foundation`）
+- `TransformError` - 変換操作のエラー（`geo_contracts`）
 - `weight_storage.rs` から `NurbsOperationError` 削除（21行削除）
 
 ## 技術的な実装詳細
@@ -245,7 +264,7 @@ NURBS変換では重み（weights）を適切に扱う必要があります：
 ### テストカバレッジ
 
 - ✅ Core Traits全メソッド
-- ✅ Extension Traits（ExtensionFoundation, Bounded）
+- ✅ Extension Traits（PrimitiveMetadata, Bounded）
 - ✅ Transform Traits全メソッド（translate/rotate/scale/uniform_scale/matrix）
 - ✅ エラーケース（無効なパラメータ、ゼロベクトル等）
 
@@ -260,7 +279,7 @@ NURBS変換では重み（weights）を適切に扱う必要があります：
 ### 依存関係
 
 ```text
-analysis → geo_foundation
+analysis → geo_contracts
             ↓
         geo_core
             ↓
@@ -271,12 +290,12 @@ analysis → geo_foundation
 
 ```powershell
 # 依存関係チェック（全てパス）
-.\scripts\check_architecture_dependencies_simple.ps1
+.\scripts\check_architecture_dependencies.ps1
 ```
 
 - ✅ `geo_nurbs` → `geo_primitives` 依存なし
 - ✅ `geo_nurbs` → `geo_core` 依存あり（Aabb2D/Aabb3D, Point2D/Point3D等）
-- ✅ `geo_nurbs` → `geo_foundation` 依存あり（Core Traits, Transform Traits）
+- ✅ `geo_nurbs` → `geo_contracts` 依存あり（Core Traits, Transform Traits）
 - ✅ `geo_nurbs` → `analysis` 依存あり（Matrix, Vector, Scalar等）
 
 ## 次のステップ（Phase 2候補）
@@ -306,7 +325,7 @@ Foundation Patternの参考として以下の実装を参照：
 
 ## 完了条件チェックリスト
 
-- [x] Core Traits定義ファイルが`geo_foundation/src/core/`に存在
+- [x] Core Traits定義ファイルが`geo_contracts/src/core/`に存在
 - [x] `NurbsCurve2D<T>`がすべてのCore Traitsを実装
 - [x] `NurbsCurve3D<T>`がすべてのCore Traitsを実装
 - [x] `NurbsSurface3D<T>`がすべてのCore Traitsを実装
@@ -331,3 +350,4 @@ Issue #194 Phase 1として、geo_nurbsへのFoundation Pattern完全適用が�
 **作成日**: 2026年1月10日  
 **作成者**: GitHub Copilot  
 **レビュー**: 必要に応じて更新
+

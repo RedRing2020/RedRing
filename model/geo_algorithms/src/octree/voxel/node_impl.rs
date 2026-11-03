@@ -1,4 +1,7 @@
 use super::*;
+use crate::operations::CrossDistance;
+use analysis::linalg::vector::Vector2;
+use geo_contracts::LineSegment3DProperties;
 
 impl<T: Scalar> VoxelNode<T> {
     /// 新しいソリッドノードを作成
@@ -141,7 +144,9 @@ impl<T: Scalar> VoxelNode<T> {
                         child.remove_material_box(tool_aabb, max_depth);
                     }
                 } else {
-                    self.state = VoxelState::Empty;
+                    if self.should_remove_leaf_for_box(tool_aabb) {
+                        self.state = VoxelState::Empty;
+                    }
                 }
             }
 
@@ -163,7 +168,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
-    /// 線分+半径（カプセル）領域との交差に基づいて材料を除去する。
+    /// 線分+半径（カプセル）領域との交差に基づいて占有を除去する。
     pub(super) fn remove_material_capsule(
         &mut self,
         segment: &LineSegment3D<T>,
@@ -173,10 +178,7 @@ impl<T: Scalar> VoxelNode<T> {
         match self.state {
             VoxelState::Empty => (),
             VoxelState::Solid => {
-                let min = self.bounds.min();
-                let max = self.bounds.max();
-                let distance = segment
-                    .distance_to_aabb((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()));
+                let distance = segment.distance_to(&self.bounds);
 
                 if distance > radius {
                     return;
@@ -194,7 +196,13 @@ impl<T: Scalar> VoxelNode<T> {
                         child.remove_material_capsule(segment, radius, max_depth);
                     }
                 } else {
-                    self.state = VoxelState::Empty;
+                    if self.should_use_adaptive_leaf_sampling(radius) {
+                        if self.should_remove_leaf_for_capsule(segment, radius) {
+                            self.state = VoxelState::Empty;
+                        }
+                    } else {
+                        self.state = VoxelState::Empty;
+                    }
                 }
             }
             VoxelState::Mixed => {
@@ -215,7 +223,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
-    /// 線分端面を平端として扱う掃引円柱領域で材料を除去する。
+    /// 線分端面を平端として扱う掃引円柱領域で占有を除去する。
     pub(super) fn remove_material_swept_cylinder(
         &mut self,
         segment: &LineSegment3D<T>,
@@ -230,10 +238,7 @@ impl<T: Scalar> VoxelNode<T> {
                     return;
                 }
 
-                let min = self.bounds.min();
-                let max = self.bounds.max();
-                let distance = segment
-                    .distance_to_aabb((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()));
+                let distance = segment.distance_to(&self.bounds);
 
                 // 軸方向へ射影可能でも半径外なら非交差。
                 if distance > radius {
@@ -253,7 +258,13 @@ impl<T: Scalar> VoxelNode<T> {
                         child.remove_material_swept_cylinder(segment, radius, max_depth);
                     }
                 } else {
-                    self.state = VoxelState::Empty;
+                    if self.should_use_adaptive_leaf_sampling(radius) {
+                        if self.should_remove_leaf_for_swept_cylinder(segment, radius) {
+                            self.state = VoxelState::Empty;
+                        }
+                    } else {
+                        self.state = VoxelState::Empty;
+                    }
                 }
             }
             VoxelState::Mixed => {
@@ -302,12 +313,12 @@ impl<T: Scalar> VoxelNode<T> {
 
     /// AABBの軸方向射影が掃引区間端面の外側かを判定する。
     fn is_aabb_outside_swept_cylinder_cap_range(&self, segment: &LineSegment3D<T>) -> bool {
-        let sx = segment.start().x();
-        let sy = segment.start().y();
-        let sz = segment.start().z();
-        let ex = segment.end().x();
-        let ey = segment.end().y();
-        let ez = segment.end().z();
+        let sx = segment.start_point().x();
+        let sy = segment.start_point().y();
+        let sz = segment.start_point().z();
+        let ex = segment.end_point().x();
+        let ey = segment.end_point().y();
+        let ez = segment.end_point().z();
 
         let axis_x = ex - sx;
         let axis_y = ey - sy;
@@ -385,12 +396,12 @@ impl<T: Scalar> VoxelNode<T> {
         radius: T,
     ) -> bool {
         let (px, py, pz) = point;
-        let sx = segment.start().x();
-        let sy = segment.start().y();
-        let sz = segment.start().z();
-        let ex = segment.end().x();
-        let ey = segment.end().y();
-        let ez = segment.end().z();
+        let sx = segment.start_point().x();
+        let sy = segment.start_point().y();
+        let sz = segment.start_point().z();
+        let ex = segment.end_point().x();
+        let ey = segment.end_point().y();
+        let ez = segment.end_point().z();
 
         let axis_x = ex - sx;
         let axis_y = ey - sy;
@@ -415,10 +426,9 @@ impl<T: Scalar> VoxelNode<T> {
         let closest_y = sy + axis_y * t;
         let closest_z = sz + axis_z * t;
 
-        let dx = px - closest_x;
-        let dy = py - closest_y;
-        let dz = pz - closest_z;
-        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let point = Point3D::new(px, py, pz);
+        let closest = Point3D::new(closest_x, closest_y, closest_z);
+        let distance = point.distance_to(closest);
         // 半径方向距離で円柱断面内判定。
         distance <= radius
     }
@@ -426,12 +436,12 @@ impl<T: Scalar> VoxelNode<T> {
     /// 点と線分の最短距離を返す。
     fn point_to_segment_distance(&self, point: (T, T, T), segment: &LineSegment3D<T>) -> T {
         let (px, py, pz) = point;
-        let sx = segment.start().x();
-        let sy = segment.start().y();
-        let sz = segment.start().z();
-        let ex = segment.end().x();
-        let ey = segment.end().y();
-        let ez = segment.end().z();
+        let sx = segment.start_point().x();
+        let sy = segment.start_point().y();
+        let sz = segment.start_point().z();
+        let ex = segment.end_point().x();
+        let ey = segment.end_point().y();
+        let ez = segment.end_point().z();
 
         let dx = ex - sx;
         let dy = ey - sy;
@@ -441,7 +451,9 @@ impl<T: Scalar> VoxelNode<T> {
         let to_py = py - sy;
         let to_pz = pz - sz;
 
-        let len_sq = dx * dx + dy * dy + dz * dz;
+        let start_point = Point3D::new(sx, sy, sz);
+        let end_point = Point3D::new(ex, ey, ez);
+        let len_sq = start_point.distance_squared_to(end_point);
         let t = if len_sq <= T::EPSILON {
             T::ZERO
         } else {
@@ -453,10 +465,44 @@ impl<T: Scalar> VoxelNode<T> {
         let closest_y = sy + dy * t;
         let closest_z = sz + dz * t;
 
-        let diff_x = px - closest_x;
-        let diff_y = py - closest_y;
-        let diff_z = pz - closest_z;
-        (diff_x * diff_x + diff_y * diff_y + diff_z * diff_z).sqrt()
+        let point = Point3D::new(px, py, pz);
+        let closest = Point3D::new(closest_x, closest_y, closest_z);
+        point.distance_to(closest)
+    }
+
+    /// 最大深さ葉ノードでのAABB除去判定（中心点サンプリング）。
+    fn should_remove_leaf_for_box(&self, tool_aabb: &Aabb3D<T>) -> bool {
+        debug_assert!(
+            !tool_aabb.is_empty(),
+            "tool_aabb should not be empty in remove_material_box"
+        );
+        tool_aabb.contains_point(self.bounds.center())
+    }
+
+    /// 葉ノードの適応判定を有効化するかを返す。
+    ///
+    /// 除去半径に対してノードサイズが十分大きい場合のみ、
+    /// 中心点サンプリング判定に切り替えて過剰除去を抑える。
+    fn should_use_adaptive_leaf_sampling(&self, radius: T) -> bool {
+        let max_span = self
+            .bounds
+            .width()
+            .max(self.bounds.height())
+            .max(self.bounds.depth());
+        let coarse_threshold = radius * T::from_f64(4.0);
+        max_span > coarse_threshold
+    }
+
+    /// 最大深さ葉ノードでのカプセル除去判定（中心点サンプリング）。
+    fn should_remove_leaf_for_capsule(&self, segment: &LineSegment3D<T>, radius: T) -> bool {
+        let center = self.bounds.center();
+        self.point_to_segment_distance((center.x(), center.y(), center.z()), segment) <= radius
+    }
+
+    /// 最大深さ葉ノードでの平端掃引円柱除去判定（中心点サンプリング）。
+    fn should_remove_leaf_for_swept_cylinder(&self, segment: &LineSegment3D<T>, radius: T) -> bool {
+        let center = self.bounds.center();
+        self.is_point_inside_swept_cylinder((center.x(), center.y(), center.z()), segment, radius)
     }
 
     /// Z軸平行の軸付き形状に特化した高速除去を行う。
@@ -482,7 +528,7 @@ impl<T: Scalar> VoxelNode<T> {
                     return;
                 }
 
-                let distance_2d = self.circle_to_aabb_2d_distance(center_x, center_y, &min, &max);
+                let distance_2d = self.circle_to_aabb_2d_distance(center_x, center_y, min, max);
 
                 if distance_2d > radius {
                     return;
@@ -533,16 +579,15 @@ impl<T: Scalar> VoxelNode<T> {
         &self,
         center_x: T,
         center_y: T,
-        aabb_min: &Point3D<T>,
-        aabb_max: &Point3D<T>,
+        aabb_min: Point3D<T>,
+        aabb_max: Point3D<T>,
     ) -> T {
         let closest_x = center_x.clamp(aabb_min.x(), aabb_max.x());
         let closest_y = center_y.clamp(aabb_min.y(), aabb_max.y());
 
         let dx = center_x - closest_x;
         let dy = center_y - closest_y;
-
-        (dx * dx + dy * dy).sqrt()
+        Vector2::new(dx, dy).norm()
     }
 
     /// Z軸平行カプセルにAABB全体が内包されるかを判定する。
@@ -569,9 +614,7 @@ impl<T: Scalar> VoxelNode<T> {
         ];
 
         for &(x, y) in &corners_2d {
-            let dx = x - center_x;
-            let dy = y - center_y;
-            let distance = (dx * dx + dy * dy).sqrt();
+            let distance = Vector2::new(x - center_x, y - center_y).norm();
             if distance > radius {
                 return false;
             }

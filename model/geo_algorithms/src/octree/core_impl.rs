@@ -1,6 +1,6 @@
 use super::{Octree, OctreeNode, OctreeTolerance};
+use geo_contracts::Scalar;
 use geo_core::Aabb3D;
-use geo_foundation::Scalar;
 
 impl<T: Scalar, D: Clone> Octree<T, D> {
     /// 新しいOctreeを作成
@@ -57,11 +57,6 @@ impl<T: Scalar, D: Clone> Octree<T, D> {
     /// 最大分割深さを取得
     pub fn max_depth(&self) -> usize {
         self.max_depth
-    }
-
-    /// 分割閾値を取得
-    pub fn max_items(&self) -> usize {
-        self.max_items
     }
 
     /// 総ノード数を取得

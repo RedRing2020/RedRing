@@ -22,39 +22,47 @@ Issueの優先度・リリース対象・進行段階を、ラベルで一貫し
 
 ## 3. リリース分類ラベル（必須）
 
-### 使用ラベル
+### リリース分類の使用ラベル
 
 - `release:triage` : 未分類（判定待ち）
 - `release:in` : 次リリースに含める
 - `release:out` : 次リリースに含めない
 
-### 運用ルール
+### リリース分類の運用ルール
 
 - オープンIssueは必ず `release:*` のいずれか1つを持つ
 - `release:triage` は一時状態とし、定期的に `in/out` へ振り分ける
 - 同一Issueに `release:in` と `release:out` を同時付与しない
 
-### 判定基準
+### リリース分類の判定基準
 
-- 判定時は `dev/architecture/RELEASE_VERSION_PLAN_2026Q1.md` を参照する
-- v0.1.0のMust要件に直接対応するものを `release:in` とする
+- 判定時は `dev/architecture/RELEASE_VERSION_PLAN.md` を参照する
+- 次に出す版（`RELEASE_VERSION_PLAN.md` 2.）の目標に直接対応するものを `release:in` とする
 
 ---
 
 ## 4. Phaseラベル（進行段階）
 
-### 使用ラベル
+### Phaseで使用するラベル
 
 - `phase-1`
 - `phase-2`
 - `phase-3`
 - `phase-4`
 
-### 運用ルール
+### Phaseラベルの運用ルール
 
 - `phase-*` は段階管理用ラベルとして使用する
 - 説明文（description）は空を維持する
 - 命名はハイフン付き（`phase-3`）を正とする
+- `phase-*` は「実施段階」を示すラベルであり、PR分割数やPR番号を表さない
+
+### PhaseラベルとPR命名の対応
+
+- Issue に付与した `phase-*` は、PRタイトルの `[PhaseN]` と対応させる
+- PRタイトルの `[A-1]` `[B-1]` などは変更単位の系列であり、`phase-*` とは別軸とする
+- 同一 Issue で `phase-2` のまま複数PRを出すことは許容する
+- 同一系列（例: `A`）を複数段階で進める場合は、`A-1` `A-2` のように枝番で管理する
 
 ### 命名統一ポリシー
 
@@ -72,7 +80,6 @@ Issueの優先度・リリース対象・進行段階を、ラベルで一貫し
 - `release:triage` が滞留していないか
 - `phase-*` の命名ゆれが発生していないか
 - 古いラベル色・不要ラベルが残っていないか
-- クローズ済み `ISSUE_*.md` がアーカイブ外に残っていないか（`./scripts/check_issue_doc_archive.ps1 -ExitOnError`）
 
 ---
 

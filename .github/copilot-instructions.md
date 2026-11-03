@@ -1,6 +1,6 @@
 # Copilot Instructions for RedRing
 
-## 最終更新日: 2026年2月14日
+## 最終更新日: 2026年10月11日
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
@@ -12,6 +12,35 @@ RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームで
 
 - AIの回答は必ず日本語で行う
 
+### GitHub運用文言の言語ポリシー（強制）
+
+- PR本文、PRコメント、レビュー返信、Issue本文、Issueコメントは日本語を既定とする
+- CI再実行や再検証依頼などの運用コメントも日本語を既定とする
+- 英語での記載は、ユーザーが明示的に英語を要求した場合のみ許可する
+- 既存の英語テンプレートを流用する場合でも、投稿前に日本語へ置換してから投稿する
+
+### 用語統一ルール（表記ゆれ防止）
+
+- `契約定義` という表現は使わず、`trait定義` を使用する
+- `インターフェース` は文脈がRust traitを指す場合のみ補助的に使用し、基本は `trait` を優先する
+- 詳細な正規用語は `dev/AI_TERMINOLOGY_GLOSSARY.md` を参照する
+
+### コメント運用ルール（可読性優先）
+
+- `// ==================================` 形式の区切り線コメントは新規追加しない
+- コメントで構造化せず、`mod` 分割・関数抽出・trait分離で構造化する
+- 交差判定のように形状組み合わせが多い実装では、コメント量が過密にならないよう最小限にする
+- コメントは「何をしているか」より「なぜそうするか」を優先する
+
+### 実行時文言の言語ポリシー（強制）
+
+- `model/` 配下の実行時エラー文言・ログ文言は英語で統一する
+- `model/` がドメイン層であることを理由に、上記ポリシーの対象外扱いをしてはならない
+- 日本語表示が必要な文言は、`i18n_foundation` を利用した UI メッセージカタログ経由で提供する
+- 例外は「ユーザー明示承認 + 対応Issue番号」を満たす場合のみ許可し、変更理由を PR 本文に記載する
+- 例外手続きの記載先は PR 本文と `dev/architecture/` 配下の設計書に限定する
+- ソースコード本文・コメントへ GitHub 固有情報（Issue番号、PR番号、URL）を記載してはならない
+
 ### 実装前の必須チェックリスト（絶対遵守）
 
 **新規幾何プリミティブ実装時は以下を全て確認してからユーザーに報告**:
@@ -19,13 +48,13 @@ RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームで
 #### ステップ1: 既存実装の確認
 ```bash
 # 同種の形状の完全な実装を確認
-ls model/geo_foundation/src/core/*_solid_core_traits.rs
+ls model/geo_contracts/src/geometry/solids/*_core_traits.rs
 ls model/geo_primitives/src/*_solid_3d*.rs
 ```
 
 #### ステップ2: Foundation Pattern の確認
 以下の全てが揃っているか確認：
-- [ ] `geo_foundation/src/core/{shape}_core_traits.rs` - Core Traits 定義
+- [ ] `geo_contracts/src/geometry/solids/{shape}_core_traits.rs` - Core Traits 定義
   - [ ] `{Shape}Constructor<T>` trait
   - [ ] `{Shape}Properties<T>` trait  
   - [ ] `{Shape}Measure<T>` trait
@@ -41,20 +70,54 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 
 **ユーザーの明示的な承認を得るまで実装を開始しない**
 
+**`geo_*` クレートに公開メソッドを追加する場合**は、`dev/architecture/GEO_API_ADDITION_RULES.md` を確認する（基本の形状定義と最低限のメソッドから始め、呼び出し元が必要になった時点で追加する）:
+- [ ] 同じ変更の中に、テスト以外の呼び出し元があるか（「将来使うかもしれない」メソッドを追加しない）
+- [ ] 既存メソッドの別名・別の生成方法になっていないか
+- [ ] 結果が誤った簡易実装（引数を無視する・常に `None` を返す・別の処理の結果を返す）になっていないか
+- [ ] `scripts/check_unused_public_api.ps1` の警告が増えていないか
+
+**範囲判定・角度処理などの汎用ヘルパーを追加・変更する場合**は、`dev/architecture/NUMERIC_HELPER_RULES.md` の「追加の判断基準」を確認する:
+- [ ] 既存のヘルパー（`analysis::is_within_closed_range` / `Angle::normalize` / `AngleRange` 等）で表現できないか
+- [ ] 既存のヘルパーを呼ぶだけのラッパー・別名になっていないか
+- [ ] 名前・doc コメントに業務用語や物理単位を含んでいないか（含む場合は利用側のクレートに置く）
+
 ### 必須確認プロセス
 
 1. **設計検討フェーズ**: 実装前に複数選択肢を提示し、ユーザー承認を得る
 2. **継続作業確認**: 既存の途中実装がないか `dev/` フォルダと `model/geo_core` を確認
-3. **アーキテクチャ遵守**: `geo_core` ブリッジパターンを厳守（例: `geo_nurbs → geo_core → geo_foundation`）
-4. **依存関係不変**: `scripts/check_architecture_dependencies_simple.ps1` の改変は絶対禁止
+3. **アーキテクチャ遵守**: 抽象化（`geo_contracts`）・値型の実装（`geo_core`）・形状の実装（`geo_primitives` / `geo_nurbs`）の分離を守る（依存の向き: `geo_nurbs → geo_contracts → geo_core`）
+4. **依存関係のルールを緩めない**: 依存関係のチェック（`scripts/check_architecture_dependencies.ps1` と、そのルール `scripts/_arch_rules_data.ps1`）の許可の追加・禁止の削除・検査の無効化は、ユーザーの承認なしに行わない。違反はチェックを変えずにコードを直す
+5. **表示不具合とカーネル変換の分離確認**: wgpu表示の症状だけを根拠に `geo_core` / `geo_nurbs` の行列積順や transform 実装を変更しない。変更前に、対象の transform 経路が実際に呼ばれていることを確認する
+
+### 依存関係と import の運用ルール（重要）
+
+- `geo_algorithms` は設計上 `geo_primitives` / `geo_nurbs` の上位層であり、クレート依存は許可される
+- ただし `geo_algorithms` の実装ファイルでは `use geo_primitives::...` の直接 import を禁止し、`geo_algorithms::lib.rs` の再エクスポート経由（`use crate::...`）を使用する
+- `geo_algorithms` 以外の下位層で、レイヤールールに反する `geo_primitives` 直接依存は引き続き禁止
 
 ### 絶対禁止事項
 
 - ❌ ユーザー承認なしでの実装開始
 - ❌ Foundation パターンの破壊や迂回
 - ❌ 既存設計方針の無断変更
-- ❌ `geo_primitives` への直接依存の許可
+- ❌ レイヤールールに反する `geo_primitives` への直接依存の許可
+- ❌ `geo_algorithms` 実装ファイル内での `use geo_primitives::...` 直接 import
 - ❌ アーキテクチャチェックスクリプトの例外追加
+- ❌ 表示の見え方だけを理由に、呼び出し経路未確認のまま transform の積順・座標変換カーネルを変更すること
+
+### CAMデモ導線の隔離ルール（Issue #717 継続）
+
+経緯の明確化:
+
+- デモ専用の `viewmodel/cam_demo` は Issue #926 で削除した。切削シミュレーションの実行・再生は本番の導線（製品形状 → 投入 → 実行 → 取り込み → 再生）だけとする
+
+- デモ専用のクレート・シナリオ・実行経路・ロード関数を、どの層にも追加しない。確かめるための操作も本番の導線を使う
+- `view/app` は当面別クレート化しない。`view/app` は起動トリガーと表示状態管理を担う
+
+`view/app` 分離の再評価は次の場合のみ行う:
+
+- demo導線の状態管理が `view/app` 全体へ拡散し、変更影響の追跡が困難になった場合
+- 本番導線とdemo導線の変更周期が分離し、同一クレート運用が開発ボトルネックになった場合
 
 ### 実装許可が必要な作業
 
@@ -69,6 +132,7 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 2. **ドキュメントを情報源とする**: dev/architecture/ の情報を最優先の参考とする
 3. **古い情報の上書き禁止**: 実装と乖離したドキュメントで上書きしない
 4. **現状の正確な記録**: 問題状況も含めて正確にドキュメントに記録
+5. **設計書と運用情報を混在させない**: Issue / PR の進捗、完了判定、チェックリスト、Phase完了報告は設計書へ持ち込まず、運用情報として別管理する
 
 **重要**: 「設計検討を行いましょう」という指示は**設計提案のみ**を意味し、実装開始の許可ではありません。
 
@@ -85,8 +149,9 @@ ls model/geo_primitives/src/*_solid_3d*.rs
   - ハイブリッド方式（CPU分割 + GPU評価）
   - NurbsCurve3D/NurbsSurface3D対応
   - Foundation Pattern準拠（Extension Traits実装）
-**✅ geo_nurbs**: Foundation Pattern準拠完了（geo_foundation/geo_core のみに依存）
+**✅ geo_nurbs**: Foundation Pattern準拠完了（geo_contracts/geo_core のみに依存）
 **✅ 情報管理**: GitHub Issues/Projects 移行済み
+**✅ geo_foundation**: 廃止完了（2026年3月20日）- trait定義はgeo_contractsへ統一
 
 ---
 
@@ -98,7 +163,7 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 cargo build                 # 全体ビルド
 cargo test --workspace      # 全体テスト実行
 cargo fmt --all -- --check  # フォーマットチェック
-.\scripts\check_architecture_dependencies_simple.ps1  # アーキテクチャ検証
+.\scripts\check_architecture_dependencies.ps1  # アーキテクチャ検証
 ```
 
 **重要な制約**:
@@ -106,6 +171,22 @@ cargo fmt --all -- --check  # フォーマットチェック
 - 新規コード追加時は既存のトレイト設計と責務分離を尊重
 - `render` と `stage` は独立してビルド可能（model に依存しない）
 - PRは必ず `develop` ブランチへ（`main` への直接PRは禁止）
+
+### AI向け運用ルール参照の優先順位（見落とし防止）
+
+AIは、命名や進行管理の判断時に次の順で必ず参照すること。
+
+1. PR/ブランチ/命名運用の正本: `dev/GIT_PR_WORKFLOW_OPERATION.md`
+  - 特に「Phase と PR系列の命名を固定する」「タイトル表記フォーマットを固定する」を最優先で参照
+2. Issueラベル運用の正本: `dev/ISSUE_LABEL_OPERATION.md`
+  - 特に `phase-*` の意味（段階管理）と PR命名との対応ルールを参照
+3. 用語統一の正本: `dev/AI_TERMINOLOGY_GLOSSARY.md`
+
+補足:
+
+- `Phase` は実施段階、`PR系列` は変更単位であり、混同しない
+- PRタイトルは `issue #<番号> [Phase<番号>][<系列>-<枝番>] <対象>: <要約>` 形式を原則とする
+- PR本文先頭に「含む単位 / 含めない単位」を明記する
 
 **参照ドキュメント**:
 ---
@@ -118,7 +199,7 @@ cargo fmt --all -- --check  # フォーマットチェック
 2. **責務分離の維持** - ファイル構成ルールに従う
 3. **型安全性の確保** - Option/Result による失敗の明示化
 4. **ドキュメント更新** - 実装前に関連ドキュメントを更新
-5. **テストの充実** - 独立したテストファイルで検証
+5. **テストの充実** - テストの置き場所は `dev/architecture/TEST_PLACEMENT_RULES.md` に従う
 
 詳細は [skills.md](skills.md) を参照
 - `tracing` + `tracing-subscriber` をワークスペース共通依存として使用

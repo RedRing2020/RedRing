@@ -4,7 +4,7 @@
 
 Rust 製 CAD/CAM 研究用プラットフォーム
 
-現在は描画基盤と構造設計の準備段階です。CAM 処理は未実装です。
+v0.1.0 はプレビュー版です。STL を取り込み、3 軸のスキャン加工のツールパスを計算し、切削シミュレーションで確かめられます。NC の出力はまだないため、実際の加工には使えません。
 
 **Documentation Languages / ドキュメント言語:**
 
@@ -19,8 +19,8 @@ Rust 製 CAD/CAM 研究用プラットフォーム
 ## 🔍 概要
 
 RedRing は、Rust + wgpu を用いたスタンドアロン型の CAD/CAM 開発環境を目指した研究プロジェクトです。
-NURBS やプリミティブ形状などの幾何要素は現在開発中であり、段階的に導入予定です。
-また、切削シミュレーションや CAM パス生成などの機能も将来的な開発対象です。
+NURBS やプリミティブ形状などの幾何要素は、段階的に導入しています。
+CAM のツールパス生成（スキャン加工）と切削シミュレーションは、プレビューとして使えます（[切削シミュレーション 操作](manual/cutting_simulation_demo.md)）。
 
 ### 🌟 特徴
 
@@ -42,6 +42,8 @@ NURBS やプリミティブ形状などの幾何要素は現在開発中であ�
 - 📊 **NURBS システム** - NURBS 曲線・曲面の完全実装
 - 🔧 **テスト基盤** - 包括的なテストスイート (23/23 テスト通過)
 - 📖 **ドキュメンテーション** - mdbook による美しい技術文書
+- 🔪 **CAM のツールパス生成（プレビュー）** - ボール・フラットエンドミルによる 3 軸のスキャン加工（逆オフセット法、ツールパス生成のトレランスを保証）
+- ⚡ **切削シミュレーション（プレビュー）** - トリデクセルの素材、製品形状に重ねた切削アニメーション
 
 ### 🔄 開発中機能
 
@@ -51,8 +53,8 @@ NURBS やプリミティブ形状などの幾何要素は現在開発中であ�
 
 ### 📅 今後の予定
 
-- 🔪 CAM パス生成エンジン
-- ⚡ 切削シミュレーション
+- 🗂️ 加工の管理（工程・ジョブ・ツールライブラリ） - v0.2.0
+- 🧾 つなぎの移動と NC の出力 - v0.3.0
 - 🌐 WebAssembly サポート
 - 🖱️ SpaceMouse 対応
 
@@ -174,7 +176,22 @@ git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
-#### 2. 依存関係の確認
+#### 2. **Git Pre-commit フックのセットアップ** (推奨)
+
+コミット前に自動的にフォーマットチェックを行い、問題を早期に検出：
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/setup_hooks.ps1
+
+# macOS/Linux
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+このステップの後、`git commit` 時に自動的にフォーマットチェックが実行されます。エラーが見つかった場合、コミットが拒否されるため、`cargo fmt --all` を実行して修正し、再度コミットしてください。
+
+#### 3. 依存関係の確認
 
 ```bash
 # Rust バージョン確認
@@ -184,7 +201,7 @@ rustc --version
 cargo --version
 ```
 
-#### 3. ビルド実行
+#### 4. ビルド実行
 
 ```bash
 # デバッグビルド (高速)
@@ -194,7 +211,7 @@ cargo build
 cargo build --release
 ```
 
-#### 4. アプリケーション実行
+#### 5. アプリケーション実行
 
 ```bash
 # GUI 環境が必要 (X11/Wayland/Windows/macOS)
@@ -204,7 +221,24 @@ cargo run
 cargo test --workspace
 ```
 
-### 🎮 実用的なキー操作（`cargo run` 実行後）
+### オプション：プッシュ前の完全チェック (推奨)
+
+変更をプッシュする前に、以下を実行して品質チェックを実施することをお勧めします：
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux (近日提供予定)
+# bash scripts/check_all_before_push.sh
+```
+
+以下を実行します：
+1. `cargo fmt --all -- --check` — フォーマットチェック（ファイルを変更しません）
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — リントチェック
+3. `cargo test --workspace` — テスト実行
+
+#### 6. ドキュメント生成 (オプション)
 
 > 注意: `cargo run -h` は Cargo 自体のヘルプです。以下は **アプリ起動後** のキー操作です。
 
@@ -222,9 +256,14 @@ cargo test --workspace
 | キー | 用途 |
 | ---- | ---- |
 | `p` | カッターパスのみ表示（色分けライン） |
-| `Shift+P` | CAMシミュレーション可視化（ToolPath + ワーク + 除去） |
+| `Shift+B` | ボールエンドミルのCAMシミュレーション可視化 |
+| `Shift+F` | フラットエンドミルのCAMシミュレーション可視化 |
 | `k` | スナップショット次フレーム |
 | `j` | スナップショット前フレーム |
+| `Space` | 自動再生 / 一時停止 |
+| `Shift+J` | 停止して先頭フレームへ戻る |
+| `+` / `-` | 再生速度変更（倍率はタイトル表示） |
+| `Shift+S` | 設定パネル表示切替 |
 
 #### Octree確認で使う操作
 
@@ -288,6 +327,44 @@ RedRing プロジェクトへの貢献を歓迎します！
 - **リント**: `cargo clippy` で品質チェック
 - **ドキュメント**: 公開 API には必ず rustdoc コメントを記載
 - **テスト**: 新機能には対応するテストを追加
+
+### コミット前フォーマットチェック
+
+**⚠️ 重要：Git Pre-commit フックは各開発環境で個別セットアップが必要です**
+
+`pwsh scripts/setup_hooks.ps1` を実行してセットアップすると、`git commit` 時に自動的に以下を実行：
+- `cargo fmt --all -- --check` — フォーマットチェック
+- フォーマットエラーがある場合、コミットが拒否
+
+**セットアップ後の開発フロー**:
+1. コードを編集
+2. `git add` で変更をステージ
+3. `git commit` を実行
+   - ✅ フォーマット OK → コミット成功
+   - ❌ フォーマット エラー → コミット拒否
+     - `cargo fmt --all` を実行
+     - 再度 `git commit` を実行
+
+#### セットアップをやり直す場合
+
+```bash
+pwsh scripts/setup_hooks.ps1
+```
+
+#### 自動チェックを無効化したい場合
+
+```bash
+# フックを一時的にスキップ
+git commit --no-verify
+```
+
+#### オプション：プッシュ前の完全チェック
+
+CI での失敗を事前に防ぐため、プッシュ前に全チェックを実行することを推奨します：
+
+```bash
+pwsh scripts/check_all_before_push.ps1
+```
 
 ### コミュニティ
 

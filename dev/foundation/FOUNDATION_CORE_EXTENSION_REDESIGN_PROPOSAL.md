@@ -81,9 +81,9 @@ pub trait AnalysisTransform3D<T: Scalar> {
 
     fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
-    fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
-    fn scale_analysis(&self, center: &Self, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
-    fn uniform_scale_analysis(&self, center: &Self, scale_factor: T) -> Result<Self::Output, TransformError>;
+    fn rotate_analysis(&self, center: &Vector3<T>, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
+    fn scale_analysis(&self, center: &Vector3<T>, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
+    fn uniform_scale_analysis(&self, center: &Vector3<T>, scale_factor: T) -> Result<Self::Output, TransformError>;
 }
 
 // エラーハンドリング版（SafeTransform）

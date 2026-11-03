@@ -4,6 +4,7 @@
 //! 部分ピボット選択付きで数値安定性を確保
 use super::{LinearSolver, SolutionInfo};
 use crate::abstract_types::Scalar;
+use crate::linalg::DynamicMatrix;
 
 /// LU分解ソルバー
 pub struct LUSolver<T: Scalar> {
@@ -35,22 +36,18 @@ impl<T: Scalar> LUSolver<T> {
     }
 
     /// LU分解を実行（Doolittle法）
-    pub fn decompose(&self, matrix: &[Vec<T>]) -> Result<LUDecomposition<T>, String> {
-        let n = matrix.len();
+    pub fn decompose(&self, matrix: &DynamicMatrix<T>) -> Result<LUDecomposition<T>, String> {
+        let n = matrix.rows();
 
         // 入力検証
-        if n == 0 || matrix[0].len() != n {
+        if n == 0 || matrix.cols() != n {
             return Err("Matrix must be square".to_string());
         }
 
-        for row in matrix {
-            if row.len() != n {
-                return Err("Matrix must be square".to_string());
-            }
-        }
-
         // LU行列を初期化（元の行列をコピー）
-        let mut lu_matrix = matrix.to_vec();
+        let mut lu_matrix: Vec<Vec<T>> = (0..n)
+            .map(|i| (0..n).map(|j| matrix.get(i, j)).collect())
+            .collect();
         let mut permutation: Vec<usize> = (0..n).collect();
         let mut determinant_sign = 1i32;
 
@@ -168,15 +165,15 @@ impl<T: Scalar> LUSolver<T> {
     }
 
     /// 残差を計算
-    fn calculate_residual(&self, matrix: &[Vec<T>], rhs: &[T], solution: &[T]) -> T {
-        let n = matrix.len();
+    fn calculate_residual(&self, matrix: &DynamicMatrix<T>, rhs: &[T], solution: &[T]) -> T {
+        let n = matrix.rows();
         let mut residual = T::ZERO;
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             let mut sum = T::ZERO;
-            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum += matrix[i][j] * solution[j];
+                sum += matrix.get(i, j) * solution[j];
             }
             let diff = sum - rhs[i];
             residual += diff * diff;
@@ -187,7 +184,7 @@ impl<T: Scalar> LUSolver<T> {
 }
 
 impl<T: Scalar> LinearSolver<T> for LUSolver<T> {
-    fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
+    fn solve(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Result<SolutionInfo<T>, String> {
         // LU分解を実行
         let lu_decomp = self.decompose(matrix)?;
 
@@ -198,5 +195,104 @@ impl<T: Scalar> LinearSolver<T> for LUSolver<T> {
         let residual = self.calculate_residual(matrix, rhs, &solution);
 
         Ok(SolutionInfo::direct(solution, residual))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LUSolver, LinearSolver};
+    use crate::consts::test_constants::{
+        SOLVER_TOLERANCE_F32, SOLVER_TOLERANCE_F64, TOLERANCE_F64,
+    };
+    use crate::linalg::DynamicMatrix;
+
+    #[test]
+    fn test_lu_decomposition_2x2() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
+        let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+
+        let decomp = solver.decompose(&matrix).unwrap();
+
+        let n = matrix.rows();
+        for i in 0..n {
+            for j in 0..matrix.cols() {
+                let mut reconstructed = 0.0;
+                for k in 0..n {
+                    let l_ik = if i > k {
+                        decomp.lu_matrix[i][k]
+                    } else if i == k {
+                        1.0
+                    } else {
+                        0.0
+                    };
+                    let u_kj = if k <= j { decomp.lu_matrix[k][j] } else { 0.0 };
+                    reconstructed += l_ik * u_kj;
+                }
+                let original = matrix.get(decomp.permutation[i], j);
+                assert!((reconstructed - original).abs() < TOLERANCE_F64);
+            }
+        }
+    }
+
+    #[test]
+    fn test_lu_solver_2x2() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
+        let rhs = vec![5.0, 6.0];
+        let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+
+        let result = solver.solve(&matrix, &rhs).unwrap();
+        assert!((result.solution[0] - 1.8).abs() < TOLERANCE_F64);
+        assert!((result.solution[1] - 1.4).abs() < TOLERANCE_F64);
+        assert!(result.converged);
+    }
+
+    #[test]
+    fn test_lu_solver_3x3() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![
+            vec![2.0, 1.0, -1.0],
+            vec![-3.0, -1.0, 2.0],
+            vec![-2.0, 1.0, 2.0],
+        ])
+        .unwrap();
+        let rhs = vec![8.0, -11.0, -3.0];
+        let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+
+        let result = solver.solve(&matrix, &rhs).unwrap();
+        assert!((result.solution[0] - 2.0).abs() < TOLERANCE_F64);
+        assert!((result.solution[1] - 3.0).abs() < TOLERANCE_F64);
+        assert!((result.solution[2] - (-1.0)).abs() < TOLERANCE_F64);
+        assert!(result.converged);
+    }
+
+    #[test]
+    fn test_lu_determinant() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
+        let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+
+        let decomp = solver.decompose(&matrix).unwrap();
+        let det = solver.determinant(&decomp);
+
+        assert!((det - 5.0).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_lu_singular_matrix() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![1.0, 2.0], vec![2.0, 4.0]]).unwrap();
+        let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+        assert!(solver.decompose(&matrix).is_err());
+    }
+
+    #[test]
+    fn test_lu_solver_2x2_f32() {
+        let matrix =
+            DynamicMatrix::<f32>::from_rows(vec![vec![2.0_f32, 1.0_f32], vec![1.0_f32, 3.0_f32]])
+                .unwrap();
+        let rhs = vec![5.0_f32, 6.0_f32];
+        let solver = LUSolver::<f32>::new(SOLVER_TOLERANCE_F32);
+
+        let result = solver.solve(&matrix, &rhs).unwrap();
+        assert!((result.solution[0] - 1.8_f32).abs() < 1e-4_f32);
+        assert!((result.solution[1] - 1.4_f32).abs() < 1e-4_f32);
+        assert!(result.converged);
     }
 }

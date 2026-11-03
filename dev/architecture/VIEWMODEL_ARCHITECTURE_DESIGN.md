@@ -47,7 +47,7 @@ let normal = edge1.cross(&edge2).normalize();  // 👈 幾何演算
 **正しい設計**:
 ```rust
 // ✅ Model層で法線を計算して返却
-use geo_foundation::Triangle3DGeometry;
+use geo_contracts::Triangle3DGeometry;
 
 let normal = triangle.compute_normal();  // Model層のメソッド
 let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
@@ -97,7 +97,7 @@ let point = surface.point_at_uv(u, v);  // 具象型への依存
 
 **現状の設計**:
 ```rust
-// geo_foundation/src/core/cylindrical_surface_traits.rs
+// geo_contracts/src/core/cylindrical_surface_traits.rs
 pub trait CylindricalSurface3DMeasure<T: Scalar> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);  // タプル型
 }
@@ -127,7 +127,7 @@ let result = point.distance(&other);  // 👈 geo_primitives依存
 **提案**: タプル版と構造体版を併存させる
 
 ```rust
-// geo_foundation/src/core/parametric_surface.rs (新規)
+// geo_contracts/src/core/parametric_surface.rs (新規)
 pub trait ParametricSurface3D<T: Scalar> {
     // 既存: タプル版（後方互換性のため残す）
     fn point_at_uv_tuple(&self, u: T, v: T) -> (T, T, T);
@@ -157,7 +157,7 @@ impl ParametricSurface3D<f64> for CylindricalSurface3D<f64> {
 ```
 
 **メリット**:
-- ViewModel層は `geo_foundation` トレイトのみに依存
+- ViewModel層は `geo_contracts` トレイトのみに依存
 - 型安全性を保ちながらFoundation Pattern遵守
 - 既存コードへの影響最小（タプル版は残す）
 
@@ -177,7 +177,7 @@ impl ParametricSurface3D<f64> for CylindricalSurface3D<f64> {
 **提案**: `geo_algorithms` に曲面メッシュ化機能を追加
 
 ```rust
-// geo_algorithms/src/tessellation/mod.rs (新規)
+// geo_algorithms/src/tessellation.rs (新規)
 pub struct TessellationParams {
     pub u_divisions: usize,
     pub v_divisions: usize,
@@ -251,7 +251,7 @@ pub fn cylindrical_surface_to_vertices(
 // ...
 
 // ✅ Foundation Traits経由でパラメトリック評価
-use geo_foundation::{CylindricalSurface3DMeasure, SphericalSurface3DMeasure, ...};
+use geo_contracts::{CylindricalSurface3DMeasure, SphericalSurface3DMeasure, ...};
 
 pub fn cylindrical_surface_to_vertices(
     surface: &CylindricalSurface3D<f64>,
@@ -290,7 +290,7 @@ pub fn cylindrical_surface_to_vertices(
 **内容**: Solution 1を実装して型安全性向上
 
 ```rust
-// geo_foundation/src/core/parametric_surface.rs
+// geo_contracts/src/core/parametric_surface.rs
 pub trait ParametricSurface3D<T: Scalar> {
     type Point;
     type Vector;
@@ -322,7 +322,7 @@ tessellate_spherical_surface()
 
 ```text
 viewmodel/converter
-├── geo_foundation (Properties traits)  ✅ 正常
+├── geo_contracts (Properties traits)  ✅ 正常
 ├── geo_primitives (全15形状 + Point3D/Vector3D)  ⚠️ 直接依存
 ├── geo_algorithms  ✅ 正常
 ├── geo_io  ✅ 正常
@@ -337,7 +337,7 @@ viewmodel/converter
 
 ```text
 viewmodel/converter
-├── geo_foundation (Properties + Measure traits)  ✅ トレイト経由のみ
+├── geo_contracts (Properties + Measure traits)  ✅ トレイト経由のみ
 ├── geo_primitives (Point3D/Vector3D型宣言のみ)  ✅ タプル変換用
 ├── geo_algorithms  ✅ 正常
 ├── geo_io  ✅ 正常
@@ -359,10 +359,10 @@ viewmodel/converter
 **実装イメージ**:
 ```text
 viewmodel/converter
-├── geo_foundation (NURBSトレイト拡張: 制御点/重み/ノット取得)
+├── geo_contracts (NURBSトレイト拡張: 制御点/重み/ノット取得)
 ├── geo_core (低レイヤー型のみ)
 ├── geo_primitives (必要最小限)
-├── geo_algorithms (許可されるがA方針では使用しない)
+├── geo_algorithms (描画用の計算に使う。`VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1)
 └── analysis
 
 view/app
@@ -371,8 +371,8 @@ view/app
 ```
 
 **補足**:
-- geo_foundationのNURBSトレイト拡張はFoundationパターンの修正に該当
-- 既存の依存ルールに従い、**ViewModel→geo_algorithms**は許可されるが本方針では採用しない
+- geo_contractsのNURBSトレイト拡張はFoundationパターンの修正に該当
+- **ViewModel→geo_algorithms** は描画用の計算（テセレーション等）に使う（経路の正本は `VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1）
 
 **移管方針（デバッグ表示）**:
 - app層のNURBSデバッグ表示は ViewModel に移管し、appは`viewmodel::nurbs_debug`経由で評価データを取得
@@ -382,7 +382,7 @@ view/app
 
 ```text
 viewmodel/converter
-├── geo_foundation (トレイトのみ)  ✅
+├── geo_contracts (トレイトのみ)  ✅
 ├── geo_algorithms (tessellation module)  ✅ Model層経由
 └── analysis  ✅
 ```
@@ -421,7 +421,7 @@ let point = surface.point_at_uv(u, v);  // トレイト経由にすべき
 
 ```rust
 // パターン1: 明示的なトレイト境界（推奨）
-use geo_foundation::CylindricalSurface3DMeasure;
+use geo_contracts::CylindricalSurface3DMeasure;
 
 pub fn convert<T>(surface: &T, u: f64, v: f64) -> VertexData
 where
@@ -522,3 +522,4 @@ impl NurbsCurveEvalData {
 - [FOUNDATION_PATTERN.md](../foundation/) - Foundation Pattern詳細
 - [Issue #204](https://github.com/RedRing2020/RedRing/issues/204) - 形状可視化システム完成
 - [Issue #210](https://github.com/RedRing2020/RedRing/issues/210) - NURBS適応的テッセレーション実装
+

@@ -1,0 +1,618 @@
+use std::io::Cursor;
+use std::sync::Arc;
+
+use cam_algorithms::{CamSolverError, ProductSurface, solve_toolpath};
+use cam_core::{
+    ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, LengthUnit, ToolPath,
+    read_toolpath_artifact_v1, write_toolpath_payload_v1,
+};
+#[cfg(any(test, debug_assertions))]
+use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType};
+#[cfg(any(test, debug_assertions))]
+use geo_algorithms::Point3D;
+use geo_algorithms::TessellationLimits;
+use job_runtime::{
+    JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType, RefFactory, RefParser,
+    RefValidationError,
+};
+
+use crate::CuttingSimulator;
+use crate::preflight::{PreflightFailure, preflight_cutting_simulation};
+use crate::simulation_artifact::write_cutting_simulation_artifact_v1;
+use crate::simulation_input::{CuttingSimulationInputProvider, validate_sim_input_ref};
+use crate::solver_input::{CamSolverInputProvider, validate_cam_input_ref};
+
+/// cam_sim から JobManager へ接続するアダプタ
+///
+/// CamProcess は `CamSolverInputProvider` で `InputRef` を solver 入力へ解決し、
+/// `cam_algorithms::solve_toolpath` の結果を `toolpath` artifact として返す。
+/// CuttingSimulation は `CuttingSimulationInputProvider` で `InputRef` を素材・工具・精度の設定へ解決し、
+/// 親の CamProcess の `toolpath` artifact を Preflight 判定のうえで実行する。
+#[derive(Clone, Default)]
+pub struct CamJobExecutorAdapter {
+    input_provider: Option<Arc<dyn CamSolverInputProvider>>,
+    simulation_input_provider: Option<Arc<dyn CuttingSimulationInputProvider>>,
+}
+
+impl std::fmt::Debug for CamJobExecutorAdapter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CamJobExecutorAdapter")
+            .field("input_provider_configured", &self.input_provider.is_some())
+            .field(
+                "simulation_input_provider_configured",
+                &self.simulation_input_provider.is_some(),
+            )
+            .finish()
+    }
+}
+
+impl CamJobExecutorAdapter {
+    /// solver 入力 provider を接続したアダプタを作成する。
+    pub fn with_input_provider(provider: Arc<dyn CamSolverInputProvider>) -> Self {
+        Self {
+            input_provider: Some(provider),
+            simulation_input_provider: None,
+        }
+    }
+
+    /// 切削シミュレーションの入力 provider を接続する。
+    #[must_use]
+    pub fn with_simulation_input_provider(
+        mut self,
+        provider: Arc<dyn CuttingSimulationInputProvider>,
+    ) -> Self {
+        self.simulation_input_provider = Some(provider);
+        self
+    }
+
+    fn run_cam_process(&self, job: &JobRecord) -> JobExecutionResult {
+        if let Err(err) = validate_cam_input_ref(&job.spec.input_ref) {
+            return cam_process_failure(
+                job,
+                &CamSolverError::InvalidInput(format!(
+                    "invalid input_ref for cam process: {}: {}",
+                    job.spec.input_ref, err
+                )),
+            );
+        }
+
+        let resolved = self
+            .input_provider
+            .as_ref()
+            .and_then(|provider| provider.resolve(&job.spec.input_ref));
+        let Some(input) = resolved else {
+            return self.run_cam_process_without_solver_input(job);
+        };
+
+        let toolpath = match solve_toolpath(&input) {
+            Ok(toolpath) => toolpath,
+            Err(err) => return cam_process_failure(job, &err),
+        };
+
+        match encode_toolpath_artifact(&toolpath, input.units, input.coordinate_frame) {
+            Ok(bytes) => cam_process_success(job, bytes),
+            Err(err) => cam_artifact_error(job, &err),
+        }
+    }
+
+    /// provider に solver 入力が無い場合の導線。
+    ///
+    /// 本番ビルドでは `invalid_input` とし、テスト/デバッグビルドでは
+    /// 参照 suffix に応じた固定 artifact と失敗分類を返す。
+    fn run_cam_process_without_solver_input(&self, job: &JobRecord) -> JobExecutionResult {
+        #[cfg(not(any(test, debug_assertions)))]
+        {
+            cam_process_failure(
+                job,
+                &CamSolverError::InvalidInput(format!(
+                    "solver input is not registered for input_ref: {}",
+                    job.spec.input_ref
+                )),
+            )
+        }
+
+        #[cfg(any(test, debug_assertions))]
+        {
+            if let Some(err) = classify_fixture_cam_process_failure(&job.spec.input_ref) {
+                return cam_process_failure(job, &err);
+            }
+
+            match build_cam_process_artifact_bytes(&job.spec.input_ref) {
+                Ok(bytes) => cam_process_success(job, bytes),
+                Err(err) => cam_artifact_error(job, &err),
+            }
+        }
+    }
+
+    fn run_cutting_simulation(
+        &self,
+        job: &JobRecord,
+        input_artifact_bytes: Option<&[u8]>,
+    ) -> JobExecutionResult {
+        if let Err(err) = validate_sim_input_ref(&job.spec.input_ref) {
+            return sim_failure(
+                job,
+                "invalid",
+                format!(
+                    "invalid input_ref for cutting simulation: {}: {}",
+                    job.spec.input_ref, err
+                ),
+            );
+        }
+
+        if job.parent_job_id.is_none() {
+            return sim_failure(
+                job,
+                "invalid",
+                "cutting simulation requires parent_job_id".to_string(),
+            );
+        }
+
+        let resolved = self
+            .simulation_input_provider
+            .as_ref()
+            .and_then(|provider| provider.resolve(&job.spec.input_ref));
+        let Some(input) = resolved else {
+            return sim_failure(
+                job,
+                "input-not-registered",
+                format!(
+                    "cutting simulation input is not registered for input_ref: {}",
+                    job.spec.input_ref
+                ),
+            );
+        };
+
+        let Some(input_artifact_bytes) = input_artifact_bytes else {
+            return sim_failure(
+                job,
+                "missing-input",
+                "missing input artifact bytes for cutting simulation".to_string(),
+            );
+        };
+
+        let mut cursor = Cursor::new(input_artifact_bytes);
+        let (toolpath_header, toolpath) = match read_toolpath_artifact_v1(&mut cursor) {
+            Ok(value) => value,
+            Err(err) => {
+                return sim_failure(
+                    job,
+                    classify_artifact_read_error(&err),
+                    format!("failed to read cutting simulation input artifact: {}", err),
+                );
+            }
+        };
+
+        if let Err(failure) = preflight_cutting_simulation(&toolpath, &input) {
+            let log_suffix = match failure {
+                PreflightFailure::NotReady(_) => "preflight-not-ready",
+                PreflightFailure::InvalidInput(_) => "preflight-invalid-input",
+            };
+            return sim_failure(job, log_suffix, failure.to_string());
+        }
+
+        let mut simulator = CuttingSimulator::new(input.stock, input.snapshot_interval.clone());
+        if let Err(err) = simulator.simulate(&toolpath, &input.tool, input.precision) {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("sim", job.id.0, "sim-failure")),
+                error: Some(format!("failed to run cutting simulation: {}", err)),
+            };
+        }
+
+        // 製品形状は、ツールパス生成と同じ弦の許容誤差・既定の分割の上限で三角形にする
+        let surface = input
+            .product
+            .triangle_mesh(input.tolerance, TessellationLimits::default())
+            .and_then(|mesh| ProductSurface::new(&mesh));
+        match surface {
+            Ok(surface) => simulator.compare_with_product(&surface, input.tolerance),
+            Err(err) => {
+                return JobExecutionResult {
+                    status: JobStatus::Failed,
+                    result_ref: None,
+                    artifact_bytes: None,
+                    log_ref: Some(build_log_ref("sim", job.id.0, "product-failure")),
+                    error: Some(format!(
+                        "failed to compare the stock with the product shape: {}",
+                        err
+                    )),
+                };
+            }
+        }
+
+        let mut artifact_bytes = Vec::new();
+        let written = simulator
+            .artifact()
+            .ok_or(BinaryFormatError::InvalidPayload("simulation result"))
+            .and_then(|artifact| {
+                write_cutting_simulation_artifact_v1(
+                    &mut artifact_bytes,
+                    &artifact,
+                    toolpath_header.unit,
+                    toolpath_header.frame,
+                )
+            });
+        if let Err(err) = written {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("sim", job.id.0, "artifact-error")),
+                error: Some(format!(
+                    "failed to write cutting simulation artifact: {}",
+                    err
+                )),
+            };
+        }
+
+        JobExecutionResult {
+            status: JobStatus::Succeeded,
+            result_ref: Some(build_result_ref("sim", job.id.0, "ok")),
+            artifact_bytes: Some(artifact_bytes),
+            log_ref: Some(build_log_ref(
+                "sim",
+                job.id.0,
+                &format!("ok/snapshots-{}", simulator.snapshots().len()),
+            )),
+            error: None,
+        }
+    }
+
+    fn run_nc_post_from_cam(
+        &self,
+        job: &JobRecord,
+        input_artifact_bytes: Option<&[u8]>,
+    ) -> JobExecutionResult {
+        let Some((cam_job_id_from_ref, result_suffix)) = parse_cam_result_ref(&job.spec.input_ref)
+        else {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
+                error: Some(format!(
+                    "invalid input_ref for nc post from cam: {}",
+                    job.spec.input_ref
+                )),
+            };
+        };
+
+        let Some(parent_job_id) = job.parent_job_id else {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
+                error: Some("nc post from cam requires parent_job_id".to_string()),
+            };
+        };
+
+        if parent_job_id.0 != cam_job_id_from_ref {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
+                error: Some(format!(
+                    "input_ref cam job id mismatch: parent_job_id={}, input_ref={}",
+                    parent_job_id.0, job.spec.input_ref
+                )),
+            };
+        }
+
+        if result_suffix != "ok" {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
+                error: Some(format!(
+                    "invalid cam result_ref suffix for nc post from cam: {}",
+                    result_suffix
+                )),
+            };
+        }
+
+        let Some(input_artifact_bytes) = input_artifact_bytes else {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "missing-input")),
+                error: Some("missing input artifact bytes for nc post from cam".to_string()),
+            };
+        };
+
+        let mut cursor = Cursor::new(input_artifact_bytes);
+        if let Err(err) = read_toolpath_artifact_v1(&mut cursor) {
+            let log_ref = format!(
+                "log://nc-post/{}/{}",
+                job.id.0,
+                classify_artifact_read_error(&err)
+            );
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(log_ref),
+                error: Some(format!("failed to read artifact binary: {}", err)),
+            };
+        }
+
+        JobExecutionResult {
+            status: JobStatus::Succeeded,
+            result_ref: Some(build_result_ref("nc-post", job.id.0, "ok")),
+            artifact_bytes: None,
+            log_ref: Some(build_log_ref("nc-post", job.id.0, "ok")),
+            error: None,
+        }
+    }
+}
+
+fn cam_process_success(job: &JobRecord, artifact_bytes: Vec<u8>) -> JobExecutionResult {
+    JobExecutionResult {
+        status: JobStatus::Succeeded,
+        result_ref: Some(build_result_ref("cam", job.id.0, "ok")),
+        artifact_bytes: Some(artifact_bytes),
+        log_ref: Some(build_log_ref("cam", job.id.0, "ok")),
+        error: None,
+    }
+}
+
+fn cam_process_failure(job: &JobRecord, error: &CamSolverError) -> JobExecutionResult {
+    JobExecutionResult {
+        status: JobStatus::Failed,
+        result_ref: None,
+        artifact_bytes: None,
+        log_ref: Some(build_log_ref("cam", job.id.0, error.code())),
+        error: Some(format!("cam process failed: {}", error)),
+    }
+}
+
+fn cam_artifact_error(job: &JobRecord, error: &BinaryFormatError) -> JobExecutionResult {
+    JobExecutionResult {
+        status: JobStatus::Failed,
+        result_ref: None,
+        artifact_bytes: None,
+        log_ref: Some(build_log_ref("cam", job.id.0, "artifact-error")),
+        error: Some(format!("failed to build cam artifact bytes: {}", error)),
+    }
+}
+
+fn encode_toolpath_artifact(
+    toolpath: &ToolPath<f64>,
+    unit: LengthUnit,
+    frame: CoordinateFrame,
+) -> Result<Vec<u8>, BinaryFormatError> {
+    let mut payload = Vec::new();
+    write_toolpath_payload_v1(&mut payload, toolpath)?;
+
+    let mut header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, payload.len() as u64);
+    header.unit = unit;
+    header.frame = frame;
+
+    let mut bytes = Vec::new();
+    header.write_to(&mut bytes)?;
+    bytes.extend_from_slice(&payload);
+    Ok(bytes)
+}
+
+/// テスト/デバッグ用の固定失敗分類（solver 入力未登録時のみ参照）
+#[cfg(any(test, debug_assertions))]
+fn classify_fixture_cam_process_failure(input_ref: &str) -> Option<CamSolverError> {
+    if input_ref.ends_with("/invalid-input") {
+        return Some(CamSolverError::InvalidInput(
+            "required input fields are missing or malformed".to_string(),
+        ));
+    }
+
+    if input_ref.ends_with("/no-solution") {
+        return Some(CamSolverError::NoSolution(
+            "no feasible toolpath can be constructed under current geometry constraints"
+                .to_string(),
+        ));
+    }
+
+    if input_ref.ends_with("/convergence-failure") {
+        return Some(CamSolverError::ConvergenceFailure(
+            "iterative solver did not converge within configured tolerance".to_string(),
+        ));
+    }
+
+    None
+}
+
+#[cfg(any(test, debug_assertions))]
+fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFormatError> {
+    if input_ref.ends_with("/kind-mismatch") {
+        return make_interference_artifact_bytes();
+    }
+
+    if input_ref.ends_with("/version-mismatch") {
+        return make_toolpath_artifact_bytes(999);
+    }
+
+    if input_ref.ends_with("/artifact-read-failed") {
+        return Ok(vec![0_u8, 1, 2, 3]);
+    }
+
+    if input_ref.ends_with("/sim-failure") {
+        return make_empty_toolpath_artifact_bytes();
+    }
+
+    make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)
+}
+
+/// 切削シミュレーションを実行前に拒否した結果
+fn sim_failure(job: &JobRecord, log_suffix: &str, error: String) -> JobExecutionResult {
+    JobExecutionResult {
+        status: JobStatus::Failed,
+        result_ref: None,
+        artifact_bytes: None,
+        log_ref: Some(build_log_ref("sim", job.id.0, log_suffix)),
+        error: Some(error),
+    }
+}
+
+fn parse_cam_result_ref(input_ref: &str) -> Option<(u64, String)> {
+    let (job_id, suffix) = RefParser::parse_result_job_ref(input_ref, "cam").ok()?;
+    Some((job_id, suffix))
+}
+
+/// suffix が参照契約（ASCII・空セグメント禁止等）に違反した場合に用いる固定 suffix
+const INVALID_REF_SUFFIX: &str = "invalid_ref";
+
+/// suffix を `/` 区切りのまま RefFactory に検証させて参照を生成する。
+///
+/// 検証に失敗した suffix は埋め込まず `INVALID_REF_SUFFIX` へ置き換える。
+/// domain はアダプタ内部の固定値（`cam` / `sim` / `nc-post`）のため、固定 suffix での生成は常に成功する。
+fn build_ref<F>(factory: F, suffix: &str) -> String
+where
+    F: Fn(&[&str]) -> Result<String, RefValidationError>,
+{
+    let suffix_segments: Vec<&str> = suffix.split('/').collect();
+    factory(&suffix_segments)
+        .or_else(|_| factory(&[INVALID_REF_SUFFIX]))
+        .expect("reference domain and job id are adapter-internal values and must be valid")
+}
+
+fn build_result_ref(domain: &str, job_id: u64, suffix: &str) -> String {
+    build_ref(
+        |segments| RefFactory::result(domain, job_id, segments),
+        suffix,
+    )
+}
+
+fn build_log_ref(domain: &str, job_id: u64, suffix: &str) -> String {
+    build_ref(|segments| RefFactory::log(domain, job_id, segments), suffix)
+}
+
+fn classify_artifact_read_error(error: &BinaryFormatError) -> &'static str {
+    match error {
+        BinaryFormatError::ArtifactKindMismatch { .. } => "kind-mismatch",
+        BinaryFormatError::UnsupportedMajorVersion { .. }
+        | BinaryFormatError::UnsupportedMinorVersion { .. }
+        | BinaryFormatError::ConverterRequired { .. } => "version-mismatch",
+        _ => "artifact-read-failed",
+    }
+}
+
+#[cfg(any(test, debug_assertions))]
+fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
+    let toolpath = ToolPath::new(
+        "sim-src".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![],
+        vec![],
+    );
+
+    let mut payload = Vec::new();
+    write_toolpath_payload_v1(&mut payload, &toolpath)?;
+
+    let header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, payload.len() as u64);
+    let mut bytes = Vec::new();
+    header.write_to(&mut bytes)?;
+    bytes.extend_from_slice(&payload);
+
+    Ok(bytes)
+}
+
+#[cfg(any(test, debug_assertions))]
+fn make_toolpath_artifact_bytes(version_minor: u16) -> Result<Vec<u8>, BinaryFormatError> {
+    let toolpath = ToolPath::new(
+        "nc-post-src".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(
+            0,
+            0.0,
+            vec![PathSegment::new_line(
+                Point3D::new(0.0, 0.0, 0.0),
+                Point3D::new(1.0, 0.0, 0.0),
+                SegmentType::Cutting { feed_rate: 1.0 },
+            )],
+        )],
+        vec![],
+    );
+
+    let mut payload = Vec::new();
+    write_toolpath_payload_v1(&mut payload, &toolpath)?;
+
+    let mut header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, payload.len() as u64);
+    header.version_minor = version_minor;
+
+    let mut bytes = Vec::new();
+    header.write_to(&mut bytes)?;
+    bytes.extend_from_slice(&payload);
+
+    Ok(bytes)
+}
+
+#[cfg(any(test, debug_assertions))]
+fn make_interference_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
+    let interference = cam_core::InterferencePayload {
+        events: vec![cam_core::InterferenceEvent {
+            sample_index: 0,
+            tool_id: "nc-post-src".to_string(),
+            position: Point3D::new(0.0, 0.0, 0.0),
+            normal: Point3D::new(0.0, 0.0, 1.0),
+            penetration_depth: 0.1,
+            kind: cam_core::InterferenceKind::Tool,
+        }],
+    };
+
+    let mut payload = Vec::new();
+    cam_core::write_interference_payload_v1(&mut payload, &interference)?;
+
+    let header = ArtifactHeaderV1::new(ArtifactKind::Interference, payload.len() as u64);
+    let mut bytes = Vec::new();
+    header.write_to(&mut bytes)?;
+    bytes.extend_from_slice(&payload);
+
+    Ok(bytes)
+}
+
+impl JobExecutor for CamJobExecutorAdapter {
+    fn execute(&self, job: &JobRecord, input_artifact_bytes: Option<&[u8]>) -> JobExecutionResult {
+        match job.spec.job_type {
+            JobType::CamProcess => self.run_cam_process(job),
+            JobType::CuttingSimulation => self.run_cutting_simulation(job, input_artifact_bytes),
+            JobType::NcPostFromCam => self.run_nc_post_from_cam(job, input_artifact_bytes),
+        }
+    }
+}
+
+#[cfg(test)]
+mod ref_builder_tests {
+    use super::{build_log_ref, build_result_ref};
+
+    #[test]
+    fn valid_suffix_is_embedded_as_segments() {
+        assert_eq!(build_result_ref("cam", 3, "ok"), "result://cam/3/ok");
+        assert_eq!(
+            build_log_ref("sim", 7, "ok/hybrid-gap-0.1000"),
+            "log://sim/7/ok/hybrid-gap-0.1000"
+        );
+    }
+
+    #[test]
+    fn invalid_suffix_is_replaced_instead_of_normalized() {
+        // 空セグメントを黙って詰めず、non-ASCII もそのまま埋め込まない
+        for suffix in ["a//b", "/ok", "ok/", "", "失敗"] {
+            assert_eq!(
+                build_log_ref("cam", 1, suffix),
+                "log://cam/1/invalid_ref",
+                "suffix={suffix:?}"
+            );
+            assert_eq!(
+                build_result_ref("cam", 1, suffix),
+                "result://cam/1/invalid_ref",
+                "suffix={suffix:?}"
+            );
+        }
+    }
+}

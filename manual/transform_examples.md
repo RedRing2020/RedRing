@@ -5,9 +5,9 @@ Transform システムの代表的な利用例をまとめます。
 ## 基本変換
 
 ```rust
+use analysis::Angle;
 use analysis::linalg::vector::Vector3;
-use geo_foundation::{AnalysisTransform3D, Angle};
-use geo_primitives::TriangleMesh3D;
+use geo_primitives::{AnalysisTransform3D, TriangleMesh3D};
 
 let mesh = TriangleMesh3D::new(vertices, indices)?;
 
@@ -42,7 +42,9 @@ let result_uniform = mesh.apply_composite_transform_uniform(
 ## Matrix 直接操作
 
 ```rust
+use analysis::Angle;
 use analysis::linalg::matrix::Matrix4x4;
+use analysis::linalg::vector::Vector3;
 
 let custom_matrix = Matrix4x4::identity()
     * Matrix4x4::translation_3d(&Vector3::new(1.0, 2.0, 3.0))

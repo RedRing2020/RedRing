@@ -1,7 +1,6 @@
 //! AppState のステージ更新オーケストレーションを扱うモジュール。
 
 use super::AppState;
-use crate::stage_factory;
 use stage::{MeshStage, RenderStage};
 
 impl AppState {
@@ -15,7 +14,7 @@ impl AppState {
             return;
         }
 
-        let vertices = self.entity_manager.line_vertices();
+        let vertices = self.entity_manager.line_list_vertices();
         if vertices.is_empty() {
             self.entity_manager.clear_dirty();
             return;
@@ -32,11 +31,28 @@ impl AppState {
     }
 
     pub fn render(&mut self) {
+        if self.debug_snapshot.frame_update_required {
+            self.sync_snapshot_visual_frame();
+        }
+        self.apply_cutting_animation_update();
         self.renderer.update();
         {
             let stage = self.renderer.get_stage_mut();
             stage.update_with_device(&self.graphic.device);
         }
+
+        let mut menu_bar_state = self.prepare_menu_bar_state();
+        let mut settings_panel_state = self.prepare_settings_panel_state();
+        let mut machining_conditions_state = self.prepare_machining_conditions_state();
+        self.renderer.prepare_ui_windows(
+            &self.window,
+            &mut menu_bar_state,
+            &mut settings_panel_state,
+            &mut machining_conditions_state,
+        );
+        self.apply_settings_panel_state(settings_panel_state);
+        self.apply_machining_conditions_state(machining_conditions_state);
+        self.apply_menu_bar_state(menu_bar_state);
 
         self.update_camera_uniforms();
 
@@ -56,31 +72,13 @@ impl AppState {
         self.graphic.render(&mut self.renderer);
     }
 
-    pub fn set_stage_draft(&mut self) {
-        let stage =
-            stage_factory::create_draft_stage(&self.graphic.device, self.graphic.config.format);
-        self.set_stage_and_update_camera(stage);
-    }
-
-    pub fn set_stage_outline(&mut self) {
-        let stage =
-            stage_factory::create_outline_stage(&self.graphic.device, self.graphic.config.format);
-        self.set_stage_and_update_camera(stage);
-    }
-
-    pub fn set_stage_shading(&mut self) {
-        let stage =
-            stage_factory::create_shading_stage(&self.graphic.device, self.graphic.config.format);
-        self.set_stage_and_update_camera(stage);
-    }
-
     /// カメラのユニフォームを更新
     pub fn update_camera_uniforms(&mut self) {
         let view_matrix = self.camera.view_matrix();
         let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
         let projection_matrix = self.camera.projection_matrix(aspect);
 
-        tracing::info!(
+        tracing::debug!(
             "🎥 カメラ更新: mode={:?}, aspect={:.3}, target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds={:?}",
             self.camera.projection_mode,
             aspect,

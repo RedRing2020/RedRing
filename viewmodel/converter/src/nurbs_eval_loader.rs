@@ -1,12 +1,14 @@
 //! NURBS評価データの読込・生成
 //!
-//! app層が直接geo_*に依存しないよう、
-//! ViewModel層でNURBS評価データを生成します。
+//! SVG やサンプルの形状から、NURBS の GPU 評価データを生成します。
 
 use std::path::Path;
 
-use geo_algorithms::{adaptive_tessellation as ga_tess, NurbsCurve3D, NurbsSurface3D};
-use geo_foundation::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
+use geo_algorithms::{
+    AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings, NurbsCurve3D,
+    NurbsCurveAdaptiveTessellation,
+};
+use geo_contracts::NurbsCurve3DConstructor;
 use geo_io::svg::{parse_svg_file, SvgError};
 use thiserror::Error;
 
@@ -39,16 +41,15 @@ pub fn load_nurbs_curve_eval_from_svg(
     let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
         nurbs_data.degree,
         nurbs_data.knots.clone(),
-        nurbs_data.control_points.clone(),
+        &nurbs_data.control_points,
         nurbs_data.weights.clone(),
     )
-    .map_err(NurbsEvalLoaderError::ConstructionError)?;
+    .map_err(|e| NurbsEvalLoaderError::ConstructionError(e.to_string()))?;
 
-    let settings = ga_tess::AdaptiveTessellationSettings::default_with_tolerance(tolerance);
-    let param_list =
-        ga_tess::NurbsCurveAdaptiveTessellation::adaptive_params_curve(&curve, &settings);
+    let settings = AdaptiveTessellationSettings::default_with_tolerance(tolerance);
+    let param_list = NurbsCurveAdaptiveTessellation::adaptive_params_curve(&curve, &settings);
 
-    let param_list_foundation = ga_tess::AdaptiveParamList {
+    let param_list_foundation = AdaptiveParamList {
         params: param_list.params,
     };
 
@@ -62,27 +63,11 @@ pub fn load_nurbs_curve_eval_from_svg(
 pub fn create_sample_nurbs_surface_eval(
     tolerance: f64,
 ) -> Result<NurbsSurfaceEvalData, NurbsEvalLoaderError> {
-    // 中央が盛り上がった2次曲面（3x3制御点グリッド）
-    let control_points = vec![
-        vec![(0.0, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 1.0, 0.0)],
-        vec![(0.5, 0.0, 0.0), (0.5, 0.5, 0.5), (0.5, 1.0, 0.0)],
-        vec![(1.0, 0.0, 0.0), (1.0, 0.5, 0.0), (1.0, 1.0, 0.0)],
-    ];
-
-    let u_degree = 2;
-    let v_degree = 2;
-    let u_knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-    let v_knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-
-    let surface =
-        NurbsSurface3D::<f64>::new(control_points, None, u_knots, v_knots, u_degree, v_degree)
+    let (surface, param_grid) =
+        geo_algorithms::nurbs_fixtures::create_sample_nurbs_surface_with_adaptive_params(tolerance)
             .map_err(NurbsEvalLoaderError::ConstructionError)?;
 
-    let settings = ga_tess::AdaptiveTessellationSettings::default_with_tolerance(tolerance);
-    let param_grid =
-        ga_tess::NurbsSurfaceAdaptiveTessellation::adaptive_params_surface(&surface, &settings);
-
-    let param_grid_foundation = ga_tess::AdaptiveParamGrid {
+    let param_grid_foundation = AdaptiveParamGrid {
         u_params: param_grid.u_params,
         v_params: param_grid.v_params,
     };

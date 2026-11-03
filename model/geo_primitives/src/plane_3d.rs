@@ -1,18 +1,18 @@
-//! Plane3D CAD実装
+//! Plane3D 実装
 //!
-//! CAD用の座標系付き平面実装（旧Plane3DCoordinateSystem）
-//! STEP AP214準拠の完全な平面座標系を提供
+//! 座標系付き平面（STEP AP214 の AXIS2_PLACEMENT_3D + PLANE に対応）
+
+#[cfg(test)]
+mod tests;
+mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::geometry::core::plane_traits::{
-    Plane3DConstructor, Plane3DMeasure, Plane3DProperties,
+use geo_contracts::{
+    default_distance_tolerance, Plane3DConstructor, Plane3DContainment, Plane3DDistance,
+    Plane3DProjection, Plane3DProperties, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
 };
-use geo_foundation::Scalar;
 
-/// CAD用3次元平面（座標系付き）
-///
-/// STEP AP214の AXIS2_PLACEMENT_3D + PLANE に対応
-/// 完全な座標系情報（原点 + X軸 + Y軸 + Z軸）を持つ平面
+/// 3次元平面（座標系付き）
 ///
 /// ## 座標系定義
 /// - origin: 平面原点（STEP: location）
@@ -22,267 +22,57 @@ use geo_foundation::Scalar;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Plane3D<T: Scalar> {
     /// 平面原点（STEP: location）
-    pub(crate) origin: Point3D<T>,
+    origin: Point3D<T>,
 
     /// Z軸方向 - 法線ベクトル（STEP: axis）
-    pub(crate) normal: Direction3D<T>,
+    normal: Direction3D<T>,
 
     /// X軸方向 - 第一軸（STEP: ref_direction）
-    pub(crate) u_axis: Direction3D<T>,
+    u_axis: Direction3D<T>,
 
     /// Y軸方向 - 第二軸（STEP: derived, normal × u_axis）
-    pub(crate) v_axis: Direction3D<T>,
+    v_axis: Direction3D<T>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Plane3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
-    /// STEP AXIS2_PLACEMENT_3D 形式で平面座標系を作成
+    /// 原点・法線・第一軸の候補（大きさは任意）から平面を作成する
     ///
-    /// # Arguments
-    /// * `origin` - 平面原点
-    /// * `normal` - 法線方向（Z軸）
-    /// * `u_direction` - 第一軸方向（X軸）、法線と直交していなくても自動調整
-    ///
-    /// # Returns
-    /// 新しい平面座標系、法線がゼロベクトルの場合は None
-    pub fn from_origin_and_axes(
+    /// 第一軸の候補から法線成分を除いて正規化する（グラム・シュミット正規直交化）。
+    fn from_origin_normal_and_u_vector(
         origin: Point3D<T>,
-        normal: Vector3D<T>,
-        u_direction: Vector3D<T>,
+        normal: Direction3D<T>,
+        u_vector: Vector3D<T>,
     ) -> Option<Self> {
-        // 法線の正規化
-        let z_axis = Direction3D::from_vector(normal)?;
-
-        // U軸の法線成分を除去して正規化（グラム・シュミット正規直交化）
-        let normal_component = u_direction.dot(&z_axis.as_vector());
-        let orthogonal_u = u_direction - z_axis.as_vector() * normal_component;
+        let orthogonal_u = u_vector - normal.as_vector() * u_vector.dot(normal.as_vector());
         let u_axis = Direction3D::from_vector(orthogonal_u)?;
-
         // V軸 = Z軸 × U軸（右手系）
-        let v_vector = z_axis.as_vector().cross(&u_axis.as_vector());
-        let v_axis = Direction3D::from_vector(v_vector)?;
+        let v_axis = Direction3D::from_vector(normal.as_vector().cross(u_axis.as_vector()))?;
 
         Some(Self {
             origin,
-            normal: z_axis,
+            normal,
             u_axis,
             v_axis,
         })
     }
+}
 
-    /// 3点から平面座標系を作成
-    ///
-    /// # Arguments
-    /// * `origin` - 原点
-    /// * `point_u` - U軸方向の参照点
-    /// * `point_v` - V軸方向の参照点
-    pub fn from_three_points(
-        origin: Point3D<T>,
-        point_u: Point3D<T>,
-        point_v: Point3D<T>,
-    ) -> Option<Self> {
-        let u_vector = Vector3D::new(
-            point_u.x() - origin.x(),
-            point_u.y() - origin.y(),
-            point_u.z() - origin.z(),
-        );
-        let v_vector = Vector3D::new(
-            point_v.x() - origin.x(),
-            point_v.y() - origin.y(),
-            point_v.z() - origin.z(),
-        );
-
-        // 法線 = U × V（右手系）
-        let normal = u_vector.cross(&v_vector);
-
-        Self::from_origin_and_axes(origin, normal, u_vector)
-    }
-
-    /// XY平面を作成（z = constant）
-    pub fn xy_plane(z: T) -> Self {
-        Self::from_origin_and_axes(
-            Point3D::new(T::ZERO, T::ZERO, z),
-            Vector3D::unit_z(),
-            Vector3D::unit_x(),
-        )
-        .unwrap()
-    }
-
-    /// XZ平面を作成（y = constant）
-    pub fn xz_plane(y: T) -> Self {
-        Self::from_origin_and_axes(
-            Point3D::new(T::ZERO, y, T::ZERO),
-            Vector3D::unit_y(),
-            Vector3D::unit_x(),
-        )
-        .unwrap()
-    }
-
-    /// YZ平面を作成（x = constant）
-    pub fn yz_plane(x: T) -> Self {
-        Self::from_origin_and_axes(
-            Point3D::new(x, T::ZERO, T::ZERO),
-            Vector3D::unit_x(),
-            Vector3D::unit_y(),
-        )
-        .unwrap()
-    }
-
-    /// 点と法線から平面を作成（レガシー互換性のため）
-    ///
-    /// # Arguments
-    /// * `point` - 平面上の点（原点として使用）
-    /// * `normal` - 法線ベクトル
-    ///
-    /// # Returns
-    /// 新しい平面座標系、法線がゼロベクトルの場合は None
-    pub fn from_point_and_normal(point: Point3D<T>, normal: Vector3D<T>) -> Option<Self> {
-        // デフォルトのU軸候補を法線に対して垂直になるように選択
-        let candidate_u = if normal.x().abs() < T::from_f64(0.9) {
-            Vector3D::unit_x()
-        } else {
-            Vector3D::unit_y()
-        };
-
-        Self::from_origin_and_axes(point, normal, candidate_u)
-    }
-
-    // ========================================================================
-    // アクセサメソッド
-    // ========================================================================
-
-    /// 平面の原点を取得
-    pub fn origin(&self) -> Point3D<T> {
-        self.origin
-    }
-
-    /// 平面の法線方向を取得
-    pub fn normal(&self) -> Direction3D<T> {
-        self.normal
-    }
-
-    /// 法線方向（Z軸）を取得（内部用）
-    pub(crate) fn normal_internal(&self) -> Direction3D<T> {
-        self.normal
-    }
-
-    /// 従来の点+法線ベクトル形式で原点と法線を取得
-    pub fn point(&self) -> Point3D<T> {
-        self.origin
-    }
-
-    // ========================================================================
-    // Core Geometric Operations
-    // ========================================================================
-
-    /// 点が平面上にあるかチェック
-    pub fn contains_point(&self, point: Point3D<T>, tolerance: T) -> bool {
-        let distance = self.distance_to_point(point).abs();
-        distance <= tolerance
-    }
-
-    /// 点から平面までの符号付き距離
-    pub fn distance_to_point(&self, point: Point3D<T>) -> T {
-        let relative = Vector3D::new(
-            point.x() - self.origin.x(),
-            point.y() - self.origin.y(),
-            point.z() - self.origin.z(),
-        );
-        relative.dot(&self.normal.as_vector())
-    }
-
-    /// 点を平面に投影
-    pub fn project_point(&self, point: Point3D<T>) -> Point3D<T> {
-        let distance = self.distance_to_point(point);
-        let offset = self.normal.as_vector() * distance;
-        Point3D::new(
-            point.x() - offset.x(),
-            point.y() - offset.y(),
-            point.z() - offset.z(),
-        )
-    }
-
-    /// 平面ローカル座標をワールド座標に変換
-    pub fn local_to_world(&self, u: T, v: T) -> Point3D<T> {
-        Point3D::new(
-            self.origin.x() + u * self.u_axis.x() + v * self.v_axis.x(),
-            self.origin.y() + u * self.u_axis.y() + v * self.v_axis.y(),
-            self.origin.z() + u * self.u_axis.z() + v * self.v_axis.z(),
-        )
-    }
-
-    /// ワールド座標を平面ローカル座標に変換
-    pub fn world_to_local(&self, world_point: Point3D<T>) -> (T, T, T) {
-        let relative = Vector3D::new(
-            world_point.x() - self.origin.x(),
-            world_point.y() - self.origin.y(),
-            world_point.z() - self.origin.z(),
-        );
-
-        let u = relative.dot(&self.u_axis.as_vector());
-        let v = relative.dot(&self.v_axis.as_vector());
-        let distance = relative.dot(&self.normal.as_vector());
-
-        (u, v, distance)
-    }
-
-    /// 平面上に点を投影してUV座標を取得
-    pub fn project_to_uv(&self, world_point: Point3D<T>) -> (T, T) {
-        let (u, v, _) = self.world_to_local(world_point);
-        (u, v)
-    }
-
-    /// 平面の方程式係数を取得
-    /// Returns (a, b, c, d) where ax + by + cz + d = 0
-    pub fn equation_coefficients(&self) -> (T, T, T, T) {
-        let a = self.normal.x();
-        let b = self.normal.y();
-        let c = self.normal.z();
-        let d = -(a * self.origin.x() + b * self.origin.y() + c * self.origin.z());
-        (a, b, c, d)
-    }
-
-    /// 平面座標系が有効かチェック
-    pub fn is_valid(&self) -> bool {
-        // 各軸がDirection3Dで正規化されていることを前提
-        // 直交性のチェック
-        let dot_uv = self.u_axis.as_vector().dot(&self.v_axis.as_vector()).abs();
-        let dot_un = self.u_axis.as_vector().dot(&self.normal.as_vector()).abs();
-        let dot_vn = self.v_axis.as_vector().dot(&self.normal.as_vector()).abs();
-
-        let tolerance = T::from_f64(1e-10);
-        dot_uv < tolerance && dot_un < tolerance && dot_vn < tolerance
+impl<T: Scalar> PrimitiveMetadata for Plane3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Plane
     }
 }
 
-impl<T: Scalar> Default for Plane3D<T> {
-    /// デフォルトはXY平面（z = 0）
-    fn default() -> Self {
-        Self::xy_plane(T::ZERO)
+impl<T: Scalar> TolerantEq<T> for Plane3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let dot_product = self.normal.dot(other.normal).abs();
+        if (dot_product - T::ONE).abs() > tolerance {
+            return false;
+        }
+
+        other.distance_to_point(self.origin) <= tolerance
     }
 }
-
-// ============================================================================
-// Constants (注: ジェネリック型では const は制限があるため、メソッドで提供)
-// ============================================================================
-
-impl<T: Scalar> Plane3D<T> {
-    /// XY平面（z = 0）の参照
-    pub fn xy() -> Self {
-        Self::xy_plane(T::ZERO)
-    }
-}
-
-// ============================================================================
-// Display Implementation
-// ============================================================================
 
 impl<T: Scalar + std::fmt::Display> std::fmt::Display for Plane3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -305,225 +95,72 @@ impl<T: Scalar + std::fmt::Display> std::fmt::Display for Plane3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation
-// ============================================================================
-
 impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
-    // ========== Phase 1 実装 ==========
-
     fn from_origin_and_axes(
-        origin: (T, T, T),
-        normal: (T, T, T),
-        u_direction: (T, T, T),
+        origin: Point3D<T>,
+        normal: Direction3D<T>,
+        u_direction: Direction3D<T>,
     ) -> Option<Self> {
-        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
-        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
-        let u_vec = Vector3D::new(u_direction.0, u_direction.1, u_direction.2);
-        Self::from_origin_and_axes(origin_point, normal_vec, u_vec)
+        Self::from_origin_normal_and_u_vector(origin, normal, u_direction.as_vector())
     }
 
-    fn from_three_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T)) -> Option<Self> {
-        let point1 = Point3D::new(p1.0, p1.1, p1.2);
-        let point2 = Point3D::new(p2.0, p2.1, p2.2);
-        let point3 = Point3D::new(p3.0, p3.1, p3.2);
-        Self::from_three_points(point1, point2, point3)
+    fn from_three_points(
+        origin: Point3D<T>,
+        point_u: Point3D<T>,
+        point_v: Point3D<T>,
+    ) -> Option<Self> {
+        let u_vector = Vector3D::from_points(origin, point_u);
+        let v_vector = Vector3D::from_points(origin, point_v);
+
+        // 法線 = U × V（右手系）
+        let normal = Direction3D::from_vector(u_vector.cross(v_vector))?;
+        Self::from_origin_normal_and_u_vector(origin, normal, u_vector)
     }
 
-    fn xy_plane() -> Self {
-        Self::xy_plane(T::ZERO)
-    }
+    fn from_point_and_normal(point: Point3D<T>, normal: Direction3D<T>) -> Option<Self> {
+        // 法線と平行でない座標軸を第一軸の候補にする
+        let candidate_u = if normal.x().abs() < T::from_f64(0.9) {
+            Vector3D::unit_x()
+        } else {
+            Vector3D::unit_y()
+        };
 
-    // ========== Phase 2 実装 ==========
-
-    fn from_point_and_normal(point: (T, T, T), normal: (T, T, T)) -> Option<Self> {
-        let origin = Point3D::new(point.0, point.1, point.2);
-        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
-        Self::from_point_and_normal(origin, normal_vec)
-    }
-
-    fn xz_plane() -> Self {
-        Self::xz_plane(T::ZERO)
-    }
-
-    fn yz_plane() -> Self {
-        Self::yz_plane(T::ZERO)
+        Self::from_origin_normal_and_u_vector(point, normal, candidate_u)
     }
 }
 
 impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
-    // ========== Phase 1 実装 ==========
-
-    fn origin(&self) -> (T, T, T) {
-        (self.origin.x(), self.origin.y(), self.origin.z())
+    fn origin(&self) -> Point3D<T> {
+        self.origin
     }
 
-    fn normal(&self) -> (T, T, T) {
-        (self.normal.x(), self.normal.y(), self.normal.z())
+    fn normal(&self) -> Direction3D<T> {
+        self.normal
     }
 
-    fn u_axis(&self) -> (T, T, T) {
-        (self.u_axis.x(), self.u_axis.y(), self.u_axis.z())
+    fn u_axis(&self) -> Direction3D<T> {
+        self.u_axis
     }
 
-    fn v_axis(&self) -> (T, T, T) {
-        (self.v_axis.x(), self.v_axis.y(), self.v_axis.z())
-    }
-
-    fn dimension(&self) -> u32 {
-        2 // 2次元多様体
-    }
-
-    // ========== Phase 2 実装 ==========
-
-    fn is_xy_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
-        let z_axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
-        (self.normal.as_vector() - z_axis).length() < tolerance && self.origin.z().abs() < tolerance
-    }
-
-    fn is_xz_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
-        let y_axis = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
-        (self.normal.as_vector() - y_axis).length() < tolerance && self.origin.y().abs() < tolerance
-    }
-
-    fn is_yz_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
-        let x_axis = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
-        (self.normal.as_vector() - x_axis).length() < tolerance && self.origin.x().abs() < tolerance
+    fn v_axis(&self) -> Direction3D<T> {
+        self.v_axis
     }
 }
 
-impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
-    // ========== Phase 1 実装 ==========
-
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
-        // distance_to_point の計算を直接展開
-        let relative = Vector3D::new(
-            point.0 - self.origin.x(),
-            point.1 - self.origin.y(),
-            point.2 - self.origin.z(),
-        );
-        let distance = relative.dot(&self.normal.as_vector()).abs();
-        distance <= tolerance
+impl<T: Scalar> Plane3DContainment<T> for Plane3D<T> {
+    fn contains_point(&self, point: Point3D<T>) -> bool {
+        self.distance_to_point(point).abs() <= default_distance_tolerance::<T>()
     }
+}
 
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let relative = Vector3D::new(
-            point.0 - self.origin.x(),
-            point.1 - self.origin.y(),
-            point.2 - self.origin.z(),
-        );
-        relative.dot(&self.normal.as_vector())
+impl<T: Scalar> Plane3DDistance<T> for Plane3D<T> {
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
+        Vector3D::from_points(self.origin, point).dot(self.normal.as_vector())
     }
+}
 
-    fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
-        // distance_to_point の計算を直接展開
-        let relative = Vector3D::new(
-            point.0 - self.origin.x(),
-            point.1 - self.origin.y(),
-            point.2 - self.origin.z(),
-        );
-        let distance = relative.dot(&self.normal.as_vector());
-        let offset = self.normal.as_vector() * distance;
-        (
-            point.0 - offset.x(),
-            point.1 - offset.y(),
-            point.2 - offset.z(),
-        )
-    }
-
-    fn equation_coefficients(&self) -> (T, T, T, T) {
-        let a = self.normal.x();
-        let b = self.normal.y();
-        let c = self.normal.z();
-        let d = -(a * self.origin.x() + b * self.origin.y() + c * self.origin.z());
-        (a, b, c, d)
-    }
-
-    // ========== Phase 2 実装 ==========
-
-    fn point_to_uv(&self, point: (T, T, T)) -> (T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let from_origin = Vector3D::from_points(&self.origin, &p);
-        let u = from_origin.dot(&self.u_axis.as_vector());
-        let v = from_origin.dot(&self.v_axis.as_vector());
-        (u, v)
-    }
-
-    fn uv_to_point(&self, u: T, v: T) -> (T, T, T) {
-        let offset = self.u_axis.as_vector() * u + self.v_axis.as_vector() * v;
-        let point = self.origin + offset;
-        (point.x(), point.y(), point.z())
-    }
-
-    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
-        // project_point の計算を直接展開
-        let relative = Vector3D::new(
-            point.0 - self.origin.x(),
-            point.1 - self.origin.y(),
-            point.2 - self.origin.z(),
-        );
-        let distance = relative.dot(&self.normal.as_vector());
-        let offset = self.normal.as_vector() * distance;
-        let projected_x = point.0 - offset.x();
-        let projected_y = point.1 - offset.y();
-        let projected_z = point.2 - offset.z();
-
-        // 鏡面点 = 2 * 投影点 - 元の点
-        (
-            projected_x + projected_x - point.0,
-            projected_y + projected_y - point.1,
-            projected_z + projected_z - point.2,
-        )
-    }
-
-    fn intersection_with_plane(
-        &self,
-        other_origin: (T, T, T),
-        other_normal: (T, T, T),
-    ) -> Option<((T, T, T), (T, T, T))> {
-        let n1 = self.normal.as_vector();
-        let n2 = Vector3D::new(other_normal.0, other_normal.1, other_normal.2);
-
-        // 交線の方向 = n1 × n2
-        let direction = n1.cross(&n2);
-        if direction.length() <= T::EPSILON {
-            return None; // 平行
-        }
-
-        // 交線上の1点を求める（連立方程式を解く）
-        // この実装は簡易版：原点に最も近い点を求める
-        // equation_coefficients の計算を直接展開
-        let a1 = self.normal.x();
-        let b1 = self.normal.y();
-        let c1 = self.normal.z();
-        let d1 = -(a1 * self.origin.x() + b1 * self.origin.y() + c1 * self.origin.z());
-
-        let d2 = -(n2.x() * other_origin.0 + n2.y() * other_origin.1 + n2.z() * other_origin.2);
-
-        // 適当な座標を固定して解く（z=0として解く）
-        let det = n1.x() * n2.y() - n1.y() * n2.x();
-        if det.abs() > T::EPSILON {
-            let x = (-d1 * n2.y() + d2 * n1.y()) / det;
-            let y = (n1.x() * -d2 - n2.x() * -d1) / det;
-            let point_on_line = (x, y, T::ZERO);
-            let dir = (direction.x(), direction.y(), direction.z());
-            Some((point_on_line, dir))
-        } else {
-            // x=0として解く
-            let det = n1.y() * n2.z() - n1.z() * n2.y();
-            if det.abs() > T::EPSILON {
-                let y = (-d1 * n2.z() + d2 * n1.z()) / det;
-                let z = (n1.y() * -d2 - n2.y() * -d1) / det;
-                let point_on_line = (T::ZERO, y, z);
-                let dir = (direction.x(), direction.y(), direction.z());
-                Some((point_on_line, dir))
-            } else {
-                None
-            }
-        }
+impl<T: Scalar> Plane3DProjection<T> for Plane3D<T> {
+    fn project_point(&self, point: Point3D<T>) -> Point3D<T> {
+        point - self.normal.as_vector() * self.distance_to_point(point)
     }
 }

@@ -1,18 +1,23 @@
-//! Circle3D - Core Implementation
+//! 3次元円（Circle3D）の実装
 //!
-//! 3次元円の基本実装とコンストラクタ、アクセサメソッド
 //! STEP (ISO 10303) 準拠の axis2_placement_3d スタイルで実装
 
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::{
-    core::circle_traits::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties},
-    Scalar,
+use geo_contracts::{
+    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
+    Circle3DConstructor, Circle3DContainment, Circle3DDistance, Circle3DEvaluation,
+    Circle3DProjection, Circle3DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata,
+    Scalar, TolerantEq,
 };
 
 /// 3次元空間の円
 ///
-/// STEP準拠でaxis（法線）とref_direction（参照方向）を持ち、
-/// 3D空間での完全な座標系定義とArc3D変換に対応
+/// STEP準拠でaxis（法線）とref_direction（参照方向）を持つ
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Circle3D<T: Scalar> {
     center: Point3D<T>,
@@ -23,35 +28,26 @@ pub struct Circle3D<T: Scalar> {
     radius: T,
 }
 
-impl<T: Scalar> Circle3D<T> {
-    /// 新しい円を作成（デフォルトでX軸正方向を参照方向とする）
-    ///
-    /// # 引数
-    /// * `center` - 円の中心点
-    /// * `axis` - 円が存在する平面の法線方向（Z軸）
-    /// * `radius` - 円の半径（正の値である必要がある）
-    ///
-    /// # 戻り値
-    /// * `Some(Circle3D)` - 有効な円が作成できた場合
-    /// * `None` - 半径が0以下の場合
-    pub fn new(center: Point3D<T>, axis: Direction3D<T>, radius: T) -> Option<Self> {
-        if radius <= T::ZERO {
-            return None;
-        }
-
-        // デフォルトのref_directionを計算（axisに直交する方向）
-        let ref_direction = Self::compute_default_ref_direction(&axis);
-
-        Some(Self {
-            center,
-            axis,
-            ref_direction,
-            radius,
-        })
+impl<T: Scalar> PrimitiveMetadata for Circle3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Circle
     }
+}
 
-    /// 完全な座標系で円を作成
-    pub fn new_with_ref_direction(
+impl<T: Scalar> TolerantEq<T> for Circle3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let center_distance = self.center.distance_to(other.center);
+        let radius_diff = (self.radius - other.radius).abs();
+        let normal_dot = self.axis.as_vector().dot(other.axis.as_vector()).abs();
+        let normal_similar = normal_dot >= T::from_f64(0.999);
+
+        center_distance <= tolerance && radius_diff <= tolerance && normal_similar
+    }
+}
+
+impl<T: Scalar> Circle3D<T> {
+    /// 完全な座標系で円を作成（半径が正でない、または参照方向が法線に直交しない場合は `None`）
+    fn new_with_ref_direction(
         center: Point3D<T>,
         axis: Direction3D<T>,
         ref_direction: Direction3D<T>,
@@ -61,11 +57,7 @@ impl<T: Scalar> Circle3D<T> {
             return None;
         }
 
-        // ref_directionがaxisに直交しているか確認
-        let dot_product = axis.x() * ref_direction.x()
-            + axis.y() * ref_direction.y()
-            + axis.z() * ref_direction.z();
-        if dot_product.abs() > T::EPSILON {
+        if axis.dot(ref_direction).abs() > default_angle_tolerance::<T>() {
             return None; // 直交していない
         }
 
@@ -78,421 +70,138 @@ impl<T: Scalar> Circle3D<T> {
     }
 
     /// axisに直交するデフォルトref_directionを計算
-    fn compute_default_ref_direction(axis: &Direction3D<T>) -> Direction3D<T> {
-        // axisに直交する方向を得る
-        // まずX軸との外積を試す
-        let x_axis = Vector3D::unit_x();
-        let cross_x = Vector3D::new(
-            axis.y() * x_axis.z() - axis.z() * x_axis.y(),
-            axis.z() * x_axis.x() - axis.x() * x_axis.z(),
-            axis.x() * x_axis.y() - axis.y() * x_axis.x(),
-        );
-
-        if cross_x.length() > T::EPSILON {
+    fn compute_default_ref_direction(axis: Direction3D<T>) -> Direction3D<T> {
+        // まずX軸との外積を試し、axisがX軸と平行な場合はY軸との外積を使う
+        let cross_x = axis.as_vector().cross(Vector3D::unit_x());
+        if cross_x.length() > default_kernel_numerical_zero_tolerance::<T>() {
             Direction3D::from_vector(cross_x).unwrap()
         } else {
-            // axisがX軸と平行な場合はY軸との外積を使用
-            let y_axis = Vector3D::unit_y();
-            let cross_y = Vector3D::new(
-                axis.y() * y_axis.z() - axis.z() * y_axis.y(),
-                axis.z() * y_axis.x() - axis.x() * y_axis.z(),
-                axis.x() * y_axis.y() - axis.y() * y_axis.x(),
-            );
-            Direction3D::from_vector(cross_y).unwrap()
+            Direction3D::from_vector(axis.as_vector().cross(Vector3D::unit_y())).unwrap()
         }
     }
+}
 
-    /// Vector3Dから円を作成（後方互換性）
-    pub fn from_vector(center: Point3D<T>, axis_vector: Vector3D<T>, radius: T) -> Option<Self> {
-        let axis_dir = Direction3D::from_vector(axis_vector)?;
-        Self::new(center, axis_dir, radius)
-    }
-
-    /// XY平面上の円を作成（Z軸が法線）
-    pub fn new_xy_plane(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(
-            center,
-            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            radius,
-        )
-    }
-
-    /// XZ平面上の円を作成（Y軸が法線）
-    pub fn new_xz_plane(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(
-            center,
-            Direction3D::from_vector(Vector3D::unit_y()).unwrap(),
-            radius,
-        )
-    }
-
-    /// YZ平面上の円を作成（X軸が法線）
-    pub fn new_yz_plane(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(
-            center,
-            Direction3D::from_vector(Vector3D::unit_x()).unwrap(),
-            radius,
-        )
-    }
-
-    /// 中心点を取得
-    pub(crate) fn center_internal(&self) -> Point3D<T> {
-        self.center
-    }
-
-    /// Z軸方向（法線ベクトル）を取得
-    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
-        self.axis
-    }
-
-    /// 法線方向を取得
-    pub fn normal(&self) -> Direction3D<T> {
-        self.axis
-    }
-
-    /// 法線ベクトルを取得（後方互換性）
-    pub(crate) fn normal_internal(&self) -> Direction3D<T> {
-        self.axis
-    }
-
-    /// X軸方向（参照方向）を取得
-    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
-        self.ref_direction
-    }
-
-    /// 半径を取得
-    pub(crate) fn radius_internal(&self) -> T {
-        self.radius
-    }
-
-    /// 直径を取得
-    pub fn diameter(&self) -> T {
-        self.radius + self.radius // 2 * radius
-    }
-
-    /// 円周を計算
-    pub fn circumference(&self) -> T {
-        T::TAU * self.radius // 2π * radius
-    }
-
-    /// 面積を計算
-    pub fn area(&self) -> T {
-        T::PI * self.radius * self.radius
-    }
-
-    /// 点が円内部にあるか判定（3D空間での判定）
-    pub fn contains_point_3d(&self, point: Point3D<T>) -> bool {
-        // 点から中心へのベクトル
-        let to_point = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
-        );
-
-        // 平面上にあるかチェック（法線との内積が0）
-        let axis_vec = self.axis.as_vector();
-        let dot =
-            to_point.x() * axis_vec.x() + to_point.y() * axis_vec.y() + to_point.z() * axis_vec.z();
-        if dot.abs() > T::EPSILON {
-            return false; // 平面上にない
+impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
+    fn new(center: Point3D<T>, axis: Direction3D<T>, radius: T) -> Option<Self> {
+        if radius <= T::ZERO {
+            return None;
         }
 
-        // 中心からの距離をチェック
-        let distance_squared =
-            to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
-        distance_squared <= self.radius * self.radius
+        Some(Self {
+            center,
+            axis,
+            ref_direction: Self::compute_default_ref_direction(axis),
+            radius,
+        })
     }
 
-    /// 点から円周への距離（3D空間）
-    pub fn distance_to_point_3d(&self, point: Point3D<T>) -> T {
-        // 点から中心へのベクトル
-        let to_point = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
-        );
-
-        // 平面への投影距離（法線方向成分）
-        let axis_vec = self.axis.as_vector();
-        let plane_distance = (to_point.x() * axis_vec.x()
-            + to_point.y() * axis_vec.y()
-            + to_point.z() * axis_vec.z())
-        .abs();
-
-        // 平面上での中心からの距離
-        let distance_squared =
-            to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
-        let planar_distance_squared = distance_squared - plane_distance * plane_distance;
-        let planar_distance = planar_distance_squared.max(T::ZERO).sqrt();
-
-        // 円周への距離
-        let radial_distance = (planar_distance - self.radius).abs();
-
-        // 平面距離と半径方向距離の合成
-        (plane_distance * plane_distance + radial_distance * radial_distance).sqrt()
+    fn new_xy_plane(center: Point3D<T>, radius: T) -> Option<Self> {
+        <Self as Circle3DConstructor<T>>::new(center, Direction3D::positive_z(), radius)
     }
 
-    /// 3点から円を作成する内部メソッド
-    fn from_three_points_internal(
-        point1: Point3D<T>,
-        point2: Point3D<T>,
-        point3: Point3D<T>,
-    ) -> Option<Self> {
+    fn from_three_points(p1: Point3D<T>, p2: Point3D<T>, p3: Point3D<T>) -> Option<Self> {
         // 3点から平面の法線を計算
-        let v1 = Vector3D::new(
-            point2.x() - point1.x(),
-            point2.y() - point1.y(),
-            point2.z() - point1.z(),
-        );
-        let v2 = Vector3D::new(
-            point3.x() - point1.x(),
-            point3.y() - point1.y(),
-            point3.z() - point1.z(),
-        );
-
-        let normal = v1.cross(&v2);
-        if normal.magnitude() <= T::EPSILON {
+        let normal = Vector3D::from_points(p1, p2).cross(Vector3D::from_points(p1, p3));
+        if normal.length() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 3点が一直線上
         }
         let axis = Direction3D::from_vector(normal)?;
 
-        // 3点を通る円の中心と半径を計算（外心を求める）
-        // 簡易実装：2つの弦の垂直二等分線の交点を求める
-        let mid1 = Point3D::new(
-            (point1.x() + point2.x()) / (T::ONE + T::ONE),
-            (point1.y() + point2.y()) / (T::ONE + T::ONE),
-            (point1.z() + point2.z()) / (T::ONE + T::ONE),
-        );
-        let _mid2 = Point3D::new(
-            (point2.x() + point3.x()) / (T::ONE + T::ONE),
-            (point2.y() + point3.y()) / (T::ONE + T::ONE),
-            (point2.z() + point3.z()) / (T::ONE + T::ONE),
-        );
+        // 外心（3 点から等距離の点）: p3 + ((|a|² b − |b|² a) × (a × b)) / (2 |a × b|²)
+        let a = Vector3D::from_points(p3, p1);
+        let b = Vector3D::from_points(p3, p2);
+        let a_cross_b = a.cross(b);
+        let numerator = (b * a.length_squared() - a * b.length_squared()).cross(a_cross_b);
+        let offset = numerator / ((T::ONE + T::ONE) * a_cross_b.length_squared());
+        let center = p3 + offset;
 
-        let _perp1 = v1.cross(&axis.as_vector());
-        let _perp2 = v2.cross(&axis.as_vector());
-
-        // パラメトリック方程式を解く
-        // mid1 + t * perp1 = mid2 + s * perp2
-        // 簡易実装：点1からの距離が等しい点を中心とする
-        let dx = point1.x() - mid1.x();
-        let dy = point1.y() - mid1.y();
-        let dz = point1.z() - mid1.z();
-
-        let center = mid1; // 簡易的に中点を使用
-        let radius = (dx * dx + dy * dy + dz * dz).sqrt();
-
-        Self::new(center, axis, radius)
-    }
-}
-
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
-
-impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
-    fn new(center: (T, T, T), axis: (T, T, T), radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let axis_vec = Vector3D::new(axis.0, axis.1, axis.2);
-        let axis_dir = Direction3D::from_vector(axis_vec)?;
-        Self::new(center_point, axis_dir, radius)
-    }
-
-    fn new_xy_plane(center: (T, T, T), radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::new_xy_plane(center_point, radius)
-    }
-
-    fn unit_circle_xy() -> Self {
-        let center = Point3D::origin();
-        Self::new_xy_plane(center, T::ONE).unwrap()
-    }
-
-    // Phase 2 メソッド実装
-
-    fn from_center_and_point(
-        center: (T, T, T),
-        axis: (T, T, T),
-        point_on_circle: (T, T, T),
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let axis_vec = Vector3D::new(axis.0, axis.1, axis.2);
-        let axis_dir = Direction3D::from_vector(axis_vec)?;
-        let point = Point3D::new(point_on_circle.0, point_on_circle.1, point_on_circle.2);
-
-        // 点から中心へのベクトル
-        let to_point = Vector3D::new(
-            point.x() - center_point.x(),
-            point.y() - center_point.y(),
-            point.z() - center_point.z(),
-        );
-
-        // 軸方向への投影成分を除去
-        let projection = to_point.dot(&axis_dir.as_vector());
-        let radial = to_point - axis_dir.as_vector() * projection;
-
-        let radius = radial.magnitude();
-        if radius <= T::ZERO {
-            None
-        } else {
-            Self::new(center_point, axis_dir, radius)
-        }
-    }
-
-    fn from_three_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T)) -> Option<Self> {
-        let point1 = Point3D::new(p1.0, p1.1, p1.2);
-        let point2 = Point3D::new(p2.0, p2.1, p2.2);
-        let point3 = Point3D::new(p3.0, p3.1, p3.2);
-
-        Self::from_three_points_internal(point1, point2, point3)
-    }
-
-    fn centered_at_origin_xy(radius: T) -> Option<Self> {
-        Self::new_xy_plane(Point3D::origin(), radius)
-    }
-
-    fn new_xz_plane(center: (T, T, T), radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::new_xz_plane(center_point, radius)
-    }
-
-    fn new_yz_plane(center: (T, T, T), radius: T) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        Self::new_yz_plane(center_point, radius)
+        <Self as Circle3DConstructor<T>>::new(center, axis, center.distance_to(p1))
     }
 }
 
 impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
-    fn center(&self) -> (T, T, T) {
-        let c = self.center_internal();
-        (c.x(), c.y(), c.z())
+    fn center(&self) -> Point3D<T> {
+        self.center
     }
 
     fn radius(&self) -> T {
-        self.radius_internal()
+        self.radius
     }
 
-    fn axis(&self) -> (T, T, T) {
-        let a = self.axis_internal();
-        (a.x(), a.y(), a.z())
+    fn axis(&self) -> Direction3D<T> {
+        self.axis
     }
 
-    fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction_internal();
-        (r.x(), r.y(), r.z())
-    }
-
-    fn dimension(&self) -> u32 {
-        3
-    }
-
-    // Phase 2 メソッド実装
-
-    fn is_unit_circle(&self) -> bool {
-        (self.radius_internal() - T::ONE).abs() <= T::EPSILON
-    }
-
-    fn is_centered_at_origin(&self) -> bool {
-        let c = self.center_internal();
-        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON && c.z().abs() <= T::EPSILON
-    }
-
-    fn is_degenerate(&self) -> bool {
-        self.radius_internal() <= T::EPSILON
-    }
-
-    fn is_on_xy_plane(&self) -> bool {
-        // Z軸に平行かどうかを確認
-        let z_component = self.axis_internal().z().abs();
-        (z_component - T::ONE).abs() <= T::EPSILON
+    fn ref_direction(&self) -> Direction3D<T> {
+        self.ref_direction
     }
 }
 
-impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
-    fn circumference(&self) -> T {
-        self.circumference()
+impl<T: Scalar> Circle3DEvaluation<T> for Circle3D<T> {
+    /// `t = 2π` は周期端として `t = 0` と同じ幾何点へ戻る。
+    fn point_at_parameter(&self, t: T) -> Point3D<T> {
+        let v_ref = self.ref_direction.as_vector();
+        // v_refと垂直なベクトル（円平面内）
+        let v_perp = self.axis.as_vector().cross(v_ref);
+
+        self.center + v_ref * (self.radius * t.cos()) + v_perp * (self.radius * t.sin())
+    }
+}
+
+impl<T: Scalar> Circle3DContainment<T> for Circle3D<T> {
+    fn contains_point(&self, point: Point3D<T>) -> bool {
+        self.distance_to_point(point) <= default_distance_tolerance::<T>()
     }
 
-    fn area(&self) -> T {
-        self.area()
-    }
+    /// 円周までの距離が既定の許容誤差以内なら `OnBoundary` とする。それ以外は、平面からの距離が
+    /// 許容誤差以内で、平面へ投影した点が円の内側にあれば `Inside`、それ以外を `Outside` とする。
+    fn classify_point(&self, point: Point3D<T>) -> PointClassification {
+        let tolerance = default_distance_tolerance::<T>();
+        if self.distance_to_point(point) <= tolerance {
+            return PointClassification::OnBoundary;
+        }
 
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.contains_point_3d(p)
-    }
+        let to_point = Vector3D::from_points(self.center, point);
+        let plane_distance = to_point.dot(self.axis.as_vector());
+        if plane_distance.abs() > tolerance {
+            return PointClassification::Outside;
+        }
 
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_point_3d(p)
-    }
-
-    // Phase 2 メソッド実装
-
-    fn point_on_circumference(&self, point: (T, T, T)) -> bool {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let distance = self.distance_to_point_3d(p);
-        distance.abs() <= T::EPSILON
-    }
-
-    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-
-        // 点から中心へのベクトル
-        let to_point = Vector3D::new(
-            p.x() - self.center.x(),
-            p.y() - self.center.y(),
-            p.z() - self.center.z(),
-        );
-
-        // 円の平面上への投影
-        let axis_vec = self.axis.as_vector();
-        let projection = to_point.dot(&axis_vec);
-        let in_plane = to_point - axis_vec * projection;
-
-        let distance = in_plane.magnitude();
-        if distance <= T::EPSILON {
-            // 点が中心軸上にある場合、参照方向の点を返す
-            let closest = self.center + self.ref_direction.as_vector() * self.radius;
-            (closest.x(), closest.y(), closest.z())
+        let planar_distance_squared = to_point.length_squared() - plane_distance * plane_distance;
+        if planar_distance_squared < self.radius * self.radius {
+            PointClassification::Inside
         } else {
-            let scale = self.radius / distance;
-            let closest = self.center + in_plane * scale;
-            (closest.x(), closest.y(), closest.z())
+            PointClassification::Outside
         }
     }
+}
 
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let angle = t * T::TAU;
-        let cos_angle = angle.cos();
-        let sin_angle = angle.sin();
+impl<T: Scalar> Circle3DDistance<T> for Circle3D<T> {
+    /// 平面からの距離と、平面上での円周までの距離を合成する
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
+        let to_point = Vector3D::from_points(self.center, point);
+        let plane_distance = to_point.dot(self.axis.as_vector()).abs();
+        let planar_distance = (to_point.length_squared() - plane_distance * plane_distance)
+            .max(T::ZERO)
+            .sqrt();
+        let radial_distance = (planar_distance - self.radius).abs();
 
-        // 円周上の点を計算
-        let v_axis = self.axis.as_vector();
-        let v_ref = self.ref_direction.as_vector();
-
-        // v_refと垂直なベクトル（円平面内）
-        let v_perp = v_axis.cross(&v_ref);
-
-        let point =
-            self.center + v_ref * (self.radius * cos_angle) + v_perp * (self.radius * sin_angle);
-
-        (point.x(), point.y(), point.z())
+        (plane_distance * plane_distance + radial_distance * radial_distance).sqrt()
     }
+}
 
-    fn distance_to_circle(&self, other: &Self) -> T {
-        // 簡易実装：中心間距離から半径を考慮
-        let dx = other.center.x() - self.center.x();
-        let dy = other.center.y() - self.center.y();
-        let dz = other.center.z() - self.center.z();
-        let center_distance = (dx * dx + dy * dy + dz * dz).sqrt();
+impl<T: Scalar> Circle3DProjection<T> for Circle3D<T> {
+    /// 中心軸上の点は、参照方向の点を最近点とする
+    fn closest_point(&self, point: Point3D<T>) -> Point3D<T> {
+        let to_point = Vector3D::from_points(self.center, point);
+        let axis_vec = self.axis.as_vector();
+        let in_plane = to_point - axis_vec * to_point.dot(axis_vec);
 
-        let radii_sum = self.radius + other.radius;
-
-        if center_distance >= radii_sum {
-            center_distance - radii_sum
+        let distance = in_plane.length();
+        if distance <= default_kernel_numerical_zero_tolerance::<T>() {
+            self.center + self.ref_direction.as_vector() * self.radius
         } else {
-            T::ZERO // 交差または包含
+            self.center + in_plane * (self.radius / distance)
         }
     }
 }

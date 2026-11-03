@@ -35,7 +35,7 @@ impl CAMEntity {
             id: EntityId::new_random(),
             toolpath,
             machining,
-            display: DisplayAttributes::cam_cutting(),
+            display: DisplayAttributes::default(),
             attributes: Attributes::new(),
             metadata: Metadata::default(),
             selected: false,

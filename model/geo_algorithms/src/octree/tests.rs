@@ -1,5 +1,5 @@
 use super::*;
-use geo_foundation::ToleranceSettings;
+use geo_contracts::ToleranceSettings;
 
 const OCTREE_TEST_BOUNDS_MIN: f64 = 0.0;
 const OCTREE_TEST_BOUNDS_MAX: f64 = 100.0;

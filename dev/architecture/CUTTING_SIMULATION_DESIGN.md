@@ -1,9 +1,9 @@
 # 切削シミュレーション設計書
 
 **作成日**: 2026年2月12日  
-**最終更新**: 2026年2月22日  
-**ステータス**: 設計フェーズ  
-**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246)
+**最終更新**: 2026年8月2日  
+**ステータス**: 設計・段階実装中  
+**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246), [#716](https://github.com/RedRing2020/RedRing/issues/716), [#726](https://github.com/RedRing2020/RedRing/issues/726), [#727](https://github.com/RedRing2020/RedRing/issues/727), [#729](https://github.com/RedRing2020/RedRing/issues/729)
 
 ---
 
@@ -13,9 +13,10 @@
 2. [背景と課題](#背景と課題)
 3. [ハイブリッドスナップショット方式](#ハイブリッドスナップショット方式)
 4. [距離計算支援機能](#距離計算支援機能)
-5. [実装計画](#実装計画)
-6. [技術仕様](#技術仕様)
-7. [パフォーマンス目標](#パフォーマンス目標)
+5. [クレート配置と依存境界](#クレート配置と依存境界)
+6. [設計詳細](#設計詳細)
+7. [技術仕様](#技術仕様)
+8. [パフォーマンス目標](#パフォーマンス目標)
 
 ---
 
@@ -52,32 +53,9 @@ VoxelOctreeを用いたCAM工具経路の切削シミュレーション機能を
 
 #### 問題1: 長いセグメントでの情報欠落
 
-```
-平面加工の例:
-Segment 1: (0, 0, 0) → (100, 0, 0)  // 100mm の直線
-Segment 2: (100, 0, 0) → (100, 100, 0)  // 100mm の直線
-
-セグメント端点のみ保存 → 途中99mmの切削状況が不明
-```
-
 #### 問題2: 短いセグメントでの過剰記録
 
-```
-円弧近似の例:
-Segment 1-200: 各0.5mm × 200 = 100mm の円弧
-
-200個すべての端点を保存 → メモリ無駄遣い
-```
-
 #### 問題3: 不均一性
-
-```
-ToolPath全体:
-- 長い直線: 1セグメント = 100mm
-- 細かい円弧: 200セグメント = 100mm
-
-同じ長さなのに記録密度が200倍異なる
-```
 
 ### 解決策: 距離ベーススナップショット
 
@@ -91,268 +69,21 @@ ToolPath全体:
 
 距離ベースの均一記録に、セグメント端点の確実な記録を組み合わせます。
 
+- 既定（`SnapshotInterval::ByToolAndGrid`）は、1 コマの移動を「工具の半径」と「素材の格子の間隔 × 4」の短いほうとし、区間の端点ごとには記録しない（#931）。1 コマで工具が半径より多く進まないため工具の跡がコマの間で途切れず、1 コマで格子数本分が削れるためコマごとに変化が見える。サンプルデータ（φ10 のボールエンドミル、格子の間隔約 1.37 mm）では 5 mm ごとになる
+- 指定によらず、切削と早送りが切り替わるところと経路が途切れるところ（区間の始点が前の区間の終点と違うところ）の前後の区間の終点・始点（各パスの始まりと終わり）と、ツールパスの終わりには時点を置く。エアカットのないツールパス（#965）でも各パスの始まりと終わりに時点がある。最後の時点が素材の最後の状態になる
+- 区間の端点ごとの記録は、`ByDistance { include_segment_endpoints: true }` で指定すれば使える
+
 ### データ構造
 
-```rust
-/// スナップショット保存間隔の指定方式
-#[derive(Debug, Clone)]
-pub enum SnapshotInterval {
-    /// 固定距離間隔（mm）+ オプション設定
-    ByDistance {
-        /// 基本間隔距離（mm）
-        interval_mm: f64,
-        
-        /// セグメント端点を必ず含めるか
-        include_segment_endpoints: bool,
-    },
-    
-    /// 自動等分割（総距離から計算）
-    ByAutoDistance {
-        /// 目標スナップショット数
-        target_count: usize,
-        
-        /// 最小間隔距離（mm、これ以下にはしない）
-        min_interval_mm: f64,
-        
-        /// セグメント端点を必ず含めるか
-        include_segment_endpoints: bool,
-    },
-    
-    /// セグメント数ベース（後方互換性）
-    #[deprecated(note = "距離ベース方式の使用を推奨")]
-    BySegmentCount(usize),
-}
-
-impl Default for SnapshotInterval {
-    fn default() -> Self {
-        Self::ByDistance {
-            interval_mm: 10.0,
-            include_segment_endpoints: true,
-        }
-    }
-}
-```
+実装コードは `model/cam_sim` 側を正本とし、本書では列挙名と設定方針のみを管理する。
 
 ### アルゴリズム: ハイブリッド方式
 
-```rust
-pub struct CuttingSimulator<T: Scalar> {
-    octree: VoxelOctree<T>,
-    snapshots: Vec<VoxelSnapshot<T>>,
-    snapshot_positions: Vec<PathPosition>,
-    interval: SnapshotInterval,
-}
-
-#[derive(Debug, Clone)]
-pub struct PathPosition {
-    /// セグメントインデックス
-    segment_index: usize,
-    
-    /// セグメント内の補間パラメータ (0.0 = 開始点, 1.0 = 終了点)
-    t: f64,
-    
-    /// ToolPath開始からの累積距離（mm）
-    accumulated_distance: f64,
-}
-
-impl<T: Scalar> CuttingSimulator<T> {
-    /// 工具経路をシミュレーション実行
-    pub fn simulate(&mut self, toolpath: &ToolPath, tool: &Tool) -> Result<(), SimulationError> {
-        let config = self.calculate_snapshot_config(toolpath)?;
-        
-        tracing::info!(
-            "Snapshot設定: 間隔 {:.2}mm, 予測数: {}",
-            config.actual_interval_mm,
-            config.estimated_count
-        );
-        
-        let mut accumulated_distance = 0.0;
-        let mut next_snapshot_distance = 0.0;
-        
-        // セグメント端点をセットに登録（重複防止）
-        let mut endpoint_distances = HashSet::new();
-        if config.include_endpoints {
-            let mut dist = 0.0;
-            for segment in toolpath.all_segments() {
-                endpoint_distances.insert(OrderedFloat(dist));
-                dist += segment.length();
-                endpoint_distances.insert(OrderedFloat(dist));
-            }
-        }
-        
-        for (seg_idx, segment) in toolpath.all_segments().iter().enumerate() {
-            let segment_length = segment.length();
-            let segment_start_dist = accumulated_distance;
-            
-            // セグメント開始点でスナップショット（端点モード時）
-            if config.include_endpoints && accumulated_distance == next_snapshot_distance {
-                self.save_snapshot(PathPosition {
-                    segment_index: seg_idx,
-                    t: 0.0,
-                    accumulated_distance,
-                });
-                next_snapshot_distance += config.actual_interval_mm;
-            }
-            
-            // 材料除去
-            self.octree.remove_material(&segment.to_swept_solid(tool))?;
-            accumulated_distance += segment_length;
-            
-            // セグメント内部の距離ベーススナップショット
-            while next_snapshot_distance < accumulated_distance {
-                let dist_in_segment = next_snapshot_distance - segment_start_dist;
-                let t = dist_in_segment / segment_length;
-                
-                // 端点モード時は端点と重複しないか確認
-                let is_duplicate = config.include_endpoints 
-                    && endpoint_distances.contains(&OrderedFloat(next_snapshot_distance));
-                
-                if !is_duplicate {
-                    self.save_snapshot(PathPosition {
-                        segment_index: seg_idx,
-                        t,
-                        accumulated_distance: next_snapshot_distance,
-                    });
-                }
-                
-                next_snapshot_distance += config.actual_interval_mm;
-            }
-            
-            // セグメント終了点でスナップショット（端点モード時）
-            if config.include_endpoints {
-                let is_at_interval = (accumulated_distance - next_snapshot_distance + config.actual_interval_mm).abs() < 1e-6;
-                
-                if !is_at_interval {
-                    self.save_snapshot(PathPosition {
-                        segment_index: seg_idx,
-                        t: 1.0,
-                        accumulated_distance,
-                    });
-                }
-            }
-        }
-        
-        Ok(())
-    }
-    
-    /// スナップショット設定を計算
-    fn calculate_snapshot_config(&self, toolpath: &ToolPath) -> Result<SnapshotConfig, SimulationError> {
-        match &self.interval {
-            SnapshotInterval::ByDistance { interval_mm, include_segment_endpoints } => {
-                let total_distance = toolpath.total_length();
-                let estimated_count = (total_distance / interval_mm).ceil() as usize;
-                
-                Ok(SnapshotConfig {
-                    actual_interval_mm: *interval_mm,
-                    estimated_count,
-                    include_endpoints: *include_segment_endpoints,
-                })
-            }
-            
-            SnapshotInterval::ByAutoDistance { target_count, min_interval_mm, include_segment_endpoints } => {
-                let total_distance = toolpath.total_length();
-                let ideal_interval = total_distance / (*target_count as f64);
-                let actual_interval = ideal_interval.max(*min_interval_mm);
-                let estimated_count = (total_distance / actual_interval).ceil() as usize;
-                
-                tracing::info!(
-                    "自動計算: 総距離 {:.2}mm ÷ 目標{}個 = {:.2}mm → 最小制約適用後 {:.2}mm",
-                    total_distance, target_count, ideal_interval, actual_interval
-                );
-                
-                Ok(SnapshotConfig {
-                    actual_interval_mm: actual_interval,
-                    estimated_count,
-                    include_endpoints: *include_segment_endpoints,
-                })
-            }
-            
-            #[allow(deprecated)]
-            SnapshotInterval::BySegmentCount(count) => {
-                let total_segments = toolpath.segment_count();
-                let total_distance = toolpath.total_length();
-                let interval = total_distance / (*count as f64);
-                
-                tracing::warn!(
-                    "非推奨: セグメント数ベース使用中。距離ベース方式への移行を推奨。"
-                );
-                
-                Ok(SnapshotConfig {
-                    actual_interval_mm: interval,
-                    estimated_count: *count,
-                    include_endpoints: false,
-                })
-            }
-        }
-    }
-    
-    fn save_snapshot(&mut self, position: PathPosition) {
-        let snapshot = self.octree.create_snapshot();
-        self.snapshots.push(snapshot);
-        self.snapshot_positions.push(position);
-        
-        tracing::debug!(
-            "Snapshot #{}: セグメント {}、t={:.3}、累積距離={:.2}mm",
-            self.snapshots.len(),
-            position.segment_index,
-            position.t,
-            position.accumulated_distance
-        );
-    }
-}
-
-#[derive(Debug, Clone)]
-struct SnapshotConfig {
-    actual_interval_mm: f64,
-    estimated_count: usize,
-    include_endpoints: bool,
-}
-
-/// 順序付き浮動小数点（HashSet用）
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct OrderedFloat(u64);
-
-impl OrderedFloat {
-    fn new(f: f64) -> Self {
-        Self(f.to_bits())
-    }
-}
-```
+アルゴリズム本体は `cam_sim` 実装を参照し、本書では「距離間隔 + 端点保持」の方針だけを維持する。
 
 ### 使用例
 
-```rust
-// 例1: 固定10mm間隔、セグメント端点も含める（推奨）
-let simulator = CuttingSimulator::new(
-    workpiece_bbox,
-    octree_depth,
-    SnapshotInterval::ByDistance {
-        interval_mm: 10.0,
-        include_segment_endpoints: true,
-    }
-);
-
-// 例2: 自動計算（100個のスナップショット目標）
-let simulator = CuttingSimulator::new(
-    workpiece_bbox,
-    octree_depth,
-    SnapshotInterval::ByAutoDistance {
-        target_count: 100,
-        min_interval_mm: 5.0,  // 最低5mm間隔
-        include_segment_endpoints: true,
-    }
-);
-
-// 例3: 距離のみ、端点は含めない（高速）
-let simulator = CuttingSimulator::new(
-    workpiece_bbox,
-    octree_depth,
-    SnapshotInterval::ByDistance {
-        interval_mm: 10.0,
-        include_segment_endpoints: false,
-    }
-);
-```
+初期運用は `ByDistance(interval_mm=10.0, include_segment_endpoints=true)` を標準設定とする。
 
 ---
 
@@ -362,404 +93,400 @@ let simulator = CuttingSimulator::new(
 
 ユーザーが最適な間隔を設定できるよう、自動計算と編集機能を提供します。
 
-```rust
-/// 距離間隔推奨値の計算
-pub struct IntervalRecommender;
-
-impl IntervalRecommender {
-    /// 総距離から推奨間隔を計算
-    pub fn recommend(total_distance_mm: f64) -> IntervalRecommendation {
-        let recommendations = vec![
-            // (目標スナップショット数, 説明)
-            (50, "粗い（高速、メモリ節約）"),
-            (100, "標準（推奨）"),
-            (200, "詳細（より正確）"),
-            (500, "非常に詳細（重い）"),
-        ];
-        
-        let options = recommendations.iter().map(|(count, desc)| {
-            let interval = total_distance_mm / (*count as f64);
-            
-            IntervalOption {
-                interval_mm: interval,
-                target_count: *count,
-                description: desc.to_string(),
-                memory_estimate_mb: Self::estimate_memory(*count),
-            }
-        }).collect();
-        
-        IntervalRecommendation {
-            total_distance_mm,
-            options,
-            custom_interval_mm: None,
-        }
-    }
-    
-    /// メモリ使用量の概算（MB）
-    fn estimate_memory(snapshot_count: usize) -> f64 {
-        const BYTES_PER_SNAPSHOT: usize = 1024 * 1024; // 1MB（深さ8の場合の概算）
-        (snapshot_count * BYTES_PER_SNAPSHOT) as f64 / (1024.0 * 1024.0)
-    }
-    
-    /// カスタム間隔の妥当性チェック
-    pub fn validate_custom_interval(
-        interval_mm: f64,
-        total_distance_mm: f64
-    ) -> Result<ValidationResult, IntervalError> {
-        if interval_mm <= 0.0 {
-            return Err(IntervalError::NonPositiveInterval);
-        }
-        
-        if interval_mm < 1.0 {
-            return Ok(ValidationResult::Warning(
-                "1mm未満の間隔は非常に詳細でメモリを大量消費します。"
-            ));
-        }
-        
-        let snapshot_count = (total_distance_mm / interval_mm).ceil() as usize;
-        let memory_mb = Self::estimate_memory(snapshot_count);
-        
-        if memory_mb > 2048.0 {
-            // 2GB以上
-            return Ok(ValidationResult::Warning(
-                format!("メモリ使用量が推定 {:.0}MB と大きくなります。", memory_mb)
-            ));
-        }
-        
-        Ok(ValidationResult::Ok {
-            snapshot_count,
-            memory_mb,
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct IntervalRecommendation {
-    pub total_distance_mm: f64,
-    pub options: Vec<IntervalOption>,
-    pub custom_interval_mm: Option<f64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct IntervalOption {
-    pub interval_mm: f64,
-    pub target_count: usize,
-    pub description: String,
-    pub memory_estimate_mb: f64,
-}
-
-#[derive(Debug, Clone)]
-pub enum ValidationResult {
-    Ok {
-        snapshot_count: usize,
-        memory_mb: f64,
-    },
-    Warning(String),
-}
-
-#[derive(Debug, Clone)]
-pub enum IntervalError {
-    NonPositiveInterval,
-}
-```
-
 ### UI例（疑似コード）
 
-```rust
-// App層での使用例
-impl AppState {
-    fn show_simulation_settings(&mut self, ui: &mut Ui, toolpath: &ToolPath) {
-        let total_distance = toolpath.total_length();
-        let recommendation = IntervalRecommender::recommend(total_distance);
-        
-        ui.label(format!("工具経路総距離: {:.2} mm", total_distance));
-        ui.separator();
-        
-        // 推奨オプション
-        ui.label("推奨間隔:");
-        for option in &recommendation.options {
-            if ui.button(format!(
-                "{}: {:.2}mm間隔（約{}個、~{:.0}MB）",
-                option.description,
-                option.interval_mm,
-                option.target_count,
-                option.memory_estimate_mb
-            )).clicked() {
-                self.simulation_interval = option.interval_mm;
-            }
-        }
-        
-        ui.separator();
-        
-        // カスタム入力
-        ui.label("カスタム間隔:");
-        ui.add(egui::Slider::new(&mut self.simulation_interval, 1.0..=100.0)
-            .text("mm")
-            .step_by(1.0));
-        
-        // 妥当性チェック結果表示
-        match IntervalRecommender::validate_custom_interval(self.simulation_interval, total_distance) {
-            Ok(ValidationResult::Ok { snapshot_count, memory_mb }) => {
-                ui.label(format!(
-                    "✓ 約{}個のスナップショット、メモリ ~{:.0}MB",
-                    snapshot_count, memory_mb
-                ));
-            }
-            Ok(ValidationResult::Warning(msg)) => {
-                ui.colored_label(egui::Color32::YELLOW, format!("⚠ {}", msg));
-            }
-            Err(e) => {
-                ui.colored_label(egui::Color32::RED, format!("✗ {:?}", e));
-            }
-        }
-        
-        // セグメント端点オプション
-        ui.checkbox(&mut self.include_segment_endpoints, "セグメント端点も含める（推奨）");
-        
-        if ui.button("シミュレーション開始").clicked() {
-            self.start_cutting_simulation();
-        }
-    }
-}
-```
+UI実装コードは `view/app` を正本とし、本書は入力項目（間隔、推定件数、メモリ目安、妥当性警告）の要件のみを保持する。
 
 ---
 
-## 実装計画
+## クレート配置と依存境界
 
-### 前提条件
+### 配置方針
 
-- ✅ Octree基本実装完了（Issue #207）
-- ✅ VoxelOctree実装完了
-- ⬜ 本Issue作成（Octree完了後）
+注記（経緯の明確化）:
 
-### Phase 1a: VoxelOctree + 円柱工具除去（1週間）
+- 切削シミュレーションの実行・再生は本番の導線（製品形状 → 投入 → 実行 → 取り込み → 再生）だけとし、デモ専用のクレート・実行経路は持たない（デモ専用の `viewmodel/cam_demo` は #926 で削除した）
 
-**実装ファイル**:
-- `model/geo_algorithms/src/octree/voxel.rs` - VoxelOctree
-- `model/geo_algorithms/src/octree/cutting_simulator.rs` - シミュレータ本体
+- `CuttingSimulator` と `SnapshotInterval` の正本実装は `model/cam_sim` に置く
+- `cam_sim` は切削シミュレーションの進行管理、スナップショット保持、工具種別分岐を担う
+- `geo_algorithms` は材料除去や距離評価などの幾何カーネルのみを保持し、CAMドメインの進行制御は持たない
+- `viewmodel/converter` は本体変換責務に限定し、デモ専用の入力生成・再生導線を持たない
+- `view/app` は当面クレート分離しない。判断基準は責務境界（起動トリガー/表示状態管理）と依存方向（本番導線を `View -> ViewModel -> Application -> cam_sim` に固定）とする
+- `view/app` 分離は将来の再評価項目とし、再評価は「demo機能の増加で app_state 責務が肥大化した場合」または「本番導線と検証導線の変更頻度が独立した場合」にのみ行う
 
-**実装項目**:
-- [x] `CuttingSimulator` 構造体
-- [x] `SnapshotInterval` 列挙型
-- [x] `simulate()` - ハイブリッド方式実装
-- [x] `PathPosition` - 位置記録
-- [x] 円柱工具による材料除去
+主な配置先:
 
-**テスト**:
-- 単純直線パスでの距離ベース記録確認
-- セグメント端点の確実な記録確認
-- 長短セグメント混在時の均一性確認
+- `model/cam_sim/src/lib.rs`
+- `model/cam_sim/src/simulator.rs`
+- `model/cam_sim/src/simulator/behavior.rs`
+- `model/geo_algorithms/src/octree/voxel.rs`
 
-### Phase 1b: ボールエンドミル対応（1週間）
+### 許可依存
 
-**実装項目**:
-- [x] `SphericalSolid3D` - 球形状（半球除去用）
-- [x] `TorusSolid3D` - トーラス形状（角のフィレット用）
-- [x] ツール形状の統一インターフェース
+- `cam_sim -> cam_core`
+- `cam_sim -> geo_algorithms`
+- `cam_sim -> analysis`（数値補助が必要な範囲のみ）
 
-**テスト**:
-- ボールエンドミル特有の削り残し検証
-- フラットエンドミルとの比較
+### CAM側トレランス運用ルール
 
-### Phase 1c: 動作シミュレーション（2週間）
+CAM では、用途を次の 3 種に分けてトレランスを選択する。
 
-**実装ファイル**:
-- `model/geo_algorithms/src/octree/playback.rs` - 再生制御
-- `viewmodel/graphics/src/cutting_simulator_view.rs` - ViewModel変換
-- `view/stage/src/cutting_simulation_stage.rs` - レンダリング
+本節の適用範囲は `model/cam_sim` の切削シミュレーション経路に限定する。将来 `cam_algorithms` 等で CAM 計算本体を実装する場合は、CAM 設計書を正本として統合することを優先し、本書には切削シミュレーション固有事項のみを残す方針で判断する。
 
-**実装項目**:
-- [x] `PlaybackController` - 再生/一時停止/巻き戻し
-- [x] スライダーによる任意時点移動
-- [x] 速度調整（0.1x～10x）
-- [x] スナップショット間の補間（スムーズ再生）
-- [x] 距離計算支援UI（IntervalRecommender）
+| 用途 | 既定参照元 | 補足 |
+| --- | --- | --- |
+| 加工品質・機械精度（閉曲線判定、クリアランス、機械精度） | `cam_core::CamTolerance` | CAM ドメイン設定として扱う |
+| 幾何意味判定（距離・角度比較） | `geo_contracts::ToleranceSettings` 由来値 | 呼び出し境界で選択して渡す |
+| カーネル数値安定化（分母ゼロ近傍、退化ガード、微小オフセット） | `geo_contracts::default_kernel_numerical_zero_tolerance` | `ToleranceSettings` と混在させない |
 
-**UI機能**:
-- スナップショット間隔設定ダイアログ
-- 推奨値の自動計算・表示
-- カスタム値の妥当性チェック
-- メモリ使用量の予測表示
+今回の `cam_sim` 品質ゲートにおける `probe_offset` の epsilon は、境界近傍探索の数値安定化目的であり、幾何意味判定ではない。したがって `GEOMETRIC_TOLERANCE` ではなく、`default_kernel_numerical_zero_tolerance` 系を正本として扱う。
 
-**テスト**:
-- 再生速度の正確性
-- スナップショット間補間の滑らかさ
-- メモリ使用量の実測
+依存境界上の扱いは次を原則とする。
 
-### Phase 2: メッシュベース削り込み判定（2週間）
+1. 値の正本は `geo_contracts::default_kernel_numerical_zero_tolerance` とする。
+2. `cam_sim` が新たに `geo_contracts` へ直接依存する変更は、依存境界変更として事前合意を必須とする。
+3. 上位層（`cam_*`）での利用は、`geo_algorithms` の再エクスポート経由で統一する。
 
-**実装ファイル**:
-- `model/geo_algorithms/src/mesh_comparison.rs` - メッシュ比較
-- `model/geo_io/src/nurbs_to_mesh.rs` - NURBS→メッシュ変換
+### 参照経路の決定（cam_sim）
 
-**実装項目**:
-- [x] NURBS→三角形メッシュ変換（CAMトレランスベース）
-- [x] メッシュとVoxelOctreeの距離計算
-- [x] 削り残し領域の検出
-- [x] 削り込み領域の検出
+本書時点での決定は次の通り。
 
-**テスト**:
-- 単純形状での精度検証
-- 複雑NURBS形状での性能測定
-- トレランス設定による精度とパフォーマンスのトレードオフ確認
+1. 値の正本は `geo_contracts::default_kernel_numerical_zero_tolerance` とする。
+2. `cam_sim` の参照経路は `geo_algorithms` 再エクスポート経由で統一する。
+3. `cam_sim` から `geo_contracts` へ直接依存する経路は、上記合意なしでは採用しない。
 
-### Phase 3: 色分け可視化（3日）
+補足: 全体ルールは `dev/architecture/GEOMETRIC_TOLERANCE_USAGE_RULES.md` を正本とし、本節は CAM 文脈での適用規則のみを定義する。
 
-**実装項目**:
-- [x] 送り速度による色分け（青→緑→黄→赤）
-- [x] 工具突き出し長による警告表示（オレンジ点滅）
-- [x] 削り残し/削り込みの色分け表示
+### 禁止依存
 
-**カラーマップ**:
-```rust
-送り速度:
-  0-25%:   青 (0.0, 0.5, 1.0)    // 超低速
-  25-50%:  緑 (0.0, 1.0, 0.0)    // 標準
-  50-75%:  黄 (1.0, 1.0, 0.0)    // 高速
-  75-100%: 赤 (1.0, 0.0, 0.0)    // 急送
+- `geo_* -> cam_sim`
+- `cam_core -> cam_sim`
 
-工具突き出し長:
-  安全範囲:   グレー (0.7, 0.7, 0.7)
-  警告範囲:   オレンジ (1.0, 0.5, 0.0)
-  危険範囲:   赤点滅 (1.0, 0.0, 0.0)
+### 統合時の固定ルール
 
-削り込み状況:
-  削り残し:   マゼンタ (1.0, 0.0, 1.0)
-  適正:       透明
-  削り込み:   シアン (0.0, 1.0, 1.0)
-```
+- `scripts/check_architecture_dependencies.ps1` は例外追加で迂回しない
+- `cam_sim` を追加・拡張する場合も、workspace 全体の build/test と依存チェックスクリプトが通る状態を維持する
+- UI 連携は `view/app` 側に留め、`cam_sim` は計算コアとスナップショット管理へ責務を限定する
+- `ToolPath` / `ToolSet` / `Tool` を入力境界とし、表示都合の state を `cam_sim` に持ち込まない
+
+---
+
+## 設計詳細
+
+### 本番導線の入力前提条件
+
+#### 目的
+
+- 切削シミュレーションを「実行してよい状態」と「実行してはいけない状態」に明確に分離する
+- 入力の出自（CAM由来 / NC由来）ではなく、切削条件の充足可否で実行判定する
+- ポスト設定で付与される加工条件の欠落を、実行前に検出して拒否できるようにする
+
+#### 前提方針
+
+- 本番導線の受理判定は、入力データの名称や由来ではなく、前提条件の充足で判定する
+- 「NC読み込み後に整備された経路」も受理対象に含めるが、切削条件が欠落していれば拒否する
+- 回避高さ、速度設定、工具系情報、機械制約など、実加工条件に関わる情報を前提条件に含める
+
+#### 実行前Preflight判定
+
+判定結果は次の3値で扱う。
+
+- `ReadyStrict`: 本番実行可（必要条件を全て満たす）
+- `NotReady`: 本番実行不可（必須条件不足）
+- `InvalidInput`: 入力契約違反（artifact契約不一致、破損など）
+
+備考: 現時点では、本番導線での警告付き実行（条件不足のまま継続）は採用しない。
+
+#### 必須受理条件（満たさない場合は実行拒否）
+
+- artifact契約が `toolpath` と一致する（kind/version/破損検証を含む）
+- ToolPathが空ではない
+- 切削セグメントが1件以上ある
+- 工具参照情報が解決可能である
+- 回避高さや速度設定など、ポスト由来の加工条件が必要項目として存在する
+- 機械制約と整合する（機械制約未設定の場合は本番導線では不許可）
+
+#### 非対象（本セクションで固定しないもの）
+
+- 高度干渉判定（工具/ホルダ/製品形状の厳密判定）
+- UI表現や操作導線の詳細
+- 5軸姿勢補間の高度制約
+
+#### 設計決定
+
+- 切削シミュレーションは「切削条件成立済みの経路のみ」を本番導線で受理する
+- 条件欠落の経路に対しては、実行して推定結果を出す運用を行わない
+- 欠落時は Preflight の失敗理由を明示して返し、設定補完後の再実行を要求する
+
+#### 入力と Preflight の初期の範囲（#881）
+
+切削シミュレーションのジョブ（`CuttingSimulation`）の入力は次のとおりとする。
+
+- ツールパス: 親の `CamProcess` ジョブの `toolpath` 成果物から読む（`parent_job_id` 必須）
+- 素材・工具・精度の設定: ジョブの `input_ref`（`input://sim/<name>`）から `CuttingSimulationInputProvider` で解決する `CuttingSimulationInput`
+
+| 項目 | 内容 |
+|---|---|
+| `stock` | 直方体の素材（ツールパスと同じ座標系・長さの単位）。ツールパスからの推定は行わない |
+| `tool` | 工具。Application がツールパス生成の入力と同じ工具を入れ、Preflight で `ToolPath::tool_id` との一致を検査する。ツールセットの登録・ID での参照（ツールライブラリ）は別 issue |
+| `precision` | 素材の形状の許容誤差（ツールパスと同じ長さの単位）。トリデクセルの格子の間隔をここから求め（`CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md` 4.1 節。#955）、ユーザーには格子の間隔を見せない。ツールパス生成のトレランスより細かい精度は、Application が投入しない |
+| `snapshot_interval` | スナップショットの記録の間隔 |
+
+最初に実装する Preflight の受理条件:
+
+- `InvalidInput`: 素材が有限で体積を持つ直方体でない、工具のパラメータが不正、精度が正の有限値でない、記録の間隔が不正。成果物の契約違反・破損（読み込みの失敗）もこれに当たる
+- `NotReady`（満たさない条件をすべて返す）: ツールパスが空、切削セグメントがない、工具の ID がツールパスと一致しない、工具の種類に対応していない（フラット・ボールエンドミルのみ）、精度から決めた格子の線の本数の合計が上限（`MAX_DEXEL_LINES` = 400 万本）を超える（上限に収まる最も細かい精度を、有効数字 2 桁に切り上げて知らせる。#955）
+- ツールパスによらず入力だけで決まる判定（`InvalidInput` の値と線の本数の上限）は `cutting_simulation_input_errors` にまとめ、投入前の確認（「計算条件の入力画面」の節）と同じ関数で判定する（#992）
+- 機械制約とポスト由来の加工条件（回避高さ・速度設定）は、設定する経路ができた時点で必須の受理条件に加える。それまでは機械制約が未設定でも本番の導線で実行する
+
+素材は正本（工具の掃引プリミティブの列。`CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md`）で厳密に表すため、精度は正本の分解能を決めない。精度は、派生表現のトリデクセルの格子の間隔と、判定の許容誤差に使う。#881 で置いた Octree の深さの上限と「精度が達成できない」の条件は、#890 で削除した。一様な格子のトリデクセルでは、線の本数がメモリと時間を決めるため、#955 で線の本数の上限を置いた。
+
+#### 本番導線で先に固定する前提
+
+- `job_adapter` の mock 読み取り経路は本番経路から分離されていること
+- `CuttingSimulation` 実行前に Preflight 判定を必ず通すこと
+- 失敗理由を `JobExecutionResult.error` で区別可能に返すこと
+
+#### 詳細設計: View起点の正導線
+
+本節では、View から開始する呼び出し経路を「本番の正導線」として固定する。
+
+#### 正導線（本番）
+
+1. View はユーザー操作を受け、Job投入要求を作成する
+2. ViewModel は入力DTOを組み立て、Applicationの job orchestration に委譲する
+3. Application は workflow 制約（親子関係、重複禁止）を検証して `CuttingSimulation` を投入する
+4. cam_sim は Preflight（入力契約・切削条件充足）を通過した入力のみ実行する
+5. 実行結果は artifact として返却し、ViewModel は可視化DTOへ変換して View へ返す
+
+Application の入口は `application::cam_simulation_workflow::CamSimulationWorkflow`（#902）とする。ツールパス生成の入力（製品形状・工具・加工の条件）と切削シミュレーションの入力（素材・精度・記録の間隔）を受け、入力を登録先に登録してツールパス生成と切削シミュレーションのジョブをキューに入れる（`submit`。実行しない）。実行はジョブマネージャーの入口（`run_queued_jobs`）が行う。取り込み（`import`）は、正常終了した切削シミュレーションのジョブ（`succeeded_simulations`）だけを対象に、入力に使ったツールパスと切削シミュレーションの成果物と、投入した入力（ツールパス生成の入力と切削シミュレーションの入力）を返す（#913・#992）。製品形状からの投入（`submit_product_shapes`）は、面の ID の集合の形状への解決（`ProductShapeStore`）、ツールパス生成の入力の組み立て（`cam_algorithms` の `resolve_operation`・`build_solver_input`）、製品形状を囲む素材の計算（`SolverGeometry::aabb` と `cam_sim::stock_around_product`）をつなぐだけとする（#924）。素材は、製品形状を囲む箱の各面（−X・+X・−Y・+Y・底・上）の外側に、投入の入力の余裕（`StockMargins`。既定はすべて 0 で、製品形状を囲む箱そのもの）を足した直方体とする。余裕が負または有限でない場合は投入しない（投入前の確認の誤りとして知らせる。次節）。素材の大きさは加工範囲（工具の移動範囲）とは別の指定である。多角形を Z 方向に押し出した素材と、画面の上で素材を指示する UI は後続で扱う（#942）。
+
+責務境界（固定）:
+
+- View は `cam_sim` 実装へ直接依存しない
+- View は demo用ロード関数を本番フローで使用しない
+- ViewModel は本番フローで demo fixture を生成しない
+
+#### View の操作（#925）
+
+- 製品形状は STL のドロップで取り込む（#918）。加工条件のウィンドウ（`Shift+M`）の「投入」で表示中の製品形状から投入し（次節。#993）、`Shift+R` でキューにあるジョブを実行し（ジョブマネージャーができるまでの同じプロセスの中の実行）、`Shift+L` で正常に実行済みの最も新しい切削シミュレーションを取り込む
+- 取り込んだ結果は `CuttingAnimation`（#904）として AppState が持ち、再生・スクラブのコマの移動で `seek` を呼ぶ。素材の面はブロックごとに数値のキーを付けたメッシュとして描き、前へ進む場合も戻る場合も、区間が変わった部分のブロックだけを差し替える（#930）。製品形状の面・ツールパスの線・工具の線を重ねる
+- ワイヤーフレームの表示は、素材の面・製品形状の三角形の辺とする
+- 切削シミュレーションを取り込んだときは、カメラを変えない（取り込み直しても、見ていた向き・拡大を保つ。カメラは STL の読み込みで製品形状に合わせている）。表示中の製品形状がない場合だけ、素材と製品形状の範囲に合わせる（#1039）
+- 古いデモの導線（`cam_demo` と Voxel による再生）は #926 で削除した。設定パネルの「設定を反映」は、取り込んだ切削アニメーションの表示を、今のコマ・カメラ・ワイヤーフレームの状態を保ったまま、変えた設定（工具の線の分割数・ツールパスの線の表示）で描き直す。設定で変わらない素材の面・製品形状のメッシュは作り直さず、ツールパスの線と工具の線だけを差し替える。素材の色（透明度を含む）と工具の線の色も「設定を反映」で変わり、素材は描画のメッシュの色だけを変える（#938）。反映するまでは、再生中に届く素材のブロックと工具の線も、描いている色で描く
+
+実装追加の固定ルール:
+
+- デモ専用のクレート・実行経路を追加しない。確かめるための操作も本番の導線を使う
+- `view/app` は起動トリガーと表示状態管理のみを担当し、demoロジック本体を保持しない
+- `viewmodel/converter` は本体変換責務を維持し、demo専用fixtureやdemo専用ロード関数を再導入しない
+
+#### 計算条件の入力画面（#990）
+
+CAM の計算条件（工具・素材・精度・加工の条件）と表示の設定は、用途が異なるため画面を分ける。設定パネル（`UI_FRAMEWORK_DECISION.md` の暫定のパネル）は表示の設定だけを扱い、計算条件は「加工条件」のウィンドウで扱う。
+
+画面の構成:
+
+| 欄 | 内容 |
+|---|---|
+| 加工の対象 | 表示中の製品形状の面の数（見るだけ） |
+| 工具 | 種類（フラット・ボールエンドミル）・工具径・工具長 |
+| 加工 | 走査線の条件（ピックフィード・送り・送り方・工具の移動範囲）。ツールパス生成のトレランスは見るだけとする |
+| 素材 | 余裕（−X・+X・−Y・+Y・底・上）・精度 |
+
+- 加工条件のウィンドウは `Shift+M` で開閉し、設定パネルと同じ egui の文脈で別のウィンドウとして描く（`view/app` の `machining_conditions_ui`。#993）
+- 投入は加工条件のウィンドウの「投入」ボタンで行う。工具の種類を決めて投入する `Shift+B` / `Shift+F` は廃止した。加工条件のウィンドウには、投入に続けて実行するチェック（既定は入）と「取り込み」ボタンを置き、最後の操作の結果を 1 行で出す。これらと実行（`Shift+R`）・取り込み（`Shift+L`）のキーは、ジョブの操作の UI（#988）ができるまでの操作とし、そのときにジョブの操作の UI へ移す
+- 初期値は、ボールエンドミル・工具径 10 mm・工具長の指定なし・ピックフィード 2 mm・送り 1200 mm/min・余裕 0・精度 0.05 mm とする
+- 設定パネルにあった工具長・素材の余裕は、加工条件のウィンドウに移した
+- 誤りの文言は日本語・英語の文言表から出す。入力で直せる誤り（素材の余裕・精度・工具・走査線の条件。走査線の条件はソルバーの `ScanlineInputError` の種類）は、種類のまま ViewModel（`ConditionIssue`）から View へ渡し、種類ごとの文言にする（#1033）。入力で直せない内部の誤り（ジョブの登録・実行・成果物の読み込みの失敗、そのほかのツールパス生成の入力の誤り）は、種類の文言の後に元の理由（英語）を添える。報告するときに元の文が役に立つため
+
+条件の持ち方:
+
+- 工程のエンティティ（#933）ができるまでは、ViewModel（`CuttingSimulationSession`）が「次に投入する条件」（`CuttingSimulationConditions`）を 1 組持ち、加工条件のウィンドウはそれを編集する。工程の管理とジョブの操作の UI は、工程の CL の計算を追加した後に整理し、CAM の操作から切削シミュレーションまでの流れと合わせて決める。そのときに、選んだ工程の条件を編集する形に置き換える
+- 取り込み（`import`）は、ジョブの入力として登録した条件（ツールパス生成の入力と切削シミュレーションの入力）をすべて返す。加工条件のウィンドウには、編集する条件とは別に「表示中の結果の条件」を見るだけの欄として並べ、取り込んだ結果がどの条件で計算されたかを画面で確かめられるようにする
+
+入力の誤りの知らせ方:
+
+- Application は、投入（`submit_product_shapes`）と同じ判定で、投入の前に条件の誤りをすべて返す「投入前の確認」（`CamSimulationWorkflow::check_product_shapes`）を持つ。投入はこの確認を通った条件だけを受け、誤りがあれば `Conditions` としてすべて返す（#992）
+- 誤り（`CamConditionError`）は、欄ごとに次の種類に分ける
+  - 負または有限でない余裕（`InvalidStockMargins`）
+  - ツールパス生成のトレランスより細かい精度（`PrecisionFinerThanTolerance`）
+  - ツールパス生成の入力の誤り（`ToolpathInput`）。工具の種類・径と走査線の条件を、ツールパス生成の実行のときと同じ `CamSolverInput::validate` で判定する
+  - 切削シミュレーションの入力の誤り（`SimulationInput`）。素材・工具・精度・記録の間隔の値と、格子の線の本数の上限（上限に収まる最も細かい精度も返す）を、Preflight と同じ `cam_sim::cutting_simulation_input_errors` で判定する
+- 加工の対象の面を形状にできない場合・形状が空の場合・オペレーションの定義を解決できない場合は、条件の誤りではないため、その場で 1 つの誤りとして返す
+- 余裕が不正な場合は素材を決められないため、製品形状を囲む箱を素材として残りの条件を判定し、素材の大きさで決まる線の本数は判定しない
+- ViewModel は、投入前の確認の誤りを、欄に振り分けられる単位（`ConditionIssue`）にして返す。確認は、条件を変えたときと製品形状を取り込んだときに行う（サンプルデータで 1 回 0.2 ms）
+- View は、誤りを該当する欄の横に出し、誤りがあるあいだは「投入」を押せないようにする。実行の時の Preflight の判定は、ジョブの入力の最後の確認として残す
+
+#### 禁止経路（本番）
+
+- デモ専用の実行経路を本番のアプリに置くこと
+- `job_adapter` 内の mock artifact 経路を本番導線に残すこと
+
+#### 本番導線の成立条件
+
+- View起点の切削シミュレーション実行は、本番導線1経路（View -> ViewModel -> Application -> cam_sim）に統一されている
+- 投入の操作（加工条件のウィンドウの「投入」等）は本番導線を使い、デモ専用の実行経路を持たない
+- `model/cam_sim/src/job_adapter.rs` の mock artifact 読み取りは、本番実行経路から除外されている（test/debug 限定に隔離されている）
+- Preflight失敗時に、Viewで再設定すべき不足条件（例: 回避高さ、速度設定、工具条件、機械制約）が識別できるエラー情報を受け取れる
+- デモ用データ作成コードは本体機能コードから分離され、責務境界が文書化されている
+
+#### view/app 分離の再評価基準
+
+次のいずれかを満たした時のみ、`view/app` の別クレート化を検討する。
+
+- demo導線の状態管理が `view/app` の複数モジュールへ拡散し、変更時の影響追跡が困難になった
+- 本番導線修正とdemo導線修正のリリース周期が分離し、同一クレート運用がボトルネックになった
+- 依存チェックやテスト実行時間の増加により、導線分離で明確な開発効率改善が見込める
+
+### 機能段階ごとの責務
+
+#### 円柱工具除去
+
+- `CuttingSimulator` と `SnapshotInterval` を用いた距離ベース記録の基礎を担う
+- 円柱工具による材料除去と、記録間隔制御の成立を責務とする
+
+#### ボールエンドミル対応
+
+- 工具種別分岐（フラット/ボール）を `cam_sim` で統一的に扱う
+- ボール工具の参照点補正と除去モデル統合を責務とする
+- 円弧パス除去の高精度化は後続拡張として扱う
+
+#### 動作シミュレーション
+
+- スナップショット再生、スクラブ、表示切替などの操作導線を担う
+- 追加導線UIや補間などは別タスクで段階的に導入する
+
+#### メッシュベース削り込み判定
+
+- NURBS 由来メッシュと Voxel 比較による削り残し/削り込み判定を担う
+- Voxel 側の境界安定化として、`remove_material_box` の最大深さ葉ノードでは
+   「交差したら即 Empty」ではなく、中心点が工具AABB内にある場合のみ Empty 化する
+   局所判定を導入する（過剰除去の抑制）。
+- `remove_material_capsule` / `remove_material_swept_cylinder` は段階導入として、
+   「ノードサイズが工具半径に対して十分大きい粗い葉ノード」に限定して中心点判定を適用する
+   （小半径ケースの既存挙動を維持しつつ、性能劣化を抑える）。
+
+#### 色分け可視化
+
+- 送り速度・警告・削り込み状態の可視化ルールを担う
+- 配色ロジック実装の正本は描画層とし、本書では区分定義のみ保持する
 
 ---
 
 ## 技術仕様
 
+### SAT-Cut 内部表現（Voxel/Octree非正本）
+
+高精度方式を評価するため、ワーク形状の正本を Voxel/Octree から分離する。
+
+> 本節の方針を本番化する設計（正本の空間索引・派生表現のトリデクセル・履歴によるスナップショット・段階）は `CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md`（#886）を正本とする。正本は `cam_sim::StockModel`（#888）として実装し、本節の PoC（`PrimitiveSetExactWork`）とハイブリッド判定（`run_hybrid_gate_case` 等・3 指標）は削除した。以下は当時の検証の記録である。
+
+#### 目的
+
+- 工具掃引による除去結果を分解能依存の離散表現から切り離す
+- 「除去計算の正本」と「表示キャッシュ」を責務分離する
+- Flat/Ball を同一演算系で扱える拡張可能な核を定義する
+
+#### 正本モデル
+
+ワーク正本は差分集合として保持する。
+
+- 初期ワーク: `W0`
+- 掃引プリミティブ集合: `P = {p1, p2, ... pn}`
+- 現在ワーク: `W = W0 \ (p1 ∪ p2 ∪ ... ∪ pn)`
+
+ここで `p` は工具種別ごとの解析プリミティブで表現する。
+
+- FlatEndMill: `SweptCylinder(segment, radius)`
+- BallEndMill: `Capsule(segment, radius)`
+
+PoCでは参照点補正を別責務にせず、工具中心軌跡として渡された `segment` をそのまま使う。`z_offset(radius)` による補正を入れる場合は、`cam_sim` 側の工具参照点変換に責務を分離してから導入する。
+
+#### データ構造（最小）
+
+- `ExactWorkCore`
+   - `base_solid`: 初期素材（AABB または解析ソリッド）
+   - `removed_primitives`: 掃引プリミティブ列（時系列）
+   - `spatial_index`: プリミティブ候補絞り込み用インデックス（BVH/Grid）
+- `ExactQueryKernel`
+   - `contains_material(point) -> bool`
+   - `nearest_removed_surface_distance(point) -> f64`
+   - `estimate_remaining_volume(sample_pitch) -> f64`
+- `DisplayProjectionCache`
+   - 表示専用の再投影キャッシュ（Octree/mesh）
+   - dirty-region 更新のみ受け持つ
+
+#### 演算フロー
+
+1. ToolPath を線分列へ正規化する
+2. 線分ごとに掃引プリミティブを生成する
+3. `removed_primitives` に追記し、`spatial_index` を更新する
+4. 問い合わせは `ExactQueryKernel` で実施する
+5. 表示が必要な場合のみ `DisplayProjectionCache` を部分更新する
+
+#### 不変条件
+
+- 体積単調減少: 切削で体積が増えない
+- 決定性: 同一入力で同一結果になる
+- 表示独立性: 表示キャッシュの有無で正本結果が変わらない
+
+#### 評価接続点
+
+- 体積差分: `ExactWorkCore` と既存方式を同一ケースで比較
+- 境界誤差: `nearest_removed_surface_distance` ベースで評価
+- 性能: `contains_material`/体積推定の計測を分離して観測
+- メモリ: `removed_primitives` と索引サイズを別々に記録
+
+実装入口（Issue #728 B）:
+
+- `model/cam_sim/src/simulator.rs` の `run_hybrid_gate_case`
+- `model/cam_sim/src/simulator.rs` の `run_hybrid_gate_case_with_config`
+
+上記 API は、候補絞り（Voxel）と確定判定（ExactWork）を同一入力で統合実行し、
+体積差分・境界不一致率・計測時間を `HybridGateMetrics` として返す。
+
+#### ハイブリッド判定の3指標（C: 既定化判断の基準）
+
+Issue #728 の既定化判断およびロールバック判断は、次の3指標を正本とする。
+
+1. `gap`（除去体積差分の相対誤差）
+   - 定義: `|removed_exact - removed_voxel| / |removed_voxel|`
+   - 目的: 候補絞り（Voxel）に対して確定判定（ExactWork）がどれだけ乖離しているかを監視する。
+   - 判定閾値: `<= 0.15`
+
+2. `boundary_disagreement_rate`（境界近傍の不一致率）
+   - 定義: 境界サンプル点における `exact_has_material != voxel_has_material` の割合
+   - 目的: 体積総量では見えにくい局所境界の過剰除去/削り残しを監視する。
+   - 判定閾値: `<= 0.10`
+
+3. `elapsed_ratio`（高精度判定の相対コスト）
+   - 定義: `elapsed_exact_ms / elapsed_voxel_ms`
+   - 目的: 高精度判定の導入に伴う計算コスト増を監視する。
+   - 判定閾値: `<= 3.0`
+
+補足:
+
+- 上記3指標は `run_hybrid_gate_case` / `run_hybrid_gate_case_with_config` が返す `HybridGateMetrics` を評価元とする。
+- 判定閾値の更新は、`model/cam_sim/src/tests.rs` の品質ゲート定数との整合を維持して行う。
+
+#### 非目標（本節）
+
+- 厳密CSGカーネルの全面実装
+- GPU最適化
+- 表示専用キャッシュの本番切替
+
 ### セグメント長の計算
 
-```rust
-impl PathSegment {
-    /// セグメントの実距離を計算
-    pub fn length(&self) -> f64 {
-        match self.segment_type {
-            SegmentType::Linear => {
-                // 直線: ユークリッド距離
-                (self.end - self.start).norm()
-            }
-            
-            SegmentType::Arc { center, radius, .. } => {
-                // 円弧: 半径 × 中心角
-                let start_vec = self.start - center;
-                let end_vec = self.end - center;
-                let angle = start_vec.angle_to(&end_vec);
-                radius * angle.abs()
-            }
-            
-            SegmentType::Helix { pitch, revolutions, radius } => {
-                // 螺旋: √(円周長² + ピッチ²)
-                let circumference = 2.0 * std::f64::consts::PI * radius * revolutions;
-                let height = pitch * revolutions;
-                (circumference.powi(2) + height.powi(2)).sqrt()
-            }
-            
-            // ... 他のセグメントタイプ
-        }
-    }
-    
-    /// セグメント上の補間点を計算
-    pub fn interpolate(&self, t: f64) -> Point3D<f64> {
-        debug_assert!((0.0..=1.0).contains(&t));
-        
-        match self.segment_type {
-            SegmentType::Linear => {
-                Point3D::lerp(&self.start, &self.end, t)
-            }
-            
-            SegmentType::Arc { center, start_angle, end_angle, .. } => {
-                let angle = start_angle + t * (end_angle - start_angle);
-                center + Vector3D::from_polar(radius, angle)
-            }
-            
-            // ... 他のセグメントタイプ
-        }
-    }
-}
-```
+距離計算ロジックは ToolPath/PathSegment 実装を正本とし、本書では「距離ベーススナップショットに必要な実距離計算が成立していること」を要件とする。
 
 ### VoxelSnapshot構造
 
-```rust
-/// Octree状態のスナップショット
-#[derive(Clone)]
-pub struct VoxelSnapshot<T: Scalar> {
-    /// ノード状態の圧縮表現
-    compressed_state: CompressedOctree,
-    
-    /// 残存体積（高速計算用キャッシュ）
-    remaining_volume: T,
-    
-    /// タイムスタンプ（ミリ秒）
-    timestamp_ms: u64,
-}
-
-/// Octree圧縮表現（メモリ節約）
-#[derive(Clone)]
-struct CompressedOctree {
-    /// ノード状態のビット配列（Empty=0, Solid=1, Mixed=2）
-    node_states: BitVec,
-    
-    /// 深さごとのノード数
-    depth_counts: Vec<usize>,
-}
-
-impl<T: Scalar> VoxelSnapshot<T> {
-    /// スナップショットのメモリサイズを取得
-    pub fn memory_size(&self) -> usize {
-        self.compressed_state.node_states.len() / 8  // バイト単位
-            + std::mem::size_of::<T>()
-            + std::mem::size_of::<u64>()
-    }
-}
-```
+スナップショットの内部表現（圧縮形式、キャッシュ項目）は `geo_algorithms` と `cam_sim` の実装に従う。
 
 ### ToolPath拡張メソッド
 
-```rust
-impl ToolPath {
-    /// 全セグメントをフラット化
-    pub fn all_segments(&self) -> Vec<&PathSegment> {
-        let mut segments = Vec::new();
-        
-        // Approach
-        for path in &self.approach {
-            segments.extend(&path.segments);
-        }
-        
-        // Cutting（全周回）
-        for level in &self.cutting {
-            for path in &level.paths {
-                segments.extend(&path.segments);
-            }
-        }
-        
-        // Retract
-        for path in &self.retract {
-            segments.extend(&path.segments);
-        }
-        
-        segments
-    }
-    
-    /// 総距離を計算
-    pub fn total_length(&self) -> f64 {
-        self.all_segments().iter().map(|seg| seg.length()).sum()
-    }
-    
-    /// セグメント総数
-    pub fn segment_count(&self) -> usize {
-        self.all_segments().len()
-    }
-}
-```
+セグメント列挙、総距離、件数取得は実装側 API を参照し、本書では利用目的（記録間隔計算・進捗表示）を定義する。
 
 ---
 
@@ -782,45 +509,17 @@ impl ToolPath {
 
 ### 処理時間目標
 
-| Phase | 処理内容 | 目標時間 | 備考 |
-|-------|---------|---------|------|
-| Phase 1a | VoxelOctree構築 + 材料除去 | < 1秒 | 1000セグメント |
-| Phase 1b | ボールエンドミル除去 | < 2秒 | 複雑判定のため遅い |
-| Phase 1c | スナップショット保存 | < 0.1秒 | 1スナップショットあたり |
-| Phase 2 | メッシュ比較 | < 5秒 | 10000三角形メッシュ |
-| Phase 3 | 色分け可視化 | リアルタイム | 60FPS維持 |
+| 機能 | 処理内容 | 目標時間 | 備考 |
+|------|---------|---------|------|
+| 円柱工具除去 | VoxelOctree構築 + 材料除去 | < 1秒 | 1000セグメント |
+| ボールエンドミル除去 | ボールエンドミル除去 | < 2秒 | 複雑判定のため遅い |
+| スナップショット保存 | スナップショット保存 | < 0.1秒 | 1スナップショットあたり |
+| メッシュ比較 | メッシュ比較 | < 5秒 | 10000三角形メッシュ |
+| 色分け可視化 | 色分け可視化 | リアルタイム | 60FPS維持 |
 
 ### スケーラビリティ
 
-```
-小規模加工:
-  総距離: 100mm
-  セグメント: 50個
-  スナップショット: 10個（10mm間隔）
-  メモリ: ~10MB
-  処理時間: <0.5秒
-
-中規模加工（標準）:
-  総距離: 1000mm
-  セグメント: 500個
-  スナップショット: 100個（10mm間隔）
-  メモリ: ~100MB
-  処理時間: <1秒
-
-大規模加工:
-  総距離: 10000mm
-  セグメント: 5000個
-  スナップショット: 1000個（10mm間隔）
-  メモリ: ~1GB
-  処理時間: <10秒
-
-超大規模加工（5軸複雑パス）:
-  総距離: 100000mm
-  セグメント: 50000個
-  スナップショット: 5000個（20mm間隔）
-  メモリ: ~5GB
-  処理時間: <60秒
-```
+評価軸は「総距離」「セグメント数」「スナップショット密度」の3点とし、実測値はベンチマーク結果で更新する。
 
 ---
 
@@ -829,11 +528,11 @@ impl ToolPath {
 - [OCTREE_DESIGN.md](./OCTREE_DESIGN.md) - Octree基本設計
 - [CAM_VISUALIZATION_REQUIREMENTS.md](./CAM_VISUALIZATION_REQUIREMENTS.md) - CAM可視化要求
 - [CAM_CRATE_DESIGN_PROPOSAL.md](./CAM_CRATE_DESIGN_PROPOSAL.md) - cam_core設計
-- [ISSUE_214_IMPLEMENTATION_PREP.md](./ISSUE_214_IMPLEMENTATION_PREP.md) - #214着手準備チェックリスト
+- [CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md](./CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md) - 素材の表現（正本・派生表現・スナップショット・段階）
 
 ---
 
-## Issue #246: ツールセット定義（工具 + ホルダー）
+## ツールセット定義（工具 + ホルダー）
 
 ### 目的
 
@@ -855,7 +554,17 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 - 刃長
 - 全長
 - 突き出し長
-- シャンク径
+- シャンク段定義（多段、円柱/テーパー）
+- シャンク干渉距離（側面/底面）
+
+### シャンク干渉距離の条件付き適用
+
+- `ToolSet` は `ShankSegmentKind (Cylinder/Taper)` と `ShankSegment` を保持
+- シャンク専用干渉距離 `ShankInterferenceOffset { side, bottom }` を保持
+- シャンク全長が `stickout_length` 以上の場合は無効
+- シャンク底面クリアランス（bottom）は以下条件で自動無効化する
+    - 最下段がテーパーの場合
+    - 工具径 > 最下段シャンク径 の場合
 
 ### 用語定義
 
@@ -883,6 +592,16 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 - 下端径
 - 段間R（必要に応じて定義）
 
+### シャンク形状定義
+
+シャンクは上端→下端順の多段形状として定義する。
+各段は以下の情報を持つ。
+
+- 種別: 円柱またはテーパー
+- 段長さ
+- 上端径
+- 下端径
+
 ### 干渉距離定義
 
 ホルダー干渉距離は用途別に分離して定義する。
@@ -893,6 +612,9 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 多段ホルダーにおける底面干渉距離は、ホルダー最下面（工具側先端の再底面）のみに適用する。
 中間段の段端面には適用しない。
 
+シャンク干渉距離も同様に side / bottom で定義する。
+ただしシャンク bottom は、過剰判定と無効領域の発生を防ぐため条件付き適用とする。
+
 ### 干渉判定時の形状生成ルール
 
 切削シミュレーションおよびCAM干渉チェックでは、実形状ではなく干渉オフセット形状を用いる。
@@ -900,6 +622,13 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 - 側面: 各段の外径に側面干渉距離を反映する
 - 底面: 最下面のみ底面干渉距離を反映する
 - 段間R: 側面干渉適用後の連続性を維持する（負値や不連続は禁止）
+
+シャンク bottom の適用条件:
+
+- 最下段が円柱であること
+- 工具径 <= 最下段シャンク径
+
+上記を満たさない場合、シャンク bottom は 0 として扱う（自動無効化）。
 
 ### 最小バリデーション要件
 
@@ -920,9 +649,61 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 
 ---
 
+## 加工サマリの表示（計画）
+
+### 表示項目（現時点の整理）
+
+デモ画面に表示する加工サマリの最小セット（マニュアルから移した。#1036）。
+
+必須（Phase 1b で表示対象）:
+
+- 全体の距離（mm）
+- 切削時間（推定）
+- 各軸の Min / Max（X / Y / Z）
+- 5軸時の回転軸 Min / Max（A / B / C など、存在する軸のみ）
+
+算出ルール（現時点）:
+
+- 全体の距離は ToolPath の総距離を使用する
+- 切削時間は `切削時間[分] = 全体の距離[mm] / 平均送り速度[mm/min]` で算出する
+- 現在のサンプル ToolPath は送り速度固定のため、平均送り速度は固定値で扱う
+- 可変送り速度ジョブに対する加重平均方式は後続改善で対応する
+
+推奨（表示できると有用）:
+
+- 切削距離 / 早送り距離の内訳
+- 切削時間 / 非切削時間の内訳
+- 現在フレーム時点の累積距離と進捗率
+- ワーク包絡の Min / Max（加工範囲確認用）
+
+追加合意項目（この時点で必要）:
+
+- 現在フレームの累積時間と残り推定時間
+- 現在セグメント種別（Cutting / Rapid / Approach / Retract / PassRetract）
+- 工具接触中フラグ（切削中か空走中か）
+- 除去体積率（初期体積比の進捗）
+
+注記:
+
+- 3軸デモでは回転軸項目は `N/A` 表示でよい
+- 5軸 ToolPath では姿勢データから回転軸レンジを算出する
+
+### 次段で整理したい項目
+
+- 追加導線UI（ショートカット未記憶ユーザー向け）
+- 自動再生・再生速度変更の必要性評価
+
 ## 変更履歴
 
 | 日付 | 変更内容 | 担当 |
 |------|---------|------|
-| 2026-02-22 | Issue #246 ツールセット定義（ホルダー多段、参照点、干渉距離）を追記 | AI開発者 |
+| 2026-10-31 | 加工条件のウィンドウの実装を反映（Shift+B / Shift+F の廃止） | AI開発者 |
+| 2026-10-31 | 投入前の確認と、取り込みで投入した入力を返すことを反映 | AI開発者 |
+| 2026-10-31 | 計算条件の入力画面を表示の設定から分ける方針を追加 | AI開発者 |
+| 2026-07-04 | 高精度比較向け SAT-Cut 内部表現を追加 | AI開発者 |
+| 2026-05-30 | 本番導線とデモ導線の責務境界、および入力前提条件の整理を反映 | AI開発者 |
+| 2026-04-01 | 実装参照方針への整理と、BallEndMill対応後の設計更新を反映 | AI開発者 |
+| 2026-03-31 | ツールセットのシャンク干渉条件と多段化ルールを整理 | AI開発者 |
+| 2026-02-22 | ツールセット定義（ホルダー多段、参照点、干渉距離）を追加 | AI開発者 |
 | 2026-02-12 | 初版作成（距離ベーススナップショット設計） | AI開発者 |
+

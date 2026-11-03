@@ -1,6 +1,7 @@
 use super::super::*;
+use crate::LineSegment3D;
+use geo_contracts::LineSegment3DConstructor;
 use geo_core::Point3D;
-use geo_primitives::LineSegment3D;
 
 #[test]
 fn test_z_axis_removal_basic() {

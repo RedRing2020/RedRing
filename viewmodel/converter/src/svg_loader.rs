@@ -1,16 +1,19 @@
-//! SVG形状ローダー（ViewModel層）
+//! SVG形状ローダー
 //!
 //! geo_ioのSVGパーサーを使用して形状データを読み込み、
 //! GPU用のVertexDataに変換します。
 
 use crate::mesh_converter::VertexData;
 use crate::shape_converter::{
-    arc_to_wireframe_line_segments, circle_to_wireframe_line_segments, line_segment_to_vertices,
-    triangle_to_solid_vertices, TessellationQuality,
+    arc_to_wireframe_line_segments, circle_to_wireframe_line_segments,
+    ellipse_arc_to_wireframe_line_segments, line_segment_to_vertices, triangle_to_solid_vertices,
+    TessellationQuality,
 };
-// geo_algorithms は geo_primitives を再エクスポート（アーキテクチャルール上許可）
-use geo_algorithms::{
-    Arc3D, Circle3D, Direction3D, LineSegment3D, NurbsCurve3D, Point3D, Triangle3D, Vector3D,
+use geo_algorithms::{Arc3D, Circle3D, EllipseArc3D, LineSegment3D, NurbsCurve3D, Triangle3D};
+use geo_contracts::{
+    Arc3DConstructor, Circle3DConstructor, EllipseArc3DConstructor, LineSegment3DConstructor,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    Triangle3DConstructor,
 };
 use geo_io::svg::{parse_svg_file, NurbsCurveData, SvgError, SvgShapeData};
 use std::path::Path;
@@ -52,31 +55,17 @@ fn convert_svg_to_vertices(
 
     // 円形状を変換
     for circle_data in &svg_data.circles {
-        let center = Point3D::<f64>::new(
-            circle_data.center.0,
-            circle_data.center.1,
-            circle_data.center.2,
-        );
-        let normal = Direction3D::from_vector(Vector3D::new(
-            circle_data.normal.0,
-            circle_data.normal.1,
-            circle_data.normal.2,
-        ))
-        .ok_or_else(|| SvgLoaderError::InvalidData("Invalid circle normal vector".to_string()))?;
-
-        let circle = Circle3D::new(center, normal, circle_data.radius).ok_or_else(|| {
-            SvgLoaderError::ConstructionError("Failed to create Circle3D".to_string())
-        })?;
+        let circle = Circle3D::new(circle_data.center, circle_data.normal, circle_data.radius)
+            .ok_or_else(|| {
+                SvgLoaderError::ConstructionError("Failed to create Circle3D".to_string())
+            })?;
 
         vertices.extend(circle_to_wireframe_line_segments(&circle, &quality));
     }
 
     // 線分を変換
     for line_data in &svg_data.lines {
-        let start = Point3D::<f64>::new(line_data.start.0, line_data.start.1, line_data.start.2);
-        let end = Point3D::<f64>::new(line_data.end.0, line_data.end.1, line_data.end.2);
-
-        let line = LineSegment3D::new(start, end).ok_or_else(|| {
+        let line = LineSegment3D::new(line_data.start, line_data.end).ok_or_else(|| {
             SvgLoaderError::ConstructionError("Failed to create LineSegment3D".to_string())
         })?;
 
@@ -85,48 +74,44 @@ fn convert_svg_to_vertices(
 
     // 三角形を変換
     for tri_data in &svg_data.triangles {
-        let p0 = Point3D::<f64>::new(tri_data.p0.0, tri_data.p0.1, tri_data.p0.2);
-        let p1 = Point3D::<f64>::new(tri_data.p1.0, tri_data.p1.1, tri_data.p1.2);
-        let p2 = Point3D::<f64>::new(tri_data.p2.0, tri_data.p2.1, tri_data.p2.2);
-
-        let triangle = Triangle3D::new(p0, p1, p2).ok_or_else(|| {
+        let triangle = Triangle3D::new(tri_data.p0, tri_data.p1, tri_data.p2).ok_or_else(|| {
             SvgLoaderError::ConstructionError("Failed to create Triangle3D".to_string())
         })?;
 
         vertices.extend(triangle_to_solid_vertices(&triangle));
     }
 
-    // 円弧を変換（TODO: SVGパーサーでarc抽出実装後）
+    // 円弧を変換
     for arc_data in &svg_data.arcs {
-        let center = Point3D::<f64>::new(arc_data.center.0, arc_data.center.1, arc_data.center.2);
-        let normal = Direction3D::from_vector(Vector3D::new(
-            arc_data.normal.0,
-            arc_data.normal.1,
-            arc_data.normal.2,
-        ))
-        .ok_or_else(|| SvgLoaderError::InvalidData("Invalid arc normal vector".to_string()))?;
-
-        let start_dir = Direction3D::from_vector(Vector3D::new(
-            arc_data.start_direction.0,
-            arc_data.start_direction.1,
-            arc_data.start_direction.2,
-        ))
-        .ok_or_else(|| SvgLoaderError::InvalidData("Invalid arc start direction".to_string()))?;
-
-        let start_angle = geo_foundation::Angle::from_radians(arc_data.start_angle);
-        let end_angle = geo_foundation::Angle::from_radians(arc_data.end_angle);
-
         let arc = Arc3D::new(
-            center,
+            arc_data.center,
             arc_data.radius,
-            normal,
-            start_dir,
-            start_angle,
-            end_angle,
+            arc_data.normal,
+            arc_data.start_direction,
+            arc_data.start_angle,
+            arc_data.end_angle,
         )
         .ok_or_else(|| SvgLoaderError::ConstructionError("Failed to create Arc3D".to_string()))?;
 
         vertices.extend(arc_to_wireframe_line_segments(&arc, &quality));
+    }
+
+    // 楕円弧を変換
+    for arc_data in &svg_data.ellipse_arcs {
+        let arc = EllipseArc3D::new(
+            arc_data.center,
+            arc_data.semi_major,
+            arc_data.semi_minor,
+            arc_data.normal,
+            arc_data.major_axis_direction,
+            arc_data.start_angle,
+            arc_data.end_angle,
+        )
+        .ok_or_else(|| {
+            SvgLoaderError::ConstructionError("Failed to create EllipseArc3D".to_string())
+        })?;
+
+        vertices.extend(ellipse_arc_to_wireframe_line_segments(&arc, &quality));
     }
 
     // NURBS曲線を変換
@@ -151,13 +136,11 @@ fn nurbs_curve_to_vertices(
     nurbs_data: &NurbsCurveData,
     tolerance: f64,
 ) -> Result<Vec<VertexData>, SvgLoaderError> {
-    use geo_foundation::NurbsCurve3DConstructor;
-
     // NURBS曲線を生成
     let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
         nurbs_data.degree,
         nurbs_data.knots.clone(),
-        nurbs_data.control_points.clone(),
+        &nurbs_data.control_points,
         nurbs_data.weights.clone(),
     )
     .map_err(|e| {
@@ -168,8 +151,7 @@ fn nurbs_curve_to_vertices(
     let (t_min, t_max) = curve.parameter_domain();
 
     // 曲線の全長を計算
-    use geo_foundation::NurbsCurve3DMeasure;
-    let arc_length = curve.arc_length_total(tolerance);
+    let arc_length = curve.length();
 
     // 分割数を決定（曲線長÷トレランス、最小10、最大10000）
     let num_segments = ((arc_length / tolerance).ceil() as usize).clamp(10, 10000);
@@ -185,7 +167,9 @@ fn nurbs_curve_to_vertices(
     let mut vertices = Vec::with_capacity(num_segments + 1);
     for i in 0..=num_segments {
         let t = t_min + (t_max - t_min) * (i as f64 / num_segments as f64);
-        let point = curve.evaluate_at(t);
+        let point = curve
+            .point_at_parameter(t)
+            .expect("sample parameter should be within the curve domain");
 
         vertices.push(VertexData {
             position: [point.x() as f32, point.y() as f32, point.z() as f32],
@@ -278,5 +262,15 @@ mod tests {
             vertices.len() > 10,
             "NURBS curve should have many vertices from tessellation"
         );
+    }
+
+    #[test]
+    fn test_load_fixture_svgs_with_path_arcs_and_lines() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/shapes");
+        // arc.svg は円弧と楕円弧、clip_square.svg は直線の path
+        for name in ["arc.svg", "clip_square.svg"] {
+            let vertices = load_svg_shapes(&fixtures.join(name), 0.01).unwrap();
+            assert!(!vertices.is_empty(), "{name} should have vertices");
+        }
     }
 }

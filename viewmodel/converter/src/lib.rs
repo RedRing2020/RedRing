@@ -1,8 +1,6 @@
-//! Data Converter クレート（ViewModel層）
+//! Data Converter クレート
 //!
-//! MVVMアーキテクチャにおけるViewModel層のデータ変換機能を提供します。
-//! Model層（geo_*）からのデータを受け取り、
-//! View層（render）で使用可能な形式に変換することに特化しています。
+//! 形状・メッシュ・工具経路などのデータを、描画用の形式に変換します。
 //!
 //! ## 主要機能
 //! - メッシュデータ変換（Model → GPU形式）
@@ -14,16 +12,27 @@
 //! - NURBS GPU評価用データ変換（NURBS形状 + パラメータリスト → GPU形式）
 
 pub mod cam_sim_visualization_converter;
+pub mod cutting_animation;
+pub mod cutting_simulation_session;
 pub mod entity_converter;
+pub mod feature_command_converter;
+pub mod inverse_offset_converter;
+pub mod inverse_offset_shape_converter;
+pub mod job_converter;
+pub mod job_message_catalog;
+pub mod job_message_mapper;
 pub mod mesh_converter;
+pub mod message_catalog;
 pub mod nurbs_eval_loader;
 pub mod nurbs_view;
 pub mod octree_converter;
+pub mod product_shape_converter;
 pub mod shape_converter;
 pub mod snapshot_converter;
-pub mod stl_loader;
 pub mod svg_loader;
 pub mod toolpath_converter;
+pub mod validation_message_catalog;
+pub mod validation_message_mapper;
 
 /// テスト用の関数（削除予定）
 pub fn add(left: u64, right: u64) -> u64 {

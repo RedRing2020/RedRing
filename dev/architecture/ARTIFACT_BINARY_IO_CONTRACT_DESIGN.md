@@ -1,0 +1,286 @@
+# Artifact Binary I/O Contract Design
+
+**作成日**: 2026年4月3日  
+**ステータス**: v0.3 仕様正本（v0.2: v0.1 と同じ wire layout で、ToolPath の切削方向の値に `Mixed` を追加。#994。v0.3: 切削シミュレーションの中身を差分のキーフレームの節の列に変更し、ToolPath・Interference の wire layout は変えていない。#998）  
+**関連Issue**: [#300](https://github.com/RedRing2020/RedRing/issues/300), [#411](https://github.com/RedRing2020/RedRing/issues/411), [#412](https://github.com/RedRing2020/RedRing/issues/412)
+
+---
+
+## 目的
+
+- `toolpath` / `interference` artifact のバイナリ I/O 契約を長期参照可能な正本として固定する
+- `Job Manager` がバイナリ本体を解釈しない責務境界を保ちながら、Model/Worker 間の I/O 契約を安定化する
+- 後続の reader/writer 実装、命名運用、互換性判断の基準を一意化する
+
+関連ドキュメント:
+
+- [BATCH_COMPUTE_PLATFORM_DESIGN.md](./BATCH_COMPUTE_PLATFORM_DESIGN.md)
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+
+---
+
+## 責務境界
+
+- ジョブ契約は `JobType + InputRef -> ResultRef` を維持する
+- `job_runtime` / Job Manager はバイナリ本体を解釈しない
+- reader/writer 実装責務は Model 側、初期対象は `cam_core` とする
+- 利用層は `read_artifact_v1` を標準入口として使用し、個別 payload の直接復元を乱立させない
+
+---
+
+## 共通ヘッダ仕様
+
+全 artifact は先頭に固定長ヘッダ部を持ち、その直後に可変長拡張属性を持てる。
+
+- `magic: [u8; 4]`
+  - `toolpath`: `RRTP`
+  - `interference`: `RRIN`
+- `version_major: u16` = 0
+- `version_minor: u16` = 3（v0.1・v0.2 の artifact は `1`・`2`）
+- `units: u8`
+  - 1 = Millimeter
+- `coordinate_frame: u8`
+  - 1 = WorldRightHandedZUp
+- `ext_block_len: u32`
+  - ヘッダ直後に続く `ext_attributes` ブロックの総バイト長
+  - 0 の場合は拡張属性なし
+- `payload_len: u64`
+  - `ext_attributes` を含まない payload 本体の総バイト長
+  - 可変長領域全体長は `ext_block_len + payload_len`
+
+### ext_attributes (TLV)
+
+ヘッダ直後に可変長で配置される。`ext_block_len` で終端を判定する。
+
+- `tag: i16`
+  - 負値: システム属性
+  - 正値: ユーザー属性
+  - `0`: 予約値（reject）
+- `data_len: u16`
+- `data: [u8; data_len]`
+
+エンディアンは little-endian 固定とする。
+
+---
+
+## ToolPath Payload v0.1
+
+### ファイル単位メタ
+
+- `tool_id_len: u16`
+- `tool_id_bytes: [u8; tool_id_len]` (UTF-8)
+- `cutting_direction: u8`
+  - 0 = Down
+  - 1 = Up
+  - 2 = Mixed（経路の中でダウンカットとアップカットが入れ替わる。v0.2 で追加）
+- `ext_attributes_count: u32`
+- `ext_attributes[]`
+  - `tag: i16` (`0` は予約値のため reject)
+  - `data_len: u16`
+  - `data: [u8; data_len]`
+- `approach_count: u32`
+- `contour_level_count: u32`
+- `retract_count: u32`
+
+### セグメント共通
+
+1セグメントは次を保持する。
+
+- `segment_type: u8`
+  - 0 Cutting
+  - 1 Rapid
+  - 2 Approach
+  - 3 Retract
+  - 4 PassRetract
+- `feed_rate: f64`
+  - Rapid は `0.0`
+- `ext_attributes_count: u32`
+- `ext_attributes[]`
+  - `tag: i16` (`0` は予約値のため reject)
+  - `data_len: u16`
+  - `data: [u8; data_len]`
+- `geometry_type: u8`
+  - 0 Line
+  - 1 Arc
+- `start: [f64; 3]`
+- `line_end: [f64; 3]` (Line時のみ)
+- `arc_end: [f64; 3]` (Arc時のみ)
+- `arc_center: [f64; 3]` (Arc時のみ)
+- `arc_direction: u8` (Arc時のみ)
+  - 0 Clockwise
+  - 1 CounterClockwise
+
+### Contour Level
+
+- `level_index: u32`
+- `z_level: f64`
+- `segment_count: u32`
+- `segments[]`
+
+---
+
+## Interference Payload v0.1
+
+最小契約として接触イベント列を保持する。
+
+- `event_count: u32`
+- `events[]`
+  - `sample_index: u32`
+  - `tool_id_len: u16`
+  - `tool_id_bytes: [u8; tool_id_len]`
+  - `position: [f64; 3]`
+  - `normal: [f64; 3]`
+  - `penetration_depth: f64`
+  - `kind: u8`
+    - 1 Tool
+    - 2 Holder
+    - 3 Shank
+
+`kind = 3` は shank 属性追加後の正式値として扱う。
+
+---
+
+## 互換性ポリシー
+
+- `major == 0 && minor ∈ {1, 2, 3}`:
+  - accept（v0.2・v0.3 の ToolPath・Interference は v0.1 と同じ wire layout で、v0.2 は値の範囲を広げただけのため、v0.1 の artifact もそのまま読む）
+  - 切削シミュレーション（`RRCS`）の中身は cam_sim が解釈し、v0.3 だけを受け入れる（`CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md` §5.2）
+- `major == 0 && minor ∉ {1, 2, 3}`:
+  - reject
+- `major != 0`:
+  - convert 実装がある場合のみ convert、未実装時は reject
+
+v0 系はプレ版とし、安定化までは strict reject を基本とする。
+
+### バージョン同期ルール
+
+`ToolPath` 構造体変更により wire layout が変わる場合、以下で同期する。
+
+- 互換な変更:
+  - `minor` を +1
+- 非互換変更:
+  - `major` を +1 し、`minor` を 0 に戻す
+
+実装では `cam_core::toolpath` 側の schema version と artifact header version の同値性をテストで検証する。
+
+---
+
+## 回帰テスト運用
+
+Read/Write の片側だけが変わって契約が壊れることを防ぐため、以下を必須ゲートとする。
+
+- `toolpath_wire_write_regression`
+- `toolpath_wire_read_regression`
+- `interference_wire_write_regression`
+- `interference_wire_read_regression`
+
+運用ルール:
+
+- ゴールデンバイト列を `artifact_binary.rs` に保持する
+- CI の wire format 検証ステップを必須にする
+- ゴールデン定数を更新する場合は `version_minor` も更新する
+
+---
+
+## 公開 API と命名運用
+
+- `read_artifact_v1` は標準入口とする
+- `write_toolpath_payload_v1` / `write_interference_payload_v1` は v0.1 契約の writer として扱う
+- `*_v1` の `v1` は wire format v1.0 ではなく API 世代識別子を表す
+- wire format 判定は常に `version_major` / `version_minor` の実値で行う
+
+標準注記テンプレート:
+
+```text
+注記: `*_v1` は API 世代識別子を表す。wire format の実バージョンは
+`version_major` / `version_minor` の実値で判定する（現行は v0.3）。
+```
+
+---
+
+## 後続参照ルール
+
+- `#411` は読込導線の標準入口として本書を参照する
+- `#412` は API 名称と wire format 表記の関係整理で本書を参照する
+- `#257` 相当の後続実装は、本書の責務境界・ヘッダ仕様・互換性ポリシーを前提にする
+- `NcPostFromCam` は本書を唯一の I/O 契約参照入口として扱う
+
+---
+
+## #684 solver 出力接続ルール（Option A / Step A）
+
+### 目的
+
+CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`NcPostFromCam` で再利用可能にする。
+
+### 接続契約
+
+- solver 成功時:
+  - `toolpath` payload を本書の ToolPath Payload v0.1 で出力する
+  - `ResultRef` は上記 payload を指す不変参照を返す
+  - manifest は `artifact_type=toolpath` を必須とする
+- solver 失敗時:
+  - `ResultRef` を生成しない
+  - 失敗分類（`invalid_input` / `no_solution` / `convergence_failure`）を返す
+
+### 互換性判定
+
+- 全体の互換性ポリシーに従う
+- 本Issue時点では `convert` は未実装のため、`version_major=0` かつ `version_minor=1` の payload のみを受理し、それ以外は reject とする
+
+### 責務境界
+
+- Job Manager: `ResultRef`/manifest の契約検証のみ
+- Model/CAM: payload 生成・read/write・失敗分類を担当
+
+### 後続参照
+
+- #679 は本節の接続契約を前提に `NcPostFromCam` 読込導線を維持する
+- #680-#683 は本節の wire contract を変更せず NC post 拡張を行う
+
+---
+
+## #689 工程テンプレート由来メタデータ追跡（Step A）
+
+本節は、工程テンプレート適用結果を `Status=succeeded` の成果物で再現可能にするための最小メタデータ契約を定義する。reader/writer 実装可能性を担保するため、項目名だけでなく格納領域と data 形式を固定する。
+
+### succeeded時に記録する項目
+
+- `tolerance_profile`（例: `press_rough` / `mold_finish`）
+- `tolerance_value_mm`
+- `template_revision`
+- `machining_stage`（`rough` / `semi_finish` / `finish`）
+- `operation_type`
+- `boundary_mode`（`edge_projected_2d` / `rectangle`）
+- `machining_direction`（toolpath artifact では必須、interference artifact では任意）
+
+`template_revision` はテンプレート version 相当の追跡キーであり、`tolerance_profile` と `tolerance_value_mm` だけでは区別できない改訂差分を識別するため必須とする。`machining_direction` を interference artifact で任意にするのは、同 artifact が干渉イベント監査を主目的とし、CAM 実行方向を常に再現に要求しないためである。
+
+### 格納領域
+
+- toolpath artifact は `ToolPath payload.ext_attributes` に保持する
+- interference artifact は共通ヘッダ `ext_attributes` に保持する
+- manifest には監査・検索用の最小メタデータのみを保持し、payload と同一粒度の重複保持は必須化しない
+
+### TLV 表現
+
+toolpath payload / interference 共通ヘッダの `ext_attributes` は同一 TLV 形式を使用する。`tag` は `i16 little-endian`、`data_len` は `u16 little-endian`、文字列は UTF-8（NUL終端なし）とする。
+
+| 項目 | TLV tag | data 形式 | 備考 |
+| --- | --- | --- | --- |
+| `tolerance_profile` | `689` | UTF-8 文字列 | `press_rough` / `mold_finish` |
+| `tolerance_value_mm` | `690` | `f64 little-endian` | 単位は mm |
+| `template_revision` | `691` | UTF-8 文字列 | 例: `v1`, `press_rough@3` |
+| `machining_stage` | `692` | UTF-8 文字列 | `rough` / `semi_finish` / `finish` |
+| `operation_type` | `693` | UTF-8 文字列 | canonical token |
+| `boundary_mode` | `694` | UTF-8 文字列 | `edge_projected_2d` / `rectangle` |
+| `machining_direction` | `695` | UTF-8 文字列 | `+X` / `-X` / `+Y` / `-Y` / `+Z` / `-Z`。toolpath artifact では必須、interference artifact では任意 |
+
+### 運用ルール
+
+- `Status=succeeded` 以外では上記項目を必須化しない
+- `Status=succeeded` の toolpath artifact では上表の全項目を payload 側 `ext_attributes` に必須とする
+- `Status=succeeded` の interference artifact では、共通ヘッダ側 `ext_attributes` に上表の各項目を記録する。このうち `machining_direction` は任意、それ以外は必須とする
+- Job Manager は値の意味を解釈せず、参照整合のみ扱う
+- Model/CAM 側が生成時に値を確定し、reader/writer は本節の TLV 契約に従って保持する
+- reader は `Status=succeeded` の場合、toolpath artifact では上表の全項目、interference artifact では `machining_direction` を除く上表の項目が欠落していれば不正データとして扱う

@@ -98,7 +98,6 @@ impl NurbsCurveEvalResources {
                 "nurbs_uniform_bind_group",
             );
 
-        // === @group(1): NURBS Data (Storage Buffers) ===
         let param_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("NURBS Param Buffer"),
             contents: bytemuck::cast_slice(&eval_data.params),
@@ -230,11 +229,13 @@ impl NurbsCurveEvalResources {
             label: Some("nurbs_data_bind_group"),
         });
 
-        // === Render Pipeline ===
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("NURBS Eval Pipeline Layout"),
-            bind_group_layouts: &[&uniform_bind_group_layout, &nurbs_bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[
+                Some(&uniform_bind_group_layout),
+                Some(&nurbs_bind_group_layout),
+            ],
+            immediate_size: 0,
         });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -267,8 +268,8 @@ impl NurbsCurveEvalResources {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
@@ -277,7 +278,7 @@ impl NurbsCurveEvalResources {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -392,14 +393,12 @@ impl NurbsSurfaceEvalResources {
                 "nurbs_surface_uniform_bind_group",
             );
 
-        // === 頂点バッファ: (u,v)パラメータをインターリーブド配列で格納 ===
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("NURBS Surface Vertex Param Buffer"),
             contents: bytemuck::cast_slice(&eval_data.vertex_params),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        // === Storage Buffers ===
         let control_point_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("NURBS Surface Control Point Buffer"),
             contents: bytemuck::cast_slice(&eval_data.control_points),
@@ -448,7 +447,6 @@ impl NurbsSurfaceEvalResources {
             usage: wgpu::BufferUsages::STORAGE,
         });
 
-        // === Bind Group Layout（Storage Buffers: 5個に削減） ===
         let nurbs_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -538,7 +536,6 @@ impl NurbsSurfaceEvalResources {
             label: Some("nurbs_surface_data_bind_group"),
         });
 
-        // === Index Buffers ===
         let solid_indices = eval_data.generate_indices();
         let wireframe_indices = eval_data.generate_wireframe_indices();
 
@@ -554,14 +551,15 @@ impl NurbsSurfaceEvalResources {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        // === Pipeline Layout ===
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("NURBS Surface Pipeline Layout"),
-            bind_group_layouts: &[&uniform_bind_group_layout, &nurbs_bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[
+                Some(&uniform_bind_group_layout),
+                Some(&nurbs_bind_group_layout),
+            ],
+            immediate_size: 0,
         });
 
-        // === 頂点バッファレイアウト ===
         let vertex_buffer_layout = wgpu::VertexBufferLayout {
             array_stride: (std::mem::size_of::<f32>() * 2) as wgpu::BufferAddress, // vec2<f32>
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -572,7 +570,6 @@ impl NurbsSurfaceEvalResources {
             }],
         };
 
-        // === Solid Pipeline ===
         let solid_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("NURBS Surface Solid Pipeline"),
             layout: Some(&pipeline_layout),
@@ -603,17 +600,16 @@ impl NurbsSurfaceEvalResources {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
-        // === Wireframe Pipeline ===
         let wireframe_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("NURBS Surface Wireframe Pipeline"),
             layout: Some(&pipeline_layout),
@@ -644,13 +640,13 @@ impl NurbsSurfaceEvalResources {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 

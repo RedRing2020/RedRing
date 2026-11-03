@@ -4,6 +4,10 @@ use super::AppState;
 
 impl AppState {
     pub fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
+        if size.width == 0 || size.height == 0 {
+            return;
+        }
+
         self.graphic.config.width = size.width;
         self.graphic.config.height = size.height;
         self.graphic

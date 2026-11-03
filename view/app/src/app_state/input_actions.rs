@@ -11,8 +11,30 @@ impl AppState {
             return;
         }
 
+        // 設定パネル・加工条件のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
+        if self.renderer.is_settings_using_keyboard() {
+            return;
+        }
+
+        if matches!(
+            key,
+            winit::keyboard::Key::Named(winit::keyboard::NamedKey::Space)
+        ) {
+            self.toggle_auto_snapshot_playback();
+            return;
+        }
+
         if let winit::keyboard::Key::Character(ch) = key {
             match ch.as_str() {
+                "M" => {
+                    self.toggle_machining_conditions();
+                }
+                "R" => {
+                    self.run_cutting_simulation_jobs();
+                }
+                "L" => {
+                    self.import_cutting_simulation();
+                }
                 "r" => {
                     self.camera.reset();
                     self.update_camera_uniforms();
@@ -34,32 +56,42 @@ impl AppState {
                     tracing::warn!("緊急カメラ脱出実行（eキー）");
                 }
                 "h" => {
-                    tracing::info!("=== カメラ操作ヘルプ ===");
+                    tracing::info!("=== カメラ操作 ===");
                     tracing::info!("r: カメラリセット");
                     tracing::info!("t: 標準CAD視点");
                     tracing::info!("f: 正面視点");
                     tracing::info!("e: 緊急脱出");
-                    tracing::info!("w: ワイヤーフレーム切替");
-                    tracing::info!("1: Draftステージ");
-                    tracing::info!("2: Outlineステージ");
-                    tracing::info!("3: Shadingステージ");
-                    tracing::info!("=== デバッグ形状表示 ===");
-                    tracing::info!("s: クリップ空間正方形（単位行列テスト）");
-                    tracing::info!("l: LineSegment3D表示");
-                    tracing::info!("c: Circle3D表示");
-                    tracing::info!("T: Triangle3D表示 (Shift+T)");
-                    tracing::info!("a: Arc3D表示");
-                    tracing::info!("n: NurbsCurve3D表示（GPU評価）");
-                    tracing::info!("m: NurbsSurface3D表示（GPU評価）");
-                    tracing::info!("o: Octree再分割表示/深さ送り（同一最終形状の粗→細）");
-                    tracing::info!("Shift+O: Octree深さアニメーション再生（粗→細）");
-                    tracing::info!("p: カッターパスのみ表示（色分け線）");
+                    tracing::info!("=== 切削シミュレーション ===");
                     tracing::info!(
-                        "Shift+P: CAMシミュレーション可視化（ToolPath + ワーク + 除去）"
+                        "【取込】 STL ファイルをウィンドウにドロップ: 製品形状として取り込み"
                     );
-                    tracing::info!("k/j: Snapshotフレーム送り/巻き戻し");
-                    tracing::info!("w: Octree表示モード切替（Wire/Solid）");
+                    tracing::info!(
+                        "【投入】 Shift+M: 加工条件のウィンドウの表示切替（「投入」で表示中の製品形状を投入）"
+                    );
+                    tracing::info!(
+                        "【実行】 Shift+R: キューにあるジョブを実行（終わるまで画面は止まる）"
+                    );
+                    tracing::info!(
+                        "【取込】 Shift+L: 最も新しい切削シミュレーションを取り込んで再生"
+                    );
+                    tracing::info!("【設定】 Shift+S: 設定パネル表示切替");
+                    tracing::info!("【移動】 k: コマ送りの移動量だけ先のフレームへ（移動量は設定パネルの表示タブ）");
+                    tracing::info!("【移動】 j: コマ送りの移動量だけ前のフレームへ");
+                    tracing::info!(
+                        "【移動】 . / , : 工具を次 / 前の区間の端点へ（素材は工具の手前の時点。タイトルに表示）"
+                    );
+                    tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
+                    tracing::info!("【再生】 Space: 自動再生/一時停止");
+                    tracing::info!("【再生】 Shift+J: 自動再生停止（先頭へ）");
+                    tracing::info!(
+                        "【再生】 + / - : 再生速度を 2 倍・半分（現在倍率はタイトル表示）"
+                    );
+                    tracing::info!("【表示】 w: ワイヤー表示 / ソリッド表示を切り替え");
+                    tracing::info!("【表示】 v: ツールパスの線の表示 / 非表示を切り替え");
+                    tracing::info!("【表示】 Shift+V: 工具の線の表示 / 非表示を切り替え");
                     tracing::info!("=== その他 ===");
+                    tracing::info!("デバッグ用の表示: 設定パネル（Shift+S）のデバッグタブ");
+                    tracing::info!("Esc: 終了");
                     tracing::info!(
                         "マウス操作: Ctrl+左ドラッグ=回転, Ctrl+中ドラッグ=パン, Ctrl+右ドラッグ=ズーム"
                     );
@@ -67,92 +99,35 @@ impl AppState {
                 "w" => {
                     self.toggle_wireframe();
                 }
-                "q" => {
-                    self.load_debug_clip_square();
+                "v" => {
+                    self.toggle_toolpath_lines();
                 }
-                "1" => {
-                    self.set_stage_draft();
-                    tracing::info!("ステージ切替: Draft");
+                "V" => {
+                    self.toggle_tool_lines();
                 }
-                "2" => {
-                    self.set_stage_outline();
-                    tracing::info!("ステージ切替: Outline");
-                }
-                "3" => {
-                    self.set_stage_shading();
-                    tracing::info!("ステージ切替: Shading");
-                }
-                "l" => {
-                    self.load_debug_line();
-                }
-                "c" => {
-                    self.load_debug_circle();
-                }
-                "a" => {
-                    self.load_debug_arc();
-                }
-                "n" => {
-                    self.load_debug_nurbs();
-                }
-                "m" => {
-                    self.load_debug_nurbs_surface();
-                }
-                "o" => {
-                    let mut handled = false;
-                    {
-                        let stage = self.renderer.get_stage_mut();
-                        if let Some((current_depth, max_depth)) =
-                            stage.cycle_octree_depth(&self.graphic.device)
-                        {
-                            tracing::info!("Octree深さ表示: {}/{}", current_depth, max_depth);
-                            handled = true;
-                        }
-                    }
-
-                    if !handled {
-                        self.load_debug_octree();
-                    }
-                }
-                "O" => {
-                    let mut handled = false;
-                    {
-                        let stage = self.renderer.get_stage_mut();
-                        if stage.start_octree_depth_animation() {
-                            tracing::info!("Octree深さアニメーション再生開始");
-                            handled = true;
-                        }
-                    }
-
-                    if !handled {
-                        self.load_debug_octree();
-                        let stage = self.renderer.get_stage_mut();
-                        if stage.start_octree_depth_animation() {
-                            tracing::info!("Octree深さアニメーション再生開始");
-                        }
-                    }
-                }
-                "p" => {
-                    self.load_sample_toolpath_only();
-                }
-                "P" => {
-                    self.load_sample_toolpath();
+                "S" => {
+                    self.toggle_settings_panel();
                 }
                 "k" => {
-                    if self.debug_snapshot.series.is_some() {
-                        self.cycle_debug_simulation_snapshot();
-                    } else {
-                        self.load_debug_simulation_snapshots();
-                    }
+                    self.cycle_debug_simulation_snapshot();
                 }
                 "j" => {
-                    if self.debug_snapshot.series.is_some() {
-                        self.rewind_debug_simulation_snapshot();
-                    } else {
-                        self.load_debug_simulation_snapshots();
-                    }
+                    self.rewind_debug_simulation_snapshot();
                 }
-                "T" => {
-                    self.load_debug_triangle();
+                "." => {
+                    self.step_tool_to_segment_endpoint(true);
+                }
+                "," => {
+                    self.step_tool_to_segment_endpoint(false);
+                }
+                "J" => {
+                    self.stop_auto_snapshot_playback();
+                }
+                "+" | "=" => {
+                    self.scale_snapshot_playback_speed(2.0);
+                }
+                "-" | "_" => {
+                    self.scale_snapshot_playback_speed(0.5);
                 }
                 _ => {}
             }

@@ -2,8 +2,8 @@
 //!
 //! 個々のOctreeノードのデータ構造と操作を提供します。
 
+use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::Scalar;
 
 /// Octreeノード
 ///
@@ -78,30 +78,6 @@ impl<T: Scalar, D: Clone> OctreeNode<T, D> {
         self.children.is_some()
     }
 
-    /// 点がどの子ノードに属するかのインデックスを計算
-    ///
-    /// ビット演算により効率的に計算します：
-    /// - bit 0 (LSB): x軸（0=min側, 1=max側）
-    /// - bit 1: y軸（0=min側, 1=max側）
-    /// - bit 2: z軸（0=min側, 1=max側）
-    ///
-    /// # Arguments
-    ///
-    /// * `point` - 判定する点
-    ///
-    /// # Returns
-    ///
-    /// 子ノードのインデックス（0-7）
-    pub fn child_index(&self, point: &Point3D<T>) -> usize {
-        let center = self.bounds.center();
-        let x_bit = if point.x() >= center.x() { 1 } else { 0 };
-        let y_bit = if point.y() >= center.y() { 1 } else { 0 };
-        let z_bit = if point.z() >= center.z() { 1 } else { 0 };
-
-        // ビット演算でインデックス計算: z<<2 | y<<1 | x
-        (z_bit << 2) | (y_bit << 1) | x_bit
-    }
-
     /// ノードを8つの子ノードに分割
     ///
     /// 既に分割済みの場合は何もしません。
@@ -118,10 +94,7 @@ impl<T: Scalar, D: Clone> OctreeNode<T, D> {
         // ビット演算に基づく配置: (z_bit << 2) | (y_bit << 1) | x_bit
         let child_bounds = [
             // 0: (x_min, y_min, z_min) ~ (x_mid, y_mid, z_mid)
-            Aabb3D::new(
-                Point3D::new(min.x(), min.y(), min.z()),
-                Point3D::new(center.x(), center.y(), center.z()),
-            ),
+            Aabb3D::new(min, center),
             // 1: (x_max, y_min, z_min) ~ (x_max, y_mid, z_mid)
             Aabb3D::new(
                 Point3D::new(center.x(), min.y(), min.z()),
@@ -153,10 +126,7 @@ impl<T: Scalar, D: Clone> OctreeNode<T, D> {
                 Point3D::new(center.x(), max.y(), max.z()),
             ),
             // 7: (x_max, y_max, z_max) ~ (x_max, y_max, z_max)
-            Aabb3D::new(
-                Point3D::new(center.x(), center.y(), center.z()),
-                Point3D::new(max.x(), max.y(), max.z()),
-            ),
+            Aabb3D::new(center, max),
         ];
 
         // 子ノードを作成
@@ -200,23 +170,6 @@ mod tests {
         assert_eq!(node.depth(), 0);
         assert_eq!(node.data().len(), 0);
         assert!(!node.has_children());
-    }
-
-    #[test]
-    fn test_child_index_calculation() {
-        let bbox = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
-        let node: OctreeNode<f64, i32> = OctreeNode::new(bbox, 0);
-
-        // 中心は (5, 5, 5)
-        // ビット演算に基づく各象限の代表点でテスト
-        assert_eq!(node.child_index(&Point3D::new(2.5, 2.5, 2.5)), 0); // (-, -, -)
-        assert_eq!(node.child_index(&Point3D::new(7.5, 2.5, 2.5)), 1); // (+, -, -)
-        assert_eq!(node.child_index(&Point3D::new(2.5, 7.5, 2.5)), 2); // (-, +, -)
-        assert_eq!(node.child_index(&Point3D::new(7.5, 7.5, 2.5)), 3); // (+, +, -)
-        assert_eq!(node.child_index(&Point3D::new(2.5, 2.5, 7.5)), 4); // (-, -, +)
-        assert_eq!(node.child_index(&Point3D::new(7.5, 2.5, 7.5)), 5); // (+, -, +)
-        assert_eq!(node.child_index(&Point3D::new(2.5, 7.5, 7.5)), 6); // (-, +, +)
-        assert_eq!(node.child_index(&Point3D::new(7.5, 7.5, 7.5)), 7); // (+, +, +)
     }
 
     #[test]

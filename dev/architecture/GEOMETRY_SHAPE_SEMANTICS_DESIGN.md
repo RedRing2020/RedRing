@@ -1,0 +1,655 @@
+# Geometry Shape Semantics Design
+
+## 目的
+
+本書は、RedRing における **shape の意味論と意図** の正本を定義する。
+
+特に、以下のような問いに対する答えを固定する。
+
+- ある shape は exact primitive か、tolerant な shape か
+- どの値が正本で、どの値が派生か
+- `start` / `end` / `length` / `point_at_parameter` などの API が何を返すか
+
+本書は trait の責務分担や topology 正規形そのものを定義する文書ではない。
+
+## 正本の役割分担
+
+- shape 意味論の正本: 本書
+- trait 境界と capability 分担の正本: `GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md`
+- topology entity layer 設計の正本: `TOPOLOGY_ENTITY_LAYER_DESIGN.md`
+- topology 実装計画の補助説明: `PHASE4_TOPOLOGY_ENTITY_DESIGN.md`
+- #458 時点の topology 正規形凍結スナップショット: `TOPO_NORMAL_FORM_INVARIANTS_FREEZE_458.md`
+
+補足:
+
+- 本書は「shape が何を意味するか」を定義する
+- trait 構成やモジュール配置は、本書で固定した意味論を前提に別文書で扱う
+
+## スコープ
+
+現時点では、`#557` で論点化された `LineSegment2D/3D` の意味論を最初の固定対象として定義する。
+
+ただし本論点は `LineSegment` 固有ではなく、shape 横断で再発しうる意味論項目を先に `LineSegment` で明文化する位置付けとする。
+
+Arc / EllipseArc / Circle / Triangle などを含む shape 横断の quantity / parameter / endpoint capability 論点は `#558` で別途整理する。
+
+## `#558` の現状棚卸し
+
+`#558` 着手時点の `geo_contracts` では、旧 `*Measure` 集約 trait 自体はかなり解体済みだが、Arc / EllipseArc / Circle / Triangle / LineSegment の capability 分解粒度と、`Properties` に何を残すかが shape ごとにまだ揃っていない。
+
+少なくとも、次の非対称が存在する。
+
+| Shape | 現状の主な意味要素 | 現状の capability 状況 |
+| --- | --- | --- |
+| `LineSegment` | support line、理想端点、長さ、parameter 評価 | `start/end/length` を `Properties` に残しつつ、distance / containment / evaluation / projection は別 trait 化済み |
+| `Arc` | 中心、半径、角度区間、始終点、parameter 評価 | endpoint / evaluation / trim-range / distance / containment は分離済みだが、`LineSegment` と違って endpoint は `Properties` ではなく独立 trait にある |
+| `EllipseArc` | 中心、主軸情報、角度区間、始終点、parameter 評価 | Arc 同様に endpoint / evaluation / trim-range / containment は分離済みで、`bounding_box` は `Derived` に残る |
+| `Circle` | 中心、半径、周回 parameter 評価、閉曲線性 | endpoint は導入せず、derived / evaluation / containment / distance / projection の分離は済んでいる |
+| `Triangle` | 3頂点、面積、`perimeter`、面内判定 | `BoundaryAccess` / `BoundaryQuantity` / `Derived` / `Containment` / `Distance` へ分離済みだが、`Properties` は互換 alias として残っている |
+
+この棚卸しから見えるのは、問題の中心が「`Measure` を残すかどうか」ではなく、shape ごとに必要な capability 軸と公開位置がまだ不均一だという点である。
+
+- primary quantity: 単独線 shape の `length` / 閉曲線 shape の `circumference` / 面の `area`
+- boundary quantity: 複数辺境界 shape の `perimeter` / edge length
+- 境界参照: `start_point` / `end_point` / 頂点参照 / edge length
+- 評価: `point_at_parameter` / `point_at_angle`
+- 関係判定: `contains_point`
+- 距離・射影: `distance_to_point` / `closest_point`
+- 形状固有派生: `direction_vector` / `bounding_box` / `is_clockwise` / `is_planar`
+- 互換経路: `Properties` alias や旧語彙をどこまで残すか
+
+重要なのは、これは単なる trait 分割の問題ではなく、shape ごとに「どの capability が本質的に存在し、definition に近いのか」が揃っていない問題だという点である。
+
+## `#558` で固定したい shape 横断分類
+
+本書では trait 名や配置を先に固定せず、まず shape 意味論として次の分類を採用する。
+
+### 1. 境界付き曲線 shape
+
+明確な始点・終点を持ち、評価 parameter の両端が境界点と対応する shape である。
+
+対象:
+
+- `LineSegment`
+- `Arc`
+- `EllipseArc`
+
+意味論上の共通点:
+
+- 始点・終点が意味を持つ
+- `point_at_parameter(0/1)` に境界端の意味を与えやすい
+- 長さ系の測度を持つ
+
+### 2. 閉曲線 shape
+
+周回 parameter を持つが、標準の始点・終点を本質意味としては持たない shape である。
+
+対象:
+
+- `Circle`
+
+意味論上の共通点:
+
+- `point_at_parameter` は定義できる
+- ただし `start` / `end` は shape の本質語彙ではない
+- primary quantity としては `circumference` を持ち、派生 quantity として `area` も持ちうる
+
+### 3. 面 shape
+
+境界頂点や辺は持つが、単一の曲線 parameter で代表しない shape である。
+
+対象:
+
+- `Triangle`
+
+意味論上の共通点:
+
+- pre-topology の単一 face primitive として扱う
+- オイラー操作を前提にしない mesh 表現とは分けて扱う
+- primary quantity として `area` を持ち、boundary quantity として `perimeter` や edge length を持ちうる
+- 頂点参照はできる
+- 各辺長は boundary quantity、`perimeter` は boundary 全体の派生量として扱う
+- `curve parameter` や `start/end point` を標準 capability とみなすべきではない
+- parameter evaluation を導入する場合でも curve family ではなく surface family として扱う
+- trimmed range や periodic parameter は標準 capability とみなさない
+
+## `#558` における意味論上の一次結論
+
+### `point_at_parameter` は全 shape 共通 capability ではない
+
+`point_at_parameter` は少なくとも「単一の連続 support 表現を持つ shape」にだけ自然に定義される。
+
+したがって、LineSegment / Arc / EllipseArc / Circle には自然だが、Triangle へそのまま横展開する前提は置かない。
+
+### `start` / `end` は全 curve に共通ではない
+
+`start` / `end` は、境界付き曲線 shape に対してだけ本質語彙として扱う。
+
+Circle のような閉曲線では、parameter の基準位置を便宜的に定められても、それを shape 意味論上の正本 endpoint とみなしてはならない。
+
+### `measure` は単一語で統一しない
+
+shape 横断で `measure` だけを共通語彙にすると、長さ、面積、`perimeter`、拘束点間距離が同じ名前に吸い込まれ、意味が弱くなる。
+
+したがって本書では、shape 意味論上の primary quantity 語彙は次を優先する。
+
+- 線状 shape: `length`
+- 閉曲線: `circumference`
+- 面 shape: `area`
+- 多義的な互換 API: `measure`
+
+### 境界参照と評価は分けて扱う
+
+`start/end`、頂点参照、edge 長などの「境界の語彙」と、`point_at_parameter` や `point_at_angle` のような「評価の語彙」は同じではない。
+
+今後の capability 分離では、少なくともこの 2 系統を別物として扱う。
+
+## `#558` parameter semantics の正本
+
+`#558` で整理した parameter semantics は、本節を shape family 横断の正本とする。
+
+ここでいう parameter semantics は、少なくとも次を含む。
+
+- `point_at_parameter` が受け取る値域
+- `point_at_angle` が存在する場合の役割
+- `parameter_range()` が返す範囲の意味
+- `start/end` と evaluation の関係
+
+### family 別の原則
+
+| Shape family | `point_at_parameter` の意味 | `point_at_angle` の意味 | `parameter_range()` の意味 |
+| --- | --- | --- | --- |
+| `LineSegment` | bounded support 上の trim-local parameter | 原則として持たない | bounded curve の局所 parameter 範囲 |
+| `Arc` | trim-local parameter `0..=1` | 母円の native angle parameter | trim-local 範囲 `0..=1` |
+| `EllipseArc` | trim-local parameter `0..=1` | 母楕円の native angle parameter | trim-local 範囲 `0..=1` |
+| `Circle` | local angle parameter | convenience angle API があっても canonical 意味は `point_at_parameter` 側 | closed curve の local angle 範囲 |
+| `Ellipse` | local angle parameter | convenience angle API は同じ意味の別入口 | closed curve の local angle 範囲 |
+
+### bounded curve family: `LineSegment` / `Arc` / `EllipseArc`
+
+bounded curve family では、`point_at_parameter` は support shape 全体の native parameter ではなく、その shape 自身の有効区間を `0..=1` へ正規化した trim-local parameter として扱う。
+
+意味論上の帰結:
+
+- `point_at_parameter(0)` は ideal start endpoint に対応する
+- `point_at_parameter(1)` は ideal end endpoint に対応する
+- `point_at_parameter(0.5)` は中間評価であり、endpoint capability ではない
+- `parameter_range()` を持つ場合、その返り値は trim-local range を表す
+
+補足:
+
+- `LineSegment` は angle を持たないため、`point_at_angle` を導入しない
+- `Arc` / `EllipseArc` の `point_at_angle` は母曲線の native angle parameter を直接指定する evaluation convenience として扱う
+- `contains_angle` は trim 判定の責務であり、`point_at_angle` 自体は total な support evaluation として扱う
+
+`0..=1` の範囲外の `t` の扱いは、support shape が周期的かどうかで分ける。
+
+| Shape | 範囲外の `t` | 理由 |
+| --- | --- | --- |
+| `LineSegment` | 距離トレランス分を超えたら評価できない（`None`） | support line は周期を持たないため、外挿した点は線分から際限なく離れる |
+| `Arc` / `EllipseArc` | 母曲線の angle parameter へ線形写像し、母曲線上の点を返す | 母曲線は周期的な閉曲線のため、外挿しても母曲線上にとどまる |
+
+`LineSegment` の評価範囲の詳細は「LineSegment の意味論」の「正規化パラメータの評価範囲」を参照する。
+
+### closed curve family: `Circle` / `Ellipse`
+
+closed curve family では、`point_at_parameter` を local angle semantics に統一する。
+
+意味論上の帰結:
+
+- `Circle` / `Ellipse` の `point_at_parameter` はともに local angle parameter を受け取る
+- `Circle` / `Ellipse` に endpoint capability は導入しない
+- `parameter_range()` を持つ場合、その返り値は local angle domain を表す
+- periodic shape に convenience として `point_at_angle` を置く場合も、canonical な意味は `point_at_parameter` 側に置く
+
+補足:
+
+- `Circle` では `point_at_parameter` を正本とし、`point_at_angle` は同じ angle domain を渡す convenience API として扱う
+- `Ellipse` でも同様に local angle semantics を正本とする
+- 正規化 phase や周回率が必要であれば、それは別 API で表現し、`point_at_parameter` の意味へ混入させない
+
+### topology との接続
+
+topology は primitive / mother curve の native parameter semantics を保存し、edge 側でのみ局所 parameter を導入する。
+
+この原則は次のように読む。
+
+- `Circle` / `Ellipse` の mother curve parameter は local angle domain のまま保持する
+- `Arc` / `EllipseArc` は primitive 自身が trim-local parameter shape なので、`0..=1` を shape semantics として持つ
+- topology の edge-local `0..=1` は mother curve の native domain とは別層の parameter である
+
+したがって、primitive 側の `point_at_parameter` と topology 側の edge-local parameter を同一視しない。
+
+## 包含判定の規約
+
+包含判定（`contains_point` / `contains_aabb` / `contains_angle` 等）は、**境界を含む閉集合**として判定する。
+
+| 対象 | 判定 |
+|---|---|
+| 領域・立体（AABB、矩形、三角形、球、楕円体、円柱、円錐、トーラス等） | 内部または境界上なら含む。境界上の点を除外しない（`<=` / `>=` で比較する） |
+| 曲線・曲面（線分、半直線、無限直線、円弧、楕円弧、円、楕円、平面、曲面等） | 曲線・曲面上にあるかを許容誤差付きで判定する。端点・縁も含む |
+| 角度範囲（`contains_angle`） | 範囲の両端を含む |
+
+- 許容誤差は `analysis` の許容誤差 API（`geo_contracts::default_distance_tolerance` 等）を使う
+- 形状の公開判定ではない内部のアルゴリズム判定（ボクセル Octree の保守的な判定等）は対象外とする
+
+### 閉曲線（円・楕円）の包含判定と分類
+
+円・楕円は閉曲線（曲線）であり、`contains_point` は他の曲線と同じく**曲線上にあるか**を判定する。曲線が囲む領域に対する判定は、点の位置の分類 `classify_point` で行う。
+
+- 3D の形状が「面」（`SphericalSurface3D` 等）と「立体」（`SphericalSolid3D` 等）を別の型に分けているのと同じく、曲線の型の `contains_point` は領域を表さない
+- 半直線は、起点の後方の点も Ray までの距離（起点までの距離）で判定する。2D と 3D で同じ
+
+`classify_point(point, tolerance)` は `PointClassification` を返す。
+
+| 結果 | 条件 |
+| --- | --- |
+| `OnBoundary` | 曲線までの距離が `tolerance` 以内 |
+| `Inside` | `OnBoundary` でなく、曲線が囲む領域の内側にある |
+| `Outside` | 上記以外 |
+
+- `contains_point(point, tolerance)` は `classify_point(point, tolerance) == OnBoundary` と一致する。同じ距離で判定するため、2 つの判定が食い違わない
+- 領域の内部（境界を含む）の判定は `classify_point(...) != Outside` とする
+- 3D の円・楕円は、平面上に囲む領域に対して分類する。曲線までの距離が `tolerance` 以内なら平面外でも `OnBoundary` とし、それ以外は、平面からの距離が `tolerance` 以内で平面へ投影した点が内側にあれば `Inside`、それ以外を `Outside` とする
+- trait定義（`Circle2DContainment` 等）の `contains_point` / `classify_point` は既定の距離トレランスで判定する
+
+### 領域を持つ形状の分類
+
+矩形・三角形・AABB・立体も `classify_point(point, tolerance)` で同じ `PointClassification` を返す。境界は、2D の領域と 3D の平面形状では辺、立体では表面（円柱・円錐の端面・底面を含む）とする。
+
+| 結果 | 条件 |
+| --- | --- |
+| `OnBoundary` | 境界までの距離が `tolerance` 以内（内側・外側のどちらからでも） |
+| `Inside` | `OnBoundary` でなく、領域の内側にある |
+| `Outside` | 上記以外 |
+
+- 境界までの距離は、内部の点では最も近い境界までの距離、外部の点では領域までの距離とする。角・稜線の近くは角・稜線までの距離で判定する
+- `contains_point(point)`（許容誤差を受け取らない厳密な判定）は、`classify_point(point, 0)` が `Outside` でないことと一致する
+- 3D の平面形状（`Rect3D` / `Triangle3D`）は 3D の円・楕円と同じく、辺までの距離が `tolerance` 以内なら平面外でも `OnBoundary` とし、それ以外は、平面からの距離が `tolerance` 以内で平面へ投影した点が内側にあれば `Inside`、それ以外を `Outside` とする。両者の `contains_point(point, tolerance)` は `classify_point(point, tolerance) != Outside` とする（`Triangle3D` の trait定義の `contains_point` は既定の距離トレランスを使う）
+- 回転体（円錐等）の表面までの距離は、点をプロファイル面上の (軸からの距離, 軸方向の位置) に写して求める。プロファイルの軸上の辺は表面ではない
+
+## 点との距離の規約
+
+点との距離（`distance_to_point`）は、包含判定と同じく形状が表す点の集合までの最短距離とする。
+
+| 対象 | 距離 |
+| --- | --- |
+| 曲線・曲面（線分、円、楕円、円弧、平面、曲面等） | 曲線・曲面までの距離。円・楕円が囲む領域の内部の点でも、曲線までの距離を返す |
+| 領域・立体（三角形、球、円柱、円錐、トーラス等） | 領域までの距離。内部・境界上は 0 |
+
+- 符号付き距離や、立体の表面（境界）までの距離が必要な場合は、`distance_to_point` とは別の名前の API で表す（`SphericalSolid3D::distance_to_surface` の符号付き距離、`EllipsoidalSolid3D::distance_to_surface` の表面までの距離等）
+- 距離は近似ではなく最近点までの距離とする。楕円・楕円体のように閉じた式で求まらない場合も、反復解法で最近点を求める
+
+## 曲線形状の API 名の規約
+
+無限直線・半直線・線分・円弧・楕円弧・円・楕円は、同じ処理を同じ名前で持つ。同じ処理の別名は置かない。
+
+| 処理 | API | 意味 |
+| --- | --- | --- |
+| 最近点 | `closest_point(p)` | 曲線（形状の範囲内）上で点に最も近い点 |
+| パラメータの逆算 | `parameter_for_point(p)` | 曲線の元になる線（支持線・母円・母楕円）上で点に最も近い点のパラメータ。形状の範囲に制限しない |
+| 範囲内のパラメータ | `closest_parameter(p)` | `closest_point(p)` のパラメータ。形状の範囲に制限する。範囲を持つ形状（線分・半直線）だけが持つ |
+| パラメータでの評価 | `point_at_parameter(t)` | 形状ごとのパラメータ（下表）での点 |
+| 方向の反転 | `reverse()` | 向きを反転した形状 |
+| 端点 | `start_point()` / `end_point()` | 始点・終点。端点を持つ形状（線分・円弧・楕円弧）だけが持つ |
+| 距離 | `distance_to_point(p)` | 曲線までの距離（「点との距離の規約」） |
+| 包含 | `contains_point(p, tolerance)` | 曲線上にあるか（「包含判定の規約」） |
+
+形状ごとのパラメータ:
+
+| 形状 | パラメータ |
+| --- | --- |
+| 無限直線・半直線 | 基準点（起点）からの方向に沿った距離。`parameter_for_point` は起点の後方で負の値を返す |
+| 線分・円弧・楕円弧 | 始点 0・終点 1 の正規化パラメータ |
+| 円・楕円 | local angle parameter（`0 <= t < 2π`） |
+
+- 点の引数は参照（`&Point2D<T>` / `&Point3D<T>`）で受け取る
+- trait定義（`*Projection` 等）も同じ名前を使う（引数は座標のタプル）
+- 曲線の「境界」は端点であり、`contains_point` と同じ判定を `on_boundary` 等の別名で置かない
+- すべての形状がすべての API を持つわけではない（例: `parameter_for_point` は円弧・楕円弧・`Circle3D`・`Ellipse2D` に未実装）。追加する場合はこの名前と意味に従う
+
+円弧・楕円弧の角度範囲の判定は、次の API で行う。
+
+| API | 意味 |
+| --- | --- |
+| `angle_range()` | 開始角から反時計回りに終了角まで進む角度範囲（`analysis::AngleRange`）。開始角と終了角が等しい場合は `None` |
+| `contains_angle(angle)` | 角度が角度範囲に含まれるか。範囲の両端を含み、既定の角度トレランスで判定する。周期の違う同じ角度・0° 跨ぎ・全周を含む |
+| `contains_point_angle(&p)` | 点の角度が角度範囲に含まれるか（点が曲線上にあるかは判定しない） |
+
+- 点の角度は、点に最も近い母曲線上の点の角度とする。楕円弧では中心から見た方向の角度ではなく、母楕円のパラメータ角（`parameter_for_point`）を使う
+- `Arc3D` の点の角度は `point_at_angle` と同じく、開始方向を角度 0、法線まわりに反時計回りを正とする
+- trait定義（`*TrimRange::contains_angle`）は角度をラジアンで受け取り、固有メソッドに委譲する
+- 開始角 > 終了角の解釈（向き）は [#794](https://github.com/RedRing2020/RedRing/issues/794) で扱う。現時点の角度範囲の判定は、反時計回りに 0° を跨ぐ範囲とする
+
+## 今回の棚卸しで見えた #558 の設計対象
+
+次段では、上記の shape 横断分類を前提に、少なくとも次を trait 境界文書側で整理する必要がある。
+
+- 境界付き曲線 shape にだけ与える endpoint capability
+- curve family にだけ与える parameter evaluation capability
+- 閉曲線に対する periodic parameter の扱い
+- 面 shape に対する vertex / boundary access の語彙
+- `length` / `circumference` / `area` と `measure` の関係
+- containment / distance / projection を shape definition からどこまで外すか
+
+## 横展開前提の論点
+
+`#557` で固定する内容は、将来的に他 shape へ横展開が必要な論点として扱う。
+
+- exact primitive と tolerant shape の区別
+- どの値を正本とし、どの値を派生として扱うか
+- `start` / `end` 系 API が拘束点を返すのか、ideal endpoint を返すのか
+- `length` / `measure` / parameter range が何を表すのか
+- `point_at_parameter` が support curve 上の評価か、拘束点補間か
+
+したがって `LineSegment` は局所例外ではなく、shape semantics の横断整理を先行して具体化する最初のケースとして扱う。
+
+## 将来 shape 追加時の意味論チェックリスト草案
+
+`#558` の整理は、既存 shape の後追い整理だけでなく、将来追加する CAD shape の意味論判定基準として使う。
+
+新しい shape を導入するときは、少なくとも次を先に確認する。
+
+1. その shape は curve / surface / solid のどれか
+2. その shape は境界付きか、閉じているか、trimmed か
+3. support shape と有効領域を分離して扱う必要があるか
+4. 正本 definition parameter は何か
+5. primary quantity 語彙は `length` / `circumference` / `area` / `volume` のどれか
+6. `point_at_parameter` や `uv_to_point` のような evaluation を本質的に持つか
+7. `start/end` や vertex / edge のような boundary access を本質的に持つか
+8. containment / distance / projection を shape definition から分離すべきか
+9. orientation / normal / trim-range のような shape 固有 capability が必要か
+
+補足:
+
+- trimmed shape では、support shape 上の evaluation と trimmed domain 上の有効判定を混在させない
+- periodic shape では、parameter 基準位置を持てても、直ちに endpoint を持つとはみなさない
+- face element として使う shape では、boundary access、boundary quantity、orientation を convenience ではなく主要 capability 候補として扱う
+
+このチェックリストは、sweep surface、rotation surface、fillet surface、trimmed surface のような CAD 便宜 shape を追加するときの一次判定基準として利用する。
+
+## LineSegment の意味論
+
+### 基本方針
+
+`#592` の設計では、RedRing における `LineSegment2D/3D` を **bounded curve 共通ルールに従う exact な有限線分 primitive** として扱う。
+
+すなわち、primitive 側では次を固定する。
+
+- support line と trim 区間が shape 定義を与える
+- `start_point` / `end_point` は support line 上の ideal endpoint を返す
+- topology 上の拘束端点は primitive ではなく `Edge` の `start_vertex` / `end_vertex` 側で管理する
+
+これにより、bounded curve 全体で「primitive は ideal endpoint、拘束端点は topology 管理」という責務分離を揃える。
+
+### 正本と派生
+
+`LineSegment` では、概念的に次の値を区別する。
+
+- 正本: `support_line`
+- 正本: trim 区間
+- 正本 endpoint capability: `start_point` / `end_point`（ideal endpoint）
+- 派生: `midpoint`
+- 派生: `length`
+- 派生: support line 上の評価点
+- topology 管理: constraint endpoint
+
+重要:
+
+- 具体的な struct フィールド構成は実装都合で調整してよい
+- ただし public API と意味論は、拘束端点を primitive 正本として扱わない
+- 実装移行中に補助フィールドが残っていても、最終的な公開意味論は ideal endpoint 基準で固定する
+
+### API 意味の固定
+
+`LineSegment2D/3D` の主要 API は次の意味で扱う。
+
+| API | 意味 |
+| --- | --- |
+| `start_point()` | support line と trim 区間から定まる ideal start endpoint を返す |
+| `end_point()` | support line と trim 区間から定まる ideal end endpoint を返す |
+| `length()` | 有限線分 primitive としての長さを返す |
+| `point_at_parameter(t)` | 正規化パラメータ `t`（始点 0・終点 1）に対応する support line 上の評価点を返す。評価範囲外は `None` |
+| `measure()` | 主語彙にしない。互換の委譲としてのみ扱う |
+
+補足:
+
+- `start/end` と `point_at_parameter(0/1)` は ideal endpoint / evaluation endpoint の関係として整合させる
+- 拘束端点とのずれは primitive API ではなく topology の binding で扱う
+
+### 正規化パラメータの評価範囲
+
+`point_at_parameter(t)` の `t` は、`0..=1` を実際の線分上の範囲として扱う。
+
+| `t` | 結果 |
+| --- | --- |
+| `0 <= t <= 1` | 線分上の点 |
+| `0..=1` からのはみ出しが `ε` 以下 | support line 上に外挿した点 |
+| `0..=1` からのはみ出しが `ε` を超える、または有限でない | `None` |
+
+- `ε` は距離トレランス（`default_distance_tolerance`）を線分の長さで割った値とする
+- これにより、`point_at_parameter` が返す点は常に線分から距離トレランス以内にあり、同じトレランスの `contains_point` で線分上と判定される
+- 浮動小数点誤差による端点付近のわずかなはみ出し（`t = 1 + 1e-16` 等）は失敗にしない
+- 端点に制限（クランプ）しない。範囲外の入力を黙って端点に置き換えると、呼び出し側のパラメータ計算の誤りが隠れ、`parameter_for_point` の逆関数にもならないため
+- 線分の外側の点が必要な場合は、`support_line()` の評価（support line 上の距離パラメータ）を使う
+
+### 2D / 3D 共通の API
+
+`LineSegment2D` と `LineSegment3D` は、次の API を同じ名前・同じ挙動で持つ。
+
+| API | 意味 |
+| --- | --- |
+| `point_at_parameter(t)` | 正規化パラメータでの評価（前節の評価範囲に従う） |
+| `parameter_for_point(p)` | 点を support line に投影した位置の正規化パラメータ。`0..=1` に制限しない |
+| `closest_parameter(p)` | 線分上で点に最も近い点の正規化パラメータ。`0..=1` に制限する |
+| `closest_point(p)` | 線分上で点に最も近い点 |
+| `reverse()` | 始点と終点を入れ替えた線分 |
+| `start_param()` / `end_param()` | 始点・終点の support line 上のパラメータ |
+
+- 正規化パラメータは常に始点 0・終点 1 とする。`reverse()` した線分（support line 上で始点のパラメータが終点より大きい線分）でも同じ
+- `point_at_parameter(closest_parameter(p))` は `closest_point(p)` と一致する
+- 同じ処理の別名（比率・中心等）は置かない
+- 曲線形状に共通の API 名は「曲線形状の API 名の規約」に従う
+
+### 補助 API の扱い
+
+以下の補助 API は、意味の明確化に有効であれば導入を許容する。
+
+- `support_line()`
+- `ideal_start()` / `ideal_end()`
+- `ideal_length()`
+- support line 評価と topology 側拘束参照を分ける追加 API
+
+補助 API を導入する場合は、ideal 系と topology 依存語彙を名称で明確に分離する。
+
+## geo_primitives と geo_topology の境界
+
+`geo_primitives::LineSegment2D/3D` は shape 意味論を持つ。
+
+一方、`geo_topology` は以下を追加で管理する。
+
+- constraint endpoint と vertex binding
+- same_sense
+- parameter range
+- edge / wire / face 文脈での接続関係
+
+したがって、topology は `LineSegment` の endpoint semantics を上書きしない。
+topology 側の Edge 正規形は、primitive の ideal endpoint を前提に、拘束端点・接続・向き・トリムを管理する層として扱う。
+
+## `#592` 着手時点の実装ギャップ
+
+`#592` 着手時点では、設計目標と実装が完全には一致していない可能性がある。
+
+特に確認対象は次の通りである。
+
+- `CurveRef::Line::point_at_parameter` が support line 上の評価を返すこと
+- `CurveRef::Line::start_point` / `end_point` が legacy な拘束点語彙を残していないか
+- `Edge` / `Wire` / `CompositeCurve` が LineSegment の endpoint を拘束端点として暗黙利用していないか
+
+このギャップは「現状実装の確認対象」であり、最終設計では次を満たす必要がある。
+
+- primitive endpoint は ideal endpoint として解釈される
+- 拘束端点とのずれは topology の binding rule で吸収する
+- 位相専用 tolerance の正本化と運用方針は topology 側で維持する
+
+したがって `#592` では、legacy な拘束点語彙を残したまま既成事実化せず、設計と実装の差分を埋める。
+
+## 非目標
+
+本書は以下を直接の対象としない。
+
+- `Measure` の shape 横断 taxonomy の最終確定
+- 各 shape の数値アルゴリズムや個別補助 API の完全確定
+- topology 正規形の完全仕様
+- tolerance 値そのものの単一正本化
+
+## #557 での利用
+
+`#592` では、本書を前提に以下を整理する。
+
+- `LineSegment` の API を bounded curve 共通ルールに沿って明文化する
+- `length` と `measure` の役割分担を整理する
+- primitive と topology の endpoint 責務を混同しないよう contracts / primitives / topology 周辺を調整する
+
+## 今後の拡張
+
+本書は将来的に、`#557` で固定した論点を横展開し、次の shape semantics を追加できる形で維持する。
+
+- Arc
+- EllipseArc
+- Circle
+- Triangle
+- NURBS curve / surface
+
+ただしその追加は、shape 横断 capability 整理を扱う `#558` の方針確定後に行う。
+
+## `#558` の設計結論
+
+`#558` では、shape 横断の capability 命名を次の意味論で固定する。
+
+### 1. Arc / EllipseArc の endpoint は ideal endpoint として扱う
+
+parameter semantics の正本は「`#558` parameter semantics の正本」を参照する。
+
+- `Arc` / `EllipseArc` の `start_point` / `end_point` は、母曲線上の ideal endpoint を返す語彙として扱う
+- `midpoint` / `mid_point` は endpoint capability の正本語彙としては採用しない
+- 利用者が中間点を必要とする場合は、parameter 評価か、将来の弧長比評価のような明示 API を使う
+- topology 上の拘束端点とは同一視せず、拘束端点の語彙は topology 層で別管理する
+
+### 2. Circle / Ellipse は endpoint capability を持たない
+
+parameter semantics の正本は「`#558` parameter semantics の正本」を参照する。
+
+- `Circle` / `Ellipse` は閉曲線として `point_at_parameter` を持てる
+- periodic parameter は closed curve family 内で局所角度 parameter に揃える
+- `Circle` / `Ellipse` ともに `point_at_parameter` は `0 <= t <= 2π` を基本 domain とする
+- `2π` は周期端であり、`0` と同じ幾何点へ戻る
+- ただし parameter 原点を与える `ref_direction` や `rotation` は endpoint の根拠にしない
+- 閉曲線では `start` / `end` を正本語彙として導入しない
+
+### 3. Triangle は curve endpoint ではなく boundary access を持つ
+
+- `Triangle` の `vertex_a/b/c` は面 shape の boundary access であり、curve endpoint capability とは別に扱う
+- `edge_*_length` や `perimeter` も vertex/boundary 由来の派生量として扱う
+- `Triangle` には curve parameter evaluation capability を持ち込まない
+
+### 4. primary quantity vocabulary は shape family ごとに固定する
+
+- `LineSegment` / `Arc` / `EllipseArc` のような単独線 shape は `length` を正本語彙とする
+- `Circle` / `Ellipse` は閉曲線 shape として `circumference` を正本語彙とし、`area` は interior を伴う派生量として扱う
+- `Triangle` など複数辺からなる境界 shape は `perimeter` を使い、`area` などの面積系語彙とは分離する
+- `measure` は新規の正本語彙にせず、互換 API としてのみ残してよい
+
+### 5. evaluation と boundary access は別 capability とする
+
+### 6. `#672` 段階移行方針（fail-fast 収束）
+
+`#672` では、parameter 範囲外入力の扱いを一括で破壊的変更せず、次の段階移行で収束させる。
+
+1. checked evaluation API を追加する
+2. 既存 evaluation API は互換維持する
+3. 呼び出し側を checked API へ順次移行する
+4. 最終段で fail-fast 契約を正本として固定する
+
+### checked API の位置づけ
+
+- checked API は「入力 domain が有効か」を判定し、範囲外を `None` または `Result::Err` で明示する
+- ただし段階移行中の trait定義デフォルト実装は、互換維持のため domain 判定を省略した暫定ラッパを許容し、実装側 override で domain 判定へ収束させる
+- unchecked API は内部実装や互換層に限定し、新規の公開呼び出し経路では優先しない
+- これにより release ビルドでの沈黙クランプを避けつつ、既存呼び出しを即時破壊しない
+
+### LineSegment2D/3D の統一方針
+
+- `LineSegment2D/3D` は段階移行の最終段（fail-fast 契約の固定）に到達している
+- `point_at_parameter` 自体が評価範囲を判定して `Option` を返すため、checked 入口は持たない
+- 評価範囲は「LineSegment の意味論」の「正規化パラメータの評価範囲」に従う
+
+### NURBS 評価の統一方針
+
+- NURBS では native parameter domain を正本とする
+- checked 入口で domain 判定を明示し、範囲外は失敗として返す
+- 微分・法線など派生評価は checked 入口を利用する経路へ順次寄せる
+
+この方針により、API 互換性を維持したまま fail-fast 契約へ収束する。
+
+- `point_at_parameter` / `point_at_angle` は evaluation capability に置く
+- `start_point` / `end_point` は境界付き曲線に限って endpoint capability に置く
+- `point_at_parameter(0.5)` のような parameter midpoint は evaluation の一例であり、endpoint 語彙へ昇格させない
+- 将来的に support curve evaluation と拘束点補間を併存させる場合は、同じ `point_at_parameter` 名に押し込めず名称で分ける
+- closed curve family の `point_at_parameter` は local angle domain を前提にし、shape ごとの差は parameter 原点の定義側へ限定する
+
+補足:
+
+- 中点が重要なユースケースでも、`midpoint` のような convenience 名ではなく、何の中点かを API 名で明示する
+- 特に楕円弧や NURBS では、parameter 中点と弧長中点が一致しないため、曖昧な `midpoint` は導入しない
+- Circle と Ellipse の periodic parameter は local angle domain へ統一し、closed curve family の可読性を優先する
+
+## `#558` 実装単位 A の詳細設計
+
+実装単位 A では、`Arc` / `EllipseArc` に対して「primitive の endpoint semantics を維持したまま、topology の拘束端点要求と衝突しないこと」を設計目標とする。
+
+parameter semantics の具体値域と family 別ルールは「`#558` parameter semantics の正本」を参照し、本節では Arc / EllipseArc に必要な責務分離だけを扱う。
+
+### primitive 側で固定すること
+
+- `Arc` / `EllipseArc` の `start_point` / `end_point` は ideal endpoint を返す
+- `Arc` / `EllipseArc` の長さ語彙は `length` を使い、`perimeter` は導入しない
+- `point_at_parameter` は curve evaluation であり、拘束点補間 API ではない
+- `point_at_angle` は angle evaluation であり、endpoint capability の一部ではない
+- `point_at_parameter` の `t` は Arc / EllipseArc のトリム区間を `0..1` へ正規化した parameter として扱う
+- `point_at_angle` の `angle` は primitive 局所角度系の評価入力として扱い、world 空間の極角や拘束角度と混同しない
+- どちらの evaluation も返すのは ideal evaluation point であり、拘束端点や拘束点補間結果ではない
+
+補足:
+
+- Arc で円弧中点を取りたい場合でも、`midpoint` は置かず `point_at_parameter(0.5)` または `point_at_angle((start+end)/2)` を呼び出し側で明示する
+- EllipseArc で弧長中点が必要な場合は、将来 `point_at_normalized_arc_length(0.5)` 相当の明示 API を検討する
+- parameter midpoint 専用 API を追加する場合も、`midpoint` ではなく parameter を名称に含める
+- Arc / EllipseArc ともに `point_at_angle` は total な support evaluation として扱い、角度範囲検証は trim-range 側で担う
+- トリム区間内かどうかを見たい場合は `contains_angle` 相当の trim-range 語彙を使う
+
+### topology 側へ委譲すること
+
+- trim や binding に必要な拘束端点は topology 層で保持する
+- primitive の `start_point` / `end_point` を拘束端点へ再定義しない
+- `parameter_range` は母曲線上の evaluated endpoint を導くための位相情報として扱う
+
+### 実装単位 A の命名ルール
+
+- primitive / contract では `start_point` / `end_point` を ideal endpoint 語彙として使う
+- topology では `constraint_start_point` / `constraint_end_point`、`ideal_start_point` / `ideal_end_point`、`evaluated_start_point` / `evaluated_end_point` のように役割を名前へ出す
+- 同じ `start/end` で ideal と constraint を兼用しない
+
+### 実装単位 A の非目標
+
+- Arc / EllipseArc primitive の endpoint semantics を拘束端点へ変更すること
+- `point_at_parameter(0/1)` と `start_point/end_point` の常時一致を不変条件にすること
+- Topology の trim / binding 完全仕様をこの段階で完了すること
+
+`#567` では、この実装単位 A の意味論を topology 側の拘束端点語彙と接続して固定する。すなわち、Arc / EllipseArc primitive の endpoint semantics は ideal endpoint のまま維持し、拘束端点の正本は topology 側へ置く。
+
+補足:
+
+- `#567` は Arc / EllipseArc と topology の責務境界を固定する設計 Issue として扱う
+- LineSegment を bounded curve 共通ルールへ対称化する作業は `#592` の follow-up として分離する
+- したがって `#567` では Arc / EllipseArc の primitive semantics を動かさず、topology 側の語彙整理で閉じる

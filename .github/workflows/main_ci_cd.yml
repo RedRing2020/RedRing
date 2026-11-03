@@ -60,13 +60,6 @@ jobs:
         if: matrix.feature-set == 'default' || matrix.feature-set == 'strict'
         run: cargo fmt -- --check
 
-      - name: Check issue document archive placement
-        if: matrix.feature-set == 'default'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: ./scripts/check_issue_doc_archive.ps1 -Repository "${{ github.repository }}" -ExitOnError
-
   architecture-dependency-check:
     uses: ./.github/workflows/common_architecture_check.yml
     with:

@@ -4,6 +4,7 @@
 //! 行列式を直接計算して解を求める
 use super::{LinearSolver, SolutionInfo};
 use crate::abstract_types::Scalar;
+use crate::linalg::DynamicMatrix;
 use crate::linalg::{Matrix2x2, Matrix3x3, Vector2, Vector3};
 
 /// Cramerの公式ソルバー
@@ -86,14 +87,32 @@ impl<T: Scalar> CramerSolver<T> {
 }
 
 impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
-    fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
-        let n = matrix.len();
+    fn solve(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Result<SolutionInfo<T>, String> {
+        let n = matrix.rows();
+        if matrix.cols() != n {
+            return Err(format!(
+                "Cramer's rule requires a square matrix, got {}x{}",
+                n,
+                matrix.cols()
+            ));
+        }
+        if rhs.len() != n {
+            return Err(format!(
+                "RHS dimension mismatch: expected {}, got {}",
+                n,
+                rhs.len()
+            ));
+        }
 
         match n {
             2 => {
                 // 2x2の場合
-                let matrix_2x2 =
-                    Matrix2x2::new(matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1]);
+                let matrix_2x2 = Matrix2x2::new(
+                    matrix.get(0, 0),
+                    matrix.get(0, 1),
+                    matrix.get(1, 0),
+                    matrix.get(1, 1),
+                );
                 let rhs_2x2 = Vector2::new(rhs[0], rhs[1]);
 
                 let solution_vec = self.solve_2x2(&matrix_2x2, &rhs_2x2)?;
@@ -106,15 +125,15 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
             3 => {
                 // 3x3の場合
                 let matrix_3x3 = Matrix3x3::new(
-                    matrix[0][0],
-                    matrix[0][1],
-                    matrix[0][2],
-                    matrix[1][0],
-                    matrix[1][1],
-                    matrix[1][2],
-                    matrix[2][0],
-                    matrix[2][1],
-                    matrix[2][2],
+                    matrix.get(0, 0),
+                    matrix.get(0, 1),
+                    matrix.get(0, 2),
+                    matrix.get(1, 0),
+                    matrix.get(1, 1),
+                    matrix.get(1, 2),
+                    matrix.get(2, 0),
+                    matrix.get(2, 1),
+                    matrix.get(2, 2),
                 );
                 let rhs_3x3 = Vector3::new(rhs[0], rhs[1], rhs[2]);
 
@@ -132,20 +151,93 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
 
 impl<T: Scalar> CramerSolver<T> {
     /// 残差を計算
-    fn calculate_residual(&self, matrix: &[Vec<T>], rhs: &[T], solution: &[T]) -> T {
-        let n = matrix.len();
+    fn calculate_residual(&self, matrix: &DynamicMatrix<T>, rhs: &[T], solution: &[T]) -> T {
+        let n = matrix.rows();
         let mut residual = T::ZERO;
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             let mut sum = T::ZERO;
-            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum += matrix[i][j] * solution[j];
+                sum += matrix.get(i, j) * solution[j];
             }
             let diff = sum - rhs[i];
             residual += diff * diff;
         }
 
         residual.sqrt()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CramerSolver, LinearSolver};
+    use crate::consts::test_constants::{
+        SOLVER_TOLERANCE_F32, SOLVER_TOLERANCE_F64, TOLERANCE_F64,
+    };
+    use crate::linalg::DynamicMatrix;
+
+    #[test]
+    fn test_cramer_2x2() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
+        let rhs = vec![5.0, 6.0];
+
+        let solver = CramerSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+        let result = solver.solve(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 1.8).abs() < TOLERANCE_F64);
+        assert!((result.solution[1] - 1.4).abs() < TOLERANCE_F64);
+        assert!(result.converged);
+    }
+
+    #[test]
+    fn test_cramer_3x3() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![
+            vec![2.0, 1.0, -1.0],
+            vec![-3.0, -1.0, 2.0],
+            vec![-2.0, 1.0, 2.0],
+        ])
+        .unwrap();
+        let rhs = vec![8.0, -11.0, -3.0];
+
+        let solver = CramerSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+        let result = solver.solve(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 2.0).abs() < TOLERANCE_F64);
+        assert!((result.solution[1] - 3.0).abs() < TOLERANCE_F64);
+        assert!((result.solution[2] - (-1.0)).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_cramer_4x4_unsupported() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![
+            vec![1.0, 0.0, 0.0, 0.0],
+            vec![0.0, 1.0, 0.0, 0.0],
+            vec![0.0, 0.0, 1.0, 0.0],
+            vec![0.0, 0.0, 0.0, 1.0],
+        ])
+        .unwrap();
+        let rhs = vec![1.0, 2.0, 3.0, 4.0];
+
+        let solver = CramerSolver::<f64>::new(SOLVER_TOLERANCE_F64);
+        let result = solver.solve(&matrix, &rhs);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("only supports 2x2 and 3x3"));
+    }
+
+    #[test]
+    fn test_cramer_2x2_f32() {
+        let matrix =
+            DynamicMatrix::<f32>::from_rows(vec![vec![2.0_f32, 1.0_f32], vec![1.0_f32, 3.0_f32]])
+                .unwrap();
+        let rhs = vec![5.0_f32, 6.0_f32];
+
+        let solver = CramerSolver::<f32>::new(SOLVER_TOLERANCE_F32);
+        let result = solver.solve(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 1.8_f32).abs() < 1e-4_f32);
+        assert!((result.solution[1] - 1.4_f32).abs() < 1e-4_f32);
+        assert!(result.converged);
     }
 }

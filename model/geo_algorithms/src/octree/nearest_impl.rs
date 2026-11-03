@@ -1,6 +1,6 @@
 use super::{HasPosition, Octree, OctreeNode};
+use geo_contracts::Scalar;
 use geo_core::Point3D;
-use geo_foundation::Scalar;
 
 impl<T: Scalar, D: Clone> Octree<T, D>
 where
@@ -21,11 +21,11 @@ where
     /// # Examples
     ///
     /// ```rust,ignore
-    /// if let Some((nearest, distance)) = octree.nearest(&query_point) {
+    /// if let Some((nearest, distance)) = octree.nearest(query_point) {
     ///     println!("Nearest: distance = {}", distance);
     /// }
     /// ```
-    pub fn nearest(&self, point: &Point3D<T>) -> Option<(&D, T)> {
+    pub fn nearest(&self, point: Point3D<T>) -> Option<(&D, T)> {
         if self.is_empty() {
             return None;
         }
@@ -36,7 +36,7 @@ where
     fn nearest_recursive<'a>(
         &'a self,
         node: &'a OctreeNode<T, D>,
-        point: &Point3D<T>,
+        point: Point3D<T>,
         mut best: Option<(&'a D, T)>,
     ) -> Option<(&'a D, T)> {
         let min_dist_sq = self.min_distance_squared_to_node(node, point);
@@ -49,10 +49,7 @@ where
 
         for item in node.data().iter() {
             let pos = item.position();
-            let dx = point.x() - pos.x();
-            let dy = point.y() - pos.y();
-            let dz = point.z() - pos.z();
-            let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+            let dist = point.distance_to(pos);
 
             if best.is_none() || dist < best.unwrap().1 {
                 best = Some((item, dist));
@@ -81,35 +78,15 @@ where
         best
     }
 
-    fn min_distance_squared_to_node(&self, node: &OctreeNode<T, D>, point: &Point3D<T>) -> T {
+    /// 点からノードの境界ボックスまでの距離の 2 乗（箱の内部の点は 0）
+    fn min_distance_squared_to_node(&self, node: &OctreeNode<T, D>, point: Point3D<T>) -> T {
         let bounds = node.bounds();
-        let min = bounds.min();
-        let max = bounds.max();
-
-        let dx = if point.x() < min.x() {
-            min.x() - point.x()
-        } else if point.x() > max.x() {
-            point.x() - max.x()
-        } else {
-            point.x() - point.x()
-        };
-
-        let dy = if point.y() < min.y() {
-            min.y() - point.y()
-        } else if point.y() > max.y() {
-            point.y() - max.y()
-        } else {
-            point.y() - point.y()
-        };
-
-        let dz = if point.z() < min.z() {
-            min.z() - point.z()
-        } else if point.z() > max.z() {
-            point.z() - max.z()
-        } else {
-            point.z() - point.z()
-        };
-
-        dx * dx + dy * dy + dz * dz
+        let (min, max) = (bounds.min(), bounds.max());
+        let closest = Point3D::new(
+            point.x().max(min.x()).min(max.x()),
+            point.y().max(min.y()).min(max.y()),
+            point.z().max(min.z()).min(max.z()),
+        );
+        point.distance_squared_to(closest)
     }
 }

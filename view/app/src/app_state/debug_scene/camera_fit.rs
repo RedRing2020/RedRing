@@ -4,16 +4,16 @@ use super::super::AppState;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 
 #[derive(Clone, Copy)]
-pub(super) struct CameraFit {
-    pub(super) center_x: f32,
-    pub(super) center_y: f32,
-    pub(super) center_z: f32,
-    pub(super) size_z: f32,
-    pub(super) half_extent_xy: f32,
+pub(in crate::app_state) struct CameraFit {
+    pub(in crate::app_state) center_x: f32,
+    pub(in crate::app_state) center_y: f32,
+    pub(in crate::app_state) center_z: f32,
+    pub(in crate::app_state) size_z: f32,
+    pub(in crate::app_state) half_extent_xy: f32,
 }
 
 impl AppState {
-    pub(super) fn build_camera_fit(positions: &[[f32; 3]]) -> Option<CameraFit> {
+    pub(in crate::app_state) fn build_camera_fit(positions: &[[f32; 3]]) -> Option<CameraFit> {
         if positions.is_empty() {
             return None;
         }
@@ -51,7 +51,7 @@ impl AppState {
         })
     }
 
-    pub(super) fn apply_camera_fit(&mut self, fit: CameraFit) {
+    pub(in crate::app_state) fn apply_camera_fit(&mut self, fit: CameraFit) {
         self.camera.target = Vec3f::new(fit.center_x, fit.center_y, fit.center_z);
         self.camera.distance = (fit.size_z * 6.0 + fit.half_extent_xy).max(80.0);
         self.camera.zoom = 1.0;

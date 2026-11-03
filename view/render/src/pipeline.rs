@@ -21,8 +21,8 @@ pub fn create_pipeline(
 ) -> PipelineBundle {
     let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
         label: Some("Pipeline Layout"),
-        bind_group_layouts: &[bind_group_layout],
-        push_constant_ranges: &[],
+        bind_group_layouts: &[Some(bind_group_layout)],
+        immediate_size: 0,
     });
 
     let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -59,7 +59,7 @@ pub fn create_pipeline(
             mask: !0,
             alpha_to_coverage_enabled: false,
         },
-        multiview: None,
+        multiview_mask: None,
         cache: None,
     });
 
@@ -80,7 +80,7 @@ pub fn create_basic_triangle_pipeline(
     let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
         label: Some(&format!("{} Pipeline Layout", label_prefix)),
         bind_group_layouts: &[],
-        push_constant_ranges: &[],
+        immediate_size: 0,
     });
 
     device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -108,7 +108,7 @@ pub fn create_basic_triangle_pipeline(
         },
         depth_stencil: None,
         multisample: MultisampleState::default(),
-        multiview: None,
+        multiview_mask: None,
         cache: None,
     })
 }
@@ -123,14 +123,4 @@ pub fn draw_non_indexed(
     render_pass.set_pipeline(pipeline);
     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
     render_pass.draw(0..vertex_count, 0..1);
-}
-
-/// ワイヤーフレーム描画用ヘルパ。
-pub fn draw_wireframe<'a>(
-    render_pass: &mut wgpu::RenderPass<'a>,
-    pipeline: &'a wgpu::RenderPipeline,
-    vertex_buffer: &'a wgpu::Buffer,
-    vertex_count: u32,
-) {
-    draw_non_indexed(render_pass, pipeline, vertex_buffer, vertex_count);
 }

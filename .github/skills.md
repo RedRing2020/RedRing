@@ -1,118 +1,58 @@
 # RedRing Development Skills Reference
 
-## 最終更新日: 2026年2月14日
+## 最終更新日: 2026年10月12日
 
-本ドキュメントは、RedRing開発における技術的な実装パターンと設計原則をまとめたAI開発者向けリファレンスです。
+RedRing 開発の実装パターンと設計原則をまとめた、AI 開発者向けの手順書の目次です。
 
 > **重要**: 実装開始前に必ず [copilot-instructions.md](copilot-instructions.md) の制約事項を確認してください。
 
 ---
 
-## 📚 トピック別ドキュメント
-
-技術詳細は以下のトピック別ドキュメントを参照してください：
+## 📚 トピック別の手順書
 
 ### 🏗️ アーキテクチャ
-- **[architecture/skill.md](skills/architecture/skill.md)** - Workspace構成、依存関係ルール、アーキテクチャ検証
+- **[architecture/skill.md](skills/architecture/skill.md)** - レイヤー構成、依存関係の規則、アーキテクチャ検証
 
 ### 🔧 実装パターン
-- **[foundation-pattern/skill.md](skills/foundation-pattern/skill.md)** - Foundation Pattern詳細、Core/Extension/Transform Traits
-- **[implementation/skill.md](skills/implementation/skill.md)** - geo_primitives実装規約、ファイル構成、テストルール
+- **[foundation-pattern/skill.md](skills/foundation-pattern/skill.md)** - `geo_contracts` の trait定義（capability）の構成、相似変換、API 追加の原則
+- **[implementation/skill.md](skills/implementation/skill.md)** - 形状のファイル構成・責務分担、テストの配置、エラー処理
 
 ### 🎨 描画システム
-- **[rendering/skill.md](skills/rendering/skill.md)** - GPU描画、wgpu、シェーダ管理、RenderStage
-
-### 🧮 NURBS処理
-- **NURBS適応的テッセレーション** (Issue #210)
-  - CPU側で弦誤差ベースの適応的パラメータ分割を実行
-  - GPU Vertex Shaderで制御点・ノット・ウェイトからNURBS点を直接評価
-  - ハイブリッド方式（CPU分割 + GPU評価）による効率的な描画
-  - 詳細: `dev/architecture/NURBS_ADAPTIVE_TESSELLATION_DESIGN.md`
-  - 実装: `model/geo_nurbs/src/adaptive_tessellation.rs`, `view/render/src/nurbs_eval.rs`
+- **[rendering/skill.md](skills/rendering/skill.md)** - wgpu による描画、シェーダ、頂点型、RenderStage
 
 ### 🔀 Git/GitHub
-- **[git-workflow/skill.md](skills/git-workflow/skill.md)** - ブランチ戦略、コミット規則、PR作成手順
+- **[git-workflow/skill.md](skills/git-workflow/skill.md)** - ブランチ、コミット、PR のタイトル・本文、事前チェック
 
 ### ⚙️ 開発ツール
-- **[commands/skill.md](skills/commands/skill.md)** - Cargoコマンド、テスト、デバッグ、CI/CD
+- **[commands/skill.md](skills/commands/skill.md)** - Cargo コマンド、チェックスクリプト、デバッグ、CI
 
 ---
 
-## クイックリファレンス
+## 開発フロー
 
-### よく使うコマンド
-
-```bash
-cargo build                 # 全体ビルド
-cargo test --workspace      # 全テスト実行
-cargo fmt --all -- --check  # フォーマットチェック
-.\scripts\check_architecture_dependencies_simple.ps1  # アーキテクチャ検証
-```
-
-### 開発フロー
-
-1. **作業開始**: [git-workflow/skill.md](skills/git-workflow/skill.md#新規作業の開始)
-   ```bash
-   git checkout develop
-   git pull origin develop
-   git checkout -b feature/issue-xxx-description
+1. **作業開始**: `develop` を `git pull --ff-only` で同期し、作業ブランチを作る（[git-workflow](skills/git-workflow/skill.md)）
+2. **実装**: trait定義は [foundation-pattern](skills/foundation-pattern/skill.md)、形状の実装は [implementation](skills/implementation/skill.md) に従う
+3. **検証**: push・PR の前に必ず実行する
+   ```powershell
+   pwsh -NoProfile -File .\scripts\check_all_before_push.ps1
    ```
-
-2. **実装**: [implementation/skill.md](skills/implementation/skill.md#ファイル構成)
-   - Foundation Pattern に準拠
-   - テストを独立ファイルに分離
-
-3. **検証**: [commands/skill.md](skills/commands/skill.md#コード品質チェック)
-   ```bash
-   cargo test --workspace
-   cargo fmt --all -- --check
-   cargo clippy -- -D warnings
-   ```
-
-4. **PR作成**: [git-workflow/skill.md](skills/git-workflow/skill.md#pull-request-pr-作成)
-   ```bash
-   gh pr create --base develop --title "..." --body "..."
-   ```
+4. **PR 作成**: `develop` に向け、タイトル・本文の形式は [git-workflow](skills/git-workflow/skill.md) に従う
 
 ---
 
 ## 重要な原則
 
-### Foundation Pattern（3層構造）
-
-```
-Core Traits (Constructor/Properties/Measure)
-    ↓
-Extension Traits (Bounded, Transformable)
-    ↓
-Transform Traits (AnalysisTransform2D/3D)
-```
-
-詳細: [foundation-pattern/skill.md](skills/foundation-pattern/skill.md)
-
-### 依存関係ルール
-
-```
-analysis → geo_foundation → geo_core
-                              ↓    ↓
-                     geo_primitives  geo_nurbs
-```
-
-詳細: [architecture/skill.md](skills/architecture/skill.md#依存関係ルール)
-
-### 型安全パターン
-
-- Option/Result による失敗の明示化
-- Direction と Vector の明確な分離
-- トレイト境界による抽象化
-
-詳細: [implementation/skill.md](skills/implementation/skill.md#型安全パターン)
+- **trait定義の正本**: 形状の trait定義は `geo_contracts` に置き、具体型のクレートが実装する
+- **最低限の API から拡張**: 呼び出し元が必要になった時点で API を追加し、呼び出し元のない API・別名・簡易実装を置かない
+- **モジュール構成**: 形状は親ファイルと同名のディレクトリの子モジュールで構成し、テストは `tests.rs`（`dev/architecture/GEO_PRIMITIVES_MODULE_STRUCTURE_RULES.md`、`dev/architecture/TEST_PLACEMENT_RULES.md`）
+- **依存の向き**: `view` → `viewmodel` → `model` → `foundation` の一方向（[architecture](skills/architecture/skill.md)）
+- **型安全**: 失敗は `Option` / `Result` で明示し、方向（`Direction3D`）とベクトル（`Vector3D`）を分ける
 
 ---
 
 ## 参照文書
 
 - **プロジェクト制約**: [copilot-instructions.md](copilot-instructions.md)
-- **プロジェクト構造方針**: `PROJECT_STRUCTURE_POLICY.md`
-- **技術アーキテクチャ**: `dev/architecture/ARCHITECTURE.md`
-- **設計文書集**: `dev/architecture/`, `dev/foundation/`
+- **アーキテクチャ（正本）**: `dev/architecture/ARCHITECTURE.md`
+- **Git/PR の運用（正本）**: `dev/GIT_PR_WORKFLOW_OPERATION.md`
+- **設計文書集**: `dev/architecture/`

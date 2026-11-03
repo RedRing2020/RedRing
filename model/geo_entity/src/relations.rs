@@ -33,12 +33,6 @@ impl Default for LayerId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum LayerMembershipPolicy {
-    SingleLayer,
-    MultiLayer,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GroupEntity {
     pub id: GroupId,
@@ -86,24 +80,12 @@ pub struct EntityLayerMembership {
 #[derive(Debug, Default)]
 pub struct RelationStore {
     group_memberships: HashSet<EntityGroupMembership>,
-    layer_memberships: HashSet<EntityLayerMembership>,
-    layer_policies: HashMap<EntityId, LayerMembershipPolicy>,
+    layer_memberships: HashMap<EntityId, LayerId>,
 }
 
 impl RelationStore {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn set_layer_policy(&mut self, entity_id: EntityId, policy: LayerMembershipPolicy) {
-        self.layer_policies.insert(entity_id, policy);
-    }
-
-    pub fn layer_policy_for(&self, entity_id: EntityId) -> LayerMembershipPolicy {
-        self.layer_policies
-            .get(&entity_id)
-            .copied()
-            .unwrap_or(LayerMembershipPolicy::MultiLayer)
     }
 
     pub fn add_to_group(&mut self, entity_id: EntityId, group_id: GroupId) {
@@ -129,38 +111,26 @@ impl RelationStore {
     }
 
     pub fn add_to_layer(&mut self, entity_id: EntityId, layer_id: LayerId) -> EntityResult<()> {
-        let policy = self.layer_policy_for(entity_id);
-        let existing_layers = self.layers_for_entity(entity_id);
-
-        if policy == LayerMembershipPolicy::SingleLayer
-            && !existing_layers.is_empty()
-            && !existing_layers.contains(&layer_id)
+        if let Some(current_layer_id) = self.layer_for_entity(entity_id)
+            && current_layer_id != layer_id
         {
             return Err(EntityError::SingleLayerPolicyViolation {
                 entity_id: entity_id.to_string(),
-                current_layers: existing_layers.len(),
+                current_layers: 1,
             });
         }
 
-        self.layer_memberships.insert(EntityLayerMembership {
-            entity_id,
-            layer_id,
-        });
+        self.layer_memberships.insert(entity_id, layer_id);
         Ok(())
     }
 
     pub fn remove_from_layer(&mut self, entity_id: EntityId, layer_id: LayerId) {
-        self.layer_memberships.remove(&EntityLayerMembership {
-            entity_id,
-            layer_id,
-        });
+        if self.layer_for_entity(entity_id) == Some(layer_id) {
+            self.layer_memberships.remove(&entity_id);
+        }
     }
 
-    pub fn layers_for_entity(&self, entity_id: EntityId) -> Vec<LayerId> {
-        self.layer_memberships
-            .iter()
-            .filter(|membership| membership.entity_id == entity_id)
-            .map(|membership| membership.layer_id)
-            .collect()
+    pub fn layer_for_entity(&self, entity_id: EntityId) -> Option<LayerId> {
+        self.layer_memberships.get(&entity_id).copied()
     }
 }

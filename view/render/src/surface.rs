@@ -4,13 +4,20 @@ use winit::window::Window;
 
 pub fn safe_get_current_texture(surface: &Surface) -> Option<SurfaceTexture> {
     match catch_unwind(AssertUnwindSafe(|| surface.get_current_texture())) {
-        Ok(Ok(texture)) => Some(texture),
-        Ok(Err(e)) => {
-            tracing::warn!("Surface texture acquisition failed: {:?}", e);
+        Ok(wgpu::CurrentSurfaceTexture::Success(texture)) => Some(texture),
+        Ok(e) => {
+            tracing::warn!(
+                error_kind = logging_foundation::ERROR_KIND_SYSTEM,
+                "surface texture acquisition failed: {:?}",
+                e
+            );
             None
         }
         Err(_) => {
-            tracing::error!("Panic occurred during surface texture acquisition");
+            tracing::error!(
+                error_kind = logging_foundation::ERROR_KIND_SYSTEM,
+                "panic during surface texture acquisition"
+            );
             None
         }
     }

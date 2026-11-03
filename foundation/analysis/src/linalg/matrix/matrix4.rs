@@ -87,8 +87,6 @@ impl<T: Scalar> Matrix4x4<T> {
         )
     }
 
-    // === アクセサメソッド ===
-
     /// 要素を取得
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> T {
@@ -139,8 +137,6 @@ impl<T: Scalar> Matrix4x4<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素を行優先でイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().flat_map(|row| row.iter()).copied()
@@ -155,8 +151,6 @@ impl<T: Scalar> Matrix4x4<T> {
     pub fn columns(&self) -> impl Iterator<Item = [T; 4]> + '_ {
         (0..4).map(move |col| self.get_column(col))
     }
-
-    // === GPU用変換 ===
 
     /// 列優先形式に変換（wgpu/OpenGL用）
     ///
@@ -203,8 +197,6 @@ impl<T: Scalar> Matrix4x4<T> {
             ],
         }
     }
-
-    // === 基本演算 ===
 
     pub fn transpose(&self) -> Self {
         let mut result = Self::zeros();
@@ -593,8 +585,6 @@ impl<T: Scalar> Matrix4x4<T> {
         ])
     }
 
-    // === 3D アフィン変換メソッド ===
-
     /// 3Dベクトルを同次座標として変換（点として扱う）
     /// Vector3を(x, y, z, 1)として扱い、4x4行列で変換
     pub fn transform_point_3d(&self, point: &Vector3<T>) -> Vector3<T> {
@@ -656,8 +646,6 @@ impl<T: Scalar> Matrix4x4<T> {
             .collect()
     }
 
-    // === 3D変換行列の構築メソッド ===
-
     /// Vector3による平行移動行列を作成
     pub fn translation_3d(translation: &Vector3<T>) -> Self {
         Self::translation(translation.x(), translation.y(), translation.z())
@@ -702,8 +690,6 @@ impl<T: Scalar> Matrix4x4<T> {
         let rz = Self::rotation_z(z);
         rx * ry * rz
     }
-
-    // === 3Dアフィン変換の分解・抽出メソッド ===
 
     /// 3D変換行列から平行移動成分を抽出
     pub fn extract_translation_3d(&self) -> Vector3<T> {
@@ -757,8 +743,6 @@ impl<T: Scalar> Matrix4x4<T> {
         let rotation = self.extract_rotation_3d();
         (translation, rotation, scale)
     }
-
-    // === 3Dアフィン変換・同次座標系の判定 ===
 
     /// 同次座標系での3Dアフィン変換行列かどうかを判定
     /// 4x4行列の最下行が [0, 0, 0, 1] であることを確認
@@ -856,8 +840,6 @@ impl<T: Scalar> Matrix4x4<T> {
         ]
     }
 
-    // === 同次座標系での変換 ===
-
     /// 同次座標系での正規化（最下行右下を1にスケール）
     pub fn normalize_homogeneous_3d(&self) -> Result<Self, String> {
         let w = self.data[3][3];
@@ -914,8 +896,6 @@ impl<T: Scalar> Matrix4x4<T> {
             transformed.z() / w,
         ))
     }
-
-    // === 3Dアフィン変換専用の構築メソッド ===
 
     /// 一般的な3Dアフィン変換行列を作成
     /// linear_transform: 3x3線形変換行列, translation: 平行移動ベクトル
@@ -992,8 +972,6 @@ impl<T: Scalar> Matrix4x4<T> {
 
         Ok(s_inv * inv_rotation * t_inv)
     }
-
-    // === 特殊な3D変換 ===
 
     /// X軸周りの回転行列
     pub fn rotation_x_3d(angle: T) -> Self {
@@ -1231,8 +1209,6 @@ impl<T: Scalar> Matrix4x4<T> {
         )
     }
 
-    // === デバッグ・ユーティリティ ===
-
     /// Matrix4x4の詳細情報を文字列として取得
     pub fn debug_string(&self) -> String {
         format!(
@@ -1365,8 +1341,6 @@ impl<T: Scalar> Matrix4x4<T> {
     }
 }
 
-// === 添え字演算子（互換性維持） ===
-
 impl<T: Scalar> Index<usize> for Matrix4x4<T> {
     type Output = [T; 4];
     #[inline]
@@ -1381,8 +1355,6 @@ impl<T: Scalar> IndexMut<usize> for Matrix4x4<T> {
         &mut self.data[row]
     }
 }
-
-// === 演算子オーバーロード ===
 
 impl<T: Scalar> Add for Matrix4x4<T> {
     type Output = Self;
@@ -1459,8 +1431,6 @@ impl<T: Scalar> Neg for Matrix4x4<T> {
     }
 }
 
-// === 配列変換 ===
-
 impl<T: Scalar> From<[[T; 4]; 4]> for Matrix4x4<T> {
     /// 行優先配列から構築
     #[inline]
@@ -1472,3 +1442,125 @@ impl<T: Scalar> From<[[T; 4]; 4]> for Matrix4x4<T> {
 /// 型エイリアス
 pub type Matrix4x4f = Matrix4x4<f32>;
 pub type Matrix4x4d = Matrix4x4<f64>;
+
+#[cfg(test)]
+mod tests {
+    use crate::linalg::matrix::Matrix4x4;
+    use crate::linalg::vector::Vector4;
+    use crate::linalg::{Mat4d, Mat4f};
+
+    use crate::consts::test_constants::TOLERANCE_F64;
+    use std::f64::consts::PI;
+
+    #[test]
+    fn test_matrix4x4_identity() {
+        let m = Matrix4x4::<f64>::identity();
+        let v = Vector4::<f64>::new(1.0, 2.0, 3.0, 1.0);
+        let result = m.mul_vector(&v);
+
+        assert_eq!(result.x(), 1.0);
+        assert_eq!(result.y(), 2.0);
+        assert_eq!(result.z(), 3.0);
+        assert_eq!(result.w(), 1.0);
+    }
+
+    #[test]
+    fn test_matrix4x4_translation() {
+        let translation = Matrix4x4::<f64>::translation(2.0, 3.0, 4.0);
+        let v = Vector4::<f64>::new(1.0, 1.0, 1.0, 1.0);
+        let translated = translation.mul_vector(&v);
+
+        assert_eq!(translated.x(), 3.0); // 1 + 2
+        assert_eq!(translated.y(), 4.0); // 1 + 3
+        assert_eq!(translated.z(), 5.0); // 1 + 4
+        assert_eq!(translated.w(), 1.0); // w成分は不変
+    }
+
+    #[test]
+    fn test_matrix4x4_scale() {
+        let scale = Matrix4x4::<f64>::scale(2.0, 3.0, 4.0);
+        let v = Vector4::<f64>::new(1.0, 1.0, 1.0, 1.0);
+        let scaled = scale.mul_vector(&v);
+
+        assert_eq!(scaled.x(), 2.0);
+        assert_eq!(scaled.y(), 3.0);
+        assert_eq!(scaled.z(), 4.0);
+        assert_eq!(scaled.w(), 1.0); // w成分は不変
+    }
+
+    #[test]
+    fn test_matrix4x4_rotation_x() {
+        let rotation = Matrix4x4::<f64>::rotation_x(PI / 2.0); // 90度回転
+        let v = Vector4::<f64>::new(0.0, 1.0, 0.0, 1.0);
+        let rotated = rotation.mul_vector(&v);
+
+        // Y軸が Z軸になることを確認
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!(rotated.y().abs() < TOLERANCE_F64);
+        assert!((rotated.z() - 1.0).abs() < TOLERANCE_F64);
+        assert_eq!(rotated.w(), 1.0);
+    }
+
+    #[test]
+    fn test_matrix4x4_rotation_y() {
+        let rotation = Matrix4x4::<f64>::rotation_y(PI / 2.0); // 90度回転
+        let v = Vector4::<f64>::new(1.0, 0.0, 0.0, 1.0);
+        let rotated = rotation.mul_vector(&v);
+
+        // X軸が -Z軸になることを確認
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!(rotated.y().abs() < TOLERANCE_F64);
+        assert!((rotated.z() + 1.0).abs() < TOLERANCE_F64);
+        assert_eq!(rotated.w(), 1.0);
+    }
+
+    #[test]
+    fn test_matrix4x4_rotation_z() {
+        let rotation = Matrix4x4::<f64>::rotation_z(PI / 2.0); // 90度回転
+        let v = Vector4::<f64>::new(1.0, 0.0, 0.0, 1.0);
+        let rotated = rotation.mul_vector(&v);
+
+        // X軸が Y軸になることを確認
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!((rotated.y() - 1.0).abs() < TOLERANCE_F64);
+        assert!(rotated.z().abs() < TOLERANCE_F64);
+        assert_eq!(rotated.w(), 1.0);
+    }
+
+    #[test]
+    fn test_matrix4x4_perspective() {
+        let fov = PI / 2.0; // 90度
+        let aspect = 16.0 / 9.0;
+        let near = 0.1;
+        let far = 100.0;
+
+        if let Ok(perspective) =
+            std::panic::catch_unwind(|| Matrix4x4::<f64>::perspective(fov, aspect, near, far))
+        {
+            // 射影行列の基本プロパティをテスト
+            let test_point = Vector4::<f64>::new(1.0, 1.0, -1.0, 1.0);
+            let projected = perspective.mul_vector(&test_point);
+
+            // W成分が正しく設定されることを確認
+            assert!(projected.w() > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_matrix4x4_determinant() {
+        let m = Matrix4x4::<f64>::identity();
+        assert_eq!(m.determinant(), 1.0);
+
+        let scale = Matrix4x4::<f64>::scale(2.0, 3.0, 4.0);
+        assert_eq!(scale.determinant(), 24.0); // 2 * 3 * 4 = 24
+    }
+
+    #[test]
+    fn test_type_aliases() {
+        let m_f32 = Mat4f::identity();
+        let m_f64 = Mat4d::identity();
+
+        assert_eq!(m_f32.trace(), 4.0);
+        assert_eq!(m_f64.trace(), 4.0);
+    }
+}

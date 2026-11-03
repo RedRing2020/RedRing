@@ -1,0 +1,28 @@
+#!/bin/sh
+# This is a template for .git/hooks/pre-commit
+# To activate, copy this file to .git/hooks/pre-commit and make it executable:
+#   cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+
+# Move to repository root so that `cargo fmt --all` covers the whole workspace
+# regardless of which directory `git commit` was invoked from.
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$REPO_ROOT" ]; then
+    echo "[pre-commit] Failed to resolve repository root."
+    exit 1
+fi
+cd "$REPO_ROOT" || {
+    echo "[pre-commit] Failed to move to repository root: $REPO_ROOT"
+    exit 1
+}
+
+# Check Rust formatting
+cargo fmt --all -- --check
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "✗ Formatting issues found."
+    echo "Run 'cargo fmt --all' to fix, then stage and commit again."
+    exit 1
+fi
+
+exit 0

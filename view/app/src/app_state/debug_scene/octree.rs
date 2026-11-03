@@ -14,9 +14,9 @@ struct OctreeDebugData {
 
 impl AppState {
     fn build_octree_debug_data(&self) -> Option<OctreeDebugData> {
-        use viewmodel::octree_converter::create_sample_swept_cylinder_wireframe_colored_levels_with_settings;
+        use viewmodel::octree_converter::load_demo_swept_cylinder_wireframe_colored_levels_with_settings;
 
-        let depth_levels = create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
+        let depth_levels = load_demo_swept_cylinder_wireframe_colored_levels_with_settings(
             &self.octree_visualization_settings,
         );
 

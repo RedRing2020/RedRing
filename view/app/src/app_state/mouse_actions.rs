@@ -1,5 +1,6 @@
 //! AppState のマウス入力ハンドリングを扱うモジュール。
 
+use super::snapshot_playback::SnapshotLoadTrigger;
 use super::AppState;
 use crate::selection_rect::SelectionRect;
 
@@ -18,10 +19,27 @@ impl AppState {
 
         match state {
             winit::event::ElementState::Pressed => {
+                if self.mouse_input.is_ctrl_pressed() {
+                    self.arcball_drag_start = self.cursor_position;
+                    let viewport_width = self.graphic.config.width as f32;
+                    let viewport_height = self.graphic.config.height as f32;
+                    self.arcball_virtual_cursor = Some(
+                        self.cursor_position
+                            .unwrap_or((viewport_width * 0.5, viewport_height * 0.5)),
+                    );
+                    tracing::debug!(
+                        "Ctrl+左ドラッグ: カメラ回転モード開始 start={:?} current={:?} virtual_start={:?}",
+                        self.arcball_drag_start,
+                        self.cursor_position,
+                        self.arcball_virtual_cursor
+                    );
+                    return;
+                }
+
                 if let Some(cursor) = self.cursor_position {
                     if self.is_cursor_on_snapshot_track(cursor) {
-                        if self.debug_snapshot.series.is_none() {
-                            self.load_debug_simulation_snapshots();
+                        if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::SnapshotScrub) {
+                            return;
                         }
                         self.snapshot_scrub_active = true;
                         self.mouse_input.cancel_operation();
@@ -31,24 +49,7 @@ impl AppState {
                     }
                 }
 
-                if self.mouse_input.is_ctrl_pressed() {
-                    self.arcball_drag_start = self.cursor_position;
-                    let viewport_width = self.graphic.config.width as f32;
-                    let viewport_height = self.graphic.config.height as f32;
-                    self.arcball_virtual_cursor = Some(
-                        self.cursor_position
-                            .unwrap_or((viewport_width * 0.5, viewport_height * 0.5)),
-                    );
-                    tracing::info!(
-                        "Ctrl+左ドラッグ: カメラ回転モード開始 start={:?} current={:?} virtual_start={:?}",
-                        self.arcball_drag_start,
-                        self.cursor_position,
-                        self.arcball_virtual_cursor
-                    );
-                    return;
-                }
-
-                tracing::info!("左ドラッグ: ビュー矩形選択モード（カメラ操作はCtrl+ドラッグ）");
+                tracing::debug!("左ドラッグ: ビュー矩形選択モード（カメラ操作はCtrl+ドラッグ）");
 
                 if let Some(cursor) = self.cursor_position {
                     self.selection_rect_drag_origin = Some(cursor);
@@ -64,7 +65,7 @@ impl AppState {
                 }
 
                 if let Some(start) = self.arcball_drag_start.take() {
-                    tracing::info!(
+                    tracing::debug!(
                         "Ctrl+左ドラッグ: カメラ回転モード終了 start={:?} end={:?} virtual_end={:?}",
                         start,
                         self.cursor_position,

@@ -19,7 +19,7 @@ const LOG_FILE_NAME: &str = "redring.log";
 /// 必要時は RUST_LOG で明示的に詳細化する。
 const DEFAULT_LOG_FILTER: &str = "warn,\
     wgpu=warn,wgpu_hal=warn,wgpu_core=warn,naga=warn,\
-    redring=info,stage=warn,viewmodel_graphics=warn,viewmodel_converter=warn,render=warn,cam_core=info";
+    redring=info,stage=warn,viewmodel_graphics=warn,viewmodel=warn,render=warn,cam_core=info";
 
 /// ログシステムを初期化
 ///

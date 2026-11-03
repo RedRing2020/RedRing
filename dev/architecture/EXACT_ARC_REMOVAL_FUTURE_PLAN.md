@@ -184,7 +184,7 @@ pub fn remove_material_arc_adaptive(
     target_error: T  // 目標誤差（例: 0.01mm）
 ) {
     // 必要な線分数を計算
-    let arc_length = arc.arc_length();
+    let arc_length = arc.length();
     let curvature = T::ONE / arc.radius();
     
     // 誤差式: error ≈ r * (1 - cos(θ/2))

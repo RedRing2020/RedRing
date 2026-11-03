@@ -1,144 +1,22 @@
 # RedRing Architecture Dependency Check Script
 # Usage: powershell -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1
+#
+# ワークスペースのクレートと依存を `cargo metadata` から取得し、scripts/_arch_rules_data.ps1 のルールと照合する。
+# - ルールにないクレート・許可されていない依存・禁止された依存はエラー
+# - レイヤーに属さないクレートはエラー
 
 param(
     [switch]$Verbose,
     [switch]$ExitOnError
 )
 
+# 共有ルールデータ・共通関数を読み込む
+. (Join-Path $PSScriptRoot "_arch_rules_data.ps1")
+
 function Write-Success { param($Message) Write-Host "OK $Message" -ForegroundColor Green }
 function Write-Warning { param($Message) Write-Host "WARN $Message" -ForegroundColor Yellow }
-function Write-Error { param($Message) Write-Host "ERROR $Message" -ForegroundColor Red }
-function Write-Info { param($Message) Write-Host "INFO $Message" -ForegroundColor Cyan }
-
-$ARCHITECTURE_RULES = @{
-    AllowedDependencies = @{
-        # Analysis
-        analysis       = @()
-
-        # Model: geo_*
-        geo_foundation = @("analysis", "geo_commons")
-        geo_commons    = @("geo_foundation", "analysis")
-        geo_core       = @("geo_foundation", "analysis", "geo_entity") # geo_core -> geo_entity: OK
-        geo_primitives = @("geo_foundation", "geo_core", "analysis")
-        geo_algorithms = @("geo_foundation", "geo_core", "geo_primitives", "analysis", "geo_nurbs")
-        geo_nurbs      = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
-        geo_io         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
-        geo_entity     = @("geo_foundation", "geo_primitives")
-
-        # Model: cam_*
-        cam_core       = @("analysis", "geo_foundation", "geo_primitives", "geo_algorithms", "cam_entity") # cam_core -> cam_entity: OK
-        cam_entity     = @("cam_core", "geo_entity")
-        cam_sim        = @("analysis", "cam_core", "geo_algorithms")
-
-        # ViewModel
-        converter      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "analysis")
-        graphics       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
-
-        # View
-        render         = @("analysis")
-        stage          = @("render", "analysis")
-        app            = @("converter", "graphics", "render", "stage", "analysis")
-    }
-
-    ForbiddenDependencies = @{
-        # geo_* -> cam_* is forbidden
-        geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim")
-        geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim")
-        geo_core       = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim") # geo_core -> cam_entity: NG
-        geo_primitives = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim")
-        geo_algorithms = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim")
-        geo_nurbs      = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim")
-        geo_io         = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim")
-        geo_entity     = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim")
-
-        # cam_*
-        cam_core       = @("converter", "graphics", "render", "stage", "app", "geo_entity", "cam_sim") # cam_core -> geo_entity: NG
-        cam_entity     = @("converter", "graphics", "render", "stage", "app", "cam_sim")
-        cam_sim        = @("converter", "graphics", "render", "stage", "app", "geo_entity", "geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "cam_entity")
-
-        # ViewModel -> View forbidden
-        converter      = @("render", "stage", "app")
-        graphics       = @("render", "stage", "app")
-
-        # View -> Model forbidden (current policy)
-        render         = @("geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics")
-        stage          = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics")
-        app            = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim")
-
-        # analysis isolation
-        analysis       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics", "render", "stage", "app")
-    }
-
-    NamingRules = @{
-        ModelPrefix = "geo_"
-        RequiredModelCrates = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
-    }
-}
-
-function Get-CrateDependencies {
-    param([string]$CratePath)
-
-    $cargoToml = Join-Path $CratePath "Cargo.toml"
-    if (-not (Test-Path $cargoToml)) {
-        return @()
-    }
-
-    $dependencies = @()
-    $content = Get-Content $cargoToml
-    $inDepsSection = $false
-
-    foreach ($line in $content) {
-        if ($line -match '^\[dependencies\]') {
-            $inDepsSection = $true
-            continue
-        }
-        if ($line -match '^\[.*\]' -and $inDepsSection) {
-            break
-        }
-        if ($inDepsSection -and $line -match '^(\w+)\s*=') {
-            $depName = $matches[1]
-            if ($ARCHITECTURE_RULES.AllowedDependencies.ContainsKey($depName)) {
-                $dependencies += $depName
-            }
-        }
-    }
-
-    return $dependencies
-}
-
-function Get-WorkspaceCrates {
-    $workspaceCrates = @{}
-
-    $layerMapping = @{
-        analysis       = "foundation/analysis"
-        geo_foundation = "model/geo_foundation"
-        geo_commons    = "model/geo_commons"
-        geo_core       = "model/geo_core"
-        geo_primitives = "model/geo_primitives"
-        geo_algorithms = "model/geo_algorithms"
-        geo_nurbs      = "model/geo_nurbs"
-        geo_io         = "model/geo_io"
-        geo_entity     = "model/geo_entity"
-        cam_core       = "model/cam_core"
-        cam_entity     = "model/cam_entity"
-        cam_sim        = "model/cam_sim"
-        converter      = "viewmodel/converter"
-        graphics       = "viewmodel/graphics"
-        render         = "view/render"
-        stage          = "view/stage"
-        app            = "view/app"
-    }
-
-    foreach ($crateName in $layerMapping.Keys) {
-        $cratePath = Join-Path (Get-Location) $layerMapping[$crateName]
-        if (Test-Path $cratePath) {
-            $workspaceCrates[$crateName] = $cratePath
-        }
-    }
-
-    return $workspaceCrates
-}
+function Write-Error   { param($Message) Write-Host "ERROR $Message" -ForegroundColor Red }
+function Write-Info    { param($Message) Write-Host "INFO $Message" -ForegroundColor Cyan }
 
 function Test-ArchitectureDependencies {
     Write-Info "RedRing Architecture Dependency Check Start"
@@ -146,12 +24,11 @@ function Test-ArchitectureDependencies {
     Write-Host ""
 
     $errorCount = 0
-    $warningCount = 0
-    $workspaceCrates = Get-WorkspaceCrates
+    $workspaceCrates = Get-WorkspaceCratesShared
 
     Write-Info "1. Model Layer Naming Rule Check"
-    foreach ($crateName in $ARCHITECTURE_RULES.NamingRules.RequiredModelCrates) {
-        if ($workspaceCrates.ContainsKey($crateName)) {
+    foreach ($crateName in $ARCH_REQUIRED_MODEL_CRATES) {
+        if ($workspaceCrates.Contains($crateName)) {
             Write-Success "Model crate '$crateName' follows correct naming rules"
         }
         else {
@@ -163,14 +40,22 @@ function Test-ArchitectureDependencies {
 
     Write-Info "2. Dependency Rule Check"
     foreach ($crateName in $workspaceCrates.Keys) {
-        $cratePath = $workspaceCrates[$crateName]
-        $actualDeps = Get-CrateDependencies $cratePath
+        $actualDeps = $workspaceCrates[$crateName].Deps
 
-        Write-Info "Validating '$crateName' dependencies..."
+        if (-not $ARCH_ALLOWED_DEPS.ContainsKey($crateName)) {
+            Write-Error "  ERROR '$crateName' has no dependency rule (add it to scripts/_arch_rules_data.ps1)"
+            $errorCount++
+            continue
+        }
+        $allowedDeps   = $ARCH_ALLOWED_DEPS[$crateName]
+        $forbiddenDeps = $ARCH_FORBIDDEN_DEPS[$crateName]
 
-        $allowedDeps = $ARCHITECTURE_RULES.AllowedDependencies[$crateName]
         foreach ($dep in $actualDeps) {
-            if ($allowedDeps -contains $dep) {
+            if ($forbiddenDeps -contains $dep) {
+                Write-Error "  ERROR '$crateName' -> '$dep' (explicitly forbidden)"
+                $errorCount++
+            }
+            elseif ($allowedDeps -contains $dep) {
                 if ($Verbose) {
                     Write-Success "  OK '$crateName' -> '$dep' (allowed)"
                 }
@@ -180,34 +65,17 @@ function Test-ArchitectureDependencies {
                 $errorCount++
             }
         }
-
-        $forbiddenDeps = $ARCHITECTURE_RULES.ForbiddenDependencies[$crateName]
-        foreach ($dep in $actualDeps) {
-            if ($forbiddenDeps -contains $dep) {
-                Write-Error "  ERROR '$crateName' -> '$dep' (explicitly forbidden)"
-                $errorCount++
-            }
-        }
-
-        if ($actualDeps.Length -eq 0) {
-            Write-Info "  INFO '$crateName' has no workspace dependencies"
-        }
     }
     Write-Host ""
 
     Write-Info "3. Layer Dependency Summary"
-    $layers = @{
-        Analysis  = @("analysis")
-        Model     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim")
-        ViewModel = @("converter", "graphics")
-        View      = @("render", "stage", "app")
-    }
-
-    foreach ($layerName in $layers.Keys) {
+    $layered = @()
+    foreach ($layerName in $ARCH_LAYERS.Keys) {
         Write-Info "Layer: $layerName"
-        foreach ($crateName in $layers[$layerName]) {
-            if ($workspaceCrates.ContainsKey($crateName)) {
-                $deps = Get-CrateDependencies $workspaceCrates[$crateName]
+        foreach ($crateName in $ARCH_LAYERS[$layerName]) {
+            $layered += $crateName
+            if ($workspaceCrates.Contains($crateName)) {
+                $deps = $workspaceCrates[$crateName].Deps
                 if ($deps.Length -gt 0) {
                     Write-Host "    $crateName -> $($deps -join ', ')" -ForegroundColor White
                 }
@@ -216,31 +84,32 @@ function Test-ArchitectureDependencies {
                 }
             }
             else {
-                Write-Warning "    $crateName -> (not found)"
-                $warningCount++
+                Write-Error "    $crateName -> (not found in workspace)"
+                $errorCount++
             }
+        }
+    }
+    foreach ($crateName in $workspaceCrates.Keys) {
+        if ($layered -notcontains $crateName) {
+            Write-Error "    '$crateName' does not belong to any layer (add it to `$ARCH_LAYERS)"
+            $errorCount++
         }
     }
     Write-Host ""
 
     Write-Info "4. Check Result Summary"
-    if ($errorCount -eq 0 -and $warningCount -eq 0) {
-        Write-Success "SUCCESS: Architecture dependency check passed"
-        Write-Success "- geo_* -> cam_* forbidden rule enforced"
-        Write-Success "- Requested exceptions/policies are applied"
+    if ($errorCount -eq 0) {
+        Write-Success "SUCCESS: Architecture dependency check passed ($($workspaceCrates.Count) crates)"
     }
     else {
-        Write-Error "FAILED: Architecture dependency check found issues"
-        Write-Error "- Errors: $errorCount"
-        Write-Warning "- Warnings: $warningCount"
-
-        if ($ExitOnError -and $errorCount -gt 0) {
+        Write-Error "FAILED: Architecture dependency check found $errorCount error(s)"
+        if ($ExitOnError) {
             Write-Error "STOP: Exiting due to detected errors"
             exit 1
         }
     }
 
-    return @{ Errors = $errorCount; Warnings = $warningCount }
+    return @{ Errors = $errorCount }
 }
 
 if ($args -contains "-Help" -or $args -contains "-h") {
@@ -258,12 +127,7 @@ if ($args -contains "-Help" -or $args -contains "-h") {
 
 $result = Test-ArchitectureDependencies
 
-if ($env:CI -eq "true") {
-    if ($result.Errors -gt 0) {
-        Write-Output "::error::Architecture dependency check detected errors"
-        exit 1
-    }
-    if ($result.Warnings -gt 0) {
-        Write-Output "::warning::Architecture dependency check detected warnings"
-    }
+if ($env:CI -eq "true" -and $result.Errors -gt 0) {
+    Write-Output "::error::Architecture dependency check detected errors"
+    exit 1
 }

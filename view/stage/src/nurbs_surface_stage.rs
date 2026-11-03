@@ -1,6 +1,6 @@
 //! NURBS曲面 GPU評価レンダリングステージ
 //!
-//! ViewModel層で作成したGPU評価用データを受け取り、
+//! GPU評価用データを受け取り、
 //! GPU上でNURBS曲面を直接評価・描画します。
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
@@ -59,7 +59,10 @@ impl NurbsSurfaceStage {
         );
 
         if num_vertices == 0 {
-            tracing::warn!("⚠️ 評価点が0個 - 曲面描画されません");
+            tracing::warn!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "nurbs surface stage: no eval points, skip draw"
+            );
             self.has_data = false;
             return;
         }
@@ -175,6 +178,7 @@ impl RenderStage for NurbsSurfaceStage {
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         resources.render(&mut render_pass, self.wireframe_mode);

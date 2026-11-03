@@ -62,7 +62,7 @@
 
 - **analysis クレート内部のみで使用** (4箇所)
   - `geometry/plane3.rs`: 定義と実装
-  - `geometry/mod.rs`: 再エクスポート
+  - `geometry.rs`: 再エクスポート
 - **model 層では一切参照されていない**
   
 **結論**: analysis の内部実装として残す（外部からは使用されていない）
@@ -82,7 +82,7 @@
 - ✅ From trait 実装
 
 **関連ファイル**:
-- `point_3d_foundation.rs`: ExtensionFoundation 実装
+- `point_3d.rs`: metadata は本体側で実装する方針へ移行
 - `point_3d_extensions.rs`: 拡張機能
 - `point_3d_tests.rs`: テストスイート
 
@@ -159,7 +159,7 @@ impl<T: Scalar> From<(T, T, T)> for Point3D<T> { ... }
 # geo_core/Cargo.toml に追加
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
+geo_contracts = { path = "../geo_contracts" }
 ```
 
 #### 1-2. geo_core への組み込み
@@ -196,7 +196,7 @@ cargo test -p geo_core
 pub use geo_core::Point3D;
 
 // Foundation トレイト実装は維持
-use geo_foundation::{
+use geo_contracts::{
     core::{
         point_core_traits::{Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties},
         point_traits,
@@ -227,13 +227,13 @@ impl<T: Scalar> From<Point3D<T>> for analysis::linalg::point3::Point3<T> { ... }
 [dependencies]
 geo_core = { path = "../geo_core" }  # 追加
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
+geo_contracts = { path = "../geo_contracts" }
 ```
 
 #### 2-3. 既存ファイルの維持
 
 以下のファイルはそのまま維持:
-- `point_3d_foundation.rs`: ExtensionFoundation 実装
+- `point_3d.rs`: metadata は本体側で実装する方針へ移行
 - `point_3d_extensions.rs`: 拡張機能
 - `point_3d_tests.rs`: テストスイート
 
@@ -301,15 +301,15 @@ fn bounding_box(&self) -> Self::BBox {
 ```
 
 **影響ファイル**（優先順に実施）:
-1. `circle_3d_foundation.rs`
-2. `triangle_3d_foundation.rs`
-3. `arc_3d_foundation.rs`
-4. `spherical_surface_3d_foundation.rs`
-5. `spherical_solid_3d_foundation.rs`
-6. `cylindrical_surface_3d_foundation.rs`（Phase 3 で追加）
-7. `cylindrical_solid_3d_foundation.rs`（Phase 3 で追加）
-8. `conical_surface_3d_foundation.rs`（Phase 3 で追加）
-9. `conical_solid_3d_foundation.rs`（Phase 3 で追加）
+1. `circle_3d_bounds.rs`
+2. `triangle_3d_bounds.rs`
+3. `arc_3d_bounds.rs`
+4. `spherical_surface_3d_bounds.rs`（metadata は本体側へ移行済み）
+5. `spherical_solid_3d_bounds.rs`（metadata は本体側へ移行済み）
+6. `cylindrical_surface_3d_bounds.rs`（Phase 3 で追加）
+7. `cylindrical_solid_3d_bounds.rs`（Phase 3 で追加）
+8. `conical_surface_3d_bounds.rs`（metadata は本体側へ移行済み）
+9. `conical_solid_3d_bounds.rs`（Phase 3 で追加）
 10. その他（EllipseArc3D, Torus*, TriangleMesh3D, EllipsoidalSurface3D）
 
 #### 3-3. Transform ヘルパー関数の削除/修正（約20箇所）
@@ -492,7 +492,7 @@ cargo test --workspace --release
 - `*_extensions.rs`: cylindrical_surface_3d, ellipse_arc_3d, line_segment_3d, ray_3d
 
 **geo_nurbs** (2ファイル):
-- `curve_3d_foundation.rs`, `curve_3d_extensions.rs`
+- `curve_3d_bounds.rs`, `curve_3d_extensions.rs`
 
 **合計**: 23ファイル、87箇所の修正
 
@@ -515,3 +515,4 @@ cargo test --workspace --release
 **作成者**: GitHub Copilot  
 **最終更新**: 2025年12月21日  
 **ステータス**: Phase 3 完了 → Phase 4 実施待ち
+

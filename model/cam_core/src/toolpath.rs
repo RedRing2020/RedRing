@@ -42,8 +42,21 @@
 //! );
 //! ```
 
+#[cfg(test)]
+mod tests;
+
+use crate::ExtAttribute;
 use analysis::Scalar;
-use geo_algorithms::Point3D;
+use geo_algorithms::{Point3D, Vector3D};
+
+/// ToolPath wire schema version used by artifact binary（v0.2: 切削方向に `Mixed` を追加。v0.3 は切削シミュレーションの
+/// 中身だけの変更で、ToolPath は v0.2 と同じ）
+pub const TOOLPATH_SCHEMA_VERSION: (u16, u16) = (0, 3);
+
+/// セグメント拡張属性タグ: 線形加速度ヒント [mm/s^2]
+pub const SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2: i16 = -101;
+/// セグメント拡張属性タグ: 回転加速度ヒント [deg/s^2]
+pub const SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2: i16 = -102;
 
 /// 円弧方向
 ///
@@ -155,6 +168,7 @@ pub enum SegmentType<T: Scalar = f64> {
 /// 切削方向
 ///
 /// ダウンカット（同方向）とアップカット（逆方向）を識別します。
+/// 主軸は右回り（上から見て時計回り）とし、送りの右側に削る素材がある場合がダウンカットです。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CuttingDirection {
     /// ダウンカット（同方向切削）
@@ -166,11 +180,239 @@ pub enum CuttingDirection {
     ///
     /// 工具回転方向と送り方向が逆。荒加工向き。
     Up,
+
+    /// 往復の加工などで、経路の中でダウンカットとアップカットが入れ替わる
+    Mixed,
+}
+
+/// 機械軸種別
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MachineAxisKind {
+    /// 直動軸（X/Y/Z/U/V/W など）
+    Linear,
+    /// 回転軸（A/B/C など）
+    Rotary,
+}
+
+/// 任意名称の機械軸値
+#[derive(Debug, Clone, PartialEq)]
+pub struct MachineAxisValue<T: Scalar = f64> {
+    /// 軸名（例: A, C, U, W）
+    pub axis_name: String,
+    /// 軸種別（直動/回転）
+    pub axis_kind: MachineAxisKind,
+    /// 軸値
+    pub value: T,
+}
+
+impl<T: Scalar> MachineAxisValue<T> {
+    /// 機械軸値を作成
+    pub fn new(axis_name: String, axis_kind: MachineAxisKind, value: T) -> Self {
+        Self {
+            axis_name,
+            axis_kind,
+            value,
+        }
+    }
+}
+
+/// 姿勢補間ポリシー
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PoseInterpolationPolicy {
+    /// セグメント内で姿勢固定（3+2 相当）
+    FixedOrientation,
+    /// 角度変化の最短経路を優先
+    ShortestAngularPath,
+    /// 連続変化を優先
+    ContinuousPreferred,
+    /// 機械制約を優先
+    MachineConstrained,
+}
+
+/// 工具/プロセス姿勢
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolPose<T: Scalar = f64> {
+    /// 姿勢評価時の位置
+    pub position: Point3D<T>,
+    /// 工具軸またはプロセス軸方向
+    pub process_axis: Vector3D<T>,
+    /// 任意軸名で管理される機械軸値
+    pub machine_axes: Option<Vec<MachineAxisValue<T>>>,
+}
+
+impl<T: Scalar> ToolPose<T> {
+    /// 姿勢を作成
+    pub fn new(
+        position: Point3D<T>,
+        process_axis: Vector3D<T>,
+        machine_axes: Option<Vec<MachineAxisValue<T>>>,
+    ) -> Self {
+        Self {
+            position,
+            process_axis,
+            machine_axes,
+        }
+    }
+}
+
+/// 姿勢スパン
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolPoseSpan<T: Scalar = f64> {
+    /// 始点姿勢
+    pub start_pose: ToolPose<T>,
+    /// 終点姿勢
+    pub end_pose: ToolPose<T>,
+    /// 姿勢補間ポリシー
+    pub interpolation_policy: PoseInterpolationPolicy,
+}
+
+impl<T: Scalar> ToolPoseSpan<T> {
+    /// 姿勢スパンを作成
+    pub fn new(
+        start_pose: ToolPose<T>,
+        end_pose: ToolPose<T>,
+        interpolation_policy: PoseInterpolationPolicy,
+    ) -> Self {
+        Self {
+            start_pose,
+            end_pose,
+            interpolation_policy,
+        }
+    }
+}
+
+/// 姿勢付きセグメント
+#[derive(Debug, Clone, PartialEq)]
+pub struct PoseAnnotatedSegment<T: Scalar = f64> {
+    /// 位置幾何セグメント
+    pub segment: PathSegment<T>,
+    /// セグメントに対応する姿勢情報
+    pub pose_span: ToolPoseSpan<T>,
+}
+
+impl<T: Scalar> PoseAnnotatedSegment<T> {
+    /// 姿勢付きセグメントを作成
+    pub fn new(segment: PathSegment<T>, pose_span: ToolPoseSpan<T>) -> Self {
+        Self { segment, pose_span }
+    }
+}
+
+/// 機械構成の大分類
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MachineConfigurationClass {
+    /// 2軸（XY平面など）
+    TwoAxis,
+    /// 3軸
+    ThreeAxis,
+    /// 4軸
+    FourAxis,
+    /// 5軸以上
+    FiveAxisOrMore,
+}
+
+/// 加工時の運動モード分類
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KinematicMode {
+    /// 2軸（1平面内の輪郭加工）
+    TwoAxis,
+    /// 2.5軸（Z段付き2軸）
+    TwoPointFiveAxis,
+    /// 3軸
+    ThreeAxis,
+    /// 割り出し多軸（3+2）
+    IndexedMultiAxis,
+    /// 同時4軸
+    SimultaneousFourAxis,
+    /// 同時5軸
+    SimultaneousFiveAxis,
+}
+
+/// 姿勢データ保持ポリシー
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PoseDataPolicy {
+    /// 位置中心データだけで互換運用可能
+    PositionOnlyCompatible,
+    /// 姿勢レイヤーは任意
+    PoseLayerOptional,
+    /// 姿勢レイヤーが必須
+    PoseLayerRequired,
+}
+
+/// ToolPath の運動学メタ情報
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToolPathKinematicMeta {
+    /// 機械構成の大分類
+    pub configuration_class: MachineConfigurationClass,
+    /// 加工時の運動モード
+    pub kinematic_mode: KinematicMode,
+    /// 姿勢データ保持ポリシー
+    pub pose_data_policy: PoseDataPolicy,
+}
+
+impl ToolPathKinematicMeta {
+    /// 運動学メタ情報を作成
+    pub const fn new(
+        configuration_class: MachineConfigurationClass,
+        kinematic_mode: KinematicMode,
+        pose_data_policy: PoseDataPolicy,
+    ) -> Self {
+        Self {
+            configuration_class,
+            kinematic_mode,
+            pose_data_policy,
+        }
+    }
+
+    /// 既存3軸互換向けの既定メタ
+    pub const fn three_axis_position_only() -> Self {
+        Self {
+            configuration_class: MachineConfigurationClass::ThreeAxis,
+            kinematic_mode: KinematicMode::ThreeAxis,
+            pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
+        }
+    }
+
+    /// 2軸（平面輪郭加工）向けの既定メタ
+    pub const fn two_axis_position_only() -> Self {
+        Self {
+            configuration_class: MachineConfigurationClass::TwoAxis,
+            kinematic_mode: KinematicMode::TwoAxis,
+            pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
+        }
+    }
+
+    /// 2.5軸（Z段付き輪郭加工）向けの既定メタ
+    pub const fn two_point_five_axis_position_only() -> Self {
+        Self {
+            configuration_class: MachineConfigurationClass::TwoAxis,
+            kinematic_mode: KinematicMode::TwoPointFiveAxis,
+            pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
+        }
+    }
+
+    /// 位置中心データのみで互換運用可能か
+    pub const fn is_position_only_compatible(&self) -> bool {
+        matches!(
+            self.pose_data_policy,
+            PoseDataPolicy::PositionOnlyCompatible
+        )
+    }
+
+    /// 姿勢レイヤーを省略可能か
+    pub const fn allows_optional_pose_layer(&self) -> bool {
+        !self.requires_pose_layer()
+    }
+
+    /// 姿勢レイヤーが必須か
+    pub const fn requires_pose_layer(&self) -> bool {
+        matches!(self.pose_data_policy, PoseDataPolicy::PoseLayerRequired)
+    }
 }
 
 /// 工具経路セグメント
 ///
 /// 工具経路の最小単位。始点、幾何形状、およびセグメント種別を持ちます。
+/// 拡張属性により、ユーザースクリプトが独自情報を追加できます。
 #[derive(Debug, Clone, PartialEq)]
 pub struct PathSegment<T: Scalar = f64> {
     /// セグメント始点（絶対座標）
@@ -181,6 +423,9 @@ pub struct PathSegment<T: Scalar = f64> {
 
     /// セグメント種別
     pub segment_type: SegmentType<T>,
+
+    /// セグメント拡張属性（ユーザーが付与可能）
+    pub ext_attributes: Vec<ExtAttribute>,
 }
 
 impl<T: Scalar> PathSegment<T> {
@@ -211,6 +456,7 @@ impl<T: Scalar> PathSegment<T> {
             start,
             geometry: PathGeometry::Line { end },
             segment_type,
+            ext_attributes: Vec::new(),
         }
     }
 
@@ -253,6 +499,7 @@ impl<T: Scalar> PathSegment<T> {
                 direction,
             },
             segment_type,
+            ext_attributes: Vec::new(),
         }
     }
 
@@ -279,20 +526,10 @@ impl<T: Scalar> PathSegment<T> {
     /// 円弧の場合は円弧長。
     pub fn length(&self) -> T {
         match &self.geometry {
-            PathGeometry::Line { end } => {
-                let dx = end.x() - self.start.x();
-                let dy = end.y() - self.start.y();
-                let dz = end.z() - self.start.z();
-                (dx * dx + dy * dy + dz * dz).sqrt()
-            }
+            PathGeometry::Line { end } => self.start.distance_to(*end),
             PathGeometry::Arc { end, center, .. } => {
                 // 円弧長 = 半径 × 中心角
-                let radius = {
-                    let dx = self.start.x() - center.x();
-                    let dy = self.start.y() - center.y();
-                    let dz = self.start.z() - center.z();
-                    (dx * dx + dy * dy + dz * dz).sqrt()
-                };
+                let radius = self.start.distance_to(*center);
 
                 // 始点→中心、終点→中心のベクトル
                 let v1_x = self.start.x() - center.x();
@@ -315,6 +552,68 @@ impl<T: Scalar> PathSegment<T> {
             }
         }
     }
+
+    /// 線形加速度ヒントを拡張属性として設定する。
+    pub fn with_linear_acceleration_hint_mm_per_sec2(
+        mut self,
+        acceleration_mm_per_sec2: f64,
+    ) -> Self {
+        upsert_ext_attr_f64(
+            &mut self.ext_attributes,
+            SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2,
+            acceleration_mm_per_sec2,
+        );
+        self
+    }
+
+    /// 回転加速度ヒントを拡張属性として設定する。
+    pub fn with_rotary_acceleration_hint_deg_per_sec2(
+        mut self,
+        acceleration_deg_per_sec2: f64,
+    ) -> Self {
+        upsert_ext_attr_f64(
+            &mut self.ext_attributes,
+            SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2,
+            acceleration_deg_per_sec2,
+        );
+        self
+    }
+
+    /// 線形加速度ヒント [mm/s^2] を取得する。
+    pub fn linear_acceleration_hint_mm_per_sec2(&self) -> Option<f64> {
+        read_ext_attr_f64(
+            &self.ext_attributes,
+            SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2,
+        )
+    }
+
+    /// 回転加速度ヒント [deg/s^2] を取得する。
+    pub fn rotary_acceleration_hint_deg_per_sec2(&self) -> Option<f64> {
+        read_ext_attr_f64(
+            &self.ext_attributes,
+            SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2,
+        )
+    }
+}
+
+fn upsert_ext_attr_f64(ext_attributes: &mut Vec<ExtAttribute>, tag: i16, value: f64) {
+    let encoded = value.to_le_bytes().to_vec();
+    if let Some(existing) = ext_attributes.iter_mut().find(|attr| attr.tag == tag) {
+        existing.data = encoded;
+    } else {
+        ext_attributes.push(ExtAttribute::new(tag, encoded));
+    }
+}
+
+fn read_ext_attr_f64(ext_attributes: &[ExtAttribute], tag: i16) -> Option<f64> {
+    let attr = ext_attributes.iter().find(|attr| attr.tag == tag)?;
+    if attr.data.len() != 8 {
+        return None;
+    }
+
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(&attr.data);
+    Some(f64::from_le_bytes(bytes))
 }
 
 /// 等高線レベル経路
@@ -394,6 +693,7 @@ impl<T: Scalar + std::iter::Sum> ContourLevelPath<T> {
 ///
 /// 1つの島または輪郭の完全な加工シーケンス。
 /// Approach → Cutting → Retract の3フェーズ構造。
+/// 拡張属性により、ユーザースクリプトが独自情報を追加できます。
 ///
 /// # 例
 ///
@@ -424,6 +724,12 @@ pub struct ToolPath<T: Scalar = f64> {
 
     /// リトラクトフェーズ（ToolPath終了部、編集可能）
     pub retract_segments: Vec<PathSegment<T>>,
+
+    /// ToolPath全体の拡張属性（ユーザーが付与可能）
+    pub ext_attributes: Vec<ExtAttribute>,
+
+    /// ToolPath全体の運動学メタ情報
+    pub kinematic_meta: ToolPathKinematicMeta,
 }
 
 impl<T: Scalar + std::iter::Sum> ToolPath<T> {
@@ -443,12 +749,33 @@ impl<T: Scalar + std::iter::Sum> ToolPath<T> {
         contour_levels: Vec<ContourLevelPath<T>>,
         retract_segments: Vec<PathSegment<T>>,
     ) -> Self {
+        Self::new_with_kinematic_meta(
+            tool_id,
+            cutting_direction,
+            approach_segments,
+            contour_levels,
+            retract_segments,
+            ToolPathKinematicMeta::three_axis_position_only(),
+        )
+    }
+
+    /// 運動学メタを明示して新しい工具経路を作成
+    pub fn new_with_kinematic_meta(
+        tool_id: String,
+        cutting_direction: CuttingDirection,
+        approach_segments: Vec<PathSegment<T>>,
+        contour_levels: Vec<ContourLevelPath<T>>,
+        retract_segments: Vec<PathSegment<T>>,
+        kinematic_meta: ToolPathKinematicMeta,
+    ) -> Self {
         Self {
             tool_id,
             cutting_direction,
             approach_segments,
             contour_levels,
             retract_segments,
+            ext_attributes: Vec::new(),
+            kinematic_meta,
         }
     }
 
@@ -472,7 +799,3 @@ impl<T: Scalar + std::iter::Sum> ToolPath<T> {
         self.contour_levels.len()
     }
 }
-
-#[cfg(test)]
-#[path = "toolpath_tests.rs"]
-mod tests;

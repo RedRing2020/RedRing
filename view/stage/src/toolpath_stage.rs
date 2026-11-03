@@ -1,6 +1,6 @@
 //! CAM工具経路レンダリングステージ
 //!
-//! ViewModel層から変換された工具経路データを受け取り、
+//! 工具経路の頂点データを受け取り、
 //! GPU上でレンダリングするステージです。
 //!
 //! # 使用例
@@ -74,7 +74,7 @@ impl ToolPathStage {
 
     /// 工具経路データを設定
     ///
-    /// ViewModel層から変換された頂点データを受け取ります。
+    /// 工具経路の頂点データを受け取ります。
     ///
     /// # 引数
     ///
@@ -187,6 +187,7 @@ impl RenderStage for ToolPathStage {
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         self.resources.render(&mut render_pass);

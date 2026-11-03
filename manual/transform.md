@@ -1,6 +1,6 @@
 # Transform システム
 
-RedRingの幾何変換システムについて説明します。現在は`analysis`クレートのMatrix4x4とVectorを直接使用した効率的な変換システムを提供しています。
+RedRingの幾何変換システムについて説明します。Transform trait 定義とエラー型は `geo_core` に集約され、各図形クレートはそれらを再公開して利用します。
 
 ## 設計思想
 
@@ -8,8 +8,9 @@ RedRingの幾何変換システムについて説明します。現在は`analys
 
 - **Analysis統合**: `analysis`クレートのMatrix4x4/Vector3を直接使用
 - **型変換効率**: geo_primitives⇔analysis間の最適化された変換
-- **Foundation準拠**: ExtensionFoundationパターンとの統合
+- **2層責務分離**: 共通Transform責務は `geo_core`、形状適用は各図形クレート
 - **エラーハンドリング**: TransformErrorによる安全な変換操作
+- **汎用座標変換**: 支点や平行移動量は `analysis::Vector2/Vector3` で明示指定
 
 ### シンプルな構成
 
@@ -35,7 +36,7 @@ RedRingの幾何変換システムについて説明します。現在は`analys
 ```rust
 pub trait AnalysisTransform3D<T: Scalar> {
     type Matrix4x4;  // analysis::Matrix4x4
-    type Angle;      // geo_foundation::Angle
+    type Angle;      // analysis::Angle
     type Output;     // 通常はSelf
 
     // 直接Matrix変換
@@ -43,15 +44,15 @@ pub trait AnalysisTransform3D<T: Scalar> {
 
     // 基本変換操作
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
-    fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
-    fn scale_analysis(&self, center: &Self, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
-    fn uniform_scale_analysis(&self, center: &Self, scale_factor: T) -> Result<Self::Output, TransformError>;
+    fn rotate_analysis(&self, center: &Vector3<T>, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
+    fn scale_analysis(&self, center: &Vector3<T>, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
+    fn uniform_scale_analysis(&self, center: &Vector3<T>, scale_factor: T) -> Result<Self::Output, TransformError>;
 
     // 複合変換
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>
     ) -> Result<Self::Output, TransformError>;
 }
@@ -134,7 +135,7 @@ impl<T: Scalar> Point3D<T> {
 統一されたTransformErrorによる堅牢なエラー処理：
 
 ```rust
-use geo_foundation::TransformError;
+use geo_core::TransformError;
 
 match mesh.rotate_analysis(&center, &axis, angle) {
     Ok(rotated) => { /* 成功 */ }
@@ -190,7 +191,7 @@ match mesh.rotate_analysis(&center, &axis, angle) {
 // 現在のシンプルな設計
 trait AnalysisTransform3D<T: Scalar> {
     type Matrix4x4;  // analysis::Matrix4x4<T>
-    type Angle;      // geo_foundation::Angle<T>
+    type Angle;      // analysis::Angle<T>
     type Output;     // 通常はSelf
 
     // 直接Matrix変換
@@ -198,8 +199,8 @@ trait AnalysisTransform3D<T: Scalar> {
 
     // Analysisベースの字全な変換操作
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
-    fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
-    fn scale_analysis(&self, center: &Self, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
+    fn rotate_analysis(&self, center: &Vector3<T>, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
+    fn scale_analysis(&self, center: &Vector3<T>, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
 }
 ```
 

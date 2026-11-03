@@ -1,17 +1,20 @@
-//! TriangleMesh3D Core 実装
+//! TriangleMesh3D 実装
 //!
-//! Foundation統一システムに基づくTriangleMesh3Dの必須機能のみ
+//! 共有頂点と三角形の頂点番号で表す三角形メッシュ
+
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
 
 use crate::{Point3D, Triangle3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::{
+    PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq, Triangle3DConstructor,
+    TriangleMesh3DConstructor, TriangleMesh3DProperties, TriangleMesh3DTriangleAccess,
+    TriangleMeshError,
+};
 
-/// 3次元三角形メッシュ（Core実装）
-///
-/// Core機能のみ：
-/// - 頂点配列による共有頂点管理
-/// - 三角形インデックス配列
-/// - 基本的なアクセサメソッド
-/// - 法線計算（オプション）
+/// 3次元三角形メッシュ
 #[derive(Debug, Clone, PartialEq)]
 pub struct TriangleMesh3D<T: Scalar> {
     /// 共有頂点配列
@@ -24,26 +27,60 @@ pub struct TriangleMesh3D<T: Scalar> {
     normals: Option<Vec<Vector3D<T>>>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
+impl<T: Scalar> PrimitiveMetadata for TriangleMesh3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Mesh
+    }
+}
 
 impl<T: Scalar> TriangleMesh3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
+    /// 三角形の面積の合計
+    fn total_area(&self) -> T {
+        self.indices
+            .iter()
+            .map(|&[a, b, c]| {
+                let (v0, v1, v2) = (self.vertices[a], self.vertices[b], self.vertices[c]);
+                Vector3D::from_points(v0, v1)
+                    .cross(Vector3D::from_points(v0, v2))
+                    .length()
+                    / (T::ONE + T::ONE)
+            })
+            .fold(T::ZERO, |sum, area| sum + area)
+    }
+}
 
-    /// 新しいメッシュを作成
-    pub fn new(vertices: Vec<Point3D<T>>, indices: Vec<[usize; 3]>) -> Result<Self, String> {
-        // インデックスの有効性を検証
+impl<T: Scalar> TolerantEq<T> for TriangleMesh3D<T> {
+    /// 頂点数・三角形数が等しく、面積の合計の差が許容誤差以内
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        self.vertex_count() == other.vertex_count()
+            && self.triangle_count() == other.triangle_count()
+            && (self.total_area() - other.total_area()).abs() <= tolerance
+    }
+}
+
+impl<T: Scalar> std::fmt::Display for TriangleMesh3D<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "TriangleMesh3D({} vertices, {} triangles)",
+            self.vertex_count(),
+            self.triangle_count()
+        )
+    }
+}
+
+impl<T: Scalar> TriangleMesh3DConstructor<T> for TriangleMesh3D<T> {
+    fn new(vertices: Vec<Point3D<T>>, indices: Vec<[usize; 3]>) -> Result<Self, TriangleMeshError> {
         let vertex_count = vertices.len();
-        for (tri_idx, triangle_indices) in indices.iter().enumerate() {
-            for (i, &vertex_idx) in triangle_indices.iter().enumerate() {
-                if vertex_idx >= vertex_count {
-                    return Err(format!(
-                        "Triangle {} vertex {} has invalid index {} (vertex count: {})",
-                        tri_idx, i, vertex_idx, vertex_count
-                    ));
+        for (triangle, triangle_indices) in indices.iter().enumerate() {
+            for (corner, &index) in triangle_indices.iter().enumerate() {
+                if index >= vertex_count {
+                    return Err(TriangleMeshError::InvalidVertexIndex {
+                        triangle,
+                        corner,
+                        index,
+                        vertex_count,
+                    });
                 }
             }
         }
@@ -55,171 +92,73 @@ impl<T: Scalar> TriangleMesh3D<T> {
         })
     }
 
-    /// 空のメッシュを作成
-    pub fn empty() -> Self {
-        Self {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            normals: None,
+    fn with_normals(
+        vertices: Vec<Point3D<T>>,
+        indices: Vec<[usize; 3]>,
+        normals: Vec<Vector3D<T>>,
+    ) -> Result<Self, TriangleMeshError> {
+        if normals.len() != vertices.len() {
+            return Err(TriangleMeshError::NormalCountMismatch {
+                normal_count: normals.len(),
+                vertex_count: vertices.len(),
+            });
         }
-    }
-
-    // ========================================================================
-    // Core Access Methods
-    // ========================================================================
-
-    /// 頂点数を取得
-    pub fn vertex_count(&self) -> usize {
-        self.vertices.len()
-    }
-
-    /// 三角形数を取得
-    pub fn triangle_count(&self) -> usize {
-        self.indices.len()
-    }
-
-    /// 頂点配列への参照を取得
-    pub fn vertices(&self) -> &[Point3D<T>] {
-        &self.vertices
-    }
-
-    /// インデックス配列への参照を取得
-    pub fn indices(&self) -> &[[usize; 3]] {
-        &self.indices
-    }
-
-    /// 法線配列への参照を取得（存在する場合）
-    pub fn normals(&self) -> Option<&[Vector3D<T>]> {
-        self.normals.as_deref()
-    }
-
-    /// 指定したインデックスの頂点を取得
-    pub fn vertex(&self, index: usize) -> Option<Point3D<T>> {
-        self.vertices.get(index).copied()
-    }
-
-    /// 指定したインデックスの三角形インデックスを取得
-    pub fn triangle_indices(&self, index: usize) -> Option<[usize; 3]> {
-        self.indices.get(index).copied()
-    }
-
-    /// 指定したインデックスの三角形を取得
-    pub fn triangle(&self, index: usize) -> Option<Triangle3D<T>> {
-        let indices = self.triangle_indices(index)?;
-        let a = self.vertex(indices[0])?;
-        let b = self.vertex(indices[1])?;
-        let c = self.vertex(indices[2])?;
-
-        Triangle3D::new(a, b, c)
-    }
-
-    // ========================================================================
-    // Core Validation Methods
-    // ========================================================================
-
-    /// メッシュが有効かどうかを判定
-    pub fn is_valid(&self) -> bool {
-        // 空のメッシュは有効
-        if self.indices.is_empty() {
-            return true;
-        }
-
-        // 頂点が存在しないのに三角形がある場合は無効
-        if self.vertices.is_empty() {
-            return false;
-        }
-
-        // すべてのインデックスが有効範囲内かチェック
-        let vertex_count = self.vertices.len();
-        for indices in &self.indices {
-            for &vertex_idx in indices {
-                if vertex_idx >= vertex_count {
-                    return false;
-                }
-            }
-        }
-
-        // 法線が存在する場合、頂点数と一致するかチェック
-        if let Some(ref normals) = self.normals {
-            if normals.len() != self.vertices.len() {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    /// 退化した三角形の数を取得
-    pub fn degenerate_triangle_count(&self) -> usize {
-        self.indices
-            .iter()
-            .filter(|&&indices| {
-                // 同じ頂点を参照している場合は退化
-                indices[0] == indices[1] || indices[1] == indices[2] || indices[2] == indices[0]
-            })
-            .count()
-    }
-
-    // ========================================================================
-    // Core Utility Methods
-    // ========================================================================
-
-    /// メッシュが空かどうかを判定
-    pub fn is_empty(&self) -> bool {
-        self.indices.is_empty()
-    }
-
-    /// 境界ボックスを計算
-    pub fn bounding_box(&self) -> Option<(Point3D<T>, Point3D<T>)> {
-        if self.vertices.is_empty() {
-            return None;
-        }
-
-        let first = self.vertices[0];
-        let mut min_point = first;
-        let mut max_point = first;
-
-        for &vertex in &self.vertices[1..] {
-            // X座標
-            if vertex.x() < min_point.x() {
-                min_point = Point3D::new(vertex.x(), min_point.y(), min_point.z());
-            }
-            if vertex.x() > max_point.x() {
-                max_point = Point3D::new(vertex.x(), max_point.y(), max_point.z());
-            }
-
-            // Y座標
-            if vertex.y() < min_point.y() {
-                min_point = Point3D::new(min_point.x(), vertex.y(), min_point.z());
-            }
-            if vertex.y() > max_point.y() {
-                max_point = Point3D::new(max_point.x(), vertex.y(), max_point.z());
-            }
-
-            // Z座標
-            if vertex.z() < min_point.z() {
-                min_point = Point3D::new(min_point.x(), min_point.y(), vertex.z());
-            }
-            if vertex.z() > max_point.z() {
-                max_point = Point3D::new(max_point.x(), max_point.y(), vertex.z());
-            }
-        }
-
-        Some((min_point, max_point))
+        let mesh = Self::new(vertices, indices)?;
+        Ok(Self {
+            normals: Some(normals),
+            ..mesh
+        })
     }
 }
 
-// ============================================================================
-// Display Implementation
-// ============================================================================
+impl<T: Scalar> TriangleMesh3DProperties<T> for TriangleMesh3D<T> {
+    fn vertices(&self) -> &[Point3D<T>] {
+        &self.vertices
+    }
 
-impl<T: Scalar> std::fmt::Display for TriangleMesh3D<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "TriangleMesh3D({} vertices, {} triangles)",
-            self.vertex_count(),
-            self.triangle_count()
+    fn indices(&self) -> &[[usize; 3]] {
+        &self.indices
+    }
+
+    fn normals(&self) -> Option<&[Vector3D<T>]> {
+        self.normals.as_deref()
+    }
+
+    fn vertex_count(&self) -> usize {
+        self.vertices.len()
+    }
+
+    fn triangle_count(&self) -> usize {
+        self.indices.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.indices.is_empty()
+    }
+
+    fn is_valid(&self) -> bool {
+        let vertex_count = self.vertices.len();
+        let indices_valid = self
+            .indices
+            .iter()
+            .all(|triangle| triangle.iter().all(|&index| index < vertex_count));
+        let normals_valid = self
+            .normals
+            .as_ref()
+            .is_none_or(|normals| normals.len() == vertex_count);
+        indices_valid && normals_valid
+    }
+}
+
+impl<T: Scalar> TriangleMesh3DTriangleAccess<T> for TriangleMesh3D<T> {
+    type Triangle = Triangle3D<T>;
+
+    fn triangle(&self, index: usize) -> Option<Triangle3D<T>> {
+        let [a, b, c] = *self.indices.get(index)?;
+        Triangle3D::new(
+            *self.vertices.get(a)?,
+            *self.vertices.get(b)?,
+            *self.vertices.get(c)?,
         )
     }
 }

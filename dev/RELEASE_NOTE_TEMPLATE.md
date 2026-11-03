@@ -55,7 +55,7 @@
 - [ ] `cargo test --workspace`
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings`
 - [ ] `cargo fmt --all -- --check`
-- [ ] `./scripts/check_architecture_dependencies_simple.ps1`
+- [ ] `./scripts/check_architecture_dependencies.ps1`
 - [ ] `mdbook build`
 
 ## Known Issues

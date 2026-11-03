@@ -1,14 +1,10 @@
 //! snapshot_converter - 時系列スナップショットのドメインモデル変換
 //!
-//! ViewModel層で利用するための汎用スナップショットDTOを定義します。
+//! 汎用のスナップショットDTOを定義します。
 //! ドメイン固有情報は `payload` に閉じ込め、CAM以外（例: プレス）にも
 //! 同じ構造で適用できることを目的とします。
 
-use cam_core::Tool;
-use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
-use geo_algorithms::{Aabb3D, Point3D};
-
-use crate::toolpath_converter::create_sample_toolpath;
+use cam_sim::SimulationSnapshotExport;
 
 /// 3D姿勢情報（位置 + 任意の姿勢）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -84,7 +80,7 @@ impl<TPayload> DomainSnapshotSeries<TPayload> {
 
 /// CAM切削シミュレーション由来の最小スナップショット入力
 ///
-/// cam_sim への直接依存を持たず、境界越しに必要情報のみ受け取るためのDTO。
+/// 切削シミュレーションのスナップショットのうち、表示に必要な情報だけを持つDTO。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CamSimulationSnapshotInput {
     pub segment_index: usize,
@@ -161,26 +157,6 @@ pub fn cam_snapshot_exports_to_inputs(
         .collect()
 }
 
-/// デバッグ用：cam_sim 実行結果からドメインスナップショット系列を生成する。
-pub fn create_sample_cam_snapshot_domain_series(
-) -> Result<DomainSnapshotSeries<CamSimulationSnapshotInput>, SimulationError> {
-    let bounds = Aabb3D::new(
-        Point3D::new(-60.0, -60.0, -20.0),
-        Point3D::new(60.0, 60.0, 30.0),
-    );
-    let voxel = geo_algorithms::octree::VoxelOctree::new(bounds, 4);
-
-    let mut simulator = CuttingSimulator::new(voxel, SnapshotInterval::default());
-    let toolpath = create_sample_toolpath();
-    let tool = Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0);
-
-    simulator.simulate(&toolpath, &tool)?;
-    let exports = simulator.snapshot_exports_f64();
-    let inputs = cam_snapshot_exports_to_inputs(&exports);
-
-    Ok(cam_snapshot_inputs_to_domain_series("cam_sim", &inputs))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,12 +229,5 @@ mod tests {
         assert_eq!(inputs.len(), 1);
         assert_eq!(inputs[0].segment_index, 2);
         assert_eq!(inputs[0].segment_t, 0.75);
-    }
-
-    #[test]
-    fn test_create_sample_cam_snapshot_domain_series() {
-        let series = create_sample_cam_snapshot_domain_series().expect("cam_sim sample should run");
-        assert_eq!(series.source, "cam_sim");
-        assert!(!series.frames.is_empty());
     }
 }

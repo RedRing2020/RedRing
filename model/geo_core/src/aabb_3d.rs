@@ -3,8 +3,11 @@
 //! Foundation Pattern に基づく Aabb3D の実装。
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
+#[cfg(test)]
+mod tests;
+
+use crate::PointClassification;
 use analysis::abstract_types::Scalar;
-use geo_foundation::commons::Aabb3DTrait;
 
 use crate::Point3D;
 
@@ -48,10 +51,46 @@ impl<T: Scalar> Aabb3D<T> {
     }
 
     /// 点がAABB内に含まれるか
-    pub fn contains(&self, p: &Point3D<T>) -> bool {
+    pub fn contains_point(&self, p: Point3D<T>) -> bool {
         (self.min.x() <= p.x() && p.x() <= self.max.x())
             && (self.min.y() <= p.y() && p.y() <= self.max.y())
             && (self.min.z() <= p.z() && p.z() <= self.max.z())
+    }
+
+    /// 点から AABB の境界（辺・面）までの最短距離
+    ///
+    /// 内部の点は最も近い辺・面までの距離、外部の点は AABB までの距離を返す。
+    pub fn distance_to_boundary(&self, point: Point3D<T>) -> T {
+        let coordinates = [point.x(), point.y(), point.z()];
+        let mins = [self.min.x(), self.min.y(), self.min.z()];
+        let maxs = [self.max.x(), self.max.y(), self.max.z()];
+
+        let axes = coordinates.iter().zip(mins.iter().zip(maxs.iter()));
+        if self.contains_point(point) {
+            axes.map(|(&value, (&min, &max))| (value - min).min(max - value))
+                .fold(maxs[0] - mins[0], |nearest, margin| nearest.min(margin))
+        } else {
+            axes.map(|(&value, (&min, &max))| {
+                let excess = (min - value).max(value - max).max(T::ZERO);
+                excess * excess
+            })
+            .fold(T::ZERO, |sum, squared| sum + squared)
+            .sqrt()
+        }
+    }
+
+    /// AABB の領域に対する点の位置を分類する
+    ///
+    /// 境界までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
+    pub fn classify_point(&self, point: Point3D<T>, tolerance: T) -> PointClassification {
+        if self.distance_to_boundary(point) <= tolerance {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// 最小点を取得
@@ -117,143 +156,5 @@ impl<T: Scalar> Aabb3D<T> {
             && self.max.y() >= other.min.y()
             && self.min.z() <= other.max.z()
             && self.max.z() >= other.min.z()
-    }
-}
-
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
-impl<T: Scalar> Aabb3DTrait<T> for Aabb3D<T> {
-    type Point3D = Point3D<T>;
-
-    fn min(&self) -> Self::Point3D {
-        self.min
-    }
-
-    fn max(&self) -> Self::Point3D {
-        self.max
-    }
-
-    fn width(&self) -> T {
-        self.max.x() - self.min.x()
-    }
-
-    fn height(&self) -> T {
-        self.max.y() - self.min.y()
-    }
-
-    fn depth(&self) -> T {
-        self.max.z() - self.min.z()
-    }
-
-    fn volume(&self) -> T {
-        (self.max.x() - self.min.x())
-            * (self.max.y() - self.min.y())
-            * (self.max.z() - self.min.z())
-    }
-
-    fn center(&self) -> Self::Point3D {
-        let two = T::ONE + T::ONE;
-        Point3D::new(
-            (self.min.x() + self.max.x()) / two,
-            (self.min.y() + self.max.y()) / two,
-            (self.min.z() + self.max.z()) / two,
-        )
-    }
-
-    fn contains_point(&self, point: &Self::Point3D) -> bool {
-        (self.min.x() <= point.x() && point.x() <= self.max.x())
-            && (self.min.y() <= point.y() && point.y() <= self.max.y())
-            && (self.min.z() <= point.z() && point.z() <= self.max.z())
-    }
-
-    fn contains_bbox(&self, other: &Self) -> bool {
-        self.min.x() <= other.min.x()
-            && self.max.x() >= other.max.x()
-            && self.min.y() <= other.min.y()
-            && self.max.y() >= other.max.y()
-            && self.min.z() <= other.min.z()
-            && self.max.z() >= other.max.z()
-    }
-
-    fn intersects(&self, other: &Self) -> bool {
-        self.min.x() <= other.max.x()
-            && self.max.x() >= other.min.x()
-            && self.min.y() <= other.max.y()
-            && self.max.y() >= other.min.y()
-            && self.min.z() <= other.max.z()
-            && self.max.z() >= other.min.z()
-    }
-
-    fn is_valid(&self) -> bool {
-        !(self.min.x() > self.max.x() || self.min.y() > self.max.y() || self.min.z() > self.max.z())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_aabb3d_creation() {
-        let min = Point3D::new(0.0, 0.0, 0.0);
-        let max = Point3D::new(1.0, 2.0, 3.0);
-        let aabb = Aabb3D::new(min, max);
-        assert_eq!(aabb.min(), min);
-        assert_eq!(aabb.max(), max);
-    }
-
-    #[test]
-    fn test_aabb3d_dimensions() {
-        let min = Point3D::new(1.0, 2.0, 3.0);
-        let max = Point3D::new(4.0, 7.0, 9.0);
-        let aabb = Aabb3D::new(min, max);
-        assert_eq!(aabb.width(), 3.0);
-        assert_eq!(aabb.height(), 5.0);
-        assert_eq!(aabb.depth(), 6.0);
-        assert_eq!(aabb.volume(), 90.0);
-    }
-
-    #[test]
-    fn test_aabb3d_center() {
-        let min = Point3D::new(0.0, 0.0, 0.0);
-        let max = Point3D::new(2.0, 4.0, 6.0);
-        let aabb = Aabb3D::new(min, max);
-        let center = aabb.center();
-        assert_eq!(center.x(), 1.0);
-        assert_eq!(center.y(), 2.0);
-        assert_eq!(center.z(), 3.0);
-    }
-
-    #[test]
-    fn test_contains() {
-        let min = Point3D::new(0.0, 0.0, 0.0);
-        let max = Point3D::new(2.0, 2.0, 2.0);
-        let aabb = Aabb3D::new(min, max);
-        assert!(aabb.contains(&Point3D::new(1.0, 1.0, 1.0)));
-        assert!(aabb.contains(&Point3D::new(0.0, 0.0, 0.0)));
-        assert!(aabb.contains(&Point3D::new(2.0, 2.0, 2.0)));
-        assert!(!aabb.contains(&Point3D::new(3.0, 1.0, 1.0)));
-    }
-
-    #[test]
-    fn test_from_points() {
-        let points = vec![
-            Point3D::new(1.0, 2.0, 3.0),
-            Point3D::new(4.0, 5.0, 6.0),
-            Point3D::new(0.0, 1.0, 2.0),
-        ];
-        let aabb = Aabb3D::from_points(&points).unwrap();
-        assert_eq!(aabb.min(), Point3D::new(0.0, 1.0, 2.0));
-        assert_eq!(aabb.max(), Point3D::new(4.0, 5.0, 6.0));
-    }
-
-    #[test]
-    fn test_is_empty() {
-        let valid = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0));
-        let invalid = Aabb3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 1.0));
-        assert!(!valid.is_empty());
-        assert!(invalid.is_empty());
     }
 }

@@ -2,7 +2,7 @@
 
 **作成日**: 2026年1月10日  
 **対象**: Issue #194 Task 5 - レガシーAPI非推奨化  
-**関連**: [ISSUE_170_IMPLEMENTATION_REPORT.md](./ISSUE_170_IMPLEMENTATION_REPORT.md)
+**関連**: [issue-170-collision-numerical-precision-archive-note.md](../archive/issues/foundation/issue-170-collision-numerical-precision-archive-note.md)
 
 ## 概要
 

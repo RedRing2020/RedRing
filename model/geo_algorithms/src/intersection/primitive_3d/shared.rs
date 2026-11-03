@@ -1,0 +1,175 @@
+use crate::{
+    ConicalSolid3D, ConicalSurface3D, IntersectionGeometry, IntersectionResult,
+    IntersectionTopology, LineSegment3D, Point3D, SphericalSurface3D, Vector3D,
+};
+use geo_contracts::{
+    ConicalSolid3DDistance, ConicalSurface3DDistance, ConicalSurface3DProperties,
+    LineSegment3DConstructor, Scalar, SphericalSurface3DProperties,
+};
+
+pub(crate) fn point_intersection_if<T: Scalar>(
+    point: &Point3D<T>,
+    condition: bool,
+) -> Option<Point3D<T>> {
+    if condition {
+        Some(*point)
+    } else {
+        None
+    }
+}
+
+pub(crate) fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> bool {
+    cone.distance_to_point(*point) <= tolerance
+}
+
+pub(crate) fn spherical_surface_intersection_parameters<T: Scalar>(
+    start: &Point3D<T>,
+    direction: &crate::Vector3D<T>,
+    sphere: &SphericalSurface3D<T>,
+    tolerance: T,
+) -> Option<(T, T)> {
+    let center = SphericalSurface3DProperties::center(sphere);
+    let radius = SphericalSurface3DProperties::radius(sphere);
+    let offset = crate::Vector3D::from_points(center, *start);
+
+    let a = direction.dot(*direction);
+    if a.abs() <= tolerance {
+        return None;
+    }
+
+    // 中心に最も近い点 t_c と、そこから中心までの距離 h を先に求め、t = t_c ± √(r² − h²) / |d| とする。
+    // 始点が中心から半径より大きく離れていても、r² が |offset|² の桁落ちで失われない
+    let closest = -offset.dot(*direction) / a;
+    let nearest = offset + *direction * closest;
+    // 中心までの距離が半径より許容誤差を超えて大きければ交わらない。許容誤差の中なら接する（丸め誤差の負の残りは 0）
+    let distance_squared = nearest.dot(nearest);
+    if distance_squared.sqrt() > radius + tolerance {
+        return None;
+    }
+    let remaining = (radius * radius - distance_squared).max(T::ZERO);
+    let half = (remaining / a).sqrt();
+    Some((closest - half, closest + half))
+}
+
+pub(crate) fn conical_surface3d_intersect_params<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    origin: &Point3D<T>,
+    direction: &crate::Vector3D<T>,
+    tolerance: T,
+) -> [Option<T>; 2] {
+    // 頂点を原点とする二重円錐 ((p - apex)·axis)² = cos²(半頂角) |p - apex|² と直線の交点
+    let apex = ConicalSurface3DProperties::apex(cone);
+    let d = ConicalSurface3DProperties::axis(cone);
+    let cos = ConicalSurface3DProperties::semi_angle(cone).cos();
+    let apex_x = apex.x();
+    let apex_y = apex.y();
+    let apex_z = apex.z();
+    let k = cos * cos;
+
+    let det_x = origin.x() - apex_x;
+    let det_y = origin.y() - apex_y;
+    let det_z = origin.z() - apex_z;
+
+    let ld = direction.x() * d.x() + direction.y() * d.y() + direction.z() * d.z();
+    let dd = det_x * d.x() + det_y * d.y() + det_z * d.z();
+    let ll = direction.x() * direction.x()
+        + direction.y() * direction.y()
+        + direction.z() * direction.z();
+    let dl = det_x * direction.x() + det_y * direction.y() + det_z * direction.z();
+    let dd_sq = det_x * det_x + det_y * det_y + det_z * det_z;
+
+    let two = T::ONE + T::ONE;
+    let four = two + two;
+    let qa = ld * ld - k * ll;
+    let qb = two * (dd * ld - k * dl);
+    let qc = dd * dd - k * dd_sq;
+
+    if qa.abs() <= tolerance {
+        if qb.abs() > tolerance {
+            return [Some(-qc / qb), None];
+        }
+        return [None, None];
+    }
+
+    let discriminant = qb * qb - four * qa * qc;
+    if discriminant < T::ZERO {
+        return [None, None];
+    }
+
+    let sqrt_d = discriminant.sqrt();
+    let two_a = two * qa;
+    [Some((-qb - sqrt_d) / two_a), Some((-qb + sqrt_d) / two_a)]
+}
+
+pub(crate) fn conical_surface3d_filter_params<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    origin: &Point3D<T>,
+    direction: &crate::Vector3D<T>,
+    params: [Option<T>; 2],
+    t_min: T,
+    t_max: T,
+    tolerance: T,
+) -> Vec<Point3D<T>> {
+    let mut pts = Vec::new();
+    for maybe_t in params {
+        let Some(t) = maybe_t else { continue };
+        if t < t_min - tolerance || t > t_max + tolerance {
+            continue;
+        }
+        let p = Point3D::new(
+            origin.x() + t * direction.x(),
+            origin.y() + t * direction.y(),
+            origin.z() + t * direction.z(),
+        );
+        if cone.distance_to_point(p) <= tolerance {
+            pts.push(p);
+        }
+    }
+    if pts.len() == 2 && pts[0].distance_to(pts[1]) <= tolerance {
+        pts.truncate(1);
+    }
+    pts
+}
+
+/// 凸な立体と、直線 `origin + direction * t` のパラメータの範囲の交差の結果
+///
+/// `overlap` は、範囲のうち立体の内部にあるパラメータの区間。区間の長さが `tolerance` より長ければ重なる線分、
+/// そうでなければ区間の中点を接する点とする。区間がない場合は、範囲内で立体に最も近い点のパラメータと距離
+/// （`closest`）を求め、距離が `tolerance` 以内ならその点を接する点とする。
+pub(crate) fn convex_solid_linear_intersection<T: Scalar>(
+    origin: Point3D<T>,
+    direction: Vector3D<T>,
+    overlap: Option<(T, T)>,
+    closest: impl FnOnce() -> (T, T),
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let point_at = |parameter: T| origin + direction * parameter;
+    if let Some((enter, exit)) = overlap {
+        let (start, end) = (point_at(enter), point_at(exit));
+        if start.distance_to(end) > tolerance {
+            if let Some(segment) = LineSegment3D::new(start, end) {
+                return IntersectionResult::new(
+                    IntersectionGeometry::Segment(segment),
+                    IntersectionTopology::Crossing,
+                    false,
+                    tolerance,
+                );
+            }
+        }
+        return IntersectionResult::point(
+            point_at((enter + exit) / (T::ONE + T::ONE)),
+            true,
+            tolerance,
+        );
+    }
+    let (parameter, distance) = closest();
+    if distance <= tolerance {
+        IntersectionResult::point(point_at(parameter), true, tolerance)
+    } else {
+        IntersectionResult::disjoint(tolerance)
+    }
+}

@@ -3,13 +3,15 @@
 **作成日**: 2025年12月23日  
 **目的**: NURBS と Primitives 間の collision/intersection 実装の実現性検証
 
+> **#855 で改めた点**: 本書の `BasicCollision` と Collider 型（`NurbsCurveCollider` 等）は削除した。形状をまたぐ演算の trait（`CrossCollision`・`CrossIntersection`・`CrossDistance`）を `geo_algorithms::operations` に置くことで、`geo_primitives` と `geo_nurbs` の形状の組み合わせを Collider 型なしで直接実装できる（`CROSS_OPERATION_COVERAGE_MATRIX_SPEC.md`）。本書は検討の記録として残す。
+
 ## 📊 現状分析
 
 ### 依存関係の制約
 
 ```text
 現在のアーキテクチャ（✅ 正常）:
-analysis → geo_foundation → geo_commons
+analysis → geo_contracts → geo_commons
                 ↓              ↓
             geo_core ──────────┘
                 ↓        ↓
@@ -20,14 +22,14 @@ analysis → geo_foundation → geo_commons
 
 **重要な制約**:
 - ✅ `geo_nurbs` は `geo_primitives` に依存しない（Foundation パターン違反解消済み）
-- ✅ 両者は `geo_core`, `geo_foundation`, `analysis` のみに依存
+- ✅ 両者は `geo_core`, `geo_contracts`, `analysis` のみに依存
 - ❌ `geo_primitives` → `geo_nurbs` の依存は**絶対禁止**（循環依存になる）
 - ❌ `geo_nurbs` → `geo_primitives` の依存も**禁止**（Foundation パターン違反）
 
 ### 現在の BasicCollision/BasicIntersection トレイト
 
 ```rust
-// geo_foundation/src/extensions/collision.rs
+// geo_contracts/src/extensions/collision.rs
 pub trait BasicCollision<T: Scalar, Other> {
     type Point2D;
     fn intersects(&self, other: &Other, tolerance: T) -> bool;
@@ -35,7 +37,7 @@ pub trait BasicCollision<T: Scalar, Other> {
     fn distance_to(&self, other: &Other) -> T;
 }
 
-// geo_foundation/src/extensions/intersection.rs
+// geo_contracts/src/extensions/intersection.rs
 pub trait BasicIntersection<T: Scalar, Other> {
     type Point;
     fn intersection_with(&self, other: &Other, tolerance: T) -> Option<Self::Point>;
@@ -92,7 +94,7 @@ fn collides(a: &dyn ???, b: &dyn ???) -> bool {
 # model/geo_algorithms/Cargo.toml（既存）
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
+geo_contracts = { path = "../geo_contracts" }
 geo_primitives = { path = "../geo_primitives" }  # ← 既に依存
 ```
 
@@ -106,7 +108,7 @@ geo_nurbs = { path = "../geo_nurbs" }  # ← これを追加するだけ
 // model/geo_algorithms/src/collision.rs (新規)
 use geo_primitives::Circle3D;
 use geo_nurbs::NurbsCurve3D;
-use geo_foundation::{BasicCollision, Scalar};
+use geo_contracts::{BasicCollision, Scalar};
 
 impl<T: Scalar> BasicCollision<T, NurbsCurve3D<T>> for Circle3D<T> {
     fn intersects(&self, other: &NurbsCurve3D<T>, tolerance: T) -> bool {
@@ -134,7 +136,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsCurve3D<T> {
 ### 案2: 中間クレート作成（geo_collision）
 
 ```text
-analysis → geo_foundation
+analysis → geo_contracts
                 ↓
            geo_core
             ↓    ↓
@@ -156,7 +158,7 @@ analysis → geo_foundation
 ### 案3: 動的ディスパッチ + Visitor パターン
 
 ```rust
-// geo_foundation にヘルパートレイト追加
+// geo_contracts にヘルパートレイト追加
 pub trait CollisionVisitor<T: Scalar> {
     fn visit_point(&self, point: &Point3D<T>, tolerance: T) -> bool;
     fn visit_line_segment(&self, seg: &LineSegment3D<T>, tolerance: T) -> bool;
@@ -195,7 +197,7 @@ impl<T: Scalar> CollisionAcceptor<T> for NurbsCurve3D<T> {
 ### 案3: enum による形状の統合（簡易版）
 
 ```rust
-// geo_core または geo_foundation に定義
+// geo_core または geo_contracts に定義
 pub enum AnyGeometry<T: Scalar> {
     Point3D(Point3D<T>),
     Circle3D(Circle3D<T>),
@@ -228,7 +230,7 @@ impl<T: Scalar> AnyGeometry<T> {
 ### 案5: マクロベースの実装生成
 
 ```rust
-// geo_foundation でマクロ定義
+// geo_contracts でマクロ定義
 #[macro_export]
 macro_rules! impl_cross_crate_collision {
     ($shape_a:ty, $shape_b:ty) => {
@@ -279,7 +281,7 @@ Phase 3: （オプション）既存の collision を geo_algorithms に移動
 # model/geo_algorithms/Cargo.toml
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
+geo_contracts = { path = "../geo_contracts" }
 geo_primitives = { path = "../geo_primitives" }
 geo_nurbs = { path = "../geo_nurbs" }  # ← 追加
 ```
@@ -289,7 +291,7 @@ geo_nurbs = { path = "../geo_nurbs" }  # ← 追加
 // model/geo_algorithms/src/collision.rs (新規)
 use geo_primitives::*;
 use geo_nurbs::*;
-use geo_foundation::{BasicCollision, Scalar};
+use geo_contracts::{BasicCollision, Scalar};
 
 pub mod primitive_nurbs;  // NURBS × Primitives collision
 pub mod nurbs_nurbs;      // NURBS × NURBS collision
@@ -317,7 +319,7 @@ impl<T: Scalar> BasicCollision<T, NurbsCurve3D<T>> for Circle3D<T> {
 use geo_core::Point3D;
 use geo_primitives::*;
 use geo_nurbs::NurbsCurve3D;
-use geo_foundation::{BasicCollision, Scalar};
+use geo_contracts::{BasicCollision, Scalar};
 
 /// NURBS曲線の衝突判定アダプタ（Newtype パターン）
 /// 
@@ -440,8 +442,8 @@ let original_curve = collider.into_inner();
    geo_algorithms → geo_core
    geo_algorithms → geo_primitives
    geo_algorithms → geo_nurbs
-   geo_primitives → geo_foundation
-   geo_nurbs → geo_foundation
+   geo_primitives → geo_contracts
+   geo_nurbs → geo_contracts
 ```
 
 ### Orphan Rules への対応
@@ -523,3 +525,4 @@ let original_curve = collider.into_inner();
 **リスク**: 低
 - orphan rules に注意が必要だが、自プロジェクト内なので問題なし
 - ビルド時間増加は許容範囲
+

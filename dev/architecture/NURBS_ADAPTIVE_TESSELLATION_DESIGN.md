@@ -185,14 +185,14 @@ pub fn ensure_min_segments<T: Scalar>(
 
 ### 4.1.4 配置案
 
-- `model/geo_nurbs/src/curve_3d_extensions.rs`
+- `model/geo_nurbs/src/nurbs_curve_3d/extensions.rs`
   - 既存の拡張ファイルに適応分割APIを追加
-- `model/geo_nurbs/src/surface_3d_extensions.rs`（新規）
+- `model/geo_nurbs/src/nurbs_surface_3d/extensions.rs`（新規）
   - サーフェス向けの適応分割APIを追加
 - `model/geo_nurbs/src/lib.rs`
   - `surface_3d_extensions` を公開（必要に応じて）
 
-※ 依存関係は geo_nurbs → geo_foundation/geo_core を維持する。
+※ 依存関係は geo_nurbs → geo_contracts/geo_core を維持する。
 
 ### 4.1.5 ViewModel層の利用案
 
@@ -221,10 +221,10 @@ pub trait NurbsAdaptiveParametricTessellation<T: Scalar> {
 ```
 
 実装配置:
-- `curve_3d_extensions.rs` に曲線用の実装
-- `surface_3d_extensions.rs`（新規）にサーフェス用の実装
+- `nurbs_curve_3d/extensions.rs` に曲線用の実装
+- `nurbs_surface_3d/extensions.rs`（新規）にサーフェス用の実装
 
-## 4.3 geo_foundation::NurbsTessellation との関係
+## 4.3 geo_contracts::NurbsTessellation との関係
 
 `NurbsTessellation` は CPU側のメッシュ化用途として維持し、
 GPU向けのパラメータ列APIとは別レイヤーで提供する。
@@ -316,6 +316,7 @@ GPU向けのパラメータ列APIとは別レイヤーで提供する。
 
 ## 9. 注意事項
 
-- Foundation Patternの依存階層を厳守（geo_nurbs -> geo_core -> geo_foundation）
+- Foundation Patternの依存階層を厳守（geo_nurbs -> geo_contracts -> geo_core）
 - 既存のSVG経由テッセレーションはデバッグ用途として維持
 - 将来のCompute移行を見据えて、GPU入力形式は固定化する
+

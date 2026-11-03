@@ -1,0 +1,21 @@
+.git/
+.github/
+.vscode/
+.vscodeignore
+.trunk/
+
+# Build outputs and generated docs
+target/
+docs/
+book/
+
+# Runtime logs
+logs/
+
+# Local environment
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db

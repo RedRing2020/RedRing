@@ -1,13 +1,12 @@
-use geo_entity::{EntityId, LayerId, LayerMembershipPolicy, RelationStore};
+use geo_entity::{EntityId, LayerId, RelationStore};
 
 #[test]
-fn single_layer_policy_rejects_second_layer() {
+fn layer_membership_rejects_second_distinct_layer() {
     let mut store = RelationStore::new();
     let entity = EntityId::from_seed("entity-a");
     let layer1 = LayerId::new();
     let layer2 = LayerId::new();
 
-    store.set_layer_policy(entity, LayerMembershipPolicy::SingleLayer);
     store
         .add_to_layer(entity, layer1)
         .expect("first layer should be accepted");
@@ -17,20 +16,44 @@ fn single_layer_policy_rejects_second_layer() {
 }
 
 #[test]
-fn multi_layer_policy_accepts_multiple_layers() {
+fn layer_membership_returns_single_assigned_layer() {
     let mut store = RelationStore::new();
     let entity = EntityId::from_seed("entity-b");
     let layer1 = LayerId::new();
-    let layer2 = LayerId::new();
 
-    store.set_layer_policy(entity, LayerMembershipPolicy::MultiLayer);
     store
         .add_to_layer(entity, layer1)
-        .expect("first layer should be accepted");
-    store
-        .add_to_layer(entity, layer2)
-        .expect("second layer should be accepted");
+        .expect("layer should be accepted");
 
-    let layers = store.layers_for_entity(entity);
-    assert_eq!(layers.len(), 2);
+    assert_eq!(store.layer_for_entity(entity), Some(layer1));
+}
+
+#[test]
+fn layer_membership_allows_idempotent_reassignment_to_same_layer() {
+    let mut store = RelationStore::new();
+    let entity = EntityId::from_seed("entity-c");
+    let layer = LayerId::new();
+
+    store
+        .add_to_layer(entity, layer)
+        .expect("first assignment should be accepted");
+    store
+        .add_to_layer(entity, layer)
+        .expect("same layer assignment should be idempotent");
+
+    assert_eq!(store.layer_for_entity(entity), Some(layer));
+}
+
+#[test]
+fn remove_from_layer_clears_assigned_layer() {
+    let mut store = RelationStore::new();
+    let entity = EntityId::from_seed("entity-d");
+    let layer = LayerId::new();
+
+    store
+        .add_to_layer(entity, layer)
+        .expect("layer should be accepted");
+    store.remove_from_layer(entity, layer);
+
+    assert_eq!(store.layer_for_entity(entity), None);
 }

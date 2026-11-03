@@ -6,6 +6,8 @@
 **優先度**: 🟠 Tier 2（形状可視化・CAM可視化完了後）  
 **関連Issue**: #206（エンティティ層基礎）, #205（Phase 4完全版）
 
+> **現状との差分（#761）**: `geo_entity` は業務に依らない CAD のエンティティ基盤とする。`CAMEntity` は `cam_entity` クレートへ分離済みで、本書の `model/geo_entity/src/cam_entity.rs` の記述は当時の設計である。`DisplayAttributes` の色のプリセット（`cad_red`・`cad_green`・`cam_cutting`・`cam_rapid`）は削除し、`CAMEntity` は `DisplayAttributes::default()` を使う。属性コードのドメインの所有は `ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md` を参照。
+
 ---
 
 ## 📋 目次
@@ -349,7 +351,7 @@ impl Metadata {
 ```rust
 // model/geo_entity/src/geometric_entity.rs
 
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 幾何エンティティ
 #[derive(Debug, Clone)]
@@ -441,7 +443,7 @@ pub type TriangleEntity<T> = GeometricEntity<T, geo_primitives::Triangle3D<T>>;
 // model/geo_entity/src/cam_entity.rs
 
 use geo_algorithms::toolpath::ToolPath;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 加工属性
 #[derive(Debug, Clone)]
@@ -548,7 +550,7 @@ impl<T: Scalar> CAMEntity<T> {
   edition = "2021"
   
   [dependencies]
-  geo_foundation = { path = "../geo_foundation" }
+  geo_contracts = { path = "../geo_contracts" }
   geo_primitives = { path = "../geo_primitives" }
   geo_algorithms = { path = "../geo_algorithms" }
   uuid = { version = "1.0", features = ["v4", "serde"] }
@@ -763,3 +765,4 @@ TopologyEntity<T> {
 - **ロードマップ**: `dev/foundation/ROADMAP_2026_Q1_Q2.md`
 - **関連Issue**: #206（基礎版）, #205（Phase 4完全版）
 - **将来バックログIssue**: #232（Persistent Naming / 自動再接続 / フィーチャー再実行堅牢化）
+

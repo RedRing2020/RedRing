@@ -11,6 +11,7 @@
 //! 詳細な使用例は `manual/geo_io_examples.md` を参照してください。
 
 pub mod error;
+pub mod fixtures;
 pub mod stl;
 pub mod stl_bulk;
 pub mod svg;

@@ -1,16 +1,31 @@
-use cam_core::{Tool, ToolPath};
-use geo_algorithms::octree::VoxelOctree;
-use geo_algorithms::{LineSegment3D, Scalar};
+use geo_algorithms::{
+    Aabb3D, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM, LineSegment3D, LineSegment3DProperties,
+};
 
+use cam_algorithms::ProductSurface;
+use cam_core::{Tool, ToolPath};
+
+use crate::constants::{KEYFRAME_INTERVAL_MM, SNAPSHOT_GRID_SPACING_MULTIPLE};
 use crate::error::SimulationError;
+use crate::product_deviation::{ProductDeviations, compare_with_product};
+use crate::simulation_artifact::CuttingSimulationArtifact;
+use crate::stock_model::StockModel;
+use crate::tri_dexel::{TriDexelModel, dexel_spacing};
 
 mod config;
 mod engine;
 mod segments;
 
+pub use segments::{
+    collect_toolpath_line_segments, collect_toolpath_line_segments_with_arc_options,
+};
+
 /// スナップショット保存間隔の指定方法。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum SnapshotInterval {
+    /// 工具の半径と、素材の格子の間隔の数倍の、短いほうの移動距離ごと（区間の端点は含めない）
+    #[default]
+    ByToolAndGrid,
     ByDistance {
         interval_mm: f64,
         include_segment_endpoints: bool,
@@ -22,11 +37,17 @@ pub enum SnapshotInterval {
     },
 }
 
-impl Default for SnapshotInterval {
-    fn default() -> Self {
-        Self::ByDistance {
-            interval_mm: 10.0,
-            include_segment_endpoints: true,
+impl SnapshotInterval {
+    /// 間隔の指定が有効か（間隔・最小の間隔が正の有限値、目標の記録数が 1 以上）
+    pub(crate) fn is_valid(&self) -> bool {
+        match *self {
+            Self::ByToolAndGrid => true,
+            Self::ByDistance { interval_mm, .. } => interval_mm.is_finite() && interval_mm > 0.0,
+            Self::ByAutoDistance {
+                target_count,
+                min_interval_mm,
+                ..
+            } => target_count > 0 && min_interval_mm.is_finite() && min_interval_mm > 0.0,
         }
     }
 }
@@ -41,9 +62,10 @@ pub struct PathPosition {
 
 /// 1時点のシミュレーション結果。
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SimulationSnapshot<T: Scalar> {
+pub struct SimulationSnapshot {
     pub position: PathPosition,
-    pub remaining_volume: T,
+    /// その区間までの切削を終えた時点の残りの体積
+    pub remaining_volume: f64,
 }
 
 /// ViewModel連携用のスナップショット出力DTO（単位付きのf64へ正規化）。
@@ -55,15 +77,24 @@ pub struct SimulationSnapshotExport {
     pub remaining_volume_mm3: f64,
 }
 
-/// 切削シミュレーション本体。
+/// 切削シミュレーション本体（設計: CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md）。
 ///
-/// - 入力: ToolPath + Tool
-/// - 出力: スナップショット列と更新済みVoxelOctree
+/// - 入力: 素材（直方体）・ToolPath・Tool
+/// - 素材の正本（`StockModel`）と表示用のトリデクセル（`TriDexelModel`）を作り、
+///   経路の距離に沿ったスナップショットの時点と残りの体積を記録する
 #[derive(Debug, Clone)]
-pub struct CuttingSimulator<T: Scalar> {
-    voxel_tree: VoxelOctree<T>,
+pub struct CuttingSimulator {
+    stock: Aabb3D<f64>,
     interval: SnapshotInterval,
-    snapshots: Vec<SimulationSnapshot<T>>,
+    snapshots: Vec<SimulationSnapshot>,
+    /// 各スナップショットの時点までに差し引いた掃引体（切削の区間）の数
+    pub(crate) snapshot_applied: Vec<usize>,
+    /// 成果物のキーフレームを置くスナップショットの番号
+    keyframe_snapshots: Vec<usize>,
+    /// 最後に実行した結果の表示用のトリデクセル
+    pub(crate) dexels: Option<TriDexelModel>,
+    /// 最後に実行した結果の、最後の時点の素材と製品形状の比較
+    product_deviations: Option<ProductDeviations>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -72,28 +103,22 @@ pub(super) struct SnapshotConfig {
     pub(super) include_endpoints: bool,
 }
 
-impl<T: Scalar> CuttingSimulator<T> {
+impl CuttingSimulator {
     /// 新しいシミュレータを作成する。
-    pub fn new(voxel_tree: VoxelOctree<T>, interval: SnapshotInterval) -> Self {
+    pub fn new(stock: Aabb3D<f64>, interval: SnapshotInterval) -> Self {
         Self {
-            voxel_tree,
+            stock,
             interval,
             snapshots: Vec::new(),
+            snapshot_applied: Vec::new(),
+            keyframe_snapshots: Vec::new(),
+            dexels: None,
+            product_deviations: None,
         }
     }
 
-    /// 内部VoxelOctreeへの参照を取得する。
-    pub fn voxel_tree(&self) -> &VoxelOctree<T> {
-        &self.voxel_tree
-    }
-
-    /// 内部VoxelOctreeへの可変参照を取得する。
-    pub fn voxel_tree_mut(&mut self) -> &mut VoxelOctree<T> {
-        &mut self.voxel_tree
-    }
-
     /// 記録済みスナップショットを取得する。
-    pub fn snapshots(&self) -> &[SimulationSnapshot<T>] {
+    pub fn snapshots(&self) -> &[SimulationSnapshot] {
         &self.snapshots
     }
 
@@ -105,61 +130,93 @@ impl<T: Scalar> CuttingSimulator<T> {
                 segment_index: snapshot.position.segment_index,
                 segment_t: snapshot.position.t,
                 accumulated_distance_mm: snapshot.position.accumulated_distance,
-                remaining_volume_mm3: snapshot.remaining_volume.to_f64(),
+                remaining_volume_mm3: snapshot.remaining_volume,
             })
             .collect()
     }
 
-    /// スナップショットをクリアする。
-    pub fn clear_snapshots(&mut self) {
-        self.snapshots.clear();
+    /// 最後に実行した結果の成果物の中身（実行していない場合は `None`）
+    pub fn artifact(&self) -> Option<CuttingSimulationArtifact> {
+        let dexels = self.dexels.as_ref()?;
+        Some(CuttingSimulationArtifact {
+            snapshots: self.snapshot_exports_f64(),
+            snapshot_applied: self.snapshot_applied.clone(),
+            grids: dexels.layouts(),
+            keyframe_snapshots: self.keyframe_snapshots.clone(),
+            keyframe_changes: dexels.keyframe_changes().clone(),
+            product_deviations: self.product_deviations.clone(),
+        })
     }
 
-    /// ToolPathをシミュレーションする（Phase 1a: フラットエンドミル限定）。
+    /// 最後に実行した結果の最後の時点の素材を、製品形状 `surface` と比べ、成果物に加える（判定の許容値は
+    /// `tolerance`。実行していない場合は何もしない）
+    pub fn compare_with_product(&mut self, surface: &ProductSurface, tolerance: f64) {
+        if let Some(dexels) = &self.dexels {
+            self.product_deviations = Some(compare_with_product(dexels, surface, tolerance));
+        }
+    }
+
+    /// ToolPathをシミュレーションする。
+    ///
+    /// 円弧は既定の弦の許容誤差で直線の区間の列にする。トリデクセルの格子の間隔は、素材の精度 `precision` と
+    /// 工具の半径から決める（`dexel_spacing`）。
+    ///
+    /// # Errors
+    ///
+    /// 経路が空の場合・工具がフラット・ボールエンドミルでない場合・記録の間隔が不正な場合。
     pub fn simulate(
         &mut self,
-        toolpath: &ToolPath<T>,
-        tool: &Tool<T>,
+        toolpath: &ToolPath<f64>,
+        tool: &Tool<f64>,
+        precision: f64,
     ) -> Result<(), SimulationError> {
-        if !tool.is_flat_end_mill() {
-            return Err(SimulationError::UnsupportedToolType);
-        }
-
-        let segments = self.collect_line_segments(toolpath)?;
+        let segments =
+            collect_toolpath_line_segments(toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM);
         if segments.is_empty() {
             return Err(SimulationError::EmptyToolpath);
         }
-
+        let model = StockModel::from_segments(self.stock, &segments, tool)?;
+        let spacing = dexel_spacing(tool.radius(), precision);
         let config = self.calculate_snapshot_config(
             segments
                 .iter()
-                .map(|(segment, _)| self.segment_length(segment))
+                .map(|(segment, _)| segment_length(segment))
                 .sum(),
+            tool.radius().min(SNAPSHOT_GRID_SPACING_MULTIPLE * spacing),
         )?;
-
-        self.simulate_segments_with_flags(&segments, tool.radius(), config);
+        self.record_snapshots(&segments, config);
+        self.keyframe_snapshots = keyframe_snapshots(&self.snapshots, KEYFRAME_INTERVAL_MM);
+        let keyframe_applied: Vec<usize> = self
+            .keyframe_snapshots
+            .iter()
+            .map(|&snapshot| self.snapshot_applied[snapshot])
+            .collect();
+        let dexels = TriDexelModel::from_stock_model(&model, spacing, &keyframe_applied);
+        for (snapshot, &applied) in self.snapshots.iter_mut().zip(&self.snapshot_applied) {
+            snapshot.remaining_volume = dexels.remaining_volume_at(applied);
+        }
+        self.dexels = Some(dexels);
+        self.product_deviations = None;
         Ok(())
     }
+}
 
-    /// 線分列を直接シミュレーションする補助API。
-    pub fn simulate_line_segments(&mut self, segments: &[LineSegment3D<T>], tool_radius: T) {
-        let config = self
-            .calculate_snapshot_config(
-                segments
-                    .iter()
-                    .map(|segment| self.segment_length(segment))
-                    .sum(),
-            )
-            .unwrap_or(SnapshotConfig {
-                actual_interval_mm: 10.0,
-                include_endpoints: true,
-            });
-
-        let flagged: Vec<(LineSegment3D<T>, bool)> = segments
-            .iter()
-            .cloned()
-            .map(|segment| (segment, true))
-            .collect();
-        self.simulate_segments_with_flags(&flagged, tool_radius, config);
+/// キーフレームを置くスナップショットの番号（前のキーフレーム（最初は経路の始まり）から経路の距離で `interval_mm`
+/// 以上進んだ最初の時点と、最後の時点）
+fn keyframe_snapshots(snapshots: &[SimulationSnapshot], interval_mm: f64) -> Vec<usize> {
+    let mut keyframes = Vec::new();
+    let mut last_distance = 0.0;
+    for (index, snapshot) in snapshots.iter().enumerate() {
+        let distance = snapshot.position.accumulated_distance;
+        if distance - last_distance >= interval_mm || index + 1 == snapshots.len() {
+            keyframes.push(index);
+            last_distance = distance;
+        }
     }
+    keyframes
+}
+
+/// 線分の長さ
+fn segment_length(segment: &LineSegment3D<f64>) -> f64 {
+    segment.start_point().distance_to(segment.end_point())
 }

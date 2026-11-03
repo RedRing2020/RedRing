@@ -34,8 +34,6 @@ pub struct Quaternion<T: Scalar> {
 }
 
 impl<T: Scalar> Quaternion<T> {
-    // === 定数 ===
-
     /// 単位クォータニオン（回転なし）
     pub const IDENTITY: Quaternion<f64> = Quaternion {
         data: [0.0, 0.0, 0.0, 1.0],
@@ -45,8 +43,6 @@ impl<T: Scalar> Quaternion<T> {
     pub const ZERO: Quaternion<f64> = Quaternion {
         data: [0.0, 0.0, 0.0, 0.0],
     };
-
-    // === コンストラクタ ===
 
     /// 新しいクォータニオンを作成 (x, y, z, w)
     pub fn new(x: T, y: T, z: T, w: T) -> Self {
@@ -137,8 +133,6 @@ impl<T: Scalar> Quaternion<T> {
         Self::new(v.x(), v.y(), v.z(), v.w())
     }
 
-    // === アクセサ ===
-
     /// X成分（i）を取得
     pub fn x(&self) -> T {
         self.data[0]
@@ -179,8 +173,6 @@ impl<T: Scalar> Quaternion<T> {
         self.data[3] = w;
     }
 
-    // === 汎用アクセサ ===
-
     /// インデックスで要素を取得
     #[inline]
     pub fn get(&self, index: usize) -> T {
@@ -199,14 +191,10 @@ impl<T: Scalar> Quaternion<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素をイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().copied()
     }
-
-    // === ベクトル部分・スカラー部分 ===
 
     /// 虚部ベクトル (x, y, z) を取得
     pub fn vector_part(&self) -> Vector3<T> {
@@ -222,8 +210,6 @@ impl<T: Scalar> Quaternion<T> {
     pub fn to_vector4(&self) -> Vector4<T> {
         Vector4::new(self.data[0], self.data[1], self.data[2], self.data[3])
     }
-
-    // === 演算 ===
 
     /// ノルム（大きさ）を計算
     pub fn norm(&self) -> T {
@@ -283,8 +269,6 @@ impl<T: Scalar> Quaternion<T> {
             + self.data[2] * other.data[2]
             + self.data[3] * other.data[3]
     }
-
-    // === 回転操作 ===
 
     /// ベクトルを回転
     pub fn rotate_vector(&self, v: &Vector3<T>) -> Vector3<T> {
@@ -350,8 +334,6 @@ impl<T: Scalar> Quaternion<T> {
         (pitch, yaw, roll)
     }
 
-    // === 補間 ===
-
     /// 線形補間（LERP）
     pub fn lerp(&self, other: &Self, t: T) -> Self {
         let result = *self * (T::ONE - t) + *other * t;
@@ -393,8 +375,6 @@ impl<T: Scalar> Quaternion<T> {
         self.lerp(other, t).normalize()
     }
 
-    // === ユーティリティ ===
-
     /// 単位クォータニオンかどうか判定
     pub fn is_unit(&self) -> bool {
         (self.norm() - T::ONE).abs() < T::EPSILON
@@ -413,8 +393,6 @@ impl<T: Scalar> Quaternion<T> {
         T::from_f64(2.0) * self.w().abs().clamp(T::ZERO, T::ONE).acos()
     }
 }
-
-// === 演算子オーバーロード ===
 
 impl<T: Scalar> Add for Quaternion<T> {
     type Output = Self;
@@ -482,8 +460,6 @@ impl<T: Scalar> Neg for Quaternion<T> {
     }
 }
 
-// === 添え字演算子 ===
-
 impl<T: Scalar> Index<usize> for Quaternion<T> {
     type Output = T;
     #[inline]
@@ -499,8 +475,6 @@ impl<T: Scalar> IndexMut<usize> for Quaternion<T> {
     }
 }
 
-// === 配列変換 ===
-
 impl<T: Scalar> From<[T; 4]> for Quaternion<T> {
     #[inline]
     fn from(data: [T; 4]) -> Self {
@@ -511,3 +485,111 @@ impl<T: Scalar> From<[T; 4]> for Quaternion<T> {
 /// 型エイリアス
 pub type Quaternionf = Quaternion<f32>;
 pub type Quaterniond = Quaternion<f64>;
+
+#[cfg(test)]
+mod tests {
+    use crate::linalg::quaternion::Quaternion;
+    use crate::linalg::vector::Vector3;
+    use crate::test_constants::TOLERANCE_F64;
+    use std::f64::consts::PI;
+
+    #[test]
+    fn test_quaternion_basic_creation() {
+        let q = Quaternion::<f64>::new(1.0, 2.0, 3.0, 4.0);
+        assert_eq!(q.x(), 1.0);
+        assert_eq!(q.y(), 2.0);
+        assert_eq!(q.z(), 3.0);
+        assert_eq!(q.w(), 4.0);
+    }
+
+    #[test]
+    fn test_quaternion_constants() {
+        let identity = Quaternion::<f64>::identity();
+        assert_eq!(identity.x(), 0.0);
+        assert_eq!(identity.y(), 0.0);
+        assert_eq!(identity.z(), 0.0);
+        assert_eq!(identity.w(), 1.0);
+        assert!(identity.is_unit());
+
+        let zero = Quaternion::<f64>::zero();
+        assert!(zero.is_zero());
+    }
+
+    #[test]
+    fn test_quaternion_norm_and_normalize() {
+        let q = Quaternion::<f64>::new(1.0, 2.0, 3.0, 4.0);
+        let expected_norm = (1.0 + 4.0 + 9.0 + 16.0_f64).sqrt();
+        assert!((q.norm() - expected_norm).abs() < TOLERANCE_F64);
+
+        let normalized = q.normalize().unwrap();
+        assert!((normalized.norm() - 1.0).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_quaternion_axis_angle_conversion() {
+        // Z軸周りの90度回転
+        let axis = Vector3::<f64>::new(0.0, 0.0, 1.0);
+        let angle = PI / 2.0;
+        let q = Quaternion::from_axis_angle(&axis, angle);
+
+        // 軸角表現に戻す
+        let (recovered_axis, recovered_angle) = q.to_axis_angle().unwrap();
+
+        assert!((recovered_angle - angle).abs() < TOLERANCE_F64);
+        assert!((recovered_axis.x() - axis.x()).abs() < TOLERANCE_F64);
+        assert!((recovered_axis.y() - axis.y()).abs() < TOLERANCE_F64);
+        assert!((recovered_axis.z() - axis.z()).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_quaternion_multiplication() {
+        let q1 = Quaternion::<f64>::new(1.0, 0.0, 0.0, 0.0);
+        let q2 = Quaternion::<f64>::new(0.0, 1.0, 0.0, 0.0);
+        let result = q1 * q2;
+
+        // 虚数単位の積: i * j = k
+        assert_eq!(result.x(), 0.0);
+        assert_eq!(result.y(), 0.0);
+        assert_eq!(result.z(), 1.0);
+        assert_eq!(result.w(), 0.0);
+    }
+
+    #[test]
+    fn test_quaternion_rotation() {
+        // X軸周りの90度回転のクォータニオン
+        let q = Quaternion::from_axis_angle(&Vector3::<f64>::new(1.0, 0.0, 0.0), PI / 2.0);
+
+        // Y軸の点を回転
+        let point = Vector3::<f64>::new(0.0, 1.0, 0.0);
+        let rotated = q.rotate_vector(&point);
+
+        // Y軸がZ軸になることを確認
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!(rotated.y().abs() < TOLERANCE_F64);
+        assert!((rotated.z() - 1.0).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_quaternion_conjugate() {
+        let q = Quaternion::<f64>::new(1.0, 2.0, 3.0, 4.0);
+        let conjugate = q.conjugate();
+
+        assert_eq!(conjugate.x(), -1.0);
+        assert_eq!(conjugate.y(), -2.0);
+        assert_eq!(conjugate.z(), -3.0);
+        assert_eq!(conjugate.w(), 4.0);
+    }
+
+    #[test]
+    fn test_quaternion_inverse() {
+        let q = Quaternion::<f64>::new(1.0, 2.0, 3.0, 4.0);
+        let inverse = q.inverse().unwrap();
+        let product = q * inverse;
+
+        // q * q^-1 = identity
+        assert!((product.x() - 0.0).abs() < TOLERANCE_F64);
+        assert!((product.y() - 0.0).abs() < TOLERANCE_F64);
+        assert!((product.z() - 0.0).abs() < TOLERANCE_F64);
+        assert!((product.w() - 1.0).abs() < TOLERANCE_F64);
+    }
+}

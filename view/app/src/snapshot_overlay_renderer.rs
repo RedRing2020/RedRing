@@ -1,8 +1,20 @@
 //! Snapshot進捗オーバーレイを描画するレンダラー。
 
 use crate::overlay_coords::screen_to_ndc;
+use crate::selection_rect::SelectionRect;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
+
+/// 進捗バーの位置と大きさ（物理ピクセル。メニューバーなど上端の UI（高さ `top_inset`）の下に置く。描画とドラッグの
+/// 判定で共通）
+pub fn snapshot_track_rect(top_inset: f32) -> SelectionRect {
+    SelectionRect {
+        x: 16.0,
+        y: top_inset + 16.0,
+        width: 220.0,
+        height: 14.0,
+    }
+}
 
 const SNAPSHOT_OVERLAY_SHADER: &str = r#"
 struct VsOut {
@@ -71,7 +83,7 @@ impl SnapshotOverlayRenderer {
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Snapshot Overlay Pipeline Layout"),
             bind_group_layouts: &[],
-            push_constant_ranges: &[],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -119,7 +131,7 @@ impl SnapshotOverlayRenderer {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -141,6 +153,7 @@ impl SnapshotOverlayRenderer {
         queue: &wgpu::Queue,
         progress: Option<f32>,
         style: &SnapshotOverlayStyle,
+        top_inset: f32,
         viewport_width: u32,
         viewport_height: u32,
     ) {
@@ -154,10 +167,12 @@ impl SnapshotOverlayRenderer {
         }
 
         let p = progress.clamp(0.0, 1.0);
-        let left = 16.0;
-        let top = 16.0;
-        let width = 220.0;
-        let height = 14.0;
+        let SelectionRect {
+            x: left,
+            y: top,
+            width,
+            height,
+        } = snapshot_track_rect(top_inset);
         let right = left + width;
         let bottom = top + height;
 
@@ -232,6 +247,7 @@ impl SnapshotOverlayRenderer {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         pass.set_pipeline(&self.pipeline);

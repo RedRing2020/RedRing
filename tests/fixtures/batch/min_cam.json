@@ -1,0 +1,7 @@
+{
+  "job": "cam",
+  "version": 1,
+  "input": {
+    "workpiece": "fixture-cam-min"
+  }
+}

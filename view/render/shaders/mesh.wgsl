@@ -53,5 +53,5 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // 最終カラー
     let final_color = base_color * diffuse;
 
-    return vec4<f32>(final_color, 1.0);
+    return vec4<f32>(final_color, uniforms.base_color.w);
 }

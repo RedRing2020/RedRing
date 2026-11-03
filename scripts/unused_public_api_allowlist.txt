@@ -1,0 +1,72 @@
+# 呼び出し元がなくても意図して残す公開メソッド・trait定義のメソッド（scripts/check_unused_public_api.ps1 の除外リスト）
+# 形式: ファイルのパス:メソッド名  # 残す理由
+
+# 相似変換の公開 API（生成・行列との変換・再正規化）
+model/geo_core/src/similarity_transform_2d.rs:rotation_about
+model/geo_core/src/similarity_transform_2d.rs:uniform_scale_about
+model/geo_core/src/similarity_transform_2d.rs:from_matrix
+model/geo_core/src/similarity_transform_2d.rs:to_matrix
+model/geo_core/src/similarity_transform_2d.rs:orthogonality_error
+model/geo_core/src/similarity_transform_2d.rs:renormalized
+model/geo_core/src/similarity_transform_3d.rs:rotation_about_axis
+model/geo_core/src/similarity_transform_3d.rs:uniform_scale_about
+model/geo_core/src/similarity_transform_3d.rs:from_matrix
+model/geo_core/src/similarity_transform_3d.rs:to_matrix
+model/geo_core/src/similarity_transform_3d.rs:orthogonality_error
+model/geo_core/src/similarity_transform_3d.rs:renormalized
+
+# 形状の定義パラメータ・構成要素の基本の取得
+model/geo_core/src/vector_2d.rs:components
+model/geo_core/src/vector_3d.rs:components
+model/geo_core/src/aabb_2d.rs:min_point
+model/geo_primitives/src/arc_2d.rs:circle
+model/geo_primitives/src/line_segment_2d.rs:support_line
+model/geo_primitives/src/line_segment_3d.rs:support_line
+model/geo_topology/src/topology_core.rs:curve
+model/geo_topology/src/topology_validator.rs:tolerances
+
+# 形状の基本の生成
+model/geo_primitives/src/arc_2d.rs:from_center_radius
+
+# 解析曲面・立体の標準の向き（軸が Z 軸正方向・参照方向が X 軸正方向）での生成
+model/geo_contracts/src/geometry/core/spherical_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/spherical_solid_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/ellipsoidal_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/ellipsoidal_solid_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/torus_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/torus_solid_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/cylindrical_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/cylindrical_solid_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/conical_surface_traits.rs:new_standard
+model/geo_contracts/src/geometry/core/conical_solid_traits.rs:new_standard
+
+# 表示の経路の実装の途中の表示属性・形状の種類（trait定義）
+model/geo_contracts/src/entity/entity_traits.rs:entity_id
+model/geo_contracts/src/entity/entity_traits.rs:entity_visible
+model/geo_contracts/src/entity/entity_traits.rs:entity_color
+model/geo_contracts/src/entity/entity_traits.rs:entity_stroke_pattern
+model/geo_contracts/src/entity/entity_traits.rs:entity_stroke_width
+model/geo_contracts/src/entity/entity_traits.rs:definition_plane_origin
+model/geo_contracts/src/entity/entity_traits.rs:definition_plane_normal
+model/geo_contracts/src/entity/entity_traits.rs:definition_plane_u_axis
+model/geo_contracts/src/geometry/foundation/metadata.rs:primitive_kind
+
+
+# NURBS の編集の中核のアルゴリズム（ノット挿入・次数上げ）
+model/geo_nurbs/src/operations/knot_insertion.rs:insert_knot_2d
+
+# 位相データの基本の取得と、設計途中の検査・生成
+model/geo_topology/src/topology_core.rs:value
+model/geo_topology/src/topology_core.rs:parameter_range
+model/geo_topology/src/topology_core.rs:same_sense
+model/geo_topology/src/topology_core.rs:is_local_consistent
+model/geo_topology/src/wire.rs:new_with_tolerances
+
+# NURBS の距離のニュートン法による精密化で再び使う（網羅表の未対応の NURBS の組み合わせの実装時に調整する）
+model/geo_nurbs/src/constants.rs:newton_tolerance
+model/geo_nurbs/src/constants.rs:newton_diff_step
+model/geo_contracts/src/geometry/core/nurbs_curve_2d_traits.rs:derivative_at
+model/geo_contracts/src/geometry/core/nurbs_curve_3d_traits.rs:derivative_at
+
+# 平面の基本の生成（網羅表の未対応の平面との組み合わせの実装時に調整する）
+model/geo_contracts/src/geometry/core/plane3d_traits.rs:from_point_and_normal

@@ -304,7 +304,7 @@ pub fn remove_material_arc_adaptive(
     radius: T
 ) {
     // 判定基準
-    let arc_length = arc.arc_length();
+    let arc_length = arc.length();
     let curvature = arc.curvature(); // 1 / radius
     
     if arc_length < self.voxel_size_at_max_depth() * T::from_f64(2.0) {

@@ -237,7 +237,7 @@ View層 (render/stage)
 ### 6.2 Foundation Pattern
 
 ```
-geo_foundation (トレイト定義)
+geo_contracts (トレイト定義)
   ↓ 実装
 geo_primitives (具象型)
   ↓ トレイト経由アクセス
@@ -311,7 +311,7 @@ pub fn sphere_surface_to_vertices_adaptive(
 
 ### 8.2 TorusSurface/TorusSolid Propertiesトレイト実装
 
-**推奨**: `geo_foundation/src/core/torus_surface_traits.rs` の作成
+**推奨**: `geo_contracts/src/core/torus_surface_traits.rs` の作成
 
 ```rust
 pub trait TorusSurface3DProperties<T: Scalar> {
@@ -407,3 +407,4 @@ pub fn sphere_to_vertices(
 **報告者**: GitHub Copilot  
 **承認**: （ユーザー承認待ち）  
 **日付**: 2026年2月8日
+

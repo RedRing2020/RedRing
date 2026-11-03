@@ -4,7 +4,12 @@
 //! Phase 2拡張: 線分描画モード（RenderMode::Lines）に対応しました。
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
-use render::{line::LineResources, mesh::MeshResources, vertex_3d::MeshVertex};
+use render::{
+    line::LineResources,
+    mesh::MeshResources,
+    mesh_list::{MeshListItem, MeshListResources},
+    vertex_3d::MeshVertex,
+};
 use std::sync::atomic::{AtomicU64, Ordering};
 use wgpu::{CommandEncoder, Device, TextureFormat, TextureView};
 
@@ -36,6 +41,12 @@ pub struct MeshStage {
     overlay_line_resources: Option<LineResources>,
     overlay_toolpath_line_resources: Option<LineResources>,
     overlay_tool_line_resources: Option<LineResources>,
+    /// 重畳するツールパス線分を描くか
+    overlay_toolpath_visible: bool,
+    /// 重畳する工具線分を描くか
+    overlay_tool_visible: bool,
+    /// 色の異なる複数のメッシュ（ソリッド表示に重ねて描く）
+    mesh_list_resources: Option<MeshListResources>,
     render_mode: RenderMode,
     format: TextureFormat,
 }
@@ -51,6 +62,9 @@ impl MeshStage {
             overlay_line_resources: None,
             overlay_toolpath_line_resources: None,
             overlay_tool_line_resources: None,
+            overlay_toolpath_visible: true,
+            overlay_tool_visible: true,
+            mesh_list_resources: None,
             render_mode: RenderMode::Solid,
             format,
         }
@@ -124,6 +138,46 @@ impl MeshStage {
         }
     }
 
+    /// 重畳するツールパス線分を描くか（線分データは保つ）
+    pub fn set_overlay_toolpath_visible(&mut self, visible: bool) {
+        self.overlay_toolpath_visible = visible;
+    }
+
+    /// 重畳する工具線分を描くか（線分データは保つ）
+    pub fn set_overlay_tool_visible(&mut self, visible: bool) {
+        self.overlay_tool_visible = visible;
+    }
+
+    /// ソリッド表示に重ねて描く、色の異なる複数のメッシュを設定（キーとメッシュの組。すべて置き換える）
+    pub fn set_mesh_list(&mut self, device: &Device, items: Vec<(u64, MeshListItem)>) {
+        self.mesh_list(device).set_meshes(device, items);
+    }
+
+    /// 重ねて描くメッシュのうち、キー `key` のメッシュを差し替える（三角形がなければ削除する）
+    pub fn set_mesh_list_item(&mut self, device: &Device, key: u64, item: MeshListItem) {
+        self.mesh_list(device).set_mesh(device, key, item);
+    }
+
+    /// 重ねて描くメッシュのうち、キーが `keys` の範囲のメッシュの色を変える（メッシュは作り直さない）
+    pub fn set_mesh_list_color(
+        &mut self,
+        device: &Device,
+        keys: std::ops::RangeInclusive<u64>,
+        color: [f32; 4],
+    ) {
+        self.mesh_list(device).set_color(device, keys, color);
+    }
+
+    fn mesh_list(&mut self, device: &Device) -> &mut MeshListResources {
+        let format = self.format;
+        let wireframe = self.mesh_resources.is_wireframe();
+        self.mesh_list_resources.get_or_insert_with(|| {
+            let mut mesh_list = MeshListResources::new(device, format);
+            mesh_list.set_wireframe(wireframe);
+            mesh_list
+        })
+    }
+
     /// ソリッド表示への線分重畳を無効化
     pub fn clear_overlay_line_data(&mut self) {
         self.overlay_line_resources = None;
@@ -140,6 +194,10 @@ impl MeshStage {
     ) {
         self.mesh_resources
             .update_camera(queue, view_matrix, proj_matrix);
+
+        if let Some(mesh_list) = &mut self.mesh_list_resources {
+            mesh_list.update_camera(queue, view_matrix, proj_matrix);
+        }
 
         // 線分リソースのカメラも更新
         if let Some(line_res) = &mut self.line_resources {
@@ -162,11 +220,27 @@ impl MeshStage {
     /// ワイヤーフレームモードを切り替え
     pub fn toggle_wireframe(&mut self) {
         self.mesh_resources.toggle_wireframe();
+        let wireframe = self.mesh_resources.is_wireframe();
+        if let Some(mesh_list) = &mut self.mesh_list_resources {
+            mesh_list.set_wireframe(wireframe);
+        }
     }
 
     /// ワイヤーフレームモードかどうか
     pub fn is_wireframe(&self) -> bool {
         self.mesh_resources.is_wireframe()
+    }
+
+    fn visible_overlay_toolpath_lines(&self) -> Option<&LineResources> {
+        self.overlay_toolpath_line_resources
+            .as_ref()
+            .filter(|_| self.overlay_toolpath_visible)
+    }
+
+    fn visible_overlay_tool_lines(&self) -> Option<&LineResources> {
+        self.overlay_tool_line_resources
+            .as_ref()
+            .filter(|_| self.overlay_tool_visible)
     }
 }
 
@@ -191,6 +265,7 @@ impl RenderStage for MeshStage {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         // レンダリングモードに応じた描画
@@ -201,10 +276,10 @@ impl RenderStage for MeshStage {
                 if let Some(line_res) = &self.overlay_line_resources {
                     line_res.render(&mut render_pass);
                 }
-                if let Some(line_res) = &self.overlay_toolpath_line_resources {
+                if let Some(line_res) = self.visible_overlay_toolpath_lines() {
                     line_res.render(&mut render_pass);
                 }
-                if let Some(line_res) = &self.overlay_tool_line_resources {
+                if let Some(line_res) = self.visible_overlay_tool_lines() {
                     line_res.render(&mut render_pass);
                 }
             }
@@ -252,6 +327,7 @@ impl RenderStage for MeshStage {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             if let Some(line_res) = &self.line_resources {
@@ -294,12 +370,16 @@ impl RenderStage for MeshStage {
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         // レンダリングモードに応じた描画
         match self.render_mode {
             RenderMode::Solid | RenderMode::Wireframe => {
                 self.mesh_resources.render(&mut render_pass);
+                if let Some(mesh_list) = &self.mesh_list_resources {
+                    mesh_list.render(&mut render_pass);
+                }
             }
             RenderMode::Lines => {
                 if let Some(line_res) = &self.line_resources {
@@ -333,15 +413,16 @@ impl RenderStage for MeshStage {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             if let Some(line_res) = &self.overlay_line_resources {
                 line_res.render(&mut overlay_pass);
             }
-            if let Some(line_res) = &self.overlay_toolpath_line_resources {
+            if let Some(line_res) = self.visible_overlay_toolpath_lines() {
                 line_res.render(&mut overlay_pass);
             }
-            if let Some(line_res) = &self.overlay_tool_line_resources {
+            if let Some(line_res) = self.visible_overlay_tool_lines() {
                 line_res.render(&mut overlay_pass);
             }
         }
@@ -371,29 +452,6 @@ impl RenderStage for MeshStage {
 
     fn set_mesh_base_color(&mut self, color: [f32; 4]) -> bool {
         self.set_mesh_base_color(color);
-        true
-    }
-
-    fn apply_snapshot_solid_frame(
-        &mut self,
-        device: &wgpu::Device,
-        vertices: Vec<render::vertex_3d::MeshVertex>,
-        indices: Vec<u32>,
-        base_color: [f32; 4],
-        toolpath_lines: Vec<render::vertex_3d::MeshVertex>,
-        tool_lines: Vec<render::vertex_3d::MeshVertex>,
-    ) -> bool {
-        self.set_mesh_data(device, vertices, indices);
-        self.set_mesh_base_color(base_color);
-        self.clear_overlay_line_data();
-
-        if !tool_lines.is_empty() {
-            self.set_overlay_tool_line_data(device, tool_lines);
-        }
-        if !toolpath_lines.is_empty() {
-            self.set_overlay_toolpath_line_data(device, toolpath_lines);
-        }
-
         true
     }
 }

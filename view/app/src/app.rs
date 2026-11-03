@@ -23,10 +23,33 @@ impl ApplicationHandler for App {
                 .expect("Window creation failed"),
         );
         self.state = Some(AppState::new(window));
+        tracing::info!("=== RedRing 起動完了 ===");
+        tracing::info!(
+            "切削シミュレーション: Shift+M で加工条件のウィンドウを開き、「投入」で投入します"
+        );
+        tracing::info!("操作ヘルプ全体は h キーで確認できます");
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         if let Some(state) = &mut self.state {
+            // デバイスが失われた後は、描画もバッファの作成もせず、閉じる操作だけを受ける
+            if state.graphic.is_device_lost() {
+                let escape = matches!(
+                    &event,
+                    WindowEvent::KeyboardInput { event, .. }
+                        if event.state == ElementState::Pressed
+                            && matches!(event.logical_key, Key::Named(NamedKey::Escape))
+                );
+                if escape || matches!(event, WindowEvent::CloseRequested) {
+                    self.should_exit = true;
+                    event_loop.exit();
+                }
+                return;
+            }
+            // メニューバーは常に出ているため、egui には常にイベントを渡す。egui のウィンドウ・メニューの上の
+            // ポインタの操作は、3D の表示に渡さない
+            state.handle_settings_window_event(&event);
+            let settings_ui_consumed = state.ui_wants_pointer();
             match event {
                 WindowEvent::CloseRequested => {
                     self.should_exit = true;
@@ -44,19 +67,23 @@ impl ApplicationHandler for App {
                         event_loop.exit();
                     }
                 }
+                WindowEvent::ModifiersChanged(modifiers) => {
+                    state.mouse_input.update_modifiers(modifiers.state());
+                }
                 WindowEvent::MouseInput {
                     button,
                     state: button_state,
                     ..
-                } => {
+                } if !settings_ui_consumed => {
                     state.handle_mouse_button(button, button_state);
                 }
-                WindowEvent::CursorMoved { position, .. } => {
+                WindowEvent::CursorMoved { position, .. } if !settings_ui_consumed => {
                     state.handle_cursor_moved(position.x as f32, position.y as f32);
                 }
-                WindowEvent::MouseWheel { delta, .. } => {
+                WindowEvent::MouseWheel { delta, .. } if !settings_ui_consumed => {
                     state.handle_mouse_wheel(delta);
                 }
+                WindowEvent::DroppedFile(path) => state.import_product_shape(&path),
                 _ => {}
             }
         }
@@ -69,14 +96,24 @@ impl ApplicationHandler for App {
         event: DeviceEvent,
     ) {
         if let Some(state) = &mut self.state {
+            if state.graphic.is_device_lost() {
+                return;
+            }
             if let DeviceEvent::MouseMotion { delta } = event {
+                state.handle_settings_mouse_motion(delta);
                 state.handle_mouse_motion(delta);
             }
         }
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(state) = &self.state {
+        if let Some(state) = &mut self.state {
+            if state.graphic.is_device_lost() {
+                return;
+            }
+            // ファイルを開く画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に開く
+            state.run_requested_menu_actions();
+            state.tick_snapshot_playback(std::time::Instant::now());
             state.window.request_redraw();
         }
     }

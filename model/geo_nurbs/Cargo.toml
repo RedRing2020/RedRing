@@ -11,14 +11,16 @@ license = "MIT OR Apache-2.0"
 analysis = { path = "../../foundation/analysis" }
 
 # Model層の基盤（Foundation パターン準拠）
-geo_foundation = { path = "../geo_foundation" }
+geo_commons = { path = "../geo_commons" }
+geo_contracts = { path = "../geo_contracts" }
 geo_core = { path = "../geo_core" }
 
 # 数値計算
 nalgebra = "0.33.0"
 
-# ユーティリティ
-thiserror = "1.0.69"
 
 [dev-dependencies]
 approx = "0.5.1"
+
+[lints]
+workspace = true

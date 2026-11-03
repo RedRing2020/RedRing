@@ -2,6 +2,8 @@
 
 ## 最終更新日: 2026-02-26
 
+> 版の目標と v0.1.0 の範囲は `RELEASE_VERSION_PLAN.md`（2026年11月）で置き換えた。この文書の 2.〜4.（版数の決まり・リリース前の確認・リリースの流れ）は引き続き使う。
+
 ## 1. 現状スナップショット
 
 - `PR #286`（`develop -> main`）は **merged**。
@@ -31,7 +33,7 @@
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
 4. `cargo fmt --all -- --check`
-5. `./scripts/check_architecture_dependencies_simple.ps1`
+5. `./scripts/check_architecture_dependencies.ps1`
 6. `mdbook build`
 
 ## 4. リリース運用フロー（運用初版）
@@ -79,7 +81,7 @@
   - mdbook build
 
 2. **Foundation Pattern 準拠の幾何基盤**
-  - `geo_foundation` / `geo_core` / `geo_primitives` の基礎API
+  - `geo_contracts` / `geo_core` / `geo_primitives` の基礎API
   - 直接 import ルールを含む依存整合
 
 3. **NURBS 実装（曲線・曲面 + 適応的テッセレーション）**
@@ -115,7 +117,7 @@
   - [ ] `cargo test --workspace`
   - [ ] `cargo clippy --workspace --all-targets -- -D warnings`
   - [ ] `cargo fmt --all -- --check`
-  - [ ] `./scripts/check_architecture_dependencies_simple.ps1`
+  - [ ] `./scripts/check_architecture_dependencies.ps1`
   - [ ] `mdbook build`
 - [ ] `CHANGELOG.md` の `Unreleased` を `0.1.0` として確定
 - [ ] `dev/RELEASE_NOTE_TEMPLATE.md` を使って `v0.1.0` ノートを作成
@@ -149,3 +151,4 @@ PRコメントのみで残すと参照されなくなるため、`v0.1.0` 判定
 - [ ] Experimental 範囲をリリースノートに明記
 - [ ] `CHANGELOG.md` と `VERSIONING_POLICY.md` の記述に矛盾がない
 - [ ] 次サイクルに送る項目を Issue/Milestone に登録済み
+

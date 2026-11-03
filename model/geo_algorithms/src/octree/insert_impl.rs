@@ -1,5 +1,5 @@
 use super::{HasBoundingBox, Octree, OctreeNode};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 impl<T: Scalar, D: Clone> Octree<T, D>
 where

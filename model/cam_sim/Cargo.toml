@@ -10,5 +10,11 @@ categories.workspace = true
 
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
+cam_algorithms = { path = "../cam_algorithms" }
 cam_core = { path = "../cam_core" }
 geo_algorithms = { path = "../geo_algorithms" }
+job_domain = { path = "../job_domain" }
+job_runtime = { path = "../job_runtime" }
+
+[lints]
+workspace = true

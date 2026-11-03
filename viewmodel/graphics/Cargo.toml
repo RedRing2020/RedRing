@@ -9,3 +9,6 @@ tracing = "0.1"
 
 [dev-dependencies]
 tracing-test = "0.2"
+
+[lints]
+workspace = true

@@ -6,7 +6,6 @@ use std::path::Path;
 
 impl AppState {
     /// デバッグ用：NurbsCurve3Dを表示（SVGから読み込み）
-    /// ViewModelレイヤー経由で評価データを生成
     pub fn load_debug_nurbs(&mut self) {
         let tolerance = self.tolerance_in_current_unit();
         tracing::info!("デバッグ形状: NurbsCurve3D表示（GPU評価）");
@@ -22,7 +21,11 @@ impl AppState {
             {
                 Ok(data) => data,
                 Err(error) => {
-                    tracing::error!("NURBS曲線データ生成失敗: {}", error);
+                    tracing::error!(
+                        error_kind = logging_foundation::ERROR_KIND_APP,
+                        "nurbs curve eval data generation failed: {}",
+                        error
+                    );
                     return;
                 }
             };
@@ -48,7 +51,6 @@ impl AppState {
     }
 
     /// デバッグ用: NURBS曲面をGPU評価で表示（曲率のある曲面）
-    /// ViewModelレイヤー経由で評価データを生成
     pub fn load_debug_nurbs_surface(&mut self) {
         tracing::info!("デバッグ形状: NurbsSurface3D表示（GPU評価）- 曲率のある曲面");
         let tolerance_value = self.tolerance_in_current_unit();
@@ -61,7 +63,11 @@ impl AppState {
             match viewmodel::nurbs_eval_loader::create_sample_nurbs_surface_eval(tolerance_value) {
                 Ok(data) => data,
                 Err(error) => {
-                    tracing::error!("NURBS曲面データ生成失敗: {}", error);
+                    tracing::error!(
+                        error_kind = logging_foundation::ERROR_KIND_APP,
+                        "nurbs surface eval data generation failed: {}",
+                        error
+                    );
                     return;
                 }
             };

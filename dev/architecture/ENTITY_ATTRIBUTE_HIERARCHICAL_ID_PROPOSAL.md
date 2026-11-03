@@ -1,7 +1,7 @@
 # エンティティ属性ID階層化 提案書（Phase 4.0 / #208 対応）
 
 **作成日**: 2026年2月21日  
-**最終更新**: 2026年2月21日  
+**最終更新**: 2026年10月18日（#761: ドメインの所有と業務属性の扱い）  
 **ステータス**: 提案  
 **関連Issue**: #208（エンティティ層基礎）, #205（Phase 4完全版）
 
@@ -119,9 +119,25 @@ CAM穴あけや寸法拘束など、用途別の意味をコードから復元�
 - `30`: スケッチ
 - `40`: 表示
 
+### ドメインの所有と業務属性の扱い（#761）
+
+`geo_entity` は業務に依らない CAD のエンティティ基盤とし、業務（CAM 等）の属性は定義しない。
+
+| ドメイン | 所有するクレート |
+|---|---|
+| `01` 共通メタ・`20` 寸法・`30` スケッチ・`40` 表示 | `geo_entity`（業務に依らない属性） |
+| `10` CAM | CAM の業務層（`cam_entity` 等） |
+
+- `geo_entity` の `SYSTEM_ATTRIBUTE_DEFS` には、`geo_entity` が所有するドメインの属性だけを置く
+- 業務のパラメータ（穴あけの送り速度・主軸回転数等）は、現時点では業務層の型（`cam_entity` の `MachiningAttributes` 等）のフィールドで持つ
+- 業務層が属性コードで system 属性を定義する必要が生じた時点で、業務層が自身のドメインの定義テーブルを `Attributes` の型の検証へ渡す仕組みを設計する（呼び出し元のない登録の仕組みは先に置かない）
+- 以前 `geo_entity` に置いていた `CAM_PATH_DRILL_*`（`-10_01_02_xx`）は、使われておらず `MachiningAttributes` と重なるため削除した
+
 ---
 
 ## 階層IDの具体例（CAM穴あけパス）
+
+以下はコード体系の例である。ドメイン `10` は CAM の業務層が所有し、`geo_entity` には定義しない（上記「ドメインの所有と業務属性の扱い」）。
 
 例として `DD=10 (CAM)`, `CC=01 (Path)`, `SS=02 (Drill)` を割り当てる。
 
@@ -174,14 +190,14 @@ pub struct SystemAttributeDef {
     pub description: &'static str,
 }
 
-pub const CAM_PATH_DRILL_FEED_RATE: AttributeCode = AttributeCode::new(-10010202);
+pub const DIMENSION_LENGTH_VALUE: AttributeCode = AttributeCode::new(-20010101);
 
 pub const SYSTEM_ATTRIBUTE_DEFS: &[SystemAttributeDef] = &[
     SystemAttributeDef {
-        code: CAM_PATH_DRILL_FEED_RATE,
-        name: "cam.path.drill.feed_rate",
+        code: DIMENSION_LENGTH_VALUE,
+        name: "dimension.length.value",
         value_kind: AttributeValueKind::Float,
-        description: "穴あけ加工の送り速度",
+        description: "寸法長さ値",
     },
 ];
 ```
@@ -216,24 +232,14 @@ pub enum AttributeValue {
 - 実装は属性ではなく `EntityId ↔ GroupId` の関係で保持する
 - 基本は多対多（1寸法が複数グループ所属可能）
 
-### 2) レイヤー所属（単一/複数の区別）
+### 2) レイヤー所属（単一所属）
 
-エンティティ種別ごとに所属制約を持たせる。
+2026-04-09 時点の方針では、layer は図面・表示管理の基準単位として単一所属を前提とする。
 
-- `SingleLayer`: 最大1レイヤー
-- `MultiLayer`: 複数レイヤー可
-
-```rust
-pub enum LayerMembershipPolicy {
-    SingleLayer,
-    MultiLayer,
-}
-```
-
-追加時バリデーションでポリシーを強制する。
-
-- `SingleLayer` で既存所属あり → エラーまたは置換（運用設定）
-- `MultiLayer` は重複登録のみ禁止
+- 1 entity は最大 1 layer にのみ属する
+- 既存所属ありで別 layer を追加しようとした場合はエラーとする
+- 同じ layer の再設定は冪等な再投入として扱う
+- 複数所属が必要な横断分類は group 側で扱い、layer では扱わない
 
 ### 3) 最小データ構造（提案）
 
@@ -288,7 +294,7 @@ entity rel layer add --entity <EntityId> --layer <LayerId>
 - `code < 0` かつ未定義systemコードは拒否
 - `code > 0` は user範囲として許可（必要ならプロジェクト予約レンジを設定）
 - 値型不一致（例: Float項目へString投入）を拒否
-- `LayerMembershipPolicy` 違反を拒否
+- layer 単一所属制約違反を拒否
 
 ### 4) 監査・保守
 
@@ -305,7 +311,7 @@ entity rel layer add --entity <EntityId> --layer <LayerId>
 4. **同一コード再定義禁止**（CIテストで検出）
 5. **定義テーブル未登録のsystemコード禁止**
 6. ドメイン/カテゴリ番号は予約表で重複管理
-7. レイヤー所属は `LayerMembershipPolicy` に従って検証
+7. レイヤー所属は単一所属制約に従って検証
 8. グループ/レイヤーは属性ではなく関係テーブルで管理
 9. コマンド経由変更は監査ログを記録
 
@@ -319,7 +325,7 @@ entity rel layer add --entity <EntityId> --layer <LayerId>
 - `const + 定義テーブル` で system 属性を先行定義
 - CAM/寸法/スケッチの最小コードセット作成
 - Group/Layer 関係モデルを導入（所属データ分離）
-- `LayerMembershipPolicy` による単一/複数レイヤー制約を導入
+- layer 単一所属の relation 制約を導入
 - ユーザーコマンドの最小機能（set/get/remove）を導入
 
 ### Phase 4.1-4.3（#205）
@@ -374,7 +380,7 @@ entity rel layer add --entity <EntityId> --layer <LayerId>
 - `AttributeValue`（型付き + `Binary(Vec<u8>)`）
 - `Attributes`（型検証付き set/get/remove）
 - Group/Layer 関係モデル
-- `LayerMembershipPolicy`（SingleLayer / MultiLayer）
+- layer 単一所属制約
 - 単体テスト（正負ID、0拒否、型検証、レイヤー制約、決定的ID）
 
 本着手では、ViewModel/App統合およびB-Repトポロジー統合は対象外とする。
@@ -393,8 +399,8 @@ entity rel layer add --entity <EntityId> --layer <LayerId>
 - [ ] 任意データ（`Binary(Vec<u8>)`）を保持できる
 - [ ] `EntityId(UUID)` と独立して運用できる
 - [ ] 寸法エンティティのグループ所属（多対多）を管理できる
-- [ ] 単一レイヤー対象で複数所属を拒否できる
-- [ ] 複数レイヤー対象で複数所属を許可できる
+- [ ] layer 単一所属で複数所属を拒否できる
+- [ ] 同じ layer の再設定を冪等に扱える
 - [ ] コマンドで user属性コード（正ID）を付与・取得・削除できる
 - [ ] system属性コード（負ID）に未定義コードを拒否できる
 - [ ] 値型バリデーションが機能する

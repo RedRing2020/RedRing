@@ -1,10 +1,9 @@
 //! NURBS GPU評価用のデータ変換
 //!
-//! Model層（geo_nurbs）のNURBS形状とパラメータリストを、
-//! View層（render）でGPU評価可能な形式に変換します。
+//! NURBS形状とパラメータリストを、GPU で評価できる形式に変換します。
 
-use geo_algorithms::adaptive_tessellation;
-use geo_foundation::Scalar;
+use geo_algorithms::{AdaptiveParamGrid, AdaptiveParamList};
+use geo_contracts::Scalar;
 
 /// NURBS曲線のGPU評価に必要なデータ
 ///
@@ -38,8 +37,8 @@ impl NurbsCurveEvalData {
     /// # Returns
     /// GPU評価用のf32変換済みデータ
     pub fn from_curve_params<T: Scalar>(
-        curve: &impl geo_foundation::NurbsCurve3DProperties<T>,
-        param_list: &adaptive_tessellation::AdaptiveParamList<T>,
+        curve: &impl geo_contracts::NurbsCurve3DProperties<T>,
+        param_list: &AdaptiveParamList<T>,
     ) -> Self {
         let degree = curve.degree() as u32;
 
@@ -47,7 +46,7 @@ impl NurbsCurveEvalData {
         let knots: Vec<f32> = curve.knot_vector().iter().map(|k| k.to_f32()).collect();
 
         // 制御点のflatten: coordinates()で直接フラット配列を取得
-        let num_cp = curve.control_points_count();
+        let num_cp = curve.control_point_count();
         let control_points: Vec<f32> = curve.coordinates().iter().map(|c| c.to_f32()).collect();
 
         // 重みの変換（Foundationトレイトメソッド使用）
@@ -108,23 +107,28 @@ impl NurbsCurveEvalData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::NurbsCurve3DConstructor;
-    use geo_nurbs::{
-        adaptive_tessellation::{AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation},
-        NurbsCurve3D,
+    use geo_algorithms::{
+        AdaptiveTessellationSettings, NurbsCurve3D, NurbsCurveAdaptiveTessellation, Point3D,
     };
+    use geo_contracts::NurbsCurve3DConstructor;
 
     #[test]
     fn test_nurbs_curve_eval_data_from_line() {
         // 直線のNURBS曲線を作成（(0,0,0) -> (1,0,0)）
-        let curve = NurbsCurve3D::<f64>::line_segment((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![0.0, 0.0, 1.0, 1.0],
+            &[Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)],
+            None,
+        )
+        .unwrap();
 
         // 適応パラメータ生成
         let settings = AdaptiveTessellationSettings::default_with_tolerance(0.01);
         let param_list = curve.adaptive_params_curve(&settings);
 
-        // geo_foundation の型に変換
-        let param_list_foundation = adaptive_tessellation::AdaptiveParamList {
+        // 評価パラメータ型に変換
+        let param_list_foundation = AdaptiveParamList {
             params: param_list.params.clone(),
         };
 
@@ -206,8 +210,8 @@ impl NurbsSurfaceEvalData {
     /// # Returns
     /// GPU評価用のf32変換済みデータ（頂点バッファ最適化）
     pub fn from_surface_params<T: Scalar>(
-        surface: &impl geo_foundation::NurbsSurface3DProperties<T>,
-        param_grid: &adaptive_tessellation::AdaptiveParamGrid<T>,
+        surface: &impl geo_contracts::NurbsSurface3DProperties<T>,
+        param_grid: &AdaptiveParamGrid<T>,
     ) -> Self {
         let u_degree = surface.u_degree() as u32;
         let v_degree = surface.v_degree() as u32;

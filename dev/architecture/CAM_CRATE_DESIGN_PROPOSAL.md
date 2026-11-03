@@ -353,7 +353,7 @@ pub struct CamTolerance {
 | 項目 | `geo_core` | `cam_core` |
 |------|------------|-----------|
 | 役割 | ブリッジパターン（Foundation トレイトと具体型の仲介） | CAM機能の基盤データ構造・アルゴリズム |
-| 依存関係 | `geo_foundation` ↔ `geo_primitives` の橋渡し | CAM演算の中核、他CAMクレートの基盤 |
+| 依存関係 | `geo_contracts` ↔ `geo_primitives` の橋渡し | CAM演算の中核、他CAMクレートの基盤 |
 | 責務 | 抽象化・型変換 | 工具経路・工具定義・CAM検証 |
 | 将来拡張 | 固定的（ブリッジ役） | 拡張的（`cam_algorithms`, `cam_sim` 等が依存） |
 
@@ -401,7 +401,7 @@ cam_algorithms
   ↓
 cam_core ← ViewModel/View層が直接参照
   ↓
-geo_algorithms, geo_primitives, geo_foundation
+geo_algorithms, geo_primitives, geo_contracts
 ```
 
 **理由**:
@@ -450,7 +450,7 @@ license.workspace = true
 
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
+geo_contracts = { path = "../geo_contracts" }
 geo_primitives = { path = "../geo_primitives" }
 geo_algorithms = { path = "../geo_algorithms" }  # オフセット、閉曲線判定を利用
 ```（`cam_core` クレート）
@@ -513,7 +513,7 @@ pub use tolerance::CamTolerance;
 
 #### `geo_core` の役割（既存）
 - **目的**: Foundation Pattern のブリッジ
-- **機能**: `geo_foundation` のトレイトと `geo_primitives` の具体型を仲介
+- **機能**: `geo_contracts` のトレイトと `geo_primitives` の具体型を仲介
 - **パターン**: 抽象化層と実装層の橋渡し（アダプターパターン）
 
 #### `cam_core` の役割（新規）
@@ -556,7 +556,7 @@ license.workspace = true
 
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
+geo_contracts = { path = "../geo_contracts" }
 geo_primitives = { path = "../geo_primitives" }
 geo_algorithms = { path = "../geo_algorithms" }
 EOF
@@ -688,3 +688,4 @@ pub struct CamTolerance {
 **承認待ち**: 上記の設計方針について、ユーザーからの承認をお待ちしています。
 
 **次回更新**: 設計承認後、実装開始時
+

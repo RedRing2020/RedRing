@@ -1,328 +1,165 @@
 # Cargo コマンド・デバッグ
 
-## 最終更新日: 2026年2月13日
+## 最終更新日: 2026年10月12日
 
-RedRing開発で頻繁に使用するCargoコマンドとデバッグ手法を定義します。
+RedRing の開発で使う Cargo コマンド・チェックスクリプト・デバッグの手順を定義します。
+
+---
+
+## チェックスクリプト（push・PR の前）
+
+```powershell
+# push・PR の前に必ず実行する（fmt / clippy / テスト / 実行時文言の言語ポリシー / GitHub 固有情報 / 呼び出し元のない API）
+pwsh -NoProfile -File .\scripts\check_all_before_push.ps1
+
+# アーキテクチャの依存関係（CI と同じ）
+.\scripts\check_architecture_dependencies.ps1
+```
+
+- コミット時は pre-commit フックがフォーマットを確認する。フック・署名を省略するオプション（`--no-verify` 等）は使わない
 
 ---
 
 ## Cargo 基本コマンド
 
-### ビルド
+ルートの `Cargo.toml` はワークスペースだけを定義する（パッケージを持たない）ため、実行・個別のビルドでは `-p` でパッケージを指定する。
+
+### ビルド・実行
 
 ```bash
-# 全体ビルド（デバッグモード）
-cargo build
-
-# リリースビルド（最適化あり）
-cargo build --release
-
-# 個別クレートのビルド
+cargo build --workspace
 cargo build -p geo_primitives
-cargo build -p render
 
-# クリーンビルド（依存関係も再ビルド）
-cargo clean
-cargo build
+# メインアプリケーション（view/app、パッケージ名 redring）
+cargo run -p redring
+cargo run -p redring --release
 ```
 
 ### テスト
 
 ```bash
-# 全体テスト実行
 cargo test --workspace
-
-# 個別クレートのテスト
 cargo test -p geo_primitives
-cargo test -p geo_algorithms
 
-# 特定のテストモジュール実行
-cargo test -p geo_primitives line_segment_3d_tests
+# 形状のテスト（{shape}/tests.rs のモジュールのパスで絞り込む）
+cargo test -p geo_primitives line_segment_3d::tests
 
-# 特定のテスト関数実行
-cargo test -p geo_primitives test_new_valid
+# 特定のテスト関数
+cargo test -p geo_primitives test_basic_creation
 
-# テスト出力を全て表示
-cargo test -- --nocapture
+# 形状をまたぐ結合テスト
+cargo test -p geo_primitives --test cross_shape
 
-# 並列実行を無効化（デバッグ時）
-cargo test -- --test-threads=1
-```
-
-### 実行
-
-```bash
-# メインアプリケーション実行
-cargo run
-
-# リリースモードで実行
-cargo run --release
-
-# 個別クレートの実行（bin ターゲットがある場合）
-cargo run -p app
+# 出力を表示・直列に実行
+cargo test -p geo_primitives -- --nocapture --test-threads=1
 ```
 
 ### ドキュメント
 
 ```bash
-# Rustdoc ドキュメント生成
 cargo doc --no-deps --open
 
-# mdbook ドキュメント生成
-mdbook build  # manual/ -> docs/
-
-# mdbook サーバー起動（ライブリロード）
+# mdbook（manual/ → docs/）
+mdbook build
 mdbook serve --open
 ```
 
 ---
 
-## 依存関係管理
-
-### 依存関係の確認
+## 依存関係
 
 ```bash
-# クレートの依存関係ツリー
-cargo tree
-
-# 深さ1で表示（直接依存のみ）
-cargo tree --depth 1
-
-# 特定クレートの依存関係
 cargo tree -p geo_primitives
+cargo tree -p geo_primitives --depth 1
 
-# 逆依存（どのクレートが使用しているか）
-cargo tree -i geo_foundation
+# 逆依存（どのクレートが使っているか）
+cargo tree -i geo_core
 
-# 重複依存の検出
+# 重複した依存
 cargo tree --duplicates
-```
 
-### 依存関係の更新
-
-```bash
-# Cargo.lock の更新
-cargo update
-
-# 特定クレートのみ更新
 cargo update -p wgpu
 ```
 
 ---
 
-## コード品質チェック
-
-### フォーマット
+## コード品質
 
 ```bash
-# コードフォーマット実行
 cargo fmt --all
-
-# フォーマットチェック（CI用）
 cargo fmt --all -- --check
 
-# 特定クレートのみ
-cargo fmt -p geo_primitives
+# CI と同じ条件（警告をエラーとして扱う）
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+# 使っていない import 等の機械的な修正
+cargo fix --workspace --all-targets --allow-dirty
 ```
 
-### Clippy（リント）
-
-```bash
-# 警告レベルでチェック
-cargo clippy
-
-# エラーとして扱う（CI用）
-cargo clippy -- -D warnings
-
-# 全ワークスペースをチェック
-cargo clippy --workspace
-
-# 修正案を自動適用
-cargo clippy --fix
-```
-
-### アーキテクチャチェック
-
-```powershell
-# RedRing独自のアーキテクチャルール検証
-.\scripts\check_architecture_dependencies_simple.ps1
-
-# MVVM アーキテクチャ検証
-.\scripts\check_mvvm_architecture.ps1
-```
+- ワークスペースの lint はルートの `Cargo.toml` の `[workspace.lints]` で設定し、各クレートは `[lints] workspace = true` で使う（`mod.rs` を禁止する `mod_module_files` 等）
 
 ---
 
 ## デバッグ・トレース
 
-### tracing の使用
+ログは `tracing` を使い、`logging_foundation` が `RUST_LOG` 環境変数でフィルタを設定する。
 
 ```rust
 use tracing::{debug, error, info, trace, warn};
-
-fn example_function() {
-    trace!("詳細なトレース情報");
-    debug!("デバッグ情報");
-    info!("一般情報");
-    warn!("警告");
-    error!("エラー");
-}
 ```
 
-### ログレベルの制御
+```powershell
+$env:RUST_LOG = "debug"
+cargo run -p redring
+
+# クレート別
+$env:RUST_LOG = "geo_algorithms=debug,cam_sim=trace"
+```
 
 ```bash
-# 環境変数で制御
-export RUST_LOG=debug
-cargo run
-
-# Windows PowerShell
-$env:RUST_LOG="debug"
-cargo run
-
-# クレート別レベル設定
-export RUST_LOG=geo_primitives=trace,geo_algorithms=debug
-cargo run
-
-# モジュール別レベル設定
-export RUST_LOG=geo_primitives::line_segment_3d=trace
-cargo run
+RUST_LOG=debug cargo run -p redring
+RUST_BACKTRACE=1 cargo test -p geo_primitives
 ```
-
-### ログレベル一覧
-
-- `trace`: 最も詳細（全ての実行経路）
-- `debug`: デバッグ情報
-- `info`: 一般的な情報（デフォルト）
-- `warn`: 警告
-- `error`: エラーのみ
 
 ---
 
-## パフォーマンス分析
+## CI（GitHub Actions）で実行されるコマンド
 
-### ベンチマーク
+`develop` 向け（`develop_ci.yml`）:
 
 ```bash
-# ベンチマーク実行
-cargo bench
-
-# 特定ベンチマークのみ
-cargo bench --bench line_segment_benchmark
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features --workspace -- -D warnings
+cargo build --workspace --verbose
+cargo test --workspace --verbose
 ```
 
-### プロファイリング
+アーキテクチャ（`common_architecture_check.yml`）:
 
-```bash
-# release ビルドでプロファイリング
-cargo build --release
-cargo run --release
-
-# flamegraph 生成（要cargo-flamegraph）
-cargo flamegraph
+```powershell
+./scripts/check_architecture_dependencies.ps1
+./scripts/check_github_refs_in_source.ps1
 ```
 
 ---
 
 ## トラブルシューティング
 
-### ビルドエラー
-
 ```bash
-# キャッシュクリア
+# キャッシュを消して再ビルド
 cargo clean
+cargo build --workspace
 
-# 依存関係を再取得
-rm -rf Cargo.lock
-cargo build
-
-# verbose モードでビルド
-cargo build -vv
+# 詳細なビルドログ
+cargo build -p geo_primitives -vv
 ```
 
-### テストエラー
-
-```bash
-# テスト失敗時の詳細表示
-cargo test -- --nocapture --test-threads=1
-
-# バックトレース有効化
-RUST_BACKTRACE=1 cargo test
-
-# 完全なバックトレース
-RUST_BACKTRACE=full cargo test
-```
-
-### 型エラー
-
-```bash
-# 詳細な型情報を表示
-cargo check --verbose
-
-# マクロ展開結果の確認
-cargo expand -p geo_primitives
-```
-
----
-
-## CI/CD コマンド
-
-### GitHub Actions で実行されるコマンド
-
-```bash
-# フォーマットチェック
-cargo fmt --all -- --check
-
-# Clippy チェック
-cargo clippy --workspace -- -D warnings
-
-# 全テスト実行
-cargo test --workspace
-
-# ビルド確認
-cargo build --release
-
-# アーキテクチャチェック
-.\scripts\check_architecture_dependencies_simple.ps1
-```
-
----
-
-## 便利なエイリアス設定
-
-### .bashrc / .zshrc に追加
-
-```bash
-# よく使うコマンドのエイリアス
-alias cb='cargo build'
-alias ct='cargo test --workspace'
-alias cr='cargo run'
-alias cc='cargo clippy -- -D warnings'
-alias cf='cargo fmt --all'
-alias ccheck='cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings && cargo test --workspace'
-```
-
-### PowerShell プロファイルに追加
-
-```powershell
-# $PROFILE に追加
-function cb { cargo build }
-function ct { cargo test --workspace }
-function cr { cargo run }
-function cc { cargo clippy -- -D warnings }
-function cf { cargo fmt --all }
-function ccheck {
-    cargo fmt --all -- --check
-    cargo clippy --workspace -- -D warnings
-    cargo test --workspace
-    .\scripts\check_architecture_dependencies_simple.ps1
-}
-```
+- `Cargo.lock` はリポジトリで管理しているため、削除しない
 
 ---
 
 ## 参照文書
 
+- **Git/PR の運用**: `.github/skills/git-workflow/skill.md`、`dev/GIT_PR_WORKFLOW_OPERATION.md`
+- **CI 設定**: `.github/workflows/`
 - **Cargo Book**: https://doc.rust-lang.org/cargo/
-- **tracing ドキュメント**: https://docs.rs/tracing/
-- **CI設定**: `.github/workflows/`

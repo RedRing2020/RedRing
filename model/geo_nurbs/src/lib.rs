@@ -9,77 +9,33 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::items_after_test_module)]
 
-// NURBS実装モジュール
-pub mod adaptive_tessellation;
-pub mod basis;
-pub mod curve_2d;
-pub mod curve_2d_foundation;
-pub mod curve_2d_transform;
-pub mod curve_3d;
-pub mod curve_3d_extensions;
-pub mod curve_3d_foundation;
-pub mod curve_3d_transform;
-pub mod operations;
-pub mod surface_3d;
-pub mod surface_3d_extensions;
-pub mod surface_3d_foundation;
-pub mod surface_3d_transform;
+// NURBS の形状
+mod nurbs_curve_2d;
+mod nurbs_curve_3d;
+mod nurbs_surface_3d;
 
-pub mod error;
-pub mod knot;
-pub mod weight_storage;
+// 形状が共用する NURBS の計算
+mod adaptive_tessellation;
+mod basis;
+pub mod constants;
+mod curve_evaluation;
+mod knot;
+mod operations;
+mod weight_storage;
 
-// Analysis ライブラリの Scalar トレイトを使用
 pub use analysis::Scalar;
+pub use geo_core::TransformError;
 
-// 主要な型を再エクスポート
 pub use adaptive_tessellation::{
     AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings,
     NurbsCurveAdaptiveTessellation, NurbsSurfaceAdaptiveTessellation,
 };
-pub use basis::{basis_function, basis_functions, rational_basis_functions};
-pub use curve_2d::NurbsCurve2D;
-pub use curve_3d::NurbsCurve3D;
-pub use curve_3d_extensions::AabbOptions;
-pub use error::{NurbsError, Result};
-pub use knot::{clamped_knot_vector, validate_knot_vector, KnotVector};
-pub use operations::{CurveSplitting, DegreeElevation, KnotInsertion};
-pub use surface_3d::NurbsSurface3D;
+pub use knot::{
+    clamped_knot_vector, find_knot_span, get_parameter_domain, open_knot_vector,
+    uniform_knot_vector, validate_knot_vector, KnotVector,
+};
+pub use nurbs_curve_2d::NurbsCurve2D;
+pub use nurbs_curve_3d::NurbsCurve3D;
+pub use nurbs_surface_3d::NurbsSurface3D;
+pub use operations::{KnotInsertResult2D, KnotInsertResult3D, KnotInsertion};
 pub use weight_storage::WeightStorage;
-
-/// NURBS関連の定数
-pub mod constants {
-    /// デフォルトの数値許容誤差
-    pub const DEFAULT_TOLERANCE: f64 = 1e-10;
-
-    /// 最小の有効なノット間隔
-    pub const MIN_KNOT_INTERVAL: f64 = 1e-12;
-
-    /// 最大サポート次数
-    pub const MAX_DEGREE: usize = 10;
-
-    /// 最小制御点数（線形曲線の場合）
-    pub const MIN_CONTROL_POINTS: usize = 2;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_tolerance_usage() {
-        // 実際のNURBS計算でのトレランス使用テスト（動的な値）
-        let tolerance = constants::DEFAULT_TOLERANCE;
-        let small_diff = tolerance * 0.5;
-        assert!(
-            small_diff < tolerance,
-            "Small difference should be within tolerance"
-        );
-
-        let large_diff = tolerance * 2.0;
-        assert!(
-            large_diff > tolerance,
-            "Large difference should exceed tolerance"
-        );
-    }
-}

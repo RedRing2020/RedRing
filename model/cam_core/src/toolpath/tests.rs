@@ -1,0 +1,373 @@
+use super::*;
+
+#[test]
+fn test_line_segment_creation() {
+    let segment = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(10.0, 0.0, 0.0),
+        SegmentType::Cutting { feed_rate: 500.0 },
+    );
+
+    assert!(segment.is_cutting());
+    assert!(!segment.is_rapid());
+    assert_eq!(segment.length(), 10.0);
+    assert_eq!(segment.end_point(), Point3D::new(10.0, 0.0, 0.0));
+}
+
+#[test]
+fn test_arc_segment_creation() {
+    let segment = PathSegment::new_arc(
+        Point3D::new(5.0, 0.0, 0.0),
+        Point3D::new(0.0, 5.0, 0.0),
+        Point3D::new(0.0, 0.0, 0.0),
+        ArcDirection::CounterClockwise,
+        SegmentType::Rapid,
+    );
+
+    assert!(segment.is_rapid());
+    assert_eq!(segment.end_point(), Point3D::new(0.0, 5.0, 0.0));
+
+    let expected_length = 5.0 * std::f64::consts::PI / 2.0;
+    assert!((segment.length() - expected_length).abs() < 0.001);
+}
+
+#[test]
+fn test_arc_segment_180_degrees() {
+    let segment = PathSegment::new_arc(
+        Point3D::new(10.0, 0.0, 0.0),
+        Point3D::new(-10.0, 0.0, 0.0),
+        Point3D::new(0.0, 0.0, 0.0),
+        ArcDirection::Clockwise,
+        SegmentType::Cutting { feed_rate: 500.0 },
+    );
+
+    let expected_length = 10.0 * std::f64::consts::PI;
+    assert!((segment.length() - expected_length).abs() < 0.001);
+}
+
+#[test]
+fn test_retract_and_pass_retract() {
+    let retract = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(0.0, 0.0, 5.0),
+        SegmentType::Retract { feed_rate: 300.0 },
+    );
+    assert_eq!(retract.length(), 5.0);
+
+    let pass_retract = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(0.0, 0.0, 1.0),
+        SegmentType::PassRetract { feed_rate: 200.0 },
+    );
+    assert_eq!(pass_retract.length(), 1.0);
+}
+
+#[test]
+fn test_contour_level_path() {
+    let segments = vec![
+        PathSegment::new_line(
+            Point3D::new(0.0, 0.0, -5.0),
+            Point3D::new(10.0, 0.0, -5.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(10.0, 0.0, -5.0),
+            Point3D::new(10.0, 10.0, -5.0),
+            SegmentType::Rapid,
+        ),
+    ];
+
+    let contour = ContourLevelPath::new(0, -5.0, segments);
+
+    assert_eq!(contour.level_index, 0);
+    assert_eq!(contour.z_level, -5.0);
+    assert_eq!(contour.cutting_segments().len(), 1);
+    assert_eq!(contour.rapid_segments().len(), 1);
+    assert_eq!(contour.total_length(), 20.0);
+    assert_eq!(contour.cutting_length(), 10.0);
+}
+
+#[test]
+fn test_tool_path() {
+    let contours = vec![
+        ContourLevelPath::new(0, -5.0, vec![]),
+        ContourLevelPath::new(1, -10.0, vec![]),
+    ];
+
+    let toolpath = ToolPath::new(
+        "tool1".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        contours,
+        vec![],
+    );
+
+    assert_eq!(toolpath.tool_id, "tool1");
+    assert_eq!(toolpath.cutting_direction, CuttingDirection::Down);
+    assert_eq!(toolpath.level_count(), 2);
+    assert_eq!(
+        toolpath.kinematic_meta,
+        ToolPathKinematicMeta::three_axis_position_only()
+    );
+}
+
+#[test]
+fn test_tool_path_with_kinematic_meta() {
+    let custom_meta = ToolPathKinematicMeta::new(
+        MachineConfigurationClass::FourAxis,
+        KinematicMode::SimultaneousFourAxis,
+        PoseDataPolicy::PoseLayerOptional,
+    );
+
+    let toolpath = ToolPath::<f64>::new_with_kinematic_meta(
+        "tool2".to_string(),
+        CuttingDirection::Up,
+        vec![],
+        vec![],
+        vec![],
+        custom_meta,
+    );
+
+    assert_eq!(toolpath.kinematic_meta, custom_meta);
+    assert_eq!(toolpath.cutting_direction, CuttingDirection::Up);
+}
+
+#[test]
+fn test_tool_pose_and_machine_axis_value_creation() {
+    let machine_axes = vec![
+        MachineAxisValue::new("C".to_string(), MachineAxisKind::Rotary, 30.0),
+        MachineAxisValue::new("U".to_string(), MachineAxisKind::Linear, 12.5),
+    ];
+    let pose = ToolPose::new(
+        Point3D::new(1.0, 2.0, 3.0),
+        Vector3D::new(0.0, 0.0, -1.0),
+        Some(machine_axes.clone()),
+    );
+
+    assert_eq!(pose.position, Point3D::new(1.0, 2.0, 3.0));
+    assert_eq!(pose.process_axis, Vector3D::new(0.0, 0.0, -1.0));
+    assert_eq!(pose.machine_axes, Some(machine_axes));
+}
+
+#[test]
+fn test_toolpath_kinematic_meta_classification() {
+    let three_axis = ToolPathKinematicMeta::three_axis_position_only();
+    assert_eq!(
+        three_axis,
+        ToolPathKinematicMeta::new(
+            MachineConfigurationClass::ThreeAxis,
+            KinematicMode::ThreeAxis,
+            PoseDataPolicy::PositionOnlyCompatible,
+        )
+    );
+
+    let continuous_four_axis = ToolPathKinematicMeta::new(
+        MachineConfigurationClass::FourAxis,
+        KinematicMode::SimultaneousFourAxis,
+        PoseDataPolicy::PoseLayerOptional,
+    );
+    assert_eq!(
+        continuous_four_axis.configuration_class,
+        MachineConfigurationClass::FourAxis
+    );
+    assert_eq!(
+        continuous_four_axis.kinematic_mode,
+        KinematicMode::SimultaneousFourAxis
+    );
+}
+
+#[test]
+fn test_three_axis_position_only_policy_behavior() {
+    let three_axis = ToolPathKinematicMeta::three_axis_position_only();
+
+    assert!(three_axis.is_position_only_compatible());
+    assert!(three_axis.allows_optional_pose_layer());
+    assert!(!three_axis.requires_pose_layer());
+}
+
+#[test]
+fn test_two_axis_convenience_fns() {
+    let two_axis = ToolPathKinematicMeta::two_axis_position_only();
+    assert_eq!(
+        two_axis.configuration_class,
+        MachineConfigurationClass::TwoAxis
+    );
+    assert_eq!(two_axis.kinematic_mode, KinematicMode::TwoAxis);
+    assert!(two_axis.is_position_only_compatible());
+    assert!(two_axis.allows_optional_pose_layer());
+    assert!(!two_axis.requires_pose_layer());
+
+    let two_point_five = ToolPathKinematicMeta::two_point_five_axis_position_only();
+    assert_eq!(
+        two_point_five.configuration_class,
+        MachineConfigurationClass::TwoAxis
+    );
+    assert_eq!(
+        two_point_five.kinematic_mode,
+        KinematicMode::TwoPointFiveAxis
+    );
+    assert!(two_point_five.is_position_only_compatible());
+    assert!(two_point_five.allows_optional_pose_layer());
+    assert!(!two_point_five.requires_pose_layer());
+}
+
+#[test]
+fn test_toolpath_kinematic_meta_matrix() {
+    let cases = [
+        (
+            "2-axis",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::TwoAxis,
+                KinematicMode::TwoAxis,
+                PoseDataPolicy::PositionOnlyCompatible,
+            ),
+            true,
+            true,
+            false,
+        ),
+        (
+            "2.5-axis",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::TwoAxis,
+                KinematicMode::TwoPointFiveAxis,
+                PoseDataPolicy::PositionOnlyCompatible,
+            ),
+            true,
+            true,
+            false,
+        ),
+        (
+            "3-axis",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::ThreeAxis,
+                KinematicMode::ThreeAxis,
+                PoseDataPolicy::PositionOnlyCompatible,
+            ),
+            true,
+            true,
+            false,
+        ),
+        (
+            "4-axis simultaneous",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::FourAxis,
+                KinematicMode::SimultaneousFourAxis,
+                PoseDataPolicy::PoseLayerOptional,
+            ),
+            false,
+            true,
+            false,
+        ),
+        (
+            "3+2 indexed",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::FiveAxisOrMore,
+                KinematicMode::IndexedMultiAxis,
+                PoseDataPolicy::PoseLayerOptional,
+            ),
+            false,
+            true,
+            false,
+        ),
+        (
+            "5-axis simultaneous",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::FiveAxisOrMore,
+                KinematicMode::SimultaneousFiveAxis,
+                PoseDataPolicy::PoseLayerRequired,
+            ),
+            false,
+            false,
+            true,
+        ),
+    ];
+
+    for (name, meta, expected_position_only, expected_optional, expected_required) in cases {
+        assert_eq!(
+            meta.is_position_only_compatible(),
+            expected_position_only,
+            "unexpected position_only result for {name}"
+        );
+        assert_eq!(
+            meta.allows_optional_pose_layer(),
+            expected_optional,
+            "unexpected optional_pose result for {name}"
+        );
+        assert_eq!(
+            meta.requires_pose_layer(),
+            expected_required,
+            "unexpected required_pose result for {name}"
+        );
+    }
+}
+
+#[test]
+fn test_pose_annotated_segment_creation() {
+    let segment = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(5.0, 0.0, 0.0),
+        SegmentType::Cutting { feed_rate: 400.0 },
+    );
+    let start_pose = ToolPose::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Vector3D::new(0.0, 0.0, -1.0),
+        None,
+    );
+    let end_pose = ToolPose::new(
+        Point3D::new(5.0, 0.0, 0.0),
+        Vector3D::new(0.1, 0.0, -0.9),
+        Some(vec![MachineAxisValue::new(
+            "A".to_string(),
+            MachineAxisKind::Rotary,
+            12.0,
+        )]),
+    );
+    let pose_span = ToolPoseSpan::new(
+        start_pose.clone(),
+        end_pose.clone(),
+        PoseInterpolationPolicy::MachineConstrained,
+    );
+    let annotated = PoseAnnotatedSegment::new(segment.clone(), pose_span.clone());
+
+    assert_eq!(annotated.segment, segment);
+    assert_eq!(annotated.pose_span, pose_span);
+    assert_eq!(annotated.pose_span.start_pose, start_pose);
+    assert_eq!(annotated.pose_span.end_pose, end_pose);
+}
+
+#[test]
+fn test_path_segment_acceleration_hints_round_trip() {
+    let segment = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        SegmentType::Rapid,
+    )
+    .with_linear_acceleration_hint_mm_per_sec2(25.5)
+    .with_rotary_acceleration_hint_deg_per_sec2(120.25);
+
+    assert_eq!(segment.linear_acceleration_hint_mm_per_sec2(), Some(25.5));
+    assert_eq!(
+        segment.rotary_acceleration_hint_deg_per_sec2(),
+        Some(120.25)
+    );
+}
+
+#[test]
+fn test_path_segment_acceleration_hint_overwrite() {
+    let segment = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        SegmentType::Rapid,
+    )
+    .with_linear_acceleration_hint_mm_per_sec2(10.0)
+    .with_linear_acceleration_hint_mm_per_sec2(30.0);
+
+    assert_eq!(segment.linear_acceleration_hint_mm_per_sec2(), Some(30.0));
+
+    let linear_tag_count = segment
+        .ext_attributes
+        .iter()
+        .filter(|attr| attr.tag == SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2)
+        .count();
+    assert_eq!(linear_tag_count, 1);
+}

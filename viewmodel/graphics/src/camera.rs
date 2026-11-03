@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod tests;
 use crate::camera_math::{matrix_transform_vector, quaternion_to_matrix};
 use crate::camera_navigation::{
     pan as navigate_pan, project_on_sphere as project_arcball_on_sphere, rotate as navigate_rotate,
@@ -203,7 +205,7 @@ impl Camera {
     pub fn set_projection_mode(&mut self, mode: ProjectionMode) {
         let old_mode = self.projection_mode;
         self.projection_mode = mode;
-        tracing::warn!("🔄 投影モード変更: {:?} → {:?}", old_mode, mode);
+        tracing::info!("投影モード変更: {:?} → {:?}", old_mode, mode);
     }
 
     /// 直交投影モード時の表示範囲を設定
@@ -417,7 +419,3 @@ impl Default for Camera {
         Self::new()
     }
 }
-
-#[cfg(test)]
-#[path = "camera_tests.rs"]
-mod tests;

@@ -4,7 +4,7 @@
 
 A research platform for CAD/CAM development built with Rust + wgpu.
 
-Currently focusing on rendering infrastructure and foundational architecture design. CAM processing features are planned for future development.
+v0.1.0 is a preview: import an STL, compute a 3-axis scanline toolpath, and check it with a cutting simulation. NC output is not available yet, so the toolpaths cannot be used for real machining.
 
 **Documentation Languages:**
 
@@ -19,8 +19,8 @@ Currently focusing on rendering infrastructure and foundational architecture des
 ## 🔍 Overview
 
 RedRing is a research project aiming to create a standalone CAD/CAM development environment using Rust + wgpu.
-NURBS and primitive geometric elements are currently under development and will be introduced incrementally.
-Machining simulation and CAM path generation features are also planned for future implementation.
+NURBS and primitive geometric elements are being introduced incrementally.
+The CAM toolpath generation (scanline machining) and the cutting simulation are available as a preview (see [Cutting Simulation Demo](manual/cutting_simulation_demo.md)).
 
 ### 🌟 Key Features
 
@@ -42,6 +42,8 @@ Machining simulation and CAM path generation features are also planned for futur
 - 📊 **NURBS System** - Complete NURBS curves and surfaces implementation
 - 🔧 **Test Framework** - Comprehensive test suite (23/23 tests passing)
 - 📖 **Documentation** - Beautiful technical documentation with mdbook
+- 🔪 **CAM Toolpath Generation (preview)** - 3-axis scanline machining with ball / flat end mills (inverse offset method, toolpath tolerance guaranteed)
+- ⚡ **Cutting Simulation (preview)** - Tri-dexel stock, cutting animation over the product shape
 
 ### 🔄 In Development
 
@@ -51,8 +53,8 @@ Machining simulation and CAM path generation features are also planned for futur
 
 ### 📅 Future Plans
 
-- 🔪 CAM path generation engine
-- ⚡ Machining simulation
+- 🗂️ Machining management (operations, jobs, tool library) - v0.2.0
+- 🧾 Connecting moves and NC output - v0.3.0
 - 🌐 WebAssembly support
 - 🖱️ SpaceMouse integration
 
@@ -174,7 +176,22 @@ git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
-#### 2. Verify Dependencies
+#### 2. **Setup Git Pre-commit Hook** (Recommended)
+
+Prevent format issues by automatically checking code before commits:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/setup_hooks.ps1
+
+# macOS/Linux
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+After this step, `git commit` will automatically check formatting. If errors are found, the commit will be rejected and you'll need to run `cargo fmt --all` and retry.
+
+#### 3. Verify Dependencies
 
 ```bash
 # Check Rust version
@@ -184,7 +201,7 @@ rustc --version
 cargo --version
 ```
 
-#### 3. Build Project
+#### 4. Build Project
 
 ```bash
 # Debug build (fast compilation)
@@ -194,7 +211,7 @@ cargo build
 cargo build --release
 ```
 
-#### 4. Run Application
+#### 5. Run Application
 
 ```bash
 # Requires GUI environment (X11/Wayland/Windows/macOS)
@@ -204,7 +221,24 @@ cargo run
 cargo test --workspace
 ```
 
-### 🎮 Practical Key Bindings (after `cargo run`)
+### Optional: Comprehensive Pre-push Check (Recommended)
+
+Before pushing changes, optionally run the full quality check to catch any issues early:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux (coming soon)
+# bash scripts/check_all_before_push.sh
+```
+
+This runs:
+1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — Lint check
+3. `cargo test --workspace` — Full test suite
+
+#### 6. Generate Documentation (Optional)
 
 > Note: `cargo run -h` shows Cargo help. The key bindings below are available **after launching the app**.
 
@@ -217,21 +251,23 @@ cargo test --workspace
 | `t` | Return to standard CAD view |
 | `w` | Toggle display mode (Wire/Solid in CAM view) |
 
-#### CAM Debug Workflow
+#### Cutting Simulation
 
 | Key | Action |
 | --- | ------ |
-| `p` | Show cutter path only (color-coded lines) |
-| `Shift+P` | Show CAM simulation visualization (ToolPath + Work + Removal) |
-| `k` | Next snapshot frame |
-| `j` | Previous snapshot frame |
+| `Shift+B` / `Shift+F` | Submit a cutting simulation for the displayed product shape (ball / flat end mill) |
+| `Shift+R` | Run the queued jobs |
+| `Shift+L` | Import the latest cutting simulation |
+| `k` / `j` | Step forward / backward by the frame step distance |
+| `.` / `,` | Move the tool to the next / previous segment endpoint |
+| `Space` | Toggle autoplay / pause |
+| `Shift+J` | Stop autoplay and return to the first frame |
+| `+` / `-` | Adjust playback speed (current multiplier is shown in the title) |
+| `v` / `Shift+V` | Toggle toolpath lines / tool lines |
+| `Shift+S` | Toggle settings panel |
+| `Esc` | Quit |
 
-#### Octree Inspection
-
-| Key | Action |
-| --- | ------ |
-| `o` | Show Octree / advance depth |
-| `Shift+O` | Play Octree depth animation |
+Debug views (shapes, NURBS, inverse offset envelope, Octree, toolpath only) are in the Debug tab of the settings panel. See `manual/cutting_simulation_demo.md` for the full key list.
 
 #### Mouse Controls
 
@@ -289,6 +325,76 @@ We welcome contributions to the RedRing project!
 - **Documentation**: Add rustdoc comments for public APIs
 - **Testing**: Include tests for new features
 
+### Pre-commit Format Checking
+
+**⚠️ IMPORTANT: Before pushing changes, you MUST run the format check**
+
+This project enforces code quality through CI checks. **Committing format issues will cause CI failure and waste time.**
+
+#### Option 1: Quick Check (Recommended)
+
+Run this before every push:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux
+bash scripts/check_all_before_push.sh  # (will be added in future)
+```
+
+This runs:
+1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — Lint check
+3. `cargo test --workspace` — Full test suite
+
+If any check fails, the script stops immediately with error details.
+
+#### Option 2: Individual Commands
+
+If you prefer running checks separately:
+
+```bash
+# Check formatting (does not modify files)
+pwsh scripts/check_fmt.ps1
+
+# Auto-format all files
+cargo fmt --all
+
+# Run lints
+cargo clippy --all-targets --all-features --workspace -- -D warnings
+
+# Run tests
+cargo test --workspace
+```
+
+#### Option 3: Automatic Pre-commit Hook (Optional)
+
+Set up a git pre-commit hook to prevent committing unformatted code:
+
+**On Windows (PowerShell):**
+```powershell
+pwsh scripts/setup_hooks.ps1
+```
+
+**On macOS/Linux:**
+```bash
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+After setup, `git commit` will automatically check formatting before creating a commit.
+
+#### ⚠️ If you forget to check locally
+
+The CI (`feature_ci.yml`) will reject your PR with:
+```
+✗ Check formatting — FAILED
+cargo fmt --all -- --check
+```
+
+**Solution**: Run the check script locally, commit the changes, and push again.
+
 ### Community
 
 - 🐛 **Bug Reports**: Report via [Issues](https://github.com/RedRing2020/RedRing/issues)
@@ -303,7 +409,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## � License
+## Dual License
 
 RedRing is available under a dual license:
 
@@ -316,7 +422,7 @@ This dual licensing follows the standard practice of the Rust ecosystem and prov
 
 ---
 
-## �🙏 Acknowledgments
+## 🙏 Acknowledgments
 
 We thank all contributors who have helped develop RedRing.
 

@@ -1,6 +1,6 @@
 //! Octree可視化レンダリングステージ
 //!
-//! ViewModel層から変換されたOctreeワイヤーフレームデータを受け取り、
+//! Octreeのワイヤーフレームデータを受け取り、
 //! GPU上でレンダリングするステージです。
 //!
 //! # 使用例
@@ -106,7 +106,7 @@ impl OctreeStage {
 
     /// ワイヤーフレームデータを設定（色無しバージョン）
     ///
-    /// ViewModel層から変換された頂点データを受け取ります。
+    /// ワイヤーフレームの頂点データを受け取ります。
     /// Phase 1では色情報を無視し、単色（白）で描画します。
     ///
     /// # 引数
@@ -319,6 +319,7 @@ impl RenderStage for OctreeStage {
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         self.resources.render(&mut render_pass);
@@ -372,25 +373,6 @@ impl RenderStage for OctreeStage {
 
     fn start_octree_depth_animation(&mut self) -> bool {
         self.start_depth_animation();
-        true
-    }
-
-    fn apply_snapshot_wireframe_frame(
-        &mut self,
-        device: &wgpu::Device,
-        snapshot_wireframes: Vec<Vec<WireframeVertex>>,
-        frame_index: usize,
-    ) -> bool {
-        if snapshot_wireframes.is_empty() {
-            return false;
-        }
-
-        if self.max_depth().saturating_add(1) != snapshot_wireframes.len() {
-            self.set_depth_levels(device, snapshot_wireframes.clone());
-        }
-
-        let index = frame_index.min(snapshot_wireframes.len().saturating_sub(1));
-        self.set_depth(device, index);
         true
     }
 }

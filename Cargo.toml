@@ -1,17 +1,24 @@
 [workspace]
 members = [
   "foundation/analysis",  # Foundation層：数値解析クレート（ドメイン非依存基盤）
+  "foundation/i18n_foundation", # Foundation層：ローカライズ共通基盤
   "foundation/logging_foundation", # Foundation層：ログ初期化・レート制御基盤
-  "model/geo_foundation", # Model層：幾何計算基盤（抽象型・橋渡し）
+  "model/geo_contracts",  # Model層：幾何形状契約（trait定義）
+  "model/geo_commons",    # Model層：geo_* で共通する幾何計算の関数
   "model/geo_core",       # Model層：幾何計算基盤
   "model/geo_primitives", # Model層：幾何プリミティブクレート
+  "model/geo_topology",   # Model層：位相構造クレート（CompositeCurve等）
   "model/geo_algorithms", # Model層：幾何アルゴリズムクレート
   "model/geo_nurbs",      # Model層：NURBS曲線・曲面クレート（高レベルアルゴリズム）
   "model/geo_io",         # Model層：ファイルI/Oクレート
   "model/geo_entity",     # Model層：エンティティ基盤クレート（Phase 4.0）
   "model/cam_core",       # Model層：CAM基盤クレート（工具経路・工具定義）
   "model/cam_entity",     # Model層：CAMエンティティクレート（geo_entityアドオン）
+  "model/cam_algorithms", # Model層：CAMアルゴリズム（ToolPath生成）
   "model/cam_sim",        # Model層：CAMシミュレーション実行クレート
+  "model/job_runtime", # Model層：共通ジョブマネージャー基盤（CAD/CAM/CAE非依存）
+  "model/job_domain", # Model層：ジョブ投入ポリシー/ユースケース抽象化
+  "model/application", # Application層：orchestration受け皿（PoC段階は単一クレート）
   "viewmodel/converter",  # ViewModel層：データ変換・架け橋
   "viewmodel/graphics",   # ViewModel層：グラフィックス制御（カメラ等）
   "view/render",          # View層：GPU描画基盤
@@ -32,3 +39,7 @@ categories = ["graphics", "mathematics", "science"]
 pollster = "0.4.0"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
+
+[workspace.lints.clippy]
+# ディレクトリのモジュールは mod.rs ではなくディレクトリと同名のファイルに置く
+mod_module_files = "warn"

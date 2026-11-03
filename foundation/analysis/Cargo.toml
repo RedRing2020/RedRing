@@ -13,3 +13,6 @@ approx = "0.5"
 
 [features]
 default = []
+
+[lints]
+workspace = true

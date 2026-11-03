@@ -1,23 +1,20 @@
-//! 3D楕円のCore実装
+//! 3次元楕円（Ellipse3D）の実装
 //!
-//! Foundation統一システムに基づくEllipse3Dの必須機能のみ
+//! 中心・長半軸・短半軸・平面の法線・長軸方向で定義する。
 
-use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
-use geo_foundation::prelude::{
-    EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
-};
-use geo_foundation::{
-    tolerance_migration::DefaultTolerances, Ellipse3DConstructor, Ellipse3DMeasure,
-    Ellipse3DProperties, Scalar,
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
+
+use crate::{Angle, Direction3D, Point3D, Vector3D};
+use geo_contracts::{
+    default_angle_tolerance, default_distance_tolerance, Ellipse3DConstructor,
+    Ellipse3DContainment, Ellipse3DDistance, Ellipse3DEvaluation, Ellipse3DProjection,
+    Ellipse3DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
-/// 3次元楕円（Core実装）
-///
-/// Core機能のみ：
-/// - 基本構築・検証
-/// - アクセサメソッド
-/// - 基本的な幾何プロパティ
-/// - 基本パラメトリック操作
+/// 3次元楕円
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ellipse3D<T: Scalar> {
     center: Point3D<T>,
@@ -27,36 +24,64 @@ pub struct Ellipse3D<T: Scalar> {
     major_axis_dir: Direction3D<T>, // 長軸方向ベクトル（正規化済み）
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
+impl<T: Scalar> PrimitiveMetadata for Ellipse3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Ellipse
+    }
+}
 
 impl<T: Scalar> Ellipse3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-    /// 新しい3D楕円を作成
+    /// 点に最も近い楕円上の点の local angle parameter（`0 <= t < 2π`）を取得
     ///
-    /// 基本的な検証のみ実行
-    pub fn new(
+    /// 楕円弧が点のパラメータを求めるため pub(crate)。平面外の点は平面へ投影した点の最近点を使う。
+    pub(crate) fn parameter_for_point(&self, point: Point3D<T>) -> T {
+        let (x_local, y_local, _) = self.local_coordinates(point);
+        let (closest_x, closest_y) = geo_commons::ellipse_2d_closest_point(
+            x_local,
+            y_local,
+            self.semi_major_axis,
+            self.semi_minor_axis,
+        );
+        let angle = (closest_y / self.semi_minor_axis).atan2(closest_x / self.semi_major_axis);
+        if angle < T::ZERO {
+            angle + T::TAU
+        } else {
+            angle
+        }
+    }
+
+    /// 中心を原点とし、長軸・短軸・法線を軸とする楕円の局所座標系での点の座標
+    fn local_coordinates(&self, point: Point3D<T>) -> (T, T, T) {
+        let translated = Vector3D::from_points(self.center, point);
+        (
+            translated.dot(self.major_axis_dir.as_vector()),
+            translated.dot(self.minor_axis_direction().as_vector()),
+            translated.dot(self.normal.as_vector()),
+        )
+    }
+
+    /// 平面上の局所座標（長軸・短軸）の点を全体座標系へ戻す
+    fn local_to_world(&self, x_local: T, y_local: T) -> Point3D<T> {
+        self.center
+            + self.major_axis_dir.as_vector() * x_local
+            + self.minor_axis_direction().as_vector() * y_local
+    }
+}
+
+impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
+    fn new(
         center: Point3D<T>,
         semi_major_axis: T,
         semi_minor_axis: T,
-        normal: Vector3D<T>,
-        major_axis_dir: Vector3D<T>,
+        normal: Direction3D<T>,
+        major_axis_direction: Direction3D<T>,
     ) -> Option<Self> {
-        // 半軸の長さの検証
         if semi_major_axis < semi_minor_axis || semi_minor_axis <= T::ZERO {
             return None;
         }
 
-        // Direction3Dに変換（自動的に正規化される）
-        let normal_dir = Direction3D::from_vector(normal)?;
-        let major_axis_dir = Direction3D::from_vector(major_axis_dir)?;
-
-        // 基本的な直交性チェック
-        let dot_product = normal_dir.dot(&major_axis_dir);
-        if dot_product.abs() > DefaultTolerances::distance::<T>() {
+        // 長軸方向は法線に直交する
+        if normal.dot(major_axis_direction).abs() > default_angle_tolerance::<T>() {
             return None;
         }
 
@@ -64,193 +89,96 @@ impl<T: Scalar> Ellipse3D<T> {
             center,
             semi_major_axis,
             semi_minor_axis,
-            normal: normal_dir,
-            major_axis_dir,
+            normal,
+            major_axis_dir: major_axis_direction,
         })
     }
 
-    /// XY平面上の軸に平行な楕円を作成
-    pub fn xy_aligned(center: Point3D<T>, semi_major_axis: T, semi_minor_axis: T) -> Option<Self> {
-        Self::new(
+    fn new_xy_plane(
+        center: Point3D<T>,
+        semi_major_axis: T,
+        semi_minor_axis: T,
+        rotation: Angle<T>,
+    ) -> Option<Self> {
+        let radians = rotation.to_radians();
+        let major_dir = Direction3D::new(radians.cos(), radians.sin(), T::ZERO)?;
+        <Self as Ellipse3DConstructor<T>>::new(
             center,
             semi_major_axis,
             semi_minor_axis,
-            Vector3D::unit_z(),
-            Vector3D::unit_x(),
+            Direction3D::positive_z(),
+            major_dir,
         )
     }
+}
 
-    /// 3D円から楕円を作成
-    pub fn from_circle(circle: &Circle3D<T>) -> Option<Self> {
-        let normal_dir = circle.normal_internal();
-        let u_axis_dir = circle.ref_direction_internal();
-
-        Some(Self {
-            center: circle.center_internal(),
-            semi_major_axis: circle.radius_internal(),
-            semi_minor_axis: circle.radius_internal(),
-            normal: normal_dir,
-            major_axis_dir: u_axis_dir,
-        })
-    }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
-    /// 楕円の中心点を取得（内部使用）
-    pub(crate) fn center_internal(&self) -> Point3D<T> {
+impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
+    fn center(&self) -> Point3D<T> {
         self.center
     }
 
-    /// 長半軸の長さを取得（内部使用）
-    pub(crate) fn semi_major_internal(&self) -> T {
-        self.semi_major_axis
-    }
-
-    /// 短半軸の長さを取得（内部使用）
-    pub(crate) fn semi_minor_internal(&self) -> T {
-        self.semi_minor_axis
-    }
-
-    /// 楕円の中心点を取得
-    pub fn center(&self) -> Point3D<T> {
-        self.center_internal()
-    }
-
-    /// 長半軸の長さを取得
-    pub fn semi_major_axis(&self) -> T {
-        self.semi_major_internal()
-    }
-
-    /// 短半軸の長さを取得
-    pub fn semi_minor_axis(&self) -> T {
-        self.semi_minor_internal()
-    }
-
-    /// 楕円平面の法線ベクトルを取得
-    pub fn normal(&self) -> Direction3D<T> {
+    fn normal(&self) -> Direction3D<T> {
         self.normal
     }
 
-    /// 長軸方向ベクトルを取得
-    pub fn major_axis_direction(&self) -> Direction3D<T> {
+    fn major_axis_direction(&self) -> Direction3D<T> {
         self.major_axis_dir
     }
 
-    /// 短軸方向ベクトルを取得
-    pub fn minor_axis_direction(&self) -> Direction3D<T> {
-        Direction3D::from_vector(self.normal.cross(&self.major_axis_dir))
-            .expect("Cross product of normalized vectors should be valid")
+    fn minor_axis_direction(&self) -> Direction3D<T> {
+        Direction3D::from_vector(self.normal.cross(*self.major_axis_dir))
+            .expect("Cross product of orthogonal unit vectors should be valid")
     }
 
-    // ========================================================================
-    // Core Geometric Properties
-    // ========================================================================
-
-    /// 離心率を計算
-    pub fn eccentricity(&self) -> T {
-        if self.semi_major_axis == T::ZERO {
-            return T::ZERO;
-        }
-        let ratio = self.semi_minor_axis / self.semi_major_axis;
-        (T::ONE - ratio * ratio).sqrt()
+    fn semi_major_axis(&self) -> T {
+        self.semi_major_axis
     }
 
-    /// 楕円の面積を計算
-    pub fn area(&self) -> T {
-        T::PI * self.semi_major_axis * self.semi_minor_axis
+    fn semi_minor_axis(&self) -> T {
+        self.semi_minor_axis
     }
+}
 
-    /// 楕円が円かどうかを判定
-    pub fn is_circle(&self) -> bool {
-        let tolerance = DefaultTolerances::distance::<T>();
-        (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
-    }
-
-    /// 楕円が退化しているかどうかを判定
-    pub fn is_degenerate(&self) -> bool {
-        let tolerance = DefaultTolerances::distance::<T>();
-        self.semi_minor_axis <= tolerance
-    }
-
-    /// 円への変換（円の場合のみ）
-    pub fn to_circle(&self) -> Option<Circle3D<T>> {
-        if self.is_circle() {
-            Circle3D::new(self.center, self.normal, self.semi_major_axis)
-        } else {
-            None
-        }
-    }
-
-    // ========================================================================
-    // Core Parametric Methods
-    // ========================================================================
-
-    /// パラメータ t での楕円上の点を計算
-    /// t ∈ [0, 2π]
-    pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
-        let cos_t = t.cos();
-        let sin_t = t.sin();
-
-        let major_component = self.major_axis_dir.as_vector() * (self.semi_major_axis * cos_t);
-        let minor_component =
-            self.minor_axis_direction().as_vector() * (self.semi_minor_axis * sin_t);
-
-        Point3D::new(
-            self.center.x() + major_component.x() + minor_component.x(),
-            self.center.y() + major_component.y() + minor_component.y(),
-            self.center.z() + major_component.z() + minor_component.z(),
+impl<T: Scalar> Ellipse3DEvaluation<T> for Ellipse3D<T> {
+    fn point_at_parameter(&self, t: T) -> Point3D<T> {
+        self.local_to_world(
+            self.semi_major_axis * t.cos(),
+            self.semi_minor_axis * t.sin(),
         )
     }
+}
 
-    /// パラメータ t での楕円の接線ベクトルを計算
-    /// t ∈ [0, 2π]
-    pub fn tangent_at_parameter(&self, t: T) -> Vector3D<T> {
-        let cos_t = t.cos();
-        let sin_t = t.sin();
-
-        let major_component = self.major_axis_dir.as_vector() * (-self.semi_major_axis * sin_t);
-        let minor_component =
-            self.minor_axis_direction().as_vector() * (self.semi_minor_axis * cos_t);
-
-        major_component + minor_component
+impl<T: Scalar> Ellipse3DContainment<T> for Ellipse3D<T> {
+    fn contains_point(&self, point: Point3D<T>) -> bool {
+        self.distance_to_point(point) <= default_distance_tolerance::<T>()
     }
 
-    /// 角度 θ での楕円上の点を計算
-    pub fn point_at_angle(&self, angle: Angle<T>) -> Point3D<T> {
-        self.point_at_parameter(angle.to_radians())
+    /// 楕円までの距離が既定の許容誤差以内なら `OnBoundary` とする。それ以外は、平面からの距離が
+    /// 許容誤差以内で、平面へ投影した点が楕円の内側にあれば `Inside`、それ以外を `Outside` とする。
+    fn classify_point(&self, point: Point3D<T>) -> PointClassification {
+        if self.contains_point(point) {
+            return PointClassification::OnBoundary;
+        }
+
+        let (x_local, y_local, z_local) = self.local_coordinates(point);
+        if z_local.abs() > default_distance_tolerance::<T>() {
+            return PointClassification::Outside;
+        }
+
+        let x_normalized = x_local / self.semi_major_axis;
+        let y_normalized = y_local / self.semi_minor_axis;
+        if x_normalized * x_normalized + y_normalized * y_normalized < T::ONE {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
+}
 
-    /// パラメータ範囲を取得
-    pub fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::TAU)
-    }
-
-    /// 3D空間での点から楕円への最短距離を計算（内部実装）
-    fn distance_to_point_3d_internal(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-
-        // 点を楕円の座標系に変換
-        let translated = Vector3D::new(
-            p.x() - self.center.x(),
-            p.y() - self.center.y(),
-            p.z() - self.center.z(),
-        );
-
-        // 楕円平面への射影
-        let u = self.major_axis_dir.as_vector();
-        let v = self.minor_axis_direction().as_vector();
-
-        let x_local = translated.dot(&u);
-        let y_local = translated.dot(&v);
-
-        // 平面外成分（法線方向）
-        let n = self.normal.as_vector();
-        let z_local = translated.dot(&n);
-
-        // geo_commonsの共通実装を使用
-        geo_foundation::commons::ellipse_3d_distance_to_point(
+impl<T: Scalar> Ellipse3DDistance<T> for Ellipse3D<T> {
+    fn distance_to_point(&self, point: Point3D<T>) -> T {
+        let (x_local, y_local, z_local) = self.local_coordinates(point);
+        geo_commons::ellipse_3d_distance_to_point(
             x_local,
             y_local,
             z_local,
@@ -260,291 +188,15 @@ impl<T: Scalar> Ellipse3D<T> {
     }
 }
 
-// ============================================================================
-// Foundation Pattern: Core Traits Implementation (Phase 1 + Phase 2)
-// ============================================================================
-
-impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
-    // ========== Phase 1 実装 ==========
-
-    /// 基本コンストラクタ（中心点、平面法線、長軸半径、短軸半径、長軸方向）
-    fn new(
-        center: (T, T, T),
-        normal: (T, T, T),
-        semi_major_axis: T,
-        semi_minor_axis: T,
-        major_axis_direction: (T, T, T),
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
-        let major_dir_vec = Vector3D::new(
-            major_axis_direction.0,
-            major_axis_direction.1,
-            major_axis_direction.2,
-        );
-
-        Self::new(
-            center_point,
-            semi_major_axis,
-            semi_minor_axis,
-            normal_vec,
-            major_dir_vec,
-        )
-    }
-
-    /// 完全な座標系で作成
-    fn new_with_coordinate_system(
-        center: (T, T, T),
-        normal: (T, T, T),
-        major_axis_direction: (T, T, T),
-        _minor_axis_direction: (T, T, T),
-        semi_major_axis: T,
-        semi_minor_axis: T,
-    ) -> Option<Self> {
-        // minor_axis_directionは無視し、major_axis_directionとnormalから自動計算
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
-        let major_dir_vec = Vector3D::new(
-            major_axis_direction.0,
-            major_axis_direction.1,
-            major_axis_direction.2,
-        );
-
-        Self::new(
-            center_point,
-            semi_major_axis,
-            semi_minor_axis,
-            normal_vec,
-            major_dir_vec,
-        )
-    }
-
-    /// XY平面上の楕円作成
-    fn new_xy_plane(
-        center: (T, T, T),
-        semi_major_axis: T,
-        semi_minor_axis: T,
-        rotation: T,
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-        let major_dir = Vector3D::new(cos_rot, sin_rot, T::ZERO);
-
-        Self::new(
-            center_point,
-            semi_major_axis,
-            semi_minor_axis,
-            Vector3D::unit_z(),
-            major_dir,
-        )
-    }
-
-    // ========== Phase 2 実装 ==========
-
-    /// XZ平面上の楕円作成
-    fn new_xz_plane(
-        center: (T, T, T),
-        semi_major_axis: T,
-        semi_minor_axis: T,
-        rotation: T,
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-        let major_dir = Vector3D::new(cos_rot, T::ZERO, sin_rot);
-
-        Self::new(
-            center_point,
-            semi_major_axis,
-            semi_minor_axis,
-            Vector3D::unit_y(),
-            major_dir,
-        )
-    }
-
-    /// YZ平面上の楕円作成
-    fn new_yz_plane(
-        center: (T, T, T),
-        semi_major_axis: T,
-        semi_minor_axis: T,
-        rotation: T,
-    ) -> Option<Self> {
-        let center_point = Point3D::new(center.0, center.1, center.2);
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-        let major_dir = Vector3D::new(T::ZERO, cos_rot, sin_rot);
-
-        Self::new(
-            center_point,
-            semi_major_axis,
-            semi_minor_axis,
-            Vector3D::unit_x(),
-            major_dir,
-        )
-    }
-
-    /// XY平面単位楕円
-    fn unit_ellipse_xy() -> Self {
-        Self {
-            center: Point3D::origin(),
-            semi_major_axis: T::ONE,
-            semi_minor_axis: T::ONE,
-            normal: Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            major_axis_dir: Direction3D::from_vector(Vector3D::unit_x()).unwrap(),
-        }
-    }
-}
-
-impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
-    // ========== Phase 1 実装 ==========
-
-    /// 楕円が存在する平面の法線ベクトルを取得
-    fn normal(&self) -> (T, T, T) {
-        (self.normal.x(), self.normal.y(), self.normal.z())
-    }
-
-    /// 楕円の長軸方向ベクトルを取得
-    fn major_axis_direction(&self) -> (T, T, T) {
-        (
-            self.major_axis_dir.x(),
-            self.major_axis_dir.y(),
-            self.major_axis_dir.z(),
-        )
-    }
-
-    /// 楕円の短軸方向ベクトルを取得
-    fn minor_axis_direction(&self) -> (T, T, T) {
-        let minor_axis = self.minor_axis_direction();
-        (minor_axis.x(), minor_axis.y(), minor_axis.z())
-    }
-
-    /// 3D中心座標を取得
-    fn center_3d(&self) -> (T, T, T) {
-        (self.center.x(), self.center.y(), self.center.z())
-    }
-
-    /// 3D中心点をタプルとして取得
-    fn center_3d_tuple(&self) -> (T, T, T) {
-        (self.center.x(), self.center.y(), self.center.z())
-    }
-
-    // ========== Phase 2 実装 ==========
-
-    /// 長半軸の長さを取得
-    fn semi_major_axis(&self) -> T {
-        self.semi_major_axis
-    }
-
-    /// 短半軸の長さを取得
-    fn semi_minor_axis(&self) -> T {
-        self.semi_minor_axis
-    }
-
-    /// 離心率を取得
-    fn eccentricity(&self) -> T {
-        self.eccentricity()
-    }
-}
-
-impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
-    // ========== Phase 1 実装 ==========
-
-    /// 3D空間での点が楕円内部にあるかを判定
-    fn contains_point_3d(&self, point: (T, T, T)) -> bool {
-        self.distance_to_point_3d_internal(point)
-            <= geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into()
-    }
-
-    /// 3D空間での点から楕円への最短距離を計算
-    fn distance_to_point_3d(&self, point: (T, T, T)) -> T {
-        self.distance_to_point_3d_internal(point)
-    }
-
-    /// 3D空間での直線との交点を計算（未実装）
-    fn intersection_with_line_3d(
-        &self,
-        _line_point: (T, T, T),
-        _line_direction: (T, T, T),
-    ) -> Vec<(T, T, T)> {
-        // 3D楕円と3D直線の交点計算は複雑
-        Vec::new()
-    }
-
-    /// 平面との交点を計算（未実装）
-    fn intersection_with_plane(
-        &self,
-        _plane_point: (T, T, T),
-        _plane_normal: (T, T, T),
-    ) -> Vec<(T, T, T)> {
-        // 3D楕円と平面の交点計算は複雑
-        Vec::new()
-    }
-
-    // ========== Phase 2 実装 ==========
-
-    /// 楕円の面積を計算
-    fn measure(&self) -> T {
-        self.area()
-    }
-
-    /// 楕円の周長を計算（近似）
-    fn perimeter(&self) -> T {
-        self.perimeter_ramanujan_ii()
-    }
-
-    /// パラメータ t における楕円上の点を取得（0 <= t < 2π）
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let p = self.point_at_parameter(t);
-        (p.x(), p.y(), p.z())
-    }
-
-    /// 楕円が円かどうか判定
-    fn is_circle(&self) -> bool {
-        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
-        (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
-    }
-}
-
-// ============================================================================
-// Advanced Calculation Traits Implementation
-// ============================================================================
-
-impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
-    type Point = Point3D<T>;
-
-    /// 長半軸の長さを取得
-    fn semi_major_axis(&self) -> T {
-        self.semi_major_axis
-    }
-
-    /// 短半軸の長さを取得
-    fn semi_minor_axis(&self) -> T {
-        self.semi_minor_axis
-    }
-
-    /// 楕円の焦点座標を計算（3D空間）
-    fn foci(&self) -> (Point3D<T>, Point3D<T>) {
-        let foci_tuple = geo_foundation::prelude::commons::ellipse_foci(
+impl<T: Scalar> Ellipse3DProjection<T> for Ellipse3D<T> {
+    fn closest_point(&self, point: Point3D<T>) -> Point3D<T> {
+        let (x_local, y_local, _) = self.local_coordinates(point);
+        let (closest_x, closest_y) = geo_commons::ellipse_2d_closest_point(
+            x_local,
+            y_local,
             self.semi_major_axis,
             self.semi_minor_axis,
         );
-        let (f1_local, f2_local) = (foci_tuple.0, foci_tuple.1);
-
-        // 楕円平面内での焦点（長軸方向に配置）
-        let f1_vec = self.major_axis_dir.as_vector() * f1_local.0;
-        let f2_vec = self.major_axis_dir.as_vector() * f2_local.0;
-
-        // 3D空間での焦点座標
-        let f1_final = self.center + f1_vec;
-        let f2_final = self.center + f2_vec;
-
-        (f1_final, f2_final)
+        self.local_to_world(closest_x, closest_y)
     }
-
-    // 他のメソッド（perimeter_*, eccentricity, focal_distance, area）は
-    // EllipseCalculationトレイトのデフォルト実装を使用
 }
-
-impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse3D<T> {}
-impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse3D<T> {}

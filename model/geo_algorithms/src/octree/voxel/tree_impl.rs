@@ -1,4 +1,5 @@
 use super::*;
+use geo_contracts::{Arc3DSampling, LineSegment3DConstructor};
 
 impl<T: Scalar> VoxelOctree<T> {
     /// 新しいボクセルOctreeを作成
@@ -7,7 +8,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// # Arguments
     ///
-    /// * `bounds` - ワーク全体の境界ボックス
+    /// * `bounds` - 占有領域全体の境界ボックス
     /// * `max_depth` - 最大深さ（分割の上限）
     ///
     /// # Examples
@@ -51,11 +52,11 @@ impl<T: Scalar> VoxelOctree<T> {
     /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
     ///
     /// // 掃引形状が通過した領域を除去
-    /// let tool_region = Aabb3D::new(
+    /// let removal_region = Aabb3D::new(
     ///     Point3D::new(10.0, 10.0, 0.0),
     ///     Point3D::new(20.0, 20.0, 50.0)
     /// );
-    /// voxel_tree.remove_material_box(&tool_region);
+    /// voxel_tree.remove_material_box(&removal_region);
     /// ```
     pub fn remove_material_box(&mut self, tool_aabb: &Aabb3D<T>) {
         self.root.remove_material_box(tool_aabb, self.max_depth);
@@ -102,7 +103,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// # Performance
     ///
-    /// XY平面での2D円-矩形距離計算に簡略化：
+    /// XY平面での2D円-矩形距離計算に帰着させる：
     /// - サンプリング不要
     /// - 8頂点チェックが4頂点に削減
     /// - Z方向は単純な範囲チェックのみ
@@ -199,7 +200,7 @@ impl<T: Scalar> VoxelOctree<T> {
     /// use geo_algorithms::octree::voxel::VoxelOctree;
     /// use geo_core::{Aabb3D, Point3D};
     ///
-    /// // ワークピース全体
+    /// // 占有領域全体
     /// let work_bounds = Aabb3D::new(
     ///     Point3D::new(0.0, 0.0, 0.0),
     ///     Point3D::new(100.0, 100.0, 100.0)
@@ -241,7 +242,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// ```rust,ignore
     /// let voxel_tree = VoxelOctree::new(work_bounds, 6);
-    /// voxel_tree.remove_material_box(&tool_region);
+    /// voxel_tree.remove_material_box(&removal_region);
     ///
     /// let solid_boxes = voxel_tree.collect_solid_voxel_bounds();
     /// println!("Solid voxels: {}", solid_boxes.len());
@@ -312,7 +313,7 @@ impl<T: Scalar> VoxelOctree<T> {
     /// # Notes
     ///
     /// - 線分近似により若干の過剰除去が生じる場合があります
-    /// - より正確な円弧処理が必要な場合は、将来実装予定の正確版を検討してください
+    /// - より正確な円弧処理が必要な場合は、別方式の円弧処理を追加で検討してください
     /// - NURBS曲線など他の曲線型も同様の手法で対応可能です
     pub fn remove_material_arc_polyline(&mut self, arc: &Arc3D<T>, radius: T, num_segments: usize) {
         if num_segments == 0 {

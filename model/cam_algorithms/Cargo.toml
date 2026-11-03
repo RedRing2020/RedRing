@@ -1,0 +1,20 @@
+[package]
+name = "cam_algorithms"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+cam_core = { path = "../cam_core" }
+geo_algorithms = { path = "../geo_algorithms" }
+geo_contracts = { path = "../geo_contracts" }
+
+[dev-dependencies]
+analysis = { path = "../../foundation/analysis" }
+
+[lints]
+workspace = true

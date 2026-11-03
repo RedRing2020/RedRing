@@ -40,7 +40,7 @@ Foundation Patternに完全準拠し、統一された型安全なインター�
 すべてのNURBS型は以下のCore Traitsを実装：
 
 ```rust
-use geo_foundation::{
+use geo_contracts::{
     NurbsCurve3DConstructor, NurbsCurve3DProperties, NurbsCurve3DMeasure
 };
 
@@ -61,23 +61,27 @@ let length = <NurbsCurve3D<f64> as NurbsCurve3DMeasure<f64>>::arc_length_total(&
 ### Extension Traits（拡張機能）
 
 ```rust
-use geo_foundation::{ExtensionFoundation, Bounded};
+use geo_contracts::Bounded;
 
 // PrimitiveKind取得
 let kind = curve.primitive_kind(); // PrimitiveKind::NurbsCurve3D
-
-// 測度（長さ・面積）
-let measure = curve.measure(); // Some(arc_length)
 
 // 境界ボックス
 let bbox = curve.aabb()?; // Aabb3D<T>
 ```
 
+補足:
+
+- `PrimitiveMetadata` と `Bounded` は本体と `*_bounds.rs` に分離して実装する
+- 標準 `aabb()` は制御点ベースの保守的な bounds を返す
+- より高精度な bounds は `curve_3d_extensions.rs` のような extension 側へ分離する
+
 ### Transform Traits（変換操作）
 
 ```rust
-use geo_foundation::AnalysisTransform3D;
+use analysis::Angle;
 use analysis::vector::Vector3;
+use geo_nurbs::AnalysisTransform3D;
 
 // 平行移動
 let translated = curve.translate_analysis(&Vector3::new(1.0, 2.0, 3.0))?;
@@ -85,7 +89,7 @@ let translated = curve.translate_analysis(&Vector3::new(1.0, 2.0, 3.0))?;
 // 回転
 let axis = Vector3::new(0.0, 0.0, 1.0);
 let angle = Angle::from_degrees(90.0);
-let rotated = curve.rotate_analysis(&axis, angle)?;
+let rotated = curve.rotate_analysis(&curve, &axis, angle)?;
 
 // スケール
 let scaled = curve.uniform_scale_analysis(&curve, 2.0)?;
@@ -97,7 +101,7 @@ let scaled = curve.uniform_scale_analysis(&curve, 2.0)?;
 
 ```rust
 use geo_nurbs::NurbsCurve2D;
-use geo_foundation::NurbsCurve2DConstructor;
+use geo_contracts::NurbsCurve2DConstructor;
 
 // 制御点（2D座標）
 let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
@@ -118,9 +122,10 @@ println!("Point at t=0.5: ({}, {})", point.x(), point.y());
 ### 3次元NURBS曲線の変換
 
 ```rust
-use geo_nurbs::NurbsCurve3D;
-use geo_foundation::{NurbsCurve3DConstructor, AnalysisTransform3D};
+use analysis::Angle;
 use analysis::vector::Vector3;
+use geo_contracts::NurbsCurve3DConstructor;
+use geo_nurbs::{AnalysisTransform3D, NurbsCurve3D};
 
 // 線分を作成
 let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
@@ -135,14 +140,14 @@ let translated = curve.translate_analysis(&translation)?;
 // Z軸周りに90度回転
 let axis = Vector3::new(0.0, 0.0, 1.0);
 let angle = Angle::from_degrees(90.0);
-let rotated = translated.rotate_analysis(&axis, angle)?;
+let rotated = translated.rotate_analysis(&translated, &axis, angle)?;
 ```
 
 ### NURBS曲面の作成と法線計算
 
 ```rust
 use geo_nurbs::NurbsSurface3D;
-use geo_foundation::{NurbsSurface3DConstructor, NurbsSurface3DMeasure};
+use geo_contracts::{NurbsSurface3DConstructor, NurbsSurface3DMeasure};
 
 // 単位平面を生成
 let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
@@ -176,6 +181,13 @@ let adaptive_bbox = curve.bounding_box_with_options(
 );
 ```
 
+## bounds 運用ルール
+
+- finite な NURBS 型には `Bounded` を付与する
+- `Bounded` 実装は `*_bounds.rs` に配置する
+- 2D/3D の同族型を追加する場合、bounds を片側だけで止めない
+- `NurbsSurface2D` は現状未定義のため、`NurbsSurface3D` だけに bounds があるのは設計上の現状であり、横展開漏れではない
+
 ## モジュール構成
 
 ```
@@ -187,20 +199,19 @@ geo_nurbs/src/
 ├── basis.rs                     # B-spline基底関数
 │
 ├── curve_2d.rs                  # NurbsCurve2D - Core Traits実装
-├── curve_2d_foundation.rs       # NurbsCurve2D - Extension実装
+├── curve_2d_bounds.rs           # NurbsCurve2D - Bounds実装
 ├── curve_2d_transform.rs        # NurbsCurve2D - Transform実装
 │
 ├── curve_3d.rs                  # NurbsCurve3D - Core Traits実装
-├── curve_3d_foundation.rs       # NurbsCurve3D - Extension実装
+├── curve_3d_bounds.rs           # NurbsCurve3D - Bounds実装
 ├── curve_3d_extensions.rs       # NurbsCurve3D - 拡張機能（境界ボックス等）
 ├── curve_3d_transform.rs        # NurbsCurve3D - Transform実装
 │
 ├── surface_3d.rs                # NurbsSurface3D - Core Traits実装
-├── surface_3d_foundation.rs     # NurbsSurface3D - Extension実装
+├── surface_3d_bounds.rs         # NurbsSurface3D - Bounds実装
 ├── surface_3d_transform.rs      # NurbsSurface3D - Transform実装
 │
 └── operations/                  # NURBS編集操作
-    ├── degree_elevation.rs      # 次数上昇
     ├── knot_insertion.rs        # ノット挿入
     └── knot_removal.rs          # ノット削除
 ```
@@ -208,7 +219,7 @@ geo_nurbs/src/
 ## アーキテクチャ依存関係
 
 ```text
-analysis → geo_foundation
+analysis → geo_contracts
             ↓
         geo_core (Point2D, Point3D, Aabb2D, Aabb3D)
             ↓

@@ -1,7 +1,8 @@
 //! ノットベクトル操作とバリデーション
 
-use crate::{NurbsError, Result};
-use geo_foundation::Scalar;
+use analysis::find_span_in_non_decreasing_sequence;
+use geo_contracts::NurbsError;
+use geo_contracts::Scalar;
 
 /// ノットベクトルの型エイリアス
 pub type KnotVector<T> = Vec<T>;
@@ -16,28 +17,21 @@ pub fn validate_knot_vector<T: Scalar>(
     knots: &[T],
     degree: usize,
     num_control_points: usize,
-) -> Result<()> {
+) -> Result<(), NurbsError> {
     // 必要なノット数を計算: n + p + 1 (n=制御点数-1, p=次数)
     let required_length = num_control_points + degree + 1;
 
     if knots.len() != required_length {
-        return Err(NurbsError::invalid_knot_vector(format!(
-            "ノットベクトルの長さが不正: {}個. {}個必要です",
-            knots.len(),
-            required_length
-        )));
+        return Err(NurbsError::KnotCountMismatch {
+            actual: knots.len(),
+            expected: required_length,
+        });
     }
 
     // 単調性をチェック
     for i in 1..knots.len() {
         if knots[i] < knots[i - 1] {
-            return Err(NurbsError::invalid_knot_vector(format!(
-                "ノットベクトルが非単調: knots[{}]={:?} < knots[{}]={:?}",
-                i,
-                knots[i],
-                i - 1,
-                knots[i - 1]
-            )));
+            return Err(NurbsError::DecreasingKnot { index: i });
         }
     }
 
@@ -46,19 +40,17 @@ pub fn validate_knot_vector<T: Scalar>(
     let end_multiplicity = count_multiplicity_at_end(knots);
 
     if start_multiplicity < degree + 1 {
-        return Err(NurbsError::invalid_knot_vector(format!(
-            "開始ノットの重複度が不足: {}回. {}回以上必要です",
-            start_multiplicity,
-            degree + 1
-        )));
+        return Err(NurbsError::InsufficientStartKnotMultiplicity {
+            actual: start_multiplicity,
+            required: degree + 1,
+        });
     }
 
     if end_multiplicity < degree + 1 {
-        return Err(NurbsError::invalid_knot_vector(format!(
-            "終端ノットの重複度が不足: {}回. {}回以上必要です",
-            end_multiplicity,
-            degree + 1
-        )));
+        return Err(NurbsError::InsufficientEndKnotMultiplicity {
+            actual: end_multiplicity,
+            required: degree + 1,
+        });
     }
 
     Ok(())
@@ -166,29 +158,7 @@ pub fn get_parameter_domain<T: Scalar>(knots: &[T], degree: usize) -> (T, T) {
 pub fn find_knot_span<T: Scalar>(t: T, knots: &[T], degree: usize) -> usize {
     let n = knots.len() - degree - 1;
 
-    // 境界値の処理
-    if t >= knots[n] {
-        return n - 1;
-    }
-
-    if t <= knots[degree] {
-        return degree;
-    }
-
-    // バイナリサーチ
-    let mut low = degree;
-    let mut high = n;
-
-    while low < high {
-        let mid = usize::midpoint(low, high);
-        if t < knots[mid] {
-            high = mid;
-        } else {
-            low = mid + 1;
-        }
-    }
-
-    low - 1
+    find_span_in_non_decreasing_sequence(t, knots, degree, n)
 }
 
 /// 開始位置での重複度を数える
