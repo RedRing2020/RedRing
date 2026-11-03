@@ -4,7 +4,7 @@
 
 A research platform for CAD/CAM development built with Rust + wgpu.
 
-Currently focusing on rendering infrastructure and foundational architecture design. CAM processing features are planned for future development.
+v0.1.0 is a preview: import an STL, compute a 3-axis scanline toolpath, and check it with a cutting simulation. NC output is not available yet, so the toolpaths cannot be used for real machining.
 
 **Documentation Languages:**
 
@@ -19,8 +19,8 @@ Currently focusing on rendering infrastructure and foundational architecture des
 ## 🔍 Overview
 
 RedRing is a research project aiming to create a standalone CAD/CAM development environment using Rust + wgpu.
-NURBS and primitive geometric elements are currently under development and will be introduced incrementally.
-Machining simulation and CAM path generation features are also planned for future implementation.
+NURBS and primitive geometric elements are being introduced incrementally.
+The CAM toolpath generation (scanline machining) and the cutting simulation are available as a preview (see [Cutting Simulation Demo](manual/cutting_simulation_demo.md)).
 
 ### 🌟 Key Features
 
@@ -42,6 +42,8 @@ Machining simulation and CAM path generation features are also planned for futur
 - 📊 **NURBS System** - Complete NURBS curves and surfaces implementation
 - 🔧 **Test Framework** - Comprehensive test suite (23/23 tests passing)
 - 📖 **Documentation** - Beautiful technical documentation with mdbook
+- 🔪 **CAM Toolpath Generation (preview)** - 3-axis scanline machining with ball / flat end mills (inverse offset method, toolpath tolerance guaranteed)
+- ⚡ **Cutting Simulation (preview)** - Tri-dexel stock, cutting animation over the product shape
 
 ### 🔄 In Development
 
@@ -51,8 +53,8 @@ Machining simulation and CAM path generation features are also planned for futur
 
 ### 📅 Future Plans
 
-- 🔪 CAM path generation engine
-- ⚡ Machining simulation
+- 🗂️ Machining management (operations, jobs, tool library) - v0.2.0
+- 🧾 Connecting moves and NC output - v0.3.0
 - 🌐 WebAssembly support
 - 🖱️ SpaceMouse integration
 
