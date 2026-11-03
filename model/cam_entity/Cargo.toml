@@ -11,6 +11,7 @@ categories.workspace = true
 [dependencies]
 geo_entity = { path = "../geo_entity" }
 cam_core = { path = "../cam_core" }
+uuid = { version = "1.11", features = ["v4"] }
 
 [lints]
 workspace = true

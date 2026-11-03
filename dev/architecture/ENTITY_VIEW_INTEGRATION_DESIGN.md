@@ -11,7 +11,7 @@
 ### 1.1 実装済み（Model）
 
 - `model/geo_entity` に `EntityId` / `DisplayAttributes` / `Metadata` / `GeometricEntity` / 属性・関係管理を実装済み
-- `model/cam_entity` に `CAMEntity` を分離実装済み（CAD/CAM分離）
+- `model/cam_entity` に `CAMEntity` を分離実装済み（CAD/CAM分離）。使われていなかったため、工程のエンティティ（加工手順・加工工程。`CAM_PROCESS_ENTITY_DESIGN.md`）に置き換えた（#1049）。本書の `CAMEntity` の記述は当時の設計である
 - `cam_entity_to_vertices` は呼び出し元がないため削除した（#857）。本書の `cam_entity_to_vertices` の記述は当時の設計で、CAM のエンティティを Model に持つようになった時点で Application 経由でつなぐ
 - 依存境界ルール（`geo_* -> cam_*` 禁止）をスクリプト/CIで検証可能
 

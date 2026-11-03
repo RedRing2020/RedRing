@@ -129,7 +129,7 @@ CAM穴あけや寸法拘束など、用途別の意味をコードから復元�
 | `10` CAM | CAM の業務層（`cam_entity` 等） |
 
 - `geo_entity` の `SYSTEM_ATTRIBUTE_DEFS` には、`geo_entity` が所有するドメインの属性だけを置く
-- 業務のパラメータ（穴あけの送り速度・主軸回転数等）は、現時点では業務層の型（`cam_entity` の `MachiningAttributes` 等）のフィールドで持つ
+- 業務のパラメータ（穴あけの送り速度・主軸回転数等）は、現時点では業務層の型のフィールドで持つ（加工の条件は `cam_core` の `OperationSpec` の条件の型、工程の項目は `cam_entity` の `MachiningOperationContent`。#1049 で、使われていなかった `MachiningAttributes` を置き換えた）
 - 業務層が属性コードで system 属性を定義する必要が生じた時点で、業務層が自身のドメインの定義テーブルを `Attributes` の型の検証へ渡す仕組みを設計する（呼び出し元のない登録の仕組みは先に置かない）
 - 以前 `geo_entity` に置いていた `CAM_PATH_DRILL_*`（`-10_01_02_xx`）は、使われておらず `MachiningAttributes` と重なるため削除した
 

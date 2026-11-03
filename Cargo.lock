@@ -127,6 +127,7 @@ dependencies = [
  "analysis",
  "cam_algorithms",
  "cam_core",
+ "cam_entity",
  "cam_sim",
  "geo_algorithms",
  "geo_contracts",
@@ -375,6 +376,7 @@ version = "0.1.0"
 dependencies = [
  "cam_core",
  "geo_entity",
+ "uuid",
 ]
 
 [[package]]
