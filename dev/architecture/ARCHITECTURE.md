@@ -45,7 +45,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
 - **`geo_entity`**: 業務に依らない CAD のエンティティ基盤（識別子・属性・関係）。業務（CAM 等）の属性・表示の定義は持たない
 - **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）
-- **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小の機械制約）
+- **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小の機械制約 / 加工の条件と素材の余裕の値）
 - **`cam_algorithms`**: CAM 固有のアルゴリズム（経路生成、順序最適化、干渉回避、機械制約の検証）
 - **`cam_sim`**: CAM 特化の実行・ユースケース（ToolPath の実行、除去量の更新、結果のキャッシュ）
 - **`cam_entity`**: CAM 向けの表示・属性の統合（CAM の業務の属性は、ここで定義する）
@@ -69,7 +69,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **Application Layer の役割**: 非同期の実装詳細そのものは持たず、同期 / 非同期 / ジョブ投入の実行方式の境界だけを管理する
 - **CAM の責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` は CAM 特化のユースケースの実行として分離する
 - **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋なデータ層ではなく CAM ドメイン専用の application 層に近い
-- **エンティティ層の業務分離**: 依存は `geo_*` → `geo_entity` → 業務別の entity（`cam_entity` 等）の向きとする。属性コードのドメインは、業務に依らないもの（メタ・寸法等）を `geo_entity`、業務のもの（CAM）を業務層が所有する（`ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md`）
+- **エンティティ層の業務分離**: 業務別の entity（`cam_entity` 等）は、`geo_entity`（業務に依らないエンティティ基盤）と、その業務の中立データ（`cam_core` 等）に依存する。業務の中立データは `geo_entity` に依存しない。計算の層（`cam_algorithms`・`cam_sim`）はエンティティの ID を扱わず、ID から形状への変換は `application` が行う。属性コードのドメインは、業務に依らないもの（メタ・寸法等）を `geo_entity`、業務のもの（CAM）を業務層が所有する（`ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md`）
 - **ViewModel → Model の経路**: 更新とユースケースの実行は application 経由、描画用の変換と表示確認用のデータは Model の値型・描画用の計算を直接使ってよい（`VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1）
 - **ビューはモデルに直接依存しない**: `view/*` はモデルのクレートに依存せず、描画に必要なデータは `viewmodel/*` で変換したものを受け取る
 

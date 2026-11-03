@@ -4,11 +4,11 @@ use geo_algorithms::TriangleMesh3DConstructor;
 use std::io::Cursor;
 use std::sync::Arc;
 
-use cam_algorithms::{
-    CamSolverInput, OperationSpec, ScanlineCutDirection, ScanlineParams, ScanlineToolRange,
-    SolverGeometry,
+use cam_algorithms::{CamSolverInput, SolverGeometry};
+use cam_core::{
+    CoordinateFrame, LengthUnit, OperationSpec, ScanlineCutDirection, ScanlineParams,
+    ScanlineToolRange, Tool, read_toolpath_artifact_v1,
 };
-use cam_core::{CoordinateFrame, LengthUnit, Tool, read_toolpath_artifact_v1};
 use geo_algorithms::{Point3D, TessellationLimits, TriangleMesh3D};
 use job_runtime::{
     JobEvent, JobExecutor, JobManager, JobRelation, JobSpec, JobStatus, JobType,
@@ -239,9 +239,9 @@ fn input_store_rejects_non_cam_references() {
 #[test]
 fn template_resolved_input_runs_and_out_of_domain_rectangle_is_invalid_input() {
     use cam_algorithms::{
-        MachiningBoundary, OperationDefinition, ProcessTemplate, RectangleBoundary, SolverDefaults,
-        build_solver_input, resolve_operation,
+        OperationDefinition, ProcessTemplate, SolverDefaults, build_solver_input, resolve_operation,
     };
+    use cam_core::{MachiningBoundary, RectangleBoundary};
 
     let template = ProcessTemplate {
         template_id: "tpl-finish".to_string(),

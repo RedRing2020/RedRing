@@ -12,15 +12,15 @@ use std::sync::Arc;
 
 use cam_algorithms::{
     CamSolverError, CamSolverInput, InverseOffsetShape, OperationDefinition, ProcessTemplate,
-    ScanlineParams, SolverDefaults, TemplateFailure, build_inverse_offset_shape,
-    build_solver_input, resolve_operation,
+    SolverDefaults, TemplateFailure, build_inverse_offset_shape, build_solver_input,
+    resolve_operation,
 };
-use cam_core::Tool;
+use cam_core::{ScanlineParams, StockMargins, Tool};
 use cam_sim::{
     CamJobExecutorAdapter, CamSolverInputProvider, CuttingSimulationInput,
     CuttingSimulationInputError, CuttingSimulationInputProvider, InMemoryCamSolverInputStore,
-    InMemoryCuttingSimulationInputStore, SnapshotInterval, StockMargins,
-    cutting_simulation_input_errors, stock_around_product,
+    InMemoryCuttingSimulationInputStore, SnapshotInterval, cutting_simulation_input_errors,
+    stock_around_product,
 };
 use geo_algorithms::{Aabb3D, TessellationLimits};
 use geo_entity::FaceId;
@@ -471,8 +471,10 @@ fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulation
 mod tests {
     use std::time::Instant;
 
-    use cam_algorithms::{OperationSpec, ScanlineInputError, ScanlineParams, SolverGeometry};
-    use cam_core::{CoordinateFrame, LengthUnit, Tool, read_toolpath_artifact_v1};
+    use cam_algorithms::{ScanlineInputError, SolverGeometry};
+    use cam_core::{
+        CoordinateFrame, LengthUnit, OperationSpec, ScanlineParams, Tool, read_toolpath_artifact_v1,
+    };
     use geo_algorithms::TessellationLimits;
     use geo_algorithms::{Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 
@@ -499,8 +501,8 @@ mod tests {
                 operation: OperationSpec::Scanline(ScanlineParams {
                     stepover: 6.0,
                     feed_rate: 1200.0,
-                    tool_range: cam_algorithms::ScanlineToolRange::default(),
-                    cut_direction: cam_algorithms::ScanlineCutDirection::default(),
+                    tool_range: cam_core::ScanlineToolRange::default(),
+                    cut_direction: cam_core::ScanlineCutDirection::default(),
                 }),
                 units: LengthUnit::Millimeter,
                 coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -576,7 +578,7 @@ mod tests {
 
     #[test]
     fn failed_jobs_are_not_imported() {
-        use cam_algorithms::{MachiningBoundary, RectangleBoundary};
+        use cam_core::{MachiningBoundary, RectangleBoundary};
 
         let mut workflow = CamSimulationWorkflow::new();
         // 工具が形状に接触しない加工範囲では、ツールパス生成が失敗し、子の切削シミュレーションは実行されずに失敗する
@@ -642,8 +644,8 @@ mod tests {
             scanline: ScanlineParams {
                 stepover: 6.0,
                 feed_rate: 1200.0,
-                tool_range: cam_algorithms::ScanlineToolRange::default(),
-                cut_direction: cam_algorithms::ScanlineCutDirection::default(),
+                tool_range: cam_core::ScanlineToolRange::default(),
+                cut_direction: cam_core::ScanlineCutDirection::default(),
             },
             stock_margins: StockMargins {
                 minus_x: 5.0,

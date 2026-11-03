@@ -10,11 +10,14 @@
 //! 最大を確かめ、超える区間はその位置に点を足して分ける。トレランスより短い区間でも超える所は CL の面の段差とし、
 //! 高い側の高さのまま区間を進んでから下ろす段にする。
 
-use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, ToolPath};
+use cam_core::{
+    ContourLevelPath, CuttingDirection, PathSegment, ScanlineCutDirection, ScanlineParams,
+    SegmentType, ToolPath,
+};
 use geo_algorithms::Point3D;
 
 use crate::inverse_offset_shape::InverseOffsetShape;
-use crate::solver::{CamSolverError, ScanlineCutDirection, ScanlineParams};
+use crate::solver::CamSolverError;
 
 /// 逆オフセット形状から、XY 範囲 `(min, max)` のスキャン加工 ToolPath を、トレランス `tolerance` で生成する。
 ///
