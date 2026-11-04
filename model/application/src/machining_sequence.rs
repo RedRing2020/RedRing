@@ -1,16 +1,42 @@
 //! 加工手順・加工工程のエンティティの保管と編集（設計: CAM_PROCESS_ENTITY_DESIGN.md）
 //!
-//! エンティティは保管先の中だけで持ち、作成と編集は保管先の関数で行う。関数に出てくる値の型（工程の中身・素材・ID）は
-//! ここから再エクスポートする。
+//! エンティティは保管先の中だけで持ち、作成と編集は保管先の関数で行う。関数に出てくる値の型（工程の中身・素材・ID と、
+//! 中身の工具・加工の種類と条件・素材の余裕）は、ここから再エクスポートする。
 
 use std::fmt;
 
-use cam_core::{MachiningStage, OperationSpec, ScanlineParams, ToleranceProfile, Tool};
+use cam_core::{MachiningStage, ToleranceProfile};
+pub use cam_core::{
+    OperationSpec, ScanlineCutDirection, ScanlineParams, ScanlineToolRange, StockMargins, Tool,
+};
 use cam_entity::{MachiningOperation, MachiningSequence};
 pub use cam_entity::{
     MachiningOperationContent, MachiningOperationId, MachiningSequenceId, MachiningStock,
 };
 use geo_entity::FaceId;
+
+/// 加工工程の中身 `content` で、平らな面を隣り合うパスの間がピックフィードで削ったときに残る山の高さ（mm）
+///
+/// ボールエンドミルは r − √(r² − (s/2)²)、フラットエンドミルは底が平らなので 0 とする。パスの間はピックフィード
+/// 以下になるため、平らな面での上限の値になる。傾いた面では山の高さが変わるため、目安の値とする。ピックフィードが
+/// 工具径を超える場合と、ほかの種類の工具の場合は `None`。
+pub fn flat_surface_cusp_height(content: &MachiningOperationContent) -> Option<f64> {
+    let OperationSpec::Scanline(scanline) = content.spec;
+    let tool = &content.tool;
+    let stepover = scanline.stepover;
+    if stepover > tool.diameter() {
+        return None;
+    }
+    if tool.is_ball_end_mill() {
+        let radius = tool.radius();
+        let half = 0.5 * stepover;
+        Some(radius - (radius * radius - half * half).sqrt())
+    } else if tool.is_flat_end_mill() {
+        Some(0.0)
+    } else {
+        None
+    }
+}
 
 /// 加工手順の参照・確認の失敗
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -137,6 +163,31 @@ impl MachiningSequenceStore {
     ) -> Result<(), MachiningSequenceError> {
         self.sequence_mut(sequence)?.set_stock(stock);
         Ok(())
+    }
+
+    /// 加工手順 `sequence` の加工工程 `operation` の中身
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn operation_content(
+        &self,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+    ) -> Result<&MachiningOperationContent, MachiningSequenceError> {
+        Ok(self.operation(sequence, operation)?.content())
+    }
+
+    /// 加工手順 `sequence` の素材
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順の場合。
+    pub fn stock(
+        &self,
+        sequence: MachiningSequenceId,
+    ) -> Result<&MachiningStock, MachiningSequenceError> {
+        Ok(self.sequence(sequence)?.stock())
     }
 
     /// 加工手順 `sequence` の加工工程 `operation` のツールパス生成のトレランス（mm。工程の精度プロファイルから決まる）

@@ -42,7 +42,7 @@ impl AppState {
             .collect();
         tracing::info!(
             "逆オフセット形状: 工具={:?}, きざみ={}°, 三角形 {}",
-            self.cutting_simulation.conditions().tool_kind,
+            self.cutting_simulation.operation_content().tool.tool_type(),
             ANGLE_STEP_DEGREES,
             counts.join(" ")
         );

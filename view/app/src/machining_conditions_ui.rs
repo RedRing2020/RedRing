@@ -1,12 +1,14 @@
 //! 加工条件のウィンドウ（切削シミュレーションの計算条件の入力と投入）
 //!
-//! 表示の設定（設定パネル）とは分けて、次に投入する計算条件と、表示中の結果の計算に使った条件を扱う。
+//! 表示の設定（設定パネル）とは分けて、加工手順 1 つの加工工程 1 つの条件（工程の中身と手順の素材）と、表示中の結果の
+//! 計算に使った条件を扱う。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, Window};
 use viewmodel::cutting_simulation_session::{
-    CamConditionError, CamConditionField, ConditionIssue, CuttingSimulationConditions,
-    CuttingToolKind, ImportedConditions, ScanlineCutDirection, ScanlineToolRange, StockMargins,
+    flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
+    CuttingToolKind, ImportedConditions, MachiningOperationContent, MachiningStock, OperationSpec,
+    ScanlineCutDirection, ScanlineToolRange, StockMargins,
 };
 use viewmodel::message_catalog::UiLocale;
 
@@ -94,13 +96,15 @@ pub struct MachiningConditionsUiState {
     pub locale: UiLocale,
     /// 表示中の製品形状の面の数
     pub face_count: usize,
-    /// 次に投入する計算条件
-    pub conditions: CuttingSimulationConditions,
+    /// 加工工程の中身（工具・走査線の条件）
+    pub operation: MachiningOperationContent,
+    /// 加工手順の素材（素材の余裕・精度）
+    pub stock: MachiningStock,
     /// 工具長を指定するときの入力値（指定しない間も保つ）
     pub tool_length_input: f64,
     /// ツールパス生成のトレランス（mm）
     pub toolpath_tolerance: f64,
-    /// 次に投入する計算条件の問題（投入前の確認の結果）
+    /// 加工工程・加工手順の条件の問題（投入前の確認の結果）
     pub issues: Vec<ConditionIssue>,
     /// 表示中の結果のジョブの番号と、計算に使った条件
     pub imported: Option<(u64, ImportedConditions)>,
@@ -260,29 +264,23 @@ impl MachiningConditionsUiState {
         CollapsingHeader::new(self.text("conditions.header.tool"))
             .default_open(true)
             .show(ui, |ui| {
-                let conditions = &mut self.conditions;
+                let tool = &self.operation.tool;
+                let mut kind = CuttingToolKind::of(tool).unwrap_or_default();
+                let mut diameter = tool.diameter();
                 ui.horizontal(|ui| {
-                    ui.radio_value(
-                        &mut conditions.tool_kind,
-                        CuttingToolKind::BallEndMill,
-                        ball_label,
-                    );
-                    ui.radio_value(
-                        &mut conditions.tool_kind,
-                        CuttingToolKind::FlatEndMill,
-                        flat_label,
-                    );
+                    ui.radio_value(&mut kind, CuttingToolKind::BallEndMill, ball_label);
+                    ui.radio_value(&mut kind, CuttingToolKind::FlatEndMill, flat_label);
                 });
                 ui.horizontal(|ui| {
                     ui.add(
-                        DragValue::new(&mut conditions.tool_diameter)
+                        DragValue::new(&mut diameter)
                             .range(0.1..=f64::MAX)
                             .speed(0.1)
                             .suffix(" mm"),
                     );
                     ui.label(diameter_label);
                 });
-                let mut specified = conditions.cutting_length.is_some();
+                let mut specified = self.operation.tool.cutting_length.is_some();
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut specified, specify_label);
                     ui.add_enabled(
@@ -293,7 +291,10 @@ impl MachiningConditionsUiState {
                             .suffix(" mm"),
                     );
                 });
-                conditions.cutting_length = specified.then_some(self.tool_length_input);
+                let tool = kind.tool(diameter, specified.then_some(self.tool_length_input));
+                if tool != self.operation.tool {
+                    self.operation.tool = tool;
+                }
                 self.show_issues(ui, ConditionField::Tool);
             });
     }
@@ -315,7 +316,7 @@ impl MachiningConditionsUiState {
             "conditions.machining.tolerance",
             &[("tolerance", self.toolpath_tolerance.to_string())],
         );
-        let cusp_height_label = self.conditions.cusp_height().map(|height| {
+        let cusp_height_label = flat_surface_cusp_height(&self.operation).map(|height| {
             self.text_with_args(
                 "conditions.machining.cusp_height",
                 &[("height", format!("{height:.4}"))],
@@ -324,7 +325,7 @@ impl MachiningConditionsUiState {
         CollapsingHeader::new(self.text("conditions.header.machining"))
             .default_open(true)
             .show(ui, |ui| {
-                let scanline = &mut self.conditions.scanline;
+                let OperationSpec::Scanline(scanline) = &mut self.operation.spec;
                 for (value, label, suffix, speed) in [
                     (&mut scanline.stepover, stepover_label, " mm", 0.1),
                     (&mut scanline.feed_rate, feed_rate_label, " mm/min", 10.0),
@@ -389,7 +390,7 @@ impl MachiningConditionsUiState {
                     plus_y,
                     bottom,
                     top,
-                } = &mut self.conditions.stock_margins;
+                } = &mut self.stock.margins;
                 for (label, margin) in labels
                     .into_iter()
                     .zip([minus_x, plus_x, minus_y, plus_y, top, bottom])
@@ -407,7 +408,7 @@ impl MachiningConditionsUiState {
                 self.show_issues(ui, ConditionField::Stock);
                 ui.horizontal(|ui| {
                     ui.add(
-                        DragValue::new(&mut self.conditions.precision)
+                        DragValue::new(&mut self.stock.precision)
                             .range(0.0001..=f64::MAX)
                             .speed(0.001)
                             .max_decimals(4)
