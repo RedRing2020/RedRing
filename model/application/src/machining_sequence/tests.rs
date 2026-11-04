@@ -1,8 +1,6 @@
 //! `MachiningSequenceStore` のテスト
 
-use cam_core::{
-    MachiningStage, OperationSpec, ScanlineParams, StockMargins, ToleranceProfile, Tool,
-};
+use cam_core::{MachiningStage, ToleranceProfile};
 
 use super::*;
 
@@ -124,4 +122,39 @@ fn scanline_operations_are_made_with_the_default_tolerance_profile() {
     let operation = store.add_operation(sequence, made).unwrap();
     // 精度プロファイル press_rough のトレランス
     assert_eq!(store.operation_tolerance(sequence, operation), Ok(0.001));
+}
+
+#[test]
+fn the_held_content_and_stock_are_read_back() {
+    let mut store = MachiningSequenceStore::new();
+    let sequence = store.create_sequence("手順".to_string(), Vec::new(), stock());
+    let operation = store.add_operation(sequence, content(2.0)).unwrap();
+    assert_eq!(
+        store.operation_content(sequence, operation),
+        Ok(&content(2.0))
+    );
+    assert_eq!(store.stock(sequence), Ok(&stock()));
+}
+
+#[test]
+fn cusp_heights_on_flat_surfaces_follow_the_tool_and_the_stepover() {
+    let with = |tool: Tool<f64>, stepover: f64| {
+        flat_surface_cusp_height(&MachiningOperationContent {
+            tool,
+            ..content(stepover)
+        })
+    };
+    let ball = || Tool::ball_end_mill("BEM10".to_string(), 10.0, 30.0);
+    let flat = || Tool::flat_end_mill("EM10".to_string(), 10.0, 30.0);
+
+    // r = 5 mm、s = 2 mm: 5 − √24
+    assert!((with(ball(), 2.0).unwrap() - (5.0 - 24.0_f64.sqrt())).abs() < 1e-12);
+    // ピックフィードが工具径と同じなら、山の高さは工具の半径
+    assert_eq!(with(ball(), 10.0), Some(5.0));
+    assert_eq!(with(flat(), 2.0), Some(0.0));
+    // ピックフィードが工具径を超える場合と、ラジアスエンドミルは値を持たない
+    assert_eq!(with(ball(), 10.5), None);
+    assert_eq!(with(flat(), 10.5), None);
+    let radius = Tool::radius_end_mill("REM10R1".to_string(), 10.0, 1.0, 30.0);
+    assert_eq!(with(radius, 2.0), None);
 }

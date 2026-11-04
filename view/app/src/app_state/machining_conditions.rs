@@ -31,7 +31,8 @@ impl AppState {
             open: self.machining_conditions_open,
             locale: self.settings_panel_locale,
             face_count: self.product_shapes.store().visible_face_ids().len(),
-            conditions: self.cutting_simulation.conditions(),
+            operation: self.cutting_simulation.operation_content().clone(),
+            stock: self.cutting_simulation.stock(),
             tool_length_input: self.tool_length_input,
             toolpath_tolerance: self.cutting_simulation.toolpath_tolerance(),
             issues: self.condition_issues.clone().unwrap_or_default(),
@@ -49,8 +50,13 @@ impl AppState {
         self.machining_conditions_open = state.open;
         self.tool_length_input = state.tool_length_input;
         self.run_after_submit = state.run_after_submit;
-        if state.conditions != self.cutting_simulation.conditions() {
-            self.cutting_simulation.set_conditions(state.conditions);
+        if state.operation != *self.cutting_simulation.operation_content() {
+            self.cutting_simulation
+                .set_operation_content(state.operation);
+            self.condition_issues = None;
+        }
+        if state.stock != self.cutting_simulation.stock() {
+            self.cutting_simulation.set_stock(state.stock);
             self.condition_issues = None;
         }
         if state.submit_requested && self.submit_cutting_simulation() && self.run_after_submit {
