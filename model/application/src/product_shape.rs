@@ -39,7 +39,7 @@ impl ProductFace {
         self.id
     }
 
-    pub fn geometry(&self) -> &ProductFaceGeometry {
+    pub(crate) fn geometry(&self) -> &ProductFaceGeometry {
         &self.geometry
     }
 }
@@ -53,11 +53,11 @@ impl ProductFaceEntity {
         self.0.id()
     }
 
-    pub fn face(&self) -> &ProductFace {
+    pub(crate) fn face(&self) -> &ProductFace {
         self.0.geometry()
     }
 
-    pub fn display(&self) -> &DisplayAttributes {
+    pub(crate) fn display(&self) -> &DisplayAttributes {
         self.0.display()
     }
 }
@@ -247,7 +247,7 @@ impl ProductShapeStore {
     /// # Errors
     ///
     /// 面がない場合、保持していない面がある場合、NURBS 曲面と三角形メッシュの面が混ざっている場合。
-    pub fn resolve_solver_geometry(
+    pub(crate) fn resolve_solver_geometry(
         &self,
         face_ids: &[FaceId],
     ) -> Result<SolverGeometry, ProductShapeError> {

@@ -3,23 +3,8 @@
 use cam_core::{
     MachiningStage, OperationSpec, ScanlineParams, StockMargins, ToleranceProfile, Tool,
 };
-use geo_algorithms::{Point3D, TriangleMesh3D};
-use geo_contracts::TriangleMesh3DConstructor;
 
 use super::*;
-use crate::product_shape::ProductFaceGeometry;
-
-fn triangle() -> TriangleMesh3D<f64> {
-    TriangleMesh3D::new(
-        vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(10.0, 0.0, 0.0),
-            Point3D::new(0.0, 10.0, 0.0),
-        ],
-        vec![[0, 1, 2]],
-    )
-    .unwrap()
-}
 
 fn stock() -> MachiningStock {
     MachiningStock {
@@ -128,43 +113,15 @@ fn unknown_sequences_and_operations_are_reported() {
 }
 
 #[test]
-fn target_faces_held_in_the_product_shape_are_accepted() {
-    let mut shapes = ProductShapeStore::new();
-    let face = shapes
-        .add_face(ProductFaceGeometry::Mesh(triangle()))
-        .face_id;
+fn scanline_operations_are_made_with_the_default_tolerance_profile() {
+    let tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
+    let OperationSpec::Scanline(scanline) = content(2.0).spec;
+    let made = scanline_finish_operation_content("仕上げ".to_string(), tool, scanline);
+    assert_eq!(made, content(2.0));
+
     let mut store = MachiningSequenceStore::new();
-    let id = store.create_sequence("手順".to_string(), vec![face], stock());
-
-    assert_eq!(store.check_target_faces(id, &shapes), Ok(()));
-}
-
-#[test]
-fn target_faces_missing_from_the_product_shape_are_reported() {
-    let mut shapes = ProductShapeStore::new();
-    let held = shapes
-        .add_face(ProductFaceGeometry::Mesh(triangle()))
-        .face_id;
-    let missing = [FaceId::new_random(), FaceId::new_random()];
-    let mut store = MachiningSequenceStore::new();
-    let id = store.create_sequence(
-        "手順".to_string(),
-        vec![missing[0], held, missing[1]],
-        stock(),
-    );
-
-    assert_eq!(
-        store.check_target_faces(id, &shapes),
-        Err(MachiningSequenceError::MissingTargetFaces(missing.to_vec()))
-    );
-}
-
-#[test]
-fn an_unknown_sequence_is_reported() {
-    let id = MachiningSequenceStore::new().create_sequence("手順".to_string(), Vec::new(), stock());
-
-    assert_eq!(
-        MachiningSequenceStore::new().check_target_faces(id, &ProductShapeStore::new()),
-        Err(MachiningSequenceError::UnknownSequence(id))
-    );
+    let sequence = store.create_sequence("手順".to_string(), Vec::new(), stock());
+    let operation = store.add_operation(sequence, made).unwrap();
+    // 精度プロファイル press_rough のトレランス
+    assert_eq!(store.operation_tolerance(sequence, operation), Ok(0.001));
 }

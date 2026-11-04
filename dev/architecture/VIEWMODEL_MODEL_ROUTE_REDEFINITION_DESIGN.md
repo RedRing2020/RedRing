@@ -153,8 +153,8 @@ Application の公開 API の決まり:
 - 呼び出し元がなくなった API は、同じ PR で消すか、`pub(crate)` 以下にする
 - 中継の関数は処理を持たない。Model の処理の呼び出しと組み立てだけとし、計算は Model の側に置く（同じ処理を 2 か所に持たない）
 - 再エクスポートは、API の引数・戻り値に出てくる型と、そのメソッドを呼ぶための trait に限る。クレートを丸ごと再エクスポートしない（`pub use geo_algorithms::*` のような形は、依存を分けた意味をなくす）
-- 今の Application には、決まりに合わない公開 API がある（試験からだけ呼ばれる投入の入口、Application の中だけで使う製品形状の保管先のメソッド、呼び出し元を足す前の加工手順の保管先）。移行の段階 1 で直す
-- 決まりは、呼び出し元のない公開 API の検査（`scripts/check_unused_public_api.ps1`。警告のみ）の対象に Application を加えて確かめる。呼び出しは ViewModel と View（試験を除く）から数える。移行の段階 1 で足す
+- 決まりは、呼び出し元のない公開 API の検査（`scripts/check_unused_public_api.ps1`。警告のみ）で確かめる。呼び出しは ViewModel と View（試験を除く）から数える（#1057）。名前だけで判定するため、ViewModel に同じ名前の呼び出しがあれば検出しない
+- CAM・製品形状・加工手順の公開 API は #1057 で決まりにそろえた。feature・geometry・topology の port と job_orchestration は #1065 でそろえる
 
 geo と CAM の依存の形:
 

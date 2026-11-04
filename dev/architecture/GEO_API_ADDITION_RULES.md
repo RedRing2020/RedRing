@@ -39,7 +39,7 @@
 
 ## 検出
 
-`scripts/check_unused_public_api.ps1` が、`geo_*` クレートのテスト以外から呼ばれない公開メソッド・`geo_contracts` の trait定義のメソッドと、簡易実装・TODO の記載を一覧にする。事前チェック（`scripts/check_all_before_push.ps1`）で警告として表示し、失敗にはしない。
+`scripts/check_unused_public_api.ps1` が、`geo_*` クレートのテスト以外から呼ばれない公開メソッド・`geo_contracts` の trait定義のメソッドと、簡易実装・TODO の記載を一覧にする。あわせて、application の公開 API のうち ViewModel・View から呼ばれないものを一覧にする（`VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1）。事前チェック（`scripts/check_all_before_push.ps1`）で警告として表示し、失敗にはしない。
 
 - 名前だけで判定するため、別の型の同名メソッドの呼び出しがあれば検出しない
 - trait定義のメソッドは、実装を呼び出しに数えない
