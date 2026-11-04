@@ -53,7 +53,7 @@
 | 名前 | 利用者が付ける | なし |
 | 加工の段階 | 荒・中・仕上げ（`machining_stage`） | `OperationDefinition::machining_stage` |
 | 加工の種類と、その条件 | スキャン加工と走査線の条件（ピックフィード・送り方・工具の移動範囲）。種類ごとに条件の型を持つ | `OperationSpec::Scanline(ScanlineParams)` |
-| 工具 | ツールセットの ID で参照する（#887）。ツールライブラリができるまでは、工具の値を持つ | `CuttingSimulationConditions` の工具 |
+| 工具 | ツールセットの ID で参照する（#887）。ツールライブラリができるまでは、工具の値を持つ | 本書の作成時は ViewModel の条件の工具。#1051 で加工工程の中身（`MachiningOperationContent::tool`）にした |
 | 加工領域 | 加工範囲（`MachiningBoundary`。指定しなければ対象の XY の範囲） | `OperationDefinition::boundary` |
 | 精度プロファイル | ツールパス生成のトレランス（`tolerance_profile`） | 工程テンプレートの既定値 |
 | 加工の条件 | 送り（後に主軸回転数）。ツールライブラリの工具ごとの推奨値を初期値にする（#933 のコメント） | `ScanlineParams::feed_rate` |

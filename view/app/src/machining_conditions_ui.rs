@@ -265,8 +265,12 @@ impl MachiningConditionsUiState {
             .default_open(true)
             .show(ui, |ui| {
                 let tool = &self.operation.tool;
-                let mut kind = CuttingToolKind::of(tool).unwrap_or_default();
-                let mut diameter = tool.diameter();
+                let shown_kind = CuttingToolKind::of(tool).unwrap_or_default();
+                let shown_diameter = tool.diameter();
+                let shown_specified = tool.cutting_length.is_some();
+                let shown_length = self.tool_length_input;
+                let mut kind = shown_kind;
+                let mut diameter = shown_diameter;
                 ui.horizontal(|ui| {
                     ui.radio_value(&mut kind, CuttingToolKind::BallEndMill, ball_label);
                     ui.radio_value(&mut kind, CuttingToolKind::FlatEndMill, flat_label);
@@ -280,7 +284,7 @@ impl MachiningConditionsUiState {
                     );
                     ui.label(diameter_label);
                 });
-                let mut specified = self.operation.tool.cutting_length.is_some();
+                let mut specified = shown_specified;
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut specified, specify_label);
                     ui.add_enabled(
@@ -291,9 +295,15 @@ impl MachiningConditionsUiState {
                             .suffix(" mm"),
                     );
                 });
-                let tool = kind.tool(diameter, specified.then_some(self.tool_length_input));
-                if tool != self.operation.tool {
-                    self.operation.tool = tool;
+                // 入力を変えたときだけ工具を作り直す（入力欄で表せない工具を、開いただけで書き換えない）
+                let length_changed = specified && self.tool_length_input != shown_length;
+                if kind != shown_kind
+                    || diameter != shown_diameter
+                    || specified != shown_specified
+                    || length_changed
+                {
+                    self.operation.tool =
+                        kind.tool(diameter, specified.then_some(self.tool_length_input));
                 }
                 self.show_issues(ui, ConditionField::Tool);
             });

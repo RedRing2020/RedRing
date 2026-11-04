@@ -1,7 +1,7 @@
 //! 製品形状からの切削シミュレーションの投入・実行・取り込み
 //!
-//! 加工手順 1 つと加工工程 1 つを Application の保管先に持ち、投入・取り込みはその工程から行う。加工条件の入力画面は、
-//! 加工工程の中身（工具・走査線の条件）と加工手順の素材（素材の余裕・精度）を保管先から読み、編集して書き戻す。
+//! 加工手順 1 つと加工工程 1 つを Application の保管先に持ち、投入・取り込みはその工程から行う。条件の写しは持たず、
+//! 加工工程の中身（工具・走査線の条件）と加工手順の素材（素材の余裕・精度）を保管先から読み、書き戻す。
 //! 加工の対象は、確かめ・投入・取り込みのときに表示中の製品形状のすべての面にする。
 //! 実行の入口は、ジョブマネージャーができるまでの同じプロセスの中の実行とする。
 
@@ -9,23 +9,24 @@ pub use application::cam_simulation_workflow::{CamConditionError, CamConditionFi
 use application::cam_simulation_workflow::{CamSimulationWorkflow, CamSimulationWorkflowError};
 pub use application::machining_sequence::{
     flat_surface_cusp_height, MachiningOperationContent, MachiningStock, OperationSpec,
-    ScanlineCutDirection, ScanlineParams, ScanlineToolRange, StockMargins, Tool,
+    ScanlineCutDirection, ScanlineToolRange, StockMargins,
 };
 use application::machining_sequence::{
     scanline_finish_operation_content, MachiningOperationId, MachiningSequenceId,
     MachiningSequenceStore,
 };
+use application::machining_sequence::{ScanlineParams, Tool};
 use geo_algorithms::Aabb3D;
 
 use crate::cutting_animation::{CuttingAnimation, CuttingAnimationError};
 use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
 use crate::product_shape_converter::ProductShapeScene;
 
-/// 加工手順・加工工程の名前（加工条件のウィンドウで編集できるようになるまでの固定の名前）
+/// 加工手順・加工工程の名前（名前を編集できるようになるまでの固定の名前）
 const SEQUENCE_NAME: &str = "加工手順";
 const OPERATION_NAME: &str = "スキャン加工";
 
-/// 加工条件のウィンドウで選べる工具の種類
+/// 選べる工具の種類（ボールエンドミル・フラットエンドミル）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CuttingToolKind {
     #[default]
@@ -61,7 +62,7 @@ impl CuttingToolKind {
     }
 }
 
-/// 加工条件のウィンドウを開いたときの加工工程の中身（直径 10 mm のボールエンドミル、ピックフィード 2 mm）
+/// セッションを始めたときの加工工程の中身（直径 10 mm のボールエンドミル、ピックフィード 2 mm）
 fn initial_operation_content() -> MachiningOperationContent {
     scanline_finish_operation_content(
         OPERATION_NAME.to_string(),
@@ -75,7 +76,7 @@ fn initial_operation_content() -> MachiningOperationContent {
     )
 }
 
-/// 加工条件のウィンドウを開いたときの加工手順の素材（製品形状を囲む箱、精度 0.05 mm）
+/// セッションを始めたときの加工手順の素材（製品形状を囲む箱、精度 0.05 mm）
 fn initial_stock() -> MachiningStock {
     MachiningStock {
         margins: StockMargins::default(),
@@ -109,7 +110,7 @@ pub struct ImportedCuttingSimulation {
     pub conditions: ImportedConditions,
 }
 
-/// 計算条件の確かめで見つかった問題（入力画面の欄に振り分けられる単位）
+/// 計算条件の確かめで見つかった問題（製品形状がない・条件の誤り・そのほか）
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConditionIssue {
     /// 加工の対象の製品形状がない、または形状にできない（理由）
@@ -201,11 +202,10 @@ impl Default for CuttingSimulationSession {
 
 impl CuttingSimulationSession {
     /// 加工工程の中身（工具・走査線の条件）
-    pub fn operation_content(&self) -> MachiningOperationContent {
+    pub fn operation_content(&self) -> &MachiningOperationContent {
         self.sequences
             .operation_content(self.sequence, self.operation)
             .expect("the session holds its machining operation")
-            .clone()
     }
 
     /// 加工工程の中身を `content` にする（今と違えば、工程の改訂の番号が増える）
@@ -376,7 +376,7 @@ mod tests {
         let mut session = CuttingSimulationSession::default();
         let content = MachiningOperationContent {
             tool: CuttingToolKind::BallEndMill.tool(6.0, Some(30.0)),
-            ..session.operation_content()
+            ..session.operation_content().clone()
         };
         session.set_operation_content(with_scanline(content, |scanline| scanline.stepover = 6.0));
         session
@@ -427,7 +427,7 @@ mod tests {
     #[test]
     fn the_edited_content_and_stock_are_held_by_the_machining_operation() {
         let mut session = CuttingSimulationSession::default();
-        let content = with_scanline(session.operation_content(), |scanline| {
+        let content = with_scanline(session.operation_content().clone(), |scanline| {
             scanline.cut_direction = ScanlineCutDirection::ZigZag
         });
         let stock = MachiningStock {
@@ -436,7 +436,7 @@ mod tests {
         };
         session.set_operation_content(content.clone());
         session.set_stock(stock);
-        assert_eq!(session.operation_content(), content);
+        assert_eq!(session.operation_content(), &content);
         assert_eq!(session.stock(), stock);
     }
 
@@ -483,15 +483,18 @@ mod tests {
         assert_eq!(imported.job_id, 4);
         assert_eq!(imported.conditions.precision, 0.2);
         // 同じ条件を設定し直しても、今の条件の結果のまま取り込める
-        session.set_operation_content(session.operation_content());
+        session.set_operation_content(session.operation_content().clone());
         session.set_stock(session.stock());
         assert_eq!(session.import_latest(&scene).unwrap().job_id, 4);
         // 工程の中身を変えても、前の条件の結果は取り込まない
-        let content = with_scanline(session.operation_content(), |scanline| {
+        let content = with_scanline(session.operation_content().clone(), |scanline| {
             scanline.feed_rate = 600.0
         });
         session.set_operation_content(content);
-        assert!(session.import_latest(&scene).is_err());
+        assert!(matches!(
+            session.import_latest(&scene),
+            Err(CuttingSimulationSessionError::NoSucceededSimulation)
+        ));
         // 表示中の製品形状がなくなると、加工の対象が変わり、前の対象の結果は取り込まない
         assert!(matches!(
             session.import_latest(&ProductShapeScene::default()),
@@ -506,7 +509,7 @@ mod tests {
         let content = with_scanline(
             MachiningOperationContent {
                 tool: CuttingToolKind::FlatEndMill.tool(6.0, Some(25.0)),
-                ..session.operation_content()
+                ..session.operation_content().clone()
             },
             |scanline| scanline.cut_direction = ScanlineCutDirection::ZigZag,
         );
@@ -543,7 +546,7 @@ mod tests {
             precision: 0.0005,
         });
         // ピックフィードが工具径 6 mm を超える
-        let content = with_scanline(session.operation_content(), |scanline| {
+        let content = with_scanline(session.operation_content().clone(), |scanline| {
             scanline.stepover = 7.0
         });
         session.set_operation_content(content);
