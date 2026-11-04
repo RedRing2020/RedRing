@@ -1,26 +1,34 @@
 //! 製品形状からの切削シミュレーションの投入・実行・取り込み
 //!
-//! 次に投入する計算条件（`CuttingSimulationConditions`）を 1 組持ち、加工条件の入力画面はそれを編集する。
-//! 工程のエンティティができるまでの持ち方とする。
+//! 加工手順 1 つと加工工程 1 つを Application の保管先に持ち、投入・取り込みはその工程から行う。加工条件の入力画面は
+//! 計算条件（`CuttingSimulationConditions`）を 1 組編集し、セッションはそれを工程の中身と手順の素材に書き込む。
+//! 加工の対象は、確かめ・投入のときに表示中の製品形状のすべての面にする。
 //! 実行の入口は、ジョブマネージャーができるまでの同じプロセスの中の実行とする。
 
 use application::cam_simulation_workflow::{
     CamConditionError, CamSimulationWorkflow, CamSimulationWorkflowError,
-    ProductShapeSimulationRequest,
 };
+use application::machining_sequence::{
+    MachiningOperationContent, MachiningOperationId, MachiningSequenceId, MachiningSequenceStore,
+    MachiningStock,
+};
+use cam_algorithms::CamSolverError;
 pub use cam_algorithms::ScanlineInputError;
-use cam_algorithms::{CamSolverError, OperationDefinition, ProcessTemplate};
+use cam_core::{MachiningStage, OperationSpec, ToleranceProfile, Tool};
 pub use cam_core::{ScanlineCutDirection, ScanlineParams, ScanlineToolRange, StockMargins};
-use cam_core::{ToleranceProfile, Tool};
-use cam_sim::{CuttingSimulationInputError, SnapshotInterval};
+use cam_sim::CuttingSimulationInputError;
 use geo_algorithms::Aabb3D;
 
 use crate::cutting_animation::{CuttingAnimation, CuttingAnimationError};
 use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
 use crate::product_shape_converter::ProductShapeScene;
 
-/// ツールパス生成のトレランスを決める精度プロファイル（工程テンプレートの既定値）
+/// ツールパス生成のトレランスを決める精度プロファイル
 const TOLERANCE_PROFILE: ToleranceProfile = ToleranceProfile::PressRough;
+
+/// 加工手順・加工工程の名前（加工条件のウィンドウで編集できるようになるまでの固定の名前）
+const SEQUENCE_NAME: &str = "加工手順";
+const OPERATION_NAME: &str = "スキャン加工";
 
 /// 工具の種類
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -102,6 +110,26 @@ impl CuttingSimulationConditions {
         };
         tool.cutting_length = self.cutting_length;
         tool
+    }
+
+    /// 加工工程の中身（工具・走査線の条件。仕上げのスキャン加工）
+    fn operation_content(&self) -> MachiningOperationContent {
+        MachiningOperationContent {
+            name: OPERATION_NAME.to_string(),
+            stage: MachiningStage::Finish,
+            spec: OperationSpec::Scanline(self.scanline),
+            tool: self.tool(),
+            boundary: None,
+            tolerance_profile: TOLERANCE_PROFILE,
+        }
+    }
+
+    /// 加工手順の素材（素材の余裕・精度）
+    fn stock(&self) -> MachiningStock {
+        MachiningStock {
+            margins: self.stock_margins,
+            precision: self.precision,
+        }
     }
 }
 
@@ -211,7 +239,7 @@ impl ConditionIssue {
 pub enum CuttingSimulationSessionError {
     /// 投入・実行・取り込みの失敗
     Workflow(CamSimulationWorkflowError),
-    /// 取り込める（正常終了した）切削シミュレーションがない
+    /// 加工工程の今の改訂の、取り込める（正常終了した）切削シミュレーションがない
     NoSucceededSimulation,
     /// 取り込んだ結果から切削アニメーションを作れない
     Animation(CuttingAnimationError),
@@ -223,7 +251,10 @@ impl std::fmt::Display for CuttingSimulationSessionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Workflow(error) => write!(f, "{error}"),
-            Self::NoSucceededSimulation => write!(f, "no succeeded cutting simulation to import"),
+            Self::NoSucceededSimulation => write!(
+                f,
+                "no succeeded cutting simulation of the current conditions to import"
+            ),
             Self::Animation(error) => write!(f, "{error}"),
             Self::InverseOffsetDisplay(error) => {
                 write!(f, "inverse offset shape cannot be displayed: {error}")
@@ -241,17 +272,36 @@ impl From<CamSimulationWorkflowError> for CuttingSimulationSessionError {
 }
 
 /// 製品形状からの切削シミュレーションの投入・実行・取り込み
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct CuttingSimulationSession {
     workflow: CamSimulationWorkflow,
     conditions: CuttingSimulationConditions,
+    sequences: MachiningSequenceStore,
+    sequence: MachiningSequenceId,
+    operation: MachiningOperationId,
+}
+
+impl Default for CuttingSimulationSession {
+    fn default() -> Self {
+        Self::new(CuttingSimulationConditions::default())
+    }
 }
 
 impl CuttingSimulationSession {
+    /// 計算条件 `conditions` の加工工程を 1 つ持つ加工手順で始める（加工の対象は、確かめ・投入のときに決める）
     pub fn new(conditions: CuttingSimulationConditions) -> Self {
+        let mut sequences = MachiningSequenceStore::new();
+        let sequence =
+            sequences.create_sequence(SEQUENCE_NAME.to_string(), Vec::new(), conditions.stock());
+        let operation = sequences
+            .add_operation(sequence, conditions.operation_content())
+            .expect("the sequence was just created");
         Self {
             workflow: CamSimulationWorkflow::new(),
             conditions,
+            sequences,
+            sequence,
+            operation,
         }
     }
 
@@ -260,9 +310,20 @@ impl CuttingSimulationSession {
         self.conditions
     }
 
-    /// 次に投入する計算条件を `conditions` にする
+    /// 次に投入する計算条件を `conditions` にし、加工工程の中身と加工手順の素材に書き込む（変わった場合は、工程の
+    /// 改訂の番号が増える）
     pub fn set_conditions(&mut self, conditions: CuttingSimulationConditions) {
         self.conditions = conditions;
+        self.sequences
+            .set_operation_content(
+                self.sequence,
+                self.operation,
+                conditions.operation_content(),
+            )
+            .expect("the session holds its machining operation");
+        self.sequences
+            .set_stock(self.sequence, conditions.stock())
+            .expect("the session holds its machining sequence");
     }
 
     /// ツールパス生成のトレランス（mm）
@@ -270,9 +331,22 @@ impl CuttingSimulationSession {
         TOLERANCE_PROFILE.tolerance_mm()
     }
 
+    /// 加工の対象を、表示中の製品形状のすべての面にする（面の集合が変わった場合は、工程の改訂の番号が増える）
+    fn target_visible_faces(&mut self, shapes: &ProductShapeScene) {
+        self.sequences
+            .set_target_faces(self.sequence, shapes.store().visible_face_ids())
+            .expect("the session holds its machining sequence");
+    }
+
     /// 表示中の製品形状と次に投入する計算条件を、投入と同じ判定で確かめ、問題をすべて返す（問題がなければ空）
-    pub fn check(&self, shapes: &ProductShapeScene) -> Vec<ConditionIssue> {
-        match CamSimulationWorkflow::check_product_shapes(shapes.store(), &self.request(shapes)) {
+    pub fn check(&mut self, shapes: &ProductShapeScene) -> Vec<ConditionIssue> {
+        self.target_visible_faces(shapes);
+        match CamSimulationWorkflow::check_operation(
+            shapes.store(),
+            &self.sequences,
+            self.sequence,
+            self.operation,
+        ) {
             Ok(()) => Vec::new(),
             Err(error) => {
                 ConditionIssue::from_workflow_error(&error, self.conditions.tool_diameter)
@@ -287,17 +361,22 @@ impl CuttingSimulationSession {
     ///
     /// 投入前の確認の誤り、逆オフセット形状を作れない場合、`angle_step` が表示用のきざみの範囲の外の場合。
     pub fn inverse_offset_shape_meshes(
-        &self,
+        &mut self,
         shapes: &ProductShapeScene,
         angle_step: f64,
     ) -> Result<Vec<InverseOffsetShapeMesh>, CuttingSimulationSessionError> {
-        let shape =
-            CamSimulationWorkflow::inverse_offset_shape(shapes.store(), &self.request(shapes))?;
+        self.target_visible_faces(shapes);
+        let shape = CamSimulationWorkflow::inverse_offset_shape(
+            shapes.store(),
+            &self.sequences,
+            self.sequence,
+            self.operation,
+        )?;
         inverse_offset_shape_meshes(&shape, angle_step)
             .map_err(CuttingSimulationSessionError::InverseOffsetDisplay)
     }
 
-    /// 表示中の製品形状のすべての面を加工の対象として、次に投入する計算条件で投入する（実行しない）
+    /// 表示中の製品形状のすべての面を加工の対象として、次に投入する計算条件の加工工程から投入する（実行しない）
     ///
     /// # Errors
     ///
@@ -306,33 +385,14 @@ impl CuttingSimulationSession {
         &mut self,
         shapes: &ProductShapeScene,
     ) -> Result<(), CuttingSimulationSessionError> {
-        let request = self.request(shapes);
-        self.workflow
-            .submit_product_shapes(shapes.store(), request)?;
+        self.target_visible_faces(shapes);
+        self.workflow.submit_operation(
+            shapes.store(),
+            &self.sequences,
+            self.sequence,
+            self.operation,
+        )?;
         Ok(())
-    }
-
-    fn request(&self, shapes: &ProductShapeScene) -> ProductShapeSimulationRequest {
-        ProductShapeSimulationRequest {
-            face_ids: shapes.store().visible_face_ids(),
-            template: ProcessTemplate {
-                template_id: "default".to_string(),
-                default_operation_type: Some("scanline".to_string()),
-                default_tolerance_profile: Some(TOLERANCE_PROFILE.token().to_string()),
-            },
-            operation: OperationDefinition {
-                operation_id: "scanline-1".to_string(),
-                machining_stage: "finish".to_string(),
-                operation_type: None,
-                tolerance_profile: None,
-                boundary: None,
-            },
-            tool: self.conditions.tool(),
-            scanline: self.conditions.scanline,
-            stock_margins: self.conditions.stock_margins,
-            precision: self.conditions.precision,
-            snapshot_interval: SnapshotInterval::default(),
-        }
     }
 
     /// キューにあるジョブを実行し、実行したジョブの数を返す（ジョブマネージャーの実行の入口）
@@ -344,18 +404,18 @@ impl CuttingSimulationSession {
         Ok(self.workflow.run_queued_jobs()?)
     }
 
-    /// 正常終了した切削シミュレーションのうち最も新しいものを取り込み、切削アニメーションにする
+    /// 加工工程の今の改訂（今の計算条件と加工の対象）で正常終了した切削シミュレーションのうち、最も新しいものを
+    /// 取り込み、切削アニメーションにする
     ///
     /// # Errors
     ///
-    /// 取り込める切削シミュレーションがない場合、取り込みの失敗、切削アニメーションを作れない場合。
+    /// 今の改訂の取り込める切削シミュレーションがない場合、取り込みの失敗、切削アニメーションを作れない場合。
     pub fn import_latest(
         &self,
     ) -> Result<ImportedCuttingSimulation, CuttingSimulationSessionError> {
         let latest = self
             .workflow
-            .succeeded_simulations()
-            .last()
+            .latest_revision_simulation(&self.sequences, self.sequence, self.operation)?
             .map(|job| job.id)
             .ok_or(CuttingSimulationSessionError::NoSucceededSimulation)?;
         let result = self.workflow.import(latest)?;
@@ -473,6 +533,34 @@ mod tests {
         assert_eq!(imported.job_id, 2);
         assert!(imported.animation.frame_count() > 1);
         assert!(!imported.animation.take_initial_stock_blocks().is_empty());
+    }
+
+    #[test]
+    fn results_of_previous_conditions_are_not_imported_until_submitted_again() {
+        let scene = scene_with_pyramid();
+        let mut session = CuttingSimulationSession::new(coarse());
+        session.submit(&scene).unwrap();
+        session.run_queued_jobs().unwrap();
+        assert_eq!(session.import_latest().unwrap().job_id, 2);
+
+        // 条件を変えると、前の条件の結果は取り込まない（再計算待ち）
+        session.set_conditions(CuttingSimulationConditions {
+            precision: 0.2,
+            ..session.conditions()
+        });
+        assert!(matches!(
+            session.import_latest(),
+            Err(CuttingSimulationSessionError::NoSucceededSimulation)
+        ));
+        // 同じ条件を設定し直しても、改訂の番号は戻らない
+        session.set_conditions(session.conditions());
+        assert!(session.import_latest().is_err());
+
+        session.submit(&scene).unwrap();
+        session.run_queued_jobs().unwrap();
+        let imported = session.import_latest().unwrap();
+        assert_eq!(imported.job_id, 4);
+        assert_eq!(imported.conditions.precision, 0.2);
     }
 
     #[test]

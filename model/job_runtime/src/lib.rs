@@ -21,5 +21,5 @@ pub use manager::JobManager;
 pub use reference::{ParsedRef, RefFactory, RefParser, RefScheme, RefValidationError};
 pub use types::{
     JobError, JobGroupSummary, JobId, JobOutputRecord, JobOutputValidity, JobRecord, JobRelation,
-    JobSpec, JobStatus, JobType, RetryPolicy,
+    JobSource, JobSpec, JobStatus, JobType, RetryPolicy,
 };

@@ -65,6 +65,17 @@ pub struct JobSpec {
     pub input_ref: String,
     /// リトライ設定
     pub retry_policy: RetryPolicy,
+    /// 投入元（入力の中身ではなく、ジョブをどこから投入したかの記録）
+    pub source: Option<JobSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// ジョブの投入元（利用者が編集する対象の ID と、投入したときのその改訂の番号）
+pub struct JobSource {
+    /// 投入元の ID
+    pub source_id: String,
+    /// 投入したときの投入元の改訂の番号
+    pub revision: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

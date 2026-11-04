@@ -12,8 +12,8 @@ pub use cam_policy::{
     CamWorkflowPolicy, JOB_TYPE_CAM_PROCESS, JOB_TYPE_CUTTING_SIMULATION, JOB_TYPE_NC_POST_FROM_CAM,
 };
 pub use job_view_bridge::{
-    CamJobEvent, CamJobOutputRecord, CamJobOutputValidity, CamJobRecord, CamJobSpec, CamJobStatus,
-    CamJobType,
+    CamJobEvent, CamJobOutputRecord, CamJobOutputValidity, CamJobRecord, CamJobSource, CamJobSpec,
+    CamJobStatus, CamJobType,
 };
 pub use policy::{DomainRuleViolation, WorkflowPolicy};
 pub use service::{DomainAction, JobDomainService};

@@ -1,7 +1,8 @@
 //! `MachiningSequenceStore` のテスト
 
-use cam_core::StockMargins;
-use cam_entity::MachiningStock;
+use cam_core::{
+    MachiningStage, OperationSpec, ScanlineParams, StockMargins, ToleranceProfile, Tool,
+};
 use geo_algorithms::{Point3D, TriangleMesh3D};
 use geo_contracts::TriangleMesh3DConstructor;
 
@@ -20,31 +21,110 @@ fn triangle() -> TriangleMesh3D<f64> {
     .unwrap()
 }
 
-fn sequence(target_faces: Vec<FaceId>) -> MachiningSequence {
-    MachiningSequence::new(
-        "手順".to_string(),
-        target_faces,
-        MachiningStock {
-            margins: StockMargins::default(),
-            precision: 0.05,
-        },
-    )
+fn stock() -> MachiningStock {
+    MachiningStock {
+        margins: StockMargins::default(),
+        precision: 0.05,
+    }
+}
+
+fn content(stepover: f64) -> MachiningOperationContent {
+    MachiningOperationContent {
+        name: "仕上げ".to_string(),
+        stage: MachiningStage::Finish,
+        spec: OperationSpec::Scanline(ScanlineParams {
+            stepover,
+            feed_rate: 1200.0,
+            tool_range: cam_core::ScanlineToolRange::default(),
+            cut_direction: cam_core::ScanlineCutDirection::default(),
+        }),
+        tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+        boundary: None,
+        tolerance_profile: ToleranceProfile::PressRough,
+    }
+}
+
+/// 保管先 `store` の加工手順 `sequence` の加工工程 `operation` の改訂の番号
+fn revision(
+    store: &MachiningSequenceStore,
+    sequence: MachiningSequenceId,
+    operation: MachiningOperationId,
+) -> u32 {
+    store.operation(sequence, operation).unwrap().revision()
 }
 
 #[test]
 fn a_sequence_is_found_and_changed_by_its_id() {
     let mut store = MachiningSequenceStore::new();
-    let first = store.add(sequence(Vec::new()));
-    let second = store.add(sequence(Vec::new()));
+    let first = store.create_sequence("手順".to_string(), Vec::new(), stock());
+    let second = store.create_sequence("手順".to_string(), Vec::new(), stock());
     let face = FaceId::new_random();
 
-    store
-        .sequence_mut(second)
-        .expect("the sequence is held")
-        .set_target_faces(vec![face]);
+    store.set_target_faces(second, vec![face]).unwrap();
 
     assert!(store.sequence(first).unwrap().target_faces().is_empty());
     assert_eq!(store.sequence(second).unwrap().target_faces(), [face]);
+}
+
+#[test]
+fn operations_are_added_and_edited_through_the_store() {
+    let mut store = MachiningSequenceStore::new();
+    let sequence = store.create_sequence("手順".to_string(), Vec::new(), stock());
+    let operation = store.add_operation(sequence, content(2.0)).unwrap();
+    assert_eq!(
+        store.operation(sequence, operation).unwrap().content(),
+        &content(2.0)
+    );
+    assert_eq!(revision(&store, sequence, operation), 1);
+
+    // 中身を変えると改訂の番号が増え、同じ中身では増えない
+    store
+        .set_operation_content(sequence, operation, content(3.0))
+        .unwrap();
+    store
+        .set_operation_content(sequence, operation, content(3.0))
+        .unwrap();
+    assert_eq!(revision(&store, sequence, operation), 2);
+
+    // 手順の素材・加工の対象を変えても、工程の改訂の番号が増える
+    store
+        .set_stock(
+            sequence,
+            MachiningStock {
+                precision: 0.1,
+                ..stock()
+            },
+        )
+        .unwrap();
+    store
+        .set_target_faces(sequence, vec![FaceId::new_random()])
+        .unwrap();
+    assert_eq!(revision(&store, sequence, operation), 4);
+}
+
+#[test]
+fn unknown_sequences_and_operations_are_reported() {
+    let mut store = MachiningSequenceStore::new();
+    let sequence = store.create_sequence("手順".to_string(), Vec::new(), stock());
+    let operation = store.add_operation(sequence, content(2.0)).unwrap();
+    let mut other = MachiningSequenceStore::new();
+    let unknown_sequence = other.create_sequence("手順".to_string(), Vec::new(), stock());
+    let unknown_operation = other.add_operation(unknown_sequence, content(2.0)).unwrap();
+
+    assert_eq!(
+        store.add_operation(unknown_sequence, content(2.0)),
+        Err(MachiningSequenceError::UnknownSequence(unknown_sequence))
+    );
+    assert_eq!(
+        store.set_operation_content(sequence, unknown_operation, content(3.0)),
+        Err(MachiningSequenceError::UnknownOperation(unknown_operation))
+    );
+    assert_eq!(
+        store.set_stock(unknown_sequence, stock()),
+        Err(MachiningSequenceError::UnknownSequence(unknown_sequence))
+    );
+    // 失敗した編集は、保管している工程を変えない
+    assert_eq!(revision(&store, sequence, operation), 1);
 }
 
 #[test]
@@ -54,7 +134,7 @@ fn target_faces_held_in_the_product_shape_are_accepted() {
         .add_face(ProductFaceGeometry::Mesh(triangle()))
         .face_id;
     let mut store = MachiningSequenceStore::new();
-    let id = store.add(sequence(vec![face]));
+    let id = store.create_sequence("手順".to_string(), vec![face], stock());
 
     assert_eq!(store.check_target_faces(id, &shapes), Ok(()));
 }
@@ -67,7 +147,11 @@ fn target_faces_missing_from_the_product_shape_are_reported() {
         .face_id;
     let missing = [FaceId::new_random(), FaceId::new_random()];
     let mut store = MachiningSequenceStore::new();
-    let id = store.add(sequence(vec![missing[0], held, missing[1]]));
+    let id = store.create_sequence(
+        "手順".to_string(),
+        vec![missing[0], held, missing[1]],
+        stock(),
+    );
 
     assert_eq!(
         store.check_target_faces(id, &shapes),
@@ -77,7 +161,7 @@ fn target_faces_missing_from_the_product_shape_are_reported() {
 
 #[test]
 fn an_unknown_sequence_is_reported() {
-    let id = MachiningSequenceStore::new().add(sequence(Vec::new()));
+    let id = MachiningSequenceStore::new().create_sequence("手順".to_string(), Vec::new(), stock());
 
     assert_eq!(
         MachiningSequenceStore::new().check_target_faces(id, &ProductShapeStore::new()),

@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use job_runtime::{JobEvent, JobOutputValidity, JobRecord, JobStatus, JobType};
+use job_runtime::{JobEvent, JobOutputValidity, JobRecord, JobSource, JobStatus, JobType};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CamJobType {
@@ -30,6 +30,15 @@ pub enum CamJobOutputValidity {
 pub struct CamJobSpec {
     pub job_type: CamJobType,
     pub input_ref: String,
+    /// 投入元（入力の中身ではなく、ジョブをどこから投入したかの記録）
+    pub source: Option<CamJobSource>,
+}
+
+/// ジョブの投入元（利用者が編集する対象の ID と、投入したときのその改訂の番号）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CamJobSource {
+    pub source_id: String,
+    pub revision: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,6 +132,24 @@ impl From<JobOutputValidity> for CamJobOutputValidity {
     }
 }
 
+impl From<&JobSource> for CamJobSource {
+    fn from(value: &JobSource) -> Self {
+        Self {
+            source_id: value.source_id.clone(),
+            revision: value.revision,
+        }
+    }
+}
+
+impl From<&CamJobSource> for JobSource {
+    fn from(value: &CamJobSource) -> Self {
+        Self {
+            source_id: value.source_id.clone(),
+            revision: value.revision,
+        }
+    }
+}
+
 impl From<&JobRecord> for CamJobRecord {
     fn from(value: &JobRecord) -> Self {
         Self {
@@ -130,6 +157,7 @@ impl From<&JobRecord> for CamJobRecord {
             spec: CamJobSpec {
                 job_type: value.spec.job_type.clone().into(),
                 input_ref: value.spec.input_ref.clone(),
+                source: value.spec.source.as_ref().map(CamJobSource::from),
             },
             parent_job_id: value.parent_job_id.map(|id| id.0),
             group_id: value.group_id.clone(),
