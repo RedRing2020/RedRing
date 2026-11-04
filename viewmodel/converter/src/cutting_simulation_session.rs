@@ -5,26 +5,19 @@
 //! 加工の対象は、確かめ・投入のときに表示中の製品形状のすべての面にする。
 //! 実行の入口は、ジョブマネージャーができるまでの同じプロセスの中の実行とする。
 
-use application::cam_simulation_workflow::{
-    CamConditionError, CamSimulationWorkflow, CamSimulationWorkflowError,
-};
+pub use application::cam_simulation_workflow::{CamConditionError, CamConditionField};
+use application::cam_simulation_workflow::{CamSimulationWorkflow, CamSimulationWorkflowError};
 use application::machining_sequence::{
-    MachiningOperationContent, MachiningOperationId, MachiningSequenceId, MachiningSequenceStore,
-    MachiningStock,
+    scanline_operation_content, MachiningOperationContent, MachiningOperationId,
+    MachiningSequenceId, MachiningSequenceStore, MachiningStock,
 };
-use cam_algorithms::CamSolverError;
-pub use cam_algorithms::ScanlineInputError;
-use cam_core::{MachiningStage, OperationSpec, ToleranceProfile, Tool};
+use cam_core::Tool;
 pub use cam_core::{ScanlineCutDirection, ScanlineParams, ScanlineToolRange, StockMargins};
-use cam_sim::CuttingSimulationInputError;
 use geo_algorithms::Aabb3D;
 
 use crate::cutting_animation::{CuttingAnimation, CuttingAnimationError};
 use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
 use crate::product_shape_converter::ProductShapeScene;
-
-/// ツールパス生成のトレランスを決める精度プロファイル
-const TOLERANCE_PROFILE: ToleranceProfile = ToleranceProfile::PressRough;
 
 /// 加工手順・加工工程の名前（加工条件のウィンドウで編集できるようになるまでの固定の名前）
 const SEQUENCE_NAME: &str = "加工手順";
@@ -112,16 +105,9 @@ impl CuttingSimulationConditions {
         tool
     }
 
-    /// 加工工程の中身（工具・走査線の条件。仕上げのスキャン加工）
+    /// 加工工程の中身（工具・走査線の条件の、走査線の加工工程）
     fn operation_content(&self) -> MachiningOperationContent {
-        MachiningOperationContent {
-            name: OPERATION_NAME.to_string(),
-            stage: MachiningStage::Finish,
-            spec: OperationSpec::Scanline(self.scanline),
-            tool: self.tool(),
-            boundary: None,
-            tolerance_profile: TOLERANCE_PROFILE,
-        }
+        scanline_operation_content(OPERATION_NAME.to_string(), self.tool(), self.scanline)
     }
 
     /// 加工手順の素材（素材の余裕・精度）
@@ -164,67 +150,18 @@ pub struct ImportedCuttingSimulation {
 pub enum ConditionIssue {
     /// 加工の対象の製品形状がない、または形状にできない（理由）
     NoProductShape(String),
-    /// 素材の余裕が負または有限でない
-    InvalidStockMargins,
-    /// 素材が体積を持つ直方体にならない
-    InvalidStock,
-    /// 工具の値が不正
-    InvalidTool,
-    /// 走査線の条件の誤り（確かめた条件の工具径。mm）
-    InvalidScanline {
-        error: ScanlineInputError,
-        tool_diameter: f64,
-    },
-    /// そのほかのツールパス生成の入力の誤り（理由）
-    InvalidToolpathInput(String),
-    /// 精度が正の有限値でない
-    InvalidPrecision,
-    /// 精度がツールパス生成のトレランス（mm）より細かい
-    PrecisionFinerThanTolerance { tolerance: f64 },
-    /// 精度が細かすぎて格子の線の本数の上限を超える（上限に収まる最も細かい精度。mm）
-    TooManyDexelLines { finest_precision: f64 },
+    /// 計算条件の誤り（出す欄は `CamConditionError::field`）
+    Condition(CamConditionError),
     /// そのほかの理由で投入できない（理由）
     Other(String),
 }
 
 impl ConditionIssue {
-    fn from_condition_error(error: &CamConditionError, tool_diameter: f64) -> Self {
+    fn from_workflow_error(error: &CamSimulationWorkflowError) -> Vec<Self> {
         match error {
-            CamConditionError::InvalidStockMargins(_) => Self::InvalidStockMargins,
-            CamConditionError::PrecisionFinerThanTolerance { tolerance, .. } => {
-                Self::PrecisionFinerThanTolerance {
-                    tolerance: *tolerance,
-                }
+            CamSimulationWorkflowError::Conditions(errors) => {
+                errors.iter().cloned().map(Self::Condition).collect()
             }
-            CamConditionError::ToolpathInput(CamSolverError::InvalidScanline(error)) => {
-                Self::InvalidScanline {
-                    error: *error,
-                    tool_diameter,
-                }
-            }
-            CamConditionError::ToolpathInput(error) => {
-                Self::InvalidToolpathInput(error.reason().to_string())
-            }
-            CamConditionError::SimulationInput(error) => match error {
-                CuttingSimulationInputError::Stock => Self::InvalidStock,
-                CuttingSimulationInputError::Tool => Self::InvalidTool,
-                CuttingSimulationInputError::Precision => Self::InvalidPrecision,
-                CuttingSimulationInputError::TooManyDexelLines {
-                    finest_precision, ..
-                } => Self::TooManyDexelLines {
-                    finest_precision: *finest_precision,
-                },
-                CuttingSimulationInputError::SnapshotInterval => Self::Other(error.to_string()),
-            },
-        }
-    }
-
-    fn from_workflow_error(error: &CamSimulationWorkflowError, tool_diameter: f64) -> Vec<Self> {
-        match error {
-            CamSimulationWorkflowError::Conditions(errors) => errors
-                .iter()
-                .map(|error| Self::from_condition_error(error, tool_diameter))
-                .collect(),
             CamSimulationWorkflowError::ProductShape(_)
             | CamSimulationWorkflowError::EmptyProductShape => {
                 vec![Self::NoProductShape(error.to_string())]
@@ -243,8 +180,8 @@ pub enum CuttingSimulationSessionError {
     NoSucceededSimulation,
     /// 取り込んだ結果から切削アニメーションを作れない
     Animation(CuttingAnimationError),
-    /// 逆オフセット形状を表示用に分けられない（表示のきざみの誤り）
-    InverseOffsetDisplay(CamSolverError),
+    /// 逆オフセット形状を表示用に分けられない（表示のきざみの誤りの理由）
+    InverseOffsetDisplay(String),
 }
 
 impl std::fmt::Display for CuttingSimulationSessionError {
@@ -326,9 +263,11 @@ impl CuttingSimulationSession {
             .expect("the session holds its machining sequence");
     }
 
-    /// ツールパス生成のトレランス（mm）
+    /// 加工工程のツールパス生成のトレランス（mm）
     pub fn toolpath_tolerance(&self) -> f64 {
-        TOLERANCE_PROFILE.tolerance_mm()
+        self.sequences
+            .operation_tolerance(self.sequence, self.operation)
+            .expect("the session holds its machining operation")
     }
 
     /// 加工の対象を、表示中の製品形状のすべての面にする（面の集合が変わった場合は、工程の改訂の番号が増える）
@@ -348,9 +287,7 @@ impl CuttingSimulationSession {
             self.operation,
         ) {
             Ok(()) => Vec::new(),
-            Err(error) => {
-                ConditionIssue::from_workflow_error(&error, self.conditions.tool_diameter)
-            }
+            Err(error) => ConditionIssue::from_workflow_error(&error),
         }
     }
 
@@ -373,7 +310,7 @@ impl CuttingSimulationSession {
             self.operation,
         )?;
         inverse_offset_shape_meshes(&shape, angle_step)
-            .map_err(CuttingSimulationSessionError::InverseOffsetDisplay)
+            .map_err(|error| CuttingSimulationSessionError::InverseOffsetDisplay(error.to_string()))
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、次に投入する計算条件の加工工程から投入する（実行しない）
@@ -628,14 +565,17 @@ mod tests {
         assert_eq!(
             issues,
             vec![
-                ConditionIssue::InvalidStockMargins,
-                ConditionIssue::PrecisionFinerThanTolerance {
+                ConditionIssue::Condition(CamConditionError::InvalidStockMargins(StockMargins {
+                    bottom: -1.0,
+                    ..StockMargins::default()
+                })),
+                ConditionIssue::Condition(CamConditionError::PrecisionFinerThanTolerance {
+                    precision: 0.0005,
                     tolerance: session.toolpath_tolerance()
-                },
-                ConditionIssue::InvalidScanline {
-                    error: ScanlineInputError::StepoverExceedsToolDiameter,
+                }),
+                ConditionIssue::Condition(CamConditionError::StepoverExceedsToolDiameter {
                     tool_diameter: 6.0,
-                },
+                }),
             ]
         );
         assert!(session.submit(&scene).is_err());

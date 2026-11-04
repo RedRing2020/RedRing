@@ -17,7 +17,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use cam_algorithms::{
-    CamSolverError, CamSolverInput, InverseOffsetShape, build_inverse_offset_shape,
+    CamSolverError, CamSolverInput, InverseOffsetShape, ScanlineInputError,
+    build_inverse_offset_shape,
 };
 use cam_core::{CoordinateFrame, LengthUnit, StockMargins};
 use cam_entity::MachiningOperation;
@@ -42,7 +43,7 @@ use crate::product_shape::{ProductShapeError, ProductShapeStore};
 
 /// ツールパス生成から切削シミュレーションまでの入力
 #[derive(Debug, Clone)]
-pub struct CamSimulationWorkflowRequest {
+pub(crate) struct CamSimulationWorkflowRequest {
     /// ツールパス生成の入力（工具は切削シミュレーションでも使う）
     pub solver_input: CamSolverInput,
     /// 素材（直方体）
@@ -75,17 +76,93 @@ pub struct CamSimulationWorkflowResult {
     pub simulation_input: CuttingSimulationInput,
 }
 
-/// 計算条件の誤り（入力の欄ごとに分けて知らせる）
+/// 計算条件の誤りを出す入力の欄
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CamConditionField {
+    /// 工具
+    Tool,
+    /// 加工（走査線の条件など、ツールパス生成の条件）
+    Machining,
+    /// 素材の余裕
+    Stock,
+    /// 素材の精度
+    Precision,
+    /// 入力の欄に当たらない条件（記録の間隔など）
+    Other,
+}
+
+/// 計算条件の誤り（入力の欄と理由で分ける。計算の層の誤りの型は見せない）
 #[derive(Debug, Clone, PartialEq)]
 pub enum CamConditionError {
     /// 素材の余裕が負または有限でない
     InvalidStockMargins(StockMargins),
+    /// 素材が体積を持つ直方体にならない
+    InvalidStock,
+    /// 工具の値が不正
+    InvalidTool,
+    /// ピックフィードが正の有限値でない
+    StepoverNotPositive,
+    /// ピックフィードが工具径を超える（投入した工具の径。mm）
+    StepoverExceedsToolDiameter { tool_diameter: f64 },
+    /// 送りが正の有限値でない
+    FeedRateNotPositive,
+    /// そのほかのツールパス生成の入力の誤り（理由）
+    InvalidToolpathInput(String),
+    /// 精度が正の有限値でない
+    InvalidPrecision,
     /// 素材の精度が、ツールパス生成のトレランスより細かい（素材は CL より正確である必要がない）
     PrecisionFinerThanTolerance { precision: f64, tolerance: f64 },
-    /// ツールパス生成の入力（工具・走査線の条件など）の誤り
-    ToolpathInput(CamSolverError),
-    /// 切削シミュレーションの入力の誤り
-    SimulationInput(CuttingSimulationInputError),
+    /// 精度が細かすぎて格子の線の本数の上限を超える（上限に収まる最も細かい精度。mm）
+    TooManyDexelLines { finest_precision: f64 },
+    /// 記録の間隔が不正
+    InvalidSnapshotInterval,
+}
+
+impl CamConditionError {
+    /// 誤りを出す入力の欄
+    pub fn field(&self) -> CamConditionField {
+        match self {
+            Self::InvalidTool => CamConditionField::Tool,
+            Self::StepoverNotPositive
+            | Self::StepoverExceedsToolDiameter { .. }
+            | Self::FeedRateNotPositive
+            | Self::InvalidToolpathInput(_) => CamConditionField::Machining,
+            Self::InvalidStockMargins(_) | Self::InvalidStock => CamConditionField::Stock,
+            Self::InvalidPrecision
+            | Self::PrecisionFinerThanTolerance { .. }
+            | Self::TooManyDexelLines { .. } => CamConditionField::Precision,
+            Self::InvalidSnapshotInterval => CamConditionField::Other,
+        }
+    }
+
+    /// ツールパス生成の入力の誤り `error` を分ける（工具の径は、確かめた工具の径）
+    fn from_toolpath_input(error: CamSolverError, tool_diameter: f64) -> Self {
+        match error {
+            CamSolverError::InvalidScanline(ScanlineInputError::StepoverNotPositive) => {
+                Self::StepoverNotPositive
+            }
+            CamSolverError::InvalidScanline(ScanlineInputError::StepoverExceedsToolDiameter) => {
+                Self::StepoverExceedsToolDiameter { tool_diameter }
+            }
+            CamSolverError::InvalidScanline(ScanlineInputError::FeedRateNotPositive) => {
+                Self::FeedRateNotPositive
+            }
+            other => Self::InvalidToolpathInput(other.reason().to_string()),
+        }
+    }
+
+    /// 切削シミュレーションの入力の誤り `error` を分ける
+    fn from_simulation_input(error: CuttingSimulationInputError) -> Self {
+        match error {
+            CuttingSimulationInputError::Stock => Self::InvalidStock,
+            CuttingSimulationInputError::Tool => Self::InvalidTool,
+            CuttingSimulationInputError::Precision => Self::InvalidPrecision,
+            CuttingSimulationInputError::SnapshotInterval => Self::InvalidSnapshotInterval,
+            CuttingSimulationInputError::TooManyDexelLines {
+                finest_precision, ..
+            } => Self::TooManyDexelLines { finest_precision },
+        }
+    }
 }
 
 impl fmt::Display for CamConditionError {
@@ -97,6 +174,16 @@ impl fmt::Display for CamConditionError {
                     "stock margins must be finite and non-negative: {margins:?}"
                 )
             }
+            Self::InvalidStock => write!(f, "stock must be a finite box with volume"),
+            Self::InvalidTool => write!(f, "tool parameters are invalid"),
+            Self::StepoverNotPositive => write!(f, "stepover must be positive and finite"),
+            Self::StepoverExceedsToolDiameter { tool_diameter } => write!(
+                f,
+                "stepover must not exceed the tool diameter {tool_diameter}"
+            ),
+            Self::FeedRateNotPositive => write!(f, "feed rate must be positive and finite"),
+            Self::InvalidToolpathInput(reason) => write!(f, "toolpath input is invalid: {reason}"),
+            Self::InvalidPrecision => write!(f, "stock precision must be positive and finite"),
             Self::PrecisionFinerThanTolerance {
                 precision,
                 tolerance,
@@ -104,10 +191,11 @@ impl fmt::Display for CamConditionError {
                 f,
                 "stock precision {precision} must not be finer than the toolpath tolerance {tolerance}"
             ),
-            Self::ToolpathInput(error) => write!(f, "toolpath input is invalid: {error}"),
-            Self::SimulationInput(error) => {
-                write!(f, "cutting simulation input is invalid: {error}")
-            }
+            Self::TooManyDexelLines { finest_precision } => write!(
+                f,
+                "stock precision exceeds the dexel line limit; the finest precision is {finest_precision}"
+            ),
+            Self::InvalidSnapshotInterval => write!(f, "snapshot interval is invalid"),
         }
     }
 }
@@ -200,22 +288,6 @@ impl Default for CamSimulationWorkflow {
 impl CamSimulationWorkflow {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// 入力を登録し、ツールパス生成と切削シミュレーションのジョブをキューに入れる（実行しない）
-    ///
-    /// # Errors
-    ///
-    /// 計算条件に誤りがある場合（すべての誤り）、入力の登録の失敗、ジョブの投入の失敗。
-    pub fn submit(
-        &mut self,
-        request: CamSimulationWorkflowRequest,
-    ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        let errors = condition_errors(&request);
-        if !errors.is_empty() {
-            return Err(CamSimulationWorkflowError::Conditions(errors));
-        }
-        self.enqueue(request, None)
     }
 
     /// 確認を通った入力を登録し、投入元を `source` としてジョブをキューに入れる
@@ -460,14 +532,7 @@ fn resolve_operation_request<'a>(
             errors.extend(
                 condition_errors(&workflow_request)
                     .into_iter()
-                    .filter(|error| {
-                        !matches!(
-                            error,
-                            CamConditionError::SimulationInput(
-                                CuttingSimulationInputError::TooManyDexelLines { .. }
-                            )
-                        )
-                    }),
+                    .filter(|error| !matches!(error, CamConditionError::TooManyDexelLines { .. })),
             );
             errors
         }
@@ -491,12 +556,15 @@ fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionE
         });
     }
     if let Err(error) = request.solver_input.validate() {
-        errors.push(CamConditionError::ToolpathInput(error));
+        errors.push(CamConditionError::from_toolpath_input(
+            error,
+            request.solver_input.tool.diameter(),
+        ));
     }
     errors.extend(
         cutting_simulation_input_errors(&simulation_input(request))
             .into_iter()
-            .map(CamConditionError::SimulationInput),
+            .map(CamConditionError::from_simulation_input),
     );
     errors
 }

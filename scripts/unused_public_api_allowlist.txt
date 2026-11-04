@@ -70,3 +70,6 @@ model/geo_contracts/src/geometry/core/nurbs_curve_3d_traits.rs:derivative_at
 
 # 平面の基本の生成（網羅表の未対応の平面との組み合わせの実装時に調整する）
 model/geo_contracts/src/geometry/core/plane3d_traits.rs:from_point_and_normal
+
+# application: viewmodel の試験で、NURBS の面を製品形状として作る入口（NURBS の面を取り込む経路ができるまで）
+model/application/src/product_shape.rs:add_face

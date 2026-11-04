@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use cam_algorithms::{ScanlineInputError, SolverGeometry};
+use cam_algorithms::SolverGeometry;
 use cam_core::{
     MachiningStage, OperationSpec, ScanlineParams, ToleranceProfile, Tool,
     read_toolpath_artifact_v1,
@@ -13,6 +13,18 @@ use geo_entity::FaceId;
 use super::*;
 use crate::machining_sequence::{MachiningOperationContent, MachiningStock};
 use crate::product_shape::ProductShapeError;
+
+/// 確かめた入力を、投入元なしで投入する（加工工程を通さない投入。ジョブの実行と取り込みを確かめる）
+fn submit(
+    workflow: &mut CamSimulationWorkflow,
+    request: CamSimulationWorkflowRequest,
+) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
+    let errors = condition_errors(&request);
+    if !errors.is_empty() {
+        return Err(CamSimulationWorkflowError::Conditions(errors));
+    }
+    workflow.enqueue(request, None)
+}
 
 /// 取り込める（正常終了した）切削シミュレーションのジョブ（ID の昇順）
 fn succeeded_simulations(workflow: &CamSimulationWorkflow) -> Vec<CamJobRecord> {
@@ -64,7 +76,7 @@ fn request(precision: f64) -> CamSimulationWorkflowRequest {
 fn submitting_only_enqueues_the_jobs_without_waiting_for_the_computation() {
     let mut workflow = CamSimulationWorkflow::new();
     let started = Instant::now();
-    let submission = workflow.submit(request(0.01)).unwrap();
+    let submission = submit(&mut workflow, request(0.01)).unwrap();
     let submitting = started.elapsed();
     // 投入しただけでは実行されず、取り込めない
     assert!(succeeded_simulations(&workflow).is_empty());
@@ -86,7 +98,7 @@ fn submitting_only_enqueues_the_jobs_without_waiting_for_the_computation() {
 fn succeeded_simulations_are_imported_with_their_toolpaths() {
     let mut workflow = CamSimulationWorkflow::new();
     let submissions: Vec<CamSimulationSubmission> = (0..2)
-        .map(|_| workflow.submit(request(0.01)).unwrap())
+        .map(|_| submit(&mut workflow, request(0.01)).unwrap())
         .collect();
     assert_eq!(workflow.run_queued_jobs().unwrap(), 4);
     let succeeded: Vec<u64> = succeeded_simulations(&workflow)
@@ -127,8 +139,8 @@ fn failed_jobs_are_not_imported() {
         rect_min: [200.0, 200.0],
         rect_max: [210.0, 210.0],
     }));
-    let failed = workflow.submit(outside).unwrap();
-    let succeeded = workflow.submit(request(0.01)).unwrap();
+    let failed = submit(&mut workflow, outside).unwrap();
+    let succeeded = submit(&mut workflow, request(0.01)).unwrap();
     workflow.run_queued_jobs().unwrap();
 
     let simulations: Vec<u64> = succeeded_simulations(&workflow)
@@ -151,7 +163,7 @@ fn failed_jobs_are_not_imported() {
 fn precision_finer_than_the_toolpath_tolerance_is_not_submitted() {
     let mut workflow = CamSimulationWorkflow::new();
     assert_eq!(
-        workflow.submit(request(0.005)).unwrap_err(),
+        submit(&mut workflow, request(0.005)).unwrap_err(),
         CamSimulationWorkflowError::Conditions(vec![
             CamConditionError::PrecisionFinerThanTolerance {
                 precision: 0.005,
@@ -307,7 +319,7 @@ fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
     let machining = Machining::new(vec![face]);
     let mut workflow = CamSimulationWorkflow::new();
     // 工程から投入していないジョブは、工程から引かない
-    let unrelated = workflow.submit(request(0.01)).unwrap();
+    let unrelated = submit(&mut workflow, request(0.01)).unwrap();
     let submission = machining.submit(&mut workflow, &shapes).unwrap();
 
     let expected = CamJobSource {
@@ -523,16 +535,26 @@ fn all_condition_errors_are_reported_before_submitting() {
             precision,
             tolerance,
         },
-        CamConditionError::ToolpathInput(CamSolverError::InvalidScanline(
-            ScanlineInputError::StepoverExceedsToolDiameter,
-        )),
-        CamConditionError::SimulationInput(CuttingSimulationInputError::Tool),
+        CamConditionError::StepoverExceedsToolDiameter { tool_diameter },
+        CamConditionError::InvalidTool,
     ] = &errors[..]
     else {
         panic!("unexpected errors: {errors:?}");
     };
     assert!(rejected_margins.top.is_nan() && rejected_margins.minus_x == invalid.margins.minus_x);
     assert_eq!((*precision, *tolerance), (0.0005, 0.001));
+    // 確かめた工具（直径 6）の径
+    assert_eq!(*tool_diameter, 6.0);
+    let fields: Vec<CamConditionField> = errors.iter().map(CamConditionError::field).collect();
+    assert_eq!(
+        fields,
+        [
+            CamConditionField::Stock,
+            CamConditionField::Precision,
+            CamConditionField::Machining,
+            CamConditionField::Tool,
+        ]
+    );
 
     // 投入も同じ誤りで拒み、キューに入れない
     let mut workflow = CamSimulationWorkflow::new();
@@ -559,13 +581,7 @@ fn precision_beyond_the_line_limit_is_reported_with_the_finest_precision() {
     let Err(CamSimulationWorkflowError::Conditions(errors)) = machining.check(&shapes) else {
         panic!("the precision must be rejected");
     };
-    let [
-        CamConditionError::SimulationInput(CuttingSimulationInputError::TooManyDexelLines {
-            finest_precision,
-            ..
-        }),
-    ] = errors[..]
-    else {
+    let [CamConditionError::TooManyDexelLines { finest_precision }] = errors[..] else {
         panic!("unexpected errors: {errors:?}");
     };
     assert!(finest_precision > wide.precision);
