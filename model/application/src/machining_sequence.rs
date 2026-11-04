@@ -37,7 +37,7 @@ const DEFAULT_TOLERANCE_PROFILE: ToleranceProfile = ToleranceProfile::PressRough
 
 /// 工具 `tool` で走査線の条件 `scanline` の仕上げを行う加工工程の中身（名前は `name`、加工領域は加工の対象の
 /// XY の範囲、精度プロファイルは既定）
-pub fn scanline_operation_content(
+pub fn scanline_finish_operation_content(
     name: String,
     tool: Tool<f64>,
     scanline: ScanlineParams,

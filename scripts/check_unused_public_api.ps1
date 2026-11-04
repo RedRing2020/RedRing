@@ -70,9 +70,9 @@ try {
 
     # テスト以外のファイルに現れる呼び出し名（全体と、viewmodel・view の中）
     # application のモジュール直下の関数は、`use` で取り込んで名前だけで呼ぶことがあるため、
-    # viewmodel・view では `名前(` の形の呼び出しも数える
+    # viewmodel・view では `名前(` の形の呼び出しも数える（`fn 名前(` の定義は数えない）
     $callRegex = [regex]'(?:\.|::)(\w+)\s*(?:::<[^>]*>)?\('
-    $bareCallRegex = [regex]'(?<![\w.:])(\w+)\s*(?:::<[^>]*>)?\('
+    $bareCallRegex = [regex]'(?<![\w.:])(?<!\bfn\s+)(\w+)\s*(?:::<[^>]*>)?\('
     $calledNames = [System.Collections.Generic.HashSet[string]]::new()
     $frontCalledNames = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($path in $nonTestRust) {
@@ -129,7 +129,7 @@ try {
 
     # application の公開 API（viewmodel・view から呼ばれているものに限る）
     $applicationFiles = @($nonTestRust | Where-Object { $_ -like "model/application/src/*" })
-    $applicationFnRegex = '^(?:    )?pub fn (\w+)\s*[(<]'
+    $applicationFnRegex = '^(?:    )?pub (?:(?:const|async|unsafe)\s+)*fn (\w+)\s*[(<]'
     $unusedApplication = @()
     foreach ($path in $applicationFiles) {
         $text = Remove-TestModules (Get-Content -LiteralPath $path -Raw -Encoding UTF8)
@@ -148,7 +148,8 @@ try {
             $body = $text.Substring($open, (Get-BlockEnd $text $open) - $open)
             foreach ($fn in $traitFnRegex.Matches($body)) {
                 $name = $fn.Groups[1].Value
-                if (-not $frontCalledNames.Contains($name) -and -not $allowlist.Contains("${path}:$name")) {
+                if ($ignoredNames -notcontains $name -and -not $frontCalledNames.Contains($name) -and
+                    -not $allowlist.Contains("${path}:$name")) {
                     $line = ($text.Substring(0, $open + $fn.Index) -split "`n").Length
                     $unusedApplication += [PSCustomObject]@{ Path = $path; Line = $line; Name = $name }
                 }

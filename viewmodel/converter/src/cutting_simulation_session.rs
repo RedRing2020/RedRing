@@ -8,7 +8,7 @@
 pub use application::cam_simulation_workflow::{CamConditionError, CamConditionField};
 use application::cam_simulation_workflow::{CamSimulationWorkflow, CamSimulationWorkflowError};
 use application::machining_sequence::{
-    scanline_operation_content, MachiningOperationContent, MachiningOperationId,
+    scanline_finish_operation_content, MachiningOperationContent, MachiningOperationId,
     MachiningSequenceId, MachiningSequenceStore, MachiningStock,
 };
 use cam_core::Tool;
@@ -107,7 +107,7 @@ impl CuttingSimulationConditions {
 
     /// 加工工程の中身（工具・走査線の条件の、走査線の加工工程）
     fn operation_content(&self) -> MachiningOperationContent {
-        scanline_operation_content(OPERATION_NAME.to_string(), self.tool(), self.scanline)
+        scanline_finish_operation_content(OPERATION_NAME.to_string(), self.tool(), self.scanline)
     }
 
     /// 加工手順の素材（素材の余裕・精度）

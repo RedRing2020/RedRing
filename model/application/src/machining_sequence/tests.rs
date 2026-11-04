@@ -116,7 +116,7 @@ fn unknown_sequences_and_operations_are_reported() {
 fn scanline_operations_are_made_with_the_default_tolerance_profile() {
     let tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
     let OperationSpec::Scanline(scanline) = content(2.0).spec;
-    let made = scanline_operation_content("仕上げ".to_string(), tool, scanline);
+    let made = scanline_finish_operation_content("仕上げ".to_string(), tool, scanline);
     assert_eq!(made, content(2.0));
 
     let mut store = MachiningSequenceStore::new();

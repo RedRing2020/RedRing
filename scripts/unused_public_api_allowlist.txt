@@ -73,3 +73,5 @@ model/geo_contracts/src/geometry/core/plane3d_traits.rs:from_point_and_normal
 
 # application: viewmodel の試験で、NURBS の面を製品形状として作る入口（NURBS の面を取り込む経路ができるまで）
 model/application/src/product_shape.rs:add_face
+# application: 製品形状の表示・非表示の切り替え（表示中の面だけを加工の対象にすることを試験で確かめる入口。表示を切り替える UI ができるまで）
+model/application/src/product_shape.rs:set_visible
