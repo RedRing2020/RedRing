@@ -558,7 +558,7 @@ impl JobManager {
 #[cfg(test)]
 mod tests {
     use crate::executor::{JobExecutionResult, JobExecutor};
-    use crate::types::{JobSpec, JobType, RetryPolicy};
+    use crate::types::{JobSource, JobSpec, JobType, RetryPolicy};
 
     use super::*;
 
@@ -570,6 +570,7 @@ mod tests {
                 max_retries: 1,
                 backoff_millis: 100,
             },
+            source: None,
         }
     }
 
@@ -581,6 +582,7 @@ mod tests {
                 max_retries: 1,
                 backoff_millis: 100,
             },
+            source: None,
         }
     }
 
@@ -758,6 +760,21 @@ mod tests {
             result,
             Err(JobError::ParentJobNotFound(JobId(999)))
         ));
+    }
+
+    #[test]
+    fn the_source_is_kept_in_the_job_record() {
+        let mut manager = JobManager::new();
+        let source = JobSource {
+            source_id: "operation-1".to_string(),
+            revision: 3,
+        };
+        let id = manager.submit(JobSpec {
+            source: Some(source.clone()),
+            ..sample_spec()
+        });
+
+        assert_eq!(manager.get(id).unwrap().spec.source, Some(source));
     }
 
     #[test]

@@ -97,7 +97,7 @@ impl AppState {
     pub(crate) fn import_cutting_simulation(&mut self) {
         tracing::info!("切削シミュレーションを取り込みます");
         let started = std::time::Instant::now();
-        match self.cutting_simulation.import_latest() {
+        match self.cutting_simulation.import_latest(&self.product_shapes) {
             Ok(imported) => {
                 self.cutting_simulation_status = Some(OperationStatus::Imported {
                     job: imported.job_id,

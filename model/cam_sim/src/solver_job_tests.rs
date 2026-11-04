@@ -26,6 +26,7 @@ fn spec(job_type: JobType, input_ref: String) -> JobSpec {
         job_type,
         input_ref,
         retry_policy: RetryPolicy::default(),
+        source: None,
     }
 }
 

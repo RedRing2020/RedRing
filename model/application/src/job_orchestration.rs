@@ -4,9 +4,10 @@
 //! （`run_queued_jobs`）が行い、結果は正常終了したジョブから取り込む。
 
 use cam_sim::{CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter};
-use job_domain::{CamJobEvent, CamJobRecord, CamJobStatus, CamJobType};
+use job_domain::{CamJobEvent, CamJobRecord, CamJobSource, CamJobStatus, CamJobType};
 use job_runtime::{
-    JobError, JobId, JobManager, JobOutputValidity, JobSpec, JobStatus, JobType, RetryPolicy,
+    JobError, JobId, JobManager, JobOutputValidity, JobSource, JobSpec, JobStatus, JobType,
+    RetryPolicy,
 };
 
 /// Job orchestration で返却する統一エラー。
@@ -47,6 +48,8 @@ pub struct JobWorkflowSubmitRequest {
     pub job_type: CamJobType,
     pub input_ref: String,
     pub parent_job_id: Option<u64>,
+    /// 投入元（ジョブの記録に残す）
+    pub source: Option<CamJobSource>,
 }
 
 /// workflow 送信の出力境界。
@@ -222,6 +225,7 @@ fn build_job_spec(request: &JobWorkflowSubmitRequest) -> JobSpec {
         job_type: map_job_type(request.job_type.clone()),
         input_ref: request.input_ref.clone(),
         retry_policy: RetryPolicy::default(),
+        source: request.source.as_ref().map(JobSource::from),
     }
 }
 
@@ -294,6 +298,7 @@ mod tests {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/sample".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect("cam process should succeed");
 
@@ -332,6 +337,7 @@ mod tests {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://invalid".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect("submit should still complete with failed runtime status");
 
@@ -365,6 +371,7 @@ mod tests {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/no-solution".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect("submit should complete with failed runtime status");
 
@@ -397,6 +404,7 @@ mod tests {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/convergence-failure".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect("submit should complete with failed runtime status");
 
@@ -429,6 +437,7 @@ mod tests {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/sample".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect("cam process should succeed");
         orchestrator.run_queued_jobs().unwrap();
@@ -458,6 +467,7 @@ mod tests {
                 job_type: CamJobType::CuttingSimulation,
                 input_ref: "input://sim/sample".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect_err("cutting simulation without parent should be rejected");
 
@@ -516,6 +526,7 @@ mod tests {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/sample".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect("cam process should succeed");
 
@@ -524,6 +535,7 @@ mod tests {
                 job_type: CamJobType::CuttingSimulation,
                 input_ref: "input://sim/sample".to_string(),
                 parent_job_id: Some(cam_submit.job_id),
+                source: None,
             })
             .expect("cutting simulation should succeed");
 
@@ -641,6 +653,7 @@ mod tests {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/dome-unreachable-tolerance".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect("submit should complete with failed runtime status");
         assert_eq!(submit.status, CamJobStatus::Queued);
@@ -739,6 +752,7 @@ mod tests {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/pyramid".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect("cam submit should succeed");
         assert_eq!(cam_submit.status, CamJobStatus::Queued);
@@ -748,6 +762,7 @@ mod tests {
                 job_type: CamJobType::CuttingSimulation,
                 input_ref: "input://sim/pyramid".to_string(),
                 parent_job_id: Some(cam_submit.job_id),
+                source: None,
             })
             .expect("cutting simulation submit should succeed");
         assert_eq!(sim_submit.status, CamJobStatus::Queued);
@@ -775,6 +790,7 @@ mod tests {
                 job_type: CamJobType::NcPostFromCam,
                 input_ref: "result://cam/1/ok".to_string(),
                 parent_job_id: None,
+                source: None,
             })
             .expect_err("nc post from cam without parent should be rejected");
 
@@ -793,6 +809,7 @@ mod tests {
                     job_type: CamJobType::CamProcess,
                     input_ref: input_ref.to_string(),
                     parent_job_id: None,
+                    source: None,
                 })
                 .unwrap()
                 .job_id

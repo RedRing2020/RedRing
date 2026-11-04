@@ -1,3 +1,5 @@
+use std::fmt;
+
 use cam_core::{MachiningBoundary, MachiningStage, OperationSpec, ToleranceProfile, Tool};
 use uuid::Uuid;
 
@@ -9,6 +11,12 @@ impl MachiningOperationId {
     /// ランダムな ID を作る
     fn new_random() -> Self {
         Self(Uuid::new_v4())
+    }
+}
+
+impl fmt::Display for MachiningOperationId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
