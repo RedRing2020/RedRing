@@ -404,15 +404,17 @@ impl CuttingSimulationSession {
         Ok(self.workflow.run_queued_jobs()?)
     }
 
-    /// 加工工程の今の改訂（今の計算条件と加工の対象）で正常終了した切削シミュレーションのうち、最も新しいものを
-    /// 取り込み、切削アニメーションにする
+    /// 表示中の製品形状のすべての面を加工の対象として、加工工程の今の改訂（今の計算条件と加工の対象）で正常終了した
+    /// 切削シミュレーションのうち、最も新しいものを取り込み、切削アニメーションにする
     ///
     /// # Errors
     ///
     /// 今の改訂の取り込める切削シミュレーションがない場合、取り込みの失敗、切削アニメーションを作れない場合。
     pub fn import_latest(
-        &self,
+        &mut self,
+        shapes: &ProductShapeScene,
     ) -> Result<ImportedCuttingSimulation, CuttingSimulationSessionError> {
+        self.target_visible_faces(shapes);
         let latest = self
             .workflow
             .latest_revision_simulation(&self.sequences, self.sequence, self.operation)?
@@ -524,12 +526,12 @@ mod tests {
         session.submit(&scene).unwrap();
         // 実行するまでは取り込めない
         assert!(matches!(
-            session.import_latest(),
+            session.import_latest(&scene),
             Err(CuttingSimulationSessionError::NoSucceededSimulation)
         ));
 
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
-        let mut imported = session.import_latest().unwrap();
+        let mut imported = session.import_latest(&scene).unwrap();
         assert_eq!(imported.job_id, 2);
         assert!(imported.animation.frame_count() > 1);
         assert!(!imported.animation.take_initial_stock_blocks().is_empty());
@@ -541,7 +543,7 @@ mod tests {
         let mut session = CuttingSimulationSession::new(coarse());
         session.submit(&scene).unwrap();
         session.run_queued_jobs().unwrap();
-        assert_eq!(session.import_latest().unwrap().job_id, 2);
+        assert_eq!(session.import_latest(&scene).unwrap().job_id, 2);
 
         // 条件を変えると、前の条件の結果は取り込まない（再計算待ち）
         session.set_conditions(CuttingSimulationConditions {
@@ -549,18 +551,23 @@ mod tests {
             ..session.conditions()
         });
         assert!(matches!(
-            session.import_latest(),
+            session.import_latest(&scene),
             Err(CuttingSimulationSessionError::NoSucceededSimulation)
         ));
-        // 同じ条件を設定し直しても、改訂の番号は戻らない
-        session.set_conditions(session.conditions());
-        assert!(session.import_latest().is_err());
 
         session.submit(&scene).unwrap();
         session.run_queued_jobs().unwrap();
-        let imported = session.import_latest().unwrap();
+        let imported = session.import_latest(&scene).unwrap();
         assert_eq!(imported.job_id, 4);
         assert_eq!(imported.conditions.precision, 0.2);
+        // 同じ条件を設定し直しても、今の条件の結果のまま取り込める
+        session.set_conditions(session.conditions());
+        assert_eq!(session.import_latest(&scene).unwrap().job_id, 4);
+        // 表示中の製品形状がなくなると、加工の対象が変わり、前の対象の結果は取り込まない
+        assert!(matches!(
+            session.import_latest(&ProductShapeScene::default()),
+            Err(CuttingSimulationSessionError::NoSucceededSimulation)
+        ));
     }
 
     #[test]
@@ -588,7 +595,7 @@ mod tests {
         session.submit(&scene).unwrap();
         session.run_queued_jobs().unwrap();
 
-        let imported = session.import_latest().unwrap().conditions;
+        let imported = session.import_latest(&scene).unwrap().conditions;
         assert!(imported.tool.is_flat_end_mill());
         assert_eq!(imported.tool.diameter(), conditions.tool_diameter);
         assert_eq!(imported.tool.cutting_length, conditions.cutting_length);

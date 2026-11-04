@@ -108,9 +108,6 @@ pub trait JobWorkflowOrchestration {
     /// 親が失敗・キャンセルで終わった待機中のジョブは、実行せずに失敗にする。
     fn run_queued_jobs(&mut self) -> Result<usize, JobOrchestrationError>;
 
-    /// すべてのジョブ（ID の昇順）
-    fn list_jobs(&self) -> Vec<CamJobRecord>;
-
     /// 種類が `job_type` で正常終了したジョブ（ID の昇順）
     fn list_succeeded_jobs(&self, job_type: CamJobType) -> Vec<CamJobRecord>;
 
@@ -164,14 +161,6 @@ impl JobWorkflowOrchestration for JobWorkflowOrchestrator {
             executed += 1;
         }
         Ok(executed)
-    }
-
-    fn list_jobs(&self) -> Vec<CamJobRecord> {
-        self.manager
-            .list()
-            .into_iter()
-            .map(CamJobRecord::from)
-            .collect()
     }
 
     fn list_succeeded_jobs(&self, job_type: CamJobType) -> Vec<CamJobRecord> {

@@ -12,6 +12,8 @@
 
 ## 2. 背景
 
+本節は、本書を作成したときの状態を書く（段階 1 の実装で置き換えたものを含む）。
+
 - 工程のエンティティはない。ViewModel（`CuttingSimulationSession`）が「次に投入する条件」（`CuttingSimulationConditions`。工具・走査線の条件・素材の余裕・精度）を 1 組持ち、加工条件のウィンドウはそれを編集する（`CUTTING_SIMULATION_DESIGN.md`「条件の持ち方」）
 - 投入（`CamSimulationWorkflow::submit_product_shapes`）は、表示中の製品形状の面と条件から、CAM の計算のジョブ（`CamProcess`）と、その子の切削シミュレーションのジョブ（`CuttingSimulation`）を登録する。ジョブはどの工程のものかを持たず、取り込みは最も新しい結果だけ
 - 工程テンプレート（`ProcessTemplate`）とオペレーションの定義（`OperationDefinition`）は、精度プロファイルと加工の種類の既定値を決めるだけで、工程の並びは持たない

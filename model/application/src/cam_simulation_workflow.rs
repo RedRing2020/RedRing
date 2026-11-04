@@ -321,29 +321,18 @@ impl CamSimulationWorkflow {
         Ok(self.orchestrator.run_queued_jobs()?)
     }
 
-    /// 加工工程 `operation_id` から投入したジョブ（すべての改訂。ID の昇順）
-    fn operation_jobs(&self, operation_id: MachiningOperationId) -> Vec<CamJobRecord> {
+    /// 加工工程 `operation_id` から投入した、取り込める（正常終了した）切削シミュレーションのジョブ
+    /// （前の改訂の結果を含む。ID の昇順）
+    fn operation_simulations(&self, operation_id: MachiningOperationId) -> Vec<CamJobRecord> {
         let source_id = operation_id.to_string();
         self.orchestrator
-            .list_jobs()
+            .list_succeeded_jobs(CamJobType::CuttingSimulation)
             .into_iter()
             .filter(|job| {
                 job.spec
                     .source
                     .as_ref()
                     .is_some_and(|source| source.source_id == source_id)
-            })
-            .collect()
-    }
-
-    /// 加工工程 `operation_id` から投入した、取り込める（正常終了した）切削シミュレーションのジョブ
-    /// （前の改訂の結果を含む。ID の昇順）
-    fn operation_simulations(&self, operation_id: MachiningOperationId) -> Vec<CamJobRecord> {
-        self.operation_jobs(operation_id)
-            .into_iter()
-            .filter(|job| {
-                job.status == CamJobStatus::Succeeded
-                    && job.spec.job_type == CamJobType::CuttingSimulation
             })
             .collect()
     }

@@ -307,23 +307,21 @@ fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
     let machining = Machining::new(vec![face]);
     let mut workflow = CamSimulationWorkflow::new();
     // 工程から投入していないジョブは、工程から引かない
-    workflow.submit(request(0.01)).unwrap();
+    let unrelated = workflow.submit(request(0.01)).unwrap();
     let submission = machining.submit(&mut workflow, &shapes).unwrap();
 
-    let jobs = workflow.operation_jobs(machining.operation);
-    let ids: Vec<u64> = jobs.iter().map(|job| job.id).collect();
-    assert_eq!(
-        ids,
-        vec![submission.toolpath_job_id, submission.simulation_job_id]
-    );
     let expected = CamJobSource {
         source_id: machining.operation.to_string(),
         revision: 1,
     };
-    assert!(
-        jobs.iter()
-            .all(|job| job.spec.source == Some(expected.clone()))
-    );
+    for job_id in [submission.toolpath_job_id, submission.simulation_job_id] {
+        let job = workflow
+            .orchestrator
+            .query_result(JobWorkflowResultQuery { job_id })
+            .unwrap()
+            .job;
+        assert_eq!(job.spec.source, Some(expected.clone()));
+    }
     // 実行するまでは、取り込める結果がない
     assert!(
         workflow
@@ -331,6 +329,14 @@ fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
             .is_empty()
     );
     assert_eq!(machining.latest(&workflow), None);
+    workflow.run_queued_jobs().unwrap();
+    let simulations: Vec<u64> = workflow
+        .operation_simulations(machining.operation)
+        .iter()
+        .map(|job| job.id)
+        .collect();
+    assert_eq!(simulations, vec![submission.simulation_job_id]);
+    assert!(!simulations.contains(&unrelated.simulation_job_id));
 }
 
 #[test]
@@ -442,7 +448,6 @@ fn operations_that_cannot_be_machined_are_not_submitted() {
             empty.sequence
         ))
     );
-    assert!(workflow.operation_jobs(empty.operation).is_empty());
     assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
 }
 
