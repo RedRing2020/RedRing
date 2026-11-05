@@ -12,12 +12,20 @@ impl AppState {
         MenuBarUiState {
             locale: self.settings_panel_locale,
             load_requested: false,
+            controls_requested: false,
+            about_requested: false,
         }
     }
 
     pub(crate) fn apply_menu_bar_state(&mut self, state: MenuBarUiState) {
         if state.load_requested {
             self.shape_file_load_requested = true;
+        }
+        if state.controls_requested {
+            self.open_help_controls();
+        }
+        if state.about_requested {
+            self.open_help_about();
         }
     }
 

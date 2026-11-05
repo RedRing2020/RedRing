@@ -64,13 +64,12 @@ impl AppState {
                     stock = ?self.cutting_simulation.stock(),
                     "切削シミュレーションを投入しました（Shift+R で実行、Shift+L で取り込み）"
                 );
-                self.cutting_simulation_status = Some(OperationStatus::Submitted);
+                self.set_operation_status(OperationStatus::Submitted);
                 true
             }
             Err(error) => {
                 tracing::warn!("切削シミュレーションを投入できません: {error}");
-                self.cutting_simulation_status =
-                    Some(OperationStatus::SubmitFailed(error.to_string()));
+                self.set_operation_status(OperationStatus::SubmitFailed(error.to_string()));
                 false
             }
         }
@@ -84,12 +83,11 @@ impl AppState {
             Ok(executed) => {
                 let seconds = started.elapsed().as_secs_f64();
                 tracing::info!(executed, "ジョブの実行が終わりました（{seconds:.1} 秒）");
-                self.cutting_simulation_status = Some(OperationStatus::Ran { executed, seconds });
+                self.set_operation_status(OperationStatus::Ran { executed, seconds });
             }
             Err(error) => {
                 tracing::warn!("ジョブを実行できません: {error}");
-                self.cutting_simulation_status =
-                    Some(OperationStatus::RunFailed(error.to_string()));
+                self.set_operation_status(OperationStatus::RunFailed(error.to_string()));
             }
         }
     }
@@ -100,7 +98,7 @@ impl AppState {
         let started = std::time::Instant::now();
         match self.cutting_simulation.import_latest(&self.product_shapes) {
             Ok(imported) => {
-                self.cutting_simulation_status = Some(OperationStatus::Imported {
+                self.set_operation_status(OperationStatus::Imported {
                     job: imported.job_id,
                 });
                 self.cutting_animation_job_id = Some(imported.job_id);
@@ -109,7 +107,7 @@ impl AppState {
             }
             Err(error) => {
                 tracing::warn!("切削シミュレーションを取り込めません: {error}");
-                self.cutting_simulation_status = Some(match error {
+                self.set_operation_status(match error {
                     CuttingSimulationSessionError::NoSucceededSimulation => {
                         OperationStatus::NothingToImport
                     }
@@ -185,6 +183,7 @@ impl AppState {
             .downcast_mut::<MeshStage>()
         else {
             tracing::warn!("切削アニメーションの表示中ではないため、設定を反映できません");
+            self.set_notice(crate::help_ui::Notice::ApplyWithoutAnimation);
             return;
         };
         mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines);

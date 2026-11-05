@@ -2,6 +2,7 @@ use stage::{MeshStage, RenderStage};
 use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 use winit::{event::WindowEvent, window::Window};
 
+use crate::help_ui::{HelpUiState, NoticeBarUiState};
 use crate::machining_conditions_ui::MachiningConditionsUiState;
 use crate::menu_bar_ui::MenuBarUiState;
 use crate::selection_rect::SelectionRect;
@@ -69,11 +70,13 @@ impl AppRenderer {
         &mut self,
         window: &Window,
         menu: &mut MenuBarUiState,
+        notice: NoticeBarUiState<'_>,
         panel: &mut SettingsPanelUiState,
         conditions: &mut MachiningConditionsUiState,
+        help: &mut HelpUiState,
     ) {
         self.settings_panel_renderer
-            .prepare(window, menu, panel, conditions);
+            .prepare(window, menu, &notice, panel, conditions, help);
     }
 
     pub fn update_selection_rect_overlay(

@@ -15,6 +15,24 @@ pub struct App {
     pub should_exit: bool,
 }
 
+impl App {
+    /// 描画の装置が失われていれば、知らせの画面で伝えて終了する（描画もバッファの作成もできないため）
+    fn exit_if_device_lost(&mut self, event_loop: &ActiveEventLoop) -> bool {
+        let Some(state) = &self.state else {
+            return false;
+        };
+        if !state.graphic.is_device_lost() {
+            return false;
+        }
+        if !self.should_exit {
+            self.should_exit = true;
+            crate::fatal_error_dialog::show_device_lost_dialog();
+            event_loop.exit();
+        }
+        true
+    }
+}
+
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(
@@ -27,25 +45,14 @@ impl ApplicationHandler for App {
         tracing::info!(
             "切削シミュレーション: Shift+M で加工条件のウィンドウを開き、「投入」で投入します"
         );
-        tracing::info!("操作ヘルプ全体は h キーで確認できます");
+        tracing::info!("操作の一覧は F1・h キー、または「ヘルプ」→「操作の一覧」で開けます");
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        if self.exit_if_device_lost(event_loop) {
+            return;
+        }
         if let Some(state) = &mut self.state {
-            // デバイスが失われた後は、描画もバッファの作成もせず、閉じる操作だけを受ける
-            if state.graphic.is_device_lost() {
-                let escape = matches!(
-                    &event,
-                    WindowEvent::KeyboardInput { event, .. }
-                        if event.state == ElementState::Pressed
-                            && matches!(event.logical_key, Key::Named(NamedKey::Escape))
-                );
-                if escape || matches!(event, WindowEvent::CloseRequested) {
-                    self.should_exit = true;
-                    event_loop.exit();
-                }
-                return;
-            }
             // メニューバーは常に出ているため、egui には常にイベントを渡す。egui のウィンドウ・メニューの上の
             // ポインタの操作は、3D の表示に渡さない
             state.handle_settings_window_event(&event);
@@ -106,11 +113,11 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.exit_if_device_lost(event_loop) {
+            return;
+        }
         if let Some(state) = &mut self.state {
-            if state.graphic.is_device_lost() {
-                return;
-            }
             // ファイルを開く画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に開く
             state.run_requested_menu_actions();
             state.tick_snapshot_playback(std::time::Instant::now());
