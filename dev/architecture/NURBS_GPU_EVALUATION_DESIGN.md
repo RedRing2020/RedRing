@@ -707,7 +707,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 3. **パフォーマンス**: CPU vs GPU評価の速度比較
 
 ### Phase 2-4: ドキュメント更新
-1. **manual/nurbs.md**: GPU評価の使用法追記
+1. **doc コメント**: GPU評価の使用法を、API の doc コメントの例として書く（マニュアルは利用者向けのため、API の説明は置かない）
 2. **SHAPE_VISUALIZATION_DESIGN.md**: NURBS直接レンダリング追記
 
 ---

@@ -302,7 +302,7 @@ analysis → geo_contracts
 
 ### ドキュメント整備（今後の課題）
 
-- [ ] `manual/nurbs.md` - ユーザー向けNURBSガイド更新
+- [ ] NURBS の API の使い方を、doc コメントの例として書く（マニュアルは利用者向けのため、API の説明は置かない）
 - [ ] API例のドキュメントコメント充実
 
 ### 機能拡張
