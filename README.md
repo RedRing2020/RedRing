@@ -75,7 +75,8 @@ Development structure and responsibility separation designs are managed via GitH
 | `README.md`                                                        | General Users & New Developers | Project Overview & Build Instructions                        |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | Developers                     | Workspace Structure & Migration Status & Test Strategy       |
 | [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | Maintainers                    | Issue Label Rules & Release/Phase Operation                  |
-| [`manual/philosophy.md`](manual/philosophy.md)                     | Contributors                   | Design Philosophy & Error Handling & Implementation Patterns |
+| [`dev/architecture/`](dev/architecture/)                           | Contributors                   | Design Documents (the source of truth for design)            |
+| [User Manual](https://redring2020.github.io/RedRing/)              | Users                          | Getting Started & Controls & Cutting Simulation              |
 | [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | Geometry Library Developers    | Detailed Geometry Abstraction Specifications                 |
 | [`.github/ai_quick_reference.md`](.github/ai_quick_reference.md)   | 🤖 AI Developers               | Session Recovery & Development Continuity Support            |
 | [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)     | Developers                     | Feature Requests & Bug Reports & Progress Management         |
@@ -133,9 +134,9 @@ RedRing is built on the following principles:
 - Plugin-capable design
 - Incremental feature addition support
 
-For detailed design philosophy, error handling guidelines, and trait design patterns:
+For design documents (architecture, error handling guidelines, and trait design patterns), see:
 
-📖 **[Design Philosophy & Technical Guidelines](manual/philosophy.md)** - Developer Guide
+📖 **[Design Documents](dev/architecture/)** - Developer Guide
 
 ---
 

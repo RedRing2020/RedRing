@@ -70,10 +70,6 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// * `segment` - 中心軸となる線分
     /// * `radius` - 円柱の半径
-    ///
-    /// # Examples
-    ///
-    /// 詳細な使用例は `manual/voxel_examples.md` を参照してください。
     pub fn remove_material_capsule(&mut self, segment: &LineSegment3D<T>, radius: T) {
         self.root
             .remove_material_capsule(segment, radius, self.max_depth);
@@ -296,10 +292,6 @@ impl<T: Scalar> VoxelOctree<T> {
     /// | 8      | ~0.19mm (1.9%)            | 8回    |
     /// | 16     | ~0.05mm (0.5%)            | 16回   |
     /// | 32     | ~0.01mm (0.1%)            | 32回   |
-    ///
-    /// # Examples
-    ///
-    /// 詳細な使用例は `manual/voxel_examples.md` を参照してください。
     ///
     /// # 円弧パラメータ表現との対応
     ///
