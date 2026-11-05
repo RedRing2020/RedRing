@@ -1,5 +1,6 @@
 [package]
 name = "geo_core"
+publish = false
 version = "0.1.0"
 edition = "2021"
 description = "Tolerant geometric modeling foundation for RedRing CAD/CAM"

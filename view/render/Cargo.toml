@@ -1,7 +1,9 @@
 [package]
 name = "render"
+publish = false
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 winit = "0.30.13"

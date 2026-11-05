@@ -1,7 +1,9 @@
 [package]
 name = "geo_primitives"
+publish = false
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 geo_contracts = { path = "../geo_contracts" }
