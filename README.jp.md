@@ -93,7 +93,6 @@ CAM のツールパス生成（スキャン加工）と切削シミュレーシ�
 
 ### 数値計算・幾何処理
 
-- **nalgebra** - 線形代数ライブラリ
 - **approx** - 浮動小数点比較
 - **カスタム NURBS** - 自社実装の NURBS エンジン
 
@@ -389,7 +388,6 @@ RedRing の開発にご協力いただいているすべての貢献者に感謝
 - [Rust Programming Language](https://www.rust-lang.org/)
 - [wgpu](https://wgpu.rs/) - WebGPU implementation
 - [winit](https://github.com/rust-windowing/winit) - Window handling
-- [nalgebra](https://nalgebra.org/) - Linear algebra library
 
 ---
 

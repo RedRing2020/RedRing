@@ -93,7 +93,6 @@ Development structure and responsibility separation designs are managed via GitH
 
 ### Numerical Computing & Geometry
 
-- **nalgebra** - Linear algebra library
 - **approx** - Floating-point comparison
 - **Custom NURBS** - In-house NURBS engine implementation
 
@@ -431,7 +430,6 @@ This project also benefits from the following open-source projects:
 - [Rust Programming Language](https://www.rust-lang.org/)
 - [wgpu](https://wgpu.rs/) - WebGPU implementation
 - [winit](https://github.com/rust-windowing/winit) - Window handling
-- [nalgebra](https://nalgebra.org/) - Linear algebra library
 
 ---
 

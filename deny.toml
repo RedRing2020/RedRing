@@ -13,8 +13,6 @@ all-features = true
 [advisories]
 # 例外は、理由と見直す時期を書いて残す
 ignore = [
-    # paste: 保守の終了。simba（nalgebra）がマクロとしてビルドのときだけ使う。置き換えは上流の対応を待つ
-    { id = "RUSTSEC-2024-0436", reason = "simba のビルドのときだけ使うマクロ。上流の置き換えを待つ" },
     # ttf-parser: 保守の終了。fontdb と ab_glyph（winit の Wayland の装飾）がフォントの読み込みに使う。後継の skrifa への移行は上流の対応を待つ
     { id = "RUSTSEC-2026-0192", reason = "fontdb・ab_glyph が使う。上流の skrifa への移行を待つ" },
 ]
