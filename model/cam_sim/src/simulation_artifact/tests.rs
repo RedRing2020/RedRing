@@ -206,3 +206,68 @@ fn broken_or_foreign_bytes_are_rejected() {
         Err(BinaryFormatError::ArtifactKindMismatch { .. })
     ));
 }
+
+/// 成果物 `artifact` の格子の線の本数を `count` に書き換えたバイト列
+fn written_with_grid_count(artifact: &CuttingSimulationArtifact, count: [u32; 2]) -> Vec<u8> {
+    let mut artifact = artifact.clone();
+    artifact.grids[2].count = count;
+    written(&artifact)
+}
+
+#[test]
+fn grids_beyond_the_dexel_line_limit_are_rejected() {
+    let artifact = simulated().artifact().unwrap();
+    for count in [[u32::MAX, u32::MAX], [4_000, 1_001]] {
+        let bytes = written_with_grid_count(&artifact, count);
+        assert!(matches!(
+            read_cutting_simulation_artifact_v1(&mut bytes.as_slice()),
+            Err(BinaryFormatError::InvalidPayload("grid.count"))
+        ));
+    }
+}
+
+/// 擬似乱数（xorshift。試験の再現のため、種を決めて使う）
+struct XorShift(u64);
+
+impl XorShift {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+
+    fn below(&mut self, bound: usize) -> usize {
+        (self.next() % bound as u64) as usize
+    }
+}
+
+#[test]
+fn corrupted_cutting_simulation_artifacts_do_not_crash_the_reader() {
+    let valid = written(&simulated().artifact().unwrap());
+    let mut random = XorShift(3);
+    for _ in 0..300 {
+        let mut bytes = valid.clone();
+        match random.below(3) {
+            0 => {
+                for _ in 0..=random.below(4) {
+                    let at = random.below(bytes.len());
+                    bytes[at] = random.next() as u8;
+                }
+            }
+            1 => {
+                // 個数・長さに当たりうる 4 バイトを、大きな値にする
+                let at = random.below(bytes.len() - 4);
+                bytes[at..at + 4].fill(0xFF);
+            }
+            _ => bytes.truncate(random.below(bytes.len())),
+        }
+        // 読めた場合は、再生の初めの状態（キーフレームからの作り直し）も作れること（時点のない成果物は、
+        // 再生の前に誤りにするため除く）
+        if let Ok((_, artifact)) = read_cutting_simulation_artifact_v1(&mut bytes.as_slice())
+            && !artifact.snapshots.is_empty()
+        {
+            let _ = artifact.dexel_states_at_keyframe(0);
+        }
+    }
+}

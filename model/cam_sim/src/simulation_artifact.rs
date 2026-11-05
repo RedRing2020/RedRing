@@ -29,6 +29,7 @@ use cam_core::{
 };
 
 use crate::SimulationSnapshotExport;
+use crate::constants::MAX_DEXEL_LINES;
 use crate::dexel_normal::DexelNormal;
 use crate::product_deviation::ProductDeviations;
 use crate::tri_dexel::initial_normals;
@@ -507,6 +508,16 @@ fn read_grids(mut reader: &[u8]) -> Result<[DexelGridLayout; 3], BinaryFormatErr
     }
     if !reader.is_empty() {
         return Err(BinaryFormatError::InvalidPayload("grids.trailing"));
+    }
+    // 格子の線は、ファイルに書かれた本数で初めの状態を作るため、切削シミュレーションと同じ上限で確かめる
+    // （細工したファイルで、巨大な確保をさせない）
+    let lines = grids.iter().try_fold(0_u64, |sum, grid| {
+        u64::from(grid.count[0])
+            .checked_mul(u64::from(grid.count[1]))
+            .and_then(|count| sum.checked_add(count))
+    });
+    if lines.is_none_or(|lines| lines > MAX_DEXEL_LINES as u64) {
+        return Err(BinaryFormatError::InvalidPayload("grid.count"));
     }
     Ok(grids)
 }
