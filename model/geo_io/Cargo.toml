@@ -1,5 +1,6 @@
 [package]
 name = "geo_io"
+publish = false
 version = "0.1.0"
 edition = "2021"
 description = "File I/O operations for geometric data (STL, OBJ, PLY, etc.)"
