@@ -699,3 +699,45 @@ fn corrupted_toolpath_and_interference_artifacts_do_not_crash_the_reader() {
         2,
     );
 }
+
+#[test]
+fn an_ext_attribute_beyond_the_ext_block_is_rejected() {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(&TOOLPATH_MAGIC);
+    bytes.extend_from_slice(&FORMAT_VERSION_MAJOR_V1.to_le_bytes());
+    bytes.extend_from_slice(&FORMAT_VERSION_MINOR_V1.to_le_bytes());
+    bytes.extend_from_slice(&[
+        LengthUnit::Millimeter as u8,
+        CoordinateFrame::WorldRightHandedZUp as u8,
+    ]);
+    // 拡張の区画は 1 バイトなのに、100 バイトの属性を書く
+    bytes.extend_from_slice(&1_u32.to_le_bytes());
+    bytes.extend_from_slice(&0_u64.to_le_bytes());
+    bytes.extend_from_slice(&1_i16.to_le_bytes());
+    bytes.extend_from_slice(&100_u16.to_le_bytes());
+    bytes.extend_from_slice(&[0_u8; 100]);
+    assert!(matches!(
+        ArtifactHeaderV1::read_from(&mut bytes.as_slice()),
+        Err(BinaryFormatError::InvalidPayload("ext_block_len"))
+    ));
+}
+
+#[test]
+fn payloads_that_do_not_match_the_payload_length_are_rejected() {
+    // 本体が余る
+    let mut longer = artifact_bytes(ArtifactKind::Interference, GOLDEN_INTERFERENCE_MINIMAL);
+    let len_at = ArtifactHeaderV1::FIXED_HEADER_LEN - 8;
+    let declared = GOLDEN_INTERFERENCE_MINIMAL.len() as u64 + 1;
+    longer[len_at..len_at + 8].copy_from_slice(&declared.to_le_bytes());
+    longer.push(0);
+    assert!(matches!(
+        read_artifact_v1(&mut longer.as_slice()),
+        Err(BinaryFormatError::InvalidPayload("payload_len"))
+    ));
+
+    // 本体の長さより先を読まない（後ろに続くバイトがあっても、長さで切れる）
+    let mut shorter = artifact_bytes(ArtifactKind::Interference, GOLDEN_INTERFERENCE_MINIMAL);
+    let declared = GOLDEN_INTERFERENCE_MINIMAL.len() as u64 - 1;
+    shorter[len_at..len_at + 8].copy_from_slice(&declared.to_le_bytes());
+    assert_truncated(read_artifact_v1(&mut shorter.as_slice()));
+}

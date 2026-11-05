@@ -207,11 +207,27 @@ fn broken_or_foreign_bytes_are_rejected() {
     ));
 }
 
-/// 成果物 `artifact` の格子の線の本数を `count` に書き換えたバイト列
+/// 成果物 `artifact` を書いたバイト列の、Z の格子の線の本数を `count` に書き換えたもの（書き込みは上限を超える
+/// 格子を拒むため、書いた後に書き換える）
 fn written_with_grid_count(artifact: &CuttingSimulationArtifact, count: [u32; 2]) -> Vec<u8> {
-    let mut artifact = artifact.clone();
-    artifact.grids[2].count = count;
-    written(&artifact)
+    let mut bytes = written(artifact);
+    // 格子の節の Z の格子: 軸（u8）・原点（f64 × 2）・間隔（f64 × 2）・線の本数（u32 × 2）・初めの区間（f64 × 2）
+    let grid = &artifact.grids[2];
+    let mut record = vec![grid.axis];
+    for value in grid.origin.into_iter().chain(grid.pitch) {
+        record.extend_from_slice(&value.to_le_bytes());
+    }
+    for value in grid.count {
+        record.extend_from_slice(&value.to_le_bytes());
+    }
+    let at = bytes
+        .windows(record.len())
+        .position(|window| window == record.as_slice())
+        .expect("the written grid is found");
+    let count_at = at + 1 + 4 * 8;
+    bytes[count_at..count_at + 4].copy_from_slice(&count[0].to_le_bytes());
+    bytes[count_at + 4..count_at + 8].copy_from_slice(&count[1].to_le_bytes());
+    bytes
 }
 
 #[test]
@@ -221,6 +237,19 @@ fn grids_beyond_the_dexel_line_limit_are_rejected() {
         let bytes = written_with_grid_count(&artifact, count);
         assert!(matches!(
             read_cutting_simulation_artifact_v1(&mut bytes.as_slice()),
+            Err(BinaryFormatError::InvalidPayload("grid.count"))
+        ));
+
+        // 書き込みも、読み込みで拒む格子を書かない
+        let mut beyond = artifact.clone();
+        beyond.grids[2].count = count;
+        assert!(matches!(
+            write_cutting_simulation_artifact_v1(
+                &mut Vec::new(),
+                &beyond,
+                LengthUnit::Millimeter,
+                CoordinateFrame::WorldRightHandedZUp,
+            ),
             Err(BinaryFormatError::InvalidPayload("grid.count"))
         ));
     }
@@ -257,8 +286,9 @@ fn corrupted_cutting_simulation_artifacts_do_not_crash_the_reader() {
             }
             1 => {
                 // 個数・長さに当たりうる 4 バイトを、大きな値にする
-                let at = random.below(bytes.len() - 4);
-                bytes[at..at + 4].fill(0xFF);
+                let at = random.below(bytes.len().saturating_sub(4).max(1));
+                let end = (at + 4).min(bytes.len());
+                bytes[at..end].fill(0xFF);
             }
             _ => bytes.truncate(random.below(bytes.len())),
         }

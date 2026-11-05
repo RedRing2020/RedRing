@@ -270,6 +270,9 @@ pub fn write_cutting_simulation_artifact_v1<W: Write>(
     if artifact.keyframe_snapshots.len() != artifact.keyframe_changes.keyframe_count() {
         return Err(BinaryFormatError::InvalidPayload("keyframe_changes"));
     }
+    if !grid_lines_within_limit(&artifact.grids) {
+        return Err(BinaryFormatError::InvalidPayload("grid.count"));
+    }
 
     let mut snapshots = Vec::new();
     write_count(&mut snapshots, artifact.snapshots.len(), "snapshots")?;
@@ -424,6 +427,18 @@ fn read_product_deviations(
 ) -> Result<ProductDeviations, BinaryFormatError> {
     let reader = &mut reader;
     let tolerance = read_f64(reader)?;
+    // 個数はファイルに書かれた値のため、再生の状態を作る前に、各格子の距離が残りのバイトに収まることを確かめる
+    let mut rest = *reader;
+    for _ in 0..3 {
+        let bytes = usize::try_from(read_u64(&mut rest)?)
+            .ok()
+            .and_then(|count| count.checked_mul(4))
+            .filter(|&bytes| bytes <= rest.len())
+            .ok_or(BinaryFormatError::InvalidPayload(
+                "product_deviations.count",
+            ))?;
+        rest = &rest[bytes..];
+    }
     let last = artifact.keyframe_changes.keyframe_count().checked_sub(1);
     let states = last.map(|keyframe| artifact.dexel_states_at_keyframe(keyframe));
     let mut distances: [Vec<f32>; 3] = Default::default();
@@ -511,15 +526,22 @@ fn read_grids(mut reader: &[u8]) -> Result<[DexelGridLayout; 3], BinaryFormatErr
     }
     // 格子の線は、ファイルに書かれた本数で初めの状態を作るため、切削シミュレーションと同じ上限で確かめる
     // （細工したファイルで、巨大な確保をさせない）
-    let lines = grids.iter().try_fold(0_u64, |sum, grid| {
-        u64::from(grid.count[0])
-            .checked_mul(u64::from(grid.count[1]))
-            .and_then(|count| sum.checked_add(count))
-    });
-    if lines.is_none_or(|lines| lines > MAX_DEXEL_LINES as u64) {
+    if !grid_lines_within_limit(&grids) {
         return Err(BinaryFormatError::InvalidPayload("grid.count"));
     }
     Ok(grids)
+}
+
+/// 格子 `grids` の線の本数の合計が、切削シミュレーションの線の本数の上限に収まるか
+fn grid_lines_within_limit(grids: &[DexelGridLayout; 3]) -> bool {
+    grids
+        .iter()
+        .try_fold(0_u64, |sum, grid| {
+            u64::from(grid.count[0])
+                .checked_mul(u64::from(grid.count[1]))
+                .and_then(|count| sum.checked_add(count))
+        })
+        .is_some_and(|lines| lines <= MAX_DEXEL_LINES as u64)
 }
 
 /// キーフレームの目次 `index` とキーフレームの節 `keyframes` を読む（目次の位置で各キーフレームを読む）

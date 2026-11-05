@@ -545,9 +545,17 @@ pub fn read_artifact_v1<R: Read>(
     let header = ArtifactHeaderV1::read_from(reader)?;
     header.ensure_acceptable_version()?;
     let payload = match header.kind {
-        ArtifactKind::ToolPath => ArtifactPayload::ToolPath(read_toolpath_payload_v1(reader)?),
+        ArtifactKind::ToolPath => {
+            let mut payload = reader.by_ref().take(header.payload_len);
+            let toolpath = read_toolpath_payload_v1(&mut payload)?;
+            ensure_payload_consumed(&payload)?;
+            ArtifactPayload::ToolPath(toolpath)
+        }
         ArtifactKind::Interference => {
-            ArtifactPayload::Interference(read_interference_payload_v1(reader)?)
+            let mut payload = reader.by_ref().take(header.payload_len);
+            let interference = read_interference_payload_v1(&mut payload)?;
+            ensure_payload_consumed(&payload)?;
+            ArtifactPayload::Interference(interference)
         }
         ArtifactKind::CuttingSimulation => {
             let length = usize::try_from(header.payload_len)
@@ -593,6 +601,15 @@ pub fn read_interference_artifact_v1<R: Read>(
                 found: header.kind,
             })
         }
+    }
+}
+
+/// ヘッダの本体の長さの範囲で読んだ本体 `payload` を、ちょうど読み終えたことを確かめる（本体が余れば誤り）
+fn ensure_payload_consumed<R>(payload: &std::io::Take<R>) -> Result<(), BinaryFormatError> {
+    if payload.limit() == 0 {
+        Ok(())
+    } else {
+        Err(BinaryFormatError::InvalidPayload("payload_len"))
     }
 }
 
@@ -850,6 +867,10 @@ fn read_ext_attributes<R: Read>(
             return Err(BinaryFormatError::ReservedExtAttributeTag(tag));
         }
         let data_len = read_u16_le(reader)? as usize;
+        // 属性は、拡張の区画の長さに収まること
+        if bytes_read + 4 + data_len > total {
+            return Err(BinaryFormatError::InvalidPayload("ext_block_len"));
+        }
         let mut data = vec![0_u8; data_len];
         reader.read_exact(&mut data)?;
         bytes_read += 4 + data_len;
