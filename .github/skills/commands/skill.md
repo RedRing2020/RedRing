@@ -59,7 +59,7 @@ cargo test -p geo_primitives -- --nocapture --test-threads=1
 ```bash
 cargo doc --no-deps --open
 
-# mdbook（manual/ → docs/）
+# mdbook（manual/ → target/book/。公開は main への push で CI が行う）
 mdbook build
 mdbook serve --open
 ```
