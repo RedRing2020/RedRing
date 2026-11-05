@@ -1,5 +1,8 @@
 use analysis::consts::test_constants::TOLERANCE_F64 as EPS;
-use cam_core::{CoordinateFrame, CuttingDirection, LengthUnit, Tool};
+use cam_core::{
+    CoordinateFrame, CuttingDirection, LengthUnit, MachiningBoundary, OperationSpec,
+    RectangleBoundary, ScanlineCutDirection, ScanlineParams, ScanlineToolRange, Tool,
+};
 use geo_algorithms::{
     NurbsSurface3D, Point3D, TessellationLimits, TriangleMesh3D, tessellate_surfaces,
 };
@@ -9,9 +12,8 @@ use geo_contracts::{
 };
 
 use crate::{
-    CamSolverError, CamSolverInput, CutterShape, InverseOffsetShape, OperationSpec,
-    ScanlineCutDirection, ScanlineInputError, ScanlineParams, ScanlineToolRange, SolverGeometry,
-    build_inverse_offset_shape, solve_toolpath,
+    CamSolverError, CamSolverInput, CutterShape, InverseOffsetShape, ScanlineInputError,
+    SolverGeometry, build_inverse_offset_shape, solve_toolpath,
 };
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {
@@ -569,10 +571,11 @@ fn cl_grid_boundary_points_lie_on_contact_limit() {
     }
 }
 
-fn rectangle(rect_min: [f64; 2], rect_max: [f64; 2]) -> Option<crate::MachiningBoundary> {
-    Some(crate::MachiningBoundary::Rectangle(
-        crate::RectangleBoundary { rect_min, rect_max },
-    ))
+fn rectangle(rect_min: [f64; 2], rect_max: [f64; 2]) -> Option<MachiningBoundary> {
+    Some(MachiningBoundary::Rectangle(RectangleBoundary {
+        rect_min,
+        rect_max,
+    }))
 }
 
 #[test]

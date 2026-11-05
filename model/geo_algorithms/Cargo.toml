@@ -1,7 +1,9 @@
 [package]
 name = "geo_algorithms"
+publish = false
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 analysis = { path = "../../foundation/analysis" }

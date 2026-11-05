@@ -6,7 +6,8 @@ src = "manual"
 title = "RedRing Documentation"
 
 [build]
-build-dir = "docs"
+# 出力先は追跡しない target の下（公開は CI の Actions で行う）
+build-dir = "target/book"
 
 [output.html]
 default-theme = "navy"

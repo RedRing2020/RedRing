@@ -1,5 +1,6 @@
 [package]
 name = "geo_nurbs"
+publish = false
 version = "0.1.0"
 edition = "2021"
 authors = ["RedRing Development Team"]
@@ -14,10 +15,6 @@ analysis = { path = "../../foundation/analysis" }
 geo_commons = { path = "../geo_commons" }
 geo_contracts = { path = "../geo_contracts" }
 geo_core = { path = "../geo_core" }
-
-# 数値計算
-nalgebra = "0.33.0"
-
 
 [dev-dependencies]
 approx = "0.5.1"

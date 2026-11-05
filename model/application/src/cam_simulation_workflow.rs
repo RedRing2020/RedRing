@@ -5,62 +5,49 @@
 //! 投入の前に、計算条件の誤りをすべて確かめる（投入前の確認）。投入は、確認を通った条件だけを受ける。
 //! 取り込みは、正常終了した切削シミュレーションのジョブだけを対象に、ツールパスと切削シミュレーションの成果物と、
 //! 投入した入力を返す。
-//! 製品形状からの投入は、形状の解決・ツールパス生成の入力の組み立て・素材の計算をそれぞれの担当に任せ、つなぐだけとする。
+//! 加工工程からの投入は、加工手順の加工の対象（製品形状の面）と素材、加工工程の工具・加工の種類と条件・加工領域・
+//! 精度プロファイルから入力を組み立てる。形状の解決と素材の計算はそれぞれの担当に任せ、つなぐだけとする。
+//! 加工工程から投入したジョブは、投入元として工程の ID と改訂の番号を持つ。工程からの取り込みは、工程の最も新しい
+//! 改訂の結果とし、前の改訂の結果も消さずに残す（設計: CAM_PROCESS_ENTITY_DESIGN.md）。
+
+#[cfg(test)]
+mod tests;
 
 use std::fmt;
 use std::sync::Arc;
 
 use cam_algorithms::{
-    CamSolverError, CamSolverInput, InverseOffsetShape, OperationDefinition, ProcessTemplate,
-    ScanlineParams, SolverDefaults, TemplateFailure, build_inverse_offset_shape,
-    build_solver_input, resolve_operation,
+    CamSolverError, CamSolverInput, InverseOffsetShape, ScanlineInputError,
+    build_inverse_offset_shape,
 };
-use cam_core::Tool;
+use cam_core::{CoordinateFrame, LengthUnit, StockMargins};
+use cam_entity::MachiningOperation;
 use cam_sim::{
     CamJobExecutorAdapter, CamSolverInputProvider, CuttingSimulationInput,
     CuttingSimulationInputError, CuttingSimulationInputProvider, InMemoryCamSolverInputStore,
-    InMemoryCuttingSimulationInputStore, SnapshotInterval, StockMargins,
-    cutting_simulation_input_errors, stock_around_product,
+    InMemoryCuttingSimulationInputStore, SnapshotInterval, cutting_simulation_input_errors,
+    stock_around_product,
 };
 use geo_algorithms::{Aabb3D, TessellationLimits};
-use geo_entity::FaceId;
-use job_domain::{CamJobRecord, CamJobStatus, CamJobType};
+use job_domain::{CamJobRecord, CamJobSource, CamJobStatus, CamJobType};
 use job_runtime::JobManager;
 
 use crate::job_orchestration::{
     JobOrchestrationError, JobWorkflowOrchestration, JobWorkflowOrchestrator,
     JobWorkflowResultQuery, JobWorkflowSubmitRequest,
 };
+use crate::machining_sequence::{
+    MachiningOperationId, MachiningSequenceError, MachiningSequenceId, MachiningSequenceStore,
+};
 use crate::product_shape::{ProductShapeError, ProductShapeStore};
 
 /// ツールパス生成から切削シミュレーションまでの入力
 #[derive(Debug, Clone)]
-pub struct CamSimulationWorkflowRequest {
+pub(crate) struct CamSimulationWorkflowRequest {
     /// ツールパス生成の入力（工具は切削シミュレーションでも使う）
     pub solver_input: CamSolverInput,
     /// 素材（直方体）
     pub stock: Aabb3D<f64>,
-    /// 素材の形状の許容誤差
-    pub precision: f64,
-    /// スナップショットの記録の間隔
-    pub snapshot_interval: SnapshotInterval,
-}
-
-/// 製品形状から切削シミュレーションを投入する入力
-#[derive(Debug, Clone)]
-pub struct ProductShapeSimulationRequest {
-    /// 加工の対象の面
-    pub face_ids: Vec<FaceId>,
-    /// 工程テンプレート（オペレーションの既定値）
-    pub template: ProcessTemplate,
-    /// オペレーションの定義
-    pub operation: OperationDefinition,
-    /// 工具
-    pub tool: Tool<f64>,
-    /// 走査線の条件
-    pub scanline: ScanlineParams,
-    /// 製品形状を囲む箱から素材の箱の各面までの余裕
-    pub stock_margins: StockMargins,
     /// 素材の形状の許容誤差
     pub precision: f64,
     /// スナップショットの記録の間隔
@@ -89,17 +76,93 @@ pub struct CamSimulationWorkflowResult {
     pub simulation_input: CuttingSimulationInput,
 }
 
-/// 計算条件の誤り（入力の欄ごとに分けて知らせる）
+/// 計算条件の誤りを出す入力の欄
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CamConditionField {
+    /// 工具
+    Tool,
+    /// 加工（走査線の条件など、ツールパス生成の条件）
+    Machining,
+    /// 素材の余裕
+    Stock,
+    /// 素材の精度
+    Precision,
+    /// 入力の欄に当たらない条件（記録の間隔など）
+    Other,
+}
+
+/// 計算条件の誤り（入力の欄と理由で分ける。計算の層の誤りの型は見せない）
 #[derive(Debug, Clone, PartialEq)]
 pub enum CamConditionError {
     /// 素材の余裕が負または有限でない
     InvalidStockMargins(StockMargins),
+    /// 素材が体積を持つ直方体にならない
+    InvalidStock,
+    /// 工具の値が不正
+    InvalidTool,
+    /// ピックフィードが正の有限値でない
+    StepoverNotPositive,
+    /// ピックフィードが工具径を超える（投入した工具の径。mm）
+    StepoverExceedsToolDiameter { tool_diameter: f64 },
+    /// 送りが正の有限値でない
+    FeedRateNotPositive,
+    /// そのほかのツールパス生成の入力の誤り（理由）
+    InvalidToolpathInput(String),
+    /// 精度が正の有限値でない
+    InvalidPrecision,
     /// 素材の精度が、ツールパス生成のトレランスより細かい（素材は CL より正確である必要がない）
     PrecisionFinerThanTolerance { precision: f64, tolerance: f64 },
-    /// ツールパス生成の入力（工具・走査線の条件など）の誤り
-    ToolpathInput(CamSolverError),
-    /// 切削シミュレーションの入力の誤り
-    SimulationInput(CuttingSimulationInputError),
+    /// 精度が細かすぎて格子の線の本数の上限を超える（上限に収まる最も細かい精度。mm）
+    TooManyDexelLines { finest_precision: f64 },
+    /// 記録の間隔が不正
+    InvalidSnapshotInterval,
+}
+
+impl CamConditionError {
+    /// 誤りを出す入力の欄
+    pub fn field(&self) -> CamConditionField {
+        match self {
+            Self::InvalidTool => CamConditionField::Tool,
+            Self::StepoverNotPositive
+            | Self::StepoverExceedsToolDiameter { .. }
+            | Self::FeedRateNotPositive
+            | Self::InvalidToolpathInput(_) => CamConditionField::Machining,
+            Self::InvalidStockMargins(_) | Self::InvalidStock => CamConditionField::Stock,
+            Self::InvalidPrecision
+            | Self::PrecisionFinerThanTolerance { .. }
+            | Self::TooManyDexelLines { .. } => CamConditionField::Precision,
+            Self::InvalidSnapshotInterval => CamConditionField::Other,
+        }
+    }
+
+    /// ツールパス生成の入力の誤り `error` を分ける（工具の径は、確かめた工具の径）
+    fn from_toolpath_input(error: CamSolverError, tool_diameter: f64) -> Self {
+        match error {
+            CamSolverError::InvalidScanline(ScanlineInputError::StepoverNotPositive) => {
+                Self::StepoverNotPositive
+            }
+            CamSolverError::InvalidScanline(ScanlineInputError::StepoverExceedsToolDiameter) => {
+                Self::StepoverExceedsToolDiameter { tool_diameter }
+            }
+            CamSolverError::InvalidScanline(ScanlineInputError::FeedRateNotPositive) => {
+                Self::FeedRateNotPositive
+            }
+            other => Self::InvalidToolpathInput(other.reason().to_string()),
+        }
+    }
+
+    /// 切削シミュレーションの入力の誤り `error` を分ける
+    fn from_simulation_input(error: CuttingSimulationInputError) -> Self {
+        match error {
+            CuttingSimulationInputError::Stock => Self::InvalidStock,
+            CuttingSimulationInputError::Tool => Self::InvalidTool,
+            CuttingSimulationInputError::Precision => Self::InvalidPrecision,
+            CuttingSimulationInputError::SnapshotInterval => Self::InvalidSnapshotInterval,
+            CuttingSimulationInputError::TooManyDexelLines {
+                finest_precision, ..
+            } => Self::TooManyDexelLines { finest_precision },
+        }
+    }
 }
 
 impl fmt::Display for CamConditionError {
@@ -111,6 +174,16 @@ impl fmt::Display for CamConditionError {
                     "stock margins must be finite and non-negative: {margins:?}"
                 )
             }
+            Self::InvalidStock => write!(f, "stock must be a finite box with volume"),
+            Self::InvalidTool => write!(f, "tool parameters are invalid"),
+            Self::StepoverNotPositive => write!(f, "stepover must be positive and finite"),
+            Self::StepoverExceedsToolDiameter { tool_diameter } => write!(
+                f,
+                "stepover must not exceed the tool diameter {tool_diameter}"
+            ),
+            Self::FeedRateNotPositive => write!(f, "feed rate must be positive and finite"),
+            Self::InvalidToolpathInput(reason) => write!(f, "toolpath input is invalid: {reason}"),
+            Self::InvalidPrecision => write!(f, "stock precision must be positive and finite"),
             Self::PrecisionFinerThanTolerance {
                 precision,
                 tolerance,
@@ -118,10 +191,11 @@ impl fmt::Display for CamConditionError {
                 f,
                 "stock precision {precision} must not be finer than the toolpath tolerance {tolerance}"
             ),
-            Self::ToolpathInput(error) => write!(f, "toolpath input is invalid: {error}"),
-            Self::SimulationInput(error) => {
-                write!(f, "cutting simulation input is invalid: {error}")
-            }
+            Self::TooManyDexelLines { finest_precision } => write!(
+                f,
+                "stock precision exceeds the dexel line limit; the finest precision is {finest_precision}"
+            ),
+            Self::InvalidSnapshotInterval => write!(f, "snapshot interval is invalid"),
         }
     }
 }
@@ -137,14 +211,14 @@ pub enum CamSimulationWorkflowError {
     MissingArtifact(u64),
     /// 正常終了した切削シミュレーションのジョブの入力がない（ジョブの番号）
     MissingInput(u64),
+    /// 保管していない加工手順、または加工手順にない加工工程
+    Sequence(MachiningSequenceError),
     /// 加工の対象の面を形状にできない
     ProductShape(ProductShapeError),
     /// 加工の対象の形状が空
     EmptyProductShape,
     /// 計算条件の誤り（すべて）
     Conditions(Vec<CamConditionError>),
-    /// オペレーションの定義を解決できない
-    Operation(TemplateFailure),
     /// ジョブの投入・問い合わせの失敗
     Orchestration(JobOrchestrationError),
     /// 逆オフセット形状を作れない
@@ -160,6 +234,7 @@ impl fmt::Display for CamSimulationWorkflowError {
             }
             Self::MissingArtifact(job_id) => write!(f, "job {job_id} has no artifact"),
             Self::MissingInput(job_id) => write!(f, "job {job_id} has no registered input"),
+            Self::Sequence(error) => write!(f, "machining operation cannot be found: {error}"),
             Self::ProductShape(error) => write!(f, "product shape cannot be machined: {error}"),
             Self::EmptyProductShape => write!(f, "product shape is empty"),
             Self::Conditions(errors) => {
@@ -169,7 +244,6 @@ impl fmt::Display for CamSimulationWorkflowError {
                 }
                 Ok(())
             }
-            Self::Operation(error) => write!(f, "operation cannot be resolved: {error}"),
             Self::Orchestration(error) => write!(f, "job orchestration failed: {error}"),
             Self::InverseOffsetShape(error) => {
                 write!(f, "inverse offset shape cannot be built: {error}")
@@ -216,26 +290,11 @@ impl CamSimulationWorkflow {
         Self::default()
     }
 
-    /// 入力を登録し、ツールパス生成と切削シミュレーションのジョブをキューに入れる（実行しない）
-    ///
-    /// # Errors
-    ///
-    /// 計算条件に誤りがある場合（すべての誤り）、入力の登録の失敗、ジョブの投入の失敗。
-    pub fn submit(
-        &mut self,
-        request: CamSimulationWorkflowRequest,
-    ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        let errors = condition_errors(&request);
-        if !errors.is_empty() {
-            return Err(CamSimulationWorkflowError::Conditions(errors));
-        }
-        self.enqueue(request)
-    }
-
-    /// 確認を通った入力を登録し、ジョブをキューに入れる
+    /// 確認を通った入力を登録し、投入元を `source` としてジョブをキューに入れる
     fn enqueue(
         &mut self,
         request: CamSimulationWorkflowRequest,
+        source: Option<CamJobSource>,
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
         self.next_run += 1;
         let cam_input_ref = format!("input://cam/run-{}", self.next_run);
@@ -254,6 +313,7 @@ impl CamSimulationWorkflow {
                 job_type: CamJobType::CamProcess,
                 input_ref: cam_input_ref,
                 parent_job_id: None,
+                source: source.clone(),
             })?;
         let simulation = self
             .orchestrator
@@ -261,6 +321,7 @@ impl CamSimulationWorkflow {
                 job_type: CamJobType::CuttingSimulation,
                 input_ref: simulation_input_ref,
                 parent_job_id: Some(toolpath.job_id),
+                source,
             })?;
         Ok(CamSimulationSubmission {
             toolpath_job_id: toolpath.job_id,
@@ -268,47 +329,59 @@ impl CamSimulationWorkflow {
         })
     }
 
-    /// 製品形状の面からの投入の前に、計算条件の誤りをすべて確かめる（投入前の確認。投入と同じ判定）
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` からの投入の前に、計算条件の誤りをすべて確かめる
+    /// （投入前の確認。投入と同じ判定）
     ///
     /// # Errors
     ///
-    /// 面を形状にできない場合、形状が空の場合、オペレーションの定義を解決できない場合、
+    /// 保管していない加工手順・加工手順にない加工工程の場合、加工の対象の面を形状にできない場合、形状が空の場合、
     /// 計算条件に誤りがある場合（すべての誤り）。
-    pub fn check_product_shapes(
+    pub fn check_operation(
         shapes: &ProductShapeStore,
-        request: &ProductShapeSimulationRequest,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
     ) -> Result<(), CamSimulationWorkflowError> {
-        resolve_product_shape_request(shapes, request.clone()).map(|_| ())
+        resolve_operation_request(shapes, sequences, sequence_id, operation_id).map(|_| ())
     }
 
-    /// 製品形状の面と計算条件から、投入したときのツールパス生成と同じ逆オフセット形状を作る（デバッグ表示に使う）
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、投入したときのツールパス生成と同じ逆オフセット形状を
+    /// 作る（デバッグ表示に使う）
     ///
     /// # Errors
     ///
-    /// 投入前の確認（[`Self::check_product_shapes`]）の誤りと、逆オフセット形状を作れない場合。
+    /// 投入前の確認（[`Self::check_operation`]）の誤りと、逆オフセット形状を作れない場合。
     pub fn inverse_offset_shape(
         shapes: &ProductShapeStore,
-        request: &ProductShapeSimulationRequest,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
     ) -> Result<InverseOffsetShape, CamSimulationWorkflowError> {
-        let resolved = resolve_product_shape_request(shapes, request.clone())?;
-        build_inverse_offset_shape(&resolved.solver_input)
+        let (request, _) = resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
+        build_inverse_offset_shape(&request.solver_input)
             .map_err(CamSimulationWorkflowError::InverseOffsetShape)
     }
 
-    /// 製品形状の面からツールパス生成と切削シミュレーションのジョブをキューに入れる（実行しない）
-    ///
-    /// 面の形状の解決、ツールパス生成の入力の組み立て、製品形状を囲む素材の計算をつなぐ。
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、ツールパス生成と切削シミュレーションのジョブをキューに
+    /// 入れる（実行しない）。2 つのジョブは、投入元として工程の ID と今の改訂の番号を持つ
     ///
     /// # Errors
     ///
-    /// 投入前の確認（`check_product_shapes`）の誤り、入力の登録・投入の失敗。
-    pub fn submit_product_shapes(
+    /// 投入前の確認（[`Self::check_operation`]）の誤り、入力の登録・投入の失敗。
+    pub fn submit_operation(
         &mut self,
         shapes: &ProductShapeStore,
-        request: ProductShapeSimulationRequest,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        let request = resolve_product_shape_request(shapes, request)?;
-        self.enqueue(request)
+        let (request, operation) =
+            resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
+        let source = CamJobSource {
+            source_id: operation.id().to_string(),
+            revision: operation.revision(),
+        };
+        self.enqueue(request, Some(source))
     }
 
     /// 実行できる待機中のジョブがなくなるまで実行し、実行したジョブの数を返す（ジョブマネージャーの実行の入口）
@@ -320,10 +393,48 @@ impl CamSimulationWorkflow {
         Ok(self.orchestrator.run_queued_jobs()?)
     }
 
-    /// 取り込める（正常終了した）切削シミュレーションのジョブ（ID の昇順）
-    pub fn succeeded_simulations(&self) -> Vec<CamJobRecord> {
+    /// 加工工程 `operation_id` から投入した、取り込める（正常終了した）切削シミュレーションのジョブ
+    /// （前の改訂の結果を含む。ID の昇順）
+    fn operation_simulations(&self, operation_id: MachiningOperationId) -> Vec<CamJobRecord> {
+        let source_id = operation_id.to_string();
         self.orchestrator
             .list_succeeded_jobs(CamJobType::CuttingSimulation)
+            .into_iter()
+            .filter(|job| {
+                job.spec
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| source.source_id == source_id)
+            })
+            .collect()
+    }
+
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（最も新しい改訂）で投入した、
+    /// 取り込める切削シミュレーションのうち、最も新しいジョブ（今の改訂の結果がない場合は `None`。工程は再計算待ち）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn latest_revision_simulation(
+        &self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<Option<CamJobRecord>, CamSimulationWorkflowError> {
+        let revision = sequences
+            .operation(sequence_id, operation_id)
+            .map_err(CamSimulationWorkflowError::Sequence)?
+            .revision();
+        Ok(self
+            .operation_simulations(operation_id)
+            .into_iter()
+            .rev()
+            .find(|job| {
+                job.spec
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| source.revision == revision)
+            }))
     }
 
     /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
@@ -370,64 +481,64 @@ impl CamSimulationWorkflow {
     }
 }
 
-/// 製品形状の面から、ツールパス生成から切削シミュレーションまでの入力を組み立て、計算条件の誤りをすべて確かめる
+/// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、ツールパス生成から切削シミュレーション
+/// までの入力を組み立て、
+/// 計算条件の誤りをすべて確かめる。組み立てた入力と加工工程を返す
 ///
 /// 余裕が不正な場合は素材を決められないため、製品形状を囲む箱を素材として残りの条件を確かめ、
 /// 素材の大きさで決まる線の本数は判定しない。
-fn resolve_product_shape_request(
+fn resolve_operation_request<'a>(
     shapes: &ProductShapeStore,
-    request: ProductShapeSimulationRequest,
-) -> Result<CamSimulationWorkflowRequest, CamSimulationWorkflowError> {
+    sequences: &'a MachiningSequenceStore,
+    sequence_id: MachiningSequenceId,
+    operation_id: MachiningOperationId,
+) -> Result<(CamSimulationWorkflowRequest, &'a MachiningOperation), CamSimulationWorkflowError> {
+    let sequence = sequences
+        .sequence(sequence_id)
+        .map_err(CamSimulationWorkflowError::Sequence)?;
+    let operation = sequences
+        .operation(sequence_id, operation_id)
+        .map_err(CamSimulationWorkflowError::Sequence)?;
     let geometry = shapes
-        .resolve_solver_geometry(&request.face_ids)
+        .resolve_solver_geometry(sequence.target_faces())
         .map_err(CamSimulationWorkflowError::ProductShape)?;
     let bounds = geometry
         .aabb()
         .ok_or(CamSimulationWorkflowError::EmptyProductShape)?;
-    let stock = stock_around_product(bounds, request.stock_margins);
-    let resolved = resolve_operation(
-        &request.template,
-        &request.operation,
-        SolverDefaults::default(),
-    )
-    .map_err(CamSimulationWorkflowError::Operation)?;
-    let solver_input = build_solver_input(
-        &resolved,
-        request.tool,
+    let stock_margins = sequence.stock().margins;
+    let stock = stock_around_product(bounds, stock_margins);
+    let content = operation.content();
+    let solver_input = CamSolverInput {
+        operation_id: operation.id().to_string(),
+        tool: content.tool.clone(),
         geometry,
-        request.scanline,
-        TessellationLimits::default(),
-    )
-    .map_err(CamSimulationWorkflowError::Operation)?;
+        operation: content.spec,
+        units: LengthUnit::Millimeter,
+        coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
+        chord_tolerance: content.tolerance_profile.tolerance_mm(),
+        tessellation_limits: TessellationLimits::default(),
+        boundary: content.boundary,
+    };
     let workflow_request = CamSimulationWorkflowRequest {
         solver_input,
         stock: stock.unwrap_or(bounds),
-        precision: request.precision,
-        snapshot_interval: request.snapshot_interval,
+        precision: sequence.stock().precision,
+        snapshot_interval: SnapshotInterval::default(),
     };
     let errors = match stock {
         Some(_) => condition_errors(&workflow_request),
         None => {
-            let mut errors = vec![CamConditionError::InvalidStockMargins(
-                request.stock_margins,
-            )];
+            let mut errors = vec![CamConditionError::InvalidStockMargins(stock_margins)];
             errors.extend(
                 condition_errors(&workflow_request)
                     .into_iter()
-                    .filter(|error| {
-                        !matches!(
-                            error,
-                            CamConditionError::SimulationInput(
-                                CuttingSimulationInputError::TooManyDexelLines { .. }
-                            )
-                        )
-                    }),
+                    .filter(|error| !matches!(error, CamConditionError::TooManyDexelLines { .. })),
             );
             errors
         }
     };
     if errors.is_empty() {
-        Ok(workflow_request)
+        Ok((workflow_request, operation))
     } else {
         Err(CamSimulationWorkflowError::Conditions(errors))
     }
@@ -445,12 +556,15 @@ fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionE
         });
     }
     if let Err(error) = request.solver_input.validate() {
-        errors.push(CamConditionError::ToolpathInput(error));
+        errors.push(CamConditionError::from_toolpath_input(
+            error,
+            request.solver_input.tool.diameter(),
+        ));
     }
     errors.extend(
         cutting_simulation_input_errors(&simulation_input(request))
             .into_iter()
-            .map(CamConditionError::SimulationInput),
+            .map(CamConditionError::from_simulation_input),
     );
     errors
 }
@@ -464,423 +578,5 @@ fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulation
         snapshot_interval: request.snapshot_interval.clone(),
         product: request.solver_input.geometry.clone(),
         tolerance: request.solver_input.chord_tolerance,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Instant;
-
-    use cam_algorithms::{OperationSpec, ScanlineInputError, ScanlineParams, SolverGeometry};
-    use cam_core::{CoordinateFrame, LengthUnit, Tool, read_toolpath_artifact_v1};
-    use geo_algorithms::TessellationLimits;
-    use geo_algorithms::{Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
-
-    use super::*;
-
-    /// 底面 z = 80・頂点 z = 90 の四角錐を、直径 6 のボールエンドミルで粗い走査線で加工する入力
-    fn request(precision: f64) -> CamSimulationWorkflowRequest {
-        let pyramid = TriangleMesh3D::new(
-            vec![
-                Point3D::new(20.0, 20.0, 80.0),
-                Point3D::new(60.0, 20.0, 80.0),
-                Point3D::new(60.0, 60.0, 80.0),
-                Point3D::new(20.0, 60.0, 80.0),
-                Point3D::new(40.0, 40.0, 90.0),
-            ],
-            vec![[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]],
-        )
-        .unwrap();
-        CamSimulationWorkflowRequest {
-            solver_input: CamSolverInput {
-                operation_id: "op-scan-1".to_string(),
-                tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
-                geometry: SolverGeometry::TriangleMesh(pyramid),
-                operation: OperationSpec::Scanline(ScanlineParams {
-                    stepover: 6.0,
-                    feed_rate: 1200.0,
-                    tool_range: cam_algorithms::ScanlineToolRange::default(),
-                    cut_direction: cam_algorithms::ScanlineCutDirection::default(),
-                }),
-                units: LengthUnit::Millimeter,
-                coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
-                chord_tolerance: 0.01,
-                tessellation_limits: TessellationLimits::default(),
-                boundary: None,
-            },
-            stock: Aabb3D::new(
-                Point3D::new(10.0, 10.0, 75.0),
-                Point3D::new(70.0, 70.0, 92.0),
-            ),
-            precision,
-            snapshot_interval: SnapshotInterval::default(),
-        }
-    }
-
-    #[test]
-    fn submitting_only_enqueues_the_jobs_without_waiting_for_the_computation() {
-        let mut workflow = CamSimulationWorkflow::new();
-        let started = Instant::now();
-        let submission = workflow.submit(request(0.01)).unwrap();
-        let submitting = started.elapsed();
-        // 投入しただけでは実行されず、取り込めない
-        assert!(workflow.succeeded_simulations().is_empty());
-        assert_eq!(
-            workflow.import(submission.simulation_job_id).unwrap_err(),
-            CamSimulationWorkflowError::NotSucceededSimulation(submission.simulation_job_id)
-        );
-
-        let started = Instant::now();
-        assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
-        let running = started.elapsed();
-        assert!(
-            submitting * 10 < running,
-            "submitting {submitting:?}, running {running:?}"
-        );
-    }
-
-    #[test]
-    fn succeeded_simulations_are_imported_with_their_toolpaths() {
-        let mut workflow = CamSimulationWorkflow::new();
-        let submissions: Vec<CamSimulationSubmission> = (0..2)
-            .map(|_| workflow.submit(request(0.01)).unwrap())
-            .collect();
-        assert_eq!(workflow.run_queued_jobs().unwrap(), 4);
-        let succeeded: Vec<u64> = workflow
-            .succeeded_simulations()
-            .iter()
-            .map(|job| job.id)
-            .collect();
-        assert_eq!(
-            succeeded,
-            submissions
-                .iter()
-                .map(|submission| submission.simulation_job_id)
-                .collect::<Vec<_>>()
-        );
-        for submission in submissions {
-            let result = workflow.import(submission.simulation_job_id).unwrap();
-            let (_, toolpath) =
-                read_toolpath_artifact_v1(&mut result.toolpath_artifact.as_slice()).unwrap();
-            assert_eq!(toolpath.tool_id, "BEM6");
-            let (_, simulation) = cam_sim::read_cutting_simulation_artifact_v1(
-                &mut result.simulation_artifact.as_slice(),
-            )
-            .unwrap();
-            assert!(simulation.snapshots.len() > 1);
-            let first = simulation.snapshots[0].remaining_volume_mm3;
-            let last = simulation.snapshots.last().unwrap().remaining_volume_mm3;
-            assert!(last < first, "first = {first}, last = {last}");
-        }
-    }
-
-    #[test]
-    fn failed_jobs_are_not_imported() {
-        use cam_algorithms::{MachiningBoundary, RectangleBoundary};
-
-        let mut workflow = CamSimulationWorkflow::new();
-        // 工具が形状に接触しない加工範囲では、ツールパス生成が失敗し、子の切削シミュレーションは実行されずに失敗する
-        let mut outside = request(0.01);
-        outside.solver_input.boundary = Some(MachiningBoundary::Rectangle(RectangleBoundary {
-            rect_min: [200.0, 200.0],
-            rect_max: [210.0, 210.0],
-        }));
-        let failed = workflow.submit(outside).unwrap();
-        let succeeded = workflow.submit(request(0.01)).unwrap();
-        workflow.run_queued_jobs().unwrap();
-
-        let simulations: Vec<u64> = workflow
-            .succeeded_simulations()
-            .iter()
-            .map(|job| job.id)
-            .collect();
-        assert_eq!(simulations, vec![succeeded.simulation_job_id]);
-        assert_eq!(
-            workflow.import(failed.simulation_job_id).unwrap_err(),
-            CamSimulationWorkflowError::NotSucceededSimulation(failed.simulation_job_id)
-        );
-        // ツールパス生成のジョブは切削シミュレーションとしては取り込めない
-        assert_eq!(
-            workflow.import(succeeded.toolpath_job_id).unwrap_err(),
-            CamSimulationWorkflowError::NotSucceededSimulation(succeeded.toolpath_job_id)
-        );
-    }
-
-    #[test]
-    fn precision_finer_than_the_toolpath_tolerance_is_not_submitted() {
-        let mut workflow = CamSimulationWorkflow::new();
-        assert_eq!(
-            workflow.submit(request(0.005)).unwrap_err(),
-            CamSimulationWorkflowError::Conditions(vec![
-                CamConditionError::PrecisionFinerThanTolerance {
-                    precision: 0.005,
-                    tolerance: 0.01,
-                }
-            ])
-        );
-        assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
-    }
-
-    fn product_shape_request(face_ids: Vec<geo_entity::FaceId>) -> ProductShapeSimulationRequest {
-        use cam_algorithms::{OperationDefinition, ProcessTemplate};
-
-        ProductShapeSimulationRequest {
-            face_ids,
-            template: ProcessTemplate {
-                template_id: "template-1".to_string(),
-                default_operation_type: Some("scanline".to_string()),
-                default_tolerance_profile: Some("press_rough".to_string()),
-            },
-            operation: OperationDefinition {
-                operation_id: "op-scan-1".to_string(),
-                machining_stage: "finish".to_string(),
-                operation_type: None,
-                tolerance_profile: None,
-                boundary: None,
-            },
-            tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
-            scanline: ScanlineParams {
-                stepover: 6.0,
-                feed_rate: 1200.0,
-                tool_range: cam_algorithms::ScanlineToolRange::default(),
-                cut_direction: cam_algorithms::ScanlineCutDirection::default(),
-            },
-            stock_margins: StockMargins {
-                minus_x: 5.0,
-                plus_x: 5.0,
-                minus_y: 5.0,
-                plus_y: 5.0,
-                bottom: 0.0,
-                top: 5.0,
-            },
-            precision: 0.01,
-            snapshot_interval: SnapshotInterval::default(),
-        }
-    }
-
-    /// 四角錐の 1 面だけの製品形状
-    fn pyramid_shape() -> (ProductShapeStore, geo_entity::FaceId) {
-        use crate::product_shape::ProductFaceGeometry;
-
-        let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
-            panic!("the test request uses a mesh");
-        };
-        let mut shapes = ProductShapeStore::new();
-        let face = shapes.add_face(ProductFaceGeometry::Mesh(pyramid)).face_id;
-        (shapes, face)
-    }
-
-    #[test]
-    fn product_shapes_are_submitted_and_imported_with_the_submitted_inputs() {
-        use crate::product_shape::{ProductFaceGeometry, ProductShapeStore};
-
-        let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
-            panic!("the test request uses a mesh");
-        };
-        let mut shapes = ProductShapeStore::new();
-        let face = shapes.add_face(ProductFaceGeometry::Mesh(pyramid)).face_id;
-        let mut workflow = CamSimulationWorkflow::new();
-        let submission = workflow
-            .submit_product_shapes(&shapes, product_shape_request(vec![face]))
-            .unwrap();
-        assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
-
-        let result = workflow.import(submission.simulation_job_id).unwrap();
-        let submitted = product_shape_request(vec![face]);
-        assert_eq!(result.solver_input.tool, submitted.tool);
-        assert_eq!(
-            result.solver_input.operation,
-            OperationSpec::Scanline(submitted.scanline)
-        );
-        // 工程テンプレートの press_rough のトレランス
-        assert_eq!(result.solver_input.chord_tolerance, 0.001);
-        assert_eq!(result.simulation_input.tool, submitted.tool);
-        assert_eq!(result.simulation_input.precision, submitted.precision);
-        assert_eq!(
-            result.simulation_input.stock,
-            Aabb3D::new(
-                Point3D::new(15.0, 15.0, 80.0),
-                Point3D::new(65.0, 65.0, 95.0)
-            )
-        );
-        let (_, simulation) = cam_sim::read_cutting_simulation_artifact_v1(
-            &mut result.simulation_artifact.as_slice(),
-        )
-        .unwrap();
-        // 素材は四角錐（20〜60, 20〜60, 80〜90）を囲む箱に、XY の周りと上に 5 を足したもの（底の余裕は 0）
-        let initial = simulation.snapshots[0].remaining_volume_mm3;
-        let expected = 50.0 * 50.0 * 15.0;
-        assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
-        let last = simulation.snapshots.last().unwrap().remaining_volume_mm3;
-        assert!(last < initial);
-    }
-
-    #[test]
-    fn inverse_offset_shapes_are_built_from_the_product_shapes_and_the_submitted_tool() {
-        let (shapes, face) = pyramid_shape();
-        let request = product_shape_request(vec![face]);
-        let shape = CamSimulationWorkflow::inverse_offset_shape(&shapes, &request).unwrap();
-        // 投入と同じ工具（半径 3 のボール）で、四角錐（頂点 (40, 40, 90)）の頂点の上の工具先端は頂点の高さ
-        assert_eq!(
-            shape.shape(),
-            cam_algorithms::CutterShape::Ball { radius: 3.0 }
-        );
-        assert!((shape.tip_height_at(40.0, 40.0).unwrap() - 90.0).abs() < 1e-9);
-        // 投入前の確認の誤りは、そのまま返す
-        assert_eq!(
-            CamSimulationWorkflow::inverse_offset_shape(
-                &shapes,
-                &product_shape_request(Vec::new())
-            )
-            .unwrap_err(),
-            CamSimulationWorkflowError::ProductShape(
-                crate::product_shape::ProductShapeError::NoFaces
-            )
-        );
-    }
-
-    #[test]
-    fn product_shapes_that_cannot_be_machined_are_not_submitted() {
-        use crate::product_shape::{ProductShapeError, ProductShapeStore};
-
-        let mut workflow = CamSimulationWorkflow::new();
-        let shapes = ProductShapeStore::new();
-        assert_eq!(
-            workflow
-                .submit_product_shapes(&shapes, product_shape_request(Vec::new()))
-                .unwrap_err(),
-            CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces)
-        );
-        assert!(workflow.succeeded_simulations().is_empty());
-        assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
-    }
-
-    #[test]
-    fn stock_without_xy_margins_has_the_xy_size_of_the_product_shape() {
-        use crate::product_shape::{ProductFaceGeometry, ProductShapeStore};
-
-        let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
-            panic!("the test request uses a mesh");
-        };
-        let mut shapes = ProductShapeStore::new();
-        let face = shapes.add_face(ProductFaceGeometry::Mesh(pyramid)).face_id;
-        let mut request = product_shape_request(vec![face]);
-        request.stock_margins = StockMargins {
-            top: 5.0,
-            ..StockMargins::default()
-        };
-        let mut workflow = CamSimulationWorkflow::new();
-        let submission = workflow.submit_product_shapes(&shapes, request).unwrap();
-        assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
-
-        let result = workflow.import(submission.simulation_job_id).unwrap();
-        let (_, simulation) = cam_sim::read_cutting_simulation_artifact_v1(
-            &mut result.simulation_artifact.as_slice(),
-        )
-        .unwrap();
-        // 素材は四角錐（20〜60, 20〜60, 80〜90）を囲む箱の XY の範囲のまま、上に 5 を足したもの
-        let initial = simulation.snapshots[0].remaining_volume_mm3;
-        let expected = 40.0 * 40.0 * 15.0;
-        assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
-    }
-
-    #[test]
-    fn negative_stock_margins_are_not_submitted() {
-        use crate::product_shape::{ProductFaceGeometry, ProductShapeStore};
-
-        let SolverGeometry::TriangleMesh(pyramid) = request(0.01).solver_input.geometry else {
-            panic!("the test request uses a mesh");
-        };
-        let mut shapes = ProductShapeStore::new();
-        let face = shapes.add_face(ProductFaceGeometry::Mesh(pyramid)).face_id;
-        let mut request = product_shape_request(vec![face]);
-        request.stock_margins.minus_x = -1.0;
-        let margins = request.stock_margins;
-        let mut workflow = CamSimulationWorkflow::new();
-        assert_eq!(
-            workflow
-                .submit_product_shapes(&shapes, request)
-                .unwrap_err(),
-            CamSimulationWorkflowError::Conditions(vec![CamConditionError::InvalidStockMargins(
-                margins
-            )])
-        );
-        assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
-    }
-
-    #[test]
-    fn all_condition_errors_are_reported_before_submitting() {
-        let (shapes, face) = pyramid_shape();
-        let mut request = product_shape_request(vec![face]);
-        request.stock_margins.top = f64::NAN;
-        // press_rough のトレランス 0.001 より細かい精度
-        request.precision = 0.0005;
-        // ピックフィードが工具径 6 を超える
-        request.scanline.stepover = 7.0;
-        // 工具長が 0
-        request.tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 0.0);
-        let margins = request.stock_margins;
-        let Err(CamSimulationWorkflowError::Conditions(errors)) =
-            CamSimulationWorkflow::check_product_shapes(&shapes, &request)
-        else {
-            panic!("the conditions must be rejected");
-        };
-        let [
-            CamConditionError::InvalidStockMargins(rejected_margins),
-            CamConditionError::PrecisionFinerThanTolerance {
-                precision,
-                tolerance,
-            },
-            CamConditionError::ToolpathInput(CamSolverError::InvalidScanline(
-                ScanlineInputError::StepoverExceedsToolDiameter,
-            )),
-            CamConditionError::SimulationInput(CuttingSimulationInputError::Tool),
-        ] = &errors[..]
-        else {
-            panic!("unexpected errors: {errors:?}");
-        };
-        assert!(rejected_margins.top.is_nan() && rejected_margins.minus_x == margins.minus_x);
-        assert_eq!((*precision, *tolerance), (0.0005, 0.001));
-
-        // 投入も同じ誤りで拒み、キューに入れない
-        let mut workflow = CamSimulationWorkflow::new();
-        let Err(CamSimulationWorkflowError::Conditions(rejected)) =
-            workflow.submit_product_shapes(&shapes, request)
-        else {
-            panic!("the conditions must be rejected");
-        };
-        assert_eq!(rejected.len(), errors.len());
-        assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
-    }
-
-    #[test]
-    fn precision_beyond_the_line_limit_is_reported_with_the_finest_precision() {
-        let (shapes, face) = pyramid_shape();
-        let mut request = product_shape_request(vec![face]);
-        request.stock_margins.minus_x = 1000.0;
-        request.stock_margins.plus_x = 1000.0;
-        request.stock_margins.minus_y = 1000.0;
-        request.stock_margins.plus_y = 1000.0;
-        request.precision = 0.001;
-        let Err(CamSimulationWorkflowError::Conditions(errors)) =
-            CamSimulationWorkflow::check_product_shapes(&shapes, &request)
-        else {
-            panic!("the precision must be rejected");
-        };
-        let [
-            CamConditionError::SimulationInput(CuttingSimulationInputError::TooManyDexelLines {
-                finest_precision,
-                ..
-            }),
-        ] = errors[..]
-        else {
-            panic!("unexpected errors: {errors:?}");
-        };
-        assert!(finest_precision > request.precision);
-        request.precision = finest_precision;
-        assert_eq!(
-            CamSimulationWorkflow::check_product_shapes(&shapes, &request),
-            Ok(())
-        );
     }
 }

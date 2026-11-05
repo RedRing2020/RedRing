@@ -1,12 +1,14 @@
 //! 加工条件のウィンドウ（切削シミュレーションの計算条件の入力と投入）
 //!
-//! 表示の設定（設定パネル）とは分けて、次に投入する計算条件と、表示中の結果の計算に使った条件を扱う。
+//! 表示の設定（設定パネル）とは分けて、加工手順 1 つの加工工程 1 つの条件（工程の中身と手順の素材）と、表示中の結果の
+//! 計算に使った条件を扱う。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, Window};
 use viewmodel::cutting_simulation_session::{
-    ConditionIssue, CuttingSimulationConditions, CuttingToolKind, ImportedConditions,
-    ScanlineCutDirection, ScanlineInputError, ScanlineToolRange, StockMargins,
+    flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
+    CuttingToolKind, ImportedConditions, MachiningOperationContent, MachiningStock, OperationSpec,
+    ScanlineCutDirection, ScanlineToolRange, StockMargins,
 };
 use viewmodel::message_catalog::UiLocale;
 
@@ -25,14 +27,13 @@ pub(crate) enum ConditionField {
 pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
     match issue {
         ConditionIssue::NoProductShape(_) => ConditionField::Target,
-        ConditionIssue::InvalidTool => ConditionField::Tool,
-        ConditionIssue::InvalidScanline { .. } | ConditionIssue::InvalidToolpathInput(_) => {
-            ConditionField::Machining
-        }
-        ConditionIssue::InvalidStockMargins | ConditionIssue::InvalidStock => ConditionField::Stock,
-        ConditionIssue::InvalidPrecision
-        | ConditionIssue::PrecisionFinerThanTolerance { .. }
-        | ConditionIssue::TooManyDexelLines { .. } => ConditionField::Precision,
+        ConditionIssue::Condition(error) => match error.field() {
+            CamConditionField::Tool => ConditionField::Tool,
+            CamConditionField::Machining => ConditionField::Machining,
+            CamConditionField::Stock => ConditionField::Stock,
+            CamConditionField::Precision => ConditionField::Precision,
+            CamConditionField::Other => ConditionField::Submission,
+        },
         ConditionIssue::Other(_) => ConditionField::Submission,
     }
 }
@@ -95,13 +96,15 @@ pub struct MachiningConditionsUiState {
     pub locale: UiLocale,
     /// 表示中の製品形状の面の数
     pub face_count: usize,
-    /// 次に投入する計算条件
-    pub conditions: CuttingSimulationConditions,
+    /// 加工工程の中身（工具・走査線の条件）
+    pub operation: MachiningOperationContent,
+    /// 加工手順の素材（素材の余裕・精度）
+    pub stock: MachiningStock,
     /// 工具長を指定するときの入力値（指定しない間も保つ）
     pub tool_length_input: f64,
     /// ツールパス生成のトレランス（mm）
     pub toolpath_tolerance: f64,
-    /// 次に投入する計算条件の問題（投入前の確認の結果）
+    /// 加工工程・加工手順の条件の問題（投入前の確認の結果）
     pub issues: Vec<ConditionIssue>,
     /// 表示中の結果のジョブの番号と、計算に使った条件
     pub imported: Option<(u64, ImportedConditions)>,
@@ -122,14 +125,43 @@ fn cut_direction_key(direction: ScanlineCutDirection) -> &'static str {
     }
 }
 
-/// 走査線の条件の誤り `error` の文言のキー
-fn scanline_issue_key(error: ScanlineInputError) -> &'static str {
+/// 計算条件の誤り `error` を出す文言のキーと引数
+fn condition_error_message(
+    error: &CamConditionError,
+) -> (&'static str, Vec<(&'static str, String)>) {
     match error {
-        ScanlineInputError::StepoverNotPositive => "conditions.issue.stepover_not_positive",
-        ScanlineInputError::StepoverExceedsToolDiameter => {
-            "conditions.issue.stepover_exceeds_tool_diameter"
+        CamConditionError::InvalidStockMargins(_) => {
+            ("conditions.issue.invalid_stock_margins", Vec::new())
         }
-        ScanlineInputError::FeedRateNotPositive => "conditions.issue.feed_rate_not_positive",
+        CamConditionError::InvalidStock => ("conditions.issue.invalid_stock", Vec::new()),
+        CamConditionError::InvalidTool => ("conditions.issue.invalid_tool", Vec::new()),
+        CamConditionError::StepoverNotPositive => {
+            ("conditions.issue.stepover_not_positive", Vec::new())
+        }
+        CamConditionError::StepoverExceedsToolDiameter { tool_diameter } => (
+            "conditions.issue.stepover_exceeds_tool_diameter",
+            vec![("diameter", tool_diameter.to_string())],
+        ),
+        CamConditionError::FeedRateNotPositive => {
+            ("conditions.issue.feed_rate_not_positive", Vec::new())
+        }
+        CamConditionError::InvalidToolpathInput(reason) => (
+            "conditions.issue.invalid_toolpath_input",
+            vec![("reason", reason.clone())],
+        ),
+        CamConditionError::InvalidPrecision => ("conditions.issue.invalid_precision", Vec::new()),
+        CamConditionError::PrecisionFinerThanTolerance { tolerance, .. } => (
+            "conditions.issue.precision_finer_than_tolerance",
+            vec![("tolerance", tolerance.to_string())],
+        ),
+        CamConditionError::TooManyDexelLines { finest_precision } => (
+            "conditions.issue.too_many_dexel_lines",
+            vec![("finest_precision", finest_precision.to_string())],
+        ),
+        CamConditionError::InvalidSnapshotInterval => (
+            "conditions.issue.other",
+            vec![("reason", error.to_string())],
+        ),
     }
 }
 
@@ -145,32 +177,10 @@ impl MachiningConditionsUiState {
     fn issue_text(&self, issue: &ConditionIssue) -> String {
         match issue {
             ConditionIssue::NoProductShape(_) => self.text("conditions.issue.no_product_shape"),
-            ConditionIssue::InvalidStockMargins => {
-                self.text("conditions.issue.invalid_stock_margins")
+            ConditionIssue::Condition(error) => {
+                let (key, args) = condition_error_message(error);
+                self.text_with_args(key, &args)
             }
-            ConditionIssue::InvalidStock => self.text("conditions.issue.invalid_stock"),
-            ConditionIssue::InvalidTool => self.text("conditions.issue.invalid_tool"),
-            ConditionIssue::InvalidScanline {
-                error: ScanlineInputError::StepoverExceedsToolDiameter,
-                tool_diameter,
-            } => self.text_with_args(
-                scanline_issue_key(ScanlineInputError::StepoverExceedsToolDiameter),
-                &[("diameter", tool_diameter.to_string())],
-            ),
-            ConditionIssue::InvalidScanline { error, .. } => self.text(scanline_issue_key(*error)),
-            ConditionIssue::InvalidToolpathInput(reason) => self.text_with_args(
-                "conditions.issue.invalid_toolpath_input",
-                &[("reason", reason.clone())],
-            ),
-            ConditionIssue::InvalidPrecision => self.text("conditions.issue.invalid_precision"),
-            ConditionIssue::PrecisionFinerThanTolerance { tolerance } => self.text_with_args(
-                "conditions.issue.precision_finer_than_tolerance",
-                &[("tolerance", tolerance.to_string())],
-            ),
-            ConditionIssue::TooManyDexelLines { finest_precision } => self.text_with_args(
-                "conditions.issue.too_many_dexel_lines",
-                &[("finest_precision", finest_precision.to_string())],
-            ),
             ConditionIssue::Other(reason) => {
                 self.text_with_args("conditions.issue.other", &[("reason", reason.clone())])
             }
@@ -254,29 +264,27 @@ impl MachiningConditionsUiState {
         CollapsingHeader::new(self.text("conditions.header.tool"))
             .default_open(true)
             .show(ui, |ui| {
-                let conditions = &mut self.conditions;
+                let tool = &self.operation.tool;
+                let shown_kind = CuttingToolKind::of(tool).unwrap_or_default();
+                let shown_diameter = tool.diameter();
+                let shown_specified = tool.cutting_length.is_some();
+                let shown_length = self.tool_length_input;
+                let mut kind = shown_kind;
+                let mut diameter = shown_diameter;
                 ui.horizontal(|ui| {
-                    ui.radio_value(
-                        &mut conditions.tool_kind,
-                        CuttingToolKind::BallEndMill,
-                        ball_label,
-                    );
-                    ui.radio_value(
-                        &mut conditions.tool_kind,
-                        CuttingToolKind::FlatEndMill,
-                        flat_label,
-                    );
+                    ui.radio_value(&mut kind, CuttingToolKind::BallEndMill, ball_label);
+                    ui.radio_value(&mut kind, CuttingToolKind::FlatEndMill, flat_label);
                 });
                 ui.horizontal(|ui| {
                     ui.add(
-                        DragValue::new(&mut conditions.tool_diameter)
+                        DragValue::new(&mut diameter)
                             .range(0.1..=f64::MAX)
                             .speed(0.1)
                             .suffix(" mm"),
                     );
                     ui.label(diameter_label);
                 });
-                let mut specified = conditions.cutting_length.is_some();
+                let mut specified = shown_specified;
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut specified, specify_label);
                     ui.add_enabled(
@@ -287,7 +295,16 @@ impl MachiningConditionsUiState {
                             .suffix(" mm"),
                     );
                 });
-                conditions.cutting_length = specified.then_some(self.tool_length_input);
+                // 入力を変えたときだけ工具を作り直す（入力欄で表せない工具を、開いただけで書き換えない）
+                let length_changed = specified && self.tool_length_input != shown_length;
+                if kind != shown_kind
+                    || diameter != shown_diameter
+                    || specified != shown_specified
+                    || length_changed
+                {
+                    self.operation.tool =
+                        kind.tool(diameter, specified.then_some(self.tool_length_input));
+                }
                 self.show_issues(ui, ConditionField::Tool);
             });
     }
@@ -309,7 +326,7 @@ impl MachiningConditionsUiState {
             "conditions.machining.tolerance",
             &[("tolerance", self.toolpath_tolerance.to_string())],
         );
-        let cusp_height_label = self.conditions.cusp_height().map(|height| {
+        let cusp_height_label = flat_surface_cusp_height(&self.operation).map(|height| {
             self.text_with_args(
                 "conditions.machining.cusp_height",
                 &[("height", format!("{height:.4}"))],
@@ -318,7 +335,7 @@ impl MachiningConditionsUiState {
         CollapsingHeader::new(self.text("conditions.header.machining"))
             .default_open(true)
             .show(ui, |ui| {
-                let scanline = &mut self.conditions.scanline;
+                let OperationSpec::Scanline(scanline) = &mut self.operation.spec;
                 for (value, label, suffix, speed) in [
                     (&mut scanline.stepover, stepover_label, " mm", 0.1),
                     (&mut scanline.feed_rate, feed_rate_label, " mm/min", 10.0),
@@ -383,7 +400,7 @@ impl MachiningConditionsUiState {
                     plus_y,
                     bottom,
                     top,
-                } = &mut self.conditions.stock_margins;
+                } = &mut self.stock.margins;
                 for (label, margin) in labels
                     .into_iter()
                     .zip([minus_x, plus_x, minus_y, plus_y, top, bottom])
@@ -401,7 +418,7 @@ impl MachiningConditionsUiState {
                 self.show_issues(ui, ConditionField::Stock);
                 ui.horizontal(|ui| {
                     ui.add(
-                        DragValue::new(&mut self.conditions.precision)
+                        DragValue::new(&mut self.stock.precision)
                             .range(0.0001..=f64::MAX)
                             .speed(0.001)
                             .max_decimals(4)
@@ -480,11 +497,11 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        condition_field, operation_status_message, scanline_issue_key, ConditionField,
+        condition_error_message, condition_field, operation_status_message, ConditionField,
         OperationStatus,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
-    use viewmodel::cutting_simulation_session::{ConditionIssue, ScanlineInputError};
+    use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
     use viewmodel::message_catalog::UiLocale;
 
     #[test]
@@ -520,17 +537,34 @@ mod tests {
         );
     }
 
+    /// 計算条件の誤りの種類を 1 つずつ
+    fn every_condition_error() -> Vec<CamConditionError> {
+        vec![
+            CamConditionError::InvalidStockMargins(StockMargins::default()),
+            CamConditionError::InvalidStock,
+            CamConditionError::InvalidTool,
+            CamConditionError::StepoverNotPositive,
+            CamConditionError::StepoverExceedsToolDiameter { tool_diameter: 6.0 },
+            CamConditionError::FeedRateNotPositive,
+            CamConditionError::InvalidToolpathInput("reason".to_string()),
+            CamConditionError::InvalidPrecision,
+            CamConditionError::PrecisionFinerThanTolerance {
+                precision: 0.0005,
+                tolerance: 0.001,
+            },
+            CamConditionError::TooManyDexelLines {
+                finest_precision: 0.02,
+            },
+            CamConditionError::InvalidSnapshotInterval,
+        ]
+    }
+
     #[test]
-    fn every_scanline_input_error_has_a_message() {
-        let args = [("diameter", "10".to_string())];
-        for error in [
-            ScanlineInputError::StepoverNotPositive,
-            ScanlineInputError::StepoverExceedsToolDiameter,
-            ScanlineInputError::FeedRateNotPositive,
-        ] {
+    fn every_condition_error_has_a_message() {
+        for error in every_condition_error() {
+            let (key, args) = condition_error_message(&error);
             for locale in [UiLocale::Ja, UiLocale::En] {
-                let text =
-                    resolve_machining_conditions_text(locale, scanline_issue_key(error), &args);
+                let text = resolve_machining_conditions_text(locale, key, &args);
                 assert!(
                     !text.contains("__missing__") && !text.contains('{'),
                     "{error:?}: {text}"
@@ -541,42 +575,33 @@ mod tests {
 
     #[test]
     fn issues_are_shown_next_to_the_field_to_fix() {
-        for (issue, field) in [
-            (
-                ConditionIssue::NoProductShape(String::new()),
-                ConditionField::Target,
-            ),
-            (ConditionIssue::InvalidTool, ConditionField::Tool),
-            (
-                ConditionIssue::InvalidScanline {
-                    error: ScanlineInputError::StepoverExceedsToolDiameter,
-                    tool_diameter: 6.0,
-                },
+        let fields: Vec<ConditionField> = every_condition_error()
+            .into_iter()
+            .map(|error| condition_field(&ConditionIssue::Condition(error)))
+            .collect();
+        assert_eq!(
+            fields,
+            [
+                ConditionField::Stock,
+                ConditionField::Stock,
+                ConditionField::Tool,
                 ConditionField::Machining,
-            ),
-            (
-                ConditionIssue::InvalidToolpathInput(String::new()),
                 ConditionField::Machining,
-            ),
-            (ConditionIssue::InvalidStockMargins, ConditionField::Stock),
-            (ConditionIssue::InvalidStock, ConditionField::Stock),
-            (ConditionIssue::InvalidPrecision, ConditionField::Precision),
-            (
-                ConditionIssue::PrecisionFinerThanTolerance { tolerance: 0.001 },
+                ConditionField::Machining,
+                ConditionField::Machining,
                 ConditionField::Precision,
-            ),
-            (
-                ConditionIssue::TooManyDexelLines {
-                    finest_precision: 0.02,
-                },
                 ConditionField::Precision,
-            ),
-            (
-                ConditionIssue::Other(String::new()),
+                ConditionField::Precision,
                 ConditionField::Submission,
-            ),
-        ] {
-            assert_eq!(condition_field(&issue), field, "{issue:?}");
-        }
+            ]
+        );
+        assert_eq!(
+            condition_field(&ConditionIssue::NoProductShape(String::new())),
+            ConditionField::Target
+        );
+        assert_eq!(
+            condition_field(&ConditionIssue::Other(String::new())),
+            ConditionField::Submission
+        );
     }
 }

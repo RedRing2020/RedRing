@@ -321,10 +321,20 @@ impl StlTriangleBulk<f32> {
         file.read_exact(&mut triangle_count_bytes)?;
         let triangle_count = u32::from_le_bytes(triangle_count_bytes) as usize;
 
-        let mut bulk = Self::new(triangle_count).with_normals();
-
         // 一括読み込み用バッファ（50バイト = 12*f32 + 2バイト属性）
         let bytes_per_triangle = 50;
+        // 三角形の数はファイルに書かれた値のため、ファイルの大きさに収まることを確かめてから確保する
+        let file_len = file.metadata()?.len();
+        let required = (triangle_count as u64)
+            .checked_mul(bytes_per_triangle as u64)
+            .and_then(|bytes| bytes.checked_add(84));
+        if required.is_none_or(|required| required > file_len) {
+            return Err(StlError::InvalidFacetCount(format!(
+                "{triangle_count} triangles do not fit in a file of {file_len} bytes"
+            )));
+        }
+
+        let mut bulk = Self::new(triangle_count).with_normals();
         let mut buffer = vec![0u8; triangle_count * bytes_per_triangle];
         file.read_exact(&mut buffer)?;
 
@@ -891,5 +901,17 @@ endsolid test
 
         assert_eq!(mesh.vertex_count(), 4); // 4ユニーク頂点
         assert_eq!(mesh.triangle_count(), 2); // 2三角形
+    }
+
+    #[test]
+    fn a_triangle_count_beyond_the_file_size_is_rejected_without_allocating_it() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(&[0_u8; 80]).unwrap();
+        file.write_all(&u32::MAX.to_le_bytes()).unwrap();
+        file.flush().unwrap();
+        assert!(matches!(
+            StlTriangleBulk::<f32>::from_binary_stl_fast(file.path()),
+            Err(StlError::InvalidFacetCount(_))
+        ));
     }
 }

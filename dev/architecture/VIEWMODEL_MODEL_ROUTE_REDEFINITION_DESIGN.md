@@ -1,8 +1,8 @@
 # ViewModel→Model導線再定義設計
 
 **作成日**: 2026年4月9日
-**最終更新**: 2026年10月18日（#857: 用途ごとの経路）
-**関連Issue**: #500, #857
+**最終更新**: 2026年11月4日（#1055: ViewModel から Model への入口を Application にそろえる）
+**関連Issue**: #500, #857, #1055
 **ステータス**: 設計整理中
 
 ---
@@ -118,31 +118,66 @@ job はこの直列の内部段階ではなく、
 
 本書で「初期導線」と呼ぶ直列は command 系に対する基本順序であり、query 系は read-only な参照導線として別に扱う。
 
-#### 3.4.1 用途ごとの経路（#857）
+#### 3.4.1 ViewModel から Model への入口（#1055）
 
-ViewModel から Model を呼ぶ経路は、用途で分ける。本節を ViewModel → Model の経路の正本とし、依存関係のルール（`scripts/_arch_rules_data.ps1`）もこれに揃える。
+ViewModel が依存する Model のクレートは `application` だけとし、Model への入口を Application の API にそろえる。本節を ViewModel → Model の経路の正本とし、依存関係のルール（`scripts/_arch_rules_data.ps1`）もこれに揃える。#857 で決めた用途ごとの経路（描画用の変換は Model を直接使ってよい）は、本節で置き換える。
+
+- 目的: ViewModel を Model の内部の型と仕組みから切り離す。Application の公開面を、画面を通さずにプログラムから加工を進める（自動加工）ときの API としても使う
+- ViewModel が持つのは、表示の状態（選択・表示の切り替え・再生の位置・色など）と、Application の結果から描画用の頂点への詰め替えだけとする
 
 | 用途 | 経路 | 例 |
 |---|---|---|
-| 更新（command） | Application の port | 形状作成・feature 実行（`feature_command_converter`） |
-| ユースケースの実行 | Application | 切削シミュレーションの投入・取り込み（`cam_simulation_workflow`）、工具の干渉の検査（`cam_inspection`）、ジョブの投入 |
-| 描画用の変換（query） | Model の値型・trait定義と、描画用の計算を直接使う | 形状のテセレーション（`geo_algorithms`）、ツールパスの線分化（`cam_sim`）、切削シミュレーションの成果物の時点の素材の作り直し（`cam_sim` の再生の入口。#932）、ジョブの記録・検証エラー・スナップショットの値型の表示用の変換（`job_domain`・`cam_core`・`cam_sim`） |
-| 表示確認用のデータ | 直接使う | テスト形状のファイル読み込み（`geo_io` の SVG）、fixtures のサンプル（なくす方針: #920） |
+| 更新（command） | Application | 形状作成・feature 実行、製品形状の取り込み、加工手順・加工工程の作成と編集 |
+| ユースケースの実行 | Application | 切削シミュレーションの投入・実行・取り込み、工具の干渉の検査、ジョブの投入 |
+| 描画のための計算（query） | Application の問い合わせ | 形状の三角形への分割、ツールパスの線分化、切削シミュレーションの成果物の読み込みと素材の再生 |
+| 表示確認用のデータ | なくす（#920）。残す場合は Application の問い合わせ | テスト形状のファイル読み込み、fixtures のサンプル |
 
-- 直接使ってよいのは、Model の状態を更新しない読み取りと計算に限る。Model の状態の更新、処理の順序や実行方式（同期 / ジョブ）の選択は ViewModel に持たせず、Application 経由にする
-- 読み込んだファイルの形状を Model のエンティティとして取り込むインポートは更新なので、Application 経由にする
-- 描画用の変換でも、複数の Model のクレートにまたがる処理の組み立てが必要になった場合は、Application の query として用意する
-- `geo_contracts` の trait定義・値型は、DTO に置き換えず直接使う
-- 描画用の計算を Application で中継するだけの関数は置かない（`GEO_API_ADDITION_RULES.md` の、呼び出し元のない API・別名を置かない方針）
+API の型:
+
+- API に出てくる値の型（点・メッシュ・曲線・工具・ツールパス・走査線の条件など）は、Application が定義元のクレートから再エクスポートする。変換もコピーもしない
+- Application で型を新しく定義するのは、Model の型をそのまま見せると内部の仕組みが漏れる場合に限る。例: 成果物のバイナリ形式、計算の層の誤りの型
+- エンティティ（加工手順・加工工程など）の保管先は Application が持つ。編集は Application の関数で行い、エンティティの値の型（工程の中身・素材・ID）は再エクスポートする。同じ中身の型を DTO として二重に持たない
+- 誤り: Application の API は Application の誤りの型を返す。ViewModel が入力の欄に振り分けるための分類（どの欄の、どの理由の誤りか）も Application の型で持ち、計算の層の誤りの型は見せない
+
+API の単位:
+
+- 画面の操作 1 つに、Application の API 1 つが対応する。ViewModel を通さずに、同じ API を同じ順で呼んで加工を進められる（例: 加工手順と加工工程を作る → 工程から投入する → 実行する → 工程の最も新しい改訂の結果を取り込む）
+- この流れは、画面を通さない Application の試験で確かめる
+- ViewModel が Model を直接使わないため、Application の問い合わせは ViewModel や自動加工から呼ばれる、呼び出し元のある API になる。#857 で置かないとした「描画用の計算を中継する関数」は、本節の方針では置く（呼び出し元のない API・別名を置かない方針: `GEO_API_ADDITION_RULES.md` とは矛盾しない）
+
+Application の公開 API の決まり:
+
+- 公開 API（`pub`）は、ViewModel から呼ばれているものに限る。ViewModel の試験からだけ呼ばれるものは数えない。ViewModel が再エクスポートした型のメソッドを View が呼ぶ場合は、呼ばれているものに数える
+- Application の中だけで使うものは `pub(crate)` 以下にする。Application の試験からだけ呼ばれるものは公開しない
+- API は、呼び出し元（ViewModel の呼び出し）と同じ PR で足す。将来使うかもしれない、というだけで先に置かない。自動加工の入口ができたら、その入口からの呼び出しも呼び出し元に数え、そのときに足す
+- 呼び出し元がなくなった API は、同じ PR で消すか、`pub(crate)` 以下にする
+- 中継の関数は処理を持たない。Model の処理の呼び出しと組み立てだけとし、計算は Model の側に置く（同じ処理を 2 か所に持たない）
+- 再エクスポートは、API の引数・戻り値に出てくる型と、そのメソッドを呼ぶための trait に限る。クレートを丸ごと再エクスポートしない（`pub use geo_algorithms::*` のような形は、依存を分けた意味をなくす）
+- 決まりは、呼び出し元のない公開 API の検査（`scripts/check_unused_public_api.ps1`。警告のみ）で確かめる。呼び出しは ViewModel と View（試験を除く）から数える（#1057）。名前だけで判定するため、ViewModel に同じ名前の呼び出しがあれば検出しない
+- CAM・製品形状・加工手順の公開 API は #1057 で決まりにそろえた。feature・geometry・topology の port と job_orchestration は #1065 でそろえる
+
+geo と CAM の依存の形:
+
+- ViewModel の境界では、geo・CAM のどちらも Application だけを通すため、そろう。Model の中の層の構成（geo の `geo_core` と `geo_contracts`、CAM の `cam_core`）の違いは、本節の範囲外とする
 
 依存関係のルールで ViewModel に許可する Model のクレート:
 
-| クレート | 許可する依存 |
-|---|---|
-| `viewmodel` | `application`、`geo_contracts`・`geo_algorithms`（描画用の変換）、`geo_io`（表示確認用の SVG の読み込み）、`cam_core`・`cam_algorithms`・`cam_sim`・`job_domain`（値型と描画用の変換。`cam_algorithms` は走査線の条件・工程テンプレートなどの値の型） |
-| `viewmodel-graphics` | なし（`analysis` のみ） |
+| クレート | 目標 | 移行の間 |
+|---|---|---|
+| `viewmodel` | `application` のみ（foundation は別） | 今の許可（`geo_contracts`・`geo_algorithms`・`geo_io`・`cam_core`・`cam_algorithms`・`cam_sim`・`job_domain`）を残し、移行の段階ごとに外す |
+| `viewmodel-graphics` | なし（`analysis` のみ） | 同じ |
 
-`cam_entity` への依存は持たない。CAM のエンティティを Model に持つようになった時点で、Application 経由でつなぐ。
+- `cam_entity` への依存は許可しない。加工手順・加工工程は、Application の API と再エクスポートした値の型でつなぐ
+
+移行の段階（段階ごとに Issue に分ける。呼び出し元のない変換は、移す前に消すかを確かめる）:
+
+| 段階 | 対象（`viewmodel/converter`） | 外す依存 | Issue |
+|---|---|---|---|
+| 1 | 加工手順・加工工程の保管と編集、工程からの投入・取り込み、条件の誤りの分類（`cutting_simulation_session`）。#1050・#1051 の前提。Application の公開 API の決まりに合わない今の API の修正と、検査スクリプトの対象への Application の追加 | `cutting_simulation_session` の `cam_algorithms`・`cam_sim` | #1057 |
+| 2 | 切削シミュレーションの成果物の読み込みと素材の再生、ツールパス・工具の線分化（`cutting_animation`、`cam_sim_visualization_converter`、`snapshot_converter`、`toolpath_converter`） | `cam_sim`、`cam_core` | #1058 |
+| 3 | ジョブの記録・検証の誤りの表示用の変換（`job_converter`、`validation_message_*`）、逆オフセット形状の表示（`inverse_offset_shape_converter`、`inverse_offset_converter`） | `job_domain`、`cam_algorithms` | #1059 |
+| 4 | 形状の描画（`shape_converter`、`mesh_converter`、`nurbs_view`、`entity_converter`、`octree_converter`、`product_shape_converter`） | `geo_algorithms`、`geo_contracts` | #1060 |
+| 5 | 表示確認用のデータ（`svg_loader`、`nurbs_eval_loader`、fixtures）。#920・#336 とあわせる | `geo_io` | #1061 |
 
 ### 3.5 描画導線は 2D / 3D を分離して扱う
 

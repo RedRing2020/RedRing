@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    geo_* クレートの呼び出し元のない公開メソッドと、簡易実装の記載の検出（警告のみ）
+    geo_* クレート・application の呼び出し元のない公開メソッドと、簡易実装の記載の検出（警告のみ）
 .DESCRIPTION
     規約「基本の形状定義と最低限のメソッドから始め、呼び出し元が必要になった時点で追加する」からの
     逸脱の兆候を一覧にします。
@@ -12,6 +12,10 @@
       （名前だけで判定するため、別の型の同名メソッドの呼び出しがあれば検出しない）
     - 呼び出し元のない trait定義のメソッド: geo_contracts の `pub trait` のメソッドのうち、
       テスト以外のどのファイルにも呼び出しがないもの（実装は呼び出しに数えない）
+    - ViewModel から呼ばれない application の公開 API: application の `pub fn`（impl ブロック直下と
+      モジュール直下）と `pub trait` のメソッドのうち、viewmodel・view のテスト以外のファイルに
+      呼び出しがないもの（application の中だけで使うものは `pub(crate)` 以下にする。
+      VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md 3.4.1 の「Application の公開 API の決まり」）
     テストのファイルと、本体ファイル内の `#[cfg(test)] mod` の中の呼び出しは数えない。
     - 簡易実装の記載: 「簡易実装」「簡略化」「仮実装」「未実装」「TODO」「FIXME」「todo!(」「unimplemented!(」
 
@@ -64,13 +68,24 @@ try {
         $crates | Where-Object { $path -like "model/$_/src/*" }
     })
 
-    # テスト以外のファイルに現れる呼び出し名
+    # テスト以外のファイルに現れる呼び出し名（全体と、viewmodel・view の中）
+    # application のモジュール直下の関数は、`use` で取り込んで名前だけで呼ぶことがあるため、
+    # viewmodel・view では `名前(` の形の呼び出しも数える（`fn 名前(` の定義は数えない）
     $callRegex = [regex]'(?:\.|::)(\w+)\s*(?:::<[^>]*>)?\('
+    $bareCallRegex = [regex]'(?<![\w.:])(?<!\bfn\s+)(\w+)\s*(?:::<[^>]*>)?\('
     $calledNames = [System.Collections.Generic.HashSet[string]]::new()
+    $frontCalledNames = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($path in $nonTestRust) {
         $text = Remove-TestModules (Get-Content -LiteralPath $path -Raw -Encoding UTF8)
+        $isFront = $path -like "viewmodel/*" -or $path -like "view/*"
         foreach ($match in $callRegex.Matches($text)) {
             [void]$calledNames.Add($match.Groups[1].Value)
+            if ($isFront) { [void]$frontCalledNames.Add($match.Groups[1].Value) }
+        }
+        if ($isFront) {
+            foreach ($match in $bareCallRegex.Matches($text)) {
+                [void]$frontCalledNames.Add($match.Groups[1].Value)
+            }
         }
     }
 
@@ -86,6 +101,8 @@ try {
     }
 
     $ignoredNames = @("new", "fmt", "default", "from")
+    $traitRegex = [regex]'(?m)^\s*pub trait \w+[^{;]*\{'
+    $traitFnRegex = [regex]'\bfn (\w+)'
     $methodRegex = '^    pub fn (\w+)\s*[(<]'
     $markerRegex = '簡易実装|簡略化|仮実装|未実装|TODO|FIXME|todo!\(|unimplemented!\('
     $allowMarkerRegex = 'api-check: allow\s*$'
@@ -110,9 +127,37 @@ try {
         }
     }
 
+    # application の公開 API（viewmodel・view から呼ばれているものに限る）
+    $applicationFiles = @($nonTestRust | Where-Object { $_ -like "model/application/src/*" })
+    $applicationFnRegex = '^(?:    )?pub (?:(?:const|async|unsafe)\s+)*fn (\w+)\s*[(<]'
+    $unusedApplication = @()
+    foreach ($path in $applicationFiles) {
+        $text = Remove-TestModules (Get-Content -LiteralPath $path -Raw -Encoding UTF8)
+        $lines = @($text -split "`n")
+        for ($i = 0; $i -lt $lines.Length; $i++) {
+            if ($lines[$i] -match $applicationFnRegex) {
+                $name = $Matches[1]
+                if ($ignoredNames -notcontains $name -and -not $frontCalledNames.Contains($name) -and
+                    -not $allowlist.Contains("${path}:$name")) {
+                    $unusedApplication += [PSCustomObject]@{ Path = $path; Line = $i + 1; Name = $name }
+                }
+            }
+        }
+        foreach ($trait in $traitRegex.Matches($text)) {
+            $open = $trait.Index + $trait.Length - 1
+            $body = $text.Substring($open, (Get-BlockEnd $text $open) - $open)
+            foreach ($fn in $traitFnRegex.Matches($body)) {
+                $name = $fn.Groups[1].Value
+                if ($ignoredNames -notcontains $name -and -not $frontCalledNames.Contains($name) -and
+                    -not $allowlist.Contains("${path}:$name")) {
+                    $line = ($text.Substring(0, $open + $fn.Index) -split "`n").Length
+                    $unusedApplication += [PSCustomObject]@{ Path = $path; Line = $line; Name = $name }
+                }
+            }
+        }
+    }
+
     # geo_contracts の trait定義のメソッド
-    $traitRegex = [regex]'(?m)^\s*pub trait \w+[^{;]*\{'
-    $traitFnRegex = [regex]'\bfn (\w+)'
     $contractFiles = @($nonTestRust | Where-Object { $_ -like "model/geo_contracts/src/*" })
     $unusedTraitMethods = @()
     foreach ($path in $contractFiles) {
@@ -134,8 +179,8 @@ finally {
     Pop-Location
 }
 
-if ($unused.Count -eq 0 -and $unusedTraitMethods.Count -eq 0 -and $markers.Count -eq 0) {
-    Write-Host "✓ 呼び出し元のない公開メソッド・trait定義のメソッド・簡易実装の記載なし（$($targetFiles.Count + $contractFiles.Count) ファイルを検査）" -ForegroundColor Green
+if ($unused.Count -eq 0 -and $unusedTraitMethods.Count -eq 0 -and $unusedApplication.Count -eq 0 -and $markers.Count -eq 0) {
+    Write-Host "✓ 呼び出し元のない公開メソッド・trait定義のメソッド・簡易実装の記載なし（$($targetFiles.Count + $contractFiles.Count + $applicationFiles.Count) ファイルを検査）" -ForegroundColor Green
     exit 0
 }
 
@@ -148,6 +193,12 @@ if ($unused.Count -gt 0) {
 if ($unusedTraitMethods.Count -gt 0) {
     Write-Host "⚠ テスト以外から呼ばれない trait定義のメソッド: $($unusedTraitMethods.Count) 件" -ForegroundColor Yellow
     foreach ($item in $unusedTraitMethods) {
+        Write-Host "  $($item.Path):$($item.Line) $($item.Name)" -ForegroundColor Yellow
+    }
+}
+if ($unusedApplication.Count -gt 0) {
+    Write-Host "⚠ viewmodel・view から呼ばれない application の公開 API: $($unusedApplication.Count) 件（application の中だけで使うものは pub(crate) 以下にする）" -ForegroundColor Yellow
+    foreach ($item in $unusedApplication) {
         Write-Host "  $($item.Path):$($item.Line) $($item.Name)" -ForegroundColor Yellow
     }
 }

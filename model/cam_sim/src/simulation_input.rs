@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use cam_algorithms::SolverGeometry;
-use cam_core::Tool;
+use cam_core::{StockMargins, Tool};
 use geo_algorithms::{Aabb3D, Point3D};
 use job_runtime::RefValidationError;
 
@@ -34,23 +34,6 @@ pub struct CuttingSimulationInput {
     pub product: SolverGeometry,
     /// ツールパス生成のトレランス（製品形状の曲面を三角形に分ける弦の許容誤差と、削り込み・削り残しの判定の許容値）
     pub tolerance: f64,
-}
-
-/// 製品形状を囲む箱から素材の箱の各面までの余裕（既定はすべて 0。製品形状を囲む箱そのもの）
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct StockMargins {
-    /// −X 側
-    pub minus_x: f64,
-    /// +X 側
-    pub plus_x: f64,
-    /// −Y 側
-    pub minus_y: f64,
-    /// +Y 側
-    pub plus_y: f64,
-    /// 底（−Z 側）
-    pub bottom: f64,
-    /// 上（+Z 側）
-    pub top: f64,
 }
 
 /// 製品形状を囲む境界ボックス `bounds` の各面の外側に余裕 `margins` を足して、素材（直方体）を作る

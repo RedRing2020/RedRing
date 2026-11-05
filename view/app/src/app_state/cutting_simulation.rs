@@ -53,14 +53,15 @@ fn stock_class_color(colors: &SnapshotShadedColorSettings, class: DeviationClass
 }
 
 impl AppState {
-    /// 表示中の製品形状で、加工条件のウィンドウの計算条件の切削シミュレーションを投入する（実行しない）
+    /// 表示中の製品形状で、加工工程の切削シミュレーションを投入する（実行しない）
     ///
     /// 投入できたかを返す。
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
         match self.cutting_simulation.submit(&self.product_shapes) {
             Ok(()) => {
                 tracing::info!(
-                    conditions = ?self.cutting_simulation.conditions(),
+                    operation = ?self.cutting_simulation.operation_content(),
+                    stock = ?self.cutting_simulation.stock(),
                     "切削シミュレーションを投入しました（Shift+R で実行、Shift+L で取り込み）"
                 );
                 self.cutting_simulation_status = Some(OperationStatus::Submitted);
@@ -97,7 +98,7 @@ impl AppState {
     pub(crate) fn import_cutting_simulation(&mut self) {
         tracing::info!("切削シミュレーションを取り込みます");
         let started = std::time::Instant::now();
-        match self.cutting_simulation.import_latest() {
+        match self.cutting_simulation.import_latest(&self.product_shapes) {
             Ok(imported) => {
                 self.cutting_simulation_status = Some(OperationStatus::Imported {
                     job: imported.job_id,

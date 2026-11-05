@@ -276,6 +276,7 @@ mod tests {
             spec: job_domain::CamJobSpec {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/a".to_string(),
+                source: None,
             },
             parent_job_id: None,
             group_id: Some("g1".to_string()),

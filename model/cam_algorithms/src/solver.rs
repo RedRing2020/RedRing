@@ -1,11 +1,14 @@
 //! CAM ソルバー入力契約と実行入口（設計: CAM_ALGORITHMS_DESIGN.md §8.2-§8.5）
 
-use geo_contracts::{Bounded, TriangleMesh3DProperties};
+use geo_contracts::{Bounded, TriangleMesh3DProperties, default_distance_tolerance};
 use std::borrow::Cow;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-use cam_core::{CoordinateFrame, LengthUnit, Tool, ToolPath};
+use cam_core::{
+    CoordinateFrame, LengthUnit, MachiningBoundary, OperationSpec, RectangleBoundary,
+    ScanlineParams, ScanlineToolRange, Tool, ToolPath,
+};
 use geo_algorithms::{
     Aabb3D, NurbsSurface3D, Point3D, SurfaceTessellationError, TessellationLimits, TriangleMesh3D,
     tessellate_surfaces,
@@ -13,7 +16,7 @@ use geo_algorithms::{
 
 use crate::inverse_offset::CutterShape;
 use crate::inverse_offset_shape::InverseOffsetShape;
-use crate::process_template::{MachiningBoundary, TemplateFailure};
+use crate::process_template::{TemplateFailure, validate_rectangle_boundary};
 use crate::scanline::generate_scanline_toolpath;
 
 /// solver の失敗分類。
@@ -154,64 +157,6 @@ impl SolverGeometry {
     }
 }
 
-/// スキャン加工（`operation_type = scanline`）パラメータ
-///
-/// X 方向の走査ラインを Y 方向へ `stepover` ずつ送る。各ラインの送る向きは `cut_direction` で決める。
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ScanlineParams {
-    /// 走査ライン間隔（mm）。工具径以下であること
-    pub stepover: f64,
-    /// 切削送り速度（mm/min）
-    pub feed_rate: f64,
-    /// 加工範囲（境界）を指定しない場合の、工具の中心の移動範囲
-    pub tool_range: ScanlineToolRange,
-    /// 各走査ラインの送り方
-    pub cut_direction: ScanlineCutDirection,
-}
-
-/// スキャン加工の送り方
-///
-/// 主軸は右回り（上から見て時計回り）とする。走査ラインは Y 正方向へ進むため、まだ削っていない素材は +Y 側にあり、
-/// X 負方向に送ると素材が送りの右側になってダウンカット、X 正方向に送るとアップカットになる。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ScanlineCutDirection {
-    /// すべてのラインを X 負方向に送る一方向の加工
-    #[default]
-    DownCut,
-    /// すべてのラインを X 正方向に送る一方向の加工
-    UpCut,
-    /// 最初のラインをダウンカット（X 負方向）で送り、ラインごとに送る向きを入れ替える往復の加工
-    ZigZag,
-}
-
-/// 加工範囲（境界）を指定しないスキャン加工の、工具の中心の移動範囲
-///
-/// 形状の範囲の外へ出た工具は、形状の端の稜線の上を転がって高さが下がり、端の外側の素材を丸く削る（角がだれる）。
-/// 角をだれさせない場合は、見切り面を加工の対象に含める。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ScanlineToolRange {
-    /// 形状の XY の範囲を、各辺で工具の半径だけ外へ広げた範囲（平坦面の端の外側の素材を残さない）
-    #[default]
-    ExtendByToolRadius,
-    /// 形状の XY の範囲
-    GeometryExtent,
-}
-
-/// オペレーション定義
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum OperationSpec {
-    Scanline(ScanlineParams),
-}
-
-impl OperationSpec {
-    /// `operation_type` の canonical token
-    pub fn operation_type(&self) -> &'static str {
-        match self {
-            Self::Scanline(_) => "scanline",
-        }
-    }
-}
-
 impl From<SurfaceTessellationError> for CamSolverError {
     fn from(value: SurfaceTessellationError) -> Self {
         match value {
@@ -262,7 +207,7 @@ impl CamSolverInput {
         }
 
         if let Some(MachiningBoundary::Rectangle(rectangle)) = &self.boundary {
-            rectangle.validate()?;
+            validate_rectangle_boundary(rectangle)?;
         }
 
         match &self.geometry {
@@ -338,9 +283,10 @@ fn machining_region(
             ScanlineToolRange::ExtendByToolRadius => Ok((reach_min, reach_max)),
             ScanlineToolRange::GeometryExtent => Ok((xy_min, xy_max)),
         },
-        Some(MachiningBoundary::Rectangle(rectangle)) => rectangle
-            .clip_to(reach_min, reach_max)
-            .ok_or_else(|| TemplateFailure::OperationBoundaryOutOfDomain.into()),
+        Some(MachiningBoundary::Rectangle(rectangle)) => {
+            clip_rectangle_boundary(&rectangle, reach_min, reach_max)
+                .ok_or_else(|| TemplateFailure::OperationBoundaryOutOfDomain.into())
+        }
     }
 }
 
@@ -377,4 +323,27 @@ fn is_positive_finite(value: f64) -> bool {
 
 fn invalid(reason: &str) -> CamSolverError {
     CamSolverError::InvalidInput(reason.to_string())
+}
+
+/// 矩形の加工範囲を XY 範囲 [min, max] でクリップした範囲を返す。
+///
+/// クリップ結果の幅・高さのいずれかが距離トレランス以下（辺や角で接するだけ、
+/// または重ならない）の場合は、走査できる面積を持たないため `None` とする。
+fn clip_rectangle_boundary(
+    rectangle: &RectangleBoundary,
+    min: [f64; 2],
+    max: [f64; 2],
+) -> Option<([f64; 2], [f64; 2])> {
+    let clipped_min = [
+        rectangle.rect_min[0].max(min[0]),
+        rectangle.rect_min[1].max(min[1]),
+    ];
+    let clipped_max = [
+        rectangle.rect_max[0].min(max[0]),
+        rectangle.rect_max[1].min(max[1]),
+    ];
+    let tolerance = default_distance_tolerance::<f64>();
+    let has_area =
+        clipped_max[0] - clipped_min[0] > tolerance && clipped_max[1] - clipped_min[1] > tolerance;
+    has_area.then_some((clipped_min, clipped_max))
 }

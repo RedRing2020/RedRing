@@ -1,5 +1,6 @@
 [package]
 name = "geo_core"
+publish = false
 version = "0.1.0"
 edition = "2021"
 description = "Tolerant geometric modeling foundation for RedRing CAD/CAM"
@@ -10,10 +11,6 @@ license = "MIT"
 num-traits = "0.2"
 analysis = { path = "../../foundation/analysis" }
 approx = "0.5"                                    # 許容誤差ベース比較
-
-# パフォーマンス（オプション）
-nalgebra = { version = "0.34.1", optional = true }
-simba = { version = "0.9.1", optional = true }
 
 # シリアル化サポート（オプション）
 serde = { version = "1.0", optional = true, features = ["derive"] }
@@ -26,7 +23,6 @@ criterion = "0.7.0"
 
 [features]
 default = []
-simd = ["nalgebra", "simba"]
 serde-support = ["dep:serde"]
 
 [lib]

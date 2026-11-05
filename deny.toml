@@ -1,0 +1,50 @@
+# 依存クレートの検査（cargo deny）の設定
+#
+# - advisories: RustSec の既知の脆弱性・保守の終了・健全性の注意・取り下げた版
+# - licenses: 許可するライセンス（本体のライセンス MIT OR Apache-2.0 と両立するもの）
+# - bans: 同じクレートの複数の版・ワイルドカードの版の指定
+# - sources: 取得元を crates.io に限る
+#
+# 見つかった場合の扱いは dev/DEPENDENCY_AUDIT_OPERATION.md を参照。
+
+[graph]
+all-features = true
+
+[advisories]
+# 例外は、理由と見直す時期を書いて残す
+ignore = [
+    # ttf-parser: 保守の終了。fontdb と ab_glyph（winit の Wayland の装飾）がフォントの読み込みに使う。後継の skrifa への移行は上流の対応を待つ
+    { id = "RUSTSEC-2026-0192", reason = "fontdb・ab_glyph が使う。上流の skrifa への移行を待つ" },
+]
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "0BSD",
+    "CC0-1.0",
+    "ISC",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+    # egui の既定のフォント（epaint_default_fonts）
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+# 同じクレートの複数の版は、上流の依存の都合で避けられないものが多いため、警告にとどめる
+multiple-versions = "warn"
+wildcards = "deny"
+# ワークスペースの中のパスの依存は、版を書かない
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

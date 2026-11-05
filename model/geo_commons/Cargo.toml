@@ -1,5 +1,6 @@
 [package]
 name = "geo_commons"
+publish = false
 version = "0.1.0"
 edition = "2021"
 description = "geo_* で共通する幾何計算の関数"
