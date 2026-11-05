@@ -105,13 +105,13 @@ impl<T: Scalar> LineSegment3D<T> {
     - API の意図説明に必要な最小例のみ
     - 詳細な手順・複数パターンは `manual/` 側へ記載
 
-2. **`use` を含む詳細サンプルは `manual/` に移す**
-    - 特に import 規約に影響する例（`use geo_primitives::...` など）は、実装コメントへ残さない
-    - 実装コメントには「詳細は manual を参照」と記載
+2. **`use` を含む詳細サンプルは、動く形で置く**
+    - doc コメントの例（doctest）か、試験（`tests/`・`x/tests.rs`）として置き、コンパイルで確かめる
+    - `manual/` は利用者向けのマニュアルのため、API のサンプルを置かない
+    - import 規約に影響する例（`use geo_primitives::...` など）は、規約に合う形で書く
 
-3. **ドキュメント側の参照先を明示する**
-    - 例: `manual/voxel_examples.md`
-    - `manual/SUMMARY.md` に追加して導線を維持
+3. **設計の説明は `dev/architecture/` に置く**
+    - API の背景・使い分けは、設計書に書き、doc コメントから設計書の名前で参照する
 
 4. **CI で禁止される記述はコメントでも避ける**
     - 実装ファイルでは、規約違反と誤認される import 記述を置かない

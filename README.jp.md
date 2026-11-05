@@ -75,7 +75,8 @@ CAM のツールパス生成（スキャン加工）と切削シミュレーシ�
 | `README.md`                                                        | 英語圏利用者・国際開発者 | Project Overview & Build Instructions          |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | 開発者                   | ワークスペース構成・移行ステータス・テスト戦略 |
 | [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | メンテナー               | Issueラベル運用・Release/Phase管理             |
-| [`manual/philosophy.md`](manual/philosophy.md)                     | コントリビューター       | 設計思想・エラー処理ガイドライン・実装パターン |
+| [`dev/architecture/`](dev/architecture/)                           | コントリビューター       | 設計書（設計の正本）                           |
+| [利用者向けマニュアル](https://redring2020.github.io/RedRing/)     | 利用者                   | 動かし方・操作・切削シミュレーション           |
 | [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | 幾何ライブラリ開発者     | 幾何抽象化の詳細仕様                           |
 | [`.github/ai_quick_reference.md`](.github/ai_quick_reference.md)   | 🤖 AI開発者              | セッション復旧・開発継続支援                   |
 | [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)     | 開発者                   | 機能リクエスト・バグ報告・進捗管理             |
@@ -135,7 +136,7 @@ RedRing は以下の原則に基づいて設計されています：
 
 詳細な設計思想、エラー処理ガイドライン、トレイト設計パターンについては：
 
-📖 **[設計思想・技術指針](manual/philosophy.md)** - 開発者向け詳細ガイド
+📖 **[設計書](dev/architecture/)** - 開発者向け詳細ガイド
 
 ---
 
