@@ -43,6 +43,15 @@ pub const FORMAT_VERSION_MINOR_V1: u16 = 3;
 /// v0.x 系で受理可能な minor version 一覧。
 pub const KNOWN_MINOR_VERSIONS_V0: &[u16] = &[1, 2, FORMAT_VERSION_MINOR_V1];
 
+/// 読み込みで、ファイルに書かれた個数から先に確保する要素の数の上限
+///
+/// 個数はファイルに書かれた値のため、信用せずに上限で抑え、それを超える分は読んだ要素の数に応じて増やす。
+/// 細工したファイル（個数に大きな値を書いたもの）で、巨大な確保をさせないため。
+const MAX_PREALLOCATED_ELEMENTS: usize = 4096;
+
+/// 読み込みで、本体を読み終える前に確保するバイトの数の上限（[`MAX_PREALLOCATED_ELEMENTS`] と同じ理由）
+const MAX_PREALLOCATED_BYTES: usize = 1 << 20;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompatibilityDecision {
     Accept,
@@ -411,7 +420,7 @@ pub fn read_toolpath_payload_v1<R: Read>(
     let approach_segments = read_segments(reader)?;
 
     let contour_count = read_u32_le(reader)? as usize;
-    let mut contour_levels = Vec::with_capacity(contour_count);
+    let mut contour_levels = Vec::with_capacity(preallocated(contour_count));
     for _ in 0..contour_count {
         let level_index = read_u32_le(reader)? as usize;
         let z_level = read_f64_le(reader)?;
@@ -493,7 +502,7 @@ pub fn read_interference_payload_v1<R: Read>(
     reader: &mut R,
 ) -> Result<InterferencePayload, BinaryFormatError> {
     let event_count = read_u32_le(reader)? as usize;
-    let mut events = Vec::with_capacity(event_count);
+    let mut events = Vec::with_capacity(preallocated(event_count));
 
     for _ in 0..event_count {
         let sample_index = read_u32_le(reader)?;
@@ -543,8 +552,14 @@ pub fn read_artifact_v1<R: Read>(
         ArtifactKind::CuttingSimulation => {
             let length = usize::try_from(header.payload_len)
                 .map_err(|_| BinaryFormatError::LengthOverflow("payload_len"))?;
-            let mut payload = vec![0_u8; length];
-            reader.read_exact(&mut payload)?;
+            // 長さはファイルに書かれた値のため、読んだバイトの数に応じて確保する
+            let mut payload = Vec::with_capacity(length.min(MAX_PREALLOCATED_BYTES));
+            reader.take(header.payload_len).read_to_end(&mut payload)?;
+            if payload.len() != length {
+                return Err(BinaryFormatError::Io(std::io::Error::from(
+                    std::io::ErrorKind::UnexpectedEof,
+                )));
+            }
             ArtifactPayload::CuttingSimulation(payload)
         }
     };
@@ -581,6 +596,11 @@ pub fn read_interference_artifact_v1<R: Read>(
     }
 }
 
+/// ファイルに書かれた個数 `count` から、先に確保する要素の数（上限で抑える）
+fn preallocated(count: usize) -> usize {
+    count.min(MAX_PREALLOCATED_ELEMENTS)
+}
+
 fn write_segments<W: Write>(
     writer: &mut W,
     segments: &[PathSegment<f64>],
@@ -594,7 +614,7 @@ fn write_segments<W: Write>(
 
 fn read_segments<R: Read>(reader: &mut R) -> Result<Vec<PathSegment<f64>>, BinaryFormatError> {
     let segment_count = read_u32_le(reader)? as usize;
-    let mut segments = Vec::with_capacity(segment_count);
+    let mut segments = Vec::with_capacity(preallocated(segment_count));
     for _ in 0..segment_count {
         segments.push(read_segment(reader)?);
     }
@@ -858,7 +878,7 @@ fn read_ext_attributes_list<R: Read>(
     reader: &mut R,
 ) -> Result<Vec<ExtAttribute>, BinaryFormatError> {
     let count = read_u32_le(reader)? as usize;
-    let mut attrs = Vec::with_capacity(count);
+    let mut attrs = Vec::with_capacity(preallocated(count));
     for _ in 0..count {
         let tag = read_i16_le(reader)?;
         if tag == 0 {

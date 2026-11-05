@@ -555,3 +555,147 @@ fn read_interference_artifact_v1_rejects_toolpath_payload() {
         })
     ));
 }
+
+/// ヘッダの後に `payload` を続けた成果物のバイト列
+fn artifact_bytes(kind: ArtifactKind, payload: &[u8]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    ArtifactHeaderV1::new(kind, payload.len() as u64)
+        .write_to(&mut bytes)
+        .unwrap();
+    bytes.extend_from_slice(payload);
+    bytes
+}
+
+/// 読み込みが、途中で切れた入力の誤り（`UnexpectedEof`）を返すこと
+fn assert_truncated(result: Result<(ArtifactHeaderV1, ArtifactPayload), BinaryFormatError>) {
+    match result {
+        Err(BinaryFormatError::Io(error)) => {
+            assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof)
+        }
+        other => panic!("expected a truncated input error, got {other:?}"),
+    }
+}
+
+#[test]
+fn huge_counts_in_a_toolpath_are_rejected_without_allocating_them() {
+    // 道具の ID は空、切削方向は Down
+    let prefix = [0x00, 0x00, 0x00];
+    let max = u32::MAX.to_le_bytes();
+    let zero = 0_u32.to_le_bytes();
+    // 拡張の属性の数、近づく区間の数、等高線の数、等高線の区間の数のそれぞれに、大きな値を書いて本体を切る
+    let payloads: [Vec<u8>; 4] = [
+        [&prefix[..], &max].concat(),
+        [&prefix[..], &zero, &max].concat(),
+        [&prefix[..], &zero, &zero, &max].concat(),
+        [
+            &prefix[..],
+            &zero,
+            &zero,
+            &1_u32.to_le_bytes(),
+            &zero,
+            &0.0_f64.to_le_bytes(),
+            &max,
+        ]
+        .concat(),
+    ];
+    for payload in payloads {
+        let bytes = artifact_bytes(ArtifactKind::ToolPath, &payload);
+        assert_truncated(read_artifact_v1(&mut bytes.as_slice()));
+    }
+}
+
+#[test]
+fn a_huge_event_count_in_an_interference_is_rejected_without_allocating_it() {
+    let bytes = artifact_bytes(ArtifactKind::Interference, &u32::MAX.to_le_bytes());
+    assert_truncated(read_artifact_v1(&mut bytes.as_slice()));
+}
+
+#[test]
+fn a_huge_cutting_simulation_payload_length_is_rejected_without_allocating_it() {
+    let mut bytes = Vec::new();
+    ArtifactHeaderV1::new(ArtifactKind::CuttingSimulation, u64::MAX)
+        .write_to(&mut bytes)
+        .unwrap();
+    bytes.extend_from_slice(&[0_u8; 16]);
+    let result = read_artifact_v1(&mut bytes.as_slice());
+    match result {
+        // 32 ビットの環境では長さが usize に収まらない
+        Err(BinaryFormatError::LengthOverflow("payload_len")) => {}
+        other => assert_truncated(other),
+    }
+
+    // 長さどおりの本体があれば読む
+    let bytes = artifact_bytes(ArtifactKind::CuttingSimulation, &[1, 2, 3]);
+    let (_, payload) = read_artifact_v1(&mut bytes.as_slice()).unwrap();
+    assert_eq!(payload, ArtifactPayload::CuttingSimulation(vec![1, 2, 3]));
+}
+
+/// 擬似乱数（xorshift。試験の再現のため、種を決めて使う）
+struct XorShift(u64);
+
+impl XorShift {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+
+    fn below(&mut self, bound: usize) -> usize {
+        (self.next() % bound as u64) as usize
+    }
+}
+
+/// 正しい成果物 `valid` のバイトを壊したもの（書き換え・大きな値の書き込み・切り詰め）を多数読み、落ちないこと
+fn read_corrupted_artifacts(valid: &[u8], seed: u64) {
+    let mut random = XorShift(seed);
+    for _ in 0..2000 {
+        let mut bytes = valid.to_vec();
+        match random.below(3) {
+            0 => {
+                for _ in 0..=random.below(4) {
+                    let at = random.below(bytes.len());
+                    bytes[at] = random.next() as u8;
+                }
+            }
+            1 => {
+                // 個数・長さに当たりうる 4 バイトを、大きな値にする
+                let at = random.below(bytes.len().saturating_sub(4).max(1));
+                let end = (at + 4).min(bytes.len());
+                bytes[at..end].fill(0xFF);
+            }
+            _ => bytes.truncate(random.below(bytes.len())),
+        }
+        // 結果は問わない（誤りを返しても、読めてもよい）。落ちない・巨大な確保をしないことを確かめる
+        let _ = read_artifact_v1(&mut bytes.as_slice());
+    }
+}
+
+#[test]
+fn corrupted_toolpath_and_interference_artifacts_do_not_crash_the_reader() {
+    let mut toolpath = Vec::new();
+    write_toolpath_payload_v1(
+        &mut toolpath,
+        &ToolPath::new(
+            "tool-1".to_string(),
+            CuttingDirection::Down,
+            vec![],
+            vec![ContourLevelPath::new(
+                0,
+                -1.0,
+                vec![PathSegment::new_line(
+                    Point3D::new(0.0, 0.0, -1.0),
+                    Point3D::new(10.0, 0.0, -1.0),
+                    SegmentType::Cutting { feed_rate: 600.0 },
+                )],
+            )],
+            vec![],
+        ),
+    )
+    .unwrap();
+    read_corrupted_artifacts(&artifact_bytes(ArtifactKind::ToolPath, &toolpath), 1);
+    read_corrupted_artifacts(
+        &artifact_bytes(ArtifactKind::Interference, GOLDEN_INTERFERENCE_MINIMAL),
+        2,
+    );
+}
