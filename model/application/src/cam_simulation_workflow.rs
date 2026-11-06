@@ -30,7 +30,9 @@ use cam_sim::{
     InMemoryCuttingSimulationInputStore, SnapshotInterval, cutting_simulation_input_errors,
     stock_around_product,
 };
-use geo_algorithms::{Aabb3D, TessellationLimits};
+/// 軸に平行な直方体の型（素材の形に使う）
+pub use geo_algorithms::Aabb3D;
+use geo_algorithms::TessellationLimits;
 use job_domain::{CamJobRecord, CamJobSource, CamJobStatus, CamJobType};
 use job_runtime::JobManager;
 

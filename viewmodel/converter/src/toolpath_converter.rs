@@ -10,13 +10,9 @@
 //! - **円弧テッセレーション**: 円弧を線分に分割（設定可能な分割数）
 
 use application::toolpath::{
-    ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
-    ToolPath,
+    arc_to_line_segments, CircularArcPolylineOptions, ContourLevelPath, CuttingDirection,
+    LineSegment3DSupportLine, PathGeometry, PathSegment, Point3D, SegmentType, ToolPath,
 };
-use geo_algorithms::{
-    circular_arc_to_polyline, CircularArcDirection, CircularArcPolylineOptions, Point3D,
-};
-use geo_contracts::LineSegment3DSupportLine;
 
 /// 工具経路の色設定
 #[derive(Debug, Clone, Copy)]
@@ -361,18 +357,8 @@ fn convert_segment(
             center,
             direction,
         } => {
-            let circular_direction = match direction {
-                ArcDirection::Clockwise => CircularArcDirection::Clockwise,
-                ArcDirection::CounterClockwise => CircularArcDirection::CounterClockwise,
-            };
-
-            let arc_segments = circular_arc_to_polyline(
-                segment.start,
-                *end,
-                *center,
-                circular_direction,
-                arc_options,
-            );
+            let arc_segments =
+                arc_to_line_segments(segment.start, *end, *center, *direction, arc_options);
 
             // 線分列として頂点追加
             for line in arc_segments {
@@ -430,7 +416,7 @@ pub fn load_demo_toolpath() -> ToolPath<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use application::toolpath::ToolPath;
+    use application::toolpath::{ArcDirection, ToolPath};
 
     #[test]
     fn test_default_color_scheme() {

@@ -8,14 +8,17 @@ use std::fmt;
 use std::path::Path;
 
 use cam_algorithms::SolverGeometry;
+/// 製品形状の面の形（NURBS 曲面・三角形メッシュ）の型
+pub use geo_algorithms::{NurbsSurface3D, TriangleMesh3D};
 use geo_algorithms::{
-    NurbsSurface3D, SurfaceTessellationError, TessellationLimits, TriangleMesh3D, Vector3D,
-    concatenate_triangle_meshes, tessellate_surfaces,
+    SurfaceTessellationError, TessellationLimits, Vector3D, concatenate_triangle_meshes,
+    tessellate_surfaces,
 };
-use geo_contracts::{
-    EntityDisplayProperties, EntityIdentity, FaceSetEntity3DProperties, TriangleMesh3DConstructor,
-    TriangleMesh3DProperties,
+/// 製品形状のエンティティの表示・面と、面の表示用のメッシュのメソッドを呼ぶための trait
+pub use geo_contracts::{
+    EntityDisplayProperties, FaceSetEntity3DProperties, TriangleMesh3DProperties,
 };
+use geo_contracts::{EntityIdentity, TriangleMesh3DConstructor};
 use geo_entity::{DisplayAttributes, EntityId, FaceId, GeometricEntity};
 
 /// 面の形状

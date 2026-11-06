@@ -5,8 +5,10 @@
 //! 加工の対象は、確かめ・投入・取り込みのときに表示中の製品形状のすべての面にする。
 //! 実行の入口は、ジョブマネージャーができるまでの同じプロセスの中の実行とする。
 
+use application::cam_simulation_workflow::{
+    Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError,
+};
 pub use application::cam_simulation_workflow::{CamConditionError, CamConditionField};
-use application::cam_simulation_workflow::{CamSimulationWorkflow, CamSimulationWorkflowError};
 pub use application::machining_sequence::{
     flat_surface_cusp_height, MachiningOperationContent, MachiningStock, OperationSpec,
     ScanlineCutDirection, ScanlineToolRange, StockMargins,
@@ -16,7 +18,6 @@ use application::machining_sequence::{
     MachiningSequenceStore,
 };
 use application::machining_sequence::{ScanlineParams, Tool};
-use geo_algorithms::Aabb3D;
 
 use application::cutting_simulation_playback::{
     CuttingSimulationPlayback, CuttingSimulationPlaybackError,

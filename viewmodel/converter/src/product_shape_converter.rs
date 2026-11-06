@@ -2,8 +2,10 @@
 
 use std::path::Path;
 
-use application::product_shape::{ProductShapeError, ProductShapeStore};
-use geo_contracts::{EntityDisplayProperties, FaceSetEntity3DProperties, TriangleMesh3DProperties};
+use application::product_shape::{
+    EntityDisplayProperties, FaceSetEntity3DProperties, ProductShapeError, ProductShapeStore,
+    TriangleMesh3DProperties,
+};
 
 use crate::mesh_converter::VertexData;
 

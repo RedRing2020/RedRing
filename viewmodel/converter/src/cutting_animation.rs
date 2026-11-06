@@ -13,8 +13,7 @@ use application::cutting_simulation_playback::{
     CuttingSimulationPlayback, SimulationSnapshotExport,
 };
 use application::machining_sequence::Tool;
-use application::toolpath::ToolPath;
-use geo_algorithms::{LineSegment3D, LineSegment3DProperties};
+use application::toolpath::{LineSegment3D, LineSegment3DProperties, ToolPath};
 
 use crate::cam_sim_visualization_converter::{
     create_ball_end_mill_wireframe, create_flat_end_mill_wireframe,
@@ -479,7 +478,8 @@ mod tests {
 
     #[test]
     fn tools_without_a_length_reach_the_stock_top_from_the_deepest_cut() {
-        use geo_algorithms::{LineSegment3DConstructor, Point3D};
+        use application::toolpath::Point3D;
+        use geo_contracts::LineSegment3DConstructor;
         let line = |z0: f64, z1: f64| {
             LineSegment3D::new(Point3D::new(0.0, 0.0, z0), Point3D::new(10.0, 0.0, z1)).unwrap()
         };
