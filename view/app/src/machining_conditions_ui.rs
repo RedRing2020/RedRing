@@ -4,7 +4,8 @@
 //! 計算に使った条件を扱う。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
-use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, Window};
+use crate::settings_panel_renderer::window_body_max_height;
+use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, ScrollArea, Window};
 use viewmodel::cutting_simulation_session::{
     flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
     CuttingToolKind, ImportedConditions, MachiningOperationContent, MachiningStock, OperationSpec,
@@ -212,34 +213,39 @@ impl MachiningConditionsUiState {
             .resizable(true)
             .open(&mut open)
             .show(ctx, |ui| {
-                ui.label(self.text("conditions.intro"));
-                ui.separator();
-                self.show_target(ui);
-                self.show_tool(ui);
-                self.show_machining(ui);
-                self.show_stock(ui);
-                ui.separator();
-                let run_after_submit_label = self.text("conditions.run_after_submit");
-                ui.checkbox(&mut self.run_after_submit, run_after_submit_label);
-                ui.horizontal(|ui| {
-                    let submit = ui.add_enabled(
-                        self.issues.is_empty(),
-                        egui::Button::new(self.text("conditions.submit")),
-                    );
-                    if submit.clicked() {
-                        self.submit_requested = true;
-                    }
-                    if ui.button(self.text("conditions.import")).clicked() {
-                        self.import_requested = true;
-                    }
-                });
-                self.show_issues(ui, ConditionField::Submission);
-                if let Some(status) = &self.status {
-                    let (key, args) = operation_status_message(status);
-                    ui.label(self.text_with_args(key, &args));
-                }
-                ui.separator();
-                self.show_imported(ui);
+                // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
+                ScrollArea::vertical()
+                    .max_height(window_body_max_height(ui, area))
+                    .show(ui, |ui| {
+                        ui.label(self.text("conditions.intro"));
+                        ui.separator();
+                        self.show_target(ui);
+                        self.show_tool(ui);
+                        self.show_machining(ui);
+                        self.show_stock(ui);
+                        ui.separator();
+                        let run_after_submit_label = self.text("conditions.run_after_submit");
+                        ui.checkbox(&mut self.run_after_submit, run_after_submit_label);
+                        ui.horizontal(|ui| {
+                            let submit = ui.add_enabled(
+                                self.issues.is_empty(),
+                                egui::Button::new(self.text("conditions.submit")),
+                            );
+                            if submit.clicked() {
+                                self.submit_requested = true;
+                            }
+                            if ui.button(self.text("conditions.import")).clicked() {
+                                self.import_requested = true;
+                            }
+                        });
+                        self.show_issues(ui, ConditionField::Submission);
+                        if let Some(status) = &self.status {
+                            let (key, args) = operation_status_message(status);
+                            ui.label(self.text_with_args(key, &args));
+                        }
+                        ui.separator();
+                        self.show_imported(ui);
+                    });
             });
         self.open = open;
     }

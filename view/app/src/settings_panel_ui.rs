@@ -2,8 +2,11 @@ use crate::app_state::SnapshotShadedColorSettings;
 use crate::settings_panel_messages::{
     resolve_settings_panel_text, resolve_settings_panel_text_with_args,
 };
+use crate::settings_panel_renderer::window_body_max_height;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
-use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, RichText, Slider, Window};
+use egui::{
+    Align2, CollapsingHeader, Context, DragValue, Rect, RichText, ScrollArea, Slider, Window,
+};
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
@@ -191,53 +194,58 @@ impl SettingsPanelUiState {
             .resizable(true)
             .open(&mut open)
             .show(ctx, |ui| {
-                let display_tab_label = self.text("settings.tab.display");
-                let tool_tab_label = self.text("settings.tab.tool");
-                let debug_tab_label = self.text("settings.tab.debug");
+                // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
+                ScrollArea::vertical()
+                    .max_height(window_body_max_height(ui, area))
+                    .show(ui, |ui| {
+                        let display_tab_label = self.text("settings.tab.display");
+                        let tool_tab_label = self.text("settings.tab.tool");
+                        let debug_tab_label = self.text("settings.tab.debug");
 
-                ui.label(self.text("settings.intro"));
-                ui.separator();
+                        ui.label(self.text("settings.intro"));
+                        ui.separator();
 
-                ui.horizontal(|ui| {
-                    ui.selectable_value(
-                        &mut self.active_tab,
-                        SettingsPanelTab::Display,
-                        display_tab_label,
-                    );
-                    ui.selectable_value(
-                        &mut self.active_tab,
-                        SettingsPanelTab::Tool,
-                        tool_tab_label,
-                    );
-                    ui.selectable_value(
-                        &mut self.active_tab,
-                        SettingsPanelTab::Debug,
-                        debug_tab_label,
-                    );
-                });
-                ui.separator();
+                        ui.horizontal(|ui| {
+                            ui.selectable_value(
+                                &mut self.active_tab,
+                                SettingsPanelTab::Display,
+                                display_tab_label,
+                            );
+                            ui.selectable_value(
+                                &mut self.active_tab,
+                                SettingsPanelTab::Tool,
+                                tool_tab_label,
+                            );
+                            ui.selectable_value(
+                                &mut self.active_tab,
+                                SettingsPanelTab::Debug,
+                                debug_tab_label,
+                            );
+                        });
+                        ui.separator();
 
-                match self.active_tab {
-                    SettingsPanelTab::Display => self.show_display_tab(ui),
-                    SettingsPanelTab::Tool => self.show_tool_tab(ui),
-                    SettingsPanelTab::Debug => self.show_debug_tab(ui),
-                }
-
-                ui.separator();
-                match &self.current_animation_label {
-                    Some(label) => {
-                        ui.label(self.text_with_args(
-                            "settings.current_animation",
-                            &[("label", label.clone())],
-                        ));
-                        if ui.button(self.text("settings.apply")).clicked() {
-                            self.redraw_animation_requested = true;
+                        match self.active_tab {
+                            SettingsPanelTab::Display => self.show_display_tab(ui),
+                            SettingsPanelTab::Tool => self.show_tool_tab(ui),
+                            SettingsPanelTab::Debug => self.show_debug_tab(ui),
                         }
-                    }
-                    None => {
-                        ui.label(self.text("settings.no_active_animation"));
-                    }
-                }
+
+                        ui.separator();
+                        match &self.current_animation_label {
+                            Some(label) => {
+                                ui.label(self.text_with_args(
+                                    "settings.current_animation",
+                                    &[("label", label.clone())],
+                                ));
+                                if ui.button(self.text("settings.apply")).clicked() {
+                                    self.redraw_animation_requested = true;
+                                }
+                            }
+                            None => {
+                                ui.label(self.text("settings.no_active_animation"));
+                            }
+                        }
+                    });
             });
 
         self.open = open;

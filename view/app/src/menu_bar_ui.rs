@@ -8,6 +8,11 @@ use viewmodel::message_catalog::UiLocale;
 const LANGUAGE_CHOICES: &[(UiLocale, &str)] =
     &[(UiLocale::Ja, "日本語"), (UiLocale::En, "English")];
 
+/// メニューの項目の文言を折り返さない（メニューの幅は親の項目の幅から決まるため、英語の長い項目が折り返される）
+fn keep_items_on_one_line(ui: &mut Ui) {
+    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+}
+
 /// メニューバーの表示の言語と、選ばれた項目
 #[derive(Debug, Clone, Copy)]
 pub struct MenuBarUiState {
@@ -31,12 +36,15 @@ impl MenuBarUiState {
         Panel::top("menu_bar").show_inside(ui, |ui| {
             MenuBar::new().ui(ui, |ui| {
                 ui.menu_button(self.text("menu.file"), |ui| {
+                    keep_items_on_one_line(ui);
                     if ui.button(self.text("menu.file.load")).clicked() {
                         self.load_requested = true;
                     }
                 });
                 ui.menu_button(self.text("menu.view"), |ui| {
+                    keep_items_on_one_line(ui);
                     ui.menu_button(self.text("menu.view.language"), |ui| {
+                        keep_items_on_one_line(ui);
                         for (locale, name) in LANGUAGE_CHOICES {
                             if ui.radio(self.locale == *locale, *name).clicked() {
                                 self.locale_requested = Some(*locale);
@@ -45,6 +53,7 @@ impl MenuBarUiState {
                     });
                 });
                 ui.menu_button(self.text("menu.help"), |ui| {
+                    keep_items_on_one_line(ui);
                     if ui.button(self.text("menu.help.controls")).clicked() {
                         self.controls_requested = true;
                     }
