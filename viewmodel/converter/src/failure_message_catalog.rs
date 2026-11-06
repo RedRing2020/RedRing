@@ -1,6 +1,7 @@
 //! 失敗の理由の文言（日本語・英語）
 //!
 //! キーはエラーの種類ごとに決める。表にないキーは、思わぬ失敗として「詳しくはログを確かめてください」の文言にする。
+//! 文言は、ほかの文言の括弧の中に入れて出すため、括弧を使わない。
 
 use i18n_foundation::{resolve_message, TableMessageCatalog, UiLocale, UiMessage};
 
@@ -25,7 +26,7 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     (
         "failure.conditions",
-        "計算条件に誤りがあります（各欄の知らせを確かめてください）",
+        "計算条件に誤りがあります。各欄の知らせを確かめてください",
     ),
     ("failure.orchestration", "ジョブを投入・実行できません"),
     (
@@ -49,10 +50,7 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "failure.inverse_offset_display",
         "逆オフセット形状を表示できません",
     ),
-    (
-        "failure.shape.stl",
-        "STL ファイルを読めません（壊れているか、形式が違います）",
-    ),
+    ("failure.shape.stl", "壊れているか、形式の違うファイルです"),
     ("failure.shape.unknown", "形状が見つかりません"),
     (
         "failure.shape.mixed_faces",
@@ -96,7 +94,7 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     (
         "failure.conditions",
-        "Some calculation conditions are invalid (see the messages under each field)",
+        "Some calculation conditions are invalid; see the messages under each field",
     ),
     ("failure.orchestration", "Cannot submit or run the job"),
     (
@@ -119,7 +117,7 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     (
         "failure.shape.stl",
-        "Cannot read the STL file (it is broken or in another format)",
+        "The file is broken or in another format",
     ),
     ("failure.shape.unknown", "The shape cannot be found"),
     (
@@ -161,5 +159,12 @@ mod tests {
         let ja: Vec<&str> = FAILURE_TEMPLATE_JA.iter().map(|(key, _)| *key).collect();
         let en: Vec<&str> = FAILURE_TEMPLATE_EN.iter().map(|(key, _)| *key).collect();
         assert_eq!(ja, en);
+    }
+
+    #[test]
+    fn texts_have_no_parentheses() {
+        for (key, text) in FAILURE_TEMPLATE_JA.iter().chain(FAILURE_TEMPLATE_EN) {
+            assert!(!text.contains(['（', '）', '(', ')']), "{key}: {text}");
+        }
     }
 }
