@@ -1129,3 +1129,86 @@ fn scanline_toolpaths_require_a_positive_finite_tolerance() {
         );
     }
 }
+
+/// 床（高さ 0、x = 10..30）と、両側の急な壁（傾き 80°、高さ 10）と、壁の上の平らな縁（高さ 10）の溝（y = 0..10）
+fn pocket_with_steep_walls() -> TriangleMesh3D<f64> {
+    let run = 10.0 / 80f64.to_radians().tan();
+    let xs = [0.0, 10.0 - run, 10.0, 30.0, 30.0 + run, 40.0];
+    let zs = [10.0, 10.0, 0.0, 0.0, 10.0, 10.0];
+    let mut vertices = Vec::new();
+    for y in [0.0, 10.0] {
+        for (x, z) in xs.iter().zip(zs) {
+            vertices.push((*x, y, z));
+        }
+    }
+    let n = xs.len();
+    let mut triangles = Vec::new();
+    for i in 0..n - 1 {
+        triangles.push([i, i + 1, n + i + 1]);
+        triangles.push([i, n + i + 1, n + i]);
+    }
+    mesh(&vertices, &triangles)
+}
+
+/// 経路の線分を細かく分けた点で、経路が CL の面から上に離れる量の最大
+///
+/// 段（鉛直な線分）と、段の前後で高い側のまま進む、水平にトレランス以下の線分を除く。線分の端（CL の面の上の点か、
+/// 段の端）は測らない。
+fn max_rise_of_path_above_cl_surface(input: &CamSolverInput) -> f64 {
+    let cutter = build_inverse_offset_shape(input).unwrap();
+    let toolpath = solve_toolpath(input).unwrap();
+    let mut worst = 0.0_f64;
+    for level in &toolpath.contour_levels {
+        for segment in level.cutting_segments() {
+            let (start, end) = (segment.start, segment.end_point());
+            if (end.x() - start.x()).abs() <= input.chord_tolerance {
+                continue;
+            }
+            for k in 1..200 {
+                let t = k as f64 / 200.0;
+                let x = start.x() + t * (end.x() - start.x());
+                let z = start.z() + t * (end.z() - start.z());
+                if let Some(tip) = cutter.tip_height_at(x, start.y()) {
+                    worst = worst.max(z - tip);
+                }
+            }
+        }
+    }
+    worst
+}
+
+#[test]
+fn scanline_paths_do_not_pass_above_the_cl_surface_beyond_the_tolerance() {
+    // 谷（壁と床の境目・尾根と谷）と段差をまたぐ所で、経路が CL の面より上を通らない（削り残しの側）
+    let geometries = [
+        ("step block", SolverGeometry::TriangleMesh(step_block())),
+        (
+            "ridged terrain",
+            SolverGeometry::TriangleMesh(ridged_terrain()),
+        ),
+        (
+            "pocket",
+            SolverGeometry::TriangleMesh(pocket_with_steep_walls()),
+        ),
+        (
+            "dome",
+            SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]),
+        ),
+    ];
+    for (name, geometry) in geometries {
+        for tool in [
+            Tool::ball_end_mill("BEM10".to_string(), 10.0, 30.0),
+            Tool::flat_end_mill("EM10".to_string(), 10.0, 30.0),
+        ] {
+            let mut input = solver_input(geometry.clone());
+            input.tool = tool;
+            let rise = max_rise_of_path_above_cl_surface(&input);
+            assert!(
+                rise <= input.chord_tolerance + EPS,
+                "{name}, {}: the path passes {rise} above the CL surface",
+                input.tool.id
+            );
+            assert_path_does_not_gouge(&input);
+        }
+    }
+}
