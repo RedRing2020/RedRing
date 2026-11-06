@@ -4,12 +4,18 @@ const MENU_BAR_TEMPLATE_JA: &[(&str, &str)] = &[
     ("menu.file", "ファイル"),
     ("menu.file.load", "読み込み…"),
     ("menu.file.load.supported", "対応する形状ファイル"),
+    ("menu.help", "ヘルプ"),
+    ("menu.help.controls", "操作の一覧（F1）"),
+    ("menu.help.about", "バージョンの情報"),
 ];
 
 const MENU_BAR_TEMPLATE_EN: &[(&str, &str)] = &[
     ("menu.file", "File"),
     ("menu.file.load", "Load…"),
     ("menu.file.load.supported", "Supported shape files"),
+    ("menu.help", "Help"),
+    ("menu.help.controls", "Controls (F1)"),
+    ("menu.help.about", "About"),
 ];
 
 pub const MENU_BAR_MESSAGE_CATALOG: TableMessageCatalog = TableMessageCatalog::new(

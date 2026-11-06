@@ -10,6 +10,10 @@ pub struct MenuBarUiState {
     pub locale: UiLocale,
     /// 「ファイル」→「読み込み…」が選ばれた
     pub load_requested: bool,
+    /// 「ヘルプ」→「操作の一覧」が選ばれた
+    pub controls_requested: bool,
+    /// 「ヘルプ」→「バージョンの情報」が選ばれた
+    pub about_requested: bool,
 }
 
 impl MenuBarUiState {
@@ -23,6 +27,14 @@ impl MenuBarUiState {
                 ui.menu_button(self.text("menu.file"), |ui| {
                     if ui.button(self.text("menu.file.load")).clicked() {
                         self.load_requested = true;
+                    }
+                });
+                ui.menu_button(self.text("menu.help"), |ui| {
+                    if ui.button(self.text("menu.help.controls")).clicked() {
+                        self.controls_requested = true;
+                    }
+                    if ui.button(self.text("menu.help.about")).clicked() {
+                        self.about_requested = true;
                     }
                 });
             });

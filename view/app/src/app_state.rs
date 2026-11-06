@@ -1,6 +1,7 @@
 use crate::app_renderer::{AppRenderer, AppRendererFactory};
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
+use crate::help_ui::Notice;
 use crate::machining_conditions_ui::OperationStatus;
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
@@ -31,6 +32,8 @@ mod cutting_simulation;
 mod machining_conditions;
 // AppState のメニューバーの項目
 mod menu_bar;
+
+mod help;
 // AppState のデバッグスナップショット状態
 mod debug_snapshot_state;
 // AppState のデバッグ表示ロード（octree/toolpath/svg/nurbs）
@@ -201,6 +204,13 @@ pub struct AppState {
     /// 設定パネルの表示言語
     settings_panel_locale: UiLocale,
 
+    /// ヘルプの「操作の一覧」のウィンドウを開いているか
+    help_controls_open: bool,
+    /// ヘルプの「バージョンの情報」のウィンドウを開いているか
+    help_about_open: bool,
+    /// 画面の下の知らせの行に出している、最後の知らせ
+    notice: Notice,
+
     /// デバッグ用: シミュレーションスナップショット状態
     debug_snapshot: DebugSnapshotState,
     snapshot_scrub_active: bool,
@@ -260,6 +270,9 @@ impl AppState {
             settings_panel_open: false,
             settings_panel_active_tab: SettingsPanelTab::default(),
             settings_panel_locale: UiLocale::Ja,
+            help_controls_open: false,
+            help_about_open: false,
+            notice: Notice::Startup,
             debug_snapshot: DebugSnapshotState::default(),
             snapshot_scrub_active: false,
             cursor_position: None,

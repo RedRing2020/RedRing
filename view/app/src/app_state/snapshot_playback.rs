@@ -167,6 +167,7 @@ impl AppState {
             "切削シミュレーションが取り込まれていません。trigger={}, Shift+L で取り込んでください",
             trigger.label()
         );
+        self.set_notice(crate::help_ui::Notice::NotImported);
         false
     }
 
@@ -281,6 +282,7 @@ impl AppState {
         };
         let Some(frame) = animation.step_tool_endpoint(forward) else {
             tracing::warn!("ツールパスに区間がないため、工具を区間の端点へ移せません");
+            self.set_notice(crate::help_ui::Notice::NoToolSegments);
             return;
         };
 

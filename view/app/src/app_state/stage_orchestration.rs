@@ -1,6 +1,7 @@
 //! AppState のステージ更新オーケストレーションを扱うモジュール。
 
 use super::AppState;
+use crate::help_ui::NoticeBarUiState;
 use stage::{MeshStage, RenderStage};
 
 impl AppState {
@@ -44,12 +45,19 @@ impl AppState {
         let mut menu_bar_state = self.prepare_menu_bar_state();
         let mut settings_panel_state = self.prepare_settings_panel_state();
         let mut machining_conditions_state = self.prepare_machining_conditions_state();
+        let mut help_state = self.prepare_help_state();
         self.renderer.prepare_ui_windows(
             &self.window,
             &mut menu_bar_state,
+            NoticeBarUiState {
+                locale: self.settings_panel_locale,
+                notice: &self.notice,
+            },
             &mut settings_panel_state,
             &mut machining_conditions_state,
+            &mut help_state,
         );
+        self.apply_help_state(help_state);
         self.apply_settings_panel_state(settings_panel_state);
         self.apply_machining_conditions_state(machining_conditions_state);
         self.apply_menu_bar_state(menu_bar_state);
