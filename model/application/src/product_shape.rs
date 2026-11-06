@@ -215,6 +215,11 @@ impl ProductShapeStore {
             },
             _ => ProductShapeError::Stl(error.to_string()),
         })?;
+        if mesh.is_empty() {
+            return Err(ProductShapeError::Stl(
+                "the STL file has no triangles".to_string(),
+            ));
+        }
         Ok(self.add_face(ProductFaceGeometry::Mesh(mesh)))
     }
 

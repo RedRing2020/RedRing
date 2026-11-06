@@ -52,7 +52,7 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("notice.shape_import_failed", "形状を読み込めません: {file}（{reason}）"),
     (
         "notice.not_imported",
-        "切削シミュレーションを取り込んでから操作してください（「取り込み」または Shift+L）",
+        "切削シミュレーションを取り込んでから操作してください",
     ),
     ("notice.no_tool_segments", "ツールパスに区間がないため、工具を区間の端点へ移せません"),
     (
@@ -136,7 +136,7 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("notice.shape_import_failed", "Cannot load the shape: {file} ({reason})"),
     (
         "notice.not_imported",
-        "Import a cutting simulation first (\"Import\" or Shift+L)",
+        "Import a cutting simulation first",
     ),
     (
         "notice.no_tool_segments",

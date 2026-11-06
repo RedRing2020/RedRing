@@ -76,6 +76,17 @@ fn importing_an_stl_holds_a_single_face_entity_with_a_face_id() {
 }
 
 #[test]
+fn importing_an_stl_without_triangles_fails() {
+    let path = temporary_stl("no_triangles");
+    std::fs::write(&path, "this is not an STL file\n").unwrap();
+    let mut store = ProductShapeStore::new();
+    let error = store.import_stl(&path).unwrap_err();
+    std::fs::remove_file(&path).unwrap();
+    assert!(matches!(error, ProductShapeError::Stl(_)), "{error}");
+    assert!(store.entities().is_empty());
+}
+
+#[test]
 fn importing_a_missing_stl_fails() {
     let mut store = ProductShapeStore::new();
     let error = store.import_stl(&temporary_stl("missing")).unwrap_err();
