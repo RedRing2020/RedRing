@@ -26,7 +26,7 @@ impl AppState {
             self.graphic.config.format,
         ));
         mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
-        self.show_debug_stage(mesh_stage);
+        self.show_debug_stage(mesh_stage, false);
     }
 
     /// デバッグ用：LineSegment3Dを表示
