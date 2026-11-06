@@ -47,6 +47,7 @@ impl AppState {
         let id = self.entity_manager.add_line_list_entity(vertices);
         let _ = self.entity_manager.select(id);
 
+        self.enter_debug_view();
         self.camera.reset_to_standard_cad_view();
         self.rebuild_stage_from_entities();
     }
@@ -68,6 +69,7 @@ impl AppState {
         let id = self.entity_manager.add_line_list_entity(vertices);
         let _ = self.entity_manager.select(id);
 
+        self.enter_debug_view();
         self.camera.reset_to_standard_cad_view();
         self.rebuild_stage_from_entities();
     }
@@ -107,6 +109,7 @@ impl AppState {
         let id = self.entity_manager.add_line_list_entity(vertices);
         let _ = self.entity_manager.select(id);
 
+        self.enter_debug_view();
         self.camera.reset_to_standard_cad_view();
         self.rebuild_stage_from_entities();
     }
