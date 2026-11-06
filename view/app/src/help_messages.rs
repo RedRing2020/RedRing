@@ -1,4 +1,4 @@
-//! ヘルプ（操作の一覧・バージョンの情報）と、画面の下の知らせの行の文言（日本語・英語）
+//! ヘルプ（操作の一覧・バージョンの情報）と、画面の下のステータスバーの文言（日本語・英語）
 
 use viewmodel::message_catalog::{
     resolve_message, TableMessageCatalog, UiLocale, UiMessage, UiMessageArg,

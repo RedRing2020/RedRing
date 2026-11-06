@@ -26,7 +26,7 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     (
         "failure.conditions",
-        "計算条件に誤りがあります。各欄の知らせを確かめてください",
+        "計算条件に誤りがあります。各欄のメッセージを確かめてください",
     ),
     ("failure.orchestration", "ジョブを投入・実行できません"),
     (
