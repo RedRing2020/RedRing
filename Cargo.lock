@@ -2607,6 +2607,8 @@ dependencies = [
  "pollster 1.0.1",
  "render",
  "rfd",
+ "serde",
+ "serde_json",
  "smol_str 0.3.7",
  "stage",
  "tracing",

@@ -16,6 +16,16 @@ struct PendingSettingsPanelFrame {
     pixels_per_point: f32,
 }
 
+/// ウィンドウの中身の下と、範囲の下端との間（ウィンドウの枠と、下の余白）
+const WINDOW_BODY_BOTTOM_GAP: f32 = 24.0;
+/// ウィンドウの中身の高さの下限（範囲がとても低いときも、少しは見せる）
+const WINDOW_BODY_MIN_HEIGHT: f32 = 120.0;
+
+/// ウィンドウの中身を置ける高さ（中身の上端から、範囲 `area`（メニューバーと知らせの行の間）の下端まで）
+pub(crate) fn window_body_max_height(ui: &egui::Ui, area: Rect) -> f32 {
+    (area.bottom() - ui.cursor().top() - WINDOW_BODY_BOTTOM_GAP).max(WINDOW_BODY_MIN_HEIGHT)
+}
+
 pub(crate) struct SettingsPanelRenderer {
     egui_context: Context,
     egui_state: State,

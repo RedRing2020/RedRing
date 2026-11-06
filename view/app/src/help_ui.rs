@@ -82,6 +82,12 @@ pub(crate) enum Notice {
     NoToolSegments,
     /// 切削アニメーションの表示中ではないため、設定を反映できない
     ApplyWithoutAnimation,
+    /// アプリの設定を読めないため、既定の設定で起動した（理由）
+    SettingsLoadFailed { reason: String },
+    /// 設定のファイルを使えない（利用者ごとのフォルダが分からない・読めなかった）ため、設定を保存しない
+    SettingsNotSaved,
+    /// アプリの設定を保存できない（理由）
+    SettingsSaveFailed { reason: String },
     /// 投入・実行・取り込みの結果（加工条件のウィンドウの結果の行と同じ文言）
     Operation(OperationStatus),
 }
@@ -91,9 +97,12 @@ impl Notice {
         match self {
             Self::Startup | Self::ShapeImported { .. } => NoticeLevel::Info,
             Self::ShapeImportFailed { .. } => NoticeLevel::Error,
-            Self::NotImported | Self::NoToolSegments | Self::ApplyWithoutAnimation => {
-                NoticeLevel::Warning
-            }
+            Self::NotImported
+            | Self::NoToolSegments
+            | Self::ApplyWithoutAnimation
+            | Self::SettingsLoadFailed { .. }
+            | Self::SettingsNotSaved
+            | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
             Self::Operation(status) => match status {
                 OperationStatus::SubmitFailed(_)
                 | OperationStatus::RunFailed(_)
@@ -122,6 +131,17 @@ impl Notice {
             Self::ApplyWithoutAnimation => {
                 resolve_help_text(locale, "notice.apply_without_animation", &[])
             }
+            Self::SettingsLoadFailed { reason } => resolve_help_text(
+                locale,
+                "notice.settings_load_failed",
+                &[("reason", reason.clone())],
+            ),
+            Self::SettingsNotSaved => resolve_help_text(locale, "notice.settings_not_saved", &[]),
+            Self::SettingsSaveFailed { reason } => resolve_help_text(
+                locale,
+                "notice.settings_save_failed",
+                &[("reason", reason.clone())],
+            ),
             Self::Operation(status) => {
                 let (key, args) = operation_status_message(status);
                 resolve_machining_conditions_text(locale, key, &args)
@@ -288,6 +308,13 @@ mod tests {
                 Notice::NotImported,
                 Notice::NoToolSegments,
                 Notice::ApplyWithoutAnimation,
+                Notice::SettingsLoadFailed {
+                    reason: "broken".to_string(),
+                },
+                Notice::SettingsNotSaved,
+                Notice::SettingsSaveFailed {
+                    reason: "denied".to_string(),
+                },
                 Notice::Operation(OperationStatus::RunFailed("reason".to_string())),
             ];
             for notice in notices {

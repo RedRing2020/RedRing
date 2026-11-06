@@ -6,28 +6,46 @@
 
 use crate::help_messages::resolve_help_text;
 use std::any::Any;
+use std::sync::atomic::{AtomicU8, Ordering};
 use viewmodel::message_catalog::UiLocale;
 
-/// 知らせの画面の文言の言語（異常のときは、アプリの状態を参照できないため、既定の言語を使う）
-const FATAL_ERROR_LOCALE: UiLocale = UiLocale::Ja;
+/// 知らせの画面の文言の言語（異常のときはアプリの状態を参照できないため、言語を替えるたびに覚えておく。
+/// 初めは日本語）
+static FATAL_ERROR_LOCALE: AtomicU8 = AtomicU8::new(LOCALE_JA);
+
+const LOCALE_JA: u8 = 0;
+const LOCALE_EN: u8 = 1;
+
+/// 知らせの画面の文言の言語を、画面の文言の言語 `locale` に合わせる
+pub(crate) fn set_fatal_error_locale(locale: UiLocale) {
+    let code = match locale {
+        UiLocale::Ja => LOCALE_JA,
+        UiLocale::En => LOCALE_EN,
+    };
+    FATAL_ERROR_LOCALE.store(code, Ordering::Relaxed);
+}
+
+fn fatal_error_locale() -> UiLocale {
+    match FATAL_ERROR_LOCALE.load(Ordering::Relaxed) {
+        LOCALE_EN => UiLocale::En,
+        _ => UiLocale::Ja,
+    }
+}
 
 fn show_error_dialog(title_key: &str, body_key: &str, detail: String) {
+    let locale = fatal_error_locale();
     let log_file = match crate::logging::log_file_path() {
-        Some(path) => resolve_help_text(
-            FATAL_ERROR_LOCALE,
-            "fatal.log_file",
-            &[("path", path.to_string())],
-        ),
-        None => resolve_help_text(FATAL_ERROR_LOCALE, "fatal.no_log_file", &[]),
+        Some(path) => resolve_help_text(locale, "fatal.log_file", &[("path", path.to_string())]),
+        None => resolve_help_text(locale, "fatal.no_log_file", &[]),
     };
     let body = resolve_help_text(
-        FATAL_ERROR_LOCALE,
+        locale,
         body_key,
         &[("detail", detail), ("log_file", log_file)],
     );
     rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
-        .set_title(resolve_help_text(FATAL_ERROR_LOCALE, title_key, &[]))
+        .set_title(resolve_help_text(locale, title_key, &[]))
         .set_description(body)
         .set_buttons(rfd::MessageButtons::Ok)
         .show();

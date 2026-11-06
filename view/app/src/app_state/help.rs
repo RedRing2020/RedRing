@@ -3,6 +3,7 @@
 use super::AppState;
 use crate::help_ui::{HelpUiState, Notice};
 use crate::machining_conditions_ui::OperationStatus;
+use viewmodel::message_catalog::UiLocale;
 
 impl AppState {
     /// 「操作の一覧」のウィンドウを開閉する（F1・h キー）
@@ -20,6 +21,27 @@ impl AppState {
         self.help_about_open = true;
     }
 
+    /// 画面の文言の言語を `locale` に替え、アプリの設定に保存する
+    pub(crate) fn set_ui_locale(&mut self, locale: UiLocale) {
+        if self.ui_locale == locale {
+            return;
+        }
+        self.ui_locale = locale;
+        crate::fatal_error_dialog::set_fatal_error_locale(locale);
+        self.refresh_snapshot_window_title();
+        self.app_settings.set_locale(locale);
+        let Some(path) = &self.app_settings_path else {
+            self.set_notice(Notice::SettingsNotSaved);
+            return;
+        };
+        if let Err(error) = crate::app_settings::save_settings(path, &self.app_settings) {
+            tracing::warn!(path = %path.display(), "アプリの設定を保存できません: {error}");
+            self.set_notice(Notice::SettingsSaveFailed {
+                reason: error.to_string(),
+            });
+        }
+    }
+
     /// 画面の下の知らせの行に、知らせ `notice` を出す（前の知らせに替える）
     pub(crate) fn set_notice(&mut self, notice: Notice) {
         self.notice = notice;
@@ -33,7 +55,7 @@ impl AppState {
 
     pub(crate) fn prepare_help_state(&self) -> HelpUiState {
         HelpUiState {
-            locale: self.settings_panel_locale,
+            locale: self.ui_locale,
             controls_open: self.help_controls_open,
             about_open: self.help_about_open,
             log_path: crate::logging::log_file_path(),
