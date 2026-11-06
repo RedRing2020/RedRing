@@ -232,25 +232,30 @@ impl InverseOffsetShape {
                     vertices[if first == vertex { second } else { first }]
                 })
                 .collect();
-            let sphere = match shape {
-                CutterShape::Ball { radius } => Some(
-                    SphericalSurface3D::new_standard(point_of(point), radius)
-                        .expect("the tool radius is positive"),
+            let alongs: Vec<[f64; 3]> = neighbors
+                .iter()
+                .map(|&neighbor| sub(neighbor, point))
+                .collect();
+            let center = [[point[0], point[1]]];
+            let (sphere, bound) = match shape {
+                // ボールの頂点は、球面のうち範囲の向きの部分が効く
+                CutterShape::Ball { radius } => (
+                    Some(
+                        SphericalSurface3D::new_standard(point_of(point), radius)
+                            .expect("the tool radius is positive"),
+                    ),
+                    reach_bounds(&center, sphere_directions_xy(&alongs), radius),
                 ),
                 // フラットの頂点は、範囲に真上の向きがある（工具の底が頂点に乗る）場合だけ円板になる。それ以外の範囲は
                 // 工具の底の縁が頂点に接する円弧（面積がない）で、つながる辺の要素の端と同じため外す
                 CutterShape::Flat { .. } => {
-                    let alongs: Vec<[f64; 3]> = neighbors
-                        .iter()
-                        .map(|&neighbor| sub(neighbor, point))
-                        .collect();
                     if !in_range([0.0, 0.0, 1.0], &alongs) {
                         continue;
                     }
-                    None
+                    (None, xy_bounds(&center, radius))
                 }
             };
-            bounds.push(xy_bounds(&[[point[0], point[1]]], radius));
+            bounds.push(bound);
             elements.push(Element::Vertex(vertex_elements.len()));
             z_ranges.push(ZRange {
                 lowest: point[2] - radius,
@@ -275,26 +280,40 @@ impl InverseOffsetShape {
                 CutterShape::Ball { .. } => into_faces,
                 CutterShape::Flat { .. } => flat_edge_range(direction, &into_faces),
             };
-            let cylinder = match shape {
+            let segment = ends.map(|p| [p[0], p[1]]);
+            // ボールの辺は、辺に垂直で範囲にある向きに、フラットの辺は、範囲にある水平な向きに、半径だけ離れた所が効く
+            let (cylinder, bound) = match shape {
                 CutterShape::Ball { radius } => {
                     // 長さのない辺は、端点の球で決まる
                     let Some(axis) = Direction3D::new(direction[0], direction[1], direction[2])
                     else {
                         continue;
                     };
-                    Some(
-                        CylindricalSurface3D::new(
-                            point_of(ends[0]),
-                            axis,
-                            perpendicular(axis),
+                    let reference = perpendicular(axis);
+                    let [first, along] = [reference, axis].map(|d| [d.x(), d.y(), d.z()]);
+                    let second = cross(along, first);
+                    (
+                        Some(
+                            CylindricalSurface3D::new(point_of(ends[0]), axis, reference, radius)
+                                .expect("the tool radius is positive"),
+                        ),
+                        reach_bounds(
+                            &segment,
+                            circle_directions_xy(first, second, &range),
                             radius,
-                        )
-                        .expect("the tool radius is positive"),
+                        ),
                     )
                 }
-                CutterShape::Flat { .. } => None,
+                CutterShape::Flat { .. } => (
+                    None,
+                    reach_bounds(
+                        &segment,
+                        circle_directions_xy([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], &range),
+                        radius,
+                    ),
+                ),
             };
-            bounds.push(xy_bounds(&ends.map(|p| [p[0], p[1]]), radius));
+            bounds.push(bound);
             elements.push(Element::Edge(edge_elements.len()));
             z_ranges.push(ZRange {
                 lowest: ends[0][2].min(ends[1][2]) - radius,
@@ -748,6 +767,114 @@ fn perpendicular(axis: Direction3D<f64>) -> Direction3D<f64> {
     let p = cross(a, helper);
     Direction3D::new(p[0], p[1], p[2]).expect("the helper axis is not parallel to the edge")
 }
+
+/// 点の列 `points` から、XY 成分が `directions`（min, max）に入る単位ベクトルの向きに `radius` だけ離れた点の XY 範囲
+/// （頂点・辺の要素が効く XY 範囲）。`directions` がなければ（効く向きがない）、どの升目にも入らない空の範囲
+///
+/// 範囲の判定は内積に余裕 ε を持つため、効く向きは境から広がる。2 つの境がほとんど重なる角では、角が ε より大きく
+/// 動くため、向きを √ε だけ広げる。交点は許容誤差の分だけ要素の外を含むため、その分も広げる。
+fn reach_bounds(
+    points: &[[f64; 2]],
+    directions: Option<([f64; 2], [f64; 2])>,
+    radius: f64,
+) -> ([f64; 2], [f64; 2]) {
+    let Some((low, high)) = directions else {
+        return EMPTY_BOUNDS;
+    };
+    let (min, max) = xy_bounds(points, 0.0);
+    let margin = radius * default_orthogonality_dot_error_tolerance::<f64>().sqrt() + tolerance();
+    (
+        [
+            min[0] + radius * low[0] - margin,
+            min[1] + radius * low[1] - margin,
+        ],
+        [
+            max[0] + radius * high[0] + margin,
+            max[1] + radius * high[1] + margin,
+        ],
+    )
+}
+
+/// どの升目にも入らない空の XY 範囲（min が max より大きい）
+const EMPTY_BOUNDS: ([f64; 2], [f64; 2]) = ([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]);
+
+/// 単位ベクトルにした `candidates` とその逆向きのうち、範囲 `range` にあるものの XY 成分の範囲（min, max。なければ
+/// `None`）
+fn directions_xy(candidates: &[[f64; 3]], range: &[[f64; 3]]) -> Option<([f64; 2], [f64; 2])> {
+    candidates
+        .iter()
+        .filter_map(|&candidate| {
+            let norm = dot(candidate, candidate).sqrt();
+            (norm > 0.0).then(|| candidate.map(|component| component / norm))
+        })
+        .flat_map(|unit| [unit, unit.map(|component| -component)])
+        .filter(|&unit| in_range(unit, range))
+        .fold(None, |bounds, unit| {
+            let [x, y] = [unit[0], unit[1]];
+            Some(match bounds {
+                None => ([x, y], [x, y]),
+                Some((min, max)) => (
+                    [min[0].min(x), min[1].min(y)],
+                    [max[0].max(x), max[1].max(y)],
+                ),
+            })
+        })
+}
+
+/// 互いに垂直な単位ベクトル `first`・`second` の平面の単位円のうち、範囲 `range` にある向き（円の弧）の XY 成分の範囲
+///
+/// 範囲は原点を通る半平面の共通部分のため、円の弧になる。弧の上で X・Y 成分が最大・最小になるのは、弧の端（半平面の
+/// 境の向き）か、円の全体で最大・最小になる向きのため、それらのうち範囲にあるものから求める。
+fn circle_directions_xy(
+    first: [f64; 3],
+    second: [f64; 3],
+    range: &[[f64; 3]],
+) -> Option<([f64; 2], [f64; 2])> {
+    let combine = |a: f64, b: f64| [0, 1, 2].map(|k| a * first[k] + b * second[k]);
+    // 円の全体で X・Y 成分が最大・最小になる向きと、半平面の境の向き
+    let candidates: Vec<[f64; 3]> = (0..2)
+        .map(|axis| combine(first[axis], second[axis]))
+        .chain(
+            range
+                .iter()
+                .map(|bound| combine(-dot(*bound, second), dot(*bound, first))),
+        )
+        .collect();
+    directions_xy(&candidates, range)
+}
+
+/// 単位球面のうち、範囲 `range` にある向き（球面の多角形）の XY 成分の範囲
+///
+/// 範囲は原点を通る半空間の共通部分のため、球面の多角形になる。その上で X・Y 成分が最大・最小になるのは、多角形の角
+/// （2 つの境の大円の交点）、辺（境の大円）の上で最大・最小になる所、球面の全体で最大・最小になる向きのため、それらの
+/// うち範囲にあるものから求める。角の候補は境の数の 2 乗に比例するため、境が `MAX_SPHERE_BOUNDS` より多い頂点（細かく
+/// 分けた円の中心など）は、球面の全体（XY 成分は −1〜1）とする。
+fn sphere_directions_xy(range: &[[f64; 3]]) -> Option<([f64; 2], [f64; 2])> {
+    if range.len() > MAX_SPHERE_BOUNDS {
+        return Some(([-1.0, -1.0], [1.0, 1.0]));
+    }
+    let axes = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+    let mut candidates: Vec<[f64; 3]> = axes.to_vec();
+    for (index, &bound) in range.iter().enumerate() {
+        let length_squared = dot(bound, bound);
+        if length_squared == 0.0 {
+            continue;
+        }
+        // 境の大円の上で X・Y 成分が最大・最小になる向き（軸の向きを境の平面へ射影したもの）
+        for axis in axes {
+            let scale = dot(axis, bound) / length_squared;
+            candidates.push([0, 1, 2].map(|k| axis[k] - scale * bound[k]));
+        }
+        // 2 つの境の大円の交点
+        for &other in &range[index + 1..] {
+            candidates.push(cross(bound, other));
+        }
+    }
+    directions_xy(&candidates, range)
+}
+
+/// 効く向きを角から求める頂点の、つながる辺の数の上限
+const MAX_SPHERE_BOUNDS: usize = 32;
 
 /// 点の列の XY 範囲を `margin` だけ広げたもの
 fn xy_bounds(points: &[[f64; 2]], margin: f64) -> ([f64; 2], [f64; 2]) {

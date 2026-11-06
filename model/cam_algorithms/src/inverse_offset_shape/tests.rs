@@ -1022,3 +1022,80 @@ fn rises_above_chords_on_planes_tangent_to_sloped_edges_stay_on_the_edges() {
     assert_eq!(inverse.tip_height_at(start[0], 2.0), None);
     assert_eq!(inverse.rise_above_chord(2.0, start, end), None);
 }
+
+/// 索引を使わずに、すべての要素から求めた工具先端の高さ
+fn brute_force_height(shape: &InverseOffsetShape, x: f64, y: f64) -> Option<f64> {
+    (0..shape.elements.len())
+        .filter_map(|element| shape.element_height(element, x, y))
+        .reduce(f64::max)
+        .map(|height| height - shape.shape.reference_offset())
+}
+
+/// 原点を中心とするなめらかな丘を、間隔 `step` の細かい三角形に分けたもの（`count` × `count` の格子）
+fn fine_hill(count: usize, step: f64) -> TriangleMesh3D<f64> {
+    let span = count as f64 * step;
+    let mut vertices = Vec::new();
+    for j in 0..=count {
+        for i in 0..=count {
+            let (x, y) = (i as f64 * step, j as f64 * step);
+            let (u, v) = (x / span - 0.5, y / span - 0.5);
+            vertices.push(Point3D::new(x, y, 3.0 * (1.0 - 2.0 * (u * u + v * v))));
+        }
+    }
+    let at = |i: usize, j: usize| j * (count + 1) + i;
+    let mut triangles = Vec::new();
+    for j in 0..count {
+        for i in 0..count {
+            triangles.push([at(i, j), at(i + 1, j), at(i + 1, j + 1)]);
+            triangles.push([at(i, j), at(i + 1, j + 1), at(i, j + 1)]);
+        }
+    }
+    TriangleMesh3D::new(vertices, triangles).unwrap()
+}
+
+#[test]
+fn indexed_heights_match_the_heights_from_all_elements() {
+    // 頂点と辺の要素は効く XY 範囲だけで索引に入れる。範囲を狭くしすぎると、高さが低く出て削り込むため、すべての
+    // 要素から求めた高さと比べる（凸・凹・鞍形の頂点、縁の辺と頂点、鉛直な壁、閉じた形、張り出し、ほぼ平らな尾根、
+    // 工具の半径に比べて細かい三角形）
+    let roof = TriangleMesh3D::new(
+        vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(5.0, 0.0, 1e-9),
+            Point3D::new(5.0, 10.0, 1e-9),
+            Point3D::new(0.0, 10.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+            Point3D::new(10.0, 10.0, 0.0),
+        ],
+        vec![[0, 1, 2], [0, 2, 3], [1, 4, 5], [1, 5, 2]],
+    )
+    .unwrap();
+    let meshes = [
+        (terrain(12, ridges, true), 12.0),
+        (step(), 10.0),
+        (tetrahedron(), 10.0),
+        (overhang(), 14.0),
+        (roof, 10.0),
+        (fine_hill(60, 0.1), 6.0),
+    ];
+    for (mesh, span) in meshes {
+        for shape in SHAPES {
+            for exclude_concave in [true, false] {
+                let inverse = InverseOffsetShape::build(&mesh, shape, exclude_concave).unwrap();
+                // 格子の点と、格子からずらした点
+                let points: Vec<(f64, f64)> = grid(span)
+                    .chain(grid(span).map(|(x, y)| (x + 0.113, y + 0.071)))
+                    .collect();
+                let indexed: Vec<Option<f64>> = points
+                    .iter()
+                    .map(|&(x, y)| inverse.tip_height_at(x, y))
+                    .collect();
+                let expected: Vec<Option<f64>> = points
+                    .iter()
+                    .map(|&(x, y)| brute_force_height(&inverse, x, y))
+                    .collect();
+                assert_same(&indexed, &expected);
+            }
+        }
+    }
+}
