@@ -4,6 +4,7 @@ use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
 use crate::selection_rect::SelectionRect;
 use crate::snapshot_overlay_renderer::snapshot_track_rect;
+use crate::window_title_messages::resolve_window_title_text;
 use std::time::Instant;
 use viewmodel::cutting_animation::CuttingAnimation;
 
@@ -164,9 +165,10 @@ impl AppState {
             return true;
         }
         tracing::warn!(
-            "切削シミュレーションが取り込まれていません。trigger={}, Shift+L で取り込んでください",
+            "No cutting simulation is imported (trigger={}); import it with Shift+L",
             trigger.label()
         );
+        self.set_notice(crate::help_ui::Notice::NotImported);
         false
     }
 
@@ -221,7 +223,7 @@ impl AppState {
         };
 
         if series.frames.is_empty() {
-            tracing::warn!("スナップショット系列が空です");
+            tracing::warn!("The snapshot series is empty");
             return;
         }
 
@@ -253,7 +255,7 @@ impl AppState {
         };
 
         if series.frames.is_empty() {
-            tracing::warn!("スナップショット系列が空です");
+            tracing::warn!("The snapshot series is empty");
             return;
         }
 
@@ -280,7 +282,10 @@ impl AppState {
             return;
         };
         let Some(frame) = animation.step_tool_endpoint(forward) else {
-            tracing::warn!("ツールパスに区間がないため、工具を区間の端点へ移せません");
+            tracing::warn!(
+                "Cannot move the tool to a segment endpoint because the toolpath has no segments"
+            );
+            self.set_notice(crate::help_ui::Notice::NoToolSegments);
             return;
         };
 
@@ -316,7 +321,7 @@ impl AppState {
                 self.debug_snapshot.last_playback_tick = Some(Instant::now());
                 self.refresh_snapshot_window_title();
                 tracing::info!(
-                    "Snapshot自動再生を開始: {}x",
+                    "Started snapshot playback: {}x",
                     self.debug_snapshot.playback_speed_factor
                 );
             }
@@ -342,7 +347,7 @@ impl AppState {
         self.debug_snapshot.last_playback_tick = None;
         self.refresh_snapshot_window_title();
         tracing::info!(
-            "Snapshot自動再生を一時停止: {}x",
+            "Paused snapshot playback: {}x",
             self.debug_snapshot.playback_speed_factor
         );
     }
@@ -353,7 +358,7 @@ impl AppState {
         self.debug_snapshot.playback_progress = 0.0;
         self.set_snapshot_cursor_from_progress(0.0, false);
         self.log_current_snapshot_frame(true);
-        tracing::info!("Snapshot自動再生を停止（先頭へ移動）");
+        tracing::info!("Stopped snapshot playback (moved to the start)");
     }
 
     /// 再生速度を `scale` 倍にする（0.25 倍から 32 倍まで）
@@ -363,7 +368,7 @@ impl AppState {
         self.debug_snapshot.playback_speed_factor = next;
         self.refresh_snapshot_window_title();
         tracing::info!(
-            "Snapshot再生速度: {}x",
+            "Snapshot playback speed: {}x",
             self.debug_snapshot.playback_speed_factor
         );
     }
@@ -416,7 +421,7 @@ impl AppState {
             self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Paused;
             self.debug_snapshot.last_playback_tick = None;
             self.refresh_snapshot_window_title();
-            tracing::info!("Snapshot自動再生が末尾に到達して停止");
+            tracing::info!("Snapshot playback reached the end and stopped");
         }
     }
 
@@ -505,21 +510,31 @@ impl AppState {
                     .map(|endpoint| (endpoint, animation.endpoint_count()))
             });
         let title = match endpoint {
-            Some((endpoint, count)) => format!(
-                "RedRing | 工具: 区間の端点 {}/{}（{}） | 素材: Snapshot {}/{}（工具の手前） remain={:.3}mm3 | {} {}x",
-                endpoint,
-                count - 1,
-                if endpoint == 0 {
-                    "最初の区間の始点".to_string()
+            Some((endpoint, count)) => {
+                let place = if endpoint == 0 {
+                    resolve_window_title_text(self.ui_locale, "title.endpoint.first_start", &[])
                 } else {
-                    format!("区間 {} の終点", endpoint - 1)
-                },
-                index + 1,
-                frame_count,
-                payload.remaining_volume_mm3,
-                mode_label,
-                speed_factor,
-            ),
+                    resolve_window_title_text(
+                        self.ui_locale,
+                        "title.endpoint.segment_end",
+                        &[("segment", (endpoint - 1).to_string())],
+                    )
+                };
+                resolve_window_title_text(
+                    self.ui_locale,
+                    "title.endpoint",
+                    &[
+                        ("endpoint", endpoint.to_string()),
+                        ("count", (count - 1).to_string()),
+                        ("place", place),
+                        ("frame", (index + 1).to_string()),
+                        ("frames", frame_count.to_string()),
+                        ("remain", format!("{:.3}", payload.remaining_volume_mm3)),
+                        ("mode", mode_label),
+                        ("speed", speed_factor.to_string()),
+                    ],
+                )
+            }
             None => format!(
                 "RedRing | Snapshot {}/{} | seg={} t={:.3} dist={:.3}mm remain={:.3}mm3 | {} {}x",
                 index + 1,

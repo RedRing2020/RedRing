@@ -10,14 +10,26 @@ const SHAPE_FILE_FORMATS: &[(&str, &[&str])] = &[("STL", &["stl", "STL"])];
 impl AppState {
     pub(crate) fn prepare_menu_bar_state(&self) -> MenuBarUiState {
         MenuBarUiState {
-            locale: self.settings_panel_locale,
+            locale: self.ui_locale,
             load_requested: false,
+            locale_requested: None,
+            controls_requested: false,
+            about_requested: false,
         }
     }
 
     pub(crate) fn apply_menu_bar_state(&mut self, state: MenuBarUiState) {
         if state.load_requested {
             self.shape_file_load_requested = true;
+        }
+        if let Some(locale) = state.locale_requested {
+            self.set_ui_locale(locale);
+        }
+        if state.controls_requested {
+            self.open_help_controls();
+        }
+        if state.about_requested {
+            self.open_help_about();
         }
     }
 
@@ -37,7 +49,7 @@ impl AppState {
             .flat_map(|(_, extensions)| extensions.iter().copied())
             .collect();
         let mut dialog = rfd::FileDialog::new().set_parent(&*self.window).add_filter(
-            resolve_menu_bar_text(self.settings_panel_locale, "menu.file.load.supported"),
+            resolve_menu_bar_text(self.ui_locale, "menu.file.load.supported"),
             &supported,
         );
         for (name, extensions) in SHAPE_FILE_FORMATS {

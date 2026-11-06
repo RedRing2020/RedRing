@@ -86,7 +86,7 @@ impl ToolPathStage {
     /// `vertices` は LineList トポロジー用のため、
     /// 2頂点で1線分を表現します。
     pub fn set_toolpath_data(&mut self, device: &Device, vertices: Vec<ToolPathVertex>) {
-        tracing::debug!("工具経路データ設定: {} 頂点", vertices.len());
+        tracing::debug!("Set toolpath data: {} vertices", vertices.len());
 
         self.resources.update_vertices(device, &vertices);
         self.has_data = !vertices.is_empty();
@@ -154,14 +154,14 @@ impl RenderStage for ToolPathStage {
 
         if !self.has_data {
             if should_trace {
-                tracing::trace!("ToolPathStage: データなし、描画スキップ");
+                tracing::trace!("ToolPathStage: no data, skipped drawing");
             }
             return;
         }
 
         if should_trace {
             tracing::trace!(
-                "ToolPathStage: 描画開始 ({} 頂点)",
+                "ToolPathStage: drawing ({} vertices)",
                 self.resources.vertex_count
             );
         }

@@ -1,3 +1,4 @@
+use crate::help_ui::{HelpUiState, NoticeBarUiState};
 use crate::machining_conditions_ui::MachiningConditionsUiState;
 use crate::menu_bar_ui::MenuBarUiState;
 use crate::settings_panel_ui::SettingsPanelUiState;
@@ -15,6 +16,16 @@ struct PendingSettingsPanelFrame {
     pixels_per_point: f32,
 }
 
+/// ウィンドウの中身の下と、範囲の下端との間（ウィンドウの枠と、下の余白）
+const WINDOW_BODY_BOTTOM_GAP: f32 = 24.0;
+/// ウィンドウの中身の高さの下限（範囲がとても低いときも、少しは見せる）
+const WINDOW_BODY_MIN_HEIGHT: f32 = 120.0;
+
+/// ウィンドウの中身を置ける高さ（中身の上端から、範囲 `area`（メニューバーと知らせの行の間）の下端まで）
+pub(crate) fn window_body_max_height(ui: &egui::Ui, area: Rect) -> f32 {
+    (area.bottom() - ui.cursor().top() - WINDOW_BODY_BOTTOM_GAP).max(WINDOW_BODY_MIN_HEIGHT)
+}
+
 pub(crate) struct SettingsPanelRenderer {
     egui_context: Context,
     egui_state: State,
@@ -22,6 +33,8 @@ pub(crate) struct SettingsPanelRenderer {
     pending_frame: Option<PendingSettingsPanelFrame>,
     /// メニューバーなど上端の UI の高さ（egui の座標）と、その物理ピクセルへの倍率（最後に描いた画面の値）
     menu_bar_bottom: f32,
+    /// 画面の下の知らせの行の上端（論理座標。最後に描いた画面の値）
+    notice_bar_top: f32,
     pixels_per_point: f32,
 }
 
@@ -46,6 +59,7 @@ impl SettingsPanelRenderer {
             egui_renderer,
             pending_frame: None,
             menu_bar_bottom: 0.0,
+            notice_bar_top: f32::INFINITY,
             pixels_per_point: 1.0,
         }
     }
@@ -68,6 +82,7 @@ impl SettingsPanelRenderer {
             return false;
         };
         position.y < self.menu_bar_bottom
+            || position.y > self.notice_bar_top
             || ctx
                 .layer_id_at(position)
                 .is_some_and(|layer| layer.order != Order::Background)
@@ -87,24 +102,30 @@ impl SettingsPanelRenderer {
         self.menu_bar_bottom * self.pixels_per_point
     }
 
-    /// メニューバーと、設定パネル・加工条件のウィンドウを、同じ egui の文脈で描く（ウィンドウはメニューバーの下に置く）
+    /// メニューバー・知らせの行と、設定パネル・加工条件・ヘルプのウィンドウを、同じ egui の文脈で描く（ウィンドウは
+    /// メニューバーと知らせの行の間に置く）
     pub(crate) fn prepare(
         &mut self,
         window: &Window,
         menu: &mut MenuBarUiState,
+        notice: &NoticeBarUiState<'_>,
         panel: &mut SettingsPanelUiState,
         conditions: &mut MachiningConditionsUiState,
+        help: &mut HelpUiState,
     ) {
         let raw_input = self.egui_state.take_egui_input(window);
         let mut area = Rect::NOTHING;
         let full_output = self.egui_context.run_ui(raw_input, |ui| {
             menu.show(ui);
+            notice.show(ui);
             area = ui.available_rect_before_wrap();
             panel.show(ui, area);
             conditions.show(ui, area);
+            help.show(ui, area);
         });
         let pixels_per_point = full_output.pixels_per_point;
         self.menu_bar_bottom = area.top();
+        self.notice_bar_top = area.bottom();
         self.pixels_per_point = pixels_per_point;
         let paint_jobs = self
             .egui_context

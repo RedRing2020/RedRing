@@ -39,7 +39,10 @@ pub(crate) fn compute_rotation_from_sphere_points(
     let axis = sphere_from.cross(&sphere_to);
     let axis_magnitude = axis.dot(&axis).sqrt();
     if axis_magnitude < 1e-6 {
-        tracing::debug!("球面回転: ベクトルがほぼ平行 (dot={:.4})", dot);
+        tracing::debug!(
+            "Sphere rotation: vectors are nearly parallel (dot={:.4})",
+            dot
+        );
         return Quaternionf::identity();
     }
 
@@ -74,7 +77,7 @@ pub(crate) fn rotate_arcball(
     *rotation = (q_rotation * *rotation).normalize().unwrap_or(*rotation);
 
     tracing::debug!(
-        "✓ Arcball回転: prev=({:.0},{:.0}) → curr=({:.0},{:.0})",
+        "Arcball rotation: prev=({:.0},{:.0}) -> curr=({:.0},{:.0})",
         prev_x,
         prev_y,
         curr_x,
@@ -110,7 +113,7 @@ pub(crate) fn rotate_arcball_from_delta(
     *rotation = (q_rotation * *rotation).normalize().unwrap_or(*rotation);
 
     tracing::debug!(
-        "✓ Arcball回転(Delta): delta=({:.1},{:.1}), center=({:.1},{:.1}), curr=({:.1},{:.1}), sphere_from=({:.3},{:.3},{:.3}), sphere_to=({:.3},{:.3},{:.3}), axis=({:.3},{:.3},{:.3}), angle_deg={:.2}, q=({:.4},{:.4},{:.4},{:.4}), rot_prev=({:.4},{:.4},{:.4},{:.4}), rot_new=({:.4},{:.4},{:.4},{:.4}), viewport=({:.0}x{:.0})",
+        "Arcball rotation (delta): delta=({:.1},{:.1}), center=({:.1},{:.1}), curr=({:.1},{:.1}), sphere_from=({:.3},{:.3},{:.3}), sphere_to=({:.3},{:.3},{:.3}), axis=({:.3},{:.3},{:.3}), angle_deg={:.2}, q=({:.4},{:.4},{:.4},{:.4}), rot_prev=({:.4},{:.4},{:.4},{:.4}), rot_new=({:.4},{:.4},{:.4},{:.4}), viewport=({:.0}x{:.0})",
         delta_x,
         delta_y,
         center_x,
@@ -171,7 +174,7 @@ pub(crate) fn pan(
     *target = *target + offset;
 
     tracing::debug!(
-        "🎮 パン移動: delta=({:.1}, {:.1}), offset=({:.3}, {:.3}, {:.3}), target_new=({:.1}, {:.1}, {:.1})",
+        "Pan: delta=({:.1}, {:.1}), offset=({:.3}, {:.3}, {:.3}), target_new=({:.1}, {:.1}, {:.1})",
         delta_x,
         delta_y,
         offset.x(),
@@ -228,7 +231,7 @@ pub(crate) fn zoom(
     }
 
     tracing::debug!(
-        "🔍 ズーム: mode={:?}, delta=({:.2},{:.2}), dominant={:.2}, factor={:.4}, distance={:.2}, bounds={:?}",
+        "Zoom: mode={:?}, delta=({:.2},{:.2}), dominant={:.2}, factor={:.4}, distance={:.2}, bounds={:?}",
         projection_mode,
         delta_x,
         delta_y,

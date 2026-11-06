@@ -12,6 +12,15 @@ impl AppState {
         }
 
         // 設定パネル・加工条件のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
+        // F1 は文字を打たないため、入力欄の編集中も受ける
+        if matches!(
+            key,
+            winit::keyboard::Key::Named(winit::keyboard::NamedKey::F1)
+        ) {
+            self.toggle_help_controls();
+            return;
+        }
+
         if self.renderer.is_settings_using_keyboard() {
             return;
         }
@@ -38,63 +47,25 @@ impl AppState {
                 "r" => {
                     self.camera.reset();
                     self.update_camera_uniforms();
-                    tracing::info!("カメラをリセット（rキー）");
+                    tracing::info!("Reset the camera (r key)");
                 }
                 "t" => {
                     self.camera.reset_to_standard_cad_view();
                     self.update_camera_uniforms();
-                    tracing::info!("標準CAD視点に設定（tキー）");
+                    tracing::info!("Set the standard CAD view (t key)");
                 }
                 "f" => {
                     self.camera.reset_to_front_view();
                     self.update_camera_uniforms();
-                    tracing::info!("正面視点に設定（fキー）");
+                    tracing::info!("Set the front view (f key)");
                 }
                 "e" => {
                     self.camera.emergency_camera_escape();
                     self.update_camera_uniforms();
-                    tracing::warn!("緊急カメラ脱出実行（eキー）");
+                    tracing::warn!("Emergency camera escape (e key)");
                 }
                 "h" => {
-                    tracing::info!("=== カメラ操作 ===");
-                    tracing::info!("r: カメラリセット");
-                    tracing::info!("t: 標準CAD視点");
-                    tracing::info!("f: 正面視点");
-                    tracing::info!("e: 緊急脱出");
-                    tracing::info!("=== 切削シミュレーション ===");
-                    tracing::info!(
-                        "【取込】 STL ファイルをウィンドウにドロップ: 製品形状として取り込み"
-                    );
-                    tracing::info!(
-                        "【投入】 Shift+M: 加工条件のウィンドウの表示切替（「投入」で表示中の製品形状を投入）"
-                    );
-                    tracing::info!(
-                        "【実行】 Shift+R: キューにあるジョブを実行（終わるまで画面は止まる）"
-                    );
-                    tracing::info!(
-                        "【取込】 Shift+L: 最も新しい切削シミュレーションを取り込んで再生"
-                    );
-                    tracing::info!("【設定】 Shift+S: 設定パネル表示切替");
-                    tracing::info!("【移動】 k: コマ送りの移動量だけ先のフレームへ（移動量は設定パネルの表示タブ）");
-                    tracing::info!("【移動】 j: コマ送りの移動量だけ前のフレームへ");
-                    tracing::info!(
-                        "【移動】 . / , : 工具を次 / 前の区間の端点へ（素材は工具の手前の時点。タイトルに表示）"
-                    );
-                    tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
-                    tracing::info!("【再生】 Space: 自動再生/一時停止");
-                    tracing::info!("【再生】 Shift+J: 自動再生停止（先頭へ）");
-                    tracing::info!(
-                        "【再生】 + / - : 再生速度を 2 倍・半分（現在倍率はタイトル表示）"
-                    );
-                    tracing::info!("【表示】 w: ワイヤー表示 / ソリッド表示を切り替え");
-                    tracing::info!("【表示】 v: ツールパスの線の表示 / 非表示を切り替え");
-                    tracing::info!("【表示】 Shift+V: 工具の線の表示 / 非表示を切り替え");
-                    tracing::info!("=== その他 ===");
-                    tracing::info!("デバッグ用の表示: 設定パネル（Shift+S）のデバッグタブ");
-                    tracing::info!("Esc: 終了");
-                    tracing::info!(
-                        "マウス操作: Ctrl+左ドラッグ=回転, Ctrl+中ドラッグ=パン, Ctrl+右ドラッグ=ズーム"
-                    );
+                    self.toggle_help_controls();
                 }
                 "w" => {
                     self.toggle_wireframe();

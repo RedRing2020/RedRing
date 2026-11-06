@@ -49,10 +49,10 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
             return;
         }
         lost.store(true, Ordering::Release);
-        tracing::error!("GPU のデバイスが失われました（{reason:?}）: {message}");
+        tracing::error!("The GPU device was lost ({reason:?}): {message}");
     });
     device.on_uncaptured_error(Arc::new(|error| {
-        tracing::error!("GPU のエラー: {error}");
+        tracing::error!("GPU error: {error}");
         panic!("wgpu error: {error}");
     }));
 

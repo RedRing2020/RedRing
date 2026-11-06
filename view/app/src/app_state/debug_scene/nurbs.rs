@@ -8,9 +8,9 @@ impl AppState {
     /// デバッグ用：NurbsCurve3Dを表示（SVGから読み込み）
     pub fn load_debug_nurbs(&mut self) {
         let tolerance = self.tolerance_in_current_unit();
-        tracing::info!("デバッグ形状: NurbsCurve3D表示（GPU評価）");
+        tracing::info!("Debug shape: NurbsCurve3D (GPU evaluation)");
         tracing::info!(
-            "表示トレランス: {:.6} (単位系: {:?})",
+            "Display tolerance: {:.6} (unit: {:?})",
             tolerance,
             self.unit_system
         );
@@ -31,7 +31,7 @@ impl AppState {
             };
 
         tracing::info!(
-            "GPU評価データ生成完了: params={}, control_points={}, degree={}, knots={}",
+            "Generated GPU evaluation data: params={}, control_points={}, degree={}, knots={}",
             eval_data.num_eval_points(),
             eval_data.num_control_points(),
             eval_data.degree,
@@ -52,10 +52,10 @@ impl AppState {
 
     /// デバッグ用: NURBS曲面をGPU評価で表示（曲率のある曲面）
     pub fn load_debug_nurbs_surface(&mut self) {
-        tracing::info!("デバッグ形状: NurbsSurface3D表示（GPU評価）- 曲率のある曲面");
+        tracing::info!("Debug shape: NurbsSurface3D (GPU evaluation) - curved surface");
         let tolerance_value = self.tolerance_in_current_unit();
         tracing::info!(
-            "表示トレランス: {:.6} (単位系: {:?})",
+            "Display tolerance: {:.6} (unit: {:?})",
             tolerance_value,
             self.unit_system
         );
@@ -73,7 +73,7 @@ impl AppState {
             };
 
         tracing::info!(
-            "GPU評価データ生成完了: vertices={}, triangles={}, u_degree={}, v_degree={}",
+            "Generated GPU evaluation data: vertices={}, triangles={}, u_degree={}, v_degree={}",
             eval_data.num_vertices(),
             eval_data.num_triangles(),
             eval_data.u_degree,

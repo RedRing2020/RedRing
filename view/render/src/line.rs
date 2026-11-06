@@ -211,13 +211,16 @@ impl LineResources {
 
     /// 線分データを更新
     pub fn update_line_data(&mut self, device: &wgpu::Device, vertices: &[MeshVertex]) {
-        tracing::debug!("LineResources.update_line_data(): {} 頂点", vertices.len());
+        tracing::debug!(
+            "LineResources.update_line_data(): {} vertices",
+            vertices.len()
+        );
 
         // 最初の8頂点の座標をログ出力（デバッグ用）
         if !vertices.is_empty() && vertices.len() <= 8 {
             for (i, v) in vertices.iter().enumerate() {
                 tracing::trace!(
-                    "  頂点[{}]: ({:.3}, {:.3}, {:.3})",
+                    "  vertex[{}]: ({:.3}, {:.3}, {:.3})",
                     i,
                     v.position[0],
                     v.position[1],
@@ -243,7 +246,7 @@ impl LineResources {
         if let Some(vertex_buffer) = &self.vertex_buffer {
             if should_log(&LINE_RENDER_LOG_COUNTER) {
                 tracing::trace!(
-                    "LineResources.render(): vertex_count={}, pipeline設定開始",
+                    "LineResources.render(): vertex_count={}, setting the pipeline",
                     self.vertex_count
                 );
             }
@@ -252,10 +255,10 @@ impl LineResources {
             render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
             render_pass.draw(0..self.vertex_count, 0..1);
             if should_log(&LINE_RENDER_LOG_COUNTER) {
-                tracing::trace!("LineResources.render(): draw完了");
+                tracing::trace!("LineResources.render(): drawn");
             }
         } else {
-            tracing::debug!("LineResources.render(): vertex_buffer が None");
+            tracing::debug!("LineResources.render(): vertex_buffer is None");
         }
     }
 }

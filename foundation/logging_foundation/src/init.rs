@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::path::prepare_log_file;
 
@@ -11,24 +11,27 @@ pub struct LoggingInitConfig<'a> {
     pub app_name: &'a str,
 }
 
-/// ログ出力先を準備して subscriber を初期化する。
-pub fn init_logging(config: &LoggingInitConfig<'_>) {
-    let log_file_path = prepare_log_file(config.log_dir, config.log_file_name);
-
-    match log_file_path {
-        Some(path) => init_dual_output_logging(config, &path),
-        None => init_console_only_logging(config),
+/// ログ出力先を準備して subscriber を初期化する。書き込むログのファイルを返す（作れずコンソールだけのときは `None`）。
+pub fn init_logging(config: &LoggingInitConfig<'_>) -> Option<PathBuf> {
+    let Some(path) = prepare_log_file(config.log_dir, config.log_file_name) else {
+        init_console_only_logging(config);
+        return None;
+    };
+    if init_dual_output_logging(config, &path) {
+        Some(path)
+    } else {
+        None
     }
 }
 
-fn init_dual_output_logging(config: &LoggingInitConfig<'_>, log_file_path: &Path) {
+fn init_dual_output_logging(config: &LoggingInitConfig<'_>, log_file_path: &Path) -> bool {
     let file = match fs::File::create(log_file_path) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("⚠ ログファイル作成失敗: {}", e);
-            eprintln!("  コンソールログのみで続行します");
+            eprintln!("Failed to create the log file ({:?}): {}", e.kind(), e);
+            eprintln!("  Continuing with console logging only");
             init_console_only_logging(config);
-            return;
+            return false;
         }
     };
 
@@ -52,8 +55,9 @@ fn init_dual_output_logging(config: &LoggingInitConfig<'_>, log_file_path: &Path
         )
         .init();
 
-    tracing::info!("{} 起動", config.app_name);
-    tracing::info!("ログファイル: {}", log_file_path.display());
+    tracing::info!("{} started", config.app_name);
+    tracing::info!("Log file: {}", log_file_path.display());
+    true
 }
 
 fn init_console_only_logging(config: &LoggingInitConfig<'_>) {
@@ -63,5 +67,5 @@ fn init_console_only_logging(config: &LoggingInitConfig<'_>) {
         .with_env_filter(tracing_subscriber::EnvFilter::new(filter))
         .init();
 
-    tracing::info!("{} 起動（コンソールログのみ）", config.app_name);
+    tracing::info!("{} started (console logging only)", config.app_name);
 }

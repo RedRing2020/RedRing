@@ -9,11 +9,20 @@ use std::path::Path;
 impl AppState {
     /// STL ファイルを製品形状として取り込み、表示中の製品形状を表示する
     pub fn import_product_shape(&mut self, path: &Path) {
+        let file = path.file_name().map_or_else(
+            || path.display().to_string(),
+            |name| name.to_string_lossy().into_owned(),
+        );
         if let Err(error) = self.product_shapes.import_stl(path) {
             tracing::warn!(path = %path.display(), "product shape import failed: {error}");
+            self.set_notice(crate::help_ui::Notice::ShapeImportFailed {
+                file,
+                reason: viewmodel::failure_message_mapper::product_shape_failure_message(&error),
+            });
             return;
         }
         tracing::info!(path = %path.display(), "product shape imported");
+        self.set_notice(crate::help_ui::Notice::ShapeImported { file });
         self.condition_issues = None;
         self.show_product_shapes();
     }

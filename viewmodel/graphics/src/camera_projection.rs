@@ -11,7 +11,7 @@ pub(crate) fn projection_matrix(
     aspect: f32,
 ) -> [[f32; 4]; 4] {
     tracing::debug!(
-        "projection_matrix呼び出し: mode={:?}, aspect={:.3}, bounds={:?}",
+        "projection_matrix called: mode={:?}, aspect={:.3}, bounds={:?}",
         projection_mode,
         aspect,
         orthographic_bounds
@@ -22,7 +22,7 @@ pub(crate) fn projection_matrix(
             let near = (distance * 0.01).max(0.001);
             let far = (distance * 100.0).min(1000.0);
 
-            tracing::info!("透視投影を使用: CAM可視化では通常は平行投影を推奨");
+            tracing::info!("Using the perspective projection; the orthographic projection is usually recommended for CAM views");
 
             Matrix4x4::perspective_rh_01(45.0 * PI / 180.0, aspect, near, far).to_column_major()
         }
@@ -36,7 +36,7 @@ pub(crate) fn projection_matrix(
                     let actual_width = logical_height * aspect;
                     let expand = (actual_width - logical_width) * 0.5;
                     tracing::debug!(
-                            "🔲 CAD表示モード（横長）: 論理範囲({}, {}, {}, {}) → 実表示範囲({:.1}, {:.1}, {:.1}, {:.1})",
+                            "CAD display mode (landscape): logical range ({}, {}, {}, {}) -> shown range ({:.1}, {:.1}, {:.1}, {:.1})",
                             bl, br, bb, bt,
                             bl - expand, br + expand, bb, bt
                         );
@@ -45,7 +45,7 @@ pub(crate) fn projection_matrix(
                     let actual_height = logical_width / aspect;
                     let expand = (actual_height - logical_height) * 0.5;
                     tracing::debug!(
-                            "🔲 CAD表示モード（縦長）: 論理範囲({}, {}, {}, {}) → 実表示範囲({:.1}, {:.1}, {:.1}, {:.1})",
+                            "CAD display mode (portrait): logical range ({}, {}, {}, {}) -> shown range ({:.1}, {:.1}, {:.1}, {:.1})",
                             bl, br, bb, bt,
                             bl, br, bb - expand, bt + expand
                         );
@@ -58,7 +58,7 @@ pub(crate) fn projection_matrix(
                 let bottom = -size * 0.5;
                 let top = size * 0.5;
                 tracing::debug!(
-                    "平行投影: 距離ベース left={:.2}, right={:.2}, bottom={:.2}, top={:.2}",
+                    "Orthographic projection by distance: left={:.2}, right={:.2}, bottom={:.2}, top={:.2}",
                     left,
                     right,
                     bottom,
@@ -70,7 +70,7 @@ pub(crate) fn projection_matrix(
             let far = 5000.0;
 
             tracing::info!(
-                "✓ 平行投影行列生成: bounds=({:.1}, {:.1}, {:.1}, {:.1}), near={}, far={}",
+                "Built the orthographic projection matrix: bounds=({:.1}, {:.1}, {:.1}, {:.1}), near={}, far={}",
                 left,
                 right,
                 bottom,

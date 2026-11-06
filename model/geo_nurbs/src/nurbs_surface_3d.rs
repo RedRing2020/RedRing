@@ -115,7 +115,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
                         let basis = u_value * v_value;
                         let point = points
                             .next()
-                            .expect("スパンに効く制御点の数は基底関数の数の積");
+                            .expect("the control points of a span match the product of the basis function counts");
                         for (sum, &coordinate) in homogeneous[k][l].iter_mut().zip(point) {
                             *sum += basis * coordinate;
                         }

@@ -4,13 +4,15 @@
 //! 計算に使った条件を扱う。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
-use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, Window};
+use crate::settings_panel_renderer::window_body_max_height;
+use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, ScrollArea, Window};
 use viewmodel::cutting_simulation_session::{
     flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
     CuttingToolKind, ImportedConditions, MachiningOperationContent, MachiningStock, OperationSpec,
     ScanlineCutDirection, ScanlineToolRange, StockMargins,
 };
-use viewmodel::message_catalog::UiLocale;
+use viewmodel::failure_message_catalog::resolve_failure_message;
+use viewmodel::message_catalog::{UiLocale, UiMessage};
 
 /// 計算条件の問題を出す欄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,7 +28,7 @@ pub(crate) enum ConditionField {
 /// 問題 `issue` を出す欄
 pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
     match issue {
-        ConditionIssue::NoProductShape(_) => ConditionField::Target,
+        ConditionIssue::NoProductShape => ConditionField::Target,
         ConditionIssue::Condition(error) => match error.field() {
             CamConditionField::Tool => ConditionField::Tool,
             CamConditionField::Machining => ConditionField::Machining,
@@ -42,32 +44,42 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum OperationStatus {
     Submitted,
-    SubmitFailed(String),
+    /// 投入できない（画面に出す理由）
+    SubmitFailed(UiMessage),
     /// 実行したジョブの数と、かかった秒数
     Ran {
         executed: usize,
         seconds: f64,
     },
-    RunFailed(String),
+    /// 実行できない（画面に出す理由）
+    RunFailed(UiMessage),
     /// 取り込んだ切削シミュレーションのジョブの番号
     Imported {
         job: u64,
     },
     /// 取り込める（正常終了した）切削シミュレーションがない
     NothingToImport,
-    ImportFailed(String),
+    /// 取り込めない（画面に出す理由）
+    ImportFailed(UiMessage),
 }
 
-/// 結果 `status` を出す文言のキーと引数
-pub(crate) fn operation_status_message(
+/// 結果 `status` の、言語 `locale` の文言
+pub(crate) fn operation_status_text(locale: UiLocale, status: &OperationStatus) -> String {
+    let (key, args) = operation_status_message(locale, status);
+    resolve_machining_conditions_text(locale, key, &args)
+}
+
+/// 結果 `status` を出す文言のキーと引数（失敗の理由は、言語 `locale` の文言にして渡す）
+fn operation_status_message(
+    locale: UiLocale,
     status: &OperationStatus,
 ) -> (&'static str, Vec<(&'static str, String)>) {
+    let reason = |message: &UiMessage| vec![("reason", resolve_failure_message(locale, message))];
     match status {
         OperationStatus::Submitted => ("conditions.status.submitted", vec![]),
-        OperationStatus::SubmitFailed(reason) => (
-            "conditions.status.submit_failed",
-            vec![("reason", reason.clone())],
-        ),
+        OperationStatus::SubmitFailed(message) => {
+            ("conditions.status.submit_failed", reason(message))
+        }
         OperationStatus::Ran { executed, seconds } => (
             "conditions.status.ran",
             vec![
@@ -75,18 +87,14 @@ pub(crate) fn operation_status_message(
                 ("seconds", format!("{seconds:.1}")),
             ],
         ),
-        OperationStatus::RunFailed(reason) => (
-            "conditions.status.run_failed",
-            vec![("reason", reason.clone())],
-        ),
+        OperationStatus::RunFailed(message) => ("conditions.status.run_failed", reason(message)),
         OperationStatus::Imported { job } => {
             ("conditions.status.imported", vec![("job", job.to_string())])
         }
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
-        OperationStatus::ImportFailed(reason) => (
-            "conditions.status.import_failed",
-            vec![("reason", reason.clone())],
-        ),
+        OperationStatus::ImportFailed(message) => {
+            ("conditions.status.import_failed", reason(message))
+        }
     }
 }
 
@@ -176,14 +184,15 @@ impl MachiningConditionsUiState {
 
     fn issue_text(&self, issue: &ConditionIssue) -> String {
         match issue {
-            ConditionIssue::NoProductShape(_) => self.text("conditions.issue.no_product_shape"),
+            ConditionIssue::NoProductShape => self.text("conditions.issue.no_product_shape"),
             ConditionIssue::Condition(error) => {
                 let (key, args) = condition_error_message(error);
                 self.text_with_args(key, &args)
             }
-            ConditionIssue::Other(reason) => {
-                self.text_with_args("conditions.issue.other", &[("reason", reason.clone())])
-            }
+            ConditionIssue::Other(message) => self.text_with_args(
+                "conditions.issue.other",
+                &[("reason", resolve_failure_message(self.locale, message))],
+            ),
         }
     }
 
@@ -212,34 +221,38 @@ impl MachiningConditionsUiState {
             .resizable(true)
             .open(&mut open)
             .show(ctx, |ui| {
-                ui.label(self.text("conditions.intro"));
-                ui.separator();
-                self.show_target(ui);
-                self.show_tool(ui);
-                self.show_machining(ui);
-                self.show_stock(ui);
-                ui.separator();
-                let run_after_submit_label = self.text("conditions.run_after_submit");
-                ui.checkbox(&mut self.run_after_submit, run_after_submit_label);
-                ui.horizontal(|ui| {
-                    let submit = ui.add_enabled(
-                        self.issues.is_empty(),
-                        egui::Button::new(self.text("conditions.submit")),
-                    );
-                    if submit.clicked() {
-                        self.submit_requested = true;
-                    }
-                    if ui.button(self.text("conditions.import")).clicked() {
-                        self.import_requested = true;
-                    }
-                });
-                self.show_issues(ui, ConditionField::Submission);
-                if let Some(status) = &self.status {
-                    let (key, args) = operation_status_message(status);
-                    ui.label(self.text_with_args(key, &args));
-                }
-                ui.separator();
-                self.show_imported(ui);
+                // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
+                ScrollArea::vertical()
+                    .max_height(window_body_max_height(ui, area))
+                    .show(ui, |ui| {
+                        ui.label(self.text("conditions.intro"));
+                        ui.separator();
+                        self.show_target(ui);
+                        self.show_tool(ui);
+                        self.show_machining(ui);
+                        self.show_stock(ui);
+                        ui.separator();
+                        let run_after_submit_label = self.text("conditions.run_after_submit");
+                        ui.checkbox(&mut self.run_after_submit, run_after_submit_label);
+                        ui.horizontal(|ui| {
+                            let submit = ui.add_enabled(
+                                self.issues.is_empty(),
+                                egui::Button::new(self.text("conditions.submit")),
+                            );
+                            if submit.clicked() {
+                                self.submit_requested = true;
+                            }
+                            if ui.button(self.text("conditions.import")).clicked() {
+                                self.import_requested = true;
+                            }
+                        });
+                        self.show_issues(ui, ConditionField::Submission);
+                        if let Some(status) = &self.status {
+                            ui.label(operation_status_text(self.locale, status));
+                        }
+                        ui.separator();
+                        self.show_imported(ui);
+                    });
             });
         self.open = open;
     }
@@ -497,42 +510,61 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        condition_error_message, condition_field, operation_status_message, ConditionField,
+        condition_error_message, condition_field, operation_status_text, ConditionField,
         OperationStatus,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
-    use viewmodel::message_catalog::UiLocale;
+    use viewmodel::message_catalog::{UiLocale, UiMessage};
+
+    fn failure(key: &str) -> UiMessage {
+        UiMessage {
+            key: key.to_string(),
+            args: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn failure_reasons_follow_the_locale() {
+        let status = OperationStatus::SubmitFailed(failure("failure.orchestration"));
+        assert_eq!(
+            operation_status_text(UiLocale::Ja, &status),
+            "投入できません（ジョブを投入・実行できません）"
+        );
+        assert_eq!(
+            operation_status_text(UiLocale::En, &status),
+            "Cannot submit (Cannot submit or run the job)"
+        );
+    }
 
     #[test]
     fn every_operation_status_has_a_message() {
         for status in [
             OperationStatus::Submitted,
-            OperationStatus::SubmitFailed("reason".to_string()),
+            OperationStatus::SubmitFailed(failure("failure.orchestration")),
             OperationStatus::Ran {
                 executed: 2,
                 seconds: 1.25,
             },
-            OperationStatus::RunFailed("reason".to_string()),
+            OperationStatus::RunFailed(failure("failure.orchestration")),
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
-            OperationStatus::ImportFailed("reason".to_string()),
+            OperationStatus::ImportFailed(failure("failure.animation.replay")),
         ] {
-            let (key, args) = operation_status_message(&status);
             for locale in [UiLocale::Ja, UiLocale::En] {
-                let text = resolve_machining_conditions_text(locale, key, &args);
+                let text = operation_status_text(locale, &status);
                 assert!(
                     !text.contains("__missing__") && !text.contains('{'),
                     "{status:?}: {text}"
                 );
             }
         }
-        let (key, args) = operation_status_message(&OperationStatus::Ran {
+        let ran = OperationStatus::Ran {
             executed: 2,
             seconds: 1.25,
-        });
+        };
         assert_eq!(
-            resolve_machining_conditions_text(UiLocale::Ja, key, &args),
+            operation_status_text(UiLocale::Ja, &ran),
             "実行しました（2 件・1.2 秒）。「取り込み」で結果を表示します"
         );
     }
@@ -596,11 +628,11 @@ mod tests {
             ]
         );
         assert_eq!(
-            condition_field(&ConditionIssue::NoProductShape(String::new())),
+            condition_field(&ConditionIssue::NoProductShape),
             ConditionField::Target
         );
         assert_eq!(
-            condition_field(&ConditionIssue::Other(String::new())),
+            condition_field(&ConditionIssue::Other(failure("failure.orchestration"))),
             ConditionField::Submission
         );
     }

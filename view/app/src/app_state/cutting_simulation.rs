@@ -9,6 +9,7 @@ use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
+use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
 use viewmodel::octree_converter::WireframeVertex;
 
 /// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
@@ -62,15 +63,16 @@ impl AppState {
                 tracing::info!(
                     operation = ?self.cutting_simulation.operation_content(),
                     stock = ?self.cutting_simulation.stock(),
-                    "切削シミュレーションを投入しました（Shift+R で実行、Shift+L で取り込み）"
+                    "Submitted the cutting simulation (run with Shift+R, import with Shift+L)"
                 );
-                self.cutting_simulation_status = Some(OperationStatus::Submitted);
+                self.set_operation_status(OperationStatus::Submitted);
                 true
             }
             Err(error) => {
-                tracing::warn!("切削シミュレーションを投入できません: {error}");
-                self.cutting_simulation_status =
-                    Some(OperationStatus::SubmitFailed(error.to_string()));
+                tracing::warn!("Cannot submit the cutting simulation: {error}");
+                self.set_operation_status(OperationStatus::SubmitFailed(
+                    cutting_simulation_failure_message(&error),
+                ));
                 false
             }
         }
@@ -78,29 +80,30 @@ impl AppState {
 
     /// キューにあるジョブを実行する（ジョブマネージャーの代わり。終わるまで戻らない）
     pub(crate) fn run_cutting_simulation_jobs(&mut self) {
-        tracing::info!("キューにあるジョブを実行します");
+        tracing::info!("Running the queued jobs");
         let started = std::time::Instant::now();
         match self.cutting_simulation.run_queued_jobs() {
             Ok(executed) => {
                 let seconds = started.elapsed().as_secs_f64();
-                tracing::info!(executed, "ジョブの実行が終わりました（{seconds:.1} 秒）");
-                self.cutting_simulation_status = Some(OperationStatus::Ran { executed, seconds });
+                tracing::info!(executed, "Finished running the jobs ({seconds:.1} s)");
+                self.set_operation_status(OperationStatus::Ran { executed, seconds });
             }
             Err(error) => {
-                tracing::warn!("ジョブを実行できません: {error}");
-                self.cutting_simulation_status =
-                    Some(OperationStatus::RunFailed(error.to_string()));
+                tracing::warn!("Cannot run the jobs: {error}");
+                self.set_operation_status(OperationStatus::RunFailed(
+                    cutting_simulation_failure_message(&error),
+                ));
             }
         }
     }
 
     /// 正常に実行済みの最も新しい切削シミュレーションを取り込み、製品形状に重ねて再生できるようにする
     pub(crate) fn import_cutting_simulation(&mut self) {
-        tracing::info!("切削シミュレーションを取り込みます");
+        tracing::info!("Importing the cutting simulation");
         let started = std::time::Instant::now();
         match self.cutting_simulation.import_latest(&self.product_shapes) {
             Ok(imported) => {
-                self.cutting_simulation_status = Some(OperationStatus::Imported {
+                self.set_operation_status(OperationStatus::Imported {
                     job: imported.job_id,
                 });
                 self.cutting_animation_job_id = Some(imported.job_id);
@@ -108,12 +111,14 @@ impl AppState {
                 self.start_cutting_animation(imported.animation, started);
             }
             Err(error) => {
-                tracing::warn!("切削シミュレーションを取り込めません: {error}");
-                self.cutting_simulation_status = Some(match error {
+                tracing::warn!("Cannot import the cutting simulation: {error}");
+                self.set_operation_status(match error {
                     CuttingSimulationSessionError::NoSucceededSimulation => {
                         OperationStatus::NothingToImport
                     }
-                    other => OperationStatus::ImportFailed(other.to_string()),
+                    other => {
+                        OperationStatus::ImportFailed(cutting_simulation_failure_message(&other))
+                    }
                 });
             }
         }
@@ -146,7 +151,7 @@ impl AppState {
         self.update_camera_uniforms();
         self.log_current_snapshot_frame(true);
         tracing::info!(
-            "切削シミュレーションを取り込みました（{:.1} 秒。Space で再生、k/j でコマ送り、左上の進捗バーでスクラブ、w でワイヤーフレーム）",
+            "Imported the cutting simulation ({:.1} s; Space to play, k/j to step, drag the progress bar to scrub, w for wireframe)",
             started.elapsed().as_secs_f64()
         );
     }
@@ -164,7 +169,7 @@ impl AppState {
     pub(super) fn redraw_cutting_animation(&mut self) {
         let Some(animation) = &mut self.cutting_animation else {
             tracing::info!(
-                "切削シミュレーションが取り込まれていないため、設定は次の取り込みから反映します"
+                "No cutting simulation is imported; the settings apply from the next import"
             );
             return;
         };
@@ -184,7 +189,8 @@ impl AppState {
             .as_any_mut()
             .downcast_mut::<MeshStage>()
         else {
-            tracing::warn!("切削アニメーションの表示中ではないため、設定を反映できません");
+            tracing::warn!("Cannot apply the settings because no cutting animation is shown");
+            self.set_notice(crate::help_ui::Notice::ApplyWithoutAnimation);
             return;
         };
         mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
@@ -206,7 +212,9 @@ impl AppState {
         // 後から届く素材のブロックと工具の線も、この色で描く
         self.cutting_animation_colors = colors;
         self.update_camera_uniforms();
-        tracing::info!("ツールパスの線・工具の線・素材の色を、変えた設定で描き直しました");
+        tracing::info!(
+            "Redrew the toolpath lines, tool lines and stock colors with the changed settings"
+        );
     }
 
     /// 切削アニメーションの最初のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置
@@ -270,8 +278,8 @@ impl AppState {
             mesh_stage.set_overlay_toolpath_visible(visible);
         }
         tracing::info!(
-            "ツールパスの線を{}にしました（v キー）",
-            if visible { "表示" } else { "非表示" }
+            "Toolpath lines {} (v key)",
+            if visible { "shown" } else { "hidden" }
         );
     }
 
@@ -283,8 +291,8 @@ impl AppState {
             mesh_stage.set_overlay_tool_visible(visible);
         }
         tracing::info!(
-            "工具の線を{}にしました（Shift+V キー）",
-            if visible { "表示" } else { "非表示" }
+            "Tool lines {} (Shift+V key)",
+            if visible { "shown" } else { "hidden" }
         );
     }
 

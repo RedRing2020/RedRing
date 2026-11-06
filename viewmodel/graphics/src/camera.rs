@@ -179,7 +179,7 @@ impl Camera {
         let camera_pos = self.target - forward * self.distance;
 
         tracing::debug!(
-            "🎥 view_matrix計算: forward=({:.3}, {:.3}, {:.3}), camera_pos=({:.1}, {:.1}, {:.1}), target=({:.1}, {:.1}, {:.1})",
+            "view_matrix: forward=({:.3}, {:.3}, {:.3}), camera_pos=({:.1}, {:.1}, {:.1}), target=({:.1}, {:.1}, {:.1})",
             forward.x(), forward.y(), forward.z(),
             camera_pos.x(), camera_pos.y(), camera_pos.z(),
             self.target.x(), self.target.y(), self.target.z()
@@ -205,14 +205,14 @@ impl Camera {
     pub fn set_projection_mode(&mut self, mode: ProjectionMode) {
         let old_mode = self.projection_mode;
         self.projection_mode = mode;
-        tracing::info!("投影モード変更: {:?} → {:?}", old_mode, mode);
+        tracing::info!("Projection mode changed: {:?} -> {:?}", old_mode, mode);
     }
 
     /// 直交投影モード時の表示範囲を設定
     pub fn set_orthographic_bounds(&mut self, left: f32, right: f32, bottom: f32, top: f32) {
         self.orthographic_bounds = Some((left, right, bottom, top));
         tracing::info!(
-            "📐 直交投影表示範囲設定: ({:.1}, {:.1}, {:.1}, {:.1}) - サイズ: {:.1}×{:.1}",
+            "Orthographic bounds set: ({:.1}, {:.1}, {:.1}, {:.1}) - size: {:.1}x{:.1}",
             left,
             right,
             bottom,

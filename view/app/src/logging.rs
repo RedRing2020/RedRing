@@ -6,6 +6,7 @@
 //! - モジュール別のログレベルフィルタリング
 
 use logging_foundation::{init_logging as init_with_foundation, LoggingInitConfig};
+use std::sync::OnceLock;
 
 /// ログディレクトリのパス
 const LOG_DIR: &str = "logs";
@@ -21,6 +22,14 @@ const DEFAULT_LOG_FILTER: &str = "warn,\
     wgpu=warn,wgpu_hal=warn,wgpu_core=warn,naga=warn,\
     redring=info,stage=warn,viewmodel_graphics=warn,viewmodel=warn,render=warn,cam_core=info";
 
+/// 初期化のときに開いたログのファイルの絶対パス（作れずコンソールだけのときは設定しない）
+static LOG_FILE_PATH: OnceLock<String> = OnceLock::new();
+
+/// ログのファイルの場所（ヘルプ・異常終了の知らせに出す）。ファイルに書いていないときは `None`
+pub fn log_file_path() -> Option<&'static str> {
+    LOG_FILE_PATH.get().map(String::as_str)
+}
+
 /// ログシステムを初期化
 ///
 /// コンソールとファイルの両方に出力するログシステムを設定します。
@@ -34,9 +43,12 @@ pub fn init_logging() {
         default_filter: DEFAULT_LOG_FILTER,
         log_dir: LOG_DIR,
         log_file_name: LOG_FILE_NAME,
-        app_name: "RedRing アプリケーション",
+        app_name: "RedRing",
     };
-    init_with_foundation(&config);
+    if let Some(path) = init_with_foundation(&config) {
+        let absolute = std::path::absolute(&path).unwrap_or(path);
+        let _ = LOG_FILE_PATH.set(absolute.display().to_string());
+    }
 }
 
 #[cfg(test)]

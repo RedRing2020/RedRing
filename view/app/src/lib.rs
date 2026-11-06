@@ -1,8 +1,12 @@
 pub mod app;
 pub mod app_renderer;
+pub(crate) mod app_settings;
 pub mod app_state;
 pub mod entity_manager;
+pub mod fatal_error_dialog;
 pub mod graphic;
+pub(crate) mod help_messages;
+pub(crate) mod help_ui;
 pub mod logging;
 pub(crate) mod machining_conditions_messages;
 pub(crate) mod machining_conditions_ui;
@@ -16,3 +20,4 @@ pub(crate) mod settings_panel_messages;
 pub(crate) mod settings_panel_renderer;
 pub(crate) mod settings_panel_ui;
 pub mod snapshot_overlay_renderer;
+pub(crate) mod window_title_messages;

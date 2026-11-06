@@ -120,7 +120,7 @@ impl OctreeStage {
     /// 2頂点で1線分を表現します。
     /// 指定されたデータは白色で描画されます。
     pub fn set_wireframe_data(&mut self, device: &Device, vertices: Vec<[f32; 3]>) {
-        tracing::debug!("Octreeワイヤーフレームデータ設定: {} 頂点", vertices.len());
+        tracing::debug!("Set octree wireframe data: {} vertices", vertices.len());
 
         self.depth_levels.clear();
         self.current_depth = 0;
@@ -225,7 +225,7 @@ impl OctreeStage {
 
         let vertices = self.depth_levels[self.current_depth].clone();
         tracing::debug!(
-            "Octree深さ表示更新: depth={}/{}, 頂点数={}",
+            "Updated the octree depth: depth={}/{}, vertices={}",
             self.current_depth,
             self.max_depth,
             vertices.len()
@@ -281,14 +281,14 @@ impl RenderStage for OctreeStage {
 
         if !self.has_data {
             if should_trace {
-                tracing::trace!("OctreeStage: has_data=false, 描画スキップ");
+                tracing::trace!("OctreeStage: has_data=false, skipped drawing");
             }
             return;
         }
 
         if should_trace {
             tracing::trace!(
-                "OctreeStage.render(): 描画実行, vertex_count={}",
+                "OctreeStage.render(): drawing, vertex_count={}",
                 self.resources.vertex_count
             );
         }
@@ -333,7 +333,7 @@ impl RenderStage for OctreeStage {
         proj_matrix: [[f32; 4]; 4],
     ) {
         if should_log_camera_debug() {
-            tracing::debug!("OctreeStage.update_camera() 呼び出し");
+            tracing::debug!("OctreeStage.update_camera() called");
             tracing::debug!(
                 "  view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]",
                 view_matrix[3][0],
