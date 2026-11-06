@@ -61,5 +61,5 @@
 
 ## 3. Issue の振り分け
 
-- `release:in` は次に出す版（今は v0.1.0）に含める Issue とする。ほかは `release:out` とし、どの版に入れるかはこの文書の 2. に書く
+- `release:in` は次に出す版（今は v0.2.0）に含める Issue とする。ほかは `release:out` とし、どの版に入れるかはこの文書の 2. に書く
 - 版を出したら、次の版の Issue を `release:in` に移す

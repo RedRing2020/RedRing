@@ -1,6 +1,6 @@
 //! CAM工具経路のViewModel変換
 //!
-//! `cam_core::ToolPath` を GPU描画用の頂点データに変換します。
+//! ツールパス（`ToolPath`）を GPU描画用の頂点データに変換します。
 //!
 //! # 設計方針
 //!
@@ -9,7 +9,7 @@
 //! - **セグメント種別の識別**: Cutting, Rapid, Approach, Retract, PassRetract
 //! - **円弧テッセレーション**: 円弧を線分に分割（設定可能な分割数）
 
-use cam_core::{
+use application::toolpath::{
     ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
     ToolPath,
 };
@@ -430,7 +430,7 @@ pub fn load_demo_toolpath() -> ToolPath<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cam_core::ToolPath;
+    use application::toolpath::ToolPath;
 
     #[test]
     fn test_default_color_scheme() {
@@ -483,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_simple_line_segment_conversion() {
-        use cam_core::{ContourLevelPath, PathSegment, SegmentType};
+        use application::toolpath::{ContourLevelPath, PathSegment, SegmentType};
 
         let segment = PathSegment::new_line(
             Point3D::new(0.0, 0.0, 0.0),
@@ -519,7 +519,7 @@ mod tests {
 
     #[test]
     fn test_cutting_direction_coloring() {
-        use cam_core::{ContourLevelPath, PathSegment, SegmentType};
+        use application::toolpath::{ContourLevelPath, PathSegment, SegmentType};
 
         let segment = PathSegment::new_line(
             Point3D::new(0.0, 0.0, 0.0),

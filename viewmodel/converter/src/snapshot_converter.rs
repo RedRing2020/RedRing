@@ -4,7 +4,7 @@
 //! ドメイン固有情報は `payload` に閉じ込め、CAM以外（例: プレス）にも
 //! 同じ構造で適用できることを目的とします。
 
-use cam_sim::SimulationSnapshotExport;
+use application::cutting_simulation_playback::SimulationSnapshotExport;
 
 /// 3D姿勢情報（位置 + 任意の姿勢）
 #[derive(Debug, Clone, Copy, PartialEq)]

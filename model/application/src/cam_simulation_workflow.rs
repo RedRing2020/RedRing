@@ -66,10 +66,10 @@ pub struct CamSimulationSubmission {
 /// 取り込んだツールパス生成と切削シミュレーションの成果物と、投入した入力
 #[derive(Debug, Clone)]
 pub struct CamSimulationWorkflowResult {
-    /// ツールパスの成果物のバイト列
-    pub toolpath_artifact: Vec<u8>,
+    /// ツールパスの成果物のバイト列（形式は外に見せない）
+    pub(crate) toolpath_artifact: Vec<u8>,
     /// 切削シミュレーションの成果物のバイト列
-    pub simulation_artifact: Vec<u8>,
+    pub(crate) simulation_artifact: Vec<u8>,
     /// ツールパス生成の入力
     pub solver_input: CamSolverInput,
     /// 切削シミュレーションの入力

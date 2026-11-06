@@ -6,8 +6,8 @@ use application::cam_simulation_workflow::CamSimulationWorkflowError;
 use application::product_shape::ProductShapeError;
 use i18n_foundation::{UiMessage, UiMessageArg};
 
-use crate::cutting_animation::CuttingAnimationError;
 use crate::cutting_simulation_session::CuttingSimulationSessionError;
+use application::cutting_simulation_playback::CuttingSimulationPlaybackError;
 
 fn message(key: &str) -> UiMessage {
     UiMessage {
@@ -33,10 +33,10 @@ pub fn cutting_simulation_failure_message(error: &CuttingSimulationSessionError)
         CuttingSimulationSessionError::NoSucceededSimulation => {
             message("failure.no_succeeded_simulation")
         }
-        CuttingSimulationSessionError::Animation(error) => match error {
-            CuttingAnimationError::Artifact(_) => message("failure.animation.artifact"),
-            CuttingAnimationError::NoSnapshot => message("failure.animation.no_snapshot"),
-            CuttingAnimationError::Replay(_) => message("failure.animation.replay"),
+        CuttingSimulationSessionError::Playback(error) => match error {
+            CuttingSimulationPlaybackError::Artifact(_) => message("failure.animation.artifact"),
+            CuttingSimulationPlaybackError::NoSnapshot => message("failure.animation.no_snapshot"),
+            CuttingSimulationPlaybackError::Replay(_) => message("failure.animation.replay"),
         },
         CuttingSimulationSessionError::InverseOffsetDisplay(_) => {
             message("failure.inverse_offset_display")
@@ -134,7 +134,7 @@ mod tests {
             &CuttingSimulationSessionError::NoSucceededSimulation,
         ));
         assert_resolved(&cutting_simulation_failure_message(
-            &CuttingSimulationSessionError::Animation(CuttingAnimationError::NoSnapshot),
+            &CuttingSimulationSessionError::Playback(CuttingSimulationPlaybackError::NoSnapshot),
         ));
         assert_resolved(&cutting_simulation_failure_message(
             &CuttingSimulationSessionError::InverseOffsetDisplay("reason".to_string()),

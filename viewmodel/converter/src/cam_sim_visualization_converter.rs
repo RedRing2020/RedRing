@@ -2,7 +2,7 @@
 //!
 //! 工具の先端の位置、工具の形（フラット・ボールエンドミル）とツールパスの線を、描画用の線の頂点にする。
 
-use cam_core::ToolPath;
+use application::toolpath::ToolPath;
 use geo_algorithms::{LineSegment3D, Point3D};
 use geo_contracts::LineSegment3DProperties;
 use std::f64::consts::TAU;
