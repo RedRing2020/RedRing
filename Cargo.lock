@@ -3520,13 +3520,11 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "application",
- "cam_algorithms",
  "cam_core",
  "geo_algorithms",
  "geo_contracts",
  "geo_io",
  "i18n_foundation",
- "job_domain",
  "logging_foundation",
  "tempfile",
  "thiserror 2.0.21",

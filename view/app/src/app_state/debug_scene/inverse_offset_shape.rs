@@ -32,7 +32,7 @@ impl AppState {
         {
             Ok(meshes) => meshes,
             Err(error) => {
-                tracing::warn!("inverse offset shape cannot be displayed: {error}");
+                tracing::warn!("Cannot show the inverse offset shape: {error}");
                 return;
             }
         };

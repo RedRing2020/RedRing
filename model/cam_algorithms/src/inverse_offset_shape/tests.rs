@@ -767,6 +767,49 @@ fn display_triangles_of_ball_vertices_and_edges_lie_on_the_offset_surfaces() {
 }
 
 #[test]
+fn display_triangles_are_wound_to_face_outward() {
+    // 三角形の頂点の順（右ねじ）の法線の z
+    let normal_z = |[a, b, c]: [[f64; 3]; 3]| {
+        let u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+        let v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+        let n = [
+            u[1] * v[2] - u[2] * v[1],
+            u[2] * v[0] - u[0] * v[2],
+            u[0] * v[1] - u[1] * v[0],
+        ];
+        n[2] / (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt()
+    };
+    let shape = InverseOffsetShape::new(&overhang(), CutterShape::Ball { radius: 1.0 }).unwrap();
+    let parts = shape.display_parts(10.0_f64.to_radians()).unwrap();
+    let normals_z = |kind| {
+        parts
+            .iter()
+            .find(|part| part.kind == kind)
+            .unwrap()
+            .triangles
+            .iter()
+            .map(|&triangle| normal_z(triangle))
+            .collect::<Vec<_>>()
+    };
+    assert!(
+        normals_z(InverseOffsetPartKind::IndexedFace)
+            .iter()
+            .all(|&z| z > 0.99)
+    );
+    // 張り出しの下の面は外向き（下）、その上側の要素は上を向く
+    assert!(
+        normals_z(InverseOffsetPartKind::UnindexedFace)
+            .iter()
+            .any(|&z| z < -0.99)
+    );
+    assert!(
+        normals_z(InverseOffsetPartKind::UpperSide)
+            .iter()
+            .all(|&z| z > 0.99)
+    );
+}
+
+#[test]
 fn display_parts_are_classified_by_the_role_of_the_elements() {
     let step = 10.0_f64.to_radians();
     use InverseOffsetPartKind::*;

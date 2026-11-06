@@ -2,9 +2,8 @@
 //!
 //! 逆オフセット形状の要素の役割ごとの三角形を、MeshStage で重ねて描けるシェーディングメッシュへ変換する。
 
-/// 表示用の三角形の種類の再エクスポート
-pub use cam_algorithms::InverseOffsetPartKind;
-use cam_algorithms::{CamSolverError, InverseOffsetShape};
+use application::cam_simulation_workflow::InverseOffsetPart;
+pub use application::cam_simulation_workflow::InverseOffsetPartKind;
 
 use crate::mesh_converter::VertexData;
 
@@ -16,17 +15,9 @@ pub struct InverseOffsetShapeMesh {
     pub indices: Vec<u32>,
 }
 
-/// 逆オフセット形状を、角度 `angle_step`（ラジアン）のきざみで種類ごとのメッシュにする
-///
-/// # Errors
-///
-/// `angle_step` が表示用のきざみの範囲の外の場合。
-pub fn inverse_offset_shape_meshes(
-    shape: &InverseOffsetShape,
-    angle_step: f64,
-) -> Result<Vec<InverseOffsetShapeMesh>, CamSolverError> {
-    Ok(shape
-        .display_parts(angle_step)?
+/// 逆オフセット形状の種類ごとの表示用の三角形 `parts` を、種類ごとのメッシュにする
+pub fn inverse_offset_shape_meshes(parts: Vec<InverseOffsetPart>) -> Vec<InverseOffsetShapeMesh> {
+    parts
         .into_iter()
         .map(|part| {
             let mut vertices = Vec::with_capacity(part.triangles.len() * 3);
@@ -43,10 +34,10 @@ pub fn inverse_offset_shape_meshes(
                 indices,
             }
         })
-        .collect())
+        .collect()
 }
 
-/// 三角形の、頂点の順（右ねじ）の単位法線
+/// 三角形の、頂点の順（右ねじ）の単位法線（面積のない三角形は上向き）
 fn normal(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f32; 3] {
     let u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
     let v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
@@ -56,58 +47,49 @@ fn normal(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f32; 3] {
         u[0] * v[1] - u[1] * v[0],
     ];
     let length = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+    if length == 0.0 {
+        return [0.0, 0.0, 1.0];
+    }
     n.map(|component| (component / length) as f32)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{inverse_offset_shape_meshes, InverseOffsetPartKind};
-    use cam_algorithms::{CutterShape, InverseOffsetShape};
-    use geo_algorithms::{Point3D, TriangleMesh3D};
-    use geo_contracts::TriangleMesh3DConstructor;
+    use super::*;
 
     #[test]
-    fn meshes_keep_the_outward_normals_of_the_parts() {
-        // 張り出しの下の面（外向きは下）を持つ、開いた形
-        let profile = [(0.0, 4.0), (10.0, 4.0), (10.0, 3.0), (6.0, 3.0)];
-        let mut vertices = Vec::new();
-        for (x, z) in profile {
-            vertices.push(Point3D::new(x, 0.0, z));
-            vertices.push(Point3D::new(x, 10.0, z));
-        }
-        let triangles = (0..profile.len() - 1)
-            .flat_map(|k| {
-                let (a, b, c, d) = (2 * k, 2 * k + 1, 2 * k + 2, 2 * k + 3);
-                [[a, c, d], [a, d, b]]
-            })
-            .collect();
-        let mesh = TriangleMesh3D::new(vertices, triangles).unwrap();
-        let shape = InverseOffsetShape::new(&mesh, CutterShape::Ball { radius: 1.0 }).unwrap();
-        let meshes = inverse_offset_shape_meshes(&shape, 10.0_f64.to_radians()).unwrap();
-        let normals_z = |kind| {
-            meshes
-                .iter()
-                .find(|mesh| mesh.kind == kind)
-                .unwrap()
-                .vertices
-                .iter()
-                .map(|vertex| vertex.normal[2])
-                .collect::<Vec<_>>()
+    fn meshes_hold_each_triangle_with_its_face_normal_by_the_vertex_order() {
+        // 上向き（右ねじで +Z）と下向きの三角形
+        let up = [[0.0, 0.0, 1.0], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0]];
+        let down = [[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]];
+        let meshes = inverse_offset_shape_meshes(vec![InverseOffsetPart {
+            kind: InverseOffsetPartKind::UpperSide,
+            triangles: vec![up, down],
+        }]);
+        let [mesh] = meshes.as_slice() else {
+            panic!("one mesh per part");
         };
-        assert!(normals_z(InverseOffsetPartKind::IndexedFace)
+        assert_eq!(mesh.kind, InverseOffsetPartKind::UpperSide);
+        assert_eq!(mesh.indices, (0..6).collect::<Vec<u32>>());
+        assert!(mesh.vertices[..3]
             .iter()
-            .all(|&z| z > 0.99));
-        // 下の面は外向き（下）、その上側の要素は上を向く
-        assert!(normals_z(InverseOffsetPartKind::UnindexedFace)
+            .all(|vertex| vertex.normal == [0.0, 0.0, 1.0]));
+        assert!(mesh.vertices[3..]
             .iter()
-            .any(|&z| z < -0.99));
-        assert!(normals_z(InverseOffsetPartKind::UpperSide)
+            .all(|vertex| vertex.normal == [0.0, 0.0, -1.0]));
+        assert_eq!(mesh.vertices[1].position, [1.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn triangles_without_area_get_an_upward_normal() {
+        let line = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]];
+        let meshes = inverse_offset_shape_meshes(vec![InverseOffsetPart {
+            kind: InverseOffsetPartKind::UpperSide,
+            triangles: vec![line],
+        }]);
+        assert!(meshes[0]
+            .vertices
             .iter()
-            .all(|&z| z > 0.99));
-        for mesh in &meshes {
-            assert_eq!(mesh.indices.len(), mesh.vertices.len());
-            assert_eq!(mesh.vertices.len() % 3, 0);
-        }
-        assert!(inverse_offset_shape_meshes(&shape, 0.0).is_err());
+            .all(|vertex| vertex.normal == [0.0, 0.0, 1.0]));
     }
 }
