@@ -17,5 +17,9 @@ geo_algorithms = { path = "../geo_algorithms" }
 job_domain = { path = "../job_domain" }
 job_runtime = { path = "../job_runtime" }
 
+[features]
+# 試験用: ツールパス生成の入力が登録されていない参照に、参照の末尾に応じた固定の結果を返す
+test-fixtures = []
+
 [lints]
 workspace = true
