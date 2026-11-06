@@ -11,14 +11,14 @@ pub(crate) fn prepare_log_file(log_dir: &str, log_file_name: &str) -> Option<Pat
     let log_file_path = compose_log_file_path(log_dir, log_file_name);
 
     if let Err(e) = fs::create_dir_all(log_dir) {
-        eprintln!("⚠ ログディレクトリ作成失敗: {}", e);
-        eprintln!("  コンソールログのみで続行します");
+        eprintln!("Failed to create the log directory ({:?}): {}", e.kind(), e);
+        eprintln!("  Continuing with console logging only");
         return None;
     }
 
     if log_file_path.exists() {
         if let Err(e) = fs::remove_file(&log_file_path) {
-            eprintln!("⚠ 古いログファイル削除失敗: {}", e);
+            eprintln!("Failed to delete the old log file ({:?}): {}", e.kind(), e);
         }
     }
 

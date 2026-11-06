@@ -303,13 +303,13 @@ impl AppState {
 /// 知らせの行に出す知らせを返す
 fn load_app_settings() -> (AppSettings, Option<PathBuf>, Option<Notice>) {
     let Some(path) = crate::app_settings::settings_file_path() else {
-        tracing::warn!("利用者ごとのフォルダが分からないため、アプリの設定を保存しません");
+        tracing::warn!("The per-user folder is unknown, so the app settings are not saved");
         return (AppSettings::default(), None, None);
     };
     match crate::app_settings::load_settings(&path) {
         Ok(settings) => (settings, Some(path), None),
         Err(error) => {
-            tracing::warn!(path = %path.display(), "アプリの設定を読めないため、既定の設定で起動します: {error}");
+            tracing::warn!(path = %path.display(), kind = ?error.kind(), "Cannot read the app settings; starting with the defaults: {error}");
             let notice = Notice::SettingsLoadFailed {
                 reason: error.to_string(),
             };

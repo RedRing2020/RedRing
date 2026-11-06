@@ -84,7 +84,7 @@ impl StockAnimation {
         let comparable = self.surface.deviations(deviations);
         if comparable.is_none() {
             tracing::warn!(
-                "製品形状との比較の端点の数が素材の区間と違うため、素材の面を色分けしません"
+                "The stock faces are not colored because the number of comparison endpoints differs from the stock segments"
             );
         }
         comparable

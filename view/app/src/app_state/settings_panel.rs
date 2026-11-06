@@ -5,11 +5,11 @@ impl AppState {
     pub fn toggle_settings_panel(&mut self) {
         self.settings_panel_open = !self.settings_panel_open;
         tracing::info!(
-            "設定パネル{}（Shift+S）",
+            "Settings panel {} (Shift+S)",
             if self.settings_panel_open {
-                "表示"
+                "shown"
             } else {
-                "非表示"
+                "hidden"
             }
         );
     }

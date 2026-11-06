@@ -2,20 +2,20 @@ use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum EntityError {
-    #[error("属性コード0は無効です")]
+    #[error("attribute code 0 is invalid")]
     InvalidAttributeCode,
 
-    #[error("system属性コードが未定義です: {0}")]
+    #[error("system attribute code is not defined: {0}")]
     UnknownSystemAttributeCode(i32),
 
-    #[error("属性型不一致: code={code}, expected={expected}, actual={actual}")]
+    #[error("attribute type mismatch: code={code}, expected={expected}, actual={actual}")]
     AttributeTypeMismatch {
         code: i32,
         expected: &'static str,
         actual: &'static str,
     },
 
-    #[error("SingleLayer制約違反: entity={entity_id}, current_layers={current_layers}")]
+    #[error("SingleLayer constraint violated: entity={entity_id}, current_layers={current_layers}")]
     SingleLayerPolicyViolation {
         entity_id: String,
         current_layers: usize,

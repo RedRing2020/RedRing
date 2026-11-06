@@ -35,7 +35,7 @@ impl AppState {
             return;
         };
         if let Err(error) = crate::app_settings::save_settings(path, &self.app_settings) {
-            tracing::warn!(path = %path.display(), "アプリの設定を保存できません: {error}");
+            tracing::warn!(path = %path.display(), kind = ?error.kind(), "Cannot save the app settings: {error}");
             self.set_notice(Notice::SettingsSaveFailed {
                 reason: error.to_string(),
             });

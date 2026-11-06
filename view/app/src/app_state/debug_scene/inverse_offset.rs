@@ -30,7 +30,7 @@ impl AppState {
         let state = self.inverse_offset_debug;
         let chord_tolerance = self.tolerance_in_current_unit();
         tracing::info!(
-            "デバッグ形状: 逆オフセット包絡面（工具: {}, 表示: {}, 工具半径: {}, 格子線ピッチ: {}, 弦誤差: {:.6}）",
+            "Debug shape: inverse offset envelope (tool: {}, display: {}, tool radius: {}, grid line pitch: {}, chord error: {:.6})",
             state.tool_kind.label(),
             state.mode.label(),
             self.inverse_offset_visualization_settings.tool_radius,
@@ -56,7 +56,7 @@ impl AppState {
         };
 
         tracing::info!(
-            "逆オフセット包絡面生成完了: 評価点={}x{}, 三角形={}, 重畳線分={}, 基準点=先端+{}（ボール: 球中心 / フラット: 底面中心）",
+            "Generated the inverse offset envelope: samples={}x{}, triangles={}, overlay segments={}, reference=tip+{} (ball: sphere center / flat: bottom center)",
             view.envelope_samples.0,
             view.envelope_samples.1,
             view.mesh_indices.len() / 3,

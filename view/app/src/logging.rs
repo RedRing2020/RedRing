@@ -43,7 +43,7 @@ pub fn init_logging() {
         default_filter: DEFAULT_LOG_FILTER,
         log_dir: LOG_DIR,
         log_file_name: LOG_FILE_NAME,
-        app_name: "RedRing アプリケーション",
+        app_name: "RedRing",
     };
     if let Some(path) = init_with_foundation(&config) {
         let absolute = std::path::absolute(&path).unwrap_or(path);

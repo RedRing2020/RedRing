@@ -28,7 +28,7 @@ impl AppState {
                             .unwrap_or((viewport_width * 0.5, viewport_height * 0.5)),
                     );
                     tracing::debug!(
-                        "Ctrl+左ドラッグ: カメラ回転モード開始 start={:?} current={:?} virtual_start={:?}",
+                        "Ctrl+left drag: started camera rotation start={:?} current={:?} virtual_start={:?}",
                         self.arcball_drag_start,
                         self.cursor_position,
                         self.arcball_virtual_cursor
@@ -44,12 +44,14 @@ impl AppState {
                         self.snapshot_scrub_active = true;
                         self.mouse_input.cancel_operation();
                         self.set_snapshot_cursor_from_x(cursor.0, true);
-                        tracing::debug!("左クリック: snapshotスクラブ開始");
+                        tracing::debug!("Left click: started snapshot scrubbing");
                         return;
                     }
                 }
 
-                tracing::debug!("左ドラッグ: ビュー矩形選択モード（カメラ操作はCtrl+ドラッグ）");
+                tracing::debug!(
+                    "Left drag: view rectangle selection (camera control is Ctrl+drag)"
+                );
 
                 if let Some(cursor) = self.cursor_position {
                     self.selection_rect_drag_origin = Some(cursor);
@@ -59,14 +61,14 @@ impl AppState {
             winit::event::ElementState::Released => {
                 if self.snapshot_scrub_active {
                     self.snapshot_scrub_active = false;
-                    tracing::debug!("左ドラッグ: snapshotスクラブ終了");
+                    tracing::debug!("Left drag: finished snapshot scrubbing");
                     self.log_current_snapshot_frame(true);
                     return;
                 }
 
                 if let Some(start) = self.arcball_drag_start.take() {
                     tracing::debug!(
-                        "Ctrl+左ドラッグ: カメラ回転モード終了 start={:?} end={:?} virtual_end={:?}",
+                        "Ctrl+left drag: finished camera rotation start={:?} end={:?} virtual_end={:?}",
                         start,
                         self.cursor_position,
                         self.arcball_virtual_cursor

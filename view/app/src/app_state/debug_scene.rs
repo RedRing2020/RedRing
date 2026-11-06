@@ -31,7 +31,7 @@ impl AppState {
                 let stage = self.renderer.get_stage_mut();
                 match stage.cycle_octree_depth(&self.graphic.device) {
                     Some((current_depth, max_depth)) => {
-                        tracing::info!("Octree深さ表示: {}/{}", current_depth, max_depth);
+                        tracing::info!("Octree depth shown: {}/{}", current_depth, max_depth);
                     }
                     None => self.load_debug_octree(),
                 }
@@ -42,7 +42,7 @@ impl AppState {
                     self.renderer.get_stage_mut().start_octree_depth_animation()
                 };
                 if started {
-                    tracing::info!("Octree深さアニメーション再生開始");
+                    tracing::info!("Started the octree depth animation");
                 }
             }
             DebugSceneAction::ToolPathOnly => self.load_sample_toolpath_only(),

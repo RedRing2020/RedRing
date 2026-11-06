@@ -87,7 +87,7 @@ impl AppState {
         let projection_matrix = self.camera.projection_matrix(aspect);
 
         tracing::debug!(
-            "🎥 カメラ更新: mode={:?}, aspect={:.3}, target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds={:?}",
+            "Camera updated: mode={:?}, aspect={:.3}, target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds={:?}",
             self.camera.projection_mode,
             aspect,
             self.camera.target.x(),

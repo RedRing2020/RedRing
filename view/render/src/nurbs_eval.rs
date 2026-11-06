@@ -311,7 +311,7 @@ impl NurbsCurveEvalResources {
     /// * `render_pass` - wgpuレンダーパス
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         tracing::debug!(
-            "📊 NurbsCurveEvalResources.render(): pipeline設定、頂点数={}",
+            "NurbsCurveEvalResources.render(): setting the pipeline, vertices={}",
             self.num_eval_points
         );
 
@@ -321,7 +321,7 @@ impl NurbsCurveEvalResources {
         render_pass.draw(0..self.num_eval_points, 0..1);
 
         tracing::debug!(
-            "📊 NurbsCurveEvalResources.render(): draw call実行 (0..{})",
+            "NurbsCurveEvalResources.render(): draw call (0..{})",
             self.num_eval_points
         );
     }

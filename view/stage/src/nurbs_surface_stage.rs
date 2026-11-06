@@ -49,7 +49,7 @@ impl NurbsSurfaceStage {
         let num_triangles = eval_data.num_triangles();
 
         tracing::debug!(
-            "NURBS曲面GPU評価データ設定: {} vertices ({} triangles), control grid={}x{}, u_degree={}, v_degree={}",
+            "Set NURBS surface GPU evaluation data: {} vertices ({} triangles), control grid={}x{}, u_degree={}, v_degree={}",
             num_vertices,
             num_triangles,
             eval_data.u_count,
@@ -70,7 +70,7 @@ impl NurbsSurfaceStage {
         let resources = NurbsSurfaceEvalResources::new(device, self.format, &eval_data);
 
         tracing::debug!(
-            "✓ NurbsSurfaceStage: GPU評価データ設定完了、num_vertices={}, solid_indices={}, wireframe_indices={}",
+            "NurbsSurfaceStage: set GPU evaluation data, num_vertices={}, solid_indices={}, wireframe_indices={}",
             resources.num_vertices,
             resources.num_solid_indices,
             resources.num_wireframe_indices
@@ -118,7 +118,7 @@ impl RenderStage for NurbsSurfaceStage {
     fn render(&mut self, _encoder: &mut CommandEncoder, _view: &TextureView) {
         // 深度バッファが必要なため、render_with_depthを使用してください
         if should_log_render_trace() {
-            tracing::trace!("NurbsSurfaceStage.render(): depth_view未指定のためスキップ");
+            tracing::trace!("NurbsSurfaceStage.render(): skipped because depth_view is not given");
         }
     }
 
@@ -146,7 +146,7 @@ impl RenderStage for NurbsSurfaceStage {
 
         if should_trace {
             tracing::trace!(
-                "🎨 NurbsSurfaceStage.render_with_depth(): {} 頂点を{}モードで描画開始",
+                "NurbsSurfaceStage.render_with_depth(): drawing {} vertices in {} mode",
                 resources.num_vertices,
                 mode_str
             );
@@ -186,7 +186,7 @@ impl RenderStage for NurbsSurfaceStage {
         drop(render_pass);
 
         if should_trace {
-            tracing::trace!("🎨 NurbsSurfaceStage.render_with_depth(): 描画完了");
+            tracing::trace!("NurbsSurfaceStage.render_with_depth(): drawn");
         }
     }
 
