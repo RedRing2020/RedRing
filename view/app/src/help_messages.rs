@@ -59,6 +59,15 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "notice.apply_without_animation",
         "切削アニメーションの表示中ではないため、設定を反映できません",
     ),
+    (
+        "notice.settings_load_failed",
+        "アプリの設定を読めないため、既定の設定で起動しました（{reason}）",
+    ),
+    (
+        "notice.settings_not_saved",
+        "設定のファイルを使えないため、選んだ設定は次の起動に残りません",
+    ),
+    ("notice.settings_save_failed", "アプリの設定を保存できません（{reason}）"),
     ("fatal.panic.title", "RedRing の異常終了"),
     (
         "fatal.panic.body",
@@ -137,6 +146,15 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
         "notice.apply_without_animation",
         "Settings can be applied only while a cutting animation is shown",
     ),
+    (
+        "notice.settings_load_failed",
+        "Started with the default settings because the settings could not be read ({reason})",
+    ),
+    (
+        "notice.settings_not_saved",
+        "The settings file cannot be used, so the choice is not kept for the next start",
+    ),
+    ("notice.settings_save_failed", "Cannot save the settings ({reason})"),
     ("fatal.panic.title", "RedRing stopped"),
     (
         "fatal.panic.body",

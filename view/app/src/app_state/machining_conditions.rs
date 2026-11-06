@@ -29,7 +29,7 @@ impl AppState {
         }
         MachiningConditionsUiState {
             open: self.machining_conditions_open,
-            locale: self.settings_panel_locale,
+            locale: self.ui_locale,
             face_count: self.product_shapes.store().visible_face_ids().len(),
             operation: self.cutting_simulation.operation_content().clone(),
             stock: self.cutting_simulation.stock(),

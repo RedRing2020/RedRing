@@ -50,7 +50,7 @@ impl AppState {
             &self.window,
             &mut menu_bar_state,
             NoticeBarUiState {
-                locale: self.settings_panel_locale,
+                locale: self.ui_locale,
                 notice: &self.notice,
             },
             &mut settings_panel_state,

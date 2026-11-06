@@ -1,4 +1,5 @@
 use crate::app_renderer::{AppRenderer, AppRendererFactory};
+use crate::app_settings::AppSettings;
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::help_ui::Notice;
@@ -10,6 +11,7 @@ use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use analysis::{LengthUnit, Tolerance};
 use debug_scene::InverseOffsetDebugState;
 use debug_snapshot_state::DebugSnapshotState;
+use std::path::PathBuf;
 use std::sync::Arc;
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
 use viewmodel::cutting_animation::CuttingAnimation;
@@ -201,8 +203,12 @@ pub struct AppState {
     /// 設定パネルの選択中タブ
     settings_panel_active_tab: SettingsPanelTab,
 
-    /// 設定パネルの表示言語
-    settings_panel_locale: UiLocale,
+    /// 画面の文言の言語（「表示」→「言語」で選び、アプリの設定に保存する）
+    ui_locale: UiLocale,
+    /// アプリの設定（表示の言語）と、その保存のファイル（利用者ごとのフォルダが分からないとき・読めなかったときは
+    /// `None`。読めなかったファイルは上書きしない）
+    app_settings: AppSettings,
+    app_settings_path: Option<PathBuf>,
 
     /// ヘルプの「操作の一覧」のウィンドウを開いているか
     help_controls_open: bool,
@@ -229,6 +235,10 @@ impl AppState {
     }
 
     pub fn new(window: Arc<Window>) -> Self {
+        // 描画の準備で異常になっても選んだ言語で知らせられるよう、設定を先に読む
+        let (app_settings, app_settings_path, settings_notice) = load_app_settings();
+        let ui_locale = app_settings.locale();
+        crate::fatal_error_dialog::set_fatal_error_locale(ui_locale);
         let graphic = init_graphic(window.clone());
         let renderer = AppRendererFactory::create_empty(&window, &graphic.device, &graphic.config);
         let viewing_operation_settings = ViewingOperationSettings::default();
@@ -269,10 +279,12 @@ impl AppState {
             cutting_animation_job_id: None,
             settings_panel_open: false,
             settings_panel_active_tab: SettingsPanelTab::default(),
-            settings_panel_locale: UiLocale::Ja,
+            ui_locale,
+            app_settings,
+            app_settings_path,
             help_controls_open: false,
             help_about_open: false,
-            notice: Notice::Startup,
+            notice: settings_notice.unwrap_or(Notice::Startup),
             debug_snapshot: DebugSnapshotState::default(),
             snapshot_scrub_active: false,
             cursor_position: None,
@@ -284,5 +296,24 @@ impl AppState {
 
         app_state.apply_viewing_operation_settings();
         app_state
+    }
+}
+
+/// アプリの設定を読む。読めないときは既定の設定にし（そのファイルは上書きしないため、保存の場所を返さない）、
+/// 知らせの行に出す知らせを返す
+fn load_app_settings() -> (AppSettings, Option<PathBuf>, Option<Notice>) {
+    let Some(path) = crate::app_settings::settings_file_path() else {
+        tracing::warn!("利用者ごとのフォルダが分からないため、アプリの設定を保存しません");
+        return (AppSettings::default(), None, None);
+    };
+    match crate::app_settings::load_settings(&path) {
+        Ok(settings) => (settings, Some(path), None),
+        Err(error) => {
+            tracing::warn!(path = %path.display(), "アプリの設定を読めないため、既定の設定で起動します: {error}");
+            let notice = Notice::SettingsLoadFailed {
+                reason: error.to_string(),
+            };
+            (AppSettings::default(), None, Some(notice))
+        }
     }
 }
