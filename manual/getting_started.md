@@ -16,7 +16,7 @@ RedRing のプレビュー版を、ソースからビルドして起動します
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
-git checkout v0.1.1
+git checkout v0.1.2
 cargo run --release
 ```
 
