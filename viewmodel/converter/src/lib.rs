@@ -20,9 +20,6 @@ pub mod failure_message_mapper;
 pub mod feature_command_converter;
 pub mod inverse_offset_converter;
 pub mod inverse_offset_shape_converter;
-pub mod job_converter;
-pub mod job_message_catalog;
-pub mod job_message_mapper;
 pub mod mesh_converter;
 pub mod message_catalog;
 pub mod nurbs_eval_loader;
@@ -33,8 +30,6 @@ pub mod shape_converter;
 pub mod snapshot_converter;
 pub mod svg_loader;
 pub mod toolpath_converter;
-pub mod validation_message_catalog;
-pub mod validation_message_mapper;
 
 /// テスト用の関数（削除予定）
 pub fn add(left: u64, right: u64) -> u64 {

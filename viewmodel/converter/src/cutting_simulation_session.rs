@@ -151,8 +151,6 @@ pub enum CuttingSimulationSessionError {
     NoSucceededSimulation,
     /// 取り込んだ結果を再生できない
     Playback(CuttingSimulationPlaybackError),
-    /// 逆オフセット形状を表示用に分けられない（表示のきざみの誤りの理由）
-    InverseOffsetDisplay(String),
 }
 
 impl std::fmt::Display for CuttingSimulationSessionError {
@@ -164,9 +162,6 @@ impl std::fmt::Display for CuttingSimulationSessionError {
                 "no succeeded cutting simulation of the current conditions to import"
             ),
             Self::Playback(error) => write!(f, "{error}"),
-            Self::InverseOffsetDisplay(error) => {
-                write!(f, "inverse offset shape cannot be displayed: {error}")
-            }
         }
     }
 }
@@ -276,14 +271,14 @@ impl CuttingSimulationSession {
         angle_step: f64,
     ) -> Result<Vec<InverseOffsetShapeMesh>, CuttingSimulationSessionError> {
         self.target_visible_faces(shapes);
-        let shape = CamSimulationWorkflow::inverse_offset_shape(
+        let parts = CamSimulationWorkflow::inverse_offset_shape_parts(
             shapes.store(),
             &self.sequences,
             self.sequence,
             self.operation,
+            angle_step,
         )?;
-        inverse_offset_shape_meshes(&shape, angle_step)
-            .map_err(|error| CuttingSimulationSessionError::InverseOffsetDisplay(error.to_string()))
+        Ok(inverse_offset_shape_meshes(parts))
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程から投入する（実行しない）

@@ -164,7 +164,7 @@ geo と CAM の依存の形:
 
 | クレート | 目標 | 移行の間 |
 |---|---|---|
-| `viewmodel` | `application` のみ（foundation は別） | 今の許可（`geo_contracts`・`geo_algorithms`・`geo_io`・`cam_core`・`cam_algorithms`・`job_domain`）を残し、移行の段階ごとに外す（`cam_sim` は段階 2 で外した） |
+| `viewmodel` | `application` のみ（foundation は別） | 今の許可（`geo_contracts`・`geo_algorithms`・`geo_io`・`cam_core`）を残し、移行の段階ごとに外す（`cam_sim` は段階 2、`cam_algorithms`・`job_domain` は段階 3 で外した） |
 | `viewmodel-graphics` | なし（`analysis` のみ） | 同じ |
 
 - `cam_entity` への依存は許可しない。加工手順・加工工程は、Application の API と再エクスポートした値の型でつなぐ
@@ -175,9 +175,9 @@ geo と CAM の依存の形:
 |---|---|---|---|
 | 1 | 加工手順・加工工程の保管と編集、工程からの投入・取り込み、条件の誤りの分類（`cutting_simulation_session`）。#1050・#1051 の前提。Application の公開 API の決まりに合わない今の API の修正と、検査スクリプトの対象への Application の追加 | `cutting_simulation_session` の `cam_algorithms`・`cam_sim` | #1057 |
 | 2 | 切削シミュレーションの成果物の読み込みと素材の再生、ツールパス・工具の線分化（`cutting_animation`、`cam_sim_visualization_converter`、`snapshot_converter`、`toolpath_converter`）。Application の再生の問い合わせ（`cutting_simulation_playback`）を置き、ツールパス・時点の値の型は再エクスポートする | `cam_sim`（`cam_core` は、段階 3 の検証の誤りの表示と、段階 5 の表示確認用のツールパスが使うため、その段階で外す） | #1058 |
-| 3 | ジョブの記録・検証の誤りの表示用の変換（`job_converter`、`validation_message_*`）、逆オフセット形状の表示（`inverse_offset_shape_converter`、`inverse_offset_converter`） | `job_domain`、`cam_algorithms` | #1059 |
+| 3 | ジョブの記録・検証の誤りの表示用の変換（`job_converter`、`validation_message_*`。呼び出し元がないため消した）、逆オフセット形状の表示（`inverse_offset_shape_converter`。Application が表示用の三角形まで作る） | `job_domain`、`cam_algorithms`（`cam_core` は、段階 5 の表示確認用のツールパスだけが使う） | #1059 |
 | 4 | 形状の描画（`shape_converter`、`mesh_converter`、`nurbs_view`、`entity_converter`、`octree_converter`、`product_shape_converter`） | `geo_algorithms`、`geo_contracts` | #1060 |
-| 5 | 表示確認用のデータ（`svg_loader`、`nurbs_eval_loader`、fixtures）。#920・#336 とあわせる | `geo_io` | #1061 |
+| 5 | 表示確認用のデータ（`svg_loader`、`nurbs_eval_loader`、`inverse_offset_converter` のサンプルの曲面、`toolpath_converter` の表示確認用のツールパス、fixtures）。#920・#336 とあわせる | `geo_io` | #1061 |
 
 ### 3.5 描画導線は 2D / 3D を分離して扱う
 

@@ -38,9 +38,6 @@ pub fn cutting_simulation_failure_message(error: &CuttingSimulationSessionError)
             CuttingSimulationPlaybackError::NoSnapshot => message("failure.animation.no_snapshot"),
             CuttingSimulationPlaybackError::Replay(_) => message("failure.animation.replay"),
         },
-        CuttingSimulationSessionError::InverseOffsetDisplay(_) => {
-            message("failure.inverse_offset_display")
-        }
     }
 }
 
@@ -62,6 +59,9 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
         CamSimulationWorkflowError::Orchestration(_) => message("failure.orchestration"),
         CamSimulationWorkflowError::InverseOffsetShape(_) => {
             message("failure.inverse_offset_shape")
+        }
+        CamSimulationWorkflowError::InverseOffsetDisplay(_) => {
+            message("failure.inverse_offset_display")
         }
     }
 }
@@ -135,9 +135,6 @@ mod tests {
         ));
         assert_resolved(&cutting_simulation_failure_message(
             &CuttingSimulationSessionError::Playback(CuttingSimulationPlaybackError::NoSnapshot),
-        ));
-        assert_resolved(&cutting_simulation_failure_message(
-            &CuttingSimulationSessionError::InverseOffsetDisplay("reason".to_string()),
         ));
         let missing = product_shape_failure_message(&ProductShapeError::StlFile {
             kind: std::io::ErrorKind::NotFound,
