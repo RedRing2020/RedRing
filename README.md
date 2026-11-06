@@ -165,7 +165,7 @@ For design documents (architecture, error handling guidelines, and trait design 
 **Linux:**
 
 - Required packages: `sudo apt install build-essential pkg-config libx11-dev`
-- Vulkan or OpenGL drivers
+- Vulkan drivers (OpenGL drivers if Vulkan is not available)
 
 ### Build Steps
 

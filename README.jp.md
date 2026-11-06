@@ -165,7 +165,7 @@ RedRing は以下の原則に基づいて設計されています：
 **Linux:**
 
 - 必要なパッケージ: `sudo apt install build-essential pkg-config libx11-dev`
-- Vulkan または OpenGL ドライバ
+- Vulkan ドライバ（ない場合は OpenGL ドライバ）
 
 ### ビルド手順
 
