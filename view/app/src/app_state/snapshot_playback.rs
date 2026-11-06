@@ -161,6 +161,9 @@ fn build_segment_weighted_progress_axis(
 
 impl AppState {
     pub(super) fn ensure_snapshot_series_ready(&mut self, trigger: SnapshotLoadTrigger) -> bool {
+        if self.reject_while_debug_view() {
+            return false;
+        }
         if self.debug_snapshot.series.is_some() {
             return true;
         }
@@ -353,6 +356,9 @@ impl AppState {
     }
 
     pub fn stop_auto_snapshot_playback(&mut self) {
+        if self.reject_while_debug_view() {
+            return;
+        }
         self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Manual;
         self.debug_snapshot.last_playback_tick = None;
         self.debug_snapshot.playback_progress = 0.0;
@@ -363,6 +369,9 @@ impl AppState {
 
     /// 再生速度を `scale` 倍にする（0.25 倍から 32 倍まで）
     pub fn scale_snapshot_playback_speed(&mut self, scale: f64) {
+        if self.reject_while_debug_view() {
+            return;
+        }
         let next = (self.debug_snapshot.playback_speed_factor * scale)
             .clamp(PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX);
         self.debug_snapshot.playback_speed_factor = next;
@@ -486,6 +495,9 @@ impl AppState {
     }
 
     pub(super) fn refresh_snapshot_window_title(&self) {
+        if self.debug_view_shown() {
+            return;
+        }
         let Some(series) = &self.debug_snapshot.series else {
             return;
         };
@@ -551,6 +563,9 @@ impl AppState {
     }
 
     pub(super) fn snapshot_progress_ratio(&self) -> Option<f32> {
+        if self.debug_view_shown() {
+            return None;
+        }
         self.debug_snapshot.series.as_ref()?;
         // Keep overlay in sync with the currently displayed frame.
         self.snapshot_weighted_progress_from_cursor()
@@ -563,7 +578,8 @@ impl AppState {
     }
 
     pub(super) fn is_cursor_on_snapshot_track(&self, cursor: (f32, f32)) -> bool {
-        self.snapshot_track_rect().contains(cursor)
+        // デバッグ表示の間は進捗バーを描かないため、クリックも受けない
+        !self.debug_view_shown() && self.snapshot_track_rect().contains(cursor)
     }
 
     pub(super) fn set_snapshot_cursor_from_x(&mut self, x: f32, emit_log: bool) {

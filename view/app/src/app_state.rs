@@ -35,6 +35,9 @@ mod menu_bar;
 mod help;
 // AppState のデバッグスナップショット状態
 mod debug_snapshot_state;
+
+// AppState の通常の表示とデバッグ表示の切り替え
+mod main_view;
 // AppState のデバッグ表示（形状・逆オフセット形状）
 mod debug_scene;
 // AppState の表示モード・カメラ制御
@@ -207,6 +210,8 @@ pub struct AppState {
 
     /// デバッグ用: シミュレーションスナップショット状態
     debug_snapshot: DebugSnapshotState,
+    /// デバッグ表示の間、取っておく通常の表示（ステージとカメラ。通常の表示の間は `None`）
+    main_view: Option<main_view::MainView>,
     snapshot_scrub_active: bool,
 
     cursor_position: Option<(f32, f32)>,
@@ -271,6 +276,7 @@ impl AppState {
             help_about_open: false,
             notice: settings_notice.unwrap_or(Notice::Startup),
             debug_snapshot: DebugSnapshotState::default(),
+            main_view: None,
             snapshot_scrub_active: false,
             cursor_position: None,
             last_cursor_position: None,

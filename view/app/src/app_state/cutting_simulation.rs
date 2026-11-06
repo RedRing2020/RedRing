@@ -146,6 +146,7 @@ impl AppState {
                 self.apply_camera_fit(fit);
             }
         }
+        self.discard_main_view();
         self.renderer.set_stage(mesh_stage);
         self.cutting_animation = Some(animation);
         self.update_camera_uniforms();
@@ -167,7 +168,7 @@ impl AppState {
     /// 素材の面と製品形状のメッシュは作り直さない（素材は色だけを変える）。ただし、最後のコマで色分けの入・切が変わった
     /// 場合は、素材の面がすべて作り直されて届く。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
     pub(super) fn redraw_cutting_animation(&mut self) {
-        let Some(animation) = &mut self.cutting_animation else {
+        let Some(animation) = &self.cutting_animation else {
             tracing::info!(
                 "No cutting simulation is imported; the settings apply from the next import"
             );
@@ -182,13 +183,9 @@ impl AppState {
             &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
             Some(colors.tool_wire_color),
         );
-        let device = &self.graphic.device;
-        let Some(mesh_stage) = self
-            .renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
-        else {
+        let device = self.graphic.device.clone();
+        let device = &device;
+        let Some(mesh_stage) = self.main_mesh_stage() else {
             tracing::warn!("Cannot apply the settings because no cutting animation is shown");
             self.set_notice(crate::help_ui::Notice::ApplyWithoutAnimation);
             return;
@@ -208,7 +205,9 @@ impl AppState {
             );
         }
         // 色分けするかが変わった場合は、最後の時点の素材の面が作り直されて届く
-        animation.set_deviations_shown(colors.deviations.shown);
+        if let Some(animation) = &mut self.cutting_animation {
+            animation.set_deviations_shown(colors.deviations.shown);
+        }
         // 後から届く素材のブロックと工具の線も、この色で描く
         self.cutting_animation_colors = colors;
         self.update_camera_uniforms();
@@ -299,10 +298,7 @@ impl AppState {
     /// 切削アニメーションの表示中のメッシュステージ（表示中でなければ `None`）
     fn cutting_animation_stage(&mut self) -> Option<&mut MeshStage> {
         self.cutting_animation.as_ref()?;
-        self.renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
+        self.main_mesh_stage()
     }
 
     /// 頼んだコマの素材の面ができていれば、素材のブロックと工具の形を差し替える
@@ -320,9 +316,9 @@ impl AppState {
             Some(self.cutting_animation_colors.tool_wire_color),
         );
         let colors = self.cutting_animation_colors;
-        let device = &self.graphic.device;
-        let stage = self.renderer.get_stage_mut();
-        if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
+        let device = self.graphic.device.clone();
+        let device = &device;
+        if let Some(mesh_stage) = self.main_mesh_stage() {
             for block in blocks {
                 // 三角形のない分類の面も渡し、前の面の同じ分類のメッシュを除く
                 for (key, item) in stock_block_items(block, &colors) {

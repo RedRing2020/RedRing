@@ -122,6 +122,11 @@ impl AppRenderer {
         self.stage = stage;
     }
 
+    /// ステージを `stage` に替え、それまでのステージを返す
+    pub fn replace_stage(&mut self, stage: Box<dyn RenderStage>) -> Box<dyn RenderStage> {
+        std::mem::replace(&mut self.stage, stage)
+    }
+
     /// 描画処理：現在のステージに委譲
     pub fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
         self.stage.render(encoder, view);

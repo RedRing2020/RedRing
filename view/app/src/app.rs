@@ -9,6 +9,9 @@ use winit::{
 
 use crate::app_state::AppState;
 
+/// ウィンドウのタイトル（切削シミュレーションを取り込む前と、デバッグ表示の間）
+pub(crate) const APP_TITLE: &str = "RedRing";
+
 #[derive(Default)]
 pub struct App {
     pub state: Option<AppState>,
@@ -40,7 +43,7 @@ impl ApplicationHandler for App {
             event_loop
                 .create_window(
                     WindowAttributes::default()
-                        .with_title("RedRing")
+                        .with_title(APP_TITLE)
                         .with_visible(false),
                 )
                 .expect("Window creation failed"),

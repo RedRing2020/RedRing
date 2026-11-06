@@ -32,7 +32,7 @@ impl AppState {
     }
 
     pub fn render(&mut self) {
-        if self.debug_snapshot.frame_update_required {
+        if self.debug_snapshot.frame_update_required && !self.debug_view_shown() {
             self.sync_snapshot_visual_frame();
         }
         self.apply_cutting_animation_update();

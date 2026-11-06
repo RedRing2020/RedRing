@@ -16,6 +16,7 @@ impl AppState {
         indices: Vec<u32>,
         reset_camera: bool,
     ) {
+        self.enter_debug_view();
         if reset_camera {
             self.camera.reset_to_standard_cad_view();
         }
@@ -25,9 +26,7 @@ impl AppState {
             self.graphic.config.format,
         ));
         mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
-
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
+        self.show_debug_stage(mesh_stage);
     }
 
     /// デバッグ用：LineSegment3Dを表示

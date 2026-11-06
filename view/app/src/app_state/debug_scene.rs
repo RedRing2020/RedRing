@@ -11,6 +11,7 @@ impl AppState {
     /// 設定パネルのデバッグタブで押されたデバッグ用の表示を行う
     pub(super) fn show_debug_scene(&mut self, action: DebugSceneAction) {
         match action {
+            DebugSceneAction::MainView => self.restore_main_view(),
             DebugSceneAction::Line => self.load_debug_line(),
             DebugSceneAction::Circle => self.load_debug_circle(),
             DebugSceneAction::Arc => self.load_debug_arc(),

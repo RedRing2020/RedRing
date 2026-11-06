@@ -82,6 +82,8 @@ pub(crate) enum Notice {
     NoToolSegments,
     /// 切削アニメーションの表示中ではないため、設定を反映できない
     ApplyWithoutAnimation,
+    /// デバッグ表示の間は、切削アニメーションのコマを動かさない
+    DebugViewShown,
     /// アプリの設定を読めないため、既定の設定で起動した（理由）
     SettingsLoadFailed { reason: UiMessage },
     /// 設定のファイルを使えない（利用者ごとのフォルダが分からない・読めなかった）ため、設定を保存しない
@@ -100,6 +102,7 @@ impl Notice {
             Self::NotImported
             | Self::NoToolSegments
             | Self::ApplyWithoutAnimation
+            | Self::DebugViewShown
             | Self::SettingsLoadFailed { .. }
             | Self::SettingsNotSaved
             | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
@@ -134,6 +137,7 @@ impl Notice {
             Self::ApplyWithoutAnimation => {
                 resolve_help_text(locale, "notice.apply_without_animation", &[])
             }
+            Self::DebugViewShown => resolve_help_text(locale, "notice.debug_view_shown", &[]),
             Self::SettingsLoadFailed { reason } => resolve_help_text(
                 locale,
                 "notice.settings_load_failed",
@@ -311,6 +315,7 @@ mod tests {
                 Notice::NotImported,
                 Notice::NoToolSegments,
                 Notice::ApplyWithoutAnimation,
+                Notice::DebugViewShown,
                 Notice::SettingsLoadFailed {
                     reason: UiMessage {
                         key: "failure.file.invalid_data".to_string(),
