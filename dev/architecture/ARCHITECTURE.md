@@ -70,7 +70,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **CAM の責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` は CAM 特化のユースケースの実行として分離する
 - **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋なデータ層ではなく CAM ドメイン専用の application 層に近い
 - **エンティティ層の業務分離**: 業務別の entity（`cam_entity` 等）は、`geo_entity`（業務に依らないエンティティ基盤）と、その業務の中立データ（`cam_core` 等）に依存する。業務の中立データは `geo_entity` に依存しない。計算の層（`cam_algorithms`・`cam_sim`）はエンティティの ID を扱わず、ID から形状への変換は `application` が行う。属性コードのドメインは、業務に依らないもの（メタ・寸法等）を `geo_entity`、業務のもの（CAM）を業務層が所有する（`ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md`）
-- **ViewModel → Model の経路**: ViewModel が依存する Model のクレートは application だけとし、更新・ユースケースの実行・描画のための計算を application の API で行う。API に出てくる値の型は application が再エクスポートする。今の直接の依存は段階ごとに外す（`VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1）
+- **ViewModel → Model の経路**: ViewModel が依存する Model のクレートは application だけとし、更新・ユースケースの実行・描画のための計算を application の API で行う。API に出てくる値の型は application が再エクスポートする。試験だけで使う依存（dev-dependencies）は依存の決まりで数えない（`VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md` §3.4.1）
 - **ビューはモデルに直接依存しない**: `view/*` はモデルのクレートに依存せず、描画に必要なデータは `viewmodel/*` で変換したものを受け取る
 
 ### CAD/CAM 境界ルール（2026年3月更新）

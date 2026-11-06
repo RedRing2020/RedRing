@@ -18,7 +18,9 @@ $ARCH_LAYERS = [ordered]@{
 # Required model crates
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_algorithms")
 
-# Allowed dependency rules（通常の依存・dev-dependencies・build-dependencies を含む）
+# Allowed dependency rules（通常の依存・build-dependencies に当てる。dev-dependencies には当てない）
+# 試験だけで使う依存（dev-dependencies）は、試験の入力の形を作るために使ってよいため、許可の一覧では数えない。
+# ただし、禁止の一覧（$ARCH_FORBIDDEN_DEPS）は dev-dependencies にも当てる。
 $ARCH_ALLOWED_DEPS = @{
     analysis             = @()
     i18n_foundation      = @()
@@ -42,7 +44,7 @@ $ARCH_ALLOWED_DEPS = @{
 
     application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain")
 
-    viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application", "geo_contracts", "geo_algorithms", "geo_io")
+    viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application")
     "viewmodel-graphics" = @("analysis")
 
     render  = @("analysis", "logging_foundation", "viewmodel", "viewmodel-graphics")
@@ -85,7 +87,7 @@ $ARCH_FORBIDDEN_DEPS = @{
 }
 
 # Shared helper: ワークスペースのクレートと、ワークスペース内の依存（path 依存）を返す
-# 戻り値: パッケージ名 → @{ Path = <ディレクトリ>; Deps = <依存するパッケージ名の配列> }
+# 戻り値: パッケージ名 → @{ Path = <ディレクトリ>; Deps = <通常・build の依存の配列>; DevDeps = <dev-dependencies の配列> }
 function Get-WorkspaceCratesShared {
     $json = cargo metadata --no-deps --format-version 1 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $json) {
@@ -94,10 +96,13 @@ function Get-WorkspaceCratesShared {
     $metadata = $json | ConvertFrom-Json
     $result = [ordered]@{}
     foreach ($package in ($metadata.packages | Sort-Object name)) {
-        $deps = @($package.dependencies | Where-Object { $_.path } | ForEach-Object { $_.name } | Sort-Object -Unique)
+        $pathDeps = @($package.dependencies | Where-Object { $_.path })
+        $deps = @($pathDeps | Where-Object { $_.kind -ne "dev" } | ForEach-Object { $_.name } | Sort-Object -Unique)
+        $devDeps = @($pathDeps | Where-Object { $_.kind -eq "dev" } | ForEach-Object { $_.name } | Sort-Object -Unique)
         $result[$package.name] = @{
             Path = Split-Path -Parent $package.manifest_path
             Deps = $deps
+            DevDeps = $devDeps
         }
     }
     return $result

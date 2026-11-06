@@ -5,6 +5,8 @@ use crate::geometry_orchestration::{
     DebugShapeGeometryMutationPort, GeometryOrchestrationError, GeometryOrchestrator,
     LineGeometryMutationPort,
 };
+/// 作ったエンティティの向き（`Direction3D::as_vector`）を計算に使うベクトルの型
+pub use crate::primitives::Vector3D;
 use crate::primitives::{Angle, Arc3D, Circle3D, Direction3D, LineSegment3D, Point3D};
 use crate::topology_orchestration::{
     CreateArcTopologyRequest, CreateCircleTopologyRequest, CreateLineTopologyRequest,
@@ -12,10 +14,11 @@ use crate::topology_orchestration::{
     TopologyOrchestrator,
 };
 use geo_contracts::{
-    Arc3DProperties, ArcEntity3DProperties, Circle3DProperties, CircleEntity3DProperties,
-    EntityDisplayProperties, EntityIdentity, LineEntity3DProperties, LineSegment3DProperties,
-    StrokeDisplayProperties, StrokePattern,
+    Arc3DProperties, Circle3DProperties, EntityDisplayProperties, EntityIdentity,
+    LineSegment3DProperties, StrokeDisplayProperties, StrokePattern,
 };
+/// 作った線分・円・円弧のエンティティの形を読むための trait
+pub use geo_contracts::{ArcEntity3DProperties, CircleEntity3DProperties, LineEntity3DProperties};
 use geo_entity::{EntityId, GeometricEntity};
 use geo_topology::{Edge as TopologyEdge, TopoId};
 use std::collections::HashMap;
