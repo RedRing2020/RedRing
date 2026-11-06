@@ -258,6 +258,14 @@ log_rate_limited_info!(state.logger_key("camera"), 500, "camera={:?}", camera);
 - 大量データ（頂点列・行列フルダンプ）は `trace` に限定
 - 新規ログ追加時は「頻度」と「既定表示可否」を必ず確認
 
+### ログとエラーの文の言語
+
+- ログ（`tracing`）・エラーの文（`Display`・`#[error]`）・コンソールへの出力・パニックの文（`panic!`・`.expect`）は英語で書く。利用者から送ってもらったログを、画面の言語にかかわらず同じ言語で読めるようにするため
+- 画面に出す文言は、日本語・英語の文言の表（`*_messages.rs`・`*message_catalog.rs`）に置き、選んだ言語で出す。エラーを画面に出すときは、エラーの文をそのまま出さず、文言のキーと引数に変えて出す
+- OS が返す誤りの文（ファイルの誤りなど）は OS の言語になるため、ログには誤りの種類（`kind = ?error.kind()`）も併せて書く
+- コードのコメントと文書は日本語でよい
+- `scripts/check_message_language_policy.ps1` が、`model/`・`viewmodel/`・`view/`・`foundation/` のログ・エラーの文・コンソールへの出力・パニックの文の日本語を検出する（テスト・`examples/` は対象外）
+
 ### analysis層に関する追加ルール
 
 - `foundation/analysis` は純粋計算層として扱い、`tracing` 等のログ依存を直接導入しない

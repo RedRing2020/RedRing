@@ -58,7 +58,7 @@ impl NurbsCurveEvalData {
         let params: Vec<f32> = param_list.params.iter().map(|p| p.to_f32()).collect();
 
         tracing::debug!(
-            "📋 NurbsCurveEvalData 変換完了: {} params, {} control points, degree={}, {} knots",
+            "Converted NurbsCurveEvalData: {} params, {} control points, degree={}, {} knots",
             params.len(),
             num_cp,
             degree,
@@ -67,7 +67,7 @@ impl NurbsCurveEvalData {
 
         if !control_points.is_empty() {
             tracing::trace!(
-                "📋 制御点[0]: ({:.3}, {:.3}, {:.3})",
+                "Control point[0]: ({:.3}, {:.3}, {:.3})",
                 control_points[0],
                 control_points[1],
                 control_points[2]
@@ -75,7 +75,7 @@ impl NurbsCurveEvalData {
             if num_cp > 1 {
                 let last_idx = control_points.len() - 3;
                 tracing::trace!(
-                    "📋 制御点[{}]: ({:.3}, {:.3}, {:.3})",
+                    "Control point[{}]: ({:.3}, {:.3}, {:.3})",
                     num_cp - 1,
                     control_points[last_idx],
                     control_points[last_idx + 1],
@@ -252,7 +252,7 @@ impl NurbsSurfaceEvalData {
             .map(|w_flat| w_flat.iter().map(|w| w.to_f32()).collect());
 
         tracing::debug!(
-            "📋 NurbsSurfaceEvalData 変換完了: vertices={}, control_points={}x{}, u_degree={}, v_degree={}",
+            "Converted NurbsSurfaceEvalData: vertices={}, control_points={}x{}, u_degree={}, v_degree={}",
             num_vertices,
             u_count,
             v_count,

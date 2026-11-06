@@ -51,7 +51,7 @@ impl AppState {
         self.apply_camera_fit(data.fit);
 
         tracing::info!(
-            "カメラ設定: target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds(camspace)=({:.1}..{:.1}, {:.1}..{:.1}), 平行投影",
+            "Camera: target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds(camspace)=({:.1}..{:.1}, {:.1}..{:.1}), orthographic",
             data.fit.center_x,
             data.fit.center_y,
             data.fit.center_z,
@@ -77,24 +77,30 @@ impl AppState {
 
     /// デバッグ用：VoxelOctree可視化を表示
     pub fn load_debug_octree(&mut self) {
-        tracing::info!("VoxelOctree可視化デバッグ開始");
+        tracing::info!("Started the VoxelOctree debug view");
 
         let Some(data) = self.build_octree_debug_data() else {
-            tracing::warn!("Octreeワイヤーフレーム頂点が空のため表示をスキップ");
+            tracing::warn!("Skipped the octree view because the wireframe has no vertices");
             return;
         };
 
-        tracing::info!("ワイヤーフレーム頂点数: {}", data.positions.len());
+        tracing::info!("Wireframe vertices: {}", data.positions.len());
 
         for (i, pos) in data.positions.iter().take(8).enumerate() {
-            tracing::info!("頂点[{}]: [{:.1}, {:.1}, {:.1}]", i, pos[0], pos[1], pos[2]);
+            tracing::info!(
+                "Vertex[{}]: [{:.1}, {:.1}, {:.1}]",
+                i,
+                pos[0],
+                pos[1],
+                pos[2]
+            );
         }
 
         let initial_depth = data.initial_depth;
         self.apply_octree_debug_data(data);
 
-        tracing::info!("VoxelOctree可視化デバッグ完了");
-        tracing::info!("初期表示深さ: {}", initial_depth);
-        tracing::info!("o: 深さを1段進める, Shift+O: 深さアニメーション再生");
+        tracing::info!("Finished the VoxelOctree debug view");
+        tracing::info!("Initial depth: {}", initial_depth);
+        tracing::info!("o: next depth, Shift+O: play the depth animation");
     }
 }

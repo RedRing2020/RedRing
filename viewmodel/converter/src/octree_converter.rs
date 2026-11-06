@@ -313,7 +313,7 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
 ) -> Vec<WireframeVertex> {
     let mut vertices = Vec::new();
 
-    tracing::debug!("voxel_octree_to_wireframe: 開始");
+    tracing::debug!("voxel_octree_to_wireframe: started");
 
     // 可視深さまでの非Emptyボクセル境界ボックスを取得
     let visible_depth = options
@@ -324,7 +324,7 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
     let solid_bounds = voxel_octree.collect_non_empty_voxel_bounds_up_to_depth(visible_depth);
 
     tracing::info!(
-        "voxel_octree_to_wireframe: {} Solidボクセル検出",
+        "voxel_octree_to_wireframe: found {} solid voxels",
         solid_bounds.len()
     );
 
@@ -348,7 +348,7 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
     let removed_edges = (before.saturating_sub(deduped.len())) / 2;
 
     tracing::info!(
-        "voxel_octree_to_wireframe: {} 頂点 → {} 頂点（重複辺 {} 本削除）",
+        "voxel_octree_to_wireframe: {} vertices -> {} vertices ({} duplicate edges removed)",
         before,
         deduped.len(),
         removed_edges
@@ -407,7 +407,7 @@ pub fn voxel_octree_to_wireframe_colored_levels_with_settings<T: Scalar>(
     }
 
     tracing::info!(
-        "create_sample_voxel_octree_wireframe_colored_levels_with_settings: {} レベル生成（0..{}）",
+        "create_sample_voxel_octree_wireframe_colored_levels_with_settings: generated {} levels (0..{})",
         levels.len(),
         max_depth
     );
@@ -417,7 +417,7 @@ pub fn voxel_octree_to_wireframe_colored_levels_with_settings<T: Scalar>(
 
 /// デバッグ/教育用：サンプルVoxelOctreeワイヤーフレームデータを生成
 pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
-    tracing::info!("create_sample_voxel_octree_wireframe: 開始");
+    tracing::info!("create_sample_voxel_octree_wireframe: started");
 
     let voxel_tree = geo_algorithms::octree::fixtures::create_sample_voxel_octree(3, 0.0);
     let options = VoxelVisualizationOptions {
@@ -430,7 +430,7 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
     let positions = voxel_octree_to_wireframe_positions(&voxel_tree, &options);
 
     tracing::info!(
-        "create_sample_voxel_octree_wireframe: 完了 ({} positions)",
+        "create_sample_voxel_octree_wireframe: finished ({} positions)",
         positions.len()
     );
 

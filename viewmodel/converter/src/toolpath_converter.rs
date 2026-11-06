@@ -227,7 +227,7 @@ pub fn toolpath_to_vertices(
     let cutting_start = vertices.len();
 
     tracing::debug!(
-        "Phase 1完了: アプローチ頂点 {} 個（{} 線分）",
+        "Phase 1 finished: {} approach vertices ({} segments)",
         approach_end - approach_start,
         (approach_end - approach_start) / 2
     );
@@ -243,7 +243,7 @@ pub fn toolpath_to_vertices(
             &mut colors,
         );
         tracing::debug!(
-            "等高線レベル {}: 頂点 {} 個追加（合計 {} 線分）",
+            "Contour level {}: added {} vertices ({} segments in total)",
             contour_level.level_index,
             vertices.len() - before_count,
             contour_level.segments.len()
@@ -254,7 +254,7 @@ pub fn toolpath_to_vertices(
     let retract_start = vertices.len();
 
     tracing::debug!(
-        "Phase 2完了: 切削頂点 {} 個（{} 線分）",
+        "Phase 2 finished: {} cutting vertices ({} segments)",
         cutting_end - cutting_start,
         (cutting_end - cutting_start) / 2
     );
@@ -279,13 +279,13 @@ pub fn toolpath_to_vertices(
     let retract_end = vertices.len();
 
     tracing::debug!(
-        "Phase 3完了: リトラクト頂点 {} 個（{} 線分）",
+        "Phase 3 finished: {} retract vertices ({} segments)",
         retract_end - retract_start,
         (retract_end - retract_start) / 2
     );
 
     tracing::info!(
-        "ツールパス変換完了: 合計 {} 頂点（approach: {}, cutting: {}, retract: {}）",
+        "Converted the toolpath: {} vertices in total (approach: {}, cutting: {}, retract: {})",
         vertices.len(),
         (approach_end - approach_start) / 2,
         (cutting_end - cutting_start) / 2,

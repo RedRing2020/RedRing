@@ -28,8 +28,8 @@ fn init_dual_output_logging(config: &LoggingInitConfig<'_>, log_file_path: &Path
     let file = match fs::File::create(log_file_path) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("⚠ ログファイル作成失敗: {}", e);
-            eprintln!("  コンソールログのみで続行します");
+            eprintln!("Failed to create the log file ({:?}): {}", e.kind(), e);
+            eprintln!("  Continuing with console logging only");
             init_console_only_logging(config);
             return false;
         }
@@ -55,8 +55,8 @@ fn init_dual_output_logging(config: &LoggingInitConfig<'_>, log_file_path: &Path
         )
         .init();
 
-    tracing::info!("{} 起動", config.app_name);
-    tracing::info!("ログファイル: {}", log_file_path.display());
+    tracing::info!("{} started", config.app_name);
+    tracing::info!("Log file: {}", log_file_path.display());
     true
 }
 
@@ -67,5 +67,5 @@ fn init_console_only_logging(config: &LoggingInitConfig<'_>) {
         .with_env_filter(tracing_subscriber::EnvFilter::new(filter))
         .init();
 
-    tracing::info!("{} 起動（コンソールログのみ）", config.app_name);
+    tracing::info!("{} started (console logging only)", config.app_name);
 }

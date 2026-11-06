@@ -9,7 +9,7 @@ impl AppState {
     pub fn load_sample_toolpath_only(&mut self) {
         use viewmodel::toolpath_converter::{load_demo_toolpath, toolpath_to_vertices};
 
-        tracing::info!("カッターパス表示デバッグ開始（pキー）");
+        tracing::info!("Started the cutter path debug view (p key)");
 
         let toolpath = load_demo_toolpath();
         let toolpath_vertices =
@@ -30,7 +30,7 @@ impl AppState {
             .collect();
 
         if vertices.is_empty() {
-            tracing::warn!("カッターパス頂点が空のため表示をスキップ");
+            tracing::warn!("Skipped the cutter path view because it has no vertices");
             return;
         }
 
@@ -40,7 +40,7 @@ impl AppState {
 
         let positions: Vec<[f32; 3]> = vertices.iter().map(|v| v.position).collect();
         let Some(fit) = Self::build_camera_fit(&positions) else {
-            tracing::warn!("カッターパス頂点が空のため表示をスキップ");
+            tracing::warn!("Skipped the cutter path view because it has no vertices");
             return;
         };
 
@@ -55,7 +55,7 @@ impl AppState {
         self.update_camera_uniforms();
 
         tracing::info!(
-            "カッターパス表示デバッグ完了: 線分数={}",
+            "Finished the cutter path debug view: segments={}",
             toolpath_vertices.colors.len()
         );
     }

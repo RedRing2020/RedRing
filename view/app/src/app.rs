@@ -41,11 +41,11 @@ impl ApplicationHandler for App {
                 .expect("Window creation failed"),
         );
         self.state = Some(AppState::new(window));
-        tracing::info!("=== RedRing 起動完了 ===");
+        tracing::info!("=== RedRing is ready ===");
         tracing::info!(
-            "切削シミュレーション: Shift+M で加工条件のウィンドウを開き、「投入」で投入します"
+            "Cutting simulation: open the machining conditions window with Shift+M and submit with Submit"
         );
-        tracing::info!("操作の一覧は F1・h キー、または「ヘルプ」→「操作の一覧」で開けます");
+        tracing::info!("Open the controls list with F1 / h or Help > Controls");
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {

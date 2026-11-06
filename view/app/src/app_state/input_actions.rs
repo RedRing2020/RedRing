@@ -47,22 +47,22 @@ impl AppState {
                 "r" => {
                     self.camera.reset();
                     self.update_camera_uniforms();
-                    tracing::info!("カメラをリセット（rキー）");
+                    tracing::info!("Reset the camera (r key)");
                 }
                 "t" => {
                     self.camera.reset_to_standard_cad_view();
                     self.update_camera_uniforms();
-                    tracing::info!("標準CAD視点に設定（tキー）");
+                    tracing::info!("Set the standard CAD view (t key)");
                 }
                 "f" => {
                     self.camera.reset_to_front_view();
                     self.update_camera_uniforms();
-                    tracing::info!("正面視点に設定（fキー）");
+                    tracing::info!("Set the front view (f key)");
                 }
                 "e" => {
                     self.camera.emergency_camera_escape();
                     self.update_camera_uniforms();
-                    tracing::warn!("緊急カメラ脱出実行（eキー）");
+                    tracing::warn!("Emergency camera escape (e key)");
                 }
                 "h" => {
                     self.toggle_help_controls();

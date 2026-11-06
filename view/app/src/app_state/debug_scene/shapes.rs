@@ -33,7 +33,7 @@ impl AppState {
     /// デバッグ用：LineSegment3Dを表示（SVGから読み込み）
     /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_line(&mut self) {
-        tracing::info!("デバッグ形状: LineSegment3D表示（Application経由）");
+        tracing::info!("Debug shape: LineSegment3D (through the application)");
 
         let Ok(vertex_data) = create_debug_line_vertices() else {
             tracing::error!(
@@ -55,7 +55,7 @@ impl AppState {
     /// デバッグ用：Circle3Dを表示（SVGから読み込み）
     /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_circle(&mut self) {
-        tracing::info!("デバッグ形状: Circle3D表示（Feature/Entity経由）");
+        tracing::info!("Debug shape: Circle3D (through feature/entity)");
 
         let Ok(vertex_data) = create_debug_circle_vertices() else {
             tracing::error!(
@@ -76,7 +76,7 @@ impl AppState {
     /// デバッグ用：Triangle3Dを表示（SVGから読み込み）
     /// 直接MeshStage経路で扱う。
     pub fn load_debug_triangle(&mut self) {
-        tracing::info!("デバッグ形状: Triangle3D表示（Application経由）");
+        tracing::info!("Debug shape: Triangle3D (through the application)");
 
         let Ok(vertex_data) = create_debug_triangle_vertices() else {
             tracing::error!(
@@ -94,7 +94,7 @@ impl AppState {
     /// デバッグ用：Arc3Dを表示（SVGから読み込み）
     /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_arc(&mut self) {
-        tracing::info!("デバッグ形状: Arc3D表示（Feature/Entity経由）");
+        tracing::info!("Debug shape: Arc3D (through feature/entity)");
 
         let Ok(vertex_data) = create_debug_arc_vertices() else {
             tracing::error!(

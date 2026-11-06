@@ -41,7 +41,7 @@ impl AppState {
             .map(|mesh| format!("{:?}={}", mesh.kind, mesh.indices.len() / 3))
             .collect();
         tracing::info!(
-            "逆オフセット形状: 工具={:?}, きざみ={}°, 三角形 {}",
+            "Inverse offset shape: tool={:?}, step={} deg, triangles {}",
             self.cutting_simulation.operation_content().tool.tool_type(),
             ANGLE_STEP_DEGREES,
             counts.join(" ")

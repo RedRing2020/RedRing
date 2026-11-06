@@ -7,7 +7,7 @@
     2. cargo clippy --all-targets --all-features --workspace -- -D warnings (リント)
     3. cargo check --release --workspace (release の設定でだけ有効になるコードの確認)
     4. cargo test --workspace (テスト)
-    5. scripts/check_message_language_policy.ps1 (実行時文言の言語ポリシーチェック)
+    5. scripts/check_message_language_policy.ps1 (ログとエラーの文が英語かのチェック)
     6. scripts/check_github_refs_in_source.ps1 (ソースコード中の GitHub 固有情報チェック)
     7. scripts/check_unused_public_api.ps1 (呼び出し元のない公開メソッド・trait定義のメソッド・簡易実装の記載。警告のみ)
     

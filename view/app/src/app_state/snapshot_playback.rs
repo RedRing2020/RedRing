@@ -165,7 +165,7 @@ impl AppState {
             return true;
         }
         tracing::warn!(
-            "切削シミュレーションが取り込まれていません。trigger={}, Shift+L で取り込んでください",
+            "No cutting simulation is imported (trigger={}); import it with Shift+L",
             trigger.label()
         );
         self.set_notice(crate::help_ui::Notice::NotImported);
@@ -223,7 +223,7 @@ impl AppState {
         };
 
         if series.frames.is_empty() {
-            tracing::warn!("スナップショット系列が空です");
+            tracing::warn!("The snapshot series is empty");
             return;
         }
 
@@ -255,7 +255,7 @@ impl AppState {
         };
 
         if series.frames.is_empty() {
-            tracing::warn!("スナップショット系列が空です");
+            tracing::warn!("The snapshot series is empty");
             return;
         }
 
@@ -282,7 +282,9 @@ impl AppState {
             return;
         };
         let Some(frame) = animation.step_tool_endpoint(forward) else {
-            tracing::warn!("ツールパスに区間がないため、工具を区間の端点へ移せません");
+            tracing::warn!(
+                "Cannot move the tool to a segment endpoint because the toolpath has no segments"
+            );
             self.set_notice(crate::help_ui::Notice::NoToolSegments);
             return;
         };
@@ -319,7 +321,7 @@ impl AppState {
                 self.debug_snapshot.last_playback_tick = Some(Instant::now());
                 self.refresh_snapshot_window_title();
                 tracing::info!(
-                    "Snapshot自動再生を開始: {}x",
+                    "Started snapshot playback: {}x",
                     self.debug_snapshot.playback_speed_factor
                 );
             }
@@ -345,7 +347,7 @@ impl AppState {
         self.debug_snapshot.last_playback_tick = None;
         self.refresh_snapshot_window_title();
         tracing::info!(
-            "Snapshot自動再生を一時停止: {}x",
+            "Paused snapshot playback: {}x",
             self.debug_snapshot.playback_speed_factor
         );
     }
@@ -356,7 +358,7 @@ impl AppState {
         self.debug_snapshot.playback_progress = 0.0;
         self.set_snapshot_cursor_from_progress(0.0, false);
         self.log_current_snapshot_frame(true);
-        tracing::info!("Snapshot自動再生を停止（先頭へ移動）");
+        tracing::info!("Stopped snapshot playback (moved to the start)");
     }
 
     /// 再生速度を `scale` 倍にする（0.25 倍から 32 倍まで）
@@ -366,7 +368,7 @@ impl AppState {
         self.debug_snapshot.playback_speed_factor = next;
         self.refresh_snapshot_window_title();
         tracing::info!(
-            "Snapshot再生速度: {}x",
+            "Snapshot playback speed: {}x",
             self.debug_snapshot.playback_speed_factor
         );
     }
@@ -419,7 +421,7 @@ impl AppState {
             self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Paused;
             self.debug_snapshot.last_playback_tick = None;
             self.refresh_snapshot_window_title();
-            tracing::info!("Snapshot自動再生が末尾に到達して停止");
+            tracing::info!("Snapshot playback reached the end and stopped");
         }
     }
 

@@ -78,7 +78,7 @@ impl MeshStage {
     /// メッシュデータを設定（ソリッド/ワイヤーフレーム用）
     pub fn set_mesh_data(&mut self, device: &Device, vertices: Vec<MeshVertex>, indices: Vec<u32>) {
         tracing::debug!(
-            "メッシュデータ設定: {} 頂点, {} インデックス",
+            "Set mesh data: {} vertices, {} indices",
             vertices.len(),
             indices.len()
         );
@@ -90,7 +90,7 @@ impl MeshStage {
 
     /// 線分データを設定（Lines用）
     pub fn set_line_data(&mut self, device: &Device, vertices: Vec<MeshVertex>) {
-        tracing::debug!("線分データ設定: {} 頂点", vertices.len());
+        tracing::debug!("Set line data: {} vertices", vertices.len());
 
         // LineResourcesが未初期化の場合は作成
         if self.line_resources.is_none() {
@@ -287,7 +287,7 @@ impl RenderStage for MeshStage {
                 if let Some(line_res) = &self.line_resources {
                     line_res.render(&mut render_pass);
                 } else {
-                    tracing::debug!("LineResources が None");
+                    tracing::debug!("LineResources is None");
                 }
             }
         }
@@ -333,13 +333,13 @@ impl RenderStage for MeshStage {
             if let Some(line_res) = &self.line_resources {
                 if should_trace {
                     tracing::trace!(
-                        "Lines描画(no depth): vertex_count={}",
+                        "Drawing lines (no depth): vertex_count={}",
                         line_res.vertex_count
                     );
                 }
                 line_res.render(&mut line_pass);
             } else {
-                tracing::debug!("LineResources が None");
+                tracing::debug!("LineResources is None");
             }
             return;
         }
@@ -384,11 +384,11 @@ impl RenderStage for MeshStage {
             RenderMode::Lines => {
                 if let Some(line_res) = &self.line_resources {
                     if should_trace {
-                        tracing::trace!("Lines描画: vertex_count={}", line_res.vertex_count);
+                        tracing::trace!("Drawing lines: vertex_count={}", line_res.vertex_count);
                     }
                     line_res.render(&mut render_pass);
                 } else {
-                    tracing::debug!("LineResources が None");
+                    tracing::debug!("LineResources is None");
                 }
             }
         }

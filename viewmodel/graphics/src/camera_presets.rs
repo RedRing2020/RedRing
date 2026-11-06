@@ -31,7 +31,7 @@ pub(crate) fn fit_to_mesh(
         .unwrap_or(Quaternionf::identity());
 
     tracing::info!(
-        "カメラをメッシュに適応: center={:?}, distance={:.2}, diagonal={:.2}, min_distance={:.4}",
+        "Fitted the camera to the mesh: center={:?}, distance={:.2}, diagonal={:.2}, min_distance={:.4}",
         [center.x(), center.y(), center.z()],
         *distance,
         diagonal,
@@ -72,7 +72,7 @@ pub(crate) fn fit_to_small_mesh(
         .unwrap_or(Quaternionf::identity());
 
     tracing::info!(
-        "小オブジェクト対応カメラ設定: center={:?}, distance={:.4}, diagonal={:.4}, factor={}",
+        "Camera for a small object: center={:?}, distance={:.4}, diagonal={:.4}, factor={}",
         [center.x(), center.y(), center.z()],
         *distance,
         diagonal,
@@ -91,7 +91,7 @@ pub(crate) fn reset(
     *distance = 5.0;
     *rotation = Quaternionf::identity();
     *zoom = 1.0;
-    tracing::info!("カメラをリセット");
+    tracing::info!("Reset the camera");
 }
 
 /// 標準の直交表示向け状態へリセットする。
@@ -109,7 +109,7 @@ pub(crate) fn reset_to_standard_cad_view(
     *rotation = Quaternionf::identity();
 
     tracing::info!(
-        "カメラを標準CAD視点にリセット（距離: {:.1}、回転なし・Z正方向から正面）",
+        "Reset the camera to the standard CAD view (distance: {:.1}, no rotation, looking from +Z)",
         *distance
     );
 }
@@ -127,7 +127,7 @@ pub(crate) fn reset_to_front_view(
     *rotation = Quaternionf::identity();
 
     tracing::info!(
-        "カメラを正面視点にリセット（距離: {:.1}、1単位立方体が確実に見える位置）",
+        "Reset the camera to the front view (distance: {:.1}, a unit cube is surely visible)",
         *distance
     );
 }
@@ -160,7 +160,7 @@ pub(crate) fn reset_to_safe_view(
         .unwrap_or(Quaternionf::identity());
 
     tracing::info!(
-        "安全な視点にリセット: center={:?}, distance={:.2}",
+        "Reset to a safe view: center={:?}, distance={:.2}",
         [center.x(), center.y(), center.z()],
         safe_distance
     );
@@ -171,7 +171,7 @@ pub(crate) fn ensure_minimum_distance(distance: &mut f32) {
     const MIN_SAFE_DISTANCE: f32 = 1.0;
     if *distance < MIN_SAFE_DISTANCE {
         *distance = MIN_SAFE_DISTANCE;
-        tracing::warn!("最小距離を強制適用: {:.2}", MIN_SAFE_DISTANCE);
+        tracing::warn!("Forced the minimum distance: {:.2}", MIN_SAFE_DISTANCE);
     }
 }
 
@@ -187,13 +187,16 @@ pub(crate) fn emergency_camera_escape(
     *zoom = 1.0;
     *rotation = Quaternionf::identity();
 
-    tracing::warn!("緊急カメラ脱出実行（距離: {:.1}、正面視点）", *distance);
+    tracing::warn!(
+        "Emergency camera escape (distance: {:.1}, front view)",
+        *distance
+    );
 }
 
 /// 現在のカメラ状態をログ出力する。
 pub(crate) fn log_state(target: &Vec3f, distance: f32, rotation: &Quaternionf) {
     tracing::info!(
-        "カメラ状態 - target: {:?}, distance: {:.2}, rotation: [{:.3}, {:.3}, {:.3}, {:.3}]",
+        "Camera state - target: {:?}, distance: {:.2}, rotation: [{:.3}, {:.3}, {:.3}, {:.3}]",
         [target.x(), target.y(), target.z()],
         distance,
         rotation.x(),
