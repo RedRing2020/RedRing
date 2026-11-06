@@ -3,8 +3,7 @@
 //! 三角形を GPU レンダリング用の頂点データに変換し、曲線を線分に分ける数（品質）を持ちます。
 
 use crate::mesh_converter::VertexData;
-use geo_algorithms::{Triangle3D, Vector3D};
-use geo_contracts::Triangle3DBoundaryAccess;
+use application::geometry_orchestration::{Triangle3D, Triangle3DBoundaryAccess, Vector3D};
 
 /// テッセレーション品質パラメータ（曲線を線分に分ける数）
 #[derive(Debug, Clone)]
@@ -38,12 +37,18 @@ pub fn triangle_to_solid_vertices(triangle: &Triangle3D<f64>) -> Vec<VertexData>
     // 法線を計算（CCW順序を前提）
     let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());
     let edge2 = Vector3D::new(vc.x() - va.x(), vc.y() - va.y(), vc.z() - va.z());
-    let normal_vec = edge1.cross(edge2).normalize();
-    let normal = [
-        normal_vec.x() as f32,
-        normal_vec.y() as f32,
-        normal_vec.z() as f32,
-    ];
+    let cross = edge1.cross(edge2);
+    // 面積のない三角形は上向きにする（正規化で NaN にしない）
+    let normal = if cross.length() == 0.0 {
+        [0.0, 0.0, 1.0]
+    } else {
+        let normal_vec = cross.normalize();
+        [
+            normal_vec.x() as f32,
+            normal_vec.y() as f32,
+            normal_vec.z() as f32,
+        ]
+    };
 
     // 3頂点を配置
     vec![

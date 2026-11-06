@@ -1,5 +1,6 @@
-use geo_algorithms::Vector3D;
-use geo_contracts::{ArcEntity3DProperties, CircleEntity3DProperties, LineEntity3DProperties};
+use application::feature_orchestration::{
+    ArcEntity3DProperties, CircleEntity3DProperties, LineEntity3DProperties, Vector3D,
+};
 
 use crate::mesh_converter::VertexData;
 use crate::shape_converter::TessellationQuality;

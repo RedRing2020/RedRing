@@ -1,6 +1,10 @@
 //! Geometry向け orchestration 境界。
 
-use crate::primitives::{Angle, Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
+use crate::primitives::{Angle, Arc3D, Circle3D, LineSegment3D, Point3D};
+/// 作った三角形の型と、その辺を計算に使うベクトルの型
+pub use crate::primitives::{Triangle3D, Vector3D};
+/// 作った三角形の頂点を読むための trait
+pub use geo_contracts::Triangle3DBoundaryAccess;
 use geo_contracts::{
     Arc3DConstructor, Circle3DConstructor, LineSegment3DConstructor, Triangle3DConstructor,
 };
