@@ -9,6 +9,7 @@ use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
+use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
 use viewmodel::octree_converter::WireframeVertex;
 
 /// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
@@ -69,7 +70,9 @@ impl AppState {
             }
             Err(error) => {
                 tracing::warn!("Cannot submit the cutting simulation: {error}");
-                self.set_operation_status(OperationStatus::SubmitFailed(error.to_string()));
+                self.set_operation_status(OperationStatus::SubmitFailed(
+                    cutting_simulation_failure_message(&error),
+                ));
                 false
             }
         }
@@ -87,7 +90,9 @@ impl AppState {
             }
             Err(error) => {
                 tracing::warn!("Cannot run the jobs: {error}");
-                self.set_operation_status(OperationStatus::RunFailed(error.to_string()));
+                self.set_operation_status(OperationStatus::RunFailed(
+                    cutting_simulation_failure_message(&error),
+                ));
             }
         }
     }
@@ -111,7 +116,9 @@ impl AppState {
                     CuttingSimulationSessionError::NoSucceededSimulation => {
                         OperationStatus::NothingToImport
                     }
-                    other => OperationStatus::ImportFailed(other.to_string()),
+                    other => {
+                        OperationStatus::ImportFailed(cutting_simulation_failure_message(&other))
+                    }
                 });
             }
         }

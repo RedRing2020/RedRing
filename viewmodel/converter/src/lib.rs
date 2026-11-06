@@ -15,6 +15,8 @@ pub mod cam_sim_visualization_converter;
 pub mod cutting_animation;
 pub mod cutting_simulation_session;
 pub mod entity_converter;
+pub mod failure_message_catalog;
+pub mod failure_message_mapper;
 pub mod feature_command_converter;
 pub mod inverse_offset_converter;
 pub mod inverse_offset_shape_converter;

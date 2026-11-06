@@ -1,0 +1,194 @@
+//! エラーを、画面に出す失敗の理由（文言のキーと引数）へ変える。
+//!
+//! エラーの種類ごとにキーを決める。エラーの中の詳しい理由（英語の文）は画面に出さず、ログに残す。
+
+use application::cam_simulation_workflow::CamSimulationWorkflowError;
+use application::product_shape::ProductShapeError;
+use i18n_foundation::{UiMessage, UiMessageArg};
+
+use crate::cutting_animation::CuttingAnimationError;
+use crate::cutting_simulation_session::CuttingSimulationSessionError;
+
+fn message(key: &str) -> UiMessage {
+    UiMessage {
+        key: key.to_string(),
+        args: Vec::new(),
+    }
+}
+
+fn job_message(key: &str, job: u64) -> UiMessage {
+    UiMessage {
+        key: key.to_string(),
+        args: vec![UiMessageArg {
+            name: "job".to_string(),
+            value: job.to_string(),
+        }],
+    }
+}
+
+/// 投入・実行・取り込みの失敗 `error` の、画面に出す理由
+pub fn cutting_simulation_failure_message(error: &CuttingSimulationSessionError) -> UiMessage {
+    match error {
+        CuttingSimulationSessionError::Workflow(error) => workflow_failure_message(error),
+        CuttingSimulationSessionError::NoSucceededSimulation => {
+            message("failure.no_succeeded_simulation")
+        }
+        CuttingSimulationSessionError::Animation(error) => match error {
+            CuttingAnimationError::Artifact(_) => message("failure.animation.artifact"),
+            CuttingAnimationError::NoSnapshot => message("failure.animation.no_snapshot"),
+            CuttingAnimationError::Replay(_) => message("failure.animation.replay"),
+        },
+        CuttingSimulationSessionError::InverseOffsetDisplay(_) => {
+            message("failure.inverse_offset_display")
+        }
+    }
+}
+
+/// 計算の流れの失敗 `error` の、画面に出す理由
+pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> UiMessage {
+    match error {
+        CamSimulationWorkflowError::InputRegistration(_) => message("failure.input_registration"),
+        CamSimulationWorkflowError::NotSucceededSimulation(job) => {
+            job_message("failure.not_succeeded_simulation", *job)
+        }
+        CamSimulationWorkflowError::MissingArtifact(job) => {
+            job_message("failure.missing_artifact", *job)
+        }
+        CamSimulationWorkflowError::MissingInput(job) => job_message("failure.missing_input", *job),
+        CamSimulationWorkflowError::Sequence(_) => message("failure.sequence"),
+        CamSimulationWorkflowError::ProductShape(error) => product_shape_failure_message(error),
+        CamSimulationWorkflowError::EmptyProductShape => message("failure.empty_product_shape"),
+        CamSimulationWorkflowError::Conditions(_) => message("failure.conditions"),
+        CamSimulationWorkflowError::Orchestration(_) => message("failure.orchestration"),
+        CamSimulationWorkflowError::InverseOffsetShape(_) => {
+            message("failure.inverse_offset_shape")
+        }
+    }
+}
+
+/// 製品形状の読み込み・解決の失敗 `error` の、画面に出す理由
+pub fn product_shape_failure_message(error: &ProductShapeError) -> UiMessage {
+    match error {
+        ProductShapeError::StlFile { kind, .. } => file_failure_message(*kind),
+        ProductShapeError::Stl(_) => message("failure.shape.stl"),
+        ProductShapeError::UnknownEntity(_) | ProductShapeError::UnknownFace(_) => {
+            message("failure.shape.unknown")
+        }
+        ProductShapeError::MixedFaceKinds => message("failure.shape.mixed_faces"),
+        ProductShapeError::Tessellation(_) => message("failure.shape.tessellation"),
+        ProductShapeError::NoFaces => message("failure.shape.no_faces"),
+    }
+}
+
+/// ファイルの読み書きの失敗の種類 `kind` の、画面に出す理由（OS の文は OS の言語になるため、種類で決める）
+pub fn file_failure_message(kind: std::io::ErrorKind) -> UiMessage {
+    match kind {
+        std::io::ErrorKind::NotFound => message("failure.file.not_found"),
+        std::io::ErrorKind::PermissionDenied => message("failure.file.permission_denied"),
+        std::io::ErrorKind::InvalidData | std::io::ErrorKind::UnexpectedEof => {
+            message("failure.file.invalid_data")
+        }
+        _ => message("failure.file.other"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::failure_message_catalog::resolve_failure_message;
+    use i18n_foundation::UiLocale;
+
+    fn assert_resolved(message: &UiMessage) {
+        for locale in [UiLocale::Ja, UiLocale::En] {
+            let text = resolve_failure_message(locale, message);
+            assert!(
+                !text.contains('{')
+                    && !text.contains("unexpected reason")
+                    && !text.contains("思わぬ"),
+                "{message:?}: {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_workflow_failure_has_its_own_text() {
+        let errors = [
+            CamSimulationWorkflowError::InputRegistration("reason".to_string()),
+            CamSimulationWorkflowError::NotSucceededSimulation(3),
+            CamSimulationWorkflowError::MissingArtifact(3),
+            CamSimulationWorkflowError::MissingInput(3),
+            CamSimulationWorkflowError::EmptyProductShape,
+            CamSimulationWorkflowError::Conditions(Vec::new()),
+            CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces),
+        ];
+        for error in &errors {
+            assert_resolved(&workflow_failure_message(error));
+        }
+        let job = workflow_failure_message(&CamSimulationWorkflowError::MissingInput(7));
+        assert!(resolve_failure_message(UiLocale::En, &job).contains('7'));
+    }
+
+    #[test]
+    fn every_session_and_shape_failure_has_its_own_text() {
+        assert_resolved(&cutting_simulation_failure_message(
+            &CuttingSimulationSessionError::NoSucceededSimulation,
+        ));
+        assert_resolved(&cutting_simulation_failure_message(
+            &CuttingSimulationSessionError::Animation(CuttingAnimationError::NoSnapshot),
+        ));
+        assert_resolved(&cutting_simulation_failure_message(
+            &CuttingSimulationSessionError::InverseOffsetDisplay("reason".to_string()),
+        ));
+        let missing = product_shape_failure_message(&ProductShapeError::StlFile {
+            kind: std::io::ErrorKind::NotFound,
+            reason: "reason".to_string(),
+        });
+        assert_eq!(missing.key, "failure.file.not_found");
+        for error in [
+            ProductShapeError::Stl("reason".to_string()),
+            ProductShapeError::MixedFaceKinds,
+            ProductShapeError::NoFaces,
+        ] {
+            assert_resolved(&product_shape_failure_message(&error));
+        }
+    }
+
+    #[test]
+    fn file_failures_are_told_by_kind() {
+        for kind in [
+            std::io::ErrorKind::NotFound,
+            std::io::ErrorKind::PermissionDenied,
+            std::io::ErrorKind::InvalidData,
+            std::io::ErrorKind::Other,
+        ] {
+            assert_resolved(&file_failure_message(kind));
+        }
+    }
+
+    /// このファイルが返すキーが、すべて文言の表にある（打ち間違えると、思わぬ失敗の文言になるため）
+    #[test]
+    fn every_key_in_this_mapper_is_in_the_catalog() {
+        let source = include_str!("failure_message_mapper.rs");
+        let body = &source[..source.find("#[cfg(test)]").unwrap()];
+        let keys: Vec<&str> = body
+            .split('"')
+            .filter(|part| part.starts_with("failure."))
+            .collect();
+        assert!(keys.len() > 20, "{keys:?}");
+        for key in keys {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text = resolve_failure_message(locale, &message(key));
+                assert!(
+                    !text.contains("unexpected reason") && !text.contains("思わぬ"),
+                    "{key}: {text}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_keys_fall_back_to_the_unexpected_text() {
+        let text = resolve_failure_message(UiLocale::Ja, &message("failure.no_such_key"));
+        assert!(text.contains("ログ"), "{text}");
+    }
+}
