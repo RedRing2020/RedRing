@@ -349,31 +349,60 @@ impl InverseOffsetShape {
     /// 打ち切る（残りの候補はそれより高くならない。外を決められない塊・開いた形でも結果を変えない）。交点は許容
     /// 誤差の分だけ要素の外を含み、上限をわずかに超えうるため、上限に許容誤差を足して比べる。
     fn highest_at(&self, x: f64, y: f64, cut_off: bool) -> (Option<f64>, usize) {
-        let mut highest: Option<f64> = None;
+        let (highest, evaluated) = self.highest_element_at(x, y, cut_off);
+        (highest.map(|(height, _)| height), evaluated)
+    }
+
+    /// (x, y) における工具先端の高さと、CL の面を与える要素（最も高い交点を持つ要素の番号）。工具が形状に接触しない
+    /// 場合は `None`
+    ///
+    /// 要素ごとの面（走査線の断面）は上に凸か直線で、要素が効く範囲は凸のため、走査線の区間の両端で同じ要素が CL の面を
+    /// 与えるなら、区間の弦は CL の面より上を通らない。
+    pub(crate) fn tip_height_and_element_at(&self, x: f64, y: f64) -> Option<(f64, usize)> {
+        let (highest, _) = self.highest_element_at(x, y, true);
+        highest.map(|(height, element)| (height - self.shape.reference_offset(), element))
+    }
+
+    /// (x, y) における、要素 `element` の面から求めた工具先端の高さ（(x, y) が要素の効く範囲の外なら `None`）
+    pub(crate) fn element_tip_height_at(&self, element: usize, x: f64, y: f64) -> Option<f64> {
+        Some(self.element_height(element, x, y)? - self.shape.reference_offset())
+    }
+
+    /// (x, y) の鉛直線と要素の交点のうち最も高い点の高さとその要素と、評価した要素の数（打ち切りは `highest_at` と同じ）
+    fn highest_element_at(&self, x: f64, y: f64, cut_off: bool) -> (Option<(f64, usize)>, usize) {
+        let mut highest: Option<(f64, usize)> = None;
         let mut evaluated = 0;
         for &element in self.index.candidates(x, y) {
-            let ZRange { lowest, upper } = self.z_ranges[element];
-            if cut_off && highest.is_some_and(|height| height >= upper + tolerance()) {
+            if cut_off
+                && highest
+                    .is_some_and(|(height, _)| height >= self.z_ranges[element].upper + tolerance())
+            {
                 break;
             }
             evaluated += 1;
-            // 半直線の始点は要素ごとに、その要素のすぐ下に置く（ほかの要素の高さで、交点の高さが桁落ちしない）
-            let ray = Ray3D::new(
-                Point3D::new(x, y, lowest - 1.0),
-                Vector3D::new(0.0, 0.0, 1.0),
-            )
-            .expect("the vertical direction is not zero");
-            let height = match self.elements[element] {
-                Element::Face(face) => face_height(&self.faces[face], &ray),
-                Element::UpperSide(face) => face_height(&self.upper_sides[face], &ray),
-                Element::Vertex(vertex) => self.vertex_height(vertex, x, y, &ray),
-                Element::Edge(edge) => self.edge_height(edge, x, y, &ray),
-            };
-            if let Some(height) = height {
-                highest = Some(highest.map_or(height, |current| current.max(height)));
+            if let Some(height) = self.element_height(element, x, y)
+                && highest.is_none_or(|(current, _)| height > current || current.is_nan())
+            {
+                highest = Some((height, element));
             }
         }
         (highest, evaluated)
+    }
+
+    /// (x, y) の鉛直線と要素 `element` の交点のうち最も高い点の高さ
+    fn element_height(&self, element: usize, x: f64, y: f64) -> Option<f64> {
+        // 半直線の始点は要素ごとに、その要素のすぐ下に置く（ほかの要素の高さで、交点の高さが桁落ちしない）
+        let ray = Ray3D::new(
+            Point3D::new(x, y, self.z_ranges[element].lowest - 1.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+        )
+        .expect("the vertical direction is not zero");
+        match self.elements[element] {
+            Element::Face(face) => face_height(&self.faces[face], &ray),
+            Element::UpperSide(face) => face_height(&self.upper_sides[face], &ray),
+            Element::Vertex(vertex) => self.vertex_height(vertex, x, y, &ray),
+            Element::Edge(edge) => self.edge_height(edge, x, y, &ray),
+        }
     }
 
     /// (x, y) における工具先端位置（ToolPath 座標）
