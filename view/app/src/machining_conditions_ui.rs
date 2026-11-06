@@ -325,6 +325,7 @@ impl MachiningConditionsUiState {
     fn show_machining(&mut self, ui: &mut egui::Ui) {
         let stepover_label = self.text("conditions.machining.stepover");
         let feed_rate_label = self.text("conditions.machining.feed_rate");
+        let angle_label = self.text("conditions.machining.angle");
         let tool_range_label = self.text("conditions.machining.tool_range");
         let extend_label = self.text("conditions.machining.tool_range.extend");
         let geometry_label = self.text("conditions.machining.tool_range.geometry");
@@ -363,6 +364,16 @@ impl MachiningConditionsUiState {
                         ui.label(label);
                     });
                 }
+                ui.horizontal(|ui| {
+                    ui.add(
+                        DragValue::new(&mut scanline.angle_degrees)
+                            .range(-180.0..=180.0)
+                            .speed(1.0)
+                            .max_decimals(1)
+                            .suffix("°"),
+                    );
+                    ui.label(angle_label);
+                });
                 ui.label(cut_direction_label);
                 ui.horizontal(|ui| {
                     for (direction, label) in cut_direction_labels {
@@ -477,6 +488,7 @@ impl MachiningConditionsUiState {
                         &[
                             ("stepover", conditions.scanline.stepover.to_string()),
                             ("feed_rate", conditions.scanline.feed_rate.to_string()),
+                            ("angle", conditions.scanline.angle_degrees.to_string()),
                             (
                                 "cut_direction",
                                 self.text(cut_direction_key(conditions.scanline.cut_direction)),
