@@ -67,10 +67,10 @@ impl AppState {
             self.graphic.config.format,
         ));
         mesh_stage.set_mesh_list(&self.graphic.device, items);
+        self.enter_debug_view();
         if let Some(fit) = Self::build_camera_fit(&positions) {
             self.apply_camera_fit(fit);
         }
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
+        self.show_debug_stage(mesh_stage);
     }
 }

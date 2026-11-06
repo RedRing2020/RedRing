@@ -16,6 +16,7 @@ impl AppState {
         indices: Vec<u32>,
         reset_camera: bool,
     ) {
+        self.enter_debug_view();
         if reset_camera {
             self.camera.reset_to_standard_cad_view();
         }
@@ -25,9 +26,7 @@ impl AppState {
             self.graphic.config.format,
         ));
         mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
-
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
+        self.show_debug_stage(mesh_stage);
     }
 
     /// デバッグ用：LineSegment3Dを表示
@@ -48,6 +47,7 @@ impl AppState {
         let id = self.entity_manager.add_line_list_entity(vertices);
         let _ = self.entity_manager.select(id);
 
+        self.enter_debug_view();
         self.camera.reset_to_standard_cad_view();
         self.rebuild_stage_from_entities();
     }
@@ -69,6 +69,7 @@ impl AppState {
         let id = self.entity_manager.add_line_list_entity(vertices);
         let _ = self.entity_manager.select(id);
 
+        self.enter_debug_view();
         self.camera.reset_to_standard_cad_view();
         self.rebuild_stage_from_entities();
     }
@@ -108,6 +109,7 @@ impl AppState {
         let id = self.entity_manager.add_line_list_entity(vertices);
         let _ = self.entity_manager.select(id);
 
+        self.enter_debug_view();
         self.camera.reset_to_standard_cad_view();
         self.rebuild_stage_from_entities();
     }

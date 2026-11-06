@@ -45,6 +45,7 @@ impl AppState {
                 .map(|job_id| job_id.to_string()),
             redraw_animation_requested: false,
             debug_scene_requested: None,
+            debug_view_shown: self.debug_view_shown(),
         }
     }
 

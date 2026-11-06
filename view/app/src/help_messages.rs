@@ -60,6 +60,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "切削アニメーションの表示中ではないため、設定を反映できません",
     ),
     (
+        "notice.debug_view_shown",
+        "デバッグの表示中です。通常の表示に戻してから操作してください",
+    ),
+    (
         "notice.settings_load_failed",
         "アプリの設定を読めないため、既定の設定で起動しました（{reason}）",
     ),
@@ -145,6 +149,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "notice.apply_without_animation",
         "Settings can be applied only while a cutting animation is shown",
+    ),
+    (
+        "notice.debug_view_shown",
+        "A debug view is shown. Go back to the normal view first",
     ),
     (
         "notice.settings_load_failed",

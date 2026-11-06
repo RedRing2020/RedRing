@@ -25,6 +25,8 @@ pub enum SettingsPanelTab {
 /// 設定パネルのデバッグタブから表示する、デバッグ用の表示
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DebugSceneAction {
+    /// 取っておいた通常の表示（製品形状・切削アニメーション）に戻す
+    MainView,
     Line,
     Circle,
     Arc,
@@ -35,6 +37,10 @@ pub enum DebugSceneAction {
 
 /// デバッグタブのボタンの並び（見出しの文言のキーと、ボタンの文言のキー・表示）
 const DEBUG_SCENE_GROUPS: &[(&str, &[(&str, DebugSceneAction)])] = &[
+    (
+        "settings.debug.header.view",
+        &[("settings.debug.main_view", DebugSceneAction::MainView)],
+    ),
     (
         "settings.debug.header.shapes",
         &[
@@ -71,6 +77,8 @@ pub struct SettingsPanelUiState {
     pub redraw_animation_requested: bool,
     /// デバッグタブで押されたデバッグ用の表示
     pub debug_scene_requested: Option<DebugSceneAction>,
+    /// デバッグ用の表示の間か（「通常の表示に戻す」を押せる）
+    pub debug_view_shown: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -521,7 +529,12 @@ impl SettingsPanelUiState {
                 .show(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
                         for &(label, action) in buttons {
-                            if ui.button(self.text(label)).clicked() {
+                            let enabled =
+                                action != DebugSceneAction::MainView || self.debug_view_shown;
+                            if ui
+                                .add_enabled(enabled, egui::Button::new(self.text(label)))
+                                .clicked()
+                            {
                                 self.debug_scene_requested = Some(action);
                             }
                         }
