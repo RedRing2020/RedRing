@@ -15,6 +15,7 @@ fn content() -> MachiningOperationContent {
             feed_rate: 1000.0,
             tool_range: ScanlineToolRange::default(),
             cut_direction: ScanlineCutDirection::default(),
+            angle_degrees: 0.0,
         }),
         tool: Tool::ball_end_mill("T1".to_string(), 10.0, 20.0),
         boundary: None,

@@ -12,6 +12,7 @@ pub mod inverse_offset;
 pub mod inverse_offset_shape;
 pub mod process_template;
 pub mod product_surface;
+mod scan_frame;
 pub mod scanline;
 pub mod solver;
 pub mod tessellation;
@@ -24,7 +25,6 @@ pub use process_template::{
     TemplateFailure, build_solver_input, resolve_operation,
 };
 pub use product_surface::ProductSurface;
-pub use scanline::generate_scanline_toolpath;
 pub use solver::{
     CamSolverError, CamSolverInput, GeometryKind, ScanlineInputError, SolverGeometry,
     build_inverse_offset_shape, solve_toolpath,

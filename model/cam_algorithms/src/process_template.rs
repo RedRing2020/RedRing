@@ -475,6 +475,7 @@ mod tests {
             feed_rate: 1000.0,
             tool_range: ScanlineToolRange::default(),
             cut_direction: ScanlineCutDirection::default(),
+            angle_degrees: 0.0,
         }
     }
 

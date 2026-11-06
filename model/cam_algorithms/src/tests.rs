@@ -87,6 +87,7 @@ fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
             feed_rate: 1200.0,
             tool_range: ScanlineToolRange::default(),
             cut_direction: ScanlineCutDirection::default(),
+            angle_degrees: 0.0,
         }),
         units: LengthUnit::Millimeter,
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -476,6 +477,7 @@ fn invalid_input_for_stepover_larger_than_diameter() {
         feed_rate: 1200.0,
         tool_range: ScanlineToolRange::default(),
         cut_direction: ScanlineCutDirection::default(),
+        angle_degrees: 0.0,
     });
     let error = solve_toolpath(&input).unwrap_err();
     assert_eq!(error.code(), "invalid_input");
@@ -991,12 +993,12 @@ fn assert_path_does_not_gouge(input: &CamSolverInput) {
             for k in 0..=10 {
                 let t = k as f64 / 10.0;
                 let x = start.x() + t * (end.x() - start.x());
+                let y = start.y() + t * (end.y() - start.y());
                 let z = start.z() + t * (end.z() - start.z());
-                if let Some(tip) = cutter.tip_height_at(x, start.y()) {
+                if let Some(tip) = cutter.tip_height_at(x, y) {
                     assert!(
                         z >= tip - tolerance - EPS,
-                        "y = {}, x = {x}: path {z} below the CL surface {tip}",
-                        start.y()
+                        "y = {y}, x = {x}: path {z} below the CL surface {tip}"
                     );
                 }
             }
@@ -1116,11 +1118,15 @@ fn scanline_toolpaths_require_a_positive_finite_tolerance() {
     let OperationSpec::Scanline(params) =
         solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))).operation;
     for tolerance in [0.0, -0.01, f64::NAN, f64::INFINITY] {
-        let result = crate::generate_scanline_toolpath(
+        let (min, max) = cutter.xy_bounds();
+        let result = crate::scanline::generate_scanline_toolpath(
             &cutter,
             "BEM6",
             &params,
-            cutter.xy_bounds(),
+            (
+                &crate::scan_frame::ScanRegion::rectangle(min, max),
+                crate::scan_frame::ScanFrame::from_degrees(0.0),
+            ),
             tolerance,
         );
         assert!(
@@ -1161,14 +1167,15 @@ fn max_rise_of_path_above_cl_surface(input: &CamSolverInput) -> f64 {
     for level in &toolpath.contour_levels {
         for segment in level.cutting_segments() {
             let (start, end) = (segment.start, segment.end_point());
-            if (end.x() - start.x()).abs() <= input.chord_tolerance {
+            if (end.x() - start.x()).hypot(end.y() - start.y()) <= input.chord_tolerance {
                 continue;
             }
             for k in 1..200 {
                 let t = k as f64 / 200.0;
                 let x = start.x() + t * (end.x() - start.x());
+                let y = start.y() + t * (end.y() - start.y());
                 let z = start.z() + t * (end.z() - start.z());
-                if let Some(tip) = cutter.tip_height_at(x, start.y()) {
+                if let Some(tip) = cutter.tip_height_at(x, y) {
                     worst = worst.max(z - tip);
                 }
             }
@@ -1210,5 +1217,163 @@ fn scanline_paths_do_not_pass_above_the_cl_surface_beyond_the_tolerance() {
             );
             assert_path_does_not_gouge(&input);
         }
+    }
+}
+
+/// 走査線の角度を `degrees` にした入力
+fn with_angle(mut input: CamSolverInput, degrees: f64) -> CamSolverInput {
+    let OperationSpec::Scanline(params) = &mut input.operation;
+    params.angle_degrees = degrees;
+    input
+}
+
+#[test]
+fn angled_scanlines_run_along_the_angle_and_are_spaced_by_the_stepover() {
+    for degrees in [90.0, 45.0, -30.0] {
+        let input = with_angle(
+            solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))),
+            degrees,
+        );
+        let toolpath = solve_toolpath(&input).unwrap();
+        let (sin, cos) = f64::to_radians(degrees).sin_cos();
+        // 走査線に垂直な向きの位置（パスごとに 1 つ）
+        let mut offsets = Vec::new();
+        for level in &toolpath.contour_levels {
+            let segments = level.cutting_segments();
+            for segment in &segments {
+                let (start, end) = (segment.start, segment.end_point());
+                let (dx, dy) = (end.x() - start.x(), end.y() - start.y());
+                assert!(
+                    (dx * sin - dy * cos).abs() < EPS,
+                    "{degrees}: segment ({dx}, {dy}) is not along the scanline"
+                );
+            }
+            let start = segments[0].start;
+            offsets.push(start.y() * cos - start.x() * sin);
+        }
+        offsets.sort_by(f64::total_cmp);
+        let OperationSpec::Scanline(params) = input.operation;
+        for pair in offsets.windows(2) {
+            assert!(
+                pair[1] - pair[0] <= params.stepover + EPS,
+                "{degrees}: scanlines {pair:?} are farther apart than the stepover"
+            );
+        }
+    }
+}
+
+#[test]
+fn angled_scanline_paths_stay_within_the_tolerance_of_the_cl_surface() {
+    // 走査線の向きの座標へ回して作った経路を、加工の座標の逆オフセット形状で確かめる（上下とも）
+    let geometries = [
+        ("step block", SolverGeometry::TriangleMesh(step_block())),
+        (
+            "ridged terrain",
+            SolverGeometry::TriangleMesh(ridged_terrain()),
+        ),
+        (
+            "pocket",
+            SolverGeometry::TriangleMesh(pocket_with_steep_walls()),
+        ),
+    ];
+    for (name, geometry) in geometries {
+        for degrees in [90.0, 45.0] {
+            for tool in [
+                Tool::ball_end_mill("BEM10".to_string(), 10.0, 30.0),
+                Tool::flat_end_mill("EM10".to_string(), 10.0, 30.0),
+            ] {
+                let mut input = with_angle(solver_input(geometry.clone()), degrees);
+                input.tool = tool;
+                let rise = max_rise_of_path_above_cl_surface(&input);
+                assert!(
+                    rise <= input.chord_tolerance + EPS,
+                    "{name}, {degrees}, {}: the path passes {rise} above the CL surface",
+                    input.tool.id
+                );
+                assert_path_does_not_gouge(&input);
+            }
+        }
+    }
+}
+
+#[test]
+fn angled_scanlines_stay_inside_the_rectangle_boundary() {
+    let rectangle = RectangleBoundary {
+        rect_min: [2.0, 3.0],
+        rect_max: [8.0, 7.0],
+    };
+    for degrees in [0.0, 30.0, 90.0] {
+        let mut input = with_angle(
+            solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))),
+            degrees,
+        );
+        input.boundary = Some(MachiningBoundary::Rectangle(rectangle));
+        let points = cutting_points(&solve_toolpath(&input).unwrap());
+        assert!(!points.is_empty());
+        for point in &points {
+            assert!(
+                (rectangle.rect_min[0] - EPS..=rectangle.rect_max[0] + EPS).contains(&point.x())
+                    && (rectangle.rect_min[1] - EPS..=rectangle.rect_max[1] + EPS)
+                        .contains(&point.y()),
+                "{degrees}: ({}, {}) is outside the boundary",
+                point.x(),
+                point.y()
+            );
+        }
+        // 0° と 90° では、範囲の両端の辺の上にも走査線がある（回したときの誤差で消えない）
+        let across = if degrees == 0.0 {
+            Some(1)
+        } else if degrees == 90.0 {
+            Some(0)
+        } else {
+            None
+        };
+        if let Some(axis) = across {
+            let coordinate = |point: &Point3D<f64>| [point.x(), point.y()][axis];
+            let low = points.iter().map(coordinate).fold(f64::INFINITY, f64::min);
+            let high = points
+                .iter()
+                .map(coordinate)
+                .fold(f64::NEG_INFINITY, f64::max);
+            assert!(
+                (low - rectangle.rect_min[axis]).abs() < EPS
+                    && (high - rectangle.rect_max[axis]).abs() < EPS,
+                "{degrees}: scanlines cover {low}..{high}"
+            );
+        }
+    }
+}
+
+#[test]
+fn angled_scanlines_keep_the_tool_inside_the_geometry_extent() {
+    // 工具の中心の移動範囲は、加工の座標での形状の XY 範囲（回した形状を囲む長方形ではない）
+    let input = with_tool_range(
+        with_angle(
+            solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))),
+            45.0,
+        ),
+        ScanlineToolRange::GeometryExtent,
+    );
+    for point in cutting_points(&solve_toolpath(&input).unwrap()) {
+        assert!(
+            (-EPS..=10.0 + EPS).contains(&point.x()) && (-EPS..=10.0 + EPS).contains(&point.y()),
+            "({}, {}) is outside the geometry extent",
+            point.x(),
+            point.y()
+        );
+    }
+}
+
+#[test]
+fn scanline_angles_must_be_finite() {
+    for degrees in [f64::NAN, f64::INFINITY] {
+        let input = with_angle(
+            solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))),
+            degrees,
+        );
+        assert_eq!(
+            solve_toolpath(&input).unwrap_err(),
+            CamSolverError::InvalidScanline(ScanlineInputError::AngleNotFinite)
+        );
     }
 }

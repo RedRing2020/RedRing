@@ -1,7 +1,8 @@
 //! スキャン加工（`operation_type = scanline`）の経路化
 //!
-//! 加工範囲（既定は形状の XY 範囲）を Y 方向へ `stepover` 以下の等間隔で走査ラインに分け、
-//! 各ライン上を送り方（`ScanlineCutDirection`）で決めた向きに、工具の半径以下の間隔で CL を求める。
+//! 走査線の向きの座標（走査線を X 軸に沿わせた座標。`ScanFrame`）で、走査の範囲を Y 方向へ `stepover` 以下の
+//! 等間隔で走査ラインに分け、各ライン上を送り方（`ScanlineCutDirection`）で決めた向きに、工具の半径以下の間隔で
+//! CL を求める。求めた点は加工の座標へ戻す。
 //! 工具が形状に接触する連続区間を 1 パスとし、接触する点と接触しない点の間は二分して、パスの端をトレランスまで
 //! 求める。パスの間のエアカットは入れない（CL の編集と工程をそろえた後に
 //! 計算する）。
@@ -21,20 +22,22 @@ use geo_algorithms::Point3D;
 use geo_contracts::default_kernel_numerical_zero_tolerance;
 
 use crate::inverse_offset_shape::InverseOffsetShape;
+use crate::scan_frame::{ScanFrame, ScanRegion};
 use crate::solver::CamSolverError;
 
-/// 逆オフセット形状から、XY 範囲 `(min, max)` のスキャン加工 ToolPath を、トレランス `tolerance` で生成する。
+/// 走査線の向きの座標 `frame` の逆オフセット形状 `cutter` から、その座標の範囲 `region` のスキャン加工 ToolPath を、
+/// トレランス `tolerance` で生成する（点は加工の座標）。
 ///
 /// 各パスは `ContourLevelPath` 1 件に対応し、`z_level` にはパス内の最も高い点（段の点を含む）の高さを格納する。
 ///
 /// # Errors
 ///
 /// トレランスが正の有限値でない場合と、どの走査ラインでも工具が形状に接しない場合。
-pub fn generate_scanline_toolpath(
+pub(crate) fn generate_scanline_toolpath(
     cutter: &InverseOffsetShape,
     tool_id: &str,
     params: &ScanlineParams,
-    (xy_min, xy_max): ([f64; 2], [f64; 2]),
+    (region, frame): (&ScanRegion, ScanFrame),
     tolerance: f64,
 ) -> Result<ToolPath<f64>, CamSolverError> {
     if !(tolerance.is_finite() && tolerance > 0.0) {
@@ -42,23 +45,38 @@ pub fn generate_scanline_toolpath(
             "scanline toolpath requires a positive finite tolerance".to_string(),
         ));
     }
-    let ys = uniform_samples(xy_min[1], xy_max[1], params.stepover);
-    let xs = uniform_samples(xy_min[0], xy_max[0], cutter.shape().radius());
-    let xs_reversed: Vec<f64> = xs.iter().rev().copied().collect();
+    let Some((y_min, y_max)) = region.y_range() else {
+        return Err(CamSolverError::NoSolution(
+            "scanline region is empty".to_string(),
+        ));
+    };
+    let ys = uniform_samples(y_min, y_max, params.stepover);
 
     let mut passes: Vec<Vec<Point3D<f64>>> = Vec::new();
-    for (line, &y) in ys.iter().enumerate() {
+    // 範囲を通る走査線の番号（ジグザグの送る向きを決める）
+    let mut line = 0;
+    for &y in &ys {
+        let Some((x_min, x_max)) = region.x_range_at(y) else {
+            continue;
+        };
+        if x_min == x_max {
+            continue;
+        }
+        line += 1;
         let forward = match params.cut_direction {
             ScanlineCutDirection::DownCut => false,
             ScanlineCutDirection::UpCut => true,
-            ScanlineCutDirection::ZigZag => line % 2 == 1,
+            ScanlineCutDirection::ZigZag => line % 2 == 0,
         };
         let mut run: Vec<Point3D<f64>> = Vec::new();
         // 直前の点が工具が形状に接触しない点の場合の X
         let mut outside = None;
         // 送る向きに並べた X
-        let xs_in_feed_order = if forward { &xs } else { &xs_reversed };
-        for &x in xs_in_feed_order {
+        let mut xs_in_feed_order = uniform_samples(x_min, x_max, cutter.shape().radius());
+        if !forward {
+            xs_in_feed_order.reverse();
+        }
+        for x in xs_in_feed_order {
             match cutter.tip_point_at(x, y) {
                 Some(point) => {
                     if let Some(start) = outside
@@ -98,7 +116,11 @@ pub fn generate_scanline_toolpath(
             let segments = pass
                 .windows(2)
                 .map(|window| {
-                    PathSegment::new_line(window[0], window[1], SegmentType::Cutting { feed_rate })
+                    PathSegment::new_line(
+                        frame.to_work(window[0]),
+                        frame.to_work(window[1]),
+                        SegmentType::Cutting { feed_rate },
+                    )
                 })
                 .collect();
             let z_level = pass.iter().map(|p| p.z()).fold(f64::NEG_INFINITY, f64::max);

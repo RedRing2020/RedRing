@@ -79,6 +79,7 @@ fn initial_operation_content() -> MachiningOperationContent {
             feed_rate: 1200.0,
             tool_range: ScanlineToolRange::default(),
             cut_direction: ScanlineCutDirection::default(),
+            angle_degrees: 0.0,
         },
     )
 }

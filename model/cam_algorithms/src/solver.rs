@@ -1,6 +1,8 @@
 //! CAM ソルバー入力契約と実行入口（設計: CAM_ALGORITHMS_DESIGN.md §8.2-§8.5）
 
-use geo_contracts::{Bounded, TriangleMesh3DProperties, default_distance_tolerance};
+use geo_contracts::{
+    Bounded, TriangleMesh3DConstructor, TriangleMesh3DProperties, default_distance_tolerance,
+};
 use std::borrow::Cow;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -14,9 +16,10 @@ use geo_algorithms::{
     tessellate_surfaces,
 };
 
-use crate::inverse_offset::CutterShape;
+use crate::inverse_offset::{CutterShape, MeshTriangles};
 use crate::inverse_offset_shape::InverseOffsetShape;
 use crate::process_template::{TemplateFailure, validate_rectangle_boundary};
+use crate::scan_frame::{ScanFrame, ScanRegion};
 use crate::scanline::generate_scanline_toolpath;
 
 /// solver の失敗分類。
@@ -64,6 +67,8 @@ pub enum ScanlineInputError {
     StepoverExceedsToolDiameter,
     /// 送りが正の有限値でない
     FeedRateNotPositive,
+    /// 走査線の角度が有限値でない
+    AngleNotFinite,
 }
 
 impl ScanlineInputError {
@@ -73,6 +78,7 @@ impl ScanlineInputError {
             Self::StepoverNotPositive => "scanline stepover must be positive and finite",
             Self::StepoverExceedsToolDiameter => "scanline stepover must not exceed tool diameter",
             Self::FeedRateNotPositive => "scanline feed_rate must be positive and finite",
+            Self::AngleNotFinite => "scanline angle must be finite",
         }
     }
 }
@@ -227,27 +233,33 @@ impl CamSolverInput {
 /// 1. 入力契約検証（`invalid_input`）
 /// 2. 形状離散化（収束しなければ `convergence_failure`）
 /// 3. 逆オフセットによる CL 算出と経路化（経路が得られなければ `no_solution`）
+///
+/// 走査線に角度がある場合は、形状を走査線の向きの座標へ回して逆オフセット形状を作り、0° の走査線で経路を作って、
+/// 点を加工の座標へ戻す（`ScanFrame`）。工具の中心の移動範囲と加工範囲は加工の座標の長方形とし、走査線の向きの座標へ
+/// 回して走査する。
 pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolverError> {
-    let cutter = build_inverse_offset_shape(input)?;
-    let OperationSpec::Scanline(params) = &input.operation;
-    let region = machining_region(&cutter, input.boundary, params.tool_range)?;
-
-    match input.operation {
-        OperationSpec::Scanline(params) => {
-            // 三角形メッシュは三角形そのものが製品形状のため、トレランスをすべて経路に使う（曲面の三角形への分割の
-            // 誤差との配分は後続）
-            generate_scanline_toolpath(
-                &cutter,
-                &input.tool.id,
-                &params,
-                region,
-                input.chord_tolerance,
-            )
-        }
-    }
+    let OperationSpec::Scanline(params) = input.operation;
+    let frame = ScanFrame::from_degrees(params.angle_degrees);
+    let (cutter, work_bounds) = build_cutter(input, frame)?;
+    let region = machining_region(
+        &cutter,
+        work_bounds,
+        frame,
+        input.boundary,
+        params.tool_range,
+    )?;
+    // 三角形メッシュは三角形そのものが製品形状のため、トレランスをすべて経路に使う（曲面の三角形への分割の誤差との
+    // 配分は後続）
+    generate_scanline_toolpath(
+        &cutter,
+        &input.tool.id,
+        &params,
+        (&region, frame),
+        input.chord_tolerance,
+    )
 }
 
-/// 入力を確かめ、ツールパス生成と同じ形状と工具で逆オフセット形状を作る
+/// 入力を確かめ、ツールパス生成と同じ形状と工具で逆オフセット形状を作る（加工の座標。走査線の角度によらない）
 ///
 /// # Errors
 ///
@@ -255,39 +267,88 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
 pub fn build_inverse_offset_shape(
     input: &CamSolverInput,
 ) -> Result<InverseOffsetShape, CamSolverError> {
+    build_cutter(input, ScanFrame::from_degrees(0.0)).map(|(cutter, _)| cutter)
+}
+
+/// XY の範囲（min, max）
+type XyBounds = ([f64; 2], [f64; 2]);
+
+/// 入力を確かめ、形状を走査線の向きの座標 `frame` へ回して逆オフセット形状を作る。加工の座標での形状の XY 範囲
+/// （min, max）も返す
+fn build_cutter(
+    input: &CamSolverInput,
+    frame: ScanFrame,
+) -> Result<(InverseOffsetShape, XyBounds), CamSolverError> {
     input.validate()?;
     let mesh = input
         .geometry
         .triangle_mesh(input.chord_tolerance, input.tessellation_limits)?;
-    InverseOffsetShape::new(&mesh, cutter_shape(&input.tool)?)
+    let shape = cutter_shape(&input.tool)?;
+    if frame.is_identity() {
+        let cutter = InverseOffsetShape::new(&mesh, shape)?;
+        let work_bounds = cutter.xy_bounds();
+        return Ok((cutter, work_bounds));
+    }
+    // 逆オフセット形状の XY 範囲と同じく、面積のない三角形を除いた範囲
+    let triangles = MeshTriangles::new(&mesh)?;
+    let work_bounds = (triangles.xy_min, triangles.xy_max);
+    let vertices = mesh
+        .vertices()
+        .iter()
+        .map(|vertex| {
+            let [x, y] = frame.to_scan([vertex.x(), vertex.y()]);
+            Point3D::new(x, y, vertex.z())
+        })
+        .collect();
+    let rotated = TriangleMesh3D::new(vertices, mesh.indices().to_vec())
+        .map_err(|error| invalid(&error.to_string()))?;
+    Ok((InverseOffsetShape::new(&rotated, shape)?, work_bounds))
 }
 
-/// 経路生成の XY 範囲を決める。
+/// 経路生成の範囲を、走査線の向きの座標 `frame` で決める（`cutter` は `frame` へ回した形状から作ったもの、
+/// `work_bounds` は加工の座標での形状の XY 範囲）。
 ///
-/// 加工範囲の指定がなければ形状の XY 範囲とする。矩形指定は、工具が形状に触れ得る範囲
-/// （形状の XY 範囲を工具半径だけ広げた領域、以下 reach）でクリップした範囲を走査する
-/// （reach 外は接触し得ないため、過大な矩形でもサンプル数を形状規模に抑える）。
-/// クリップ結果が面積を持たない（重ならない、または辺・角で接するだけ）場合は、
-/// 経路生成まで進めて `no_solution` にせず、入力契約違反の `operation_boundary_out_of_domain` とする。
+/// 範囲は加工の座標の長方形とし、走査線の向きの座標へ回して、その座標で工具が形状に触れ得る範囲（形状の XY 範囲を
+/// 工具半径だけ広げた領域、以下 reach）で切り取る（reach 外は接触し得ないため、過大な矩形でもサンプル数を形状規模に
+/// 抑える）。加工範囲の指定がなければ、加工の座標での形状の XY 範囲を工具の中心の移動範囲 `tool_range` で決める。
+/// 矩形指定で、切り取った範囲が面積を持たない（重ならない、または辺・角で接するだけ）場合は、経路生成まで進めて
+/// `no_solution` にせず、入力契約違反の `operation_boundary_out_of_domain` とする。
 fn machining_region(
     cutter: &InverseOffsetShape,
+    (work_min, work_max): XyBounds,
+    frame: ScanFrame,
     boundary: Option<MachiningBoundary>,
     tool_range: ScanlineToolRange,
-) -> Result<([f64; 2], [f64; 2]), CamSolverError> {
+) -> Result<ScanRegion, CamSolverError> {
     let (xy_min, xy_max) = cutter.xy_bounds();
     let r = cutter.shape().radius();
     let reach_min = [xy_min[0] - r, xy_min[1] - r];
     let reach_max = [xy_max[0] + r, xy_max[1] + r];
     match boundary {
-        None => match tool_range {
-            ScanlineToolRange::ExtendByToolRadius => Ok((reach_min, reach_max)),
-            ScanlineToolRange::GeometryExtent => Ok((xy_min, xy_max)),
-        },
+        None => {
+            let (min, max) = match tool_range {
+                ScanlineToolRange::ExtendByToolRadius => (
+                    [work_min[0] - r, work_min[1] - r],
+                    [work_max[0] + r, work_max[1] + r],
+                ),
+                ScanlineToolRange::GeometryExtent => (work_min, work_max),
+            };
+            Ok(ScanRegion::clipped(
+                &rectangle_corners(min, max, frame),
+                reach_min,
+                reach_max,
+            ))
+        }
         Some(MachiningBoundary::Rectangle(rectangle)) => {
-            clip_rectangle_boundary(&rectangle, reach_min, reach_max)
+            clip_rectangle_boundary(&rectangle, frame, reach_min, reach_max)
                 .ok_or_else(|| TemplateFailure::OperationBoundaryOutOfDomain.into())
         }
     }
+}
+
+/// 加工の座標の長方形 [min, max] の角を、走査線の向きの座標 `frame` へ回したもの（順に並べる）
+fn rectangle_corners(min: [f64; 2], max: [f64; 2], frame: ScanFrame) -> [[f64; 2]; 4] {
+    [min, [max[0], min[1]], max, [min[0], max[1]]].map(|corner| frame.to_scan(corner))
 }
 
 fn validate_scanline(params: &ScanlineParams, tool: &Tool<f64>) -> Result<(), CamSolverError> {
@@ -297,6 +358,8 @@ fn validate_scanline(params: &ScanlineParams, tool: &Tool<f64>) -> Result<(), Ca
         ScanlineInputError::StepoverExceedsToolDiameter
     } else if !is_positive_finite(params.feed_rate) {
         ScanlineInputError::FeedRateNotPositive
+    } else if !params.angle_degrees.is_finite() {
+        ScanlineInputError::AngleNotFinite
     } else {
         return Ok(());
     };
@@ -325,25 +388,20 @@ fn invalid(reason: &str) -> CamSolverError {
     CamSolverError::InvalidInput(reason.to_string())
 }
 
-/// 矩形の加工範囲を XY 範囲 [min, max] でクリップした範囲を返す。
+/// 矩形の加工範囲を走査線の向きの座標 `frame` へ回し、その座標の XY 範囲 [min, max] で切り取った範囲を返す。
 ///
-/// クリップ結果の幅・高さのいずれかが距離トレランス以下（辺や角で接するだけ、
+/// 切り取った範囲の幅・高さのいずれかが距離トレランス以下か、面積が距離トレランスの 2 乗以下（辺や角で接するだけ、
 /// または重ならない）の場合は、走査できる面積を持たないため `None` とする。
 fn clip_rectangle_boundary(
     rectangle: &RectangleBoundary,
+    frame: ScanFrame,
     min: [f64; 2],
     max: [f64; 2],
-) -> Option<([f64; 2], [f64; 2])> {
-    let clipped_min = [
-        rectangle.rect_min[0].max(min[0]),
-        rectangle.rect_min[1].max(min[1]),
-    ];
-    let clipped_max = [
-        rectangle.rect_max[0].min(max[0]),
-        rectangle.rect_max[1].min(max[1]),
-    ];
+) -> Option<ScanRegion> {
+    let corners = rectangle_corners(rectangle.rect_min, rectangle.rect_max, frame);
+    let region = ScanRegion::clipped(&corners, min, max);
     let tolerance = default_distance_tolerance::<f64>();
-    let has_area =
-        clipped_max[0] - clipped_min[0] > tolerance && clipped_max[1] - clipped_min[1] > tolerance;
-    has_area.then_some((clipped_min, clipped_max))
+    let [width, height] = region.extents()?;
+    let has_area = width > tolerance && height > tolerance && region.area() > tolerance * tolerance;
+    has_area.then_some(region)
 }

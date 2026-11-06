@@ -4,7 +4,8 @@
 
 /// スキャン加工（`operation_type = scanline`）パラメータ
 ///
-/// X 方向の走査ラインを Y 方向へ `stepover` ずつ送る。各ラインの送る向きは `cut_direction` で決める。
+/// 走査ラインを、ラインに垂直な向きへ `stepover` ずつ送る。ラインの向きは X 軸から `angle_degrees` 回した向きで、
+/// 0° では X 方向のラインを Y 方向へ送る。各ラインの送る向きは `cut_direction` で決める。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScanlineParams {
     /// 走査ライン間隔（mm）。工具径以下であること
@@ -15,12 +16,15 @@ pub struct ScanlineParams {
     pub tool_range: ScanlineToolRange,
     /// 各走査ラインの送り方
     pub cut_direction: ScanlineCutDirection,
+    /// 走査ラインの角度（度。X 軸から、上から見て反時計回り）
+    pub angle_degrees: f64,
 }
 
 /// スキャン加工の送り方
 ///
 /// 主軸は右回り（上から見て時計回り）とする。走査ラインは Y 正方向へ進むため、まだ削っていない素材は +Y 側にあり、
-/// X 負方向に送ると素材が送りの右側になってダウンカット、X 正方向に送るとアップカットになる。
+/// X 負方向に送ると素材が送りの右側になってダウンカット、X 正方向に送るとアップカットになる（角度を付けたラインでは、
+/// X・Y をラインの向きとそれに垂直な向きに読み替える）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ScanlineCutDirection {
     /// すべてのラインを X 負方向に送る一方向の加工
