@@ -200,6 +200,9 @@ impl HelpUiState {
             .anchor(Align2::RIGHT_TOP, [-16.0, 16.0])
             .constrain_to(area)
             .default_width(420.0)
+            // 一覧が画面の高さに収まらないときは、ウィンドウの中をスクロールする
+            .default_height((area.height() - 32.0).max(120.0))
+            .vscroll(true)
             .resizable(true)
             .open(&mut open)
             .show(ctx, |ui| {
