@@ -84,6 +84,8 @@ pub(crate) enum Notice {
     ApplyWithoutAnimation,
     /// デバッグ表示の間は、切削アニメーションのコマを動かさない
     DebugViewShown,
+    /// 取り込んだ結果の工具と今の計算条件の工具が違い、ツールパスの線は逆オフセット形状に乗らない
+    InverseOffsetToolDiffers,
     /// アプリの設定を読めないため、既定の設定で起動した（理由）
     SettingsLoadFailed { reason: UiMessage },
     /// 設定のファイルを使えない（利用者ごとのフォルダが分からない・読めなかった）ため、設定を保存しない
@@ -103,6 +105,7 @@ impl Notice {
             | Self::NoToolSegments
             | Self::ApplyWithoutAnimation
             | Self::DebugViewShown
+            | Self::InverseOffsetToolDiffers
             | Self::SettingsLoadFailed { .. }
             | Self::SettingsNotSaved
             | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
@@ -138,6 +141,9 @@ impl Notice {
                 resolve_help_text(locale, "notice.apply_without_animation", &[])
             }
             Self::DebugViewShown => resolve_help_text(locale, "notice.debug_view_shown", &[]),
+            Self::InverseOffsetToolDiffers => {
+                resolve_help_text(locale, "notice.inverse_offset_tool_differs", &[])
+            }
             Self::SettingsLoadFailed { reason } => resolve_help_text(
                 locale,
                 "notice.settings_load_failed",
@@ -316,6 +322,7 @@ mod tests {
                 Notice::NoToolSegments,
                 Notice::ApplyWithoutAnimation,
                 Notice::DebugViewShown,
+                Notice::InverseOffsetToolDiffers,
                 Notice::SettingsLoadFailed {
                     reason: UiMessage {
                         key: "failure.file.invalid_data".to_string(),

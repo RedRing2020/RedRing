@@ -174,10 +174,7 @@ impl AppState {
             );
             return;
         };
-        let toolpath_lines = line_vertices(
-            &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
-            None,
-        );
+        let toolpath_lines = self.toolpath_lines(animation);
         let colors = self.snapshot_shaded_color_settings;
         let tool_lines = line_vertices(
             &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
@@ -190,7 +187,7 @@ impl AppState {
             self.set_notice(crate::help_ui::Notice::ApplyWithoutAnimation);
             return;
         };
-        mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
+        mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines.clone());
         mesh_stage.set_overlay_tool_line_data(device, tool_lines);
         for class in [
             DeviationClass::NotCompared,
@@ -203,6 +200,10 @@ impl AppState {
                 stock_class_keys(class),
                 stock_class_color(&colors, class),
             );
+        }
+        // ツールパスの線を重ねたデバッグ表示にも、同じ線を描く
+        if let Some(debug_stage) = self.debug_toolpath_overlay_stage() {
+            debug_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
         }
         // 色分けするかが変わった場合は、最後の時点の素材の面が作り直されて届く
         if let Some(animation) = &mut self.cutting_animation {
@@ -252,13 +253,7 @@ impl AppState {
         mesh_stage.set_mesh_list(device, items);
         mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
         mesh_stage.set_overlay_tool_visible(self.tool_lines_visible);
-        mesh_stage.set_overlay_toolpath_line_data(
-            device,
-            line_vertices(
-                &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
-                None,
-            ),
-        );
+        mesh_stage.set_overlay_toolpath_line_data(device, self.toolpath_lines(animation));
         mesh_stage.set_overlay_tool_line_data(
             device,
             line_vertices(
@@ -269,11 +264,22 @@ impl AppState {
         (mesh_stage, positions)
     }
 
-    /// 切削アニメーションのツールパスの線の表示・非表示を切り替える
+    /// 切削アニメーション `animation` のツールパスの線の頂点（今の表示の設定で作る）
+    pub(super) fn toolpath_lines(&self, animation: &CuttingAnimation) -> Vec<MeshVertex> {
+        line_vertices(
+            &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
+            None,
+        )
+    }
+
+    /// 切削アニメーションのツールパスの線の表示・非表示を切り替える（デバッグ用の表示に重ねた線も同じに切り替える）
     pub(super) fn toggle_toolpath_lines(&mut self) {
         self.toolpath_lines_visible = !self.toolpath_lines_visible;
         let visible = self.toolpath_lines_visible;
         if let Some(mesh_stage) = self.cutting_animation_stage() {
+            mesh_stage.set_overlay_toolpath_visible(visible);
+        }
+        if let Some(mesh_stage) = self.debug_toolpath_overlay_stage() {
             mesh_stage.set_overlay_toolpath_visible(visible);
         }
         tracing::info!(

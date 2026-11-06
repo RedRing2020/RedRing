@@ -64,6 +64,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "デバッグの表示中です。通常の表示に戻してから操作してください",
     ),
     (
+        "notice.inverse_offset_tool_differs",
+        "取り込んだ結果の工具と今の計算条件の工具が違うため、ツールパスの線は逆オフセット形状に合いません",
+    ),
+    (
         "notice.settings_load_failed",
         "アプリの設定を読めないため、既定の設定で起動しました（{reason}）",
     ),
@@ -153,6 +157,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "notice.debug_view_shown",
         "A debug view is shown. Go back to the normal view first",
+    ),
+    (
+        "notice.inverse_offset_tool_differs",
+        "The toolpath lines do not match the inverse offset shape because the imported result used another tool",
     ),
     (
         "notice.settings_load_failed",

@@ -14,6 +14,8 @@ pub(super) struct MainView {
     camera: Camera,
     /// 通常の表示のステージ（最初のデバッグ表示のステージを描いたときに取っておく）
     stage: Option<Box<dyn RenderStage>>,
+    /// 今のデバッグ表示のステージに、ツールパスの線を重ねたか
+    toolpath_overlay: bool,
 }
 
 impl std::fmt::Debug for MainView {
@@ -42,25 +44,47 @@ impl AppState {
         self.main_view = Some(MainView {
             camera: self.camera.clone(),
             stage: None,
+            toolpath_overlay: false,
         });
         self.window.set_title(APP_TITLE);
     }
 
     /// デバッグ表示のステージ `stage` を描く。通常の表示のステージは取っておき、前のデバッグ表示のステージは捨てる
-    pub(super) fn show_debug_stage(&mut self, stage: Box<MeshStage>) {
+    ///
+    /// `toolpath_overlay` は、`stage` にツールパスの線を重ねたか（線の表示の切り替えと設定の反映を当てる）。
+    pub(super) fn show_debug_stage(&mut self, stage: Box<MeshStage>, toolpath_overlay: bool) {
         self.enter_debug_view();
         let previous = self.renderer.replace_stage(stage);
         if let Some(view) = &mut self.main_view {
             if view.stage.is_none() {
                 view.stage = Some(previous);
             }
+            view.toolpath_overlay = toolpath_overlay;
         }
         self.update_camera_uniforms();
     }
 
+    /// カメラを、取っておいた通常の表示のカメラにする（デバッグ表示でなければ何もしない）
+    pub(super) fn use_main_view_camera(&mut self) {
+        if let Some(view) = &self.main_view {
+            self.camera = view.camera.clone();
+        }
+    }
+
+    /// ツールパスの線を重ねたデバッグ表示のメッシュステージ（重ねていなければ `None`）
+    pub(super) fn debug_toolpath_overlay_stage(&mut self) -> Option<&mut MeshStage> {
+        if !self.main_view.as_ref()?.toolpath_overlay {
+            return None;
+        }
+        self.renderer
+            .get_stage_mut()
+            .as_any_mut()
+            .downcast_mut::<MeshStage>()
+    }
+
     /// 取っておいた通常の表示（ステージとカメラ）に戻す（デバッグ表示でなければ何もしない）
     pub(super) fn restore_main_view(&mut self) {
-        let Some(MainView { camera, stage }) = self.main_view.take() else {
+        let Some(MainView { camera, stage, .. }) = self.main_view.take() else {
             return;
         };
         if let Some(mut stage) = stage {

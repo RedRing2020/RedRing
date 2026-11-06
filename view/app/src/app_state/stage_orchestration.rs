@@ -23,7 +23,7 @@ impl AppState {
         mesh_stage.set_line_data(&self.graphic.device, vertices);
 
         // エンティティの線は、デバッグ用の表示として描く（通常の表示は取っておく）
-        self.show_debug_stage(mesh_stage);
+        self.show_debug_stage(mesh_stage, false);
         self.entity_manager.clear_dirty();
     }
 
