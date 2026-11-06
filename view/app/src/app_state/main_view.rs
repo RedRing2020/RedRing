@@ -2,6 +2,8 @@
 //!
 //! デバッグ表示に切り替えるときは、通常の表示のステージとカメラを取っておき、戻すときにそのまま戻す。デバッグ表示の
 //! 間は、切削アニメーションのコマを動かさない（届いた素材の面は、取っておいたステージに当てる）。
+//! 通常の表示と見比べる表示（逆オフセット形状）は、ツールパスの線を重ね、カメラを通常の表示と共有する（その表示の間に
+//! 動かしたカメラは、戻した後も使う）。
 
 use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
@@ -14,8 +16,8 @@ pub(super) struct MainView {
     camera: Camera,
     /// 通常の表示のステージ（最初のデバッグ表示のステージを描いたときに取っておく）
     stage: Option<Box<dyn RenderStage>>,
-    /// 今のデバッグ表示のステージに、ツールパスの線を重ねたか
-    toolpath_overlay: bool,
+    /// 今のデバッグ表示が、通常の表示と見比べる表示か（ツールパスの線を重ね、カメラを通常の表示と共有する）
+    comparison: bool,
 }
 
 impl std::fmt::Debug for MainView {
@@ -30,12 +32,18 @@ impl AppState {
         self.main_view.is_some()
     }
 
-    /// デバッグ表示に入る。通常の表示からなら、カメラを取っておき、自動再生を一時停止する（デバッグ表示の間に呼んでも、
-    /// 最初に取っておいたものを保つ）
+    /// デバッグ表示に入る。通常の表示からなら、カメラを取っておき、自動再生を一時停止する。デバッグ表示の間に呼んだ場合は、
+    /// 取っておいたものを保つ。ただし、今が見比べる表示なら、そこで動かしたカメラを通常の表示のカメラとして取っておき、
+    /// 見比べる表示ではなくする（続けて呼んでも、その後に動かしたカメラで上書きしない）
     ///
     /// デバッグ表示がカメラを動かす前に呼ぶ。ステージは `show_debug_stage` で描くときに取っておく。
     pub(super) fn enter_debug_view(&mut self) {
-        if self.main_view.is_some() {
+        if let Some(view) = &mut self.main_view {
+            // 見比べる表示で動かしたカメラは、通常の表示のカメラとして取っておく
+            if view.comparison {
+                view.camera = self.camera.clone();
+                view.comparison = false;
+            }
             return;
         }
         if self.debug_snapshot.playback_mode == SnapshotPlaybackMode::AutoPlaying {
@@ -44,22 +52,23 @@ impl AppState {
         self.main_view = Some(MainView {
             camera: self.camera.clone(),
             stage: None,
-            toolpath_overlay: false,
+            comparison: false,
         });
         self.window.set_title(APP_TITLE);
     }
 
     /// デバッグ表示のステージ `stage` を描く。通常の表示のステージは取っておき、前のデバッグ表示のステージは捨てる
     ///
-    /// `toolpath_overlay` は、`stage` にツールパスの線を重ねたか（線の表示の切り替えと設定の反映を当てる）。
-    pub(super) fn show_debug_stage(&mut self, stage: Box<MeshStage>, toolpath_overlay: bool) {
+    /// `comparison` は、`stage` が通常の表示と見比べる表示か（ツールパスの線の表示の切り替えと設定の反映を当て、カメラを
+    /// 通常の表示と共有する）。
+    pub(super) fn show_debug_stage(&mut self, stage: Box<MeshStage>, comparison: bool) {
         self.enter_debug_view();
         let previous = self.renderer.replace_stage(stage);
         if let Some(view) = &mut self.main_view {
             if view.stage.is_none() {
                 view.stage = Some(previous);
             }
-            view.toolpath_overlay = toolpath_overlay;
+            view.comparison = comparison;
         }
         self.update_camera_uniforms();
     }
@@ -73,7 +82,7 @@ impl AppState {
 
     /// ツールパスの線を重ねたデバッグ表示のメッシュステージ（重ねていなければ `None`）
     pub(super) fn debug_toolpath_overlay_stage(&mut self) -> Option<&mut MeshStage> {
-        if !self.main_view.as_ref()?.toolpath_overlay {
+        if !self.main_view.as_ref()?.comparison {
             return None;
         }
         self.renderer
@@ -83,8 +92,15 @@ impl AppState {
     }
 
     /// 取っておいた通常の表示（ステージとカメラ）に戻す（デバッグ表示でなければ何もしない）
+    ///
+    /// 見比べる表示から戻すときは、カメラを今のまま使う。
     pub(super) fn restore_main_view(&mut self) {
-        let Some(MainView { camera, stage, .. }) = self.main_view.take() else {
+        let Some(MainView {
+            camera,
+            stage,
+            comparison,
+        }) = self.main_view.take()
+        else {
             return;
         };
         if let Some(mut stage) = stage {
@@ -95,7 +111,9 @@ impl AppState {
             );
             self.renderer.set_stage(stage);
         }
-        self.camera = camera;
+        if !comparison {
+            self.camera = camera;
+        }
         self.update_camera_uniforms();
         if self.notice == crate::help_ui::Notice::DebugViewShown {
             self.set_notice(crate::help_ui::Notice::Startup);
