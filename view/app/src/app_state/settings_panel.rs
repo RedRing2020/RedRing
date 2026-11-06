@@ -34,7 +34,6 @@ impl AppState {
             active_tab: self.settings_panel_active_tab,
             locale: self.ui_locale,
             camera_control_sensitivity: self.viewing_operation_settings.camera_control_sensitivity,
-            octree_settings: self.octree_visualization_settings.clone(),
             snapshot_overlay_style: self.snapshot_overlay_style,
             snapshot_shaded_colors: self.snapshot_shaded_color_settings,
             tool_wireframe_settings: self.tool_wireframe_visualization_settings,

@@ -20,7 +20,6 @@
 //! - **トレランス管理**: 加工精度要件に基づくトレランス設定
 
 pub mod artifact_binary;
-pub mod fixtures;
 pub mod machine_constraint;
 pub mod operation;
 pub mod stock;

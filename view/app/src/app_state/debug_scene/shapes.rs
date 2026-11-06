@@ -1,4 +1,4 @@
-//! AppState のSTL/SVG形状デバッグ表示を扱うモジュール。
+//! AppState のデバッグ用の形状（線分・円・円弧・三角形のエンティティ）の表示を扱うモジュール。
 
 use super::super::AppState;
 use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
@@ -30,7 +30,7 @@ impl AppState {
         self.update_camera_uniforms();
     }
 
-    /// デバッグ用：LineSegment3Dを表示（SVGから読み込み）
+    /// デバッグ用：LineSegment3Dを表示
     /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_line(&mut self) {
         tracing::info!("Debug shape: LineSegment3D (through the application)");
@@ -52,7 +52,7 @@ impl AppState {
         self.rebuild_stage_from_entities();
     }
 
-    /// デバッグ用：Circle3Dを表示（SVGから読み込み）
+    /// デバッグ用：Circle3Dを表示
     /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_circle(&mut self) {
         tracing::info!("Debug shape: Circle3D (through feature/entity)");
@@ -73,7 +73,7 @@ impl AppState {
         self.rebuild_stage_from_entities();
     }
 
-    /// デバッグ用：Triangle3Dを表示（SVGから読み込み）
+    /// デバッグ用：Triangle3Dを表示
     /// 直接MeshStage経路で扱う。
     pub fn load_debug_triangle(&mut self) {
         tracing::info!("Debug shape: Triangle3D (through the application)");
@@ -91,7 +91,7 @@ impl AppState {
         self.apply_mesh_stage(vertices, indices, true);
     }
 
-    /// デバッグ用：Arc3Dを表示（SVGから読み込み）
+    /// デバッグ用：Arc3Dを表示
     /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_arc(&mut self) {
         tracing::info!("Debug shape: Arc3D (through feature/entity)");

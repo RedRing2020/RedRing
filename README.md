@@ -267,7 +267,7 @@ This runs:
 | `Shift+S` | Toggle settings panel |
 | `Esc` | Quit |
 
-Debug views (shapes, NURBS, inverse offset envelope, Octree, toolpath only) are in the Debug tab of the settings panel. See `manual/cutting_simulation_demo.md` for the full key list.
+Debug views (shapes and the inverse offset shape) are in the Debug tab of the settings panel. See `manual/cutting_simulation_demo.md` for the full key list.
 
 #### Mouse Controls
 

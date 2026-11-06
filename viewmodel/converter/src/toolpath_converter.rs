@@ -406,13 +406,6 @@ fn point_to_vertex(point: &Point3D<f64>) -> Vertex3D {
     }
 }
 
-/// デバッグ用：サンプル工具経路を取得
-///
-/// 生成本体は `cam_core::fixtures` に置き、ViewModel は層境界の薄い中継だけを担う。
-pub fn load_demo_toolpath() -> ToolPath<f64> {
-    cam_core::fixtures::create_sample_toolpath()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -585,44 +578,5 @@ mod tests {
         let last = result.vertices.last().unwrap();
         assert!((last.position[0] - (-10.0)).abs() < 0.01);
         assert!((last.position[1] - 0.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_sample_toolpath_is_time_continuous() {
-        fn segment_end(segment: &PathSegment<f64>) -> Point3D<f64> {
-            match segment.geometry {
-                PathGeometry::Line { end } | PathGeometry::Arc { end, .. } => end,
-            }
-        }
-
-        let toolpath = load_demo_toolpath();
-        let mut ordered = Vec::new();
-        ordered.extend(toolpath.approach_segments.iter());
-        for contour in &toolpath.contour_levels {
-            ordered.extend(contour.segments.iter());
-        }
-        ordered.extend(toolpath.retract_segments.iter());
-
-        for pair in ordered.windows(2) {
-            let prev = pair[0];
-            let next = pair[1];
-            let prev_end = segment_end(prev);
-            let next_start = next.start;
-
-            let dx = (prev_end.x() - next_start.x()).abs();
-            let dy = (prev_end.y() - next_start.y()).abs();
-            let dz = (prev_end.z() - next_start.z()).abs();
-
-            assert!(
-                dx <= 1e-9 && dy <= 1e-9 && dz <= 1e-9,
-                "toolpath discontinuity: prev_end=({:.6},{:.6},{:.6}) next_start=({:.6},{:.6},{:.6})",
-                prev_end.x(),
-                prev_end.y(),
-                prev_end.z(),
-                next_start.x(),
-                next_start.y(),
-                next_start.z()
-            );
-        }
     }
 }
