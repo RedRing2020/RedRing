@@ -18,7 +18,11 @@ use application::machining_sequence::{
 use application::machining_sequence::{ScanlineParams, Tool};
 use geo_algorithms::Aabb3D;
 
-use crate::cutting_animation::{CuttingAnimation, CuttingAnimationError};
+use application::cutting_simulation_playback::{
+    CuttingSimulationPlayback, CuttingSimulationPlaybackError,
+};
+
+use crate::cutting_animation::CuttingAnimation;
 use crate::failure_message_mapper::workflow_failure_message;
 use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
 use crate::product_shape_converter::ProductShapeScene;
@@ -145,8 +149,8 @@ pub enum CuttingSimulationSessionError {
     Workflow(CamSimulationWorkflowError),
     /// 加工工程の今の改訂の、取り込める（正常終了した）切削シミュレーションがない
     NoSucceededSimulation,
-    /// 取り込んだ結果から切削アニメーションを作れない
-    Animation(CuttingAnimationError),
+    /// 取り込んだ結果を再生できない
+    Playback(CuttingSimulationPlaybackError),
     /// 逆オフセット形状を表示用に分けられない（表示のきざみの誤りの理由）
     InverseOffsetDisplay(String),
 }
@@ -159,7 +163,7 @@ impl std::fmt::Display for CuttingSimulationSessionError {
                 f,
                 "no succeeded cutting simulation of the current conditions to import"
             ),
-            Self::Animation(error) => write!(f, "{error}"),
+            Self::Playback(error) => write!(f, "{error}"),
             Self::InverseOffsetDisplay(error) => {
                 write!(f, "inverse offset shape cannot be displayed: {error}")
             }
@@ -327,7 +331,7 @@ impl CuttingSimulationSession {
             .map(|job| job.id)
             .ok_or(CuttingSimulationSessionError::NoSucceededSimulation)?;
         let result = self.workflow.import(latest)?;
-        let cam_core::OperationSpec::Scanline(scanline) = result.solver_input.operation;
+        let OperationSpec::Scanline(scanline) = result.solver_input.operation;
         let conditions = ImportedConditions {
             tool: result.simulation_input.tool.clone(),
             scanline,
@@ -335,13 +339,9 @@ impl CuttingSimulationSession {
             stock: result.simulation_input.stock,
             precision: result.simulation_input.precision,
         };
-        let animation = CuttingAnimation::new(
-            &result.toolpath_artifact,
-            &result.simulation_artifact,
-            result.simulation_input.tool,
-            result.simulation_input.precision,
-        )
-        .map_err(CuttingSimulationSessionError::Animation)?;
+        let playback = CuttingSimulationPlayback::open(&result)
+            .map_err(CuttingSimulationSessionError::Playback)?;
+        let animation = CuttingAnimation::new(playback, result.simulation_input.tool);
         Ok(ImportedCuttingSimulation {
             job_id: latest,
             animation,
@@ -351,7 +351,7 @@ impl CuttingSimulationSession {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use application::cam_simulation_workflow::CamSimulationWorkflowError;
     use application::product_shape::ProductShapeError;
     use geo_algorithms::{Point3D, TriangleMesh3D};
@@ -382,6 +382,22 @@ mod tests {
         };
         session.set_operation_content(with_scanline(content, |scanline| scanline.stepover = 6.0));
         session
+    }
+
+    /// 表示中の製品形状（四角錐）を粗い条件で投入・実行・取り込みした切削アニメーション
+    ///
+    /// `cutting_length` を渡すと、工具長をそれにする（`Some(None)` は工具長を指定しない工具）。
+    pub(crate) fn imported_animation(cutting_length: Option<Option<f64>>) -> CuttingAnimation {
+        let mut session = coarse_session();
+        if let Some(length) = cutting_length {
+            let mut content = session.operation_content().clone();
+            content.tool.cutting_length = length;
+            session.set_operation_content(content);
+        }
+        let scene = scene_with_pyramid();
+        session.submit(&scene).unwrap();
+        session.run_queued_jobs().unwrap();
+        session.import_latest(&scene).unwrap().animation
     }
 
     fn scene_with_pyramid() -> ProductShapeScene {

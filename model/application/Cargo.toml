@@ -24,6 +24,7 @@ cam_entity = { path = "../cam_entity" }
 cam_sim = { path = "../cam_sim" }
 job_runtime = { path = "../job_runtime" }
 job_domain = { path = "../job_domain" }
+tracing.workspace = true
 
 [lints]
 workspace = true

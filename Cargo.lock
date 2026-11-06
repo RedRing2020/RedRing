@@ -137,6 +137,7 @@ dependencies = [
  "geo_topology",
  "job_domain",
  "job_runtime",
+ "tracing",
 ]
 
 [[package]]
@@ -3521,7 +3522,6 @@ dependencies = [
  "application",
  "cam_algorithms",
  "cam_core",
- "cam_sim",
  "geo_algorithms",
  "geo_contracts",
  "geo_io",
