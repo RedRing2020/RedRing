@@ -16,20 +16,68 @@ pub struct Graphic {
     device_lost: Arc<AtomicBool>,
 }
 
-pub fn init_graphic(window: Arc<Window>) -> Graphic {
-    let instance = wgpu::Instance::default();
-
-    // 安全な方法でSurfaceを作成
-    let surface = instance
-        .create_surface(window.clone())
-        .expect("Failed to create surface");
-
+/// 描画の仕組み `backends` で、ウィンドウ `window` に描ける GPU を探す（見つからなければ `None`）
+fn find_adapter(
+    window: &Arc<Window>,
+    backends: wgpu::Backends,
+) -> Option<(wgpu::Instance, Surface<'static>, wgpu::Adapter)> {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        backends,
+        ..wgpu::InstanceDescriptor::new_without_display_handle()
+    });
+    let surface = instance.create_surface(window.clone()).ok()?;
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
         compatible_surface: Some(&surface),
         force_fallback_adapter: false,
     }))
-    .expect("No suitable GPU adapter found");
+    .ok()?;
+    Some((instance, surface, adapter))
+}
+
+pub fn init_graphic(window: Arc<Window>) -> Graphic {
+    // 描画は Vulkan・DX12・Metal で行い、OpenGL は、それらで GPU が見つからないときだけ使う。OpenGL も同時に準備すると、
+    // 使わなくても OpenGL のドライバを読み込み、ドライバによっては終了のときにその後始末で強制終了するため。
+    // 環境変数 WGPU_BACKEND で描画の仕組みを指定できる（読めない値のときは既定にする）
+    let requested = wgpu::Backends::from_env().filter(|backends| !backends.is_empty());
+    let found = match requested {
+        Some(backends) => find_adapter(&window, backends),
+        None => find_adapter(&window, wgpu::Backends::PRIMARY).or_else(|| {
+            tracing::warn!("No Vulkan, DX12 or Metal GPU adapter was found; trying OpenGL");
+            find_adapter(&window, wgpu::Backends::GL)
+        }),
+    };
+    let (_instance, surface, adapter) = found.unwrap_or_else(|| {
+        panic!(
+            "No GPU adapter was found for the window (backends: {}; set WGPU_BACKEND to choose another)",
+            requested.map_or("Vulkan, DX12, Metal, then OpenGL".to_string(), |backends| {
+                format!("{backends:?}")
+            })
+        )
+    });
+    let adapter_info = adapter.get_info();
+    let driver = [
+        adapter_info.driver.as_str(),
+        adapter_info.driver_info.as_str(),
+    ]
+    .iter()
+    .filter(|text| !text.is_empty())
+    .copied()
+    .collect::<Vec<_>>()
+    .join(" ");
+    if driver.is_empty() {
+        tracing::info!(
+            "GPU adapter: {} ({:?})",
+            adapter_info.name,
+            adapter_info.backend
+        );
+    } else {
+        tracing::info!(
+            "GPU adapter: {} ({:?}, driver {driver})",
+            adapter_info.name,
+            adapter_info.backend
+        );
+    }
 
     let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
         label: Some("Device"),
