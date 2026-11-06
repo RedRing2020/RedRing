@@ -9,7 +9,6 @@ use egui::{
 };
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
-use viewmodel::octree_converter::OctreeVisualizationSettings;
 use viewmodel::toolpath_converter::{
     DisplayCurveDiscretizationSettings, ToolPathVisualizationSettings,
 };
@@ -30,17 +29,8 @@ pub enum DebugSceneAction {
     Circle,
     Arc,
     Triangle,
-    NurbsCurve,
-    NurbsSurface,
-    InverseOffset,
-    InverseOffsetTool,
-    InverseOffsetMode,
     /// 表示中の製品形状と計算条件の工具で、逆オフセット形状の要素を表示する
     InverseOffsetShape,
-    /// Octree を表示する（表示中は深さを 1 段送る）
-    Octree,
-    OctreeDepthAnimation,
-    ToolPathOnly,
 }
 
 /// デバッグタブのボタンの並び（見出しの文言のキーと、ボタンの文言のキー・表示）
@@ -52,28 +42,6 @@ const DEBUG_SCENE_GROUPS: &[(&str, &[(&str, DebugSceneAction)])] = &[
             ("settings.debug.circle", DebugSceneAction::Circle),
             ("settings.debug.arc", DebugSceneAction::Arc),
             ("settings.debug.triangle", DebugSceneAction::Triangle),
-            ("settings.debug.nurbs_curve", DebugSceneAction::NurbsCurve),
-            (
-                "settings.debug.nurbs_surface",
-                DebugSceneAction::NurbsSurface,
-            ),
-        ],
-    ),
-    (
-        "settings.debug.header.inverse_offset",
-        &[
-            (
-                "settings.debug.inverse_offset",
-                DebugSceneAction::InverseOffset,
-            ),
-            (
-                "settings.debug.inverse_offset_tool",
-                DebugSceneAction::InverseOffsetTool,
-            ),
-            (
-                "settings.debug.inverse_offset_mode",
-                DebugSceneAction::InverseOffsetMode,
-            ),
         ],
     ),
     (
@@ -81,23 +49,6 @@ const DEBUG_SCENE_GROUPS: &[(&str, &[(&str, DebugSceneAction)])] = &[
         &[(
             "settings.debug.inverse_offset_shape",
             DebugSceneAction::InverseOffsetShape,
-        )],
-    ),
-    (
-        "settings.debug.header.octree",
-        &[
-            ("settings.debug.octree", DebugSceneAction::Octree),
-            (
-                "settings.debug.octree_animation",
-                DebugSceneAction::OctreeDepthAnimation,
-            ),
-        ],
-    ),
-    (
-        "settings.debug.header.toolpath",
-        &[(
-            "settings.debug.toolpath_only",
-            DebugSceneAction::ToolPathOnly,
         )],
     ),
 ];
@@ -108,7 +59,6 @@ pub struct SettingsPanelUiState {
     pub active_tab: SettingsPanelTab,
     pub locale: UiLocale,
     pub camera_control_sensitivity: CameraControlSensitivity,
-    pub octree_settings: OctreeVisualizationSettings,
     pub snapshot_overlay_style: SnapshotOverlayStyle,
     pub snapshot_shaded_colors: SnapshotShadedColorSettings,
     pub tool_wireframe_settings: ToolWireframeVisualizationSettings,
@@ -308,63 +258,6 @@ impl SettingsPanelUiState {
                         (
                             "pixel_to_line",
                             format!("{:.3}", self.camera_control_sensitivity.wheel_pixel_to_line),
-                        ),
-                    ],
-                ));
-            });
-
-        CollapsingHeader::new(self.text("settings.header.octree"))
-            .default_open(true)
-            .show(ui, |ui| {
-                ui.label(self.text_with_args(
-                    "settings.octree.max_depth",
-                    &[("max_depth", self.octree_settings.max_depth.to_string())],
-                ));
-                ui.label(self.text_with_args(
-                    "settings.octree.gradient_start",
-                    &[
-                        (
-                            "r",
-                            format!("{:.2}", self.octree_settings.gradient_start[0]),
-                        ),
-                        (
-                            "g",
-                            format!("{:.2}", self.octree_settings.gradient_start[1]),
-                        ),
-                        (
-                            "b",
-                            format!("{:.2}", self.octree_settings.gradient_start[2]),
-                        ),
-                    ],
-                ));
-                ui.label(self.text_with_args(
-                    "settings.octree.gradient_end",
-                    &[
-                        ("r", format!("{:.2}", self.octree_settings.gradient_end[0])),
-                        ("g", format!("{:.2}", self.octree_settings.gradient_end[1])),
-                        ("b", format!("{:.2}", self.octree_settings.gradient_end[2])),
-                    ],
-                ));
-                ui.label(self.text_with_args(
-                    "settings.octree.tolerance",
-                    &[
-                        (
-                            "point",
-                            format!(
-                                "{:.4}",
-                                self.octree_settings.octree_tolerance.point_aabb_half_extent
-                            ),
-                        ),
-                        (
-                            "query",
-                            format!("{:.4}", self.octree_settings.octree_tolerance.query_expand),
-                        ),
-                        (
-                            "nearest",
-                            format!(
-                                "{:.4}",
-                                self.octree_settings.octree_tolerance.nearest_prune_margin
-                            ),
                         ),
                     ],
                 ));

@@ -265,13 +265,6 @@ pwsh scripts/check_all_before_push.ps1
 | `+` / `-` | 再生速度変更（倍率はタイトル表示） |
 | `Shift+S` | 設定パネル表示切替 |
 
-#### Octree確認で使う操作
-
-| キー | 用途 |
-| ---- | ---- |
-| `o` | Octree表示／深さ送り |
-| `Shift+O` | Octree深さアニメーション再生 |
-
 #### マウス操作
 
 - `Ctrl + 左ドラッグ`: 回転

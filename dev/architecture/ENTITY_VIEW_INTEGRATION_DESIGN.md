@@ -1,5 +1,7 @@
 # Entity View統合設計（Issue #208 残タスク）
 
+> 2026-11-06 追記（#1060・#1061）: サンプルのデータを表示するデバッグ表示（NURBS 曲線・NURBS 曲面・逆オフセット包絡面・Octree・ツールパスのみ）と、それだけが使っていた描画のステージ（NURBS 曲線・NURBS 曲面・Octree・ツールパス）・描画の資源と shader・ViewModel の変換（`svg_loader`・`nurbs_eval_loader`・`nurbs_view`・`inverse_offset_converter`・`octree_converter`）・Application の点検用の API（`cam_inspection`）・サンプル（`cam_core::fixtures`・`geo_algorithms` の `nurbs_fixtures` と Octree の `fixtures`）を消した。線の頂点の型（`WireframeVertex`）は `mesh_converter` へ移した。本書のその部分の記述は、作ったときの記録として残す。
+
 **作成日**: 2026年2月21日  
 **対象Issue**: #208（Phase 4.0 エンティティ層基礎）  
 **目的**: 未対応の ViewModel/App 統合の設計確定（実装前）

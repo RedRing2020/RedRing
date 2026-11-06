@@ -19,8 +19,7 @@ use crate::cam_sim_visualization_converter::{
     create_ball_end_mill_wireframe, create_flat_end_mill_wireframe,
     create_toolpath_wireframe_vertices, tool_tip_position, ToolWireframeVisualizationSettings,
 };
-use crate::mesh_converter::VertexData;
-use crate::octree_converter::WireframeVertex;
+use crate::mesh_converter::{VertexData, WireframeVertex};
 use crate::snapshot_converter::{
     cam_snapshot_exports_to_inputs, cam_snapshot_inputs_to_domain_series,
     CamSimulationSnapshotInput, DomainSnapshotSeries,

@@ -9,8 +9,6 @@ description = "Data conversion layer for MVVM architecture - Model to View trans
 [dependencies]
 geo_contracts = { path = "../../model/geo_contracts" }
 geo_algorithms = { path = "../../model/geo_algorithms" }
-geo_io = { path = "../../model/geo_io" }
-cam_core = { path = "../../model/cam_core" }
 application = { path = "../../model/application" }
 analysis = { path = "../../foundation/analysis" }
 i18n_foundation = { path = "../../foundation/i18n_foundation" }
@@ -19,6 +17,7 @@ tracing = "0.1"
 thiserror = "2.0"
 
 [dev-dependencies]
+geo_io = { path = "../../model/geo_io" }
 tempfile = "3.0"
 
 [lints]

@@ -10,7 +10,7 @@ use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
 use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
-use viewmodel::octree_converter::WireframeVertex;
+use viewmodel::mesh_converter::WireframeVertex;
 
 /// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
 const FRAME_STEP_DIVISIONS: f64 = 100.0;

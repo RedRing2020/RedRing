@@ -5,7 +5,7 @@
 use application::toolpath::{LineSegment3D, LineSegment3DProperties, Point3D, ToolPath};
 use std::f64::consts::TAU;
 
-use crate::octree_converter::WireframeVertex;
+use crate::mesh_converter::WireframeVertex;
 use crate::toolpath_converter::{toolpath_to_vertices, ToolPathVisualizationSettings};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
