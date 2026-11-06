@@ -37,7 +37,7 @@ impl AppState {
         if let Err(error) = crate::app_settings::save_settings(path, &self.app_settings) {
             tracing::warn!(path = %path.display(), kind = ?error.kind(), "Cannot save the app settings: {error}");
             self.set_notice(Notice::SettingsSaveFailed {
-                reason: error.to_string(),
+                reason: viewmodel::failure_message_mapper::file_failure_message(error.kind()),
             });
         }
     }

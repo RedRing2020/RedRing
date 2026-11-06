@@ -54,7 +54,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.submit", "投入"),
     ("conditions.import", "取り込み"),
     ("conditions.run_after_submit", "投入したらすぐ実行する（実行が終わるまで画面は止まります）"),
-    ("conditions.status.submitted", "投入しました。Shift+R で実行します"),
+    ("conditions.status.submitted", "投入しました"),
     ("conditions.status.submit_failed", "投入できません（{reason}）"),
     (
         "conditions.status.ran",
@@ -67,7 +67,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "取り込める結果がありません（投入して実行した後に取り込みます）",
     ),
     ("conditions.status.import_failed", "取り込めません（{reason}）"),
-    ("conditions.issue.no_product_shape", "製品形状がありません（STL をドロップしてください）"),
+    ("conditions.issue.no_product_shape", "製品形状がありません（ファイルを開いてください）"),
     (
         "conditions.issue.invalid_stock_margins",
         "余裕は 0 以上の数値にしてください",
@@ -172,7 +172,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.run_after_submit",
         "Run right after submitting (the screen stops until the run ends)",
     ),
-    ("conditions.status.submitted", "Submitted. Run with Shift+R"),
+    ("conditions.status.submitted", "Submitted"),
     ("conditions.status.submit_failed", "Cannot submit ({reason})"),
     (
         "conditions.status.ran",
@@ -185,7 +185,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "No result to import (submit and run first)",
     ),
     ("conditions.status.import_failed", "Cannot import ({reason})"),
-    ("conditions.issue.no_product_shape", "No product shape (drop an STL file)"),
+    ("conditions.issue.no_product_shape", "No product shape (open a file)"),
     (
         "conditions.issue.invalid_stock_margins",
         "Margins must be zero or more",

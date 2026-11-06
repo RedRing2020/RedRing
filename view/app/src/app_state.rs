@@ -311,7 +311,7 @@ fn load_app_settings() -> (AppSettings, Option<PathBuf>, Option<Notice>) {
         Err(error) => {
             tracing::warn!(path = %path.display(), kind = ?error.kind(), "Cannot read the app settings; starting with the defaults: {error}");
             let notice = Notice::SettingsLoadFailed {
-                reason: error.to_string(),
+                reason: viewmodel::failure_message_mapper::file_failure_message(error.kind()),
             };
             (AppSettings::default(), None, Some(notice))
         }

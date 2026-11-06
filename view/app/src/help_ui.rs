@@ -1,10 +1,10 @@
 //! ヘルプ（操作の一覧・バージョンの情報）のウィンドウと、画面の下の知らせの行
 
 use crate::help_messages::resolve_help_text;
-use crate::machining_conditions_messages::resolve_machining_conditions_text;
-use crate::machining_conditions_ui::{operation_status_message, OperationStatus};
+use crate::machining_conditions_ui::{operation_status_text, OperationStatus};
 use egui::{Align2, Color32, Context, Grid, Panel, Rect, Ui, Window};
-use viewmodel::message_catalog::UiLocale;
+use viewmodel::failure_message_catalog::resolve_failure_message;
+use viewmodel::message_catalog::{UiLocale, UiMessage};
 
 /// マニュアル（GitHub Pages）の URL
 const MANUAL_URL: &str = "https://redring2020.github.io/RedRing/";
@@ -75,7 +75,7 @@ pub(crate) enum Notice {
     /// 形状を読み込んだ（ファイルの名前）
     ShapeImported { file: String },
     /// 形状を読み込めない（ファイルの名前と理由）
-    ShapeImportFailed { file: String, reason: String },
+    ShapeImportFailed { file: String, reason: UiMessage },
     /// 切削シミュレーションを取り込む前に、再生の操作をした
     NotImported,
     /// ツールパスに区間がないため、工具を区間の端点へ移せない
@@ -83,11 +83,11 @@ pub(crate) enum Notice {
     /// 切削アニメーションの表示中ではないため、設定を反映できない
     ApplyWithoutAnimation,
     /// アプリの設定を読めないため、既定の設定で起動した（理由）
-    SettingsLoadFailed { reason: String },
+    SettingsLoadFailed { reason: UiMessage },
     /// 設定のファイルを使えない（利用者ごとのフォルダが分からない・読めなかった）ため、設定を保存しない
     SettingsNotSaved,
     /// アプリの設定を保存できない（理由）
-    SettingsSaveFailed { reason: String },
+    SettingsSaveFailed { reason: UiMessage },
     /// 投入・実行・取り込みの結果（加工条件のウィンドウの結果の行と同じ文言）
     Operation(OperationStatus),
 }
@@ -124,7 +124,10 @@ impl Notice {
             Self::ShapeImportFailed { file, reason } => resolve_help_text(
                 locale,
                 "notice.shape_import_failed",
-                &[("file", file.clone()), ("reason", reason.clone())],
+                &[
+                    ("file", file.clone()),
+                    ("reason", resolve_failure_message(locale, reason)),
+                ],
             ),
             Self::NotImported => resolve_help_text(locale, "notice.not_imported", &[]),
             Self::NoToolSegments => resolve_help_text(locale, "notice.no_tool_segments", &[]),
@@ -134,18 +137,15 @@ impl Notice {
             Self::SettingsLoadFailed { reason } => resolve_help_text(
                 locale,
                 "notice.settings_load_failed",
-                &[("reason", reason.clone())],
+                &[("reason", resolve_failure_message(locale, reason))],
             ),
             Self::SettingsNotSaved => resolve_help_text(locale, "notice.settings_not_saved", &[]),
             Self::SettingsSaveFailed { reason } => resolve_help_text(
                 locale,
                 "notice.settings_save_failed",
-                &[("reason", reason.clone())],
+                &[("reason", resolve_failure_message(locale, reason))],
             ),
-            Self::Operation(status) => {
-                let (key, args) = operation_status_message(status);
-                resolve_machining_conditions_text(locale, key, &args)
-            }
+            Self::Operation(status) => operation_status_text(locale, status),
         }
     }
 }
@@ -303,19 +303,31 @@ mod tests {
                 },
                 Notice::ShapeImportFailed {
                     file: "a.stl".to_string(),
-                    reason: "broken".to_string(),
+                    reason: UiMessage {
+                        key: "failure.shape.stl".to_string(),
+                        args: Vec::new(),
+                    },
                 },
                 Notice::NotImported,
                 Notice::NoToolSegments,
                 Notice::ApplyWithoutAnimation,
                 Notice::SettingsLoadFailed {
-                    reason: "broken".to_string(),
+                    reason: UiMessage {
+                        key: "failure.file.invalid_data".to_string(),
+                        args: Vec::new(),
+                    },
                 },
                 Notice::SettingsNotSaved,
                 Notice::SettingsSaveFailed {
-                    reason: "denied".to_string(),
+                    reason: UiMessage {
+                        key: "failure.file.permission_denied".to_string(),
+                        args: Vec::new(),
+                    },
                 },
-                Notice::Operation(OperationStatus::RunFailed("reason".to_string())),
+                Notice::Operation(OperationStatus::RunFailed(UiMessage {
+                    key: "failure.orchestration".to_string(),
+                    args: Vec::new(),
+                })),
             ];
             for notice in notices {
                 let text = notice.text(locale);
@@ -332,13 +344,20 @@ mod tests {
         assert_eq!(
             Notice::ShapeImportFailed {
                 file: String::new(),
-                reason: String::new()
+                reason: UiMessage {
+                    key: String::new(),
+                    args: Vec::new()
+                }
             }
             .level(),
             NoticeLevel::Error
         );
         assert_eq!(
-            Notice::Operation(OperationStatus::ImportFailed(String::new())).level(),
+            Notice::Operation(OperationStatus::ImportFailed(UiMessage {
+                key: String::new(),
+                args: Vec::new()
+            }))
+            .level(),
             NoticeLevel::Error
         );
         assert_eq!(

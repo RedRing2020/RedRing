@@ -141,7 +141,12 @@ pub struct AddedProductFace {
 /// 製品形状の保持・取り込み・解決の失敗
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProductShapeError {
-    /// STL の読み込みの失敗（理由）
+    /// STL のファイルを読めない（誤りの種類と理由）
+    StlFile {
+        kind: std::io::ErrorKind,
+        reason: String,
+    },
+    /// STL の内容を形状にできない（理由）
     Stl(String),
     /// 保持していないエンティティ
     UnknownEntity(EntityId),
@@ -158,6 +163,7 @@ pub enum ProductShapeError {
 impl fmt::Display for ProductShapeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::StlFile { reason, .. } => write!(f, "failed to read the STL file: {reason}"),
             Self::Stl(reason) => write!(f, "failed to load STL: {reason}"),
             Self::UnknownEntity(id) => write!(f, "unknown product shape entity: {id}"),
             Self::UnknownFace(id) => write!(f, "unknown product face: {id}"),
@@ -202,8 +208,18 @@ impl ProductShapeStore {
     ///
     /// STL の読み込みの失敗。
     pub fn import_stl(&mut self, path: &Path) -> Result<AddedProductFace, ProductShapeError> {
-        let mesh = geo_io::stl::load_stl::<f64>(path)
-            .map_err(|error| ProductShapeError::Stl(error.to_string()))?;
+        let mesh = geo_io::stl::load_stl::<f64>(path).map_err(|error| match &error {
+            geo_io::StlError::Io(geo_io::IoError::FileSystem(io)) => ProductShapeError::StlFile {
+                kind: io.kind(),
+                reason: error.to_string(),
+            },
+            _ => ProductShapeError::Stl(error.to_string()),
+        })?;
+        if mesh.is_empty() {
+            return Err(ProductShapeError::Stl(
+                "the STL file has no triangles".to_string(),
+            ));
+        }
         Ok(self.add_face(ProductFaceGeometry::Mesh(mesh)))
     }
 

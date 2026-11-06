@@ -89,8 +89,7 @@ pub(crate) fn save_settings(path: &Path, settings: &AppSettings) -> std::io::Res
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let text = serde_json::to_string_pretty(settings)
-        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+    let text = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
     // 書きかけのファイルの名前は、プロセスごとに分ける（2 つ起動していても、互いの書きかけを替えない）
     let temp = path.with_file_name(format!("{SETTINGS_FILE_NAME}.{}.tmp", std::process::id()));
     let result = std::fs::write(&temp, text).and_then(|()| std::fs::rename(&temp, path));

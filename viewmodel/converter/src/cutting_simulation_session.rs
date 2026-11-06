@@ -19,8 +19,10 @@ use application::machining_sequence::{ScanlineParams, Tool};
 use geo_algorithms::Aabb3D;
 
 use crate::cutting_animation::{CuttingAnimation, CuttingAnimationError};
+use crate::failure_message_mapper::workflow_failure_message;
 use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
 use crate::product_shape_converter::ProductShapeScene;
+use i18n_foundation::UiMessage;
 
 /// 加工手順・加工工程の名前（名前を編集できるようになるまでの固定の名前）
 const SEQUENCE_NAME: &str = "加工手順";
@@ -113,12 +115,12 @@ pub struct ImportedCuttingSimulation {
 /// 計算条件の確かめで見つかった問題（製品形状がない・条件の誤り・そのほか）
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConditionIssue {
-    /// 加工の対象の製品形状がない、または形状にできない（理由）
-    NoProductShape(String),
+    /// 加工の対象の製品形状がない、または形状にできない
+    NoProductShape,
     /// 計算条件の誤り（出す欄は `CamConditionError::field`）
     Condition(CamConditionError),
-    /// そのほかの理由で投入できない（理由）
-    Other(String),
+    /// そのほかの理由で投入できない（画面に出す理由）
+    Other(UiMessage),
 }
 
 impl ConditionIssue {
@@ -129,9 +131,9 @@ impl ConditionIssue {
             }
             CamSimulationWorkflowError::ProductShape(_)
             | CamSimulationWorkflowError::EmptyProductShape => {
-                vec![Self::NoProductShape(error.to_string())]
+                vec![Self::NoProductShape]
             }
-            other => vec![Self::Other(other.to_string())],
+            other => vec![Self::Other(workflow_failure_message(other))],
         }
     }
 }
@@ -576,7 +578,7 @@ mod tests {
         let mut session = coarse_session();
         assert!(matches!(
             session.check(&ProductShapeScene::default())[..],
-            [ConditionIssue::NoProductShape(_)]
+            [ConditionIssue::NoProductShape]
         ));
         let error = session.submit(&ProductShapeScene::default()).unwrap_err();
         assert!(matches!(

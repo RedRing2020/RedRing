@@ -17,7 +17,7 @@ impl AppState {
             tracing::warn!(path = %path.display(), "product shape import failed: {error}");
             self.set_notice(crate::help_ui::Notice::ShapeImportFailed {
                 file,
-                reason: error.to_string(),
+                reason: viewmodel::failure_message_mapper::product_shape_failure_message(&error),
             });
             return;
         }
