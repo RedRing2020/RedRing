@@ -59,6 +59,8 @@ Toolpath generation and the cutting simulation are calculated by the job manager
   - "Open window"
   - "Start when Windows starts": when checked, the job manager starts without a window when you sign in to Windows
   - "Quit": quits the job manager. When a job is being calculated, you are asked to confirm (the calculation stops, and the job fails)
+- When a calculation finishes, a notification is shown from the system tray icon. Toolpath generation and the cutting simulation are calculated one after the other, so the notification is shown once, when both have finished (or when one fails). Click the notification to open the window
+- "Open job manager" in the Machining Conditions window of the app also opens the job manager window
 - Select a job in the list and use the buttons at the top of the window. Only the buttons that apply to the job's state can be pressed
   - "Cancel": cancels a waiting job. For a calculating job, stops the calculation
   - "Retry": puts a failed or canceled job back to waiting. The toolpath generation and the cutting simulation that uses its result are put back together when they ended failed or canceled

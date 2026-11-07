@@ -30,8 +30,11 @@ const SIMULATION_INPUT_FILE: &str = "sim.bin";
 const MAX_FILE_BYTES: u64 = 4 << 30;
 /// 起動したジョブマネージャーがすぐに終わらないかを見る時間
 const MANAGER_START_WATCH: Duration = Duration::from_millis(300);
-/// ほかのジョブマネージャーが動いているときの、ジョブマネージャーの終了の番号
+/// ほかのジョブマネージャーが動いているときの、ジョブマネージャーの終了の番号（ウィンドウを出すときは、動いている
+/// ジョブマネージャーのウィンドウを開けなかったときで、ジョブマネージャーが理由を画面に出している）
 const MANAGER_ALREADY_RUNNING: i32 = 1;
+/// 動いているジョブマネージャーのウィンドウを開いたときの、ジョブマネージャーの終了の番号
+const MANAGER_WINDOW_OPENED: i32 = 0;
 
 /// ジョブの保存先のフォルダを通して計算させるクライアント
 #[derive(Debug)]
@@ -104,32 +107,52 @@ impl LocalStoreJobClient {
         {
             return Ok(());
         }
+        // ウィンドウを出さずに、ジョブの管理だけを行う
+        self.started = self.start_manager(store, true)?;
+        Ok(())
+    }
+
+    /// ジョブマネージャーを起動する（シェルを通さず、決まった場所の実行ファイルだけ）。`background` のときは
+    /// ウィンドウを出さない。起動したジョブマネージャーが動き続けていれば返す
+    ///
+    /// すぐに終わった場合は、終了の番号で判断する。ほかのジョブマネージャーが動いていれば、起動できているとみなす。
+    /// ウィンドウを出すときは、動いているジョブマネージャーのウィンドウを開けた場合もよい（開けなかった場合は、
+    /// 起動したジョブマネージャーが理由を画面に出している）。
+    fn start_manager(
+        &self,
+        store: &JobStore,
+        background: bool,
+    ) -> Result<Option<Child>, CamSimulationWorkflowError> {
         let mut command = Command::new(&self.manager);
         command
             .arg("--store")
             .arg(store.root())
-            // ウィンドウを出さずに、ジョブの管理だけを行う
-            .arg("--background")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
+        if background {
+            command.arg("--background");
+        }
         hide_console_window(&mut command);
         let mut child = command
             .spawn()
             .map_err(|error| store_error(format!("cannot start the job manager: {error}")))?;
+        let accepted = |code: Option<i32>| {
+            code == Some(MANAGER_ALREADY_RUNNING)
+                || (!background && code == Some(MANAGER_WINDOW_OPENED))
+        };
         let deadline = Instant::now() + MANAGER_START_WATCH;
         while Instant::now() < deadline {
             match child.try_wait() {
                 Ok(None) => std::thread::sleep(Duration::from_millis(20)),
-                Ok(Some(status)) if status.code() == Some(MANAGER_ALREADY_RUNNING) => return Ok(()),
+                Ok(Some(status)) if accepted(status.code()) => return Ok(None),
                 Ok(Some(status)) => {
                     return Err(store_error(format!("the job manager stopped: {status}")));
                 }
                 Err(error) => return Err(store_error(error.to_string())),
             }
         }
-        self.started = Some(child);
-        Ok(())
+        Ok(Some(child))
     }
 
     fn load_jobs(store: &JobStore) -> Result<Vec<StoredJob>, CamSimulationWorkflowError> {
@@ -193,6 +216,18 @@ impl JobClient for LocalStoreJobClient {
         let store = self.store()?;
         self.ensure_manager_running(&store)?;
         Ok(0)
+    }
+
+    fn open_manager_window(&mut self) -> Result<(), CamSimulationWorkflowError> {
+        if !self.manager.is_file() {
+            return Err(CamSimulationWorkflowError::JobManagerNotFound);
+        }
+        let store = self.store()?;
+        // 動いているジョブマネージャーがあれば、起動したものはそのウィンドウを開いて終わる
+        if let Some(child) = self.start_manager(&store, false)? {
+            self.started = Some(child);
+        }
+        Ok(())
     }
 
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {

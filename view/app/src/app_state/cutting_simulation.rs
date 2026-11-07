@@ -78,6 +78,19 @@ impl AppState {
         }
     }
 
+    /// ジョブマネージャーのウィンドウを開く（動いていなければ、ウィンドウを出して起動する）
+    pub(crate) fn open_job_manager(&mut self) {
+        match self.cutting_simulation.open_job_manager() {
+            Ok(()) => tracing::info!("Opened the job manager window"),
+            Err(error) => {
+                tracing::warn!("Cannot open the job manager: {error}");
+                self.set_operation_status(OperationStatus::JobManagerFailed(
+                    cutting_simulation_failure_message(&error),
+                ));
+            }
+        }
+    }
+
     /// 正常に実行済みの最も新しい切削シミュレーションを取り込み、製品形状に重ねて再生できるようにする
     pub(crate) fn import_cutting_simulation(&mut self) {
         tracing::info!("Importing the cutting simulation");

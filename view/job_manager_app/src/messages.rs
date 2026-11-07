@@ -48,6 +48,8 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("delete.confirm_yes", "消す"),
     ("delete.confirm_no", "やめる"),
     ("tray.open", "ウィンドウを開く"),
+    ("notify.succeeded", "{kind}（ジョブ {job}）が完了しました"),
+    ("notify.failed", "{kind}（ジョブ {job}）が失敗しました"),
     ("tray.autostart", "Windows の起動のときに起動する"),
     ("tray.quit", "終了"),
     (
@@ -118,6 +120,8 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ("delete.confirm_yes", "Delete"),
     ("delete.confirm_no", "Keep"),
     ("tray.open", "Open window"),
+    ("notify.succeeded", "{kind} (job {job}) has completed"),
+    ("notify.failed", "{kind} (job {job}) has failed"),
     ("tray.autostart", "Start when Windows starts"),
     ("tray.quit", "Quit"),
     (

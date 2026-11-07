@@ -48,10 +48,12 @@ pub(crate) struct ServiceChannel {
 ///
 /// サービスはランナーのプロセスを持つため、スレッドの中で作り、ずっと動かす。画面の操作は 1 回分の仕事の間に
 /// 受け取り、受け取ったらすぐに次の回の仕事をする（操作した結果が早く一覧に出るように）。口を閉じても（ウィンドウを
-/// 閉じても）、仕事は続ける。出来事と操作は保存先の `manager.log`（英語。起動のたびに書き直す）に書く。
+/// 閉じても）、仕事は続ける。出来事と操作は保存先の `manager.log`（英語。起動のたびに書き直す）に書き、1 回分の
+/// 仕事の出来事は `event_sender` にも送る（受け取る側がなくなっても、仕事は続ける）。
 pub(crate) fn start_service(
     store: JobStore,
     runner: PathBuf,
+    event_sender: Sender<ManagerEvent>,
 ) -> Result<(JoinHandle<()>, ServiceChannel), StoreError> {
     let (started_tx, started_rx) = mpsc::channel();
     let (command_tx, command_rx) = mpsc::channel();
@@ -86,10 +88,10 @@ pub(crate) fn start_service(
         events.iter().for_each(|event| write(describe(event)));
         let mut commands = Some(command_rx);
         loop {
-            service
-                .tick(now_ms())
-                .iter()
-                .for_each(|event| write(describe(event)));
+            for event in service.tick(now_ms()) {
+                write(describe(&event));
+                let _ = event_sender.send(event);
+            }
             match commands
                 .as_ref()
                 .map(|receiver| receiver.recv_timeout(POLL_INTERVAL))

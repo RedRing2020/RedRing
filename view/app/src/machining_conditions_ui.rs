@@ -54,6 +54,8 @@ pub(crate) enum OperationStatus {
     NothingToImport,
     /// 取り込めない（画面に出す理由）
     ImportFailed(UiMessage),
+    /// ジョブマネージャーを開けない（画面に出す理由）
+    JobManagerFailed(UiMessage),
 }
 
 /// 結果 `status` の、言語 `locale` の文言
@@ -79,6 +81,9 @@ fn operation_status_message(
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
         OperationStatus::ImportFailed(message) => {
             ("conditions.status.import_failed", reason(message))
+        }
+        OperationStatus::JobManagerFailed(message) => {
+            ("conditions.status.job_manager_failed", reason(message))
         }
     }
 }
@@ -107,6 +112,7 @@ pub struct MachiningConditionsUiState {
     pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
     pub import_requested: bool,
+    pub open_job_manager_requested: bool,
 }
 
 /// 加工条件のウィンドウに出す、今の条件の計算の状態
@@ -272,6 +278,12 @@ impl MachiningConditionsUiState {
                             }
                             if ui.button(self.text("conditions.import")).clicked() {
                                 self.import_requested = true;
+                            }
+                            if ui
+                                .button(self.text("conditions.open_job_manager"))
+                                .clicked()
+                            {
+                                self.open_job_manager_requested = true;
                             }
                         });
                         self.show_issues(ui, ConditionField::Submission);
@@ -586,6 +598,7 @@ mod tests {
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
             OperationStatus::ImportFailed(failure("failure.animation.replay")),
+            OperationStatus::JobManagerFailed(failure("failure.job_manager_not_found")),
         ] {
             for locale in [UiLocale::Ja, UiLocale::En] {
                 let text = operation_status_text(locale, &status);

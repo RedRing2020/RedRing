@@ -3,7 +3,8 @@
 //! トレイのアイコンは、見えないウィンドウ（メッセージを受けるだけ）に結び付けて置く。メッセージは、ウィンドウを
 //! 出す前は [`dispatch_messages`] のループが、ウィンドウを出した後は eframe（winit）のループが、同じスレッドで配る。
 //! メニューは「ウィンドウを開く」「Windows の起動のときに起動する」「終了」。2 つ目の起動は、動いている
-//! ジョブマネージャーの見えないウィンドウを、保存先から決まる名前で探し、ウィンドウを開くように頼む。
+//! ジョブマネージャーの見えないウィンドウを、保存先から決まる名前で探し、ウィンドウを開くように頼む。ジョブが
+//! 終わったときは、トレイのアイコンの吹き出しで示す（吹き出しを押すと、ウィンドウを開く）。
 
 use std::cell::RefCell;
 use std::path::Path;
@@ -19,7 +20,8 @@ use windows_sys::Win32::System::Registry::{
     HKEY_CURRENT_USER, REG_SZ, RRF_RT_REG_SZ, RegDeleteKeyValueW, RegGetValueW, RegSetKeyValueW,
 };
 use windows_sys::Win32::UI::Shell::{
-    NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW, Shell_NotifyIconW,
+    NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_TIP, NIIF_ERROR, NIIF_INFO, NIM_ADD, NIM_DELETE,
+    NIM_MODIFY, NIN_BALLOONUSERCLICK, NOTIFYICONDATAW, Shell_NotifyIconW,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AllowSetForegroundWindow, AppendMenuW, CreateIcon, CreatePopupMenu, CreateWindowExW,
@@ -79,13 +81,32 @@ thread_local! {
 /// エクスプローラーが起動し直したときのメッセージ（トレイのアイコンを置き直す）
 static TASKBAR_CREATED: AtomicU32 = AtomicU32::new(0);
 
-/// トレイのアイコンを置く（このスレッドでメッセージを配ること）
+/// トレイのアイコンの吹き出しを出す口（ほかのスレッドからも使える）
+pub(crate) struct TrayNotifier {
+    /// 見えないウィンドウ（スレッドをまたいで渡すため、数で持つ）
+    hwnd: usize,
+}
+
+impl TrayNotifier {
+    /// 題 `title` と本文 `text` の吹き出しを出す（`error` のときは誤りの印）
+    pub(crate) fn notify(&self, title: &str, text: &str, error: bool) {
+        let mut data = notify_icon_data(self.hwnd as HWND);
+        data.uFlags = NIF_INFO;
+        data.dwInfoFlags = if error { NIIF_ERROR } else { NIIF_INFO };
+        copy_text(&mut data.szInfoTitle, title);
+        copy_text(&mut data.szInfo, text);
+        // SAFETY: `data` はこの関数の中で生きている。見えないウィンドウは、プロセスが終わるまで消さない
+        unsafe { Shell_NotifyIconW(NIM_MODIFY, &data) };
+    }
+}
+
+/// トレイのアイコンを置く（このスレッドでメッセージを配ること）。吹き出しを出す口を返す
 pub(crate) fn create(
     store: JobStore,
     requests: Sender<ServiceRequest>,
     texts: TrayTexts,
     autostart_command: Option<String>,
-) -> std::io::Result<()> {
+) -> std::io::Result<TrayNotifier> {
     let class_name = wide(CLASS_NAME);
     let window_name = wide(&window_name(store.root()));
     // SAFETY: 引数はこの関数の中で生きている、終わりが 0 の UTF-16 の文字列と、既定の値だけ
@@ -133,7 +154,9 @@ pub(crate) fn create(
     };
     add_icon(&state)?;
     STATE.with(|cell| *cell.borrow_mut() = Some(state));
-    Ok(())
+    Ok(TrayNotifier {
+        hwnd: hwnd as usize,
+    })
 }
 
 /// トレイのメッセージを配る（eframe のループがないとき）。`until_open` のときは、ウィンドウを開くように頼まれたら
@@ -204,7 +227,7 @@ unsafe extern "system" fn window_proc(
     match message {
         WM_TRAY => {
             match (lparam & 0xffff) as u32 {
-                WM_LBUTTONUP => open_window(),
+                WM_LBUTTONUP | NIN_BALLOONUSERCLICK => open_window(),
                 WM_RBUTTONUP => show_menu(hwnd),
                 _ => {}
             }
@@ -385,23 +408,33 @@ fn show_message(message: impl FnOnce(&TrayTexts) -> String) {
         .show();
 }
 
-fn notify_icon_data(state: &TrayState) -> NOTIFYICONDATAW {
+fn notify_icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
     // SAFETY: すべての項目が 0 で正しい値になる C の構造体
     let mut data: NOTIFYICONDATAW = unsafe { std::mem::zeroed() };
     data.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
-    data.hWnd = state.hwnd;
+    data.hWnd = hwnd;
     data.uID = 1;
     data
 }
 
+/// 文字列を、終わりが 0 の決まった長さの UTF-16 の欄に写す（入らない分は切る）
+fn copy_text(field: &mut [u16], text: &str) {
+    let text = wide(text);
+    let mut length = text.len().min(field.len()) - 1;
+    // サロゲートのペアの途中で切らない
+    if length > 0 && (0xD800..0xDC00).contains(&text[length - 1]) && length < text.len() - 1 {
+        length -= 1;
+    }
+    field[..length].copy_from_slice(&text[..length]);
+    field[length] = 0;
+}
+
 fn add_icon(state: &TrayState) -> std::io::Result<()> {
-    let mut data = notify_icon_data(state);
+    let mut data = notify_icon_data(state.hwnd);
     data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     data.uCallbackMessage = WM_TRAY;
     data.hIcon = state.icon;
-    let tip = wide(&state.texts.title);
-    let length = tip.len().min(data.szTip.len()) - 1;
-    data.szTip[..length].copy_from_slice(&tip[..length]);
+    copy_text(&mut data.szTip, &state.texts.title);
     // SAFETY: `data` はこの関数の中で生きている
     if unsafe { Shell_NotifyIconW(NIM_ADD, &data) } == 0 {
         return Err(std::io::Error::other("cannot add the tray icon"));
@@ -410,7 +443,7 @@ fn add_icon(state: &TrayState) -> std::io::Result<()> {
 }
 
 fn remove_icon(state: &TrayState) {
-    let data = notify_icon_data(state);
+    let data = notify_icon_data(state.hwnd);
     // SAFETY: `data` はこの関数の中で生きている
     unsafe { Shell_NotifyIconW(NIM_DELETE, &data) };
 }

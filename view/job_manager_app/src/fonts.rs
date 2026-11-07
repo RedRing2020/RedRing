@@ -2,6 +2,9 @@
 
 use fontdb::{Database, Family, Query};
 
+/// 日本語のフォントの文字を下げる量（文字の大きさに対する割合）
+const CJK_Y_OFFSET_FACTOR: f32 = 0.25;
+
 /// OS にある CJK のフォントを、egui の文字に加える（見つからなければ既定のまま）
 pub(crate) fn install_cjk_font(ctx: &eframe::egui::Context) {
     let Some(bytes) = load_system_cjk_font_bytes() else {
@@ -10,9 +13,16 @@ pub(crate) fn install_cjk_font(ctx: &eframe::egui::Context) {
     };
     let mut fonts = eframe::egui::FontDefinitions::default();
     let name = "system_cjk".to_owned();
+    // 日本語のフォントは、行の高さに比べて文字が上に寄って描かれるため、少し下げて行の中央にそろえる
+    let tweak = eframe::egui::FontTweak {
+        y_offset_factor: CJK_Y_OFFSET_FACTOR,
+        ..Default::default()
+    };
     fonts.font_data.insert(
         name.clone(),
-        eframe::egui::FontData::from_owned(bytes).into(),
+        eframe::egui::FontData::from_owned(bytes)
+            .tweak(tweak)
+            .into(),
     );
     if let Some(family) = fonts
         .families

@@ -106,9 +106,9 @@ impl Notice {
             | Self::SettingsNotSaved
             | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
             Self::Operation(status) => match status {
-                OperationStatus::SubmitFailed(_) | OperationStatus::ImportFailed(_) => {
-                    NoticeLevel::Error
-                }
+                OperationStatus::SubmitFailed(_)
+                | OperationStatus::ImportFailed(_)
+                | OperationStatus::JobManagerFailed(_) => NoticeLevel::Error,
                 OperationStatus::NothingToImport => NoticeLevel::Warning,
                 OperationStatus::Submitted | OperationStatus::Imported { .. } => NoticeLevel::Info,
             },

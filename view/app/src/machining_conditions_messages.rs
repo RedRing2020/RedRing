@@ -54,6 +54,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.stock.precision", "精度（素材の面の細かさ）"),
     ("conditions.submit", "投入"),
     ("conditions.import", "取り込み"),
+    ("conditions.open_job_manager", "ジョブマネージャーを開く"),
     ("conditions.status.submitted", "投入しました"),
     ("conditions.status.submit_failed", "投入できません（{reason}）"),
     ("conditions.status.imported", "ジョブ {job} を取り込みました"),
@@ -72,6 +73,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.job.canceled", "今の条件の計算: 取り消されました"),
     ("conditions.job.unreadable", "今の条件の計算: ジョブの保存先を読めません"),
     ("conditions.status.import_failed", "取り込めません（{reason}）"),
+    ("conditions.status.job_manager_failed", "ジョブマネージャーを開けません（{reason}）"),
     ("conditions.issue.no_product_shape", "製品形状がありません（ファイルを開いてください）"),
     (
         "conditions.issue.invalid_stock_margins",
@@ -177,6 +179,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.stock.precision", "Precision (stock surface detail)"),
     ("conditions.submit", "Submit"),
     ("conditions.import", "Import"),
+    ("conditions.open_job_manager", "Open job manager"),
     ("conditions.status.submitted", "Submitted"),
     ("conditions.status.submit_failed", "Cannot submit ({reason})"),
     ("conditions.status.imported", "Imported job {job}"),
@@ -198,6 +201,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "Calculation for the current conditions: cannot read the job store",
     ),
     ("conditions.status.import_failed", "Cannot import ({reason})"),
+    ("conditions.status.job_manager_failed", "Cannot open the job manager ({reason})"),
     ("conditions.issue.no_product_shape", "No product shape (open a file)"),
     (
         "conditions.issue.invalid_stock_margins",

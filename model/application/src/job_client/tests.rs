@@ -155,6 +155,16 @@ fn submitting_without_the_job_manager_installed_fails_without_a_submission() {
 }
 
 #[test]
+fn opening_the_job_manager_window_without_the_job_manager_installed_fails() {
+    let root = TempRoot::new();
+    let mut client = LocalStoreJobClient::new(root.store_root(), root.0.join("missing"));
+    assert_eq!(
+        client.open_manager_window().unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotFound
+    );
+}
+
+#[test]
 fn a_submission_is_placed_in_the_inbox_with_both_inputs() {
     let root = TempRoot::new();
     let mut client = root.client();

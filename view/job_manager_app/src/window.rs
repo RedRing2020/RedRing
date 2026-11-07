@@ -78,6 +78,8 @@ pub(crate) struct JobManagerWindow {
     /// 結果を待っている操作の数（待つ間は、二重に頼まないように操作できなくする）
     pending_replies: usize,
     delete_confirmation: Option<DeleteConfirmation>,
+    /// 前の描画でマウスが乗っていた一覧の行（見出しの行が 0）
+    hovered_row: Option<usize>,
     /// 閉じたときに、ウィンドウを隠す（タスクトレイから開き直す）
     hide_on_close: bool,
 }
@@ -108,6 +110,7 @@ impl JobManagerWindow {
             command_error: None,
             pending_replies: 0,
             delete_confirmation: None,
+            hovered_row: None,
             hide_on_close,
         }
     }
@@ -392,10 +395,30 @@ impl JobManagerWindow {
         let now = now_ms();
         // 行を描く間は自分を借りるため、行を一時に取り出し、描き終えたら戻す
         let rows = std::mem::take(&mut self.rows);
+        // 選んだ行・マウスが乗った行の色（見出しの行が 0 のため、ジョブの行は 1 から）。乗った行は、前の描画のもの
+        let selected_row = rows
+            .iter()
+            .position(|row| Some(row.job.job_id) == self.selected)
+            .map(|index| index + 1);
+        let hovered_row = self.hovered_row;
+        let mut hovered_now = None;
         ScrollArea::vertical().show(ui, |ui| {
+            // 行のどこを押しても選べるように、文字は押せないようにする
+            ui.style_mut().interaction.selectable_labels = false;
+            let row_spacing = ui.spacing().item_spacing.y;
             Grid::new("jobs")
-                .striped(true)
                 .num_columns(7)
+                .with_row_color(move |row, style| {
+                    if Some(row) == selected_row {
+                        Some(style.visuals.selection.bg_fill)
+                    } else if row > 0 && Some(row) == hovered_row {
+                        Some(style.visuals.widgets.hovered.weak_bg_fill)
+                    } else if row % 2 == 1 {
+                        Some(style.visuals.faint_bg_color)
+                    } else {
+                        None
+                    }
+                })
                 .show(ui, |ui| {
                     for key in [
                         "column.id",
@@ -409,23 +432,24 @@ impl JobManagerWindow {
                         ui.label(RichText::new(self.text(key)).strong());
                     }
                     ui.end_row();
-                    for row in &rows {
+                    for (index, row) in rows.iter().enumerate() {
                         let job = &row.job;
                         let id = if row.child {
                             format!("  └ {}", job.job_id)
                         } else {
                             job.job_id.to_string()
                         };
-                        let selected = self.selected == Some(job.job_id);
-                        if ui.selectable_label(selected, id).clicked() {
-                            self.selected = Some(job.job_id);
-                        }
-                        ui.label(self.source_text(job));
-                        ui.label(self.text(match job.kind {
-                            StoredJobKind::Cam => "kind.cam",
-                            StoredJobKind::Sim => "kind.sim",
-                        }));
-                        ui.horizontal(|ui| {
+                        // 欄はすべて、行の高さの中央にそろえる（状態の欄は、計算中の印のぶん高い）
+                        let mut cells = vec![centered_label(ui, id)];
+                        cells.push(centered_label(ui, self.source_text(job)));
+                        cells.push(centered_label(
+                            ui,
+                            self.text(match job.kind {
+                                StoredJobKind::Cam => "kind.cam",
+                                StoredJobKind::Sim => "kind.sim",
+                            }),
+                        ));
+                        let status = ui.horizontal_centered(|ui| {
                             ui.label(
                                 RichText::new(self.status_text(job.status))
                                     .color(status_color(job.status)),
@@ -435,15 +459,39 @@ impl JobManagerWindow {
                                 ui.spinner();
                             }
                         });
-                        ui.label(job.priority.to_string());
-                        ui.label(
+                        cells.push(status.response.rect);
+                        cells.push(centered_label(ui, job.priority.to_string()));
+                        cells.push(centered_label(
+                            ui,
                             elapsed_ms(job, now).map_or_else(|| "-".to_string(), format_elapsed),
+                        ));
+                        cells.push(centered_label(ui, local_time(job.created_at_ms)));
+                        // 行のすべての欄と、行の間の半分を、押せる範囲にする
+                        let area = cells
+                            .into_iter()
+                            .reduce(|a, b| a.union(b))
+                            .unwrap_or(egui::Rect::NOTHING)
+                            .expand2(egui::vec2(0.0, row_spacing / 2.0));
+                        let response = ui.interact(
+                            area,
+                            ui.id().with(("job_row", job.job_id)),
+                            egui::Sense::click(),
                         );
-                        ui.label(local_time(job.created_at_ms));
+                        if response.clicked() {
+                            self.selected = Some(job.job_id);
+                        }
+                        if response.hovered() {
+                            hovered_now = Some(index + 1);
+                        }
                         ui.end_row();
                     }
                 });
         });
+        if hovered_now != self.hovered_row {
+            self.hovered_row = hovered_now;
+            // 乗った行の色を、すぐに描き直す
+            ui.ctx().request_repaint();
+        }
         self.rows = rows;
     }
 
@@ -560,6 +608,11 @@ impl eframe::App for JobManagerWindow {
             JOBS_INTERVAL
         });
     }
+}
+
+/// 行の高さの中央にそろえた文字の欄（欄の範囲を返す）
+fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> egui::Rect {
+    ui.horizontal_centered(|ui| ui.label(text)).response.rect
 }
 
 /// 絞り込みで状態に添える印
