@@ -3,6 +3,7 @@
 //! ```text
 //! <ジョブの保存先>/
 //!   manager.lock              ジョブマネージャーが OS のファイルロックで排他に開く
+//!   last_job_id               消したジョブの番号を使い直さないための、使った番号の最大（ジョブを消したときに書く）
 //!   inbox/<投入の ID>/        投入（request.json と入力のファイル）
 //!   inbox/<投入の ID>.rejected/  取り込めなかった投入（reason.txt に理由）
 //!   jobs/<ジョブの番号>/
@@ -43,6 +44,7 @@ use files::{
 };
 
 const LOCK_FILE: &str = "manager.lock";
+const LAST_JOB_ID_FILE: &str = "last_job_id";
 const INBOX_DIR: &str = "inbox";
 const JOBS_DIR: &str = "jobs";
 const REQUEST_FILE: &str = "request.json";
@@ -347,7 +349,7 @@ impl JobStore {
         let mut state = IntakeState {
             kinds: jobs.iter().map(|job| (job.job_id, job.kind)).collect(),
             taken: HashMap::new(),
-            next_id: job_ids.last().map_or(1, |last| last + 1),
+            next_id: self.last_job_id(&job_ids)?.saturating_add(1),
         };
         for job in &jobs {
             state
@@ -453,6 +455,59 @@ impl JobStore {
             submission_id: submission_id.to_string(),
             job_ids,
         })
+    }
+
+    /// ジョブのフォルダを消す（一時の名前に変えてから消す。消し残しは起動のときに片付ける）
+    ///
+    /// ジョブの番号は使い直さない（消したジョブを待つジョブ・投入した側が持つ番号が、別のジョブを指さないように）。
+    /// ジョブが終わっているか・後のジョブが待っているかは、呼び出し側で確かめる。
+    pub fn delete_job(&self, _lock: &JobStoreLock, job_id: u64) -> Result<(), StoreError> {
+        let last = self.last_job_id(&self.job_ids()?)?;
+        write_atomically(
+            &self.root.join(LAST_JOB_ID_FILE),
+            last.to_string().as_bytes(),
+        )?;
+        let dir = self.job_dir(job_id);
+        let temporary = files::temporary_path(&dir);
+        if temporary.exists() {
+            fs::remove_dir_all(&temporary)?;
+        }
+        fs::rename(&dir, &temporary)?;
+        // 名前を変えた時点でジョブはない。消し残し（ほかのプロセスが開いていたファイル）は、起動のときに片付ける
+        let _ = fs::remove_dir_all(&temporary);
+        Ok(())
+    }
+
+    /// ジョブの成果物・ログ・進み具合を消す（計算し直す前に。前の計算のものを、今の計算のものと見誤らないように）
+    pub fn remove_job_outputs(&self, _lock: &JobStoreLock, job_id: u64) -> Result<(), StoreError> {
+        let ignore_missing = |result: std::io::Result<()>| match result {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            other => other,
+        };
+        ignore_missing(fs::remove_dir_all(self.output_dir(job_id)))?;
+        ignore_missing(fs::remove_dir_all(self.logs_dir(job_id)))?;
+        ignore_missing(fs::remove_file(self.progress_file(job_id)))?;
+        Ok(())
+    }
+
+    /// 使った番号の最大（ジョブのフォルダ `job_ids` と、消したときに書いた番号の大きいほう。なければ 0）
+    ///
+    /// 書いた番号を読めないときは誤りにする（消したジョブの番号を使い直さないように）。
+    fn last_job_id(&self, job_ids: &[u64]) -> Result<u64, StoreError> {
+        let recorded = match read_limited(&self.root.join(LAST_JOB_ID_FILE), 32) {
+            Ok(bytes) => String::from_utf8(bytes)
+                .ok()
+                .and_then(|text| text.trim().parse::<u64>().ok())
+                .ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("{LAST_JOB_ID_FILE} is not a job number"),
+                    )
+                })?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
+            Err(error) => return Err(error.into()),
+        };
+        Ok(job_ids.last().copied().unwrap_or(0).max(recorded))
     }
 
     /// ジョブのフォルダを一時の名前で作り（入力を写し、記録を書き）、名前を変える

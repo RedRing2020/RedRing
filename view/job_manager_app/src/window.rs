@@ -1,22 +1,25 @@
-//! ジョブマネージャーのウィンドウ（ジョブの一覧・絞り込み・詳細。設計: CAM_OPERATION_UI_DESIGN.md 3.7）
+//! ジョブマネージャーのウィンドウ（ジョブの一覧・絞り込み・詳細・操作。設計: CAM_OPERATION_UI_DESIGN.md 3.7）
 //!
-//! ジョブの記録は保存先から一定の間隔で読み直す（記録を書くのはサービスのスレッドだけ）。
+//! ジョブの記録は保存先から一定の間隔で読み直す。記録を書くのはサービスのスレッドだけのため、操作はサービスに渡し、
+//! 結果が返ったら記録を読み直す。
 
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use eframe::egui::{self, CentralPanel, Color32, Grid, Panel, RichText, ScrollArea};
+use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText, ScrollArea};
 use i18n_foundation::UiLocale;
 use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::text;
 use crate::rows::{JobRow, elapsed_ms, format_elapsed, format_size, job_rows};
-use crate::service::now_ms;
+use crate::service::{JobCommand, ServiceChannel, now_ms};
 
 /// ジョブの記録を読み直す間隔
 const JOBS_INTERVAL: Duration = Duration::from_secs(1);
+/// 操作の結果を待つ間に、描き直す間隔
+const REPLY_INTERVAL: Duration = Duration::from_millis(50);
 /// 保存先の大きさを測り直す間隔
 const SIZE_INTERVAL: Duration = Duration::from_secs(10);
 /// ログのタブに出す、ログの末尾の大きさ
@@ -36,6 +39,13 @@ enum DetailsTab {
     Log,
 }
 
+/// 削除を確かめているジョブと、その成果物を使う後のジョブ
+#[derive(Debug, Clone)]
+struct DeleteConfirmation {
+    job_id: u64,
+    dependents: Vec<u64>,
+}
+
 /// 選んだジョブの、ファイルから読んだ詳細（ジョブの記録を読み直したとき・選び直したときに読み直す）
 struct SelectedFiles {
     job_id: u64,
@@ -47,6 +57,7 @@ struct SelectedFiles {
 /// ジョブマネージャーのウィンドウ
 pub(crate) struct JobManagerWindow {
     store: JobStore,
+    service: ServiceChannel,
     locale: UiLocale,
     jobs: Vec<StoredJob>,
     /// 一覧の行（ジョブの記録・絞り込みが変わったときに並べ直す）
@@ -62,12 +73,18 @@ pub(crate) struct JobManagerWindow {
     selected: Option<u64>,
     selected_files: Option<SelectedFiles>,
     tab: DetailsTab,
+    /// 保存先を読み書きできずに、できなかった操作の理由
+    command_error: Option<String>,
+    /// 結果を待っている操作の数（待つ間は、二重に頼まないように操作できなくする）
+    pending_replies: usize,
+    delete_confirmation: Option<DeleteConfirmation>,
 }
 
 impl JobManagerWindow {
-    pub(crate) fn new(store: JobStore, locale: UiLocale) -> Self {
+    pub(crate) fn new(store: JobStore, service: ServiceChannel, locale: UiLocale) -> Self {
         Self {
             store,
+            service,
             locale,
             jobs: Vec::new(),
             rows: Vec::new(),
@@ -81,6 +98,9 @@ impl JobManagerWindow {
             selected: None,
             selected_files: None,
             tab: DetailsTab::Details,
+            command_error: None,
+            pending_replies: 0,
+            delete_confirmation: None,
         }
     }
 
@@ -93,6 +113,12 @@ impl JobManagerWindow {
     }
 
     fn refresh(&mut self) {
+        // 操作の結果が返ったら、記録をすぐに読み直す
+        while let Ok(reply) = self.service.replies.try_recv() {
+            self.pending_replies = self.pending_replies.saturating_sub(1);
+            self.command_error = reply.err();
+            self.jobs_read_at = None;
+        }
         let due =
             |read_at: Option<Instant>, interval| read_at.is_none_or(|at| at.elapsed() >= interval);
         if due(self.jobs_read_at, JOBS_INTERVAL) {
@@ -158,8 +184,130 @@ impl JobManagerWindow {
         })
     }
 
-    fn show_header(&self, ui: &mut egui::Ui) {
+    fn selected_job(&self) -> Option<&StoredJob> {
+        self.selected
+            .and_then(|id| self.jobs.iter().find(|job| job.job_id == id))
+    }
+
+    fn send(&mut self, command: JobCommand) {
+        match self.service.commands.send(command) {
+            Ok(()) => self.pending_replies += 1,
+            Err(_) => self.command_error = Some("the job manager service has stopped".to_string()),
+        }
+    }
+
+    /// 選んだジョブの操作（状態で操作できるものだけを押せる）
+    fn show_toolbar(&mut self, ui: &mut egui::Ui) {
+        use StoredJobStatus::{Canceled, Failed, Queued, Running};
+        let selected = self
+            .selected_job()
+            .filter(|_| self.pending_replies == 0)
+            .map(|job| (job.job_id, job.status));
+        let can = |allowed: &[StoredJobStatus]| {
+            selected.is_some_and(|(_, status)| allowed.contains(&status))
+        };
+        let buttons = [
+            ("toolbar.cancel", can(&[Queued, Running])),
+            ("toolbar.retry", can(&[Failed, Canceled])),
+            (
+                "toolbar.delete",
+                selected.is_some_and(|(_, status)| status.is_terminal()),
+            ),
+            ("toolbar.raise", can(&[Queued])),
+            ("toolbar.lower", can(&[Queued])),
+        ];
+        let mut clicked = None;
+        for (key, enabled) in buttons {
+            if ui
+                .add_enabled(enabled, egui::Button::new(self.text(key)))
+                .clicked()
+            {
+                clicked = Some(key);
+            }
+        }
+        let (Some(key), Some((job_id, _))) = (clicked, selected) else {
+            return;
+        };
+        match key {
+            "toolbar.cancel" => self.send(JobCommand::Cancel(job_id)),
+            "toolbar.retry" => self.send(JobCommand::Retry(job_id)),
+            "toolbar.delete" => {
+                let dependents: Vec<u64> = self
+                    .jobs
+                    .iter()
+                    .filter(|job| job.depends_on.contains(&job_id))
+                    .map(|job| job.job_id)
+                    .collect();
+                if dependents.is_empty() {
+                    self.send(JobCommand::Delete(job_id));
+                } else {
+                    self.delete_confirmation = Some(DeleteConfirmation { job_id, dependents });
+                }
+            }
+            "toolbar.raise" => self.send(JobCommand::ChangePriority { job_id, delta: 1 }),
+            _ => self.send(JobCommand::ChangePriority { job_id, delta: -1 }),
+        }
+    }
+
+    /// 後のジョブが成果物を使うジョブを消すかを確かめる
+    fn show_delete_confirmation(&mut self, ctx: &egui::Context) {
+        let Some(confirmation) = self.delete_confirmation.clone() else {
+            return;
+        };
+        let jobs: Vec<String> = confirmation.dependents.iter().map(u64::to_string).collect();
+        let message = self.text_with(
+            "delete.confirm",
+            &[
+                ("job", confirmation.job_id.to_string()),
+                ("jobs", jobs.join(", ")),
+            ],
+        );
+        let (yes, no) = (
+            self.text("delete.confirm_yes"),
+            self.text("delete.confirm_no"),
+        );
+        let mut choice = None;
+        let response = Modal::new(Id::new("delete_confirmation")).show(ctx, |ui| {
+            ui.set_max_width(420.0);
+            ui.label(message);
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                if ui.button(yes).clicked() {
+                    choice = Some(true);
+                }
+                if ui.button(no).clicked() {
+                    choice = Some(false);
+                }
+            });
+        });
+        // 外を押したとき・Esc は、消さない
+        if response.should_close() && choice.is_none() {
+            choice = Some(false);
+        }
+        if choice.is_some() {
+            // 閉じた後の画面をすぐに描く（描くまでは、閉じた確かめの画面が次の操作を受けてしまうため）
+            ctx.request_repaint();
+        }
+        match choice {
+            Some(true) => {
+                self.delete_confirmation = None;
+                self.send(JobCommand::Delete(confirmation.job_id));
+            }
+            Some(false) => self.delete_confirmation = None,
+            None => {}
+        }
+    }
+
+    fn show_header(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
+            self.show_toolbar(ui);
+            ui.separator();
+            if let Some(reason) = &self.command_error {
+                ui.colored_label(
+                    ui.visuals().error_fg_color,
+                    self.text_with("command.failed", &[("reason", reason.clone())]),
+                );
+            }
             if let Some(size) = self.store_size {
                 ui.label(self.text_with("store.size", &[("size", format_size(size))]));
             }
@@ -197,24 +345,26 @@ impl JobManagerWindow {
 
     fn show_jobs(&mut self, ui: &mut egui::Ui) {
         let now = now_ms();
+        // 行を描く間は自分を借りるため、行を一時に取り出し、描き終えたら戻す
         let rows = std::mem::take(&mut self.rows);
         ScrollArea::vertical().show(ui, |ui| {
             Grid::new("jobs")
                 .striped(true)
-                .num_columns(6)
+                .num_columns(7)
                 .show(ui, |ui| {
                     for key in [
                         "column.id",
                         "column.source",
                         "column.kind",
                         "column.status",
+                        "column.priority",
                         "column.elapsed",
                         "column.submitted",
                     ] {
                         ui.label(RichText::new(self.text(key)).strong());
                     }
                     ui.end_row();
-                    for row in rows {
+                    for row in &rows {
                         let job = &row.job;
                         let id = if row.child {
                             format!("  └ {}", job.job_id)
@@ -240,6 +390,7 @@ impl JobManagerWindow {
                                 ui.spinner();
                             }
                         });
+                        ui.label(job.priority.to_string());
                         ui.label(
                             elapsed_ms(job, now).map_or_else(|| "-".to_string(), format_elapsed),
                         );
@@ -248,6 +399,7 @@ impl JobManagerWindow {
                     }
                 });
         });
+        self.rows = rows;
     }
 
     fn source_text(&self, job: &StoredJob) -> String {
@@ -270,11 +422,7 @@ impl JobManagerWindow {
             ui.selectable_value(&mut self.tab, DetailsTab::Log, log);
         });
         ui.separator();
-        let Some(job) = self
-            .selected
-            .and_then(|id| self.jobs.iter().find(|job| job.job_id == id))
-            .cloned()
-        else {
+        let Some(job) = self.selected_job().cloned() else {
             ui.label(self.text("details.none"));
             return;
         };
@@ -343,6 +491,7 @@ impl JobManagerWindow {
 impl eframe::App for JobManagerWindow {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.refresh();
+        self.show_delete_confirmation(ui.ctx());
         Panel::top("header").show_inside(ui, |ui| self.show_header(ui));
         Panel::left("filter").show_inside(ui, |ui| self.show_filter(ui));
         Panel::bottom("details")
@@ -350,8 +499,12 @@ impl eframe::App for JobManagerWindow {
             .default_size(200.0)
             .show_inside(ui, |ui| self.show_details(ui));
         CentralPanel::default().show_inside(ui, |ui| self.show_jobs(ui));
-        // 記録・経過時間を、操作がなくても読み直して描き直す
-        ui.ctx().request_repaint_after(JOBS_INTERVAL);
+        // 記録・経過時間を、操作がなくても読み直して描き直す（操作の結果を待つ間は、結果が返ったらすぐ出す）
+        ui.ctx().request_repaint_after(if self.pending_replies > 0 {
+            REPLY_INTERVAL
+        } else {
+            JOBS_INTERVAL
+        });
     }
 }
 

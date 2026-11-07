@@ -3,7 +3,7 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::mpsc;
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -17,15 +17,36 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 const LOCK_ATTEMPTS: u32 = 10;
 const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
-/// サービスのスレッドを始める。保存先を排他に開けたら、そのスレッドを返す
+/// 画面からの、ジョブの操作
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum JobCommand {
+    Cancel(u64),
+    Retry(u64),
+    Delete(u64),
+    ChangePriority { job_id: u64, delta: i32 },
+}
+
+/// 操作の結果（保存先を読み書きできなかったときは理由）
+pub(crate) type CommandReply = Result<(), String>;
+
+/// 画面とサービスのスレッドをつなぐ口
+pub(crate) struct ServiceChannel {
+    pub(crate) commands: Sender<JobCommand>,
+    pub(crate) replies: Receiver<CommandReply>,
+}
+
+/// サービスのスレッドを始める。保存先を排他に開けたら、そのスレッドと、操作を渡す口を返す
 ///
-/// サービスはランナーのプロセスを持つため、スレッドの中で作り、ずっと動かす。出来事は保存先の `manager.log`
-/// （英語。起動のたびに書き直す）に書く。
+/// サービスはランナーのプロセスを持つため、スレッドの中で作り、ずっと動かす。画面の操作は 1 回分の仕事の間に
+/// 受け取り、受け取ったらすぐに次の回の仕事をする（操作した結果が早く一覧に出るように）。口を閉じても（ウィンドウを
+/// 閉じても）、仕事は続ける。出来事と操作は保存先の `manager.log`（英語。起動のたびに書き直す）に書く。
 pub(crate) fn start_service(
     store: JobStore,
     runner: PathBuf,
-) -> Result<JoinHandle<()>, StoreError> {
+) -> Result<(JoinHandle<()>, ServiceChannel), StoreError> {
     let (started_tx, started_rx) = mpsc::channel();
+    let (command_tx, command_rx) = mpsc::channel();
+    let (reply_tx, reply_rx) = mpsc::channel();
     let handle = std::thread::spawn(move || {
         let mut attempts = 0;
         let (mut service, events) = loop {
@@ -54,16 +75,33 @@ pub(crate) fn start_service(
         };
         write(format!("started store={}", store.root().display()));
         events.iter().for_each(|event| write(describe(event)));
+        let mut commands = Some(command_rx);
         loop {
             service
                 .tick(now_ms())
                 .iter()
                 .for_each(|event| write(describe(event)));
-            std::thread::sleep(POLL_INTERVAL);
+            match commands
+                .as_ref()
+                .map(|receiver| receiver.recv_timeout(POLL_INTERVAL))
+            {
+                Some(Ok(command)) => {
+                    let reply = run_command(&mut service, command, now_ms());
+                    write(format!("command {command:?} -> {reply:?}"));
+                    let _ = reply_tx.send(reply);
+                }
+                Some(Err(RecvTimeoutError::Timeout)) => {}
+                Some(Err(RecvTimeoutError::Disconnected)) => commands = None,
+                None => std::thread::sleep(POLL_INTERVAL),
+            }
         }
     });
+    let channel = ServiceChannel {
+        commands: command_tx,
+        replies: reply_rx,
+    };
     match started_rx.recv() {
-        Ok(Ok(())) => Ok(handle),
+        Ok(Ok(())) => Ok((handle, channel)),
         Ok(Err(error)) => Err(error),
         Err(_) => Err(StoreError::Io(std::io::Error::other(
             "the job manager service stopped while starting",
@@ -76,6 +114,23 @@ pub(crate) fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_millis() as u64)
+}
+
+fn run_command(
+    service: &mut JobManagerService<ProcessLauncher>,
+    command: JobCommand,
+    now_ms: u64,
+) -> CommandReply {
+    // 操作の間に状態が変わって操作できなくなったジョブは、何もしない（一覧を読み直せば分かる）
+    match command {
+        JobCommand::Cancel(job_id) => service.cancel(job_id, now_ms).map(drop),
+        JobCommand::Retry(job_id) => service.retry(job_id, now_ms).map(drop),
+        JobCommand::Delete(job_id) => service.delete(job_id).map(drop),
+        JobCommand::ChangePriority { job_id, delta } => {
+            service.change_priority(job_id, delta, now_ms).map(drop)
+        }
+    }
+    .map_err(|error| error.to_string())
 }
 
 fn describe(event: &ManagerEvent) -> String {
