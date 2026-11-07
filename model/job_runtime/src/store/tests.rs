@@ -436,3 +436,124 @@ fn a_submission_partly_taken_in_before_a_crash_is_taken_in_again() {
     );
     assert_eq!(jobs[1].depends_on, vec![2]);
 }
+
+fn scheduled_job(
+    job_id: u64,
+    depends_on: &[u64],
+    priority: i32,
+    status: StoredJobStatus,
+) -> StoredJob {
+    StoredJob {
+        format_version: STORE_FORMAT_VERSION,
+        job_id,
+        submission_id: "s".to_string(),
+        kind: StoredJobKind::Cam,
+        depends_on: depends_on.to_vec(),
+        priority,
+        group_id: None,
+        source: None,
+        status,
+        attempts: 0,
+        created_at_ms: 0,
+        updated_at_ms: 0,
+        result_ref: None,
+        log_ref: None,
+        last_error: None,
+    }
+}
+
+/// 実行したジョブを正常に終わったことにしながら、実行の順を求める
+fn run_order(mut jobs: Vec<StoredJob>) -> Vec<u64> {
+    let mut order = Vec::new();
+    while let Some(id) = plan_schedule(&jobs, &[]).next {
+        order.push(id);
+        jobs.iter_mut().find(|job| job.job_id == id).unwrap().status = StoredJobStatus::Succeeded;
+    }
+    order
+}
+
+#[test]
+fn higher_priority_runs_first_and_ties_run_in_submission_order() {
+    use StoredJobStatus::Queued;
+    let jobs = vec![
+        scheduled_job(1, &[], 0, Queued),
+        scheduled_job(2, &[], 5, Queued),
+        scheduled_job(3, &[], 0, Queued),
+        scheduled_job(4, &[], 5, Queued),
+    ];
+    assert_eq!(run_order(jobs), vec![2, 4, 1, 3]);
+}
+
+#[test]
+fn jobs_wait_for_all_dependencies_and_raise_the_jobs_they_wait_for() {
+    use StoredJobStatus::Queued;
+    // 3 は優先順位が高いが、1・2 を待つ。1・2 は 3 の高さで先に実行する
+    let jobs = vec![
+        scheduled_job(1, &[], 0, Queued),
+        scheduled_job(2, &[], 0, Queued),
+        scheduled_job(3, &[1, 2], 9, Queued),
+        scheduled_job(4, &[], 1, Queued),
+    ];
+    assert_eq!(run_order(jobs), vec![1, 2, 3, 4]);
+    // 4 を待つ 2、2 を待つ 1 も 5 の高さになる
+    let jobs = vec![
+        scheduled_job(1, &[], 0, Queued),
+        scheduled_job(2, &[1], 0, Queued),
+        scheduled_job(3, &[], 3, Queued),
+        scheduled_job(4, &[2], 5, Queued),
+    ];
+    assert_eq!(run_order(jobs), vec![1, 2, 4, 3]);
+}
+
+#[test]
+fn running_dependencies_block_the_dependents() {
+    use StoredJobStatus::{Queued, Running};
+    let jobs = vec![
+        scheduled_job(1, &[], 0, Running),
+        scheduled_job(2, &[1], 0, Queued),
+    ];
+    assert_eq!(plan_schedule(&jobs, &[]).next, None);
+}
+
+#[test]
+fn jobs_that_cannot_run_are_blocked_in_cascade_and_raise_nothing() {
+    use StoredJobStatus::{Canceled, Failed, Queued};
+    let jobs = vec![
+        scheduled_job(1, &[], 0, Failed),
+        scheduled_job(2, &[1], 0, Queued),
+        scheduled_job(3, &[2], 0, Queued),
+        scheduled_job(4, &[], 0, Canceled),
+        scheduled_job(5, &[4], 0, Queued),
+        scheduled_job(7, &[6], 0, Queued),
+        scheduled_job(8, &[9], 0, Queued),
+        scheduled_job(10, &[], 0, Queued),
+        scheduled_job(11, &[], 5, Queued),
+        // 1 が失敗したため実行できないが、10 を待つ。10 の優先順位を上げない
+        scheduled_job(12, &[1, 10], 9, Queued),
+    ];
+    let plan = plan_schedule(&jobs, &[]);
+    assert_eq!(
+        plan.blocked,
+        vec![
+            (2, "dependency job 1 failed".to_string()),
+            (3, "dependency job 2 cannot run".to_string()),
+            (5, "dependency job 4 was canceled".to_string()),
+            (7, "dependency job 6 is not found".to_string()),
+            (8, "dependency job 9 is not an earlier job".to_string()),
+            (12, "dependency job 1 failed".to_string()),
+        ]
+    );
+    assert_eq!(plan.next, Some(11));
+}
+
+#[test]
+fn jobs_waiting_for_unreadable_records_wait() {
+    use StoredJobStatus::Queued;
+    let jobs = vec![
+        scheduled_job(2, &[1], 0, Queued),
+        scheduled_job(3, &[], 0, Queued),
+    ];
+    let plan = plan_schedule(&jobs, &[1]);
+    assert!(plan.blocked.is_empty());
+    assert_eq!(plan.next, Some(3));
+}

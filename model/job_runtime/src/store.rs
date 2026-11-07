@@ -21,6 +21,7 @@ mod tests;
 
 mod files;
 mod record;
+mod schedule;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
@@ -32,6 +33,7 @@ pub use record::{
     DependencyRef, STORE_FORMAT_VERSION, StoredJob, StoredJobKind, StoredJobSource,
     StoredJobStatus, SubmissionRequest, SubmittedJob,
 };
+pub use schedule::{SchedulePlan, plan_schedule};
 
 use crate::reference::RefParser;
 use files::{
