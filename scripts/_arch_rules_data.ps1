@@ -12,7 +12,7 @@ $ARCH_LAYERS = [ordered]@{
     Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager")
     Application = @("application")
     ViewModel   = @("viewmodel", "viewmodel-graphics")
-    View        = @("render", "stage", "redring")
+    View        = @("render", "stage", "redring", "job_manager_app")
 }
 
 # Required model crates
@@ -54,6 +54,9 @@ $ARCH_ALLOWED_DEPS = @{
     render  = @("analysis", "logging_foundation", "viewmodel", "viewmodel-graphics")
     stage   = @("analysis", "logging_foundation", "render", "viewmodel", "viewmodel-graphics")
     redring = @("analysis", "logging_foundation", "render", "stage", "viewmodel", "viewmodel-graphics")
+    # 例外: ジョブマネージャーの画面は CAD/CAM の画面とは別の小さなアプリで、間に ViewModel を挟むほどの変換がないため、
+    # ジョブマネージャーのサービスとジョブの記録の型に直接依存する（CAM_OPERATION_UI_DESIGN.md 3.7）
+    job_manager_app = @("i18n_foundation", "job_manager", "job_runtime")
 }
 
 # Forbidden dependency rules
@@ -90,6 +93,7 @@ $ARCH_FORBIDDEN_DEPS = @{
     render             = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain")
     stage              = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain")
     redring            = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain")
+    job_manager_app    = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_domain", "viewmodel", "viewmodel-graphics", "render", "stage", "redring")
 }
 
 # Shared helper: ワークスペースのクレートと、ワークスペース内の依存（path 依存）を返す

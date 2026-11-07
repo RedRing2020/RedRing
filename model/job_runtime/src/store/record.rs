@@ -60,6 +60,9 @@ pub struct StoredJob {
     /// 作成・更新の時刻（UNIX 時刻のミリ秒）
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
+    /// 最後に計算を始めた時刻（UNIX 時刻のミリ秒。まだ始めていなければ `None`）
+    #[serde(default)]
+    pub started_at_ms: Option<u64>,
     pub result_ref: Option<String>,
     pub log_ref: Option<String>,
     pub last_error: Option<String>,

@@ -97,6 +97,8 @@ impl<L: Launcher> JobManagerService<L> {
                     "the job manager stopped while the job was running".to_string(),
                     now_ms,
                 );
+                // 止まっていた間を計算の時間に数えないように、始めた時刻を消す
+                job.started_at_ms = None;
                 service.store.write_job(&service.lock, &job)?;
                 events.push(ManagerEvent::Interrupted { job_id: job.job_id });
             }
@@ -156,8 +158,10 @@ impl<L: Launcher> JobManagerService<L> {
         if job.status.is_terminal() {
             return Ok(false);
         }
-        if let Some(running) = self.running.get_mut(&job_id) {
-            running.stop()?;
+        match self.running.get_mut(&job_id) {
+            Some(running) => running.stop()?,
+            // 計算を始めていないジョブ（前の計算の時刻が残るジョブを含む）は、計算の時間を持たない
+            None => job.started_at_ms = None,
         }
         job.status = StoredJobStatus::Canceled;
         job.updated_at_ms = now_ms;
@@ -235,6 +239,7 @@ impl<L: Launcher> JobManagerService<L> {
             let job = &mut jobs[index];
             job.attempts += 1;
             job.updated_at_ms = now_ms;
+            job.started_at_ms = Some(now_ms);
             match self.launcher.launch(&spec) {
                 Ok(mut running) => {
                     job.status = StoredJobStatus::Running;

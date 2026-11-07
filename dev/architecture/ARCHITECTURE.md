@@ -27,7 +27,8 @@ model
   geo_entity / geo_io → geo_primitives
   cam_sim / application → job_domain → job_runtime
   job_runner → cam_sim（ジョブ 1 つを計算するランナーの実行ファイル）
-  job_manager → job_runtime（ジョブを管理してランナーを起動するジョブマネージャーの実行ファイル）
+  job_manager → job_runtime（ジョブを管理してランナーを起動するジョブマネージャーのサービス）
+  job_manager_app → job_manager / job_runtime（ジョブマネージャーの画面と実行ファイル。View の層から Model の層への依存の例外）
   ↓
 foundation（analysis / logging_foundation / i18n_foundation）
 ```
@@ -53,10 +54,10 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **`cam_entity`**: CAM 向けの表示・属性の統合（CAM の業務の属性は、ここで定義する）
 - **`job_runtime`** / **`job_domain`**: CAD / CAM / CAE に依存しない実行制御 / ジョブ投入のポリシー
 - **`job_runner`**: ジョブ 1 つの計算だけを行うランナーの実行ファイル（`redring-batch-runner`）。引数・入力と成果物のファイル・ログ・進み具合・終了の番号だけを持つ（`JOB_MANAGER_STORAGE_DESIGN.md` 3 章）
-- **`job_manager`**: ジョブマネージャーの実行ファイル（`redring-job-manager`）。ジョブの保存先を排他に開き、投入の取り込み・実行の順・ランナーの起動と終わりの判断・取り消しを行う。CAD/CAM に依らない（`JOB_MANAGER_STORAGE_DESIGN.md` 3.2）
+- **`job_manager`**: ジョブマネージャーのサービス。ジョブの保存先を排他に開き、投入の取り込み・実行の順・ランナーの起動と終わりの判断・取り消しを行う。CAD/CAM に依らない（`JOB_MANAGER_STORAGE_DESIGN.md` 3.2）
 - **`application`**: テセレーション・シミュレーション・ジョブ投入などのユースケースの orchestration（`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`）
 - **`viewmodel/*`**: モデルのデータの描画用への変換（`converter`）、カメラ等のグラフィックス制御（`graphics`）
-- **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）
+- **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）、ジョブマネージャーの画面と実行ファイル（`job_manager_app`。`redring-job-manager`。CAD/CAM の ViewModel を通さず、`job_manager`・`job_runtime` に直接依存する。`CAM_OPERATION_UI_DESIGN.md` 3.7）
 
 ### レイヤー設計の重要ポイント
 

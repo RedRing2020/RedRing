@@ -53,8 +53,9 @@ cargo run --release -p redring
 
 Toolpath generation and the cutting simulation are calculated by the job manager (`redring-job-manager`), separate from the app. The package zip contains the app (`redring.exe`), the job manager, and the runner (`redring-batch-runner.exe`). Keep the three in the same folder.
 
-- The app starts the job manager the first time you press "Submit" (it has no window). The app screen does not stop during calculations
-- The job manager keeps calculating after you close the app. To stop it, end `redring-job-manager` in Task Manager (a job manager screen will be added in a later version)
+- The app starts the job manager the first time you press "Submit" (without a window). The app screen does not stop during calculations
+- Starting `redring-job-manager.exe` opens the job list window, where you can check job states, failure reasons, and logs (for now, the window cannot be opened while a job manager is already running; end the running job manager first)
+- The job manager keeps calculating after you close the app, and also after you close the job manager window. To stop it, end `redring-job-manager` in Task Manager (quitting from the system tray will be added in a later version)
 - Job records and results are kept in `%LOCALAPPDATA%\RedRing\jobs` on Windows. The job manager log is `manager.log` there
 
 ## Data to Prepare

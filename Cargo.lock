@@ -425,6 +425,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
+name = "cgl"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ced0551234e87afee12411d535648dd89d2e7f34c78b753395567aff3d447ff"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -754,6 +763,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "eframe"
+version = "0.34.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6e995b8e434d65aefd12c4519221be3e8f38efd77804ef39ca10553f4ad7063"
+dependencies = [
+ "ahash",
+ "bytemuck",
+ "document-features",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "egui_glow",
+ "glutin",
+ "glutin-winit",
+ "image",
+ "js-sys",
+ "log",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "parking_lot",
+ "percent-encoding",
+ "pollster 0.4.0",
+ "profiling",
+ "raw-window-handle",
+ "static_assertions",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "web-time",
+ "wgpu",
+ "windows-sys 0.61.2",
+ "winit",
+]
+
+[[package]]
 name = "egui"
 version = "0.34.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -780,6 +825,7 @@ dependencies = [
  "ahash",
  "bytemuck",
  "document-features",
+ "egui",
  "epaint",
  "log",
  "profiling",
@@ -787,6 +833,7 @@ dependencies = [
  "type-map",
  "web-time",
  "wgpu",
+ "winit",
 ]
 
 [[package]]
@@ -807,6 +854,23 @@ dependencies = [
  "smithay-clipboard",
  "web-time",
  "webbrowser",
+ "winit",
+]
+
+[[package]]
+name = "egui_glow"
+version = "0.34.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3b28d39ab6c0cac238190e6cb1e8c9047d02cb470ab942a7a3302e4cb3a8e74"
+dependencies = [
+ "bytemuck",
+ "egui",
+ "glow",
+ "log",
+ "memoffset",
+ "profiling",
+ "wasm-bindgen",
+ "web-sys",
  "winit",
 ]
 
@@ -1229,6 +1293,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "glutin"
+version = "0.32.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12124de845cacfebedff80e877bb37b5b75c34c5a4c89e47e1cdd67fb6041325"
+dependencies = [
+ "bitflags 2.11.0",
+ "cfg_aliases",
+ "cgl",
+ "dispatch2",
+ "glutin_egl_sys",
+ "glutin_glx_sys",
+ "glutin_wgl_sys",
+ "libloading",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
+ "once_cell",
+ "raw-window-handle",
+ "wayland-sys",
+ "windows-sys 0.52.0",
+ "x11-dl",
+]
+
+[[package]]
+name = "glutin-winit"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85edca7075f8fc728f28cb8fbb111a96c3b89e930574369e3e9c27eb75d3788f"
+dependencies = [
+ "cfg_aliases",
+ "glutin",
+ "raw-window-handle",
+ "winit",
+]
+
+[[package]]
+name = "glutin_egl_sys"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c4680ba6195f424febdc3ba46e7a42a0e58743f2edb115297b86d7f8ecc02d2"
+dependencies = [
+ "gl_generator",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "glutin_glx_sys"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a7bb2938045a88b612499fbcba375a77198e01306f52272e692f8c1f3751185"
+dependencies = [
+ "gl_generator",
+ "x11-dl",
+]
+
+[[package]]
 name = "glutin_wgl_sys"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1573,6 +1694,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "job_manager_app"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "eframe",
+ "fontdb",
+ "i18n_foundation",
+ "job_manager",
+ "job_runtime",
+ "rfd",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "job_runner"
 version = "0.1.0"
 dependencies = [
@@ -1767,6 +1903,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "memoffset"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1945,6 +2090,7 @@ dependencies = [
  "bitflags 2.11.0",
  "block2 0.6.2",
  "objc2 0.6.4",
+ "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
 ]
@@ -2059,6 +2205,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272"
 dependencies = [
  "bitflags 2.11.0",
+ "block2 0.6.2",
  "objc2 0.6.4",
  "objc2-core-foundation",
 ]

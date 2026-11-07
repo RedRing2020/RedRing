@@ -431,6 +431,7 @@ impl JobStore {
                 attempts: 0,
                 created_at_ms: now_ms,
                 updated_at_ms: now_ms,
+                started_at_ms: None,
                 result_ref: None,
                 log_ref: None,
                 last_error: None,
