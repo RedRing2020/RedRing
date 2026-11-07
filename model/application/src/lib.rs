@@ -13,5 +13,6 @@ mod job_client;
 pub mod job_orchestration;
 pub mod machining_sequence;
 pub mod product_shape;
+pub mod space_model_file;
 pub mod toolpath;
 pub mod topology_orchestration;
