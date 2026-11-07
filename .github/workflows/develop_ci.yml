@@ -1,10 +1,25 @@
 name: Development CI
 
+# 文書だけの変更では、ビルド・試験を回さない（マニュアルのビルドは manual_ci.yml）
 on:
   push:
     branches: [develop]
+    paths-ignore:
+      - "**.md"
+      - "manual/**"
+      - "manual_en/**"
+      - "dev/**"
+      - "book.toml"
+      - "LICENSE*"
   pull_request:
     branches: [develop]
+    paths-ignore:
+      - "**.md"
+      - "manual/**"
+      - "manual_en/**"
+      - "dev/**"
+      - "book.toml"
+      - "LICENSE*"
 
 # 読み取りだけ（書き込みの権限は持たない）
 permissions:
@@ -52,17 +67,6 @@ jobs:
 
       - name: Run tests
         run: cargo test --workspace --verbose
-
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@ee69d230fe19748b7abf22df32acaa93833fad08 # v2.0.0
-        with:
-          mdbook-version: "0.5.4"
-
-      # 利用者向けマニュアル（日本語・英語）がビルドできることを確かめる（公開は main の CI）
-      - name: Build manuals
-        run: |
-          mdbook build
-          mdbook build manual_en
 
       - name: Build documentation
         run: |

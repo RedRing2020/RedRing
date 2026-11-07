@@ -9,7 +9,7 @@
 | 日本語 | `manual/` | ルートの `book.toml` | `target/book/`（`https://redring2020.github.io/RedRing/`） |
 | 英語 | `manual_en/src/` | `manual_en/book.toml` | `target/book_en/`。公開では `target/book/en/` に置く（`https://redring2020.github.io/RedRing/en/`） |
 
-- 2 冊は別々にビルドする（`mdbook build`・`mdbook build manual_en`）。公開する CI（`main_ci_cd.yml`）は、英語の出力を日本語の出力の `en` に写してから公開する。PR の CI（`develop_ci.yml`）は、両方がビルドできることを確かめる
+- 2 冊は別々にビルドする（`mdbook build`・`mdbook build manual_en`）。公開する CI（`main_ci_cd.yml`）は、英語の出力を日本語の出力の `en` に写してから公開する。マニュアル・`book.toml` を変える PR では、`manual_ci.yml` が両方がビルドできることを確かめる（文書だけの変更では、`develop_ci.yml` のビルド・試験は回らない）
 - 両方の「はじめに」の先頭に、もう一方の言語のマニュアルへのリンクを置く（日本語から `en/index.html`、英語から `../index.html`。公開した形で通じる）
 - アプリの「ヘルプ」→「バージョンの情報」のマニュアルへのリンクは、画面の言語のマニュアルを開く（URL は文言表の `about.manual.url`）
 - mdBook の版は CI と同じ（0.5.4）を使う。0.5 で使えない設定の項目があると、`[output.html]` の全体が読まれないため、設定を変えたら出力（テーマ・編集のリンク）を確かめる
