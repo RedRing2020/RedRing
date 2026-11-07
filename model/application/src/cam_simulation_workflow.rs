@@ -70,6 +70,8 @@ pub struct CamSimulationWorkflowResult {
     pub solver_input: CamSolverInput,
     /// 切削シミュレーションの入力
     pub simulation_input: CuttingSimulationInput,
+    /// 切削シミュレーションのジョブの投入元（工程から投入していなければ `None`）
+    pub(crate) source: Option<CamJobSource>,
 }
 
 /// 加工工程の今の改訂の計算（ツールパス生成と切削シミュレーション）の状態

@@ -13,6 +13,7 @@ use viewmodel::cutting_simulation_session::{
 };
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
+use viewmodel::space_model_document::ImportedToolpathState;
 
 /// 計算条件の問題を出す欄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,6 +109,8 @@ pub struct MachiningConditionsUiState {
     pub imported: Option<(u64, ImportedConditions)>,
     /// 加工工程の今の改訂の計算の状態
     pub(crate) job_status: JobStatusLine,
+    /// 空間モデルに取り込んだ CL が、今の条件の結果か
+    pub imported_toolpath: ImportedToolpathState,
     /// 最後の操作の結果
     pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
@@ -144,6 +147,15 @@ impl JobStatusLine {
             self,
             Self::Status(OperationJobStatus::Queued | OperationJobStatus::Running)
         )
+    }
+}
+
+/// 空間モデルに取り込んだ CL の状態 `state` の文言のキー
+fn imported_toolpath_key(state: ImportedToolpathState) -> &'static str {
+    match state {
+        ImportedToolpathState::None => "conditions.toolpath.none",
+        ImportedToolpathState::Current => "conditions.toolpath.current",
+        ImportedToolpathState::Outdated => "conditions.toolpath.outdated",
     }
 }
 
@@ -291,6 +303,7 @@ impl MachiningConditionsUiState {
                             ui.label(operation_status_text(self.locale, status));
                         }
                         ui.label(self.text(job_status_key(&self.job_status)));
+                        ui.label(self.text(imported_toolpath_key(self.imported_toolpath)));
                         ui.separator();
                         self.show_imported(ui);
                     });
@@ -563,8 +576,8 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        condition_error_message, condition_field, job_status_key, operation_status_text,
-        ConditionField, JobStatusLine, OperationJobStatus, OperationStatus,
+        condition_error_message, condition_field, imported_toolpath_key, job_status_key,
+        operation_status_text, ConditionField, JobStatusLine, OperationJobStatus, OperationStatus,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -625,6 +638,22 @@ mod tests {
             for locale in [UiLocale::Ja, UiLocale::En] {
                 let text = resolve_machining_conditions_text(locale, job_status_key(&status), &[]);
                 assert!(!text.contains("__missing__"), "{status:?}: {text}");
+            }
+        }
+    }
+
+    #[test]
+    fn every_imported_toolpath_state_has_a_message() {
+        use viewmodel::space_model_document::ImportedToolpathState;
+        for state in [
+            ImportedToolpathState::None,
+            ImportedToolpathState::Current,
+            ImportedToolpathState::Outdated,
+        ] {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text =
+                    resolve_machining_conditions_text(locale, imported_toolpath_key(state), &[]);
+                assert!(!text.contains("__missing__"), "{state:?}: {text}");
             }
         }
     }

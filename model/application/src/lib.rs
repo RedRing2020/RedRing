@@ -9,6 +9,7 @@ pub mod cam_simulation_workflow;
 pub mod cutting_simulation_playback;
 pub mod feature_orchestration;
 pub mod geometry_orchestration;
+pub mod imported_toolpath;
 mod job_client;
 pub mod job_orchestration;
 pub mod machining_sequence;

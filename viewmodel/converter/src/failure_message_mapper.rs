@@ -119,7 +119,8 @@ pub fn model_file_failure_message(error: &SpaceModelFileError) -> UiMessage {
         | SpaceModelFileError::InvalidSectionTable(_)
         | SpaceModelFileError::InvalidSection { .. }
         | SpaceModelFileError::ProductShape(_)
-        | SpaceModelFileError::MachiningSequence(_) => message("failure.model_file.invalid"),
+        | SpaceModelFileError::MachiningSequence(_)
+        | SpaceModelFileError::ImportedToolpath(_) => message("failure.model_file.invalid"),
     }
 }
 

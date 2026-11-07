@@ -145,6 +145,7 @@ impl JobClient for InProcessJobClient {
             simulation_artifact: result.active_artifact.ok_or_else(missing)?,
             solver_input,
             simulation_input,
+            source: result.job.spec.source.clone(),
         })
     }
 }

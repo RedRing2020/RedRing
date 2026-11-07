@@ -311,6 +311,7 @@ impl JobClient for LocalStoreJobClient {
             simulation_artifact: artifact(simulation)?,
             solver_input,
             simulation_input,
+            source: simulation.source.as_ref().map(source),
         })
     }
 }

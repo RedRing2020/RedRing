@@ -6,6 +6,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use application::cam_simulation_workflow::CamSimulationWorkflowResult;
+pub use application::imported_toolpath::ImportedToolpathState;
 use application::machining_sequence::{
     scanline_finish_operation_content, MachiningOperationContent, MachiningOperationId,
     MachiningSequenceId, MachiningSequenceStore, MachiningStock, ScanlineCutDirection,
@@ -245,6 +247,27 @@ impl SpaceModelDocument {
                 .set_target_faces(sequence, faces)
                 .expect("the document holds its machining sequence");
         });
+    }
+
+    /// 編集の対象の加工工程に取り込んだ CL が、今の条件の結果か
+    pub fn imported_toolpath_state(&self) -> ImportedToolpathState {
+        self.model
+            .toolpaths
+            .state(&self.model.sequences, self.sequence, self.operation)
+            .expect("the document holds its machining operation")
+    }
+
+    /// 編集の対象の加工工程の今の改訂で計算した結果 `result` の CL を取り込む（前の CL は上書きする。変われば、保存して
+    /// いない変更になる）
+    pub(crate) fn import_toolpath(&mut self, result: &CamSimulationWorkflowResult) {
+        let changed = self
+            .model
+            .toolpaths
+            .import(&self.model.sequences, self.sequence, self.operation, result)
+            .expect("the document holds its machining operation");
+        if changed {
+            self.modified = true;
+        }
     }
 
     /// 製品形状・加工手順と、編集の対象の加工手順・加工工程
