@@ -1,0 +1,43 @@
+name: Manual CI
+
+# 利用者向けマニュアル（日本語・英語）がビルドできることを確かめる（公開は main の CI）
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "manual/**"
+      - "manual_en/**"
+      - "book.toml"
+      - ".github/workflows/manual_ci.yml"
+  pull_request:
+    branches: [develop]
+    paths:
+      - "manual/**"
+      - "manual_en/**"
+      - "book.toml"
+      - ".github/workflows/manual_ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-manuals:
+    name: Build Manuals
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@ee69d230fe19748b7abf22df32acaa93833fad08 # v2.0.0
+        with:
+          mdbook-version: "0.5.4"
+
+      - name: Build manuals
+        run: |
+          mdbook build
+          mdbook build manual_en
