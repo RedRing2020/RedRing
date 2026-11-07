@@ -494,7 +494,7 @@ impl AppState {
         self.refresh_snapshot_window_title();
     }
 
-    pub(super) fn refresh_snapshot_window_title(&self) {
+    pub(super) fn refresh_snapshot_window_title(&mut self) {
         if self.debug_view_shown() {
             return;
         }
@@ -559,7 +559,9 @@ impl AppState {
                 speed_factor,
             ),
         };
-        self.window.set_title(&title);
+        // 先頭に、文書のタイトル（ファイルの名前と保存していない変更の印）を出す
+        self.window
+            .set_title(&format!("{} - {title}", self.document_title()));
     }
 
     pub(super) fn snapshot_progress_ratio(&self) -> Option<f32> {

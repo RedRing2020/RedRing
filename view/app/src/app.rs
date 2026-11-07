@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use winit::keyboard::{Key, NamedKey};
+use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 use winit::{
     application::ApplicationHandler,
     event::{DeviceEvent, ElementState, WindowEvent},
@@ -76,20 +77,24 @@ impl ApplicationHandler for App {
             state.handle_settings_window_event(&event);
             let settings_ui_consumed = state.ui_wants_pointer();
             match event {
-                WindowEvent::CloseRequested => {
-                    self.should_exit = true;
-                    event_loop.exit();
-                }
+                // 保存していない変更を確かめてから終える（確かめはイベントの処理が終わった後）
+                WindowEvent::CloseRequested => state.request_exit(),
                 WindowEvent::Resized(size) => state.resize(size),
                 WindowEvent::RedrawRequested => state.render(),
                 WindowEvent::KeyboardInput { event, .. } => {
                     let pressed = event.state == ElementState::Pressed;
-                    state.handle_keyboard_input(&event.logical_key, pressed);
+                    state.handle_keyboard_input(
+                        &event.logical_key,
+                        &event.key_without_modifiers(),
+                        pressed,
+                    );
 
-                    // ESCキーのみここで処理（アプリ終了）
-                    if pressed && matches!(event.logical_key, Key::Named(NamedKey::Escape)) {
-                        self.should_exit = true;
-                        event_loop.exit();
+                    // Esc はアプリを終える（保存していない変更を確かめてから。押し続けの繰り返しは除く）
+                    if pressed
+                        && !event.repeat
+                        && matches!(event.logical_key, Key::Named(NamedKey::Escape))
+                    {
+                        state.request_exit();
                     }
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
@@ -108,7 +113,7 @@ impl ApplicationHandler for App {
                 WindowEvent::MouseWheel { delta, .. } if !settings_ui_consumed => {
                     state.handle_mouse_wheel(delta);
                 }
-                WindowEvent::DroppedFile(path) => state.import_product_shape(&path),
+                WindowEvent::DroppedFile(path) => state.drop_file(path),
                 _ => {}
             }
         }
@@ -138,6 +143,11 @@ impl ApplicationHandler for App {
         if let Some(state) = &mut self.state {
             // ファイルを開く画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に開く
             state.run_requested_menu_actions();
+            if state.exit_confirmed() {
+                self.should_exit = true;
+                event_loop.exit();
+                return;
+            }
             state.tick_snapshot_playback(std::time::Instant::now());
             state.window.request_redraw();
         }

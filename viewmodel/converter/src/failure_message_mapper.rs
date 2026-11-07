@@ -4,6 +4,7 @@
 
 use application::cam_simulation_workflow::CamSimulationWorkflowError;
 use application::product_shape::ProductShapeError;
+use application::space_model_file::SpaceModelFileError;
 use i18n_foundation::{UiMessage, UiMessageArg};
 
 use crate::cutting_simulation_session::CuttingSimulationSessionError;
@@ -82,6 +83,46 @@ pub fn product_shape_failure_message(error: &ProductShapeError) -> UiMessage {
     }
 }
 
+/// モデルファイルの読み書きの失敗 `error` の、画面に出す理由
+pub fn model_file_failure_message(error: &SpaceModelFileError) -> UiMessage {
+    use application::space_model_file::{
+        BinaryFormatError, FORMAT_VERSION_MAJOR_V1, SECTION_VERSION,
+    };
+    match error {
+        SpaceModelFileError::Io(error) => file_failure_message(error.kind()),
+        SpaceModelFileError::TooLarge => message("failure.model_file.too_large"),
+        // 新しい版のアプリで保存したファイル（知らない必須の区画・知っているより新しい版）
+        SpaceModelFileError::UnknownRequiredSection(_) => message("failure.model_file.newer"),
+        SpaceModelFileError::UnsupportedSectionVersion { version, .. }
+            if *version > SECTION_VERSION =>
+        {
+            message("failure.model_file.newer")
+        }
+        SpaceModelFileError::Format(BinaryFormatError::UnsupportedMinorVersion {
+            found_minor,
+            supported_minors,
+            ..
+        }) if supported_minors.iter().all(|minor| found_minor > minor) => {
+            message("failure.model_file.newer")
+        }
+        SpaceModelFileError::Format(BinaryFormatError::UnsupportedMajorVersion {
+            found,
+            supported,
+        }) if found > supported => message("failure.model_file.newer"),
+        SpaceModelFileError::Format(BinaryFormatError::ConverterRequired {
+            found_major, ..
+        }) if *found_major > FORMAT_VERSION_MAJOR_V1 => message("failure.model_file.newer"),
+        SpaceModelFileError::UnsupportedSectionVersion { .. }
+        | SpaceModelFileError::Format(_)
+        | SpaceModelFileError::MissingSection(_)
+        | SpaceModelFileError::DuplicateSection(_)
+        | SpaceModelFileError::InvalidSectionTable(_)
+        | SpaceModelFileError::InvalidSection { .. }
+        | SpaceModelFileError::ProductShape(_)
+        | SpaceModelFileError::MachiningSequence(_) => message("failure.model_file.invalid"),
+    }
+}
+
 /// ファイルの読み書きの失敗の種類 `kind` の、画面に出す理由（OS の文は OS の言語になるため、種類で決める）
 pub fn file_failure_message(kind: std::io::ErrorKind) -> UiMessage {
     match kind {
@@ -110,6 +151,52 @@ mod tests {
                 "{message:?}: {text}"
             );
         }
+    }
+
+    #[test]
+    fn every_model_file_failure_has_its_own_text() {
+        use application::space_model_file::BinaryFormatError;
+        let errors = [
+            SpaceModelFileError::Io(std::io::ErrorKind::NotFound.into()),
+            SpaceModelFileError::TooLarge,
+            SpaceModelFileError::UnknownRequiredSection(*b"FEAT"),
+            SpaceModelFileError::Format(BinaryFormatError::UnknownMagic(*b"XXXX")),
+            SpaceModelFileError::InvalidSectionTable("sections"),
+            SpaceModelFileError::UnsupportedSectionVersion {
+                kind: *b"FACE",
+                version: 2,
+            },
+            // 知っている版より古い・壊れた版は、新しい版とは言わない
+            SpaceModelFileError::UnsupportedSectionVersion {
+                kind: *b"FACE",
+                version: 0,
+            },
+            SpaceModelFileError::Format(BinaryFormatError::ConverterRequired {
+                found_major: 1,
+                found_minor: 0,
+            }),
+        ];
+        let keys: Vec<String> = errors
+            .iter()
+            .map(|error| {
+                let message = model_file_failure_message(error);
+                assert_resolved(&message);
+                message.key
+            })
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                "failure.file.not_found",
+                "failure.model_file.too_large",
+                "failure.model_file.newer",
+                "failure.model_file.invalid",
+                "failure.model_file.invalid",
+                "failure.model_file.newer",
+                "failure.model_file.invalid",
+                "failure.model_file.newer",
+            ]
+        );
     }
 
     #[test]

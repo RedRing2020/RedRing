@@ -47,9 +47,13 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
     (
         "help.header.app",
         &[
+            ("Ctrl+N", "help.app.new"),
+            ("Ctrl+O", "help.app.open"),
+            ("Ctrl+S", "help.app.save"),
+            ("Ctrl+Shift+S", "help.app.save_as"),
+            ("help.input.drop", "help.app.drop"),
             ("Shift+S", "help.app.settings"),
             ("F1 / h", "help.app.help"),
-            ("help.input.drop", "help.app.load"),
             ("Esc", "help.app.quit"),
         ],
     ),
@@ -90,13 +94,29 @@ pub(crate) enum Notice {
     SettingsSaveFailed { reason: UiMessage },
     /// 投入・実行・取り込みの結果（加工条件のウィンドウの結果の行と同じ文言）
     Operation(OperationStatus),
+    /// 空の空間モデルにした
+    ModelCreated,
+    /// モデルファイルを開いた（ファイルの名前）
+    ModelOpened { file: String },
+    /// モデルファイルを開けない（ファイルの名前と理由）
+    ModelOpenFailed { file: String, reason: UiMessage },
+    /// モデルファイルに保存した（ファイルの名前）
+    ModelSaved { file: String },
+    /// モデルファイルに保存できない（ファイルの名前と理由）
+    ModelSaveFailed { file: String, reason: UiMessage },
 }
 
 impl Notice {
     pub(crate) fn level(&self) -> NoticeLevel {
         match self {
-            Self::Startup | Self::ShapeImported { .. } => NoticeLevel::Info,
-            Self::ShapeImportFailed { .. } => NoticeLevel::Error,
+            Self::Startup
+            | Self::ShapeImported { .. }
+            | Self::ModelCreated
+            | Self::ModelOpened { .. }
+            | Self::ModelSaved { .. } => NoticeLevel::Info,
+            Self::ShapeImportFailed { .. }
+            | Self::ModelOpenFailed { .. }
+            | Self::ModelSaveFailed { .. } => NoticeLevel::Error,
             Self::NotImported
             | Self::NoToolSegments
             | Self::ApplyWithoutAnimation
@@ -150,6 +170,29 @@ impl Notice {
                 &[("reason", resolve_failure_message(locale, reason))],
             ),
             Self::Operation(status) => operation_status_text(locale, status),
+            Self::ModelCreated => resolve_help_text(locale, "notice.model_created", &[]),
+            Self::ModelOpened { file } => {
+                resolve_help_text(locale, "notice.model_opened", &[("file", file.clone())])
+            }
+            Self::ModelSaved { file } => {
+                resolve_help_text(locale, "notice.model_saved", &[("file", file.clone())])
+            }
+            Self::ModelOpenFailed { file, reason } => resolve_help_text(
+                locale,
+                "notice.model_open_failed",
+                &[
+                    ("file", file.clone()),
+                    ("reason", resolve_failure_message(locale, reason)),
+                ],
+            ),
+            Self::ModelSaveFailed { file, reason } => resolve_help_text(
+                locale,
+                "notice.model_save_failed",
+                &[
+                    ("file", file.clone()),
+                    ("reason", resolve_failure_message(locale, reason)),
+                ],
+            ),
         }
     }
 }

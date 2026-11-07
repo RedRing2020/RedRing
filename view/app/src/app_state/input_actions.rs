@@ -1,14 +1,32 @@
 //! AppState のキーボード入力ハンドリングを扱うモジュール。
 
+use super::model_file::FileAction;
 use super::AppState;
+use winit::keyboard::Key;
 
 impl AppState {
-    /// キーボード入力を処理
-    pub fn handle_keyboard_input(&mut self, key: &winit::keyboard::Key, pressed: bool) {
+    /// キーボード入力を処理（`key` は文字としてのキー、`key_without_modifiers` は Ctrl・Shift などを除いたキー）
+    pub fn handle_keyboard_input(
+        &mut self,
+        key: &winit::keyboard::Key,
+        key_without_modifiers: &Key,
+        pressed: bool,
+    ) {
         self.mouse_input.update_key(key, pressed);
 
         if !pressed {
             return;
+        }
+
+        // Ctrl とのファイルの操作の組み合わせは、ほかのキー操作にしない（Ctrl+Shift+S で Shift+S の操作を動かさない）。
+        // 入力欄の編集中も受ける（Ctrl との組み合わせは文字を打たない）。AltGr（Ctrl+Alt）は文字を打つため除く
+        if self.mouse_input.is_ctrl_pressed() && !self.mouse_input.is_alt_pressed() {
+            if let Some(action) =
+                file_shortcut(key_without_modifiers, self.mouse_input.is_shift_pressed())
+            {
+                self.request_file_action(action);
+                return;
+            }
         }
 
         // 設定パネル・加工条件のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
@@ -100,5 +118,41 @@ impl AppState {
                 _ => {}
             }
         }
+    }
+
+    /// アプリを終える操作（ウィンドウを閉じる・Esc）を、保存していない変更を確かめてから行う
+    pub fn request_exit(&mut self) {
+        self.request_file_action(FileAction::Exit);
+    }
+}
+
+/// Ctrl と、修飾を除いたキー `key`（Shift を押しているかが `shift`）の、ファイルの操作（キーの配列に合わせ、打つ文字で
+/// 見分ける）
+fn file_shortcut(key: &Key, shift: bool) -> Option<FileAction> {
+    let Key::Character(text) = key else {
+        return None;
+    };
+    match (text.to_ascii_lowercase().as_str(), shift) {
+        ("n", false) => Some(FileAction::New),
+        ("o", false) => Some(FileAction::Open),
+        ("s", false) => Some(FileAction::Save),
+        ("s", true) => Some(FileAction::SaveAs),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_shortcuts_are_told_apart_by_shift() {
+        let key = |text: &str| Key::Character(text.into());
+        assert_eq!(file_shortcut(&key("s"), false), Some(FileAction::Save));
+        assert_eq!(file_shortcut(&key("S"), true), Some(FileAction::SaveAs));
+        assert_eq!(file_shortcut(&key("n"), false), Some(FileAction::New));
+        assert_eq!(file_shortcut(&key("o"), false), Some(FileAction::Open));
+        assert_eq!(file_shortcut(&key("n"), true), None);
+        assert_eq!(file_shortcut(&key("m"), false), None);
     }
 }

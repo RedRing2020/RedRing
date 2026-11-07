@@ -17,6 +17,8 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use cam_core::{ArtifactHeaderV1, ArtifactKind, ArtifactPayload, ExtAttribute, read_artifact_v1};
+/// 共通のヘッダ・形式の誤り（[`SpaceModelFileError::Format`] の中身）と、読める共通のヘッダの大きい版
+pub use cam_core::{BinaryFormatError, FORMAT_VERSION_MAJOR_V1};
 use uuid::Uuid;
 
 use crate::machining_sequence::{MachiningSequenceRestoreError, MachiningSequenceStore};
@@ -35,8 +37,8 @@ const SECTION_REQUIRED: u16 = 1;
 const INFO: [u8; 4] = *b"INFO";
 const FACE: [u8; 4] = *b"FACE";
 const MSEQ: [u8; 4] = *b"MSEQ";
-/// 本モジュールが読み書きする区画の版
-const SECTION_VERSION: u16 = 1;
+/// 本モジュールが読み書きする区画の版（これより新しい版の区画は、新しい版のアプリで保存したもの）
+pub const SECTION_VERSION: u16 = 1;
 
 /// 空間モデルの ID（全体で一意で、保存・読み込みで変えない）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
