@@ -339,21 +339,47 @@ impl JobManagerWindow {
 
     fn show_filter(&mut self, ui: &mut egui::Ui) {
         let before = self.filter;
-        let choices: Vec<(Option<StoredJobStatus>, String)> =
+        let count = |status: Option<StoredJobStatus>| {
+            self.jobs
+                .iter()
+                .filter(|job| status.is_none_or(|status| job.status == status))
+                .count()
+        };
+        // 選ぶもの・印・印の色・文言（ジョブの数を添える）
+        let choices: Vec<(Option<StoredJobStatus>, &str, Color32, String)> =
             std::iter::once((None, self.text("filter.all")))
                 .chain(
                     STATUSES
                         .iter()
                         .map(|&status| (Some(status), self.status_text(status))),
                 )
+                .map(|(choice, label)| {
+                    let (icon, color) = match choice {
+                        None => ("☰", Color32::from_rgb(230, 160, 60)),
+                        Some(status) => (status_icon(status), status_color(status)),
+                    };
+                    (choice, icon, color, format!("{label} ({})", count(choice)))
+                })
                 .collect();
-        // 開き閉じできる見出しの中に、選んだものが光るボタンを幅いっぱいに並べる
-        egui::CollapsingHeader::new(self.text("filter.header"))
+        // 開き閉じできる見出し（太字）の下に、印と数を添えた選ぶボタンを幅いっぱいに並べる
+        egui::CollapsingHeader::new(RichText::new(self.text("filter.header")).strong())
             .default_open(true)
-            .show(ui, |ui| {
+            .show_unindented(ui, |ui| {
+                // 選んだボタンは、目立ちすぎない灰色で示す
+                let visuals = ui.visuals_mut();
+                visuals.selection.bg_fill = visuals.widgets.active.weak_bg_fill;
+                visuals.selection.stroke.color = visuals.strong_text_color();
+                ui.spacing_mut().item_spacing.y = 1.0;
                 ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-                    for (choice, label) in choices {
-                        ui.selectable_value(&mut self.filter, choice, label);
+                    for (choice, icon, color, label) in choices {
+                        let selected = self.filter == choice;
+                        let button = egui::Button::selectable(
+                            selected,
+                            (RichText::new(icon).color(color), label),
+                        );
+                        if ui.add(button).clicked() {
+                            self.filter = choice;
+                        }
                     }
                 });
             });
@@ -533,6 +559,17 @@ impl eframe::App for JobManagerWindow {
         } else {
             JOBS_INTERVAL
         });
+    }
+}
+
+/// 絞り込みで状態に添える印
+fn status_icon(status: StoredJobStatus) -> &'static str {
+    match status {
+        StoredJobStatus::Queued => "⏸",
+        StoredJobStatus::Running => "▶",
+        StoredJobStatus::Succeeded => "✔",
+        StoredJobStatus::Failed => "⚠",
+        StoredJobStatus::Canceled => "⏹",
     }
 }
 
