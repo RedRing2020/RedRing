@@ -22,6 +22,7 @@ pub mod message_catalog;
 pub mod product_shape_converter;
 pub mod shape_converter;
 pub mod snapshot_converter;
+pub mod space_model_document;
 pub mod toolpath_converter;
 
 /// テスト用の関数（削除予定）

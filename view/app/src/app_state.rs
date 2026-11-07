@@ -18,7 +18,7 @@ use viewmodel::cutting_simulation_session::{
     ConditionIssue, CuttingSimulationSession, ImportedConditions,
 };
 use viewmodel::message_catalog::UiLocale;
-use viewmodel::product_shape_converter::ProductShapeScene;
+use viewmodel::space_model_document::SpaceModelDocument;
 use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
@@ -146,8 +146,8 @@ pub struct AppState {
     /// ToolPath表示設定
     toolpath_visualization_settings: ToolPathVisualizationSettings,
 
-    /// 取り込んだ製品形状
-    product_shapes: ProductShapeScene,
+    /// 空間モデルの文書（製品形状・加工手順・開いたファイル・保存していない変更）
+    document: SpaceModelDocument,
 
     /// 切削シミュレーションの投入・実行・取り込み
     cutting_simulation: CuttingSimulationSession,
@@ -254,7 +254,7 @@ impl AppState {
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
             tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings::default(),
             toolpath_visualization_settings: ToolPathVisualizationSettings::default(),
-            product_shapes: ProductShapeScene::default(),
+            document: SpaceModelDocument::default(),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
             cutting_animation_colors: SnapshotShadedColorSettings::default(),

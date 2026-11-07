@@ -13,7 +13,7 @@ impl AppState {
             || path.display().to_string(),
             |name| name.to_string_lossy().into_owned(),
         );
-        if let Err(error) = self.product_shapes.import_stl(path) {
+        if let Err(error) = self.document.import_stl(path) {
             tracing::warn!(path = %path.display(), "product shape import failed: {error}");
             self.set_notice(crate::help_ui::Notice::ShapeImportFailed {
                 file,
@@ -34,7 +34,7 @@ impl AppState {
         self.cutting_animation_job_id = None;
         self.imported_conditions = None;
         self.debug_snapshot.clear();
-        let meshes = self.product_shapes.visible_meshes();
+        let meshes = self.document.visible_meshes();
         let positions: Vec<[f32; 3]> = meshes
             .iter()
             .flat_map(|mesh| mesh.vertices.iter().map(|vertex| vertex.position))

@@ -1,9 +1,8 @@
 //! 製品形状からの切削シミュレーションの投入・実行・取り込み
 //!
-//! 加工手順 1 つと加工工程 1 つを Application の保管先に持ち、投入・取り込みはその工程から行う。条件の写しは持たず、
-//! 加工工程の中身（工具・走査線の条件）と加工手順の素材（素材の余裕・精度）を保管先から読み、書き戻す。
-//! 加工の対象は、確かめ・投入・取り込みのときに表示中の製品形状のすべての面にする。
-//! 計算はアプリの外のジョブマネージャーが行い、セッションは投入・状態の読み取り・取り込みだけを行う。
+//! 空間モデルの文書（`SpaceModelDocument`）の、編集の対象の加工工程から投入・取り込みを行う。加工の対象は、確かめ・
+//! 投入・取り込みのときに表示中の製品形状のすべての面にする。計算はアプリの外のジョブマネージャーが行い、セッションは
+//! 投入・状態の読み取り・取り込みだけを行う。
 
 use application::cam_simulation_workflow::{
     Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError,
@@ -15,10 +14,6 @@ pub use application::machining_sequence::{
     flat_surface_cusp_height, MachiningOperationContent, MachiningStock, OperationSpec,
     ScanlineCutDirection, ScanlineToolRange, StockMargins,
 };
-use application::machining_sequence::{
-    scanline_finish_operation_content, MachiningOperationId, MachiningSequenceId,
-    MachiningSequenceStore,
-};
 use application::machining_sequence::{ScanlineParams, Tool};
 
 use application::cutting_simulation_playback::{
@@ -28,12 +23,8 @@ use application::cutting_simulation_playback::{
 use crate::cutting_animation::CuttingAnimation;
 use crate::failure_message_mapper::workflow_failure_message;
 use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
-use crate::product_shape_converter::ProductShapeScene;
+use crate::space_model_document::SpaceModelDocument;
 use i18n_foundation::UiMessage;
-
-/// 加工手順・加工工程の名前（名前を編集できるようになるまでの固定の名前）
-const SEQUENCE_NAME: &str = "加工手順";
-const OPERATION_NAME: &str = "スキャン加工";
 
 /// 選べる工具の種類（ボールエンドミル・フラットエンドミル）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -68,29 +59,6 @@ impl CuttingToolKind {
         };
         tool.cutting_length = cutting_length;
         tool
-    }
-}
-
-/// セッションを始めたときの加工工程の中身（直径 10 mm のボールエンドミル、ピックフィード 2 mm）
-fn initial_operation_content() -> MachiningOperationContent {
-    scanline_finish_operation_content(
-        OPERATION_NAME.to_string(),
-        CuttingToolKind::BallEndMill.tool(10.0, None),
-        ScanlineParams {
-            stepover: 2.0,
-            feed_rate: 1200.0,
-            tool_range: ScanlineToolRange::default(),
-            cut_direction: ScanlineCutDirection::default(),
-            angle_degrees: 0.0,
-        },
-    )
-}
-
-/// セッションを始めたときの加工手順の素材（製品形状を囲む箱、精度 0.05 mm）
-fn initial_stock() -> MachiningStock {
-    MachiningStock {
-        margins: StockMargins::default(),
-        precision: 0.05,
     }
 }
 
@@ -179,98 +147,25 @@ impl From<CamSimulationWorkflowError> for CuttingSimulationSessionError {
 }
 
 /// 製品形状からの切削シミュレーションの投入・実行・取り込み
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CuttingSimulationSession {
     workflow: CamSimulationWorkflow,
-    sequences: MachiningSequenceStore,
-    sequence: MachiningSequenceId,
-    operation: MachiningOperationId,
-}
-
-impl Default for CuttingSimulationSession {
-    /// 加工工程を 1 つ持つ加工手順で始める（加工の対象は、確かめ・投入・取り込みのときに決める）
-    fn default() -> Self {
-        Self::with_workflow(CamSimulationWorkflow::new())
-    }
-}
-
-impl CuttingSimulationSession {
-    /// 加工工程を 1 つ持つ加工手順と、ワークフロー `workflow` で始める
-    fn with_workflow(workflow: CamSimulationWorkflow) -> Self {
-        let mut sequences = MachiningSequenceStore::new();
-        let sequence =
-            sequences.create_sequence(SEQUENCE_NAME.to_string(), Vec::new(), initial_stock());
-        let operation = sequences
-            .add_operation(sequence, initial_operation_content())
-            .expect("the sequence was just created");
-        Self {
-            workflow,
-            sequences,
-            sequence,
-            operation,
-        }
-    }
 }
 
 impl CuttingSimulationSession {
     /// 同じプロセスの中でジョブを実行するセッション（試験用）
     #[cfg(test)]
-    fn in_process() -> Self {
-        Self::with_workflow(CamSimulationWorkflow::in_process())
-    }
-
-    /// 加工工程の中身（工具・走査線の条件）
-    pub fn operation_content(&self) -> &MachiningOperationContent {
-        self.sequences
-            .operation_content(self.sequence, self.operation)
-            .expect("the session holds its machining operation")
-    }
-
-    /// 加工工程の中身を `content` にする（今と違えば、工程の改訂の番号が増える）
-    pub fn set_operation_content(&mut self, content: MachiningOperationContent) {
-        self.sequences
-            .set_operation_content(self.sequence, self.operation, content)
-            .expect("the session holds its machining operation");
-    }
-
-    /// 加工手順の素材（素材の余裕・精度）
-    pub fn stock(&self) -> MachiningStock {
-        *self
-            .sequences
-            .stock(self.sequence)
-            .expect("the session holds its machining sequence")
-    }
-
-    /// 加工手順の素材を `stock` にする（今と違えば、工程の改訂の番号が増える）
-    pub fn set_stock(&mut self, stock: MachiningStock) {
-        self.sequences
-            .set_stock(self.sequence, stock)
-            .expect("the session holds its machining sequence");
-    }
-
-    /// 加工工程のツールパス生成のトレランス（mm）
-    pub fn toolpath_tolerance(&self) -> f64 {
-        self.sequences
-            .operation_tolerance(self.sequence, self.operation)
-            .expect("the session holds its machining operation")
-    }
-
-    /// 加工の対象を、表示中の製品形状のすべての面にする（面の集合が変わった場合は、工程の改訂の番号が増える）
-    fn target_visible_faces(&mut self, shapes: &ProductShapeScene) {
-        self.sequences
-            .set_target_faces(self.sequence, shapes.store().visible_face_ids())
-            .expect("the session holds its machining sequence");
+    pub(crate) fn in_process() -> Self {
+        Self {
+            workflow: CamSimulationWorkflow::in_process(),
+        }
     }
 
     /// 表示中の製品形状と加工工程・加工手順の条件を、投入と同じ判定で確かめ、問題をすべて返す（問題がなければ空）
-    pub fn check(&mut self, shapes: &ProductShapeScene) -> Vec<ConditionIssue> {
-        self.target_visible_faces(shapes);
-        match CamSimulationWorkflow::check_operation(
-            shapes.store(),
-            &self.sequences,
-            self.sequence,
-            self.operation,
-        ) {
+    pub fn check(&self, document: &mut SpaceModelDocument) -> Vec<ConditionIssue> {
+        document.target_visible_faces();
+        let (shapes, sequences, sequence, operation) = document.machining();
+        match CamSimulationWorkflow::check_operation(shapes, sequences, sequence, operation) {
             Ok(()) => Vec::new(),
             Err(error) => ConditionIssue::from_workflow_error(&error),
         }
@@ -283,17 +178,14 @@ impl CuttingSimulationSession {
     ///
     /// 投入前の確認の誤り、逆オフセット形状を作れない場合、`angle_step` が表示用のきざみの範囲の外の場合。
     pub fn inverse_offset_shape_meshes(
-        &mut self,
-        shapes: &ProductShapeScene,
+        &self,
+        document: &mut SpaceModelDocument,
         angle_step: f64,
     ) -> Result<Vec<InverseOffsetShapeMesh>, CuttingSimulationSessionError> {
-        self.target_visible_faces(shapes);
+        document.target_visible_faces();
+        let (shapes, sequences, sequence, operation) = document.machining();
         let parts = CamSimulationWorkflow::inverse_offset_shape_parts(
-            shapes.store(),
-            &self.sequences,
-            self.sequence,
-            self.operation,
-            angle_step,
+            shapes, sequences, sequence, operation, angle_step,
         )?;
         Ok(inverse_offset_shape_meshes(parts))
     }
@@ -305,15 +197,12 @@ impl CuttingSimulationSession {
     /// 表示中の製品形状がない場合・計算条件に誤りがある場合を含む、投入の失敗。
     pub fn submit(
         &mut self,
-        shapes: &ProductShapeScene,
+        document: &mut SpaceModelDocument,
     ) -> Result<(), CuttingSimulationSessionError> {
-        self.target_visible_faces(shapes);
-        self.workflow.submit_operation(
-            shapes.store(),
-            &self.sequences,
-            self.sequence,
-            self.operation,
-        )?;
+        document.target_visible_faces();
+        let (shapes, sequences, sequence, operation) = document.machining();
+        self.workflow
+            .submit_operation(shapes, sequences, sequence, operation)?;
         Ok(())
     }
 
@@ -325,14 +214,13 @@ impl CuttingSimulationSession {
     /// ジョブの状態を読めない場合。
     pub fn job_status(
         &mut self,
-        shapes: &ProductShapeScene,
+        document: &mut SpaceModelDocument,
     ) -> Result<Option<OperationJobStatus>, CuttingSimulationSessionError> {
-        self.target_visible_faces(shapes);
-        Ok(self.workflow.latest_revision_job_status(
-            &self.sequences,
-            self.sequence,
-            self.operation,
-        )?)
+        document.target_visible_faces();
+        let (_, sequences, sequence, operation) = document.machining();
+        Ok(self
+            .workflow
+            .latest_revision_job_status(sequences, sequence, operation)?)
     }
 
     /// 待ちのジョブがあるときに、ジョブマネージャーが止まっていれば起動し直す（同じプロセスの中で実行する試験では、
@@ -362,12 +250,13 @@ impl CuttingSimulationSession {
     /// 今の改訂の取り込める切削シミュレーションがない場合、取り込みの失敗、切削アニメーションを作れない場合。
     pub fn import_latest(
         &mut self,
-        shapes: &ProductShapeScene,
+        document: &mut SpaceModelDocument,
     ) -> Result<ImportedCuttingSimulation, CuttingSimulationSessionError> {
-        self.target_visible_faces(shapes);
+        document.target_visible_faces();
+        let (_, sequences, sequence, operation) = document.machining();
         let latest = self
             .workflow
-            .latest_revision_simulation(&self.sequences, self.sequence, self.operation)?
+            .latest_revision_simulation(sequences, sequence, operation)?
             .ok_or(CuttingSimulationSessionError::NoSucceededSimulation)?;
         let result = self.workflow.import(latest)?;
         let OperationSpec::Scanline(scanline) = result.solver_input.operation;
@@ -393,10 +282,9 @@ impl CuttingSimulationSession {
 pub(crate) mod tests {
     use application::cam_simulation_workflow::CamSimulationWorkflowError;
     use application::product_shape::ProductShapeError;
-    use geo_algorithms::{Point3D, TriangleMesh3D};
-    use geo_contracts::TriangleMesh3DConstructor;
 
     use super::*;
+    use crate::space_model_document::tests::document_with_pyramid;
 
     /// 走査線の条件 `content` を `edit` で変えた中身
     fn with_scanline(
@@ -411,58 +299,36 @@ pub(crate) mod tests {
         }
     }
 
-    /// 粗い条件（直径 6 mm・工具長 30 mm のボールエンドミル、ピックフィード 6 mm。テストを速くする）の加工工程を
-    /// 持つセッション
-    fn coarse_session() -> CuttingSimulationSession {
-        let mut session = CuttingSimulationSession::in_process();
+    /// 文書 `document` の加工工程を、粗い条件（直径 6 mm・工具長 30 mm のボールエンドミル、ピックフィード 6 mm。
+    /// テストを速くする）にする
+    fn coarse(document: &mut SpaceModelDocument) {
         let content = MachiningOperationContent {
             tool: CuttingToolKind::BallEndMill.tool(6.0, Some(30.0)),
-            ..session.operation_content().clone()
+            ..document.operation_content().clone()
         };
-        session.set_operation_content(with_scanline(content, |scanline| scanline.stepover = 6.0));
-        session
+        document.set_operation_content(with_scanline(content, |scanline| scanline.stepover = 6.0));
+    }
+
+    /// 製品形状（四角錐）と粗い条件の文書と、同じプロセスの中でジョブを実行するセッション
+    fn coarse_session() -> (CuttingSimulationSession, SpaceModelDocument) {
+        let mut document = document_with_pyramid();
+        coarse(&mut document);
+        (CuttingSimulationSession::in_process(), document)
     }
 
     /// 表示中の製品形状（四角錐）を粗い条件で投入・実行・取り込みした切削アニメーション
     ///
     /// `cutting_length` を渡すと、工具長をそれにする（`Some(None)` は工具長を指定しない工具）。
     pub(crate) fn imported_animation(cutting_length: Option<Option<f64>>) -> CuttingAnimation {
-        let mut session = coarse_session();
+        let (mut session, mut document) = coarse_session();
         if let Some(length) = cutting_length {
-            let mut content = session.operation_content().clone();
+            let mut content = document.operation_content().clone();
             content.tool.cutting_length = length;
-            session.set_operation_content(content);
+            document.set_operation_content(content);
         }
-        let scene = scene_with_pyramid();
-        session.submit(&scene).unwrap();
+        session.submit(&mut document).unwrap();
         session.run_queued_jobs().unwrap();
-        session.import_latest(&scene).unwrap().animation
-    }
-
-    fn scene_with_pyramid() -> ProductShapeScene {
-        let pyramid = TriangleMesh3D::new(
-            vec![
-                Point3D::new(0.0, 0.0, 0.0),
-                Point3D::new(20.0, 0.0, 0.0),
-                Point3D::new(20.0, 20.0, 0.0),
-                Point3D::new(0.0, 20.0, 0.0),
-                Point3D::new(10.0, 10.0, 6.0),
-            ],
-            vec![[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]],
-        )
-        .unwrap();
-        // 並べて走るテストどうしで、一時ファイルを分ける
-        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "redring_cutting_simulation_session_{}_{}.stl",
-            std::process::id(),
-            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
-        geo_io::stl::save_stl(&pyramid, &path).unwrap();
-        let mut scene = ProductShapeScene::default();
-        scene.import_stl(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
-        scene
+        session.import_latest(&mut document).unwrap().animation
     }
 
     #[test]
@@ -482,35 +348,18 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn the_edited_content_and_stock_are_held_by_the_machining_operation() {
-        let mut session = CuttingSimulationSession::in_process();
-        let content = with_scanline(session.operation_content().clone(), |scanline| {
-            scanline.cut_direction = ScanlineCutDirection::ZigZag
-        });
-        let stock = MachiningStock {
-            precision: 0.2,
-            ..session.stock()
-        };
-        session.set_operation_content(content.clone());
-        session.set_stock(stock);
-        assert_eq!(session.operation_content(), &content);
-        assert_eq!(session.stock(), stock);
-    }
-
-    #[test]
     fn submitted_product_shapes_are_imported_as_a_cutting_animation_after_running() {
-        let scene = scene_with_pyramid();
-        let mut session = coarse_session();
-        assert_eq!(session.check(&scene), vec![]);
-        session.submit(&scene).unwrap();
+        let (mut session, mut document) = coarse_session();
+        assert_eq!(session.check(&mut document), vec![]);
+        session.submit(&mut document).unwrap();
         // 実行するまでは取り込めない
         assert!(matches!(
-            session.import_latest(&scene),
+            session.import_latest(&mut document),
             Err(CuttingSimulationSessionError::NoSucceededSimulation)
         ));
 
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
-        let mut imported = session.import_latest(&scene).unwrap();
+        let mut imported = session.import_latest(&mut document).unwrap();
         assert_eq!(imported.job_id, 2);
         assert!(imported.animation.frame_count() > 1);
         assert!(!imported.animation.take_initial_stock_blocks().is_empty());
@@ -518,73 +367,90 @@ pub(crate) mod tests {
 
     #[test]
     fn results_of_previous_conditions_are_not_imported_until_submitted_again() {
-        let scene = scene_with_pyramid();
-        let mut session = coarse_session();
-        session.submit(&scene).unwrap();
+        let (mut session, mut document) = coarse_session();
+        session.submit(&mut document).unwrap();
         session.run_queued_jobs().unwrap();
-        assert_eq!(session.import_latest(&scene).unwrap().job_id, 2);
+        assert_eq!(session.import_latest(&mut document).unwrap().job_id, 2);
 
         // 素材を変えると、前の条件の結果は取り込まない（再計算待ち）
-        session.set_stock(MachiningStock {
+        document.set_stock(MachiningStock {
             precision: 0.2,
-            ..session.stock()
+            ..document.stock()
         });
         assert!(matches!(
-            session.import_latest(&scene),
+            session.import_latest(&mut document),
             Err(CuttingSimulationSessionError::NoSucceededSimulation)
         ));
 
-        session.submit(&scene).unwrap();
+        session.submit(&mut document).unwrap();
         session.run_queued_jobs().unwrap();
-        let imported = session.import_latest(&scene).unwrap();
+        let imported = session.import_latest(&mut document).unwrap();
         assert_eq!(imported.job_id, 4);
         assert_eq!(imported.conditions.precision, 0.2);
         // 同じ条件を設定し直しても、今の条件の結果のまま取り込める
-        session.set_operation_content(session.operation_content().clone());
-        session.set_stock(session.stock());
-        assert_eq!(session.import_latest(&scene).unwrap().job_id, 4);
+        document.set_operation_content(document.operation_content().clone());
+        document.set_stock(document.stock());
+        assert_eq!(session.import_latest(&mut document).unwrap().job_id, 4);
         // 工程の中身を変えても、前の条件の結果は取り込まない
-        let content = with_scanline(session.operation_content().clone(), |scanline| {
+        let content = with_scanline(document.operation_content().clone(), |scanline| {
             scanline.feed_rate = 600.0
         });
-        session.set_operation_content(content);
+        document.set_operation_content(content);
         assert!(matches!(
-            session.import_latest(&scene),
+            session.import_latest(&mut document),
             Err(CuttingSimulationSessionError::NoSucceededSimulation)
         ));
-        // 表示中の製品形状がなくなると、加工の対象が変わり、前の対象の結果は取り込まない
+    }
+
+    #[test]
+    fn results_of_other_target_faces_are_not_imported() {
+        let (mut session, mut document) = coarse_session();
+        session.submit(&mut document).unwrap();
+        session.run_queued_jobs().unwrap();
+        // 製品形状を加えると、表示中の面（加工の対象）が変わり、前の対象の結果は取り込まない
+        let more = document_with_pyramid();
+        let path = std::env::temp_dir().join(format!(
+            "redring_cutting_simulation_session_more_{}.stl",
+            std::process::id()
+        ));
+        let mesh = match more.shapes().records().remove(0).geometry {
+            application::product_shape::ProductFaceGeometry::Mesh(mesh) => mesh,
+            application::product_shape::ProductFaceGeometry::Surface(_) => unreachable!(),
+        };
+        geo_io::stl::save_stl(&mesh, &path).unwrap();
+        document.import_stl(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
         assert!(matches!(
-            session.import_latest(&ProductShapeScene::default()),
+            session.import_latest(&mut document),
             Err(CuttingSimulationSessionError::NoSucceededSimulation)
         ));
     }
 
     #[test]
     fn the_edited_conditions_are_submitted_and_returned_with_the_imported_result() {
-        let scene = scene_with_pyramid();
-        let mut session = coarse_session();
+        let (mut session, mut document) = coarse_session();
         let content = with_scanline(
             MachiningOperationContent {
                 tool: CuttingToolKind::FlatEndMill.tool(6.0, Some(25.0)),
-                ..session.operation_content().clone()
+                ..document.operation_content().clone()
             },
             |scanline| scanline.cut_direction = ScanlineCutDirection::ZigZag,
         );
-        session.set_operation_content(content.clone());
-        session.set_stock(MachiningStock {
+        document.set_operation_content(content.clone());
+        document.set_stock(MachiningStock {
             margins: StockMargins {
                 top: 2.0,
                 ..StockMargins::default()
             },
             precision: 0.2,
         });
-        session.submit(&scene).unwrap();
+        session.submit(&mut document).unwrap();
         session.run_queued_jobs().unwrap();
 
-        let imported = session.import_latest(&scene).unwrap().conditions;
+        let imported = session.import_latest(&mut document).unwrap().conditions;
         assert_eq!(imported.tool, content.tool);
         assert_eq!(OperationSpec::Scanline(imported.scanline), content.spec);
-        assert_eq!(imported.toolpath_tolerance, session.toolpath_tolerance());
+        assert_eq!(imported.toolpath_tolerance, document.toolpath_tolerance());
         assert_eq!(imported.precision, 0.2);
         // 四角錐（0〜20, 0〜20, 0〜6）を囲む箱の上に 2 を足した素材
         assert_eq!(imported.stock.max().z(), 8.0);
@@ -593,9 +459,8 @@ pub(crate) mod tests {
 
     #[test]
     fn conditions_with_errors_are_reported_by_field_and_not_submitted() {
-        let scene = scene_with_pyramid();
-        let mut session = coarse_session();
-        session.set_stock(MachiningStock {
+        let (mut session, mut document) = coarse_session();
+        document.set_stock(MachiningStock {
             margins: StockMargins {
                 bottom: -1.0,
                 ..StockMargins::default()
@@ -603,11 +468,11 @@ pub(crate) mod tests {
             precision: 0.0005,
         });
         // ピックフィードが工具径 6 mm を超える
-        let content = with_scanline(session.operation_content().clone(), |scanline| {
+        let content = with_scanline(document.operation_content().clone(), |scanline| {
             scanline.stepover = 7.0
         });
-        session.set_operation_content(content);
-        let issues = session.check(&scene);
+        document.set_operation_content(content);
+        let issues = session.check(&mut document);
         assert_eq!(
             issues,
             vec![
@@ -617,25 +482,27 @@ pub(crate) mod tests {
                 })),
                 ConditionIssue::Condition(CamConditionError::PrecisionFinerThanTolerance {
                     precision: 0.0005,
-                    tolerance: session.toolpath_tolerance()
+                    tolerance: document.toolpath_tolerance()
                 }),
                 ConditionIssue::Condition(CamConditionError::StepoverExceedsToolDiameter {
                     tool_diameter: 6.0,
                 }),
             ]
         );
-        assert!(session.submit(&scene).is_err());
+        assert!(session.submit(&mut document).is_err());
         assert_eq!(session.run_queued_jobs().unwrap(), 0);
     }
 
     #[test]
     fn nothing_is_submitted_without_visible_product_shapes() {
-        let mut session = coarse_session();
+        let mut session = CuttingSimulationSession::in_process();
+        let mut document = SpaceModelDocument::new();
+        coarse(&mut document);
         assert!(matches!(
-            session.check(&ProductShapeScene::default())[..],
+            session.check(&mut document)[..],
             [ConditionIssue::NoProductShape]
         ));
-        let error = session.submit(&ProductShapeScene::default()).unwrap_err();
+        let error = session.submit(&mut document).unwrap_err();
         assert!(matches!(
             error,
             CuttingSimulationSessionError::Workflow(CamSimulationWorkflowError::ProductShape(

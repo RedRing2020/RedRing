@@ -30,7 +30,7 @@ impl AppState {
     pub fn load_debug_inverse_offset_shape(&mut self) {
         let meshes = match self
             .cutting_simulation
-            .inverse_offset_shape_meshes(&self.product_shapes, ANGLE_STEP_DEGREES.to_radians())
+            .inverse_offset_shape_meshes(&mut self.document, ANGLE_STEP_DEGREES.to_radians())
         {
             Ok(meshes) => meshes,
             Err(error) => {
@@ -44,7 +44,7 @@ impl AppState {
             .collect();
         tracing::info!(
             "Inverse offset shape: tool={:?}, step={} deg, triangles {}",
-            self.cutting_simulation.operation_content().tool.tool_type(),
+            self.document.operation_content().tool.tool_type(),
             ANGLE_STEP_DEGREES,
             counts.join(" ")
         );
@@ -77,7 +77,7 @@ impl AppState {
         self.use_main_view_camera();
         self.show_debug_stage(mesh_stage, true);
         // 取り込んだ結果の工具と今の計算条件の工具が違うと、ツールパスの線は逆オフセット形状に乗らない
-        let tool = &self.cutting_simulation.operation_content().tool;
+        let tool = &self.document.operation_content().tool;
         let imported_tool_differs = self.imported_conditions.as_ref().is_some_and(|conditions| {
             conditions.tool.is_ball_end_mill() != tool.is_ball_end_mill()
                 || conditions.tool.radius() != tool.radius()

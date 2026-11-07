@@ -1,11 +1,6 @@
-//! 製品形状のエンティティの描画用の変換と、取り込んだ製品形状の保持
+//! 製品形状のエンティティの描画用の変換
 
-use std::path::Path;
-
-use application::product_shape::{
-    EntityDisplayProperties, FaceSetEntity3DProperties, ProductShapeError, ProductShapeStore,
-    TriangleMesh3DProperties,
-};
+use application::product_shape::{FaceSetEntity3DProperties, TriangleMesh3DProperties};
 
 use crate::mesh_converter::VertexData;
 
@@ -74,55 +69,11 @@ where
     })
 }
 
-/// 取り込んだ製品形状と、その表示
-#[derive(Debug, Default)]
-pub struct ProductShapeScene {
-    store: ProductShapeStore,
-    settings: ProductShapeDisplaySettings,
-}
-
-impl ProductShapeScene {
-    pub fn new(settings: ProductShapeDisplaySettings) -> Self {
-        Self {
-            store: ProductShapeStore::new(),
-            settings,
-        }
-    }
-
-    /// 保持している製品形状
-    pub fn store(&self) -> &ProductShapeStore {
-        &self.store
-    }
-
-    /// STL ファイルを製品形状として取り込む
-    ///
-    /// # Errors
-    ///
-    /// STL の読み込みの失敗。
-    pub fn import_stl(&mut self, path: &Path) -> Result<(), ProductShapeError> {
-        self.store.import_stl(path).map(|_| ())
-    }
-
-    /// 表示中のエンティティの描画用のメッシュ（表示用の三角形を作れないエンティティは除き、警告を出す）
-    pub fn visible_meshes(&self) -> Vec<ProductShapeMesh> {
-        self.store
-            .entities()
-            .iter()
-            .filter(|entity| entity.entity_visible())
-            .filter_map(|entity| {
-                face_set_entity_to_mesh(entity, self.settings.chord_tolerance)
-                    .inspect_err(|error| {
-                        tracing::warn!(entity_id = %entity.id(), "product shape is not displayed: {error}");
-                    })
-                    .ok()
-            })
-            .collect()
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use application::product_shape::ProductFaceGeometry;
+    use application::product_shape::{
+        EntityDisplayProperties, ProductFaceGeometry, ProductShapeStore,
+    };
     use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
     use geo_contracts::{NurbsSurface3DConstructor, TriangleMesh3DConstructor};
 
@@ -193,25 +144,5 @@ mod tests {
                 .iter()
                 .all(|vertex| unit_length(vertex.normal)));
         }
-    }
-
-    #[test]
-    fn imported_stl_is_displayed_until_it_is_hidden() {
-        let path = std::env::temp_dir().join(format!(
-            "redring_product_shape_scene_{}.stl",
-            std::process::id()
-        ));
-        geo_io::stl::save_stl(&pyramid(), &path).unwrap();
-        let mut scene = ProductShapeScene::default();
-        scene.import_stl(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
-
-        let meshes = scene.visible_meshes();
-        assert_eq!(meshes.len(), 1);
-        assert_eq!(meshes[0].indices.len(), 12);
-
-        let entity_id = scene.store.entities()[0].id();
-        scene.store.set_visible(entity_id, false).unwrap();
-        assert!(scene.visible_meshes().is_empty());
     }
 }

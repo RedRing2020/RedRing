@@ -58,11 +58,11 @@ impl AppState {
     ///
     /// 投入できたかを返す。
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
-        match self.cutting_simulation.submit(&self.product_shapes) {
+        match self.cutting_simulation.submit(&mut self.document) {
             Ok(()) => {
                 tracing::info!(
-                    operation = ?self.cutting_simulation.operation_content(),
-                    stock = ?self.cutting_simulation.stock(),
+                    operation = ?self.document.operation_content(),
+                    stock = ?self.document.stock(),
                     "Submitted the cutting simulation to the job manager (import with Shift+L after it finishes)"
                 );
                 self.set_operation_status(OperationStatus::Submitted);
@@ -95,7 +95,7 @@ impl AppState {
     pub(crate) fn import_cutting_simulation(&mut self) {
         tracing::info!("Importing the cutting simulation");
         let started = std::time::Instant::now();
-        match self.cutting_simulation.import_latest(&self.product_shapes) {
+        match self.cutting_simulation.import_latest(&mut self.document) {
             Ok(imported) => {
                 self.set_operation_status(OperationStatus::Imported {
                     job: imported.job_id,
@@ -135,7 +135,7 @@ impl AppState {
         let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation, stock_blocks);
         // 取り込み直しても見ていた向き・拡大を保つ。カメラは STL の読み込みで製品形状に合わせているため、表示中の
         // 製品形状がない場合だけ合わせる
-        if self.product_shapes.store().visible_face_ids().is_empty() {
+        if self.document.shapes().visible_face_ids().is_empty() {
             if let Some(fit) = Self::build_camera_fit(&positions) {
                 self.apply_camera_fit(fit);
             }
@@ -222,7 +222,7 @@ impl AppState {
             .flat_map(|block| block.vertices.iter().map(|vertex| vertex.position))
             .collect();
         let mut items: Vec<(u64, MeshListItem)> = self
-            .product_shapes
+            .document
             .visible_meshes()
             .into_iter()
             .enumerate()
