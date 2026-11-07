@@ -333,5 +333,6 @@ redring（view/app） → stage → render
 - [`TRANSFORM_TRAIT_DESIGN.md`](TRANSFORM_TRAIT_DESIGN.md) - 変換の trait定義
 - [`FIXTURE_SEPARATION_DESIGN.md`](FIXTURE_SEPARATION_DESIGN.md) - Model fixtures の分離方針
 - [`BATCH_COMPUTE_PLATFORM_DESIGN.md`](BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Docker ヘッドレス + Kubernetes）
+- [`SPACE_MODEL_FILE_DESIGN.md`](SPACE_MODEL_FILE_DESIGN.md) - 空間モデル（モデルファイル `.rrm`）の内容・形式・ID の保ち方
 - [`issue-412-artifact-api-naming-archive-note.md`](../archive/issues/issue-412-artifact-api-naming-archive-note.md) - artifact API 命名整理の判断記録
 - [`issue-832-architecture-history-archive-note.md`](../archive/issues/architecture/issue-832-architecture-history-archive-note.md) - 完了した移行計画と、解消した課題の記録
