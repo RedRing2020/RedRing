@@ -310,6 +310,87 @@ fn restarting_keeps_the_jobs_cleans_temporary_files_and_continues_the_numbers() 
 }
 
 #[test]
+fn deleted_jobs_leave_no_files_and_their_numbers_are_not_used_again() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    submit(
+        &store,
+        "a1",
+        &cam_and_sim(),
+        &[("cam.bin", b"c"), ("sim.bin", b"s")],
+    );
+    store.intake(&lock, 0).unwrap();
+
+    store.delete_job(&lock, 2).unwrap();
+    assert!(!store.job_dir(2).exists());
+    assert!(!store.root().join(JOBS_DIR).join("2.tmp").exists());
+    let (jobs, unreadable) = store.load_jobs().unwrap();
+    assert_eq!(
+        jobs.iter().map(|job| job.job_id).collect::<Vec<_>>(),
+        vec![1]
+    );
+    assert!(unreadable.is_empty());
+
+    let request = request_json(vec![job(StoredJobKind::Cam, "cam.bin", vec![])]);
+    submit(&store, "b2", &request, &[("cam.bin", b"c")]);
+    let outcomes = store.intake(&lock, 0).unwrap();
+    assert_eq!(
+        outcomes,
+        vec![IntakeOutcome::Accepted {
+            submission_id: "b2".to_string(),
+            job_ids: vec![3],
+        }]
+    );
+}
+
+#[test]
+fn an_unreadable_last_job_number_postpones_taking_in_new_jobs() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    fs::write(store.root().join("last_job_id"), "not a number").unwrap();
+    let request = request_json(vec![job(StoredJobKind::Cam, "cam.bin", vec![])]);
+    submit(&store, "a1", &request, &[("cam.bin", b"c")]);
+
+    assert!(store.intake(&lock, 0).is_err());
+    assert!(store.load_jobs().unwrap().0.is_empty());
+    fs::write(store.root().join("last_job_id"), "7").unwrap();
+    let outcomes = store.intake(&lock, 0).unwrap();
+    assert_eq!(
+        outcomes,
+        vec![IntakeOutcome::Accepted {
+            submission_id: "a1".to_string(),
+            job_ids: vec![8],
+        }]
+    );
+}
+
+#[test]
+fn removing_job_outputs_keeps_the_record_and_the_input() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    let request = request_json(vec![job(StoredJobKind::Cam, "cam.bin", vec![])]);
+    submit(&store, "a1", &request, &[("cam.bin", b"c")]);
+    store.intake(&lock, 0).unwrap();
+    fs::create_dir_all(store.output_dir(1)).unwrap();
+    fs::write(store.result_file(1, StoredJobKind::Cam), "x").unwrap();
+    fs::create_dir_all(store.logs_dir(1)).unwrap();
+    fs::write(store.log_file(1), "log").unwrap();
+    fs::write(store.progress_file(1), "{}").unwrap();
+
+    store.remove_job_outputs(&lock, 1).unwrap();
+    assert!(!store.output_dir(1).exists());
+    assert!(!store.logs_dir(1).exists());
+    assert!(!store.progress_file(1).exists());
+    assert!(store.input_file(1).is_file());
+    assert_eq!(store.load_jobs().unwrap().0.len(), 1);
+    // 消すものがなくても誤りにしない
+    store.remove_job_outputs(&lock, 1).unwrap();
+}
+
+#[test]
 fn a_submission_taken_in_before_a_crash_is_not_taken_in_twice() {
     let root = TempRoot::new();
     let store = JobStore::open(&root.0).unwrap();

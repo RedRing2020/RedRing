@@ -335,6 +335,173 @@ fn canceling_stops_a_running_job_and_cancels_a_queued_job() {
 }
 
 #[test]
+fn retrying_a_failed_job_queues_it_with_the_jobs_it_failed_and_clears_the_old_files() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().exit_codes.insert("cam", 5);
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(1);
+    service.tick(2);
+    assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Failed);
+    assert!(root.store().log_file(1).is_file());
+
+    // 後のジョブから頼んでも、前のジョブも戻す
+    assert_eq!(service.retry(2, 3).unwrap(), vec![1, 2]);
+    for id in [1, 2] {
+        let job = status_of(&root.store(), id);
+        assert_eq!(job.status, StoredJobStatus::Queued);
+        assert_eq!(job.last_error, None);
+        assert_eq!(job.started_at_ms, None);
+        assert_eq!(job.updated_at_ms, 3);
+    }
+    assert!(!root.store().log_file(1).exists());
+    assert_eq!(status_of(&root.store(), 1).attempts, 1);
+
+    launcher.0.borrow_mut().exit_codes.clear();
+    service.tick(4);
+    service.tick(5);
+    service.tick(6);
+    assert_eq!(status_of(&root.store(), 1).attempts, 2);
+    assert_eq!(
+        status_of(&root.store(), 2).status,
+        StoredJobStatus::Succeeded
+    );
+    // 正常に終わったジョブ・ないジョブは戻さない
+    assert!(service.retry(1, 7).unwrap().is_empty());
+    assert!(service.retry(99, 7).unwrap().is_empty());
+}
+
+#[test]
+fn retrying_a_canceled_job_leaves_other_submissions_alone() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 10;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    submit(
+        &root.store(),
+        "b2",
+        vec![job(StoredJobKind::Cam, "b.bin", vec![], 0)],
+    );
+    service.tick(1);
+    service.cancel(1, 2).unwrap();
+    service.cancel(3, 2).unwrap();
+    service.tick(3);
+    assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Failed);
+
+    assert_eq!(service.retry(1, 4).unwrap(), vec![1, 2]);
+    assert_eq!(
+        status_of(&root.store(), 3).status,
+        StoredJobStatus::Canceled
+    );
+}
+
+#[test]
+fn retrying_also_queues_the_other_jobs_that_failed_with_the_same_earlier_job() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().exit_codes.insert("cam", 5);
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    let mut jobs = cam_and_sim();
+    jobs.push(job(
+        StoredJobKind::Sim,
+        "sim2.bin",
+        vec![DependencyRef::Submitted(0)],
+        0,
+    ));
+    submit(&root.store(), "a1", jobs);
+    service.tick(1);
+    service.tick(2);
+    assert_eq!(status_of(&root.store(), 3).status, StoredJobStatus::Failed);
+
+    assert_eq!(service.retry(2, 3).unwrap(), vec![1, 2, 3]);
+}
+
+#[test]
+fn lowering_a_waiting_job_also_lowers_the_jobs_waiting_for_it() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 1;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(
+        &root.store(),
+        "a1",
+        vec![job(StoredJobKind::Cam, "a.bin", vec![], 0)],
+    );
+    submit(&root.store(), "b2", cam_and_sim());
+    submit(
+        &root.store(),
+        "c3",
+        vec![job(StoredJobKind::Cam, "c.bin", vec![], 0)],
+    );
+    service.tick(1);
+    assert_eq!(status_of(&root.store(), 1).status, StoredJobStatus::Running);
+
+    assert!(service.change_priority(2, -1, 2).unwrap());
+    assert_eq!(status_of(&root.store(), 2).priority, -1);
+    assert_eq!(status_of(&root.store(), 3).priority, -1);
+    assert_eq!(status_of(&root.store(), 4).priority, 0);
+
+    service.tick(3);
+    service.tick(4);
+    assert_eq!(status_of(&root.store(), 4).status, StoredJobStatus::Running);
+}
+
+#[test]
+fn only_finished_jobs_are_deleted() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 10;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(1);
+
+    assert!(!service.delete(1).unwrap());
+    assert!(!service.delete(2).unwrap());
+    service.cancel(1, 2).unwrap();
+    assert!(service.delete(1).unwrap());
+    assert!(!root.store().job_dir(1).exists());
+    assert!(!service.delete(1).unwrap());
+    // 消したジョブを待つジョブは、計算できずに失敗になる
+    let events = service.tick(3);
+    assert!(events.contains(&ManagerEvent::Blocked {
+        job_id: 2,
+        reason: "dependency job 1 is not found".to_string(),
+    }));
+}
+
+#[test]
+fn raising_the_priority_of_a_waiting_job_runs_it_first() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 1;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    for (id, input) in [("a1", "a.bin"), ("b2", "b.bin"), ("c3", "c.bin")] {
+        submit(
+            &root.store(),
+            id,
+            vec![job(StoredJobKind::Cam, input, vec![], 0)],
+        );
+    }
+    service.tick(1);
+    assert_eq!(status_of(&root.store(), 1).status, StoredJobStatus::Running);
+
+    assert!(service.change_priority(3, 1, 2).unwrap());
+    assert_eq!(status_of(&root.store(), 3).priority, 1);
+    assert!(service.change_priority(2, -1, 2).unwrap());
+    assert_eq!(status_of(&root.store(), 2).priority, -1);
+    // 計算中のジョブ・ないジョブは変えない
+    assert!(!service.change_priority(1, 1, 2).unwrap());
+    assert!(!service.change_priority(99, 1, 2).unwrap());
+
+    service.tick(3);
+    service.tick(4);
+    assert_eq!(status_of(&root.store(), 3).status, StoredJobStatus::Running);
+    assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Queued);
+}
+
+#[test]
 fn a_runner_that_cannot_start_fails_the_job() {
     let root = TempRoot::new();
     let launcher = FakeLauncher::default();

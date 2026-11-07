@@ -55,6 +55,11 @@ Toolpath generation and the cutting simulation are calculated by the job manager
 
 - The app starts the job manager the first time you press "Submit" (without a window). The app screen does not stop during calculations
 - Starting `redring-job-manager.exe` opens the job list window, where you can check job states, failure reasons, and logs (for now, the window cannot be opened while a job manager is already running; end the running job manager first)
+- Select a job in the list and use the buttons at the top of the window. Only the buttons that apply to the job's state can be pressed
+  - "Cancel": cancels a waiting job. For a calculating job, stops the calculation
+  - "Retry": puts a failed or canceled job back to waiting. The toolpath generation and the cutting simulation that uses its result are put back together when they ended failed or canceled
+  - "Delete": deletes a finished job. When later jobs use its result, you are asked to confirm (after deleting a toolpath generation, the cutting simulation that uses its result can be neither calculated nor imported)
+  - "▲ Raise" / "▼ Lower": changes the priority of a waiting job (changing a toolpath generation also changes the cutting simulation that uses its result). Jobs with a higher priority are calculated first
 - The job manager keeps calculating after you close the app, and also after you close the job manager window. To stop it, end `redring-job-manager` in Task Manager (quitting from the system tray will be added in a later version)
 - Job records and results are kept in `%LOCALAPPDATA%\RedRing\jobs` on Windows. The job manager log is `manager.log` there
 

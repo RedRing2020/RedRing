@@ -8,7 +8,7 @@ mod tests;
 
 mod launcher;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
 use job_runtime::RefFactory;
@@ -171,6 +171,99 @@ impl<L: Launcher> JobManagerService<L> {
         Ok(true)
     }
 
+    /// 失敗・取り消しで終わったジョブを、計算待ちに戻す。戻したジョブの番号（小さい順。戻せなければ空）
+    ///
+    /// そのジョブと依存関係でつながる、失敗・取り消しで終わったジョブもあわせて戻す（前のジョブが終わったままでは
+    /// 計算できず、後のジョブは前のジョブの失敗で失敗になっているため）。戻したジョブの前の計算の成果物・ログは
+    /// 消す。計算した回数は数え続ける。
+    pub fn retry(&mut self, job_id: u64, now_ms: u64) -> Result<Vec<u64>, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
+        let retryable = |id: &u64| {
+            by_id.get(id).is_some_and(|job| {
+                matches!(
+                    job.status,
+                    StoredJobStatus::Failed | StoredJobStatus::Canceled
+                )
+            })
+        };
+        if !retryable(&job_id) {
+            return Ok(Vec::new());
+        }
+        let targets = connected_jobs(&jobs, job_id, retryable);
+        // 前の計算のファイルを先にすべて消す（消せないファイルがあれば、記録を変えずに誤りにする）
+        for &id in &targets {
+            self.store.remove_job_outputs(&self.lock, id)?;
+        }
+        // 前のジョブ（番号の小さいジョブ）から戻す
+        for &id in &targets {
+            let mut job = by_id[&id].clone();
+            job.status = StoredJobStatus::Queued;
+            job.started_at_ms = None;
+            job.result_ref = None;
+            job.log_ref = None;
+            job.last_error = None;
+            job.updated_at_ms = now_ms;
+            self.store.write_job(&self.lock, &job)?;
+        }
+        Ok(targets.into_iter().collect())
+    }
+
+    /// 終わったジョブのフォルダを消す。消したら `true`（終わっていないジョブ・ないジョブは `false`）
+    ///
+    /// 後のジョブがこのジョブの成果物を使うかは、頼む側で確かめる（計算待ちの後のジョブは、次の回に失敗になる）。
+    pub fn delete(&mut self, job_id: u64) -> Result<bool, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        if !jobs
+            .iter()
+            .any(|job| job.job_id == job_id && job.status.is_terminal())
+        {
+            return Ok(false);
+        }
+        self.store.delete_job(&self.lock, job_id)?;
+        Ok(true)
+    }
+
+    /// 計算待ちのジョブの優先順位を `delta` だけ変える。変えたら `true`（計算待ちでないジョブは `false`）
+    ///
+    /// そのジョブを待つ、計算待ちの後のジョブも同じだけ変える（待っているジョブの優先順位は、実行の順を決めるときに
+    /// 前のジョブへ伝わるため、前のジョブだけを下げても順が変わらない。5.5）。
+    pub fn change_priority(
+        &mut self,
+        job_id: u64,
+        delta: i32,
+        now_ms: u64,
+    ) -> Result<bool, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        let queued = |id: &u64| {
+            jobs.iter()
+                .any(|job| job.job_id == *id && job.status == StoredJobStatus::Queued)
+        };
+        if !queued(&job_id) {
+            return Ok(false);
+        }
+        let mut targets = BTreeSet::from([job_id]);
+        let mut pending = vec![job_id];
+        while let Some(id) = pending.pop() {
+            for job in &jobs {
+                if job.depends_on.contains(&id) && queued(&job.job_id) && targets.insert(job.job_id)
+                {
+                    pending.push(job.job_id);
+                }
+            }
+        }
+        for mut job in jobs
+            .iter()
+            .filter(|job| targets.contains(&job.job_id))
+            .cloned()
+        {
+            job.priority = job.priority.saturating_add(delta);
+            job.updated_at_ms = now_ms;
+            self.store.write_job(&self.lock, &job)?;
+        }
+        Ok(true)
+    }
+
     fn collect_finished(
         &mut self,
         jobs: &mut [StoredJob],
@@ -286,6 +379,29 @@ impl<L: Launcher> JobManagerService<L> {
             progress: self.store.progress_file(job.job_id),
         }
     }
+}
+
+/// ジョブ `start` と、依存関係（前のジョブ・後のジョブのどちら向きも）でつながる、`member` を満たすジョブ（小さい順）
+fn connected_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> BTreeSet<u64> {
+    let mut found = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(id) = pending.pop() {
+        let neighbors = jobs.iter().filter_map(|job| {
+            if job.job_id == id {
+                Some(job.depends_on.clone())
+            } else if job.depends_on.contains(&id) {
+                Some(vec![job.job_id])
+            } else {
+                None
+            }
+        });
+        for neighbor in neighbors.flatten() {
+            if member(&neighbor) && found.insert(neighbor) {
+                pending.push(neighbor);
+            }
+        }
+    }
+    found
 }
 
 fn domain(kind: StoredJobKind) -> &'static str {

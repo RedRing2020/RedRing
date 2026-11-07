@@ -6,7 +6,8 @@
 //!
 //! 保存先を指定しなければ既定の保存先を使う。ランナーは、この実行ファイルと同じフォルダの `redring-batch-runner`
 //! だけを起動する（作業のフォルダや PATH から探さない）。ジョブの管理（投入の取り込み・ランナーの起動）は別の
-//! スレッドで一定の間隔で行い、ウィンドウにジョブの一覧を出す。ウィンドウを閉じても、ジョブの管理は続ける。
+//! スレッドで一定の間隔で行い、ウィンドウにジョブの一覧を出し、ジョブの操作（取り消し・やり直し・削除・優先順位）を
+//! サービスに渡す。ウィンドウを閉じても、ジョブの管理は続ける。
 //! `--background` のときはウィンドウを出さずに、ジョブの管理だけを行う（CAD/CAM のアプリから起動したとき）。
 //! ウィンドウを出すときの起動の誤りは、知らせの画面に出す（リリースのビルドはコンソールを持たないため）。
 
@@ -64,12 +65,15 @@ fn main() -> ExitCode {
         Ok(store) => store,
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
     };
-    let service = match service::start_service(store.clone(), runner) {
-        Ok(service) => service,
+    let (service, channel) = match service::start_service(store.clone(), runner) {
+        Ok(started) => started,
         Err(StoreError::AlreadyLocked) => return fail("startup.already_running", &[], 1),
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
     };
-    if !background {
+    if background {
+        // 画面がないため、操作を渡す口を閉じる
+        drop(channel);
+    } else {
         let options = eframe::NativeOptions {
             viewport: eframe::egui::ViewportBuilder::default()
                 .with_title(messages::text(locale, "window.title", &[]))
@@ -81,7 +85,9 @@ fn main() -> ExitCode {
             options,
             Box::new(move |creation| {
                 fonts::install_cjk_font(&creation.egui_ctx);
-                Ok(Box::new(window::JobManagerWindow::new(store, locale)))
+                Ok(Box::new(window::JobManagerWindow::new(
+                    store, channel, locale,
+                )))
             }),
         );
         if let Err(error) = shown {
