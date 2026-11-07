@@ -3,7 +3,7 @@ use crate::app_settings::AppSettings;
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::help_ui::Notice;
-use crate::machining_conditions_ui::OperationStatus;
+use crate::machining_conditions_ui::{JobStatusLine, OperationStatus};
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
@@ -170,8 +170,9 @@ pub struct AppState {
     /// 取り込んだ切削シミュレーションの計算に使った条件
     imported_conditions: Option<ImportedConditions>,
 
-    /// 加工条件のウィンドウの「投入」で、投入した後に続けて実行するか
-    run_after_submit: bool,
+    /// 加工工程の今の改訂の計算の状態と、読んだ時刻（ジョブの保存先は一定の間隔で読む）
+    cutting_simulation_job_status: JobStatusLine,
+    job_status_read_at: Option<std::time::Instant>,
 
     /// メニューバーの「ファイル」→「読み込み…」が選ばれ、まだファイルを開く画面を開いていない
     shape_file_load_requested: bool,
@@ -261,7 +262,8 @@ impl AppState {
             machining_conditions_open: false,
             condition_issues: None,
             imported_conditions: None,
-            run_after_submit: true,
+            cutting_simulation_job_status: JobStatusLine::NotSubmitted,
+            job_status_read_at: None,
             shape_file_load_requested: false,
             cutting_simulation_status: None,
             toolpath_lines_visible: true,

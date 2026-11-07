@@ -216,7 +216,9 @@ cargo build --release
 
 ```bash
 # Requires GUI environment (X11/Wayland/Windows/macOS)
-cargo run
+# Build all binaries first: the app starts the job manager and the runner from its own folder
+cargo build
+cargo run -p redring
 
 # Run tests
 cargo test --workspace

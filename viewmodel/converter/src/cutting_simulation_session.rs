@@ -3,12 +3,14 @@
 //! 加工手順 1 つと加工工程 1 つを Application の保管先に持ち、投入・取り込みはその工程から行う。条件の写しは持たず、
 //! 加工工程の中身（工具・走査線の条件）と加工手順の素材（素材の余裕・精度）を保管先から読み、書き戻す。
 //! 加工の対象は、確かめ・投入・取り込みのときに表示中の製品形状のすべての面にする。
-//! 実行の入口は、ジョブマネージャーができるまでの同じプロセスの中の実行とする。
+//! 計算はアプリの外のジョブマネージャーが行い、セッションは投入・状態の読み取り・取り込みだけを行う。
 
 use application::cam_simulation_workflow::{
     Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError,
 };
-pub use application::cam_simulation_workflow::{CamConditionError, CamConditionField};
+pub use application::cam_simulation_workflow::{
+    CamConditionError, CamConditionField, OperationJobStatus,
+};
 pub use application::machining_sequence::{
     flat_surface_cusp_height, MachiningOperationContent, MachiningStock, OperationSpec,
     ScanlineCutDirection, ScanlineToolRange, StockMargins,
@@ -315,11 +317,30 @@ impl CuttingSimulationSession {
         Ok(())
     }
 
-    /// キューにあるジョブを実行し、実行したジョブの数を返す（ジョブマネージャーの実行の入口）
+    /// 表示中の製品形状のすべての面を加工の対象として、加工工程の今の改訂（今の計算条件と加工の対象）で最後に
+    /// 投入した計算の状態（今の改訂で投入していなければ `None`）
     ///
     /// # Errors
     ///
-    /// ジョブの状態の更新の失敗。
+    /// ジョブの状態を読めない場合。
+    pub fn job_status(
+        &mut self,
+        shapes: &ProductShapeScene,
+    ) -> Result<Option<OperationJobStatus>, CuttingSimulationSessionError> {
+        self.target_visible_faces(shapes);
+        Ok(self.workflow.latest_revision_job_status(
+            &self.sequences,
+            self.sequence,
+            self.operation,
+        )?)
+    }
+
+    /// 待ちのジョブがあるときに、ジョブマネージャーが止まっていれば起動し直す（同じプロセスの中で実行する試験では、
+    /// 待ちのジョブを実行する）。実行したジョブの数を返す
+    ///
+    /// # Errors
+    ///
+    /// ジョブマネージャーがない・起動できない場合。
     pub fn run_queued_jobs(&mut self) -> Result<usize, CuttingSimulationSessionError> {
         Ok(self.workflow.run_queued_jobs()?)
     }

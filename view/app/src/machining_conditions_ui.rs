@@ -8,8 +8,8 @@ use crate::settings_panel_renderer::window_body_max_height;
 use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, ScrollArea, Window};
 use viewmodel::cutting_simulation_session::{
     flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
-    CuttingToolKind, ImportedConditions, MachiningOperationContent, MachiningStock, OperationSpec,
-    ScanlineCutDirection, ScanlineToolRange, StockMargins,
+    CuttingToolKind, ImportedConditions, MachiningOperationContent, MachiningStock,
+    OperationJobStatus, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins,
 };
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
@@ -46,13 +46,6 @@ pub(crate) enum OperationStatus {
     Submitted,
     /// 投入できない（画面に出す理由）
     SubmitFailed(UiMessage),
-    /// 実行したジョブの数と、かかった秒数
-    Ran {
-        executed: usize,
-        seconds: f64,
-    },
-    /// 実行できない（画面に出す理由）
-    RunFailed(UiMessage),
     /// 取り込んだ切削シミュレーションのジョブの番号
     Imported {
         job: u64,
@@ -80,14 +73,6 @@ fn operation_status_message(
         OperationStatus::SubmitFailed(message) => {
             ("conditions.status.submit_failed", reason(message))
         }
-        OperationStatus::Ran { executed, seconds } => (
-            "conditions.status.ran",
-            vec![
-                ("executed", executed.to_string()),
-                ("seconds", format!("{seconds:.1}")),
-            ],
-        ),
-        OperationStatus::RunFailed(message) => ("conditions.status.run_failed", reason(message)),
         OperationStatus::Imported { job } => {
             ("conditions.status.imported", vec![("job", job.to_string())])
         }
@@ -116,12 +101,57 @@ pub struct MachiningConditionsUiState {
     pub issues: Vec<ConditionIssue>,
     /// 表示中の結果のジョブの番号と、計算に使った条件
     pub imported: Option<(u64, ImportedConditions)>,
-    /// 「投入」で、投入した後に続けて実行するか
-    pub run_after_submit: bool,
+    /// 加工工程の今の改訂の計算の状態
+    pub(crate) job_status: JobStatusLine,
     /// 最後の操作の結果
     pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
     pub import_requested: bool,
+}
+
+/// 加工条件のウィンドウに出す、今の条件の計算の状態
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum JobStatusLine {
+    /// 今の条件で投入していない
+    NotSubmitted,
+    Status(OperationJobStatus),
+    /// ジョブの保存先を読めない
+    Unreadable,
+}
+
+impl JobStatusLine {
+    /// 投入し直すか条件を変えるまで変わらない状態か
+    pub(crate) fn is_final(&self) -> bool {
+        matches!(
+            self,
+            Self::Status(
+                OperationJobStatus::Succeeded
+                    | OperationJobStatus::Failed
+                    | OperationJobStatus::Canceled
+            )
+        )
+    }
+
+    /// 計算を待っている・計算している
+    pub(crate) fn is_pending(&self) -> bool {
+        matches!(
+            self,
+            Self::Status(OperationJobStatus::Queued | OperationJobStatus::Running)
+        )
+    }
+}
+
+/// 計算の状態 `status` の文言のキー
+fn job_status_key(status: &JobStatusLine) -> &'static str {
+    match status {
+        JobStatusLine::NotSubmitted => "conditions.job.none",
+        JobStatusLine::Unreadable => "conditions.job.unreadable",
+        JobStatusLine::Status(OperationJobStatus::Queued) => "conditions.job.queued",
+        JobStatusLine::Status(OperationJobStatus::Running) => "conditions.job.running",
+        JobStatusLine::Status(OperationJobStatus::Succeeded) => "conditions.job.succeeded",
+        JobStatusLine::Status(OperationJobStatus::Failed) => "conditions.job.failed",
+        JobStatusLine::Status(OperationJobStatus::Canceled) => "conditions.job.canceled",
+    }
 }
 
 /// 送り方 `direction` の文言のキー
@@ -232,8 +262,6 @@ impl MachiningConditionsUiState {
                         self.show_machining(ui);
                         self.show_stock(ui);
                         ui.separator();
-                        let run_after_submit_label = self.text("conditions.run_after_submit");
-                        ui.checkbox(&mut self.run_after_submit, run_after_submit_label);
                         ui.horizontal(|ui| {
                             let submit = ui.add_enabled(
                                 self.issues.is_empty(),
@@ -250,6 +278,7 @@ impl MachiningConditionsUiState {
                         if let Some(status) = &self.status {
                             ui.label(operation_status_text(self.locale, status));
                         }
+                        ui.label(self.text(job_status_key(&self.job_status)));
                         ui.separator();
                         self.show_imported(ui);
                     });
@@ -522,8 +551,8 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        condition_error_message, condition_field, operation_status_text, ConditionField,
-        OperationStatus,
+        condition_error_message, condition_field, job_status_key, operation_status_text,
+        ConditionField, JobStatusLine, OperationJobStatus, OperationStatus,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -554,11 +583,6 @@ mod tests {
         for status in [
             OperationStatus::Submitted,
             OperationStatus::SubmitFailed(failure("failure.orchestration")),
-            OperationStatus::Ran {
-                executed: 2,
-                seconds: 1.25,
-            },
-            OperationStatus::RunFailed(failure("failure.orchestration")),
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
             OperationStatus::ImportFailed(failure("failure.animation.replay")),
@@ -571,14 +595,25 @@ mod tests {
                 );
             }
         }
-        let ran = OperationStatus::Ran {
-            executed: 2,
-            seconds: 1.25,
-        };
-        assert_eq!(
-            operation_status_text(UiLocale::Ja, &ran),
-            "実行しました（2 件・1.2 秒）。「取り込み」で結果を表示します"
-        );
+    }
+
+    #[test]
+    fn every_job_status_has_a_message() {
+        let statuses = [
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Status(OperationJobStatus::Queued),
+            JobStatusLine::Status(OperationJobStatus::Running),
+            JobStatusLine::Status(OperationJobStatus::Succeeded),
+            JobStatusLine::Status(OperationJobStatus::Failed),
+            JobStatusLine::Status(OperationJobStatus::Canceled),
+        ];
+        for status in statuses {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text = resolve_machining_conditions_text(locale, job_status_key(&status), &[]);
+                assert!(!text.contains("__missing__"), "{status:?}: {text}");
+            }
+        }
     }
 
     /// 計算条件の誤りの種類を 1 つずつ

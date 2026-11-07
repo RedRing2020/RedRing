@@ -597,3 +597,34 @@ fn written_submissions_are_taken_in() {
         }]
     );
 }
+
+#[test]
+fn pending_and_rejected_submissions_are_listed() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    submit(&store, "bad", "{ broken", &[]);
+    store.intake(&lock, 0).unwrap();
+    submit(
+        &store,
+        "waiting",
+        &cam_and_sim(),
+        &[("cam.bin", b"c"), ("sim.bin", b"s")],
+    );
+    fs::create_dir_all(store.root().join(INBOX_DIR).join("writing.tmp")).unwrap();
+
+    let submissions = store.inbox_submissions().unwrap();
+    assert_eq!(submissions.len(), 2);
+    assert_eq!(submissions[0].submission_id, "bad");
+    assert!(submissions[0].request.is_none());
+    assert!(
+        submissions[0]
+            .rejected
+            .as_deref()
+            .unwrap()
+            .contains("invalid request")
+    );
+    assert_eq!(submissions[1].submission_id, "waiting");
+    assert_eq!(submissions[1].request.as_ref().unwrap().jobs.len(), 2);
+    assert!(submissions[1].rejected.is_none());
+}

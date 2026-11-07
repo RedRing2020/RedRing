@@ -40,12 +40,22 @@ gh attestation verify .\redring-v0.1.3-windows-x86_64.zip --repo RedRing2020/Red
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 git checkout v0.1.3
-cargo run --release
+cargo build --release
+cargo run --release -p redring
 ```
 
+- `cargo build --release` で、アプリと一緒にジョブマネージャー（`redring-job-manager`）とランナー（`redring-batch-runner`）をビルドします。この 2 つがないと、ツールパス生成と切削シミュレーションを投入できません（形状の読み込み・表示はできます）。`cargo run` は、アプリ（`-p redring`）を指定して起動します
 - `--release` を付けると、ツールパス生成と切削シミュレーションが速くなります（付けないと、計算に何倍も時間がかかります）
 - 最初のビルドは、依存のクレートを取ってくるため数分かかります
 - 起動すると、メニューバーのあるウィンドウが開きます。続けて [画面と操作](./screen_and_controls.md) と [切削シミュレーション](./cutting_simulation_demo.md) を参照してください
+
+## ジョブマネージャー
+
+ツールパス生成と切削シミュレーションの計算は、アプリとは別のジョブマネージャー（`redring-job-manager`）が行います。配布物の zip には、アプリ（`redring.exe`）・ジョブマネージャー・ランナー（`redring-batch-runner.exe`）が入っています。3 つは同じフォルダに置いたまま使ってください。
+
+- ジョブマネージャーは、最初に「投入」したときにアプリが起動します（画面はありません）。計算の間もアプリの画面は止まりません
+- アプリを閉じても、ジョブマネージャーは計算を続けます。止めるときは、タスク マネージャーで `redring-job-manager` を終了します（ジョブマネージャーの画面は後の版で足します）
+- ジョブの記録と結果は、Windows では `%LOCALAPPDATA%\RedRing\jobs` に置きます。ジョブマネージャーのログは、そこの `manager.log` です
 
 ## 用意するデータ
 

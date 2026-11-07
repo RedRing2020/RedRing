@@ -63,7 +63,7 @@ impl AppState {
                 tracing::info!(
                     operation = ?self.cutting_simulation.operation_content(),
                     stock = ?self.cutting_simulation.stock(),
-                    "Submitted the cutting simulation (run with Shift+R, import with Shift+L)"
+                    "Submitted the cutting simulation to the job manager (import with Shift+L after it finishes)"
                 );
                 self.set_operation_status(OperationStatus::Submitted);
                 true
@@ -74,25 +74,6 @@ impl AppState {
                     cutting_simulation_failure_message(&error),
                 ));
                 false
-            }
-        }
-    }
-
-    /// キューにあるジョブを実行する（ジョブマネージャーの代わり。終わるまで戻らない）
-    pub(crate) fn run_cutting_simulation_jobs(&mut self) {
-        tracing::info!("Running the queued jobs");
-        let started = std::time::Instant::now();
-        match self.cutting_simulation.run_queued_jobs() {
-            Ok(executed) => {
-                let seconds = started.elapsed().as_secs_f64();
-                tracing::info!(executed, "Finished running the jobs ({seconds:.1} s)");
-                self.set_operation_status(OperationStatus::Ran { executed, seconds });
-            }
-            Err(error) => {
-                tracing::warn!("Cannot run the jobs: {error}");
-                self.set_operation_status(OperationStatus::RunFailed(
-                    cutting_simulation_failure_message(&error),
-                ));
             }
         }
     }

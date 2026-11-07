@@ -38,9 +38,6 @@ impl AppState {
                 "M" => {
                     self.toggle_machining_conditions();
                 }
-                "R" => {
-                    self.run_cutting_simulation_jobs();
-                }
                 "L" => {
                     self.import_cutting_simulation();
                 }

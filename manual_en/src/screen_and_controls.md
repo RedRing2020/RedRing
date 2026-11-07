@@ -45,7 +45,6 @@ The same as the "Controls" window opened with the `F1` or `h` key.
 | | `f` | Front view |
 | | `e` | Emergency escape (bring back a camera inside a shape) |
 | Cutting simulation | `Shift+M` | Show or hide the Machining Conditions window (submit with "Submit") |
-| | `Shift+R` | Run the queued jobs |
 | | `Shift+L` | Import the latest cutting simulation calculated with the current conditions |
 | | `k` / `j` | Step forward / back by the frame step distance |
 | | `.` / `,` | Move the tool to the next / previous segment endpoint |
