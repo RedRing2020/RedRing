@@ -188,6 +188,13 @@ pub struct CuttingSimulationSession {
 impl Default for CuttingSimulationSession {
     /// 加工工程を 1 つ持つ加工手順で始める（加工の対象は、確かめ・投入・取り込みのときに決める）
     fn default() -> Self {
+        Self::with_workflow(CamSimulationWorkflow::new())
+    }
+}
+
+impl CuttingSimulationSession {
+    /// 加工工程を 1 つ持つ加工手順と、ワークフロー `workflow` で始める
+    fn with_workflow(workflow: CamSimulationWorkflow) -> Self {
         let mut sequences = MachiningSequenceStore::new();
         let sequence =
             sequences.create_sequence(SEQUENCE_NAME.to_string(), Vec::new(), initial_stock());
@@ -195,7 +202,7 @@ impl Default for CuttingSimulationSession {
             .add_operation(sequence, initial_operation_content())
             .expect("the sequence was just created");
         Self {
-            workflow: CamSimulationWorkflow::new(),
+            workflow,
             sequences,
             sequence,
             operation,
@@ -204,6 +211,12 @@ impl Default for CuttingSimulationSession {
 }
 
 impl CuttingSimulationSession {
+    /// 同じプロセスの中でジョブを実行するセッション（試験用）
+    #[cfg(test)]
+    fn in_process() -> Self {
+        Self::with_workflow(CamSimulationWorkflow::in_process())
+    }
+
     /// 加工工程の中身（工具・走査線の条件）
     pub fn operation_content(&self) -> &MachiningOperationContent {
         self.sequences
@@ -325,7 +338,6 @@ impl CuttingSimulationSession {
         let latest = self
             .workflow
             .latest_revision_simulation(&self.sequences, self.sequence, self.operation)?
-            .map(|job| job.id)
             .ok_or(CuttingSimulationSessionError::NoSucceededSimulation)?;
         let result = self.workflow.import(latest)?;
         let OperationSpec::Scanline(scanline) = result.solver_input.operation;
@@ -372,7 +384,7 @@ pub(crate) mod tests {
     /// 粗い条件（直径 6 mm・工具長 30 mm のボールエンドミル、ピックフィード 6 mm。テストを速くする）の加工工程を
     /// 持つセッション
     fn coarse_session() -> CuttingSimulationSession {
-        let mut session = CuttingSimulationSession::default();
+        let mut session = CuttingSimulationSession::in_process();
         let content = MachiningOperationContent {
             tool: CuttingToolKind::BallEndMill.tool(6.0, Some(30.0)),
             ..session.operation_content().clone()
@@ -441,7 +453,7 @@ pub(crate) mod tests {
 
     #[test]
     fn the_edited_content_and_stock_are_held_by_the_machining_operation() {
-        let mut session = CuttingSimulationSession::default();
+        let mut session = CuttingSimulationSession::in_process();
         let content = with_scanline(session.operation_content().clone(), |scanline| {
             scanline.cut_direction = ScanlineCutDirection::ZigZag
         });

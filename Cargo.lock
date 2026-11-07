@@ -136,7 +136,9 @@ dependencies = [
  "geo_primitives",
  "geo_topology",
  "job_domain",
+ "job_manager",
  "job_runtime",
+ "serde_json",
  "tracing",
 ]
 

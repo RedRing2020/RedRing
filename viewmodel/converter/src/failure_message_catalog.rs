@@ -30,6 +30,14 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("failure.orchestration", "ジョブを投入・実行できません"),
     (
+        "failure.job_manager_not_found",
+        "ジョブマネージャーがインストールされていないため、計算を投入できません",
+    ),
+    (
+        "failure.job_store",
+        "ジョブの保存先を使えないか、ジョブマネージャーを起動できません",
+    ),
+    (
         "failure.inverse_offset_shape",
         "逆オフセット形状を作れません",
     ),
@@ -97,6 +105,14 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
         "Some calculation conditions are invalid; see the messages under each field",
     ),
     ("failure.orchestration", "Cannot submit or run the job"),
+    (
+        "failure.job_manager_not_found",
+        "Cannot submit the calculation because the job manager is not installed",
+    ),
+    (
+        "failure.job_store",
+        "Cannot use the job store or start the job manager",
+    ),
     (
         "failure.inverse_offset_shape",
         "Cannot build the inverse offset shape",

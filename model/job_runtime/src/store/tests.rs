@@ -557,3 +557,43 @@ fn jobs_waiting_for_unreadable_records_wait() {
     assert!(plan.blocked.is_empty());
     assert_eq!(plan.next, Some(3));
 }
+
+#[test]
+fn written_submissions_are_taken_in() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let request = SubmissionRequest {
+        format_version: STORE_FORMAT_VERSION,
+        jobs: vec![
+            job(StoredJobKind::Cam, "cam.bin", vec![]),
+            job(
+                StoredJobKind::Sim,
+                "sim.bin",
+                vec![DependencyRef::Submitted(0)],
+            ),
+        ],
+    };
+    assert!(!store.is_locked().unwrap());
+    store
+        .write_submission("a1", &request, &[("cam.bin", b"c"), ("sim.bin", b"s")])
+        .unwrap();
+    for bad in ["../x", "a.b", ""] {
+        assert!(store.write_submission(bad, &request, &[]).is_err());
+    }
+    assert!(
+        store
+            .write_submission("b2", &request, &[("../cam.bin", b"c")])
+            .is_err()
+    );
+
+    let lock = store.lock().unwrap();
+    assert!(store.is_locked().unwrap());
+    let outcomes = store.intake(&lock, 0).unwrap();
+    assert_eq!(
+        outcomes,
+        vec![IntakeOutcome::Accepted {
+            submission_id: "a1".to_string(),
+            job_ids: vec![1, 2],
+        }]
+    );
+}

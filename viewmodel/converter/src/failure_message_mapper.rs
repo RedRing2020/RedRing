@@ -63,6 +63,8 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
         CamSimulationWorkflowError::InverseOffsetDisplay(_) => {
             message("failure.inverse_offset_display")
         }
+        CamSimulationWorkflowError::JobManagerNotFound => message("failure.job_manager_not_found"),
+        CamSimulationWorkflowError::JobStore(_) => message("failure.job_store"),
     }
 }
 
@@ -120,6 +122,8 @@ mod tests {
             CamSimulationWorkflowError::EmptyProductShape,
             CamSimulationWorkflowError::Conditions(Vec::new()),
             CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces),
+            CamSimulationWorkflowError::JobManagerNotFound,
+            CamSimulationWorkflowError::JobStore("reason".to_string()),
         ];
         for error in &errors {
             assert_resolved(&workflow_failure_message(error));

@@ -208,6 +208,54 @@ impl JobStore {
         Ok(())
     }
 
+    /// ジョブマネージャーが保存先を開いているか（`manager.lock` を排他に開けなければ開いている）
+    pub fn is_locked(&self) -> Result<bool, StoreError> {
+        match self.lock() {
+            Ok(_) => Ok(false),
+            Err(StoreError::AlreadyLocked) => Ok(true),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// 投入を受付のフォルダに置く（`inbox/<投入の ID>.tmp/` に要求と入力を書いてから、名前を変える）
+    ///
+    /// 投入の ID・入力のファイルの名前は、ASCII の英数字・`-`・`_` だけとする（投入の ID は `.` を含まない）。
+    pub fn write_submission(
+        &self,
+        submission_id: &str,
+        request: &SubmissionRequest,
+        inputs: &[(&str, &[u8])],
+    ) -> Result<(), StoreError> {
+        let invalid = |what: &str| {
+            StoreError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                what.to_string(),
+            ))
+        };
+        if !is_plain_name(submission_id, MAX_NAME_LEN) || submission_id.contains('.') {
+            return Err(invalid("invalid submission id"));
+        }
+        if inputs
+            .iter()
+            .any(|(name, _)| !is_plain_name(name, MAX_NAME_LEN) || *name == REQUEST_FILE)
+        {
+            return Err(invalid("invalid input file name"));
+        }
+        let inbox = self.root.join(INBOX_DIR);
+        let temporary = files::temporary_path(&inbox.join(submission_id));
+        if temporary.exists() {
+            fs::remove_dir_all(&temporary)?;
+        }
+        fs::create_dir_all(&temporary)?;
+        for (name, bytes) in inputs {
+            fs::write(temporary.join(name), bytes)?;
+        }
+        let bytes = serde_json::to_vec_pretty(request).map_err(std::io::Error::other)?;
+        fs::write(temporary.join(REQUEST_FILE), bytes)?;
+        fs::rename(&temporary, inbox.join(submission_id))?;
+        Ok(())
+    }
+
     /// すべてのジョブの記録を、ジョブの番号の順に読む。読めない記録は理由とともに分けて返す
     pub fn load_jobs(&self) -> Result<(Vec<StoredJob>, Vec<UnreadableJob>), StoreError> {
         let mut jobs = Vec::new();

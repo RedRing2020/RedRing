@@ -26,11 +26,26 @@ fn submit(
     workflow.enqueue(request, None)
 }
 
-/// 取り込める（正常終了した）切削シミュレーションのジョブ（ID の昇順）
-fn succeeded_simulations(workflow: &CamSimulationWorkflow) -> Vec<CamJobRecord> {
+/// 取り込める（正常終了した）切削シミュレーションのジョブ（番号の順）
+fn succeeded_simulations(workflow: &CamSimulationWorkflow) -> Vec<SimulationJob> {
     workflow
-        .orchestrator
-        .list_succeeded_jobs(CamJobType::CuttingSimulation)
+        .jobs
+        .simulation_jobs()
+        .unwrap()
+        .into_iter()
+        .filter(|job| job.status == CamJobStatus::Succeeded)
+        .collect()
+}
+
+/// 投入の ID `submission_id` の切削シミュレーションのジョブ
+fn submitted(workflow: &CamSimulationWorkflow, submission_id: &str) -> SimulationJob {
+    workflow
+        .jobs
+        .simulation_jobs()
+        .unwrap()
+        .into_iter()
+        .find(|job| job.submission_id == submission_id)
+        .unwrap()
 }
 
 /// 底面 z = 80・頂点 z = 90 の四角錐を、直径 6 のボールエンドミルで粗い走査線で加工する入力
@@ -75,15 +90,19 @@ fn request(precision: f64) -> CamSimulationWorkflowRequest {
 
 #[test]
 fn submitting_only_enqueues_the_jobs_without_waiting_for_the_computation() {
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let started = Instant::now();
     let submission = submit(&mut workflow, request(0.01)).unwrap();
     let submitting = started.elapsed();
     // 投入しただけでは実行されず、取り込めない
     assert!(succeeded_simulations(&workflow).is_empty());
     assert_eq!(
-        workflow.import(submission.simulation_job_id).unwrap_err(),
-        CamSimulationWorkflowError::NotSucceededSimulation(submission.simulation_job_id)
+        workflow
+            .import(submitted(&workflow, &submission.submission_id).job_id)
+            .unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededSimulation(
+            submitted(&workflow, &submission.submission_id).job_id
+        )
     );
 
     let started = Instant::now();
@@ -97,24 +116,26 @@ fn submitting_only_enqueues_the_jobs_without_waiting_for_the_computation() {
 
 #[test]
 fn succeeded_simulations_are_imported_with_their_toolpaths() {
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let submissions: Vec<CamSimulationSubmission> = (0..2)
         .map(|_| submit(&mut workflow, request(0.01)).unwrap())
         .collect();
     assert_eq!(workflow.run_queued_jobs().unwrap(), 4);
     let succeeded: Vec<u64> = succeeded_simulations(&workflow)
         .iter()
-        .map(|job| job.id)
+        .map(|job| job.job_id)
         .collect();
     assert_eq!(
         succeeded,
         submissions
             .iter()
-            .map(|submission| submission.simulation_job_id)
+            .map(|submission| submitted(&workflow, &submission.submission_id).job_id)
             .collect::<Vec<_>>()
     );
     for submission in submissions {
-        let result = workflow.import(submission.simulation_job_id).unwrap();
+        let result = workflow
+            .import(submitted(&workflow, &submission.submission_id).job_id)
+            .unwrap();
         let (_, toolpath) =
             read_toolpath_artifact_v1(&mut result.toolpath_artifact.as_slice()).unwrap();
         assert_eq!(toolpath.tool_id, "BEM6");
@@ -133,7 +154,7 @@ fn succeeded_simulations_are_imported_with_their_toolpaths() {
 fn failed_jobs_are_not_imported() {
     use cam_core::{MachiningBoundary, RectangleBoundary};
 
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     // 工具が形状に接触しない加工範囲では、ツールパス生成が失敗し、子の切削シミュレーションは実行されずに失敗する
     let mut outside = request(0.01);
     outside.solver_input.boundary = Some(MachiningBoundary::Rectangle(RectangleBoundary {
@@ -146,23 +167,34 @@ fn failed_jobs_are_not_imported() {
 
     let simulations: Vec<u64> = succeeded_simulations(&workflow)
         .iter()
-        .map(|job| job.id)
+        .map(|job| job.job_id)
         .collect();
-    assert_eq!(simulations, vec![succeeded.simulation_job_id]);
     assert_eq!(
-        workflow.import(failed.simulation_job_id).unwrap_err(),
-        CamSimulationWorkflowError::NotSucceededSimulation(failed.simulation_job_id)
+        simulations,
+        vec![submitted(&workflow, &succeeded.submission_id).job_id]
     );
-    // ツールパス生成のジョブは切削シミュレーションとしては取り込めない
     assert_eq!(
-        workflow.import(succeeded.toolpath_job_id).unwrap_err(),
-        CamSimulationWorkflowError::NotSucceededSimulation(succeeded.toolpath_job_id)
+        workflow
+            .import(submitted(&workflow, &failed.submission_id).job_id)
+            .unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededSimulation(
+            submitted(&workflow, &failed.submission_id).job_id
+        )
+    );
+    // ツールパス生成のジョブ（切削シミュレーションの 1 つ前の番号）は切削シミュレーションとしては取り込めない
+    assert_eq!(
+        workflow
+            .import(submitted(&workflow, &succeeded.submission_id).job_id - 1)
+            .unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededSimulation(
+            submitted(&workflow, &succeeded.submission_id).job_id - 1
+        )
     );
 }
 
 #[test]
 fn precision_finer_than_the_toolpath_tolerance_is_not_submitted() {
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     assert_eq!(
         submit(&mut workflow, request(0.005)).unwrap_err(),
         CamSimulationWorkflowError::Conditions(vec![
@@ -240,7 +272,7 @@ impl Machining {
         workflow.submit_operation(shapes, &self.store, self.sequence, self.operation)
     }
 
-    fn latest(&self, workflow: &CamSimulationWorkflow) -> Option<CamJobRecord> {
+    fn latest(&self, workflow: &CamSimulationWorkflow) -> Option<u64> {
         workflow
             .latest_revision_simulation(&self.store, self.sequence, self.operation)
             .unwrap()
@@ -282,11 +314,13 @@ fn initial_volume(result: &CamSimulationWorkflowResult) -> f64 {
 fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
     let (shapes, face) = pyramid_shape();
     let machining = Machining::new(vec![face]);
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let submission = machining.submit(&mut workflow, &shapes).unwrap();
     assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
 
-    let result = workflow.import(submission.simulation_job_id).unwrap();
+    let result = workflow
+        .import(submitted(&workflow, &submission.submission_id).job_id)
+        .unwrap();
     let content = operation_content();
     assert_eq!(result.solver_input.tool, content.tool);
     assert_eq!(result.solver_input.operation, content.spec);
@@ -319,7 +353,7 @@ fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
 fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
     let (shapes, face) = pyramid_shape();
     let machining = Machining::new(vec![face]);
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     // 工程から投入していないジョブは、工程から引かない
     let unrelated = submit(&mut workflow, request(0.01)).unwrap();
     let submission = machining.submit(&mut workflow, &shapes).unwrap();
@@ -328,41 +362,43 @@ fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
         source_id: machining.operation.to_string(),
         revision: 1,
     };
-    for job_id in [submission.toolpath_job_id, submission.simulation_job_id] {
-        let job = workflow
-            .orchestrator
-            .query_result(JobWorkflowResultQuery { job_id })
-            .unwrap()
-            .job;
-        assert_eq!(job.spec.source, Some(expected.clone()));
-    }
+    assert_eq!(
+        submitted(&workflow, &submission.submission_id).source,
+        Some(expected)
+    );
     // 実行するまでは、取り込める結果がない
     assert!(
         workflow
             .operation_simulations(machining.operation)
-            .is_empty()
+            .unwrap()
+            .iter()
+            .all(|job| job.status == CamJobStatus::Queued)
     );
     assert_eq!(machining.latest(&workflow), None);
     workflow.run_queued_jobs().unwrap();
     let simulations: Vec<u64> = workflow
         .operation_simulations(machining.operation)
+        .unwrap()
         .iter()
-        .map(|job| job.id)
+        .map(|job| job.job_id)
         .collect();
-    assert_eq!(simulations, vec![submission.simulation_job_id]);
-    assert!(!simulations.contains(&unrelated.simulation_job_id));
+    assert_eq!(
+        simulations,
+        vec![submitted(&workflow, &submission.submission_id).job_id]
+    );
+    assert!(!simulations.contains(&submitted(&workflow, &unrelated.submission_id).job_id));
 }
 
 #[test]
 fn the_latest_revision_is_imported_and_the_previous_revisions_are_kept() {
     let (shapes, face) = pyramid_shape();
     let mut machining = Machining::new(vec![face]);
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let first = machining.submit(&mut workflow, &shapes).unwrap();
     workflow.run_queued_jobs().unwrap();
     assert_eq!(
-        machining.latest(&workflow).map(|job| job.id),
-        Some(first.simulation_job_id)
+        machining.latest(&workflow),
+        Some(submitted(&workflow, &first.submission_id).job_id)
     );
 
     // 素材の上の余裕を変えると、工程の改訂の番号が増え、前の改訂の結果は今の改訂の結果ではなくなる
@@ -375,24 +411,38 @@ fn the_latest_revision_is_imported_and_the_previous_revisions_are_kept() {
     let second = machining.submit(&mut workflow, &shapes).unwrap();
     workflow.run_queued_jobs().unwrap();
     let latest = machining.latest(&workflow).unwrap();
-    assert_eq!(latest.id, second.simulation_job_id);
-    assert_eq!(latest.spec.source.unwrap().revision, 2);
+    assert_eq!(latest, submitted(&workflow, &second.submission_id).job_id);
+    assert_eq!(
+        submitted(&workflow, &second.submission_id)
+            .source
+            .unwrap()
+            .revision,
+        2
+    );
     // 新しい改訂の結果は、上に 10 を足した素材から削る
-    let initial = initial_volume(&workflow.import(latest.id).unwrap());
+    let initial = initial_volume(&workflow.import(latest).unwrap());
     let expected = 50.0 * 50.0 * 20.0;
     assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
 
     // 前の改訂の結果も引けて、取り込める
     let simulations: Vec<u64> = workflow
         .operation_simulations(machining.operation)
+        .unwrap()
         .iter()
-        .map(|job| job.id)
+        .map(|job| job.job_id)
         .collect();
     assert_eq!(
         simulations,
-        vec![first.simulation_job_id, second.simulation_job_id]
+        vec![
+            submitted(&workflow, &first.submission_id).job_id,
+            submitted(&workflow, &second.submission_id).job_id
+        ]
     );
-    let initial = initial_volume(&workflow.import(first.simulation_job_id).unwrap());
+    let initial = initial_volume(
+        &workflow
+            .import(submitted(&workflow, &first.submission_id).job_id)
+            .unwrap(),
+    );
     let expected = 50.0 * 50.0 * 15.0;
     assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
 }
@@ -454,7 +504,7 @@ fn inverse_offset_shapes_are_split_into_display_parts() {
 #[test]
 fn operations_that_cannot_be_machined_are_not_submitted() {
     let (shapes, face) = pyramid_shape();
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let empty = Machining::new(Vec::new());
     assert_eq!(
         empty.submit(&mut workflow, &shapes).unwrap_err(),
@@ -499,12 +549,16 @@ fn stock_without_xy_margins_has_the_xy_size_of_the_product_shape() {
         },
         ..stock()
     });
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let submission = machining.submit(&mut workflow, &shapes).unwrap();
     assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
 
     // 素材は四角錐（20〜60, 20〜60, 80〜90）を囲む箱の XY の範囲のまま、上に 5 を足したもの
-    let initial = initial_volume(&workflow.import(submission.simulation_job_id).unwrap());
+    let initial = initial_volume(
+        &workflow
+            .import(submitted(&workflow, &submission.submission_id).job_id)
+            .unwrap(),
+    );
     let expected = 40.0 * 40.0 * 15.0;
     assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
 }
@@ -516,7 +570,7 @@ fn negative_stock_margins_are_not_submitted() {
     let mut negative = stock();
     negative.margins.minus_x = -1.0;
     machining.set_stock(negative);
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     assert_eq!(
         machining.submit(&mut workflow, &shapes).unwrap_err(),
         CamSimulationWorkflowError::Conditions(vec![CamConditionError::InvalidStockMargins(
@@ -582,7 +636,7 @@ fn all_condition_errors_are_reported_before_submitting() {
     );
 
     // 投入も同じ誤りで拒み、キューに入れない
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let Err(CamSimulationWorkflowError::Conditions(rejected)) =
         machining.submit(&mut workflow, &shapes)
     else {
