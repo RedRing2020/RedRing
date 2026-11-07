@@ -42,6 +42,7 @@ use files::{
     copy_limited, is_plain_name, is_temporary, read_limited, remove_temporary_entries,
     write_atomically,
 };
+use record::OLDEST_STORE_FORMAT_VERSION;
 
 const LOCK_FILE: &str = "manager.lock";
 const LAST_JOB_ID_FILE: &str = "last_job_id";
@@ -647,6 +648,11 @@ impl JobStore {
     }
 }
 
+/// 読める記録・要求の形式の版か
+fn is_supported_format_version(version: u32) -> bool {
+    (OLDEST_STORE_FORMAT_VERSION..=STORE_FORMAT_VERSION).contains(&version)
+}
+
 /// ジョブの番号の名前（先頭が 0 でない 10 進数）を読む
 fn parse_job_id(name: &str) -> Option<u64> {
     if name.starts_with('0') || !name.bytes().all(|byte| byte.is_ascii_digit()) {
@@ -658,7 +664,7 @@ fn parse_job_id(name: &str) -> Option<u64> {
 fn read_job(path: &Path, job_id: u64) -> Result<StoredJob, String> {
     let bytes = read_limited(path, MAX_JSON_BYTES).map_err(|error| error.to_string())?;
     let job: StoredJob = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
-    if job.format_version != STORE_FORMAT_VERSION {
+    if !is_supported_format_version(job.format_version) {
         return Err(format!("unsupported format version {}", job.format_version));
     }
     if job.job_id != job_id {
@@ -687,7 +693,7 @@ fn validate_submission(
         .map_err(|error| format!("cannot read the request: {error}"))?;
     let request: SubmissionRequest =
         serde_json::from_slice(&bytes).map_err(|error| format!("invalid request: {error}"))?;
-    if request.format_version != STORE_FORMAT_VERSION {
+    if !is_supported_format_version(request.format_version) {
         return Err(format!(
             "unsupported format version {}",
             request.format_version

@@ -2,8 +2,14 @@
 
 use serde::{Deserialize, Serialize};
 
-/// 記録・要求の形式の版
-pub const STORE_FORMAT_VERSION: u32 = 1;
+/// 記録・要求の形式の版（書くときの版）
+///
+/// 版 2 で、投入元に改訂の鍵を足した。前の版を読む側は知らない項目を読み捨てるため、項目を足したときも版を上げ、
+/// 前の版のジョブマネージャーが新しい要求を黙って取り込まない（拒む）ようにする。
+pub const STORE_FORMAT_VERSION: u32 = 2;
+
+/// 読める最も古い記録・要求の形式の版
+pub(super) const OLDEST_STORE_FORMAT_VERSION: u32 = 1;
 
 /// ランナーで実行するジョブの種類
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

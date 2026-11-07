@@ -725,6 +725,32 @@ fn pending_and_rejected_submissions_are_listed() {
 }
 
 #[test]
+fn requests_and_records_of_the_previous_format_version_are_read() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    // 版 1 の要求（投入元に改訂の鍵がない）
+    let request = r#"{"format_version":1,"jobs":[{"kind":"cam","input_file":"cam.bin","source":{"source_id":"op-1","revision":2}}]}"#;
+    submit(&store, "old", request, &[("cam.bin", b"c")]);
+    let outcomes = store.intake(&lock, 1_000).unwrap();
+    assert!(
+        matches!(&outcomes[..], [IntakeOutcome::Accepted { .. }]),
+        "{outcomes:?}"
+    );
+
+    // 版 1 の記録
+    let (mut jobs, _) = store.load_jobs().unwrap();
+    let mut old = jobs.remove(0);
+    old.format_version = 1;
+    let path = store.root().join(JOBS_DIR).join("1").join(JOB_FILE);
+    fs::write(&path, serde_json::to_vec(&old).unwrap()).unwrap();
+    let (jobs, unreadable) = store.load_jobs().unwrap();
+    assert!(unreadable.is_empty());
+    assert_eq!(jobs[0].format_version, 1);
+    assert_eq!(jobs[0].source.as_ref().unwrap().revision_key, None);
+}
+
+#[test]
 fn sources_without_a_revision_key_are_read_and_written_as_before() {
     // 前の版の記録・要求の投入元は、改訂の鍵を持たない
     let old: StoredJobSource =
