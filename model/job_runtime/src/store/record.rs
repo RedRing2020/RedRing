@@ -26,6 +26,13 @@ pub enum StoredJobStatus {
     Canceled,
 }
 
+impl StoredJobStatus {
+    /// 終わった状態か（正常に終わった・失敗・取り消し）
+    pub fn is_terminal(self) -> bool {
+        matches!(self, Self::Succeeded | Self::Failed | Self::Canceled)
+    }
+}
+
 /// 投入元（工程の ID と改訂の番号など。権限の判断には使わない）
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StoredJobSource {
