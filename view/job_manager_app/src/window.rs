@@ -439,16 +439,17 @@ impl JobManagerWindow {
                         } else {
                             job.job_id.to_string()
                         };
-                        let mut cells = vec![ui.label(id).rect];
-                        cells.push(ui.label(self.source_text(job)).rect);
-                        cells.push(
-                            ui.label(self.text(match job.kind {
+                        // 欄はすべて、行の高さの中央にそろえる（状態の欄は、計算中の印のぶん高い）
+                        let mut cells = vec![centered_label(ui, id)];
+                        cells.push(centered_label(ui, self.source_text(job)));
+                        cells.push(centered_label(
+                            ui,
+                            self.text(match job.kind {
                                 StoredJobKind::Cam => "kind.cam",
                                 StoredJobKind::Sim => "kind.sim",
-                            }))
-                            .rect,
-                        );
-                        let status = ui.horizontal(|ui| {
+                            }),
+                        ));
+                        let status = ui.horizontal_centered(|ui| {
                             ui.label(
                                 RichText::new(self.status_text(job.status))
                                     .color(status_color(job.status)),
@@ -459,15 +460,12 @@ impl JobManagerWindow {
                             }
                         });
                         cells.push(status.response.rect);
-                        cells.push(ui.label(job.priority.to_string()).rect);
-                        cells.push(
-                            ui.label(
-                                elapsed_ms(job, now)
-                                    .map_or_else(|| "-".to_string(), format_elapsed),
-                            )
-                            .rect,
-                        );
-                        cells.push(ui.label(local_time(job.created_at_ms)).rect);
+                        cells.push(centered_label(ui, job.priority.to_string()));
+                        cells.push(centered_label(
+                            ui,
+                            elapsed_ms(job, now).map_or_else(|| "-".to_string(), format_elapsed),
+                        ));
+                        cells.push(centered_label(ui, local_time(job.created_at_ms)));
                         // 行のすべての欄と、行の間の半分を、押せる範囲にする
                         let area = cells
                             .into_iter()
@@ -610,6 +608,11 @@ impl eframe::App for JobManagerWindow {
             JOBS_INTERVAL
         });
     }
+}
+
+/// 行の高さの中央にそろえた文字の欄（欄の範囲を返す）
+fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> egui::Rect {
+    ui.horizontal_centered(|ui| ui.label(text)).response.rect
 }
 
 /// 絞り込みで状態に添える印
