@@ -50,4 +50,9 @@ impl Attributes {
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
+
+    /// 属性の組（順は決まらない）
+    pub fn iter(&self) -> impl Iterator<Item = (AttributeCode, &AttributeValue)> {
+        self.values.iter().map(|(code, value)| (*code, value))
+    }
 }
