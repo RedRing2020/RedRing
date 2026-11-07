@@ -78,6 +78,11 @@ impl JobClient for InProcessJobClient {
         Ok(self.orchestrator.run_queued_jobs()?)
     }
 
+    fn open_manager_window(&mut self) -> Result<(), CamSimulationWorkflowError> {
+        // 同じプロセスの中で実行するため、開くウィンドウはない
+        Ok(())
+    }
+
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
         self.submissions
             .iter()

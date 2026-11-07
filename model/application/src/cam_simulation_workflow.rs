@@ -408,6 +408,15 @@ impl CamSimulationWorkflow {
         self.jobs.run_pending()
     }
 
+    /// ジョブマネージャーのウィンドウを開く（動いていなければ、ウィンドウを出して起動する）
+    ///
+    /// # Errors
+    ///
+    /// ジョブマネージャーがない・起動できない場合。
+    pub fn open_job_manager(&mut self) -> Result<(), CamSimulationWorkflowError> {
+        self.jobs.open_manager_window()
+    }
+
     /// 加工工程 `operation_id` から投入した切削シミュレーションのジョブ（前の改訂を含む。番号の順）
     fn operation_simulations(
         &self,

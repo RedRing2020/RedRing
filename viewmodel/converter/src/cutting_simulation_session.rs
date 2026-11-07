@@ -345,6 +345,15 @@ impl CuttingSimulationSession {
         Ok(self.workflow.run_queued_jobs()?)
     }
 
+    /// ジョブマネージャーのウィンドウを開く（動いていなければ、ウィンドウを出して起動する）
+    ///
+    /// # Errors
+    ///
+    /// ジョブマネージャーがない・起動できない場合。
+    pub fn open_job_manager(&mut self) -> Result<(), CuttingSimulationSessionError> {
+        Ok(self.workflow.open_job_manager()?)
+    }
+
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の今の改訂（今の計算条件と加工の対象）で正常終了した
     /// 切削シミュレーションのうち、最も新しいものを取り込み、切削アニメーションにする
     ///

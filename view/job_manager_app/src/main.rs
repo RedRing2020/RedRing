@@ -22,6 +22,7 @@ mod fonts;
 mod icon;
 mod locale;
 mod messages;
+mod notification;
 mod rows;
 mod service;
 #[cfg(windows)]
@@ -82,7 +83,9 @@ fn main() -> ExitCode {
         Ok(store) => store,
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
     };
-    let (service, channel) = match service::start_service(store.clone(), runner) {
+    // 出来事は、受け取り始めるまで溜めておく（ジョブが終わったときの吹き出しに使う）
+    let (event_tx, event_rx) = std::sync::mpsc::channel();
+    let (service, channel) = match service::start_service(store.clone(), runner, event_tx) {
         Ok(started) => started,
         Err(StoreError::AlreadyLocked) => {
             #[cfg(windows)]
@@ -105,9 +108,17 @@ fn main() -> ExitCode {
             autostart_failed: text("tray.autostart_failed"),
         };
         let command = autostart_command(given_store.as_deref());
-        if let Err(error) = tray::create(store.clone(), channel.requests.clone(), texts, command) {
-            return fail("startup.failed", &[("reason", error.to_string())], 3);
-        }
+        let notifier = match tray::create(store.clone(), channel.requests.clone(), texts, command) {
+            Ok(notifier) => notifier,
+            Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
+        };
+        // 吹き出しは別のスレッドで出す（記録を読む・エクスプローラーを待つ間も、ジョブの管理を止めない）
+        let notified_store = store.clone();
+        std::thread::spawn(move || {
+            for event in event_rx {
+                notify_finished(&notifier, &notified_store, locale, &event);
+            }
+        });
         if background {
             tray::dispatch_messages(true);
         }
@@ -117,7 +128,7 @@ fn main() -> ExitCode {
     }
     #[cfg(not(windows))]
     {
-        let _ = given_store;
+        let _ = (given_store, event_rx);
         if background {
             // 画面がないため、操作を渡す口を閉じる
             drop(channel);
@@ -165,6 +176,49 @@ fn show_window(store: JobStore, channel: ServiceChannel, locale: UiLocale, hide_
     if let Err(error) = shown {
         eprintln!("cannot show the job manager window: {error}");
     }
+}
+
+/// ジョブが終わったときに、トレイの吹き出しを出す（示すジョブの決め方は `notification::finished_job`）
+#[cfg(windows)]
+fn notify_finished(
+    notifier: &tray::TrayNotifier,
+    store: &JobStore,
+    locale: UiLocale,
+    event: &job_manager::ManagerEvent,
+) {
+    use job_runtime::store::StoredJobKind;
+    use notification::{Finish, finished_job};
+    // 終わったジョブの出来事のときだけ、記録を読む
+    if !matches!(event, job_manager::ManagerEvent::Finished { .. }) {
+        return;
+    }
+    let Ok((jobs, _)) = store.load_jobs() else {
+        return;
+    };
+    let Some((finish, job_id, kind)) = finished_job(event, &jobs) else {
+        return;
+    };
+    let kind = match kind {
+        StoredJobKind::Cam => "kind.cam",
+        StoredJobKind::Sim => "kind.sim",
+    };
+    let key = match finish {
+        Finish::Succeeded => "notify.succeeded",
+        Finish::Failed => "notify.failed",
+    };
+    let text = messages::text(
+        locale,
+        key,
+        &[
+            ("kind", messages::text(locale, kind, &[])),
+            ("job", job_id.to_string()),
+        ],
+    );
+    notifier.notify(
+        &messages::text(locale, "window.title", &[]),
+        &text,
+        finish == Finish::Failed,
+    );
 }
 
 /// Windows の起動のときに起動するコマンド（ウィンドウを出さない。保存先を指定して起動したときは、同じ保存先）

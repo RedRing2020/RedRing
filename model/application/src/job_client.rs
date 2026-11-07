@@ -61,6 +61,9 @@ pub(crate) trait JobClient: fmt::Debug {
     /// 待ちのジョブを実行させる。実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すだけで 0）
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError>;
 
+    /// ジョブマネージャーのウィンドウを開く（動いていなければ、ウィンドウを出して起動する）
+    fn open_manager_window(&mut self) -> Result<(), CamSimulationWorkflowError>;
+
     /// 切削シミュレーションのジョブ（番号の順）
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError>;
 

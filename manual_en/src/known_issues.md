@@ -14,7 +14,6 @@ Machining:
 Management:
 
 - There is one machining plan and one machining process, and the conditions in the Machining Conditions window are the conditions of that process. There is no screen to list or add processes and no tool registration (tool library) yet (planned for v0.2.0)
-- The state of a job retried in the job manager window is not shown in the Machining Conditions window. After showing completed, failed, or canceled, the Machining Conditions window does not read the state again until you submit again or change the conditions
 - The job manager calculates one job at a time. After reopening the app, the results of jobs submitted before cannot be imported from the process (saving processes will be added in a later version)
 - The machining target is all visible product shapes (selecting faces is a later feature)
 - There is no screen yet to choose which job to import, and only the latest result of the current conditions can be imported
