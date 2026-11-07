@@ -21,6 +21,7 @@ use cam_core::{ArtifactHeaderV1, ArtifactKind, ArtifactPayload, ExtAttribute, re
 pub use cam_core::{BinaryFormatError, FORMAT_VERSION_MAJOR_V1};
 use uuid::Uuid;
 
+use crate::imported_toolpath::{ImportedToolpathRestoreError, ImportedToolpathStore};
 use crate::machining_sequence::{MachiningSequenceRestoreError, MachiningSequenceStore};
 use crate::product_shape::{ProductShapeRestoreError, ProductShapeStore};
 use codec::{ByteReader, ByteWriter};
@@ -37,6 +38,8 @@ const SECTION_REQUIRED: u16 = 1;
 const INFO: [u8; 4] = *b"INFO";
 const FACE: [u8; 4] = *b"FACE";
 const MSEQ: [u8; 4] = *b"MSEQ";
+/// 取り込んだ CL（必須でない区画。古い版のアプリは、そのまま書き戻す）
+const CLDT: [u8; 4] = *b"CLDT";
 /// 本モジュールが読み書きする区画の版（これより新しい版の区画は、新しい版のアプリで保存したもの）
 pub const SECTION_VERSION: u16 = 1;
 
@@ -66,12 +69,13 @@ struct PreservedSection {
     body: Vec<u8>,
 }
 
-/// 空間モデル（製品形状と加工手順・加工工程）
+/// 空間モデル（製品形状と加工手順・加工工程、取り込んだ CL）
 #[derive(Debug)]
 pub struct SpaceModel {
     pub id: SpaceModelId,
     pub shapes: ProductShapeStore,
     pub sequences: MachiningSequenceStore,
+    pub toolpaths: ImportedToolpathStore,
     /// 読んだファイルにあった、知らない必須でない区画（読んだ順）
     preserved: Vec<PreservedSection>,
     /// 読んだファイルの共通のヘッダの拡張属性（そのまま書き戻す）
@@ -79,12 +83,13 @@ pub struct SpaceModel {
 }
 
 impl SpaceModel {
-    /// 新しい ID で、製品形状 `shapes` と加工手順 `sequences` を持つ空間モデルを作る
+    /// 新しい ID で、製品形状 `shapes` と加工手順 `sequences` を持ち、CL を取り込んでいない空間モデルを作る
     pub fn new(shapes: ProductShapeStore, sequences: MachiningSequenceStore) -> Self {
         Self {
             id: SpaceModelId::new_random(),
             shapes,
             sequences,
+            toolpaths: ImportedToolpathStore::new(),
             preserved: Vec::new(),
             ext_attributes: Vec::new(),
         }
@@ -125,6 +130,8 @@ pub enum SpaceModelFileError {
     ProductShape(ProductShapeRestoreError),
     /// 加工手順の検証の誤り（ID の重なり）
     MachiningSequence(MachiningSequenceRestoreError),
+    /// 取り込んだ CL の検証の誤り（工程の重なり・読めない CL）
+    ImportedToolpath(ImportedToolpathRestoreError),
 }
 
 impl fmt::Display for SpaceModelFileError {
@@ -149,6 +156,7 @@ impl fmt::Display for SpaceModelFileError {
             }
             Self::ProductShape(error) => write!(f, "invalid model file: {error}"),
             Self::MachiningSequence(error) => write!(f, "invalid model file: {error}"),
+            Self::ImportedToolpath(error) => write!(f, "invalid model file: {error}"),
         }
     }
 }
@@ -177,7 +185,7 @@ pub fn write_space_model<W: Write>(
     model: &SpaceModel,
     info: &SpaceModelSaveInfo,
 ) -> Result<(), SpaceModelFileError> {
-    let sections = [
+    let mut sections = vec![
         (INFO, SECTION_REQUIRED, codec::write_info(model.id.0, info)?),
         (
             FACE,
@@ -190,7 +198,12 @@ pub fn write_space_model<W: Write>(
             codec::write_sequences(&model.sequences.records())?,
         ),
     ];
+    // 取り込んだ CL がなければ、区画を書かない
+    if !model.toolpaths.records().is_empty() {
+        sections.push((CLDT, 0, codec::write_toolpaths(model.toolpaths.records())?));
+    }
     let mut payload = ByteWriter::default();
+    // 書き戻す区画は、今の版で書いた区画と同じ種類（読めない版の CL と、その後で取り込んだ CL）でも、すべて残す
     payload.count(sections.len() + model.preserved.len(), "sections")?;
     for (kind, flags, body) in &sections {
         write_section(&mut payload, *kind, SECTION_VERSION, *flags, body);
@@ -250,6 +263,7 @@ pub fn read_space_model<R: Read>(
     let mut info = None;
     let mut faces = None;
     let mut sequences = None;
+    let mut toolpaths = None;
     let mut preserved = Vec::new();
     for _ in 0..count {
         let header = (|| {
@@ -267,10 +281,13 @@ pub fn read_space_model<R: Read>(
             .ok()
             .and_then(|length| cursor.take(length).ok())
             .ok_or(invalid("section length"))?;
+        // 必須でない区画は、読めない版なら知らない区画と同じに、そのまま書き戻す
+        let readable_optional = flags & SECTION_REQUIRED != 0 || version == SECTION_VERSION;
         let slot = match kind {
             INFO => Some(&mut info),
             FACE => Some(&mut faces),
             MSEQ => Some(&mut sequences),
+            CLDT if readable_optional => Some(&mut toolpaths),
             _ => None,
         };
         let Some(slot) = slot else {
@@ -303,12 +320,18 @@ pub fn read_space_model<R: Read>(
     let sequences =
         codec::read_sequences(sequences.ok_or(SpaceModelFileError::MissingSection(MSEQ))?)
             .map_err(section_error(MSEQ))?;
+    let toolpaths = match toolpaths {
+        Some(bytes) => codec::read_toolpaths(bytes).map_err(section_error(CLDT))?,
+        None => Vec::new(),
+    };
     let model = SpaceModel {
         id: SpaceModelId(id),
         shapes: ProductShapeStore::from_records(faces)
             .map_err(SpaceModelFileError::ProductShape)?,
         sequences: MachiningSequenceStore::from_records(sequences)
             .map_err(SpaceModelFileError::MachiningSequence)?,
+        toolpaths: ImportedToolpathStore::from_records(toolpaths)
+            .map_err(SpaceModelFileError::ImportedToolpath)?,
         preserved,
         ext_attributes: header.ext_attributes,
     };

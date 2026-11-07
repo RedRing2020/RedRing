@@ -169,6 +169,7 @@ fn sample_model() -> SpaceModel {
         id: SpaceModelId(uuid(100)),
         shapes: ProductShapeStore::from_records(face_records()).unwrap(),
         sequences: MachiningSequenceStore::from_records(sequence_records()).unwrap(),
+        toolpaths: ImportedToolpathStore::new(),
         preserved: Vec::new(),
         ext_attributes: Vec::new(),
     }
@@ -256,7 +257,9 @@ fn with_extra_section(
 
 #[test]
 fn unknown_optional_sections_are_written_back_unchanged() {
-    let original = with_extra_section(&bytes(&sample_model()), *b"CLDT", 7, 0x0002, b"later");
+    let original = with_extra_section(&bytes(&sample_model()), *b"XTRA", 7, 0x0002, b"later");
+    // 読めない版の CL の区画も、知らない区画と同じに残す
+    let original = with_extra_section(&original, *b"CLDT", 2, 0, b"newer toolpaths");
     let (model, _) = read(&original).unwrap();
     // 読んで書き直しても、知らない区画は同じ種類・版・印・中身のまま残る
     let rewritten = bytes(&model);
@@ -349,6 +352,7 @@ fn duplicate_ids_are_rejected_by_the_stores() {
         // 保管先を通さずに書くため、重なった面をそれぞれ別の保管先に入れてから記録を並べる
         shapes: ProductShapeStore::from_records(vec![faces[0].clone()]).unwrap(),
         sequences: MachiningSequenceStore::new(),
+        toolpaths: ImportedToolpathStore::new(),
         preserved: Vec::new(),
         ext_attributes: Vec::new(),
     };
@@ -487,4 +491,37 @@ fn the_golden_bytes_are_read() {
     assert_eq!(saved, info());
     assert_same_faces(&model.shapes.records(), &face_records());
     assert_eq!(model.sequences.records(), sequence_records());
+}
+
+#[test]
+fn imported_toolpaths_round_trip_in_an_optional_section() {
+    use crate::imported_toolpath::{ImportedToolpathRecord, tests::toolpath_artifact};
+    let record = ImportedToolpathRecord {
+        operation: MachiningOperationId::from_uuid(uuid(13)),
+        revision: NonZeroU32::new(3).unwrap(),
+        revision_key: MachiningRevisionKey::from_uuid(uuid(14)),
+        edit_number: 2,
+        artifact: toolpath_artifact(2.5),
+    };
+    let mut model = sample_model();
+    model.toolpaths = ImportedToolpathStore::from_records(vec![record.clone()]).unwrap();
+    let written = bytes(&model);
+    let (read_model, _) = read(&written).unwrap();
+    assert_eq!(read_model.toolpaths.records(), &[record]);
+    // CL の区画は必須でない（古い版のアプリは、そのまま書き戻す）
+    let body_at = written.len() - (4 + 48 + toolpath_artifact(2.5).len());
+    let flags_at = body_at - 8 - 2;
+    assert_eq!(&written[flags_at - 6..flags_at - 2], b"CLDT");
+    assert_eq!(&written[flags_at..flags_at + 2], &0_u16.to_le_bytes());
+    // CL を取り込んでいなければ、区画を書かない（版 1 のゴールデンのバイト列と同じ）
+    assert_eq!(bytes(&sample_model()), golden());
+
+    // 読めない CL は、開かない
+    let mut broken = written.clone();
+    let artifact_at = written.len() - toolpath_artifact(2.5).len();
+    broken[artifact_at] = b'X';
+    assert!(matches!(
+        read(&broken),
+        Err(SpaceModelFileError::ImportedToolpath(_))
+    ));
 }

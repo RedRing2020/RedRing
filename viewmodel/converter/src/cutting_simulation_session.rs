@@ -243,7 +243,7 @@ impl CuttingSimulationSession {
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の今の改訂（今の計算条件と加工の対象）で正常終了した
-    /// 切削シミュレーションのうち、最も新しいものを取り込み、切削アニメーションにする
+    /// 切削シミュレーションのうち、最も新しいものを取り込み、切削アニメーションにする。その CL は、空間モデルに取り込む
     ///
     /// # Errors
     ///
@@ -269,6 +269,8 @@ impl CuttingSimulationSession {
         };
         let playback = CuttingSimulationPlayback::open(&result)
             .map_err(CuttingSimulationSessionError::Playback)?;
+        // 再生できる結果だけ、その CL を空間モデルに取り込む（以後は、ジョブの成果物に頼らない）
+        document.import_toolpath(&result);
         let animation = CuttingAnimation::new(playback, result.simulation_input.tool);
         Ok(ImportedCuttingSimulation {
             job_id: latest,
@@ -285,6 +287,7 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::space_model_document::tests::document_with_pyramid;
+    use crate::space_model_document::ImportedToolpathState;
 
     /// 走査線の条件 `content` を `edit` で変えた中身
     fn with_scanline(
@@ -359,8 +362,18 @@ pub(crate) mod tests {
         ));
 
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
+        assert_eq!(
+            document.imported_toolpath_state(),
+            ImportedToolpathState::None
+        );
         let mut imported = session.import_latest(&mut document).unwrap();
         assert_eq!(imported.job_id, 2);
+        // CL を空間モデルに取り込み、保存していない変更になる
+        assert_eq!(
+            document.imported_toolpath_state(),
+            ImportedToolpathState::Current
+        );
+        assert!(document.is_modified());
         assert!(imported.animation.frame_count() > 1);
         assert!(!imported.animation.take_initial_stock_blocks().is_empty());
     }
@@ -372,11 +385,15 @@ pub(crate) mod tests {
         session.run_queued_jobs().unwrap();
         assert_eq!(session.import_latest(&mut document).unwrap().job_id, 2);
 
-        // 素材を変えると、前の条件の結果は取り込まない（再計算待ち）
+        // 素材を変えると、前の条件の結果は取り込まない（再計算待ち）。取り込んだ CL は前の条件の結果になる
         document.set_stock(MachiningStock {
             precision: 0.2,
             ..document.stock()
         });
+        assert_eq!(
+            document.imported_toolpath_state(),
+            ImportedToolpathState::Outdated
+        );
         assert!(matches!(
             session.import_latest(&mut document),
             Err(CuttingSimulationSessionError::NoSucceededSimulation)

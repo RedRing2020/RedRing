@@ -24,6 +24,9 @@
 //!       `f64`）
 //!     - 加工領域（有無と、長方形の最小・最大の XY の `f64`×4）、精度プロファイル `u8`（1: 大物プレス荒、
 //!       2: 小物金型仕上げ）
+//! - `CLDT`（必須でない）: 取り込んだ CL の数 `u32` と、CL ごとに、もとにした加工工程の ID・取り込んだときの改訂の番号
+//!   `u32`（1 以上）・改訂の鍵・CL の編集の番号 `u32`（0 は編集していない）・CL（ツールパスの成果物のバイト列の長さ
+//!   `u64` とバイト列）
 
 use std::num::NonZeroU32;
 
@@ -43,6 +46,7 @@ use geo_io::binary_geometry::{
 use uuid::Uuid;
 
 use super::{SpaceModelFileError, SpaceModelSaveInfo};
+use crate::imported_toolpath::ImportedToolpathRecord;
 use crate::machining_sequence::{
     MachiningOperationContent, MachiningOperationId, MachiningOperationRecord,
     MachiningRevisionKey, MachiningSequenceId, MachiningSequenceRecord, MachiningStock,
@@ -750,4 +754,46 @@ fn read_content(cursor: &mut ByteReader<'_>) -> Result<MachiningOperationContent
         boundary,
         tolerance_profile,
     })
+}
+
+// ---- CLDT ----
+
+pub(super) fn write_toolpaths(
+    toolpaths: &[ImportedToolpathRecord],
+) -> Result<Vec<u8>, SpaceModelFileError> {
+    let mut out = ByteWriter::default();
+    out.count(toolpaths.len(), "toolpaths")?;
+    for toolpath in toolpaths {
+        out.uuid(toolpath.operation.as_uuid());
+        out.u32(toolpath.revision.get());
+        out.uuid(toolpath.revision_key.as_uuid());
+        out.u32(toolpath.edit_number);
+        out.u64(toolpath.artifact.len() as u64);
+        out.bytes(&toolpath.artifact);
+    }
+    Ok(out.into_bytes())
+}
+
+pub(super) fn read_toolpaths(bytes: &[u8]) -> Result<Vec<ImportedToolpathRecord>, FieldError> {
+    let mut cursor = ByteReader::new(bytes);
+    // CL 1 つは、ID・改訂の番号・改訂の鍵・編集の番号・長さだけで 48 バイト
+    let count = cursor.count(48).map_err(|_| "toolpaths")?;
+    let mut toolpaths = Vec::with_capacity(count);
+    for _ in 0..count {
+        let operation = MachiningOperationId::from_uuid(cursor.uuid()?);
+        let revision = NonZeroU32::new(cursor.u32()?).ok_or("toolpath.revision")?;
+        let revision_key = MachiningRevisionKey::from_uuid(cursor.uuid()?);
+        let edit_number = cursor.u32()?;
+        let length = usize::try_from(cursor.u64()?).map_err(|_| "toolpath.artifact")?;
+        let artifact = cursor.take(length)?.to_vec();
+        toolpaths.push(ImportedToolpathRecord {
+            operation,
+            revision,
+            revision_key,
+            edit_number,
+            artifact,
+        });
+    }
+    cursor.finish()?;
+    Ok(toolpaths)
 }

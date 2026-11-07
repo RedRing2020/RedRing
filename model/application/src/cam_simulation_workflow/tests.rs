@@ -759,3 +759,81 @@ fn the_status_of_the_latest_revision_follows_its_jobs() {
     machining.set_stock(changed);
     assert_eq!(status(&machining, &workflow), None);
 }
+
+#[test]
+fn the_toolpath_of_an_imported_result_is_copied_into_the_space_model() {
+    use crate::imported_toolpath::{ImportedToolpathState, ImportedToolpathStore};
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let submission = machining.submit(&mut workflow, &shapes).unwrap();
+    workflow.run_queued_jobs().unwrap();
+    let result = workflow
+        .import(submitted(&workflow, &submission.submission_id).job_id)
+        .unwrap();
+
+    let mut toolpaths = ImportedToolpathStore::new();
+    let state = |toolpaths: &ImportedToolpathStore, machining: &Machining| {
+        toolpaths
+            .state(&machining.store, machining.sequence, machining.operation)
+            .unwrap()
+    };
+    assert!(
+        toolpaths
+            .import(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                &result
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        state(&toolpaths, &machining),
+        ImportedToolpathState::Current
+    );
+    let record = toolpaths.records()[0].clone();
+    assert_eq!(record.artifact, result.toolpath_artifact);
+    assert_eq!(
+        record.revision_key,
+        machining
+            .store
+            .operation_revision_key(machining.sequence, machining.operation)
+            .unwrap()
+    );
+    // 同じ結果を取り込み直しても変わらない
+    assert!(
+        !toolpaths
+            .import(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                &result
+            )
+            .unwrap()
+    );
+
+    // 条件を変えると、前の条件の結果になる
+    let mut changed = stock();
+    changed.margins.top = 10.0;
+    machining.set_stock(changed);
+    assert_eq!(
+        state(&toolpaths, &machining),
+        ImportedToolpathState::Outdated
+    );
+    // 前の条件の結果は、今の条件の結果として取り込まない
+    assert!(
+        !toolpaths
+            .import(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                &result
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        state(&toolpaths, &machining),
+        ImportedToolpathState::Outdated
+    );
+}

@@ -89,6 +89,7 @@ impl AppState {
                 .cutting_animation_job_id
                 .zip(self.imported_conditions.clone()),
             job_status: self.cutting_simulation_job_status.clone(),
+            imported_toolpath: self.document.imported_toolpath_state(),
             status: self.cutting_simulation_status.clone(),
             submit_requested: false,
             import_requested: false,
