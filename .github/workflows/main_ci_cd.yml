@@ -93,8 +93,12 @@ jobs:
         with:
           mdbook-version: "0.5.4"
 
+      # 日本語のマニュアルを target/book に、英語のマニュアルをその下の en に置く
       - name: Build documentation
-        run: mdbook build
+        run: |
+          mdbook build
+          mdbook build manual_en
+          cp -r target/book_en target/book/en
 
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

@@ -53,6 +53,17 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --verbose
 
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@ee69d230fe19748b7abf22df32acaa93833fad08 # v2.0.0
+        with:
+          mdbook-version: "0.5.4"
+
+      # 利用者向けマニュアル（日本語・英語）がビルドできることを確かめる（公開は main の CI）
+      - name: Build manuals
+        run: |
+          mdbook build
+          mdbook build manual_en
+
       - name: Build documentation
         run: |
           cargo doc --workspace --no-deps --verbose

@@ -2,6 +2,7 @@
 
 > このテンプレートは RedRing のリリースノート作成用です。
 > リリース時にコピーして、`dev/releases/` または GitHub Release 本文に転記してください。
+> GitHub Release 本文は、日本語の後に英語（`## English` の見出しの下に Summary・Highlights・Breaking Changes・Known Issues）を置きます（`dev/MANUAL_LANGUAGE_OPERATION.md`）。
 
 ## Release Information
 
@@ -56,7 +57,7 @@
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings`
 - [ ] `cargo fmt --all -- --check`
 - [ ] `./scripts/check_architecture_dependencies.ps1`
-- [ ] `mdbook build`
+- [ ] `mdbook build`・`mdbook build manual_en`
 - [ ] リリースの公開の後、`Release` のワークフローが配布物（zip・SBOM・`SHA256SUMS.txt`）を添え、`gh attestation verify` が通る（`dev/RELEASE_DISTRIBUTION_OPERATION.md`）
 
 ## Known Issues
