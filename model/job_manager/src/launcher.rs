@@ -69,12 +69,20 @@ impl ProcessLauncher {
 
 impl Launcher for ProcessLauncher {
     fn launch(&self, spec: &LaunchSpec) -> std::io::Result<Box<dyn RunningJob>> {
-        let child = Command::new(&self.runner)
+        let mut command = Command::new(&self.runner);
+        command
             .args(spec.args())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
+            .stderr(Stdio::null());
+        // Windows では、ランナーのコンソールのウィンドウを出さない
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            command.creation_flags(CREATE_NO_WINDOW);
+        }
+        let child = command.spawn()?;
         Ok(Box::new(ProcessJob { child }))
     }
 }

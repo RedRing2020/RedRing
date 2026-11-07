@@ -1,7 +1,7 @@
 //! ツールパス生成から切削シミュレーションまでのジョブの投入と、結果の取り込みを行うユースケース。
 //!
-//! 投入は、ツールパス生成の入力と切削シミュレーションの入力を登録先に登録し、ツールパス生成（CamProcess）の
-//! ジョブと、それを親とする切削シミュレーション（CuttingSimulation）のジョブをキューに入れた時点で完了する。
+//! 投入は、ツールパス生成のジョブと、その成果物を入力にする切削シミュレーションのジョブを、ジョブの計算を行う
+//! ジョブマネージャーへ渡した時点で完了する（計算を待たない。ジョブの境界は `job_client`）。
 //! 投入の前に、計算条件の誤りをすべて確かめる（投入前の確認）。投入は、確認を通った条件だけを受ける。
 //! 取り込みは、正常終了した切削シミュレーションのジョブだけを対象に、ツールパスと切削シミュレーションの成果物と、
 //! 投入した入力を返す。
@@ -16,7 +16,6 @@ mod tests;
 /// 逆オフセット形状の表示用の三角形と、その種類
 pub use cam_algorithms::{InverseOffsetPart, InverseOffsetPartKind};
 use std::fmt;
-use std::sync::Arc;
 
 use cam_algorithms::{
     CamSolverError, CamSolverInput, InverseOffsetShape, ScanlineInputError,
@@ -25,21 +24,16 @@ use cam_algorithms::{
 use cam_core::{CoordinateFrame, LengthUnit, StockMargins};
 use cam_entity::MachiningOperation;
 use cam_sim::{
-    CamJobExecutorAdapter, CamSolverInputProvider, CuttingSimulationInput,
-    CuttingSimulationInputError, CuttingSimulationInputProvider, InMemoryCamSolverInputStore,
-    InMemoryCuttingSimulationInputStore, SnapshotInterval, cutting_simulation_input_errors,
-    stock_around_product,
+    CuttingSimulationInput, CuttingSimulationInputError, SnapshotInterval,
+    cutting_simulation_input_errors, stock_around_product,
 };
 /// 軸に平行な直方体の型（素材の形に使う）
 pub use geo_algorithms::Aabb3D;
 use geo_algorithms::TessellationLimits;
-use job_domain::{CamJobRecord, CamJobSource, CamJobStatus, CamJobType};
-use job_runtime::JobManager;
+use job_domain::{CamJobSource, CamJobStatus};
 
-use crate::job_orchestration::{
-    JobOrchestrationError, JobWorkflowOrchestration, JobWorkflowOrchestrator,
-    JobWorkflowResultQuery, JobWorkflowSubmitRequest,
-};
+use crate::job_client::{JobClient, JobSubmission, LocalStoreJobClient, SimulationJob};
+use crate::job_orchestration::JobOrchestrationError;
 use crate::machining_sequence::{
     MachiningOperationId, MachiningSequenceError, MachiningSequenceId, MachiningSequenceStore,
 };
@@ -58,13 +52,11 @@ pub(crate) struct CamSimulationWorkflowRequest {
     pub snapshot_interval: SnapshotInterval,
 }
 
-/// 投入したジョブの番号
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 投入（ジョブの番号はジョブマネージャーが振るため、投入の ID で引く）
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CamSimulationSubmission {
-    /// ツールパス生成のジョブ
-    pub toolpath_job_id: u64,
-    /// 切削シミュレーションのジョブ（ツールパス生成のジョブの子）
-    pub simulation_job_id: u64,
+    /// 投入の ID
+    pub submission_id: String,
 }
 
 /// 取り込んだツールパス生成と切削シミュレーションの成果物と、投入した入力
@@ -229,6 +221,10 @@ pub enum CamSimulationWorkflowError {
     InverseOffsetShape(CamSolverError),
     /// 逆オフセット形状を表示用の三角形に分けられない（表示のきざみの誤り）
     InverseOffsetDisplay(CamSolverError),
+    /// ジョブマネージャーがインストールされていない（アプリと同じフォルダにない）
+    JobManagerNotFound,
+    /// ジョブの保存先を読み書きできない・ジョブマネージャーを起動できない（理由）
+    JobStore(String),
 }
 
 impl fmt::Display for CamSimulationWorkflowError {
@@ -257,6 +253,8 @@ impl fmt::Display for CamSimulationWorkflowError {
             Self::InverseOffsetDisplay(error) => {
                 write!(f, "inverse offset shape cannot be displayed: {error}")
             }
+            Self::JobManagerNotFound => write!(f, "the job manager is not installed"),
+            Self::JobStore(reason) => write!(f, "job store failed: {reason}"),
         }
     }
 }
@@ -272,24 +270,14 @@ impl From<JobOrchestrationError> for CamSimulationWorkflowError {
 /// ツールパス生成から切削シミュレーションまでのジョブの投入と、結果の取り込み
 #[derive(Debug)]
 pub struct CamSimulationWorkflow {
-    orchestrator: JobWorkflowOrchestrator,
-    solver_inputs: Arc<InMemoryCamSolverInputStore>,
-    simulation_inputs: Arc<InMemoryCuttingSimulationInputStore>,
-    /// 入力の参照の名前に使う通し番号
-    next_run: u64,
+    jobs: Box<dyn JobClient>,
 }
 
 impl Default for CamSimulationWorkflow {
+    /// 同じ PC のジョブの保存先を通して、アプリと同じフォルダのジョブマネージャーに計算させる
     fn default() -> Self {
-        let solver_inputs = Arc::new(InMemoryCamSolverInputStore::new());
-        let simulation_inputs = Arc::new(InMemoryCuttingSimulationInputStore::new());
-        let executor = CamJobExecutorAdapter::with_input_provider(solver_inputs.clone())
-            .with_simulation_input_provider(simulation_inputs.clone());
         Self {
-            orchestrator: JobWorkflowOrchestrator::with_runtime(JobManager::new(), executor),
-            solver_inputs,
-            simulation_inputs,
-            next_run: 0,
+            jobs: Box::new(LocalStoreJobClient::from_environment()),
         }
     }
 }
@@ -299,43 +287,27 @@ impl CamSimulationWorkflow {
         Self::default()
     }
 
-    /// 確認を通った入力を登録し、投入元を `source` としてジョブをキューに入れる
+    /// 同じプロセスの中でジョブを実行する（試験用）
+    #[cfg(any(test, feature = "test-fixtures"))]
+    pub fn in_process() -> Self {
+        Self {
+            jobs: Box::new(crate::job_client::InProcessJobClient::default()),
+        }
+    }
+
+    /// 確かめた入力を、投入元を `source` として投入する
     fn enqueue(
         &mut self,
         request: CamSimulationWorkflowRequest,
         source: Option<CamJobSource>,
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        self.next_run += 1;
-        let cam_input_ref = format!("input://cam/run-{}", self.next_run);
-        let simulation_input_ref = format!("input://sim/run-{}", self.next_run);
         let simulation_input = simulation_input(&request);
-        self.solver_inputs
-            .register(&cam_input_ref, request.solver_input)
-            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-        self.simulation_inputs
-            .register(&simulation_input_ref, simulation_input)
-            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-
-        let toolpath = self
-            .orchestrator
-            .submit_workflow(JobWorkflowSubmitRequest {
-                job_type: CamJobType::CamProcess,
-                input_ref: cam_input_ref,
-                parent_job_id: None,
-                source: source.clone(),
-            })?;
-        let simulation = self
-            .orchestrator
-            .submit_workflow(JobWorkflowSubmitRequest {
-                job_type: CamJobType::CuttingSimulation,
-                input_ref: simulation_input_ref,
-                parent_job_id: Some(toolpath.job_id),
-                source,
-            })?;
-        Ok(CamSimulationSubmission {
-            toolpath_job_id: toolpath.job_id,
-            simulation_job_id: simulation.job_id,
-        })
+        let submission_id = self.jobs.submit(JobSubmission {
+            solver_input: request.solver_input,
+            simulation_input,
+            source,
+        })?;
+        Ok(CamSimulationSubmission { submission_id })
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` からの投入の前に、計算条件の誤りをすべて確かめる
@@ -390,12 +362,12 @@ impl CamSimulationWorkflow {
             .map_err(CamSimulationWorkflowError::InverseOffsetShape)
     }
 
-    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、ツールパス生成と切削シミュレーションのジョブをキューに
-    /// 入れる（実行しない）。2 つのジョブは、投入元として工程の ID と今の改訂の番号を持つ
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、ツールパス生成と切削シミュレーションのジョブを
+    /// 投入する（計算を待たない）。2 つのジョブは、投入元として工程の ID と今の改訂の番号を持つ
     ///
     /// # Errors
     ///
-    /// 投入前の確認（[`Self::check_operation`]）の誤り、入力の登録・投入の失敗。
+    /// 投入前の確認（[`Self::check_operation`]）の誤り、入力の書き出し・投入の失敗、ジョブマネージャーがない場合。
     pub fn submit_operation(
         &mut self,
         shapes: &ProductShapeStore,
@@ -412,57 +384,62 @@ impl CamSimulationWorkflow {
         self.enqueue(request, Some(source))
     }
 
-    /// 実行できる待機中のジョブがなくなるまで実行し、実行したジョブの数を返す（ジョブマネージャーの実行の入口）
+    /// 待ちのジョブを実行させ、実行したジョブの数を返す（外のジョブマネージャーでは、起動を確かめるだけで 0）
     ///
     /// # Errors
     ///
-    /// ジョブの状態の更新の失敗。
+    /// ジョブマネージャーがない・起動できない場合、ジョブの状態の更新の失敗。
     pub fn run_queued_jobs(&mut self) -> Result<usize, CamSimulationWorkflowError> {
-        Ok(self.orchestrator.run_queued_jobs()?)
+        self.jobs.run_pending()
     }
 
-    /// 加工工程 `operation_id` から投入した、取り込める（正常終了した）切削シミュレーションのジョブ
-    /// （前の改訂の結果を含む。ID の昇順）
-    fn operation_simulations(&self, operation_id: MachiningOperationId) -> Vec<CamJobRecord> {
+    /// 加工工程 `operation_id` から投入した切削シミュレーションのジョブ（前の改訂を含む。番号の順）
+    fn operation_simulations(
+        &self,
+        operation_id: MachiningOperationId,
+    ) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
         let source_id = operation_id.to_string();
-        self.orchestrator
-            .list_succeeded_jobs(CamJobType::CuttingSimulation)
+        Ok(self
+            .jobs
+            .simulation_jobs()?
             .into_iter()
             .filter(|job| {
-                job.spec
-                    .source
+                job.source
                     .as_ref()
                     .is_some_and(|source| source.source_id == source_id)
             })
-            .collect()
+            .collect())
     }
 
-    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（最も新しい改訂）で投入した、
-    /// 取り込める切削シミュレーションのうち、最も新しいジョブ（今の改訂の結果がない場合は `None`。工程は再計算待ち）
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（最も新しい改訂）で投入し、
+    /// 正常に終わった切削シミュレーションのうち、最も新しいジョブの番号（今の改訂の結果がない場合は `None`。工程は
+    /// 再計算待ち）
     ///
     /// # Errors
     ///
-    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合。
     pub fn latest_revision_simulation(
         &self,
         sequences: &MachiningSequenceStore,
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
-    ) -> Result<Option<CamJobRecord>, CamSimulationWorkflowError> {
+    ) -> Result<Option<u64>, CamSimulationWorkflowError> {
         let revision = sequences
             .operation(sequence_id, operation_id)
             .map_err(CamSimulationWorkflowError::Sequence)?
             .revision();
         Ok(self
-            .operation_simulations(operation_id)
+            .operation_simulations(operation_id)?
             .into_iter()
             .rev()
             .find(|job| {
-                job.spec
-                    .source
-                    .as_ref()
-                    .is_some_and(|source| source.revision == revision)
-            }))
+                job.status == CamJobStatus::Succeeded
+                    && job
+                        .source
+                        .as_ref()
+                        .is_some_and(|source| source.revision == revision)
+            })
+            .map(|job| job.job_id))
     }
 
     /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
@@ -475,37 +452,7 @@ impl CamSimulationWorkflow {
         &self,
         simulation_job_id: u64,
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError> {
-        let result = self.orchestrator.query_result(JobWorkflowResultQuery {
-            job_id: simulation_job_id,
-        })?;
-        if result.job.status != CamJobStatus::Succeeded
-            || result.job.spec.job_type != CamJobType::CuttingSimulation
-        {
-            return Err(CamSimulationWorkflowError::NotSucceededSimulation(
-                simulation_job_id,
-            ));
-        }
-        let missing = || CamSimulationWorkflowError::MissingArtifact(simulation_job_id);
-        let missing_input = || CamSimulationWorkflowError::MissingInput(simulation_job_id);
-        let simulation_input = self
-            .simulation_inputs
-            .resolve(&result.job.spec.input_ref)
-            .ok_or_else(missing_input)?;
-        let toolpath_job_id = result.job.parent_job_id.ok_or_else(missing_input)?;
-        let toolpath_job = self.orchestrator.query_result(JobWorkflowResultQuery {
-            job_id: toolpath_job_id,
-        })?;
-        let solver_input = self
-            .solver_inputs
-            .resolve(&toolpath_job.job.spec.input_ref)
-            .ok_or_else(missing_input)?;
-        Ok(CamSimulationWorkflowResult {
-            // 切削シミュレーションの入力に使ったツールパス（親のジョブの成果物）
-            toolpath_artifact: result.input_artifact.ok_or_else(missing)?,
-            simulation_artifact: result.active_artifact.ok_or_else(missing)?,
-            solver_input,
-            simulation_input,
-        })
+        self.jobs.import(simulation_job_id)
     }
 }
 

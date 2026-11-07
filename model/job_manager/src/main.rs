@@ -20,6 +20,9 @@ use job_runtime::store::{JobStore, StoreError};
 /// 受付のフォルダとランナーを確かめる間隔
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 const USAGE: &str = "usage: redring-job-manager [--store <dir>]";
+/// 保存先のロックを取れないときに、やり直す回数と間隔
+const LOCK_ATTEMPTS: u32 = 10;
+const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
 fn main() -> ExitCode {
     let root = match parse_store_arg(std::env::args_os().skip(1)) {
@@ -50,9 +53,20 @@ fn main() -> ExitCode {
             return ExitCode::from(3);
         }
     };
-    let (mut service, events) =
-        match JobManagerService::start(store, ProcessLauncher::new(runner), now_ms()) {
-            Ok(started) => started,
+    // CAD/CAM のアプリが、ジョブマネージャーが動いているかを確かめるために、ロックを一瞬だけ持つことがあるため、
+    // 少しの間やり直す
+    let mut attempts = 0;
+    let (mut service, events) = loop {
+        match JobManagerService::start(
+            store.clone(),
+            ProcessLauncher::new(runner.clone()),
+            now_ms(),
+        ) {
+            Ok(started) => break started,
+            Err(StoreError::AlreadyLocked) if attempts < LOCK_ATTEMPTS => {
+                attempts += 1;
+                std::thread::sleep(LOCK_RETRY_INTERVAL);
+            }
             Err(StoreError::AlreadyLocked) => {
                 eprintln!("another job manager is running for {}", root.display());
                 return ExitCode::from(1);
@@ -61,7 +75,8 @@ fn main() -> ExitCode {
                 eprintln!("cannot start the job manager: {error}");
                 return ExitCode::from(3);
             }
-        };
+        }
+    };
     let mut log = File::create(root.join("manager.log")).ok();
     let mut write = |line: String| {
         if let Some(file) = log.as_mut() {

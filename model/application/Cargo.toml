@@ -26,8 +26,14 @@ job_runtime = { path = "../job_runtime" }
 job_domain = { path = "../job_domain" }
 tracing.workspace = true
 
+[features]
+# 試験用: 同じプロセスの中でジョブを実行するワークフロー（`CamSimulationWorkflow::in_process`）
+test-fixtures = []
+
 [dev-dependencies]
 cam_sim = { path = "../cam_sim", features = ["test-fixtures"] }
+job_manager = { path = "../job_manager" }
+serde_json = "1.0.149"
 
 [lints]
 workspace = true
