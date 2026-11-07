@@ -25,6 +25,8 @@ model
   application → geo_entity / geo_io（製品形状の取り込み）
   geo_primitives → geo_commons
   geo_entity / geo_io → geo_primitives
+  geo_io → geo_algorithms（形状のバイト列の読み書き）
+  cam_sim → geo_io（ジョブの入力の形状の読み書き）
   cam_sim / application → job_domain → job_runtime
   job_runner → cam_sim（ジョブ 1 つを計算するランナーの実行ファイル）
   job_manager → job_runtime（ジョブを管理してランナーを起動するジョブマネージャーのサービス）
@@ -47,7 +49,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **`geo_topology`**: 位相構造（エッジ・ワイヤ・複合曲線等）
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
 - **`geo_entity`**: 業務に依らない CAD のエンティティ基盤（識別子・属性・関係）。業務（CAM 等）の属性・表示の定義は持たない
-- **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）
+- **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）と、形状（三角形メッシュ・NURBS 曲面）のバイト列の読み書き（ジョブの入力・モデルファイルで共有する）
 - **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小の機械制約 / 加工の条件と素材の余裕の値）
 - **`cam_algorithms`**: CAM 固有のアルゴリズム（経路生成、順序最適化、干渉回避、機械制約の検証）
 - **`cam_sim`**: CAM 特化の実行・ユースケース（ToolPath の実行、除去量の更新、結果のキャッシュ）

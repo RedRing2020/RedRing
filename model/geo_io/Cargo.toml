@@ -3,10 +3,11 @@ name = "geo_io"
 publish = false
 version = "0.1.0"
 edition = "2021"
-description = "File I/O operations for geometric data (STL, OBJ, PLY, etc.)"
+description = "File I/O operations and binary encoding for geometric data (STL, OBJ, PLY, meshes, NURBS surfaces)"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+geo_algorithms = { path = "../geo_algorithms" }
 geo_contracts = { path = "../geo_contracts" }
 geo_primitives = { path = "../geo_primitives" }
 logging_foundation = { path = "../../foundation/logging_foundation" }

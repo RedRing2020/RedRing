@@ -390,6 +390,7 @@ dependencies = [
  "cam_algorithms",
  "cam_core",
  "geo_algorithms",
+ "geo_io",
  "job_domain",
  "job_runtime",
 ]
@@ -1189,6 +1190,7 @@ dependencies = [
 name = "geo_io"
 version = "0.1.0"
 dependencies = [
+ "geo_algorithms",
  "geo_contracts",
  "geo_primitives",
  "logging_foundation",

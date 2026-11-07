@@ -1,6 +1,9 @@
 use super::*;
 
 use cam_core::{CoordinateFrame, LengthUnit};
+use geo_algorithms::{
+    NurbsSurface3D, NurbsSurface3DConstructor, TriangleMesh3D, TriangleMesh3DConstructor,
+};
 
 fn mesh() -> SolverGeometry {
     SolverGeometry::TriangleMesh(
@@ -217,6 +220,22 @@ fn counts_larger_than_the_remaining_bytes_are_rejected_before_allocating() {
         read_cam_solver_input_v1(&mut corrupted.as_slice()),
         Err(BinaryFormatError::InvalidPayload("mesh.vertices"))
     ));
+}
+
+#[test]
+fn inputs_cut_off_in_the_geometry_are_an_unexpected_end() {
+    // 最後の曲面は重みを持たず、最後の 1 バイトは重みの有無
+    let input = cam_input(nurbs(), Tool::ball_end_mill("B".to_string(), 6.0, 30.0));
+    let mut bytes = cam_bytes(&input);
+    // 重みの有無の 1 バイトを落とし、ヘッダの本体の長さも 1 つ減らす
+    bytes.pop();
+    let length_at = ArtifactHeaderV1::FIXED_HEADER_LEN - 8;
+    let length = u64::from_le_bytes(bytes[length_at..length_at + 8].try_into().unwrap());
+    bytes[length_at..length_at + 8].copy_from_slice(&(length - 1).to_le_bytes());
+    let Err(BinaryFormatError::Io(error)) = read_cam_solver_input_v1(&mut bytes.as_slice()) else {
+        panic!("a cut-off geometry must be an I/O error");
+    };
+    assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
 }
 
 /// 正しいファイルのバイトを壊したもの（書き換え・大きな値・切り詰め）を読んでも落ちない
