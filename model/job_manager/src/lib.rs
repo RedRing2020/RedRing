@@ -171,6 +171,38 @@ impl<L: Launcher> JobManagerService<L> {
         Ok(true)
     }
 
+    /// 実行中のランナーをすべて止め、そのジョブを失敗にする（ジョブマネージャーを終了するときに）
+    ///
+    /// 記録を読み書きできなくても・止められないランナーがあっても、ほかのランナーは止め、最初の誤りを返す。書けな
+    /// かった記録は実行中のまま残り、次に起動したときに失敗になる。
+    pub fn stop_running(&mut self, now_ms: u64) -> Result<(), StoreError> {
+        let mut first_error = None;
+        let jobs = match self.store.load_jobs() {
+            Ok((jobs, _)) => jobs,
+            Err(error) => {
+                first_error = Some(error);
+                Vec::new()
+            }
+        };
+        let mut stopped: Vec<u64> = self.running.keys().copied().collect();
+        stopped.sort_unstable();
+        for job_id in stopped {
+            if let Some(mut running) = self.running.remove(&job_id)
+                && let Err(error) = running.stop()
+            {
+                first_error.get_or_insert(error.into());
+            }
+            if let Some(mut job) = jobs.iter().find(|job| job.job_id == job_id).cloned() {
+                fail(&mut job, "the job manager was quit".to_string(), now_ms);
+                job.started_at_ms = None;
+                if let Err(error) = self.store.write_job(&self.lock, &job) {
+                    first_error.get_or_insert(error);
+                }
+            }
+        }
+        first_error.map_or(Ok(()), Err)
+    }
+
     /// 失敗・取り消しで終わったジョブを、計算待ちに戻す。戻したジョブの番号（小さい順。戻せなければ空）
     ///
     /// そのジョブと依存関係でつながる、失敗・取り消しで終わったジョブもあわせて戻す（前のジョブが終わったままでは

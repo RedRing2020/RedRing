@@ -8,24 +8,35 @@
 //! だけを起動する（作業のフォルダや PATH から探さない）。ジョブの管理（投入の取り込み・ランナーの起動）は別の
 //! スレッドで一定の間隔で行い、ウィンドウにジョブの一覧を出し、ジョブの操作（取り消し・やり直し・削除・優先順位）を
 //! サービスに渡す。ウィンドウを閉じても、ジョブの管理は続ける。
-//! `--background` のときはウィンドウを出さずに、ジョブの管理だけを行う（CAD/CAM のアプリから起動したとき）。
-//! ウィンドウを出すときの起動の誤りは、知らせの画面に出す（リリースのビルドはコンソールを持たないため）。
+//! `--background` のときはウィンドウを出さない（CAD/CAM のアプリから起動したとき・Windows の起動のとき）。
+//! ウィンドウを出すときの起動の誤りは、誤りの画面に出す（リリースのビルドはコンソールを持たないため）。
+//!
+//! Windows では、タスクトレイにアイコンを置く。ウィンドウを閉じるとトレイに残り、トレイから開き直し・終了する。
+//! `--background` のときは、トレイから開くように頼まれてからウィンドウを作る（作ると最初の描画で一度出るため）。
+//! 同じ保存先のジョブマネージャーが動いていれば、2 つ目の起動はそのウィンドウを開くように頼んで終わる。
 
 // リリースのビルドでは、コンソールのウィンドウを開かない
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod fonts;
+mod icon;
 mod locale;
 mod messages;
 mod rows;
 mod service;
+#[cfg(windows)]
+mod tray;
 mod window;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
+use eframe::egui;
 use i18n_foundation::UiLocale;
 use job_runtime::store::{JobStore, StoreError};
+
+use crate::service::ServiceChannel;
 
 const USAGE: &str = "usage: redring-job-manager [--store <dir>] [--background]";
 
@@ -45,7 +56,7 @@ fn main() -> ExitCode {
     };
     let locale = locale::app_locale();
     let background = args.background;
-    // 起動の誤り（文言のキー・差し込む値・終了の番号）を知らせて終わる
+    // 起動の誤り（文言のキー・差し込む値・終了の番号）を出して終わる
     let fail = |key: &str, values: &[(&str, String)], code: u8| {
         let message = messages::text(locale, key, values);
         eprintln!("{message}");
@@ -54,9 +65,15 @@ fn main() -> ExitCode {
         }
         ExitCode::from(code)
     };
+    let given_store = args.store.clone();
     let Some(root) = args.store.or_else(JobStore::default_root) else {
         return fail("startup.no_data_folder", &[], 2);
     };
+    // 動いているジョブマネージャーがあれば、そのウィンドウを開く（保存先のロックを待たない）
+    #[cfg(windows)]
+    if !background && tray::open_running(&root) {
+        return ExitCode::SUCCESS;
+    }
     let runner = match runner_path() {
         Ok(runner) => runner,
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
@@ -67,41 +84,103 @@ fn main() -> ExitCode {
     };
     let (service, channel) = match service::start_service(store.clone(), runner) {
         Ok(started) => started,
-        Err(StoreError::AlreadyLocked) => return fail("startup.already_running", &[], 1),
+        Err(StoreError::AlreadyLocked) => {
+            #[cfg(windows)]
+            if !background && tray::open_running(&root) {
+                return ExitCode::SUCCESS;
+            }
+            return fail("startup.already_running", &[], 1);
+        }
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
     };
-    if background {
-        // 画面がないため、操作を渡す口を閉じる
-        drop(channel);
-    } else {
-        let options = eframe::NativeOptions {
-            viewport: eframe::egui::ViewportBuilder::default()
-                .with_title(messages::text(locale, "window.title", &[]))
-                .with_inner_size([960.0, 600.0]),
-            ..Default::default()
+    #[cfg(windows)]
+    {
+        let text = |key: &str| messages::text(locale, key, &[]);
+        let texts = tray::TrayTexts {
+            title: text("window.title"),
+            open: text("tray.open"),
+            autostart: text("tray.autostart"),
+            quit: text("tray.quit"),
+            quit_confirm: text("tray.quit_confirm"),
+            autostart_failed: text("tray.autostart_failed"),
         };
-        let shown = eframe::run_native(
-            "redring-job-manager",
-            options,
-            Box::new(move |creation| {
-                fonts::install_cjk_font(&creation.egui_ctx);
-                Ok(Box::new(window::JobManagerWindow::new(
-                    store, channel, locale,
-                )))
-            }),
-        );
-        if let Err(error) = shown {
-            eprintln!("cannot show the job manager window: {error}");
+        let command = autostart_command(given_store.as_deref());
+        if let Err(error) = tray::create(store.clone(), channel.requests.clone(), texts, command) {
+            return fail("startup.failed", &[("reason", error.to_string())], 3);
+        }
+        if background {
+            tray::dispatch_messages(true);
+        }
+        show_window(store, channel, locale, true);
+        // ウィンドウを出せなかったときも、トレイ（終了）は使えるようにする
+        tray::dispatch_messages(false);
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = given_store;
+        if background {
+            // 画面がないため、操作を渡す口を閉じる
+            drop(channel);
+        } else {
+            show_window(store, channel, locale, false);
         }
     }
-    // ウィンドウを閉じても、ジョブの管理は続ける（サービスのスレッドが終わるのはパニックのときだけ）
+    // ウィンドウを閉じても、ジョブの管理は続ける（サービスのスレッドが終わるのはパニックのときだけ。終了は
+    // トレイから行い、プロセスを終える）
     match service.join() {
         Ok(()) => ExitCode::SUCCESS,
         Err(_) => ExitCode::from(101),
     }
 }
 
-/// 起動の誤りを、知らせの画面に出す
+/// ジョブの一覧のウィンドウを出す（`hide_on_close` のときは、閉じると隠す）
+fn show_window(store: JobStore, channel: ServiceChannel, locale: UiLocale, hide_on_close: bool) {
+    let rgba = icon::ring_rgba();
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_title(messages::text(locale, "window.title", &[]))
+            .with_inner_size([960.0, 600.0])
+            .with_icon(Arc::new(egui::IconData {
+                rgba,
+                width: icon::ICON_SIZE,
+                height: icon::ICON_SIZE,
+            })),
+        ..Default::default()
+    };
+    let shown = eframe::run_native(
+        "redring-job-manager",
+        options,
+        Box::new(move |creation| {
+            fonts::install_cjk_font(&creation.egui_ctx);
+            #[cfg(windows)]
+            tray::attach_window(creation.egui_ctx.clone());
+            Ok(Box::new(window::JobManagerWindow::new(
+                store,
+                channel,
+                locale,
+                hide_on_close,
+            )))
+        }),
+    );
+    if let Err(error) = shown {
+        eprintln!("cannot show the job manager window: {error}");
+    }
+}
+
+/// Windows の起動のときに起動するコマンド（ウィンドウを出さない。保存先を指定して起動したときは、同じ保存先）
+///
+/// この実行ファイルの場所が分からなければ `None`。
+#[cfg(windows)]
+fn autostart_command(store: Option<&std::path::Path>) -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let mut command = format!("\"{}\" --background", exe.display());
+    if let Some(store) = store {
+        command.push_str(&format!(" --store \"{}\"", store.display()));
+    }
+    Some(command)
+}
+
+/// 起動の誤りを、誤りの画面に出す
 fn show_error(locale: UiLocale, message: &str) {
     rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)

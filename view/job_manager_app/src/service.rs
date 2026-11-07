@@ -26,12 +26,21 @@ pub(crate) enum JobCommand {
     ChangePriority { job_id: u64, delta: i32 },
 }
 
+/// サービスへの頼み
+pub(crate) enum ServiceRequest {
+    /// ジョブの操作（結果は `ServiceChannel::replies` に返す）
+    Command(JobCommand),
+    /// 実行中のランナーを止めて、サービスを終える（終えたら `done` に送る）
+    #[cfg_attr(not(windows), allow(dead_code))]
+    Quit { done: Sender<()> },
+}
+
 /// 操作の結果（保存先を読み書きできなかったときは理由）
 pub(crate) type CommandReply = Result<(), String>;
 
 /// 画面とサービスのスレッドをつなぐ口
 pub(crate) struct ServiceChannel {
-    pub(crate) commands: Sender<JobCommand>,
+    pub(crate) requests: Sender<ServiceRequest>,
     pub(crate) replies: Receiver<CommandReply>,
 }
 
@@ -85,7 +94,13 @@ pub(crate) fn start_service(
                 .as_ref()
                 .map(|receiver| receiver.recv_timeout(POLL_INTERVAL))
             {
-                Some(Ok(command)) => {
+                Some(Ok(ServiceRequest::Quit { done })) => {
+                    let stopped = service.stop_running(now_ms());
+                    write(format!("quit {stopped:?}"));
+                    let _ = done.send(());
+                    return;
+                }
+                Some(Ok(ServiceRequest::Command(command))) => {
                     let reply = run_command(&mut service, command, now_ms());
                     write(format!("command {command:?} -> {reply:?}"));
                     let _ = reply_tx.send(reply);
@@ -97,7 +112,7 @@ pub(crate) fn start_service(
         }
     });
     let channel = ServiceChannel {
-        commands: command_tx,
+        requests: command_tx,
         replies: reply_rx,
     };
     match started_rx.recv() {

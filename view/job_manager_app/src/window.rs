@@ -14,7 +14,7 @@ use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::text;
 use crate::rows::{JobRow, elapsed_ms, format_elapsed, format_size, job_rows};
-use crate::service::{JobCommand, ServiceChannel, now_ms};
+use crate::service::{JobCommand, ServiceChannel, ServiceRequest, now_ms};
 
 /// ジョブの記録を読み直す間隔
 const JOBS_INTERVAL: Duration = Duration::from_secs(1);
@@ -78,10 +78,17 @@ pub(crate) struct JobManagerWindow {
     /// 結果を待っている操作の数（待つ間は、二重に頼まないように操作できなくする）
     pending_replies: usize,
     delete_confirmation: Option<DeleteConfirmation>,
+    /// 閉じたときに、ウィンドウを隠す（タスクトレイから開き直す）
+    hide_on_close: bool,
 }
 
 impl JobManagerWindow {
-    pub(crate) fn new(store: JobStore, service: ServiceChannel, locale: UiLocale) -> Self {
+    pub(crate) fn new(
+        store: JobStore,
+        service: ServiceChannel,
+        locale: UiLocale,
+        hide_on_close: bool,
+    ) -> Self {
         Self {
             store,
             service,
@@ -101,6 +108,7 @@ impl JobManagerWindow {
             command_error: None,
             pending_replies: 0,
             delete_confirmation: None,
+            hide_on_close,
         }
     }
 
@@ -190,7 +198,7 @@ impl JobManagerWindow {
     }
 
     fn send(&mut self, command: JobCommand) {
-        match self.service.commands.send(command) {
+        match self.service.requests.send(ServiceRequest::Command(command)) {
             Ok(()) => self.pending_replies += 1,
             Err(_) => self.command_error = Some("the job manager service has stopped".to_string()),
         }
@@ -490,6 +498,12 @@ impl JobManagerWindow {
 
 impl eframe::App for JobManagerWindow {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        if self.hide_on_close && ui.ctx().input(|input| input.viewport().close_requested()) {
+            ui.ctx()
+                .send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ui.ctx()
+                .send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
         self.refresh();
         self.show_delete_confirmation(ui.ctx());
         Panel::top("header").show_inside(ui, |ui| self.show_header(ui));

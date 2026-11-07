@@ -47,13 +47,24 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("delete.confirm_yes", "消す"),
     ("delete.confirm_no", "やめる"),
+    ("tray.open", "ウィンドウを開く"),
+    ("tray.autostart", "Windows の起動のときに起動する"),
+    ("tray.quit", "終了"),
+    (
+        "tray.quit_confirm",
+        "計算中のジョブがあります。終了すると計算を止め、そのジョブは失敗になります。終了しますか？",
+    ),
+    (
+        "tray.autostart_failed",
+        "Windows の起動のときに起動する設定を変えられませんでした（{reason}）",
+    ),
     (
         "startup.no_data_folder",
         "利用者ごとのデータのフォルダが分からないため、起動できません",
     ),
     (
         "startup.already_running",
-        "ジョブマネージャーはすでに動いています（今は、動いているジョブマネージャーを終了してから起動すると、ウィンドウを開けます）",
+        "ジョブマネージャーはすでに動いています",
     ),
     (
         "startup.failed",
@@ -106,13 +117,24 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     ("delete.confirm_yes", "Delete"),
     ("delete.confirm_no", "Keep"),
+    ("tray.open", "Open window"),
+    ("tray.autostart", "Start when Windows starts"),
+    ("tray.quit", "Quit"),
+    (
+        "tray.quit_confirm",
+        "A job is being calculated. Quitting stops the calculation, and the job fails. Quit?",
+    ),
+    (
+        "tray.autostart_failed",
+        "Cannot change the setting to start when Windows starts ({reason})",
+    ),
     (
         "startup.no_data_folder",
         "Cannot start because the per-user data folder is not found",
     ),
     (
         "startup.already_running",
-        "The job manager is already running (for now, end the running job manager and start again to open the window)",
+        "The job manager is already running",
     ),
     ("startup.failed", "Cannot start the job manager ({reason})"),
 ];
