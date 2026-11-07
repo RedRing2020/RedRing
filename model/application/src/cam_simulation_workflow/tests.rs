@@ -272,6 +272,10 @@ impl Machining {
         workflow.submit_operation(shapes, &self.store, self.sequence, self.operation)
     }
 
+    fn operation_simulations(&self, workflow: &CamSimulationWorkflow) -> Vec<SimulationJob> {
+        workflow.operation_simulations(self.operation).unwrap()
+    }
+
     fn latest(&self, workflow: &CamSimulationWorkflow) -> Option<u64> {
         workflow
             .latest_revision_simulation(&self.store, self.sequence, self.operation)
@@ -283,6 +287,20 @@ impl Machining {
             .operation(self.sequence, self.operation)
             .unwrap()
             .revision()
+    }
+
+    fn revision_key(&self) -> String {
+        self.store
+            .operation(self.sequence, self.operation)
+            .unwrap()
+            .revision_key()
+            .to_string()
+    }
+
+    fn status(&self, workflow: &CamSimulationWorkflow) -> Option<OperationJobStatus> {
+        workflow
+            .latest_revision_job_status(&self.store, self.sequence, self.operation)
+            .unwrap()
     }
 
     fn set_stock(&mut self, stock: MachiningStock) {
@@ -361,6 +379,7 @@ fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
     let expected = CamJobSource {
         source_id: machining.operation.to_string(),
         revision: 1,
+        revision_key: Some(machining.revision_key()),
     };
     assert_eq!(
         submitted(&workflow, &submission.submission_id).source,
@@ -445,6 +464,50 @@ fn the_latest_revision_is_imported_and_the_previous_revisions_are_kept() {
     );
     let expected = 50.0 * 50.0 * 15.0;
     assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
+}
+
+#[test]
+fn jobs_with_the_same_revision_but_another_revision_key_are_not_the_current_revision() {
+    let (shapes, face) = pyramid_shape();
+    let machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let request = || {
+        resolve_operation_request(
+            &shapes,
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+        )
+        .unwrap()
+        .0
+    };
+    // 複製した工程・保存せずに捨てた変更から投入したジョブ（同じ工程の ID・同じ改訂の番号で、鍵が違う）と、
+    // 前の版の記録（鍵がない）
+    for revision_key in [Some("another-key".to_string()), None] {
+        let source = CamJobSource {
+            source_id: machining.operation.to_string(),
+            revision: machining.revision(),
+            revision_key,
+        };
+        workflow.enqueue(request(), Some(source)).unwrap();
+    }
+    assert_eq!(machining.status(&workflow), None);
+    workflow.run_queued_jobs().unwrap();
+    assert_eq!(machining.operation_simulations(&workflow).len(), 2);
+    assert_eq!(machining.latest(&workflow), None);
+    assert_eq!(machining.status(&workflow), None);
+
+    // 今の鍵で投入したジョブだけが、今の改訂のジョブになる
+    let current = machining.submit(&mut workflow, &shapes).unwrap();
+    workflow.run_queued_jobs().unwrap();
+    assert_eq!(
+        machining.latest(&workflow),
+        Some(submitted(&workflow, &current.submission_id).job_id)
+    );
+    assert_eq!(
+        machining.status(&workflow),
+        Some(OperationJobStatus::Succeeded)
+    );
 }
 
 #[test]

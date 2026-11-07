@@ -213,6 +213,19 @@ fn invalid_submissions_are_rejected_with_the_reason() {
             vec![("sim.bin", b"s")],
             "exactly one cam job",
         ),
+        (
+            "longkey",
+            request_json(vec![SubmittedJob {
+                source: Some(StoredJobSource {
+                    source_id: "op-1".to_string(),
+                    revision: 1,
+                    revision_key: Some("k".repeat(MAX_LABEL_LEN + 1)),
+                }),
+                ..job(StoredJobKind::Cam, "cam.bin", vec![])
+            }]),
+            vec![("cam.bin", b"c")],
+            "labels must be at most",
+        ),
     ];
     for (id, request, inputs, _) in &cases {
         submit(&store, id, request, inputs);
@@ -709,4 +722,26 @@ fn pending_and_rejected_submissions_are_listed() {
     assert_eq!(submissions[1].submission_id, "waiting");
     assert_eq!(submissions[1].request.as_ref().unwrap().jobs.len(), 2);
     assert!(submissions[1].rejected.is_none());
+}
+
+#[test]
+fn sources_without_a_revision_key_are_read_and_written_as_before() {
+    // 前の版の記録・要求の投入元は、改訂の鍵を持たない
+    let old: StoredJobSource =
+        serde_json::from_str(r#"{"source_id":"op-1","revision":2}"#).unwrap();
+    assert_eq!(old.revision_key, None);
+    assert_eq!(
+        serde_json::to_string(&old).unwrap(),
+        r#"{"source_id":"op-1","revision":2}"#
+    );
+
+    let keyed = StoredJobSource {
+        revision_key: Some("key-2".to_string()),
+        ..old
+    };
+    let written = serde_json::to_string(&keyed).unwrap();
+    assert_eq!(
+        serde_json::from_str::<StoredJobSource>(&written).unwrap(),
+        keyed
+    );
 }

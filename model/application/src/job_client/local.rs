@@ -178,6 +178,7 @@ impl JobClient for LocalStoreJobClient {
         let source = submission.source.map(|source| StoredJobSource {
             source_id: source.source_id,
             revision: source.revision,
+            revision_key: source.revision_key,
         });
         let job = |kind, input_file: &str, depends_on| SubmittedJob {
             kind,
@@ -338,6 +339,7 @@ fn source(source: &StoredJobSource) -> CamJobSource {
     CamJobSource {
         source_id: source.source_id.clone(),
         revision: source.revision,
+        revision_key: source.revision_key.clone(),
     }
 }
 

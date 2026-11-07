@@ -34,11 +34,14 @@ pub struct CamJobSpec {
     pub source: Option<CamJobSource>,
 }
 
-/// ジョブの投入元（利用者が編集する対象の ID と、投入したときのその改訂の番号）
+/// ジョブの投入元（利用者が編集する対象の ID と、投入したときのその改訂の番号・改訂の鍵）
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CamJobSource {
     pub source_id: String,
+    /// 改訂の番号（画面に出す・人が見分けるためのもの）
     pub revision: u32,
+    /// 改訂の鍵（同じ鍵なら同じ中身から投入した。前の版の記録は持たない）
+    pub revision_key: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -137,6 +140,7 @@ impl From<&JobSource> for CamJobSource {
         Self {
             source_id: value.source_id.clone(),
             revision: value.revision,
+            revision_key: value.revision_key.clone(),
         }
     }
 }
@@ -146,6 +150,7 @@ impl From<&CamJobSource> for JobSource {
         Self {
             source_id: value.source_id.clone(),
             revision: value.revision,
+            revision_key: value.revision_key.clone(),
         }
     }
 }

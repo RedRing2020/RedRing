@@ -33,11 +33,14 @@ impl StoredJobStatus {
     }
 }
 
-/// 投入元（工程の ID と改訂の番号など。権限の判断には使わない）
+/// 投入元（工程の ID と改訂の番号・改訂の鍵など。権限の判断には使わない）
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StoredJobSource {
     pub source_id: String,
     pub revision: u32,
+    /// 改訂の鍵（前の版の記録・要求は持たない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision_key: Option<String>,
 }
 
 /// ジョブの記録
