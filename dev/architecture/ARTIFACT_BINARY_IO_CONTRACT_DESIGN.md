@@ -35,6 +35,8 @@
 - `magic: [u8; 4]`
   - `toolpath`: `RRTP`
   - `interference`: `RRIN`
+  - 切削シミュレーション: `RRCS`
+  - ジョブの入力（成果物ではないが、同じヘッダを使う。`JOB_MANAGER_STORAGE_DESIGN.md` 5.2）: `RRCI`（ツールパス生成の入力）・`RRSI`（切削シミュレーションの入力）
 - `version_major: u16` = 0
 - `version_minor: u16` = 3（v0.1・v0.2 の artifact は `1`・`2`）
 - `units: u8`
@@ -154,6 +156,7 @@
 - `major == 0 && minor ∈ {1, 2, 3}`:
   - accept（v0.2・v0.3 の ToolPath・Interference は v0.1 と同じ wire layout で、v0.2 は値の範囲を広げただけのため、v0.1 の artifact もそのまま読む）
   - 切削シミュレーション（`RRCS`）の中身は cam_sim が解釈し、v0.3 だけを受け入れる（`CUTTING_SIMULATION_STOCK_MODEL_DESIGN.md` §5.2）
+  - ジョブの入力（`RRCI`・`RRSI`）の中身は cam_sim が解釈し、v0.3 だけを受け入れる
 - `major == 0 && minor ∉ {1, 2, 3}`:
   - reject
 - `major != 0`:

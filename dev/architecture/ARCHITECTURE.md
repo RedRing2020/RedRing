@@ -26,6 +26,7 @@ model
   geo_primitives → geo_commons
   geo_entity / geo_io → geo_primitives
   cam_sim / application → job_domain → job_runtime
+  job_runner → cam_sim（ジョブ 1 つを計算するランナーの実行ファイル）
   ↓
 foundation（analysis / logging_foundation / i18n_foundation）
 ```
@@ -50,6 +51,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **`cam_sim`**: CAM 特化の実行・ユースケース（ToolPath の実行、除去量の更新、結果のキャッシュ）
 - **`cam_entity`**: CAM 向けの表示・属性の統合（CAM の業務の属性は、ここで定義する）
 - **`job_runtime`** / **`job_domain`**: CAD / CAM / CAE に依存しない実行制御 / ジョブ投入のポリシー
+- **`job_runner`**: ジョブ 1 つの計算だけを行うランナーの実行ファイル（`redring-batch-runner`）。引数・入力と成果物のファイル・ログ・進み具合・終了の番号だけを持つ（`JOB_MANAGER_STORAGE_DESIGN.md` 3 章）
 - **`application`**: テセレーション・シミュレーション・ジョブ投入などのユースケースの orchestration（`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`）
 - **`viewmodel/*`**: モデルのデータの描画用への変換（`converter`）、カメラ等のグラフィックス制御（`graphics`）
 - **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）
