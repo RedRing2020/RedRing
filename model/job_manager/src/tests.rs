@@ -449,6 +449,30 @@ fn lowering_a_waiting_job_also_lowers_the_jobs_waiting_for_it() {
 }
 
 #[test]
+fn quitting_stops_the_running_job_and_keeps_the_waiting_jobs() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 10;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(1);
+
+    service.stop_running(2).unwrap();
+    assert_eq!(
+        launcher.0.borrow().stopped,
+        vec![root.store().input_file(1)]
+    );
+    let stopped = status_of(&root.store(), 1);
+    assert_eq!(stopped.status, StoredJobStatus::Failed);
+    assert_eq!(
+        stopped.last_error.as_deref(),
+        Some("the job manager was quit")
+    );
+    assert_eq!(stopped.started_at_ms, None);
+    assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Queued);
+}
+
+#[test]
 fn only_finished_jobs_are_deleted() {
     let root = TempRoot::new();
     let launcher = FakeLauncher::default();

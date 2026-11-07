@@ -14,7 +14,7 @@ use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::text;
 use crate::rows::{JobRow, elapsed_ms, format_elapsed, format_size, job_rows};
-use crate::service::{JobCommand, ServiceChannel, now_ms};
+use crate::service::{JobCommand, ServiceChannel, ServiceRequest, now_ms};
 
 /// ジョブの記録を読み直す間隔
 const JOBS_INTERVAL: Duration = Duration::from_secs(1);
@@ -78,10 +78,17 @@ pub(crate) struct JobManagerWindow {
     /// 結果を待っている操作の数（待つ間は、二重に頼まないように操作できなくする）
     pending_replies: usize,
     delete_confirmation: Option<DeleteConfirmation>,
+    /// 閉じたときに、ウィンドウを隠す（タスクトレイから開き直す）
+    hide_on_close: bool,
 }
 
 impl JobManagerWindow {
-    pub(crate) fn new(store: JobStore, service: ServiceChannel, locale: UiLocale) -> Self {
+    pub(crate) fn new(
+        store: JobStore,
+        service: ServiceChannel,
+        locale: UiLocale,
+        hide_on_close: bool,
+    ) -> Self {
         Self {
             store,
             service,
@@ -101,6 +108,7 @@ impl JobManagerWindow {
             command_error: None,
             pending_replies: 0,
             delete_confirmation: None,
+            hide_on_close,
         }
     }
 
@@ -190,7 +198,7 @@ impl JobManagerWindow {
     }
 
     fn send(&mut self, command: JobCommand) {
-        match self.service.commands.send(command) {
+        match self.service.requests.send(ServiceRequest::Command(command)) {
             Ok(()) => self.pending_replies += 1,
             Err(_) => self.command_error = Some("the job manager service has stopped".to_string()),
         }
@@ -330,14 +338,51 @@ impl JobManagerWindow {
     }
 
     fn show_filter(&mut self, ui: &mut egui::Ui) {
-        ui.heading(self.text("filter.header"));
         let before = self.filter;
-        let all = self.text("filter.all");
-        ui.radio_value(&mut self.filter, None, all);
-        for status in STATUSES {
-            let label = self.status_text(status);
-            ui.radio_value(&mut self.filter, Some(status), label);
-        }
+        let count = |status: Option<StoredJobStatus>| {
+            self.jobs
+                .iter()
+                .filter(|job| status.is_none_or(|status| job.status == status))
+                .count()
+        };
+        // 選ぶもの・印・印の色・文言（ジョブの数を添える）
+        let choices: Vec<(Option<StoredJobStatus>, &str, Color32, String)> =
+            std::iter::once((None, self.text("filter.all")))
+                .chain(
+                    STATUSES
+                        .iter()
+                        .map(|&status| (Some(status), self.status_text(status))),
+                )
+                .map(|(choice, label)| {
+                    let (icon, color) = match choice {
+                        None => ("☰", Color32::from_rgb(230, 160, 60)),
+                        Some(status) => (status_icon(status), status_color(status)),
+                    };
+                    (choice, icon, color, format!("{label} ({})", count(choice)))
+                })
+                .collect();
+        // 開き閉じできる見出し（太字）の下に、印と数を添えた選ぶボタンを幅いっぱいに並べる
+        egui::CollapsingHeader::new(RichText::new(self.text("filter.header")).strong())
+            .default_open(true)
+            .show_unindented(ui, |ui| {
+                // 選んだボタンは、目立ちすぎない灰色で示す
+                let visuals = ui.visuals_mut();
+                visuals.selection.bg_fill = visuals.widgets.active.weak_bg_fill;
+                visuals.selection.stroke.color = visuals.strong_text_color();
+                ui.spacing_mut().item_spacing.y = 1.0;
+                ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                    for (choice, icon, color, label) in choices {
+                        let selected = self.filter == choice;
+                        let button = egui::Button::selectable(
+                            selected,
+                            (RichText::new(icon).color(color), label),
+                        );
+                        if ui.add(button).clicked() {
+                            self.filter = choice;
+                        }
+                    }
+                });
+            });
         if self.filter != before {
             self.rows = job_rows(&self.jobs, self.filter);
         }
@@ -490,10 +535,19 @@ impl JobManagerWindow {
 
 impl eframe::App for JobManagerWindow {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        if self.hide_on_close && ui.ctx().input(|input| input.viewport().close_requested()) {
+            ui.ctx()
+                .send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ui.ctx()
+                .send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
         self.refresh();
         self.show_delete_confirmation(ui.ctx());
         Panel::top("header").show_inside(ui, |ui| self.show_header(ui));
-        Panel::left("filter").show_inside(ui, |ui| self.show_filter(ui));
+        Panel::left("filter")
+            .resizable(true)
+            .default_size(150.0)
+            .show_inside(ui, |ui| self.show_filter(ui));
         Panel::bottom("details")
             .resizable(true)
             .default_size(200.0)
@@ -505,6 +559,17 @@ impl eframe::App for JobManagerWindow {
         } else {
             JOBS_INTERVAL
         });
+    }
+}
+
+/// 絞り込みで状態に添える印
+fn status_icon(status: StoredJobStatus) -> &'static str {
+    match status {
+        StoredJobStatus::Queued => "⏸",
+        StoredJobStatus::Running => "▶",
+        StoredJobStatus::Succeeded => "✔",
+        StoredJobStatus::Failed => "⚠",
+        StoredJobStatus::Canceled => "⏹",
     }
 }
 
