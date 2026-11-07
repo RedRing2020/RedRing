@@ -12,10 +12,9 @@
 //! 記録の間隔（種類 `u8` と値）、ツールパス生成のトレランス `f64`、製品形状。
 //!
 //! 工具: 種類 `u8`（1: フラット、2: ラジアス、3: ボール）、ID（文字列）、直径・角の半径 `f64`、工具長（有無と `f64`）。
-//! 形状: 種類 `u8`（1: 三角形メッシュ、2: NURBS 曲面の集まり）。三角形メッシュは頂点の数 `u32` と座標（`f64`×3）、
-//! 三角形の数 `u32` と頂点の番号（`u32`×3）。頂点の法線は持たない（ツールパス生成・切削シミュレーションで使わない）。NURBS 曲面の集まりは曲面の数 `u32` と、曲面ごとに u・v の次数と
-//! 制御点の数（`u32`×4）、u・v のノットの数 `u32` とノット（`f64`）、制御点の座標（u 方向の番号ごとに v 方向へ並べた
-//! `f64`×3）、重み（有無と、制御点と同じ並びの `f64`）。
+//! 形状: 種類 `u8`（1: 三角形メッシュ、2: NURBS 曲面の集まり）。三角形メッシュは `geo_io::binary_geometry` の三角形メッシュ
+//! （頂点の法線は持たない。ツールパス生成・切削シミュレーションで使わない）。NURBS 曲面の集まりは曲面の数 `u32` と、
+//! 曲面ごとに `geo_io::binary_geometry` の NURBS 曲面。
 //!
 //! 読み込みは信用できない入力として扱う（`ARTIFACT_BINARY_IO_CONTRACT_DESIGN.md` の読み込みの決まり）。個数から確保する
 //! 前に、残りのバイトの数で足りることを確かめる。三角形に分ける上限は、既定の値（`TessellationLimits::default`）を
@@ -32,9 +31,10 @@ use cam_core::{
     MachiningBoundary, OperationSpec, RectangleBoundary, ScanlineCutDirection, ScanlineParams,
     ScanlineToolRange, Tool, ToolType, read_artifact_v1,
 };
-use geo_algorithms::{
-    Aabb3D, NurbsSurface3D, NurbsSurface3DConstructor, NurbsSurface3DProperties, Point3D,
-    TessellationLimits, TriangleMesh3D, TriangleMesh3DConstructor, TriangleMesh3DProperties,
+use geo_algorithms::{Aabb3D, Point3D, TessellationLimits};
+use geo_io::binary_geometry::{
+    BinaryGeometryError, NURBS_SURFACE_MIN_LEN, read_nurbs_surface, read_triangle_mesh,
+    write_nurbs_surface, write_triangle_mesh,
 };
 
 use crate::binary_codec::{read_f64, read_u8, read_u32, read_u64, write_count};
@@ -335,22 +335,13 @@ fn write_geometry(
     match geometry {
         SolverGeometry::TriangleMesh(mesh) => {
             payload.push(GEOMETRY_TRIANGLE_MESH);
-            write_count(payload, mesh.vertices().len(), "mesh.vertices")?;
-            for &vertex in mesh.vertices() {
-                write_point(payload, vertex);
-            }
-            write_count(payload, mesh.indices().len(), "mesh.triangles")?;
-            for triangle in mesh.indices() {
-                for &index in triangle {
-                    write_count(payload, index, "mesh.index")?;
-                }
-            }
+            write_triangle_mesh(payload, mesh).map_err(geometry_error)?;
         }
         SolverGeometry::NurbsSurfaceSet(surfaces) => {
             payload.push(GEOMETRY_NURBS_SURFACE_SET);
             write_count(payload, surfaces.len(), "nurbs.surfaces")?;
             for surface in surfaces {
-                write_nurbs_surface(payload, surface)?;
+                write_nurbs_surface(payload, surface).map_err(geometry_error)?;
             }
         }
     }
@@ -359,31 +350,14 @@ fn write_geometry(
 
 fn read_geometry(cursor: &mut &[u8]) -> Result<SolverGeometry, BinaryFormatError> {
     match read_u8(cursor)? {
-        GEOMETRY_TRIANGLE_MESH => {
-            let vertex_count = read_count(cursor, 24, "mesh.vertices")?;
-            let mut vertices = Vec::with_capacity(vertex_count);
-            for _ in 0..vertex_count {
-                vertices.push(read_point(cursor)?);
-            }
-            let triangle_count = read_count(cursor, 12, "mesh.triangles")?;
-            let mut indices = Vec::with_capacity(triangle_count);
-            for _ in 0..triangle_count {
-                let mut triangle = [0_usize; 3];
-                for index in &mut triangle {
-                    *index = read_u32(cursor)? as usize;
-                }
-                indices.push(triangle);
-            }
-            TriangleMesh3D::new(vertices, indices)
-                .map(SolverGeometry::TriangleMesh)
-                .map_err(|_| BinaryFormatError::InvalidPayload("mesh"))
-        }
+        GEOMETRY_TRIANGLE_MESH => read_triangle_mesh(cursor)
+            .map(SolverGeometry::TriangleMesh)
+            .map_err(geometry_error),
         GEOMETRY_NURBS_SURFACE_SET => {
-            // 曲面 1 つは、次数・制御点の数・ノットの数と重みの有無だけで 25 バイト以上
-            let surface_count = read_count(cursor, 25, "nurbs.surfaces")?;
+            let surface_count = read_count(cursor, NURBS_SURFACE_MIN_LEN, "nurbs.surfaces")?;
             let mut surfaces = Vec::with_capacity(surface_count);
             for _ in 0..surface_count {
-                surfaces.push(read_nurbs_surface(cursor)?);
+                surfaces.push(read_nurbs_surface(cursor).map_err(geometry_error)?);
             }
             Ok(SolverGeometry::NurbsSurfaceSet(surfaces))
         }
@@ -391,100 +365,15 @@ fn read_geometry(cursor: &mut &[u8]) -> Result<SolverGeometry, BinaryFormatError
     }
 }
 
-fn write_nurbs_surface(
-    payload: &mut Vec<u8>,
-    surface: &NurbsSurface3D<f64>,
-) -> Result<(), BinaryFormatError> {
-    let (u_count, v_count) = (surface.u_count(), surface.v_count());
-    for (value, field) in [
-        (surface.u_degree(), "nurbs.u_degree"),
-        (surface.v_degree(), "nurbs.v_degree"),
-        (u_count, "nurbs.u_count"),
-        (v_count, "nurbs.v_count"),
-    ] {
-        write_count(payload, value, field)?;
-    }
-    for (knots, field) in [
-        (surface.u_knots(), "nurbs.u_knots"),
-        (surface.v_knots(), "nurbs.v_knots"),
-    ] {
-        write_count(payload, knots.len(), field)?;
-        for &knot in knots {
-            write_f64(payload, knot);
+/// 形状のバイト列の誤りを、ファイルの形式の誤りにする（途中で終わったものは、ほかの項目と同じ I/O の誤り）
+fn geometry_error(error: BinaryGeometryError) -> BinaryFormatError {
+    match error {
+        BinaryGeometryError::UnexpectedEnd => {
+            BinaryFormatError::Io(std::io::ErrorKind::UnexpectedEof.into())
         }
+        BinaryGeometryError::LengthOverflow(field) => BinaryFormatError::LengthOverflow(field),
+        BinaryGeometryError::InvalidValue(field) => BinaryFormatError::InvalidPayload(field),
     }
-    let grid = || (0..u_count).flat_map(move |u| (0..v_count).map(move |v| (u, v)));
-    for (u, v) in grid() {
-        let point = surface
-            .control_point(u, v)
-            .ok_or(BinaryFormatError::InvalidPayload("nurbs.control_point"))?;
-        write_point(payload, point);
-    }
-    if surface.weights().is_some() {
-        payload.push(1);
-        for (u, v) in grid() {
-            let weight = surface
-                .weight(u, v)
-                .ok_or(BinaryFormatError::InvalidPayload("nurbs.weight"))?;
-            write_f64(payload, weight);
-        }
-    } else {
-        payload.push(0);
-    }
-    Ok(())
-}
-
-fn read_nurbs_surface(cursor: &mut &[u8]) -> Result<NurbsSurface3D<f64>, BinaryFormatError> {
-    let u_degree = read_u32(cursor)? as usize;
-    let v_degree = read_u32(cursor)? as usize;
-    let u_count = read_u32(cursor)? as usize;
-    let v_count = read_u32(cursor)? as usize;
-    let u_knots = read_f64_list(cursor, "nurbs.u_knots")?;
-    let v_knots = read_f64_list(cursor, "nurbs.v_knots")?;
-    let point_count = u_count
-        .checked_mul(v_count)
-        .ok_or(BinaryFormatError::LengthOverflow("nurbs.control_points"))?;
-    ensure_remaining(cursor, point_count, 24, "nurbs.control_points")?;
-    let mut control_points = Vec::with_capacity(u_count);
-    for _ in 0..u_count {
-        let mut row = Vec::with_capacity(v_count);
-        for _ in 0..v_count {
-            row.push(read_point(cursor)?);
-        }
-        control_points.push(row);
-    }
-    let weights = if read_bool(cursor, "nurbs.weights")? {
-        ensure_remaining(cursor, point_count, 8, "nurbs.weights")?;
-        let mut grid = Vec::with_capacity(u_count);
-        for _ in 0..u_count {
-            let mut row = Vec::with_capacity(v_count);
-            for _ in 0..v_count {
-                row.push(read_f64(cursor)?);
-            }
-            grid.push(row);
-        }
-        Some(grid)
-    } else {
-        None
-    };
-    NurbsSurface3D::new(
-        u_degree,
-        v_degree,
-        u_knots,
-        v_knots,
-        &control_points,
-        weights,
-    )
-    .map_err(|_| BinaryFormatError::InvalidPayload("nurbs"))
-}
-
-fn read_f64_list(cursor: &mut &[u8], field: &'static str) -> Result<Vec<f64>, BinaryFormatError> {
-    let count = read_count(cursor, 8, field)?;
-    let mut values = Vec::with_capacity(count);
-    for _ in 0..count {
-        values.push(read_f64(cursor)?);
-    }
-    Ok(values)
 }
 
 fn write_point(payload: &mut Vec<u8>, point: Point3D<f64>) {

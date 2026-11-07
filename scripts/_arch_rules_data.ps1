@@ -38,7 +38,7 @@ $ARCH_ALLOWED_DEPS = @{
     cam_core       = @("analysis", "geo_contracts", "geo_primitives", "geo_algorithms")
     cam_algorithms = @("analysis", "cam_core", "geo_contracts", "geo_algorithms")
     cam_entity     = @("cam_core", "geo_entity")
-    cam_sim        = @("analysis", "cam_core", "cam_algorithms", "geo_algorithms", "job_runtime", "job_domain")
+    cam_sim        = @("analysis", "cam_core", "cam_algorithms", "geo_algorithms", "geo_io", "job_runtime", "job_domain")
     job_runtime    = @("analysis")
     job_domain     = @("analysis", "job_runtime")
     # ランナーは引数・ファイル・終了の番号だけを持ち、入力の読み込みと計算は cam_sim に任せる
