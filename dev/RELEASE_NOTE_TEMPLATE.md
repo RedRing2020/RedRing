@@ -57,6 +57,7 @@
 - [ ] `cargo fmt --all -- --check`
 - [ ] `./scripts/check_architecture_dependencies.ps1`
 - [ ] `mdbook build`
+- [ ] リリースの公開の後、`Release` のワークフローが配布物（zip・SBOM・`SHA256SUMS.txt`）を添え、`gh attestation verify` が通る（`dev/RELEASE_DISTRIBUTION_OPERATION.md`）
 
 ## Known Issues
 
