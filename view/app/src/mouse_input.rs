@@ -21,6 +21,8 @@ pub struct MouseInput {
     ctrl_pressed: bool,
     /// Shiftキーが押されているか
     shift_pressed: bool,
+    /// Alt（Windows の AltGr は Ctrl+Alt として届く）
+    alt_pressed: bool,
     /// 各マウスボタンの状態
     left_pressed: bool,
     middle_pressed: bool,
@@ -35,6 +37,7 @@ impl MouseInput {
             last_position: None,
             ctrl_pressed: false,
             shift_pressed: false,
+            alt_pressed: false,
             left_pressed: false,
             middle_pressed: false,
             right_pressed: false,
@@ -62,6 +65,7 @@ impl MouseInput {
     pub fn update_modifiers(&mut self, modifiers: ModifiersState) {
         self.ctrl_pressed = modifiers.control_key();
         self.shift_pressed = modifiers.shift_key();
+        self.alt_pressed = modifiers.alt_key();
         self.update_operation();
 
         if !self.ctrl_pressed {
@@ -165,6 +169,10 @@ impl MouseInput {
     /// Shiftキー押下状態を取得
     pub fn is_shift_pressed(&self) -> bool {
         self.shift_pressed
+    }
+
+    pub fn is_alt_pressed(&self) -> bool {
+        self.alt_pressed
     }
 
     /// 現在の操作を中断

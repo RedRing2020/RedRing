@@ -13,12 +13,39 @@ fn keep_items_on_one_line(ui: &mut Ui) {
     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 }
 
+/// 「ファイル」の項目
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileMenuItem {
+    New,
+    Open,
+    Save,
+    SaveAs,
+    Load,
+    Exit,
+}
+
+/// 「ファイル」の項目と、その文言のキー・キーの組み合わせ（`None` は区切り）
+const FILE_MENU: &[Option<(FileMenuItem, &str, Option<&str>)>] = &[
+    Some((FileMenuItem::New, "menu.file.new", Some("Ctrl+N"))),
+    Some((FileMenuItem::Open, "menu.file.open", Some("Ctrl+O"))),
+    Some((FileMenuItem::Save, "menu.file.save", Some("Ctrl+S"))),
+    Some((
+        FileMenuItem::SaveAs,
+        "menu.file.save_as",
+        Some("Ctrl+Shift+S"),
+    )),
+    None,
+    Some((FileMenuItem::Load, "menu.file.load", None)),
+    None,
+    Some((FileMenuItem::Exit, "menu.file.exit", None)),
+];
+
 /// メニューバーの表示の言語と、選ばれた項目
 #[derive(Debug, Clone, Copy)]
 pub struct MenuBarUiState {
     pub locale: UiLocale,
-    /// 「ファイル」→「読み込み…」が選ばれた
-    pub load_requested: bool,
+    /// 「ファイル」で選ばれた項目
+    pub file_requested: Option<FileMenuItem>,
     /// 「表示」→「言語」で選ばれた言語
     pub locale_requested: Option<UiLocale>,
     /// 「ヘルプ」→「操作の一覧」が選ばれた
@@ -37,8 +64,18 @@ impl MenuBarUiState {
             MenuBar::new().ui(ui, |ui| {
                 ui.menu_button(self.text("menu.file"), |ui| {
                     keep_items_on_one_line(ui);
-                    if ui.button(self.text("menu.file.load")).clicked() {
-                        self.load_requested = true;
+                    for entry in FILE_MENU {
+                        let Some((item, key, shortcut)) = entry else {
+                            ui.separator();
+                            continue;
+                        };
+                        let mut button = egui::Button::new(self.text(key));
+                        if let Some(shortcut) = shortcut {
+                            button = button.shortcut_text(*shortcut);
+                        }
+                        if ui.add(button).clicked() {
+                            self.file_requested = Some(*item);
+                        }
                     }
                 });
                 ui.menu_button(self.text("menu.view"), |ui| {

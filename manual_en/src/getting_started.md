@@ -86,4 +86,4 @@ Toolpath generation and the cutting simulation are calculated by the job manager
 
 ## Quit
 
-- Quit with the `Esc` key or the window's close button
+- Quit with "File" → "Exit", the `Esc` key, or the window's close button. When there are unsaved changes, the app asks whether to save them

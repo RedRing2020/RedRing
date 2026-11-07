@@ -1,17 +1,14 @@
 //! AppState のメニューバーの項目を扱うモジュール。
 
+use super::model_file::FileAction;
 use super::AppState;
-use crate::menu_bar_messages::resolve_menu_bar_text;
-use crate::menu_bar_ui::MenuBarUiState;
-
-/// 読み込める形状ファイルの形式（ファイルを開く画面の種類の名前と拡張子。大文字・小文字を区別する OS のため両方）
-const SHAPE_FILE_FORMATS: &[(&str, &[&str])] = &[("STL", &["stl", "STL"])];
+use crate::menu_bar_ui::{FileMenuItem, MenuBarUiState};
 
 impl AppState {
     pub(crate) fn prepare_menu_bar_state(&self) -> MenuBarUiState {
         MenuBarUiState {
             locale: self.ui_locale,
-            load_requested: false,
+            file_requested: None,
             locale_requested: None,
             controls_requested: false,
             about_requested: false,
@@ -19,8 +16,15 @@ impl AppState {
     }
 
     pub(crate) fn apply_menu_bar_state(&mut self, state: MenuBarUiState) {
-        if state.load_requested {
-            self.shape_file_load_requested = true;
+        if let Some(item) = state.file_requested {
+            self.request_file_action(match item {
+                FileMenuItem::New => FileAction::New,
+                FileMenuItem::Open => FileAction::Open,
+                FileMenuItem::Save => FileAction::Save,
+                FileMenuItem::SaveAs => FileAction::SaveAs,
+                FileMenuItem::Load => FileAction::Load,
+                FileMenuItem::Exit => FileAction::Exit,
+            });
         }
         if let Some(locale) = state.locale_requested {
             self.set_ui_locale(locale);
@@ -33,30 +37,10 @@ impl AppState {
         }
     }
 
-    /// 選ばれたメニューの項目を行う（描画の途中ではなく、イベントの処理が終わった後に呼ぶ）
+    /// 選ばれたメニューの項目・要求されたモデルファイルの操作を行う（ファイルを選ぶ画面・確かめの画面は描画を止める
+    /// ため、描画の途中ではなく、イベントの処理が終わった後に呼ぶ）
     pub fn run_requested_menu_actions(&mut self) {
-        if std::mem::take(&mut self.shape_file_load_requested) {
-            self.load_shape_file();
-        }
-    }
-
-    /// ファイルを開く画面で選んだ形状ファイルを、ドラッグ＆ドロップと同じ経路で読み込む（選ばなかった場合は何もしない）
-    ///
-    /// 画面を開いている間は、アプリの描画が止まる。
-    fn load_shape_file(&mut self) {
-        let supported: Vec<&str> = SHAPE_FILE_FORMATS
-            .iter()
-            .flat_map(|(_, extensions)| extensions.iter().copied())
-            .collect();
-        let mut dialog = rfd::FileDialog::new().set_parent(&*self.window).add_filter(
-            resolve_menu_bar_text(self.ui_locale, "menu.file.load.supported"),
-            &supported,
-        );
-        for (name, extensions) in SHAPE_FILE_FORMATS {
-            dialog = dialog.add_filter(*name, extensions);
-        }
-        if let Some(path) = dialog.pick_file() {
-            self.import_product_shape(&path);
-        }
+        self.run_file_actions();
+        self.refresh_window_title();
     }
 }

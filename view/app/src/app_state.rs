@@ -31,6 +31,8 @@ mod cutting_simulation;
 mod machining_conditions;
 // AppState のメニューバーの項目
 mod menu_bar;
+// AppState のモデルファイルの操作と、保存していない変更の確かめ
+mod model_file;
 
 mod help;
 // AppState のデバッグスナップショット状態
@@ -174,8 +176,12 @@ pub struct AppState {
     cutting_simulation_job_status: JobStatusLine,
     job_status_read_at: Option<std::time::Instant>,
 
-    /// メニューバーの「ファイル」→「読み込み…」が選ばれ、まだファイルを開く画面を開いていない
-    shape_file_load_requested: bool,
+    /// 要求されたモデルファイルの操作（イベントの処理が終わった後に行う）
+    file_actions: Vec<model_file::FileAction>,
+    /// アプリを終えてよいことが決まった（保存していない変更を確かめた後）
+    exit_confirmed: bool,
+    /// 今のウィンドウのタイトル（文書のタイトルを出しているときだけ。出し直すときは空にする）
+    window_title: String,
 
     /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
     cutting_simulation_status: Option<OperationStatus>,
@@ -264,7 +270,9 @@ impl AppState {
             imported_conditions: None,
             cutting_simulation_job_status: JobStatusLine::NotSubmitted,
             job_status_read_at: None,
-            shape_file_load_requested: false,
+            file_actions: Vec::new(),
+            exit_confirmed: false,
+            window_title: String::new(),
             cutting_simulation_status: None,
             toolpath_lines_visible: true,
             tool_lines_visible: true,

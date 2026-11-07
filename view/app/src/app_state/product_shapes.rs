@@ -9,10 +9,7 @@ use std::path::Path;
 impl AppState {
     /// STL ファイルを製品形状として取り込み、表示中の製品形状を表示する
     pub fn import_product_shape(&mut self, path: &Path) {
-        let file = path.file_name().map_or_else(
-            || path.display().to_string(),
-            |name| name.to_string_lossy().into_owned(),
-        );
+        let file = super::model_file::file_name(path);
         if let Err(error) = self.document.import_stl(path) {
             tracing::warn!(path = %path.display(), "product shape import failed: {error}");
             self.set_notice(crate::help_ui::Notice::ShapeImportFailed {
@@ -28,7 +25,7 @@ impl AppState {
     }
 
     /// 表示中の製品形状をメッシュステージに描き、全体が見えるようにカメラを合わせる
-    fn show_product_shapes(&mut self) {
+    pub(super) fn show_product_shapes(&mut self) {
         self.discard_main_view();
         self.cutting_animation = None;
         self.cutting_animation_job_id = None;

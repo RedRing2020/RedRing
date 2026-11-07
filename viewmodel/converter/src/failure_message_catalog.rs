@@ -76,6 +76,15 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("failure.file.invalid_data", "ファイルの内容が壊れています"),
     ("failure.file.other", "ファイルを読み書きできません"),
+    ("failure.model_file.too_large", "ファイルが大きすぎます"),
+    (
+        "failure.model_file.newer",
+        "新しい版のアプリで保存されたファイルです",
+    ),
+    (
+        "failure.model_file.invalid",
+        "壊れているか、形式の違うファイルです",
+    ),
 ];
 
 const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
@@ -152,6 +161,15 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     ("failure.file.invalid_data", "The file content is broken"),
     ("failure.file.other", "Cannot read or write the file"),
+    ("failure.model_file.too_large", "The file is too large"),
+    (
+        "failure.model_file.newer",
+        "The file was saved by a newer version of the app",
+    ),
+    (
+        "failure.model_file.invalid",
+        "The file is broken or in another format",
+    ),
 ];
 
 const FAILURE_MESSAGE_CATALOG: TableMessageCatalog = TableMessageCatalog::new(

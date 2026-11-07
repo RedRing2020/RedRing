@@ -7,7 +7,6 @@
 
 use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
-use crate::app::APP_TITLE;
 use stage::{MeshStage, RenderStage};
 use viewmodel_graphics::Camera;
 
@@ -54,7 +53,8 @@ impl AppState {
             stage: None,
             comparison: false,
         });
-        self.window.set_title(APP_TITLE);
+        self.window_title.clear();
+        self.refresh_window_title();
     }
 
     /// デバッグ表示のステージ `stage` を描く。通常の表示のステージは取っておき、前のデバッグ表示のステージは捨てる
