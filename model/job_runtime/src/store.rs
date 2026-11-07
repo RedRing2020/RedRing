@@ -10,6 +10,7 @@
 //!     input/input.bin         入力
 //!     output/                 成果物（toolpath.bin・cutting_simulation.bin）
 //!     logs/runner.log         ログ
+//!     progress.json           進み具合
 //! ```
 //!
 //! ファイルは一時の名前（`*.tmp`）で書き終えてから名前を変え、読む側は `*.tmp` を無視する。保存先は同じ利用者のほかの
@@ -53,6 +54,7 @@ const INPUT_FILE: &str = "input.bin";
 const OUTPUT_DIR: &str = "output";
 const LOGS_DIR: &str = "logs";
 const LOG_FILE: &str = "runner.log";
+const PROGRESS_FILE: &str = "progress.json";
 const TOOLPATH_FILE: &str = "toolpath.bin";
 const CUTTING_SIMULATION_FILE: &str = "cutting_simulation.bin";
 
@@ -135,6 +137,7 @@ struct IntakeState {
 /// 読めなかったジョブの記録
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnreadableJob {
+    pub job_id: u64,
     pub path: PathBuf,
     pub reason: String,
 }
@@ -146,6 +149,24 @@ pub struct JobStore {
 }
 
 impl JobStore {
+    /// 既定の保存先（Windows では `%LOCALAPPDATA%\RedRing\jobs`、ほかの OS では `$XDG_DATA_HOME/RedRing/jobs`）
+    ///
+    /// 利用者ごとのフォルダが分からないときは `None`（空・相対のパスは使わない。起動したフォルダで保存先が変わるため）。
+    pub fn default_root() -> Option<PathBuf> {
+        let absolute = |name: &str| {
+            std::env::var_os(name)
+                .map(PathBuf::from)
+                .filter(|path| path.is_absolute())
+        };
+        let base = if cfg!(windows) {
+            absolute("LOCALAPPDATA")
+        } else {
+            absolute("XDG_DATA_HOME")
+                .or_else(|| absolute("HOME").map(|home| home.join(".local").join("share")))
+        }?;
+        Some(base.join("RedRing").join(JOBS_DIR))
+    }
+
     /// 保存先 `root` を開く（受付・ジョブのフォルダがなければ作る）
     pub fn open(root: impl Into<PathBuf>) -> Result<Self, StoreError> {
         let store = Self { root: root.into() };
@@ -195,7 +216,11 @@ impl JobStore {
             let path = self.job_dir(job_id).join(JOB_FILE);
             match read_job(&path, job_id) {
                 Ok(job) => jobs.push(job),
-                Err(reason) => unreadable.push(UnreadableJob { path, reason }),
+                Err(reason) => unreadable.push(UnreadableJob {
+                    job_id,
+                    path,
+                    reason,
+                }),
             }
         }
         Ok((jobs, unreadable))
@@ -428,6 +453,11 @@ impl JobStore {
     /// ログのフォルダ
     pub fn logs_dir(&self, job_id: u64) -> PathBuf {
         self.job_dir(job_id).join(LOGS_DIR)
+    }
+
+    /// 進み具合のファイル
+    pub fn progress_file(&self, job_id: u64) -> PathBuf {
+        self.job_dir(job_id).join(PROGRESS_FILE)
     }
 
     /// 種類 `kind` のジョブの成果物のファイル

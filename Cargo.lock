@@ -1563,6 +1563,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "job_manager"
+version = "0.1.0"
+dependencies = [
+ "job_runtime",
+ "serde_json",
+]
+
+[[package]]
 name = "job_runner"
 version = "0.1.0"
 dependencies = [
@@ -1570,6 +1578,9 @@ dependencies = [
  "cam_core",
  "cam_sim",
  "geo_algorithms",
+ "job_manager",
+ "job_runtime",
+ "serde_json",
 ]
 
 [[package]]

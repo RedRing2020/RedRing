@@ -20,6 +20,9 @@ cam_sim = { path = "../cam_sim" }
 cam_algorithms = { path = "../cam_algorithms" }
 cam_core = { path = "../cam_core" }
 geo_algorithms = { path = "../geo_algorithms" }
+job_manager = { path = "../job_manager" }
+job_runtime = { path = "../job_runtime" }
+serde_json = "1.0.149"
 
 [lints]
 workspace = true
