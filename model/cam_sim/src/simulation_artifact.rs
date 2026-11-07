@@ -29,6 +29,7 @@ use cam_core::{
 };
 
 use crate::SimulationSnapshotExport;
+use crate::binary_codec::{read_f64, read_u8, read_u16, read_u32, read_u64, write_count};
 use crate::constants::MAX_DEXEL_LINES;
 use crate::dexel_normal::DexelNormal;
 use crate::product_deviation::ProductDeviations;
@@ -609,44 +610,4 @@ fn read_keyframes(
         return Err(BinaryFormatError::InvalidPayload("keyframe.last"));
     }
     Ok((keyframe_snapshots, changes))
-}
-
-fn write_count(
-    payload: &mut Vec<u8>,
-    count: usize,
-    field: &'static str,
-) -> Result<(), BinaryFormatError> {
-    let count = u32::try_from(count).map_err(|_| BinaryFormatError::LengthOverflow(field))?;
-    payload.extend_from_slice(&count.to_le_bytes());
-    Ok(())
-}
-
-fn read_u8(reader: &mut &[u8]) -> Result<u8, BinaryFormatError> {
-    let mut bytes = [0_u8; 1];
-    reader.read_exact(&mut bytes)?;
-    Ok(bytes[0])
-}
-
-fn read_u16(reader: &mut &[u8]) -> Result<u16, BinaryFormatError> {
-    let mut bytes = [0_u8; 2];
-    reader.read_exact(&mut bytes)?;
-    Ok(u16::from_le_bytes(bytes))
-}
-
-fn read_u32(reader: &mut &[u8]) -> Result<u32, BinaryFormatError> {
-    let mut bytes = [0_u8; 4];
-    reader.read_exact(&mut bytes)?;
-    Ok(u32::from_le_bytes(bytes))
-}
-
-fn read_u64(reader: &mut &[u8]) -> Result<u64, BinaryFormatError> {
-    let mut bytes = [0_u8; 8];
-    reader.read_exact(&mut bytes)?;
-    Ok(u64::from_le_bytes(bytes))
-}
-
-fn read_f64(reader: &mut &[u8]) -> Result<f64, BinaryFormatError> {
-    let mut bytes = [0_u8; 8];
-    reader.read_exact(&mut bytes)?;
-    Ok(f64::from_le_bytes(bytes))
 }
