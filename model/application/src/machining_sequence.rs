@@ -297,6 +297,41 @@ impl MachiningSequenceStore {
         Ok(())
     }
 
+    /// 保管している加工手順の ID（加えた順）
+    pub fn sequence_ids(&self) -> Vec<MachiningSequenceId> {
+        self.sequences.iter().map(MachiningSequence::id).collect()
+    }
+
+    /// 加工手順 `sequence` の加工工程の ID（加工の順）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順の場合。
+    pub fn operation_ids(
+        &self,
+        sequence: MachiningSequenceId,
+    ) -> Result<Vec<MachiningOperationId>, MachiningSequenceError> {
+        Ok(self
+            .sequence(sequence)?
+            .operations()
+            .iter()
+            .map(MachiningOperation::id)
+            .collect())
+    }
+
+    /// 加工手順 `sequence` の加工工程 `operation` の改訂の鍵
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn operation_revision_key(
+        &self,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+    ) -> Result<MachiningRevisionKey, MachiningSequenceError> {
+        Ok(self.operation(sequence, operation)?.revision_key())
+    }
+
     /// 加工手順 `sequence` の加工工程 `operation` の中身
     ///
     /// # Errors

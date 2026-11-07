@@ -26,7 +26,7 @@ impl AppState {
     /// 計算条件を確かめ直す必要がある場合（条件・製品形状が変わった後）に確かめる
     fn refresh_condition_issues(&mut self) {
         if self.condition_issues.is_none() {
-            self.condition_issues = Some(self.cutting_simulation.check(&self.product_shapes));
+            self.condition_issues = Some(self.cutting_simulation.check(&mut self.document));
         }
     }
 
@@ -47,7 +47,7 @@ impl AppState {
             return;
         }
         self.job_status_read_at = Some(Instant::now());
-        let status = match self.cutting_simulation.job_status(&self.product_shapes) {
+        let status = match self.cutting_simulation.job_status(&mut self.document) {
             Ok(None) => JobStatusLine::NotSubmitted,
             Ok(Some(status)) => JobStatusLine::Status(status),
             Err(error) => {
@@ -79,11 +79,11 @@ impl AppState {
         MachiningConditionsUiState {
             open: self.machining_conditions_open,
             locale: self.ui_locale,
-            face_count: self.product_shapes.store().visible_face_ids().len(),
-            operation: self.cutting_simulation.operation_content().clone(),
-            stock: self.cutting_simulation.stock(),
+            face_count: self.document.shapes().visible_face_ids().len(),
+            operation: self.document.operation_content().clone(),
+            stock: self.document.stock(),
             tool_length_input: self.tool_length_input,
-            toolpath_tolerance: self.cutting_simulation.toolpath_tolerance(),
+            toolpath_tolerance: self.document.toolpath_tolerance(),
             issues: self.condition_issues.clone().unwrap_or_default(),
             imported: self
                 .cutting_animation_job_id
@@ -99,13 +99,12 @@ impl AppState {
     pub(crate) fn apply_machining_conditions_state(&mut self, state: MachiningConditionsUiState) {
         self.machining_conditions_open = state.open;
         self.tool_length_input = state.tool_length_input;
-        if state.operation != *self.cutting_simulation.operation_content() {
-            self.cutting_simulation
-                .set_operation_content(state.operation);
+        if state.operation != *self.document.operation_content() {
+            self.document.set_operation_content(state.operation);
             self.invalidate_conditions();
         }
-        if state.stock != self.cutting_simulation.stock() {
-            self.cutting_simulation.set_stock(state.stock);
+        if state.stock != self.document.stock() {
+            self.document.set_stock(state.stock);
             self.invalidate_conditions();
         }
         if state.submit_requested && self.submit_cutting_simulation() {
