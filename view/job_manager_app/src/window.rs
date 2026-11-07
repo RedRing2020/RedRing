@@ -338,14 +338,25 @@ impl JobManagerWindow {
     }
 
     fn show_filter(&mut self, ui: &mut egui::Ui) {
-        ui.heading(self.text("filter.header"));
         let before = self.filter;
-        let all = self.text("filter.all");
-        ui.radio_value(&mut self.filter, None, all);
-        for status in STATUSES {
-            let label = self.status_text(status);
-            ui.radio_value(&mut self.filter, Some(status), label);
-        }
+        let choices: Vec<(Option<StoredJobStatus>, String)> =
+            std::iter::once((None, self.text("filter.all")))
+                .chain(
+                    STATUSES
+                        .iter()
+                        .map(|&status| (Some(status), self.status_text(status))),
+                )
+                .collect();
+        // 開き閉じできる見出しの中に、選んだものが光るボタンを幅いっぱいに並べる
+        egui::CollapsingHeader::new(self.text("filter.header"))
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                    for (choice, label) in choices {
+                        ui.selectable_value(&mut self.filter, choice, label);
+                    }
+                });
+            });
         if self.filter != before {
             self.rows = job_rows(&self.jobs, self.filter);
         }
@@ -507,7 +518,10 @@ impl eframe::App for JobManagerWindow {
         self.refresh();
         self.show_delete_confirmation(ui.ctx());
         Panel::top("header").show_inside(ui, |ui| self.show_header(ui));
-        Panel::left("filter").show_inside(ui, |ui| self.show_filter(ui));
+        Panel::left("filter")
+            .resizable(true)
+            .default_size(150.0)
+            .show_inside(ui, |ui| self.show_filter(ui));
         Panel::bottom("details")
             .resizable(true)
             .default_size(200.0)
