@@ -81,6 +81,7 @@
 
 - 面の ID・エンティティの ID・加工手順の ID・加工工程の ID・空間モデルの ID は、UUID の 16 バイトをそのまま保存し、読み込みで同じ ID に戻す。改訂の番号と改訂の鍵も保存する
 - ID の型に、UUID から作る作り方を足す（ID の型と保管先はクレートが違うため、公開の作り方になる）。保管先は、保存したものから戻す口で、戻す中身をまとめて検証する
+  - 実装（#1165）: ID の型と改訂の鍵の `from_uuid`・`as_uuid`。製品形状の保管先は `ProductShapeStore::records`・`from_records`（記録 `ProductFaceRecord`）、加工手順の保管先は `MachiningSequenceStore::records`・`from_records`（記録 `MachiningSequenceRecord`・`MachiningOperationRecord`）。戻す口の誤りは、保管先ごとの戻すときの誤りの型で返す
 - 読み込みのときに、次を検証し、満たさなければ開かずに理由を出す
   - 同じ種類の ID が重なっていない（面の ID、エンティティの ID、加工手順の ID、加工工程の ID）
   - 加工手順の加工の対象の面の ID が重なっていない

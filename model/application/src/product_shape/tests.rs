@@ -246,3 +246,85 @@ fn surface_faces_are_displayed_with_surface_normals() {
         ProductShapeError::UnknownFace(unknown)
     );
 }
+
+/// 表示の属性・属性・メタデータを変えた面を、記録にして取り出す
+fn record_with_attributes() -> ProductFaceRecord {
+    let mut store = ProductShapeStore::new();
+    store.add_face(ProductFaceGeometry::Mesh(pyramid(8.0)));
+    let mut record = store.records().remove(0);
+    record.display.color = [0.2, 0.4, 0.6, 1.0];
+    record.display.layer = "補助".to_string();
+    record.display.visible = false;
+    record
+        .attributes
+        .set(user_code(), geo_entity::AttributeValue::Float(180.0))
+        .unwrap();
+    record.metadata.name = Some("面 1".to_string());
+    record.metadata.tags.push("見切り".to_string());
+    record
+        .metadata
+        .custom
+        .insert("取り込み元".to_string(), "a.stl".to_string());
+    record
+}
+
+fn user_code() -> geo_entity::AttributeCode {
+    geo_entity::AttributeCode::try_new(10_01_02_02).unwrap()
+}
+
+#[test]
+fn records_are_restored_with_the_same_ids_and_contents() {
+    let mut store = ProductShapeStore::new();
+    store.add_face(ProductFaceGeometry::Surface(dome()));
+    let mut records = store.records();
+    records.push(record_with_attributes());
+
+    let restored = ProductShapeStore::from_records(records.clone()).unwrap();
+    let again = restored.records();
+    assert_eq!(again.len(), 2);
+    for (before, after) in records.iter().zip(&again) {
+        assert_eq!(after.entity_id, before.entity_id);
+        assert_eq!(after.face_id, before.face_id);
+        assert_eq!(after.display, before.display);
+        assert_eq!(after.attributes.len(), before.attributes.len());
+        assert_eq!(
+            after.attributes.get(user_code()),
+            before.attributes.get(user_code())
+        );
+        let (a, b) = (&after.metadata, &before.metadata);
+        assert_eq!(
+            (&a.name, &a.description, &a.tags, &a.custom),
+            (&b.name, &b.description, &b.tags, &b.custom)
+        );
+        assert_eq!((a.created_at, a.modified_at), (b.created_at, b.modified_at));
+    }
+    assert_eq!(
+        again[1].attributes.get(user_code()),
+        Some(&geo_entity::AttributeValue::Float(180.0))
+    );
+    assert!(matches!(again[0].geometry, ProductFaceGeometry::Surface(_)));
+    let ProductFaceGeometry::Mesh(mesh) = &again[1].geometry else {
+        panic!("the second face is a mesh");
+    };
+    assert_eq!(mesh.triangle_count(), 4);
+    // 見えない面は、表示中の面に入らない
+    assert_eq!(restored.visible_face_ids(), vec![records[0].face_id]);
+}
+
+#[test]
+fn records_with_duplicate_ids_are_not_restored() {
+    let record = record_with_attributes();
+    let mut same_entity = record.clone();
+    same_entity.face_id = FaceId::new_random();
+    assert_eq!(
+        ProductShapeStore::from_records(vec![record.clone(), same_entity]).unwrap_err(),
+        ProductShapeRestoreError::DuplicateEntity(record.entity_id)
+    );
+
+    let mut same_face = record.clone();
+    same_face.entity_id = EntityId::new_random();
+    assert_eq!(
+        ProductShapeStore::from_records(vec![record.clone(), same_face]).unwrap_err(),
+        ProductShapeRestoreError::DuplicateFace(record.face_id)
+    );
+}

@@ -159,3 +159,78 @@ fn cusp_heights_on_flat_surfaces_follow_the_tool_and_the_stepover() {
     let radius = Tool::radius_end_mill("REM10R1".to_string(), 10.0, 1.0, 30.0);
     assert_eq!(with(radius, 2.0), None);
 }
+
+/// 加工工程 2 つ（2 つ目は改訂 2）を持つ加工手順と、もう 1 つの加工手順を持つ保管先
+fn store_with_two_sequences() -> MachiningSequenceStore {
+    let mut store = MachiningSequenceStore::new();
+    let first = store.create_sequence(
+        "手順 1".to_string(),
+        vec![FaceId::new_random(), FaceId::new_random()],
+        stock(),
+    );
+    store.add_operation(first, content(1.0)).unwrap();
+    let second = store.add_operation(first, content(1.0)).unwrap();
+    store
+        .set_operation_content(first, second, content(2.0))
+        .unwrap();
+    let other = store.create_sequence("手順 2".to_string(), Vec::new(), stock());
+    store.add_operation(other, content(0.5)).unwrap();
+    store
+}
+
+#[test]
+fn records_are_restored_with_the_same_ids_revisions_and_contents() {
+    let records = store_with_two_sequences().records();
+    assert_eq!(records[0].operations[1].revision.get(), 2);
+
+    let restored = MachiningSequenceStore::from_records(records.clone()).unwrap();
+    assert_eq!(restored.records(), records);
+
+    // 戻した工程を変えると、続きの改訂の番号と新しい改訂の鍵になる
+    let mut restored = restored;
+    let sequence = records[0].id;
+    let operation = records[0].operations[1].id;
+    restored
+        .set_operation_content(sequence, operation, content(3.0))
+        .unwrap();
+    let changed = restored.operation(sequence, operation).unwrap();
+    assert_eq!(changed.revision(), 3);
+    assert_ne!(
+        changed.revision_key(),
+        records[0].operations[1].revision_key
+    );
+}
+
+#[test]
+fn records_that_break_the_rules_are_not_restored() {
+    let records = store_with_two_sequences().records();
+    let restore = |records: Vec<MachiningSequenceRecord>| {
+        MachiningSequenceStore::from_records(records).unwrap_err()
+    };
+
+    let mut duplicate_sequence = records.clone();
+    duplicate_sequence[1].id = records[0].id;
+    assert_eq!(
+        restore(duplicate_sequence),
+        MachiningSequenceRestoreError::DuplicateSequence(records[0].id)
+    );
+
+    // ほかの加工手順の工程とも重ならない
+    let mut duplicate_operation = records.clone();
+    duplicate_operation[1].operations[0].id = records[0].operations[0].id;
+    assert_eq!(
+        restore(duplicate_operation),
+        MachiningSequenceRestoreError::DuplicateOperation(records[0].operations[0].id)
+    );
+
+    let mut duplicate_face = records.clone();
+    let face = records[0].target_faces[0];
+    duplicate_face[0].target_faces.push(face);
+    assert_eq!(
+        restore(duplicate_face),
+        MachiningSequenceRestoreError::DuplicateTargetFace {
+            sequence: records[0].id,
+            face,
+        }
+    );
+}

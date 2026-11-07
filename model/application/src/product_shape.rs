@@ -19,7 +19,7 @@ pub use geo_contracts::{
     EntityDisplayProperties, FaceSetEntity3DProperties, TriangleMesh3DProperties,
 };
 use geo_contracts::{EntityIdentity, TriangleMesh3DConstructor};
-use geo_entity::{DisplayAttributes, EntityId, FaceId, GeometricEntity};
+use geo_entity::{Attributes, DisplayAttributes, EntityId, FaceId, GeometricEntity, Metadata};
 
 /// 面の形状
 #[derive(Debug, Clone)]
@@ -179,6 +179,37 @@ impl fmt::Display for ProductShapeError {
 
 impl std::error::Error for ProductShapeError {}
 
+/// 面単体のエンティティの記録（保管先から取り出し、保管先に戻す中身。選択の状態は持たない）
+#[derive(Debug, Clone)]
+pub struct ProductFaceRecord {
+    pub entity_id: EntityId,
+    pub face_id: FaceId,
+    pub geometry: ProductFaceGeometry,
+    pub display: DisplayAttributes,
+    pub attributes: Attributes,
+    pub metadata: Metadata,
+}
+
+/// 記録から製品形状の保管先に戻すときの誤り
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProductShapeRestoreError {
+    /// エンティティの ID が重なっている
+    DuplicateEntity(EntityId),
+    /// 面の ID が重なっている
+    DuplicateFace(FaceId),
+}
+
+impl fmt::Display for ProductShapeRestoreError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DuplicateEntity(id) => write!(f, "duplicate product shape entity: {id}"),
+            Self::DuplicateFace(id) => write!(f, "duplicate product face: {id}"),
+        }
+    }
+}
+
+impl std::error::Error for ProductShapeRestoreError {}
+
 /// 製品形状のエンティティの保管先（加えた順に保持する）
 #[derive(Debug, Default)]
 pub struct ProductShapeStore {
@@ -188,6 +219,51 @@ pub struct ProductShapeStore {
 impl ProductShapeStore {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// 記録 `records` を、その順に持つ保管先を作る（ID は記録のまま）
+    ///
+    /// # Errors
+    ///
+    /// エンティティの ID、または面の ID が重なっている場合。
+    pub fn from_records(records: Vec<ProductFaceRecord>) -> Result<Self, ProductShapeRestoreError> {
+        let mut entity_ids = HashSet::new();
+        let mut face_ids = HashSet::new();
+        let mut entities = Vec::with_capacity(records.len());
+        for record in records {
+            if !entity_ids.insert(record.entity_id) {
+                return Err(ProductShapeRestoreError::DuplicateEntity(record.entity_id));
+            }
+            if !face_ids.insert(record.face_id) {
+                return Err(ProductShapeRestoreError::DuplicateFace(record.face_id));
+            }
+            entities.push(ProductFaceEntity(GeometricEntity::restore(
+                record.entity_id,
+                ProductFace {
+                    id: record.face_id,
+                    geometry: record.geometry,
+                },
+                record.display,
+                record.attributes,
+                record.metadata,
+            )));
+        }
+        Ok(Self { entities })
+    }
+
+    /// 保持しているエンティティの記録（加えた順）
+    pub fn records(&self) -> Vec<ProductFaceRecord> {
+        self.entities
+            .iter()
+            .map(|entity| ProductFaceRecord {
+                entity_id: entity.id(),
+                face_id: entity.face().id(),
+                geometry: entity.face().geometry().clone(),
+                display: entity.display().clone(),
+                attributes: entity.0.attributes().clone(),
+                metadata: entity.0.metadata().clone(),
+            })
+            .collect()
     }
 
     /// 形状 `geometry` の面を 1 つ持つ面単体のエンティティを加える

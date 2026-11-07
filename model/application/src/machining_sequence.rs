@@ -3,7 +3,9 @@
 //! エンティティは保管先の中だけで持ち、作成と編集は保管先の関数で行う。関数に出てくる値の型（工程の中身・素材・ID と、
 //! 中身の工具・加工の種類と条件・素材の余裕）は、ここから再エクスポートする。
 
+use std::collections::HashSet;
 use std::fmt;
+use std::num::NonZeroU32;
 
 use cam_core::{MachiningStage, ToleranceProfile};
 pub use cam_core::{
@@ -11,7 +13,8 @@ pub use cam_core::{
 };
 use cam_entity::{MachiningOperation, MachiningSequence};
 pub use cam_entity::{
-    MachiningOperationContent, MachiningOperationId, MachiningSequenceId, MachiningStock,
+    MachiningOperationContent, MachiningOperationId, MachiningRevisionKey, MachiningSequenceId,
+    MachiningStock,
 };
 use geo_entity::FaceId;
 
@@ -58,6 +61,58 @@ impl fmt::Display for MachiningSequenceError {
 
 impl std::error::Error for MachiningSequenceError {}
 
+/// 加工工程の記録（保管先から取り出し、保管先に戻す中身）
+#[derive(Debug, Clone, PartialEq)]
+pub struct MachiningOperationRecord {
+    pub id: MachiningOperationId,
+    pub content: MachiningOperationContent,
+    pub revision: NonZeroU32,
+    pub revision_key: MachiningRevisionKey,
+}
+
+/// 加工手順の記録（保管先から取り出し、保管先に戻す中身）
+#[derive(Debug, Clone, PartialEq)]
+pub struct MachiningSequenceRecord {
+    pub id: MachiningSequenceId,
+    pub name: String,
+    /// 加工の対象（製品形状の面の ID。同じ面は 1 回だけ）
+    pub target_faces: Vec<FaceId>,
+    pub stock: MachiningStock,
+    /// 加工の順の加工工程
+    pub operations: Vec<MachiningOperationRecord>,
+}
+
+/// 記録から加工手順の保管先に戻すときの誤り
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MachiningSequenceRestoreError {
+    /// 加工手順の ID が重なっている
+    DuplicateSequence(MachiningSequenceId),
+    /// 加工工程の ID が重なっている（ほかの加工手順の工程とも）
+    DuplicateOperation(MachiningOperationId),
+    /// 加工手順の加工の対象の面の ID が重なっている
+    DuplicateTargetFace {
+        sequence: MachiningSequenceId,
+        face: FaceId,
+    },
+}
+
+impl fmt::Display for MachiningSequenceRestoreError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DuplicateSequence(id) => write!(f, "duplicate machining sequence: {id}"),
+            Self::DuplicateOperation(id) => write!(f, "duplicate machining operation: {id}"),
+            Self::DuplicateTargetFace { sequence, face } => {
+                write!(
+                    f,
+                    "duplicate target face {face} in machining sequence {sequence}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for MachiningSequenceRestoreError {}
+
 /// 走査線の加工工程を作るときの既定の精度プロファイル（工程テンプレートを登録できるようになるまでの既定）
 const DEFAULT_TOLERANCE_PROFILE: ToleranceProfile = ToleranceProfile::PressRough;
 
@@ -87,6 +142,83 @@ pub struct MachiningSequenceStore {
 impl MachiningSequenceStore {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// 記録 `records` を、その順に持つ保管先を作る（ID・改訂の番号・改訂の鍵は記録のまま）
+    ///
+    /// 加工の対象の面が製品形状にない加工手順も、そのまま戻す（投入前の確認で誤りになる）。
+    ///
+    /// # Errors
+    ///
+    /// 加工手順の ID・加工工程の ID・加工手順の加工の対象の面の ID が重なっている場合。
+    pub fn from_records(
+        records: Vec<MachiningSequenceRecord>,
+    ) -> Result<Self, MachiningSequenceRestoreError> {
+        let mut sequence_ids = HashSet::new();
+        let mut operation_ids = HashSet::new();
+        let mut sequences = Vec::with_capacity(records.len());
+        for record in records {
+            if !sequence_ids.insert(record.id) {
+                return Err(MachiningSequenceRestoreError::DuplicateSequence(record.id));
+            }
+            let mut faces = HashSet::new();
+            if let Some(&face) = record
+                .target_faces
+                .iter()
+                .find(|face| !faces.insert(**face))
+            {
+                return Err(MachiningSequenceRestoreError::DuplicateTargetFace {
+                    sequence: record.id,
+                    face,
+                });
+            }
+            let mut operations = Vec::with_capacity(record.operations.len());
+            for operation in record.operations {
+                if !operation_ids.insert(operation.id) {
+                    return Err(MachiningSequenceRestoreError::DuplicateOperation(
+                        operation.id,
+                    ));
+                }
+                operations.push(MachiningOperation::restore(
+                    operation.id,
+                    operation.content,
+                    operation.revision,
+                    operation.revision_key,
+                ));
+            }
+            sequences.push(MachiningSequence::restore(
+                record.id,
+                record.name,
+                record.target_faces,
+                record.stock,
+                operations,
+            ));
+        }
+        Ok(Self { sequences })
+    }
+
+    /// 保管している加工手順の記録（加えた順）
+    pub fn records(&self) -> Vec<MachiningSequenceRecord> {
+        self.sequences
+            .iter()
+            .map(|sequence| MachiningSequenceRecord {
+                id: sequence.id(),
+                name: sequence.name().to_string(),
+                target_faces: sequence.target_faces().to_vec(),
+                stock: *sequence.stock(),
+                operations: sequence
+                    .operations()
+                    .iter()
+                    .map(|operation| MachiningOperationRecord {
+                        id: operation.id(),
+                        content: operation.content().clone(),
+                        revision: NonZeroU32::new(operation.revision())
+                            .expect("the revision of an operation starts at 1 and only increases"),
+                        revision_key: operation.revision_key(),
+                    })
+                    .collect(),
+            })
+            .collect()
     }
 
     /// 加工工程のない加工手順を作って加え、その ID を返す（加工の対象の同じ面は 1 回だけ持つ）
