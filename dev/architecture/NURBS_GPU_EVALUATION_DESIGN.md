@@ -1,5 +1,7 @@
 # NURBS GPU評価パイプライン設計 (Issue #210 Phase 2)
 
+> 2026-11-06 追記（#1060・#1061）: サンプルのデータを表示するデバッグ表示（NURBS 曲線・NURBS 曲面・逆オフセット包絡面・Octree・ツールパスのみ）と、それだけが使っていた描画のステージ（NURBS 曲線・NURBS 曲面・Octree・ツールパス）・描画の資源と shader・ViewModel の変換（`svg_loader`・`nurbs_eval_loader`・`nurbs_view`・`inverse_offset_converter`・`octree_converter`）・Application の点検用の API（`cam_inspection`）・サンプル（`cam_core::fixtures`・`geo_algorithms` の `nurbs_fixtures` と Octree の `fixtures`）を消した。線の頂点の型（`WireframeVertex`）は `mesh_converter` へ移した。本書のその部分の記述は、作ったときの記録として残す。
+
 **最終更新**: 2026-02-13  
 **関連Issue**: #210  
 **依存**: NURBS_ADAPTIVE_TESSELLATION_DESIGN.md  

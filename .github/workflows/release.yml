@@ -1,0 +1,99 @@
+name: Release
+
+# リリースの配布物（Windows の zip・チェックサム・SBOM・ビルドの出所の証明）を作り、リリースに添える。
+# 手順と確かめ方は dev/RELEASE_DISTRIBUTION_OPERATION.md
+on:
+  release:
+    types: [published]
+  # 添え直すとき（ビルドの失敗の後など）は、タグを選んで手で回す。出所の証明がタグのコミットを指すように、
+  # ブランチからは回さない
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Windows の配布物
+    runs-on: windows-latest
+    if: github.event_name == 'release' || github.ref_type == 'tag'
+    permissions:
+      # リリースに配布物を添える
+      contents: write
+      # ビルドの出所の証明（Sigstore の署名と、証明の保存）
+      id-token: write
+      attestations: write
+    env:
+      TAG: ${{ github.event.release.tag_name || github.ref_name }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+
+      # 同じタグから同じ配布物ができるように、コンパイラの版を固定する（上げるときは手で直す）
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: 1.99.0
+
+      - name: Check the version
+        run: |
+          $version = (cargo metadata --format-version 1 --no-deps | ConvertFrom-Json).packages |
+            Where-Object { $_.name -eq 'redring' } | Select-Object -ExpandProperty version
+          if ("v$version" -ne $env:TAG) {
+            throw "The tag $env:TAG does not match the version of redring ($version)"
+          }
+
+      # 配布物は、ほかのワークフローのキャッシュを使わずに、Cargo.lock のとおりにビルドする。
+      # Visual C++ の再頒布可能パッケージのない PC でも起動できるように、C のランタイムを静的につなぐ
+      - name: Build
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo build --release --locked -p redring
+
+      - name: Generate the SBOM
+        run: |
+          cargo install cargo-cyclonedx --locked --version 0.5.10
+          cargo cyclonedx --manifest-path view/app/Cargo.toml -f json --spec-version 1.5 `
+            --target x86_64-pc-windows-msvc --override-filename redring-sbom -qq
+
+      - name: Package
+        run: |
+          $name = "redring-$env:TAG-windows-x86_64"
+          New-Item -ItemType Directory -Force dist/$name | Out-Null
+          Copy-Item target/release/redring.exe, LICENSE, LICENSE-MIT, LICENSE-APACHE, README.md, README.jp.md dist/$name
+          Compress-Archive -Path dist/$name -DestinationPath dist/$name.zip
+          Copy-Item view/app/redring-sbom.json "dist/$name.cdx.json"
+          # sha256sum -c でも確かめられるように、小文字の 16 進数と LF の改行で書く
+          $lines = Get-ChildItem "dist/$name.zip", "dist/$name.cdx.json" | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          }
+          [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", (($lines -join "`n") + "`n"))
+          Get-Content dist/SHA256SUMS.txt
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/*.zip
+            dist/*.cdx.json
+
+      # 公開した配布物を黙って置き換えないように、同じ名前のファイルがあるときは失敗にする
+      # （添え直すときは、先にリリースから消す）
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # PowerShell は外部のコマンドの引数のワイルドカードを展開しないため、ファイルを並べて渡す
+          $files = Get-ChildItem dist -File | ForEach-Object FullName
+          gh release upload $env:TAG @files --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw "gh release upload failed" }

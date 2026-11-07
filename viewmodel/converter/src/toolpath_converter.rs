@@ -1,6 +1,6 @@
 //! CAM工具経路のViewModel変換
 //!
-//! `cam_core::ToolPath` を GPU描画用の頂点データに変換します。
+//! ツールパス（`ToolPath`）を GPU描画用の頂点データに変換します。
 //!
 //! # 設計方針
 //!
@@ -9,14 +9,10 @@
 //! - **セグメント種別の識別**: Cutting, Rapid, Approach, Retract, PassRetract
 //! - **円弧テッセレーション**: 円弧を線分に分割（設定可能な分割数）
 
-use cam_core::{
-    ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
-    ToolPath,
+use application::toolpath::{
+    arc_to_line_segments, CircularArcPolylineOptions, ContourLevelPath, CuttingDirection,
+    LineSegment3DSupportLine, PathGeometry, PathSegment, Point3D, SegmentType, ToolPath,
 };
-use geo_algorithms::{
-    circular_arc_to_polyline, CircularArcDirection, CircularArcPolylineOptions, Point3D,
-};
-use geo_contracts::LineSegment3DSupportLine;
 
 /// 工具経路の色設定
 #[derive(Debug, Clone, Copy)]
@@ -361,18 +357,8 @@ fn convert_segment(
             center,
             direction,
         } => {
-            let circular_direction = match direction {
-                ArcDirection::Clockwise => CircularArcDirection::Clockwise,
-                ArcDirection::CounterClockwise => CircularArcDirection::CounterClockwise,
-            };
-
-            let arc_segments = circular_arc_to_polyline(
-                segment.start,
-                *end,
-                *center,
-                circular_direction,
-                arc_options,
-            );
+            let arc_segments =
+                arc_to_line_segments(segment.start, *end, *center, *direction, arc_options);
 
             // 線分列として頂点追加
             for line in arc_segments {
@@ -420,17 +406,10 @@ fn point_to_vertex(point: &Point3D<f64>) -> Vertex3D {
     }
 }
 
-/// デバッグ用：サンプル工具経路を取得
-///
-/// 生成本体は `cam_core::fixtures` に置き、ViewModel は層境界の薄い中継だけを担う。
-pub fn load_demo_toolpath() -> ToolPath<f64> {
-    cam_core::fixtures::create_sample_toolpath()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cam_core::ToolPath;
+    use application::toolpath::{ArcDirection, ToolPath};
 
     #[test]
     fn test_default_color_scheme() {
@@ -483,7 +462,7 @@ mod tests {
 
     #[test]
     fn test_simple_line_segment_conversion() {
-        use cam_core::{ContourLevelPath, PathSegment, SegmentType};
+        use application::toolpath::{ContourLevelPath, PathSegment, SegmentType};
 
         let segment = PathSegment::new_line(
             Point3D::new(0.0, 0.0, 0.0),
@@ -519,7 +498,7 @@ mod tests {
 
     #[test]
     fn test_cutting_direction_coloring() {
-        use cam_core::{ContourLevelPath, PathSegment, SegmentType};
+        use application::toolpath::{ContourLevelPath, PathSegment, SegmentType};
 
         let segment = PathSegment::new_line(
             Point3D::new(0.0, 0.0, 0.0),
@@ -599,44 +578,5 @@ mod tests {
         let last = result.vertices.last().unwrap();
         assert!((last.position[0] - (-10.0)).abs() < 0.01);
         assert!((last.position[1] - 0.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_sample_toolpath_is_time_continuous() {
-        fn segment_end(segment: &PathSegment<f64>) -> Point3D<f64> {
-            match segment.geometry {
-                PathGeometry::Line { end } | PathGeometry::Arc { end, .. } => end,
-            }
-        }
-
-        let toolpath = load_demo_toolpath();
-        let mut ordered = Vec::new();
-        ordered.extend(toolpath.approach_segments.iter());
-        for contour in &toolpath.contour_levels {
-            ordered.extend(contour.segments.iter());
-        }
-        ordered.extend(toolpath.retract_segments.iter());
-
-        for pair in ordered.windows(2) {
-            let prev = pair[0];
-            let next = pair[1];
-            let prev_end = segment_end(prev);
-            let next_start = next.start;
-
-            let dx = (prev_end.x() - next_start.x()).abs();
-            let dy = (prev_end.y() - next_start.y()).abs();
-            let dz = (prev_end.z() - next_start.z()).abs();
-
-            assert!(
-                dx <= 1e-9 && dy <= 1e-9 && dz <= 1e-9,
-                "toolpath discontinuity: prev_end=({:.6},{:.6},{:.6}) next_start=({:.6},{:.6},{:.6})",
-                prev_end.x(),
-                prev_end.y(),
-                prev_end.z(),
-                next_start.x(),
-                next_start.y(),
-                next_start.z()
-            );
-        }
     }
 }

@@ -3,13 +3,11 @@
 //! 形状・メッシュ・工具経路などのデータを、描画用の形式に変換します。
 //!
 //! ## 主要機能
-//! - メッシュデータ変換（Model → GPU形式）
-//! - STL読み込み・変換統合
-//! - 境界ボックス計算・変換
-//! - 形状可視化データ変換（幾何プリミティブ → GPU頂点データ）
+//! - 製品形状の表示用のメッシュ（Application の製品形状 → GPU 頂点データ）
+//! - デバッグ用の形状（線分・円・円弧・三角形のエンティティ → GPU 頂点データ）
 //! - CAM工具経路の可視化データ変換（ToolPath → GPU頂点データ）
-//! - Octree可視化データ変換（Octree → GPU ワイヤーフレーム頂点データ）
-//! - NURBS GPU評価用データ変換（NURBS形状 + パラメータリスト → GPU形式）
+//! - 切削シミュレーションの再生（時点の素材の面・工具の形 → GPU 頂点データ）
+//! - 逆オフセット形状の表示（表示用の三角形 → GPU 頂点データ）
 
 pub mod cam_sim_visualization_converter;
 pub mod cutting_animation;
@@ -18,23 +16,13 @@ pub mod entity_converter;
 pub mod failure_message_catalog;
 pub mod failure_message_mapper;
 pub mod feature_command_converter;
-pub mod inverse_offset_converter;
 pub mod inverse_offset_shape_converter;
-pub mod job_converter;
-pub mod job_message_catalog;
-pub mod job_message_mapper;
 pub mod mesh_converter;
 pub mod message_catalog;
-pub mod nurbs_eval_loader;
-pub mod nurbs_view;
-pub mod octree_converter;
 pub mod product_shape_converter;
 pub mod shape_converter;
 pub mod snapshot_converter;
-pub mod svg_loader;
 pub mod toolpath_converter;
-pub mod validation_message_catalog;
-pub mod validation_message_mapper;
 
 /// テスト用の関数（削除予定）
 pub fn add(left: u64, right: u64) -> u64 {

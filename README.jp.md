@@ -165,7 +165,7 @@ RedRing は以下の原則に基づいて設計されています：
 **Linux:**
 
 - 必要なパッケージ: `sudo apt install build-essential pkg-config libx11-dev`
-- Vulkan または OpenGL ドライバ
+- Vulkan ドライバ（ない場合は OpenGL ドライバ）
 
 ### ビルド手順
 
@@ -265,13 +265,6 @@ pwsh scripts/check_all_before_push.ps1
 | `+` / `-` | 再生速度変更（倍率はタイトル表示） |
 | `Shift+S` | 設定パネル表示切替 |
 
-#### Octree確認で使う操作
-
-| キー | 用途 |
-| ---- | ---- |
-| `o` | Octree表示／深さ送り |
-| `Shift+O` | Octree深さアニメーション再生 |
-
 #### マウス操作
 
 - `Ctrl + 左ドラッグ`: 回転
@@ -282,8 +275,9 @@ pwsh scripts/check_all_before_push.ps1
 
 ```bash
 # mdbook が必要: cargo install mdbook
-mdbook build  # manual/ -> docs/ に生成
-mdbook serve  # ローカルサーバーで確認
+mdbook build            # 日本語のマニュアル: manual/ -> target/book/
+mdbook build manual_en  # 英語のマニュアル: manual_en/src/ -> target/book_en/
+mdbook serve  # 日本語のマニュアルをローカルサーバーで確認
 ```
 
 ### トラブルシューティング

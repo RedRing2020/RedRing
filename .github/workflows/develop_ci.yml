@@ -1,10 +1,25 @@
 name: Development CI
 
+# 文書だけの変更では、ビルド・試験を回さない（マニュアルのビルドは manual_ci.yml）
 on:
   push:
     branches: [develop]
+    paths-ignore:
+      - "**.md"
+      - "manual/**"
+      - "manual_en/**"
+      - "dev/**"
+      - "book.toml"
+      - "LICENSE*"
   pull_request:
     branches: [develop]
+    paths-ignore:
+      - "**.md"
+      - "manual/**"
+      - "manual_en/**"
+      - "dev/**"
+      - "book.toml"
+      - "LICENSE*"
 
 # 読み取りだけ（書き込みの権限は持たない）
 permissions:

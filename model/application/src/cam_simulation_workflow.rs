@@ -13,6 +13,8 @@
 #[cfg(test)]
 mod tests;
 
+/// 逆オフセット形状の表示用の三角形と、その種類
+pub use cam_algorithms::{InverseOffsetPart, InverseOffsetPartKind};
 use std::fmt;
 use std::sync::Arc;
 
@@ -28,7 +30,9 @@ use cam_sim::{
     InMemoryCuttingSimulationInputStore, SnapshotInterval, cutting_simulation_input_errors,
     stock_around_product,
 };
-use geo_algorithms::{Aabb3D, TessellationLimits};
+/// 軸に平行な直方体の型（素材の形に使う）
+pub use geo_algorithms::Aabb3D;
+use geo_algorithms::TessellationLimits;
 use job_domain::{CamJobRecord, CamJobSource, CamJobStatus, CamJobType};
 use job_runtime::JobManager;
 
@@ -66,10 +70,10 @@ pub struct CamSimulationSubmission {
 /// 取り込んだツールパス生成と切削シミュレーションの成果物と、投入した入力
 #[derive(Debug, Clone)]
 pub struct CamSimulationWorkflowResult {
-    /// ツールパスの成果物のバイト列
-    pub toolpath_artifact: Vec<u8>,
+    /// ツールパスの成果物のバイト列（形式は外に見せない）
+    pub(crate) toolpath_artifact: Vec<u8>,
     /// 切削シミュレーションの成果物のバイト列
-    pub simulation_artifact: Vec<u8>,
+    pub(crate) simulation_artifact: Vec<u8>,
     /// ツールパス生成の入力
     pub solver_input: CamSolverInput,
     /// 切削シミュレーションの入力
@@ -223,6 +227,8 @@ pub enum CamSimulationWorkflowError {
     Orchestration(JobOrchestrationError),
     /// 逆オフセット形状を作れない
     InverseOffsetShape(CamSolverError),
+    /// 逆オフセット形状を表示用の三角形に分けられない（表示のきざみの誤り）
+    InverseOffsetDisplay(CamSolverError),
 }
 
 impl fmt::Display for CamSimulationWorkflowError {
@@ -247,6 +253,9 @@ impl fmt::Display for CamSimulationWorkflowError {
             Self::Orchestration(error) => write!(f, "job orchestration failed: {error}"),
             Self::InverseOffsetShape(error) => {
                 write!(f, "inverse offset shape cannot be built: {error}")
+            }
+            Self::InverseOffsetDisplay(error) => {
+                write!(f, "inverse offset shape cannot be displayed: {error}")
             }
         }
     }
@@ -346,12 +355,31 @@ impl CamSimulationWorkflow {
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、投入したときのツールパス生成と同じ逆オフセット形状を
-    /// 作る（デバッグ表示に使う）
+    /// 作り、角度 `angle_step`（ラジアン）のきざみで種類ごとの表示用の三角形にする
+    ///
+    /// # Errors
+    ///
+    /// 投入前の確認（[`Self::check_operation`]）の誤り、逆オフセット形状を作れない場合、`angle_step` が表示用のきざみの
+    /// 範囲の外の場合。
+    pub fn inverse_offset_shape_parts(
+        shapes: &ProductShapeStore,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+        angle_step: f64,
+    ) -> Result<Vec<InverseOffsetPart>, CamSimulationWorkflowError> {
+        Self::inverse_offset_shape(shapes, sequences, sequence_id, operation_id)?
+            .display_parts(angle_step)
+            .map_err(CamSimulationWorkflowError::InverseOffsetDisplay)
+    }
+
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、投入したときのツールパス生成と同じ逆オフセット形状を
+    /// 作る
     ///
     /// # Errors
     ///
     /// 投入前の確認（[`Self::check_operation`]）の誤りと、逆オフセット形状を作れない場合。
-    pub fn inverse_offset_shape(
+    fn inverse_offset_shape(
         shapes: &ProductShapeStore,
         sequences: &MachiningSequenceStore,
         sequence_id: MachiningSequenceId,

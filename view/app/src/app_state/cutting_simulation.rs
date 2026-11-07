@@ -10,7 +10,7 @@ use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
 use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
-use viewmodel::octree_converter::WireframeVertex;
+use viewmodel::mesh_converter::WireframeVertex;
 
 /// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
 const FRAME_STEP_DIVISIONS: f64 = 100.0;
@@ -146,6 +146,7 @@ impl AppState {
                 self.apply_camera_fit(fit);
             }
         }
+        self.discard_main_view();
         self.renderer.set_stage(mesh_stage);
         self.cutting_animation = Some(animation);
         self.update_camera_uniforms();
@@ -167,33 +168,26 @@ impl AppState {
     /// 素材の面と製品形状のメッシュは作り直さない（素材は色だけを変える）。ただし、最後のコマで色分けの入・切が変わった
     /// 場合は、素材の面がすべて作り直されて届く。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
     pub(super) fn redraw_cutting_animation(&mut self) {
-        let Some(animation) = &mut self.cutting_animation else {
+        let Some(animation) = &self.cutting_animation else {
             tracing::info!(
                 "No cutting simulation is imported; the settings apply from the next import"
             );
             return;
         };
-        let toolpath_lines = line_vertices(
-            &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
-            None,
-        );
+        let toolpath_lines = self.toolpath_lines(animation);
         let colors = self.snapshot_shaded_color_settings;
         let tool_lines = line_vertices(
             &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
             Some(colors.tool_wire_color),
         );
-        let device = &self.graphic.device;
-        let Some(mesh_stage) = self
-            .renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
-        else {
+        let device = self.graphic.device.clone();
+        let device = &device;
+        let Some(mesh_stage) = self.main_mesh_stage() else {
             tracing::warn!("Cannot apply the settings because no cutting animation is shown");
             self.set_notice(crate::help_ui::Notice::ApplyWithoutAnimation);
             return;
         };
-        mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
+        mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines.clone());
         mesh_stage.set_overlay_tool_line_data(device, tool_lines);
         for class in [
             DeviationClass::NotCompared,
@@ -207,8 +201,14 @@ impl AppState {
                 stock_class_color(&colors, class),
             );
         }
+        // ツールパスの線を重ねたデバッグ表示にも、同じ線を描く
+        if let Some(debug_stage) = self.debug_toolpath_overlay_stage() {
+            debug_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
+        }
         // 色分けするかが変わった場合は、最後の時点の素材の面が作り直されて届く
-        animation.set_deviations_shown(colors.deviations.shown);
+        if let Some(animation) = &mut self.cutting_animation {
+            animation.set_deviations_shown(colors.deviations.shown);
+        }
         // 後から届く素材のブロックと工具の線も、この色で描く
         self.cutting_animation_colors = colors;
         self.update_camera_uniforms();
@@ -253,13 +253,7 @@ impl AppState {
         mesh_stage.set_mesh_list(device, items);
         mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
         mesh_stage.set_overlay_tool_visible(self.tool_lines_visible);
-        mesh_stage.set_overlay_toolpath_line_data(
-            device,
-            line_vertices(
-                &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
-                None,
-            ),
-        );
+        mesh_stage.set_overlay_toolpath_line_data(device, self.toolpath_lines(animation));
         mesh_stage.set_overlay_tool_line_data(
             device,
             line_vertices(
@@ -270,11 +264,22 @@ impl AppState {
         (mesh_stage, positions)
     }
 
-    /// 切削アニメーションのツールパスの線の表示・非表示を切り替える
+    /// 切削アニメーション `animation` のツールパスの線の頂点（今の表示の設定で作る）
+    pub(super) fn toolpath_lines(&self, animation: &CuttingAnimation) -> Vec<MeshVertex> {
+        line_vertices(
+            &animation.toolpath_wireframe(&self.toolpath_visualization_settings),
+            None,
+        )
+    }
+
+    /// 切削アニメーションのツールパスの線の表示・非表示を切り替える（デバッグ用の表示に重ねた線も同じに切り替える）
     pub(super) fn toggle_toolpath_lines(&mut self) {
         self.toolpath_lines_visible = !self.toolpath_lines_visible;
         let visible = self.toolpath_lines_visible;
         if let Some(mesh_stage) = self.cutting_animation_stage() {
+            mesh_stage.set_overlay_toolpath_visible(visible);
+        }
+        if let Some(mesh_stage) = self.debug_toolpath_overlay_stage() {
             mesh_stage.set_overlay_toolpath_visible(visible);
         }
         tracing::info!(
@@ -299,10 +304,7 @@ impl AppState {
     /// 切削アニメーションの表示中のメッシュステージ（表示中でなければ `None`）
     fn cutting_animation_stage(&mut self) -> Option<&mut MeshStage> {
         self.cutting_animation.as_ref()?;
-        self.renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
+        self.main_mesh_stage()
     }
 
     /// 頼んだコマの素材の面ができていれば、素材のブロックと工具の形を差し替える
@@ -320,9 +322,9 @@ impl AppState {
             Some(self.cutting_animation_colors.tool_wire_color),
         );
         let colors = self.cutting_animation_colors;
-        let device = &self.graphic.device;
-        let stage = self.renderer.get_stage_mut();
-        if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
+        let device = self.graphic.device.clone();
+        let device = &device;
+        if let Some(mesh_stage) = self.main_mesh_stage() {
             for block in blocks {
                 // 三角形のない分類の面も渡し、前の面の同じ分類のメッシュを除く
                 for (key, item) in stock_block_items(block, &colors) {

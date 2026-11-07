@@ -9,6 +9,9 @@ use winit::{
 
 use crate::app_state::AppState;
 
+/// ウィンドウのタイトル（切削シミュレーションを取り込む前と、デバッグ表示の間）
+pub(crate) const APP_TITLE: &str = "RedRing";
+
 #[derive(Default)]
 pub struct App {
     pub state: Option<AppState>,
@@ -35,12 +38,27 @@ impl App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        // 描画の準備ができるまで、OS がウィンドウを既定の背景（白）で塗らないよう、見えない状態で作る
         let window = Arc::new(
             event_loop
-                .create_window(WindowAttributes::default().with_title("RedRing"))
+                .create_window(
+                    WindowAttributes::default()
+                        .with_title(APP_TITLE)
+                        .with_visible(false),
+                )
                 .expect("Window creation failed"),
         );
-        self.state = Some(AppState::new(window));
+        let mut state = AppState::new(window);
+        // 見えないウィンドウには描画の合図が来ないため、描画面を今の大きさに合わせ、最初のフレームをここで描いてから見せる。
+        // egui は最初の描画で大きさを測ることがあるため、2 回描く（大きさ 0 のときは描かずに見せる）
+        let size = state.window.inner_size();
+        if size.width > 0 && size.height > 0 {
+            state.resize(size);
+            state.render();
+            state.render();
+        }
+        state.window.set_visible(true);
+        self.state = Some(state);
         tracing::info!("=== RedRing is ready ===");
         tracing::info!(
             "Cutting simulation: open the machining conditions window with Shift+M and submit with Submit"

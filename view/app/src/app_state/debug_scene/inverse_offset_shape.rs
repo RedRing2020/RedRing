@@ -24,6 +24,8 @@ fn part_color(kind: InverseOffsetPartKind) -> [f32; 4] {
 impl AppState {
     /// デバッグ用: 表示中の製品形状と計算条件の工具で作った逆オフセット形状の要素を、役割ごとの色で表示する
     ///
+    /// カメラは動かさず、通常の表示と同じ向き・拡大で見比べられるようにする。取り込んだ切削シミュレーションのツールパスの
+    /// 線を重ね（工具の先端が逆オフセット形状の上面を通るかを確かめる）、表示・非表示は通常の表示と同じに切り替える。
     /// 製品形状は描かない（フラットでは、水平な面の要素が製品形状の面と同じ高さにあり、重ねると見分けられないため）。
     pub fn load_debug_inverse_offset_shape(&mut self) {
         let meshes = match self
@@ -32,7 +34,7 @@ impl AppState {
         {
             Ok(meshes) => meshes,
             Err(error) => {
-                tracing::warn!("inverse offset shape cannot be displayed: {error}");
+                tracing::warn!("Cannot show the inverse offset shape: {error}");
                 return;
             }
         };
@@ -46,10 +48,6 @@ impl AppState {
             ANGLE_STEP_DEGREES,
             counts.join(" ")
         );
-        let positions: Vec<[f32; 3]> = meshes
-            .iter()
-            .flat_map(|mesh| mesh.vertices.iter().map(|vertex| vertex.position))
-            .collect();
         let items = meshes
             .into_iter()
             .enumerate()
@@ -67,10 +65,25 @@ impl AppState {
             self.graphic.config.format,
         ));
         mesh_stage.set_mesh_list(&self.graphic.device, items);
-        if let Some(fit) = Self::build_camera_fit(&positions) {
-            self.apply_camera_fit(fit);
+        if let Some(animation) = &self.cutting_animation {
+            mesh_stage.set_overlay_toolpath_line_data(
+                &self.graphic.device,
+                self.toolpath_lines(animation),
+            );
         }
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
+        mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
+        // ほかのデバッグ表示から切り替えても、通常の表示と同じカメラで描く
+        self.enter_debug_view();
+        self.use_main_view_camera();
+        self.show_debug_stage(mesh_stage, true);
+        // 取り込んだ結果の工具と今の計算条件の工具が違うと、ツールパスの線は逆オフセット形状に乗らない
+        let tool = &self.cutting_simulation.operation_content().tool;
+        let imported_tool_differs = self.imported_conditions.as_ref().is_some_and(|conditions| {
+            conditions.tool.is_ball_end_mill() != tool.is_ball_end_mill()
+                || conditions.tool.radius() != tool.radius()
+        });
+        if imported_tool_differs {
+            self.set_notice(crate::help_ui::Notice::InverseOffsetToolDiffers);
+        }
     }
 }

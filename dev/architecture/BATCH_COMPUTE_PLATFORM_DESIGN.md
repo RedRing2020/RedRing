@@ -389,6 +389,7 @@ Phase 3 / #314 実装方針（2026-03-08 更新）:
 - `job_converter` は DTO 変換と message key 生成に集中し、テンプレート解決ロジックを持たない
 - `JobError` 文字列の `message_key` 正規化は `job_message_mapper` へ分離する
 - `ja/en` テンプレートは `job_message_catalog` として独立管理し、将来のドメイン拡張で差し替え可能にする
+- 2026-11-06 追記: `job_converter`・`job_message_mapper`・`job_message_catalog` は、呼び出す画面がないまま残っていたため消した（#1059）。ジョブの表示は、ジョブマネージャーの画面（#1079）を作るときに、その形に合わせて作り直す
 
 Phase 4 後方整理（2026-03-08 更新）:
 

@@ -1,66 +1,31 @@
-//! cutting_animation - 切削シミュレーションの成果物から、切削アニメーションの描画用のデータを作る
+//! cutting_animation - 切削シミュレーションの再生から、切削アニメーションの描画用のデータを作る
 //!
 //! 時点を移す場合は、区間が変わった部分のブロックの素材の面だけを、別のスレッドで作り直して渡す（`stock`）。
-//! 時点の素材の状態は、成果物の差分のキーフレームと正本から cam_sim の再生の入口
-//! （`CuttingSimulationReplay`）で作り直す（材料除去の計算は持たない）。
-//! 工具の形とツールパスの線は、ツールパスの成果物と工具から作る。工具は、時点の位置のほか、区間の端点にも置ける
-//! （素材は、工具の位置の手前で最も近い時点の状態を表示する）。
+//! 時点の素材の面とツールパスの直線の区間を、描画用の頂点に詰め替える。
+//! 工具は、時点の位置のほか、区間の端点にも置ける（素材は、工具の位置の手前で最も近い時点の状態を表示する）。
 //! 最後の時点では、素材の面の三角形を、製品形状との比較（削り込み・トレランスの中・削り残し・比べていない）で分けて
 //! 渡せる（`set_deviations_shown`）。
 
 mod stock;
 
-use cam_core::{read_toolpath_artifact_v1, BinaryFormatError, Tool, ToolPath};
-pub use cam_sim::DeviationClass;
-use cam_sim::{
-    collect_toolpath_line_segments, read_cutting_simulation_artifact_v1, SimulationError,
-    SimulationSnapshotExport,
+pub use application::cutting_simulation_playback::DeviationClass;
+use application::cutting_simulation_playback::{
+    CuttingSimulationPlayback, SimulationSnapshotExport,
 };
-use geo_algorithms::{
-    LineSegment3D, LineSegment3DProperties, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
-};
+use application::machining_sequence::Tool;
+use application::toolpath::{LineSegment3D, LineSegment3DProperties, ToolPath};
 
 use crate::cam_sim_visualization_converter::{
     create_ball_end_mill_wireframe, create_flat_end_mill_wireframe,
     create_toolpath_wireframe_vertices, tool_tip_position, ToolWireframeVisualizationSettings,
 };
-use crate::mesh_converter::VertexData;
-use crate::octree_converter::WireframeVertex;
+use crate::mesh_converter::{VertexData, WireframeVertex};
 use crate::snapshot_converter::{
     cam_snapshot_exports_to_inputs, cam_snapshot_inputs_to_domain_series,
     CamSimulationSnapshotInput, DomainSnapshotSeries,
 };
 use crate::toolpath_converter::ToolPathVisualizationSettings;
-use stock::{StockAnimation, StockWorker};
-
-/// 切削アニメーションを作れない理由
-#[derive(Debug)]
-pub enum CuttingAnimationError {
-    /// 成果物を読めない
-    Artifact(BinaryFormatError),
-    /// スナップショットがない
-    NoSnapshot,
-    /// 成果物をツールパスと工具で再生できない
-    Replay(SimulationError),
-}
-
-impl std::fmt::Display for CuttingAnimationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Artifact(error) => write!(f, "failed to read the artifact: {error}"),
-            Self::NoSnapshot => write!(f, "the cutting simulation has no snapshot"),
-            Self::Replay(error) => write!(f, "failed to replay the cutting simulation: {error}"),
-        }
-    }
-}
-
-impl std::error::Error for CuttingAnimationError {}
-
-impl From<BinaryFormatError> for CuttingAnimationError {
-    fn from(value: BinaryFormatError) -> Self {
-        Self::Artifact(value)
-    }
-}
+use stock::{block_mesh, StockWorker};
 
 /// 1 つのブロックの素材の面（描画用の頂点と三角形の頂点番号・分類。三角形がなければ空）
 #[derive(Debug, Clone)]
@@ -144,43 +109,22 @@ pub struct CuttingAnimation {
 }
 
 impl CuttingAnimation {
-    /// ツールパスと切削シミュレーションの成果物と工具と素材の精度から、最初の時点の切削アニメーションを作る
-    ///
-    /// # Errors
-    ///
-    /// 成果物を読めない場合・スナップショットがない場合・成果物をツールパスと工具で再生できない場合。
-    pub fn new(
-        toolpath_artifact: &[u8],
-        simulation_artifact: &[u8],
-        tool: Tool<f64>,
-        precision: f64,
-    ) -> Result<Self, CuttingAnimationError> {
-        let (_, toolpath) = read_toolpath_artifact_v1(&mut &toolpath_artifact[..])?;
-        let (_, artifact) = read_cutting_simulation_artifact_v1(&mut &simulation_artifact[..])?;
-        if artifact.snapshots.is_empty() {
-            return Err(CuttingAnimationError::NoSnapshot);
-        }
-        let segments =
-            collect_toolpath_line_segments(&toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM);
-        let drawn_tool_length = tool.cutting_length.unwrap_or_else(|| {
-            let lowest_tip = segments
-                .iter()
-                .filter(|(_, is_cutting)| *is_cutting)
-                .flat_map(|(segment, _)| [segment.start_point().z(), segment.end_point().z()])
-                .fold(f64::INFINITY, f64::min);
-            let stock_top = artifact.grids[2].initial.1;
-            // ボールエンドミルの線は、球の中心から長さを測る
-            let ball_center = if tool.is_ball_end_mill() {
-                tool.radius()
-            } else {
-                0.0
-            };
-            stock_top - lowest_tip - ball_center
-        });
-        let snapshots = artifact.snapshots.clone();
-        let stock = StockAnimation::new(artifact, &toolpath, &tool, precision)?;
-        Ok(Self {
-            initial_stock_blocks: stock.stock_blocks(),
+    /// 切削シミュレーションの再生 `playback` と工具 `tool` から、最初の時点の切削アニメーションを作る
+    pub fn new(playback: CuttingSimulationPlayback, tool: Tool<f64>) -> Self {
+        let CuttingSimulationPlayback {
+            toolpath,
+            segments,
+            snapshots,
+            stock_top,
+            stock,
+        } = playback;
+        let drawn_tool_length = drawn_tool_length(&tool, &segments, stock_top);
+        Self {
+            initial_stock_blocks: stock
+                .stock_blocks()
+                .into_iter()
+                .map(|(block, mesh)| block_mesh(block, mesh))
+                .collect(),
             stock: StockWorker::spawn(stock),
             snapshots,
             frame: 0,
@@ -191,7 +135,7 @@ impl CuttingAnimation {
             drawn_tool_length,
             deviations_shown: false,
             requested: std::cell::Cell::new(0),
-        })
+        }
     }
 
     /// 時点（スナップショット）の数
@@ -315,6 +259,28 @@ impl CuttingAnimation {
     }
 }
 
+/// 描く工具の長さ（工具長 `tool.cutting_length` を指定しない工具は、最も深い切削の位置で素材の上面 `stock_top` に
+/// 届く長さ。ボールエンドミルの線は、球の中心から長さを測る）
+fn drawn_tool_length(
+    tool: &Tool<f64>,
+    segments: &[(LineSegment3D<f64>, bool)],
+    stock_top: f64,
+) -> f64 {
+    tool.cutting_length.unwrap_or_else(|| {
+        let lowest_tip = segments
+            .iter()
+            .filter(|(_, is_cutting)| *is_cutting)
+            .flat_map(|(segment, _)| [segment.start_point().z(), segment.end_point().z()])
+            .fold(f64::INFINITY, f64::min);
+        let ball_center = if tool.is_ball_end_mill() {
+            tool.radius()
+        } else {
+            0.0
+        };
+        stock_top - lowest_tip - ball_center
+    })
+}
+
 /// 時点の、経路の上の位置（区間の番号 + 区間の中の位置。端点 `e` の位置は `e`）
 fn snapshot_position(snapshot: &SimulationSnapshotExport) -> f64 {
     snapshot.segment_index as f64 + snapshot.segment_t
@@ -340,95 +306,13 @@ fn snapshot_before_endpoint(snapshots: &[SimulationSnapshotExport], endpoint: us
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::sync::OnceLock;
     use std::time::{Duration, Instant};
-
-    use cam_algorithms::ProductSurface;
-    use cam_core::{
-        write_toolpath_payload_v1, ArtifactHeaderV1, ArtifactKind, ContourLevelPath,
-        CoordinateFrame, CuttingDirection, LengthUnit, PathSegment, SegmentType,
-    };
-    use cam_sim::{write_cutting_simulation_artifact_v1, CuttingSimulator, SnapshotInterval};
-    use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 
     use super::*;
 
-    pub(super) const PRECISION: f64 = 0.01;
-
-    pub(super) fn tool() -> Tool<f64> {
-        Tool::ball_end_mill("BEM2".to_string(), 2.0, 10.0)
-    }
-
-    /// 素材の上面を 3 本の往復の線で削るツールパスと切削シミュレーションの成果物（テストの間で 1 回だけ作る）
-    pub(super) fn artifacts() -> &'static (Vec<u8>, Vec<u8>) {
-        static ARTIFACTS: OnceLock<(Vec<u8>, Vec<u8>)> = OnceLock::new();
-        ARTIFACTS.get_or_init(|| {
-            let points = [
-                Point3D::new(-2.0, 1.0, 1.6),
-                Point3D::new(32.0, 1.0, 1.6),
-                Point3D::new(32.0, 2.0, 1.6),
-                Point3D::new(-2.0, 2.0, 1.6),
-                Point3D::new(-2.0, 3.0, 1.2),
-                Point3D::new(32.0, 3.0, 1.2),
-            ];
-            let toolpath = ToolPath::new(
-                "BEM2".to_string(),
-                CuttingDirection::Down,
-                vec![],
-                vec![ContourLevelPath::new(
-                    0,
-                    1.6,
-                    points
-                        .windows(2)
-                        .map(|pair| {
-                            PathSegment::new_line(
-                                pair[0],
-                                pair[1],
-                                SegmentType::Cutting { feed_rate: 1200.0 },
-                            )
-                        })
-                        .collect(),
-                )],
-                vec![],
-            );
-            let mut payload = Vec::new();
-            write_toolpath_payload_v1(&mut payload, &toolpath).unwrap();
-            let mut toolpath_artifact = Vec::new();
-            ArtifactHeaderV1::new(ArtifactKind::ToolPath, payload.len() as u64)
-                .write_to(&mut toolpath_artifact)
-                .unwrap();
-            toolpath_artifact.extend_from_slice(&payload);
-
-            let stock = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(30.0, 4.0, 2.0));
-            let mut simulator = CuttingSimulator::new(stock, SnapshotInterval::default());
-            simulator.simulate(&toolpath, &tool(), PRECISION).unwrap();
-            // 製品形状は高さ 1.6 の平面（y = 3 の線は 0.4 深く削り込む）
-            let product = TriangleMesh3D::new(
-                vec![
-                    Point3D::new(-5.0, -5.0, 1.6),
-                    Point3D::new(35.0, -5.0, 1.6),
-                    Point3D::new(35.0, 9.0, 1.6),
-                    Point3D::new(-5.0, 9.0, 1.6),
-                ],
-                vec![[0, 1, 2], [0, 2, 3]],
-            )
-            .unwrap();
-            simulator.compare_with_product(&ProductSurface::new(&product).unwrap(), 0.001);
-            let mut simulation_artifact = Vec::new();
-            write_cutting_simulation_artifact_v1(
-                &mut simulation_artifact,
-                &simulator.artifact().unwrap(),
-                LengthUnit::Millimeter,
-                CoordinateFrame::WorldRightHandedZUp,
-            )
-            .unwrap();
-            (toolpath_artifact, simulation_artifact)
-        })
-    }
-
-    fn animation() -> CuttingAnimation {
-        let (toolpath, simulation) = artifacts();
-        CuttingAnimation::new(toolpath, simulation, tool(), PRECISION).unwrap()
+    /// 表示中の製品形状（四角錐）を投入・実行・取り込みした切削アニメーション
+    pub(super) fn animation() -> CuttingAnimation {
+        crate::cutting_simulation_session::tests::imported_animation(None)
     }
 
     #[test]
@@ -516,7 +400,11 @@ mod tests {
         loop {
             if let Some(blocks) = animation.take_stock_update() {
                 classes.extend(blocks.iter().flat_map(|mesh| mesh.classes.iter().copied()));
-                if animation.frame() == last && classes.contains(&DeviationClass::Gouge) {
+                if animation.frame() == last
+                    && classes
+                        .iter()
+                        .any(|&class| class != DeviationClass::NotCompared)
+                {
                     break;
                 }
             }
@@ -585,6 +473,31 @@ mod tests {
             accumulated_distance_mm: 0.0,
             remaining_volume_mm3: 0.0,
         }
+    }
+
+    #[test]
+    fn tools_without_a_length_reach_the_stock_top_from_the_deepest_cut() {
+        use application::toolpath::Point3D;
+        use geo_contracts::LineSegment3DConstructor;
+        let line = |z0: f64, z1: f64| {
+            LineSegment3D::new(Point3D::new(0.0, 0.0, z0), Point3D::new(10.0, 0.0, z1)).unwrap()
+        };
+        // 最も深い切削は 1.2（早送りの 0.5 は数えない）。素材の上面は 5.0
+        let segments = [
+            (line(3.0, 1.6), true),
+            (line(1.6, 1.2), true),
+            (line(0.5, 0.5), false),
+        ];
+        let mut ball = Tool::ball_end_mill("BEM2".to_string(), 2.0, 10.0);
+        ball.cutting_length = None;
+        // ボールエンドミルは球の中心（先端 + 半径 1.0）から測る
+        assert!((drawn_tool_length(&ball, &segments, 5.0) - 2.8).abs() < 1e-12);
+        let mut flat = Tool::flat_end_mill("FEM2".to_string(), 2.0, 10.0);
+        flat.cutting_length = None;
+        assert!((drawn_tool_length(&flat, &segments, 5.0) - 3.8).abs() < 1e-12);
+        // 工具長を指定した工具は、その長さ
+        flat.cutting_length = Some(7.0);
+        assert_eq!(drawn_tool_length(&flat, &segments, 5.0), 7.0);
     }
 
     #[test]
@@ -660,10 +573,8 @@ mod tests {
 
     #[test]
     fn tool_without_a_length_is_drawn_with_the_same_length_in_every_frame() {
-        let (toolpath, simulation) = artifacts();
-        let mut tool = tool();
-        tool.cutting_length = None;
-        let mut animation = CuttingAnimation::new(toolpath, simulation, tool, PRECISION).unwrap();
+        let mut animation =
+            crate::cutting_simulation_session::tests::imported_animation(Some(None));
         let settings = ToolWireframeVisualizationSettings::default();
         let mut heights = Vec::new();
         for frame in 0..animation.frame_count() {
@@ -687,21 +598,5 @@ mod tests {
                 .all(|height| (height - heights[0]).abs() < 1e-4),
             "{heights:?}"
         );
-        // 最も深い切削の位置（先端 1.2）から素材の上面（2.0）までは球の半径より短いため、球の上に線の最小の長さ 1 を描く
-        assert!((heights[0] - 2.0).abs() < 1e-4, "{}", heights[0]);
-    }
-
-    #[test]
-    fn broken_artifacts_are_rejected() {
-        let (toolpath, simulation) = artifacts();
-        let truncated = &simulation[..simulation.len() - 1];
-        assert!(matches!(
-            CuttingAnimation::new(toolpath, truncated, tool(), PRECISION),
-            Err(CuttingAnimationError::Artifact(_))
-        ));
-        assert!(matches!(
-            CuttingAnimation::new(simulation, simulation, tool(), PRECISION),
-            Err(CuttingAnimationError::Artifact(_))
-        ));
     }
 }

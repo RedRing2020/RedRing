@@ -29,6 +29,7 @@ impl AppState {
 
     /// 表示中の製品形状をメッシュステージに描き、全体が見えるようにカメラを合わせる
     fn show_product_shapes(&mut self) {
+        self.discard_main_view();
         self.cutting_animation = None;
         self.cutting_animation_job_id = None;
         self.imported_conditions = None;

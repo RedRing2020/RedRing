@@ -47,6 +47,7 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("about.log_file", "ログのファイル: {path}"),
     ("about.no_log_file", "ログのファイルを作れなかったため、ログはコンソールにだけ出しています"),
     ("about.manual", "マニュアル"),
+    ("about.manual.url", "https://redring2020.github.io/RedRing/"),
     ("notice.startup", "F1 キー、または「ヘルプ」→「操作の一覧」で、操作を確かめられます"),
     ("notice.shape_imported", "形状を読み込みました: {file}"),
     ("notice.shape_import_failed", "形状を読み込めません: {file}（{reason}）"),
@@ -58,6 +59,14 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     (
         "notice.apply_without_animation",
         "切削アニメーションの表示中ではないため、設定を反映できません",
+    ),
+    (
+        "notice.debug_view_shown",
+        "デバッグの表示中です。通常の表示に戻してから操作してください",
+    ),
+    (
+        "notice.inverse_offset_tool_differs",
+        "取り込んだ結果の工具と今の計算条件の工具が違うため、ツールパスの線は逆オフセット形状に合いません",
     ),
     (
         "notice.settings_load_failed",
@@ -131,6 +140,7 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("about.log_file", "Log file: {path}"),
     ("about.no_log_file", "The log file could not be created, so the log goes only to the console"),
     ("about.manual", "Manual"),
+    ("about.manual.url", "https://redring2020.github.io/RedRing/en/"),
     ("notice.startup", "Press F1 or choose Help → Controls to see the controls"),
     ("notice.shape_imported", "Loaded the shape: {file}"),
     ("notice.shape_import_failed", "Cannot load the shape: {file} ({reason})"),
@@ -145,6 +155,14 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "notice.apply_without_animation",
         "Settings can be applied only while a cutting animation is shown",
+    ),
+    (
+        "notice.debug_view_shown",
+        "A debug view is shown. Go back to the normal view first",
+    ),
+    (
+        "notice.inverse_offset_tool_differs",
+        "The toolpath lines do not match the inverse offset shape because the imported result used another tool",
     ),
     (
         "notice.settings_load_failed",

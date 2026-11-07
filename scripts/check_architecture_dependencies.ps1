@@ -65,6 +65,13 @@ function Test-ArchitectureDependencies {
                 $errorCount++
             }
         }
+        # dev-dependencies は許可の一覧では数えないが、禁止の一覧は当てる
+        foreach ($dep in $workspaceCrates[$crateName].DevDeps) {
+            if ($forbiddenDeps -contains $dep) {
+                Write-Error "  ERROR '$crateName' -> '$dep' (explicitly forbidden, dev-dependency)"
+                $errorCount++
+            }
+        }
     }
     Write-Host ""
 

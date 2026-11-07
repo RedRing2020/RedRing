@@ -126,6 +126,8 @@ pub(crate) struct XyBucketIndex {
 
 impl XyBucketIndex {
     const MAX_CELLS_PER_AXIS: usize = 256;
+    /// 登録の数の、範囲 1 つあたりの上限（升目の幅を決める）
+    const MAX_ENTRIES_PER_ITEM: usize = 16;
 
     /// 三角形の XY 範囲を `radius` だけ広げて登録する
     pub(crate) fn build(
@@ -154,8 +156,10 @@ impl XyBucketIndex {
         Self::from_bounds(&bounds, radius, xy_min, xy_max)
     }
 
-    /// XY 範囲 `bounds`（min, max）の列を登録する。升目の幅は `radius` 以上とし、索引の範囲は形状の XY 範囲を
-    /// `radius` だけ広げた範囲とする
+    /// XY 範囲 `bounds`（min, max）の列を登録する。索引の範囲は形状の XY 範囲を `radius` だけ広げた範囲とし、升目は
+    /// 長い辺で `MAX_CELLS_PER_AXIS` 個に分ける。ただし、登録の数が 1 つあたり `MAX_ENTRIES_PER_ITEM` を超える場合は、
+    /// 超えなくなるまで升目の幅を 2 倍にする（工具の半径に比べて形状が小さく、大きな範囲が多くの升目にかかる場合）。
+    /// min が max より大きい空の範囲は登録しない
     pub(crate) fn from_bounds(
         bounds: &[([f64; 2], [f64; 2])],
         radius: f64,
@@ -165,7 +169,24 @@ impl XyBucketIndex {
         let origin = [xy_min[0] - radius, xy_min[1] - radius];
         let span_x = xy_max[0] - xy_min[0] + 2.0 * radius;
         let span_y = xy_max[1] - xy_min[1] + 2.0 * radius;
-        let cell_size = (span_x.max(span_y) / Self::MAX_CELLS_PER_AXIS as f64).max(radius);
+        let span = span_x.max(span_y);
+        let mut cell_size = span / Self::MAX_CELLS_PER_AXIS as f64;
+        // 升目の幅 `cell` での登録の数（範囲ごとに、かかる升目の数の上限）
+        let entries = |cell: f64| -> f64 {
+            bounds
+                .iter()
+                .filter(|(min, max)| min[0] <= max[0] && min[1] <= max[1])
+                .map(|(min, max)| {
+                    ((max[0] - min[0]) / cell + 2.0).min(Self::MAX_CELLS_PER_AXIS as f64 + 1.0)
+                        * ((max[1] - min[1]) / cell + 2.0)
+                            .min(Self::MAX_CELLS_PER_AXIS as f64 + 1.0)
+                })
+                .sum()
+        };
+        let budget = (Self::MAX_ENTRIES_PER_ITEM * bounds.len().max(1)) as f64;
+        while cell_size < span && entries(cell_size) > budget {
+            cell_size *= 2.0;
+        }
         let columns = ((span_x / cell_size).ceil() as usize).max(1);
         let rows = ((span_y / cell_size).ceil() as usize).max(1);
         let mut index = Self {
@@ -177,6 +198,9 @@ impl XyBucketIndex {
         };
 
         for (item, (min, max)) in bounds.iter().enumerate() {
+            if min[0] > max[0] || min[1] > max[1] {
+                continue;
+            }
             let (c0, r0) = index.cell_of(min[0], min[1]);
             let (c1, r1) = index.cell_of(max[0], max[1]);
             for row in r0..=r1 {
@@ -250,5 +274,45 @@ impl XyBucketIndex {
             };
             ((ring - 1).max(0) as f64 * self.cell_size, cells)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::XyBucketIndex;
+
+    fn entries(index: &XyBucketIndex) -> usize {
+        index.buckets.iter().map(Vec::len).sum()
+    }
+
+    #[test]
+    fn large_ranges_widen_the_cells_to_keep_the_entries_bounded() {
+        // 形状（1 × 1）に比べて大きな範囲（半径 10 の円板の外接正方形）を、形状の上にたくさん入れる
+        let bounds: Vec<([f64; 2], [f64; 2])> = (0..100)
+            .map(|k| {
+                let (x, y) = ((k % 10) as f64 * 0.1, (k / 10) as f64 * 0.1);
+                ([x - 10.0, y - 10.0], [x + 10.0, y + 10.0])
+            })
+            .collect();
+        let index = XyBucketIndex::from_bounds(&bounds, 10.0, [0.0, 0.0], [1.0, 1.0]);
+        assert!(entries(&index) <= XyBucketIndex::MAX_ENTRIES_PER_ITEM * bounds.len());
+        // どの範囲も、中の点の候補に入る
+        assert_eq!(index.candidates(0.5, 0.5).len(), bounds.len());
+    }
+
+    #[test]
+    fn small_ranges_use_fine_cells_and_empty_ranges_are_not_entered() {
+        let mut bounds: Vec<([f64; 2], [f64; 2])> = (0..100)
+            .map(|k| {
+                let (x, y) = ((k % 10) as f64, (k / 10) as f64);
+                ([x, y], [x + 0.01, y + 0.01])
+            })
+            .collect();
+        bounds.push(([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]));
+        let index = XyBucketIndex::from_bounds(&bounds, 1.0, [0.0, 0.0], [10.0, 10.0]);
+        // 升目は長い辺を 256 個に分けた幅のまま（形状を半径だけ広げた 12 を 256 個に分ける）
+        assert!(index.cell_size < 0.1);
+        assert_eq!(index.candidates(3.005, 4.005), &[43]);
+        assert!(index.buckets.iter().all(|bucket| !bucket.contains(&100)));
     }
 }

@@ -9,7 +9,6 @@ use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use analysis::{LengthUnit, Tolerance};
-use debug_scene::InverseOffsetDebugState;
 use debug_snapshot_state::DebugSnapshotState;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -18,9 +17,7 @@ use viewmodel::cutting_animation::CuttingAnimation;
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, CuttingSimulationSession, ImportedConditions,
 };
-use viewmodel::inverse_offset_converter::InverseOffsetVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
-use viewmodel::octree_converter::OctreeVisualizationSettings;
 use viewmodel::product_shape_converter::ProductShapeScene;
 use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
@@ -38,7 +35,10 @@ mod menu_bar;
 mod help;
 // AppState のデバッグスナップショット状態
 mod debug_snapshot_state;
-// AppState のデバッグ表示ロード（octree/toolpath/svg/nurbs）
+
+// AppState の通常の表示とデバッグ表示の切り替え
+mod main_view;
+// AppState のデバッグ表示（形状・逆オフセット形状）
 mod debug_scene;
 // AppState の表示モード・カメラ制御
 mod display_controls;
@@ -50,7 +50,7 @@ mod input_actions;
 mod mouse_actions;
 // AppState の製品形状の取り込みと表示
 mod product_shapes;
-// AppState の設定アクセサ（種類別: Snapshot/Octree/Camera）
+// AppState の設定アクセサ（種類別: Snapshot/Camera）
 mod settings_accessors;
 // AppState の設定パネル状態と適用
 mod settings_panel;
@@ -131,9 +131,6 @@ pub struct AppState {
     /// この値により、曲線から生成される線分の精度が決まります。
     pub display_tolerance: Tolerance,
 
-    /// Octree可視化設定（setting画面向けの保持値）
-    pub octree_visualization_settings: OctreeVisualizationSettings,
-
     /// ビュー操作設定（setting画面向けの保持値）
     pub viewing_operation_settings: ViewingOperationSettings,
 
@@ -148,12 +145,6 @@ pub struct AppState {
 
     /// ToolPath表示設定
     toolpath_visualization_settings: ToolPathVisualizationSettings,
-
-    /// 逆オフセット包絡面デバッグ表示設定
-    inverse_offset_visualization_settings: InverseOffsetVisualizationSettings,
-
-    /// 逆オフセット包絡面デバッグ表示の状態（工具種別・表示モード）
-    inverse_offset_debug: InverseOffsetDebugState,
 
     /// 取り込んだ製品形状
     product_shapes: ProductShapeScene,
@@ -219,6 +210,8 @@ pub struct AppState {
 
     /// デバッグ用: シミュレーションスナップショット状態
     debug_snapshot: DebugSnapshotState,
+    /// デバッグ表示の間、取っておく通常の表示（ステージとカメラ。通常の表示の間は `None`）
+    main_view: Option<main_view::MainView>,
     snapshot_scrub_active: bool,
 
     cursor_position: Option<(f32, f32)>,
@@ -255,14 +248,11 @@ impl AppState {
             // CAD標準設定
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm
-            octree_visualization_settings: OctreeVisualizationSettings::default(),
             viewing_operation_settings,
             snapshot_overlay_style: SnapshotOverlayStyle::default(),
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
             tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings::default(),
             toolpath_visualization_settings: ToolPathVisualizationSettings::default(),
-            inverse_offset_visualization_settings: InverseOffsetVisualizationSettings::default(),
-            inverse_offset_debug: InverseOffsetDebugState::default(),
             product_shapes: ProductShapeScene::default(),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
@@ -286,6 +276,7 @@ impl AppState {
             help_about_open: false,
             notice: settings_notice.unwrap_or(Notice::Startup),
             debug_snapshot: DebugSnapshotState::default(),
+            main_view: None,
             snapshot_scrub_active: false,
             cursor_position: None,
             last_cursor_position: None,

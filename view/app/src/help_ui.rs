@@ -6,9 +6,6 @@ use egui::{Align2, Color32, Context, Grid, Panel, Rect, Ui, Window};
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
 
-/// マニュアル（GitHub Pages）の URL
-const MANUAL_URL: &str = "https://redring2020.github.io/RedRing/";
-
 /// アプリの版
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -82,6 +79,10 @@ pub(crate) enum Notice {
     NoToolSegments,
     /// 切削アニメーションの表示中ではないため、設定を反映できない
     ApplyWithoutAnimation,
+    /// デバッグ表示の間は、切削アニメーションのコマを動かさない
+    DebugViewShown,
+    /// 取り込んだ結果の工具と今の計算条件の工具が違い、ツールパスの線は逆オフセット形状に乗らない
+    InverseOffsetToolDiffers,
     /// アプリの設定を読めないため、既定の設定で起動した（理由）
     SettingsLoadFailed { reason: UiMessage },
     /// 設定のファイルを使えない（利用者ごとのフォルダが分からない・読めなかった）ため、設定を保存しない
@@ -100,6 +101,8 @@ impl Notice {
             Self::NotImported
             | Self::NoToolSegments
             | Self::ApplyWithoutAnimation
+            | Self::DebugViewShown
+            | Self::InverseOffsetToolDiffers
             | Self::SettingsLoadFailed { .. }
             | Self::SettingsNotSaved
             | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
@@ -133,6 +136,10 @@ impl Notice {
             Self::NoToolSegments => resolve_help_text(locale, "notice.no_tool_segments", &[]),
             Self::ApplyWithoutAnimation => {
                 resolve_help_text(locale, "notice.apply_without_animation", &[])
+            }
+            Self::DebugViewShown => resolve_help_text(locale, "notice.debug_view_shown", &[]),
+            Self::InverseOffsetToolDiffers => {
+                resolve_help_text(locale, "notice.inverse_offset_tool_differs", &[])
             }
             Self::SettingsLoadFailed { reason } => resolve_help_text(
                 locale,
@@ -263,6 +270,8 @@ impl HelpUiState {
             None => self.text("about.no_log_file"),
         };
         let manual = self.text("about.manual");
+        // マニュアル（GitHub Pages）は、画面の言語のものを開く
+        let manual_url = self.text("about.manual.url");
         Window::new(self.text("about.window.title"))
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
             .constrain_to(area)
@@ -272,7 +281,7 @@ impl HelpUiState {
             .show(ctx, |ui| {
                 ui.heading(version);
                 ui.label(log_file);
-                ui.hyperlink_to(manual, MANUAL_URL);
+                ui.hyperlink_to(manual, &manual_url);
             });
         self.about_open = open;
     }
@@ -311,6 +320,8 @@ mod tests {
                 Notice::NotImported,
                 Notice::NoToolSegments,
                 Notice::ApplyWithoutAnimation,
+                Notice::DebugViewShown,
+                Notice::InverseOffsetToolDiffers,
                 Notice::SettingsLoadFailed {
                     reason: UiMessage {
                         key: "failure.file.invalid_data".to_string(),

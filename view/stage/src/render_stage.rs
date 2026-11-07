@@ -38,16 +38,6 @@ pub trait RenderStage {
     /// Surface resize 通知（デフォルトは空）
     fn on_surface_resized(&mut self, _device: &wgpu::Device, _size: (u32, u32)) {}
 
-    /// Octree深さを1段進める（未対応ならNone）
-    fn cycle_octree_depth(&mut self, _device: &wgpu::Device) -> Option<(usize, usize)> {
-        None
-    }
-
-    /// Octree深さアニメーション開始（未対応ならfalse）
-    fn start_octree_depth_animation(&mut self) -> bool {
-        false
-    }
-
     /// ワイヤーフレーム表示切替（未対応ならNone）
     fn toggle_wireframe_mode(&mut self) -> Option<bool> {
         None

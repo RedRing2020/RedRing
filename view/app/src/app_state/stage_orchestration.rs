@@ -2,14 +2,9 @@
 
 use super::AppState;
 use crate::help_ui::NoticeBarUiState;
-use stage::{MeshStage, RenderStage};
+use stage::MeshStage;
 
 impl AppState {
-    fn set_stage_and_update_camera(&mut self, stage: Box<dyn RenderStage>) {
-        self.renderer.set_stage(stage);
-        self.update_camera_uniforms();
-    }
-
     pub(super) fn rebuild_stage_from_entities(&mut self) {
         if !self.entity_manager.is_dirty() {
             return;
@@ -27,12 +22,13 @@ impl AppState {
         ));
         mesh_stage.set_line_data(&self.graphic.device, vertices);
 
-        self.set_stage_and_update_camera(mesh_stage);
+        // エンティティの線は、デバッグ用の表示として描く（通常の表示は取っておく）
+        self.show_debug_stage(mesh_stage, false);
         self.entity_manager.clear_dirty();
     }
 
     pub fn render(&mut self) {
-        if self.debug_snapshot.frame_update_required {
+        if self.debug_snapshot.frame_update_required && !self.debug_view_shown() {
             self.sync_snapshot_visual_frame();
         }
         self.apply_cutting_animation_update();

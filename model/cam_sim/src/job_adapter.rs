@@ -6,9 +6,9 @@ use cam_core::{
     ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, LengthUnit, ToolPath,
     read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
-#[cfg(any(test, debug_assertions))]
+#[cfg(any(test, feature = "test-fixtures"))]
 use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType};
-#[cfg(any(test, debug_assertions))]
+#[cfg(any(test, feature = "test-fixtures"))]
 use geo_algorithms::Point3D;
 use geo_algorithms::TessellationLimits;
 use job_runtime::{
@@ -97,10 +97,10 @@ impl CamJobExecutorAdapter {
 
     /// provider に solver 入力が無い場合の導線。
     ///
-    /// 本番ビルドでは `invalid_input` とし、テスト/デバッグビルドでは
-    /// 参照 suffix に応じた固定 artifact と失敗分類を返す。
+    /// `invalid_input` とする。このクレートの試験と、試験用の feature `test-fixtures` を有効にしたビルドでは、参照
+    /// suffix に応じた固定 artifact と失敗分類を返す。
     fn run_cam_process_without_solver_input(&self, job: &JobRecord) -> JobExecutionResult {
-        #[cfg(not(any(test, debug_assertions)))]
+        #[cfg(not(any(test, feature = "test-fixtures")))]
         {
             cam_process_failure(
                 job,
@@ -111,7 +111,7 @@ impl CamJobExecutorAdapter {
             )
         }
 
-        #[cfg(any(test, debug_assertions))]
+        #[cfg(any(test, feature = "test-fixtures"))]
         {
             if let Some(err) = classify_fixture_cam_process_failure(&job.spec.input_ref) {
                 return cam_process_failure(job, &err);
@@ -401,7 +401,7 @@ fn encode_toolpath_artifact(
 }
 
 /// テスト/デバッグ用の固定失敗分類（solver 入力未登録時のみ参照）
-#[cfg(any(test, debug_assertions))]
+#[cfg(any(test, feature = "test-fixtures"))]
 fn classify_fixture_cam_process_failure(input_ref: &str) -> Option<CamSolverError> {
     if input_ref.ends_with("/invalid-input") {
         return Some(CamSolverError::InvalidInput(
@@ -425,7 +425,7 @@ fn classify_fixture_cam_process_failure(input_ref: &str) -> Option<CamSolverErro
     None
 }
 
-#[cfg(any(test, debug_assertions))]
+#[cfg(any(test, feature = "test-fixtures"))]
 fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFormatError> {
     if input_ref.ends_with("/kind-mismatch") {
         return make_interference_artifact_bytes();
@@ -500,7 +500,7 @@ fn classify_artifact_read_error(error: &BinaryFormatError) -> &'static str {
     }
 }
 
-#[cfg(any(test, debug_assertions))]
+#[cfg(any(test, feature = "test-fixtures"))]
 fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
     let toolpath = ToolPath::new(
         "sim-src".to_string(),
@@ -521,7 +521,7 @@ fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
     Ok(bytes)
 }
 
-#[cfg(any(test, debug_assertions))]
+#[cfg(any(test, feature = "test-fixtures"))]
 fn make_toolpath_artifact_bytes(version_minor: u16) -> Result<Vec<u8>, BinaryFormatError> {
     let toolpath = ToolPath::new(
         "nc-post-src".to_string(),
@@ -552,7 +552,7 @@ fn make_toolpath_artifact_bytes(version_minor: u16) -> Result<Vec<u8>, BinaryFor
     Ok(bytes)
 }
 
-#[cfg(any(test, debug_assertions))]
+#[cfg(any(test, feature = "test-fixtures"))]
 fn make_interference_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
     let interference = cam_core::InterferencePayload {
         events: vec![cam_core::InterferenceEvent {

@@ -1,22 +1,45 @@
 # 動かす
 
-RedRing のプレビュー版を、ソースからビルドして起動します。配布用の実行ファイルはまだありません。
+RedRing のプレビュー版は、Windows 用の配布物（zip）を使うか、ソースからビルドして起動します。配布物は v0.1.3 から添えています。
 
 ## 動く環境
 
 - OS: Windows で動作を確かめています（Linux・macOS は、GPU の描画の基盤 wgpu が対応するため動く見込みですが、確かめていません）
 - GPU: Vulkan・DirectX 12・Metal のいずれかに対応する GPU
-- Rust: 最新の stable（[rustup](https://rustup.rs/) で入れます）
-- Git
+- ソースからビルドする場合: 最新の stable の Rust（[rustup](https://rustup.rs/) で入れます）と Git
 
 素材の精度を細かくする（例えば 0.01 mm）と、メモリと GPU の負荷が大きくなります。最初は既定の精度（0.05 mm）で試してください。
 
-## ビルドと起動
+## 配布物から起動する（Windows）
+
+1. [GitHub のリリース](https://github.com/RedRing2020/RedRing/releases) から、`redring-<版>-windows-x86_64.zip` と `SHA256SUMS.txt` を取ってきます
+2. zip を確かめます（下の「配布物を確かめる」）
+3. zip を、書き込みのできるフォルダ（例えばドキュメントの下）に展開し、`redring.exe` をダブルクリックして起動します。ログは起動したときの作業フォルダ（ダブルクリックで起動した場合は展開したフォルダ）の `logs` に書くため、`Program Files` の下には置かないでください。ショートカットから起動する場合は、ショートカットの「作業フォルダー」を展開したフォルダにしてください
+
+実行ファイルにはまだコード署名がないため、初めて起動するときに Windows の SmartScreen が「Windows によって PC が保護されました」と出します。配布物を確かめたうえで、「詳細情報」→「実行」で起動してください。
+
+### 配布物を確かめる
+
+取ってくる途中で壊れていないことは、zip の SHA-256 が `SHA256SUMS.txt` の値と同じであることで確かめます。PowerShell で次を実行し、`True` と出れば同じです（`<値>` には `SHA256SUMS.txt` の zip の行の値を入れます）。
+
+```powershell
+(Get-FileHash .\redring-v0.1.3-windows-x86_64.zip -Algorithm SHA256).Hash -eq '<値>'
+```
+
+zip が置き換えられていないこと（RedRing のリポジトリの CI で、リリースのタグからビルドしたものであること）は、[GitHub CLI](https://cli.github.com/) で確かめます。リリースの資産ごと置き換えられた場合はチェックサムも置き換えられるため、こちらで確かめるのが確実です。
+
+```powershell
+gh attestation verify .\redring-v0.1.3-windows-x86_64.zip --repo RedRing2020/RedRing
+```
+
+リリースには、使っている依存のクレートの一覧（SBOM。CycloneDX の形式の `.cdx.json`）も添えています。
+
+## ソースからビルドして起動する
 
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
-git checkout v0.1.2
+git checkout v0.1.3
 cargo run --release
 ```
 
@@ -31,7 +54,7 @@ cargo run --release
 
 ## ログ
 
-- ログは、起動したフォルダ（上の手順ではリポジトリのルート）の `logs/redring.log` に書きます。起動のたびに書き直します
+- ログは、起動したときの作業フォルダ（配布物をダブルクリックで起動した場合は展開したフォルダ、ソースからでは上の手順のリポジトリのルート）の `logs/redring.log` に書きます。起動のたびに書き直します
 - `--release` を付けたビルドは、コンソールのウィンドウを開きません。`--release` を付けないビルドは、同じ内容をコンソール（起動したターミナル）にも出します
 - ログのファイルの場所は、「ヘルプ」→「バージョンの情報」でも確かめられます
 - 操作の結果と、操作できなかったときの理由は、画面の下のステータスバーにも出します

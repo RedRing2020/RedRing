@@ -164,7 +164,7 @@ geo と CAM の依存の形:
 
 | クレート | 目標 | 移行の間 |
 |---|---|---|
-| `viewmodel` | `application` のみ（foundation は別） | 今の許可（`geo_contracts`・`geo_algorithms`・`geo_io`・`cam_core`・`cam_algorithms`・`cam_sim`・`job_domain`）を残し、移行の段階ごとに外す |
+| `viewmodel` | `application` のみ（foundation は別） | 移行は終わった（段階 2〜5 で外した）。試験だけで使う依存（dev-dependencies）は数えない |
 | `viewmodel-graphics` | なし（`analysis` のみ） | 同じ |
 
 - `cam_entity` への依存は許可しない。加工手順・加工工程は、Application の API と再エクスポートした値の型でつなぐ
@@ -174,10 +174,15 @@ geo と CAM の依存の形:
 | 段階 | 対象（`viewmodel/converter`） | 外す依存 | Issue |
 |---|---|---|---|
 | 1 | 加工手順・加工工程の保管と編集、工程からの投入・取り込み、条件の誤りの分類（`cutting_simulation_session`）。#1050・#1051 の前提。Application の公開 API の決まりに合わない今の API の修正と、検査スクリプトの対象への Application の追加 | `cutting_simulation_session` の `cam_algorithms`・`cam_sim` | #1057 |
-| 2 | 切削シミュレーションの成果物の読み込みと素材の再生、ツールパス・工具の線分化（`cutting_animation`、`cam_sim_visualization_converter`、`snapshot_converter`、`toolpath_converter`） | `cam_sim`、`cam_core` | #1058 |
-| 3 | ジョブの記録・検証の誤りの表示用の変換（`job_converter`、`validation_message_*`）、逆オフセット形状の表示（`inverse_offset_shape_converter`、`inverse_offset_converter`） | `job_domain`、`cam_algorithms` | #1059 |
-| 4 | 形状の描画（`shape_converter`、`mesh_converter`、`nurbs_view`、`entity_converter`、`octree_converter`、`product_shape_converter`） | `geo_algorithms`、`geo_contracts` | #1060 |
-| 5 | 表示確認用のデータ（`svg_loader`、`nurbs_eval_loader`、fixtures）。#920・#336 とあわせる | `geo_io` | #1061 |
+| 2 | 切削シミュレーションの成果物の読み込みと素材の再生、ツールパス・工具の線分化（`cutting_animation`、`cam_sim_visualization_converter`、`snapshot_converter`、`toolpath_converter`）。Application の再生の問い合わせ（`cutting_simulation_playback`）を置き、ツールパス・時点の値の型は再エクスポートする | `cam_sim`（`cam_core` は、段階 3 の検証の誤りの表示と、段階 5 の表示確認用のツールパスが使うため、その段階で外す） | #1058 |
+| 3 | ジョブの記録・検証の誤りの表示用の変換（`job_converter`、`validation_message_*`。呼び出し元がないため消した）、逆オフセット形状の表示（`inverse_offset_shape_converter`。Application が表示用の三角形まで作る） | `job_domain`、`cam_algorithms`（`cam_core` は、段階 5 の表示確認用のツールパスだけが使う） | #1059 |
+| 4 | 形状の描画（`shape_converter`、`mesh_converter`、`nurbs_view`、`entity_converter`、`octree_converter`、`product_shape_converter`）。呼び出し元のない変換を消し、製品形状・切削の経路・デバッグ用の形状の値の型と trait を、その型が出てくる Application の API のモジュールから再エクスポートする。NURBS の GPU 評価と Octree の変換は、サンプルのデバッグ表示とともに消した | `geo_algorithms`、`geo_contracts`（試験だけの依存に残す） | #1060 |
+| 5 | 表示確認用のデータ（`svg_loader`、`nurbs_eval_loader`、`inverse_offset_converter` のサンプルの曲面、`toolpath_converter` の表示確認用のツールパス、fixtures）。サンプルのデータを表示するデバッグ表示とともに消した | `geo_io`（試験だけの依存に残す）、`cam_core` | #1061 |
+
+移行を終えた状態（2026-11-06）:
+
+- viewmodel の依存は `application` と foundation（`analysis`・`i18n_foundation`・`logging_foundation`）だけ。依存の決まりの検査（`scripts/_arch_rules_data.ps1`）は、試験だけで使う依存（dev-dependencies）を数えない。viewmodel の試験は、入力の形（メッシュ・STL など）を作るために `geo_algorithms`・`geo_contracts`・`geo_io` を使ってよい（試験だけで使う型・trait を Application に再エクスポートしないため）
+- デバッグ用の形状（線分・円・円弧・三角形）の頂点の計算（円・円弧の点の三角関数など）は、ViewModel に残した。エンティティの形を読む trait と、そのメソッドが返す型（点・向き・ベクトル）は Application が再エクスポートする。デバッグ用の形状の表示を本番の形状の表示にそろえるときに、Application の問い合わせへ移す
 
 ### 3.5 描画導線は 2D / 3D を分離して扱う
 

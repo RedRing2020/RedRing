@@ -7,21 +7,18 @@ license.workspace = true
 description = "Data conversion layer for MVVM architecture - Model to View transformation"
 
 [dependencies]
-geo_contracts = { path = "../../model/geo_contracts" }
-geo_algorithms = { path = "../../model/geo_algorithms" }
-geo_io = { path = "../../model/geo_io" }
-cam_algorithms = { path = "../../model/cam_algorithms" }
-cam_core = { path = "../../model/cam_core" }
-cam_sim = { path = "../../model/cam_sim" }
 application = { path = "../../model/application" }
-job_domain = { path = "../../model/job_domain" }
 analysis = { path = "../../foundation/analysis" }
 i18n_foundation = { path = "../../foundation/i18n_foundation" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
 tracing = "0.1"
 thiserror = "2.0"
 
+# 試験の入力の形（メッシュ・STL など）を作るために使う
 [dev-dependencies]
+geo_algorithms = { path = "../../model/geo_algorithms" }
+geo_contracts = { path = "../../model/geo_contracts" }
+geo_io = { path = "../../model/geo_io" }
 tempfile = "3.0"
 
 [lints]

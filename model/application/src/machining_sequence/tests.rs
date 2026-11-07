@@ -20,6 +20,7 @@ fn content(stepover: f64) -> MachiningOperationContent {
             feed_rate: 1200.0,
             tool_range: cam_core::ScanlineToolRange::default(),
             cut_direction: cam_core::ScanlineCutDirection::default(),
+            angle_degrees: 0.0,
         }),
         tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
         boundary: None,

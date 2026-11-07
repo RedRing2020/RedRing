@@ -137,6 +137,7 @@ dependencies = [
  "geo_topology",
  "job_domain",
  "job_runtime",
+ "tracing",
 ]
 
 [[package]]
@@ -2595,7 +2596,7 @@ dependencies = [
 
 [[package]]
 name = "redring"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "analysis",
  "bytemuck",
@@ -3029,13 +3030,10 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 name = "stage"
 version = "0.1.0"
 dependencies = [
- "analysis",
  "bytemuck",
  "logging_foundation",
  "render",
  "tracing",
- "viewmodel",
- "viewmodel-graphics",
  "wgpu",
 ]
 
@@ -3519,14 +3517,10 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "application",
- "cam_algorithms",
- "cam_core",
- "cam_sim",
  "geo_algorithms",
  "geo_contracts",
  "geo_io",
  "i18n_foundation",
- "job_domain",
  "logging_foundation",
  "tempfile",
  "thiserror 2.0.21",

@@ -10,7 +10,8 @@ v0.1.0 is a preview: import an STL, compute a 3-axis scanline toolpath, and chec
 
 | Document                 | Language                 | Access Method                                                 |
 | ------------------------ | ------------------------ | ------------------------------------------------------------- |
-| **Online Documentation** | 🌐 Japanese              | **[📖 GitHub Pages](https://redring2020.github.io/RedRing/)** |
+| **Online Documentation** | 🇺🇸 English               | **[📖 GitHub Pages](https://redring2020.github.io/RedRing/en/)** |
+| **Online Documentation** | 🇯🇵 Japanese              | **[📖 GitHub Pages](https://redring2020.github.io/RedRing/)**    |
 | Geometry Abstraction     | 🇺🇸 English (placeholder) | `model/GEOMETRY_README.md`                                    |
 | Geometry Abstraction     | 🇯🇵 Japanese (detailed)   | `model/GEOMETRY_README.ja.md`                                 |
 
@@ -20,7 +21,7 @@ v0.1.0 is a preview: import an STL, compute a 3-axis scanline toolpath, and chec
 
 RedRing is a research project aiming to create a standalone CAD/CAM development environment using Rust + wgpu.
 NURBS and primitive geometric elements are being introduced incrementally.
-The CAM toolpath generation (scanline machining) and the cutting simulation are available as a preview (see [Cutting Simulation Demo](manual/cutting_simulation_demo.md)).
+The CAM toolpath generation (scanline machining) and the cutting simulation are available as a preview (see [Cutting Simulation](manual_en/src/cutting_simulation_demo.md)).
 
 ### 🌟 Key Features
 
@@ -76,7 +77,7 @@ Development structure and responsibility separation designs are managed via GitH
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | Developers                     | Workspace Structure & Migration Status & Test Strategy       |
 | [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | Maintainers                    | Issue Label Rules & Release/Phase Operation                  |
 | [`dev/architecture/`](dev/architecture/)                           | Contributors                   | Design Documents (the source of truth for design)            |
-| [User Manual](https://redring2020.github.io/RedRing/)              | Users                          | Getting Started & Controls & Cutting Simulation              |
+| [User Manual](https://redring2020.github.io/RedRing/en/)           | Users                          | Getting Started & Controls & Cutting Simulation              |
 | [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | Geometry Library Developers    | Detailed Geometry Abstraction Specifications                 |
 | [`.github/ai_quick_reference.md`](.github/ai_quick_reference.md)   | 🤖 AI Developers               | Session Recovery & Development Continuity Support            |
 | [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)     | Developers                     | Feature Requests & Bug Reports & Progress Management         |
@@ -165,7 +166,7 @@ For design documents (architecture, error handling guidelines, and trait design 
 **Linux:**
 
 - Required packages: `sudo apt install build-essential pkg-config libx11-dev`
-- Vulkan or OpenGL drivers
+- Vulkan drivers (OpenGL drivers if Vulkan is not available)
 
 ### Build Steps
 
@@ -267,7 +268,7 @@ This runs:
 | `Shift+S` | Toggle settings panel |
 | `Esc` | Quit |
 
-Debug views (shapes, NURBS, inverse offset envelope, Octree, toolpath only) are in the Debug tab of the settings panel. See `manual/cutting_simulation_demo.md` for the full key list.
+Debug views (shapes and the inverse offset shape) are in the Debug tab of the settings panel. See `manual_en/src/screen_and_controls.md` for the full key list.
 
 #### Mouse Controls
 
@@ -279,8 +280,9 @@ Debug views (shapes, NURBS, inverse offset envelope, Octree, toolpath only) are 
 
 ```bash
 # Requires mdbook: cargo install mdbook
-mdbook build  # Generates manual/ -> docs/
-mdbook serve  # Serve locally for preview
+mdbook build            # Japanese manual: manual/ -> target/book/
+mdbook build manual_en  # English manual: manual_en/src/ -> target/book_en/
+mdbook serve manual_en  # Serve the English manual locally for preview
 ```
 
 ### Troubleshooting
@@ -437,7 +439,7 @@ This project also benefits from the following open-source projects:
 ## 🔗 Links
 
 - 📧 **Contact**: [Issues](https://github.com/RedRing2020/RedRing/issues) or [Discussions](https://github.com/RedRing2020/RedRing/discussions)
-- 🌐 **Website**: [GitHub Pages](https://redring2020.github.io/RedRing/)
+- 🌐 **Website**: [GitHub Pages](https://redring2020.github.io/RedRing/en/)
 - 🐙 **GitHub**: [RedRing2020/RedRing](https://github.com/RedRing2020/RedRing)
 
 ---

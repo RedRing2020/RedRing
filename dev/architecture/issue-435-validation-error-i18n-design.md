@@ -142,6 +142,8 @@ ValidationError のロケール非依存表現:
 - UI/ログの呼び出し経路を新経路へ段階移行
 - 旧経路の利用箇所を縮退
 
+2026-11-06 追記: Phase 3 の画面の呼び出しは作られず、`validation_message_mapper`・`validation_message_catalog` と、`ValidationError::message_key` は呼び出し元のないまま残っていたため消した（#1059）。検証の誤りを画面に出すときは、失敗の理由の文言（`failure_message_mapper`・`failure_message_catalog`）と同じ形で、Application の誤りの型から文言のキーへ変える
+
 ## 7. PR/Issue 運用ルール
 
 - 親Issue #435 を起点に、実装PRは必ず `Refs #435` を付与

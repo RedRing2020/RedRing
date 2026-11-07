@@ -56,6 +56,7 @@ fn request(precision: f64) -> CamSimulationWorkflowRequest {
                 feed_rate: 1200.0,
                 tool_range: cam_core::ScanlineToolRange::default(),
                 cut_direction: cam_core::ScanlineCutDirection::default(),
+                angle_degrees: 0.0,
             }),
             units: LengthUnit::Millimeter,
             coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
@@ -184,6 +185,7 @@ fn operation_content() -> MachiningOperationContent {
             feed_rate: 1200.0,
             tool_range: cam_core::ScanlineToolRange::default(),
             cut_direction: cam_core::ScanlineCutDirection::default(),
+            angle_degrees: 0.0,
         }),
         tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
         boundary: None,
@@ -424,6 +426,29 @@ fn inverse_offset_shapes_are_built_from_the_operation() {
         .unwrap_err(),
         CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces)
     );
+}
+
+#[test]
+fn inverse_offset_shapes_are_split_into_display_parts() {
+    let (shapes, face) = pyramid_shape();
+    let machining = Machining::new(vec![face]);
+    let parts = |angle_step: f64| {
+        CamSimulationWorkflow::inverse_offset_shape_parts(
+            &shapes,
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+            angle_step,
+        )
+    };
+    let split = parts(10f64.to_radians()).unwrap();
+    assert!(!split.is_empty());
+    assert!(split.iter().all(|part| !part.triangles.is_empty()));
+    // 表示用のきざみの範囲の外は、表示の誤り
+    assert!(matches!(
+        parts(0.0),
+        Err(CamSimulationWorkflowError::InverseOffsetDisplay(_))
+    ));
 }
 
 #[test]
