@@ -39,7 +39,7 @@ gh attestation verify .\redring-v0.1.3-windows-x86_64.zip --repo RedRing2020/Red
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
-git checkout v0.1.2
+git checkout v0.1.3
 cargo run --release
 ```
 

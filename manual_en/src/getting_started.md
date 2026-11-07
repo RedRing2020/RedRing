@@ -39,7 +39,7 @@ The release also includes the list of dependent crates (SBOM, a `.cdx.json` file
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
-git checkout v0.1.2
+git checkout v0.1.3
 cargo run --release
 ```
 

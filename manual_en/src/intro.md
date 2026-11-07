@@ -66,6 +66,8 @@ For design details, see the repository's [architecture overview](https://github.
 
 ## Development Status
 
+**📦 v0.1.3 preview** (November 2026): Releases now include a Windows package (zip), so you can try RedRing without building it from source ([Getting Started](./getting_started.md)). Added this English manual. The scanline angle can be specified, uncut stock at the top edges of walls and in valleys is fixed, and toolpath calculation on fine meshes is much faster ([Cutting Simulation](./cutting_simulation_demo.md)).
+
 **🌍 v0.1.2 preview** (November 2026): Made the screen easier to use. The list of controls opens from the "Help" menu, and the results of operations and the reasons for failures appear in the status bar at the bottom of the screen. The screen text can be switched between Japanese and English with "View" → "Language" ([Screen and Controls](./screen_and_controls.md)).
 
 **🔒 v0.1.1 preview** (November 2026): A fix release of v0.1.0. It includes security fixes (crashes of the app on crafted artifact or STL files, and known vulnerabilities in dependent crates). If you use v0.1.0, use v0.1.1 instead. The machining conditions are now held as a machining plan and a machining process, and only results calculated with the current conditions and the visible product shape can be imported ([Cutting Simulation](./cutting_simulation_demo.md)).

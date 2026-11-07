@@ -1,6 +1,6 @@
 # Known Issues and Troubleshooting
 
-## Known Issues (v0.1.2 preview)
+## Known Issues (v0.1.3 preview)
 
 Machining:
 
