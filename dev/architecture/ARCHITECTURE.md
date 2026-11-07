@@ -317,7 +317,7 @@ redring（view/app） → stage → render
 
 ## 🔗 関連ドキュメント
 
-- **[📖 オンラインドキュメント](https://redring2020.github.io/RedRing/)** - GitHub Pages（自動更新）
+- **[📖 オンラインドキュメント](https://redring2020.github.io/RedRing/)** - GitHub Pages（自動更新。英語版は [/en/](https://redring2020.github.io/RedRing/en/)）
 - [`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`](APPLICATION_ORCHESTRATION_LAYER_DESIGN.md) - Application Layer / orchestration 層の責務定義
 - [`GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md`](GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md) - geo_contracts の trait定義の構成
 - [`GEOMETRY_SHAPE_SEMANTICS_DESIGN.md`](GEOMETRY_SHAPE_SEMANTICS_DESIGN.md) - 形状の意味と API の意図

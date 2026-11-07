@@ -1,5 +1,7 @@
 # はじめに
 
+[English manual](en/index.html)
+
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 型安全性と責務分離を重視した設計で、幾何計算の基盤から CAM のツールパス生成・切削シミュレーションまでを開発しています。
 

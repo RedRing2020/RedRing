@@ -6,9 +6,6 @@ use egui::{Align2, Color32, Context, Grid, Panel, Rect, Ui, Window};
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
 
-/// マニュアル（GitHub Pages）の URL
-const MANUAL_URL: &str = "https://redring2020.github.io/RedRing/";
-
 /// アプリの版
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -273,6 +270,8 @@ impl HelpUiState {
             None => self.text("about.no_log_file"),
         };
         let manual = self.text("about.manual");
+        // マニュアル（GitHub Pages）は、画面の言語のものを開く
+        let manual_url = self.text("about.manual.url");
         Window::new(self.text("about.window.title"))
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
             .constrain_to(area)
@@ -282,7 +281,7 @@ impl HelpUiState {
             .show(ctx, |ui| {
                 ui.heading(version);
                 ui.label(log_file);
-                ui.hyperlink_to(manual, MANUAL_URL);
+                ui.hyperlink_to(manual, &manual_url);
             });
         self.about_open = open;
     }

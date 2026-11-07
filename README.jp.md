@@ -275,8 +275,9 @@ pwsh scripts/check_all_before_push.ps1
 
 ```bash
 # mdbook が必要: cargo install mdbook
-mdbook build  # manual/ -> docs/ に生成
-mdbook serve  # ローカルサーバーで確認
+mdbook build            # 日本語のマニュアル: manual/ -> target/book/
+mdbook build manual_en  # 英語のマニュアル: manual_en/src/ -> target/book_en/
+mdbook serve  # 日本語のマニュアルをローカルサーバーで確認
 ```
 
 ### トラブルシューティング
