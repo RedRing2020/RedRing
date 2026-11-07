@@ -26,6 +26,7 @@ members = [
   "view/render",          # View層：GPU描画基盤
   "view/stage",           # View層：レンダリングステージ管理
   "view/app",             # View層：メインアプリケーション
+  "view/job_manager_app", # View層：ジョブマネージャーの画面と実行ファイル
 ]
 resolver = "2"
 

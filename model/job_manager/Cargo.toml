@@ -9,10 +9,6 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-[[bin]]
-name = "redring-job-manager"
-path = "src/main.rs"
-
 [dependencies]
 job_runtime = { path = "../job_runtime" }
 

@@ -108,6 +108,8 @@ impl LocalStoreJobClient {
         command
             .arg("--store")
             .arg(store.root())
+            // ウィンドウを出さずに、ジョブの管理だけを行う
+            .arg("--background")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());

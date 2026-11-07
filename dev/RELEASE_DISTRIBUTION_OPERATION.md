@@ -13,8 +13,9 @@
 | ファイル | 内容 |
 |---|---|
 | `redring-<タグ>-windows-x86_64.zip` | CAD/CAM のアプリ（`redring.exe`）・ジョブマネージャー（`redring-job-manager.exe`）・ランナー（`redring-batch-runner.exe`）の実行ファイル、ライセンス、README。3 つの実行ファイルは同じフォルダに置く（アプリは同じフォルダのジョブマネージャーを、ジョブマネージャーは同じフォルダのランナーを起動する） |
-| `redring-<タグ>-windows-x86_64.cdx.json` | SBOM（CycloneDX 1.5。アプリが使う依存のクレートの一覧。Windows の対象だけ。ジョブマネージャー・ランナーの依存は、アプリの依存に含まれる） |
-| `SHA256SUMS.txt` | 上の 2 つの SHA-256（小文字の 16 進数、LF の改行。`sha256sum -c` でも確かめられる） |
+| `redring-<タグ>-windows-x86_64.cdx.json` | SBOM（CycloneDX 1.5。アプリが使う依存のクレートの一覧。Windows の対象だけ。ランナーの依存は、アプリの依存に含まれる） |
+| `redring-<タグ>-windows-x86_64-job-manager.cdx.json` | ジョブマネージャー（画面）の SBOM |
+| `SHA256SUMS.txt` | 上の 3 つの SHA-256（小文字の 16 進数、LF の改行。`sha256sum -c` でも確かめられる） |
 
 - zip と SBOM には、GitHub のビルドの出所の証明（artifact attestation。Sigstore で署名する）を付ける。どのリポジトリ・ワークフロー・タグのコミットでビルドしたかを、利用者が確かめられる
 - チェックサムは、取ってくる途中で壊れていないことを確かめるためのもの。リリースの資産ごと置き換えられた場合はチェックサムも置き換えられるため、置き換えられていないことは出所の証明で確かめる

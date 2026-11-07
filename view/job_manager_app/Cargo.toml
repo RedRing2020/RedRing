@@ -1,0 +1,29 @@
+[package]
+name = "job_manager_app"
+publish = false
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[[bin]]
+name = "redring-job-manager"
+path = "src/main.rs"
+
+[dependencies]
+i18n_foundation = { path = "../../foundation/i18n_foundation" }
+job_manager = { path = "../../model/job_manager" }
+job_runtime = { path = "../../model/job_runtime" }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# accesskit（画面の読み上げ）は、保守の終わった依存を含むため使わない（CAD/CAM のアプリと同じ）
+eframe = { version = "0.34.1", default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland"] }
+fontdb = "0.23"
+rfd = "0.17.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.149"
+
+[lints]
+workspace = true
