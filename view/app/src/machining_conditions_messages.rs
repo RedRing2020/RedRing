@@ -62,11 +62,11 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "取り込める結果がありません（投入して計算が終わった後に取り込みます）",
     ),
     ("conditions.job.none", "今の条件の計算: まだ投入していません"),
-    ("conditions.job.queued", "今の条件の計算: 待っています"),
-    ("conditions.job.running", "今の条件の計算: 計算しています"),
+    ("conditions.job.queued", "今の条件の計算: 計算待ち"),
+    ("conditions.job.running", "今の条件の計算: 計算中"),
     (
         "conditions.job.succeeded",
-        "今の条件の計算: 終わりました（「取り込み」で表示します）",
+        "今の条件の計算: 計算完了（「取り込み」で表示します）",
     ),
     ("conditions.job.failed", "今の条件の計算: 失敗しました"),
     ("conditions.job.canceled", "今の条件の計算: 取り消されました"),
@@ -189,7 +189,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.job.running", "Calculation for the current conditions: calculating"),
     (
         "conditions.job.succeeded",
-        "Calculation for the current conditions: finished (press Import to show it)",
+        "Calculation for the current conditions: completed (press Import to show it)",
     ),
     ("conditions.job.failed", "Calculation for the current conditions: failed"),
     ("conditions.job.canceled", "Calculation for the current conditions: canceled"),

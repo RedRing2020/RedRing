@@ -17,7 +17,7 @@ The tool, machining, and stock conditions are entered in the Machining Condition
 
 1. Start RedRing ([Getting Started](./getting_started.md)).
 2. Choose an STL file with "File" → "Load…" in the menu bar, or drop an STL file onto the window, to load the shape. The loaded shape becomes a visible product shape and the machining target.
-3. Press `Shift+M` to open the Machining Conditions window, enter the tool, machining, and stock conditions, and press "Submit". A cutting simulation of the visible product shape is submitted, and the job manager calculates it ("Job Manager" in [Getting Started](./getting_started.md)). The screen does not stop during the calculation, and the Machining Conditions window shows the state of the calculation for the current conditions (waiting, calculating, finished, failed).
+3. Press `Shift+M` to open the Machining Conditions window, enter the tool, machining, and stock conditions, and press "Submit". A cutting simulation of the visible product shape is submitted, and the job manager calculates it ("Job Manager" in [Getting Started](./getting_started.md)). The screen does not stop during the calculation, and the Machining Conditions window shows the state of the calculation for the current conditions (waiting, calculating, completed, failed).
 4. When the calculation has finished, press "Import" to import the latest cutting simulation that finished successfully with the current conditions. After changing the conditions or the visible product shape, nothing can be imported until you submit again.
 
 `Shift+L` is the same as "Import".
