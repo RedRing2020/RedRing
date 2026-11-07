@@ -4,7 +4,10 @@ use cam_core::{
 };
 use geo_entity::FaceId;
 
-use crate::{MachiningOperation, MachiningOperationContent, MachiningSequence, MachiningStock};
+use crate::{
+    MachiningOperation, MachiningOperationContent, MachiningOperationId, MachiningRevisionKey,
+    MachiningSequence, MachiningSequenceId, MachiningStock,
+};
 
 fn content() -> MachiningOperationContent {
     MachiningOperationContent {
@@ -111,4 +114,34 @@ fn an_operation_is_changed_through_its_sequence() {
     assert_eq!(operations[1].id(), second_id);
     assert_eq!(operations[1].revision(), 2);
     assert_eq!(operations[1].content().stage, MachiningStage::SemiFinish);
+}
+
+#[test]
+fn ids_and_revision_keys_are_restored_from_their_uuids() {
+    let operation = MachiningOperation::new(content());
+    let id = MachiningOperationId::from_uuid(operation.id().as_uuid());
+    let key = MachiningRevisionKey::from_uuid(operation.revision_key().as_uuid());
+    assert_eq!(id, operation.id());
+    assert_eq!(key, operation.revision_key());
+    let sequence = MachiningSequence::new("手順".to_string(), Vec::new(), stock());
+    assert_eq!(
+        MachiningSequenceId::from_uuid(sequence.id().as_uuid()),
+        sequence.id()
+    );
+}
+
+#[test]
+fn the_revision_stops_at_its_limit_and_the_revision_key_still_changes() {
+    let saved = MachiningOperation::new(content());
+    let mut operation = MachiningOperation::restore(
+        saved.id(),
+        content(),
+        std::num::NonZeroU32::MAX,
+        saved.revision_key(),
+    );
+    let mut renamed = content();
+    renamed.name = "仕上げ 2".to_string();
+    operation.set_content(renamed);
+    assert_eq!(operation.revision(), u32::MAX);
+    assert_ne!(operation.revision_key(), saved.revision_key());
 }

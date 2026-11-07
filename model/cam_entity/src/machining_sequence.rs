@@ -16,6 +16,15 @@ impl MachiningSequenceId {
     fn new_random() -> Self {
         Self(Uuid::new_v4())
     }
+
+    /// UUID から作る（保存した手順の ID に戻すときに使う）
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
 }
 
 impl fmt::Display for MachiningSequenceId {
@@ -56,6 +65,23 @@ impl MachiningSequence {
             target_faces: unique_faces(target_faces),
             stock,
             operations: Vec::new(),
+        }
+    }
+
+    /// 保存した ID・名前・加工の対象・素材・加工工程から作る（加工の対象の同じ面は 1 回だけ持つ）
+    pub fn restore(
+        id: MachiningSequenceId,
+        name: String,
+        target_faces: Vec<FaceId>,
+        stock: MachiningStock,
+        operations: Vec<MachiningOperation>,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            target_faces: unique_faces(target_faces),
+            stock,
+            operations,
         }
     }
 

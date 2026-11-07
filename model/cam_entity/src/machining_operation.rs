@@ -1,4 +1,5 @@
 use std::fmt;
+use std::num::NonZeroU32;
 
 use cam_core::{MachiningBoundary, MachiningStage, OperationSpec, ToleranceProfile, Tool};
 use uuid::Uuid;
@@ -11,6 +12,15 @@ impl MachiningOperationId {
     /// ランダムな ID を作る
     fn new_random() -> Self {
         Self(Uuid::new_v4())
+    }
+
+    /// UUID から作る（保存した工程の ID に戻すときに使う）
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
     }
 }
 
@@ -31,6 +41,15 @@ impl MachiningRevisionKey {
     /// ランダムな鍵を作る
     fn new_random() -> Self {
         Self(Uuid::new_v4())
+    }
+
+    /// UUID から作る（保存した改訂の鍵に戻すときに使う）
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
     }
 }
 
@@ -79,6 +98,21 @@ impl MachiningOperation {
         }
     }
 
+    /// 保存した ID・中身・改訂の番号・改訂の鍵から作る
+    pub fn restore(
+        id: MachiningOperationId,
+        content: MachiningOperationContent,
+        revision: NonZeroU32,
+        revision_key: MachiningRevisionKey,
+    ) -> Self {
+        Self {
+            id,
+            content,
+            revision: revision.get(),
+            revision_key,
+        }
+    }
+
     pub fn id(&self) -> MachiningOperationId {
         self.id
     }
@@ -105,9 +139,9 @@ impl MachiningOperation {
         }
     }
 
-    /// 改訂の番号を増やし、改訂の鍵を作り直す
+    /// 改訂の番号を増やし、改訂の鍵を作り直す（番号は上限で止める。見分けは改訂の鍵で行う）
     pub(crate) fn revise(&mut self) {
-        self.revision += 1;
+        self.revision = self.revision.saturating_add(1);
         self.revision_key = MachiningRevisionKey::new_random();
     }
 }

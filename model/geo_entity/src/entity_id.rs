@@ -26,6 +26,11 @@ impl EntityId {
         Self(Uuid::new_v5(&Uuid::NAMESPACE_OID, seed.as_bytes()))
     }
 
+    /// UUID から作る（保存したエンティティの ID に戻すときに使う）
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
     pub fn as_uuid(&self) -> Uuid {
         self.0
     }
