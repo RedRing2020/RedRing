@@ -20,6 +20,26 @@ impl fmt::Display for MachiningOperationId {
     }
 }
 
+/// 加工工程の改訂の鍵（改訂の番号を増やすたびに作り直す、全体で一意な値）
+///
+/// 改訂の番号は、保存した工程を複製したときや、保存せずに捨てた変更でも、同じ工程の ID で同じ番号になりうる。
+/// 改訂の鍵は、同じ鍵なら同じ中身から計算したことを表す。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MachiningRevisionKey(Uuid);
+
+impl MachiningRevisionKey {
+    /// ランダムな鍵を作る
+    fn new_random() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
+impl fmt::Display for MachiningRevisionKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// 加工工程の中身（変えると改訂の番号が増える）
 #[derive(Debug, Clone, PartialEq)]
 pub struct MachiningOperationContent {
@@ -45,15 +65,17 @@ pub struct MachiningOperation {
     id: MachiningOperationId,
     content: MachiningOperationContent,
     revision: u32,
+    revision_key: MachiningRevisionKey,
 }
 
 impl MachiningOperation {
-    /// 新しい ID と、最初の改訂の番号（1）で作る
+    /// 新しい ID と、最初の改訂の番号（1）・新しい改訂の鍵で作る
     pub fn new(content: MachiningOperationContent) -> Self {
         Self {
             id: MachiningOperationId::new_random(),
             content,
             revision: 1,
+            revision_key: MachiningRevisionKey::new_random(),
         }
     }
 
@@ -70,6 +92,11 @@ impl MachiningOperation {
         self.revision
     }
 
+    /// 改訂の鍵（改訂の番号を増やすたびに作り直す）
+    pub fn revision_key(&self) -> MachiningRevisionKey {
+        self.revision_key
+    }
+
     /// 中身を `content` に替える。今の中身と違えば、改訂の番号を増やす
     pub fn set_content(&mut self, content: MachiningOperationContent) {
         if content != self.content {
@@ -78,8 +105,9 @@ impl MachiningOperation {
         }
     }
 
-    /// 改訂の番号を増やす
+    /// 改訂の番号を増やし、改訂の鍵を作り直す
     pub(crate) fn revise(&mut self) {
         self.revision += 1;
+        self.revision_key = MachiningRevisionKey::new_random();
     }
 }

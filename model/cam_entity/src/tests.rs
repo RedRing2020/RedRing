@@ -34,17 +34,20 @@ fn stock() -> MachiningStock {
 fn changing_the_content_increments_the_revision() {
     let mut operation = MachiningOperation::new(content());
     let id = operation.id();
+    let first_key = operation.revision_key();
     assert_eq!(operation.revision(), 1);
 
-    // 同じ中身では増えない
+    // 同じ中身では増えない（改訂の鍵も変わらない）
     operation.set_content(content());
     assert_eq!(operation.revision(), 1);
+    assert_eq!(operation.revision_key(), first_key);
 
-    // 名前だけの変更でも増える
+    // 名前だけの変更でも増え、改訂の鍵を作り直す
     let mut renamed = content();
     renamed.name = "仕上げ 2".to_string();
     operation.set_content(renamed);
     assert_eq!(operation.revision(), 2);
+    assert_ne!(operation.revision_key(), first_key);
 
     let mut changed = operation.content().clone();
     changed.stage = MachiningStage::Rough;

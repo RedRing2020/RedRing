@@ -378,7 +378,7 @@ impl CamSimulationWorkflow {
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、ツールパス生成と切削シミュレーションのジョブを
-    /// 投入する（計算を待たない）。2 つのジョブは、投入元として工程の ID と今の改訂の番号を持つ
+    /// 投入する（計算を待たない）。2 つのジョブは、投入元として工程の ID と今の改訂の番号・改訂の鍵を持つ
     ///
     /// # Errors
     ///
@@ -395,6 +395,7 @@ impl CamSimulationWorkflow {
         let source = CamJobSource {
             source_id: operation.id().to_string(),
             revision: operation.revision(),
+            revision_key: Some(operation.revision_key().to_string()),
         };
         self.enqueue(request, Some(source))
     }
@@ -435,9 +436,9 @@ impl CamSimulationWorkflow {
             .collect())
     }
 
-    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（最も新しい改訂）で投入し、
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（今の改訂の鍵）で投入し、
     /// 正常に終わった切削シミュレーションのうち、最も新しいジョブの番号（今の改訂の結果がない場合は `None`。工程は
-    /// 再計算待ち）
+    /// 再計算待ち）。改訂の鍵を持たない投入元（前の版の記録）は、今の改訂とみなさない
     ///
     /// # Errors
     ///
@@ -448,26 +449,17 @@ impl CamSimulationWorkflow {
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
     ) -> Result<Option<u64>, CamSimulationWorkflowError> {
-        let revision = sequences
-            .operation(sequence_id, operation_id)
-            .map_err(CamSimulationWorkflowError::Sequence)?
-            .revision();
+        let current = current_revision(sequences, sequence_id, operation_id)?;
         Ok(self
             .operation_simulations(operation_id)?
             .into_iter()
             .rev()
-            .find(|job| {
-                job.status == CamJobStatus::Succeeded
-                    && job
-                        .source
-                        .as_ref()
-                        .is_some_and(|source| source.revision == revision)
-            })
+            .find(|job| job.status == CamJobStatus::Succeeded && current(&job.source))
             .map(|job| job.job_id))
     }
 
-    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂で、最後に投入した計算の状態
-    /// （今の改訂で投入していなければ `None`）
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（今の改訂の鍵）で、最後に投入した
+    /// 計算の状態（今の改訂で投入していなければ `None`）。改訂の鍵を持たない投入元（前の版の記録）は、今の改訂とみなさない
     ///
     /// # Errors
     ///
@@ -478,16 +470,7 @@ impl CamSimulationWorkflow {
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
     ) -> Result<Option<OperationJobStatus>, CamSimulationWorkflowError> {
-        let revision = sequences
-            .operation(sequence_id, operation_id)
-            .map_err(CamSimulationWorkflowError::Sequence)?
-            .revision();
-        let source_id = operation_id.to_string();
-        let current = |source: &Option<CamJobSource>| {
-            source
-                .as_ref()
-                .is_some_and(|source| source.source_id == source_id && source.revision == revision)
-        };
+        let current = current_revision(sequences, sequence_id, operation_id)?;
         let pending = self.jobs.pending_submissions()?;
         // ジョブマネージャーの取り込みを待っている投入は、ジョブより新しい
         if pending
@@ -535,6 +518,27 @@ impl CamSimulationWorkflow {
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError> {
         self.jobs.import(simulation_job_id)
     }
+}
+
+/// 投入元が、保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂か（工程の ID と改訂の鍵が
+/// 同じか）を判定する関数。改訂の鍵を持たない投入元は、今の改訂とみなさない
+fn current_revision(
+    sequences: &MachiningSequenceStore,
+    sequence_id: MachiningSequenceId,
+    operation_id: MachiningOperationId,
+) -> Result<impl Fn(&Option<CamJobSource>) -> bool, CamSimulationWorkflowError> {
+    let revision_key = sequences
+        .operation(sequence_id, operation_id)
+        .map_err(CamSimulationWorkflowError::Sequence)?
+        .revision_key()
+        .to_string();
+    let source_id = operation_id.to_string();
+    Ok(move |source: &Option<CamJobSource>| {
+        source.as_ref().is_some_and(|source| {
+            source.source_id == source_id
+                && source.revision_key.as_deref() == Some(revision_key.as_str())
+        })
+    })
 }
 
 /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、ツールパス生成から切削シミュレーション

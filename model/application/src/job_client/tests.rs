@@ -105,6 +105,7 @@ fn submission() -> JobSubmission {
         source: Some(CamJobSource {
             source_id: "operation-1".to_string(),
             revision: 3,
+            revision_key: Some("key-3".to_string()),
         }),
     }
 }
@@ -187,8 +188,8 @@ fn a_submission_is_placed_in_the_inbox_with_both_inputs() {
         request.jobs[1]
             .source
             .as_ref()
-            .map(|source| source.revision),
-        Some(3)
+            .map(|source| (source.revision, source.revision_key.as_deref())),
+        Some((3, Some("key-3")))
     );
     let cam = fs::read(dir.join(&request.jobs[0].input_file)).unwrap();
     assert_eq!(
@@ -205,8 +206,11 @@ fn a_submission_is_placed_in_the_inbox_with_both_inputs() {
     assert_eq!(pending.len(), 1);
     assert!(!pending[0].rejected);
     assert_eq!(
-        pending[0].source.as_ref().map(|source| source.revision),
-        Some(3)
+        pending[0]
+            .source
+            .as_ref()
+            .map(|source| (source.revision, source.revision_key.as_deref())),
+        Some((3, Some("key-3")))
     );
 }
 
