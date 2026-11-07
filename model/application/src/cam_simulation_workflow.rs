@@ -32,7 +32,10 @@ pub use geo_algorithms::Aabb3D;
 use geo_algorithms::TessellationLimits;
 use job_domain::{CamJobSource, CamJobStatus};
 
-use crate::job_client::{JobClient, JobSubmission, LocalStoreJobClient, SimulationJob};
+use crate::imported_toolpath::ImportedToolpathStore;
+use crate::job_client::{
+    JobClient, JobSubmission, LocalStoreJobClient, SimulationJob, SimulationSubmission,
+};
 use crate::job_orchestration::JobOrchestrationError;
 use crate::machining_sequence::{
     MachiningOperationId, MachiningSequenceError, MachiningSequenceId, MachiningSequenceStore,
@@ -66,8 +69,8 @@ pub struct CamSimulationWorkflowResult {
     pub(crate) toolpath_artifact: Vec<u8>,
     /// 切削シミュレーションの成果物のバイト列
     pub(crate) simulation_artifact: Vec<u8>,
-    /// ツールパス生成の入力
-    pub solver_input: CamSolverInput,
+    /// ツールパス生成の入力（空間モデルの CL を入力にした切削シミュレーションは `None`）
+    pub solver_input: Option<CamSolverInput>,
     /// 切削シミュレーションの入力
     pub simulation_input: CuttingSimulationInput,
     /// 切削シミュレーションのジョブの投入元（工程から投入していなければ `None`）
@@ -242,6 +245,8 @@ pub enum CamSimulationWorkflowError {
     JobManagerNotFound,
     /// ジョブの保存先を読み書きできない・ジョブマネージャーを起動できない（理由）
     JobStore(String),
+    /// 加工工程の今の条件の CL を、空間モデルに取り込んでいない
+    NoCurrentImportedToolpath,
 }
 
 impl fmt::Display for CamSimulationWorkflowError {
@@ -272,6 +277,9 @@ impl fmt::Display for CamSimulationWorkflowError {
             }
             Self::JobManagerNotFound => write!(f, "the job manager is not installed"),
             Self::JobStore(reason) => write!(f, "job store failed: {reason}"),
+            Self::NoCurrentImportedToolpath => {
+                write!(f, "no imported toolpath of the current conditions")
+            }
         }
     }
 }
@@ -394,12 +402,37 @@ impl CamSimulationWorkflow {
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
         let (request, operation) =
             resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
-        let source = CamJobSource {
-            source_id: operation.id().to_string(),
-            revision: operation.revision(),
-            revision_key: Some(operation.revision_key().to_string()),
-        };
-        self.enqueue(request, Some(source))
+        self.enqueue(request, Some(operation_source(operation)))
+    }
+
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の、空間モデルに取り込んだ CL（`toolpaths`）を
+    /// 入力にして、切削シミュレーションのジョブだけを投入する（計算を待たない）。ジョブは、投入元として工程の ID と今の
+    /// 改訂の番号・改訂の鍵を持つ
+    ///
+    /// # Errors
+    ///
+    /// 今の条件の CL を取り込んでいない場合、投入前の確認（[`Self::check_operation`]）の誤り、入力の書き出し・投入の
+    /// 失敗、ジョブマネージャーがない場合。
+    pub fn submit_imported_toolpath(
+        &mut self,
+        shapes: &ProductShapeStore,
+        sequences: &MachiningSequenceStore,
+        toolpaths: &ImportedToolpathStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
+        let toolpath_artifact = toolpaths
+            .current_artifact(sequences, sequence_id, operation_id)
+            .map_err(CamSimulationWorkflowError::Sequence)?
+            .ok_or(CamSimulationWorkflowError::NoCurrentImportedToolpath)?;
+        let (request, operation) =
+            resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
+        let submission_id = self.jobs.submit_simulation(SimulationSubmission {
+            simulation_input: simulation_input(&request),
+            toolpath_artifact: toolpath_artifact.to_vec(),
+            source: Some(operation_source(operation)),
+        })?;
+        Ok(CamSimulationSubmission { submission_id })
     }
 
     /// 待ちのジョブを実行させ、実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すだけで 0）
@@ -519,6 +552,15 @@ impl CamSimulationWorkflow {
         simulation_job_id: u64,
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError> {
         self.jobs.import(simulation_job_id)
+    }
+}
+
+/// 加工工程 `operation` から投入するジョブの投入元（工程の ID と今の改訂の番号・改訂の鍵）
+fn operation_source(operation: &MachiningOperation) -> CamJobSource {
+    CamJobSource {
+        source_id: operation.id().to_string(),
+        revision: operation.revision(),
+        revision_key: Some(operation.revision_key().to_string()),
     }
 }
 

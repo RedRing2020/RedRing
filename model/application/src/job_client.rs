@@ -33,6 +33,16 @@ pub(crate) struct JobSubmission {
     pub source: Option<CamJobSource>,
 }
 
+/// 投入する、CL（ツールパスの成果物）を入力にする切削シミュレーション（ツールパス生成のジョブを持たない）
+#[derive(Debug, Clone)]
+pub(crate) struct SimulationSubmission {
+    pub simulation_input: CuttingSimulationInput,
+    /// CL（ツールパスの成果物のバイト列）
+    pub toolpath_artifact: Vec<u8>,
+    /// 投入元（工程の ID と改訂の番号）
+    pub source: Option<CamJobSource>,
+}
+
 /// 切削シミュレーションのジョブ
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SimulationJob {
@@ -41,7 +51,7 @@ pub(crate) struct SimulationJob {
     pub submission_id: String,
     pub source: Option<CamJobSource>,
     pub status: CamJobStatus,
-    /// 入力にするツールパス生成のジョブの状態
+    /// 入力にするツールパス生成のジョブの状態（CL を入力にするジョブは、正常に終わったものとする）
     pub toolpath_status: CamJobStatus,
 }
 
@@ -57,6 +67,12 @@ pub(crate) struct PendingSubmission {
 pub(crate) trait JobClient: fmt::Debug {
     /// ツールパス生成と切削シミュレーションのジョブを投入し、投入の ID を返す（計算を待たない）
     fn submit(&mut self, submission: JobSubmission) -> Result<String, CamSimulationWorkflowError>;
+
+    /// CL を入力にする切削シミュレーションのジョブを投入し、投入の ID を返す（計算を待たない）
+    fn submit_simulation(
+        &mut self,
+        submission: SimulationSubmission,
+    ) -> Result<String, CamSimulationWorkflowError>;
 
     /// 待ちのジョブを実行させる。実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すだけで 0）
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError>;

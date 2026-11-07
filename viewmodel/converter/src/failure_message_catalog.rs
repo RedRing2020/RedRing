@@ -38,6 +38,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "ジョブの保存先を使えないか、ジョブマネージャーを起動できません",
     ),
     (
+        "failure.no_current_imported_toolpath",
+        "空間モデルに今の条件の CL がありません",
+    ),
+    (
         "failure.inverse_offset_shape",
         "逆オフセット形状を作れません",
     ),
@@ -121,6 +125,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.job_store",
         "Cannot use the job store or start the job manager",
+    ),
+    (
+        "failure.no_current_imported_toolpath",
+        "The space model has no CL of the current conditions",
     ),
     (
         "failure.inverse_offset_shape",

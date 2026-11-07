@@ -58,18 +58,38 @@ impl AppState {
     ///
     /// 投入できたかを返す。
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
-        match self.cutting_simulation.submit(&mut self.document) {
+        let result = self.cutting_simulation.submit(&mut self.document);
+        self.finish_submission(result, "the cutting simulation")
+    }
+
+    /// 空間モデルに取り込んだ今の条件の CL から、切削シミュレーションだけを投入する（実行しない）
+    ///
+    /// 投入できたかを返す。
+    pub(crate) fn submit_imported_toolpath_simulation(&mut self) -> bool {
+        let result = self
+            .cutting_simulation
+            .submit_imported_toolpath(&mut self.document);
+        self.finish_submission(result, "the cutting simulation of the imported toolpath")
+    }
+
+    /// 投入の結果 `result`（`what` はログに出す投入の名前）を、最後の操作の結果にする。投入できたかを返す
+    fn finish_submission(
+        &mut self,
+        result: Result<(), viewmodel::cutting_simulation_session::CuttingSimulationSessionError>,
+        what: &str,
+    ) -> bool {
+        match result {
             Ok(()) => {
                 tracing::info!(
                     operation = ?self.document.operation_content(),
                     stock = ?self.document.stock(),
-                    "Submitted the cutting simulation to the job manager (import with Shift+L after it finishes)"
+                    "Submitted {what} to the job manager (import with Shift+L after it finishes)"
                 );
                 self.set_operation_status(OperationStatus::Submitted);
                 true
             }
             Err(error) => {
-                tracing::warn!("Cannot submit the cutting simulation: {error}");
+                tracing::warn!("Cannot submit {what}: {error}");
                 self.set_operation_status(OperationStatus::SubmitFailed(
                     cutting_simulation_failure_message(&error),
                 ));

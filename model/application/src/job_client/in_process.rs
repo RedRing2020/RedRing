@@ -9,7 +9,7 @@ use cam_sim::{
 use job_domain::{CamJobStatus, CamJobType};
 use job_runtime::JobManager;
 
-use super::{JobClient, JobSubmission, SimulationJob};
+use super::{JobClient, JobSubmission, SimulationJob, SimulationSubmission};
 use crate::cam_simulation_workflow::{CamSimulationWorkflowError, CamSimulationWorkflowResult};
 use crate::job_orchestration::{
     JobWorkflowOrchestration, JobWorkflowOrchestrator, JobWorkflowResultQuery,
@@ -72,6 +72,16 @@ impl JobClient for InProcessJobClient {
         self.submissions
             .push((submission_id.clone(), toolpath.job_id, simulation.job_id));
         Ok(submission_id)
+    }
+
+    fn submit_simulation(
+        &mut self,
+        _submission: SimulationSubmission,
+    ) -> Result<String, CamSimulationWorkflowError> {
+        // 同じプロセスの中の実行は、ツールパス生成のジョブを持たない切削シミュレーションを扱わない
+        Err(CamSimulationWorkflowError::InputRegistration(
+            "simulating an imported toolpath needs the job manager".to_string(),
+        ))
     }
 
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError> {
@@ -143,7 +153,7 @@ impl JobClient for InProcessJobClient {
             // 切削シミュレーションの入力に使ったツールパス（親のジョブの成果物）
             toolpath_artifact: result.input_artifact.ok_or_else(missing)?,
             simulation_artifact: result.active_artifact.ok_or_else(missing)?,
-            solver_input,
+            solver_input: Some(solver_input),
             simulation_input,
             source: result.job.spec.source.clone(),
         })

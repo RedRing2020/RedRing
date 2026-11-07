@@ -92,6 +92,7 @@ impl AppState {
             imported_toolpath: self.document.imported_toolpath_state(),
             status: self.cutting_simulation_status.clone(),
             submit_requested: false,
+            simulate_toolpath_requested: false,
             import_requested: false,
             open_job_manager_requested: false,
         }
@@ -110,6 +111,9 @@ impl AppState {
         }
         if state.submit_requested && self.submit_cutting_simulation() {
             // 投入した計算の状態を、すぐに読み直す
+            self.job_status_read_at = None;
+        }
+        if state.simulate_toolpath_requested && self.submit_imported_toolpath_simulation() {
             self.job_status_read_at = None;
         }
         if state.import_requested {

@@ -270,6 +270,11 @@ impl SpaceModelDocument {
         }
     }
 
+    /// 取り込んだ CL
+    pub(crate) fn toolpaths(&self) -> &application::imported_toolpath::ImportedToolpathStore {
+        &self.model.toolpaths
+    }
+
     /// 製品形状・加工手順と、編集の対象の加工手順・加工工程
     pub(crate) fn machining(
         &self,

@@ -232,7 +232,7 @@ fn jobs_run_by_the_job_manager_are_read_and_imported_from_the_store() {
     assert_eq!(jobs[0].source.as_ref().unwrap().source_id, "operation-1");
 
     let imported = client.import(jobs[0].job_id).unwrap();
-    assert_eq!(imported.solver_input.operation_id, "op-1");
+    assert_eq!(imported.solver_input.unwrap().operation_id, "op-1");
     assert_eq!(imported.simulation_input.precision, 0.5);
     assert_eq!(
         imported.toolpath_artifact,
@@ -286,4 +286,54 @@ fn broken_or_tampered_records_do_not_break_reading_or_importing() {
         CamSimulationWorkflowError::NotSucceededSimulation(2)
     );
     assert_eq!(jobs[0].status, StoredJobStatus::Succeeded);
+}
+
+#[test]
+fn simulations_of_a_toolpath_file_run_without_a_cam_job_and_are_imported() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    let base = submission();
+    let toolpath = run_cam_solver(&base.solver_input).unwrap();
+    let submission_id = client
+        .submit_simulation(SimulationSubmission {
+            simulation_input: base.simulation_input,
+            toolpath_artifact: toolpath.clone(),
+            source: base.source,
+        })
+        .unwrap();
+    // CL のファイルを持つ投入は、CL のファイルを持てる版の要求で書く
+    let request: SubmissionRequest = serde_json::from_slice(
+        &fs::read(
+            root.store_root()
+                .join("inbox")
+                .join(&submission_id)
+                .join("request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(request.jobs.len(), 1);
+    assert!(request.jobs[0].depends_on.is_empty());
+    assert_eq!(
+        request.format_version,
+        job_runtime::store::TOOLPATH_FILE_FORMAT_VERSION
+    );
+
+    for now in 1..=3 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].status, CamJobStatus::Succeeded);
+    assert_eq!(jobs[0].toolpath_status, CamJobStatus::Succeeded);
+
+    let imported = client.import(jobs[0].job_id).unwrap();
+    assert!(imported.solver_input.is_none());
+    assert_eq!(imported.toolpath_artifact, toolpath);
+    assert!(
+        cam_sim::read_cutting_simulation_artifact_v1(&mut imported.simulation_artifact.as_slice())
+            .is_ok()
+    );
 }

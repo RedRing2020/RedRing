@@ -340,14 +340,12 @@ fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
         .import(submitted(&workflow, &submission.submission_id).job_id)
         .unwrap();
     let content = operation_content();
-    assert_eq!(result.solver_input.tool, content.tool);
-    assert_eq!(result.solver_input.operation, content.spec);
-    assert_eq!(
-        result.solver_input.operation_id,
-        machining.operation.to_string()
-    );
+    let solver_input = result.solver_input.as_ref().unwrap();
+    assert_eq!(solver_input.tool, content.tool);
+    assert_eq!(solver_input.operation, content.spec);
+    assert_eq!(solver_input.operation_id, machining.operation.to_string());
     // 精度プロファイル press_rough のトレランス
-    assert_eq!(result.solver_input.chord_tolerance, 0.001);
+    assert_eq!(solver_input.chord_tolerance, 0.001);
     assert_eq!(result.simulation_input.tool, content.tool);
     assert_eq!(result.simulation_input.precision, stock().precision);
     assert_eq!(
@@ -835,5 +833,59 @@ fn the_toolpath_of_an_imported_result_is_copied_into_the_space_model() {
     assert_eq!(
         state(&toolpaths, &machining),
         ImportedToolpathState::Outdated
+    );
+}
+
+#[test]
+fn only_the_imported_toolpath_of_the_current_conditions_is_submitted() {
+    use crate::imported_toolpath::ImportedToolpathStore;
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let submit = |workflow: &mut CamSimulationWorkflow,
+                  machining: &Machining,
+                  toolpaths: &ImportedToolpathStore| {
+        workflow.submit_imported_toolpath(
+            &shapes,
+            &machining.store,
+            toolpaths,
+            machining.sequence,
+            machining.operation,
+        )
+    };
+    // CL を取り込んでいない
+    let mut toolpaths = ImportedToolpathStore::new();
+    assert_eq!(
+        submit(&mut workflow, &machining, &toolpaths).unwrap_err(),
+        CamSimulationWorkflowError::NoCurrentImportedToolpath
+    );
+
+    let submission = machining.submit(&mut workflow, &shapes).unwrap();
+    workflow.run_queued_jobs().unwrap();
+    let result = workflow
+        .import(submitted(&workflow, &submission.submission_id).job_id)
+        .unwrap();
+    toolpaths
+        .import(
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+            &result,
+        )
+        .unwrap();
+    // 同じプロセスの中の実行は、CL を入力にする切削シミュレーションを扱わない（ジョブマネージャーの投入は
+    // job_client の試験で確かめる）
+    assert!(matches!(
+        submit(&mut workflow, &machining, &toolpaths).unwrap_err(),
+        CamSimulationWorkflowError::InputRegistration(_)
+    ));
+
+    // 条件を変えると、前の条件の CL は投入しない
+    let mut changed = stock();
+    changed.margins.top = 10.0;
+    machining.set_stock(changed);
+    assert_eq!(
+        submit(&mut workflow, &machining, &toolpaths).unwrap_err(),
+        CamSimulationWorkflowError::NoCurrentImportedToolpath
     );
 }

@@ -114,6 +114,8 @@ pub struct MachiningConditionsUiState {
     /// 最後の操作の結果
     pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
+    /// 空間モデルの CL から、切削シミュレーションだけを投入する
+    pub simulate_toolpath_requested: bool,
     pub import_requested: bool,
     pub open_job_manager_requested: bool,
 }
@@ -287,6 +289,15 @@ impl MachiningConditionsUiState {
                             );
                             if submit.clicked() {
                                 self.submit_requested = true;
+                            }
+                            // 空間モデルの CL が今の条件の結果のときだけ、その CL から計算し直せる
+                            let simulate_toolpath = ui.add_enabled(
+                                self.issues.is_empty()
+                                    && self.imported_toolpath == ImportedToolpathState::Current,
+                                egui::Button::new(self.text("conditions.simulate_toolpath")),
+                            );
+                            if simulate_toolpath.clicked() {
+                                self.simulate_toolpath_requested = true;
                             }
                             if ui.button(self.text("conditions.import")).clicked() {
                                 self.import_requested = true;
