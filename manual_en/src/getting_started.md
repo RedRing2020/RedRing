@@ -40,12 +40,22 @@ The release also includes the list of dependent crates (SBOM, a `.cdx.json` file
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 git checkout v0.1.3
-cargo run --release
+cargo build --release
+cargo run --release -p redring
 ```
 
+- `cargo build --release` builds the job manager (`redring-job-manager`) and the runner (`redring-batch-runner`) with the app. Without them, toolpath generation and the cutting simulation cannot be submitted (loading and viewing shapes still work). `cargo run` starts the app when given `-p redring`
 - `--release` makes toolpath generation and the cutting simulation faster (without it, calculations take many times longer)
 - The first build takes a few minutes to download the dependent crates
 - A window with a menu bar opens. Continue with [Screen and Controls](./screen_and_controls.md) and [Cutting Simulation](./cutting_simulation_demo.md)
+
+## Job Manager
+
+Toolpath generation and the cutting simulation are calculated by the job manager (`redring-job-manager`), separate from the app. The package zip contains the app (`redring.exe`), the job manager, and the runner (`redring-batch-runner.exe`). Keep the three in the same folder.
+
+- The app starts the job manager the first time you press "Submit" (it has no window). The app screen does not stop during calculations
+- The job manager keeps calculating after you close the app. To stop it, end `redring-job-manager` in Task Manager (a job manager screen will be added in a later version)
+- Job records and results are kept in `%LOCALAPPDATA%\RedRing\jobs` on Windows. The job manager log is `manager.log` there
 
 ## Data to Prepare
 

@@ -668,3 +668,31 @@ fn precision_beyond_the_line_limit_is_reported_with_the_finest_precision() {
     machining.set_stock(wide);
     assert_eq!(machining.check(&shapes), Ok(()));
 }
+
+#[test]
+fn the_status_of_the_latest_revision_follows_its_jobs() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let status = |machining: &Machining, workflow: &CamSimulationWorkflow| {
+        workflow
+            .latest_revision_job_status(&machining.store, machining.sequence, machining.operation)
+            .unwrap()
+    };
+    assert_eq!(status(&machining, &workflow), None);
+    machining.submit(&mut workflow, &shapes).unwrap();
+    assert_eq!(
+        status(&machining, &workflow),
+        Some(OperationJobStatus::Queued)
+    );
+    workflow.run_queued_jobs().unwrap();
+    assert_eq!(
+        status(&machining, &workflow),
+        Some(OperationJobStatus::Succeeded)
+    );
+    // 条件を変えると、今の改訂の計算はまだない
+    let mut changed = stock();
+    changed.margins.top = 10.0;
+    machining.set_stock(changed);
+    assert_eq!(status(&machining, &workflow), None);
+}

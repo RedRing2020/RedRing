@@ -134,6 +134,16 @@ struct IntakeState {
     next_id: u64,
 }
 
+/// 受付のフォルダにある、まだ取り込んでいない投入・取り込めなかった投入
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InboxSubmission {
+    pub submission_id: String,
+    /// 要求（読めなければ `None`）
+    pub request: Option<SubmissionRequest>,
+    /// 取り込めなかった投入の理由（取り込みを待っている投入は `None`）
+    pub rejected: Option<String>,
+}
+
 /// 読めなかったジョブの記録
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnreadableJob {
@@ -254,6 +264,38 @@ impl JobStore {
         fs::write(temporary.join(REQUEST_FILE), bytes)?;
         fs::rename(&temporary, inbox.join(submission_id))?;
         Ok(())
+    }
+
+    /// 受付のフォルダの、取り込みを待っている投入と、取り込めなかった投入（書きかけの投入は除く。名前の順）
+    pub fn inbox_submissions(&self) -> Result<Vec<InboxSubmission>, StoreError> {
+        let mut submissions = Vec::new();
+        for entry in fs::read_dir(self.root.join(INBOX_DIR))? {
+            let entry = entry?;
+            if !entry.file_type()?.is_dir() {
+                continue;
+            }
+            let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+                continue;
+            };
+            let (submission_id, rejected) = match name.strip_suffix(REJECTED_SUFFIX) {
+                Some(id) => {
+                    let reason =
+                        read_limited(&entry.path().join(REJECTED_REASON_FILE), MAX_JSON_BYTES)
+                            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+                            .unwrap_or_default();
+                    (id.to_string(), Some(reason))
+                }
+                None if !name.contains('.') => (name, None),
+                None => continue,
+            };
+            submissions.push(InboxSubmission {
+                submission_id,
+                request: read_request(&entry.path()).ok(),
+                rejected,
+            });
+        }
+        submissions.sort_by(|a, b| a.submission_id.cmp(&b.submission_id));
+        Ok(submissions)
     }
 
     /// すべてのジョブの記録を、ジョブの番号の順に読む。読めない記録は理由とともに分けて返す

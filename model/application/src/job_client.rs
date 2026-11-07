@@ -41,6 +41,16 @@ pub(crate) struct SimulationJob {
     pub submission_id: String,
     pub source: Option<CamJobSource>,
     pub status: CamJobStatus,
+    /// 入力にするツールパス生成のジョブの状態
+    pub toolpath_status: CamJobStatus,
+}
+
+/// まだジョブになっていない投入（ジョブマネージャーの取り込みを待っている・取り込めなかった）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PendingSubmission {
+    pub source: Option<CamJobSource>,
+    /// 取り込めなかった
+    pub rejected: bool,
 }
 
 /// ジョブの投入・状態の読み取り・成果物の取り込み
@@ -48,11 +58,14 @@ pub(crate) trait JobClient: fmt::Debug {
     /// ツールパス生成と切削シミュレーションのジョブを投入し、投入の ID を返す（計算を待たない）
     fn submit(&mut self, submission: JobSubmission) -> Result<String, CamSimulationWorkflowError>;
 
-    /// 待ちのジョブを実行させる。実行したジョブの数を返す（外のジョブマネージャーでは、起動を確かめるだけで 0）
+    /// 待ちのジョブを実行させる。実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すだけで 0）
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError>;
 
     /// 切削シミュレーションのジョブ（番号の順）
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError>;
+
+    /// まだジョブになっていない投入
+    fn pending_submissions(&self) -> Result<Vec<PendingSubmission>, CamSimulationWorkflowError>;
 
     /// 正常に終わった切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
     /// 投入した入力

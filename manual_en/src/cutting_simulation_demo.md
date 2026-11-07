@@ -17,10 +17,10 @@ The tool, machining, and stock conditions are entered in the Machining Condition
 
 1. Start RedRing ([Getting Started](./getting_started.md)).
 2. Choose an STL file with "File" → "Load…" in the menu bar, or drop an STL file onto the window, to load the shape. The loaded shape becomes a visible product shape and the machining target.
-3. Press `Shift+M` to open the Machining Conditions window, enter the tool, machining, and stock conditions, and press "Submit". A cutting simulation of the visible product shape is submitted and, with "Run right after submitting" (on by default), run right away (this is the operation until the job manager is available; the screen stops until the run ends).
-4. Press "Import" to import the latest cutting simulation that ran successfully with the current conditions. After changing the conditions or the visible product shape, nothing can be imported until you submit again.
+3. Press `Shift+M` to open the Machining Conditions window, enter the tool, machining, and stock conditions, and press "Submit". A cutting simulation of the visible product shape is submitted, and the job manager calculates it ("Job Manager" in [Getting Started](./getting_started.md)). The screen does not stop during the calculation, and the Machining Conditions window shows the state of the calculation for the current conditions (waiting, calculating, finished, failed).
+4. When the calculation has finished, press "Import" to import the latest cutting simulation that finished successfully with the current conditions. After changing the conditions or the visible product shape, nothing can be imported until you submit again.
 
-If you turn off "Run right after submitting", run with `Shift+R`. `Shift+L` is the same as "Import".
+`Shift+L` is the same as "Import".
 
 After a successful import, the following appear.
 
@@ -37,7 +37,7 @@ Importing does not change the camera (direction and zoom), so you can compare th
 - Enter the tool (type, diameter, length), the machining (cut direction, stepover, feed rate, scan angle, tool range), and the stock (margins, precision). The toolpath tolerance (0.001 mm) is shown only and cannot be changed
 - The machining section shows the upper limit of the cusp height, the height of the ridges left between neighboring passes on a flat surface (the spacing between passes is at most the stepover, because the machining range is divided equally). For a ball end mill it is set by the diameter and the stepover (for example 0.1010 mm with diameter 10 mm and stepover 2 mm); for a flat end mill it is 0. It changes on inclined surfaces, so it is a guide value. It is not shown when the stepover exceeds the tool diameter
 - If a condition has an error, it is shown in red below the field to fix, and "Submit" cannot be pressed. Examples: the precision is finer than the toolpath tolerance; the precision is too fine for the stock size (the finest precision that can be submitted is shown); the stepover exceeds the tool diameter (the tool diameter is shown). Error messages are shown in the display language (Japanese or English). Failures that conditions cannot fix, such as running a job or importing a result, are also shown with the reason in the display language. Detailed reasons are kept in the log (in English)
-- Below "Submit" and "Import", the result of the last operation (submit, run, or import) is shown on one line
+- Below "Submit" and "Import", the result of the last operation (submit or import) and the state of the calculation for the current conditions are shown. The state is read again every second
 - "Conditions of the displayed result" shows the conditions used to calculate the imported cutting simulation (tool, machining, tolerance, stock size, precision)
 
 ### Moving in Time and Playback

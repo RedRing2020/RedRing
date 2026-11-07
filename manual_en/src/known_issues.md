@@ -14,9 +14,10 @@ Machining:
 Management:
 
 - There is one machining plan and one machining process, and the conditions in the Machining Conditions window are the conditions of that process. There is no screen to list or add processes and no tool registration (tool library) yet (planned for v0.2.0)
-- Jobs run in the same process, and the screen stops until the run ends
+- There is no job manager screen yet (job list, canceling, changing the order). The calculation state is shown only for the current conditions in the Machining Conditions window
+- The job manager calculates one job at a time. After reopening the app, the results of jobs submitted before cannot be imported from the process (saving processes will be added in a later version)
 - The machining target is all visible product shapes (selecting faces is a later feature)
-- There is no screen yet to choose what to submit, run, or import, and only the latest result of the current conditions can be imported
+- There is no screen yet to choose which job to import, and only the latest result of the current conditions can be imported
 
 Distribution:
 
@@ -37,7 +38,9 @@ Display:
 |---|---|
 | "Import" does not import | After changing the conditions or the visible product shape, nothing can be imported until you submit again. Check the line with the result of the last operation in the Machining Conditions window and the log (`logs/redring.log`) |
 | "Submit" cannot be pressed | A condition error is shown in red below the field to fix. Fix it to enable the button |
-| The screen stops during a run | Jobs run in the same process. Wait until the run ends (to be solved by the job manager) |
+| "Submit" says that the job manager is not installed | Check that `redring-job-manager` and `redring-batch-runner` are in the same folder as the app. When built from source, build with `cargo build --release` |
+| The calculation stays "waiting" | Check the job manager log (`%LOCALAPPDATA%\RedRing\jobs\manager.log`) |
+| The calculation "failed" | The reason is in the job log (`%LOCALAPPDATA%\RedRing\jobs\<job number>\logs\runner.log`) |
 | Drawing stops while the open-file dialog is open | It resumes when the dialog is closed |
 | Rotating the stock stops drawing or the screen disappears | With a fine stock precision (for example 0.01 mm), the GPU load becomes high and the GPU device can be lost. The app then shows an error message and ends. Submit again with a coarser precision |
 | The camera is inside a shape | Press the `e` key (emergency escape) or the `r` key (reset) |

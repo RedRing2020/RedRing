@@ -23,7 +23,7 @@ impl AppState {
         }
         tracing::info!(path = %path.display(), "product shape imported");
         self.set_notice(crate::help_ui::Notice::ShapeImported { file });
-        self.condition_issues = None;
+        self.invalidate_conditions();
         self.show_product_shapes();
     }
 

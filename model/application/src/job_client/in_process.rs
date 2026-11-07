@@ -81,18 +81,29 @@ impl JobClient for InProcessJobClient {
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
         self.submissions
             .iter()
-            .map(|(submission_id, _, simulation_job_id)| {
+            .map(|(submission_id, toolpath_job_id, simulation_job_id)| {
                 let status = self.orchestrator.query_result(JobWorkflowResultQuery {
                     job_id: *simulation_job_id,
+                })?;
+                let toolpath = self.orchestrator.query_result(JobWorkflowResultQuery {
+                    job_id: *toolpath_job_id,
                 })?;
                 Ok(SimulationJob {
                     job_id: *simulation_job_id,
                     submission_id: submission_id.clone(),
                     source: status.job.spec.source.clone(),
                     status: status.job.status,
+                    toolpath_status: toolpath.job.status,
                 })
             })
             .collect()
+    }
+
+    fn pending_submissions(
+        &self,
+    ) -> Result<Vec<super::PendingSubmission>, CamSimulationWorkflowError> {
+        // 投入したときにジョブになる
+        Ok(Vec::new())
     }
 
     fn import(

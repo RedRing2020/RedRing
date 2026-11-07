@@ -27,7 +27,6 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
         "help.header.cutting",
         &[
             ("Shift+M", "help.cutting.conditions"),
-            ("Shift+R", "help.cutting.run"),
             ("Shift+L", "help.cutting.import"),
             ("k / j", "help.cutting.step"),
             (". / ,", "help.cutting.endpoint"),
@@ -107,13 +106,11 @@ impl Notice {
             | Self::SettingsNotSaved
             | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
             Self::Operation(status) => match status {
-                OperationStatus::SubmitFailed(_)
-                | OperationStatus::RunFailed(_)
-                | OperationStatus::ImportFailed(_) => NoticeLevel::Error,
+                OperationStatus::SubmitFailed(_) | OperationStatus::ImportFailed(_) => {
+                    NoticeLevel::Error
+                }
                 OperationStatus::NothingToImport => NoticeLevel::Warning,
-                OperationStatus::Submitted
-                | OperationStatus::Ran { .. }
-                | OperationStatus::Imported { .. } => NoticeLevel::Info,
+                OperationStatus::Submitted | OperationStatus::Imported { .. } => NoticeLevel::Info,
             },
         }
     }
@@ -335,8 +332,8 @@ mod tests {
                         args: Vec::new(),
                     },
                 },
-                Notice::Operation(OperationStatus::RunFailed(UiMessage {
-                    key: "failure.orchestration".to_string(),
+                Notice::Operation(OperationStatus::SubmitFailed(UiMessage {
+                    key: "failure.job_manager_not_found".to_string(),
                     args: Vec::new(),
                 })),
             ];

@@ -58,7 +58,7 @@ jobs:
       - name: Build
         env:
           RUSTFLAGS: -C target-feature=+crt-static
-        run: cargo build --release --locked -p redring
+        run: cargo build --release --locked -p redring -p job_manager -p job_runner
 
       - name: Generate the SBOM
         run: |
@@ -70,7 +70,9 @@ jobs:
         run: |
           $name = "redring-$env:TAG-windows-x86_64"
           New-Item -ItemType Directory -Force dist/$name | Out-Null
-          Copy-Item target/release/redring.exe, LICENSE, LICENSE-MIT, LICENSE-APACHE, README.md, README.jp.md dist/$name
+          # アプリは、同じフォルダのジョブマネージャーを、ジョブマネージャーは同じフォルダのランナーを起動する
+          Copy-Item target/release/redring.exe, target/release/redring-job-manager.exe, `
+            target/release/redring-batch-runner.exe, LICENSE, LICENSE-MIT, LICENSE-APACHE, README.md, README.jp.md dist/$name
           Compress-Archive -Path dist/$name -DestinationPath dist/$name.zip
           Copy-Item view/app/redring-sbom.json "dist/$name.cdx.json"
           # sha256sum -c でも確かめられるように、小文字の 16 進数と LF の改行で書く

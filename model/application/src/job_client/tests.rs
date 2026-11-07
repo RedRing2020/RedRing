@@ -190,6 +190,14 @@ fn a_submission_is_placed_in_the_inbox_with_both_inputs() {
     let sim = fs::read(dir.join(&request.jobs[1].input_file)).unwrap();
     assert!(read_cutting_simulation_input_v1(&mut sim.as_slice()).is_ok());
     assert!(client.simulation_jobs().unwrap().is_empty());
+    // ジョブマネージャーが取り込むまでは、まだジョブになっていない投入として読める
+    let pending = client.pending_submissions().unwrap();
+    assert_eq!(pending.len(), 1);
+    assert!(!pending[0].rejected);
+    assert_eq!(
+        pending[0].source.as_ref().map(|source| source.revision),
+        Some(3)
+    );
 }
 
 #[test]

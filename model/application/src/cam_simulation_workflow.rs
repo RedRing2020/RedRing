@@ -72,6 +72,21 @@ pub struct CamSimulationWorkflowResult {
     pub simulation_input: CuttingSimulationInput,
 }
 
+/// 加工工程の今の改訂の計算（ツールパス生成と切削シミュレーション）の状態
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationJobStatus {
+    /// 計算を待っている
+    Queued,
+    /// 計算している
+    Running,
+    /// 正常に終わった（取り込める）
+    Succeeded,
+    /// 失敗した
+    Failed,
+    /// 取り消された
+    Canceled,
+}
+
 /// 計算条件の誤りを出す入力の欄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CamConditionField {
@@ -384,7 +399,7 @@ impl CamSimulationWorkflow {
         self.enqueue(request, Some(source))
     }
 
-    /// 待ちのジョブを実行させ、実行したジョブの数を返す（外のジョブマネージャーでは、起動を確かめるだけで 0）
+    /// 待ちのジョブを実行させ、実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すだけで 0）
     ///
     /// # Errors
     ///
@@ -440,6 +455,63 @@ impl CamSimulationWorkflow {
                         .is_some_and(|source| source.revision == revision)
             })
             .map(|job| job.job_id))
+    }
+
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂で、最後に投入した計算の状態
+    /// （今の改訂で投入していなければ `None`）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合。
+    pub fn latest_revision_job_status(
+        &self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<Option<OperationJobStatus>, CamSimulationWorkflowError> {
+        let revision = sequences
+            .operation(sequence_id, operation_id)
+            .map_err(CamSimulationWorkflowError::Sequence)?
+            .revision();
+        let source_id = operation_id.to_string();
+        let current = |source: &Option<CamJobSource>| {
+            source
+                .as_ref()
+                .is_some_and(|source| source.source_id == source_id && source.revision == revision)
+        };
+        let pending = self.jobs.pending_submissions()?;
+        // ジョブマネージャーの取り込みを待っている投入は、ジョブより新しい
+        if pending
+            .iter()
+            .any(|submission| !submission.rejected && current(&submission.source))
+        {
+            return Ok(Some(OperationJobStatus::Queued));
+        }
+        let latest = self
+            .operation_simulations(operation_id)?
+            .into_iter()
+            .rev()
+            .find(|job| current(&job.source));
+        let Some(job) = latest else {
+            // 取り込めなかった投入は、失敗として出す
+            let rejected = pending
+                .iter()
+                .any(|submission| submission.rejected && current(&submission.source));
+            return Ok(rejected.then_some(OperationJobStatus::Failed));
+        };
+        Ok(Some(match job.status {
+            CamJobStatus::Succeeded => OperationJobStatus::Succeeded,
+            CamJobStatus::Failed => OperationJobStatus::Failed,
+            CamJobStatus::Canceled => OperationJobStatus::Canceled,
+            CamJobStatus::Running => OperationJobStatus::Running,
+            // 切削シミュレーションは、ツールパス生成の計算の間も待っている
+            CamJobStatus::Queued | CamJobStatus::NeedsRecompute => match job.toolpath_status {
+                CamJobStatus::Running => OperationJobStatus::Running,
+                CamJobStatus::Failed => OperationJobStatus::Failed,
+                CamJobStatus::Canceled => OperationJobStatus::Canceled,
+                _ => OperationJobStatus::Queued,
+            },
+        }))
     }
 
     /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、

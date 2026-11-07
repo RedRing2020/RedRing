@@ -215,7 +215,9 @@ cargo build --release
 
 ```bash
 # GUI 環境が必要 (X11/Wayland/Windows/macOS)
-cargo run
+# 先にすべての実行ファイルをビルドする（アプリは、同じフォルダのジョブマネージャーとランナーを起動する）
+cargo build
+cargo run -p redring
 
 # テスト実行
 cargo test --workspace

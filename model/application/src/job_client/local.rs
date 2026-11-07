@@ -1,6 +1,7 @@
 //! 同じ PC のジョブの保存先のフォルダを通して、ジョブマネージャーに計算させるクライアント
 //! （設計: JOB_MANAGER_STORAGE_DESIGN.md 4.3〜4.5）
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -17,7 +18,7 @@ use job_runtime::store::{
     StoredJobStatus, SubmissionRequest, SubmittedJob,
 };
 
-use super::{JobClient, JobSubmission, SimulationJob};
+use super::{JobClient, JobSubmission, PendingSubmission, SimulationJob};
 use crate::cam_simulation_workflow::{CamSimulationWorkflowError, CamSimulationWorkflowResult};
 
 /// ジョブマネージャーの実行ファイルの名前（拡張子を除く）
@@ -194,17 +195,37 @@ impl JobClient for LocalStoreJobClient {
 
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
         let jobs = Self::load_jobs(&self.store()?)?;
+        let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
         Ok(jobs
             .iter()
             .filter(|job| job.kind == StoredJobKind::Sim)
             .map(|job| SimulationJob {
                 job_id: job.job_id,
                 submission_id: job.submission_id.clone(),
-                source: job.source.as_ref().map(|source| CamJobSource {
-                    source_id: source.source_id.clone(),
-                    revision: source.revision,
-                }),
+                source: job.source.as_ref().map(source),
                 status: status(job.status),
+                // 記録を読めないツールパス生成のジョブは、待ちとして扱う
+                toolpath_status: toolpath_job_in(&by_id, job)
+                    .map_or(CamJobStatus::Queued, |toolpath| status(toolpath.status)),
+            })
+            .collect())
+    }
+
+    fn pending_submissions(&self) -> Result<Vec<PendingSubmission>, CamSimulationWorkflowError> {
+        let submissions = self
+            .store()?
+            .inbox_submissions()
+            .map_err(|error| store_error(error.to_string()))?;
+        Ok(submissions
+            .into_iter()
+            .map(|submission| PendingSubmission {
+                source: submission
+                    .request
+                    .as_ref()
+                    .and_then(|request| request.jobs.first())
+                    .and_then(|job| job.source.as_ref())
+                    .map(source),
+                rejected: submission.rejected.is_some(),
             })
             .collect())
     }
@@ -262,6 +283,25 @@ fn toolpath_job<'a>(jobs: &'a [StoredJob], simulation: &StoredJob) -> Option<&'a
         jobs.iter()
             .find(|job| job.job_id == id && job.kind == StoredJobKind::Cam)
     })
+}
+
+/// 切削シミュレーションが入力にするツールパス生成のジョブ（番号の索引から）
+fn toolpath_job_in<'a>(
+    by_id: &HashMap<u64, &'a StoredJob>,
+    simulation: &StoredJob,
+) -> Option<&'a StoredJob> {
+    simulation
+        .depends_on
+        .iter()
+        .filter_map(|id| by_id.get(id).copied())
+        .find(|job| job.kind == StoredJobKind::Cam)
+}
+
+fn source(source: &StoredJobSource) -> CamJobSource {
+    CamJobSource {
+        source_id: source.source_id.clone(),
+        revision: source.revision,
+    }
 }
 
 fn status(status: StoredJobStatus) -> CamJobStatus {
