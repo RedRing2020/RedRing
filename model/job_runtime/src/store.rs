@@ -33,7 +33,8 @@ use std::time::Duration;
 
 pub use record::{
     DependencyRef, STORE_FORMAT_VERSION, StoredJob, StoredJobKind, StoredJobSource,
-    StoredJobStatus, SubmissionRequest, SubmittedJob,
+    StoredJobStatus, SubmissionRequest, SubmittedJob, TOOLPATH_FILE_FORMAT_VERSION,
+    request_format_version,
 };
 pub use schedule::{SchedulePlan, plan_schedule};
 
@@ -54,6 +55,8 @@ const REJECTED_REASON_FILE: &str = "reason.txt";
 const JOB_FILE: &str = "job.json";
 const INPUT_DIR: &str = "input";
 const INPUT_FILE: &str = "input.bin";
+/// 切削シミュレーションが入力にするツールパス（投入で CL のファイルを受け取ったジョブだけが持つ）
+const INPUT_TOOLPATH_FILE: &str = "toolpath.bin";
 const OUTPUT_DIR: &str = "output";
 const LOGS_DIR: &str = "logs";
 const LOG_FILE: &str = "runner.log";
@@ -439,7 +442,13 @@ impl JobStore {
                 log_ref: None,
                 last_error: None,
             };
-            let made = self.create_job(lock, &job, &dir.join(&submitted.input_file));
+            let toolpath = submitted.toolpath_file.as_ref().map(|name| dir.join(name));
+            let made = self.create_job(
+                lock,
+                &job,
+                &dir.join(&submitted.input_file),
+                toolpath.as_deref(),
+            );
             if let Err(error) = made {
                 // 作ったジョブを残し、次の取り込みで、一部だけを作った投入として取り込み直す
                 state.taken.insert(submission_id.to_string(), created);
@@ -511,12 +520,13 @@ impl JobStore {
         Ok(job_ids.last().copied().unwrap_or(0).max(recorded))
     }
 
-    /// ジョブのフォルダを一時の名前で作り（入力を写し、記録を書き）、名前を変える
+    /// ジョブのフォルダを一時の名前で作り（入力と、あれば入力の CL `toolpath` を写し、記録を書き）、名前を変える
     fn create_job(
         &self,
         _lock: &JobStoreLock,
         job: &StoredJob,
         input: &Path,
+        toolpath: Option<&Path>,
     ) -> Result<(), StoreError> {
         let dir = self.job_dir(job.job_id);
         let temporary = files::temporary_path(&dir);
@@ -529,6 +539,13 @@ impl JobStore {
             &temporary.join(INPUT_DIR).join(INPUT_FILE),
             MAX_INPUT_BYTES,
         )?;
+        if let Some(toolpath) = toolpath {
+            copy_limited(
+                toolpath,
+                &temporary.join(INPUT_DIR).join(INPUT_TOOLPATH_FILE),
+                MAX_INPUT_BYTES,
+            )?;
+        }
         let bytes = serde_json::to_vec_pretty(job).map_err(std::io::Error::other)?;
         write_atomically(&temporary.join(JOB_FILE), &bytes)?;
         fs::rename(&temporary, &dir)?;
@@ -590,6 +607,13 @@ impl JobStore {
     /// 入力のファイル
     pub fn input_file(&self, job_id: u64) -> PathBuf {
         self.job_dir(job_id).join(INPUT_DIR).join(INPUT_FILE)
+    }
+
+    /// 切削シミュレーションが入力にするツールパスのファイル（投入で CL のファイルを受け取ったジョブだけが持つ）
+    pub fn input_toolpath_file(&self, job_id: u64) -> PathBuf {
+        self.job_dir(job_id)
+            .join(INPUT_DIR)
+            .join(INPUT_TOOLPATH_FILE)
     }
 
     /// 成果物のフォルダ
@@ -673,6 +697,33 @@ fn read_job(path: &Path, job_id: u64) -> Result<StoredJob, String> {
     Ok(job)
 }
 
+/// 投入のフォルダ `dir` の中の入力のファイル `name`（`what` は誤りの理由に出す名前）を検証する。ほかのジョブ・ほかの
+/// 入力と同じファイルを使わないよう、`used` に名前を加える。誤りは理由（英語）を返す
+fn validate_input_file<'a>(
+    dir: &Path,
+    name: &'a str,
+    what: &str,
+    used: &mut HashSet<&'a str>,
+) -> Result<(), String> {
+    if !is_plain_name(name, MAX_NAME_LEN) || name == REQUEST_FILE {
+        return Err(format!("invalid {what} file name"));
+    }
+    if !used.insert(name) {
+        return Err(format!("{what} file is shared with another input"));
+    }
+    let metadata = fs::symlink_metadata(dir.join(name))
+        .map_err(|error| format!("cannot read the {what} file: {error}"))?;
+    if !metadata.is_file() {
+        return Err(format!("the {what} is not a regular file"));
+    }
+    if metadata.len() > MAX_INPUT_BYTES {
+        return Err(format!(
+            "the {what} file is larger than {MAX_INPUT_BYTES} bytes"
+        ));
+    }
+    Ok(())
+}
+
 /// 投入の要求を読む。誤りは理由（英語）を返す
 fn read_request(dir: &Path) -> Result<SubmissionRequest, String> {
     let bytes = read_limited(&dir.join(REQUEST_FILE), MAX_JSON_BYTES)
@@ -707,21 +758,17 @@ fn validate_submission(
     let mut input_files = HashSet::new();
     for (index, job) in request.jobs.iter().enumerate() {
         let error = |reason: String| format!("job {index}: {reason}");
-        if !is_plain_name(&job.input_file, MAX_NAME_LEN) || job.input_file == REQUEST_FILE {
-            return Err(error("invalid input file name".to_string()));
-        }
-        if !input_files.insert(job.input_file.as_str()) {
-            return Err(error("input file is shared with another job".to_string()));
-        }
-        let metadata = fs::symlink_metadata(dir.join(&job.input_file))
-            .map_err(|error_value| error(format!("cannot read the input file: {error_value}")))?;
-        if !metadata.is_file() {
-            return Err(error("the input is not a regular file".to_string()));
-        }
-        if metadata.len() > MAX_INPUT_BYTES {
-            return Err(error(format!(
-                "the input file is larger than {MAX_INPUT_BYTES} bytes"
-            )));
+        validate_input_file(dir, &job.input_file, "input", &mut input_files).map_err(error)?;
+        if let Some(toolpath_file) = &job.toolpath_file {
+            if request.format_version < TOOLPATH_FILE_FORMAT_VERSION {
+                return Err(error(format!(
+                    "a toolpath file needs format version {TOOLPATH_FILE_FORMAT_VERSION} or later"
+                )));
+            }
+            if job.kind != StoredJobKind::Sim {
+                return Err(error("only a sim job can have a toolpath file".to_string()));
+            }
+            validate_input_file(dir, toolpath_file, "toolpath", &mut input_files).map_err(error)?;
         }
         let labels = [
             job.group_id.as_deref(),
@@ -762,10 +809,11 @@ fn validate_submission(
                 cam_dependencies += 1;
             }
         }
-        // 切削シミュレーションは、ツールパスを作るジョブを 1 つだけ入力にする
-        if job.kind == StoredJobKind::Sim && cam_dependencies != 1 {
+        // 切削シミュレーションは、ツールパスを作るジョブを 1 つだけ、または CL のファイルを入力にする（どちらか一方）
+        let expected_cam_dependencies = usize::from(job.toolpath_file.is_none());
+        if job.kind == StoredJobKind::Sim && cam_dependencies != expected_cam_dependencies {
             return Err(error(
-                "a sim job must depend on exactly one cam job".to_string(),
+                "a sim job must depend on exactly one cam job or have a toolpath file".to_string(),
             ));
         }
     }

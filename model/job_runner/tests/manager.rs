@@ -25,6 +25,7 @@ fn submitted(
         priority: 0,
         group_id: None,
         source: None,
+        toolpath_file: None,
     }
 }
 
@@ -86,4 +87,54 @@ fn submitted_cam_and_sim_jobs_run_with_the_real_runner() {
             .unwrap()
             .contains("succeeded")
     );
+}
+
+#[test]
+fn a_sim_job_runs_from_a_toolpath_file_with_the_real_runner() {
+    let dir = WorkDir::new();
+    let store = JobStore::open(dir.path("store")).unwrap();
+    let launcher = ProcessLauncher::new(env!("CARGO_BIN_EXE_redring-batch-runner").into());
+    let (mut service, _) = JobManagerService::start(store.clone(), launcher, 0).unwrap();
+
+    // 空間モデルに取り込んだ CL の代わりに、ツールパス生成の結果を CL のファイルにする
+    let writing = store.root().join("inbox").join("s1.tmp");
+    fs::create_dir_all(&writing).unwrap();
+    write_sim_input(&writing.join("sim.bin"));
+    fs::write(
+        writing.join("toolpath.bin"),
+        run_cam_solver(&cam_input()).unwrap(),
+    )
+    .unwrap();
+    let request = SubmissionRequest {
+        format_version: STORE_FORMAT_VERSION,
+        jobs: vec![SubmittedJob {
+            toolpath_file: Some("toolpath.bin".to_string()),
+            ..submitted(StoredJobKind::Sim, "sim.bin", vec![])
+        }],
+    };
+    fs::write(
+        writing.join("request.json"),
+        serde_json::to_vec(&request).unwrap(),
+    )
+    .unwrap();
+    fs::rename(&writing, store.root().join("inbox").join("s1")).unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(120);
+    let job = loop {
+        service.tick(0);
+        let (jobs, _) = store.load_jobs().unwrap();
+        if let [job] = &jobs[..]
+            && job.status.is_terminal()
+        {
+            break job.clone();
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the job did not finish: {jobs:?}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    assert_eq!(job.status, StoredJobStatus::Succeeded, "{job:?}");
+    let simulation = fs::read(store.result_file(1, StoredJobKind::Sim)).unwrap();
+    assert!(read_cutting_simulation_artifact_v1(&mut simulation.as_slice()).is_ok());
 }

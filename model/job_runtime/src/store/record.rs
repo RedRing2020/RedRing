@@ -4,9 +4,26 @@ use serde::{Deserialize, Serialize};
 
 /// 記録・要求の形式の版（書くときの版）
 ///
-/// 版 2 で、投入元に改訂の鍵を足した。前の版を読む側は知らない項目を読み捨てるため、項目を足したときも版を上げ、
-/// 前の版のジョブマネージャーが新しい要求を黙って取り込まない（拒む）ようにする。
-pub const STORE_FORMAT_VERSION: u32 = 2;
+/// 版 2 で、投入元に改訂の鍵を足した。版 3 で、切削シミュレーションの入力に CL のファイルを持てるようにした。前の版を
+/// 読む側は知らない項目を読み捨てるため、項目を足したときも版を上げ、前の版のジョブマネージャーが新しい要求を黙って
+/// 取り込まない（拒む）ようにする。
+pub const STORE_FORMAT_VERSION: u32 = 3;
+
+/// 切削シミュレーションの入力に CL のファイルを持てる、最も古い要求の形式の版
+pub const TOOLPATH_FILE_FORMAT_VERSION: u32 = 3;
+
+/// 前の版で書ける要求の、最も新しい形式の版（CL のファイルを持たない要求）
+const BASE_REQUEST_FORMAT_VERSION: u32 = 2;
+
+/// ジョブの列 `jobs` を表せる、最も古い要求の形式の版（前の版のジョブマネージャーも取り込めるよう、新しい項目を
+/// 使わない要求は前の版で書く）
+pub fn request_format_version(jobs: &[SubmittedJob]) -> u32 {
+    if jobs.iter().any(|job| job.toolpath_file.is_some()) {
+        TOOLPATH_FILE_FORMAT_VERSION
+    } else {
+        BASE_REQUEST_FORMAT_VERSION
+    }
+}
 
 /// 読める最も古い記録・要求の形式の版
 pub(super) const OLDEST_STORE_FORMAT_VERSION: u32 = 1;
@@ -98,6 +115,10 @@ pub struct SubmittedJob {
     pub group_id: Option<String>,
     #[serde(default)]
     pub source: Option<StoredJobSource>,
+    /// 切削シミュレーションが入力にする CL のファイルの名前（投入のフォルダの中のファイル）。指定するときは、ツールパス
+    /// 生成のジョブに依存しない
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub toolpath_file: Option<String>,
 }
 
 /// 依存先

@@ -392,16 +392,21 @@ impl<L: Launcher> JobManagerService<L> {
 
     /// ジョブ `job` のランナーの引数（パスは保存先のジョブのフォルダの決まった名前だけ）
     fn launch_spec(&self, jobs: &[StoredJob], job: &StoredJob) -> LaunchSpec {
-        // 切削シミュレーションは、依存するツールパス生成のジョブ（投入の検証で 1 つに限る）の成果物を読む
-        let toolpath = (job.kind == StoredJobKind::Sim)
-            .then(|| {
-                job.depends_on.iter().find(|&&id| {
+        // 切削シミュレーションは、依存するツールパス生成のジョブ（投入の検証で 1 つに限る）の成果物を読む。依存する
+        // ジョブを持たないもの（投入の検証で、CL のファイルを持つものに限る）は、ジョブの入力のフォルダの CL を読む
+        let toolpath = if job.kind != StoredJobKind::Sim {
+            None
+        } else if job.depends_on.is_empty() {
+            Some(self.store.input_toolpath_file(job.job_id))
+        } else {
+            job.depends_on
+                .iter()
+                .find(|&&id| {
                     jobs.iter()
                         .any(|other| other.job_id == id && other.kind == StoredJobKind::Cam)
                 })
-            })
-            .flatten()
-            .map(|&id| self.store.result_file(id, StoredJobKind::Cam));
+                .map(|&id| self.store.result_file(id, StoredJobKind::Cam))
+        };
         LaunchSpec {
             job_type: domain(job.kind),
             input: self.store.input_file(job.job_id),

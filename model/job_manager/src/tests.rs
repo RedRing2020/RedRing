@@ -110,6 +110,9 @@ fn submit(store: &JobStore, id: &str, jobs: Vec<SubmittedJob>) {
     fs::create_dir_all(&temporary).unwrap();
     for job in &jobs {
         fs::write(temporary.join(&job.input_file), b"input").unwrap();
+        if let Some(toolpath) = &job.toolpath_file {
+            fs::write(temporary.join(toolpath), b"toolpath").unwrap();
+        }
     }
     let request = SubmissionRequest {
         format_version: STORE_FORMAT_VERSION,
@@ -136,6 +139,7 @@ fn job(
         priority,
         group_id: None,
         source: None,
+        toolpath_file: None,
     }
 }
 
@@ -159,6 +163,36 @@ fn status_of(store: &JobStore, job_id: u64) -> StoredJob {
         .into_iter()
         .find(|job| job.job_id == job_id)
         .unwrap()
+}
+
+#[test]
+fn a_sim_job_with_a_toolpath_file_reads_the_toolpath_in_its_input_folder() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    let sim = SubmittedJob {
+        toolpath_file: Some("toolpath.bin".to_string()),
+        ..job(StoredJobKind::Sim, "sim.bin", vec![], 0)
+    };
+    submit(&root.store(), "a1", vec![sim]);
+
+    let events = service.tick(1);
+    assert!(events.contains(&ManagerEvent::Started { job_id: 1 }));
+    let launched = launcher.0.borrow().launched.clone();
+    assert_eq!(launched[0].job_type, "sim");
+    assert_eq!(
+        launched[0].toolpath,
+        Some(root.store().input_toolpath_file(1))
+    );
+    assert_eq!(
+        fs::read(root.store().input_toolpath_file(1)).unwrap(),
+        b"toolpath"
+    );
+    service.tick(2);
+    assert_eq!(
+        status_of(&root.store(), 1).status,
+        StoredJobStatus::Succeeded
+    );
 }
 
 #[test]
