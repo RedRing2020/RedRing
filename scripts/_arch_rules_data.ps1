@@ -9,7 +9,7 @@
 # Layer groups
 $ARCH_LAYERS = [ordered]@{
     Foundation  = @("analysis", "i18n_foundation", "logging_foundation")
-    Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner")
+    Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager")
     Application = @("application")
     ViewModel   = @("viewmodel", "viewmodel-graphics")
     View        = @("render", "stage", "redring")
@@ -43,6 +43,8 @@ $ARCH_ALLOWED_DEPS = @{
     job_domain     = @("analysis", "job_runtime")
     # ランナーは引数・ファイル・終了の番号だけを持ち、入力の読み込みと計算は cam_sim に任せる
     job_runner     = @("cam_sim")
+    # ジョブマネージャーは CAD/CAM に依らず、ジョブの保存先とランナーの起動だけを持つ
+    job_manager    = @("job_runtime")
 
     application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain")
 
@@ -82,6 +84,7 @@ $ARCH_FORBIDDEN_DEPS = @{
     job_runtime        = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     job_domain         = $ARCH_GEO_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     job_runner         = @("application") + $ARCH_VIEW_AND_VIEWMODEL
+    job_manager        = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_domain")
     application        = $ARCH_VIEW_AND_VIEWMODEL
     # ビューはモデルのクレートに直接依存しない（ビューモデル経由）
     render             = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain")
