@@ -14,8 +14,8 @@ use cam_sim::{
 };
 use job_domain::{CamJobSource, CamJobStatus};
 use job_runtime::store::{
-    DependencyRef, JobStore, STORE_FORMAT_VERSION, StoredJob, StoredJobKind, StoredJobSource,
-    StoredJobStatus, SubmissionRequest, SubmittedJob,
+    DependencyRef, JobStore, StoredJob, StoredJobKind, StoredJobSource, StoredJobStatus,
+    SubmissionRequest, SubmittedJob, request_format_version,
 };
 
 use super::{JobClient, JobSubmission, PendingSubmission, SimulationJob};
@@ -187,17 +187,19 @@ impl JobClient for LocalStoreJobClient {
             priority: 0,
             group_id: None,
             source: source.clone(),
+            toolpath_file: None,
         };
+        let jobs = vec![
+            job(StoredJobKind::Cam, CAM_INPUT_FILE, vec![]),
+            job(
+                StoredJobKind::Sim,
+                SIMULATION_INPUT_FILE,
+                vec![DependencyRef::Submitted(0)],
+            ),
+        ];
         let request = SubmissionRequest {
-            format_version: STORE_FORMAT_VERSION,
-            jobs: vec![
-                job(StoredJobKind::Cam, CAM_INPUT_FILE, vec![]),
-                job(
-                    StoredJobKind::Sim,
-                    SIMULATION_INPUT_FILE,
-                    vec![DependencyRef::Submitted(0)],
-                ),
-            ],
+            format_version: request_format_version(&jobs),
+            jobs,
         };
         let submission_id = new_submission_id();
         store

@@ -32,6 +32,7 @@ fn job(kind: StoredJobKind, input_file: &str, depends_on: Vec<DependencyRef>) ->
         priority: 0,
         group_id: None,
         source: None,
+        toolpath_file: None,
     }
 }
 
@@ -212,6 +213,68 @@ fn invalid_submissions_are_rejected_with_the_reason() {
             request_json(vec![job(StoredJobKind::Sim, "sim.bin", vec![])]),
             vec![("sim.bin", b"s")],
             "exactly one cam job",
+        ),
+        (
+            "camtoolpath",
+            request_json(vec![SubmittedJob {
+                toolpath_file: Some("tp.bin".to_string()),
+                ..job(StoredJobKind::Cam, "cam.bin", vec![])
+            }]),
+            vec![("cam.bin", b"c"), ("tp.bin", b"t")],
+            "only a sim job can have a toolpath file",
+        ),
+        (
+            "bothinputs",
+            request_json(vec![
+                job(StoredJobKind::Cam, "cam.bin", vec![]),
+                SubmittedJob {
+                    toolpath_file: Some("tp.bin".to_string()),
+                    ..job(
+                        StoredJobKind::Sim,
+                        "sim.bin",
+                        vec![DependencyRef::Submitted(0)],
+                    )
+                },
+            ]),
+            vec![("cam.bin", b"c"), ("sim.bin", b"s"), ("tp.bin", b"t")],
+            "exactly one cam job or have a toolpath file",
+        ),
+        (
+            "notoolpath",
+            request_json(vec![SubmittedJob {
+                toolpath_file: Some("tp.bin".to_string()),
+                ..job(StoredJobKind::Sim, "sim.bin", vec![])
+            }]),
+            vec![("sim.bin", b"s")],
+            "cannot read the toolpath file",
+        ),
+        (
+            "toolpathname",
+            request_json(vec![SubmittedJob {
+                toolpath_file: Some("../tp.bin".to_string()),
+                ..job(StoredJobKind::Sim, "sim.bin", vec![])
+            }]),
+            vec![("sim.bin", b"s")],
+            "invalid toolpath file name",
+        ),
+        (
+            "oldversion",
+            r#"{"format_version":2,"jobs":[{"kind":"sim","input_file":"sim.bin","toolpath_file":"tp.bin"}]}"#
+                .to_string(),
+            vec![("sim.bin", b"s"), ("tp.bin", b"t")],
+            "needs format version 3",
+        ),
+        (
+            "sharedtoolpath",
+            request_json(vec![
+                job(StoredJobKind::Cam, "cam.bin", vec![]),
+                SubmittedJob {
+                    toolpath_file: Some("cam.bin".to_string()),
+                    ..job(StoredJobKind::Sim, "sim.bin", vec![])
+                },
+            ]),
+            vec![("cam.bin", b"c"), ("sim.bin", b"s")],
+            "toolpath file is shared with another input",
         ),
         (
             "longkey",
@@ -769,5 +832,46 @@ fn sources_without_a_revision_key_are_read_and_written_as_before() {
     assert_eq!(
         serde_json::from_str::<StoredJobSource>(&written).unwrap(),
         keyed
+    );
+}
+
+#[test]
+fn sim_jobs_with_a_toolpath_file_are_taken_in_without_a_cam_job() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    let request = request_json(vec![SubmittedJob {
+        toolpath_file: Some("tp.bin".to_string()),
+        ..job(StoredJobKind::Sim, "sim.bin", vec![])
+    }]);
+    submit(
+        &store,
+        "a1",
+        &request,
+        &[("sim.bin", b"sim"), ("tp.bin", b"toolpath")],
+    );
+
+    let outcomes = store.intake(&lock, 1_000).unwrap();
+    assert!(
+        matches!(&outcomes[..], [IntakeOutcome::Accepted { job_ids, .. }] if job_ids == &[1]),
+        "{outcomes:?}"
+    );
+    assert_eq!(fs::read(store.input_file(1)).unwrap(), b"sim");
+    assert_eq!(fs::read(store.input_toolpath_file(1)).unwrap(), b"toolpath");
+    let (jobs, _) = store.load_jobs().unwrap();
+    assert!(jobs[0].depends_on.is_empty());
+}
+
+#[test]
+fn requests_use_the_oldest_format_version_that_can_express_them() {
+    let plain = vec![job(StoredJobKind::Cam, "cam.bin", vec![])];
+    assert_eq!(request_format_version(&plain), 2);
+    let with_toolpath = vec![SubmittedJob {
+        toolpath_file: Some("tp.bin".to_string()),
+        ..job(StoredJobKind::Sim, "sim.bin", vec![])
+    }];
+    assert_eq!(
+        request_format_version(&with_toolpath),
+        TOOLPATH_FILE_FORMAT_VERSION
     );
 }
