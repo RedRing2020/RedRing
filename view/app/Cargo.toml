@@ -11,7 +11,7 @@ categories.workspace = true
 
 [dependencies]
 winit = "0.30.13"
-wgpu = "29.0.1"
+wgpu = "30.0.0"
 smol_str = "0.3.2"
 pollster.workspace = true
 tracing.workspace = true

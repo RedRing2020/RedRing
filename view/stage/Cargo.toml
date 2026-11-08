@@ -6,7 +6,7 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-wgpu = "29.0.1"
+wgpu = "30.0.0"
 render = { path = "../render" }
 bytemuck = "1.23.2"
 tracing = "0.1"
