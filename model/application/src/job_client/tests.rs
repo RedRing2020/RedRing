@@ -278,6 +278,20 @@ fn jobs_run_by_the_job_manager_are_read_and_imported_from_the_store() {
         client.import(1).unwrap_err(),
         CamSimulationWorkflowError::NotSucceededSimulation(1)
     );
+    // ツールパス生成の成果物（CL）だけを読める。切削シミュレーションのジョブは、ツールパス生成として読まない
+    let toolpath = client.toolpath_result(1).unwrap();
+    assert_eq!(toolpath.artifact, imported.toolpath_artifact);
+    assert_eq!(toolpath.source.unwrap().source_id, "operation-1");
+    assert_eq!(
+        client.toolpath_result(jobs[0].job_id).unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededToolpath(jobs[0].job_id)
+    );
+    // 成果物のファイルがなければ、成果物がない誤り
+    fs::remove_file(store.result_file(1, StoredJobKind::Cam)).unwrap();
+    assert_eq!(
+        client.toolpath_result(1).unwrap_err(),
+        CamSimulationWorkflowError::MissingArtifact(1)
+    );
 }
 
 #[test]

@@ -72,10 +72,35 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.stock.bottom", "底"),
     ("conditions.stock.precision", "精度（素材の面の細かさ）"),
     ("conditions.submit", "投入"),
-    ("conditions.simulate_toolpath", "切削シミュレーションだけ計算"),
-    ("conditions.import", "取り込み"),
+    (
+        "conditions.submit.hint",
+        "選んだ工程を投入します。今の条件の CL があり、今の条件の計算が残っていなければ、その CL から切削シミュレーションだけを計算します",
+    ),
+    ("conditions.redo", "やり直し"),
+    (
+        "conditions.redo.hint",
+        "選んだ工程の空間モデルの CL を消して、ツールパス生成から計算し直します",
+    ),
+    ("conditions.import_toolpath", "CL 取込"),
+    (
+        "conditions.import_toolpath.hint",
+        "選んだ工程の今の条件の CL だけを、空間モデルに取り込みます（切削シミュレーションは表示しません）",
+    ),
+    ("conditions.import", "切削シミュレーション取込"),
+    (
+        "conditions.import.hint",
+        "選んだ工程の今の条件の切削シミュレーションを取り込んで表示し、その CL も空間モデルに取り込みます",
+    ),
     ("conditions.open_job_manager", "ジョブマネージャーを開く"),
-    ("conditions.status.submitted", "投入しました"),
+    ("conditions.status.submitted", "ツールパス生成から投入しました"),
+    (
+        "conditions.status.submitted_simulation",
+        "今の条件の CL から、切削シミュレーションだけを投入しました",
+    ),
+    (
+        "conditions.status.redone",
+        "空間モデルの CL を消して、ツールパス生成から投入し直しました",
+    ),
     ("conditions.status.submit_failed", "投入できません（{reason}）"),
     (
         "conditions.status.sequence_submitted",
@@ -84,6 +109,14 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     (
         "conditions.status.sequence_submitted_all",
         "手順の {submitted} 工程を投入しました",
+    ),
+    (
+        "conditions.status.sequence_submitted_simulation_all",
+        "手順の {submitted} 工程を投入しました。うち {simulation_only} 工程は、今の条件の CL から切削シミュレーションだけを投入しました",
+    ),
+    (
+        "conditions.status.sequence_submitted_simulation",
+        "手順の {submitted} 工程を投入しました。うち {simulation_only} 工程は、今の条件の CL から切削シミュレーションだけを投入しました（計算待ち・計算中・計算済みの {skipped} 工程は、投入し直していません）",
     ),
     (
         "conditions.status.sequence_nothing_to_submit",
@@ -103,12 +136,17 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.status.nothing_to_import",
         "取り込める結果がありません（投入して計算が終わった後に取り込みます）",
     ),
+    ("conditions.status.toolpath_imported", "ジョブ {job} の CL を取り込みました"),
+    (
+        "conditions.status.no_toolpath_to_import",
+        "取り込める CL がありません（投入してツールパス生成が終わった後に取り込みます）",
+    ),
     ("conditions.job.none", "今の条件の計算: ジョブがありません（投入していない、または消した）"),
     ("conditions.job.queued", "今の条件の計算: 計算待ち"),
     ("conditions.job.running", "今の条件の計算: 計算中"),
     (
         "conditions.job.succeeded",
-        "今の条件の計算: 計算完了（「取り込み」で表示します）",
+        "今の条件の計算: 計算完了（取り込んで表示します）",
     ),
     ("conditions.job.failed", "今の条件の計算: 失敗しました"),
     ("conditions.job.canceled", "今の条件の計算: 取り消されました"),
@@ -245,10 +283,35 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.stock.bottom", "bottom"),
     ("conditions.stock.precision", "Precision (stock surface detail)"),
     ("conditions.submit", "Submit"),
-    ("conditions.simulate_toolpath", "Simulate cutting only"),
-    ("conditions.import", "Import"),
+    (
+        "conditions.submit.hint",
+        "Submits the selected operation. If the CL of the current conditions exists and no calculation of the current conditions remains, only the cutting simulation is calculated from that CL",
+    ),
+    ("conditions.redo", "Redo"),
+    (
+        "conditions.redo.hint",
+        "Deletes the CL of the selected operation from the space model and calculates again from toolpath generation",
+    ),
+    ("conditions.import_toolpath", "Import CL"),
+    (
+        "conditions.import_toolpath.hint",
+        "Imports only the CL of the current conditions of the selected operation into the space model (the cutting simulation is not shown)",
+    ),
+    ("conditions.import", "Import cutting simulation"),
+    (
+        "conditions.import.hint",
+        "Imports and shows the cutting simulation of the current conditions of the selected operation, and imports its CL into the space model",
+    ),
     ("conditions.open_job_manager", "Open job manager"),
-    ("conditions.status.submitted", "Submitted"),
+    ("conditions.status.submitted", "Submitted from toolpath generation"),
+    (
+        "conditions.status.submitted_simulation",
+        "Submitted only the cutting simulation from the CL of the current conditions",
+    ),
+    (
+        "conditions.status.redone",
+        "Deleted the CL from the space model and submitted again from toolpath generation",
+    ),
     ("conditions.status.submit_failed", "Cannot submit ({reason})"),
     (
         "conditions.status.sequence_submitted",
@@ -257,6 +320,14 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.status.sequence_submitted_all",
         "Submitted {submitted} operations of the sequence",
+    ),
+    (
+        "conditions.status.sequence_submitted_simulation_all",
+        "Submitted {submitted} operations of the sequence. For {simulation_only} of them, only the cutting simulation was submitted from the CL of the current conditions",
+    ),
+    (
+        "conditions.status.sequence_submitted_simulation",
+        "Submitted {submitted} operations of the sequence. For {simulation_only} of them, only the cutting simulation was submitted from the CL of the current conditions ({skipped} waiting, calculating, or calculated operations were not submitted again)",
     ),
     (
         "conditions.status.sequence_nothing_to_submit",
@@ -276,12 +347,17 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.status.nothing_to_import",
         "No result to import (submit and wait for the calculation to finish first)",
     ),
+    ("conditions.status.toolpath_imported", "Imported the CL of job {job}"),
+    (
+        "conditions.status.no_toolpath_to_import",
+        "No CL to import (submit and wait for the toolpath generation to finish first)",
+    ),
     ("conditions.job.none", "Calculation for the current conditions: no job (not submitted or deleted)"),
     ("conditions.job.queued", "Calculation for the current conditions: waiting"),
     ("conditions.job.running", "Calculation for the current conditions: calculating"),
     (
         "conditions.job.succeeded",
-        "Calculation for the current conditions: completed (press Import to show it)",
+        "Calculation for the current conditions: completed (import it to show it)",
     ),
     ("conditions.job.failed", "Calculation for the current conditions: failed"),
     ("conditions.job.canceled", "Calculation for the current conditions: canceled"),

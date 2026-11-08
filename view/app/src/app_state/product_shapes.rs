@@ -44,28 +44,39 @@ impl AppState {
             return;
         }
         if self.cutting_animation.is_some() {
-            // デバッグ表示は取り込んだ切削アニメーションのものなので、通常の表示に戻してから閉じる
-            self.restore_main_view();
-            self.build_product_shape_stage(false);
+            self.close_cutting_animation();
         } else {
             self.refresh_operation_toolpath_lines();
         }
     }
 
+    /// 切削アニメーションを閉じて、製品形状と選んだ加工工程の CL の線を出す（カメラは動かさない）
+    pub(super) fn close_cutting_animation(&mut self) {
+        // デバッグ表示は取り込んだ切削アニメーションのものなので、通常の表示に戻してから閉じる
+        self.restore_main_view();
+        self.build_product_shape_stage(false);
+    }
+
     /// 切削アニメーションを出していないときに、選んだ加工工程の空間モデルの CL の線を描き直す（今の条件の結果でない
-    /// CL は灰色にする。CL を取り込んでいなければ、線を消す）
+    /// CL は灰色にする）。CL の線は、加工条件のウィンドウを開いている間だけ出す（閉じている・CL を取り込んでいなければ、
+    /// 線を消して放す）
     pub(super) fn refresh_operation_toolpath_lines(&mut self) {
         if self.cutting_animation.is_some() {
             return;
         }
+        let shown = self.machining_conditions_open;
         self.drawn_toolpath_state = Some((
             self.document.selected_operation(),
             self.document.imported_toolpath_state(),
+            shown,
         ));
-        let lines = match self
-            .document
-            .selected_toolpath_wireframe(&self.toolpath_visualization_settings)
-        {
+        let wireframe = if shown {
+            self.document
+                .selected_toolpath_wireframe(&self.toolpath_visualization_settings)
+        } else {
+            None
+        };
+        let lines = match wireframe {
             Some((vertices, ImportedToolpathState::Current)) => line_vertices(&vertices, None),
             Some((vertices, _)) => line_vertices(&vertices, Some(OUTDATED_TOOLPATH_COLOR)),
             None => Vec::new(),

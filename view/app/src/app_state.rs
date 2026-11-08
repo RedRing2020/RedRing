@@ -182,10 +182,12 @@ pub struct AppState {
     imported_operation: Option<MachiningOperationId>,
     /// 加工条件のウィンドウで入力している、選んだ加工工程の名前（決めるまでは工程の名前を変えない。`None` は工程の名前）
     operation_name_input: Option<String>,
-    /// 描いている CL の線の工程と、そのときの CL の状態（条件を変えて状態が変わったら、線の色を描き直す）
+    /// 描いている CL の線の工程と、そのときの CL の状態・加工条件のウィンドウを開いていたか（条件を変えて状態が
+    /// 変わったら線の色を描き直し、ウィンドウを開いた・閉じたら線を出す・消す）
     drawn_toolpath_state: Option<(
         MachiningOperationId,
         viewmodel::space_model_document::ImportedToolpathState,
+        bool,
     )>,
 
     /// 要求されたモデルファイルの操作（イベントの処理が終わった後に行う）

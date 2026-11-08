@@ -34,6 +34,9 @@ pub fn cutting_simulation_failure_message(error: &CuttingSimulationSessionError)
         CuttingSimulationSessionError::NoSucceededSimulation => {
             message("failure.no_succeeded_simulation")
         }
+        CuttingSimulationSessionError::NoSucceededToolpath => {
+            message("failure.no_succeeded_toolpath")
+        }
         CuttingSimulationSessionError::Playback(error) => match error {
             CuttingSimulationPlaybackError::Artifact(_) => message("failure.animation.artifact"),
             CuttingSimulationPlaybackError::NoSnapshot => message("failure.animation.no_snapshot"),
@@ -48,6 +51,9 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
         CamSimulationWorkflowError::InputRegistration(_) => message("failure.input_registration"),
         CamSimulationWorkflowError::NotSucceededSimulation(job) => {
             job_message("failure.not_succeeded_simulation", *job)
+        }
+        CamSimulationWorkflowError::NotSucceededToolpath(job) => {
+            job_message("failure.not_succeeded_toolpath", *job)
         }
         CamSimulationWorkflowError::MissingArtifact(job) => {
             job_message("failure.missing_artifact", *job)
@@ -208,6 +214,7 @@ mod tests {
         let errors = [
             CamSimulationWorkflowError::InputRegistration("reason".to_string()),
             CamSimulationWorkflowError::NotSucceededSimulation(3),
+            CamSimulationWorkflowError::NotSucceededToolpath(3),
             CamSimulationWorkflowError::MissingArtifact(3),
             CamSimulationWorkflowError::MissingInput(3),
             CamSimulationWorkflowError::EmptyProductShape,
@@ -228,6 +235,9 @@ mod tests {
     fn every_session_and_shape_failure_has_its_own_text() {
         assert_resolved(&cutting_simulation_failure_message(
             &CuttingSimulationSessionError::NoSucceededSimulation,
+        ));
+        assert_resolved(&cutting_simulation_failure_message(
+            &CuttingSimulationSessionError::NoSucceededToolpath,
         ));
         assert_resolved(&cutting_simulation_failure_message(
             &CuttingSimulationSessionError::Playback(CuttingSimulationPlaybackError::NoSnapshot),

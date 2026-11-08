@@ -840,6 +840,59 @@ fn the_toolpath_of_an_imported_result_is_copied_into_the_space_model() {
 }
 
 #[test]
+fn the_toolpath_of_the_current_conditions_is_imported_without_the_simulation() {
+    use crate::imported_toolpath::{ImportedToolpathState, ImportedToolpathStore};
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let latest = |workflow: &CamSimulationWorkflow, machining: &Machining| {
+        workflow
+            .latest_revision_toolpath(&machining.store, machining.sequence, machining.operation)
+            .unwrap()
+    };
+    machining.submit(&mut workflow, &shapes).unwrap();
+    // 計算が終わるまでは、取り込めるツールパス生成はない
+    assert_eq!(latest(&workflow, &machining), None);
+    workflow.run_queued_jobs().unwrap();
+    let job = latest(&workflow, &machining).unwrap();
+    let result = workflow.toolpath_result(job).unwrap();
+    assert!(read_toolpath_artifact_v1(&mut result.artifact.as_slice()).is_ok());
+
+    let mut toolpaths = ImportedToolpathStore::new();
+    assert!(
+        toolpaths
+            .import_toolpath(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                &result
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        toolpaths
+            .state(&machining.store, machining.sequence, machining.operation)
+            .unwrap(),
+        ImportedToolpathState::Current
+    );
+    // 切削シミュレーションのジョブの番号は、ツールパス生成の結果として読まない
+    let simulation = workflow
+        .latest_revision_simulation(&machining.store, machining.sequence, machining.operation)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        workflow.toolpath_result(simulation).unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededToolpath(simulation)
+    );
+
+    // 条件を変えると、今の条件のツールパス生成はない
+    let mut changed = stock();
+    changed.margins.top = 10.0;
+    machining.set_stock(changed);
+    assert_eq!(latest(&workflow, &machining), None);
+}
+
+#[test]
 fn only_the_imported_toolpath_of_the_current_conditions_is_submitted() {
     use crate::imported_toolpath::ImportedToolpathStore;
     let (shapes, face) = pyramid_shape();

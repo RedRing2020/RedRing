@@ -44,12 +44,16 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
 /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum OperationStatus {
-    Submitted,
+    /// 投入した（今の条件の CL から、切削シミュレーションだけを投入したか）
+    Submitted { simulation_only: bool },
+    /// 空間モデルの CL を消して、ツールパス生成から投入し直した
+    Redone,
     /// 投入できない（画面に出す理由）
     SubmitFailed(UiMessage),
-    /// 手順の全体を投入した（投入した工程・投入し直さなかった工程の数）
+    /// 手順の全体を投入した（投入した工程・そのうち切削シミュレーションだけを投入した工程・投入し直さなかった工程の数）
     SequenceSubmitted {
         submitted: usize,
+        simulation_only: usize,
         skipped: usize,
     },
     /// 手順の全体のうち、工程を投入できない（工程の加工の順の番号・名前、その前に投入した工程の数、画面に出す理由）
@@ -62,11 +66,13 @@ pub(crate) enum OperationStatus {
     /// 計算の状態をまだ読めていないため、手順の全体を投入しない
     SequenceStatusNotRead,
     /// 取り込んだ切削シミュレーションのジョブの番号
-    Imported {
-        job: u64,
-    },
+    Imported { job: u64 },
     /// 取り込める（正常終了した）切削シミュレーションがない
     NothingToImport,
+    /// CL を取り込んだツールパス生成のジョブの番号
+    ToolpathImported { job: u64 },
+    /// 取り込める（正常終了した）ツールパス生成がない
+    NoToolpathToImport,
     /// 取り込めない（画面に出す理由）
     ImportFailed(UiMessage),
     /// ジョブマネージャーを開けない（画面に出す理由）
@@ -86,7 +92,13 @@ fn operation_status_message(
 ) -> (&'static str, Vec<(&'static str, String)>) {
     let reason = |message: &UiMessage| vec![("reason", resolve_failure_message(locale, message))];
     match status {
-        OperationStatus::Submitted => ("conditions.status.submitted", vec![]),
+        OperationStatus::Submitted {
+            simulation_only: false,
+        } => ("conditions.status.submitted", vec![]),
+        OperationStatus::Submitted {
+            simulation_only: true,
+        } => ("conditions.status.submitted_simulation", vec![]),
+        OperationStatus::Redone => ("conditions.status.redone", vec![]),
         OperationStatus::SubmitFailed(message) => {
             ("conditions.status.submit_failed", reason(message))
         }
@@ -95,15 +107,43 @@ fn operation_status_message(
         }
         OperationStatus::SequenceSubmitted {
             submitted,
+            simulation_only: 0,
             skipped: 0,
         } => (
             "conditions.status.sequence_submitted_all",
             vec![("submitted", submitted.to_string())],
         ),
-        OperationStatus::SequenceSubmitted { submitted, skipped } => (
+        OperationStatus::SequenceSubmitted {
+            submitted,
+            simulation_only: 0,
+            skipped,
+        } => (
             "conditions.status.sequence_submitted",
             vec![
                 ("submitted", submitted.to_string()),
+                ("skipped", skipped.to_string()),
+            ],
+        ),
+        OperationStatus::SequenceSubmitted {
+            submitted,
+            simulation_only,
+            skipped: 0,
+        } => (
+            "conditions.status.sequence_submitted_simulation_all",
+            vec![
+                ("submitted", submitted.to_string()),
+                ("simulation_only", simulation_only.to_string()),
+            ],
+        ),
+        OperationStatus::SequenceSubmitted {
+            submitted,
+            simulation_only,
+            skipped,
+        } => (
+            "conditions.status.sequence_submitted_simulation",
+            vec![
+                ("submitted", submitted.to_string()),
+                ("simulation_only", simulation_only.to_string()),
                 ("skipped", skipped.to_string()),
             ],
         ),
@@ -126,6 +166,11 @@ fn operation_status_message(
             ("conditions.status.imported", vec![("job", job.to_string())])
         }
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
+        OperationStatus::ToolpathImported { job } => (
+            "conditions.status.toolpath_imported",
+            vec![("job", job.to_string())],
+        ),
+        OperationStatus::NoToolpathToImport => ("conditions.status.no_toolpath_to_import", vec![]),
         OperationStatus::ImportFailed(message) => {
             ("conditions.status.import_failed", reason(message))
         }
@@ -168,10 +213,12 @@ pub struct MachiningConditionsUiState {
     /// 最後の操作の結果
     pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
+    /// 選んだ工程の空間モデルの CL を消して、ツールパス生成から投入し直す
+    pub(crate) redo_requested: bool,
     /// 手順の全体を投入する
     pub(crate) submit_sequence_requested: bool,
-    /// 空間モデルの CL から、切削シミュレーションだけを投入する
-    pub simulate_toolpath_requested: bool,
+    /// 選んだ工程の、ツールパス生成の結果（CL）だけを取り込む
+    pub(crate) import_toolpath_requested: bool,
     pub import_requested: bool,
     pub open_job_manager_requested: bool,
 }
@@ -377,21 +424,6 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 切削シミュレーションだけを計算し直せるか（CL が今の条件の結果で、条件に誤りがなく、今の条件の計算が待ち・計算中・
-    /// 完了でない。結果がジョブマネージャーに残っている間は、同じ計算を重ねない）
-    fn can_simulate_toolpath(&self) -> bool {
-        self.issues.is_empty()
-            && self.imported_toolpath == ImportedToolpathState::Current
-            && !matches!(
-                self.job_status,
-                JobStatusLine::Status(
-                    OperationJobStatus::Queued
-                        | OperationJobStatus::Running
-                        | OperationJobStatus::Succeeded
-                )
-            )
-    }
-
     /// ウィンドウを、範囲 `area`（メニューバーの下）の左上に置く
     pub fn show(&mut self, ctx: &Context, area: Rect) {
         if !self.open {
@@ -418,53 +450,70 @@ impl MachiningConditionsUiState {
                         self.show_machining(ui);
                         self.show_stock(ui);
                         ui.separator();
-                        ui.horizontal(|ui| {
-                            let submit = ui.add_enabled(
-                                self.issues.is_empty(),
-                                egui::Button::new(self.text("conditions.submit")),
-                            );
-                            if submit.clicked() {
-                                self.submit_requested = true;
-                            }
-                            // 手順の全体は、すべての工程を確かめてから投入する（誤りは、工程の名前とともに出す）
-                            if ui.button(self.text("conditions.submit_sequence")).clicked() {
-                                self.submit_sequence_requested = true;
-                            }
-                            let simulate_toolpath = ui.add_enabled(
-                                self.can_simulate_toolpath(),
-                                egui::Button::new(self.text("conditions.simulate_toolpath")),
-                            );
-                            if simulate_toolpath.clicked() {
-                                self.simulate_toolpath_requested = true;
-                            }
-                            if ui.button(self.text("conditions.import")).clicked() {
-                                self.import_requested = true;
-                            }
-                            if ui
-                                .button(self.text("conditions.open_job_manager"))
-                                .clicked()
-                            {
-                                self.open_job_manager_requested = true;
-                            }
-                        });
-                        self.show_issues(ui, ConditionField::Submission);
-                        if let Some(status) = &self.status {
-                            ui.label(operation_status_text(self.locale, status));
-                        }
-                        ui.label(self.text(job_status_key(&self.job_status)));
-                        ui.label(self.text(imported_toolpath_key(self.imported_toolpath)));
-                        ui.separator();
                         self.show_imported(ui);
                     });
             });
         self.open = open;
     }
 
-    /// 加工工程の一覧（選ぶと、その工程の条件を下に出す）と、一覧の操作
+    /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・手順の全体を投入・CL 取込・切削シミュレーション取込・
+    /// ジョブマネージャーを開く）と、その結果・選んだ工程の計算の状態
+    fn show_job_commands(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal_wrapped(|ui| {
+            let can_submit = self.issues.is_empty();
+            let submit = ui
+                .add_enabled(
+                    can_submit,
+                    egui::Button::new(self.text("conditions.submit")),
+                )
+                .on_hover_text(self.text("conditions.submit.hint"));
+            if submit.clicked() {
+                self.submit_requested = true;
+            }
+            let redo = ui
+                .add_enabled(can_submit, egui::Button::new(self.text("conditions.redo")))
+                .on_hover_text(self.text("conditions.redo.hint"));
+            if redo.clicked() {
+                self.redo_requested = true;
+            }
+            // 手順の全体は、すべての工程を確かめてから投入する（誤りは、工程の名前とともに出す）
+            if ui.button(self.text("conditions.submit_sequence")).clicked() {
+                self.submit_sequence_requested = true;
+            }
+            let import_toolpath = ui
+                .button(self.text("conditions.import_toolpath"))
+                .on_hover_text(self.text("conditions.import_toolpath.hint"));
+            if import_toolpath.clicked() {
+                self.import_toolpath_requested = true;
+            }
+            let import = ui
+                .button(self.text("conditions.import"))
+                .on_hover_text(self.text("conditions.import.hint"));
+            if import.clicked() {
+                self.import_requested = true;
+            }
+            if ui
+                .button(self.text("conditions.open_job_manager"))
+                .clicked()
+            {
+                self.open_job_manager_requested = true;
+            }
+        });
+        self.show_issues(ui, ConditionField::Submission);
+        if let Some(status) = &self.status {
+            ui.label(operation_status_text(self.locale, status));
+        }
+        ui.label(self.text(job_status_key(&self.job_status)));
+        ui.label(self.text(imported_toolpath_key(self.imported_toolpath)));
+    }
+
+    /// 選んだ工程の計算の操作と、加工工程の一覧（選ぶと、その工程の条件を下に出す）と、一覧の操作
     fn show_operations(&mut self, ui: &mut egui::Ui) {
         CollapsingHeader::new(self.text("conditions.header.operations"))
             .default_open(true)
             .show(ui, |ui| {
+                self.show_job_commands(ui);
+                ui.separator();
                 let mut command = None;
                 for row in &self.operations {
                     let label = self.text_with_args(
@@ -829,19 +878,38 @@ mod tests {
     #[test]
     fn every_operation_status_has_a_message() {
         for status in [
-            OperationStatus::Submitted,
+            OperationStatus::Submitted {
+                simulation_only: false,
+            },
+            OperationStatus::Submitted {
+                simulation_only: true,
+            },
+            OperationStatus::Redone,
             OperationStatus::SubmitFailed(failure("failure.orchestration")),
             OperationStatus::SequenceSubmitted {
                 submitted: 2,
+                simulation_only: 0,
                 skipped: 1,
             },
             OperationStatus::SequenceSubmitted {
                 submitted: 0,
+                simulation_only: 0,
                 skipped: 2,
             },
             OperationStatus::SequenceSubmitted {
                 submitted: 2,
+                simulation_only: 0,
                 skipped: 0,
+            },
+            OperationStatus::SequenceSubmitted {
+                submitted: 2,
+                simulation_only: 1,
+                skipped: 0,
+            },
+            OperationStatus::SequenceSubmitted {
+                submitted: 2,
+                simulation_only: 1,
+                skipped: 1,
             },
             OperationStatus::SequenceSubmitFailed {
                 position: 2,
@@ -852,6 +920,8 @@ mod tests {
             OperationStatus::SequenceStatusNotRead,
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
+            OperationStatus::ToolpathImported { job: 1 },
+            OperationStatus::NoToolpathToImport,
             OperationStatus::ImportFailed(failure("failure.animation.replay")),
             OperationStatus::JobManagerFailed(failure("failure.job_manager_not_found")),
         ] {
@@ -945,55 +1015,6 @@ mod tests {
                 let text = resolve_machining_conditions_text(locale, job_status_key(&status), &[]);
                 assert!(!text.contains("__missing__"), "{status:?}: {text}");
             }
-        }
-    }
-
-    #[test]
-    fn the_cl_can_be_simulated_only_when_no_result_of_the_current_conditions_remains() {
-        use super::MachiningConditionsUiState;
-        use viewmodel::space_model_document::{ImportedToolpathState, SpaceModelDocument};
-        let document = SpaceModelDocument::new();
-        let state = |imported_toolpath, job_status| MachiningConditionsUiState {
-            open: true,
-            locale: UiLocale::Ja,
-            operations: Vec::new(),
-            selected_operation: document.selected_operation(),
-            operation_name: document.operation_content().name.clone(),
-            operation_command: None,
-            face_count: 1,
-            operation: document.operation_content().clone(),
-            stock: document.stock(),
-            tool_length_input: 50.0,
-            toolpath_tolerance: document.toolpath_tolerance(),
-            issues: Vec::new(),
-            imported: None,
-            job_status,
-            imported_toolpath,
-            status: None,
-            submit_requested: false,
-            submit_sequence_requested: false,
-            simulate_toolpath_requested: false,
-            import_requested: false,
-            open_job_manager_requested: false,
-        };
-        let current = ImportedToolpathState::Current;
-        for (job_status, allowed) in [
-            (JobStatusLine::NotSubmitted, true),
-            (JobStatusLine::Status(OperationJobStatus::Failed), true),
-            (JobStatusLine::Status(OperationJobStatus::Canceled), true),
-            (JobStatusLine::Status(OperationJobStatus::Queued), false),
-            (JobStatusLine::Status(OperationJobStatus::Running), false),
-            (JobStatusLine::Status(OperationJobStatus::Succeeded), false),
-        ] {
-            assert_eq!(
-                state(current, job_status.clone()).can_simulate_toolpath(),
-                allowed,
-                "{job_status:?}"
-            );
-        }
-        // 空間モデルの CL が今の条件の結果でなければ、計算し直さない
-        for imported in [ImportedToolpathState::None, ImportedToolpathState::Outdated] {
-            assert!(!state(imported, JobStatusLine::NotSubmitted).can_simulate_toolpath());
         }
     }
 

@@ -78,6 +78,15 @@ pub struct CamSimulationWorkflowResult {
     pub(crate) source: Option<CamJobSource>,
 }
 
+/// 取り込んだツールパス生成の成果物（CL）と、そのジョブの投入元
+#[derive(Debug, Clone)]
+pub struct CamToolpathResult {
+    /// ツールパスの成果物のバイト列（形式は外に見せない）
+    pub(crate) artifact: Vec<u8>,
+    /// ツールパス生成のジョブの投入元（工程から投入していなければ `None`）
+    pub(crate) source: Option<CamJobSource>,
+}
+
 /// 加工工程の今の改訂の計算（ツールパス生成と切削シミュレーション）の状態
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperationJobStatus {
@@ -234,6 +243,8 @@ pub enum CamSimulationWorkflowError {
     InputRegistration(String),
     /// 正常終了した切削シミュレーションのジョブではない（ジョブの番号）
     NotSucceededSimulation(u64),
+    /// 正常終了したツールパス生成のジョブではない（ジョブの番号）
+    NotSucceededToolpath(u64),
     /// 正常終了した切削シミュレーションのジョブに、成果物または入力のツールパスがない（ジョブの番号）
     MissingArtifact(u64),
     /// 正常終了した切削シミュレーションのジョブの入力がない（ジョブの番号）
@@ -266,6 +277,9 @@ impl fmt::Display for CamSimulationWorkflowError {
             Self::InputRegistration(reason) => write!(f, "input registration failed: {reason}"),
             Self::NotSucceededSimulation(job_id) => {
                 write!(f, "job {job_id} is not a succeeded cutting simulation")
+            }
+            Self::NotSucceededToolpath(job_id) => {
+                write!(f, "job {job_id} is not a succeeded toolpath generation")
             }
             Self::MissingArtifact(job_id) => write!(f, "job {job_id} has no artifact"),
             Self::MissingInput(job_id) => write!(f, "job {job_id} has no registered input"),
@@ -505,6 +519,29 @@ impl CamSimulationWorkflow {
             .map(|job| job.job_id))
     }
 
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（今の改訂の鍵）で投入し、
+    /// 正常に終わったツールパス生成のうち、最も新しいジョブの番号（今の改訂の結果がない場合は `None`）。改訂の鍵を
+    /// 持たない投入元（前の版の記録）は、今の改訂とみなさない
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合。
+    pub fn latest_revision_toolpath(
+        &self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<Option<u64>, CamSimulationWorkflowError> {
+        let current = current_revision(sequences, sequence_id, operation_id)?;
+        Ok(self
+            .jobs
+            .toolpath_jobs()?
+            .into_iter()
+            .rev()
+            .find(|job| job.status == CamJobStatus::Succeeded && current(&job.source))
+            .map(|job| job.job_id))
+    }
+
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（今の改訂の鍵）で、最後に投入した
     /// 計算の状態（今の改訂で投入していなければ `OperationJobState::NotSubmitted`）。改訂の鍵を持たない投入元（前の版の
     /// 記録）は、今の改訂とみなさない
@@ -570,6 +607,18 @@ impl CamSimulationWorkflow {
         simulation_job_id: u64,
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError> {
         self.jobs.import(simulation_job_id)
+    }
+
+    /// 正常終了したツールパス生成のジョブ `toolpath_job_id` の成果物（CL）と、その投入元
+    ///
+    /// # Errors
+    ///
+    /// ジョブが正常終了したツールパス生成でない場合、成果物がない場合、問い合わせの失敗。
+    pub fn toolpath_result(
+        &self,
+        toolpath_job_id: u64,
+    ) -> Result<CamToolpathResult, CamSimulationWorkflowError> {
+        self.jobs.toolpath_result(toolpath_job_id)
     }
 
     /// 切削シミュレーションのジョブ `simulation_job_id` の結果（その CL）を、空間モデルに取り込んだと伝える（ジョブ

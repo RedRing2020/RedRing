@@ -9,7 +9,9 @@ use std::num::NonZeroU32;
 
 use cam_core::read_toolpath_artifact_v1;
 
-use crate::cam_simulation_workflow::CamSimulationWorkflowResult;
+use job_domain::CamJobSource;
+
+use crate::cam_simulation_workflow::{CamSimulationWorkflowResult, CamToolpathResult};
 use crate::machining_sequence::{
     MachiningOperationId, MachiningRevisionKey, MachiningSequenceError, MachiningSequenceId,
     MachiningSequenceStore,
@@ -116,10 +118,12 @@ impl ImportedToolpathStore {
             .map(|(_, toolpath)| toolpath)
     }
 
-    /// 加工工程 `operation` の CL を除く（なければ何もしない）
-    pub fn remove(&mut self, operation: MachiningOperationId) {
+    /// 加工工程 `operation` の CL を除く（なければ何もしない）。除いたら `true`
+    pub fn remove(&mut self, operation: MachiningOperationId) -> bool {
+        let before = self.toolpaths.len();
         self.toolpaths
             .retain(|toolpath| toolpath.operation != operation);
+        self.toolpaths.len() != before
     }
 
     /// 加工工程 `operation` の CL
@@ -145,16 +149,55 @@ impl ImportedToolpathStore {
         operation: MachiningOperationId,
         result: &CamSimulationWorkflowResult,
     ) -> Result<bool, MachiningSequenceError> {
+        self.import_artifact(
+            sequences,
+            sequence,
+            operation,
+            result.source.as_ref(),
+            &result.toolpath_artifact,
+        )
+    }
+
+    /// 加工手順 `sequence` の加工工程 `operation` の今の改訂で計算したツールパス生成の結果 `result` の CL を取り込む
+    /// （前の CL は上書きする）。取り込んだ CL が前と変われば `true`。取り込まない場合は `Self::import` と同じ
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn import_toolpath(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+        result: &CamToolpathResult,
+    ) -> Result<bool, MachiningSequenceError> {
+        self.import_artifact(
+            sequences,
+            sequence,
+            operation,
+            result.source.as_ref(),
+            &result.artifact,
+        )
+    }
+
+    /// 投入元 `source` のジョブの CL `artifact` を、加工手順 `sequence` の加工工程 `operation` の CL として取り込む
+    /// （投入元がその工程の今の改訂でない・CL が読めないときは取り込まない）
+    fn import_artifact(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+        source: Option<&CamJobSource>,
+        artifact: &[u8],
+    ) -> Result<bool, MachiningSequenceError> {
         let current = sequences.operation(sequence, operation)?;
-        let computed_for_current = result.source.as_ref().is_some_and(|source| {
+        let computed_for_current = source.is_some_and(|source| {
             source.source_id == operation.to_string()
                 && source.revision_key.as_deref()
                     == Some(current.revision_key().to_string().as_str())
         });
         // 読めない CL は取り込まない（記録から戻すときと同じく、持つ CL はいつも読める）
-        if !computed_for_current
-            || read_toolpath_artifact_v1(&mut result.toolpath_artifact.as_slice()).is_err()
-        {
+        if !computed_for_current || read_toolpath_artifact_v1(&mut &artifact[..]).is_err() {
             return Ok(false);
         }
         let record = ImportedToolpathRecord {
@@ -163,7 +206,7 @@ impl ImportedToolpathStore {
                 .expect("the revision of an operation starts at 1 and only increases"),
             revision_key: current.revision_key(),
             edit_number: 0,
-            artifact: result.toolpath_artifact.clone(),
+            artifact: artifact.to_vec(),
         };
         match self
             .toolpaths
