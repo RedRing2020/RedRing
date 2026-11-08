@@ -304,6 +304,10 @@ impl CuttingSimulationSession {
             .map_err(CuttingSimulationSessionError::Playback)?;
         // 再生できる結果だけ、その CL を空間モデルに取り込む（以後は、ジョブの成果物に頼らない）
         document.import_toolpath(&result);
+        // 取り込んだことをジョブマネージャーに伝える（待たない。伝えられなくても、取り込みは終わっている）
+        if let Err(error) = self.workflow.record_imported(latest) {
+            tracing::warn!("Cannot record the imported toolpath in the job manager: {error}");
+        }
         let animation = CuttingAnimation::new(playback, result.simulation_input.tool);
         Ok(ImportedCuttingSimulation {
             job_id: latest,

@@ -107,6 +107,13 @@ impl Handler for FakeHandler {
         self.opened.fetch_add(1, Ordering::Relaxed);
         Ok(())
     }
+
+    fn record_imported(&mut self, simulation_job_id: u64) -> Result<(), HandlerError> {
+        match simulation_job_id {
+            1 => Ok(()),
+            _ => Err(HandlerError::new(ErrorKind::JobNotFound, "no such job")),
+        }
+    }
 }
 
 #[test]
@@ -263,6 +270,14 @@ fn requests_go_through_the_endpoint() {
     ));
     // 誤りの後も、同じ接続で続けられる
     client.open_window().unwrap();
+    client.record_imported(1).unwrap();
+    assert!(matches!(
+        client.record_imported(9),
+        Err(ClientError::Remote {
+            kind: ErrorKind::JobNotFound,
+            ..
+        })
+    ));
     drop(client);
     server.join().unwrap();
 

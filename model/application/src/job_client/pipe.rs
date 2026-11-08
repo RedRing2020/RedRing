@@ -59,8 +59,8 @@ pub(crate) struct PipeJobClient {
     connector: Arc<Connector>,
     /// 別のスレッドで読む、計算の状態
     status: Arc<Mutex<StatusState>>,
-    /// 計算の状態を読むスレッドへの頼み（初めて状態を読むときに、スレッドを始める）
-    status_requests: OnceCell<Sender<()>>,
+    /// 状態を読むスレッドへの頼み（初めて頼むときに、スレッドを始める）
+    status_requests: OnceCell<Sender<Work>>,
 }
 
 impl std::fmt::Debug for PipeJobClient {
@@ -70,6 +70,14 @@ impl std::fmt::Debug for PipeJobClient {
             .field("manager", &self.connector.manager)
             .finish_non_exhaustive()
     }
+}
+
+/// 状態を読むスレッドへの頼み
+enum Work {
+    /// 計算の状態を読み直す
+    Refresh,
+    /// 切削シミュレーションのジョブの結果を取り込んだと伝える
+    RecordImported(u64),
 }
 
 /// 別のスレッドで読んだ計算の状態
@@ -184,6 +192,11 @@ impl PipeJobClient {
     /// 計算の状態を読み直すように頼む（読むスレッドがなければ始める。待たない）
     fn request_status(&self) {
         lock(&self.status).requested_at = Some(Instant::now());
+        self.send(Work::Refresh);
+    }
+
+    /// 状態を読むスレッドに頼む（スレッドがなければ始める。待たない）
+    fn send(&self, work: Work) {
         let requests = self.status_requests.get_or_init(|| {
             let (sender, receiver) = mpsc::channel();
             let connector = Arc::clone(&self.connector);
@@ -191,16 +204,35 @@ impl PipeJobClient {
             std::thread::spawn(move || read_status_loop(&connector, &status, &receiver));
             sender
         });
-        let _ = requests.send(());
+        let _ = requests.send(work);
     }
 }
 
-/// 頼まれるたびに計算の状態を読み、`status` に置く（頼む側がなくなったら終わる）
-fn read_status_loop(connector: &Connector, status: &Mutex<StatusState>, requests: &Receiver<()>) {
-    while requests.recv().is_ok() {
+/// 頼まれるたびに計算の状態を読み、`status` に置く。取り込んだことを伝える頼みは、そのまま伝える（頼む側が
+/// なくなったら終わる）
+fn read_status_loop(connector: &Connector, status: &Mutex<StatusState>, requests: &Receiver<Work>) {
+    while let Ok(work) = requests.recv() {
+        let mut works = vec![work];
+        works.extend(requests.try_iter());
+        // 溜まった読み直しの頼みは、1 回の読み取りにまとめる
+        let mut refresh = false;
+        for work in works {
+            match work {
+                Work::Refresh => refresh = true,
+                Work::RecordImported(simulation_job_id) => {
+                    record_imported(connector, simulation_job_id);
+                }
+            }
+        }
+        if !refresh {
+            continue;
+        }
         loop {
-            // 溜まった頼みは、1 回の読み取りにまとめる
-            while requests.try_recv().is_ok() {}
+            while let Ok(work) = requests.try_recv() {
+                if let Work::RecordImported(simulation_job_id) = work {
+                    record_imported(connector, simulation_job_id);
+                }
+            }
             let generation = lock(status).generation;
             let read = read_status(connector);
             let mut state = lock(status);
@@ -209,6 +241,23 @@ fn read_status_loop(connector: &Connector, status: &Mutex<StatusState>, requests
                 break;
             }
         }
+    }
+}
+
+/// 切削シミュレーションのジョブ `simulation_job_id` の結果を取り込んだと伝える（ジョブマネージャーが動いていなければ
+/// 起動せずにやめる。伝えられなくても、取り込みは終わっている）
+fn record_imported(connector: &Connector, simulation_job_id: u64) {
+    let recorded = connector
+        .endpoint()
+        .and_then(|endpoint| connect_now(endpoint).map_err(|error| store_error(error.to_string())))
+        .and_then(client)
+        .and_then(|mut client| {
+            client
+                .record_imported(simulation_job_id)
+                .map_err(client_error)
+        });
+    if let Err(error) = recorded {
+        tracing::warn!("Cannot record the imported toolpath in the job manager: {error}");
     }
 }
 
@@ -460,6 +509,12 @@ impl JobClient for PipeJobClient {
 
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
         Ok(simulation_jobs(&self.jobs()?))
+    }
+
+    fn record_imported(&self, simulation_job_id: u64) -> Result<(), CamSimulationWorkflowError> {
+        // 状態を読むスレッドで伝える（画面を止めない。伝えられなかったことは、ログに書く）
+        self.send(Work::RecordImported(simulation_job_id));
+        Ok(())
     }
 
     fn status_snapshot(&self) -> Result<Option<JobStatusSnapshot>, CamSimulationWorkflowError> {

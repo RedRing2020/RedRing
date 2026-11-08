@@ -2,7 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-/// 口の版（要求・応答の形を変えたら上げる）
+/// 口の版（要求・応答の形を変えたら上げる。要求を足すだけなら上げない。前のジョブマネージャーは、知らない要求に
+/// 正しくない要求の誤りを返す）
 pub const PROTOCOL_VERSION: u32 = 1;
 
 /// 要求
@@ -24,6 +25,8 @@ pub enum Request {
     ReadJobFile { job_id: u64, file: JobFile },
     /// ジョブマネージャーのウィンドウを開く
     OpenWindow,
+    /// 切削シミュレーションのジョブの結果（その CL）を取り込んだことを伝える
+    RecordImported { simulation_job_id: u64 },
 }
 
 /// 応答

@@ -160,6 +160,17 @@ impl JobClient for InProcessJobClient {
             .collect()
     }
 
+    fn record_imported(&self, simulation_job_id: u64) -> Result<(), CamSimulationWorkflowError> {
+        // 同じプロセスの中のジョブは、まとめて消す操作を持たないため、番号だけを確かめる
+        self.simulation_jobs()?
+            .iter()
+            .any(|job| job.job_id == simulation_job_id && job.status == CamJobStatus::Succeeded)
+            .then_some(())
+            .ok_or(CamSimulationWorkflowError::NotSucceededSimulation(
+                simulation_job_id,
+            ))
+    }
+
     fn status_snapshot(
         &self,
     ) -> Result<Option<super::JobStatusSnapshot>, CamSimulationWorkflowError> {

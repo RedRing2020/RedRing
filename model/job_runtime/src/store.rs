@@ -61,6 +61,8 @@ const OUTPUT_DIR: &str = "output";
 const LOGS_DIR: &str = "logs";
 const LOG_FILE: &str = "runner.log";
 const PROGRESS_FILE: &str = "progress.json";
+/// 成果物を、投入した側が取り込んだ印（ジョブの記録とは別のファイル。記録を書くスレッドと重ならないように）
+const IMPORTED_FILE: &str = "imported";
 const TOOLPATH_FILE: &str = "toolpath.bin";
 const CUTTING_SIMULATION_FILE: &str = "cutting_simulation.bin";
 
@@ -671,6 +673,30 @@ impl JobStore {
     /// 進み具合のファイル
     pub fn progress_file(&self, job_id: u64) -> PathBuf {
         self.job_dir(job_id).join(PROGRESS_FILE)
+    }
+
+    /// ジョブ `job_id` の成果物を、投入した側が取り込んだ印を付ける（中身は、取り込んだ結果のジョブの番号
+    /// `imported_job_id`。ジョブのフォルダがなければ `NotFound` の誤り）
+    pub fn mark_imported(&self, job_id: u64, imported_job_id: u64) -> Result<(), StoreError> {
+        let dir = self.job_dir(job_id);
+        if !dir.is_dir() {
+            return Err(StoreError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("job {job_id} is not found"),
+            )));
+        }
+        write_atomically(
+            &dir.join(IMPORTED_FILE),
+            imported_job_id.to_string().as_bytes(),
+        )?;
+        Ok(())
+    }
+
+    /// ジョブ `job_id` の成果物を、投入した側が取り込んだときの、取り込んだ結果のジョブの番号（印がない・読めない
+    /// ときは `None`）
+    pub fn imported_job(&self, job_id: u64) -> Option<u64> {
+        let bytes = read_limited(&self.job_dir(job_id).join(IMPORTED_FILE), 32).ok()?;
+        String::from_utf8(bytes).ok()?.trim().parse().ok()
     }
 
     /// 種類 `kind` のジョブの成果物のファイル

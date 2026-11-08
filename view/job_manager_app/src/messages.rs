@@ -35,6 +35,7 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("details.input", "入力: {path}（{size}）"),
     ("details.result", "成果物: {path}（{size}）"),
     ("details.no_result", "成果物: なし"),
+    ("details.imported", "CL を空間モデルに取り込みました"),
     ("details.depends_on", "待つジョブ: {jobs}"),
     ("details.attempts", "計算した回数: {count}"),
     ("details.no_log", "ログはまだありません"),
@@ -49,6 +50,10 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     (
         "bulk.superseded",
         "前の改訂の結果（同じ加工工程に、別の条件で後から投入して正常に終わったジョブがあるもの）: {count} 件",
+    ),
+    (
+        "bulk.imported",
+        "取り込み済みの CL の元（CL を空間モデルに取り込んだツールパス生成）: {count} 件",
     ),
     ("bulk.old", "古いジョブ:"),
     ("bulk.days_suffix", " 日"),
@@ -265,6 +270,7 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ("details.input", "Input: {path} ({size})"),
     ("details.result", "Result: {path} ({size})"),
     ("details.no_result", "Result: none"),
+    ("details.imported", "The CL was imported into a space model"),
     ("details.depends_on", "Waits for jobs: {jobs}"),
     ("details.attempts", "Calculated: {count} times"),
     ("details.no_log", "No log yet"),
@@ -279,6 +285,10 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "bulk.superseded",
         "Results of previous revisions (a later job with other conditions completed for the same machining operation): {count}",
+    ),
+    (
+        "bulk.imported",
+        "Sources of imported CLs (toolpath generations whose CL was imported into a space model): {count}",
     ),
     ("bulk.old", "Old jobs:"),
     ("bulk.days_suffix", " days"),
