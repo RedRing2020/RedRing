@@ -219,11 +219,6 @@ fn requests_must_start_with_hello() {
 fn requests_go_through_the_endpoint() {
     let endpoint = test_endpoint();
     let mut listener = endpoint.listen().unwrap();
-    // 同じ口は、2 つ目を開かない
-    assert_eq!(
-        endpoint.listen().unwrap_err().kind(),
-        io::ErrorKind::AddrInUse
-    );
     let handler = FakeHandler::default();
     let (submitted, opened) = (Arc::clone(&handler.submitted), Arc::clone(&handler.opened));
     let server = std::thread::spawn(move || {
@@ -288,5 +283,11 @@ fn connecting_to_a_closed_endpoint_fails_without_waiting() {
     // 閉じた口は、開き直せる
     drop(endpoint.listen().unwrap());
     let _listener = endpoint.listen().unwrap();
+    // 開いている口は、2 つ目を開かない（UNIX では、開いているかを確かめるために一度つなぐため、接続を受ける試験と
+    // 分ける）
+    assert_eq!(
+        endpoint.listen().unwrap_err().kind(),
+        io::ErrorKind::AddrInUse
+    );
     assert!(Endpoint::with_name("bad/name").is_err());
 }
