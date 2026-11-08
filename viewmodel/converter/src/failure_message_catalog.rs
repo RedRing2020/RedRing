@@ -35,7 +35,7 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     (
         "failure.job_store",
-        "ジョブの保存先を使えないか、ジョブマネージャーを起動できません",
+        "ジョブマネージャーにつなげないか、起動できません",
     ),
     (
         "failure.no_current_imported_toolpath",
@@ -124,7 +124,7 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     (
         "failure.job_store",
-        "Cannot use the job store or start the job manager",
+        "Cannot connect to or start the job manager",
     ),
     (
         "failure.no_current_imported_toolpath",

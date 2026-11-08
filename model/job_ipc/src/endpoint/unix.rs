@@ -75,15 +75,36 @@ impl Drop for Stream {
     }
 }
 
+impl Stream {
+    pub(super) fn set_io_timeout(
+        &mut self,
+        timeout: Option<std::time::Duration>,
+    ) -> io::Result<()> {
+        self.stream.set_read_timeout(timeout)?;
+        self.stream.set_write_timeout(timeout)
+    }
+}
+
+/// ソケットの時間の上限を超えた誤り（`WouldBlock`）を、Windows と同じ `TimedOut` にする
+fn timed_out<T>(result: io::Result<T>) -> io::Result<T> {
+    result.map_err(|error| {
+        if error.kind() == io::ErrorKind::WouldBlock {
+            io::Error::new(io::ErrorKind::TimedOut, error)
+        } else {
+            error
+        }
+    })
+}
+
 impl Read for Stream {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        self.stream.read(buffer)
+        timed_out(self.stream.read(buffer))
     }
 }
 
 impl Write for Stream {
     fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
-        self.stream.write(buffer)
+        timed_out(self.stream.write(buffer))
     }
 
     fn flush(&mut self) -> io::Result<()> {

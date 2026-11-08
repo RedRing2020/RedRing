@@ -217,6 +217,16 @@ impl fmt::Display for CamConditionError {
     }
 }
 
+/// 加工工程の今の改訂の計算の状態（読み終えるのを待たない読み取りの結果）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationJobState {
+    /// 計算の状態を、まだ読めていない（初めて読む前・前に読んだ状態が古い）
+    NotRead,
+    /// 今の改訂で投入していない（ジョブマネージャーがないときも）
+    NotSubmitted,
+    Status(OperationJobStatus),
+}
+
 /// 投入・取り込みの失敗
 #[derive(Debug, Clone, PartialEq)]
 pub enum CamSimulationWorkflowError {
@@ -446,11 +456,12 @@ impl CamSimulationWorkflow {
         Ok(CamSimulationSubmission { submission_id })
     }
 
-    /// 待ちのジョブを実行させ、実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すだけで 0）
+    /// 待ちのジョブを実行させ、実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すように
+    /// 頼むだけで 0。起動できなかったことは、次に読む計算の状態の誤りで分かる）
     ///
     /// # Errors
     ///
-    /// ジョブマネージャーがない・起動できない場合、ジョブの状態の更新の失敗。
+    /// 同じプロセスの中で実行するときの、ジョブの状態の更新の失敗。
     pub fn run_queued_jobs(&mut self) -> Result<usize, CamSimulationWorkflowError> {
         self.jobs.run_pending()
     }
@@ -469,17 +480,7 @@ impl CamSimulationWorkflow {
         &self,
         operation_id: MachiningOperationId,
     ) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
-        let source_id = operation_id.to_string();
-        Ok(self
-            .jobs
-            .simulation_jobs()?
-            .into_iter()
-            .filter(|job| {
-                job.source
-                    .as_ref()
-                    .is_some_and(|source| source.source_id == source_id)
-            })
-            .collect())
+        Ok(of_operation(self.jobs.simulation_jobs()?, operation_id))
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（今の改訂の鍵）で投入し、
@@ -507,6 +508,9 @@ impl CamSimulationWorkflow {
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（今の改訂の鍵）で、最後に投入した
     /// 計算の状態（今の改訂で投入していなければ `None`）。改訂の鍵を持たない投入元（前の版の記録）は、今の改訂とみなさない
     ///
+    /// 状態は読み終えるのを待たずに、最後に読んだものから決める（画面を止めないように。まだ読めていなければ
+    /// `OperationJobState::NotRead`）。
+    ///
     /// # Errors
     ///
     /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合。
@@ -515,22 +519,27 @@ impl CamSimulationWorkflow {
         sequences: &MachiningSequenceStore,
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
-    ) -> Result<Option<OperationJobStatus>, CamSimulationWorkflowError> {
+    ) -> Result<OperationJobState, CamSimulationWorkflowError> {
         let current = current_revision(sequences, sequence_id, operation_id)?;
         // ジョブマネージャーがなければ、投入したジョブもない（形状の読み込み・表示は、ジョブマネージャーなしで使える）
-        let pending = match self.jobs.pending_submissions() {
-            Err(CamSimulationWorkflowError::JobManagerNotFound) => return Ok(None),
-            result => result?,
+        let snapshot = match self.jobs.status_snapshot() {
+            Err(CamSimulationWorkflowError::JobManagerNotFound) => {
+                return Ok(OperationJobState::NotSubmitted);
+            }
+            result => match result? {
+                Some(snapshot) => snapshot,
+                None => return Ok(OperationJobState::NotRead),
+            },
         };
+        let pending = snapshot.pending;
         // ジョブマネージャーの取り込みを待っている投入は、ジョブより新しい
         if pending
             .iter()
             .any(|submission| !submission.rejected && current(&submission.source))
         {
-            return Ok(Some(OperationJobStatus::Queued));
+            return Ok(OperationJobState::Status(OperationJobStatus::Queued));
         }
-        let latest = self
-            .operation_simulations(operation_id)?
+        let latest = of_operation(snapshot.simulations, operation_id)
             .into_iter()
             .rev()
             .find(|job| current(&job.source));
@@ -539,9 +548,13 @@ impl CamSimulationWorkflow {
             let rejected = pending
                 .iter()
                 .any(|submission| submission.rejected && current(&submission.source));
-            return Ok(rejected.then_some(OperationJobStatus::Failed));
+            return Ok(if rejected {
+                OperationJobState::Status(OperationJobStatus::Failed)
+            } else {
+                OperationJobState::NotSubmitted
+            });
         };
-        Ok(Some(match job.status {
+        Ok(OperationJobState::Status(match job.status {
             CamJobStatus::Succeeded => OperationJobStatus::Succeeded,
             CamJobStatus::Failed => OperationJobStatus::Failed,
             CamJobStatus::Canceled => OperationJobStatus::Canceled,
@@ -568,6 +581,22 @@ impl CamSimulationWorkflow {
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError> {
         self.jobs.import(simulation_job_id)
     }
+}
+
+/// 切削シミュレーションのジョブ `simulations` のうち、加工工程 `operation_id` から投入したもの（順はそのまま）
+fn of_operation(
+    simulations: Vec<SimulationJob>,
+    operation_id: MachiningOperationId,
+) -> Vec<SimulationJob> {
+    let source_id = operation_id.to_string();
+    simulations
+        .into_iter()
+        .filter(|job| {
+            job.source
+                .as_ref()
+                .is_some_and(|source| source.source_id == source_id)
+        })
+        .collect()
 }
 
 /// 加工工程 `operation` から投入するジョブの投入元（工程の ID と今の改訂の番号・改訂の鍵）

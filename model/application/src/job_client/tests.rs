@@ -222,8 +222,9 @@ fn a_submission_is_placed_in_the_inbox_with_both_inputs() {
     let sim = fs::read(dir.join(&request.jobs[1].input_file)).unwrap();
     assert!(read_cutting_simulation_input_v1(&mut sim.as_slice()).is_ok());
     assert!(client.simulation_jobs().unwrap().is_empty());
-    // ジョブマネージャーが取り込むまでは、まだジョブになっていない投入として読める
-    let pending = client.pending_submissions().unwrap();
+    // ジョブマネージャーが取り込むまでは、まだジョブになっていない投入として読める（別のスレッドが読み直しても同じ）
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    let pending = client.status_snapshot().unwrap().unwrap().pending;
     assert_eq!(pending.len(), 1);
     assert!(!pending[0].rejected);
     assert_eq!(
@@ -425,4 +426,42 @@ fn simulations_are_put_under_an_existing_cam_job() {
         imported.toolpath_artifact,
         run_cam_solver(&base.solver_input).unwrap()
     );
+}
+
+#[test]
+fn the_status_is_read_without_waiting_and_shows_a_submission_at_once() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    // 投入するとすぐ、取り込みを待つ投入として状態に出る（別のスレッドが読み終えるのを待たない）
+    client.submit(submission()).unwrap();
+    let snapshot = client.status_snapshot().unwrap().unwrap();
+    assert_eq!(snapshot.pending.len(), 1);
+    assert_eq!(
+        snapshot.pending[0]
+            .source
+            .as_ref()
+            .and_then(|source| source.revision_key.as_deref()),
+        Some("key-3")
+    );
+
+    // ジョブマネージャーが計算すると、別のスレッドが読み直した状態になる
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store, InProcessLauncher, 0).unwrap();
+    for now in 1..=4 {
+        manager.tick(now);
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let snapshot = client.status_snapshot().unwrap().unwrap();
+        if snapshot.pending.is_empty()
+            && snapshot
+                .simulations
+                .iter()
+                .any(|job| job.status == CamJobStatus::Succeeded)
+        {
+            break;
+        }
+        assert!(std::time::Instant::now() < deadline, "{snapshot:?}");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
 }

@@ -82,6 +82,13 @@ pub(crate) struct PendingSubmission {
     pub rejected: bool,
 }
 
+/// 計算の状態（取り込みを待つ投入と、切削シミュレーションのジョブ）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct JobStatusSnapshot {
+    pub pending: Vec<PendingSubmission>,
+    pub simulations: Vec<SimulationJob>,
+}
+
 /// ジョブの投入・状態の読み取り・成果物の取り込み
 pub(crate) trait JobClient: fmt::Debug {
     /// ツールパス生成と切削シミュレーションのジョブを投入し、投入の ID を返す（計算を待たない）
@@ -105,8 +112,9 @@ pub(crate) trait JobClient: fmt::Debug {
     /// 切削シミュレーションのジョブ（番号の順）
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError>;
 
-    /// まだジョブになっていない投入
-    fn pending_submissions(&self) -> Result<Vec<PendingSubmission>, CamSimulationWorkflowError>;
+    /// 計算の状態（画面を止めない実装は、読み終えるのを待たずに最後に読んだ状態を返し、まだ読めていない・前に読んだ
+    /// 状態が古ければ `None`）
+    fn status_snapshot(&self) -> Result<Option<JobStatusSnapshot>, CamSimulationWorkflowError>;
 
     /// 正常に終わった切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
     /// 投入した入力

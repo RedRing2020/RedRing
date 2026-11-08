@@ -126,8 +126,10 @@ pub(crate) enum JobStatusLine {
     /// 今の条件で投入していない
     NotSubmitted,
     Status(OperationJobStatus),
-    /// ジョブの保存先を読めない
+    /// ジョブマネージャーから状態を読めない
     Unreadable,
+    /// 状態をまだ読めていない（読み終えるのを待たないため、初めて読む前）
+    Reading,
 }
 
 impl JobStatusLine {
@@ -166,6 +168,7 @@ fn job_status_key(status: &JobStatusLine) -> &'static str {
     match status {
         JobStatusLine::NotSubmitted => "conditions.job.none",
         JobStatusLine::Unreadable => "conditions.job.unreadable",
+        JobStatusLine::Reading => "conditions.job.reading",
         JobStatusLine::Status(OperationJobStatus::Queued) => "conditions.job.queued",
         JobStatusLine::Status(OperationJobStatus::Running) => "conditions.job.running",
         JobStatusLine::Status(OperationJobStatus::Succeeded) => "conditions.job.succeeded",
@@ -652,6 +655,7 @@ mod tests {
         let statuses = [
             JobStatusLine::NotSubmitted,
             JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
             JobStatusLine::Status(OperationJobStatus::Queued),
             JobStatusLine::Status(OperationJobStatus::Running),
             JobStatusLine::Status(OperationJobStatus::Succeeded),

@@ -298,9 +298,15 @@ impl Machining {
     }
 
     fn status(&self, workflow: &CamSimulationWorkflow) -> Option<OperationJobStatus> {
-        workflow
+        // 同じプロセスの中で実行するワークフローは、状態を読み終えてから返す
+        match workflow
             .latest_revision_job_status(&self.store, self.sequence, self.operation)
             .unwrap()
+        {
+            OperationJobState::NotRead => panic!("the status must be read at once"),
+            OperationJobState::NotSubmitted => None,
+            OperationJobState::Status(status) => Some(status),
+        }
     }
 
     fn set_stock(&mut self, stock: MachiningStock) {
@@ -735,11 +741,8 @@ fn the_status_of_the_latest_revision_follows_its_jobs() {
     let (shapes, face) = pyramid_shape();
     let mut machining = Machining::new(vec![face]);
     let mut workflow = CamSimulationWorkflow::in_process();
-    let status = |machining: &Machining, workflow: &CamSimulationWorkflow| {
-        workflow
-            .latest_revision_job_status(&machining.store, machining.sequence, machining.operation)
-            .unwrap()
-    };
+    let status =
+        |machining: &Machining, workflow: &CamSimulationWorkflow| machining.status(workflow);
     assert_eq!(status(&machining, &workflow), None);
     machining.submit(&mut workflow, &shapes).unwrap();
     assert_eq!(

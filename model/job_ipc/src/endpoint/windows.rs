@@ -2,17 +2,19 @@
 //!
 //! パイプの名前は利用者の SID から決め、接続できるのをその利用者だけにし（持ち主もその利用者にする）、ネットワーク
 //! からの接続を拒む。最初のインスタンスは `FILE_FLAG_FIRST_PIPE_INSTANCE` で作る（ほかのプロセスが先に作っていれば
-//! 開かない）。つなぐ側は、パイプの持ち主が自分であることを確かめる。
+//! 開かない）。つなぐ側は、パイプの持ち主が自分であることを確かめる。つなぐ側の接続は非同期の読み書き（overlapped）で
+//! 開き、読み書きに時間の上限を設けられる。
 
 use std::fs::File;
-use std::io;
+use std::io::{self, Read, Write};
 use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::{AsRawHandle, FromRawHandle};
 use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{
-    CloseHandle, ERROR_ACCESS_DENIED, ERROR_INSUFFICIENT_BUFFER, ERROR_NO_DATA, ERROR_PIPE_BUSY,
-    ERROR_PIPE_CONNECTED, ERROR_SUCCESS, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree,
+    CloseHandle, ERROR_ACCESS_DENIED, ERROR_BROKEN_PIPE, ERROR_INSUFFICIENT_BUFFER,
+    ERROR_IO_PENDING, ERROR_NO_DATA, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, ERROR_SUCCESS,
+    GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree, WAIT_OBJECT_0,
 };
 use windows_sys::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo,
@@ -23,14 +25,17 @@ use windows_sys::Win32::Security::{
     SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER, TokenUser,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    FILE_FLAG_FIRST_PIPE_INSTANCE, PIPE_ACCESS_DUPLEX, SECURITY_IDENTIFICATION,
-    SECURITY_SQOS_PRESENT,
+    FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_FLAG_OVERLAPPED, PIPE_ACCESS_DUPLEX, ReadFile,
+    SECURITY_IDENTIFICATION, SECURITY_SQOS_PRESENT, WriteFile,
 };
+use windows_sys::Win32::System::IO::{CancelIoEx, GetOverlappedResult, OVERLAPPED};
 use windows_sys::Win32::System::Pipes::{
     ConnectNamedPipe, CreateNamedPipeW, GetNamedPipeServerProcessId, PIPE_READMODE_BYTE,
     PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_WAIT,
 };
-use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+use windows_sys::Win32::System::Threading::{
+    CreateEventW, GetCurrentProcess, INFINITE, OpenProcessToken, WaitForSingleObject,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 use super::MAX_CONNECTIONS;
@@ -42,7 +47,168 @@ const PIPE_BUFFER_BYTES: u32 = 64 * 1024;
 /// 同時につないでいる数が上限のときに、空くのを待つ間隔
 const BUSY_INTERVAL: Duration = Duration::from_millis(50);
 
-pub(super) type Stream = File;
+/// パイプの接続（つなぐ側は、非同期の読み書きで時間の上限を設けられる）
+#[derive(Debug)]
+pub(super) struct Stream {
+    file: File,
+    /// つなぐ側の、非同期の読み書き（受ける側は `None` で、同期に読み書きする）
+    overlapped: Option<OverlappedIo>,
+}
+
+/// 非同期の読み書きの、終わりを知らせるイベントと、時間の上限
+#[derive(Debug)]
+struct OverlappedIo {
+    event: Event,
+    timeout: Option<Duration>,
+}
+
+/// 閉じるイベントのハンドル
+struct Event(HANDLE);
+
+// SAFETY: イベントのハンドルは、どのスレッドからでも使える
+unsafe impl Send for Event {}
+// SAFETY: イベントのハンドルは、複数のスレッドから同時に使ってよい
+unsafe impl Sync for Event {}
+
+impl std::fmt::Debug for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Event")
+    }
+}
+
+impl Drop for Event {
+    fn drop(&mut self) {
+        // SAFETY: 作ったイベントを閉じる
+        unsafe { CloseHandle(self.0) };
+    }
+}
+
+impl OverlappedIo {
+    fn new() -> io::Result<Self> {
+        // SAFETY: 手で戻す（manual reset）、名前のないイベントを作る
+        let event = unsafe { CreateEventW(std::ptr::null(), 1, 0, std::ptr::null()) };
+        if event.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(Self {
+            event: Event(event),
+            timeout: None,
+        })
+    }
+
+    /// `file` で、`buffer`（`length` バイト）を読む・書く。時間の上限を超えたら取り消して `TimedOut`。読むときに
+    /// 相手が閉じていれば 0
+    fn transfer(
+        &self,
+        file: &File,
+        buffer: *mut u8,
+        length: usize,
+        read: bool,
+    ) -> io::Result<usize> {
+        let handle = file.as_raw_handle();
+        let length = length.min(u32::MAX as usize) as u32;
+        // SAFETY: すべての項目が 0 で正しい値になる C の構造体
+        let mut overlapped: OVERLAPPED = unsafe { std::mem::zeroed() };
+        overlapped.hEvent = self.event.0;
+        // SAFETY: バッファと OVERLAPPED は、読み書きが終わる（または取り消して終わりを待つ）まで生きている
+        let started = unsafe {
+            if read {
+                ReadFile(
+                    handle,
+                    buffer,
+                    length,
+                    std::ptr::null_mut(),
+                    &mut overlapped,
+                )
+            } else {
+                WriteFile(
+                    handle,
+                    buffer,
+                    length,
+                    std::ptr::null_mut(),
+                    &mut overlapped,
+                )
+            }
+        };
+        if started == 0 {
+            // SAFETY: 直前の呼び出しの誤りを読む
+            let error = unsafe { GetLastError() };
+            if error != ERROR_IO_PENDING {
+                return Self::finish_error(error, read);
+            }
+        }
+        let milliseconds = self.timeout.map_or(INFINITE, |timeout| {
+            timeout.as_millis().min(u128::from(INFINITE - 1)) as u32
+        });
+        let mut transferred = 0u32;
+        // SAFETY: 始めた読み書きのイベントを待つ
+        if unsafe { WaitForSingleObject(self.event.0, milliseconds) } != WAIT_OBJECT_0 {
+            // 時間の上限を超えた・待てなかったときは、始めた読み書きを取り消し、終わるまで待つ（バッファと OVERLAPPED
+            // を放す前に）
+            // SAFETY: 始めた読み書きのハンドルと OVERLAPPED
+            unsafe {
+                CancelIoEx(handle, &overlapped);
+                GetOverlappedResult(handle, &overlapped, &mut transferred, 1);
+            }
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "the job manager did not answer in time",
+            ));
+        }
+        // SAFETY: 終わった読み書きの結果を読む
+        if unsafe { GetOverlappedResult(handle, &overlapped, &mut transferred, 0) } == 0 {
+            // SAFETY: 直前の呼び出しの誤りを読む
+            return Self::finish_error(unsafe { GetLastError() }, read);
+        }
+        Ok(transferred as usize)
+    }
+
+    fn finish_error(error: u32, read: bool) -> io::Result<usize> {
+        if read && error == ERROR_BROKEN_PIPE {
+            Ok(0)
+        } else {
+            Err(io::Error::from_raw_os_error(error as i32))
+        }
+    }
+}
+
+impl Stream {
+    pub(super) fn set_io_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+        match self.overlapped.as_mut() {
+            Some(io) => {
+                io.timeout = timeout;
+                Ok(())
+            }
+            None => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "only a connecting side can set a timeout",
+            )),
+        }
+    }
+}
+
+impl Read for Stream {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        match &self.overlapped {
+            Some(io) => io.transfer(&self.file, buffer.as_mut_ptr(), buffer.len(), true),
+            None => self.file.read(buffer),
+        }
+    }
+}
+
+impl Write for Stream {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        match &self.overlapped {
+            // 書くときはバッファを読むだけ
+            Some(io) => io.transfer(&self.file, buffer.as_ptr().cast_mut(), buffer.len(), false),
+            None => self.file.write(buffer),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
+}
 
 /// パイプの名前
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -249,7 +415,7 @@ impl Listener {
 
     /// 接続を待って受ける。受けたら、次の接続を待つインスタンスをすぐに作る（パイプの名前を、インスタンスのない
     /// 間にほかのプロセスに取られないように）
-    pub(super) fn accept(&mut self) -> io::Result<File> {
+    pub(super) fn accept(&mut self) -> io::Result<Stream> {
         loop {
             let instance = self.waiting_instance()?;
             // SAFETY: 自分で作ったパイプのインスタンスで、接続を待つ（同期）
@@ -264,7 +430,10 @@ impl Listener {
             // 待ち始める前につながっていたときも、接続を受けたとする
             if connected || error == ERROR_PIPE_CONNECTED {
                 self.next = self.create_instance(false).ok();
-                return Ok(instance);
+                return Ok(Stream {
+                    file: instance,
+                    overlapped: None,
+                });
             }
             // つないですぐに切った接続は、新しいインスタンスを作ってから捨て、待ち直す
             let replacement = self.create_instance(false)?;
@@ -277,12 +446,14 @@ impl Listener {
     }
 }
 
-pub(super) fn connect(address: &Address) -> io::Result<File> {
-    // パイプの側に、こちらの身元を確かめる以上の権利（なりすまし）を渡さない
+pub(super) fn connect(address: &Address) -> io::Result<Stream> {
+    // パイプの側に、こちらの身元を確かめる以上の権利（なりすまし）を渡さない。時間の上限を設けられるよう、非同期の
+    // 読み書きで開く
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
         .security_qos_flags(SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION)
+        .custom_flags(FILE_FLAG_OVERLAPPED)
         .open(&address.0)
         .map_err(|error| {
             if error.raw_os_error() == Some(ERROR_PIPE_BUSY as i32) {
@@ -297,13 +468,16 @@ pub(super) fn connect(address: &Address) -> io::Result<File> {
             "the job manager endpoint is owned by another user",
         ));
     }
-    Ok(file)
+    Ok(Stream {
+        file,
+        overlapped: Some(OverlappedIo::new()?),
+    })
 }
 
-pub(super) fn allow_server_foreground(file: &File) {
+pub(super) fn allow_server_foreground(stream: &Stream) {
     let mut process_id = 0u32;
     // SAFETY: つないだパイプのハンドルから、パイプを開いたプロセスの番号を読む
-    if unsafe { GetNamedPipeServerProcessId(file.as_raw_handle(), &mut process_id) } != 0 {
+    if unsafe { GetNamedPipeServerProcessId(stream.file.as_raw_handle(), &mut process_id) } != 0 {
         // SAFETY: 番号を渡すだけ（渡せなくても、ウィンドウは開く）
         unsafe { AllowSetForegroundWindow(process_id) };
     }

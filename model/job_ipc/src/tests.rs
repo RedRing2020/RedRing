@@ -291,3 +291,29 @@ fn connecting_to_a_closed_endpoint_fails_without_waiting() {
     );
     assert!(Endpoint::with_name("bad/name").is_err());
 }
+
+#[test]
+fn a_silent_job_manager_times_out() {
+    let endpoint = test_endpoint();
+    let mut listener = endpoint.listen().unwrap();
+    // 接続を受けても、何も答えない受け手
+    let (release, released) = std::sync::mpsc::channel::<()>();
+    let server = std::thread::spawn(move || {
+        let _connection = listener.accept().unwrap();
+        let _ = released.recv();
+    });
+    let mut connection = endpoint.connect(Duration::from_secs(5)).unwrap();
+    connection
+        .set_io_timeout(Some(Duration::from_millis(200)))
+        .unwrap();
+    let started = std::time::Instant::now();
+    match Client::new(connection) {
+        Err(ClientError::Io(error)) => {
+            assert_eq!(error.kind(), io::ErrorKind::TimedOut, "{error:?}");
+        }
+        other => panic!("expected a timeout, got {other:?}"),
+    }
+    assert!(started.elapsed() < Duration::from_secs(5));
+    release.send(()).unwrap();
+    server.join().unwrap();
+}

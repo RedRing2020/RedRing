@@ -110,6 +110,21 @@ impl Listener {
 pub struct Connection(platform::Stream);
 
 impl Connection {
+    /// つないだ側の接続の、読み書き 1 回ごとの時間の上限（`None` は待ち続ける。上限を超えたら `TimedOut`）
+    ///
+    /// # Errors
+    ///
+    /// 上限が 0・接続を受けた側の接続（Windows）・設定できない場合。
+    pub fn set_io_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+        if timeout == Some(Duration::ZERO) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "the timeout must not be zero",
+            ));
+        }
+        self.0.set_io_timeout(timeout)
+    }
+
     /// 口を開いた側のプロセスに、ウィンドウを前に出す権利を渡す（Windows。利用者が操作しているプロセスだけが渡せる。
     /// ほかの OS では何もしない）
     pub fn allow_server_foreground(&self) {
