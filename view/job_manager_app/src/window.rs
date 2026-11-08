@@ -3,6 +3,7 @@
 //! ジョブの記録は保存先から一定の間隔で読み直す。記録を書くのはサービスのスレッドだけのため、操作はサービスに渡し、
 //! 結果が返ったら記録を読み直す。
 
+use std::collections::BTreeSet;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -10,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use crate::locale::{self, Language};
 use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText, ScrollArea};
+use job_manager::{DeletePlan, delete_plan};
 use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::{change_failure_text, job_error_text, store_failure_key, text};
@@ -40,11 +42,11 @@ enum DetailsTab {
     Log,
 }
 
-/// 削除を確かめているジョブと、その成果物を使う後のジョブ
+/// 削除を確かめている、選んだジョブと、消すジョブの決め方の結果
 #[derive(Debug, Clone)]
 struct DeleteConfirmation {
-    job_id: u64,
-    dependents: Vec<u64>,
+    selected: Vec<u64>,
+    plan: DeletePlan,
 }
 
 /// 替えるかを確かめている保存先のフォルダと、その中身
@@ -81,7 +83,12 @@ pub(crate) struct JobManagerWindow {
     /// 保存先の大きさを測っているスレッドからの結果
     size_receiver: Option<mpsc::Receiver<u64>>,
     filter: Option<StoredJobStatus>,
+    /// 詳細を出すジョブ（最後に押した行）
     selected: Option<u64>,
+    /// 一覧で選んでいるジョブ（Ctrl・Shift を押しながら押すと、複数を選ぶ）
+    selection: BTreeSet<u64>,
+    /// Shift を押しながら押したときに、範囲の始まりにする行のジョブ
+    anchor: Option<u64>,
     selected_files: Option<SelectedFiles>,
     tab: DetailsTab,
     /// 保存先を読み書きできずに、できなかった操作の理由
@@ -89,6 +96,8 @@ pub(crate) struct JobManagerWindow {
     /// 結果を待っている操作の数（待つ間は、二重に頼まないように操作できなくする）
     pending_replies: usize,
     delete_confirmation: Option<DeleteConfirmation>,
+    /// 計算待ち・計算中のため消さなかった、選んだジョブ
+    delete_kept: Option<BTreeSet<u64>>,
     store_change: Option<StoreChange>,
     /// 保存先を替えられなかった理由
     store_change_error: Option<ChangeFailure>,
@@ -115,11 +124,14 @@ impl JobManagerWindow {
             size_receiver: None,
             filter: None,
             selected: None,
+            selection: BTreeSet::new(),
+            anchor: None,
             selected_files: None,
             tab: DetailsTab::Details,
             command_error: None,
             pending_replies: 0,
             delete_confirmation: None,
+            delete_kept: None,
             store_change: None,
             store_change_error: None,
             hovered_row: None,
@@ -175,7 +187,16 @@ impl JobManagerWindow {
         // 操作の結果が返ったら、記録をすぐに読み直す
         while let Ok(reply) = self.service.replies.try_recv() {
             self.pending_replies = self.pending_replies.saturating_sub(1);
-            self.command_error = reply.err();
+            match reply {
+                Ok(kept) => {
+                    self.command_error = None;
+                    // 確かめた後に後のジョブが計算待ちになったなど、消さなかったジョブを出す
+                    if !kept.is_empty() {
+                        self.delete_kept = Some(kept.into_iter().collect());
+                    }
+                }
+                Err(failure) => self.command_error = Some(failure),
+            }
             self.jobs_read_at = None;
         }
         let due =
@@ -190,7 +211,7 @@ impl JobManagerWindow {
                 }
                 Err(error) => self.store_error = Some(StoreFailure::of(&error)),
             }
-            self.rows = job_rows(&self.jobs, self.filter);
+            self.update_rows();
             self.selected_files = None;
         }
         // 保存先の大きさは、画面を止めないように別のスレッドで測る
@@ -233,6 +254,59 @@ impl JobManagerWindow {
         })
     }
 
+    /// 一覧の行を並べ直し、一覧に出ていないジョブ（消した・絞り込みで隠れた）の選びを外す（隠れたジョブを、見えない
+    /// まま消さないように）。詳細は、ジョブがある間は出し続ける
+    fn update_rows(&mut self) {
+        self.rows = job_rows(&self.jobs, self.filter);
+        let shown: BTreeSet<u64> = self.rows.iter().map(|row| row.job.job_id).collect();
+        self.selection.retain(|id| shown.contains(id));
+        if let Some(kept) = self.delete_kept.as_mut() {
+            kept.retain(|id| shown.contains(id));
+            if kept.is_empty() {
+                self.delete_kept = None;
+            }
+        }
+        if self.selected_job().is_none() {
+            self.selected = None;
+        }
+    }
+
+    /// 一覧の行 `rows` のジョブ `job_id` を押したときの選び（Ctrl で選びを足し外し、Shift で範囲を選ぶ）
+    fn select(&mut self, rows: &[JobRow], job_id: u64, modifiers: egui::Modifiers) {
+        let position = |id: u64| rows.iter().position(|row| row.job.job_id == id);
+        let range = self
+            .anchor
+            .and_then(position)
+            .zip(position(job_id))
+            .filter(|_| modifiers.shift);
+        if let Some((anchor, at)) = range {
+            if !modifiers.command {
+                self.selection.clear();
+            }
+            self.selection.extend(
+                rows[anchor.min(at)..=anchor.max(at)]
+                    .iter()
+                    .map(|row| row.job.job_id),
+            );
+            self.selected = Some(job_id);
+        } else if modifiers.command {
+            if self.selection.remove(&job_id) {
+                if self.selected == Some(job_id) {
+                    self.selected = None;
+                }
+            } else {
+                self.selection.insert(job_id);
+                self.selected = Some(job_id);
+            }
+            self.anchor = Some(job_id);
+        } else {
+            self.selection = BTreeSet::from([job_id]);
+            self.selected = Some(job_id);
+            self.anchor = Some(job_id);
+        }
+        self.delete_kept = None;
+    }
+
     fn status_text(&self, status: StoredJobStatus) -> String {
         self.text(match status {
             StoredJobStatus::Queued => "status.queued",
@@ -255,12 +329,13 @@ impl JobManagerWindow {
         }
     }
 
-    /// 選んだジョブの操作（状態で操作できるものだけを押せる）
+    /// 選んだジョブの操作（状態で操作できるものだけを押せる。削除のほかは、1 つだけ選んだときに押せる）
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
         use StoredJobStatus::{Canceled, Failed, Queued, Running};
+        let idle = self.pending_replies == 0;
         let selected = self
             .selected_job()
-            .filter(|_| self.pending_replies == 0)
+            .filter(|job| idle && self.selection.len() == 1 && self.selection.contains(&job.job_id))
             .map(|job| (job.job_id, job.status));
         let can = |allowed: &[StoredJobStatus]| {
             selected.is_some_and(|(_, status)| allowed.contains(&status))
@@ -268,10 +343,7 @@ impl JobManagerWindow {
         let buttons = [
             ("toolbar.cancel", can(&[Queued, Running])),
             ("toolbar.retry", can(&[Failed, Canceled])),
-            (
-                "toolbar.delete",
-                selected.is_some_and(|(_, status)| status.is_terminal()),
-            ),
+            ("toolbar.delete", idle && !self.selection.is_empty()),
             ("toolbar.raise", can(&[Queued])),
             ("toolbar.lower", can(&[Queued])),
         ];
@@ -284,27 +356,33 @@ impl JobManagerWindow {
                 clicked = Some(key);
             }
         }
+        if clicked == Some("toolbar.delete") {
+            self.request_delete();
+            return;
+        }
         let (Some(key), Some((job_id, _))) = (clicked, selected) else {
             return;
         };
         match key {
             "toolbar.cancel" => self.send(JobCommand::Cancel(job_id)),
             "toolbar.retry" => self.send(JobCommand::Retry(job_id)),
-            "toolbar.delete" => {
-                let dependents: Vec<u64> = self
-                    .jobs
-                    .iter()
-                    .filter(|job| job.depends_on.contains(&job_id))
-                    .map(|job| job.job_id)
-                    .collect();
-                if dependents.is_empty() {
-                    self.send(JobCommand::Delete(job_id));
-                } else {
-                    self.delete_confirmation = Some(DeleteConfirmation { job_id, dependents });
-                }
-            }
             "toolbar.raise" => self.send(JobCommand::ChangePriority { job_id, delta: 1 }),
             _ => self.send(JobCommand::ChangePriority { job_id, delta: -1 }),
+        }
+    }
+
+    /// 選んだジョブを消す（1 つだけを消すときのほかは、消すジョブ・消さないジョブを出して確かめる）
+    fn request_delete(&mut self) {
+        let selected: Vec<u64> = self.selection.iter().copied().collect();
+        let plan = delete_plan(&self.jobs, &selected);
+        if plan.deleted.is_empty() {
+            self.delete_kept = Some(plan.kept);
+        } else if plan.deleted.len() == 1 && plan.kept.is_empty() {
+            self.delete_kept = None;
+            self.send(JobCommand::Delete(selected));
+        } else {
+            self.delete_kept = None;
+            self.delete_confirmation = Some(DeleteConfirmation { selected, plan });
         }
     }
 
@@ -313,14 +391,34 @@ impl JobManagerWindow {
         let Some(confirmation) = self.delete_confirmation.clone() else {
             return;
         };
-        let jobs: Vec<String> = confirmation.dependents.iter().map(u64::to_string).collect();
-        let message = self.text_with(
-            "delete.confirm",
-            &[
-                ("job", confirmation.job_id.to_string()),
-                ("jobs", jobs.join(", ")),
-            ],
+        let list = |ids: &mut dyn Iterator<Item = &u64>| {
+            ids.map(u64::to_string).collect::<Vec<_>>().join(", ")
+        };
+        let plan = &confirmation.plan;
+        let chosen = list(
+            &mut plan
+                .deleted
+                .iter()
+                .filter(|id| confirmation.selected.contains(id)),
         );
+        let later = list(
+            &mut plan
+                .deleted
+                .iter()
+                .filter(|id| !confirmation.selected.contains(id)),
+        );
+        let mut lines = vec![self.text_with("delete.confirm", &[("jobs", chosen)])];
+        if !later.is_empty() {
+            lines.push(self.text_with("delete.confirm_later", &[("jobs", later)]));
+        }
+        if !plan.kept.is_empty() {
+            lines.push(self.text_with(
+                "delete.confirm_kept",
+                &[("jobs", list(&mut plan.kept.iter()))],
+            ));
+        }
+        lines.push(self.text("delete.confirm_question"));
+        let message = lines.join("\n");
         let (yes, no) = (
             self.text("delete.confirm_yes"),
             self.text("delete.confirm_no"),
@@ -350,7 +448,14 @@ impl JobManagerWindow {
         match choice {
             Some(true) => {
                 self.delete_confirmation = None;
-                self.send(JobCommand::Delete(confirmation.job_id));
+                // 確かめたときに消すとしたジョブだけを頼む（確かめている間に計算を終えたジョブを、消すと出さずに
+                // 消さないように）
+                let confirmed: Vec<u64> = confirmation
+                    .selected
+                    .into_iter()
+                    .filter(|id| confirmation.plan.deleted.contains(id))
+                    .collect();
+                self.send(JobCommand::Delete(confirmed));
             }
             Some(false) => self.delete_confirmation = None,
             None => {}
@@ -450,6 +555,13 @@ impl JobManagerWindow {
                         "command.failed",
                         &[("reason", self.text(store_failure_key(failure)))],
                     ),
+                );
+            }
+            if let Some(kept) = &self.delete_kept {
+                let jobs: Vec<String> = kept.iter().map(u64::to_string).collect();
+                ui.colored_label(
+                    ui.visuals().warn_fg_color,
+                    self.text_with("delete.kept", &[("jobs", jobs.join(", "))]),
                 );
             }
             if let Some(size) = self.store_size {
@@ -554,7 +666,7 @@ impl JobManagerWindow {
                 });
             });
         if self.filter != before {
-            self.rows = job_rows(&self.jobs, self.filter);
+            self.update_rows();
         }
     }
 
@@ -563,12 +675,15 @@ impl JobManagerWindow {
         // 行を描く間は自分を借りるため、行を一時に取り出し、描き終えたら戻す
         let rows = std::mem::take(&mut self.rows);
         // 選んだ行・マウスが乗った行の色（見出しの行が 0 のため、ジョブの行は 1 から）。乗った行は、前の描画のもの
-        let selected_row = rows
+        let selected_rows: BTreeSet<usize> = rows
             .iter()
-            .position(|row| Some(row.job.job_id) == self.selected)
-            .map(|index| index + 1);
+            .enumerate()
+            .filter(|(_, row)| self.selection.contains(&row.job.job_id))
+            .map(|(index, _)| index + 1)
+            .collect();
         let hovered_row = self.hovered_row;
         let mut hovered_now = None;
+        let mut clicked = None;
         ScrollArea::vertical().show(ui, |ui| {
             // 行のどこを押しても選べるように、文字は押せないようにする
             ui.style_mut().interaction.selectable_labels = false;
@@ -576,7 +691,7 @@ impl JobManagerWindow {
             Grid::new("jobs")
                 .num_columns(7)
                 .with_row_color(move |row, style| {
-                    if Some(row) == selected_row {
+                    if selected_rows.contains(&row) {
                         Some(style.visuals.selection.bg_fill)
                     } else if row > 0 && Some(row) == hovered_row {
                         Some(style.visuals.widgets.hovered.weak_bg_fill)
@@ -648,7 +763,7 @@ impl JobManagerWindow {
                             egui::Sense::click(),
                         );
                         if response.clicked() {
-                            self.selected = Some(job.job_id);
+                            clicked = Some(job.job_id);
                         }
                         if response.hovered() {
                             hovered_now = Some(index + 1);
@@ -657,6 +772,10 @@ impl JobManagerWindow {
                     }
                 });
         });
+        if let Some(job_id) = clicked {
+            let modifiers = ui.input(|input| input.modifiers);
+            self.select(&rows, job_id, modifiers);
+        }
         if hovered_now != self.hovered_row {
             self.hovered_row = hovered_now;
             // 乗った行の色を、すぐに描き直す

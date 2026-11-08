@@ -18,12 +18,16 @@ const LOCK_ATTEMPTS: u32 = 10;
 const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
 /// 画面からの、ジョブの操作
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum JobCommand {
     Cancel(u64),
     Retry(u64),
-    Delete(u64),
-    ChangePriority { job_id: u64, delta: i32 },
+    /// 選んだジョブを、その成果物を使う後のジョブとあわせて消す（計算待ち・計算中のものは残す）
+    Delete(Vec<u64>),
+    ChangePriority {
+        job_id: u64,
+        delta: i32,
+    },
 }
 
 /// サービスへの頼み
@@ -34,8 +38,8 @@ pub(crate) enum ServiceRequest {
     Quit { done: Sender<()> },
 }
 
-/// 操作の結果（保存先を読み書きできなかったときは理由）
-pub(crate) type CommandReply = Result<(), StoreFailure>;
+/// 操作の結果（消さずに残した、選んだジョブ。保存先を読み書きできなかったときは理由）
+pub(crate) type CommandReply = Result<Vec<u64>, StoreFailure>;
 
 /// ジョブの操作・保存先の読み込みの誤りの種類（画面の言語の文言にするため）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -134,7 +138,7 @@ pub(crate) fn start_service(
                     return;
                 }
                 Some(Ok(ServiceRequest::Command(command))) => {
-                    let result = run_command(&mut service, command, now_ms());
+                    let result = run_command(&mut service, &command, now_ms());
                     // 英語の詳しい理由はログに書き、画面には種類を返す
                     write(format!("command {command:?} -> {result:?}"));
                     let _ = reply_tx.send(result.map_err(|error| StoreFailure::of(&error)));
@@ -167,17 +171,19 @@ pub(crate) fn now_ms() -> u64 {
 
 fn run_command(
     service: &mut JobManagerService<ProcessLauncher>,
-    command: JobCommand,
+    command: &JobCommand,
     now_ms: u64,
-) -> Result<(), StoreError> {
+) -> Result<Vec<u64>, StoreError> {
     // 操作の間に状態が変わって操作できなくなったジョブは、何もしない（一覧を読み直せば分かる）
     match command {
-        JobCommand::Cancel(job_id) => service.cancel(job_id, now_ms).map(drop),
-        JobCommand::Retry(job_id) => service.retry(job_id, now_ms).map(drop),
-        JobCommand::Delete(job_id) => service.delete(job_id).map(drop),
-        JobCommand::ChangePriority { job_id, delta } => {
-            service.change_priority(job_id, delta, now_ms).map(drop)
-        }
+        JobCommand::Cancel(job_id) => service.cancel(*job_id, now_ms).map(|_| Vec::new()),
+        JobCommand::Retry(job_id) => service.retry(*job_id, now_ms).map(|_| Vec::new()),
+        JobCommand::Delete(job_ids) => service
+            .delete(job_ids)
+            .map(|plan| plan.kept.into_iter().collect()),
+        JobCommand::ChangePriority { job_id, delta } => service
+            .change_priority(*job_id, *delta, now_ms)
+            .map(|_| Vec::new()),
     }
 }
 

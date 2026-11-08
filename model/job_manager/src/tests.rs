@@ -515,18 +515,54 @@ fn only_finished_jobs_are_deleted() {
     submit(&root.store(), "a1", cam_and_sim());
     service.tick(1);
 
-    assert!(!service.delete(1).unwrap());
-    assert!(!service.delete(2).unwrap());
+    let kept = |ids: &[u64]| DeletePlan {
+        deleted: BTreeSet::new(),
+        kept: ids.iter().copied().collect(),
+    };
+    // 計算中のジョブも、計算待ちの後のジョブを持つジョブも消さない
+    assert_eq!(service.delete(&[1, 2]).unwrap(), kept(&[1, 2]));
     service.cancel(1, 2).unwrap();
-    assert!(service.delete(1).unwrap());
+    assert_eq!(service.delete(&[1]).unwrap(), kept(&[1]));
+    assert!(root.store().job_dir(1).exists());
+    // 後のジョブが失敗で終わったら、前のジョブを選ぶと後のジョブもあわせて消す
+    service.tick(3);
+    assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Failed);
+    assert_eq!(
+        service.delete(&[1, 9]).unwrap(),
+        DeletePlan {
+            deleted: BTreeSet::from([1, 2]),
+            kept: BTreeSet::new(),
+        }
+    );
     assert!(!root.store().job_dir(1).exists());
-    assert!(!service.delete(1).unwrap());
-    // 消したジョブを待つジョブは、計算できずに失敗になる
-    let events = service.tick(3);
-    assert!(events.contains(&ManagerEvent::Blocked {
-        job_id: 2,
-        reason: "dependency job 1 is not found".to_string(),
-    }));
+    assert!(!root.store().job_dir(2).exists());
+    assert_eq!(service.delete(&[1]).unwrap(), DeletePlan::default());
+}
+
+#[test]
+fn deleting_a_later_job_keeps_the_earlier_job() {
+    let root = TempRoot::new();
+    let (mut service, _) =
+        JobManagerService::start(root.store(), FakeLauncher::default(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    submit(&root.store(), "a2", cam_and_sim());
+    for now in 1..20 {
+        service.tick(now);
+    }
+    assert_eq!(
+        status_of(&root.store(), 4).status,
+        StoredJobStatus::Succeeded
+    );
+    // 後のジョブだけを選べば、前のジョブを残す。複数を選べば、それぞれの後のジョブもあわせて消す
+    assert_eq!(
+        service.delete(&[2, 3]).unwrap(),
+        DeletePlan {
+            deleted: BTreeSet::from([2, 3, 4]),
+            kept: BTreeSet::new(),
+        }
+    );
+    assert!(root.store().job_dir(1).exists());
+    assert!(!root.store().job_dir(4).exists());
 }
 
 #[test]
