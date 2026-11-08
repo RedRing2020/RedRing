@@ -866,6 +866,20 @@ fn read_request(dir: &Path) -> Result<SubmissionRequest, String> {
     serde_json::from_slice(&bytes).map_err(|error| format!("invalid request: {error}"))
 }
 
+/// 新しい投入の ID（時刻・プロセスの番号・プロセスの中の数で、重ならないようにする。`write_submission` の名前の
+/// 決まりに合う）
+pub fn new_submission_id() -> String {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    format!(
+        "{nanos:x}-{:x}-{:x}",
+        std::process::id(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    )
+}
+
 /// 投入の要求と入力を検証する。誤りは理由（英語）を返す
 fn validate_submission(
     dir: &Path,

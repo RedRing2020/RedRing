@@ -57,6 +57,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **`job_runtime`** / **`job_domain`**: CAD / CAM / CAE に依存しない実行制御 / ジョブ投入のポリシー
 - **`job_runner`**: ジョブ 1 つの計算だけを行うランナーの実行ファイル（`redring-batch-runner`）。引数・入力と成果物のファイル・ログ・進み具合・終了の番号だけを持つ（`JOB_MANAGER_STORAGE_DESIGN.md` 3 章）
 - **`job_manager`**: ジョブマネージャーのサービス。ジョブの保存先を排他に開き、投入の取り込み・実行の順・ランナーの起動と終わりの判断・取り消しを行う。CAD/CAM に依らない（`JOB_MANAGER_STORAGE_DESIGN.md` 3.2）
+- **`job_ipc`**: ジョブマネージャーに問い合わせる口。利用者ごとの口（Windows では名前付きパイプ、ほかの OS では UNIX ドメインソケット）の開き方・つなぎ方、枠、要求と応答の型、要求を送る側と受ける側を持つ。ジョブの保存先の形式と分けるため、ワークスペースの他のクレートに依存しない（`JOB_IPC_DESIGN.md`）
 - **`application`**: テセレーション・シミュレーション・ジョブ投入などのユースケースの orchestration（`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`）
 - **`viewmodel/*`**: モデルのデータの描画用への変換（`converter`）、カメラ等のグラフィックス制御（`graphics`）
 - **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）、ジョブマネージャーの画面と実行ファイル（`job_manager_app`。`redring-job-manager`。CAD/CAM の ViewModel を通さず、`job_manager`・`job_runtime` に直接依存する。`CAM_OPERATION_UI_DESIGN.md` 3.7）
