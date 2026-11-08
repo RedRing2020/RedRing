@@ -152,3 +152,14 @@ fn removed_toolpaths_are_no_longer_held() {
         ImportedToolpathState::None
     );
 }
+
+#[test]
+fn the_toolpath_of_an_operation_is_read_from_its_record() {
+    let (sequences, sequence, operation) = one_operation();
+    let empty = ImportedToolpathStore::new();
+    assert!(empty.toolpath(operation).is_none());
+    let store =
+        ImportedToolpathStore::from_records(vec![record_of(&sequences, sequence, operation)])
+            .unwrap();
+    assert!(store.toolpath(operation).is_some());
+}

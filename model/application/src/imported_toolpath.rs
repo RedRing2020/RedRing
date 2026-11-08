@@ -108,6 +108,14 @@ impl ImportedToolpathStore {
         &self.toolpaths
     }
 
+    /// 加工工程 `operation` の CL のツールパス（取り込んでいない・読めないときは `None`）
+    pub fn toolpath(&self, operation: MachiningOperationId) -> Option<cam_core::ToolPath<f64>> {
+        let record = self.get(operation)?;
+        read_toolpath_artifact_v1(&mut record.artifact.as_slice())
+            .ok()
+            .map(|(_, toolpath)| toolpath)
+    }
+
     /// 加工工程 `operation` の CL を除く（なければ何もしない）
     pub fn remove(&mut self, operation: MachiningOperationId) {
         self.toolpaths
@@ -143,7 +151,10 @@ impl ImportedToolpathStore {
                 && source.revision_key.as_deref()
                     == Some(current.revision_key().to_string().as_str())
         });
-        if !computed_for_current {
+        // 読めない CL は取り込まない（記録から戻すときと同じく、持つ CL はいつも読める）
+        if !computed_for_current
+            || read_toolpath_artifact_v1(&mut result.toolpath_artifact.as_slice()).is_err()
+        {
             return Ok(false);
         }
         let record = ImportedToolpathRecord {

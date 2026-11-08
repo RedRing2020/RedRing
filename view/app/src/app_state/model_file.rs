@@ -228,7 +228,6 @@ impl AppState {
         self.document = document;
         self.forget_selected_operation_state();
         self.operation_job_statuses.clear();
-        self.imported_operation = None;
         self.show_product_shapes();
     }
 

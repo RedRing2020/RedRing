@@ -182,6 +182,11 @@ pub struct AppState {
     imported_operation: Option<MachiningOperationId>,
     /// 加工条件のウィンドウで入力している、選んだ加工工程の名前（決めるまでは工程の名前を変えない。`None` は工程の名前）
     operation_name_input: Option<String>,
+    /// 描いている CL の線の工程と、そのときの CL の状態（条件を変えて状態が変わったら、線の色を描き直す）
+    drawn_toolpath_state: Option<(
+        MachiningOperationId,
+        viewmodel::space_model_document::ImportedToolpathState,
+    )>,
 
     /// 要求されたモデルファイルの操作（イベントの処理が終わった後に行う）
     file_actions: Vec<model_file::FileAction>,
@@ -279,6 +284,7 @@ impl AppState {
             operation_job_statuses: Vec::new(),
             imported_operation: None,
             operation_name_input: None,
+            drawn_toolpath_state: None,
             job_status_read_at: None,
             file_actions: Vec::new(),
             exit_confirmed: false,
