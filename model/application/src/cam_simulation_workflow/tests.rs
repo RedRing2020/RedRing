@@ -873,8 +873,9 @@ fn only_the_imported_toolpath_of_the_current_conditions_is_submitted() {
             &result,
         )
         .unwrap();
-    // 同じプロセスの中の実行は、CL を入力にする切削シミュレーションを扱わない（ジョブマネージャーの投入は
-    // job_client の試験で確かめる）
+    // ツールパス生成のジョブには、すでに切削シミュレーションがあるため、その下には置かず、CL を入力にする（同じプロセスの
+    // 中の実行は CL を入力にする切削シミュレーションを扱わない。ツールパス生成のジョブの下に置く投入と、CL を入力にする
+    // 投入は、job_client の試験で確かめる）
     assert!(matches!(
         submit(&mut workflow, &machining, &toolpaths).unwrap_err(),
         CamSimulationWorkflowError::InputRegistration(_)

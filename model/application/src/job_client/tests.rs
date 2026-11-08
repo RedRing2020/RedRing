@@ -299,7 +299,7 @@ fn simulations_of_a_toolpath_file_run_without_a_cam_job_and_are_imported() {
     let submission_id = client
         .submit_simulation(SimulationSubmission {
             simulation_input: base.simulation_input,
-            toolpath_artifact: toolpath.clone(),
+            toolpath: SimulationToolpath::Artifact(toolpath.clone()),
             source: base.source,
         })
         .unwrap();
@@ -335,5 +335,63 @@ fn simulations_of_a_toolpath_file_run_without_a_cam_job_and_are_imported() {
     assert!(
         cam_sim::read_cutting_simulation_artifact_v1(&mut imported.simulation_artifact.as_slice())
             .is_ok()
+    );
+}
+
+#[test]
+fn simulations_are_put_under_an_existing_cam_job() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    client.submit(submission()).unwrap();
+    for now in 1..=4 {
+        manager.tick(now);
+    }
+    let cam = client.toolpath_jobs().unwrap();
+    assert_eq!(cam.len(), 1);
+    assert_eq!(cam[0].status, CamJobStatus::Succeeded);
+    assert_eq!(cam[0].source.as_ref().unwrap().source_id, "operation-1");
+    assert!(cam[0].simulated);
+    // 切削シミュレーションを消すと、ツールパス生成のジョブは切削シミュレーションを持たない
+    let simulation = client.simulation_jobs().unwrap()[0].job_id;
+    assert!(manager.delete(simulation).unwrap());
+    assert!(!client.toolpath_jobs().unwrap()[0].simulated);
+
+    let base = submission();
+    let submission_id = client
+        .submit_simulation(SimulationSubmission {
+            simulation_input: base.simulation_input,
+            toolpath: SimulationToolpath::Job(cam[0].job_id),
+            source: base.source,
+        })
+        .unwrap();
+    let request: SubmissionRequest = serde_json::from_slice(
+        &fs::read(
+            root.store_root()
+                .join("inbox")
+                .join(&submission_id)
+                .join("request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        request.jobs[0].depends_on,
+        vec![DependencyRef::Existing(cam[0].job_id)]
+    );
+    assert_eq!(request.jobs[0].toolpath_file, None);
+
+    for now in 5..=7 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].status, CamJobStatus::Succeeded);
+    let imported = client.import(jobs[0].job_id).unwrap();
+    assert!(imported.solver_input.is_some());
+    assert_eq!(
+        imported.toolpath_artifact,
+        run_cam_solver(&base.solver_input).unwrap()
     );
 }

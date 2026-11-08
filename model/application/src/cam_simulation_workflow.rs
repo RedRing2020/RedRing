@@ -35,6 +35,7 @@ use job_domain::{CamJobSource, CamJobStatus};
 use crate::imported_toolpath::ImportedToolpathStore;
 use crate::job_client::{
     JobClient, JobSubmission, LocalStoreJobClient, SimulationJob, SimulationSubmission,
+    SimulationToolpath,
 };
 use crate::job_orchestration::JobOrchestrationError;
 use crate::machining_sequence::{
@@ -405,9 +406,11 @@ impl CamSimulationWorkflow {
         self.enqueue(request, Some(operation_source(operation)))
     }
 
-    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の、空間モデルに取り込んだ CL（`toolpaths`）を
-    /// 入力にして、切削シミュレーションのジョブだけを投入する（計算を待たない）。ジョブは、投入元として工程の ID と今の
-    /// 改訂の番号・改訂の鍵を持つ
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の切削シミュレーションのジョブだけを投入する
+    /// （計算を待たない）。工程の今の改訂で正常に終わり、切削シミュレーションを置いていないツールパス生成のジョブがあれば、
+    /// その下に置いて成果物を読み、なければ空間モデルに取り込んだ今の条件の CL（`toolpaths`）を入力にする（ツールパス生成の
+    /// ジョブ 1 つに、切削シミュレーションは 1 つだけ置く）。ジョブは、投入元として工程の ID と今の改訂の番号・
+    /// 改訂の鍵を持つ
     ///
     /// # Errors
     ///
@@ -427,9 +430,17 @@ impl CamSimulationWorkflow {
             .ok_or(CamSimulationWorkflowError::NoCurrentImportedToolpath)?;
         let (request, operation) =
             resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
+        let current = current_revision(sequences, sequence_id, operation_id)?;
+        let toolpath_job = self.jobs.toolpath_jobs()?.into_iter().rev().find(|job| {
+            job.status == CamJobStatus::Succeeded && !job.simulated && current(&job.source)
+        });
+        let toolpath = match toolpath_job {
+            Some(job) => SimulationToolpath::Job(job.job_id),
+            None => SimulationToolpath::Artifact(toolpath_artifact.to_vec()),
+        };
         let submission_id = self.jobs.submit_simulation(SimulationSubmission {
             simulation_input: simulation_input(&request),
-            toolpath_artifact: toolpath_artifact.to_vec(),
+            toolpath,
             source: Some(operation_source(operation)),
         })?;
         Ok(CamSimulationSubmission { submission_id })

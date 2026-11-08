@@ -257,7 +257,7 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 空間モデルの CL から計算し直せるか（CL が今の条件の結果で、条件に誤りがなく、今の条件の計算が待ち・計算中・
+    /// 切削シミュレーションだけを計算し直せるか（CL が今の条件の結果で、条件に誤りがなく、今の条件の計算が待ち・計算中・
     /// 完了でない。結果がジョブマネージャーに残っている間は、同じ計算を重ねない）
     fn can_simulate_toolpath(&self) -> bool {
         self.issues.is_empty()
