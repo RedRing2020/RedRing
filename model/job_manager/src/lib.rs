@@ -88,6 +88,65 @@ pub fn delete_plan(jobs: &[StoredJob], selected: &[u64]) -> DeletePlan {
     plan
 }
 
+/// ジョブの記録 `jobs` のうち、前の改訂の結果のジョブ（番号の順）
+///
+/// 投入元の ID ごとに、最も後に正常に終わったジョブ（番号の最も大きいジョブ）の改訂の鍵を今の改訂とみなし、それより
+/// 前に投入した、ほかの改訂の鍵（鍵を持たない前の版の記録を含む）のジョブを前の改訂とする。後から投入して、まだ
+/// 終わっていない・失敗したジョブでは決めない（前の結果を、新しい結果ができる前に消さないように）。改訂の番号は、
+/// 複製したモデルファイル・保存せずに捨てた変更で重なるため使わない。投入元を持たないジョブは数えない。
+pub fn superseded_jobs(jobs: &[StoredJob]) -> Vec<u64> {
+    let mut latest: HashMap<&str, (u64, Option<&str>)> = HashMap::new();
+    for job in jobs
+        .iter()
+        .filter(|job| job.status == StoredJobStatus::Succeeded)
+    {
+        if let Some(source) = &job.source {
+            let candidate = (job.job_id, source.revision_key.as_deref());
+            latest
+                .entry(source.source_id.as_str())
+                .and_modify(|current| {
+                    if candidate.0 > current.0 {
+                        *current = candidate;
+                    }
+                })
+                .or_insert(candidate);
+        }
+    }
+    jobs.iter()
+        .filter(|job| {
+            job.source.as_ref().is_some_and(|source| {
+                latest
+                    .get(source.source_id.as_str())
+                    .is_some_and(|&(latest_id, latest_key)| {
+                        let key = source.revision_key.as_deref();
+                        job.job_id < latest_id && (key.is_none() || key != latest_key)
+                    })
+            })
+        })
+        .map(|job| job.job_id)
+        .collect()
+}
+
+/// ジョブの記録 `jobs` のうち、時刻 `before_ms`（UNIX 時刻のミリ秒）より前に投入した、終わったジョブ（番号の順）
+///
+/// その成果物を使う後のジョブ（消すときに、あわせて消える）も、すべてその時刻より前に投入したものに限る（古い
+/// ツールパス生成の下に、後から計算した切削シミュレーションを消さないように）。
+pub fn old_jobs(jobs: &[StoredJob], before_ms: u64) -> Vec<u64> {
+    let created: HashMap<u64, u64> = jobs
+        .iter()
+        .map(|job| (job.job_id, job.created_at_ms))
+        .collect();
+    jobs.iter()
+        .filter(|job| job.status.is_terminal() && job.created_at_ms < before_ms)
+        .filter(|job| {
+            later_jobs(jobs, job.job_id, |_| true)
+                .iter()
+                .all(|id| created[id] < before_ms)
+        })
+        .map(|job| job.job_id)
+        .collect()
+}
+
 /// ジョブマネージャーのサービス
 pub struct JobManagerService<L: Launcher> {
     store: JobStore,
@@ -281,6 +340,15 @@ impl<L: Launcher> JobManagerService<L> {
             self.store.delete_job(&self.lock, job_id)?;
         }
         Ok(plan)
+    }
+
+    /// 取り込めなかった投入 `submission_ids` を消す（もうないものは数えない）
+    pub fn remove_rejected(&mut self, submission_ids: &[String]) -> Result<(), StoreError> {
+        for submission_id in submission_ids {
+            self.store
+                .remove_rejected_submission(&self.lock, submission_id)?;
+        }
+        Ok(())
     }
 
     /// 計算待ちのジョブの優先順位を `delta` だけ変える。変えたら `true`（計算待ちでないジョブは `false`）

@@ -44,6 +44,27 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("toolbar.delete", "削除"),
     ("toolbar.raise", "▲ 上げる"),
     ("toolbar.lower", "▼ 下げる"),
+    ("toolbar.bulk_delete", "まとめて削除…"),
+    ("bulk.title", "まとめて削除"),
+    (
+        "bulk.superseded",
+        "前の改訂の結果（同じ加工工程に、別の条件で後から投入して正常に終わったジョブがあるもの）: {count} 件",
+    ),
+    ("bulk.old", "古いジョブ:"),
+    ("bulk.days_suffix", " 日"),
+    ("bulk.old_count", "より前に投入したもの（{count} 件）"),
+    ("bulk.rejected", "取り込めなかった投入: {count} 件"),
+    (
+        "bulk.summary",
+        "消すジョブ: {count} 件（その結果を使う後のジョブを含む。終わったジョブだけ）",
+    ),
+    (
+        "bulk.kept",
+        "後のジョブが計算待ち・計算中のため、残すジョブ: {jobs}",
+    ),
+    ("bulk.note", "消したジョブの結果は、取り込めなくなります。"),
+    ("bulk.yes", "消す"),
+    ("bulk.no", "やめる"),
     ("command.failed", "操作できませんでした（{reason}）"),
     ("delete.confirm", "選んだジョブ（{jobs}）を消します。"),
     (
@@ -253,6 +274,33 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ("toolbar.delete", "Delete"),
     ("toolbar.raise", "▲ Raise"),
     ("toolbar.lower", "▼ Lower"),
+    ("toolbar.bulk_delete", "Bulk delete…"),
+    ("bulk.title", "Bulk delete"),
+    (
+        "bulk.superseded",
+        "Results of previous revisions (a later job with other conditions completed for the same machining operation): {count}",
+    ),
+    ("bulk.old", "Old jobs:"),
+    ("bulk.days_suffix", " days"),
+    ("bulk.old_count", "or older ({count})"),
+    (
+        "bulk.rejected",
+        "Submissions that could not be taken in: {count}",
+    ),
+    (
+        "bulk.summary",
+        "Jobs to delete: {count} (including later jobs that use their results; finished jobs only)",
+    ),
+    (
+        "bulk.kept",
+        "Jobs kept because their later jobs are waiting or calculating: {jobs}",
+    ),
+    (
+        "bulk.note",
+        "The results of deleted jobs can no longer be imported.",
+    ),
+    ("bulk.yes", "Delete"),
+    ("bulk.no", "Cancel"),
     ("command.failed", "The operation failed ({reason})"),
     (
         "delete.confirm",

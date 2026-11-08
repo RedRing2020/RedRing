@@ -63,7 +63,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.status.nothing_to_import",
         "取り込める結果がありません（投入して計算が終わった後に取り込みます）",
     ),
-    ("conditions.job.none", "今の条件の計算: まだ投入していません"),
+    ("conditions.job.none", "今の条件の計算: ジョブがありません（投入していない、または消した）"),
     ("conditions.job.queued", "今の条件の計算: 計算待ち"),
     ("conditions.job.running", "今の条件の計算: 計算中"),
     (
@@ -192,7 +192,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.status.nothing_to_import",
         "No result to import (submit and wait for the calculation to finish first)",
     ),
-    ("conditions.job.none", "Calculation for the current conditions: not submitted"),
+    ("conditions.job.none", "Calculation for the current conditions: no job (not submitted or deleted)"),
     ("conditions.job.queued", "Calculation for the current conditions: waiting"),
     ("conditions.job.running", "Calculation for the current conditions: calculating"),
     (

@@ -24,6 +24,8 @@ pub(crate) enum JobCommand {
     Retry(u64),
     /// 選んだジョブを、その成果物を使う後のジョブとあわせて消す（計算待ち・計算中のものは残す）
     Delete(Vec<u64>),
+    /// 取り込めなかった投入（投入の ID）を消す
+    RemoveRejected(Vec<String>),
     ChangePriority {
         job_id: u64,
         delta: i32,
@@ -181,6 +183,9 @@ fn run_command(
         JobCommand::Delete(job_ids) => service
             .delete(job_ids)
             .map(|plan| plan.kept.into_iter().collect()),
+        JobCommand::RemoveRejected(submission_ids) => {
+            service.remove_rejected(submission_ids).map(|()| Vec::new())
+        }
         JobCommand::ChangePriority { job_id, delta } => service
             .change_priority(*job_id, *delta, now_ms)
             .map(|_| Vec::new()),

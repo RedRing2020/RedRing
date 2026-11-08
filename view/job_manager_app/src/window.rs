@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use crate::locale::{self, Language};
 use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText, ScrollArea};
-use job_manager::{DeletePlan, delete_plan};
+use job_manager::{DeletePlan, delete_plan, old_jobs, superseded_jobs};
 use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::{change_failure_text, job_error_text, store_failure_key, text};
@@ -25,6 +25,11 @@ const JOBS_INTERVAL: Duration = Duration::from_secs(1);
 const REPLY_INTERVAL: Duration = Duration::from_millis(50);
 /// 保存先の大きさを測り直す間隔
 const SIZE_INTERVAL: Duration = Duration::from_secs(10);
+/// まとめて消すときの、古いジョブの日数の既定と上限
+const DEFAULT_OLD_DAYS: u32 = 30;
+const MAX_OLD_DAYS: u32 = 3650;
+/// 1 日のミリ秒
+const DAY_MS: u64 = 24 * 60 * 60 * 1000;
 /// ログのタブに出す、ログの末尾の大きさ
 const LOG_TAIL_BYTES: u64 = 64 * 1024;
 
@@ -45,6 +50,32 @@ enum DetailsTab {
 /// 削除を確かめている、選んだジョブと、消すジョブの決め方の結果
 #[derive(Debug, Clone)]
 struct DeleteConfirmation {
+    selected: Vec<u64>,
+    plan: DeletePlan,
+}
+
+/// まとめて消すときに選んだもの
+#[derive(Debug, Clone)]
+struct BulkDelete {
+    /// 前の改訂の結果
+    superseded: bool,
+    /// 古いジョブ（`old_days` 日より前に投入した、終わったジョブ）
+    old: bool,
+    old_days: u32,
+    /// 取り込めなかった投入（画面を開いたときにあったものだけを消す）
+    rejected: bool,
+    rejected_ids: Vec<String>,
+    /// 選んだもの・ジョブの記録が変わったときだけ決め直す、消すジョブ
+    targets: Option<BulkTargets>,
+}
+
+/// まとめて消すときの、消すジョブ
+#[derive(Debug, Clone)]
+struct BulkTargets {
+    /// 決めたときの選んだもの（前の改訂の結果・古いジョブ・日数）と、ジョブの記録の読み込みの回
+    inputs: (bool, bool, u32, u64),
+    superseded: usize,
+    old: usize,
     selected: Vec<u64>,
     plan: DeletePlan,
 }
@@ -98,6 +129,9 @@ pub(crate) struct JobManagerWindow {
     delete_confirmation: Option<DeleteConfirmation>,
     /// 計算待ち・計算中のため消さなかった、選んだジョブ
     delete_kept: Option<BTreeSet<u64>>,
+    bulk_delete: Option<BulkDelete>,
+    /// ジョブの記録を読み込んだ回（読み込むたびに増やす）
+    jobs_version: u64,
     store_change: Option<StoreChange>,
     /// 保存先を替えられなかった理由
     store_change_error: Option<ChangeFailure>,
@@ -132,6 +166,8 @@ impl JobManagerWindow {
             pending_replies: 0,
             delete_confirmation: None,
             delete_kept: None,
+            bulk_delete: None,
+            jobs_version: 0,
             store_change: None,
             store_change_error: None,
             hovered_row: None,
@@ -206,6 +242,7 @@ impl JobManagerWindow {
             match self.store.load_jobs() {
                 Ok((jobs, unreadable)) => {
                     self.jobs = jobs;
+                    self.jobs_version += 1;
                     self.unreadable_jobs = unreadable.len();
                     self.store_error = None;
                 }
@@ -356,6 +393,12 @@ impl JobManagerWindow {
                 clicked = Some(key);
             }
         }
+        if ui
+            .add_enabled(idle, egui::Button::new(self.text("toolbar.bulk_delete")))
+            .clicked()
+        {
+            self.open_bulk_delete();
+        }
         if clicked == Some("toolbar.delete") {
             self.request_delete();
             return;
@@ -383,6 +426,152 @@ impl JobManagerWindow {
         } else {
             self.delete_kept = None;
             self.delete_confirmation = Some(DeleteConfirmation { selected, plan });
+        }
+    }
+
+    /// まとめて消す画面を開く（取り込めなかった投入を数える）
+    fn open_bulk_delete(&mut self) {
+        let rejected_ids = self.store.rejected_submission_ids().unwrap_or_default();
+        self.delete_kept = None;
+        self.bulk_delete = Some(BulkDelete {
+            superseded: false,
+            old: false,
+            old_days: DEFAULT_OLD_DAYS,
+            rejected: false,
+            rejected_ids,
+            targets: None,
+        });
+    }
+
+    /// まとめて消すときの、消すジョブ（終わったジョブだけ。選んだもの・ジョブの記録が前と同じなら決め直さない）
+    fn bulk_targets(&self, bulk: &BulkDelete) -> BulkTargets {
+        let inputs = (bulk.superseded, bulk.old, bulk.old_days, self.jobs_version);
+        if let Some(targets) = bulk
+            .targets
+            .as_ref()
+            .filter(|targets| targets.inputs == inputs)
+        {
+            return targets.clone();
+        }
+        let finished: BTreeSet<u64> = self
+            .jobs
+            .iter()
+            .filter(|job| job.status.is_terminal())
+            .map(|job| job.job_id)
+            .collect();
+        let superseded: Vec<u64> = superseded_jobs(&self.jobs)
+            .into_iter()
+            .filter(|id| finished.contains(id))
+            .collect();
+        let before = now_ms().saturating_sub(u64::from(bulk.old_days) * DAY_MS);
+        let old = old_jobs(&self.jobs, before);
+        let mut selected: BTreeSet<u64> = BTreeSet::new();
+        if bulk.superseded {
+            selected.extend(&superseded);
+        }
+        if bulk.old {
+            selected.extend(&old);
+        }
+        let selected: Vec<u64> = selected.into_iter().collect();
+        let plan = delete_plan(&self.jobs, &selected);
+        BulkTargets {
+            inputs,
+            superseded: superseded.len(),
+            old: old.len(),
+            selected,
+            plan,
+        }
+    }
+
+    /// まとめて消すものを選び、消すジョブの数を出して確かめる
+    fn show_bulk_delete(&mut self, ctx: &egui::Context) {
+        let Some(mut bulk) = self.bulk_delete.clone() else {
+            return;
+        };
+        let targets = self.bulk_targets(&bulk);
+        let removes_rejected = bulk.rejected && !bulk.rejected_ids.is_empty();
+        let count = |n: usize| n.to_string();
+        let texts = (
+            self.text("bulk.title"),
+            self.text_with("bulk.superseded", &[("count", count(targets.superseded))]),
+            self.text("bulk.old"),
+            self.text_with("bulk.old_count", &[("count", count(targets.old))]),
+            self.text_with(
+                "bulk.rejected",
+                &[("count", count(bulk.rejected_ids.len()))],
+            ),
+            self.text_with(
+                "bulk.summary",
+                &[("count", count(targets.plan.deleted.len()))],
+            ),
+            self.text("bulk.note"),
+            self.text("bulk.days_suffix"),
+        );
+        let kept_text = (!targets.plan.kept.is_empty()).then(|| {
+            let jobs: Vec<String> = targets.plan.kept.iter().map(u64::to_string).collect();
+            self.text_with("bulk.kept", &[("jobs", jobs.join(", "))])
+        });
+        let (yes, no) = (self.text("bulk.yes"), self.text("bulk.no"));
+        let mut choice = None;
+        let response = Modal::new(Id::new("bulk_delete")).show(ctx, |ui| {
+            ui.set_max_width(520.0);
+            ui.heading(texts.0);
+            ui.add_space(8.0);
+            ui.checkbox(&mut bulk.superseded, texts.1);
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut bulk.old, texts.2);
+                ui.add(
+                    egui::DragValue::new(&mut bulk.old_days)
+                        .range(1..=MAX_OLD_DAYS)
+                        .suffix(texts.7),
+                );
+                ui.label(texts.3);
+            });
+            ui.checkbox(&mut bulk.rejected, texts.4);
+            ui.add_space(8.0);
+            ui.label(texts.5);
+            if let Some(kept) = kept_text {
+                ui.colored_label(ui.visuals().warn_fg_color, kept);
+            }
+            ui.colored_label(ui.visuals().warn_fg_color, texts.6);
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                let enabled = !targets.plan.deleted.is_empty() || removes_rejected;
+                if ui.add_enabled(enabled, egui::Button::new(yes)).clicked() {
+                    choice = Some(true);
+                }
+                if ui.button(no).clicked() {
+                    choice = Some(false);
+                }
+            });
+        });
+        // 外を押したとき・Esc は、消さない
+        if response.should_close() && choice.is_none() {
+            choice = Some(false);
+        }
+        match choice {
+            None => {
+                bulk.targets = Some(targets);
+                self.bulk_delete = Some(bulk);
+            }
+            Some(confirmed) => {
+                self.bulk_delete = None;
+                ctx.request_repaint();
+                if confirmed {
+                    // 消すとしたジョブだけを頼む（確かめている間に状態が変わったジョブを、消すと出さずに消さないように）
+                    let confirmed: Vec<u64> = targets
+                        .selected
+                        .into_iter()
+                        .filter(|id| targets.plan.deleted.contains(id))
+                        .collect();
+                    if !confirmed.is_empty() {
+                        self.send(JobCommand::Delete(confirmed));
+                    }
+                    if removes_rejected {
+                        self.send(JobCommand::RemoveRejected(bulk.rejected_ids));
+                    }
+                }
+            }
         }
     }
 
@@ -898,6 +1087,7 @@ impl eframe::App for JobManagerWindow {
         self.update_title(ui.ctx());
         self.refresh();
         self.show_delete_confirmation(ui.ctx());
+        self.show_bulk_delete(ui.ctx());
         self.show_store_change(ui.ctx());
         Panel::top("header").show_inside(ui, |ui| self.show_header(ui));
         Panel::left("filter")
