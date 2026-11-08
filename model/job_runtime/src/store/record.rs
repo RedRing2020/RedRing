@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 /// 記録・要求の形式の版（書くときの版）
 ///
 /// 版 2 で、投入元に改訂の鍵を足した。版 3 で、切削シミュレーションの入力に CL のファイルを持てるようにした。前の版を
-/// 読む側は知らない項目を読み捨てるため、項目を足したときも版を上げ、前の版のジョブマネージャーが新しい要求を黙って
-/// 取り込まない（拒む）ようにする。
+/// 読む側は知らない項目を読み捨てるため、要求の項目を足したときも版を上げ、前の版のジョブマネージャーが新しい要求を
+/// 黙って取り込まない（拒む）ようにする。記録の失敗の理由の種類（`error`）は、読み捨てても英語の文（`last_error`）が
+/// 残るため、版を上げずに足した。
 pub const STORE_FORMAT_VERSION: u32 = 3;
 
 /// 切削シミュレーションの入力に CL のファイルを持てる、最も古い要求の形式の版
@@ -66,6 +67,73 @@ pub struct StoredJobSource {
     pub revision_key: Option<String>,
 }
 
+/// ジョブの失敗の理由の種類（画面の言語の文言にするため。英語の文は `Display` で返し、記録の `last_error` に残す）
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StoredJobError {
+    /// 依存するジョブが、前のジョブでない
+    DependencyNotEarlier { job: u64 },
+    /// 依存するジョブが、実行できない
+    DependencyCannotRun { job: u64 },
+    /// 依存するジョブがない
+    DependencyNotFound { job: u64 },
+    /// 依存するジョブが失敗した
+    DependencyFailed { job: u64 },
+    /// 依存するジョブが取り消された
+    DependencyCanceled { job: u64 },
+    /// ランナーを起動できない
+    RunnerNotStarted,
+    /// ランナーが成果物を書かずに終わった
+    RunnerWroteNoResult,
+    /// ランナーの引数が正しくない
+    RunnerInvalidArguments,
+    /// ランナーが入力を読めない
+    RunnerCannotReadInput,
+    /// 入力が正しくない
+    InvalidInput,
+    /// 計算に失敗した
+    CalculationFailed,
+    /// ランナーが成果物を書けない
+    RunnerCannotWriteResult,
+    /// ランナーが、ほかの終了の番号で終わった
+    RunnerExitCode { code: i32 },
+    /// ランナーが止められた
+    RunnerStopped,
+    /// 計算中にジョブマネージャーが止まった
+    ManagerStopped,
+    /// ジョブマネージャーを終了した
+    ManagerQuit,
+    /// 読む側が知らない種類（新しい版で足した種類。英語の文 `last_error` を出す）
+    #[serde(other)]
+    Unknown,
+}
+
+impl std::fmt::Display for StoredJobError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DependencyNotEarlier { job } => {
+                write!(f, "dependency job {job} is not an earlier job")
+            }
+            Self::DependencyCannotRun { job } => write!(f, "dependency job {job} cannot run"),
+            Self::DependencyNotFound { job } => write!(f, "dependency job {job} is not found"),
+            Self::DependencyFailed { job } => write!(f, "dependency job {job} failed"),
+            Self::DependencyCanceled { job } => write!(f, "dependency job {job} was canceled"),
+            Self::RunnerNotStarted => write!(f, "cannot start the runner"),
+            Self::RunnerWroteNoResult => write!(f, "the runner wrote no result"),
+            Self::RunnerInvalidArguments => write!(f, "the runner arguments are invalid"),
+            Self::RunnerCannotReadInput => write!(f, "the runner cannot read the input"),
+            Self::InvalidInput => write!(f, "the input is invalid"),
+            Self::CalculationFailed => write!(f, "the calculation failed"),
+            Self::RunnerCannotWriteResult => write!(f, "the runner cannot write the result"),
+            Self::RunnerExitCode { code } => write!(f, "the runner ended with exit code {code}"),
+            Self::RunnerStopped => write!(f, "the runner was stopped"),
+            Self::ManagerStopped => write!(f, "the job manager stopped while the job was running"),
+            Self::ManagerQuit => write!(f, "the job manager was quit"),
+            Self::Unknown => write!(f, "unknown error"),
+        }
+    }
+}
+
 /// ジョブの記録
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StoredJob {
@@ -91,7 +159,11 @@ pub struct StoredJob {
     pub started_at_ms: Option<u64>,
     pub result_ref: Option<String>,
     pub log_ref: Option<String>,
+    /// 直近の誤り（英語の文。ログと照らし合わせるため）
     pub last_error: Option<String>,
+    /// 直近の誤りの種類（前の版の記録・種類を持たない誤りは `None`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<StoredJobError>,
 }
 
 /// 投入の要求

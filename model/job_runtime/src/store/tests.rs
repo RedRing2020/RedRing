@@ -617,6 +617,7 @@ fn scheduled_job(
         result_ref: None,
         log_ref: None,
         last_error: None,
+        error: None,
     }
 }
 
@@ -693,12 +694,12 @@ fn jobs_that_cannot_run_are_blocked_in_cascade_and_raise_nothing() {
     assert_eq!(
         plan.blocked,
         vec![
-            (2, "dependency job 1 failed".to_string()),
-            (3, "dependency job 2 cannot run".to_string()),
-            (5, "dependency job 4 was canceled".to_string()),
-            (7, "dependency job 6 is not found".to_string()),
-            (8, "dependency job 9 is not an earlier job".to_string()),
-            (12, "dependency job 1 failed".to_string()),
+            (2, StoredJobError::DependencyFailed { job: 1 }),
+            (3, StoredJobError::DependencyCannotRun { job: 2 }),
+            (5, StoredJobError::DependencyCanceled { job: 4 }),
+            (7, StoredJobError::DependencyNotFound { job: 6 }),
+            (8, StoredJobError::DependencyNotEarlier { job: 9 }),
+            (12, StoredJobError::DependencyFailed { job: 1 }),
         ]
     );
     assert_eq!(plan.next, Some(11));
@@ -873,5 +874,28 @@ fn requests_use_the_oldest_format_version_that_can_express_them() {
     assert_eq!(
         request_format_version(&with_toolpath),
         TOOLPATH_FILE_FORMAT_VERSION
+    );
+}
+
+#[test]
+fn error_kinds_keep_the_english_reasons_and_are_read_back() {
+    assert_eq!(
+        StoredJobError::DependencyFailed { job: 3 }.to_string(),
+        "dependency job 3 failed"
+    );
+    assert_eq!(
+        StoredJobError::RunnerExitCode { code: 9 }.to_string(),
+        "the runner ended with exit code 9"
+    );
+    let written = serde_json::to_string(&StoredJobError::RunnerExitCode { code: 9 }).unwrap();
+    assert_eq!(written, r#"{"kind":"runner_exit_code","code":9}"#);
+    assert_eq!(
+        serde_json::from_str::<StoredJobError>(&written).unwrap(),
+        StoredJobError::RunnerExitCode { code: 9 }
+    );
+    // 新しい版で足した種類は、知らない種類として読む（記録は読める）
+    assert_eq!(
+        serde_json::from_str::<StoredJobError>(r#"{"kind":"added_later"}"#).unwrap(),
+        StoredJobError::Unknown
     );
 }

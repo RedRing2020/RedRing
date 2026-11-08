@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 pub use record::{
-    DependencyRef, STORE_FORMAT_VERSION, StoredJob, StoredJobKind, StoredJobSource,
+    DependencyRef, STORE_FORMAT_VERSION, StoredJob, StoredJobError, StoredJobKind, StoredJobSource,
     StoredJobStatus, SubmissionRequest, SubmittedJob, TOOLPATH_FILE_FORMAT_VERSION,
     request_format_version,
 };
@@ -441,6 +441,7 @@ impl JobStore {
                 result_ref: None,
                 log_ref: None,
                 last_error: None,
+                error: None,
             };
             let toolpath = submitted.toolpath_file.as_ref().map(|name| dir.join(name));
             let made = self.create_job(

@@ -1,6 +1,9 @@
 //! ジョブマネージャーの画面の文言（言語ごとの文言の表）
 
+use job_runtime::store::StoredJobError;
+
 use crate::locale::Language;
+use crate::service::StoreFailure;
 
 const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("window.title", "RedRing ジョブマネージャー"),
@@ -48,6 +51,76 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("delete.confirm_yes", "消す"),
     ("delete.confirm_no", "やめる"),
     ("language", "言語"),
+    (
+        "error.dependency_not_earlier",
+        "依存するジョブ {job} が、前のジョブではありません",
+    ),
+    (
+        "error.dependency_cannot_run",
+        "依存するジョブ {job} を計算できません",
+    ),
+    (
+        "error.dependency_not_found",
+        "依存するジョブ {job} がありません",
+    ),
+    (
+        "error.dependency_failed",
+        "依存するジョブ {job} が失敗しました",
+    ),
+    (
+        "error.dependency_canceled",
+        "依存するジョブ {job} が取り消されました",
+    ),
+    ("error.runner_not_started", "ランナーを起動できません"),
+    (
+        "error.runner_wrote_no_result",
+        "ランナーが結果を書かずに終わりました",
+    ),
+    (
+        "error.runner_invalid_arguments",
+        "ランナーの引数が正しくありません",
+    ),
+    (
+        "error.runner_cannot_read_input",
+        "ランナーが入力を読めません",
+    ),
+    ("error.invalid_input", "入力が正しくありません"),
+    ("error.calculation_failed", "計算に失敗しました"),
+    (
+        "error.runner_cannot_write_result",
+        "ランナーが結果を書けません",
+    ),
+    (
+        "error.runner_exit_code",
+        "ランナーが終了の番号 {code} で終わりました",
+    ),
+    ("error.runner_stopped", "ランナーが止められました"),
+    (
+        "error.manager_stopped",
+        "計算中にジョブマネージャーが止まりました",
+    ),
+    ("error.manager_quit", "ジョブマネージャーを終了しました"),
+    (
+        "store_failure.already_locked",
+        "ほかのジョブマネージャーが保存先を使っています",
+    ),
+    (
+        "store_failure.not_found",
+        "保存先のファイルが見つかりません",
+    ),
+    (
+        "store_failure.permission_denied",
+        "保存先のファイルを読み書きする権限がありません",
+    ),
+    ("store_failure.io", "保存先のファイルを読み書きできません"),
+    (
+        "store_failure.invalid_ref",
+        "ジョブの記録の参照が正しくありません",
+    ),
+    (
+        "store_failure.service_stopped",
+        "ジョブの管理が止まっています",
+    ),
     (
         "language.save_failed",
         "選んだ言語を保存できません（{reason}）",
@@ -126,6 +199,73 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ("delete.confirm_no", "Keep"),
     ("language", "Language"),
     (
+        "error.dependency_not_earlier",
+        "Dependency job {job} is not an earlier job",
+    ),
+    (
+        "error.dependency_cannot_run",
+        "Dependency job {job} cannot be calculated",
+    ),
+    (
+        "error.dependency_not_found",
+        "Dependency job {job} does not exist",
+    ),
+    ("error.dependency_failed", "Dependency job {job} failed"),
+    (
+        "error.dependency_canceled",
+        "Dependency job {job} was canceled",
+    ),
+    ("error.runner_not_started", "Cannot start the runner"),
+    (
+        "error.runner_wrote_no_result",
+        "The runner ended without writing a result",
+    ),
+    (
+        "error.runner_invalid_arguments",
+        "The runner arguments are invalid",
+    ),
+    (
+        "error.runner_cannot_read_input",
+        "The runner cannot read the input",
+    ),
+    ("error.invalid_input", "The input is invalid"),
+    ("error.calculation_failed", "The calculation failed"),
+    (
+        "error.runner_cannot_write_result",
+        "The runner cannot write the result",
+    ),
+    (
+        "error.runner_exit_code",
+        "The runner ended with exit code {code}",
+    ),
+    ("error.runner_stopped", "The runner was stopped"),
+    (
+        "error.manager_stopped",
+        "The job manager stopped during the calculation",
+    ),
+    ("error.manager_quit", "The job manager was quit"),
+    (
+        "store_failure.already_locked",
+        "Another job manager is using the job store",
+    ),
+    ("store_failure.not_found", "A job store file is not found"),
+    (
+        "store_failure.permission_denied",
+        "No permission to read or write the job store files",
+    ),
+    (
+        "store_failure.io",
+        "Cannot read or write the job store files",
+    ),
+    (
+        "store_failure.invalid_ref",
+        "A reference in a job record is invalid",
+    ),
+    (
+        "store_failure.service_stopped",
+        "Job management has stopped",
+    ),
+    (
         "language.save_failed",
         "Cannot save the selected language ({reason})",
     ),
@@ -194,6 +334,53 @@ pub(crate) fn text(language: Language, key: &str, args: &[(&str, String)]) -> St
     text
 }
 
+/// ジョブの失敗の理由の種類 `error` の、言語 `language` の文言（知らない種類は `None`）
+pub(crate) fn job_error_text(language: Language, error: &StoredJobError) -> Option<String> {
+    use StoredJobError as E;
+    let (key, args): (&str, Vec<(&str, String)>) = match error {
+        E::DependencyNotEarlier { job } => (
+            "error.dependency_not_earlier",
+            vec![("job", job.to_string())],
+        ),
+        E::DependencyCannotRun { job } => (
+            "error.dependency_cannot_run",
+            vec![("job", job.to_string())],
+        ),
+        E::DependencyNotFound { job } => {
+            ("error.dependency_not_found", vec![("job", job.to_string())])
+        }
+        E::DependencyFailed { job } => ("error.dependency_failed", vec![("job", job.to_string())]),
+        E::DependencyCanceled { job } => {
+            ("error.dependency_canceled", vec![("job", job.to_string())])
+        }
+        E::RunnerNotStarted => ("error.runner_not_started", Vec::new()),
+        E::RunnerWroteNoResult => ("error.runner_wrote_no_result", Vec::new()),
+        E::RunnerInvalidArguments => ("error.runner_invalid_arguments", Vec::new()),
+        E::RunnerCannotReadInput => ("error.runner_cannot_read_input", Vec::new()),
+        E::InvalidInput => ("error.invalid_input", Vec::new()),
+        E::CalculationFailed => ("error.calculation_failed", Vec::new()),
+        E::RunnerCannotWriteResult => ("error.runner_cannot_write_result", Vec::new()),
+        E::RunnerExitCode { code } => ("error.runner_exit_code", vec![("code", code.to_string())]),
+        E::RunnerStopped => ("error.runner_stopped", Vec::new()),
+        E::ManagerStopped => ("error.manager_stopped", Vec::new()),
+        E::ManagerQuit => ("error.manager_quit", Vec::new()),
+        E::Unknown => return None,
+    };
+    Some(text(language, key, &args))
+}
+
+/// 保存先の誤りの種類 `failure` の文言のキー
+pub(crate) fn store_failure_key(failure: StoreFailure) -> &'static str {
+    match failure {
+        StoreFailure::AlreadyLocked => "store_failure.already_locked",
+        StoreFailure::NotFound => "store_failure.not_found",
+        StoreFailure::PermissionDenied => "store_failure.permission_denied",
+        StoreFailure::Io => "store_failure.io",
+        StoreFailure::InvalidRef => "store_failure.invalid_ref",
+        StoreFailure::ServiceStopped => "store_failure.service_stopped",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,5 +410,53 @@ mod tests {
             .contains("{job}")
         );
         assert_eq!(text(Language::Ja, "no.such.key", &[]), "__missing__");
+    }
+
+    #[test]
+    fn every_error_kind_and_store_failure_has_a_text_in_both_languages() {
+        use StoredJobError as E;
+        let errors = [
+            E::DependencyNotEarlier { job: 1 },
+            E::DependencyCannotRun { job: 1 },
+            E::DependencyNotFound { job: 1 },
+            E::DependencyFailed { job: 1 },
+            E::DependencyCanceled { job: 1 },
+            E::RunnerNotStarted,
+            E::RunnerWroteNoResult,
+            E::RunnerInvalidArguments,
+            E::RunnerCannotReadInput,
+            E::InvalidInput,
+            E::CalculationFailed,
+            E::RunnerCannotWriteResult,
+            E::RunnerExitCode { code: 9 },
+            E::RunnerStopped,
+            E::ManagerStopped,
+            E::ManagerQuit,
+        ];
+        for language in Language::ALL {
+            for error in &errors {
+                let text = job_error_text(language, error).unwrap();
+                assert!(
+                    !text.contains("__missing__") && !text.contains('{'),
+                    "{error:?}: {text}"
+                );
+            }
+            for failure in [
+                StoreFailure::AlreadyLocked,
+                StoreFailure::NotFound,
+                StoreFailure::PermissionDenied,
+                StoreFailure::Io,
+                StoreFailure::InvalidRef,
+                StoreFailure::ServiceStopped,
+            ] {
+                assert!(!text(language, store_failure_key(failure), &[]).contains("__missing__"));
+            }
+        }
+        assert!(
+            job_error_text(Language::Ja, &E::DependencyFailed { job: 3 })
+                .unwrap()
+                .contains('3')
+        );
+        assert_eq!(job_error_text(Language::Ja, &E::Unknown), None);
     }
 }

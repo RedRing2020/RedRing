@@ -12,9 +12,9 @@ use crate::locale::{self, Language};
 use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText, ScrollArea};
 use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
-use crate::messages::text;
+use crate::messages::{job_error_text, store_failure_key, text};
 use crate::rows::{JobRow, elapsed_ms, format_elapsed, format_size, job_rows};
-use crate::service::{JobCommand, ServiceChannel, ServiceRequest, now_ms};
+use crate::service::{JobCommand, ServiceChannel, ServiceRequest, StoreFailure, now_ms};
 
 /// ジョブの記録を読み直す間隔
 const JOBS_INTERVAL: Duration = Duration::from_secs(1);
@@ -66,7 +66,7 @@ pub(crate) struct JobManagerWindow {
     /// 一覧の行（ジョブの記録・絞り込みが変わったときに並べ直す）
     rows: Vec<JobRow>,
     unreadable_jobs: usize,
-    store_error: Option<String>,
+    store_error: Option<StoreFailure>,
     jobs_read_at: Option<Instant>,
     store_size: Option<u64>,
     size_read_at: Option<Instant>,
@@ -77,7 +77,7 @@ pub(crate) struct JobManagerWindow {
     selected_files: Option<SelectedFiles>,
     tab: DetailsTab,
     /// 保存先を読み書きできずに、できなかった操作の理由
-    command_error: Option<String>,
+    command_error: Option<StoreFailure>,
     /// 結果を待っている操作の数（待つ間は、二重に頼まないように操作できなくする）
     pending_replies: usize,
     delete_confirmation: Option<DeleteConfirmation>,
@@ -175,7 +175,7 @@ impl JobManagerWindow {
                     self.unreadable_jobs = unreadable.len();
                     self.store_error = None;
                 }
-                Err(error) => self.store_error = Some(error.to_string()),
+                Err(error) => self.store_error = Some(StoreFailure::of(&error)),
             }
             self.rows = job_rows(&self.jobs, self.filter);
             self.selected_files = None;
@@ -238,7 +238,7 @@ impl JobManagerWindow {
     fn send(&mut self, command: JobCommand) {
         match self.service.requests.send(ServiceRequest::Command(command)) {
             Ok(()) => self.pending_replies += 1,
-            Err(_) => self.command_error = Some("the job manager service has stopped".to_string()),
+            Err(_) => self.command_error = Some(StoreFailure::ServiceStopped),
         }
     }
 
@@ -348,19 +348,25 @@ impl JobManagerWindow {
         ui.horizontal(|ui| {
             self.show_toolbar(ui);
             ui.separator();
-            if let Some(reason) = &self.command_error {
+            if let Some(failure) = self.command_error {
                 ui.colored_label(
                     ui.visuals().error_fg_color,
-                    self.text_with("command.failed", &[("reason", reason.clone())]),
+                    self.text_with(
+                        "command.failed",
+                        &[("reason", self.text(store_failure_key(failure)))],
+                    ),
                 );
             }
             if let Some(size) = self.store_size {
                 ui.label(self.text_with("store.size", &[("size", format_size(size))]));
             }
-            if let Some(reason) = &self.store_error {
+            if let Some(failure) = self.store_error {
                 ui.colored_label(
                     ui.visuals().error_fg_color,
-                    self.text_with("store.unreadable", &[("reason", reason.clone())]),
+                    self.text_with(
+                        "store.unreadable",
+                        &[("reason", self.text(store_failure_key(failure)))],
+                    ),
                 );
             }
             if self.unreadable_jobs > 0 {
@@ -588,10 +594,27 @@ impl JobManagerWindow {
             "details.status",
             &[("status", self.status_text(job.status))],
         ));
-        if let Some(reason) = &job.last_error {
+        // 理由の種類があれば画面の言語で出し（英語の文の詳しい理由（ログの最後の行など）を添える）、ない記録（前の版）・
+        // 知らない種類は英語の文をそのまま出す
+        let reason = job
+            .error
+            .as_ref()
+            .and_then(|error| {
+                let text = job_error_text(locale::current(), error)?;
+                let detail = job.last_error.as_deref().and_then(|last| {
+                    last.strip_prefix(&error.to_string())
+                        .and_then(|rest| rest.strip_prefix(": "))
+                });
+                Some(match detail {
+                    Some(detail) => format!("{text}（{detail}）"),
+                    None => text,
+                })
+            })
+            .or_else(|| job.last_error.clone());
+        if let Some(reason) = reason {
             ui.colored_label(
                 ui.visuals().error_fg_color,
-                self.text_with("details.error", &[("reason", reason.clone())]),
+                self.text_with("details.error", &[("reason", reason)]),
             );
         }
         if !job.depends_on.is_empty() {

@@ -12,13 +12,13 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::{StoredJob, StoredJobStatus};
+use super::{StoredJob, StoredJobError, StoredJobStatus};
 
 /// 実行の順の判断
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SchedulePlan {
     /// 実行できない待ちのジョブと理由（英語。番号の順）。呼び出し側は失敗にする
-    pub blocked: Vec<(u64, String)>,
+    pub blocked: Vec<(u64, StoredJobError)>,
     /// 次に実行するジョブ（実行できるジョブがなければ `None`）
     pub next: Option<u64>,
 }
@@ -31,7 +31,7 @@ pub fn plan_schedule(jobs: &[StoredJob], unreadable: &[u64]) -> SchedulePlan {
     ordered.sort_by_key(|job| job.job_id);
 
     // 番号の小さいほうから、実行できないジョブを決める（依存先は番号の小さいジョブのため、先に決まっている）
-    let mut blocked: Vec<(u64, String)> = Vec::new();
+    let mut blocked: Vec<(u64, StoredJobError)> = Vec::new();
     let mut blocked_ids: HashSet<u64> = HashSet::new();
     for job in &ordered {
         if job.status != StoredJobStatus::Queued {
@@ -39,17 +39,17 @@ pub fn plan_schedule(jobs: &[StoredJob], unreadable: &[u64]) -> SchedulePlan {
         }
         let reason = job.depends_on.iter().find_map(|&id| {
             if id >= job.job_id {
-                return Some(format!("dependency job {id} is not an earlier job"));
+                return Some(StoredJobError::DependencyNotEarlier { job: id });
             }
             if blocked_ids.contains(&id) {
-                return Some(format!("dependency job {id} cannot run"));
+                return Some(StoredJobError::DependencyCannotRun { job: id });
             }
             match by_id.get(&id).map(|dependency| dependency.status) {
                 None if unreadable.contains(&id) => None,
-                None => Some(format!("dependency job {id} is not found")),
-                Some(StoredJobStatus::Failed) => Some(format!("dependency job {id} failed")),
+                None => Some(StoredJobError::DependencyNotFound { job: id }),
+                Some(StoredJobStatus::Failed) => Some(StoredJobError::DependencyFailed { job: id }),
                 Some(StoredJobStatus::Canceled) => {
-                    Some(format!("dependency job {id} was canceled"))
+                    Some(StoredJobError::DependencyCanceled { job: id })
                 }
                 Some(_) => None,
             }
