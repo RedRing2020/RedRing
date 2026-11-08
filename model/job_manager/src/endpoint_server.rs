@@ -269,6 +269,44 @@ impl Handler for StoreHandler {
         })
     }
 
+    fn record_imported(&mut self, simulation_job_id: u64) -> Result<(), HandlerError> {
+        let (jobs, _) = self
+            .store
+            .load_jobs()
+            .map_err(|error| store_error(&error))?;
+        let simulation = jobs
+            .iter()
+            .find(|job| {
+                job.job_id == simulation_job_id
+                    && job.kind == StoredJobKind::Sim
+                    && job.status == StoredJobStatus::Succeeded
+            })
+            .ok_or_else(|| {
+                HandlerError::new(
+                    ErrorKind::JobNotFound,
+                    format!("succeeded simulation job {simulation_job_id}"),
+                )
+            })?;
+        // 取り込んだ CL の元は、切削シミュレーションが入力にしたツールパス生成のジョブ（CL を入力にした切削
+        // シミュレーションには、元のジョブがない）
+        let toolpath = simulation.depends_on.iter().find(|id| {
+            jobs.iter()
+                .any(|job| job.job_id == **id && job.kind == StoredJobKind::Cam)
+        });
+        if let Some(&toolpath) = toolpath {
+            self.store
+                .mark_imported(toolpath, simulation_job_id)
+                .map_err(|error| match &error {
+                    // 読んだ後に消されたジョブ
+                    StoreError::Io(io) if io.kind() == io::ErrorKind::NotFound => {
+                        HandlerError::new(ErrorKind::JobNotFound, error.to_string())
+                    }
+                    _ => store_error(&error),
+                })?;
+        }
+        Ok(())
+    }
+
     fn open_window(&mut self) -> Result<(), HandlerError> {
         if (self.open_window)() {
             Ok(())
@@ -380,6 +418,15 @@ mod tests {
         ));
         client.open_window().unwrap();
         assert_eq!(opened.load(Ordering::Relaxed), 1);
+        // 正常に終わった切削シミュレーションでなければ、取り込んだと記録しない
+        assert!(matches!(
+            client.record_imported(2),
+            Err(job_ipc::ClientError::Remote {
+                kind: ErrorKind::JobNotFound,
+                ..
+            })
+        ));
+        assert!(!root.join("jobs").join("1").join("imported").exists());
         drop(client);
         drop(service);
         let _ = std::fs::remove_dir_all(&root);

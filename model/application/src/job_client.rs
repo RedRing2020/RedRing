@@ -122,4 +122,8 @@ pub(crate) trait JobClient: fmt::Debug {
         &self,
         simulation_job_id: u64,
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError>;
+
+    /// 切削シミュレーションのジョブ `simulation_job_id` の結果（その CL）を、空間モデルに取り込んだと伝える（ジョブ
+    /// マネージャーが、取り込み済みの CL の元をまとめて消せるように。画面を止めない実装は、伝え終えるのを待たない）
+    fn record_imported(&self, simulation_job_id: u64) -> Result<(), CamSimulationWorkflowError>;
 }

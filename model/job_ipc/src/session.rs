@@ -59,6 +59,9 @@ pub trait Handler {
 
     /// ジョブマネージャーのウィンドウを開く
     fn open_window(&mut self) -> Result<(), HandlerError>;
+
+    /// 切削シミュレーションのジョブ `simulation_job_id` の結果（その CL）を、投入した側が取り込んだと記録する
+    fn record_imported(&mut self, simulation_job_id: u64) -> Result<(), HandlerError>;
 }
 
 fn error_response(kind: ErrorKind, message: impl Into<String>) -> Response {
@@ -175,6 +178,11 @@ pub fn serve(
                 Err(error) => error_response(error.kind, error.message),
             },
             Request::OpenWindow => reply(handler.open_window().map(|()| Response::Ok)),
+            Request::RecordImported { simulation_job_id } => reply(
+                handler
+                    .record_imported(simulation_job_id)
+                    .map(|()| Response::Ok),
+            ),
         };
         write_json(connection, &response)?;
         connection.flush()?;
@@ -346,6 +354,18 @@ impl<C: Read + Write> Client<C> {
     /// 読み書きできない・ジョブマネージャーが誤りを返した場合。
     pub fn open_window(&mut self) -> Result<(), ClientError> {
         match self.call(&Request::OpenWindow)? {
+            Response::Ok => Ok(()),
+            _ => Err(ClientError::UnexpectedResponse),
+        }
+    }
+
+    /// 切削シミュレーションのジョブ `simulation_job_id` の結果（その CL）を取り込んだことを伝える
+    ///
+    /// # Errors
+    ///
+    /// 読み書きできない・ジョブマネージャーが誤り（ないジョブなど）を返した場合。
+    pub fn record_imported(&mut self, simulation_job_id: u64) -> Result<(), ClientError> {
+        match self.call(&Request::RecordImported { simulation_job_id })? {
             Response::Ok => Ok(()),
             _ => Err(ClientError::UnexpectedResponse),
         }

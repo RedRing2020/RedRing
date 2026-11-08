@@ -771,3 +771,29 @@ fn rejected_submissions_are_removed() {
     service.remove_rejected(&ids).unwrap();
     assert!(service.remove_rejected(&["../x".to_string()]).is_err());
 }
+
+#[test]
+fn imported_sources_are_finished_cam_jobs_with_a_mark() {
+    let root = TempRoot::new();
+    let (mut service, _) =
+        JobManagerService::start(root.store(), FakeLauncher::default(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    submit(&root.store(), "a2", cam_and_sim());
+    for now in 1..40 {
+        service.tick(now);
+    }
+    let store = root.store();
+    let (jobs, _) = store.load_jobs().unwrap();
+    let marks = |store: &JobStore| {
+        let store = store.clone();
+        move |job_id| store.imported_job(job_id)
+    };
+    assert!(imported_sources(&jobs, marks(&store)).is_empty());
+    store.mark_imported(1, 2).unwrap();
+    // 切削シミュレーションのジョブの印は、CL の元として数えない
+    store.mark_imported(4, 4).unwrap();
+    assert_eq!(imported_sources(&jobs, marks(&store)), vec![1]);
+    // 取り込んだのと別の切削シミュレーションが同じツールパス生成の下にあれば、数えない
+    store.mark_imported(3, 9).unwrap();
+    assert_eq!(imported_sources(&jobs, marks(&store)), vec![1]);
+}

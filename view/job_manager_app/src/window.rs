@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use crate::locale::{self, Language};
 use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText, ScrollArea};
-use job_manager::{DeletePlan, delete_plan, old_jobs, superseded_jobs};
+use job_manager::{DeletePlan, delete_plan, imported_sources, old_jobs, superseded_jobs};
 use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::{change_failure_text, job_error_text, store_failure_key, text};
@@ -59,6 +59,10 @@ struct DeleteConfirmation {
 struct BulkDelete {
     /// 前の改訂の結果
     superseded: bool,
+    /// 取り込み済みの CL の元
+    imported: bool,
+    /// 画面を開いたときに読んだ、ジョブの取り込んだ印（ジョブの番号と、取り込んだ切削シミュレーションの番号）
+    imported_marks: std::collections::HashMap<u64, u64>,
     /// 古いジョブ（`old_days` 日より前に投入した、終わったジョブ）
     old: bool,
     old_days: u32,
@@ -72,9 +76,10 @@ struct BulkDelete {
 /// まとめて消すときの、消すジョブ
 #[derive(Debug, Clone)]
 struct BulkTargets {
-    /// 決めたときの選んだもの（前の改訂の結果・古いジョブ・日数）と、ジョブの記録の読み込みの回
-    inputs: (bool, bool, u32, u64),
+    /// 決めたときの選んだもの（前の改訂の結果・取り込み済みの CL の元・古いジョブ・日数）と、ジョブの記録の読み込みの回
+    inputs: (bool, bool, bool, u32, u64),
     superseded: usize,
+    imported: usize,
     old: usize,
     selected: Vec<u64>,
     plan: DeletePlan,
@@ -90,6 +95,8 @@ struct StoreChange {
 /// 選んだジョブの、ファイルから読んだ詳細（ジョブの記録を読み直したとき・選び直したときに読み直す）
 struct SelectedFiles {
     job_id: u64,
+    /// 成果物（CL）を、投入した側が取り込んだ
+    imported: bool,
     input_size: Option<u64>,
     result: Option<(PathBuf, Option<u64>)>,
     log: Option<String>,
@@ -282,6 +289,7 @@ impl JobManagerWindow {
         partial.push(".tmp");
         Some(SelectedFiles {
             job_id,
+            imported: self.store.imported_job(job_id).is_some(),
             input_size: size(&self.store.input_file(job_id)),
             result: result.is_file().then(|| {
                 let bytes = size(&result);
@@ -432,9 +440,22 @@ impl JobManagerWindow {
     /// まとめて消す画面を開く（取り込めなかった投入を数える）
     fn open_bulk_delete(&mut self) {
         let rejected_ids = self.store.rejected_submission_ids().unwrap_or_default();
+        // 取り込んだ印は、終わったツールパス生成のジョブだけ、画面を開いたときに 1 回読む
+        let imported_marks = self
+            .jobs
+            .iter()
+            .filter(|job| job.kind == StoredJobKind::Cam && job.status.is_terminal())
+            .filter_map(|job| {
+                self.store
+                    .imported_job(job.job_id)
+                    .map(|imported| (job.job_id, imported))
+            })
+            .collect();
         self.delete_kept = None;
         self.bulk_delete = Some(BulkDelete {
             superseded: false,
+            imported: false,
+            imported_marks,
             old: false,
             old_days: DEFAULT_OLD_DAYS,
             rejected: false,
@@ -445,7 +466,13 @@ impl JobManagerWindow {
 
     /// まとめて消すときの、消すジョブ（終わったジョブだけ。選んだもの・ジョブの記録が前と同じなら決め直さない）
     fn bulk_targets(&self, bulk: &BulkDelete) -> BulkTargets {
-        let inputs = (bulk.superseded, bulk.old, bulk.old_days, self.jobs_version);
+        let inputs = (
+            bulk.superseded,
+            bulk.imported,
+            bulk.old,
+            bulk.old_days,
+            self.jobs_version,
+        );
         if let Some(targets) = bulk
             .targets
             .as_ref()
@@ -463,11 +490,17 @@ impl JobManagerWindow {
             .into_iter()
             .filter(|id| finished.contains(id))
             .collect();
+        let imported = imported_sources(&self.jobs, |job_id| {
+            bulk.imported_marks.get(&job_id).copied()
+        });
         let before = now_ms().saturating_sub(u64::from(bulk.old_days) * DAY_MS);
         let old = old_jobs(&self.jobs, before);
         let mut selected: BTreeSet<u64> = BTreeSet::new();
         if bulk.superseded {
             selected.extend(&superseded);
+        }
+        if bulk.imported {
+            selected.extend(&imported);
         }
         if bulk.old {
             selected.extend(&old);
@@ -477,6 +510,7 @@ impl JobManagerWindow {
         BulkTargets {
             inputs,
             superseded: superseded.len(),
+            imported: imported.len(),
             old: old.len(),
             selected,
             plan,
@@ -507,6 +541,7 @@ impl JobManagerWindow {
             self.text("bulk.note"),
             self.text("bulk.days_suffix"),
         );
+        let imported_text = self.text_with("bulk.imported", &[("count", count(targets.imported))]);
         let kept_text = (!targets.plan.kept.is_empty()).then(|| {
             let jobs: Vec<String> = targets.plan.kept.iter().map(u64::to_string).collect();
             self.text_with("bulk.kept", &[("jobs", jobs.join(", "))])
@@ -518,6 +553,7 @@ impl JobManagerWindow {
             ui.heading(texts.0);
             ui.add_space(8.0);
             ui.checkbox(&mut bulk.superseded, texts.1);
+            ui.checkbox(&mut bulk.imported, imported_text);
             ui.horizontal(|ui| {
                 ui.checkbox(&mut bulk.old, texts.2);
                 ui.add(
@@ -1059,6 +1095,9 @@ impl JobManagerWindow {
                 ("size", size_text(files.and_then(|files| files.input_size))),
             ],
         ));
+        if files.is_some_and(|files| files.imported) {
+            ui.label(self.text("details.imported"));
+        }
         match files.and_then(|files| files.result.as_ref()) {
             Some((path, size)) => {
                 ui.label(self.text_with(

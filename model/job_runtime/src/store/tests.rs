@@ -915,3 +915,17 @@ fn a_folder_is_a_store_after_it_is_opened() {
     assert!(!folder.join("inbox").exists());
     assert!(folder.join("jobs").is_dir());
 }
+
+#[test]
+fn imported_marks_are_kept_apart_from_the_job_record() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    assert!(store.mark_imported(1, 2).is_err());
+    fs::create_dir_all(store.job_dir(1)).unwrap();
+    assert_eq!(store.imported_job(1), None);
+    store.mark_imported(1, 2).unwrap();
+    assert_eq!(store.imported_job(1), Some(2));
+    // 付け直すと、後のものになる
+    store.mark_imported(1, 5).unwrap();
+    assert_eq!(store.imported_job(1), Some(5));
+}

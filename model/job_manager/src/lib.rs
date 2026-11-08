@@ -129,6 +129,25 @@ pub fn superseded_jobs(jobs: &[StoredJob]) -> Vec<u64> {
         .collect()
 }
 
+/// ジョブの記録 `jobs` のうち、成果物（CL）を投入した側が取り込んだ、終わったツールパス生成のジョブ（番号の順）
+///
+/// `imported_job` は、ジョブの取り込んだ印（取り込んだ切削シミュレーションのジョブの番号）。取り込んだ後に、同じ
+/// ツールパス生成の下に別の切削シミュレーションを置いていれば数えない（消すと、まだ取り込んでいない結果も一緒に消える
+/// ため）。
+pub fn imported_sources(jobs: &[StoredJob], imported_job: impl Fn(u64) -> Option<u64>) -> Vec<u64> {
+    jobs.iter()
+        .filter(|job| job.kind == StoredJobKind::Cam && job.status.is_terminal())
+        .filter(|job| {
+            imported_job(job.job_id).is_some_and(|imported| {
+                jobs.iter()
+                    .filter(|other| other.depends_on.contains(&job.job_id))
+                    .all(|other| other.job_id == imported)
+            })
+        })
+        .map(|job| job.job_id)
+        .collect()
+}
+
 /// ジョブの記録 `jobs` のうち、時刻 `before_ms`（UNIX 時刻のミリ秒）より前に投入した、終わったジョブ（番号の順）
 ///
 /// その成果物を使う後のジョブ（消すときに、あわせて消える）も、すべてその時刻より前に投入したものに限る（古い

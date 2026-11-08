@@ -581,6 +581,19 @@ impl CamSimulationWorkflow {
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError> {
         self.jobs.import(simulation_job_id)
     }
+
+    /// 切削シミュレーションのジョブ `simulation_job_id` の結果（その CL）を、空間モデルに取り込んだと伝える（ジョブ
+    /// マネージャーが、取り込み済みの CL の元をまとめて消せるように）
+    ///
+    /// # Errors
+    ///
+    /// 正常終了した切削シミュレーションのジョブでない場合、問い合わせの失敗。
+    pub fn record_imported(
+        &self,
+        simulation_job_id: u64,
+    ) -> Result<(), CamSimulationWorkflowError> {
+        self.jobs.record_imported(simulation_job_id)
+    }
 }
 
 /// 切削シミュレーションのジョブ `simulations` のうち、加工工程 `operation_id` から投入したもの（順はそのまま）

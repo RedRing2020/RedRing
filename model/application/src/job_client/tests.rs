@@ -264,6 +264,15 @@ fn jobs_run_by_the_job_manager_are_read_and_imported_from_the_store() {
         cam_sim::read_cutting_simulation_artifact_v1(&mut imported.simulation_artifact.as_slice())
             .is_ok()
     );
+    // 取り込んだと伝えると、別のスレッドで伝え、CL の元のツールパス生成のジョブに印が付く
+    assert_eq!(store.imported_job(1), None);
+    client.record_imported(jobs[0].job_id).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while store.imported_job(1).is_none() {
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert_eq!(store.imported_job(1), Some(jobs[0].job_id));
     // ツールパス生成のジョブ（投入の 1 つ目）は、切削シミュレーションとしては取り込めない
     assert_eq!(
         client.import(1).unwrap_err(),
