@@ -206,6 +206,25 @@ impl JobStore {
         Ok(store)
     }
 
+    /// フォルダ `root` が保存先か（受付とジョブのフォルダがある）
+    pub fn is_store(root: &Path) -> bool {
+        root.join(INBOX_DIR).is_dir() && root.join(JOBS_DIR).is_dir()
+    }
+
+    /// フォルダ `root` に、保存先の中のもの（受付・ジョブのフォルダ、ロックのファイル）と同じ名前のものがあるか
+    pub fn has_store_entries(root: &Path) -> bool {
+        [INBOX_DIR, JOBS_DIR, LOCK_FILE]
+            .iter()
+            .any(|name| root.join(name).exists())
+    }
+
+    /// 保存先 `root` を開いたときに作った、受付とジョブのフォルダを、空なら消す（中身があれば残す）
+    pub fn remove_empty_entries(root: &Path) {
+        for name in [INBOX_DIR, JOBS_DIR] {
+            let _ = fs::remove_dir(root.join(name));
+        }
+    }
+
     pub fn root(&self) -> &Path {
         &self.root
     }
