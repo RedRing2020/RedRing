@@ -114,6 +114,8 @@ pub struct MachiningConditionsUiState {
     /// 最後の操作の結果
     pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
+    /// 空間モデルの CL から、切削シミュレーションだけを投入する
+    pub simulate_toolpath_requested: bool,
     pub import_requested: bool,
     pub open_job_manager_requested: bool,
 }
@@ -255,6 +257,21 @@ impl MachiningConditionsUiState {
         }
     }
 
+    /// 切削シミュレーションだけを計算し直せるか（CL が今の条件の結果で、条件に誤りがなく、今の条件の計算が待ち・計算中・
+    /// 完了でない。結果がジョブマネージャーに残っている間は、同じ計算を重ねない）
+    fn can_simulate_toolpath(&self) -> bool {
+        self.issues.is_empty()
+            && self.imported_toolpath == ImportedToolpathState::Current
+            && !matches!(
+                self.job_status,
+                JobStatusLine::Status(
+                    OperationJobStatus::Queued
+                        | OperationJobStatus::Running
+                        | OperationJobStatus::Succeeded
+                )
+            )
+    }
+
     /// ウィンドウを、範囲 `area`（メニューバーの下）の左上に置く
     pub fn show(&mut self, ctx: &Context, area: Rect) {
         if !self.open {
@@ -287,6 +304,13 @@ impl MachiningConditionsUiState {
                             );
                             if submit.clicked() {
                                 self.submit_requested = true;
+                            }
+                            let simulate_toolpath = ui.add_enabled(
+                                self.can_simulate_toolpath(),
+                                egui::Button::new(self.text("conditions.simulate_toolpath")),
+                            );
+                            if simulate_toolpath.clicked() {
+                                self.simulate_toolpath_requested = true;
                             }
                             if ui.button(self.text("conditions.import")).clicked() {
                                 self.import_requested = true;
@@ -639,6 +663,50 @@ mod tests {
                 let text = resolve_machining_conditions_text(locale, job_status_key(&status), &[]);
                 assert!(!text.contains("__missing__"), "{status:?}: {text}");
             }
+        }
+    }
+
+    #[test]
+    fn the_cl_can_be_simulated_only_when_no_result_of_the_current_conditions_remains() {
+        use super::MachiningConditionsUiState;
+        use viewmodel::space_model_document::{ImportedToolpathState, SpaceModelDocument};
+        let document = SpaceModelDocument::new();
+        let state = |imported_toolpath, job_status| MachiningConditionsUiState {
+            open: true,
+            locale: UiLocale::Ja,
+            face_count: 1,
+            operation: document.operation_content().clone(),
+            stock: document.stock(),
+            tool_length_input: 50.0,
+            toolpath_tolerance: document.toolpath_tolerance(),
+            issues: Vec::new(),
+            imported: None,
+            job_status,
+            imported_toolpath,
+            status: None,
+            submit_requested: false,
+            simulate_toolpath_requested: false,
+            import_requested: false,
+            open_job_manager_requested: false,
+        };
+        let current = ImportedToolpathState::Current;
+        for (job_status, allowed) in [
+            (JobStatusLine::NotSubmitted, true),
+            (JobStatusLine::Status(OperationJobStatus::Failed), true),
+            (JobStatusLine::Status(OperationJobStatus::Canceled), true),
+            (JobStatusLine::Status(OperationJobStatus::Queued), false),
+            (JobStatusLine::Status(OperationJobStatus::Running), false),
+            (JobStatusLine::Status(OperationJobStatus::Succeeded), false),
+        ] {
+            assert_eq!(
+                state(current, job_status.clone()).can_simulate_toolpath(),
+                allowed,
+                "{job_status:?}"
+            );
+        }
+        // 空間モデルの CL が今の条件の結果でなければ、計算し直さない
+        for imported in [ImportedToolpathState::None, ImportedToolpathState::Outdated] {
+            assert!(!state(imported, JobStatusLine::NotSubmitted).can_simulate_toolpath());
         }
     }
 

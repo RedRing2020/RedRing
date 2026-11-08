@@ -223,6 +223,28 @@ impl CuttingSimulationSession {
             .latest_revision_job_status(sequences, sequence, operation)?)
     }
 
+    /// 表示中の製品形状のすべての面を加工の対象として、空間モデルに取り込んだ今の条件の CL を入力にし、切削シミュレーション
+    /// だけを投入する（実行しない）
+    ///
+    /// # Errors
+    ///
+    /// 今の条件の CL を取り込んでいない場合・表示中の製品形状がない場合・計算条件に誤りがある場合を含む、投入の失敗。
+    pub fn submit_imported_toolpath(
+        &mut self,
+        document: &mut SpaceModelDocument,
+    ) -> Result<(), CuttingSimulationSessionError> {
+        document.target_visible_faces();
+        let (shapes, sequences, sequence, operation) = document.machining();
+        self.workflow.submit_imported_toolpath(
+            shapes,
+            sequences,
+            document.toolpaths(),
+            sequence,
+            operation,
+        )?;
+        Ok(())
+    }
+
     /// 待ちのジョブがあるときに、ジョブマネージャーが止まっていれば起動し直す（同じプロセスの中で実行する試験では、
     /// 待ちのジョブを実行する）。実行したジョブの数を返す
     ///
@@ -259,11 +281,22 @@ impl CuttingSimulationSession {
             .latest_revision_simulation(sequences, sequence, operation)?
             .ok_or(CuttingSimulationSessionError::NoSucceededSimulation)?;
         let result = self.workflow.import(latest)?;
-        let OperationSpec::Scanline(scanline) = result.solver_input.operation;
+        // 空間モデルの CL から計算した結果は、ツールパス生成の入力を持たない。その CL は今の条件の結果のため、今の
+        // 条件の走査線の条件とトレランスにする
+        let (scanline, toolpath_tolerance) = match &result.solver_input {
+            Some(solver_input) => {
+                let OperationSpec::Scanline(scanline) = solver_input.operation;
+                (scanline, solver_input.chord_tolerance)
+            }
+            None => {
+                let OperationSpec::Scanline(scanline) = document.operation_content().spec;
+                (scanline, document.toolpath_tolerance())
+            }
+        };
         let conditions = ImportedConditions {
             tool: result.simulation_input.tool.clone(),
             scanline,
-            toolpath_tolerance: result.solver_input.chord_tolerance,
+            toolpath_tolerance,
             stock: result.simulation_input.stock,
             precision: result.simulation_input.precision,
         };

@@ -165,6 +165,25 @@ impl ImportedToolpathStore {
         }
     }
 
+    /// 加工手順 `sequence` の加工工程 `operation` の、今の条件の結果の CL（ツールパスの成果物のバイト列。取り込んで
+    /// いない・前の条件の結果なら `None`）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub(crate) fn current_artifact(
+        &self,
+        sequences: &MachiningSequenceStore,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+    ) -> Result<Option<&[u8]>, MachiningSequenceError> {
+        let key = sequences.operation_revision_key(sequence, operation)?;
+        Ok(self
+            .get(operation)
+            .filter(|toolpath| toolpath.revision_key == key)
+            .map(|toolpath| toolpath.artifact.as_slice()))
+    }
+
     /// 加工手順 `sequence` の加工工程 `operation` の CL が、今の条件の結果か
     ///
     /// # Errors

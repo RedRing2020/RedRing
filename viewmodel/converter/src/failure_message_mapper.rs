@@ -66,6 +66,9 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
         }
         CamSimulationWorkflowError::JobManagerNotFound => message("failure.job_manager_not_found"),
         CamSimulationWorkflowError::JobStore(_) => message("failure.job_store"),
+        CamSimulationWorkflowError::NoCurrentImportedToolpath => {
+            message("failure.no_current_imported_toolpath")
+        }
     }
 }
 
@@ -212,6 +215,7 @@ mod tests {
             CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces),
             CamSimulationWorkflowError::JobManagerNotFound,
             CamSimulationWorkflowError::JobStore("reason".to_string()),
+            CamSimulationWorkflowError::NoCurrentImportedToolpath,
         ];
         for error in &errors {
             assert_resolved(&workflow_failure_message(error));

@@ -19,6 +19,7 @@ use job_runtime::store::{
 };
 
 use super::{JobClient, JobSubmission, PendingSubmission, SimulationJob};
+use super::{SimulationSubmission, SimulationToolpath, ToolpathJob};
 use crate::cam_simulation_workflow::{CamSimulationWorkflowError, CamSimulationWorkflowResult};
 
 /// ジョブマネージャーの実行ファイルの名前（拡張子を除く）
@@ -26,6 +27,8 @@ const JOB_MANAGER_NAME: &str = "redring-job-manager";
 /// 投入の入力のファイルの名前
 const CAM_INPUT_FILE: &str = "cam.bin";
 const SIMULATION_INPUT_FILE: &str = "sim.bin";
+/// 投入のフォルダの、切削シミュレーションが入力にする CL のファイル
+const TOOLPATH_INPUT_FILE: &str = "toolpath.bin";
 /// 読み込む入力・成果物のファイルの大きさの上限
 const MAX_FILE_BYTES: u64 = 4 << 30;
 /// 起動したジョブマネージャーがすぐに終わらないかを見る時間
@@ -175,11 +178,7 @@ impl JobClient for LocalStoreJobClient {
         let mut simulation_input = Vec::new();
         write_cutting_simulation_input_v1(&mut simulation_input, &submission.simulation_input)
             .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-        let source = submission.source.map(|source| StoredJobSource {
-            source_id: source.source_id,
-            revision: source.revision,
-            revision_key: source.revision_key,
-        });
+        let source = submission.source.map(stored_source);
         let job = |kind, input_file: &str, depends_on| SubmittedJob {
             kind,
             input_file: input_file.to_string(),
@@ -197,22 +196,66 @@ impl JobClient for LocalStoreJobClient {
                 vec![DependencyRef::Submitted(0)],
             ),
         ];
-        let request = SubmissionRequest {
-            format_version: request_format_version(&jobs),
+        write_request(
+            &store,
             jobs,
+            &[
+                (CAM_INPUT_FILE, &cam_input),
+                (SIMULATION_INPUT_FILE, &simulation_input),
+            ],
+        )
+    }
+
+    fn submit_simulation(
+        &mut self,
+        submission: SimulationSubmission,
+    ) -> Result<String, CamSimulationWorkflowError> {
+        let store = self.store()?;
+        self.ensure_manager_running(&store)?;
+        let mut simulation_input = Vec::new();
+        write_cutting_simulation_input_v1(&mut simulation_input, &submission.simulation_input)
+            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
+        let job = |depends_on, toolpath_file: Option<&str>| SubmittedJob {
+            kind: StoredJobKind::Sim,
+            input_file: SIMULATION_INPUT_FILE.to_string(),
+            depends_on,
+            priority: 0,
+            group_id: None,
+            source: submission.source.clone().map(stored_source),
+            toolpath_file: toolpath_file.map(str::to_string),
         };
-        let submission_id = new_submission_id();
-        store
-            .write_submission(
-                &submission_id,
-                &request,
+        match &submission.toolpath {
+            // すでにあるツールパス生成のジョブの下に置く
+            SimulationToolpath::Job(job_id) => write_request(
+                &store,
+                vec![job(vec![DependencyRef::Existing(*job_id)], None)],
+                &[(SIMULATION_INPUT_FILE, &simulation_input)],
+            ),
+            SimulationToolpath::Artifact(artifact) => write_request(
+                &store,
+                vec![job(Vec::new(), Some(TOOLPATH_INPUT_FILE))],
                 &[
-                    (CAM_INPUT_FILE, &cam_input),
                     (SIMULATION_INPUT_FILE, &simulation_input),
+                    (TOOLPATH_INPUT_FILE, artifact),
                 ],
-            )
-            .map_err(|error| store_error(error.to_string()))?;
-        Ok(submission_id)
+            ),
+        }
+    }
+
+    fn toolpath_jobs(&self) -> Result<Vec<ToolpathJob>, CamSimulationWorkflowError> {
+        let jobs = Self::load_jobs(&self.store()?)?;
+        Ok(jobs
+            .iter()
+            .filter(|job| job.kind == StoredJobKind::Cam)
+            .map(|job| ToolpathJob {
+                job_id: job.job_id,
+                source: job.source.as_ref().map(source),
+                status: status(job.status),
+                simulated: jobs.iter().any(|other| {
+                    other.kind == StoredJobKind::Sim && other.depends_on.contains(&job.job_id)
+                }),
+            })
+            .collect())
     }
 
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError> {
@@ -234,7 +277,8 @@ impl JobClient for LocalStoreJobClient {
     }
 
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
-        let jobs = Self::load_jobs(&self.store()?)?;
+        let store = self.store()?;
+        let jobs = Self::load_jobs(&store)?;
         let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
         Ok(jobs
             .iter()
@@ -244,9 +288,18 @@ impl JobClient for LocalStoreJobClient {
                 submission_id: job.submission_id.clone(),
                 source: job.source.as_ref().map(source),
                 status: status(job.status),
-                // 記録を読めないツールパス生成のジョブは、待ちとして扱う
-                toolpath_status: toolpath_job_in(&by_id, job)
-                    .map_or(CamJobStatus::Queued, |toolpath| status(toolpath.status)),
+                // CL を入力にするジョブ（依存するジョブを持たない）は、入力の CL があればツールパスができている（なければ
+                // 失敗として扱う）。記録を読めないツールパス生成のジョブは、待ちとして扱う
+                toolpath_status: if job.depends_on.is_empty() {
+                    if store.input_toolpath_file(job.job_id).is_file() {
+                        CamJobStatus::Succeeded
+                    } else {
+                        CamJobStatus::Failed
+                    }
+                } else {
+                    toolpath_job_in(&by_id, job)
+                        .map_or(CamJobStatus::Queued, |toolpath| status(toolpath.status))
+                },
             })
             .collect())
     }
@@ -285,15 +338,26 @@ impl JobClient for LocalStoreJobClient {
                 job.kind == StoredJobKind::Sim && job.status == StoredJobStatus::Succeeded
             })
             .ok_or_else(not_succeeded)?;
-        let toolpath = toolpath_job(&jobs, simulation)
-            .filter(|job| job.status == StoredJobStatus::Succeeded)
-            .ok_or_else(not_succeeded)?;
-
         let missing_input = || CamSimulationWorkflowError::MissingInput(simulation_job_id);
-        let solver_input = read_limited(&store.input_file(toolpath.job_id))
-            .ok()
-            .and_then(|bytes| read_cam_solver_input_v1(&mut bytes.as_slice()).ok())
-            .ok_or_else(missing_input)?;
+        // CL を入力にするジョブ（依存するジョブを持たない）は、ツールパス生成の入力を持たない
+        let toolpath = if simulation.depends_on.is_empty() {
+            None
+        } else {
+            Some(
+                toolpath_job(&jobs, simulation)
+                    .filter(|job| job.status == StoredJobStatus::Succeeded)
+                    .ok_or_else(not_succeeded)?,
+            )
+        };
+        let solver_input = match toolpath {
+            Some(toolpath) => Some(
+                read_limited(&store.input_file(toolpath.job_id))
+                    .ok()
+                    .and_then(|bytes| read_cam_solver_input_v1(&mut bytes.as_slice()).ok())
+                    .ok_or_else(missing_input)?,
+            ),
+            None => None,
+        };
         let simulation_input = read_limited(&store.input_file(simulation_job_id))
             .ok()
             .and_then(|bytes| read_cutting_simulation_input_v1(&mut bytes.as_slice()).ok())
@@ -308,8 +372,13 @@ impl JobClient for LocalStoreJobClient {
                     simulation_job_id,
                 ))
         };
+        let toolpath_artifact = match toolpath {
+            Some(toolpath) => artifact(toolpath)?,
+            None => read_limited(&store.input_toolpath_file(simulation_job_id))
+                .map_err(|_| missing_input())?,
+        };
         Ok(CamSimulationWorkflowResult {
-            toolpath_artifact: artifact(toolpath)?,
+            toolpath_artifact,
             simulation_artifact: artifact(simulation)?,
             solver_input,
             simulation_input,
@@ -336,6 +405,32 @@ fn toolpath_job_in<'a>(
         .iter()
         .filter_map(|id| by_id.get(id).copied())
         .find(|job| job.kind == StoredJobKind::Cam)
+}
+
+/// ジョブの列 `jobs` と入力のファイル `inputs` の投入を、表せる最も古い版の要求で保存先 `store` に書き、投入の ID を
+/// 返す
+fn write_request(
+    store: &JobStore,
+    jobs: Vec<SubmittedJob>,
+    inputs: &[(&str, &[u8])],
+) -> Result<String, CamSimulationWorkflowError> {
+    let request = SubmissionRequest {
+        format_version: request_format_version(&jobs),
+        jobs,
+    };
+    let submission_id = new_submission_id();
+    store
+        .write_submission(&submission_id, &request, inputs)
+        .map_err(|error| store_error(error.to_string()))?;
+    Ok(submission_id)
+}
+
+fn stored_source(source: CamJobSource) -> StoredJobSource {
+    StoredJobSource {
+        source_id: source.source_id,
+        revision: source.revision,
+        revision_key: source.revision_key,
+    }
 }
 
 fn source(source: &StoredJobSource) -> CamJobSource {
