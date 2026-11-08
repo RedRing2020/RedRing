@@ -76,6 +76,27 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.open_job_manager", "ジョブマネージャーを開く"),
     ("conditions.status.submitted", "投入しました"),
     ("conditions.status.submit_failed", "投入できません（{reason}）"),
+    (
+        "conditions.status.sequence_submitted",
+        "手順の {submitted} 工程を投入しました（計算待ち・計算中・計算済みの {skipped} 工程は、投入し直していません）",
+    ),
+    (
+        "conditions.status.sequence_submitted_all",
+        "手順の {submitted} 工程を投入しました",
+    ),
+    (
+        "conditions.status.sequence_nothing_to_submit",
+        "手順のすべての工程が、計算待ち・計算中・計算済みのため、投入していません",
+    ),
+    (
+        "conditions.status.sequence_submit_failed",
+        "{position} 番目の工程「{operation}」を投入できません（{reason}）。その前の {submitted} 工程は投入しました",
+    ),
+    (
+        "conditions.status.sequence_status_not_read",
+        "計算の状態をまだ読んでいないため、手順の全体を投入していません。少し待ってからもう一度押してください",
+    ),
+    ("conditions.submit_sequence", "手順の全体を投入"),
     ("conditions.status.imported", "ジョブ {job} を取り込みました"),
     (
         "conditions.status.nothing_to_import",
@@ -227,6 +248,27 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.open_job_manager", "Open job manager"),
     ("conditions.status.submitted", "Submitted"),
     ("conditions.status.submit_failed", "Cannot submit ({reason})"),
+    (
+        "conditions.status.sequence_submitted",
+        "Submitted {submitted} operations of the sequence ({skipped} waiting, calculating, or calculated operations were not submitted again)",
+    ),
+    (
+        "conditions.status.sequence_submitted_all",
+        "Submitted {submitted} operations of the sequence",
+    ),
+    (
+        "conditions.status.sequence_nothing_to_submit",
+        "Nothing was submitted because every operation of the sequence is waiting, calculating, or calculated",
+    ),
+    (
+        "conditions.status.sequence_submit_failed",
+        "Cannot submit operation {position} \"{operation}\" ({reason}). The {submitted} operations before it were submitted",
+    ),
+    (
+        "conditions.status.sequence_status_not_read",
+        "The whole sequence was not submitted because the calculation status has not been read yet. Wait a moment and try again",
+    ),
+    ("conditions.submit_sequence", "Submit the whole sequence"),
     ("conditions.status.imported", "Imported job {job}"),
     (
         "conditions.status.nothing_to_import",

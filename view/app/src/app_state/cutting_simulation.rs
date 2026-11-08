@@ -9,6 +9,7 @@ use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
+use viewmodel::cutting_simulation_session::SequenceSubmissionError;
 use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
 use viewmodel::mesh_converter::WireframeVertex;
 
@@ -60,6 +61,61 @@ impl AppState {
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
         let result = self.cutting_simulation.submit(&mut self.document);
         self.finish_submission(result, "the cutting simulation")
+    }
+
+    /// 加工手順のすべての加工工程を投入する（実行しない）。1 つでも投入できたかを返す
+    pub(crate) fn submit_sequence(&mut self) -> bool {
+        match self.cutting_simulation.submit_sequence(&mut self.document) {
+            Ok(submission) => {
+                tracing::info!(
+                    submitted = submission.submitted,
+                    skipped = submission.skipped,
+                    "Submitted the machining sequence to the job manager"
+                );
+                self.set_operation_status(OperationStatus::SequenceSubmitted {
+                    submitted: submission.submitted,
+                    skipped: submission.skipped,
+                });
+                submission.submitted > 0
+            }
+            Err(failure) => {
+                tracing::warn!("Cannot submit the machining sequence: {failure}");
+                match failure {
+                    SequenceSubmissionError::StatusNotRead => {
+                        self.set_operation_status(OperationStatus::SequenceStatusNotRead);
+                        false
+                    }
+                    SequenceSubmissionError::Conditions {
+                        position,
+                        operation,
+                        error,
+                    } => {
+                        self.set_operation_status(OperationStatus::SequenceSubmitFailed {
+                            position,
+                            operation,
+                            submitted: 0,
+                            reason: cutting_simulation_failure_message(&error),
+                        });
+                        false
+                    }
+                    SequenceSubmissionError::Submit {
+                        position,
+                        operation,
+                        submitted,
+                        error,
+                    } => {
+                        self.set_operation_status(OperationStatus::SequenceSubmitFailed {
+                            position,
+                            operation,
+                            submitted,
+                            reason: cutting_simulation_failure_message(&error),
+                        });
+                        // 前の工程までは投入したため、状態を読み直す
+                        submitted > 0
+                    }
+                }
+            }
+        }
     }
 
     /// 空間モデルに取り込んだ今の条件の CL から、切削シミュレーションだけを投入する（実行しない）
