@@ -1704,7 +1704,6 @@ dependencies = [
  "chrono",
  "eframe",
  "fontdb",
- "i18n_foundation",
  "job_manager",
  "job_runtime",
  "rfd",
