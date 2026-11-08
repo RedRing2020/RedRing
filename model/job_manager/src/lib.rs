@@ -6,6 +6,7 @@
 #[cfg(test)]
 mod tests;
 
+mod endpoint_server;
 mod launcher;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -17,6 +18,7 @@ use job_runtime::store::{
     StoredJobStatus, plan_schedule,
 };
 
+pub use endpoint_server::{OpenWindow, start_endpoint_server};
 pub use launcher::{LaunchSpec, Launcher, ProcessLauncher, RunningJob};
 
 /// 同時に実行するジョブの数

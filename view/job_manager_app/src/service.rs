@@ -12,10 +12,6 @@ use job_runtime::store::{JobStore, StoreError};
 
 /// 受付のフォルダとランナーを確かめる間隔
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
-/// 保存先のロックを取れないときに、やり直す回数と間隔（CAD/CAM のアプリが、ジョブマネージャーが動いているかを
-/// 確かめるために、ロックを一瞬だけ持つことがあるため）
-const LOCK_ATTEMPTS: u32 = 10;
-const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
 /// 画面からの、ジョブの操作
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,24 +92,14 @@ pub(crate) fn start_service(
     let (command_tx, command_rx) = mpsc::channel();
     let (reply_tx, reply_rx) = mpsc::channel();
     let handle = std::thread::spawn(move || {
-        let mut attempts = 0;
-        let (mut service, events) = loop {
-            match JobManagerService::start(
-                store.clone(),
-                ProcessLauncher::new(runner.clone()),
-                now_ms(),
-            ) {
-                Ok(started) => break started,
-                Err(StoreError::AlreadyLocked) if attempts < LOCK_ATTEMPTS => {
-                    attempts += 1;
-                    std::thread::sleep(LOCK_RETRY_INTERVAL);
-                }
+        let (mut service, events) =
+            match JobManagerService::start(store.clone(), ProcessLauncher::new(runner), now_ms()) {
+                Ok(started) => started,
                 Err(error) => {
                     let _ = started_tx.send(Err(error));
                     return;
                 }
-            }
-        };
+            };
         let _ = started_tx.send(Ok(()));
         let mut log = File::create(store.root().join("manager.log")).ok();
         let mut write = |line: String| {

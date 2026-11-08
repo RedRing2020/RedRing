@@ -27,10 +27,11 @@ use windows_sys::Win32::Storage::FileSystem::{
     SECURITY_SQOS_PRESENT,
 };
 use windows_sys::Win32::System::Pipes::{
-    ConnectNamedPipe, CreateNamedPipeW, PIPE_READMODE_BYTE, PIPE_REJECT_REMOTE_CLIENTS,
-    PIPE_TYPE_BYTE, PIPE_WAIT,
+    ConnectNamedPipe, CreateNamedPipeW, GetNamedPipeServerProcessId, PIPE_READMODE_BYTE,
+    PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_WAIT,
 };
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+use windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 use super::MAX_CONNECTIONS;
 
@@ -297,6 +298,15 @@ pub(super) fn connect(address: &Address) -> io::Result<File> {
         ));
     }
     Ok(file)
+}
+
+pub(super) fn allow_server_foreground(file: &File) {
+    let mut process_id = 0u32;
+    // SAFETY: つないだパイプのハンドルから、パイプを開いたプロセスの番号を読む
+    if unsafe { GetNamedPipeServerProcessId(file.as_raw_handle(), &mut process_id) } != 0 {
+        // SAFETY: 番号を渡すだけ（渡せなくても、ウィンドウは開く）
+        unsafe { AllowSetForegroundWindow(process_id) };
+    }
 }
 
 /// つないだパイプの持ち主が、この利用者か

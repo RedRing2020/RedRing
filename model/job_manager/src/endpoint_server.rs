@@ -29,13 +29,15 @@ const LISTEN_LOG_INTERVAL: Duration = Duration::from_secs(15);
 const ACCEPT_RETRY_INTERVAL: Duration = Duration::from_secs(1);
 
 /// ウィンドウを開く口（開けたら `true`）
-pub(crate) type OpenWindow = Arc<dyn Fn() -> bool + Send + Sync>;
+pub type OpenWindow = Arc<dyn Fn() -> bool + Send + Sync>;
 
-/// 口 `endpoint` を開き、保存先 `store` の要求を受けるスレッドを始める（口を開けるまで、しばらく開き直す）
-pub(crate) fn start(
+/// 口 `endpoint` を開き、保存先 `store` の要求を受けるスレッドを始める（ほかのプロセスが口を開いている間は、閉じる
+/// まで開き直す）。ウィンドウを開く要求は `open_window` で行い、版を確かめたときに `manager_version` を返す
+pub fn start_endpoint_server(
     endpoint: Endpoint,
     store: JobStore,
     open_window: OpenWindow,
+    manager_version: &'static str,
 ) -> JoinHandle<()> {
     std::thread::spawn(move || {
         let mut logged_at: Option<Instant> = None;
@@ -64,7 +66,7 @@ pub(crate) fn start(
                     };
                     std::thread::spawn(move || {
                         if let Err(error) =
-                            job_ipc::serve(&mut connection, &mut handler, env!("CARGO_PKG_VERSION"))
+                            job_ipc::serve(&mut connection, &mut handler, manager_version)
                         {
                             eprintln!("job manager endpoint connection error: {error}");
                         }
@@ -291,7 +293,7 @@ mod tests {
     fn test_store_and_endpoint() -> (std::path::PathBuf, Endpoint) {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let name = format!(
-            "job-manager-app-test-{}-{}",
+            "endpoint-server-test-{}-{}",
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         );
@@ -306,13 +308,14 @@ mod tests {
         let store = JobStore::open(&root).unwrap();
         let opened = Arc::new(AtomicU64::new(0));
         let counted = Arc::clone(&opened);
-        start(
+        start_endpoint_server(
             endpoint.clone(),
             store.clone(),
             Arc::new(move || {
                 counted.fetch_add(1, Ordering::Relaxed);
                 true
             }),
+            "0.0.0",
         );
         let mut client = Client::new(endpoint.connect(Duration::from_secs(5)).unwrap()).unwrap();
         let source = JobSource {
@@ -349,9 +352,9 @@ mod tests {
         assert!(!pending[0].rejected);
 
         // ジョブマネージャーが取り込むと、ジョブとその入力を読める
-        let (mut service, _) = job_manager::JobManagerService::start(
+        let (mut service, _) = crate::JobManagerService::start(
             store,
-            job_manager::ProcessLauncher::new(root.join("no-runner")),
+            crate::ProcessLauncher::new(root.join("no-runner")),
             1,
         )
         .unwrap();

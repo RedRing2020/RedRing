@@ -1,13 +1,13 @@
 //! ツールパス生成と切削シミュレーションのジョブの投入・状態の読み取り・成果物の取り込みの境界
 //! （設計: JOB_MANAGER_STORAGE_DESIGN.md 4・8 章）
 //!
-//! ジョブの計算は、CAD/CAM のアプリの外のジョブマネージャーが行う。境界の後ろの実装を替えても（同じ PC の保存先の
-//! フォルダ・別の PC のジョブマネージャー）、投入・取り込みのユースケースは変わらない。
+//! ジョブの計算は、CAD/CAM のアプリの外のジョブマネージャーが行う。境界の後ろの実装（ジョブマネージャーに問い合わせる
+//! 口）を替えても、投入・取り込みのユースケースは変わらない。
 
 #[cfg(test)]
 mod tests;
 
-mod local;
+mod pipe;
 
 #[cfg(any(test, feature = "test-fixtures"))]
 mod in_process;
@@ -22,7 +22,7 @@ use crate::cam_simulation_workflow::{CamSimulationWorkflowError, CamSimulationWo
 
 #[cfg(any(test, feature = "test-fixtures"))]
 pub(crate) use in_process::InProcessJobClient;
-pub(crate) use local::LocalStoreJobClient;
+pub(crate) use pipe::PipeJobClient;
 
 /// 投入するツールパス生成と、その成果物を入力にする切削シミュレーション
 #[derive(Debug, Clone)]

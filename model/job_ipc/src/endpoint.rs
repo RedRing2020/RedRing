@@ -109,6 +109,14 @@ impl Listener {
 #[derive(Debug)]
 pub struct Connection(platform::Stream);
 
+impl Connection {
+    /// 口を開いた側のプロセスに、ウィンドウを前に出す権利を渡す（Windows。利用者が操作しているプロセスだけが渡せる。
+    /// ほかの OS では何もしない）
+    pub fn allow_server_foreground(&self) {
+        platform::allow_server_foreground(&self.0);
+    }
+}
+
 impl io::Read for Connection {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         self.0.read(buffer)
