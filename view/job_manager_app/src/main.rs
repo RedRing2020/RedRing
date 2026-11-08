@@ -4,7 +4,8 @@
 //! redring-job-manager [--store <ジョブの保存先>] [--background]
 //! ```
 //!
-//! 保存先を指定しなければ既定の保存先を使う。ランナーは、この実行ファイルと同じフォルダの `redring-batch-runner`
+//! 保存先を指定しなければ、設定のファイルの保存先（項目 `store`）、それもなければ既定の保存先を使う。開いた保存先は、
+//! 所在のファイルに書く（投入する側が、保存先の場所を設定で持たずに知るため）。ランナーは、この実行ファイルと同じフォルダの `redring-batch-runner`
 //! だけを起動する（作業のフォルダや PATH から探さない）。ジョブの管理（投入の取り込み・ランナーの起動）は別の
 //! スレッドで一定の間隔で行い、ウィンドウにジョブの一覧を出し、ジョブの操作（取り消し・やり直し・削除・優先順位）を
 //! サービスに渡す。ウィンドウを閉じても、ジョブの管理は続ける。
@@ -25,6 +26,7 @@ mod messages;
 mod notification;
 mod rows;
 mod service;
+mod settings;
 #[cfg(windows)]
 mod tray;
 mod window;
@@ -39,6 +41,9 @@ use job_runtime::store::{JobStore, StoreError};
 use crate::service::ServiceChannel;
 
 const USAGE: &str = "usage: redring-job-manager [--store <dir>] [--background]";
+
+/// 設定のファイルの保存先の項目
+const STORE_KEY: &str = "store";
 
 /// 引数
 struct Args {
@@ -66,7 +71,11 @@ fn main() -> ExitCode {
         ExitCode::from(code)
     };
     let given_store = args.store.clone();
-    let Some(root) = args.store.or_else(JobStore::default_root) else {
+    let configured = match configured_store() {
+        Ok(configured) => configured,
+        Err(()) => return fail("startup.invalid_store_setting", &[], 2),
+    };
+    let Some(root) = args.store.or_else(|| configured.clone()) else {
         return fail("startup.no_data_folder", &[], 2);
     };
     // 動いているジョブマネージャーがあれば、そのウィンドウを開く（保存先のロックを待たない）
@@ -95,6 +104,15 @@ fn main() -> ExitCode {
         }
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
     };
+    // 設定の保存先を開けたら、所在のファイルに書く（試しに別の保存先を指定して起動したときは書かない。書けなくても、
+    // ジョブの管理は続ける）
+    if configured
+        .as_deref()
+        .is_some_and(|configured| same_folder(configured, store.root()))
+        && let Err(error) = store.record_location()
+    {
+        eprintln!("cannot record the job store location: {error}");
+    }
     #[cfg(windows)]
     {
         let command = autostart_command(given_store.as_deref());
@@ -210,17 +228,46 @@ fn notify_finished(
     );
 }
 
-/// Windows の起動のときに起動するコマンド（ウィンドウを出さない。保存先を指定して起動したときは、同じ保存先）
+/// Windows の起動のときに起動するコマンド（ウィンドウを出さない。設定の保存先と違う保存先を指定して起動したときは、
+/// 同じ保存先。設定の保存先のときは指定しない（後で設定の保存先を替えても、替えた保存先で起動するように））
 ///
 /// この実行ファイルの場所が分からなければ `None`。
 #[cfg(windows)]
 fn autostart_command(store: Option<&std::path::Path>) -> Option<String> {
     let exe = std::env::current_exe().ok()?;
     let mut command = format!("\"{}\" --background", exe.display());
-    if let Some(store) = store {
+    let configured = configured_store().ok().flatten();
+    if let Some(store) = store.filter(|store| {
+        !configured
+            .as_deref()
+            .is_some_and(|configured| same_folder(configured, store))
+    }) {
         command.push_str(&format!(" --store \"{}\"", store.display()));
     }
     Some(command)
+}
+
+/// 設定の保存先（設定のファイルの項目 `store`。なければ既定の保存先。利用者ごとのフォルダが分からないときは `None`）
+///
+/// # Errors
+///
+/// 項目 `store` が、絶対のパスの文字列でない場合（黙って既定の保存先にしない）。
+fn configured_store() -> Result<Option<PathBuf>, ()> {
+    match settings::get(STORE_KEY) {
+        None => Ok(JobStore::default_root()),
+        Some(serde_json::Value::String(path)) if PathBuf::from(&path).is_absolute() => {
+            Ok(Some(PathBuf::from(path)))
+        }
+        Some(_) => Err(()),
+    }
+}
+
+/// 2 つのパスが同じフォルダか（書き方の違い（大文字・小文字・末尾の区切り）は、どちらのフォルダもあれば実体で比べる）
+fn same_folder(a: &std::path::Path, b: &std::path::Path) -> bool {
+    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
 }
 
 /// 言語 `language` を選び（設定のファイルに保存する）、トレイの文言を替える

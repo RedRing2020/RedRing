@@ -899,3 +899,23 @@ fn error_kinds_keep_the_english_reasons_and_are_read_back() {
         StoredJobError::Unknown
     );
 }
+
+#[test]
+fn store_locations_are_written_and_read_back() {
+    let root = TempRoot::new();
+    let path = root.0.join("job_store_location.json");
+    assert_eq!(read_location(&path), None);
+    let store = root.0.join("store");
+    // ないフォルダの保存先は使わない
+    write_location(&path, &store).unwrap();
+    assert_eq!(read_location(&path), None);
+    fs::create_dir_all(&store).unwrap();
+    assert_eq!(read_location(&path), Some(store));
+    // 一時のファイルを残さない（所在のファイルと保存先のフォルダだけ）
+    assert_eq!(fs::read_dir(&root.0).unwrap().count(), 2);
+    // 相対のパス・壊れたファイルは使わない
+    fs::write(&path, br#"{"store":"jobs"}"#).unwrap();
+    assert_eq!(read_location(&path), None);
+    fs::write(&path, b"broken").unwrap();
+    assert_eq!(read_location(&path), None);
+}

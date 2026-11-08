@@ -38,6 +38,8 @@ pub use record::{
 };
 pub use schedule::{SchedulePlan, plan_schedule};
 
+use serde::{Deserialize, Serialize};
+
 use crate::reference::RefParser;
 use files::{
     copy_limited, is_plain_name, is_temporary, read_limited, remove_temporary_entries,
@@ -169,18 +171,31 @@ impl JobStore {
     ///
     /// 利用者ごとのフォルダが分からないときは `None`（空・相対のパスは使わない。起動したフォルダで保存先が変わるため）。
     pub fn default_root() -> Option<PathBuf> {
-        let absolute = |name: &str| {
-            std::env::var_os(name)
-                .map(PathBuf::from)
-                .filter(|path| path.is_absolute())
-        };
-        let base = if cfg!(windows) {
-            absolute("LOCALAPPDATA")
-        } else {
-            absolute("XDG_DATA_HOME")
-                .or_else(|| absolute("HOME").map(|home| home.join(".local").join("share")))
-        }?;
-        Some(base.join("RedRing").join(JOBS_DIR))
+        Some(per_user_data_folder()?.join(JOBS_DIR))
+    }
+
+    /// 所在のファイルに書かれた、ジョブマネージャーが最後に開いた設定の保存先（所在のファイルがない・読めない・絶対の
+    /// パスでない・そのフォルダがないときは `None`）
+    ///
+    /// 所在のファイルは、利用者ごとのフォルダの決まった場所に置く（Windows では
+    /// `%LOCALAPPDATA%\RedRing\job_store_location.json`）。投入する側は、保存先の場所を設定で持たずに、これで知る。
+    pub fn located_root() -> Option<PathBuf> {
+        read_location(&location_file()?)
+    }
+
+    /// この保存先を、所在のファイルに書く（一時の名前で書き終えてから名前を変える）
+    ///
+    /// # Errors
+    ///
+    /// 利用者ごとのフォルダが分からない・書けない場合。
+    pub fn record_location(&self) -> std::io::Result<()> {
+        let path = location_file().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "the per-user data folder is unknown",
+            )
+        })?;
+        write_location(&path, &self.root)
     }
 
     /// 保存先 `root` を開く（受付・ジョブのフォルダがなければ作る）
@@ -676,6 +691,64 @@ impl JobStore {
 /// 読める記録・要求の形式の版か
 fn is_supported_format_version(version: u32) -> bool {
     (OLDEST_STORE_FORMAT_VERSION..=STORE_FORMAT_VERSION).contains(&version)
+}
+
+/// 所在のファイルの大きさの上限
+const MAX_LOCATION_FILE_BYTES: u64 = 64 * 1024;
+
+/// 所在のファイルの中身
+#[derive(Serialize, Deserialize)]
+struct StoreLocation {
+    store: PathBuf,
+}
+
+/// 利用者ごとのアプリのデータのフォルダの下の `RedRing`（分からないときは `None`）
+fn per_user_data_folder() -> Option<PathBuf> {
+    let absolute = |name: &str| {
+        std::env::var_os(name)
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+    };
+    let base = if cfg!(windows) {
+        absolute("LOCALAPPDATA")
+    } else {
+        absolute("XDG_DATA_HOME")
+            .or_else(|| absolute("HOME").map(|home| home.join(".local").join("share")))
+    }?;
+    Some(base.join("RedRing"))
+}
+
+/// 所在のファイル `path` に書かれた保存先（ない・読めない・絶対のパスでない・そのフォルダがないときは `None`）
+fn read_location(path: &Path) -> Option<PathBuf> {
+    let bytes = read_limited(path, MAX_LOCATION_FILE_BYTES).ok()?;
+    let location: StoreLocation = serde_json::from_slice(&bytes).ok()?;
+    // 消したフォルダ・外したドライブの保存先は使わない（作り直さない）
+    Some(location.store).filter(|root| root.is_absolute() && root.is_dir())
+}
+
+/// 所在のファイル `path` に保存先 `root` を書く（一時の名前で書き終えてから名前を変える）
+fn write_location(path: &Path, root: &Path) -> std::io::Result<()> {
+    let bytes = serde_json::to_vec_pretty(&StoreLocation {
+        store: root.to_path_buf(),
+    })
+    .map_err(std::io::Error::other)?;
+    if let Some(folder) = path.parent() {
+        fs::create_dir_all(folder)?;
+    }
+    // ほかの保存先のジョブマネージャーと一時のファイルが重ならないよう、プロセスの番号を名前に入れる
+    let mut temporary = path.as_os_str().to_os_string();
+    temporary.push(format!(".{}.tmp", std::process::id()));
+    let temporary = PathBuf::from(temporary);
+    let written = fs::write(&temporary, bytes).and_then(|()| fs::rename(&temporary, path));
+    if written.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    written
+}
+
+/// 所在のファイル
+fn location_file() -> Option<PathBuf> {
+    Some(per_user_data_folder()?.join("job_store_location.json"))
 }
 
 /// ジョブの番号の名前（先頭が 0 でない 10 進数）を読む
