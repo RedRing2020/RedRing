@@ -34,8 +34,8 @@ use job_domain::{CamJobSource, CamJobStatus};
 
 use crate::imported_toolpath::ImportedToolpathStore;
 use crate::job_client::{
-    JobClient, JobSubmission, PipeJobClient, SimulationJob, SimulationSubmission,
-    SimulationToolpath,
+    JobClient, JobStatusSnapshot, JobSubmission, PipeJobClient, SimulationJob,
+    SimulationSubmission, SimulationToolpath,
 };
 use crate::job_orchestration::JobOrchestrationError;
 use crate::machining_sequence::{
@@ -506,7 +506,8 @@ impl CamSimulationWorkflow {
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（今の改訂の鍵）で、最後に投入した
-    /// 計算の状態（今の改訂で投入していなければ `None`）。改訂の鍵を持たない投入元（前の版の記録）は、今の改訂とみなさない
+    /// 計算の状態（今の改訂で投入していなければ `OperationJobState::NotSubmitted`）。改訂の鍵を持たない投入元（前の版の
+    /// 記録）は、今の改訂とみなさない
     ///
     /// 状態は読み終えるのを待たずに、最後に読んだものから決める（画面を止めないように。まだ読めていなければ
     /// `OperationJobState::NotRead`）。
@@ -520,53 +521,42 @@ impl CamSimulationWorkflow {
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
     ) -> Result<OperationJobState, CamSimulationWorkflowError> {
-        let current = current_revision(sequences, sequence_id, operation_id)?;
+        Ok(self
+            .latest_revision_job_states(sequences, sequence_id, &[operation_id])?
+            .remove(0))
+    }
+
+    /// 加工工程 `operation_ids` のそれぞれの、今の改訂の計算の状態（`operation_ids` の順。同じ 1 回の読み取りの状態から
+    /// 決める。決め方は `latest_revision_job_status`）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合。
+    pub fn latest_revision_job_states(
+        &self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_ids: &[MachiningOperationId],
+    ) -> Result<Vec<OperationJobState>, CamSimulationWorkflowError> {
+        let currents = operation_ids
+            .iter()
+            .map(|&operation_id| current_revision(sequences, sequence_id, operation_id))
+            .collect::<Result<Vec<_>, _>>()?;
         // ジョブマネージャーがなければ、投入したジョブもない（形状の読み込み・表示は、ジョブマネージャーなしで使える）
         let snapshot = match self.jobs.status_snapshot() {
             Err(CamSimulationWorkflowError::JobManagerNotFound) => {
-                return Ok(OperationJobState::NotSubmitted);
+                return Ok(vec![OperationJobState::NotSubmitted; operation_ids.len()]);
             }
             result => match result? {
                 Some(snapshot) => snapshot,
-                None => return Ok(OperationJobState::NotRead),
+                None => return Ok(vec![OperationJobState::NotRead; operation_ids.len()]),
             },
         };
-        let pending = snapshot.pending;
-        // ジョブマネージャーの取り込みを待っている投入は、ジョブより新しい
-        if pending
+        Ok(operation_ids
             .iter()
-            .any(|submission| !submission.rejected && current(&submission.source))
-        {
-            return Ok(OperationJobState::Status(OperationJobStatus::Queued));
-        }
-        let latest = of_operation(snapshot.simulations, operation_id)
-            .into_iter()
-            .rev()
-            .find(|job| current(&job.source));
-        let Some(job) = latest else {
-            // 取り込めなかった投入は、失敗として出す
-            let rejected = pending
-                .iter()
-                .any(|submission| submission.rejected && current(&submission.source));
-            return Ok(if rejected {
-                OperationJobState::Status(OperationJobStatus::Failed)
-            } else {
-                OperationJobState::NotSubmitted
-            });
-        };
-        Ok(OperationJobState::Status(match job.status {
-            CamJobStatus::Succeeded => OperationJobStatus::Succeeded,
-            CamJobStatus::Failed => OperationJobStatus::Failed,
-            CamJobStatus::Canceled => OperationJobStatus::Canceled,
-            CamJobStatus::Running => OperationJobStatus::Running,
-            // 切削シミュレーションは、ツールパス生成の計算の間も待っている
-            CamJobStatus::Queued | CamJobStatus::NeedsRecompute => match job.toolpath_status {
-                CamJobStatus::Running => OperationJobStatus::Running,
-                CamJobStatus::Failed => OperationJobStatus::Failed,
-                CamJobStatus::Canceled => OperationJobStatus::Canceled,
-                _ => OperationJobStatus::Queued,
-            },
-        }))
+            .zip(&currents)
+            .map(|(&operation_id, current)| operation_state(&snapshot, operation_id, current))
+            .collect())
     }
 
     /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
@@ -594,6 +584,58 @@ impl CamSimulationWorkflow {
     ) -> Result<(), CamSimulationWorkflowError> {
         self.jobs.record_imported(simulation_job_id)
     }
+}
+
+/// 計算の状態 `snapshot` の中の、加工工程 `operation_id` の今の改訂（`current` で見分ける）の計算の状態
+fn operation_state(
+    snapshot: &JobStatusSnapshot,
+    operation_id: MachiningOperationId,
+    current: &impl Fn(&Option<CamJobSource>) -> bool,
+) -> OperationJobState {
+    // ジョブマネージャーの取り込みを待っている投入は、ジョブより新しい
+    if snapshot
+        .pending
+        .iter()
+        .any(|submission| !submission.rejected && current(&submission.source))
+    {
+        return OperationJobState::Status(OperationJobStatus::Queued);
+    }
+    let source_id = operation_id.to_string();
+    let latest = snapshot
+        .simulations
+        .iter()
+        .filter(|job| {
+            job.source
+                .as_ref()
+                .is_some_and(|source| source.source_id == source_id)
+        })
+        .rev()
+        .find(|job| current(&job.source));
+    let Some(job) = latest else {
+        // 取り込めなかった投入は、失敗として出す
+        let rejected = snapshot
+            .pending
+            .iter()
+            .any(|submission| submission.rejected && current(&submission.source));
+        return if rejected {
+            OperationJobState::Status(OperationJobStatus::Failed)
+        } else {
+            OperationJobState::NotSubmitted
+        };
+    };
+    OperationJobState::Status(match job.status {
+        CamJobStatus::Succeeded => OperationJobStatus::Succeeded,
+        CamJobStatus::Failed => OperationJobStatus::Failed,
+        CamJobStatus::Canceled => OperationJobStatus::Canceled,
+        CamJobStatus::Running => OperationJobStatus::Running,
+        // 切削シミュレーションは、ツールパス生成の計算の間も待っている
+        CamJobStatus::Queued | CamJobStatus::NeedsRecompute => match job.toolpath_status {
+            CamJobStatus::Running => OperationJobStatus::Running,
+            CamJobStatus::Failed => OperationJobStatus::Failed,
+            CamJobStatus::Canceled => OperationJobStatus::Canceled,
+            _ => OperationJobStatus::Queued,
+        },
+    })
 }
 
 /// 切削シミュレーションのジョブ `simulations` のうち、加工工程 `operation_id` から投入したもの（順はそのまま）

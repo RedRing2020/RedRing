@@ -9,10 +9,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use application::cam_simulation_workflow::CamSimulationWorkflowResult;
 pub use application::imported_toolpath::ImportedToolpathState;
+pub use application::machining_sequence::MachiningOperationId;
 use application::machining_sequence::{
-    scanline_finish_operation_content, MachiningOperationContent, MachiningOperationId,
-    MachiningSequenceId, MachiningSequenceStore, MachiningStock, ScanlineCutDirection,
-    ScanlineParams, ScanlineToolRange, StockMargins,
+    scanline_finish_operation_content, MachiningOperationContent, MachiningSequenceId,
+    MachiningSequenceStore, MachiningStock, ScanlineCutDirection, ScanlineParams,
+    ScanlineToolRange, StockMargins,
 };
 use application::product_shape::{EntityDisplayProperties, ProductShapeError, ProductShapeStore};
 use application::space_model_file::{
@@ -263,6 +264,22 @@ impl SpaceModelDocument {
         self.modified = true;
     }
 
+    /// 編集の対象の加工工程の名前を `name` にする（前後の空白を除く。空なら替えない）。替えたら保存していない変更にする
+    /// （名前は計算に使わないため、工程の改訂は進めない）
+    pub fn rename_selected_operation(&mut self, name: &str) {
+        let name = name.trim();
+        if name.is_empty() || name == self.operation_content().name {
+            return;
+        }
+        let mut content = self.operation_content().clone();
+        content.name = name.to_string();
+        self.model
+            .sequences
+            .set_operation_content(self.sequence, self.operation, content)
+            .expect("the document holds its machining operation");
+        self.modified = true;
+    }
+
     /// 編集の対象の加工工程を消し、その工程の取り込んだ CL も消す。次の工程（最後の工程を消したときは前の工程）を
     /// 編集の対象にする。工程が 1 つだけなら消さずに `false`
     pub fn remove_selected_operation(&mut self) -> bool {
@@ -325,8 +342,13 @@ impl SpaceModelDocument {
             .expect("the document holds its machining operation")
     }
 
-    /// 編集の対象の加工工程の中身を `content` にする（今と違えば、工程の改訂の番号が増え、保存していない変更になる）
+    /// 編集の対象の加工工程の中身を `content` にする（今と違えば保存していない変更になり、計算に使う中身が違えば工程の
+    /// 改訂の番号も増える）
     pub fn set_operation_content(&mut self, content: MachiningOperationContent) {
+        // 名前だけを替えたときは改訂しないため、中身を比べて保存していない変更にする
+        if *self.operation_content() != content {
+            self.modified = true;
+        }
         self.edit_sequences(|sequences, sequence, operation| {
             sequences
                 .set_operation_content(sequence, operation, content)

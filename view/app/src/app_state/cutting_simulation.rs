@@ -122,6 +122,7 @@ impl AppState {
                 });
                 self.cutting_animation_job_id = Some(imported.job_id);
                 self.imported_conditions = Some(imported.conditions);
+                self.imported_operation = Some(self.document.selected_operation());
                 self.start_cutting_animation(imported.animation, started);
             }
             Err(error) => {

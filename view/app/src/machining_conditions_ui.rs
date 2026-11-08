@@ -1,7 +1,7 @@
 //! 加工条件のウィンドウ（切削シミュレーションの計算条件の入力と投入）
 //!
-//! 表示の設定（設定パネル）とは分けて、加工手順 1 つの加工工程 1 つの条件（工程の中身と手順の素材）と、表示中の結果の
-//! 計算に使った条件を扱う。
+//! 表示の設定（設定パネル）とは分けて、加工手順 1 つの加工工程の一覧（加える・複写する・消す・並べ替える・選ぶ）と、
+//! 選んだ工程の条件（工程の中身と手順の素材）と、表示中の結果の計算に使った条件を扱う。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use crate::settings_panel_renderer::window_body_max_height;
@@ -13,7 +13,7 @@ use viewmodel::cutting_simulation_session::{
 };
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
-use viewmodel::space_model_document::ImportedToolpathState;
+use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
 
 /// 計算条件の問題を出す欄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +93,14 @@ fn operation_status_message(
 pub struct MachiningConditionsUiState {
     pub open: bool,
     pub locale: UiLocale,
+    /// 加工手順の加工工程の一覧（加工の順）
+    pub(crate) operations: Vec<OperationRow>,
+    /// 選んだ加工工程
+    pub(crate) selected_operation: MachiningOperationId,
+    /// 選んだ加工工程の、入力している名前
+    pub(crate) operation_name: String,
+    /// 加工工程の一覧の操作
+    pub(crate) operation_command: Option<OperationCommand>,
     /// 表示中の製品形状の面の数
     pub face_count: usize,
     /// 加工工程の中身（工具・走査線の条件）
@@ -118,6 +126,51 @@ pub struct MachiningConditionsUiState {
     pub simulate_toolpath_requested: bool,
     pub import_requested: bool,
     pub open_job_manager_requested: bool,
+}
+
+/// 加工工程の一覧の 1 行
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct OperationRow {
+    pub(crate) id: MachiningOperationId,
+    pub(crate) name: String,
+    pub(crate) status: JobStatusLine,
+}
+
+/// 加工工程の一覧の操作
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum OperationCommand {
+    /// 工程を選ぶ
+    Select(MachiningOperationId),
+    /// 選んだ工程のすぐ後に、新しい工程を加える
+    Add,
+    /// 選んだ工程を複写して、すぐ後に加える
+    Duplicate,
+    /// 選んだ工程を消す
+    Remove,
+    /// 選んだ工程を、加工の順で動かす（負は前へ）
+    Move(isize),
+    /// 選んだ工程の名前を替える
+    Rename(String),
+}
+
+/// 加工工程の一覧に出す、工程の計算の状態の短い文言のキー
+fn operation_row_status_key(status: &JobStatusLine) -> &'static str {
+    match status {
+        JobStatusLine::NotSubmitted => "conditions.operations.status.none",
+        JobStatusLine::Unreadable => "conditions.operations.status.unreadable",
+        JobStatusLine::Reading => "conditions.operations.status.reading",
+        JobStatusLine::Status(OperationJobStatus::Queued) => "conditions.operations.status.queued",
+        JobStatusLine::Status(OperationJobStatus::Running) => {
+            "conditions.operations.status.running"
+        }
+        JobStatusLine::Status(OperationJobStatus::Succeeded) => {
+            "conditions.operations.status.succeeded"
+        }
+        JobStatusLine::Status(OperationJobStatus::Failed) => "conditions.operations.status.failed",
+        JobStatusLine::Status(OperationJobStatus::Canceled) => {
+            "conditions.operations.status.canceled"
+        }
+    }
 }
 
 /// 加工条件のウィンドウに出す、今の条件の計算の状態
@@ -295,6 +348,7 @@ impl MachiningConditionsUiState {
                     .show(ui, |ui| {
                         ui.label(self.text("conditions.intro"));
                         ui.separator();
+                        self.show_operations(ui);
                         self.show_target(ui);
                         self.show_tool(ui);
                         self.show_machining(ui);
@@ -336,6 +390,79 @@ impl MachiningConditionsUiState {
                     });
             });
         self.open = open;
+    }
+
+    /// 加工工程の一覧（選ぶと、その工程の条件を下に出す）と、一覧の操作
+    fn show_operations(&mut self, ui: &mut egui::Ui) {
+        CollapsingHeader::new(self.text("conditions.header.operations"))
+            .default_open(true)
+            .show(ui, |ui| {
+                let mut command = None;
+                for row in &self.operations {
+                    let label = self.text_with_args(
+                        "conditions.operations.row",
+                        &[
+                            ("name", row.name.clone()),
+                            ("status", self.text(operation_row_status_key(&row.status))),
+                        ],
+                    );
+                    let selected = row.id == self.selected_operation;
+                    if ui.selectable_label(selected, label).clicked() && !selected {
+                        command = Some(OperationCommand::Select(row.id));
+                    }
+                }
+                let position = self
+                    .operations
+                    .iter()
+                    .position(|row| row.id == self.selected_operation);
+                let count = self.operations.len();
+                ui.horizontal(|ui| {
+                    if ui.button(self.text("conditions.operations.add")).clicked() {
+                        command = Some(OperationCommand::Add);
+                    }
+                    if ui
+                        .button(self.text("conditions.operations.duplicate"))
+                        .clicked()
+                    {
+                        command = Some(OperationCommand::Duplicate);
+                    }
+                    if ui
+                        .add_enabled(
+                            count > 1,
+                            egui::Button::new(self.text("conditions.operations.remove")),
+                        )
+                        .clicked()
+                    {
+                        command = Some(OperationCommand::Remove);
+                    }
+                    let up = ui
+                        .add_enabled(position.is_some_and(|at| at > 0), egui::Button::new("▲"))
+                        .on_hover_text(self.text("conditions.operations.move_up"));
+                    if up.clicked() {
+                        command = Some(OperationCommand::Move(-1));
+                    }
+                    let down = ui
+                        .add_enabled(
+                            position.is_some_and(|at| at + 1 < count),
+                            egui::Button::new("▼"),
+                        )
+                        .on_hover_text(self.text("conditions.operations.move_down"));
+                    if down.clicked() {
+                        command = Some(OperationCommand::Move(1));
+                    }
+                });
+                // 名前は、入力を終えたとき（ほかを押した・Enter）に決める（打つたびに工程の改訂を進めない）
+                ui.horizontal(|ui| {
+                    ui.label(self.text("conditions.operations.name"));
+                    let edit = ui.text_edit_singleline(&mut self.operation_name);
+                    if edit.lost_focus() {
+                        command = Some(OperationCommand::Rename(self.operation_name.clone()));
+                    }
+                });
+                if command.is_some() {
+                    self.operation_command = command;
+                }
+            });
     }
 
     fn show_target(&mut self, ui: &mut egui::Ui) {
@@ -604,7 +731,8 @@ impl MachiningConditionsUiState {
 mod tests {
     use super::{
         condition_error_message, condition_field, imported_toolpath_key, job_status_key,
-        operation_status_text, ConditionField, JobStatusLine, OperationJobStatus, OperationStatus,
+        operation_row_status_key, operation_status_text, ConditionField, JobStatusLine,
+        OperationJobStatus, OperationStatus,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -651,6 +779,26 @@ mod tests {
     }
 
     #[test]
+    fn every_operation_row_status_has_a_message_in_both_languages() {
+        let statuses = [
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+            JobStatusLine::Status(OperationJobStatus::Queued),
+            JobStatusLine::Status(OperationJobStatus::Running),
+            JobStatusLine::Status(OperationJobStatus::Succeeded),
+            JobStatusLine::Status(OperationJobStatus::Failed),
+            JobStatusLine::Status(OperationJobStatus::Canceled),
+        ];
+        for locale in [UiLocale::Ja, UiLocale::En] {
+            for status in &statuses {
+                let key = operation_row_status_key(status);
+                assert_ne!(resolve_machining_conditions_text(locale, key, &[]), key);
+            }
+        }
+    }
+
+    #[test]
     fn every_job_status_has_a_message() {
         let statuses = [
             JobStatusLine::NotSubmitted,
@@ -678,6 +826,10 @@ mod tests {
         let state = |imported_toolpath, job_status| MachiningConditionsUiState {
             open: true,
             locale: UiLocale::Ja,
+            operations: Vec::new(),
+            selected_operation: document.selected_operation(),
+            operation_name: document.operation_content().name.clone(),
+            operation_command: None,
             face_count: 1,
             operation: document.operation_content().clone(),
             stock: document.stock(),

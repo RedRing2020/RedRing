@@ -133,8 +133,13 @@ impl MachiningOperation {
 
     /// 中身を `content` に替える。今の中身と違えば、改訂の番号を増やす
     pub fn set_content(&mut self, content: MachiningOperationContent) {
-        if content != self.content {
-            self.content = content;
+        // 名前は計算に使わないため、名前だけを替えたときは改訂しない（計算の結果を、今の改訂の結果のまま使う）
+        let computed_changed = MachiningOperationContent {
+            name: self.content.name.clone(),
+            ..content.clone()
+        } != self.content;
+        self.content = content;
+        if computed_changed {
             self.revise();
         }
     }

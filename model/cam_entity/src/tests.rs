@@ -45,17 +45,20 @@ fn changing_the_content_increments_the_revision() {
     assert_eq!(operation.revision(), 1);
     assert_eq!(operation.revision_key(), first_key);
 
-    // 名前だけの変更でも増え、改訂の鍵を作り直す
+    // 名前だけの変更では増えない（名前は計算に使わない）。名前は替わる
     let mut renamed = content();
     renamed.name = "仕上げ 2".to_string();
     operation.set_content(renamed);
-    assert_eq!(operation.revision(), 2);
-    assert_ne!(operation.revision_key(), first_key);
+    assert_eq!(operation.revision(), 1);
+    assert_eq!(operation.revision_key(), first_key);
+    assert_eq!(operation.content().name, "仕上げ 2");
 
+    // 計算に使う中身を変えると増え、改訂の鍵を作り直す
     let mut changed = operation.content().clone();
     changed.stage = MachiningStage::Rough;
     operation.set_content(changed);
-    assert_eq!(operation.revision(), 3);
+    assert_eq!(operation.revision(), 2);
+    assert_ne!(operation.revision_key(), first_key);
     assert_eq!(operation.content().stage, MachiningStage::Rough);
     assert_eq!(operation.id(), id);
 }
@@ -139,9 +142,9 @@ fn the_revision_stops_at_its_limit_and_the_revision_key_still_changes() {
         std::num::NonZeroU32::MAX,
         saved.revision_key(),
     );
-    let mut renamed = content();
-    renamed.name = "仕上げ 2".to_string();
-    operation.set_content(renamed);
+    let mut changed = content();
+    changed.stage = MachiningStage::Rough;
+    operation.set_content(changed);
     assert_eq!(operation.revision(), u32::MAX);
     assert_ne!(operation.revision_key(), saved.revision_key());
 }
