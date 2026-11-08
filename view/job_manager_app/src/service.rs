@@ -3,7 +3,9 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -71,10 +73,48 @@ impl StoreFailure {
     }
 }
 
-/// 画面とサービスのスレッドをつなぐ口
+/// 画面とサービスのスレッドをつなぐ口（ウィンドウを閉じて開き直しても、同じ口を使う）
+#[derive(Clone)]
 pub(crate) struct ServiceChannel {
     pub(crate) requests: Sender<ServiceRequest>,
-    pub(crate) replies: Receiver<CommandReply>,
+    replies: Arc<Mutex<Receiver<CommandReply>>>,
+    /// 結果を待っている操作の数（閉じたウィンドウから頼んだ操作も数える）
+    outstanding: Arc<AtomicUsize>,
+}
+
+impl ServiceChannel {
+    /// ジョブの操作 `command` を頼む（結果は `try_reply` で受け取る）
+    ///
+    /// # Errors
+    ///
+    /// サービスが止まっている場合。
+    pub(crate) fn send_command(&self, command: JobCommand) -> Result<(), StoreFailure> {
+        self.requests
+            .send(ServiceRequest::Command(command))
+            .map_err(|_| StoreFailure::ServiceStopped)?;
+        self.outstanding.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+
+    /// 返った操作の結果（なければ `None`）
+    pub(crate) fn try_reply(&self) -> Option<CommandReply> {
+        let reply = self
+            .replies
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .try_recv()
+            .ok()?;
+        // 頼むのも受け取るのも画面のスレッドだけのため、確かめてから減らせばよい
+        if self.outstanding.load(Ordering::SeqCst) > 0 {
+            self.outstanding.fetch_sub(1, Ordering::SeqCst);
+        }
+        Some(reply)
+    }
+
+    /// 結果を待っている操作の数
+    pub(crate) fn outstanding(&self) -> usize {
+        self.outstanding.load(Ordering::SeqCst)
+    }
 }
 
 /// サービスのスレッドを始める。保存先を排他に開けたら、そのスレッドと、操作を渡す口を返す
@@ -139,7 +179,8 @@ pub(crate) fn start_service(
     });
     let channel = ServiceChannel {
         requests: command_tx,
-        replies: reply_rx,
+        replies: Arc::new(Mutex::new(reply_rx)),
+        outstanding: Arc::new(AtomicUsize::new(0)),
     };
     match started_rx.recv() {
         Ok(Ok(())) => Ok((handle, channel)),

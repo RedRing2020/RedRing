@@ -30,7 +30,7 @@ impl Endpoint {
     ///
     /// # Errors
     ///
-    /// 利用者を確かめられない（Windows）・利用者ごとの実行時のフォルダがない（ほかの OS）場合。
+    /// 利用者を確かめられない場合（Windows）。
     pub fn for_current_user() -> io::Result<Self> {
         platform::Address::for_current_user().map(Self)
     }
