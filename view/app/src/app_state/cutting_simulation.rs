@@ -240,9 +240,9 @@ impl AppState {
     /// 場合は、素材の面がすべて作り直されて届く。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
     pub(super) fn redraw_cutting_animation(&mut self) {
         let Some(animation) = &self.cutting_animation else {
-            tracing::info!(
-                "No cutting simulation is imported; the settings apply from the next import"
-            );
+            // 切削アニメーションがなければ、選んだ工程の CL の線を描き直す
+            self.refresh_operation_toolpath_lines();
+            self.update_camera_uniforms();
             return;
         };
         let toolpath_lines = self.toolpath_lines(animation);
@@ -347,7 +347,8 @@ impl AppState {
     pub(super) fn toggle_toolpath_lines(&mut self) {
         self.toolpath_lines_visible = !self.toolpath_lines_visible;
         let visible = self.toolpath_lines_visible;
-        if let Some(mesh_stage) = self.cutting_animation_stage() {
+        // 切削アニメーションがなくても、選んだ工程の CL の線を重ねている
+        if let Some(mesh_stage) = self.main_mesh_stage() {
             mesh_stage.set_overlay_toolpath_visible(visible);
         }
         if let Some(mesh_stage) = self.debug_toolpath_overlay_stage() {
@@ -426,7 +427,10 @@ fn stock_block_items(
 }
 
 /// 線の頂点を描画用にする（`color` を指定しない場合は頂点の色）
-fn line_vertices(vertices: &[WireframeVertex], color: Option<[f32; 3]>) -> Vec<MeshVertex> {
+pub(super) fn line_vertices(
+    vertices: &[WireframeVertex],
+    color: Option<[f32; 3]>,
+) -> Vec<MeshVertex> {
     vertices
         .iter()
         .map(|vertex| MeshVertex::new(vertex.position, color.unwrap_or(vertex.color)))

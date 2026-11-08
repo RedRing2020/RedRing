@@ -34,7 +34,9 @@ Importing does not change the camera (direction and zoom), so you can compare th
 
 ### Machining Conditions Window (`Shift+M`)
 
-- The "Machining operations" section lists the operations of the machining sequence in machining order, with the calculation state of each (not submitted, waiting, calculating, calculated, failed, canceled). Click an operation to select it; the sections below show its conditions for editing. The stock (margins, precision) is shared by all operations of the sequence
+- The "Machining operations" section lists the operations of the machining sequence in machining order, with the calculation state of each (not submitted, waiting, calculating, calculated, imported, failed, canceled). "Imported" means the CL in the space model is the result of the current conditions. Click an operation to select it; the sections below show its conditions for editing. The stock (margins, precision) is shared by all operations of the sequence
+  - When you select an operation, its CL in the space model is shown over the product shape (the job manager is not asked). A CL that is not the result of the current conditions is shown in gray. No CL is shown for an operation whose CL has not been imported
+  - The cutting animation is shown only while the imported operation is selected. Selecting another operation closes the cutting animation and shows that operation's CL (press "Import" to see it again)
   - "Add": adds a new operation (default conditions) right after the selected one
   - "Duplicate": adds an operation with the same conditions right after the selected one (calculation results and the imported CL are not carried over)
   - "Remove": removes the selected operation and its imported CL. It cannot be pressed when there is only one operation

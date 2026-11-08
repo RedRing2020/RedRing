@@ -20,10 +20,13 @@ use application::space_model_file::{
     load_space_model, save_space_model, SpaceModel, SpaceModelFileError, SpaceModelSaveInfo,
 };
 
+use crate::cam_sim_visualization_converter::create_toolpath_wireframe_vertices;
 use crate::cutting_simulation_session::CuttingToolKind;
+use crate::mesh_converter::WireframeVertex;
 use crate::product_shape_converter::{
     face_set_entity_to_mesh, ProductShapeDisplaySettings, ProductShapeMesh,
 };
+use crate::toolpath_converter::ToolPathVisualizationSettings;
 
 /// 加工手順・加工工程の名前（名前を編集できるようになるまでの固定の名前）
 const SEQUENCE_NAME: &str = "加工手順";
@@ -393,12 +396,33 @@ impl SpaceModelDocument {
         });
     }
 
-    /// 編集の対象の加工工程に取り込んだ CL が、今の条件の結果か
-    pub fn imported_toolpath_state(&self) -> ImportedToolpathState {
+    /// 加工工程 `operation` に取り込んだ CL が、今の条件の結果か（手順にない工程は、取り込んでいないとする）
+    pub fn imported_toolpath_state_of(
+        &self,
+        operation: MachiningOperationId,
+    ) -> ImportedToolpathState {
         self.model
             .toolpaths
-            .state(&self.model.sequences, self.sequence, self.operation)
-            .expect("the document holds its machining operation")
+            .state(&self.model.sequences, self.sequence, operation)
+            .unwrap_or(ImportedToolpathState::None)
+    }
+
+    /// 編集の対象の加工工程に取り込んだ CL の線（今の表示の設定 `settings` で作る）と、その CL が今の条件の結果か
+    /// （取り込んでいなければ `None`）
+    pub fn selected_toolpath_wireframe(
+        &self,
+        settings: &ToolPathVisualizationSettings,
+    ) -> Option<(Vec<WireframeVertex>, ImportedToolpathState)> {
+        let toolpath = self.model.toolpaths.toolpath(self.operation)?;
+        Some((
+            create_toolpath_wireframe_vertices(&toolpath, settings),
+            self.imported_toolpath_state(),
+        ))
+    }
+
+    /// 編集の対象の加工工程に取り込んだ CL が、今の条件の結果か
+    pub fn imported_toolpath_state(&self) -> ImportedToolpathState {
+        self.imported_toolpath_state_of(self.operation)
     }
 
     /// 編集の対象の加工工程の今の改訂で計算した結果 `result` の CL を取り込む（前の CL は上書きする。変われば、保存して

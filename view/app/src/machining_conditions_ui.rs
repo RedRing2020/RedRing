@@ -182,6 +182,22 @@ pub(crate) struct OperationRow {
     pub(crate) id: MachiningOperationId,
     pub(crate) name: String,
     pub(crate) status: JobStatusLine,
+    /// 空間モデルの CL が、今の条件の結果（取込済み）
+    pub(crate) toolpath_current: bool,
+}
+
+/// 加工工程の一覧の行に出す状態の文言のキー（計算済み・未投入（ジョブマネージャーの結果を消したとき）の工程は、空間
+/// モデルの CL が今の条件の結果なら取込済み。計算待ち・計算中・失敗などは、そのまま出す）
+fn operation_row_key(row: &OperationRow) -> &'static str {
+    let finished_or_gone = matches!(
+        row.status,
+        JobStatusLine::Status(OperationJobStatus::Succeeded) | JobStatusLine::NotSubmitted
+    );
+    if row.toolpath_current && finished_or_gone {
+        "conditions.operations.status.imported"
+    } else {
+        operation_row_status_key(&row.status)
+    }
 }
 
 /// 加工工程の一覧の操作
@@ -455,7 +471,7 @@ impl MachiningConditionsUiState {
                         "conditions.operations.row",
                         &[
                             ("name", row.name.clone()),
-                            ("status", self.text(operation_row_status_key(&row.status))),
+                            ("status", self.text(operation_row_key(row))),
                         ],
                     );
                     let selected = row.id == self.selected_operation;
@@ -783,8 +799,8 @@ impl MachiningConditionsUiState {
 mod tests {
     use super::{
         condition_error_message, condition_field, imported_toolpath_key, job_status_key,
-        operation_row_status_key, operation_status_text, ConditionField, JobStatusLine,
-        OperationJobStatus, OperationStatus,
+        operation_row_key, operation_row_status_key, operation_status_text, ConditionField,
+        JobStatusLine, OperationJobStatus, OperationRow, OperationStatus,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -850,6 +866,44 @@ mod tests {
     }
 
     #[test]
+    fn rows_whose_cl_is_current_are_shown_as_imported_unless_pending() {
+        let id = viewmodel::space_model_document::SpaceModelDocument::new().selected_operation();
+        let row = |status, toolpath_current| OperationRow {
+            id,
+            name: "工程".to_string(),
+            status,
+            toolpath_current,
+        };
+        let succeeded = JobStatusLine::Status(OperationJobStatus::Succeeded);
+        let queued = JobStatusLine::Status(OperationJobStatus::Queued);
+        assert_eq!(
+            operation_row_key(&row(succeeded.clone(), true)),
+            "conditions.operations.status.imported"
+        );
+        // ジョブマネージャーの結果を消しても、空間モデルの CL が今の条件の結果なら取込済み
+        assert_eq!(
+            operation_row_key(&row(JobStatusLine::NotSubmitted, true)),
+            "conditions.operations.status.imported"
+        );
+        assert_eq!(
+            operation_row_key(&row(succeeded, false)),
+            "conditions.operations.status.succeeded"
+        );
+        // 計算し直している間・失敗したときは、計算の状態を出す
+        assert_eq!(
+            operation_row_key(&row(queued, true)),
+            "conditions.operations.status.queued"
+        );
+        assert_eq!(
+            operation_row_key(&row(
+                JobStatusLine::Status(OperationJobStatus::Failed),
+                true
+            )),
+            "conditions.operations.status.failed"
+        );
+    }
+
+    #[test]
     fn every_operation_row_status_has_a_message_in_both_languages() {
         let statuses = [
             JobStatusLine::NotSubmitted,
@@ -866,6 +920,11 @@ mod tests {
                 let key = operation_row_status_key(status);
                 assert_ne!(resolve_machining_conditions_text(locale, key, &[]), key);
             }
+            let imported = "conditions.operations.status.imported";
+            assert_ne!(
+                resolve_machining_conditions_text(locale, imported, &[]),
+                imported
+            );
         }
     }
 

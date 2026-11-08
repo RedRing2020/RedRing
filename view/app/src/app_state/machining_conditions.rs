@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use viewmodel::cutting_simulation_session::OperationJobState;
-use viewmodel::space_model_document::MachiningOperationId;
+use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
 
 use super::AppState;
 use crate::machining_conditions_ui::{
@@ -155,6 +155,7 @@ impl AppState {
         }
         if self.document.selected_operation() != before {
             self.forget_selected_operation_state();
+            self.show_selected_operation();
         }
     }
 
@@ -165,6 +166,14 @@ impl AppState {
     }
 
     pub(crate) fn prepare_machining_conditions_state(&mut self) -> MachiningConditionsUiState {
+        // 条件・素材・加工の対象を変えて、選んだ工程の CL が今の条件の結果かが変わったら、線の色を描き直す
+        let toolpath_state = (
+            self.document.selected_operation(),
+            self.document.imported_toolpath_state(),
+        );
+        if self.cutting_animation.is_none() && self.drawn_toolpath_state != Some(toolpath_state) {
+            self.refresh_operation_toolpath_lines();
+        }
         if self.machining_conditions_open {
             self.refresh_condition_issues();
             self.refresh_job_status();
@@ -176,6 +185,8 @@ impl AppState {
             .into_iter()
             .map(|item| OperationRow {
                 status: self.operation_job_status(item.id),
+                toolpath_current: self.document.imported_toolpath_state_of(item.id)
+                    == ImportedToolpathState::Current,
                 id: item.id,
                 name: item.name,
             })
