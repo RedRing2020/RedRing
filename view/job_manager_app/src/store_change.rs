@@ -1,4 +1,4 @@
-//! 保存先の変更（選んだフォルダを確かめ、設定と所在のファイルに書き、ジョブマネージャーを起動し直す）
+//! 保存先の変更（選んだフォルダを確かめ、設定に書き、ジョブマネージャーを起動し直す）
 //!
 //! 保存先は、ジョブマネージャーのプロセスが起動のときに開く。替えるときは、選んだフォルダを保存先として開けるかを
 //! 確かめてから設定に書き、新しいジョブマネージャーを起動し、このプロセスを終える。待ち・計算中のジョブ、取り込みを
@@ -107,7 +107,7 @@ pub(crate) fn is_busy(store: &JobStore) -> bool {
 ///
 /// # Errors
 ///
-/// フォルダを保存先として開けない・設定を保存できない（今の保存先のまま）、起動し直せない（設定と所在のファイルは
+/// フォルダを保存先として開けない・設定を保存できない（今の保存先のまま）、起動し直せない（設定は
 /// 書いた）場合。
 pub(crate) fn switch(
     chosen: &Path,
@@ -115,7 +115,8 @@ pub(crate) fn switch(
 ) -> Result<Infallible, ChangeFailure> {
     let path = chosen.to_str().ok_or(ChangeFailure::SettingNotSaved)?;
     let existed = JobStore::is_store(chosen);
-    let store = JobStore::open(chosen).map_err(|error| {
+    // 保存先として開けるかを確かめる（受付とジョブのフォルダを作る）
+    JobStore::open(chosen).map_err(|error| {
         eprintln!("cannot open the new job store: {error}");
         ChangeFailure::Inaccessible
     })?;
@@ -129,11 +130,6 @@ pub(crate) fn switch(
             JobStore::remove_empty_entries(chosen);
         }
         return Err(ChangeFailure::SettingNotSaved);
-    }
-    // 起動し直せなくても、投入と次の起動が同じ保存先になるように、起動の前に所在のファイルを書く（新しい投入が
-    // 新しい保存先に置かれる。新しいジョブマネージャーも書く）
-    if let Err(error) = store.record_location() {
-        eprintln!("cannot record the job store location: {error}");
     }
     // Windows の起動のときのコマンドが保存先を指定していれば、設定の保存先で起動するように書き直す
     #[cfg(windows)]

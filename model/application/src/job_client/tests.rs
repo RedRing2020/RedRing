@@ -16,44 +16,69 @@ use cam_sim::{
 use geo_algorithms::{
     Aabb3D, Point3D, TessellationLimits, TriangleMesh3D, TriangleMesh3DConstructor,
 };
-use job_manager::{JobManagerService, LaunchSpec, Launcher, RunningJob};
+use job_ipc::Endpoint;
+use job_manager::{JobManagerService, LaunchSpec, Launcher, RunningJob, start_endpoint_server};
 use job_runtime::store::{
     DependencyRef, JobStore, StoredJobKind, StoredJobStatus, SubmissionRequest,
 };
 
 use crate::cam_simulation_workflow::CamSimulationWorkflowError;
 
-/// 試験ごとの保存先とジョブマネージャーの実行ファイル（試験の終わりに消す）
-struct TempRoot(PathBuf);
+/// 試験ごとの保存先・口・ジョブマネージャーの実行ファイル（利用者の実際の保存先と口に触れない。試験の終わりに消す）
+struct TempRoot {
+    path: PathBuf,
+    endpoint: Endpoint,
+}
 
 impl TempRoot {
     fn new() -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "redring-job-client-test-{}-{}",
+        let name = format!(
+            "job-client-test-{}-{}",
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
+        );
+        let path = std::env::temp_dir().join(format!("redring-{name}"));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
-        Self(path)
+        Self {
+            path,
+            endpoint: Endpoint::with_name(&name).unwrap(),
+        }
     }
 
     fn store_root(&self) -> PathBuf {
-        self.0.join("store")
+        self.path.join("store")
     }
 
-    /// ジョブマネージャーの実行ファイルがある（中身は使わない）クライアント
-    fn client(&self) -> LocalStoreJobClient {
-        let manager = self.0.join("redring-job-manager");
+    /// 保存先から答える口の受け手を動かし、ジョブマネージャーの実行ファイルがある（中身は使わない）クライアントを返す
+    fn client(&self) -> PipeJobClient {
+        start_endpoint_server(
+            self.endpoint.clone(),
+            JobStore::open(self.store_root()).unwrap(),
+            std::sync::Arc::new(|| true),
+            "0.0.0",
+        );
+        // 受け手のスレッドが口を開くまで待つ（開く前につなぐと、ジョブマネージャーを起動しようとするため）
+        drop(
+            self.endpoint
+                .connect(std::time::Duration::from_secs(5))
+                .unwrap(),
+        );
+        let manager = self.path.join("redring-job-manager");
         fs::write(&manager, b"").unwrap();
-        LocalStoreJobClient::new(self.store_root(), manager)
+        PipeJobClient::new(Ok(self.endpoint.clone()), manager)
+    }
+
+    /// 口の受け手がなく、ジョブマネージャーもインストールされていないクライアント
+    fn client_without_manager(&self) -> PipeJobClient {
+        PipeJobClient::new(Ok(self.endpoint.clone()), self.path.join("missing"))
     }
 }
 
 impl Drop for TempRoot {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
+        let _ = fs::remove_dir_all(&self.path);
     }
 }
 
@@ -146,7 +171,7 @@ impl RunningJob for Finished {
 #[test]
 fn submitting_without_the_job_manager_installed_fails_without_a_submission() {
     let root = TempRoot::new();
-    let mut client = LocalStoreJobClient::new(root.store_root(), root.0.join("missing"));
+    let mut client = root.client_without_manager();
     assert_eq!(
         client.submit(submission()).unwrap_err(),
         CamSimulationWorkflowError::JobManagerNotFound
@@ -158,7 +183,7 @@ fn submitting_without_the_job_manager_installed_fails_without_a_submission() {
 #[test]
 fn opening_the_job_manager_window_without_the_job_manager_installed_fails() {
     let root = TempRoot::new();
-    let mut client = LocalStoreJobClient::new(root.store_root(), root.0.join("missing"));
+    let mut client = root.client_without_manager();
     assert_eq!(
         client.open_manager_window().unwrap_err(),
         CamSimulationWorkflowError::JobManagerNotFound
@@ -169,10 +194,6 @@ fn opening_the_job_manager_window_without_the_job_manager_installed_fails() {
 fn a_submission_is_placed_in_the_inbox_with_both_inputs() {
     let root = TempRoot::new();
     let mut client = root.client();
-    // ジョブマネージャーが動いている（保存先を開いている）ため、起動しない
-    let store = JobStore::open(root.store_root()).unwrap();
-    let _lock = store.lock().unwrap();
-
     let submission_id = client.submit(submission()).unwrap();
     let dir = root.store_root().join("inbox").join(&submission_id);
     let request: SubmissionRequest =
@@ -286,6 +307,13 @@ fn broken_or_tampered_records_do_not_break_reading_or_importing() {
         CamSimulationWorkflowError::NotSucceededSimulation(2)
     );
     assert_eq!(jobs[0].status, StoredJobStatus::Succeeded);
+}
+
+#[test]
+fn the_job_manager_window_is_opened_through_the_endpoint() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    client.open_manager_window().unwrap();
 }
 
 #[test]

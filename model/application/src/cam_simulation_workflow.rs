@@ -34,7 +34,7 @@ use job_domain::{CamJobSource, CamJobStatus};
 
 use crate::imported_toolpath::ImportedToolpathStore;
 use crate::job_client::{
-    JobClient, JobSubmission, LocalStoreJobClient, SimulationJob, SimulationSubmission,
+    JobClient, JobSubmission, PipeJobClient, SimulationJob, SimulationSubmission,
     SimulationToolpath,
 };
 use crate::job_orchestration::JobOrchestrationError;
@@ -300,10 +300,10 @@ pub struct CamSimulationWorkflow {
 }
 
 impl Default for CamSimulationWorkflow {
-    /// 同じ PC のジョブの保存先を通して、アプリと同じフォルダのジョブマネージャーに計算させる
+    /// この利用者のジョブマネージャーに問い合わせる口を通して、アプリと同じフォルダのジョブマネージャーに計算させる
     fn default() -> Self {
         Self {
-            jobs: Box::new(LocalStoreJobClient::from_environment()),
+            jobs: Box::new(PipeJobClient::from_environment()),
         }
     }
 }
@@ -517,7 +517,11 @@ impl CamSimulationWorkflow {
         operation_id: MachiningOperationId,
     ) -> Result<Option<OperationJobStatus>, CamSimulationWorkflowError> {
         let current = current_revision(sequences, sequence_id, operation_id)?;
-        let pending = self.jobs.pending_submissions()?;
+        // ジョブマネージャーがなければ、投入したジョブもない（形状の読み込み・表示は、ジョブマネージャーなしで使える）
+        let pending = match self.jobs.pending_submissions() {
+            Err(CamSimulationWorkflowError::JobManagerNotFound) => return Ok(None),
+            result => result?,
+        };
         // ジョブマネージャーの取り込みを待っている投入は、ジョブより新しい
         if pending
             .iter()

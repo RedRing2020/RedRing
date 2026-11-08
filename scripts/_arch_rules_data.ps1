@@ -43,8 +43,8 @@ $ARCH_ALLOWED_DEPS = @{
     job_domain     = @("analysis", "job_runtime")
     # ランナーは引数・ファイル・終了の番号だけを持ち、入力の読み込みと計算は cam_sim に任せる
     job_runner     = @("cam_sim")
-    # ジョブマネージャーは CAD/CAM に依らず、ジョブの保存先とランナーの起動だけを持つ
-    job_manager    = @("job_runtime")
+    # ジョブマネージャーは CAD/CAM に依らず、ジョブの保存先とランナーの起動と、問い合わせる口の受け手を持つ
+    job_manager    = @("job_runtime", "job_ipc")
     # ジョブマネージャーに問い合わせる口は、ジョブの保存先の形式と分けるため、ワークスペースの他のクレートに依存しない
     job_ipc        = @()
 

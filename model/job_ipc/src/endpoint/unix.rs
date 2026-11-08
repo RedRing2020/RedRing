@@ -150,6 +150,8 @@ impl Listener {
     }
 }
 
+pub(super) fn allow_server_foreground(_stream: &Stream) {}
+
 pub(super) fn connect(address: &Address) -> io::Result<Stream> {
     let folder = check_private_folder(address.folder()?)?;
     let socket = std::fs::metadata(&address.0)?;

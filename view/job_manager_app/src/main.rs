@@ -5,7 +5,7 @@
 //! ```
 //!
 //! 保存先を指定しなければ、設定のファイルの保存先（項目 `store`）、それもなければ既定の保存先を使う。開いた保存先は、
-//! 所在のファイルに書く（投入する側が、保存先の場所を設定で持たずに知るため）。保存先をウィンドウで替えたときは、
+//! 問い合わせる口を開く（投入する側は、保存先の場所を知らずに口で問い合わせる）。保存先をウィンドウで替えたときは、
 //! 設定に書いてジョブマネージャーを起動し直す（`store_change`）。ランナーは、この実行ファイルと同じフォルダの `redring-batch-runner`
 //! だけを起動する（作業のフォルダや PATH から探さない）。ジョブの管理（投入の取り込み・ランナーの起動）は別の
 //! スレッドで一定の間隔で行い、ウィンドウにジョブの一覧を出し、ジョブの操作（取り消し・やり直し・削除・優先順位）を
@@ -22,7 +22,6 @@
 
 mod fonts;
 mod icon;
-mod ipc_server;
 mod locale;
 mod messages;
 mod notification;
@@ -109,14 +108,11 @@ fn main() -> ExitCode {
         }
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
     };
-    // 設定の保存先を開けたら、所在のファイルに書き、問い合わせる口を開く（試しに別の保存先を指定して起動したときは
-    // どちらもしない。書けなくても、ジョブの管理は続ける）
+    // 設定の保存先を開けたら、問い合わせる口を開く（試しに別の保存先を指定して起動したときは開かない。開けなくても、
+    // ジョブの管理は続ける）
     let configured_store = configured
         .as_deref()
         .is_some_and(|configured| same_folder(configured, store.root()));
-    if configured_store && let Err(error) = store.record_location() {
-        eprintln!("cannot record the job store location: {error}");
-    }
     #[cfg(windows)]
     {
         let command = autostart_command(given_store.as_deref());
@@ -174,14 +170,19 @@ fn start_endpoint(store: &JobStore) {
         }
     };
     #[cfg(windows)]
-    let open_window: ipc_server::OpenWindow = {
+    let open_window: job_manager::OpenWindow = {
         let root = store.root().to_path_buf();
         Arc::new(move || tray::open_running(&root))
     };
     // トレイのないときは、動いているウィンドウを外から開く仕組みがない
     #[cfg(not(windows))]
-    let open_window: ipc_server::OpenWindow = Arc::new(|| false);
-    ipc_server::start(endpoint, store.clone(), open_window);
+    let open_window: job_manager::OpenWindow = Arc::new(|| false);
+    job_manager::start_endpoint_server(
+        endpoint,
+        store.clone(),
+        open_window,
+        env!("CARGO_PKG_VERSION"),
+    );
 }
 
 /// ジョブの一覧のウィンドウを出す（`hide_on_close` のときは、閉じると隠す）
