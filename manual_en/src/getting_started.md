@@ -58,6 +58,7 @@ Toolpath generation and the cutting simulation are calculated by the job manager
 - While the job manager runs, a red ring icon is shown in the system tray. Left-click the icon to open the window. The right-click menu has these items
   - "Open window"
   - "Start when Windows starts": when checked, the job manager starts without a window when you sign in to Windows
+  - "Language": selects the language of the job manager screens (日本語 or English)
   - "Quit": quits the job manager. When a job is being calculated, you are asked to confirm (the calculation stops, and the job fails)
 - When a calculation finishes, a notification is shown from the system tray icon. Toolpath generation and the cutting simulation are calculated one after the other, so the notification is shown once, when both have finished (or when one fails). Click the notification to open the window
 - "Open job manager" in the Machining Conditions window of the app also opens the job manager window
@@ -66,6 +67,7 @@ Toolpath generation and the cutting simulation are calculated by the job manager
   - "Retry": puts a failed or canceled job back to waiting. The toolpath generation and the cutting simulation that uses its result are put back together when they ended failed or canceled
   - "Delete": deletes a finished job. When later jobs use its result, you are asked to confirm (after deleting a toolpath generation, the cutting simulation that uses its result can be neither calculated nor imported)
   - "▲ Raise" / "▼ Lower": changes the priority of a waiting job (changing a toolpath generation also changes the cutting simulation that uses its result). Jobs with a higher priority are calculated first
+- The language of the job manager screens is selected separately from the app ("Language" at the top right of the window, or "Language" in the system tray menu). It changes at once, and the same language is used at the next start. Until you select one, it follows the Windows display language (Japanese for Japanese, English otherwise). The selected language is saved in a per-user settings file (`%APPDATA%\RedRing\job_manager.json` on Windows)
 - The job manager keeps calculating after you close the app. When you close the job manager window, it stays in the system tray and keeps calculating. To stop it, use "Quit" in the system tray menu (while the Machining Conditions window of the app shows a waiting or calculating state, the app starts the job manager again)
 - Job records and results are kept in `%LOCALAPPDATA%\RedRing\jobs` on Windows. The job manager log is `manager.log` there
 

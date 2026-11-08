@@ -1,6 +1,6 @@
-//! ジョブマネージャーの画面の文言（日本語・英語）
+//! ジョブマネージャーの画面の文言（言語ごとの文言の表）
 
-use i18n_foundation::{TableMessageCatalog, UiLocale, UiMessage, UiMessageArg, resolve_message};
+use crate::locale::Language;
 
 const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("window.title", "RedRing ジョブマネージャー"),
@@ -47,6 +47,11 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("delete.confirm_yes", "消す"),
     ("delete.confirm_no", "やめる"),
+    ("language", "言語"),
+    (
+        "language.save_failed",
+        "選んだ言語を保存できません（{reason}）",
+    ),
     ("tray.open", "ウィンドウを開く"),
     ("notify.succeeded", "{kind}（ジョブ {job}）が完了しました"),
     ("notify.failed", "{kind}（ジョブ {job}）が失敗しました"),
@@ -119,6 +124,11 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     ("delete.confirm_yes", "Delete"),
     ("delete.confirm_no", "Keep"),
+    ("language", "Language"),
+    (
+        "language.save_failed",
+        "Cannot save the selected language ({reason})",
+    ),
     ("tray.open", "Open window"),
     ("notify.succeeded", "{kind} (job {job}) has completed"),
     ("notify.failed", "{kind} (job {job}) has failed"),
@@ -143,26 +153,45 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ("startup.failed", "Cannot start the job manager ({reason})"),
 ];
 
-const JOB_MANAGER_MESSAGE_CATALOG: TableMessageCatalog = TableMessageCatalog::new(
-    JOB_MANAGER_TEMPLATE_JA,
-    JOB_MANAGER_TEMPLATE_EN,
-    "__missing__",
-    "__missing__",
-);
+/// 言語 `language` の文言の表
+fn table(language: Language) -> &'static [(&'static str, &'static str)] {
+    match language {
+        Language::Ja => JOB_MANAGER_TEMPLATE_JA,
+        Language::En => JOB_MANAGER_TEMPLATE_EN,
+    }
+}
 
-/// 文言のキー `key` を、言語 `locale` の文言にする（`args` は差し込む値）
-pub(crate) fn text(locale: UiLocale, key: &str, args: &[(&str, String)]) -> String {
-    let message = UiMessage {
-        key: key.to_string(),
-        args: args
-            .iter()
-            .map(|(name, value)| UiMessageArg {
-                name: (*name).to_string(),
-                value: value.clone(),
-            })
-            .collect(),
-    };
-    resolve_message(&JOB_MANAGER_MESSAGE_CATALOG, locale, &message)
+/// 文言のキー `key` を、言語 `language` の文言にする（`args` の名前の `{名前}` を値に替える。差し込んだ値の中の
+/// `{名前}` は替えない。キーがなければ `__missing__`）
+pub(crate) fn text(language: Language, key: &str, args: &[(&str, String)]) -> String {
+    let template = table(language)
+        .iter()
+        .find(|(candidate, _)| *candidate == key)
+        .map_or("__missing__", |(_, template)| *template);
+    let mut text = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(start) = rest.find('{') {
+        text.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        let value = after.find('}').and_then(|end| {
+            let name = &after[..end];
+            args.iter()
+                .find(|(candidate, _)| *candidate == name)
+                .map(|(_, value)| (value, end))
+        });
+        match value {
+            Some((value, end)) => {
+                text.push_str(value);
+                rest = &after[end + 1..];
+            }
+            None => {
+                text.push('{');
+                rest = after;
+            }
+        }
+    }
+    text.push_str(rest);
+    text
 }
 
 #[cfg(test)]
@@ -181,8 +210,18 @@ mod tests {
         }
         assert_eq!(JOB_MANAGER_TEMPLATE_JA.len(), JOB_MANAGER_TEMPLATE_EN.len());
         assert_eq!(
-            text(UiLocale::En, "store.size", &[("size", "1 GB".to_string())]),
+            text(Language::En, "store.size", &[("size", "1 GB".to_string())]),
             "Job store: 1 GB"
         );
+        // 差し込んだ値の中の名前は、替えない
+        assert!(
+            text(
+                Language::En,
+                "notify.succeeded",
+                &[("kind", "{job}".to_string()), ("job", "7".to_string())]
+            )
+            .contains("{job}")
+        );
+        assert_eq!(text(Language::Ja, "no.such.key", &[]), "__missing__");
     }
 }

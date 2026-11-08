@@ -2,7 +2,7 @@
 //!
 //! トレイのアイコンは、見えないウィンドウ（メッセージを受けるだけ）に結び付けて置く。メッセージは、ウィンドウを
 //! 出す前は [`dispatch_messages`] のループが、ウィンドウを出した後は eframe（winit）のループが、同じスレッドで配る。
-//! メニューは「ウィンドウを開く」「Windows の起動のときに起動する」「終了」。2 つ目の起動は、動いている
+//! メニューは「ウィンドウを開く」「Windows の起動のときに起動する」「言語」「終了」。文言は、出すたびに今の言語で作る。2 つ目の起動は、動いている
 //! ジョブマネージャーの見えないウィンドウを、保存先から決まる名前で探し、ウィンドウを開くように頼む。ジョブが
 //! 終わったときは、トレイのアイコンの吹き出しで示す（吹き出しを押すと、ウィンドウを開く）。
 
@@ -26,13 +26,15 @@ use windows_sys::Win32::UI::Shell::{
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AllowSetForegroundWindow, AppendMenuW, CreateIcon, CreatePopupMenu, CreateWindowExW,
     DefWindowProcW, DestroyMenu, DispatchMessageW, FindWindowW, GetCursorPos, GetMessageW,
-    GetWindowThreadProcessId, HICON, MF_CHECKED, MF_SEPARATOR, MF_STRING, MSG, PostMessageW,
-    RegisterClassW, RegisterWindowMessageW, SetForegroundWindow, TPM_NONOTIFY, TPM_RETURNCMD,
-    TPM_RIGHTBUTTON, TrackPopupMenu, TranslateMessage, WM_APP, WM_LBUTTONUP, WM_NULL, WM_RBUTTONUP,
-    WNDCLASSW,
+    GetWindowThreadProcessId, HICON, MF_CHECKED, MF_POPUP, MF_SEPARATOR, MF_STRING, MSG,
+    PostMessageW, RegisterClassW, RegisterWindowMessageW, SetForegroundWindow, TPM_NONOTIFY,
+    TPM_RETURNCMD, TPM_RIGHTBUTTON, TrackPopupMenu, TranslateMessage, WM_APP, WM_LBUTTONUP,
+    WM_NULL, WM_RBUTTONUP, WNDCLASSW,
 };
 
 use crate::icon::{ICON_SIZE, ring_rgba};
+use crate::locale::{self, Language};
+use crate::messages;
 use crate::service::ServiceRequest;
 
 /// 見えないウィンドウの種類の名前
@@ -44,26 +46,17 @@ const WM_OPEN_WINDOW: u32 = WM_APP + 2;
 const MENU_OPEN: i32 = 1;
 const MENU_AUTOSTART: i32 = 2;
 const MENU_QUIT: i32 = 3;
+/// 言語の項目（この番号に、選べる言語の並びの位置を足す）
+const MENU_LANGUAGE: i32 = 100;
 /// 終了のときに、サービスが実行中のランナーを止め終えるのを待つ時間
 const QUIT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Windows の起動のときに起動するプログラムを置くレジストリのキーと、値の名前
 const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const RUN_VALUE: &str = "RedRing Job Manager";
 
-/// トレイの文言（画面の言語で）
-pub(crate) struct TrayTexts {
-    pub(crate) title: String,
-    pub(crate) open: String,
-    pub(crate) autostart: String,
-    pub(crate) quit: String,
-    pub(crate) quit_confirm: String,
-    pub(crate) autostart_failed: String,
-}
-
 struct TrayState {
     hwnd: HWND,
     icon: HICON,
-    texts: TrayTexts,
     store: JobStore,
     requests: Sender<ServiceRequest>,
     /// Windows の起動のときに起動するコマンド（この実行ファイルの場所が分からなければ `None`）
@@ -104,7 +97,6 @@ impl TrayNotifier {
 pub(crate) fn create(
     store: JobStore,
     requests: Sender<ServiceRequest>,
-    texts: TrayTexts,
     autostart_command: Option<String>,
 ) -> std::io::Result<TrayNotifier> {
     let class_name = wide(CLASS_NAME);
@@ -145,7 +137,6 @@ pub(crate) fn create(
     let state = TrayState {
         hwnd,
         icon,
-        texts,
         store,
         requests,
         autostart_command,
@@ -276,18 +267,24 @@ fn open_window() {
 /// トレイのメニューを出し、選んだ項目を行う
 fn show_menu(hwnd: HWND) {
     // メニュー・確かめの画面は中でメッセージを配るため、状態を借りたままにしない
-    let Some((open, autostart, quit_label, command)) = STATE.with(|cell| {
+    let Some(command) = STATE.with(|cell| {
         let state = cell.try_borrow().ok()?;
         let state = state.as_ref()?;
-        Some((
-            wide(&state.texts.open),
-            wide(&state.texts.autostart),
-            wide(&state.texts.quit),
-            state.autostart_command.clone(),
-        ))
+        Some(state.autostart_command.clone())
     }) else {
         return;
     };
+    let (open, autostart, quit_label, language_label) = (
+        wide(&text("tray.open")),
+        wide(&text("tray.autostart")),
+        wide(&text("tray.quit")),
+        wide(&text("language")),
+    );
+    let current_language = locale::current();
+    let language_names: Vec<Vec<u16>> = Language::ALL
+        .iter()
+        .map(|language| wide(language.native_name()))
+        .collect();
     // 書いたコマンドが、このジョブマネージャーのコマンドと同じときだけチェックを付ける（ほかの保存先・前の場所の
     // ジョブマネージャーのコマンドは、選ぶとこのコマンドで書き直す）
     let autostart_enabled = command.is_some() && registered_autostart_command() == command;
@@ -305,6 +302,24 @@ fn show_menu(hwnd: HWND) {
             MENU_AUTOSTART as usize,
             autostart.as_ptr(),
         );
+        // 言語は、その言語の名前で並べ、今の言語にチェックを付ける
+        let languages = CreatePopupMenu();
+        if !languages.is_null() {
+            for (index, (language, name)) in Language::ALL.iter().zip(&language_names).enumerate() {
+                let checked = if *language == current_language {
+                    MF_CHECKED
+                } else {
+                    0
+                };
+                AppendMenuW(
+                    languages,
+                    MF_STRING | checked,
+                    (MENU_LANGUAGE + index as i32) as usize,
+                    name.as_ptr(),
+                );
+            }
+            AppendMenuW(menu, MF_POPUP, languages as usize, language_label.as_ptr());
+        }
         AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
         AppendMenuW(menu, MF_STRING, MENU_QUIT as usize, quit_label.as_ptr());
         let mut cursor = POINT { x: 0, y: 0 };
@@ -333,32 +348,60 @@ fn show_menu(hwnd: HWND) {
                 (false, None) => Err(std::io::Error::other("cannot find the executable")),
             };
             if let Err(error) = changed {
-                show_message(|texts| {
-                    texts
-                        .autostart_failed
-                        .replace("{reason}", &error.to_string())
-                });
+                show_message(&text_with("tray.autostart_failed", &error.to_string()));
             }
         }
         MENU_QUIT => quit(),
+        chosen if chosen >= MENU_LANGUAGE => {
+            if let Some(language) = Language::ALL.get((chosen - MENU_LANGUAGE) as usize)
+                && let Err(error) = crate::select_language(*language)
+            {
+                show_message(&text_with("language.save_failed", &error.to_string()));
+            }
+        }
         _ => {}
     }
 }
 
+/// 今の言語に合わせて、トレイのアイコンの説明を替え、ウィンドウを描き直させる（メニュー・確かめの画面・吹き出しは、
+/// 出すたびに今の言語で作る）
+pub(crate) fn refresh_language() {
+    STATE.with(|cell| {
+        if let Ok(state) = cell.try_borrow()
+            && let Some(state) = state.as_ref()
+        {
+            let mut data = notify_icon_data(state.hwnd);
+            data.uFlags = NIF_TIP;
+            copy_text(&mut data.szTip, &text("window.title"));
+            // SAFETY: `data` はこの関数の中で生きている
+            unsafe { Shell_NotifyIconW(NIM_MODIFY, &data) };
+            if let Some(window) = &state.window {
+                window.request_repaint();
+            }
+        }
+    });
+}
+
+/// 今の言語の文言
+fn text(key: &str) -> String {
+    messages::text(locale::current(), key, &[])
+}
+
+/// 今の言語の、理由 `reason` を差し込んだ文言
+fn text_with(key: &str, reason: &str) -> String {
+    messages::text(locale::current(), key, &[("reason", reason.to_string())])
+}
+
 /// 終了する（計算中のジョブがあれば確かめ、ランナーを止めてから終える）
 fn quit() {
-    let Some((store, requests, title, confirm)) = STATE.with(|cell| {
+    let Some((store, requests)) = STATE.with(|cell| {
         let state = cell.try_borrow().ok()?;
         let state = state.as_ref()?;
-        Some((
-            state.store.clone(),
-            state.requests.clone(),
-            state.texts.title.clone(),
-            state.texts.quit_confirm.clone(),
-        ))
+        Some((state.store.clone(), state.requests.clone()))
     }) else {
         return;
     };
+    let (title, confirm) = (text("window.title"), text("tray.quit_confirm"));
     let running = store.load_jobs().is_ok_and(|(jobs, _)| {
         jobs.iter()
             .any(|job| job.status == StoredJobStatus::Running)
@@ -391,19 +434,12 @@ fn quit() {
     std::process::exit(0);
 }
 
-/// トレイの文言で作った誤りの説明を、画面に出す
-fn show_message(message: impl FnOnce(&TrayTexts) -> String) {
-    let Some((title, description)) = STATE.with(|cell| {
-        let state = cell.try_borrow().ok()?;
-        let state = state.as_ref()?;
-        Some((state.texts.title.clone(), message(&state.texts)))
-    }) else {
-        return;
-    };
+/// 誤りの説明 `description` を、画面に出す
+fn show_message(description: &str) {
     rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
-        .set_title(&title)
-        .set_description(&description)
+        .set_title(text("window.title"))
+        .set_description(description)
         .set_buttons(rfd::MessageButtons::Ok)
         .show();
 }
@@ -434,7 +470,7 @@ fn add_icon(state: &TrayState) -> std::io::Result<()> {
     data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     data.uCallbackMessage = WM_TRAY;
     data.hIcon = state.icon;
-    copy_text(&mut data.szTip, &state.texts.title);
+    copy_text(&mut data.szTip, &text("window.title"));
     // SAFETY: `data` はこの関数の中で生きている
     if unsafe { Shell_NotifyIconW(NIM_ADD, &data) } == 0 {
         return Err(std::io::Error::other("cannot add the tray icon"));

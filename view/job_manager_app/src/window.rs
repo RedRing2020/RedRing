@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+use crate::locale::{self, Language};
 use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText, ScrollArea};
-use i18n_foundation::UiLocale;
 use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::text;
@@ -58,7 +58,10 @@ struct SelectedFiles {
 pub(crate) struct JobManagerWindow {
     store: JobStore,
     service: ServiceChannel,
-    locale: UiLocale,
+    /// ウィンドウの題に出している言語（言語を選び直したら、題を替える）
+    title_language: Language,
+    /// 選んだ言語を保存できなかった理由
+    language_error: Option<String>,
     jobs: Vec<StoredJob>,
     /// 一覧の行（ジョブの記録・絞り込みが変わったときに並べ直す）
     rows: Vec<JobRow>,
@@ -85,16 +88,12 @@ pub(crate) struct JobManagerWindow {
 }
 
 impl JobManagerWindow {
-    pub(crate) fn new(
-        store: JobStore,
-        service: ServiceChannel,
-        locale: UiLocale,
-        hide_on_close: bool,
-    ) -> Self {
+    pub(crate) fn new(store: JobStore, service: ServiceChannel, hide_on_close: bool) -> Self {
         Self {
             store,
             service,
-            locale,
+            title_language: locale::current(),
+            language_error: None,
             jobs: Vec::new(),
             rows: Vec::new(),
             unreadable_jobs: 0,
@@ -116,11 +115,47 @@ impl JobManagerWindow {
     }
 
     fn text(&self, key: &str) -> String {
-        text(self.locale, key, &[])
+        text(locale::current(), key, &[])
     }
 
     fn text_with(&self, key: &str, args: &[(&str, String)]) -> String {
-        text(self.locale, key, args)
+        text(locale::current(), key, args)
+    }
+
+    /// 言語を選ぶメニュー（その言語の名前で並べる）
+    fn show_language_menu(&mut self, ui: &mut egui::Ui) {
+        let current = locale::current();
+        ui.menu_button(
+            format!("{}: {}", self.text("language"), current.native_name()),
+            |ui| {
+                for language in Language::ALL {
+                    if ui
+                        .radio(language == current, language.native_name())
+                        .clicked()
+                    {
+                        self.language_error = crate::select_language(language)
+                            .err()
+                            .map(|error| error.to_string());
+                        self.show_title(ui.ctx());
+                        ui.close();
+                    }
+                }
+            },
+        );
+    }
+
+    /// ほかの所（トレイ）で言語を選び直していれば、ウィンドウの題を今の言語にし、前に保存できなかった理由を消す
+    fn update_title(&mut self, ctx: &egui::Context) {
+        if locale::current() != self.title_language {
+            self.language_error = None;
+            self.show_title(ctx);
+        }
+    }
+
+    /// ウィンドウの題を、今の言語にする
+    fn show_title(&mut self, ctx: &egui::Context) {
+        self.title_language = locale::current();
+        ctx.send_viewport_cmd(egui::ViewportCommand::Title(self.text("window.title")));
     }
 
     fn refresh(&mut self) {
@@ -337,6 +372,15 @@ impl JobManagerWindow {
                     ),
                 );
             }
+            if let Some(reason) = &self.language_error {
+                ui.colored_label(
+                    ui.visuals().error_fg_color,
+                    self.text_with("language.save_failed", &[("reason", reason.clone())]),
+                );
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                self.show_language_menu(ui);
+            });
         });
     }
 
@@ -465,7 +509,10 @@ impl JobManagerWindow {
                             ui,
                             elapsed_ms(job, now).map_or_else(|| "-".to_string(), format_elapsed),
                         ));
-                        cells.push(centered_label(ui, local_time(job.created_at_ms)));
+                        cells.push(centered_label(
+                            ui,
+                            local_time(locale::current(), job.created_at_ms),
+                        ));
                         // 行のすべての欄と、行の間の半分を、押せる範囲にする
                         let area = cells
                             .into_iter()
@@ -589,6 +636,7 @@ impl eframe::App for JobManagerWindow {
             ui.ctx()
                 .send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
+        self.update_title(ui.ctx());
         self.refresh();
         self.show_delete_confirmation(ui.ctx());
         Panel::top("header").show_inside(ui, |ui| self.show_header(ui));
@@ -636,16 +684,25 @@ fn status_color(status: StoredJobStatus) -> Color32 {
     }
 }
 
-/// UNIX 時刻のミリ秒を、この PC の時刻（月/日 時:分）で書く
-fn local_time(ms: u64) -> String {
+/// UNIX 時刻のミリ秒を、この PC の時刻で、言語 `language` の書き方（日本語は「月/日 時:分」、英語は「月の名前 日
+/// 時:分」）で書く
+fn local_time(language: Language, ms: u64) -> String {
     use chrono::TimeZone;
     chrono::Local
         .timestamp_millis_opt(ms as i64)
         .single()
         .map_or_else(
             || "-".to_string(),
-            |time| time.format("%m/%d %H:%M").to_string(),
+            |time| time.format(time_format(language)).to_string(),
         )
+}
+
+/// 言語 `language` の時刻の書き方
+fn time_format(language: Language) -> &'static str {
+    match language {
+        Language::Ja => "%m/%d %H:%M",
+        Language::En => "%b %-d %H:%M",
+    }
 }
 
 /// フォルダの中のファイルの大きさの合計（読めないものは数えない）

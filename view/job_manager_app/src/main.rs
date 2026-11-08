@@ -34,7 +34,6 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use eframe::egui;
-use i18n_foundation::UiLocale;
 use job_runtime::store::{JobStore, StoreError};
 
 use crate::service::ServiceChannel;
@@ -55,14 +54,14 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let locale = locale::app_locale();
+    locale::initialize();
     let background = args.background;
     // 起動の誤り（文言のキー・差し込む値・終了の番号）を出して終わる
     let fail = |key: &str, values: &[(&str, String)], code: u8| {
-        let message = messages::text(locale, key, values);
+        let message = messages::text(locale::current(), key, values);
         eprintln!("{message}");
         if !background {
-            show_error(locale, &message);
+            show_error(&message);
         }
         ExitCode::from(code)
     };
@@ -98,17 +97,8 @@ fn main() -> ExitCode {
     };
     #[cfg(windows)]
     {
-        let text = |key: &str| messages::text(locale, key, &[]);
-        let texts = tray::TrayTexts {
-            title: text("window.title"),
-            open: text("tray.open"),
-            autostart: text("tray.autostart"),
-            quit: text("tray.quit"),
-            quit_confirm: text("tray.quit_confirm"),
-            autostart_failed: text("tray.autostart_failed"),
-        };
         let command = autostart_command(given_store.as_deref());
-        let notifier = match tray::create(store.clone(), channel.requests.clone(), texts, command) {
+        let notifier = match tray::create(store.clone(), channel.requests.clone(), command) {
             Ok(notifier) => notifier,
             Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
         };
@@ -116,13 +106,13 @@ fn main() -> ExitCode {
         let notified_store = store.clone();
         std::thread::spawn(move || {
             for event in event_rx {
-                notify_finished(&notifier, &notified_store, locale, &event);
+                notify_finished(&notifier, &notified_store, &event);
             }
         });
         if background {
             tray::dispatch_messages(true);
         }
-        show_window(store, channel, locale, true);
+        show_window(store, channel, true);
         // ウィンドウを出せなかったときも、トレイ（終了）は使えるようにする
         tray::dispatch_messages(false);
     }
@@ -133,7 +123,7 @@ fn main() -> ExitCode {
             // 画面がないため、操作を渡す口を閉じる
             drop(channel);
         } else {
-            show_window(store, channel, locale, false);
+            show_window(store, channel, false);
         }
     }
     // ウィンドウを閉じても、ジョブの管理は続ける（サービスのスレッドが終わるのはパニックのときだけ。終了は
@@ -145,11 +135,11 @@ fn main() -> ExitCode {
 }
 
 /// ジョブの一覧のウィンドウを出す（`hide_on_close` のときは、閉じると隠す）
-fn show_window(store: JobStore, channel: ServiceChannel, locale: UiLocale, hide_on_close: bool) {
+fn show_window(store: JobStore, channel: ServiceChannel, hide_on_close: bool) {
     let rgba = icon::ring_rgba();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title(messages::text(locale, "window.title", &[]))
+            .with_title(messages::text(locale::current(), "window.title", &[]))
             .with_inner_size([960.0, 600.0])
             .with_icon(Arc::new(egui::IconData {
                 rgba,
@@ -168,7 +158,6 @@ fn show_window(store: JobStore, channel: ServiceChannel, locale: UiLocale, hide_
             Ok(Box::new(window::JobManagerWindow::new(
                 store,
                 channel,
-                locale,
                 hide_on_close,
             )))
         }),
@@ -183,7 +172,6 @@ fn show_window(store: JobStore, channel: ServiceChannel, locale: UiLocale, hide_
 fn notify_finished(
     notifier: &tray::TrayNotifier,
     store: &JobStore,
-    locale: UiLocale,
     event: &job_manager::ManagerEvent,
 ) {
     use job_runtime::store::StoredJobKind;
@@ -198,6 +186,7 @@ fn notify_finished(
     let Some((finish, job_id, kind)) = finished_job(event, &jobs) else {
         return;
     };
+    let locale = locale::current();
     let kind = match kind {
         StoredJobKind::Cam => "kind.cam",
         StoredJobKind::Sim => "kind.sim",
@@ -234,11 +223,23 @@ fn autostart_command(store: Option<&std::path::Path>) -> Option<String> {
     Some(command)
 }
 
+/// 言語 `language` を選び（設定のファイルに保存する）、トレイの文言を替える
+///
+/// # Errors
+///
+/// 選んだ言語を保存できない場合（今の言語は替える）。
+pub(crate) fn select_language(language: locale::Language) -> std::io::Result<()> {
+    let saved = locale::select(language);
+    #[cfg(windows)]
+    tray::refresh_language();
+    saved
+}
+
 /// 起動の誤りを、誤りの画面に出す
-fn show_error(locale: UiLocale, message: &str) {
+fn show_error(message: &str) {
     rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
-        .set_title(messages::text(locale, "window.title", &[]))
+        .set_title(messages::text(locale::current(), "window.title", &[]))
         .set_description(message)
         .set_buttons(rfd::MessageButtons::Ok)
         .show();
