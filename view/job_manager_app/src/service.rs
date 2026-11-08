@@ -36,7 +36,39 @@ pub(crate) enum ServiceRequest {
 }
 
 /// 操作の結果（保存先を読み書きできなかったときは理由）
-pub(crate) type CommandReply = Result<(), String>;
+pub(crate) type CommandReply = Result<(), StoreFailure>;
+
+/// ジョブの操作・保存先の読み込みの誤りの種類（画面の言語の文言にするため）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StoreFailure {
+    /// ほかのジョブマネージャーが保存先を開いている
+    AlreadyLocked,
+    /// 保存先のファイルが見つからない
+    NotFound,
+    /// 保存先のファイルを読み書きする権限がない
+    PermissionDenied,
+    /// 保存先のファイルを読み書きできない（そのほかの理由）
+    Io,
+    /// ジョブの記録の参照が、保存先のファイルを指さない
+    InvalidRef,
+    /// ジョブの操作を受けるサービスが止まった
+    ServiceStopped,
+}
+
+impl StoreFailure {
+    /// 保存先の誤り `error` の種類
+    pub(crate) fn of(error: &StoreError) -> Self {
+        match error {
+            StoreError::AlreadyLocked => Self::AlreadyLocked,
+            StoreError::Io(error) => match error.kind() {
+                std::io::ErrorKind::NotFound => Self::NotFound,
+                std::io::ErrorKind::PermissionDenied => Self::PermissionDenied,
+                _ => Self::Io,
+            },
+            StoreError::InvalidRef(_) => Self::InvalidRef,
+        }
+    }
+}
 
 /// 画面とサービスのスレッドをつなぐ口
 pub(crate) struct ServiceChannel {
@@ -103,9 +135,10 @@ pub(crate) fn start_service(
                     return;
                 }
                 Some(Ok(ServiceRequest::Command(command))) => {
-                    let reply = run_command(&mut service, command, now_ms());
-                    write(format!("command {command:?} -> {reply:?}"));
-                    let _ = reply_tx.send(reply);
+                    let result = run_command(&mut service, command, now_ms());
+                    // 英語の詳しい理由はログに書き、画面には種類を返す
+                    write(format!("command {command:?} -> {result:?}"));
+                    let _ = reply_tx.send(result.map_err(|error| StoreFailure::of(&error)));
                 }
                 Some(Err(RecvTimeoutError::Timeout)) => {}
                 Some(Err(RecvTimeoutError::Disconnected)) => commands = None,
@@ -137,7 +170,7 @@ fn run_command(
     service: &mut JobManagerService<ProcessLauncher>,
     command: JobCommand,
     now_ms: u64,
-) -> CommandReply {
+) -> Result<(), StoreError> {
     // 操作の間に状態が変わって操作できなくなったジョブは、何もしない（一覧を読み直せば分かる）
     match command {
         JobCommand::Cancel(job_id) => service.cancel(job_id, now_ms).map(drop),
@@ -147,7 +180,6 @@ fn run_command(
             service.change_priority(job_id, delta, now_ms).map(drop)
         }
     }
-    .map_err(|error| error.to_string())
 }
 
 fn describe(event: &ManagerEvent) -> String {

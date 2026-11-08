@@ -13,8 +13,8 @@ use std::path::Path;
 
 use job_runtime::RefFactory;
 use job_runtime::store::{
-    IntakeOutcome, JobStore, JobStoreLock, StoreError, StoredJob, StoredJobKind, StoredJobStatus,
-    plan_schedule,
+    IntakeOutcome, JobStore, JobStoreLock, StoreError, StoredJob, StoredJobError, StoredJobKind,
+    StoredJobStatus, plan_schedule,
 };
 
 pub use launcher::{LaunchSpec, Launcher, ProcessLauncher, RunningJob};
@@ -92,11 +92,7 @@ impl<L: Launcher> JobManagerService<L> {
         for mut job in jobs {
             if job.status == StoredJobStatus::Running {
                 // ランナーは別のプロセスのため、止まったジョブマネージャーからは引き継げない
-                fail(
-                    &mut job,
-                    "the job manager stopped while the job was running".to_string(),
-                    now_ms,
-                );
+                fail(&mut job, StoredJobError::ManagerStopped, None, now_ms);
                 // 止まっていた間を計算の時間に数えないように、始めた時刻を消す
                 job.started_at_ms = None;
                 service.store.write_job(&service.lock, &job)?;
@@ -193,7 +189,7 @@ impl<L: Launcher> JobManagerService<L> {
                 first_error.get_or_insert(error.into());
             }
             if let Some(mut job) = jobs.iter().find(|job| job.job_id == job_id).cloned() {
-                fail(&mut job, "the job manager was quit".to_string(), now_ms);
+                fail(&mut job, StoredJobError::ManagerQuit, None, now_ms);
                 job.started_at_ms = None;
                 if let Err(error) = self.store.write_job(&self.lock, &job) {
                     first_error.get_or_insert(error);
@@ -235,6 +231,7 @@ impl<L: Launcher> JobManagerService<L> {
             job.result_ref = None;
             job.log_ref = None;
             job.last_error = None;
+            job.error = None;
             job.updated_at_ms = now_ms;
             self.store.write_job(&self.lock, &job)?;
         }
@@ -320,10 +317,11 @@ impl<L: Launcher> JobManagerService<L> {
                 job.result_ref = RefFactory::result(domain, job_id, &["ok"]).ok();
                 job.log_ref = RefFactory::log(domain, job_id, &["ok"]).ok();
                 job.last_error = None;
+                job.error = None;
                 job.updated_at_ms = now_ms;
             } else {
-                let reason = runner_failure(code, &self.store, job_id);
-                fail(job, reason, now_ms);
+                let (error, log_line) = runner_failure(code, &self.store, job_id);
+                fail(job, error, log_line, now_ms);
                 job.log_ref = RefFactory::log(domain, job_id, &["failed"]).ok();
             }
             // 書けなければ、終わったランナーを残し、次の回に記録し直す
@@ -349,9 +347,12 @@ impl<L: Launcher> JobManagerService<L> {
             let plan = plan_schedule(jobs, unreadable);
             for (job_id, reason) in plan.blocked {
                 if let Some(job) = jobs.iter_mut().find(|job| job.job_id == job_id) {
-                    fail(job, reason.clone(), now_ms);
+                    fail(job, reason.clone(), None, now_ms);
                     self.store.write_job(&self.lock, job)?;
-                    events.push(ManagerEvent::Blocked { job_id, reason });
+                    events.push(ManagerEvent::Blocked {
+                        job_id,
+                        reason: reason.to_string(),
+                    });
                 }
             }
             let Some(next) = plan.next.filter(|_| self.running.len() < MAX_RUNNING_JOBS) else {
@@ -378,7 +379,12 @@ impl<L: Launcher> JobManagerService<L> {
                     events.push(ManagerEvent::Started { job_id: next });
                 }
                 Err(error) => {
-                    fail(job, format!("cannot start the runner: {error}"), now_ms);
+                    fail(
+                        job,
+                        StoredJobError::RunnerNotStarted,
+                        Some(error.to_string()),
+                        now_ms,
+                    );
                     self.store.write_job(&self.lock, job)?;
                     events.push(ManagerEvent::Finished {
                         job_id: next,
@@ -448,31 +454,40 @@ fn domain(kind: StoredJobKind) -> &'static str {
     }
 }
 
-fn fail(job: &mut StoredJob, reason: String, now_ms: u64) {
+/// ジョブ `job` を、理由の種類 `error`（`detail` は英語の文に添える詳しい理由）で失敗にする
+fn fail(job: &mut StoredJob, error: StoredJobError, detail: Option<String>, now_ms: u64) {
     job.status = StoredJobStatus::Failed;
-    job.last_error = Some(reason);
+    job.last_error = Some(match detail {
+        Some(detail) => format!("{error}: {detail}"),
+        None => error.to_string(),
+    });
+    job.error = Some(error);
     job.updated_at_ms = now_ms;
 }
 
 /// ランナーの失敗の理由（終了の番号の意味と、ログの最後の行）
-fn runner_failure(code: Option<i32>, store: &JobStore, job_id: u64) -> String {
-    let meaning = match code {
-        Some(0) => "the runner wrote no result".to_string(),
-        Some(2) => "the runner arguments are invalid".to_string(),
-        Some(3) => "the runner cannot read the input".to_string(),
-        Some(4) => "the input is invalid".to_string(),
-        Some(5) => "the calculation failed".to_string(),
-        Some(6) => "the runner cannot write the result".to_string(),
-        Some(other) => format!("the runner ended with exit code {other}"),
-        None => "the runner was stopped".to_string(),
+fn runner_failure(
+    code: Option<i32>,
+    store: &JobStore,
+    job_id: u64,
+) -> (StoredJobError, Option<String>) {
+    let error = match code {
+        Some(0) => StoredJobError::RunnerWroteNoResult,
+        Some(2) => StoredJobError::RunnerInvalidArguments,
+        Some(3) => StoredJobError::RunnerCannotReadInput,
+        Some(4) => StoredJobError::InvalidInput,
+        Some(5) => StoredJobError::CalculationFailed,
+        Some(6) => StoredJobError::RunnerCannotWriteResult,
+        Some(code) => StoredJobError::RunnerExitCode { code },
+        None => StoredJobError::RunnerStopped,
     };
     let log = store.log_file(job_id);
     let mut partial = log.clone().into_os_string();
     partial.push(".tmp");
-    match last_log_line(&log).or_else(|| last_log_line(Path::new(&partial))) {
-        Some(line) => format!("{meaning}: {line}"),
-        None => meaning,
-    }
+    (
+        error,
+        last_log_line(&log).or_else(|| last_log_line(Path::new(&partial))),
+    )
 }
 
 /// ログの最後の空でない行（末尾の `MAX_LOG_TAIL_BYTES` バイトから。`MAX_LOG_LINE_CHARS` 文字まで）

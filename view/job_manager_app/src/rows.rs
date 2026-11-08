@@ -127,6 +127,7 @@ mod tests {
             result_ref: None,
             log_ref: None,
             last_error: None,
+            error: None,
         }
     }
 
