@@ -22,6 +22,7 @@
 
 mod fonts;
 mod icon;
+mod ipc_server;
 mod locale;
 mod messages;
 mod notification;
@@ -108,13 +109,12 @@ fn main() -> ExitCode {
         }
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
     };
-    // 設定の保存先を開けたら、所在のファイルに書く（試しに別の保存先を指定して起動したときは書かない。書けなくても、
-    // ジョブの管理は続ける）
-    if configured
+    // 設定の保存先を開けたら、所在のファイルに書き、問い合わせる口を開く（試しに別の保存先を指定して起動したときは
+    // どちらもしない。書けなくても、ジョブの管理は続ける）
+    let configured_store = configured
         .as_deref()
-        .is_some_and(|configured| same_folder(configured, store.root()))
-        && let Err(error) = store.record_location()
-    {
+        .is_some_and(|configured| same_folder(configured, store.root()));
+    if configured_store && let Err(error) = store.record_location() {
         eprintln!("cannot record the job store location: {error}");
     }
     #[cfg(windows)]
@@ -124,6 +124,10 @@ fn main() -> ExitCode {
             Ok(notifier) => notifier,
             Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
         };
+        // ウィンドウを開く要求は、トレイの見えないウィンドウに頼むため、トレイを置いてから口を開く
+        if configured_store {
+            start_endpoint(&store);
+        }
         // 吹き出しは別のスレッドで出す（記録を読む・エクスプローラーを待つ間も、ジョブの管理を止めない）
         let notified_store = store.clone();
         std::thread::spawn(move || {
@@ -141,6 +145,9 @@ fn main() -> ExitCode {
     #[cfg(not(windows))]
     {
         let _ = (given_store, event_rx);
+        if configured_store {
+            start_endpoint(&store);
+        }
         if background {
             // 画面がないため、操作を渡す口を閉じる
             drop(channel);
@@ -154,6 +161,27 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(_) => ExitCode::from(101),
     }
+}
+
+/// この利用者の、ジョブマネージャーに問い合わせる口を開き、保存先 `store` の要求を受ける（開けなくても、ジョブの
+/// 管理は続ける）
+fn start_endpoint(store: &JobStore) {
+    let endpoint = match job_ipc::Endpoint::for_current_user() {
+        Ok(endpoint) => endpoint,
+        Err(error) => {
+            eprintln!("cannot find the job manager endpoint: {error}");
+            return;
+        }
+    };
+    #[cfg(windows)]
+    let open_window: ipc_server::OpenWindow = {
+        let root = store.root().to_path_buf();
+        Arc::new(move || tray::open_running(&root))
+    };
+    // トレイのないときは、動いているウィンドウを外から開く仕組みがない
+    #[cfg(not(windows))]
+    let open_window: ipc_server::OpenWindow = Arc::new(|| false);
+    ipc_server::start(endpoint, store.clone(), open_window);
 }
 
 /// ジョブの一覧のウィンドウを出す（`hide_on_close` のときは、閉じると隠す）

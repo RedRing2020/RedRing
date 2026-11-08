@@ -5,8 +5,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use cam_sim::{
     read_cam_solver_input_v1, read_cutting_simulation_input_v1, write_cam_solver_input_v1,
@@ -15,7 +14,7 @@ use cam_sim::{
 use job_domain::{CamJobSource, CamJobStatus};
 use job_runtime::store::{
     DependencyRef, JobStore, StoredJob, StoredJobKind, StoredJobSource, StoredJobStatus,
-    SubmissionRequest, SubmittedJob, request_format_version,
+    SubmissionRequest, SubmittedJob, new_submission_id, request_format_version,
 };
 
 use super::{JobClient, JobSubmission, PendingSubmission, SimulationJob};
@@ -456,19 +455,6 @@ fn status(status: StoredJobStatus) -> CamJobStatus {
 
 fn store_error(reason: impl Into<String>) -> CamSimulationWorkflowError {
     CamSimulationWorkflowError::JobStore(reason.into())
-}
-
-/// 重ならない投入の ID（時刻・プロセスの番号・通し番号の 16 進数）
-fn new_submission_id() -> String {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_nanos());
-    format!(
-        "{nanos:x}-{:x}-{:x}",
-        std::process::id(),
-        NEXT.fetch_add(1, Ordering::Relaxed)
-    )
 }
 
 /// 大きさの上限まで読む（読んだ量で確かめる）
