@@ -147,6 +147,57 @@ impl From<CamSimulationWorkflowError> for CuttingSimulationSessionError {
     }
 }
 
+/// 手順の全体の投入の結果
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SequenceSubmission {
+    /// 投入した工程の数
+    pub submitted: usize,
+    /// 今の改訂の計算が計算待ち・計算中・正常に終わっていたため、投入しなかった工程の数
+    pub skipped: usize,
+}
+
+/// 手順の全体の投入の失敗
+#[derive(Debug)]
+pub enum SequenceSubmissionError {
+    /// 工程の条件の誤り（どの工程も投入していない。工程の加工の順の番号（1 から）・名前と理由）
+    Conditions {
+        position: usize,
+        operation: String,
+        error: CuttingSimulationSessionError,
+    },
+    /// 計算の状態をまだ読めていない・読めない（投入し直さない工程を決められないため、どの工程も投入していない）
+    StatusNotRead,
+    /// 工程の投入の失敗（その前の `submitted` 個の工程は投入した。工程の加工の順の番号（1 から）・名前と理由）
+    Submit {
+        position: usize,
+        operation: String,
+        submitted: usize,
+        error: CuttingSimulationSessionError,
+    },
+}
+
+impl std::fmt::Display for SequenceSubmissionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Conditions {
+                position,
+                operation,
+                error,
+            } => write!(f, "operation {position} ({operation:?}): {error}"),
+            Self::StatusNotRead => write!(f, "the job status has not been read"),
+            Self::Submit {
+                position,
+                operation,
+                submitted,
+                error,
+            } => write!(
+                f,
+                "operation {position} ({operation:?}): {error} ({submitted} operations were submitted before it)"
+            ),
+        }
+    }
+}
+
 /// 製品形状からの切削シミュレーションの投入・実行・取り込み
 #[derive(Debug, Default)]
 pub struct CuttingSimulationSession {
@@ -205,6 +256,70 @@ impl CuttingSimulationSession {
         self.workflow
             .submit_operation(shapes, sequences, sequence, operation)?;
         Ok(())
+    }
+
+    /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての加工工程を加工の順に投入する（実行しない）
+    ///
+    /// 先にすべての工程の条件を確かめ、誤りがあればどの工程も投入しない。今の改訂の計算が計算待ち・計算中・正常に
+    /// 終わった工程は、投入し直さない（同じ計算を重ねないように）。計算の状態をまだ読めていない・読めないときは、
+    /// 投入し直さない工程を決められないため、どの工程も投入しない。
+    ///
+    /// # Errors
+    ///
+    /// 工程の条件の誤り・計算の状態を読めていない（どの工程も投入しない）、投入の失敗（その工程の前までは投入した）の
+    /// 場合。
+    pub fn submit_sequence(
+        &mut self,
+        document: &mut SpaceModelDocument,
+    ) -> Result<SequenceSubmission, SequenceSubmissionError> {
+        document.target_visible_faces();
+        let operations = document.operations();
+        let (shapes, sequences, sequence, _) = document.machining();
+        for (index, item) in operations.iter().enumerate() {
+            CamSimulationWorkflow::check_operation(shapes, sequences, sequence, item.id).map_err(
+                |error| SequenceSubmissionError::Conditions {
+                    position: index + 1,
+                    operation: item.name.clone(),
+                    error: error.into(),
+                },
+            )?;
+        }
+        let ids: Vec<MachiningOperationId> = operations.iter().map(|item| item.id).collect();
+        let states = self
+            .workflow
+            .latest_revision_job_states(sequences, sequence, &ids)
+            .map_err(|_| SequenceSubmissionError::StatusNotRead)?;
+        if states.contains(&OperationJobState::NotRead) {
+            return Err(SequenceSubmissionError::StatusNotRead);
+        }
+        let mut submission = SequenceSubmission {
+            submitted: 0,
+            skipped: 0,
+        };
+        for (index, (item, state)) in operations.iter().zip(states).enumerate() {
+            let done_or_pending = matches!(
+                state,
+                OperationJobState::Status(
+                    OperationJobStatus::Queued
+                        | OperationJobStatus::Running
+                        | OperationJobStatus::Succeeded
+                )
+            );
+            if done_or_pending {
+                submission.skipped += 1;
+                continue;
+            }
+            self.workflow
+                .submit_operation(shapes, sequences, sequence, item.id)
+                .map_err(|error| SequenceSubmissionError::Submit {
+                    position: index + 1,
+                    operation: item.name.clone(),
+                    submitted: submission.submitted,
+                    error: error.into(),
+                })?;
+            submission.submitted += 1;
+        }
+        Ok(submission)
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての加工工程の今の改訂の計算の状態（加工の順。
@@ -392,6 +507,54 @@ pub(crate) mod tests {
         );
         let radius = Tool::radius_end_mill("REM10R1".to_string(), 10.0, 1.0, 30.0);
         assert_eq!(CuttingToolKind::of(&radius), None);
+    }
+
+    #[test]
+    fn the_whole_sequence_is_submitted_after_every_operation_is_checked() {
+        let (mut session, mut document) = coarse_session();
+        document.duplicate_operation("仕上げ".to_string());
+        // 誤りのある工程があれば、どの工程も投入しない（誤りの工程の名前を返す）
+        let mut wrong = document.operation_content().clone();
+        let OperationSpec::Scanline(mut scanline) = wrong.spec;
+        scanline.stepover = 1000.0;
+        wrong.spec = OperationSpec::Scanline(scanline);
+        document.set_operation_content(wrong);
+        assert!(matches!(
+            session.submit_sequence(&mut document),
+            Err(SequenceSubmissionError::Conditions { position: 2, ref operation, .. })
+                if operation == "仕上げ"
+        ));
+        assert_eq!(session.run_queued_jobs().unwrap(), 0);
+
+        // 誤りを直すと、すべての工程を投入する
+        let mut fixed = document.operation_content().clone();
+        let OperationSpec::Scanline(mut scanline) = fixed.spec;
+        scanline.stepover = 3.0;
+        fixed.spec = OperationSpec::Scanline(scanline);
+        document.set_operation_content(fixed);
+        assert_eq!(
+            session.submit_sequence(&mut document).unwrap(),
+            SequenceSubmission {
+                submitted: 2,
+                skipped: 0
+            }
+        );
+        // 計算待ち・計算済みの工程は、投入し直さない
+        assert_eq!(
+            session.submit_sequence(&mut document).unwrap(),
+            SequenceSubmission {
+                submitted: 0,
+                skipped: 2
+            }
+        );
+        assert_eq!(session.run_queued_jobs().unwrap(), 4);
+        assert_eq!(
+            session.submit_sequence(&mut document).unwrap(),
+            SequenceSubmission {
+                submitted: 0,
+                skipped: 2
+            }
+        );
     }
 
     #[test]

@@ -47,6 +47,20 @@ pub(crate) enum OperationStatus {
     Submitted,
     /// 投入できない（画面に出す理由）
     SubmitFailed(UiMessage),
+    /// 手順の全体を投入した（投入した工程・投入し直さなかった工程の数）
+    SequenceSubmitted {
+        submitted: usize,
+        skipped: usize,
+    },
+    /// 手順の全体のうち、工程を投入できない（工程の加工の順の番号・名前、その前に投入した工程の数、画面に出す理由）
+    SequenceSubmitFailed {
+        position: usize,
+        operation: String,
+        submitted: usize,
+        reason: UiMessage,
+    },
+    /// 計算の状態をまだ読めていないため、手順の全体を投入しない
+    SequenceStatusNotRead,
     /// 取り込んだ切削シミュレーションのジョブの番号
     Imported {
         job: u64,
@@ -75,6 +89,38 @@ fn operation_status_message(
         OperationStatus::Submitted => ("conditions.status.submitted", vec![]),
         OperationStatus::SubmitFailed(message) => {
             ("conditions.status.submit_failed", reason(message))
+        }
+        OperationStatus::SequenceSubmitted { submitted: 0, .. } => {
+            ("conditions.status.sequence_nothing_to_submit", vec![])
+        }
+        OperationStatus::SequenceSubmitted {
+            submitted,
+            skipped: 0,
+        } => (
+            "conditions.status.sequence_submitted_all",
+            vec![("submitted", submitted.to_string())],
+        ),
+        OperationStatus::SequenceSubmitted { submitted, skipped } => (
+            "conditions.status.sequence_submitted",
+            vec![
+                ("submitted", submitted.to_string()),
+                ("skipped", skipped.to_string()),
+            ],
+        ),
+        OperationStatus::SequenceSubmitFailed {
+            position,
+            operation,
+            submitted,
+            reason: message,
+        } => {
+            let mut args = reason(message);
+            args.push(("position", position.to_string()));
+            args.push(("operation", operation.clone()));
+            args.push(("submitted", submitted.to_string()));
+            ("conditions.status.sequence_submit_failed", args)
+        }
+        OperationStatus::SequenceStatusNotRead => {
+            ("conditions.status.sequence_status_not_read", vec![])
         }
         OperationStatus::Imported { job } => {
             ("conditions.status.imported", vec![("job", job.to_string())])
@@ -122,6 +168,8 @@ pub struct MachiningConditionsUiState {
     /// 最後の操作の結果
     pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
+    /// 手順の全体を投入する
+    pub(crate) submit_sequence_requested: bool,
     /// 空間モデルの CL から、切削シミュレーションだけを投入する
     pub simulate_toolpath_requested: bool,
     pub import_requested: bool,
@@ -361,6 +409,10 @@ impl MachiningConditionsUiState {
                             );
                             if submit.clicked() {
                                 self.submit_requested = true;
+                            }
+                            // 手順の全体は、すべての工程を確かめてから投入する（誤りは、工程の名前とともに出す）
+                            if ui.button(self.text("conditions.submit_sequence")).clicked() {
+                                self.submit_sequence_requested = true;
                             }
                             let simulate_toolpath = ui.add_enabled(
                                 self.can_simulate_toolpath(),
@@ -763,6 +815,25 @@ mod tests {
         for status in [
             OperationStatus::Submitted,
             OperationStatus::SubmitFailed(failure("failure.orchestration")),
+            OperationStatus::SequenceSubmitted {
+                submitted: 2,
+                skipped: 1,
+            },
+            OperationStatus::SequenceSubmitted {
+                submitted: 0,
+                skipped: 2,
+            },
+            OperationStatus::SequenceSubmitted {
+                submitted: 2,
+                skipped: 0,
+            },
+            OperationStatus::SequenceSubmitFailed {
+                position: 2,
+                operation: "仕上げ".to_string(),
+                submitted: 1,
+                reason: failure("failure.conditions"),
+            },
+            OperationStatus::SequenceStatusNotRead,
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
             OperationStatus::ImportFailed(failure("failure.animation.replay")),
@@ -841,6 +912,7 @@ mod tests {
             imported_toolpath,
             status: None,
             submit_requested: false,
+            submit_sequence_requested: false,
             simulate_toolpath_requested: false,
             import_requested: false,
             open_job_manager_requested: false,

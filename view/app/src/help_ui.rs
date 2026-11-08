@@ -127,10 +127,15 @@ impl Notice {
             | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
             Self::Operation(status) => match status {
                 OperationStatus::SubmitFailed(_)
+                | OperationStatus::SequenceSubmitFailed { .. }
                 | OperationStatus::ImportFailed(_)
                 | OperationStatus::JobManagerFailed(_) => NoticeLevel::Error,
-                OperationStatus::NothingToImport => NoticeLevel::Warning,
-                OperationStatus::Submitted | OperationStatus::Imported { .. } => NoticeLevel::Info,
+                OperationStatus::NothingToImport | OperationStatus::SequenceStatusNotRead => {
+                    NoticeLevel::Warning
+                }
+                OperationStatus::Submitted
+                | OperationStatus::SequenceSubmitted { .. }
+                | OperationStatus::Imported { .. } => NoticeLevel::Info,
             },
         }
     }
