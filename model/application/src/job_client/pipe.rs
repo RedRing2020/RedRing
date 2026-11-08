@@ -1,14 +1,19 @@
 //! ジョブマネージャーに問い合わせる口を通して、計算させるクライアント（設計: JOB_IPC_DESIGN.md）
 //!
 //! 保存先のパスを知らずに、投入・状態の読み取り・成果物の取り込みを、口の要求で行う。口につなげなければ、このアプリと
-//! 同じフォルダのジョブマネージャーを起動して、口が開くのを待つ。接続は操作ごとにつなぎ直す（ジョブマネージャーを
-//! 起動し直した・保存先を替えた後も、そのまま使える）。
+//! 同じフォルダのジョブマネージャーを起動して、口が開くのを待つ。接続は操作ごとにつなぎ直し（ジョブマネージャーを
+//! 起動し直した・保存先を替えた後も、そのまま使える）、読み書きには時間の上限を設ける。
+//!
+//! 計算の状態は、別のスレッドで 1 つの接続で読み、呼ぶ側には最後に読んだ状態を返す（画面を止めないように。ジョブ
+//! マネージャーの起動を待つのも、そのスレッド）。投入できたら、取り込みを待つ投入として状態にすぐに出す。
 
-use std::cell::{Cell, RefCell};
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use cam_sim::{
@@ -21,7 +26,7 @@ use job_ipc::{
     JobStatus, JobSummary, SubmitJob,
 };
 
-use super::{JobClient, JobSubmission, PendingSubmission, SimulationJob};
+use super::{JobClient, JobStatusSnapshot, JobSubmission, PendingSubmission, SimulationJob};
 use super::{SimulationSubmission, SimulationToolpath, ToolpathJob};
 use crate::cam_simulation_workflow::{CamSimulationWorkflowError, CamSimulationWorkflowResult};
 
@@ -40,28 +45,67 @@ const BUSY_WAIT: Duration = Duration::from_secs(2);
 const START_POLL_INTERVAL: Duration = Duration::from_millis(50);
 /// ほかのジョブマネージャーが保存先を開いているときの、ジョブマネージャーの終了の番号
 const MANAGER_ALREADY_RUNNING: i32 = 1;
+/// 口の読み書き 1 回ごとの時間の上限（ジョブマネージャーが応答しなくなっても、待ち続けないように）
+const IO_TIMEOUT: Duration = Duration::from_secs(30);
+/// 計算の状態の読み直しを頼む間隔（呼ぶ側は、読み終えるのを待たずに何度でも呼べる）
+const STATUS_REFRESH_INTERVAL: Duration = Duration::from_secs(1);
+/// これより前に読んだ計算の状態は、古いとして返さない（ウィンドウを開き直したときに、前の状態を出さないように）
+const STATUS_STALE_AFTER: Duration = Duration::from_secs(10);
 /// ジョブマネージャーを起動し直さない間（起動してすぐに終わるときに、操作のたびに起動しないように）
 const MANAGER_RESTART_INTERVAL: Duration = Duration::from_secs(10);
 
 /// 口を通して計算させるクライアント
 pub(crate) struct PipeJobClient {
-    /// ジョブマネージャーの口（利用者を確かめられなかったときは、その理由）
-    endpoint: Result<Endpoint, String>,
-    /// ジョブマネージャーの実行ファイル
-    manager: PathBuf,
-    /// 起動したジョブマネージャー（終わったら片付ける。アプリを閉じても止めない）
-    started: RefCell<Option<Child>>,
-    /// 最後にジョブマネージャーを起動した時刻
-    started_at: Cell<Option<Instant>>,
+    connector: Arc<Connector>,
+    /// 別のスレッドで読む、計算の状態
+    status: Arc<Mutex<StatusState>>,
+    /// 計算の状態を読むスレッドへの頼み（初めて状態を読むときに、スレッドを始める）
+    status_requests: OnceCell<Sender<()>>,
 }
 
 impl std::fmt::Debug for PipeJobClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PipeJobClient")
-            .field("endpoint", &self.endpoint)
-            .field("manager", &self.manager)
+            .field("endpoint", &self.connector.endpoint)
+            .field("manager", &self.connector.manager)
             .finish_non_exhaustive()
     }
+}
+
+/// 別のスレッドで読んだ計算の状態
+#[derive(Default)]
+struct StatusState {
+    /// 最後に読んだ状態と、読んだ時刻（まだ読めていなければ `None`）
+    latest: Option<(
+        Result<JobStatusSnapshot, CamSimulationWorkflowError>,
+        Instant,
+    )>,
+    /// 投入するたびに増やす数（読んでいる間に投入したら、読んだ状態を捨てて読み直す）
+    generation: u64,
+    /// 最後に読み直しを頼んだ時刻
+    requested_at: Option<Instant>,
+}
+
+/// 口につなぐ役（ジョブマネージャーの起動を含む。画面のスレッドと、状態を読むスレッドで共有する）
+struct Connector {
+    /// ジョブマネージャーの口（利用者を確かめられなかったときは、その理由）
+    endpoint: Result<Endpoint, String>,
+    /// ジョブマネージャーの実行ファイル
+    manager: PathBuf,
+    starter: Mutex<Starter>,
+}
+
+/// 起動したジョブマネージャー
+#[derive(Default)]
+struct Starter {
+    /// 起動したジョブマネージャー（終わったら片付ける。アプリを閉じても止めない）
+    started: Option<Child>,
+    /// 最後にジョブマネージャーを起動した時刻
+    started_at: Option<Instant>,
+}
+
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 impl PipeJobClient {
@@ -84,13 +128,102 @@ impl PipeJobClient {
     /// 口 `endpoint` と、ジョブマネージャーの実行ファイル `manager` を使う
     pub(crate) fn new(endpoint: Result<Endpoint, String>, manager: PathBuf) -> Self {
         Self {
-            endpoint,
-            manager,
-            started: RefCell::new(None),
-            started_at: Cell::new(None),
+            connector: Arc::new(Connector {
+                endpoint,
+                manager,
+                starter: Mutex::new(Starter::default()),
+            }),
+            status: Arc::new(Mutex::new(StatusState::default())),
+            status_requests: OnceCell::new(),
         }
     }
 
+    fn jobs(&self) -> Result<Vec<JobSummary>, CamSimulationWorkflowError> {
+        self.connector.connect()?.jobs().map_err(client_error)
+    }
+
+    /// ジョブの列を投入する（投入できたら、取り込みを待つ投入として、計算の状態にすぐに出す）
+    fn submit_jobs(
+        &self,
+        jobs: Vec<SubmitJob>,
+        inputs: &[(&str, &[u8])],
+    ) -> Result<String, CamSimulationWorkflowError> {
+        let submitted_source = jobs.first().and_then(|job| job.source.as_ref()).map(source);
+        let submission_id = self
+            .connector
+            .connect()?
+            .submit(jobs, inputs)
+            .map_err(client_error)?;
+        {
+            let mut state = lock(&self.status);
+            state.generation += 1;
+            let pending = PendingSubmission {
+                source: submitted_source,
+                rejected: false,
+            };
+            match state.latest.as_mut() {
+                Some((Ok(snapshot), read_at)) => {
+                    snapshot.pending.push(pending);
+                    *read_at = Instant::now();
+                }
+                _ => {
+                    state.latest = Some((
+                        Ok(JobStatusSnapshot {
+                            pending: vec![pending],
+                            simulations: Vec::new(),
+                        }),
+                        Instant::now(),
+                    ));
+                }
+            }
+        }
+        self.request_status();
+        Ok(submission_id)
+    }
+
+    /// 計算の状態を読み直すように頼む（読むスレッドがなければ始める。待たない）
+    fn request_status(&self) {
+        lock(&self.status).requested_at = Some(Instant::now());
+        let requests = self.status_requests.get_or_init(|| {
+            let (sender, receiver) = mpsc::channel();
+            let connector = Arc::clone(&self.connector);
+            let status = Arc::clone(&self.status);
+            std::thread::spawn(move || read_status_loop(&connector, &status, &receiver));
+            sender
+        });
+        let _ = requests.send(());
+    }
+}
+
+/// 頼まれるたびに計算の状態を読み、`status` に置く（頼む側がなくなったら終わる）
+fn read_status_loop(connector: &Connector, status: &Mutex<StatusState>, requests: &Receiver<()>) {
+    while requests.recv().is_ok() {
+        loop {
+            // 溜まった頼みは、1 回の読み取りにまとめる
+            while requests.try_recv().is_ok() {}
+            let generation = lock(status).generation;
+            let read = read_status(connector);
+            let mut state = lock(status);
+            if state.generation == generation {
+                state.latest = Some((read, Instant::now()));
+                break;
+            }
+        }
+    }
+}
+
+/// 1 つの接続で、取り込みを待つ投入とジョブの一覧を読む（この順に読む。間に取り込まれた投入は、ジョブの一覧に出る）
+fn read_status(connector: &Connector) -> Result<JobStatusSnapshot, CamSimulationWorkflowError> {
+    let mut client = connector.connect()?;
+    let pending = client.pending_submissions().map_err(client_error)?;
+    let jobs = client.jobs().map_err(client_error)?;
+    Ok(JobStatusSnapshot {
+        pending: pending.iter().map(pending_submission).collect(),
+        simulations: simulation_jobs(&jobs),
+    })
+}
+
+impl Connector {
     fn endpoint(&self) -> Result<&Endpoint, CamSimulationWorkflowError> {
         self.endpoint
             .as_ref()
@@ -98,7 +231,7 @@ impl PipeJobClient {
     }
 
     /// 口につなぐ（ジョブマネージャーが動いていなければ、ウィンドウを出さずに起動して、口が開くのを待つ。起動し直さない
-    /// 間は待たない（画面を止めないように））
+    /// 間は待たない）。読み書きには時間の上限を設ける
     fn connect(&self) -> Result<Client<Connection>, CamSimulationWorkflowError> {
         let endpoint = self.endpoint()?;
         let connection = match connect_now(endpoint) {
@@ -111,7 +244,7 @@ impl PipeJobClient {
             }
             Err(error) => return Err(store_error(error.to_string())),
         };
-        Client::new(connection).map_err(client_error)
+        client(connection)
     }
 
     /// 起動したジョブマネージャーの口が開くのを待ってつなぐ（起動したジョブマネージャーが終われば、待たずに誤りにする）
@@ -125,9 +258,8 @@ impl PipeJobClient {
                 Ok(connection) => return Ok(connection),
                 Err(error) => error,
             };
-            let exited = self
+            let exited = lock(&self.starter)
                 .started
-                .borrow_mut()
                 .as_mut()
                 .is_some_and(|child| !matches!(child.try_wait(), Ok(None)));
             if !not_running(&error) || exited || Instant::now() >= deadline {
@@ -144,17 +276,16 @@ impl PipeJobClient {
         if !self.manager.is_file() {
             return Err(CamSimulationWorkflowError::JobManagerNotFound);
         }
+        let mut starter = lock(&self.starter);
         // 前に起動したジョブマネージャーが終わっていれば片付ける
-        let mut started = self.started.borrow_mut();
-        if let Some(child) = started.as_mut()
+        if let Some(child) = starter.started.as_mut()
             && !matches!(child.try_wait(), Ok(None))
         {
-            *started = None;
+            starter.started = None;
         }
-        if started.is_some()
-            || self
+        if starter.started.is_some()
+            || starter
                 .started_at
-                .get()
                 .is_some_and(|at| at.elapsed() < MANAGER_RESTART_INTERVAL)
         {
             return Ok(false);
@@ -171,16 +302,15 @@ impl PipeJobClient {
         let child = command
             .spawn()
             .map_err(|error| store_error(format!("cannot start the job manager: {error}")))?;
-        *started = Some(child);
-        self.started_at.set(Some(Instant::now()));
+        starter.started = Some(child);
+        starter.started_at = Some(Instant::now());
         Ok(true)
     }
 
     /// 起動したジョブマネージャーの口につなげなかった理由（すぐに終わっていれば、終わり方）
     fn start_error(&self, error: &io::Error) -> CamSimulationWorkflowError {
-        let exited = self
+        let exited = lock(&self.starter)
             .started
-            .borrow_mut()
             .as_mut()
             .and_then(|child| child.try_wait().ok().flatten());
         match exited {
@@ -192,18 +322,14 @@ impl PipeJobClient {
             None => store_error(format!("cannot connect to the job manager: {error}")),
         }
     }
+}
 
-    fn jobs(&self) -> Result<Vec<JobSummary>, CamSimulationWorkflowError> {
-        self.connect()?.jobs().map_err(client_error)
-    }
-
-    fn submit_jobs(
-        &self,
-        jobs: Vec<SubmitJob>,
-        inputs: &[(&str, &[u8])],
-    ) -> Result<String, CamSimulationWorkflowError> {
-        self.connect()?.submit(jobs, inputs).map_err(client_error)
-    }
+/// 接続 `connection` の読み書きに時間の上限を設け、口の版を確かめる
+fn client(mut connection: Connection) -> Result<Client<Connection>, CamSimulationWorkflowError> {
+    connection
+        .set_io_timeout(Some(IO_TIMEOUT))
+        .map_err(|error| store_error(error.to_string()))?;
+    Client::new(connection).map_err(client_error)
 }
 
 /// 口につなぐ（口が空いていないときは、少しだけ待つ。口がないときは待たない）
@@ -303,30 +429,29 @@ impl JobClient for PipeJobClient {
     }
 
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError> {
-        // つなげれば（止まっていれば起動して）、ジョブマネージャーが待ちのジョブを実行する
-        self.connect()?;
+        // 状態を読むスレッドがつなげば（止まっていれば起動して）、ジョブマネージャーが待ちのジョブを実行する（待たない）
+        self.request_status();
         Ok(0)
     }
 
     fn open_manager_window(&mut self) -> Result<(), CamSimulationWorkflowError> {
-        if !self.manager.is_file() {
+        let connector = &self.connector;
+        if !connector.manager.is_file() {
             return Err(CamSimulationWorkflowError::JobManagerNotFound);
         }
-        let endpoint = self.endpoint()?;
+        let endpoint = connector.endpoint()?;
         match connect_now(endpoint) {
             Ok(connection) => {
                 // ウィンドウを前に出す権利は、利用者が操作しているこのアプリにあるため、ジョブマネージャーに渡す
                 connection.allow_server_foreground();
-                Client::new(connection)
-                    .and_then(|mut client| client.open_window())
-                    .map_err(client_error)
+                client(connection)?.open_window().map_err(client_error)
             }
             // 動いていなければ、ウィンドウを出して起動する（起動し直さない間は、理由を返す）
             Err(error) if not_running(&error) => {
-                if self.start_manager(false)? {
+                if connector.start_manager(false)? {
                     Ok(())
                 } else {
-                    Err(self.start_error(&error))
+                    Err(connector.start_error(&error))
                 }
             }
             Err(error) => Err(store_error(error.to_string())),
@@ -334,51 +459,34 @@ impl JobClient for PipeJobClient {
     }
 
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
-        let jobs = self.jobs()?;
-        let by_id: HashMap<u64, &JobSummary> = jobs.iter().map(|job| (job.job_id, job)).collect();
-        Ok(jobs
-            .iter()
-            .filter(|job| job.kind == JobKind::Sim)
-            .map(|job| SimulationJob {
-                job_id: job.job_id,
-                submission_id: job.submission_id.clone(),
-                source: job.source.as_ref().map(source),
-                status: status(job.status),
-                // CL を入力にするジョブ（依存するジョブを持たない）は、入力の CL があればツールパスができている（なければ
-                // 失敗として扱う）。一覧にないツールパス生成のジョブは、待ちとして扱う
-                toolpath_status: if job.depends_on.is_empty() {
-                    if job.has_input_toolpath {
-                        CamJobStatus::Succeeded
-                    } else {
-                        CamJobStatus::Failed
-                    }
-                } else {
-                    toolpath_job(&by_id, job)
-                        .map_or(CamJobStatus::Queued, |toolpath| status(toolpath.status))
-                },
-            })
-            .collect())
+        Ok(simulation_jobs(&self.jobs()?))
     }
 
-    fn pending_submissions(&self) -> Result<Vec<PendingSubmission>, CamSimulationWorkflowError> {
-        let submissions = self
-            .connect()?
-            .pending_submissions()
-            .map_err(client_error)?;
-        Ok(submissions
-            .into_iter()
-            .map(|submission| PendingSubmission {
-                source: submission.source.as_ref().map(source),
-                rejected: submission.rejected,
-            })
-            .collect())
+    fn status_snapshot(&self) -> Result<Option<JobStatusSnapshot>, CamSimulationWorkflowError> {
+        let (due, latest) = {
+            let state = lock(&self.status);
+            let due = state
+                .requested_at
+                .is_none_or(|at| at.elapsed() >= STATUS_REFRESH_INTERVAL);
+            // 古い状態は返さない（読み直すまで、まだ読めていないとする）
+            let latest = state
+                .latest
+                .as_ref()
+                .filter(|(_, read_at)| read_at.elapsed() < STATUS_STALE_AFTER)
+                .map(|(read, _)| read.clone());
+            (due, latest)
+        };
+        if due {
+            self.request_status();
+        }
+        latest.transpose()
     }
 
     fn import(
         &self,
         simulation_job_id: u64,
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError> {
-        let mut client = self.connect()?;
+        let mut client = self.connector.connect()?;
         let jobs = client.jobs().map_err(client_error)?;
         let by_id: HashMap<u64, &JobSummary> = jobs.iter().map(|job| (job.job_id, job)).collect();
         let not_succeeded =
@@ -439,6 +547,39 @@ impl JobClient for PipeJobClient {
             simulation_input,
             source: simulation.source.as_ref().map(source),
         })
+    }
+}
+
+/// ジョブの一覧 `jobs` の、切削シミュレーションのジョブ
+fn simulation_jobs(jobs: &[JobSummary]) -> Vec<SimulationJob> {
+    let by_id: HashMap<u64, &JobSummary> = jobs.iter().map(|job| (job.job_id, job)).collect();
+    jobs.iter()
+        .filter(|job| job.kind == JobKind::Sim)
+        .map(|job| SimulationJob {
+            job_id: job.job_id,
+            submission_id: job.submission_id.clone(),
+            source: job.source.as_ref().map(source),
+            status: status(job.status),
+            // CL を入力にするジョブ（依存するジョブを持たない）は、入力の CL があればツールパスができている（なければ
+            // 失敗として扱う）。一覧にないツールパス生成のジョブは、待ちとして扱う
+            toolpath_status: if job.depends_on.is_empty() {
+                if job.has_input_toolpath {
+                    CamJobStatus::Succeeded
+                } else {
+                    CamJobStatus::Failed
+                }
+            } else {
+                toolpath_job(&by_id, job)
+                    .map_or(CamJobStatus::Queued, |toolpath| status(toolpath.status))
+            },
+        })
+        .collect()
+}
+
+fn pending_submission(submission: &job_ipc::PendingSubmission) -> PendingSubmission {
+    PendingSubmission {
+        source: submission.source.as_ref().map(source),
+        rejected: submission.rejected,
     }
 }
 

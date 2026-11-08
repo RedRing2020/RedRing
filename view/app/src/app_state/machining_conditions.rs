@@ -2,6 +2,8 @@
 
 use std::time::{Duration, Instant};
 
+use viewmodel::cutting_simulation_session::OperationJobState;
+
 use super::AppState;
 use crate::machining_conditions_ui::{JobStatusLine, MachiningConditionsUiState};
 
@@ -33,9 +35,13 @@ impl AppState {
     /// 加工条件のウィンドウを開いている間、加工工程の今の改訂の計算の状態を、一定の間隔で読み直す
     ///
     /// 終わった状態（正常・失敗・取り消し）は、ジョブマネージャーでやり直す・消すまで変わらないため、間隔を長くして
-    /// 読み直す。待ち・計算中の間は、ジョブマネージャーが止まっていれば起動し直す。
+    /// 読み直す。待ち・計算中の間は、ジョブマネージャーが止まっていれば起動し直す。状態は別のスレッドで読むため、
+    /// ここでは最後に読んだ状態を出す（画面を止めない）。
     fn refresh_job_status(&mut self) {
-        let interval = if self.cutting_simulation_job_status.is_final() {
+        // まだ読めていない間は、描くたびに確かめる（読むのは別のスレッドで、ここでは待たない）
+        let interval = if self.cutting_simulation_job_status == JobStatusLine::Reading {
+            Duration::ZERO
+        } else if self.cutting_simulation_job_status.is_final() {
             FINISHED_JOB_STATUS_INTERVAL
         } else {
             JOB_STATUS_INTERVAL
@@ -48,8 +54,9 @@ impl AppState {
         }
         self.job_status_read_at = Some(Instant::now());
         let status = match self.cutting_simulation.job_status(&mut self.document) {
-            Ok(None) => JobStatusLine::NotSubmitted,
-            Ok(Some(status)) => JobStatusLine::Status(status),
+            Ok(OperationJobState::NotRead) => JobStatusLine::Reading,
+            Ok(OperationJobState::NotSubmitted) => JobStatusLine::NotSubmitted,
+            Ok(OperationJobState::Status(status)) => JobStatusLine::Status(status),
             Err(error) => {
                 if self.cutting_simulation_job_status != JobStatusLine::Unreadable {
                     tracing::warn!("Cannot read the job status: {error}");

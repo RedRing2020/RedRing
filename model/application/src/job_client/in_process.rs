@@ -160,11 +160,14 @@ impl JobClient for InProcessJobClient {
             .collect()
     }
 
-    fn pending_submissions(
+    fn status_snapshot(
         &self,
-    ) -> Result<Vec<super::PendingSubmission>, CamSimulationWorkflowError> {
-        // 投入したときにジョブになる
-        Ok(Vec::new())
+    ) -> Result<Option<super::JobStatusSnapshot>, CamSimulationWorkflowError> {
+        // 投入したときにジョブになるため、取り込みを待つ投入はない
+        Ok(Some(super::JobStatusSnapshot {
+            pending: Vec::new(),
+            simulations: self.simulation_jobs()?,
+        }))
     }
 
     fn import(

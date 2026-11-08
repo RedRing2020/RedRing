@@ -8,7 +8,7 @@ use application::cam_simulation_workflow::{
     Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError,
 };
 pub use application::cam_simulation_workflow::{
-    CamConditionError, CamConditionField, OperationJobStatus,
+    CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
 };
 pub use application::machining_sequence::{
     flat_surface_cusp_height, MachiningOperationContent, MachiningStock, OperationSpec,
@@ -215,7 +215,7 @@ impl CuttingSimulationSession {
     pub fn job_status(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Result<Option<OperationJobStatus>, CuttingSimulationSessionError> {
+    ) -> Result<OperationJobState, CuttingSimulationSessionError> {
         document.target_visible_faces();
         let (_, sequences, sequence, operation) = document.machining();
         Ok(self

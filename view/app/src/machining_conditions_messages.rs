@@ -72,7 +72,11 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("conditions.job.failed", "今の条件の計算: 失敗しました"),
     ("conditions.job.canceled", "今の条件の計算: 取り消されました"),
-    ("conditions.job.unreadable", "今の条件の計算: ジョブの保存先を読めません"),
+    (
+        "conditions.job.unreadable",
+        "今の条件の計算: ジョブマネージャーから状態を読めません",
+    ),
+    ("conditions.job.reading", "今の条件の計算: 状態を読んでいます"),
     ("conditions.toolpath.none", "空間モデルの CL: まだ取り込んでいません"),
     ("conditions.toolpath.current", "空間モデルの CL: 今の条件の結果です"),
     ("conditions.toolpath.outdated", "空間モデルの CL: 前の条件の結果です"),
@@ -203,7 +207,11 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.job.canceled", "Calculation for the current conditions: canceled"),
     (
         "conditions.job.unreadable",
-        "Calculation for the current conditions: cannot read the job store",
+        "Calculation for the current conditions: cannot read the status from the job manager",
+    ),
+    (
+        "conditions.job.reading",
+        "Calculation for the current conditions: reading the status",
     ),
     ("conditions.toolpath.none", "CL in the space model: not imported yet"),
     ("conditions.toolpath.current", "CL in the space model: result of the current conditions"),
