@@ -355,7 +355,10 @@ fn simulations_are_put_under_an_existing_cam_job() {
     assert!(cam[0].simulated);
     // 切削シミュレーションを消すと、ツールパス生成のジョブは切削シミュレーションを持たない
     let simulation = client.simulation_jobs().unwrap()[0].job_id;
-    assert!(manager.delete(simulation).unwrap());
+    assert_eq!(
+        manager.delete(&[simulation]).unwrap().deleted,
+        std::collections::BTreeSet::from([simulation])
+    );
     assert!(!client.toolpath_jobs().unwrap()[0].simulated);
 
     let base = submission();

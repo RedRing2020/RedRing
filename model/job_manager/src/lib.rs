@@ -57,6 +57,37 @@ pub enum ManagerEvent {
     Error(String),
 }
 
+/// 消すジョブの決め方の結果
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DeletePlan {
+    /// 消すジョブ（選んだジョブと、その成果物を使う後のジョブ）
+    pub deleted: BTreeSet<u64>,
+    /// 消さない、選んだジョブ（それか、その成果物を使う後のジョブが、計算待ち・計算中）
+    pub kept: BTreeSet<u64>,
+}
+
+/// ジョブの記録 `jobs` のうち、選んだジョブ `selected` を消すときに消すジョブ
+///
+/// 選んだジョブは、その成果物を使う後のジョブ（依存関係をたどったすべて）とあわせて消す（後のジョブだけが残っても、
+/// 計算も取り込みもできないため）。選んだジョブか後のジョブのどれかが計算待ち・計算中なら、どれも消さない。ない
+/// ジョブは数えない。後のジョブだけを選んだときは、前のジョブを残す。
+pub fn delete_plan(jobs: &[StoredJob], selected: &[u64]) -> DeletePlan {
+    let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
+    let mut plan = DeletePlan::default();
+    for &job_id in selected {
+        if !by_id.contains_key(&job_id) {
+            continue;
+        }
+        let family = later_jobs(jobs, job_id, |_| true);
+        if family.iter().all(|id| by_id[id].status.is_terminal()) {
+            plan.deleted.extend(family);
+        } else {
+            plan.kept.insert(job_id);
+        }
+    }
+    plan
+}
+
 /// ジョブマネージャーのサービス
 pub struct JobManagerService<L: Launcher> {
     store: JobStore,
@@ -238,19 +269,18 @@ impl<L: Launcher> JobManagerService<L> {
         Ok(targets.into_iter().collect())
     }
 
-    /// 終わったジョブのフォルダを消す。消したら `true`（終わっていないジョブ・ないジョブは `false`）
+    /// 選んだジョブ `job_ids` を、その成果物を使う後のジョブとあわせて消す（決め方は [`delete_plan`]）。消した
+    /// ジョブと、消さなかった選んだジョブを返す
     ///
-    /// 後のジョブがこのジョブの成果物を使うかは、頼む側で確かめる（計算待ちの後のジョブは、次の回に失敗になる）。
-    pub fn delete(&mut self, job_id: u64) -> Result<bool, StoreError> {
+    /// 後のジョブ（番号の大きいジョブ。依存するジョブは前のジョブに限る）から消す（途中で消せなくなっても、成果物を
+    /// 使う後のジョブだけが残らないように）。
+    pub fn delete(&mut self, job_ids: &[u64]) -> Result<DeletePlan, StoreError> {
         let (jobs, _) = self.store.load_jobs()?;
-        if !jobs
-            .iter()
-            .any(|job| job.job_id == job_id && job.status.is_terminal())
-        {
-            return Ok(false);
+        let plan = delete_plan(&jobs, job_ids);
+        for &job_id in plan.deleted.iter().rev() {
+            self.store.delete_job(&self.lock, job_id)?;
         }
-        self.store.delete_job(&self.lock, job_id)?;
-        Ok(true)
+        Ok(plan)
     }
 
     /// 計算待ちのジョブの優先順位を `delta` だけ変える。変えたら `true`（計算待ちでないジョブは `false`）
@@ -271,16 +301,7 @@ impl<L: Launcher> JobManagerService<L> {
         if !queued(&job_id) {
             return Ok(false);
         }
-        let mut targets = BTreeSet::from([job_id]);
-        let mut pending = vec![job_id];
-        while let Some(id) = pending.pop() {
-            for job in &jobs {
-                if job.depends_on.contains(&id) && queued(&job.job_id) && targets.insert(job.job_id)
-                {
-                    pending.push(job.job_id);
-                }
-            }
-        }
+        let targets = later_jobs(&jobs, job_id, queued);
         for mut job in jobs
             .iter()
             .filter(|job| targets.contains(&job.job_id))
@@ -422,6 +443,21 @@ impl<L: Launcher> JobManagerService<L> {
             progress: self.store.progress_file(job.job_id),
         }
     }
+}
+
+/// ジョブ `start` と、その成果物を使う後のジョブ（依存関係を後の向きにたどる。`member` を満たすジョブだけを
+/// たどる。小さい順）
+fn later_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> BTreeSet<u64> {
+    let mut found = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(id) = pending.pop() {
+        for job in jobs {
+            if job.depends_on.contains(&id) && member(&job.job_id) && found.insert(job.job_id) {
+                pending.push(job.job_id);
+            }
+        }
+    }
+    found
 }
 
 /// ジョブ `start` と、依存関係（前のジョブ・後のジョブのどちら向きも）でつながる、`member` を満たすジョブ（小さい順）

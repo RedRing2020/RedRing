@@ -45,9 +45,19 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("toolbar.raise", "▲ 上げる"),
     ("toolbar.lower", "▼ 下げる"),
     ("command.failed", "操作できませんでした（{reason}）"),
+    ("delete.confirm", "選んだジョブ（{jobs}）を消します。"),
     (
-        "delete.confirm",
-        "ジョブ {job} の成果物を、後のジョブ（{jobs}）が使います。消すと、計算待ちの後のジョブは計算できなくなり、計算の済んだ後のジョブの結果も取り込めなくなります。消しますか？",
+        "delete.confirm_later",
+        "その結果を使う後のジョブ（{jobs}）も、一緒に消えます。",
+    ),
+    (
+        "delete.confirm_kept",
+        "ジョブ {jobs} は、それか後のジョブが計算待ち・計算中のため、消しません。",
+    ),
+    ("delete.confirm_question", "消しますか？"),
+    (
+        "delete.kept",
+        "計算待ち・計算中のジョブがあるため、消せません（ジョブ {jobs}）",
     ),
     ("delete.confirm_yes", "消す"),
     ("delete.confirm_no", "やめる"),
@@ -246,7 +256,20 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ("command.failed", "The operation failed ({reason})"),
     (
         "delete.confirm",
-        "Later jobs ({jobs}) use the result of job {job}. If you delete it, the waiting later jobs cannot be calculated, and the results of the completed later jobs cannot be imported. Delete it?",
+        "The selected jobs ({jobs}) will be deleted.",
+    ),
+    (
+        "delete.confirm_later",
+        "The later jobs that use their results ({jobs}) will also be deleted.",
+    ),
+    (
+        "delete.confirm_kept",
+        "Jobs {jobs} will not be deleted because they or their later jobs are waiting or calculating.",
+    ),
+    ("delete.confirm_question", "Delete them?"),
+    (
+        "delete.kept",
+        "Cannot delete because jobs are waiting or calculating (jobs {jobs})",
     ),
     ("delete.confirm_yes", "Delete"),
     ("delete.confirm_no", "Keep"),
