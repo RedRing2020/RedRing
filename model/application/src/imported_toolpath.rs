@@ -108,6 +108,12 @@ impl ImportedToolpathStore {
         &self.toolpaths
     }
 
+    /// 加工工程 `operation` の CL を除く（なければ何もしない）
+    pub fn remove(&mut self, operation: MachiningOperationId) {
+        self.toolpaths
+            .retain(|toolpath| toolpath.operation != operation);
+    }
+
     /// 加工工程 `operation` の CL
     fn get(&self, operation: MachiningOperationId) -> Option<&ImportedToolpathRecord> {
         self.toolpaths

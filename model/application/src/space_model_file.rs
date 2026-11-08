@@ -22,7 +22,10 @@ pub use cam_core::{BinaryFormatError, FORMAT_VERSION_MAJOR_V1};
 use uuid::Uuid;
 
 use crate::imported_toolpath::{ImportedToolpathRestoreError, ImportedToolpathStore};
-use crate::machining_sequence::{MachiningSequenceRestoreError, MachiningSequenceStore};
+use crate::machining_sequence::{
+    MachiningOperationId, MachiningSequenceError, MachiningSequenceId,
+    MachiningSequenceRestoreError, MachiningSequenceStore,
+};
 use crate::product_shape::{ProductShapeRestoreError, ProductShapeStore};
 use codec::{ByteReader, ByteWriter};
 
@@ -83,6 +86,21 @@ pub struct SpaceModel {
 }
 
 impl SpaceModel {
+    /// 加工手順 `sequence` から加工工程 `operation` を除き、その工程の取り込んだ CL も除く
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn remove_operation(
+        &mut self,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+    ) -> Result<(), MachiningSequenceError> {
+        self.sequences.remove_operation(sequence, operation)?;
+        self.toolpaths.remove(operation);
+        Ok(())
+    }
+
     /// 新しい ID で、製品形状 `shapes` と加工手順 `sequences` を持ち、CL を取り込んでいない空間モデルを作る
     pub fn new(shapes: ProductShapeStore, sequences: MachiningSequenceStore) -> Self {
         Self {

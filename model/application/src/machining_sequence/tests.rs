@@ -234,3 +234,50 @@ fn records_that_break_the_rules_are_not_restored() {
         }
     );
 }
+
+#[test]
+fn operations_are_inserted_duplicated_moved_and_removed() {
+    let mut store = MachiningSequenceStore::new();
+    let sequence = store.create_sequence("手順".to_string(), Vec::new(), stock());
+    let rough = store.add_operation(sequence, content(4.0)).unwrap();
+    let finish = store.add_operation(sequence, content(1.0)).unwrap();
+    // 位置に挿む（工程の数より大きい位置は最後）
+    let middle = store.insert_operation(sequence, 1, content(2.0)).unwrap();
+    let last = store.insert_operation(sequence, 99, content(0.5)).unwrap();
+    assert_eq!(
+        store.operation_ids(sequence).unwrap(),
+        vec![rough, middle, finish, last]
+    );
+    // 同じ中身で挿んでも、新しい工程（改訂の番号は 1、改訂の鍵は別）
+    store
+        .set_operation_content(sequence, rough, content(5.0))
+        .unwrap();
+    let copy = store.insert_operation(sequence, 1, content(5.0)).unwrap();
+    assert_eq!(store.operation_position(sequence, copy).unwrap(), 1);
+    assert_eq!(revision(&store, sequence, copy), 1);
+    assert_ne!(
+        store.operation_revision_key(sequence, copy).unwrap(),
+        store.operation_revision_key(sequence, rough).unwrap()
+    );
+    // 並べ替えは、改訂の番号・改訂の鍵を変えない
+    let key = store.operation_revision_key(sequence, finish).unwrap();
+    store.move_operation(sequence, finish, 0).unwrap();
+    assert_eq!(store.operation_position(sequence, finish).unwrap(), 0);
+    assert_eq!(store.operation_revision_key(sequence, finish).unwrap(), key);
+    store.move_operation(sequence, finish, 99).unwrap();
+    assert_eq!(store.operation_ids(sequence).unwrap().last(), Some(&finish));
+    // 除く
+    store.remove_operation(sequence, middle).unwrap();
+    assert_eq!(
+        store.operation_ids(sequence).unwrap(),
+        vec![rough, copy, last, finish]
+    );
+    assert_eq!(
+        store.remove_operation(sequence, middle),
+        Err(MachiningSequenceError::UnknownOperation(middle))
+    );
+    assert_eq!(
+        store.move_operation(sequence, middle, 0),
+        Err(MachiningSequenceError::UnknownOperation(middle))
+    );
+}

@@ -250,6 +250,79 @@ impl MachiningSequenceStore {
         Ok(id)
     }
 
+    /// 加工手順 `sequence` の加工の順の位置 `index` に、中身が `content` の加工工程を作って挿み、その ID を返す
+    /// （工程の数より大きい位置は、最後に加える）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順の場合。
+    pub fn insert_operation(
+        &mut self,
+        sequence: MachiningSequenceId,
+        index: usize,
+        content: MachiningOperationContent,
+    ) -> Result<MachiningOperationId, MachiningSequenceError> {
+        let operation = MachiningOperation::new(content);
+        let id = operation.id();
+        self.sequence_mut(sequence)?
+            .insert_operation(index, operation);
+        Ok(id)
+    }
+
+    /// 加工手順 `sequence` から加工工程 `operation` を除く
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn remove_operation(
+        &mut self,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+    ) -> Result<(), MachiningSequenceError> {
+        if self.sequence_mut(sequence)?.remove_operation(operation) {
+            Ok(())
+        } else {
+            Err(MachiningSequenceError::UnknownOperation(operation))
+        }
+    }
+
+    /// 加工手順 `sequence` の加工工程 `operation` を、加工の順の位置 `index` に移す（工程の数以上なら最後へ）。工程の
+    /// 改訂の番号・改訂の鍵は変えない（前の工程の素材の受け継ぎが変わることは、区間の前提で見分ける）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn move_operation(
+        &mut self,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+        index: usize,
+    ) -> Result<(), MachiningSequenceError> {
+        if self
+            .sequence_mut(sequence)?
+            .move_operation(operation, index)
+        {
+            Ok(())
+        } else {
+            Err(MachiningSequenceError::UnknownOperation(operation))
+        }
+    }
+
+    /// 加工手順 `sequence` の加工工程 `operation` の、加工の順の位置
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn operation_position(
+        &self,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+    ) -> Result<usize, MachiningSequenceError> {
+        self.sequence(sequence)?
+            .position(operation)
+            .ok_or(MachiningSequenceError::UnknownOperation(operation))
+    }
+
     /// 加工手順 `sequence` の加工工程 `operation` の中身を `content` に替える（今と違えば、工程の改訂の番号が増える）
     ///
     /// # Errors
@@ -316,6 +389,23 @@ impl MachiningSequenceStore {
             .operations()
             .iter()
             .map(MachiningOperation::id)
+            .collect())
+    }
+
+    /// 加工手順 `sequence` の加工工程の ID と名前（加工の順）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順の場合。
+    pub fn operation_names(
+        &self,
+        sequence: MachiningSequenceId,
+    ) -> Result<Vec<(MachiningOperationId, &str)>, MachiningSequenceError> {
+        Ok(self
+            .sequence(sequence)?
+            .operations()
+            .iter()
+            .map(|operation| (operation.id(), operation.content().name.as_str()))
             .collect())
     }
 
