@@ -34,6 +34,13 @@ Importing does not change the camera (direction and zoom), so you can compare th
 
 ### Machining Conditions Window (`Shift+M`)
 
+- The "Machining operations" section lists the operations of the machining sequence in machining order, with the calculation state of each (not submitted, waiting, calculating, calculated, failed, canceled). Click an operation to select it; the sections below show its conditions for editing. The stock (margins, precision) is shared by all operations of the sequence
+  - "Add": adds a new operation (default conditions) right after the selected one
+  - "Duplicate": adds an operation with the same conditions right after the selected one (calculation results and the imported CL are not carried over)
+  - "Remove": removes the selected operation and its imported CL. It cannot be pressed when there is only one operation
+  - "▲" / "▼": moves the selected operation earlier or later in the machining order
+  - "Name": renames the selected operation (it is applied when you click outside the field or press `Enter`)
+  - "Submit", "Import", and the other buttons act on the selected operation. For now, the cutting simulation of every operation starts from the sequence stock (starting from the stock left by the previous operation comes in a later version)
 - Enter the tool (type, diameter, length), the machining (cut direction, stepover, feed rate, scan angle, tool range), and the stock (margins, precision). The toolpath tolerance (0.001 mm) is shown only and cannot be changed
 - The machining section shows the upper limit of the cusp height, the height of the ridges left between neighboring passes on a flat surface (the spacing between passes is at most the stepover, because the machining range is divided equally). For a ball end mill it is set by the diameter and the stepover (for example 0.1010 mm with diameter 10 mm and stepover 2 mm); for a flat end mill it is 0. It changes on inclined surfaces, so it is a guide value. It is not shown when the stepover exceeds the tool diameter
 - If a condition has an error, it is shown in red below the field to fix, and "Submit" cannot be pressed. Examples: the precision is finer than the toolpath tolerance; the precision is too fine for the stock size (the finest precision that can be submitted is shown); the stepover exceeds the tool diameter (the tool diameter is shown). Error messages are shown in the display language (Japanese or English). Failures that conditions cannot fix, such as running a job or importing a result, are also shown with the reason in the display language. Detailed reasons are kept in the log (in English)

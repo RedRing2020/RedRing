@@ -78,10 +78,13 @@ impl AppState {
         self.show_debug_stage(mesh_stage, true);
         // 取り込んだ結果の工具と今の計算条件の工具が違うと、ツールパスの線は逆オフセット形状に乗らない
         let tool = &self.document.operation_content().tool;
-        let imported_tool_differs = self.imported_conditions.as_ref().is_some_and(|conditions| {
-            conditions.tool.is_ball_end_mill() != tool.is_ball_end_mill()
-                || conditions.tool.radius() != tool.radius()
-        });
+        // 取り込んだ工程を選んでいるときだけ比べる（ほかの工程の工具と比べても意味がない）
+        let imported_selected = self.imported_operation == Some(self.document.selected_operation());
+        let imported_tool_differs = imported_selected
+            && self.imported_conditions.as_ref().is_some_and(|conditions| {
+                conditions.tool.is_ball_end_mill() != tool.is_ball_end_mill()
+                    || conditions.tool.radius() != tool.radius()
+            });
         if imported_tool_differs {
             self.set_notice(crate::help_ui::Notice::InverseOffsetToolDiffers);
         }

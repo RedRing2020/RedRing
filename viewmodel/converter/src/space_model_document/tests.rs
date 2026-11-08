@@ -252,6 +252,25 @@ fn operations_are_added_duplicated_moved_selected_and_removed() {
         vec![copy, first]
     );
 
+    // 名前を替えても、工程の改訂は進めない（計算の結果を今の改訂の結果のまま使う）。保存していない変更にはなる
+    let key = document
+        .model
+        .sequences
+        .operation_revision_key(document.sequence, first)
+        .unwrap();
+    document.rename_selected_operation("  仕上げ  ");
+    assert_eq!(document.operation_content().name, "仕上げ");
+    assert_eq!(
+        document
+            .model
+            .sequences
+            .operation_revision_key(document.sequence, first)
+            .unwrap(),
+        key
+    );
+    document.rename_selected_operation("   ");
+    assert_eq!(document.operation_content().name, "仕上げ");
+
     // 保存して開き直しても、工程の並びはそのまま
     let path = temporary_file("rrm");
     document.save_as(&path, "0.1.0").unwrap();

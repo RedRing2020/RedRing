@@ -18,6 +18,7 @@ use viewmodel::cutting_simulation_session::{
     ConditionIssue, CuttingSimulationSession, ImportedConditions,
 };
 use viewmodel::message_catalog::UiLocale;
+use viewmodel::space_model_document::MachiningOperationId;
 use viewmodel::space_model_document::SpaceModelDocument;
 use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
@@ -175,6 +176,12 @@ pub struct AppState {
     /// 加工工程の今の改訂の計算の状態と、読んだ時刻（ジョブの保存先は一定の間隔で読む）
     cutting_simulation_job_status: JobStatusLine,
     job_status_read_at: Option<std::time::Instant>,
+    /// 加工手順のすべての加工工程の、今の改訂の計算の状態（加工の順）
+    operation_job_statuses: Vec<(MachiningOperationId, JobStatusLine)>,
+    /// 取り込んだ切削シミュレーションの加工工程（取り込んだ条件は、その工程を選んでいるときだけ出す）
+    imported_operation: Option<MachiningOperationId>,
+    /// 加工条件のウィンドウで入力している、選んだ加工工程の名前（決めるまでは工程の名前を変えない。`None` は工程の名前）
+    operation_name_input: Option<String>,
 
     /// 要求されたモデルファイルの操作（イベントの処理が終わった後に行う）
     file_actions: Vec<model_file::FileAction>,
@@ -269,6 +276,9 @@ impl AppState {
             condition_issues: None,
             imported_conditions: None,
             cutting_simulation_job_status: JobStatusLine::NotSubmitted,
+            operation_job_statuses: Vec::new(),
+            imported_operation: None,
+            operation_name_input: None,
             job_status_read_at: None,
             file_actions: Vec::new(),
             exit_confirmed: false,

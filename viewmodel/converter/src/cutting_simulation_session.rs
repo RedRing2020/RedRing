@@ -4,6 +4,7 @@
 //! 投入・取り込みのときに表示中の製品形状のすべての面にする。計算はアプリの外のジョブマネージャーが行い、セッションは
 //! 投入・状態の読み取り・取り込みだけを行う。
 
+use crate::space_model_document::MachiningOperationId;
 use application::cam_simulation_workflow::{
     Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError,
 };
@@ -206,21 +207,27 @@ impl CuttingSimulationSession {
         Ok(())
     }
 
-    /// 表示中の製品形状のすべての面を加工の対象として、加工工程の今の改訂（今の計算条件と加工の対象）で最後に
-    /// 投入した計算の状態（今の改訂で投入していなければ `None`）
+    /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての加工工程の今の改訂の計算の状態（加工の順。
+    /// 最後に読んだ状態から決め、読み終えるのを待たない）
     ///
     /// # Errors
     ///
     /// ジョブの状態を読めない場合。
-    pub fn job_status(
+    pub fn job_states(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Result<OperationJobState, CuttingSimulationSessionError> {
+    ) -> Result<Vec<(MachiningOperationId, OperationJobState)>, CuttingSimulationSessionError> {
         document.target_visible_faces();
-        let (_, sequences, sequence, operation) = document.machining();
-        Ok(self
+        let operations: Vec<MachiningOperationId> = document
+            .operations()
+            .into_iter()
+            .map(|item| item.id)
+            .collect();
+        let (_, sequences, sequence, _) = document.machining();
+        let states = self
             .workflow
-            .latest_revision_job_status(sequences, sequence, operation)?)
+            .latest_revision_job_states(sequences, sequence, &operations)?;
+        Ok(operations.into_iter().zip(states).collect())
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、空間モデルに取り込んだ今の条件の CL を入力にし、切削シミュレーション
