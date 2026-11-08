@@ -42,8 +42,9 @@ const MANAGER_WINDOW_OPENED: i32 = 0;
 /// ジョブの保存先のフォルダを通して計算させるクライアント
 #[derive(Debug)]
 pub(crate) struct LocalStoreJobClient {
-    /// 保存先（利用者ごとのフォルダが分からないときは `None`）
-    root: Option<PathBuf>,
+    /// 決めた保存先（`None` は、使うたびにジョブマネージャーが最後に開いた保存先を所在のファイルで知る。ジョブマネージャー
+    /// が保存先を替えても、アプリを起動し直さずに追う）
+    fixed_root: Option<PathBuf>,
     /// ジョブマネージャーの実行ファイル
     manager: PathBuf,
     /// 起動したジョブマネージャー（終わったら片付ける。アプリを閉じても止めない）
@@ -51,7 +52,8 @@ pub(crate) struct LocalStoreJobClient {
 }
 
 impl LocalStoreJobClient {
-    /// 既定の保存先と、このアプリの実行ファイルと同じフォルダのジョブマネージャーを使う
+    /// ジョブマネージャーが最後に開いた保存先（所在のファイル。なければ既定の保存先）と、このアプリの実行ファイルと
+    /// 同じフォルダのジョブマネージャーを使う
     pub(crate) fn from_environment() -> Self {
         let manager = std::env::current_exe()
             .ok()
@@ -62,7 +64,7 @@ impl LocalStoreJobClient {
                 std::env::consts::EXE_SUFFIX
             ));
         Self {
-            root: JobStore::default_root(),
+            fixed_root: None,
             manager,
             started: None,
         }
@@ -72,7 +74,7 @@ impl LocalStoreJobClient {
     #[cfg(test)]
     pub(crate) fn new(root: PathBuf, manager: PathBuf) -> Self {
         Self {
-            root: Some(root),
+            fixed_root: Some(root),
             manager,
             started: None,
         }
@@ -80,8 +82,9 @@ impl LocalStoreJobClient {
 
     fn store(&self) -> Result<JobStore, CamSimulationWorkflowError> {
         let root = self
-            .root
-            .as_ref()
+            .fixed_root
+            .clone()
+            .or_else(|| JobStore::located_root().or_else(JobStore::default_root))
             .ok_or_else(|| store_error("the per-user data folder is not found"))?;
         JobStore::open(root).map_err(|error| store_error(error.to_string()))
     }

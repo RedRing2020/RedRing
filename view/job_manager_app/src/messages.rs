@@ -143,6 +143,10 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
         "利用者ごとのデータのフォルダが分からないため、起動できません",
     ),
     (
+        "startup.invalid_store_setting",
+        "設定のファイルの保存先（store）が、絶対のパスではありません",
+    ),
+    (
         "startup.already_running",
         "ジョブマネージャーはすでに動いています",
     ),
@@ -285,6 +289,10 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "startup.no_data_folder",
         "Cannot start because the per-user data folder is not found",
+    ),
+    (
+        "startup.invalid_store_setting",
+        "The job store (store) in the settings file is not an absolute path",
     ),
     (
         "startup.already_running",
