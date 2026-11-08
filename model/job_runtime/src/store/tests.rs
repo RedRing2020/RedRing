@@ -919,3 +919,20 @@ fn store_locations_are_written_and_read_back() {
     fs::write(&path, b"broken").unwrap();
     assert_eq!(read_location(&path), None);
 }
+
+#[test]
+fn a_folder_is_a_store_after_it_is_opened() {
+    let root = TempRoot::new();
+    let folder = root.0.join("store");
+    fs::create_dir_all(&folder).unwrap();
+    assert!(!JobStore::is_store(&folder));
+    assert!(!JobStore::has_store_entries(&folder));
+    JobStore::open(&folder).unwrap();
+    assert!(JobStore::is_store(&folder));
+    assert!(JobStore::has_store_entries(&folder));
+    // 空の受付とジョブのフォルダは消し、中身のあるフォルダは残す
+    fs::write(folder.join("jobs").join("note.txt"), b"note").unwrap();
+    JobStore::remove_empty_entries(&folder);
+    assert!(!folder.join("inbox").exists());
+    assert!(folder.join("jobs").is_dir());
+}

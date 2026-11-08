@@ -5,7 +5,8 @@
 //! ```
 //!
 //! 保存先を指定しなければ、設定のファイルの保存先（項目 `store`）、それもなければ既定の保存先を使う。開いた保存先は、
-//! 所在のファイルに書く（投入する側が、保存先の場所を設定で持たずに知るため）。ランナーは、この実行ファイルと同じフォルダの `redring-batch-runner`
+//! 所在のファイルに書く（投入する側が、保存先の場所を設定で持たずに知るため）。保存先をウィンドウで替えたときは、
+//! 設定に書いてジョブマネージャーを起動し直す（`store_change`）。ランナーは、この実行ファイルと同じフォルダの `redring-batch-runner`
 //! だけを起動する（作業のフォルダや PATH から探さない）。ジョブの管理（投入の取り込み・ランナーの起動）は別の
 //! スレッドで一定の間隔で行い、ウィンドウにジョブの一覧を出し、ジョブの操作（取り消し・やり直し・削除・優先順位）を
 //! サービスに渡す。ウィンドウを閉じても、ジョブの管理は続ける。
@@ -27,6 +28,7 @@ mod notification;
 mod rows;
 mod service;
 mod settings;
+mod store_change;
 #[cfg(windows)]
 mod tray;
 mod window;
@@ -44,6 +46,8 @@ const USAGE: &str = "usage: redring-job-manager [--store <dir>] [--background]";
 
 /// 設定のファイルの保存先の項目
 const STORE_KEY: &str = "store";
+/// 終了のときに、サービスが実行中のランナーを止め終えるのを待つ時間
+const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// 引数
 struct Args {
@@ -280,6 +284,21 @@ pub(crate) fn select_language(language: locale::Language) -> std::io::Result<()>
     #[cfg(windows)]
     tray::refresh_language();
     saved
+}
+
+/// `requests` のサービスを終え（実行中のランナーを止める。`QUIT_TIMEOUT` まで待つ）、トレイのアイコンを消して、
+/// プロセスを終える
+pub(crate) fn exit_process(requests: &std::sync::mpsc::Sender<service::ServiceRequest>) -> ! {
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    if requests
+        .send(service::ServiceRequest::Quit { done: done_tx })
+        .is_ok()
+    {
+        let _ = done_rx.recv_timeout(QUIT_TIMEOUT);
+    }
+    #[cfg(windows)]
+    tray::remove();
+    std::process::exit(0);
 }
 
 /// 起動の誤りを、誤りの画面に出す

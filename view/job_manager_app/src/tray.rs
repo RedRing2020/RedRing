@@ -9,8 +9,7 @@
 use std::cell::RefCell;
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::mpsc::{self, Sender};
-use std::time::Duration;
+use std::sync::mpsc::Sender;
 
 use eframe::egui::{self, ViewportCommand};
 use job_runtime::store::{JobStore, StoredJobStatus};
@@ -48,8 +47,6 @@ const MENU_AUTOSTART: i32 = 2;
 const MENU_QUIT: i32 = 3;
 /// 言語の項目（この番号に、選べる言語の並びの位置を足す）
 const MENU_LANGUAGE: i32 = 100;
-/// 終了のときに、サービスが実行中のランナーを止め終えるのを待つ時間
-const QUIT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Windows の起動のときに起動するプログラムを置くレジストリのキーと、値の名前
 const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const RUN_VALUE: &str = "RedRing Job Manager";
@@ -417,13 +414,11 @@ fn quit() {
             return;
         }
     }
-    let (done_tx, done_rx) = mpsc::channel();
-    if requests
-        .send(ServiceRequest::Quit { done: done_tx })
-        .is_ok()
-    {
-        let _ = done_rx.recv_timeout(QUIT_TIMEOUT);
-    }
+    crate::exit_process(&requests);
+}
+
+/// トレイのアイコンを消す（プロセスを終える前に）
+pub(crate) fn remove() {
     STATE.with(|cell| {
         if let Ok(state) = cell.try_borrow()
             && let Some(state) = state.as_ref()
@@ -431,7 +426,6 @@ fn quit() {
             remove_icon(state);
         }
     });
-    std::process::exit(0);
 }
 
 /// 誤りの説明 `description` を、画面に出す
@@ -534,6 +528,15 @@ fn registered_autostart_command() -> Option<String> {
         let length = buffer.iter().position(|&c| c == 0).unwrap_or(buffer.len());
         String::from_utf16_lossy(&buffer[..length])
     })
+}
+
+/// Windows の起動のときに起動するように書いたコマンドが保存先を指定していれば、指定しないコマンド `command` に書き直す
+/// （書いていない・指定していなければ、何もしない）
+pub(crate) fn drop_autostart_store(command: &str) -> std::io::Result<()> {
+    match registered_autostart_command() {
+        Some(registered) if registered.contains(" --store ") => enable_autostart(command),
+        _ => Ok(()),
+    }
 }
 
 fn enable_autostart(command: &str) -> std::io::Result<()> {

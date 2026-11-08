@@ -4,6 +4,7 @@ use job_runtime::store::StoredJobError;
 
 use crate::locale::Language;
 use crate::service::StoreFailure;
+use crate::store_change::ChangeFailure;
 
 const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("window.title", "RedRing ジョブマネージャー"),
@@ -50,6 +51,54 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("delete.confirm_yes", "消す"),
     ("delete.confirm_no", "やめる"),
+    ("store.change", "保存先を変更…"),
+    (
+        "store.change_busy",
+        "計算待ち・計算中のジョブがある間は、保存先を変更できません",
+    ),
+    ("store.choose", "ジョブの保存先のフォルダを選ぶ"),
+    (
+        "store.change_confirm",
+        "保存先を替えて、ジョブマネージャーを起動し直します。今の保存先のジョブは一覧に出なくなります（ファイルは消しません）。\n\n今の保存先: {current}\n新しい保存先: {chosen}",
+    ),
+    (
+        "store.change_existing",
+        "新しい保存先にあるジョブを、一覧に出します。",
+    ),
+    (
+        "store.change_other_files",
+        "新しい保存先のフォルダには、ジョブの保存先でないファイルがあります。",
+    ),
+    ("store.change_question", "保存先を替えますか？"),
+    ("store.change_yes", "替える"),
+    ("store.change_no", "やめる"),
+    ("store.change_failed", "保存先を替えられません（{reason}）"),
+    (
+        "store.change_restart_failed",
+        "保存先は替えました。ジョブマネージャーを起動し直してください",
+    ),
+    ("change_failure.same", "今の保存先と同じフォルダです"),
+    (
+        "change_failure.nested",
+        "今の保存先と入れ子になるフォルダです",
+    ),
+    (
+        "change_failure.not_local",
+        "この PC のフォルダではありません",
+    ),
+    (
+        "change_failure.inaccessible",
+        "フォルダを読み書きできません",
+    ),
+    (
+        "change_failure.name_conflict",
+        "中のフォルダの名前が保存先と重なるため、使えません",
+    ),
+    (
+        "change_failure.busy",
+        "計算待ち・計算中のジョブ、または取り込みを待つ投入があります",
+    ),
+    ("change_failure.setting_not_saved", "設定を保存できません"),
     ("language", "言語"),
     (
         "error.dependency_not_earlier",
@@ -201,6 +250,57 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     ("delete.confirm_yes", "Delete"),
     ("delete.confirm_no", "Keep"),
+    ("store.change", "Change job store…"),
+    (
+        "store.change_busy",
+        "The job store cannot be changed while jobs are waiting or calculating",
+    ),
+    ("store.choose", "Choose a folder for the job store"),
+    (
+        "store.change_confirm",
+        "The job manager will restart with the new job store. Jobs in the current job store will no longer be listed (their files are kept).\n\nCurrent job store: {current}\nNew job store: {chosen}",
+    ),
+    (
+        "store.change_existing",
+        "The jobs in the new job store will be listed.",
+    ),
+    (
+        "store.change_other_files",
+        "The new folder contains files that are not part of a job store.",
+    ),
+    ("store.change_question", "Change the job store?"),
+    ("store.change_yes", "Change"),
+    ("store.change_no", "Cancel"),
+    (
+        "store.change_failed",
+        "Cannot change the job store ({reason})",
+    ),
+    (
+        "store.change_restart_failed",
+        "The job store was changed. Restart the job manager.",
+    ),
+    ("change_failure.same", "It is the current job store folder"),
+    (
+        "change_failure.nested",
+        "The folder is inside the current job store or contains it",
+    ),
+    ("change_failure.not_local", "The folder is not on this PC"),
+    (
+        "change_failure.inaccessible",
+        "Cannot read or write the folder",
+    ),
+    (
+        "change_failure.name_conflict",
+        "The folder cannot be used because folders in it have the same names as job store folders",
+    ),
+    (
+        "change_failure.busy",
+        "Jobs are waiting or calculating, or submissions are waiting to be taken in",
+    ),
+    (
+        "change_failure.setting_not_saved",
+        "Cannot save the setting",
+    ),
     ("language", "Language"),
     (
         "error.dependency_not_earlier",
@@ -377,6 +477,26 @@ pub(crate) fn job_error_text(language: Language, error: &StoredJobError) -> Opti
     Some(text(language, key, &args))
 }
 
+/// 保存先を替えられない理由 `failure` の、言語 `language` の文言
+pub(crate) fn change_failure_text(language: Language, failure: ChangeFailure) -> String {
+    let reason = match failure {
+        ChangeFailure::Same => "change_failure.same",
+        ChangeFailure::Nested => "change_failure.nested",
+        ChangeFailure::NotLocal => "change_failure.not_local",
+        ChangeFailure::Inaccessible => "change_failure.inaccessible",
+        ChangeFailure::NameConflict => "change_failure.name_conflict",
+        ChangeFailure::Busy => "change_failure.busy",
+        ChangeFailure::SettingNotSaved => "change_failure.setting_not_saved",
+        // 設定は保存したため、替えられなかったとは書かない
+        ChangeFailure::RestartFailed => return text(language, "store.change_restart_failed", &[]),
+    };
+    text(
+        language,
+        "store.change_failed",
+        &[("reason", text(language, reason, &[]))],
+    )
+}
+
 /// 保存先の誤りの種類 `failure` の文言のキー
 pub(crate) fn store_failure_key(failure: StoreFailure) -> &'static str {
     match failure {
@@ -466,5 +586,27 @@ mod tests {
                 .contains('3')
         );
         assert_eq!(job_error_text(Language::Ja, &E::Unknown), None);
+    }
+
+    #[test]
+    fn every_change_failure_has_a_text_in_both_languages() {
+        for language in Language::ALL {
+            for failure in [
+                ChangeFailure::Same,
+                ChangeFailure::Nested,
+                ChangeFailure::NotLocal,
+                ChangeFailure::Inaccessible,
+                ChangeFailure::NameConflict,
+                ChangeFailure::Busy,
+                ChangeFailure::SettingNotSaved,
+                ChangeFailure::RestartFailed,
+            ] {
+                let text = change_failure_text(language, failure);
+                assert!(
+                    !text.contains("__missing__") && !text.contains('{'),
+                    "{failure:?}: {text}"
+                );
+            }
+        }
     }
 }

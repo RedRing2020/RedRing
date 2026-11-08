@@ -31,7 +31,6 @@ pub(crate) enum ServiceRequest {
     /// ジョブの操作（結果は `ServiceChannel::replies` に返す）
     Command(JobCommand),
     /// 実行中のランナーを止めて、サービスを終える（終えたら `done` に送る）
-    #[cfg_attr(not(windows), allow(dead_code))]
     Quit { done: Sender<()> },
 }
 

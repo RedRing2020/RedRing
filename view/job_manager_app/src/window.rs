@@ -12,9 +12,10 @@ use crate::locale::{self, Language};
 use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText, ScrollArea};
 use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
-use crate::messages::{job_error_text, store_failure_key, text};
+use crate::messages::{change_failure_text, job_error_text, store_failure_key, text};
 use crate::rows::{JobRow, elapsed_ms, format_elapsed, format_size, job_rows};
 use crate::service::{JobCommand, ServiceChannel, ServiceRequest, StoreFailure, now_ms};
+use crate::store_change::{self, ChangeFailure, FolderContents};
 
 /// ジョブの記録を読み直す間隔
 const JOBS_INTERVAL: Duration = Duration::from_secs(1);
@@ -44,6 +45,13 @@ enum DetailsTab {
 struct DeleteConfirmation {
     job_id: u64,
     dependents: Vec<u64>,
+}
+
+/// 替えるかを確かめている保存先のフォルダと、その中身
+#[derive(Debug, Clone)]
+struct StoreChange {
+    folder: PathBuf,
+    contents: FolderContents,
 }
 
 /// 選んだジョブの、ファイルから読んだ詳細（ジョブの記録を読み直したとき・選び直したときに読み直す）
@@ -81,6 +89,9 @@ pub(crate) struct JobManagerWindow {
     /// 結果を待っている操作の数（待つ間は、二重に頼まないように操作できなくする）
     pending_replies: usize,
     delete_confirmation: Option<DeleteConfirmation>,
+    store_change: Option<StoreChange>,
+    /// 保存先を替えられなかった理由
+    store_change_error: Option<ChangeFailure>,
     /// 前の描画でマウスが乗っていた一覧の行（見出しの行が 0）
     hovered_row: Option<usize>,
     /// 閉じたときに、ウィンドウを隠す（タスクトレイから開き直す）
@@ -109,6 +120,8 @@ impl JobManagerWindow {
             command_error: None,
             pending_replies: 0,
             delete_confirmation: None,
+            store_change: None,
+            store_change_error: None,
             hovered_row: None,
             hide_on_close,
         }
@@ -344,6 +357,88 @@ impl JobManagerWindow {
         }
     }
 
+    /// 保存先のフォルダを選び、替えられるフォルダなら確かめの画面を出す
+    fn choose_store(&mut self) {
+        self.store_change_error = None;
+        if store_change::is_busy(&self.store) {
+            self.store_change_error = Some(ChangeFailure::Busy);
+            return;
+        }
+        let mut dialog = rfd::FileDialog::new().set_title(self.text("store.choose"));
+        if let Some(parent) = self.store.root().parent() {
+            dialog = dialog.set_directory(parent);
+        }
+        let Some(folder) = dialog.pick_folder() else {
+            return;
+        };
+        match store_change::check_folder(self.store.root(), &folder) {
+            Ok(contents) => self.store_change = Some(StoreChange { folder, contents }),
+            Err(failure) => self.store_change_error = Some(failure),
+        }
+    }
+
+    /// 保存先を替えるかを確かめ、替えるときはジョブマネージャーを起動し直す
+    fn show_store_change(&mut self, ctx: &egui::Context) {
+        let Some(change) = self.store_change.clone() else {
+            return;
+        };
+        let message = self.text_with(
+            "store.change_confirm",
+            &[
+                ("current", self.store.root().display().to_string()),
+                ("chosen", change.folder.display().to_string()),
+            ],
+        );
+        let note = match change.contents {
+            FolderContents::Empty => None,
+            FolderContents::Store => Some(self.text("store.change_existing")),
+            FolderContents::Other => Some(self.text("store.change_other_files")),
+        };
+        let (question, yes, no) = (
+            self.text("store.change_question"),
+            self.text("store.change_yes"),
+            self.text("store.change_no"),
+        );
+        let mut choice = None;
+        let response = Modal::new(Id::new("store_change")).show(ctx, |ui| {
+            ui.set_max_width(520.0);
+            ui.label(message);
+            if let Some(note) = note {
+                ui.add_space(4.0);
+                ui.colored_label(ui.visuals().warn_fg_color, note);
+            }
+            ui.add_space(8.0);
+            ui.label(question);
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                if ui.button(yes).clicked() {
+                    choice = Some(true);
+                }
+                if ui.button(no).clicked() {
+                    choice = Some(false);
+                }
+            });
+        });
+        // 外を押したとき・Esc は、替えない
+        if response.should_close() && choice.is_none() {
+            choice = Some(false);
+        }
+        if choice.is_some() {
+            self.store_change = None;
+            ctx.request_repaint();
+        }
+        if choice == Some(true) {
+            // 確かめている間に投入・待ちのジョブが増えていれば、替えない
+            self.store_change_error = Some(if store_change::is_busy(&self.store) {
+                ChangeFailure::Busy
+            } else {
+                match store_change::switch(&change.folder, &self.service.requests) {
+                    Err(failure) => failure,
+                }
+            });
+        }
+    }
+
     fn show_header(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             self.show_toolbar(ui);
@@ -358,7 +453,8 @@ impl JobManagerWindow {
                 );
             }
             if let Some(size) = self.store_size {
-                ui.label(self.text_with("store.size", &[("size", format_size(size))]));
+                ui.label(self.text_with("store.size", &[("size", format_size(size))]))
+                    .on_hover_text(self.store.root().display().to_string());
             }
             if let Some(failure) = self.store_error {
                 ui.colored_label(
@@ -384,8 +480,29 @@ impl JobManagerWindow {
                     self.text_with("language.save_failed", &[("reason", reason.clone())]),
                 );
             }
+            if let Some(failure) = self.store_change_error {
+                ui.colored_label(
+                    ui.visuals().error_fg_color,
+                    change_failure_text(locale::current(), failure),
+                );
+            }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 self.show_language_menu(ui);
+                // 計算待ち・計算中のジョブがある間・保存先を読めない間は替えない（選んだときに、取り込みを待つ投入も
+                // 確かめる。保存先のフォルダがない（外したドライブなど）ときは替えられる）
+                let busy = self.pending_replies > 0
+                    || self.jobs.iter().any(|job| !job.status.is_terminal())
+                    || self
+                        .store_error
+                        .is_some_and(|failure| failure != StoreFailure::NotFound);
+                if ui
+                    .add_enabled(!busy, egui::Button::new(self.text("store.change")))
+                    .on_hover_text(self.store.root().display().to_string())
+                    .on_disabled_hover_text(self.text("store.change_busy"))
+                    .clicked()
+                {
+                    self.choose_store();
+                }
             });
         });
     }
@@ -662,6 +779,7 @@ impl eframe::App for JobManagerWindow {
         self.update_title(ui.ctx());
         self.refresh();
         self.show_delete_confirmation(ui.ctx());
+        self.show_store_change(ui.ctx());
         Panel::top("header").show_inside(ui, |ui| self.show_header(ui));
         Panel::left("filter")
             .resizable(true)
