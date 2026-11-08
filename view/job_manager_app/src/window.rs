@@ -16,7 +16,7 @@ use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::{change_failure_text, job_error_text, store_failure_key, text};
 use crate::rows::{JobRow, elapsed_ms, format_elapsed, format_size, job_rows};
-use crate::service::{JobCommand, ServiceChannel, ServiceRequest, StoreFailure, now_ms};
+use crate::service::{JobCommand, ServiceChannel, StoreFailure, now_ms};
 use crate::store_change::{self, ChangeFailure, FolderContents};
 
 /// ジョブの記録を読み直す間隔
@@ -131,8 +131,6 @@ pub(crate) struct JobManagerWindow {
     tab: DetailsTab,
     /// 保存先を読み書きできずに、できなかった操作の理由
     command_error: Option<StoreFailure>,
-    /// 結果を待っている操作の数（待つ間は、二重に頼まないように操作できなくする）
-    pending_replies: usize,
     delete_confirmation: Option<DeleteConfirmation>,
     /// 計算待ち・計算中のため消さなかった、選んだジョブ
     delete_kept: Option<BTreeSet<u64>>,
@@ -170,7 +168,6 @@ impl JobManagerWindow {
             selected_files: None,
             tab: DetailsTab::Details,
             command_error: None,
-            pending_replies: 0,
             delete_confirmation: None,
             delete_kept: None,
             bulk_delete: None,
@@ -228,8 +225,7 @@ impl JobManagerWindow {
 
     fn refresh(&mut self) {
         // 操作の結果が返ったら、記録をすぐに読み直す
-        while let Ok(reply) = self.service.replies.try_recv() {
-            self.pending_replies = self.pending_replies.saturating_sub(1);
+        while let Some(reply) = self.service.try_reply() {
             match reply {
                 Ok(kept) => {
                     self.command_error = None;
@@ -368,16 +364,15 @@ impl JobManagerWindow {
     }
 
     fn send(&mut self, command: JobCommand) {
-        match self.service.requests.send(ServiceRequest::Command(command)) {
-            Ok(()) => self.pending_replies += 1,
-            Err(_) => self.command_error = Some(StoreFailure::ServiceStopped),
+        if let Err(failure) = self.service.send_command(command) {
+            self.command_error = Some(failure);
         }
     }
 
     /// 選んだジョブの操作（状態で操作できるものだけを押せる。削除のほかは、1 つだけ選んだときに押せる）
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
         use StoredJobStatus::{Canceled, Failed, Queued, Running};
-        let idle = self.pending_replies == 0;
+        let idle = self.service.outstanding() == 0;
         let selected = self
             .selected_job()
             .filter(|job| idle && self.selection.len() == 1 && self.selection.contains(&job.job_id))
@@ -827,7 +822,7 @@ impl JobManagerWindow {
                 self.show_language_menu(ui);
                 // 計算待ち・計算中のジョブがある間・保存先を読めない間は替えない（選んだときに、取り込みを待つ投入も
                 // 確かめる。保存先のフォルダがない（外したドライブなど）ときは替えられる）
-                let busy = self.pending_replies > 0
+                let busy = self.service.outstanding() > 0
                     || self.jobs.iter().any(|job| !job.status.is_terminal())
                     || self
                         .store_error
@@ -1139,11 +1134,12 @@ impl eframe::App for JobManagerWindow {
             .show_inside(ui, |ui| self.show_details(ui));
         CentralPanel::default().show_inside(ui, |ui| self.show_jobs(ui));
         // 記録・経過時間を、操作がなくても読み直して描き直す（操作の結果を待つ間は、結果が返ったらすぐ出す）
-        ui.ctx().request_repaint_after(if self.pending_replies > 0 {
-            REPLY_INTERVAL
-        } else {
-            JOBS_INTERVAL
-        });
+        ui.ctx()
+            .request_repaint_after(if self.service.outstanding() > 0 {
+                REPLY_INTERVAL
+            } else {
+                JOBS_INTERVAL
+            });
     }
 }
 

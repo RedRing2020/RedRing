@@ -134,21 +134,24 @@ fn main() -> ExitCode {
         if background {
             tray::dispatch_messages(true);
         }
-        show_window(store, channel, true);
+        show_window(store, channel, true, tray::attach_window);
         // ウィンドウを出せなかったときも、トレイ（終了）は使えるようにする
         tray::dispatch_messages(false);
     }
     #[cfg(not(windows))]
     {
         let _ = (given_store, event_rx);
+        let opener = WindowOpener::new();
         if configured_store {
-            start_endpoint(&store);
+            start_endpoint(&store, &opener);
         }
-        if background {
-            // 画面がないため、操作を渡す口を閉じる
-            drop(channel);
-        } else {
-            show_window(store, channel, false);
+        if !background {
+            opener.show(&store, &channel);
+        }
+        // ウィンドウを閉じた後・ウィンドウを出さずに起動したときは、口から開くように頼まれるたびにウィンドウを出す
+        // （トレイがないため。ジョブの管理は続ける。口を開かないとき（試しに別の保存先を指定したとき）は頼まれない）
+        if configured_store {
+            opener.serve_requests(&store, &channel, &service);
         }
     }
     // ウィンドウを閉じても、ジョブの管理は続ける（サービスのスレッドが終わるのはパニックのときだけ。終了は
@@ -159,9 +162,88 @@ fn main() -> ExitCode {
     }
 }
 
+/// トレイのない OS で、問い合わせる口からウィンドウを開く頼みを受ける役（出していなければ出し、出していれば前に出す）
+#[cfg(not(windows))]
+struct WindowOpener {
+    /// 出しているウィンドウの画面
+    context: Arc<std::sync::Mutex<Option<egui::Context>>>,
+    requests: std::sync::mpsc::Sender<()>,
+    received: std::sync::mpsc::Receiver<()>,
+}
+
+#[cfg(not(windows))]
+impl WindowOpener {
+    fn new() -> Self {
+        let (requests, received) = std::sync::mpsc::channel();
+        Self {
+            context: Arc::default(),
+            requests,
+            received,
+        }
+    }
+
+    /// ウィンドウを開く口（ほかのスレッドから呼べる。出しているかを確かめてから頼むまで、画面を持つ）
+    fn open_window(&self) -> job_manager::OpenWindow {
+        let context = Arc::clone(&self.context);
+        let requests = self.requests.clone();
+        Arc::new(move || {
+            let context = context
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            match context.as_ref() {
+                Some(context) => {
+                    context.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+                    context.send_viewport_cmd(egui::ViewportCommand::Focus);
+                    context.request_repaint();
+                    true
+                }
+                // ウィンドウを出すのは、このプロセスの最初のスレッドに頼む
+                None => requests.send(()).is_ok(),
+            }
+        })
+    }
+
+    /// ウィンドウを出し、閉じるまで待つ
+    fn show(&self, store: &JobStore, channel: &ServiceChannel) {
+        let context = Arc::clone(&self.context);
+        show_window(store.clone(), channel.clone(), false, move |created| {
+            *context
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(created);
+        });
+        // ウィンドウを作る前に溜まった頼みは、このウィンドウで済んだものとする。画面を外すのと同じ間に捨てる（外した
+        // 後の頼みは、口の側が溜めるため、次のウィンドウで受ける）
+        let mut context = self
+            .context
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *context = None;
+        while self.received.try_recv().is_ok() {}
+    }
+
+    /// 開くように頼まれるたびに、ウィンドウを出す（サービスのスレッドが終わったら戻る）
+    fn serve_requests(
+        &self,
+        store: &JobStore,
+        channel: &ServiceChannel,
+        service: &std::thread::JoinHandle<()>,
+    ) {
+        while !service.is_finished() {
+            match self
+                .received
+                .recv_timeout(std::time::Duration::from_secs(1))
+            {
+                Ok(()) => self.show(store, channel),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
+            }
+        }
+    }
+}
+
 /// この利用者の、ジョブマネージャーに問い合わせる口を開き、保存先 `store` の要求を受ける（開けなくても、ジョブの
 /// 管理は続ける）
-fn start_endpoint(store: &JobStore) {
+fn start_endpoint(store: &JobStore, #[cfg(not(windows))] opener: &WindowOpener) {
     let endpoint = match job_ipc::Endpoint::for_current_user() {
         Ok(endpoint) => endpoint,
         Err(error) => {
@@ -174,9 +256,8 @@ fn start_endpoint(store: &JobStore) {
         let root = store.root().to_path_buf();
         Arc::new(move || tray::open_running(&root))
     };
-    // トレイのないときは、動いているウィンドウを外から開く仕組みがない
     #[cfg(not(windows))]
-    let open_window: job_manager::OpenWindow = Arc::new(|| false);
+    let open_window = opener.open_window();
     job_manager::start_endpoint_server(
         endpoint,
         store.clone(),
@@ -185,8 +266,14 @@ fn start_endpoint(store: &JobStore) {
     );
 }
 
-/// ジョブの一覧のウィンドウを出す（`hide_on_close` のときは、閉じると隠す）
-fn show_window(store: JobStore, channel: ServiceChannel, hide_on_close: bool) {
+/// ジョブの一覧のウィンドウを出す（`hide_on_close` のときは、閉じると隠す）。ウィンドウを作ったら、その画面を
+/// `attach` に渡す
+fn show_window(
+    store: JobStore,
+    channel: ServiceChannel,
+    hide_on_close: bool,
+    attach: impl FnOnce(egui::Context) + 'static,
+) {
     let rgba = icon::ring_rgba();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -204,8 +291,7 @@ fn show_window(store: JobStore, channel: ServiceChannel, hide_on_close: bool) {
         options,
         Box::new(move |creation| {
             fonts::install_cjk_font(&creation.egui_ctx);
-            #[cfg(windows)]
-            tray::attach_window(creation.egui_ctx.clone());
+            attach(creation.egui_ctx.clone());
             Ok(Box::new(window::JobManagerWindow::new(
                 store,
                 channel,
