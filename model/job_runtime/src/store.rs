@@ -523,6 +523,48 @@ impl JobStore {
         Ok(())
     }
 
+    /// 受付のフォルダの、取り込めなかった投入の ID（名前の順。要求は読まない）
+    pub fn rejected_submission_ids(&self) -> Result<Vec<String>, StoreError> {
+        let mut ids = Vec::new();
+        for entry in fs::read_dir(self.root.join(INBOX_DIR))? {
+            let entry = entry?;
+            let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+                continue;
+            };
+            if let Some(id) = name.strip_suffix(REJECTED_SUFFIX)
+                && is_plain_name(id, MAX_NAME_LEN)
+                && !id.contains('.')
+                && entry.file_type()?.is_dir()
+            {
+                ids.push(id.to_string());
+            }
+        }
+        ids.sort();
+        Ok(ids)
+    }
+
+    /// 取り込めなかった投入 `submission_id` を、受付のフォルダから消す（ないときは何もしない）
+    pub fn remove_rejected_submission(
+        &self,
+        _lock: &JobStoreLock,
+        submission_id: &str,
+    ) -> Result<(), StoreError> {
+        if !is_plain_name(submission_id, MAX_NAME_LEN) || submission_id.contains('.') {
+            return Err(StoreError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid submission id",
+            )));
+        }
+        let path = self
+            .root
+            .join(INBOX_DIR)
+            .join(format!("{submission_id}{REJECTED_SUFFIX}"));
+        match fs::remove_dir_all(path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            other => Ok(other?),
+        }
+    }
+
     /// ジョブの成果物・ログ・進み具合を消す（計算し直す前に。前の計算のものを、今の計算のものと見誤らないように）
     pub fn remove_job_outputs(&self, _lock: &JobStoreLock, job_id: u64) -> Result<(), StoreError> {
         let ignore_missing = |result: std::io::Result<()>| match result {

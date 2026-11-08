@@ -650,3 +650,124 @@ fn launch_arguments_name_only_files_under_the_job_folder() {
         ]
     );
 }
+
+/// ジョブの列 `jobs` に、投入元（投入元の ID `source_id`・改訂の番号 `revision`・改訂の鍵 `key`）を持たせる
+fn with_source(
+    mut jobs: Vec<SubmittedJob>,
+    source_id: &str,
+    revision: u32,
+    key: &str,
+) -> Vec<SubmittedJob> {
+    for job in &mut jobs {
+        job.source = Some(job_runtime::store::StoredJobSource {
+            source_id: source_id.to_string(),
+            revision,
+            revision_key: Some(key.to_string()),
+        });
+    }
+    jobs
+}
+
+#[test]
+fn jobs_of_other_revision_keys_than_the_latest_submission_are_superseded() {
+    let root = TempRoot::new();
+    let (mut service, _) =
+        JobManagerService::start(root.store(), FakeLauncher::default(), 0).unwrap();
+    submit(
+        &root.store(),
+        "a1",
+        with_source(cam_and_sim(), "op-1", 1, "key-a"),
+    );
+    submit(
+        &root.store(),
+        "a2",
+        with_source(cam_and_sim(), "op-1", 2, "key-b"),
+    );
+    // 複製したモデルファイルで、前の鍵に戻して投入した（改訂の番号は小さい）
+    submit(
+        &root.store(),
+        "a3",
+        with_source(cam_and_sim(), "op-1", 1, "key-a"),
+    );
+    submit(
+        &root.store(),
+        "a4",
+        with_source(cam_and_sim(), "op-2", 1, "key-c"),
+    );
+    submit(&root.store(), "a5", cam_and_sim());
+    for now in 1..40 {
+        service.tick(now);
+    }
+    let (jobs, _) = root.store().load_jobs().unwrap();
+    assert_eq!(jobs.len(), 10);
+    assert_eq!(superseded_jobs(&jobs), vec![3, 4]);
+    // 後から別の鍵で投入しても、正常に終わるまでは前の結果を前の改訂にしない
+    submit(
+        &root.store(),
+        "a6",
+        with_source(cam_and_sim(), "op-2", 2, "key-d"),
+    );
+    service.tick(40);
+    let (jobs, _) = root.store().load_jobs().unwrap();
+    assert_eq!(superseded_jobs(&jobs), vec![3, 4]);
+}
+
+#[test]
+fn old_jobs_do_not_take_newer_later_jobs_with_them() {
+    let root = TempRoot::new();
+    let (mut service, _) =
+        JobManagerService::start(root.store(), FakeLauncher::default(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    for now in 1..20 {
+        service.tick(now);
+    }
+    // 古いツールパス生成の下に、後から切削シミュレーションを投入した
+    submit(
+        &root.store(),
+        "a2",
+        vec![job(
+            StoredJobKind::Sim,
+            "sim.bin",
+            vec![DependencyRef::Existing(1)],
+            0,
+        )],
+    );
+    for now in 100..120 {
+        service.tick(now);
+    }
+    let (jobs, _) = root.store().load_jobs().unwrap();
+    assert_eq!(
+        status_of(&root.store(), 3).status,
+        StoredJobStatus::Succeeded
+    );
+    assert_eq!(old_jobs(&jobs, 50), vec![2]);
+    assert_eq!(old_jobs(&jobs, 200), vec![1, 2, 3]);
+    assert_eq!(old_jobs(&jobs, 1), Vec::<u64>::new());
+}
+
+#[test]
+fn rejected_submissions_are_removed() {
+    let root = TempRoot::new();
+    let (mut service, _) =
+        JobManagerService::start(root.store(), FakeLauncher::default(), 0).unwrap();
+    let broken = root.store().root().join("inbox").join("broken");
+    fs::create_dir_all(&broken).unwrap();
+    fs::write(broken.join("request.json"), b"broken").unwrap();
+    service.tick(1);
+    let rejected = |store: &JobStore| {
+        store
+            .inbox_submissions()
+            .unwrap()
+            .iter()
+            .filter(|submission| submission.rejected.is_some())
+            .count()
+    };
+    assert_eq!(rejected(&root.store()), 1);
+    let ids = root.store().rejected_submission_ids().unwrap();
+    assert_eq!(ids, vec!["broken".to_string()]);
+    service.remove_rejected(&ids).unwrap();
+    assert_eq!(rejected(&root.store()), 0);
+    // もうない投入・正しくない ID
+    service.remove_rejected(&ids).unwrap();
+    assert!(service.remove_rejected(&["../x".to_string()]).is_err());
+}
