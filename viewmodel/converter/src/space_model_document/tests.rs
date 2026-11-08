@@ -195,3 +195,67 @@ fn unreadable_model_files_are_not_opened() {
         Err(SpaceModelFileError::Io(_))
     ));
 }
+
+#[test]
+fn operations_are_added_duplicated_moved_selected_and_removed() {
+    use application::machining_sequence::OperationSpec;
+    let mut document = SpaceModelDocument::new();
+    let first = document.selected_operation();
+    assert_eq!(document.operations().len(), 1);
+    assert!(!document.is_modified());
+    // 工程が 1 つだけなら消さない
+    assert!(!document.remove_selected_operation());
+
+    // 加えると、選んだ工程のすぐ後に入り、編集の対象になる
+    document.add_operation("荒".to_string());
+    let rough = document.selected_operation();
+    assert!(document.is_modified());
+    assert_eq!(
+        document
+            .operations()
+            .iter()
+            .map(|item| (item.id, item.name.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(first, OPERATION_NAME), (rough, "荒")]
+    );
+    // 複写は、選んだ工程の中身を受け継ぐ
+    let mut content = document.operation_content().clone();
+    let OperationSpec::Scanline(mut scanline) = content.spec;
+    scanline.stepover = 4.0;
+    content.spec = OperationSpec::Scanline(scanline);
+    document.set_operation_content(content);
+    document.duplicate_operation("荒 2".to_string());
+    let copy = document.selected_operation();
+    let OperationSpec::Scanline(copied) = document.operation_content().spec;
+    assert_eq!(copied.stepover, 4.0);
+    assert_eq!(document.operation_content().name, "荒 2");
+
+    // 並べ替え（端で止まる）
+    assert!(document.move_selected_operation(-5));
+    assert_eq!(document.operations()[0].id, copy);
+    assert!(!document.move_selected_operation(-1));
+    // 選び直し（手順にない工程は選ばない）
+    assert!(document.select_operation(first));
+    assert_eq!(document.selected_operation(), first);
+    let unknown = SpaceModelDocument::new().selected_operation();
+    assert!(!document.select_operation(unknown));
+    // 消すと、次の工程（最後なら前の工程）を選ぶ
+    assert!(document.select_operation(rough));
+    assert!(document.remove_selected_operation());
+    assert_eq!(document.selected_operation(), first);
+    assert_eq!(
+        document
+            .operations()
+            .iter()
+            .map(|item| item.id)
+            .collect::<Vec<_>>(),
+        vec![copy, first]
+    );
+
+    // 保存して開き直しても、工程の並びはそのまま
+    let path = temporary_file("rrm");
+    document.save_as(&path, "0.1.0").unwrap();
+    let reopened = SpaceModelDocument::open(&path).unwrap();
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(reopened.operations(), document.operations());
+}

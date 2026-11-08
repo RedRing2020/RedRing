@@ -138,3 +138,17 @@ fn records_that_break_the_rules_are_not_restored() {
         &[orphan]
     );
 }
+
+#[test]
+fn removed_toolpaths_are_no_longer_held() {
+    let (sequences, sequence, operation) = one_operation();
+    let mut store =
+        ImportedToolpathStore::from_records(vec![record_of(&sequences, sequence, operation)])
+            .unwrap();
+    store.remove(operation);
+    assert!(store.records().is_empty());
+    assert_eq!(
+        store.state(&sequences, sequence, operation).unwrap(),
+        ImportedToolpathState::None
+    );
+}

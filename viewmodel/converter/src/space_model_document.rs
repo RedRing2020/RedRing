@@ -1,7 +1,8 @@
 //! 空間モデルの文書（開いたモデルファイル・製品形状・加工手順・保存していない変更）
 //!
 //! 1 つのウィンドウで扱う空間モデルの状態をまとめて持つ（設計: SPACE_MODEL_FILE_DESIGN.md 6 章。タブで複数の空間
-//! モデルを扱うときは、この文書を複数持つ）。加工手順は 1 つ、加工工程は 1 つを編集の対象とする。
+//! モデルを扱うときは、この文書を複数持つ）。加工手順は 1 つを、加工工程はそのうち選んだ 1 つを編集の対象とする。
+//! 加工工程は、加えて・複写して・消して・並べ替えられる（手順には、いつも 1 つ以上の工程がある）。
 
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -48,6 +49,13 @@ fn initial_stock() -> MachiningStock {
         margins: StockMargins::default(),
         precision: 0.05,
     }
+}
+
+/// 加工工程の一覧の 1 行
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OperationListItem {
+    pub id: MachiningOperationId,
+    pub name: String,
 }
 
 /// 空間モデルの文書
@@ -193,6 +201,120 @@ impl SpaceModelDocument {
                     .ok()
             })
             .collect()
+    }
+
+    /// 編集の対象の加工手順の加工工程（加工の順）
+    pub fn operations(&self) -> Vec<OperationListItem> {
+        self.model
+            .sequences
+            .operation_names(self.sequence)
+            .expect("the document holds its machining sequence")
+            .into_iter()
+            .map(|(id, name)| OperationListItem {
+                id,
+                name: name.to_string(),
+            })
+            .collect()
+    }
+
+    /// 編集の対象の加工工程（選んだ工程）
+    pub fn selected_operation(&self) -> MachiningOperationId {
+        self.operation
+    }
+
+    /// 加工工程 `id` を編集の対象にする（手順にない工程は選ばずに `false`。選んでも、保存していない変更にしない）
+    pub fn select_operation(&mut self, id: MachiningOperationId) -> bool {
+        let held = self
+            .model
+            .sequences
+            .operation_position(self.sequence, id)
+            .is_ok();
+        if held {
+            self.operation = id;
+        }
+        held
+    }
+
+    /// 編集の対象の加工工程のすぐ後に、名前が `name` の新しい加工工程（既定の工具・走査線の条件）を加え、編集の対象に
+    /// する
+    pub fn add_operation(&mut self, name: String) {
+        let content = MachiningOperationContent {
+            name,
+            ..initial_operation_content()
+        };
+        self.insert_after_selected(content);
+    }
+
+    /// 編集の対象の加工工程と同じ中身で、名前が `name` の新しい加工工程をすぐ後に加え、編集の対象にする（新しい工程の
+    /// 改訂の番号は 1 から。計算の結果・取り込んだ CL は受け継がない）
+    pub fn duplicate_operation(&mut self, name: String) {
+        let mut content = self.operation_content().clone();
+        content.name = name;
+        self.insert_after_selected(content);
+    }
+
+    fn insert_after_selected(&mut self, content: MachiningOperationContent) {
+        let index = self.selected_position() + 1;
+        self.operation = self
+            .model
+            .sequences
+            .insert_operation(self.sequence, index, content)
+            .expect("the document holds its machining sequence");
+        self.modified = true;
+    }
+
+    /// 編集の対象の加工工程を消し、その工程の取り込んだ CL も消す。次の工程（最後の工程を消したときは前の工程）を
+    /// 編集の対象にする。工程が 1 つだけなら消さずに `false`
+    pub fn remove_selected_operation(&mut self) -> bool {
+        let ids = self
+            .model
+            .sequences
+            .operation_ids(self.sequence)
+            .expect("the document holds its machining sequence");
+        if ids.len() <= 1 {
+            return false;
+        }
+        let index = self.selected_position();
+        let next = ids
+            .get(index + 1)
+            .or_else(|| index.checked_sub(1).and_then(|before| ids.get(before)))
+            .copied()
+            .expect("another operation is held");
+        self.model
+            .remove_operation(self.sequence, self.operation)
+            .expect("the document holds its machining operation");
+        self.operation = next;
+        self.modified = true;
+        true
+    }
+
+    /// 編集の対象の加工工程を、加工の順で `offset` だけ動かす（負は前へ。端を越える分は端で止める）。動いたら `true`
+    pub fn move_selected_operation(&mut self, offset: isize) -> bool {
+        let count = self
+            .model
+            .sequences
+            .operation_ids(self.sequence)
+            .expect("the document holds its machining sequence")
+            .len();
+        let from = self.selected_position();
+        let to = from.saturating_add_signed(offset).min(count - 1);
+        if to == from {
+            return false;
+        }
+        self.model
+            .sequences
+            .move_operation(self.sequence, self.operation, to)
+            .expect("the document holds its machining operation");
+        self.modified = true;
+        true
+    }
+
+    /// 編集の対象の加工工程の、加工の順の位置
+    fn selected_position(&self) -> usize {
+        self.model
+            .sequences
+            .operation_position(self.sequence, self.operation)
+            .expect("the document holds its machining operation")
     }
 
     /// 編集の対象の加工工程の中身（工具・走査線の条件）
