@@ -24,9 +24,9 @@ stage = { path = "../stage" }
 analysis = { path = "../../foundation/analysis" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
 bytemuck = { version = "1.24", features = ["derive"] }
-egui = "0.34.1"
-egui-wgpu = "0.34.1"
-egui-winit = "0.34.1"
+egui = "0.35.0"
+egui-wgpu = "0.35.0"
+egui-winit = "0.35.0"
 fontdb = "0.24"
 rfd = "0.17.2"
 serde = { version = "1.0", features = ["derive"] }

@@ -6,7 +6,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.window.title", "加工条件"),
     (
         "conditions.intro",
-        "次に投入する切削シミュレーションの計算条件です。「投入」で投入するとジョブマネージャーが計算し、終わった後に「取り込み」で結果を表示します。",
+        "次に投入する切削シミュレーションの計算条件です。「投入」で投入するとジョブマネージャーが計算し、終わった後に「切削シミュレーション取込」で結果を表示します。",
     ),
     ("conditions.header.target", "加工の対象"),
     ("conditions.header.operations", "加工工程"),
@@ -211,7 +211,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.window.title", "Machining Conditions"),
     (
         "conditions.intro",
-        "Calculation conditions for the next cutting simulation. Submit to have the job manager calculate it, then press Import after it finishes to show the result.",
+        "Calculation conditions for the next cutting simulation. Submit to have the job manager calculate it, then press Import cutting simulation after it finishes to show the result.",
     ),
     ("conditions.header.target", "Target"),
     ("conditions.header.operations", "Machining operations"),
