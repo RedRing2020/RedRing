@@ -11,16 +11,16 @@ Load a product shape (STL), submit and run a cutting simulation with the visible
 - Snapshot controls: step, rewind, scrub, and playback
 - Display modes: solid and wireframe
 
-The tool, machining, and stock conditions are entered in the Machining Conditions window (Shift+M) and submitted with "Submit". This window is separate from the display settings (the settings panel, Shift+S).
+The tool, machining, and stock conditions are entered in the Machining Conditions window and submitted with "Submit". The Machining Conditions window appears when you open a machining sequence with "Machining" → "Open machining sequence" in the menu bar. This window is separate from the display settings (the settings panel, Shift+S).
 
 ## Steps
 
 1. Start RedRing ([Getting Started](./getting_started.md)).
 2. Choose an STL file with "File" → "Load…" in the menu bar, or drop an STL file onto the window, to load the shape. The loaded shape becomes a visible product shape and the machining target.
-3. Press `Shift+M` to open the Machining Conditions window, enter the tool, machining, and stock conditions, and press "Submit". A cutting simulation of the visible product shape is submitted, and the job manager calculates it ("Job Manager" in [Getting Started](./getting_started.md)). The screen does not stop during the calculation, and the Machining Conditions window shows the state of the calculation for the current conditions (waiting, calculating, completed, failed).
+3. Open the machining sequence with "Machining" → "Open machining sequence" in the menu bar, enter the tool, machining, and stock conditions in the Machining Conditions window that appears, and press "Submit". A cutting simulation of the visible product shape is submitted, and the job manager calculates it ("Job Manager" in [Getting Started](./getting_started.md)). The screen does not stop during the calculation, and the Machining Conditions window shows the state of the calculation for the current conditions (waiting, calculating, completed, failed).
 4. When the calculation has finished, press "Import cutting simulation" to import the latest cutting simulation that finished successfully with the current conditions. After changing the conditions or the visible product shape, nothing can be imported until you submit again.
 
-`Shift+L` is the same as "Import cutting simulation".
+`Shift+L` is the same as "Import cutting simulation" (only while a machining sequence is open).
 
 After a successful import, the following appear.
 
@@ -31,6 +31,18 @@ After a successful import, the following appear.
 Importing does not change the camera (direction and zoom), so you can compare the same place after importing again with other conditions. To fit the camera to the shapes again, press `r` (only when there is no visible product shape, the camera is fitted to the stock on import).
 
 ## Controls
+
+### Opening and Closing the Machining Sequence ("Machining")
+
+| "Machining" item | Key | Contents |
+|---|---|---|
+| Open machining sequence | | Opens the machining sequence and shows the Machining Conditions window. While it is open, the CL of the selected operation is shown over the product shape, and while the Machining Conditions window is shown, the calculation state is read |
+| Close machining sequence | | Closes the machining sequence. The CL display, the cutting animation, and the Machining Conditions window are closed, and the memory they used is released. Jobs being calculated are continued by the job manager |
+| Machining conditions window | `Shift+M` | While a machining sequence is open, shows or hides the Machining Conditions window. Hiding the window keeps the machining sequence open (the CL and the cutting animation stay shown) |
+
+- For now, the first machining sequence of the model file is opened (choosing a machining sequence to open comes in a later version)
+- After opening a model file or creating a new one, no machining sequence is open
+- While no machining sequence is open, `Shift+M` and `Shift+L` do nothing
 
 ### Machining Conditions Window (`Shift+M`)
 
@@ -45,7 +57,7 @@ Importing does not change the camera (direction and zoom), so you can compare th
   - For now, the cutting simulation of every operation starts from the sequence stock (starting from the stock left by the previous operation comes in a later version)
 - The "Machining operations" section lists the operations of the machining sequence in machining order, with the calculation state of each (not submitted, waiting, calculating, calculated, imported, failed, canceled). "Imported" means the CL in the space model is the result of the current conditions. Click an operation to select it; the sections below show its conditions for editing. The stock (margins, precision) is shared by all operations of the sequence
   - When you select an operation, its CL in the space model is shown over the product shape (the job manager is not asked). A CL that is not the result of the current conditions is shown in gray. No CL is shown for an operation whose CL has not been imported
-  - The CL is shown only while the Machining Conditions window is open. It is not shown just by opening a model file, and it disappears when the window is closed
+  - The CL is shown only while the machining sequence is open. It is not shown just by opening a model file, and it disappears when the machining sequence is closed
   - The cutting animation is shown only while the imported operation is selected. Selecting another operation closes the cutting animation and shows that operation's CL (press "Import cutting simulation" to see it again)
   - "Add": adds a new operation (default conditions) right after the selected one
   - "Duplicate": adds an operation with the same conditions right after the selected one (calculation results and the imported CL are not carried over)

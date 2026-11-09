@@ -58,13 +58,13 @@ impl AppState {
     }
 
     /// 切削アニメーションを出していないときに、選んだ加工工程の空間モデルの CL の線を描き直す（今の条件の結果でない
-    /// CL は灰色にする）。CL の線は、加工条件のウィンドウを開いている間だけ出す（閉じている・CL を取り込んでいなければ、
-    /// 線を消して放す）
+    /// CL は灰色にする）。CL の線は、加工手順を開いている間だけ出す（閉じている・CL を取り込んでいなければ、線を消して
+    /// 放す）
     pub(super) fn refresh_operation_toolpath_lines(&mut self) {
         if self.cutting_animation.is_some() {
             return;
         }
-        let shown = self.machining_conditions_open;
+        let shown = self.machining_sequence_open;
         self.drawn_toolpath_state = Some((
             self.document.selected_operation(),
             self.document.imported_toolpath_state(),

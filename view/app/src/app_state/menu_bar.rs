@@ -2,13 +2,16 @@
 
 use super::model_file::FileAction;
 use super::AppState;
-use crate::menu_bar_ui::{FileMenuItem, MenuBarUiState};
+use crate::menu_bar_ui::{FileMenuItem, MachiningMenuItem, MenuBarUiState};
 
 impl AppState {
     pub(crate) fn prepare_menu_bar_state(&self) -> MenuBarUiState {
         MenuBarUiState {
             locale: self.ui_locale,
+            machining_sequence_open: self.machining_sequence_open,
+            machining_conditions_shown: self.machining_conditions_open,
             file_requested: None,
+            machining_requested: None,
             locale_requested: None,
             controls_requested: false,
             about_requested: false,
@@ -25,6 +28,12 @@ impl AppState {
                 FileMenuItem::Load => FileAction::Load,
                 FileMenuItem::Exit => FileAction::Exit,
             });
+        }
+        match state.machining_requested {
+            Some(MachiningMenuItem::OpenSequence) => self.open_machining_sequence(),
+            Some(MachiningMenuItem::CloseSequence) => self.close_machining_sequence(),
+            Some(MachiningMenuItem::ConditionsWindow) => self.toggle_machining_conditions(),
+            None => {}
         }
         if let Some(locale) = state.locale_requested {
             self.set_ui_locale(locale);

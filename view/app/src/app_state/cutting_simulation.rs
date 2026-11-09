@@ -219,6 +219,11 @@ impl AppState {
 
     /// 正常に実行済みの最も新しい切削シミュレーションを取り込み、製品形状に重ねて再生できるようにする
     pub(crate) fn import_cutting_simulation(&mut self) {
+        // CAM の表示は、加工手順を開いている間だけ出す
+        if !self.machining_sequence_open {
+            tracing::debug!("The machining sequence is not open; nothing is imported");
+            return;
+        }
         tracing::info!("Importing the cutting simulation");
         let started = std::time::Instant::now();
         match self.cutting_simulation.import_latest(&mut self.document) {
