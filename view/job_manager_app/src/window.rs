@@ -543,7 +543,7 @@ impl JobManagerWindow {
         });
         let (yes, no) = (self.text("bulk.yes"), self.text("bulk.no"));
         let mut choice = None;
-        let response = Modal::new(Id::new("bulk_delete")).show(ctx, |ui| {
+        let response = Modal::new(Id::unique("bulk_delete")).show(ctx, |ui| {
             ui.set_max_width(520.0);
             ui.heading(texts.0);
             ui.add_space(8.0);
@@ -644,7 +644,7 @@ impl JobManagerWindow {
             self.text("delete.confirm_no"),
         );
         let mut choice = None;
-        let response = Modal::new(Id::new("delete_confirmation")).show(ctx, |ui| {
+        let response = Modal::new(Id::unique("delete_confirmation")).show(ctx, |ui| {
             ui.set_max_width(420.0);
             ui.label(message);
             ui.add_space(8.0);
@@ -725,7 +725,7 @@ impl JobManagerWindow {
             self.text("store.change_no"),
         );
         let mut choice = None;
-        let response = Modal::new(Id::new("store_change")).show(ctx, |ui| {
+        let response = Modal::new(Id::unique("store_change")).show(ctx, |ui| {
             ui.set_max_width(520.0);
             ui.label(message);
             if let Some(note) = note {
@@ -979,7 +979,7 @@ impl JobManagerWindow {
                             .expand2(egui::vec2(0.0, row_spacing / 2.0));
                         let response = ui.interact(
                             area,
-                            ui.id().with(("job_row", job.job_id)),
+                            ui.scope_id().with(("job_row", job.job_id)),
                             egui::Sense::click(),
                         );
                         if response.clicked() {

@@ -14,6 +14,7 @@ impl<'a> GpuContext<'a> {
             compatible_surface: Some(surface),
             power_preference: wgpu::PowerPreference::HighPerformance,
             force_fallback_adapter: false,
+            ..Default::default()
         }))
         .expect("No suitable adapter found");
 

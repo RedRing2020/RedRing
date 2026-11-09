@@ -158,9 +158,12 @@ impl SettingsPanelRenderer {
             return;
         };
 
-        for (texture_id, image_delta) in &frame.textures_delta.set {
-            self.egui_renderer
-                .update_texture(device, queue, *texture_id, image_delta);
+        // 同じテクスチャの更新は、並んだ順に当てる
+        for (texture_id, image_deltas) in &frame.textures_delta.set {
+            for image_delta in image_deltas {
+                self.egui_renderer
+                    .update_texture(device, queue, *texture_id, image_delta);
+            }
         }
 
         let screen_descriptor = ScreenDescriptor {

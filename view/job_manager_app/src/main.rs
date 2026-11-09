@@ -284,6 +284,9 @@ fn show_window(
                 width: icon::ICON_SIZE,
                 height: icon::ICON_SIZE,
             })),
+        // 先に用意するフレームを 1 つにすると、大きさを変える間に描き直しが追いつかず、広げた所が白く出る
+        wgpu_options: eframe::egui_wgpu::WgpuConfiguration::default()
+            .with_surface_config(eframe::egui_wgpu::SurfaceConfig::HIGH_THROUGHPUT),
         ..Default::default()
     };
     let shown = eframe::run_native(
