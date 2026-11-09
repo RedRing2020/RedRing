@@ -214,7 +214,7 @@ pub struct NoticeBarUiState<'a> {
 impl NoticeBarUiState<'_> {
     pub fn show(&self, ui: &mut Ui) {
         let notice = self.notice;
-        Panel::bottom("notice_bar").show_inside(ui, |ui| {
+        Panel::bottom("notice_bar").show(ui, |ui| {
             let text = notice.text(self.locale);
             match notice.level() {
                 NoticeLevel::Info => ui.label(text),

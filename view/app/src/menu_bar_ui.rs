@@ -60,7 +60,7 @@ impl MenuBarUiState {
     }
 
     pub fn show(&mut self, ui: &mut Ui) {
-        Panel::top("menu_bar").show_inside(ui, |ui| {
+        Panel::top("menu_bar").show(ui, |ui| {
             MenuBar::new().ui(ui, |ui| {
                 ui.menu_button(self.text("menu.file"), |ui| {
                     keep_items_on_one_line(ui);

@@ -1123,16 +1123,16 @@ impl eframe::App for JobManagerWindow {
         self.show_delete_confirmation(ui.ctx());
         self.show_bulk_delete(ui.ctx());
         self.show_store_change(ui.ctx());
-        Panel::top("header").show_inside(ui, |ui| self.show_header(ui));
+        Panel::top("header").show(ui, |ui| self.show_header(ui));
         Panel::left("filter")
             .resizable(true)
             .default_size(150.0)
-            .show_inside(ui, |ui| self.show_filter(ui));
+            .show(ui, |ui| self.show_filter(ui));
         Panel::bottom("details")
             .resizable(true)
             .default_size(200.0)
-            .show_inside(ui, |ui| self.show_details(ui));
-        CentralPanel::default().show_inside(ui, |ui| self.show_jobs(ui));
+            .show(ui, |ui| self.show_details(ui));
+        CentralPanel::default().show(ui, |ui| self.show_jobs(ui));
         // 記録・経過時間を、操作がなくても読み直して描き直す（操作の結果を待つ間は、結果が返ったらすぐ出す）
         ui.ctx()
             .request_repaint_after(if self.service.outstanding() > 0 {
