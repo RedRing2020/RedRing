@@ -8,7 +8,7 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("help.window.title", "操作の一覧"),
     (
         "help.note.text_input",
-        "設定パネル・加工条件のウィンドウの入力欄を編集している間は、打った文字はキー操作になりません（Esc での終了を除く）。",
+        "設定パネル・設定のウィンドウの入力欄を編集している間は、打った文字はキー操作になりません（Esc での終了を除く）。",
     ),
     ("help.header.camera", "カメラ"),
     ("help.header.cutting", "切削シミュレーション"),
@@ -26,7 +26,7 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("help.camera.standard", "標準 CAD 視点"),
     ("help.camera.front", "正面視点"),
     ("help.camera.escape", "緊急脱出（めり込んだカメラを戻す）"),
-    ("help.cutting.conditions", "加工手順を開いている間、加工条件のウィンドウの表示・非表示（「投入」で投入）"),
+    ("help.cutting.conditions", "加工手順を開いている間、工程リストの表示・非表示（「投入」で投入）"),
     ("help.cutting.import", "加工手順を開いている間、今の条件で計算した最も新しい結果を取り込み"),
     ("help.cutting.step", "コマ送りの移動量だけ進む / 戻る"),
     ("help.cutting.endpoint", "工具を次 / 前の区間の端点へ移す"),
@@ -106,7 +106,7 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("help.window.title", "Controls"),
     (
         "help.note.text_input",
-        "While editing a field in the settings panel or the machining conditions window, typed characters are not used as keys (except Esc to quit).",
+        "While editing a field in the settings panel or a settings window, typed characters are not used as keys (except Esc to quit).",
     ),
     ("help.header.camera", "Camera"),
     ("help.header.cutting", "Cutting simulation"),
@@ -126,7 +126,7 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("help.camera.escape", "Emergency escape (bring back a camera inside a shape)"),
     (
         "help.cutting.conditions",
-        "While a machining sequence is open, show or hide the machining conditions window (submit with \"Submit\")",
+        "While a machining sequence is open, show or hide the operation list (submit with \"Submit\")",
     ),
     ("help.cutting.import", "While a machining sequence is open, import the latest result of the current conditions"),
     ("help.cutting.step", "Step forward / back by the step distance"),

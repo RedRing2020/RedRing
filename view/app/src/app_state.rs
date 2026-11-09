@@ -3,7 +3,7 @@ use crate::app_settings::AppSettings;
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::help_ui::Notice;
-use crate::machining_conditions_ui::{JobStatusLine, OperationStatus};
+use crate::machining_conditions_ui::{JobStatusLine, OperationSettingsPage, OperationStatus};
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
@@ -28,7 +28,7 @@ use winit::window::Window;
 mod app_lifecycle;
 // AppState の切削シミュレーションの投入・実行・取り込みと切削アニメーションの描画
 mod cutting_simulation;
-// AppState の加工条件のウィンドウ（計算条件の入力と投入）
+// AppState の加工手順の画面（工程リストと設定のウィンドウ。計算条件の入力と投入）
 mod machining_conditions;
 // AppState のメニューバーの項目
 mod menu_bar;
@@ -161,13 +161,18 @@ pub struct AppState {
     /// 切削アニメーションを描いている色（取り込みと「設定を反映」で、設定の色にする）
     cutting_animation_colors: SnapshotShadedColorSettings,
 
-    /// 加工条件のウィンドウの、工具長を指定するときの入力値（mm）
+    /// 工程の設定のウィンドウの、工具長を指定するときの入力値（mm）
     tool_length_input: f64,
 
     /// 加工手順を開いているか（開いている間だけ、CAM の操作・表示を出す。閉じたら CAM の表示を放す）
     machining_sequence_open: bool,
-    /// 加工条件のウィンドウを出しているか（加工手順を開いている間だけ出せる）
-    machining_conditions_open: bool,
+    /// 工程リストを出しているか（加工手順を開いている間だけ出せる）
+    operation_list_shown: bool,
+    /// 工程の設定のウィンドウを開いているか（加工手順を開いている間だけ開ける）と、出している頁
+    operation_settings_open: bool,
+    operation_settings_page: OperationSettingsPage,
+    /// 手順の設定のウィンドウを開いているか（加工手順を開いている間だけ開ける）
+    sequence_settings_open: bool,
 
     /// 次に投入する計算条件の問題（`None` は、条件・製品形状が変わって確かめ直す必要がある）
     condition_issues: Option<Vec<ConditionIssue>>,
@@ -182,7 +187,7 @@ pub struct AppState {
     operation_job_statuses: Vec<(MachiningOperationId, JobStatusLine)>,
     /// 取り込んだ切削シミュレーションの加工工程（取り込んだ条件は、その工程を選んでいるときだけ出す）
     imported_operation: Option<MachiningOperationId>,
-    /// 加工条件のウィンドウで入力している、選んだ加工工程の名前（決めるまでは工程の名前を変えない。`None` は工程の名前）
+    /// 工程の設定のウィンドウで入力している、選んだ加工工程の名前（決めるまでは工程の名前を変えない。`None` は工程の名前）
     operation_name_input: Option<String>,
     /// 描いている CL の線の工程と、そのときの CL の状態・加工手順を開いていたか（条件を変えて状態が変わったら
     /// 線の色を描き直し、加工手順を開いた・閉じたら線を出す・消す）
@@ -282,7 +287,10 @@ impl AppState {
             cutting_animation_colors: SnapshotShadedColorSettings::default(),
             tool_length_input: 50.0,
             machining_sequence_open: false,
-            machining_conditions_open: false,
+            operation_list_shown: false,
+            operation_settings_open: false,
+            operation_settings_page: OperationSettingsPage::default(),
+            sequence_settings_open: false,
             condition_issues: None,
             imported_conditions: None,
             cutting_simulation_job_status: JobStatusLine::NotSubmitted,

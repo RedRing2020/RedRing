@@ -35,7 +35,7 @@ Display:
 
 | Symptom | What to check |
 |---|---|
-| "Import CL" or "Import cutting simulation" does not import | After changing the conditions or the visible product shape, nothing can be imported until you submit again. Check the line with the result of the last operation in the Machining Conditions window and the log (`logs/redring.log`) |
+| "Import CL" or "Import cutting simulation" does not import | After changing the conditions or the visible product shape, nothing can be imported until you submit again. Check the line with the result of the last operation in the operation list and the log (`logs/redring.log`) |
 | "Submit" cannot be pressed | A condition error is shown in red below the field to fix. Fix it to enable the button |
 | "Submit" says that the job manager is not installed | Check that `redring-job-manager` and `redring-batch-runner` are in the same folder as the app. When built from source, build with `cargo build --release` |
 | The calculation stays "waiting" | Check the job manager log (`%LOCALAPPDATA%\RedRing\jobs\manager.log`) |
@@ -43,6 +43,6 @@ Display:
 | Drawing stops while the open-file dialog is open | It resumes when the dialog is closed |
 | Rotating the stock stops drawing or the screen disappears | With a fine stock precision (for example 0.01 mm), the GPU load becomes high and the GPU device can be lost. The app then shows an error message and ends. Submit again with a coarser precision |
 | The camera is inside a shape | Press the `e` key (emergency escape) or the `r` key (reset) |
-| Keys do not work | While editing a field in the settings panel or the Machining Conditions window, typed characters are not used as keys. Click outside the field |
+| Keys do not work | While editing a field in the settings panel or the operation settings or sequence settings window, typed characters are not used as keys. Click outside the field |
 
 When you report a problem, open [GitHub Issues](https://github.com/RedRing2020/RedRing/issues) and attach the steps and the log file (`logs/redring.log`).

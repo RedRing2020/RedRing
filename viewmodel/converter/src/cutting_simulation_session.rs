@@ -11,11 +11,11 @@ use application::cam_simulation_workflow::{
 pub use application::cam_simulation_workflow::{
     CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
 };
+use application::machining_sequence::ScanlineParams;
 pub use application::machining_sequence::{
-    flat_surface_cusp_height, MachiningOperationContent, MachiningStock, OperationSpec,
-    ScanlineCutDirection, ScanlineToolRange, StockMargins,
+    flat_surface_cusp_height, MachiningBoundary, MachiningOperationContent, MachiningStage,
+    MachiningStock, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
 };
-use application::machining_sequence::{ScanlineParams, Tool};
 
 use application::cutting_simulation_playback::{
     CuttingSimulationPlayback, CuttingSimulationPlaybackError,

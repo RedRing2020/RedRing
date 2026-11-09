@@ -9,7 +9,9 @@ impl AppState {
         MenuBarUiState {
             locale: self.ui_locale,
             machining_sequence_open: self.machining_sequence_open,
-            machining_conditions_shown: self.machining_conditions_open,
+            operation_list_shown: self.operation_list_shown,
+            operation_settings_open: self.operation_settings_open,
+            sequence_settings_open: self.sequence_settings_open,
             file_requested: None,
             machining_requested: None,
             locale_requested: None,
@@ -32,7 +34,9 @@ impl AppState {
         match state.machining_requested {
             Some(MachiningMenuItem::OpenSequence) => self.open_machining_sequence(),
             Some(MachiningMenuItem::CloseSequence) => self.close_machining_sequence(),
-            Some(MachiningMenuItem::ConditionsWindow) => self.toggle_machining_conditions(),
+            Some(MachiningMenuItem::OperationList) => self.toggle_operation_list(),
+            Some(MachiningMenuItem::OperationSettings) => self.toggle_operation_settings(),
+            Some(MachiningMenuItem::SequenceSettings) => self.toggle_sequence_settings(),
             None => {}
         }
         if let Some(locale) = state.locale_requested {

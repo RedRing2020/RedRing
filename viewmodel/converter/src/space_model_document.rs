@@ -12,8 +12,8 @@ pub use application::imported_toolpath::ImportedToolpathState;
 pub use application::machining_sequence::MachiningOperationId;
 use application::machining_sequence::{
     scanline_finish_operation_content, MachiningOperationContent, MachiningSequenceId,
-    MachiningSequenceStore, MachiningStock, ScanlineCutDirection, ScanlineParams,
-    ScanlineToolRange, StockMargins,
+    MachiningSequenceStore, MachiningStage, MachiningStock, OperationSpec, ScanlineCutDirection,
+    ScanlineParams, ScanlineToolRange, StockMargins, Tool,
 };
 use application::product_shape::{EntityDisplayProperties, ProductShapeError, ProductShapeStore};
 use application::space_model_file::{
@@ -56,10 +56,13 @@ fn initial_stock() -> MachiningStock {
 }
 
 /// 加工工程の一覧の 1 行
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct OperationListItem {
     pub id: MachiningOperationId,
     pub name: String,
+    pub stage: MachiningStage,
+    pub spec: OperationSpec,
+    pub tool: Tool<f64>,
 }
 
 /// 空間モデルの文書
@@ -211,14 +214,32 @@ impl SpaceModelDocument {
     pub fn operations(&self) -> Vec<OperationListItem> {
         self.model
             .sequences
-            .operation_names(self.sequence)
+            .operation_ids(self.sequence)
             .expect("the document holds its machining sequence")
             .into_iter()
-            .map(|(id, name)| OperationListItem {
-                id,
-                name: name.to_string(),
+            .map(|id| {
+                let content = self
+                    .model
+                    .sequences
+                    .operation_content(self.sequence, id)
+                    .expect("the listed operation is in the sequence");
+                OperationListItem {
+                    id,
+                    name: content.name.clone(),
+                    stage: content.stage,
+                    spec: content.spec,
+                    tool: content.tool.clone(),
+                }
             })
             .collect()
+    }
+
+    /// 編集の対象の加工手順の名前
+    pub fn sequence_name(&self) -> &str {
+        self.model
+            .sequences
+            .sequence_name(self.sequence)
+            .expect("the document holds its machining sequence")
     }
 
     /// 編集の対象の加工工程（選んだ工程）
