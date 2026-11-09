@@ -30,6 +30,7 @@ fn find_adapter(
         power_preference: wgpu::PowerPreference::HighPerformance,
         compatible_surface: Some(&surface),
         force_fallback_adapter: false,
+        ..Default::default()
     }))
     .ok()?;
     Some((instance, surface, adapter))
@@ -121,6 +122,8 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         alpha_mode: caps.alpha_modes[0],
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
+        // sRGB の形式では sRGB に出す（今までと同じ）
+        color_space: wgpu::SurfaceColorSpace::Auto,
     };
 
     // Depth texture を作成
@@ -183,7 +186,7 @@ impl Graphic {
                 };
                 renderer.render_with_depth(&render_context, &mut encoder, &view, depth_view);
                 self.queue.submit(std::iter::once(encoder.finish()));
-                frame.present();
+                self.queue.present(frame);
                 self.surface_texture = None;
             }
             e => {

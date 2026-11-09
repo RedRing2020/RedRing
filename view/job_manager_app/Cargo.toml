@@ -19,7 +19,9 @@ job_runtime = { path = "../../model/job_runtime" }
 job_ipc = { path = "../../model/job_ipc" }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # accesskit（画面の読み上げ）は、保守の終わった依存を含むため使わない（CAD/CAM のアプリと同じ）
-eframe = { version = "0.35.0", default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland"] }
+eframe = { version = "0.37.0", default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland"] }
+# 状態の記号（⏸・▶・✔・⚠・⏹・☰）のフォントを入れる（0.37 から、標準のフォントには入らない）
+egui = { version = "0.37.0", default-features = false, features = ["monochrome_emoji_fonts"] }
 fontdb = "0.24"
 rfd = "0.17.2"
 serde = { version = "1.0", features = ["derive"] }

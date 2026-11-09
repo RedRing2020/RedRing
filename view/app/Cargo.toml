@@ -11,7 +11,7 @@ categories.workspace = true
 
 [dependencies]
 winit = "0.30.13"
-wgpu = "29.0.1"
+wgpu = "30.0.0"
 smol_str = "0.3.2"
 pollster.workspace = true
 tracing.workspace = true
@@ -24,9 +24,11 @@ stage = { path = "../stage" }
 analysis = { path = "../../foundation/analysis" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
 bytemuck = { version = "1.24", features = ["derive"] }
-egui = "0.35.0"
-egui-wgpu = "0.35.0"
-egui-winit = "0.35.0"
+# 0.37 から標準のフォントが既定で入らないため、英字のフォントと、記号（▲・▼・→ など）のフォントを入れる（日本語は OS の
+# フォントを足す）
+egui = { version = "0.37.0", features = ["monochrome_emoji_fonts"] }
+egui-wgpu = "0.37.0"
+egui-winit = "0.37.0"
 fontdb = "0.24"
 rfd = "0.17.2"
 serde = { version = "1.0", features = ["derive"] }
