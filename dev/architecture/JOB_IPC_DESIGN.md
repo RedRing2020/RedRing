@@ -85,7 +85,6 @@ CAD/CAM のアプリが、ジョブの保存先のファイルを直接読み書
 | `open_window` | `ok` | `open_manager_window` |
 | `record_imported`（切削シミュレーションのジョブの番号） | `ok` | `record_imported`（#1191） |
 
-- 投入し直し（ジョブの使い回し）は `submit` のまま行う。投入元に空間モデルの ID を持たせ、ジョブマネージャーが取り込むときに前のジョブと組み合わせる（`JOB_MANAGER_STORAGE_DESIGN.md` 4.4.1）。取り消し・削除の要求は足さない
 - ウィンドウを前に出す権利は、利用者が操作しているアプリの側にある。Windows では、アプリが `open_window` を送る前に、パイプの相手のプロセス（`GetNamedPipeServerProcessId`）に前に出す権利を渡す（PR 3）
 
 - 誤りは、`error`（種類と英語の詳しい理由）で返す。種類は、正しくない要求・版の違い・ないジョブ・ないファイル・保存先を読み書きできない・上限を超えた、とする
