@@ -14,7 +14,8 @@ impl AppState {
     ) {
         self.mouse_input.update_key(key, pressed);
 
-        if !pressed {
+        // 条件の編集のダイアログ（モーダル）を開いている間は、キー操作をダイアログだけに渡す
+        if !pressed || self.is_condition_dialog_open() {
             return;
         }
 

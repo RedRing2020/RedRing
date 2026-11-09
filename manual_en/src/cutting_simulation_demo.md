@@ -11,13 +11,13 @@ Load a product shape (STL), submit and run a cutting simulation with the visible
 - Snapshot controls: step, rewind, scrub, and playback
 - Display modes: solid and wireframe
 
-The tool and machining conditions are entered in the operation settings window, and the stock in the sequence settings window. They are submitted with "Submit" in the operation list at the bottom of the screen. The operation list appears when you open a machining sequence with "Machining" → "Open machining sequence" in the menu bar. These screens are separate from the display settings (the settings panel, Shift+S).
+The tool and machining conditions are entered in the operation settings dialog, and the stock in the sequence settings dialog, and then applied with "Apply". They are submitted with "Submit" in the operation list at the bottom of the screen. The operation list appears when you open a machining sequence with "Machining" → "Open machining sequence" in the menu bar. These screens are separate from the display settings (the settings panel, Shift+S).
 
 ## Steps
 
 1. Start RedRing ([Getting Started](./getting_started.md)).
 2. Choose an STL file with "File" → "Load…" in the menu bar, or drop an STL file onto the window, to load the shape. The loaded shape becomes a visible product shape and the machining target.
-3. Open the machining sequence with "Machining" → "Open machining sequence" in the menu bar. The operation list appears at the bottom of the screen. Double-click an operation row to open the operation settings window, and enter the tool and machining conditions. Enter the stock in the window opened with "Sequence settings" in the operation list.
+3. Open the machining sequence with "Machining" → "Open machining sequence" in the menu bar. The operation list appears at the bottom of the screen. Double-click an operation row to open the operation settings dialog, enter the tool and machining conditions, and press "Apply". Enter the stock in the dialog opened with "Sequence settings" in the operation list.
 4. Press "Submit" in the operation list. A cutting simulation of the visible product shape is submitted, and the job manager calculates it ("Job Manager" in [Getting Started](./getting_started.md)). The screen does not stop during the calculation, and the operation list shows the state of the calculation for the current conditions (waiting, calculating, completed, failed).
 5. When the calculation has finished, press "Import cutting simulation" to import the latest cutting simulation that finished successfully with the current conditions. After changing the conditions or the visible product shape, nothing can be imported until you submit again.
 
@@ -38,10 +38,10 @@ Importing does not change the camera (direction and zoom), so you can compare th
 | "Machining" item | Key | Contents |
 |---|---|---|
 | Open machining sequence | | Opens the machining sequence and shows the operation list at the bottom of the screen. While it is open, the CL of the selected operation is shown over the product shape, and while the operation list is shown, the calculation state is read |
-| Close machining sequence | | Closes the machining sequence. The operation list, the operation settings and sequence settings windows, the CL display, and the cutting animation are closed, and the memory they used is released. Jobs being calculated are continued by the job manager |
-| Operation list | `Shift+M` | While a machining sequence is open, shows or hides the operation list. Hiding the operation list keeps the machining sequence open (the CL, the cutting animation, and the settings windows stay as they are) |
-| Operation settings | | While a machining sequence is open, opens or closes the settings window of the selected operation |
-| Sequence settings | | While a machining sequence is open, opens or closes the sequence settings window |
+| Close machining sequence | | Closes the machining sequence. The operation list, the CL display, and the cutting animation are closed, and the memory they used is released. Jobs being calculated are continued by the job manager |
+| Operation list | `Shift+M` | While a machining sequence is open, shows or hides the operation list. Hiding the operation list keeps the machining sequence open (the CL and the cutting animation stay as they are) |
+| Operation settings | | While a machining sequence is open, opens the settings dialog of the selected operation |
+| Sequence settings | | While a machining sequence is open, opens the sequence settings dialog |
 
 - For now, the first machining sequence of the model file is opened (choosing a machining sequence to open comes in a later version)
 - After opening a model file or creating a new one, no machining sequence is open
@@ -49,7 +49,7 @@ Importing does not change the camera (direction and zoom), so you can compare th
 
 ### Operation List (Bottom of the Screen)
 
-- The toolbar at the top shows the sequence name, "Sequence settings" and "Operation settings" (open or close the windows), and the list operations ("Add", "Duplicate", "Remove", "▲", "▼")
+- The toolbar at the top shows the sequence name, "Sequence settings" and "Operation settings" (open the dialogs), and the list operations ("Add", "Duplicate", "Remove", "▲", "▼")
 - Below it are the calculation buttons. Except for "Submit the whole sequence", they act on the selected operation
   - "Submit": submits the selected operation. When the space model has the CL of the current conditions and no calculation of the current conditions remains (no job, failed, or canceled), only the cutting simulation is calculated from that CL, without toolpath generation (for example after the job manager's results have been deleted, or after opening the model file on another PC). If the toolpath generation result for the current conditions is still in the job manager, the cutting simulation is put under it. Otherwise, it is submitted from toolpath generation. The result line shows which was submitted
   - "Redo": deletes the CL of the selected operation from the space model and submits again from toolpath generation. If the cutting animation of that operation is shown, it is closed (if it cannot be submitted, the CL is not deleted)
@@ -58,10 +58,10 @@ Importing does not change the camera (direction and zoom), so you can compare th
   - "Import cutting simulation": imports and shows the cutting simulation that finished successfully with the current conditions of the selected operation, and imports its CL into the space model
   - "Open job manager": opens the job manager window
   - Below the buttons, the result of the last operation (submit or import), the state of the calculation for the current conditions of the selected operation, and whether the CL in the space model is the result of the current conditions (not imported yet, result of the current conditions, result of earlier conditions) are shown. The state is read again every second
-  - If the conditions of the selected operation or the sequence have errors, the errors are shown in red, and "Submit" and "Redo" cannot be pressed (they are also shown below the fields to fix in the settings windows)
+  - If the conditions of the selected operation or the sequence have errors, the errors are shown in red, and "Submit" and "Redo" cannot be pressed (they are also shown below the fields to fix in the settings dialogs)
   - For now, the cutting simulation of every operation starts from the sequence stock (starting from the stock left by the previous operation comes in a later version)
 - The operation table lists the operations of the machining sequence in machining order. The columns are No., Name, Stage, Machining type, Tool, and Status. The status is the calculation state (not submitted, waiting, calculating, calculated, imported, failed, canceled). "Imported" means the CL in the space model is the result of the current conditions
-  - Click a row to select it, and double-click it to open the operation settings window. Right-click shows a menu with operation settings, Submit, Redo, Import CL, Import cutting simulation, Add, Duplicate, Remove, and moving earlier or later (the right-clicked row is selected first)
+  - Click a row to select it, and double-click it to open the operation settings dialog. Right-click shows a menu with operation settings, Submit, Redo, Import CL, Import cutting simulation, Add, Duplicate, Remove, and moving earlier or later (the right-clicked row is selected first)
   - When you select an operation, its CL in the space model is shown over the product shape (the job manager is not asked). A CL that is not the result of the current conditions is shown in gray. No CL is shown for an operation whose CL has not been imported
   - The CL is shown only while the machining sequence is open. It is not shown just by opening a model file, and it disappears when the machining sequence is closed
   - The cutting animation is shown only while the imported operation is selected. Selecting another operation closes the cutting animation and shows that operation's CL (press "Import cutting simulation" to see it again)
@@ -71,17 +71,24 @@ Importing does not change the camera (direction and zoom), so you can compare th
   - "▲" / "▼": moves the selected operation earlier or later in the machining order
 - Drag the top edge of the operation list to change its height
 
-### Operation Settings Window
+### Editing Conditions (Operation Settings and Sequence Settings Dialogs)
 
-- Edits the conditions of the selected operation. If you select another operation in the operation list while it is open, it switches to that operation's conditions. The window title shows the operation name
+- Conditions are edited in a dialog and are not put into the operation or the sequence until you press "Apply". Just touching a field does not make the operation need recalculation. "Cancel", clicking outside the dialog, or `Esc` discards the edits and closes it
+- While a dialog is open, other operations (selecting an operation, keys, menus, dropping files) cannot be used
+- In the operation settings, if "Submit when applied" to the right of "Apply" and "Cancel" is checked, the operation is submitted after the conditions are applied (the choice is kept the next time you open it). While it is checked, "Apply" cannot be pressed if the conditions have errors
+- Condition errors are shown in red below the field to fix, even before applying
+
+### Operation Settings Dialog
+
+- Edits the conditions of the selected operation. The dialog title shows the operation name
 - "Machining conditions" page: name (applied when you click outside the field or press `Enter`), stage (rough, semi-finish, finish), machining type (only scanline for now), tool (type, diameter, length), and scanline conditions (cut direction, stepover, feed rate, scan angle, tool range). The toolpath tolerance (0.001 mm) is shown only and cannot be changed
 - The scanline conditions section shows the upper limit of the cusp height, the height of the ridges left between neighboring passes on a flat surface (the spacing between passes is at most the stepover, because the machining range is divided equally). For a ball end mill it is set by the diameter and the stepover (for example 0.1010 mm with diameter 10 mm and stepover 2 mm); for a flat end mill it is 0. It changes on inclined surfaces, so it is a guide value. It is not shown when the stepover exceeds the tool diameter
 - "Region and target" page: the target (the faces of the visible product shape; the same for all operations of the sequence) and the machining region (for now, the XY extent of the target; specifying a region comes in a later version)
-- If a condition has an error, it is shown in red below the field to fix, and "Submit" and "Redo" in the operation list cannot be pressed. Examples: the precision is finer than the toolpath tolerance; the precision is too fine for the stock size (the finest precision that can be submitted is shown); the stepover exceeds the tool diameter (the tool diameter is shown). Error messages are shown in the display language (Japanese or English). Failures that conditions cannot fix, such as running a job or importing a result, are also shown with the reason in the display language. Detailed reasons are kept in the log (in English)
+- If the applied conditions have an error, "Submit" and "Redo" in the operation list cannot be pressed. Examples: the precision is finer than the toolpath tolerance; the precision is too fine for the stock size (the finest precision that can be submitted is shown); the stepover exceeds the tool diameter (the tool diameter is shown). Error messages are shown in the display language (Japanese or English). Failures that conditions cannot fix, such as running a job or importing a result, are also shown with the reason in the display language. Detailed reasons are kept in the log (in English)
 - Importing (Import CL or Import cutting simulation) copies the calculated CL (toolpath) into the space model, so that it can be saved in the model file (this is an unsaved change). After the conditions change, the CL in the space model becomes "result of earlier conditions", and importing the current result replaces it
-- While the cutting animation of the selected operation is shown, "Conditions of the displayed result" at the bottom of the window shows the conditions used for that calculation (tool, machining, tolerance, stock size, precision)
+- While the cutting animation of the selected operation is shown, "Conditions of the displayed result" at the bottom of the dialog shows the conditions used for that calculation (tool, machining, tolerance, stock size, precision)
 
-### Sequence Settings Window
+### Sequence Settings Dialog
 
 - Edits the sequence name (shown only) and the stock (margins, precision). The stock is the same for all operations of the sequence. Changing it makes all operations of the sequence need recalculation
 - Stock errors are shown in red below the fields

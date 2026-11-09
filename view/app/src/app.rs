@@ -62,7 +62,7 @@ impl ApplicationHandler for App {
         self.state = Some(state);
         tracing::info!("=== RedRing is ready ===");
         tracing::info!(
-            "Cutting simulation: open the machining conditions window with Shift+M and submit with Submit"
+            "Cutting simulation: open the machining sequence with Machining > Open machining sequence and submit from the operation list"
         );
         tracing::info!("Open the controls list with F1 / h or Help > Controls");
     }
@@ -89,9 +89,11 @@ impl ApplicationHandler for App {
                         pressed,
                     );
 
-                    // Esc はアプリを終える（保存していない変更を確かめてから。押し続けの繰り返しは除く）
+                    // Esc はアプリを終える（保存していない変更を確かめてから。押し続けの繰り返しは除く）。条件の編集の
+                    // ダイアログを開いている間は、ダイアログを閉じるだけにする
                     if pressed
                         && !event.repeat
+                        && !state.is_condition_dialog_open()
                         && matches!(event.logical_key, Key::Named(NamedKey::Escape))
                     {
                         state.request_exit();
@@ -112,6 +114,10 @@ impl ApplicationHandler for App {
                 }
                 WindowEvent::MouseWheel { delta, .. } if !settings_ui_consumed => {
                     state.handle_mouse_wheel(delta);
+                }
+                // 条件の編集のダイアログを開いている間は、ファイルを受けない（編集している条件を黙って捨てないように）
+                WindowEvent::DroppedFile(path) if state.is_condition_dialog_open() => {
+                    tracing::info!(path = %path.display(), "File drop ignored while a dialog is open");
                 }
                 WindowEvent::DroppedFile(path) => state.drop_file(path),
                 _ => {}

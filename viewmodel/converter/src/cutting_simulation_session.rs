@@ -11,11 +11,11 @@ use application::cam_simulation_workflow::{
 pub use application::cam_simulation_workflow::{
     CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
 };
-use application::machining_sequence::ScanlineParams;
 pub use application::machining_sequence::{
     flat_surface_cusp_height, MachiningBoundary, MachiningOperationContent, MachiningStage,
     MachiningStock, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
 };
+use application::machining_sequence::{MachiningSequenceStore, ScanlineParams};
 
 use application::cutting_simulation_playback::{
     CuttingSimulationPlayback, CuttingSimulationPlaybackError,
@@ -256,6 +256,29 @@ impl CuttingSimulationSession {
         document.target_visible_faces();
         let (shapes, sequences, sequence, operation) = document.machining();
         match CamSimulationWorkflow::check_operation(shapes, sequences, sequence, operation) {
+            Ok(()) => Vec::new(),
+            Err(error) => ConditionIssue::from_workflow_error(&error),
+        }
+    }
+
+    /// 表示中の製品形状のすべての面を加工の対象として、選んだ加工工程の中身を `content` に、加工手順の素材を `stock` に
+    /// 替えたときの計算条件の問題（文書の工程・手順は替えない。適用する前の条件を確かめる）
+    pub fn check_draft(
+        &self,
+        document: &mut SpaceModelDocument,
+        content: &MachiningOperationContent,
+        stock: MachiningStock,
+    ) -> Vec<ConditionIssue> {
+        document.target_visible_faces();
+        let (shapes, sequences, sequence, operation) = document.machining();
+        // 保管先の写しに替えて確かめる（記録から戻すため、ID・改訂は同じ）
+        let mut draft = MachiningSequenceStore::from_records(sequences.records())
+            .expect("the records of a held store are restored as they are");
+        draft
+            .set_operation_content(sequence, operation, content.clone())
+            .and_then(|()| draft.set_stock(sequence, stock))
+            .expect("the document holds its machining sequence and operation");
+        match CamSimulationWorkflow::check_operation(shapes, &draft, sequence, operation) {
             Ok(()) => Vec::new(),
             Err(error) => ConditionIssue::from_workflow_error(&error),
         }
@@ -886,6 +909,32 @@ pub(crate) mod tests {
         );
         assert!(session.submit(&mut document).is_err());
         assert_eq!(session.run_queued_jobs().unwrap(), 0);
+    }
+
+    #[test]
+    fn conditions_not_applied_yet_are_checked_without_changing_the_document() {
+        let (session, mut document) = coarse_session();
+        let applied = document.operation_content().clone();
+        let stock = document.stock();
+        let state = document.imported_toolpath_state();
+        let modified = document.is_modified();
+        // ピックフィードが工具径 6 mm を超える条件は、適用する前でも誤りとして分かる
+        let draft = with_scanline(applied.clone(), |scanline| scanline.stepover = 7.0);
+        assert_eq!(
+            session.check_draft(&mut document, &draft, stock),
+            vec![ConditionIssue::Condition(
+                CamConditionError::StepoverExceedsToolDiameter { tool_diameter: 6.0 }
+            )]
+        );
+        assert!(session
+            .check_draft(&mut document, &applied, stock)
+            .is_empty());
+        // 文書の工程・手順は替えない（再計算待ちにも、保存していない変更にもならない）
+        assert_eq!(*document.operation_content(), applied);
+        assert_eq!(document.stock(), stock);
+        assert_eq!(document.imported_toolpath_state(), state);
+        assert_eq!(document.is_modified(), modified);
+        assert!(session.check(&mut document).is_empty());
     }
 
     #[test]
