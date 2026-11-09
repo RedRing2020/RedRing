@@ -166,10 +166,12 @@ impl AppState {
     }
 
     pub(crate) fn prepare_machining_conditions_state(&mut self) -> MachiningConditionsUiState {
-        // 条件・素材・加工の対象を変えて、選んだ工程の CL が今の条件の結果かが変わったら、線の色を描き直す
+        // 条件・素材・加工の対象を変えて、選んだ工程の CL が今の条件の結果かが変わったら、線の色を描き直す。ウィンドウを
+        // 開いた・閉じたら、線を出す・消す
         let toolpath_state = (
             self.document.selected_operation(),
             self.document.imported_toolpath_state(),
+            self.machining_conditions_open,
         );
         if self.cutting_animation.is_none() && self.drawn_toolpath_state != Some(toolpath_state) {
             self.refresh_operation_toolpath_lines();
@@ -216,8 +218,9 @@ impl AppState {
             imported_toolpath: self.document.imported_toolpath_state(),
             status: self.cutting_simulation_status.clone(),
             submit_requested: false,
+            redo_requested: false,
             submit_sequence_requested: false,
-            simulate_toolpath_requested: false,
+            import_toolpath_requested: false,
             import_requested: false,
             open_job_manager_requested: false,
         }
@@ -247,11 +250,14 @@ impl AppState {
             // 投入した計算の状態を、すぐに読み直す
             self.job_status_read_at = None;
         }
+        if state.redo_requested && self.redo_cutting_simulation() {
+            self.job_status_read_at = None;
+        }
         if state.submit_sequence_requested && self.submit_sequence() {
             self.job_status_read_at = None;
         }
-        if state.simulate_toolpath_requested && self.submit_imported_toolpath_simulation() {
-            self.job_status_read_at = None;
+        if state.import_toolpath_requested {
+            self.import_toolpath();
         }
         if state.import_requested {
             self.import_cutting_simulation();

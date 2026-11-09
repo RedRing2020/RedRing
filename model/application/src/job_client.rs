@@ -18,7 +18,9 @@ use cam_algorithms::CamSolverInput;
 use cam_sim::CuttingSimulationInput;
 use job_domain::{CamJobSource, CamJobStatus};
 
-use crate::cam_simulation_workflow::{CamSimulationWorkflowError, CamSimulationWorkflowResult};
+use crate::cam_simulation_workflow::{
+    CamSimulationWorkflowError, CamSimulationWorkflowResult, CamToolpathResult,
+};
 
 #[cfg(any(test, feature = "test-fixtures"))]
 pub(crate) use in_process::InProcessJobClient;
@@ -122,6 +124,12 @@ pub(crate) trait JobClient: fmt::Debug {
         &self,
         simulation_job_id: u64,
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError>;
+
+    /// 正常に終わったツールパス生成のジョブ `toolpath_job_id` の成果物（CL）と、その投入元
+    fn toolpath_result(
+        &self,
+        toolpath_job_id: u64,
+    ) -> Result<CamToolpathResult, CamSimulationWorkflowError>;
 
     /// 切削シミュレーションのジョブ `simulation_job_id` の結果（その CL）を、空間モデルに取り込んだと伝える（ジョブ
     /// マネージャーが、取り込み済みの CL の元をまとめて消せるように。画面を止めない実装は、伝え終えるのを待たない）

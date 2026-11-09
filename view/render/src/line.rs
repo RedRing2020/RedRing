@@ -238,6 +238,10 @@ impl LineResources {
                 },
             ));
             self.vertex_count = vertices.len() as u32;
+        } else {
+            // 空の線分データは、前の線分を消して放す
+            self.vertex_buffer = None;
+            self.vertex_count = 0;
         }
     }
 

@@ -8,8 +8,8 @@ use render::mesh_list::MeshListItem;
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
-use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
 use viewmodel::cutting_simulation_session::SequenceSubmissionError;
+use viewmodel::cutting_simulation_session::{CuttingSimulationSessionError, SubmissionKind};
 use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
 use viewmodel::mesh_converter::WireframeVertex;
 
@@ -55,12 +55,45 @@ fn stock_class_color(colors: &SnapshotShadedColorSettings, class: DeviationClass
 }
 
 impl AppState {
-    /// 表示中の製品形状で、加工工程の切削シミュレーションを投入する（実行しない）
+    /// 表示中の製品形状で、選んだ加工工程を投入する（実行しない。今の条件の CL があり、今の条件の計算が残って
+    /// いなければ、切削シミュレーションだけ）
     ///
     /// 投入できたかを返す。
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
-        let result = self.cutting_simulation.submit(&mut self.document);
-        self.finish_submission(result, "the cutting simulation")
+        let result = self
+            .cutting_simulation
+            .submit(&mut self.document)
+            .map(|kind| {
+                let simulation_only = kind == SubmissionKind::SimulationOnly;
+                (
+                    if simulation_only {
+                        "the cutting simulation of the imported toolpath"
+                    } else {
+                        "the toolpath generation and the cutting simulation"
+                    },
+                    OperationStatus::Submitted { simulation_only },
+                )
+            });
+        self.finish_submission(result, "the machining operation")
+    }
+
+    /// 表示中の製品形状で、選んだ加工工程の空間モデルの CL を消して、ツールパス生成から投入し直す（実行しない）。
+    /// その工程の切削アニメーションを出していれば閉じる（消した CL の結果を出し続けないように）
+    ///
+    /// 投入できたかを返す。
+    pub(crate) fn redo_cutting_simulation(&mut self) -> bool {
+        let result = self
+            .cutting_simulation
+            .redo(&mut self.document)
+            .map(|()| ("the machining operation again", OperationStatus::Redone));
+        let submitted = self.finish_submission(result, "the machining operation again");
+        if submitted
+            && self.cutting_animation.is_some()
+            && self.imported_operation == Some(self.document.selected_operation())
+        {
+            self.close_cutting_animation();
+        }
+        submitted
     }
 
     /// 加工手順のすべての加工工程を投入する（実行しない）。1 つでも投入できたかを返す
@@ -69,11 +102,13 @@ impl AppState {
             Ok(submission) => {
                 tracing::info!(
                     submitted = submission.submitted,
+                    simulation_only = submission.simulation_only,
                     skipped = submission.skipped,
                     "Submitted the machining sequence to the job manager"
                 );
                 self.set_operation_status(OperationStatus::SequenceSubmitted {
                     submitted: submission.submitted,
+                    simulation_only: submission.simulation_only,
                     skipped: submission.skipped,
                 });
                 submission.submitted > 0
@@ -118,30 +153,21 @@ impl AppState {
         }
     }
 
-    /// 空間モデルに取り込んだ今の条件の CL から、切削シミュレーションだけを投入する（実行しない）
-    ///
-    /// 投入できたかを返す。
-    pub(crate) fn submit_imported_toolpath_simulation(&mut self) -> bool {
-        let result = self
-            .cutting_simulation
-            .submit_imported_toolpath(&mut self.document);
-        self.finish_submission(result, "the cutting simulation of the imported toolpath")
-    }
-
-    /// 投入の結果 `result`（`what` はログに出す投入の名前）を、最後の操作の結果にする。投入できたかを返す
+    /// 投入の結果 `result`（投入できたら、ログに出す投入したものの名前と、最後の操作の結果。`what` は、投入できない
+    /// ときにログに出す投入の名前）を、最後の操作の結果にする。投入できたかを返す
     fn finish_submission(
         &mut self,
-        result: Result<(), viewmodel::cutting_simulation_session::CuttingSimulationSessionError>,
+        result: Result<(&str, OperationStatus), CuttingSimulationSessionError>,
         what: &str,
     ) -> bool {
         match result {
-            Ok(()) => {
+            Ok((submitted, status)) => {
                 tracing::info!(
                     operation = ?self.document.operation_content(),
                     stock = ?self.document.stock(),
-                    "Submitted {what} to the job manager (import with Shift+L after it finishes)"
+                    "Submitted {submitted} to the job manager (import with Shift+L after it finishes)"
                 );
-                self.set_operation_status(OperationStatus::Submitted);
+                self.set_operation_status(status);
                 true
             }
             Err(error) => {
@@ -163,6 +189,30 @@ impl AppState {
                 self.set_operation_status(OperationStatus::JobManagerFailed(
                     cutting_simulation_failure_message(&error),
                 ));
+            }
+        }
+    }
+
+    /// 選んだ加工工程の、今の条件で正常に終わった最も新しいツールパス生成の CL だけを、空間モデルに取り込む（切削
+    /// アニメーションは開かない）
+    pub(crate) fn import_toolpath(&mut self) {
+        match self.cutting_simulation.import_toolpath(&mut self.document) {
+            Ok(job) => {
+                tracing::info!(job, "Imported the toolpath into the space model");
+                self.set_operation_status(OperationStatus::ToolpathImported { job });
+                // 同じ状態の CL を取り込み直しても、線を描き直す
+                self.refresh_operation_toolpath_lines();
+            }
+            Err(error) => {
+                tracing::warn!("Cannot import the toolpath: {error}");
+                self.set_operation_status(match error {
+                    CuttingSimulationSessionError::NoSucceededToolpath => {
+                        OperationStatus::NoToolpathToImport
+                    }
+                    other => {
+                        OperationStatus::ImportFailed(cutting_simulation_failure_message(&other))
+                    }
+                });
             }
         }
     }

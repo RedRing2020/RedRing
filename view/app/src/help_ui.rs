@@ -130,12 +130,14 @@ impl Notice {
                 | OperationStatus::SequenceSubmitFailed { .. }
                 | OperationStatus::ImportFailed(_)
                 | OperationStatus::JobManagerFailed(_) => NoticeLevel::Error,
-                OperationStatus::NothingToImport | OperationStatus::SequenceStatusNotRead => {
-                    NoticeLevel::Warning
-                }
-                OperationStatus::Submitted
+                OperationStatus::NothingToImport
+                | OperationStatus::NoToolpathToImport
+                | OperationStatus::SequenceStatusNotRead => NoticeLevel::Warning,
+                OperationStatus::Submitted { .. }
+                | OperationStatus::Redone
                 | OperationStatus::SequenceSubmitted { .. }
-                | OperationStatus::Imported { .. } => NoticeLevel::Info,
+                | OperationStatus::Imported { .. }
+                | OperationStatus::ToolpathImported { .. } => NoticeLevel::Info,
             },
         }
     }
@@ -421,7 +423,10 @@ mod tests {
             NoticeLevel::Warning
         );
         assert_eq!(
-            Notice::Operation(OperationStatus::Submitted).level(),
+            Notice::Operation(OperationStatus::Submitted {
+                simulation_only: true
+            })
+            .level(),
             NoticeLevel::Info
         );
         assert_eq!(Notice::NotImported.level(), NoticeLevel::Warning);

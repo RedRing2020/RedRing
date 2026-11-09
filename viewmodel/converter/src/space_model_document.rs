@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use application::cam_simulation_workflow::CamSimulationWorkflowResult;
+use application::cam_simulation_workflow::{CamSimulationWorkflowResult, CamToolpathResult};
 pub use application::imported_toolpath::ImportedToolpathState;
 pub use application::machining_sequence::MachiningOperationId;
 use application::machining_sequence::{
@@ -434,6 +434,26 @@ impl SpaceModelDocument {
             .import(&self.model.sequences, self.sequence, self.operation, result)
             .expect("the document holds its machining operation");
         if changed {
+            self.modified = true;
+        }
+    }
+
+    /// 編集の対象の加工工程の今の改訂で計算したツールパス生成の結果 `result` の CL を取り込む（前の CL は上書きする。
+    /// 変われば、保存していない変更になる）
+    pub(crate) fn import_toolpath_result(&mut self, result: &CamToolpathResult) {
+        let changed = self
+            .model
+            .toolpaths
+            .import_toolpath(&self.model.sequences, self.sequence, self.operation, result)
+            .expect("the document holds its machining operation");
+        if changed {
+            self.modified = true;
+        }
+    }
+
+    /// 編集の対象の加工工程に取り込んだ CL を除く（除いたら、保存していない変更になる）
+    pub(crate) fn remove_toolpath(&mut self) {
+        if self.model.toolpaths.remove(self.operation) {
             self.modified = true;
         }
     }

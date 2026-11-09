@@ -12,6 +12,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "ジョブ {job} は、正常に終わった切削シミュレーションではありません",
     ),
     (
+        "failure.not_succeeded_toolpath",
+        "ジョブ {job} は、正常に終わったツールパス生成ではありません",
+    ),
+    (
         "failure.missing_artifact",
         "ジョブ {job} の計算結果のファイルがありません",
     ),
@@ -48,6 +52,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     (
         "failure.no_succeeded_simulation",
         "今の条件で正常に終わった切削シミュレーションがありません",
+    ),
+    (
+        "failure.no_succeeded_toolpath",
+        "今の条件で正常に終わったツールパス生成がありません",
     ),
     (
         "failure.animation.artifact",
@@ -100,6 +108,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
         "failure.not_succeeded_simulation",
         "Job {job} is not a succeeded cutting simulation",
     ),
+    (
+        "failure.not_succeeded_toolpath",
+        "Job {job} is not a succeeded toolpath generation",
+    ),
     ("failure.missing_artifact", "Job {job} has no result file"),
     (
         "failure.missing_input",
@@ -137,6 +149,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.no_succeeded_simulation",
         "No succeeded cutting simulation for the current conditions",
+    ),
+    (
+        "failure.no_succeeded_toolpath",
+        "No succeeded toolpath generation for the current conditions",
     ),
     ("failure.animation.artifact", "Cannot read the result file"),
     (

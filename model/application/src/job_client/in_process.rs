@@ -12,7 +12,9 @@ use job_runtime::JobManager;
 use super::{
     JobClient, JobSubmission, SimulationJob, SimulationSubmission, SimulationToolpath, ToolpathJob,
 };
-use crate::cam_simulation_workflow::{CamSimulationWorkflowError, CamSimulationWorkflowResult};
+use crate::cam_simulation_workflow::{
+    CamSimulationWorkflowError, CamSimulationWorkflowResult, CamToolpathResult,
+};
 use crate::job_orchestration::{
     JobWorkflowOrchestration, JobWorkflowOrchestrator, JobWorkflowResultQuery,
     JobWorkflowSubmitRequest,
@@ -169,6 +171,46 @@ impl JobClient for InProcessJobClient {
             .ok_or(CamSimulationWorkflowError::NotSucceededSimulation(
                 simulation_job_id,
             ))
+    }
+
+    fn toolpath_result(
+        &self,
+        toolpath_job_id: u64,
+    ) -> Result<CamToolpathResult, CamSimulationWorkflowError> {
+        let result = self.orchestrator.query_result(JobWorkflowResultQuery {
+            job_id: toolpath_job_id,
+        })?;
+        if result.job.status != CamJobStatus::Succeeded
+            || result.job.spec.job_type != CamJobType::CamProcess
+        {
+            return Err(CamSimulationWorkflowError::NotSucceededToolpath(
+                toolpath_job_id,
+            ));
+        }
+        // 切削シミュレーションが正常に終わると、ツールパス生成の成果物は置き換え済みになるため、その下の切削
+        // シミュレーションの入力として読む
+        let artifact = match result.active_artifact {
+            Some(artifact) => Some(artifact),
+            None => match self
+                .submissions
+                .iter()
+                .find(|(_, toolpath, _)| *toolpath == toolpath_job_id)
+            {
+                Some((_, _, simulation)) => {
+                    self.orchestrator
+                        .query_result(JobWorkflowResultQuery {
+                            job_id: *simulation,
+                        })?
+                        .input_artifact
+                }
+                None => None,
+            },
+        }
+        .ok_or(CamSimulationWorkflowError::MissingArtifact(toolpath_job_id))?;
+        Ok(CamToolpathResult {
+            artifact,
+            source: result.job.spec.source.clone(),
+        })
     }
 
     fn status_snapshot(

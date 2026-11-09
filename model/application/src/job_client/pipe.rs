@@ -28,7 +28,9 @@ use job_ipc::{
 
 use super::{JobClient, JobStatusSnapshot, JobSubmission, PendingSubmission, SimulationJob};
 use super::{SimulationSubmission, SimulationToolpath, ToolpathJob};
-use crate::cam_simulation_workflow::{CamSimulationWorkflowError, CamSimulationWorkflowResult};
+use crate::cam_simulation_workflow::{
+    CamSimulationWorkflowError, CamSimulationWorkflowResult, CamToolpathResult,
+};
 
 /// ジョブマネージャーの実行ファイルの名前（拡張子を除く）
 const JOB_MANAGER_NAME: &str = "redring-job-manager";
@@ -535,6 +537,38 @@ impl JobClient for PipeJobClient {
             self.request_status();
         }
         latest.transpose()
+    }
+
+    fn toolpath_result(
+        &self,
+        toolpath_job_id: u64,
+    ) -> Result<CamToolpathResult, CamSimulationWorkflowError> {
+        let mut client = self.connector.connect()?;
+        let jobs = client.jobs().map_err(client_error)?;
+        let toolpath = jobs
+            .iter()
+            .find(|job| {
+                job.job_id == toolpath_job_id
+                    && job.kind == JobKind::Cam
+                    && job.status == JobStatus::Succeeded
+            })
+            .ok_or(CamSimulationWorkflowError::NotSucceededToolpath(
+                toolpath_job_id,
+            ))?;
+        // ないジョブ・ないファイルは、成果物がない誤りにする（ほかの誤りは、そのまま返す）
+        let artifact = client
+            .read_job_file(toolpath_job_id, JobFile::Result)
+            .map_err(|error| match error {
+                ClientError::Remote {
+                    kind: ErrorKind::JobNotFound | ErrorKind::FileNotFound,
+                    ..
+                } => CamSimulationWorkflowError::MissingArtifact(toolpath_job_id),
+                error => client_error(error),
+            })?;
+        Ok(CamToolpathResult {
+            artifact,
+            source: toolpath.source.as_ref().map(source),
+        })
     }
 
     fn import(

@@ -24,7 +24,7 @@ use application::cutting_simulation_playback::{
 use crate::cutting_animation::CuttingAnimation;
 use crate::failure_message_mapper::workflow_failure_message;
 use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
-use crate::space_model_document::SpaceModelDocument;
+use crate::space_model_document::{ImportedToolpathState, SpaceModelDocument};
 use i18n_foundation::UiMessage;
 
 /// 選べる工具の種類（ボールエンドミル・フラットエンドミル）
@@ -122,6 +122,8 @@ pub enum CuttingSimulationSessionError {
     Workflow(CamSimulationWorkflowError),
     /// 加工工程の今の改訂の、取り込める（正常終了した）切削シミュレーションがない
     NoSucceededSimulation,
+    /// 加工工程の今の改訂の、取り込める（正常終了した）ツールパス生成がない
+    NoSucceededToolpath,
     /// 取り込んだ結果を再生できない
     Playback(CuttingSimulationPlaybackError),
 }
@@ -133,6 +135,10 @@ impl std::fmt::Display for CuttingSimulationSessionError {
             Self::NoSucceededSimulation => write!(
                 f,
                 "no succeeded cutting simulation of the current conditions to import"
+            ),
+            Self::NoSucceededToolpath => write!(
+                f,
+                "no succeeded toolpath generation of the current conditions to import"
             ),
             Self::Playback(error) => write!(f, "{error}"),
         }
@@ -147,11 +153,43 @@ impl From<CamSimulationWorkflowError> for CuttingSimulationSessionError {
     }
 }
 
+/// 工程から投入した計算
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubmissionKind {
+    /// ツールパス生成と切削シミュレーション
+    Full,
+    /// 空間モデルに取り込んだ今の条件の CL を入力にする、切削シミュレーションだけ
+    SimulationOnly,
+}
+
+impl SubmissionKind {
+    /// 工程に取り込んだ CL の状態 `toolpath` と、工程の今の改訂の計算の状態 `state` から決める投入（今の条件の CL が
+    /// あり、今の改訂の計算が計算待ち・計算中・正常に終わっていなければ、切削シミュレーションだけ。CL をもう一度
+    /// 計算しないように）
+    fn of(toolpath: ImportedToolpathState, state: OperationJobState) -> Self {
+        let done_or_pending = matches!(
+            state,
+            OperationJobState::Status(
+                OperationJobStatus::Queued
+                    | OperationJobStatus::Running
+                    | OperationJobStatus::Succeeded
+            )
+        );
+        if toolpath == ImportedToolpathState::Current && !done_or_pending {
+            Self::SimulationOnly
+        } else {
+            Self::Full
+        }
+    }
+}
+
 /// 手順の全体の投入の結果
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SequenceSubmission {
-    /// 投入した工程の数
+    /// 投入した工程の数（切削シミュレーションだけを投入した工程を含む）
     pub submitted: usize,
+    /// 投入した工程のうち、今の条件の CL を入力にして切削シミュレーションだけを投入した工程の数
+    pub simulation_only: usize,
     /// 今の改訂の計算が計算待ち・計算中・正常に終わっていたため、投入しなかった工程の数
     pub skipped: usize,
 }
@@ -242,7 +280,10 @@ impl CuttingSimulationSession {
         Ok(inverse_offset_shape_meshes(parts))
     }
 
-    /// 表示中の製品形状のすべての面を加工の対象として、加工工程から投入する（実行しない）
+    /// 表示中の製品形状のすべての面を加工の対象として、加工工程から投入し（実行しない）、投入した計算を返す
+    ///
+    /// 空間モデルに今の条件の CL があり、今の改訂の計算が計算待ち・計算中・正常に終わっていなければ、その CL を入力に
+    /// して切削シミュレーションだけを投入する。そうでなければ、ツールパス生成から投入する。
     ///
     /// # Errors
     ///
@@ -250,11 +291,63 @@ impl CuttingSimulationSession {
     pub fn submit(
         &mut self,
         document: &mut SpaceModelDocument,
+    ) -> Result<SubmissionKind, CuttingSimulationSessionError> {
+        document.target_visible_faces();
+        let (_, sequences, sequence, operation) = document.machining();
+        // 状態を読めなくても、投入はジョブマネージャーにつなぎ直して行うため、まだ読めていないときと同じに決める
+        let state = self
+            .workflow
+            .latest_revision_job_status(sequences, sequence, operation)
+            .unwrap_or_else(|error| {
+                tracing::warn!("Cannot read the job status before submitting: {error}");
+                OperationJobState::NotRead
+            });
+        let kind = SubmissionKind::of(document.imported_toolpath_state(), state);
+        self.submit_kind(document, operation, kind)?;
+        Ok(kind)
+    }
+
+    /// 表示中の製品形状のすべての面を加工の対象として、加工工程の空間モデルの CL を除き、ツールパス生成から投入し直す
+    /// （実行しない。CL は、投入できたときだけ除く）
+    ///
+    /// # Errors
+    ///
+    /// 表示中の製品形状がない場合・計算条件に誤りがある場合を含む、投入の失敗。
+    pub fn redo(
+        &mut self,
+        document: &mut SpaceModelDocument,
     ) -> Result<(), CuttingSimulationSessionError> {
         document.target_visible_faces();
         let (shapes, sequences, sequence, operation) = document.machining();
         self.workflow
             .submit_operation(shapes, sequences, sequence, operation)?;
+        document.remove_toolpath();
+        Ok(())
+    }
+
+    /// 加工工程 `operation` から、計算 `kind` を投入する
+    fn submit_kind(
+        &mut self,
+        document: &SpaceModelDocument,
+        operation: MachiningOperationId,
+        kind: SubmissionKind,
+    ) -> Result<(), CamSimulationWorkflowError> {
+        let (shapes, sequences, sequence, _) = document.machining();
+        match kind {
+            SubmissionKind::Full => {
+                self.workflow
+                    .submit_operation(shapes, sequences, sequence, operation)?;
+            }
+            SubmissionKind::SimulationOnly => {
+                self.workflow.submit_imported_toolpath(
+                    shapes,
+                    sequences,
+                    document.toolpaths(),
+                    sequence,
+                    operation,
+                )?;
+            }
+        }
         Ok(())
     }
 
@@ -262,7 +355,8 @@ impl CuttingSimulationSession {
     ///
     /// 先にすべての工程の条件を確かめ、誤りがあればどの工程も投入しない。今の改訂の計算が計算待ち・計算中・正常に
     /// 終わった工程は、投入し直さない（同じ計算を重ねないように）。計算の状態をまだ読めていない・読めないときは、
-    /// 投入し直さない工程を決められないため、どの工程も投入しない。
+    /// 投入し直さない工程を決められないため、どの工程も投入しない。投入する工程の計算は、工程の投入（`Self::submit`）
+    /// と同じく決める。
     ///
     /// # Errors
     ///
@@ -294,6 +388,7 @@ impl CuttingSimulationSession {
         }
         let mut submission = SequenceSubmission {
             submitted: 0,
+            simulation_only: 0,
             skipped: 0,
         };
         for (index, (item, state)) in operations.iter().zip(states).enumerate() {
@@ -309,15 +404,19 @@ impl CuttingSimulationSession {
                 submission.skipped += 1;
                 continue;
             }
-            self.workflow
-                .submit_operation(shapes, sequences, sequence, item.id)
-                .map_err(|error| SequenceSubmissionError::Submit {
+            let kind = SubmissionKind::of(document.imported_toolpath_state_of(item.id), state);
+            self.submit_kind(document, item.id, kind).map_err(|error| {
+                SequenceSubmissionError::Submit {
                     position: index + 1,
                     operation: item.name.clone(),
                     submitted: submission.submitted,
                     error: error.into(),
-                })?;
+                }
+            })?;
             submission.submitted += 1;
+            if kind == SubmissionKind::SimulationOnly {
+                submission.simulation_only += 1;
+            }
         }
         Ok(submission)
     }
@@ -345,26 +444,25 @@ impl CuttingSimulationSession {
         Ok(operations.into_iter().zip(states).collect())
     }
 
-    /// 表示中の製品形状のすべての面を加工の対象として、空間モデルに取り込んだ今の条件の CL を入力にし、切削シミュレーション
-    /// だけを投入する（実行しない）
+    /// 表示中の製品形状のすべての面を加工の対象として、加工工程の今の改訂で正常に終わったツールパス生成のうち、最も
+    /// 新しいものの CL だけを空間モデルに取り込み、そのジョブの番号を返す（切削シミュレーションは読まない）
     ///
     /// # Errors
     ///
-    /// 今の条件の CL を取り込んでいない場合・表示中の製品形状がない場合・計算条件に誤りがある場合を含む、投入の失敗。
-    pub fn submit_imported_toolpath(
+    /// 今の改訂の取り込めるツールパス生成がない場合、取り込みの失敗。
+    pub fn import_toolpath(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Result<(), CuttingSimulationSessionError> {
+    ) -> Result<u64, CuttingSimulationSessionError> {
         document.target_visible_faces();
-        let (shapes, sequences, sequence, operation) = document.machining();
-        self.workflow.submit_imported_toolpath(
-            shapes,
-            sequences,
-            document.toolpaths(),
-            sequence,
-            operation,
-        )?;
-        Ok(())
+        let (_, sequences, sequence, operation) = document.machining();
+        let latest = self
+            .workflow
+            .latest_revision_toolpath(sequences, sequence, operation)?
+            .ok_or(CuttingSimulationSessionError::NoSucceededToolpath)?;
+        let result = self.workflow.toolpath_result(latest)?;
+        document.import_toolpath_result(&result);
+        Ok(latest)
     }
 
     /// 待ちのジョブがあるときに、ジョブマネージャーが止まっていれば起動し直す（同じプロセスの中で実行する試験では、
@@ -536,6 +634,7 @@ pub(crate) mod tests {
             session.submit_sequence(&mut document).unwrap(),
             SequenceSubmission {
                 submitted: 2,
+                simulation_only: 0,
                 skipped: 0
             }
         );
@@ -544,6 +643,7 @@ pub(crate) mod tests {
             session.submit_sequence(&mut document).unwrap(),
             SequenceSubmission {
                 submitted: 0,
+                simulation_only: 0,
                 skipped: 2
             }
         );
@@ -552,8 +652,79 @@ pub(crate) mod tests {
             session.submit_sequence(&mut document).unwrap(),
             SequenceSubmission {
                 submitted: 0,
+                simulation_only: 0,
                 skipped: 2
             }
+        );
+    }
+
+    #[test]
+    fn only_the_simulation_is_submitted_for_a_current_toolpath_without_a_running_or_done_job() {
+        use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
+        let not_done = [
+            OperationJobState::NotRead,
+            OperationJobState::NotSubmitted,
+            OperationJobState::Status(Failed),
+            OperationJobState::Status(Canceled),
+        ];
+        let done_or_pending = [Queued, Running, Succeeded].map(OperationJobState::Status);
+        for state in not_done {
+            assert_eq!(
+                SubmissionKind::of(ImportedToolpathState::Current, state),
+                SubmissionKind::SimulationOnly
+            );
+        }
+        for state in not_done.into_iter().chain(done_or_pending) {
+            for toolpath in [ImportedToolpathState::None, ImportedToolpathState::Outdated] {
+                assert_eq!(SubmissionKind::of(toolpath, state), SubmissionKind::Full);
+            }
+        }
+        for state in done_or_pending {
+            assert_eq!(
+                SubmissionKind::of(ImportedToolpathState::Current, state),
+                SubmissionKind::Full
+            );
+        }
+    }
+
+    #[test]
+    fn only_the_toolpath_is_imported_and_redoing_removes_it_and_submits_again() {
+        let (mut session, mut document) = coarse_session();
+        assert_eq!(session.submit(&mut document).unwrap(), SubmissionKind::Full);
+        // 計算が終わるまでは、CL を取り込めない
+        assert!(matches!(
+            session.import_toolpath(&mut document),
+            Err(CuttingSimulationSessionError::NoSucceededToolpath)
+        ));
+        session.run_queued_jobs().unwrap();
+        // ツールパス生成のジョブ（1 つ目）の CL だけを取り込み、保存していない変更になる
+        assert_eq!(session.import_toolpath(&mut document).unwrap(), 1);
+        assert_eq!(
+            document.imported_toolpath_state(),
+            ImportedToolpathState::Current
+        );
+        assert!(document.is_modified());
+        // 今の改訂の計算が正常に終わっているため、投入はツールパス生成から
+        assert_eq!(session.submit(&mut document).unwrap(), SubmissionKind::Full);
+        session.run_queued_jobs().unwrap();
+
+        // やり直しは、CL を除いてツールパス生成から投入する
+        session.redo(&mut document).unwrap();
+        assert_eq!(
+            document.imported_toolpath_state(),
+            ImportedToolpathState::None
+        );
+        assert_eq!(session.run_queued_jobs().unwrap(), 2);
+        // 投入できなければ、CL を除かない
+        session.import_toolpath(&mut document).unwrap();
+        let wrong = with_scanline(document.operation_content().clone(), |scanline| {
+            scanline.stepover = 1000.0
+        });
+        document.set_operation_content(wrong);
+        assert!(session.redo(&mut document).is_err());
+        assert_eq!(
+            document.imported_toolpath_state(),
+            ImportedToolpathState::Outdated
         );
     }
 
