@@ -1,15 +1,19 @@
-//! 加工条件のウィンドウ（切削シミュレーションの計算条件の入力と投入）
+//! 加工手順の画面（切削シミュレーションの計算条件の入力と投入）
 //!
-//! 表示の設定（設定パネル）とは分けて、加工手順 1 つの加工工程の一覧（加える・複写する・消す・並べ替える・選ぶ）と、
-//! 選んだ工程の条件（工程の中身と手順の素材）と、表示中の結果の計算に使った条件を扱う。
+//! 表示の設定（設定パネル）とは分けて、次の 3 つを扱う。
+//! - 工程リスト（画面の下のパネル）: 加工手順 1 つの加工工程の表（選ぶ・加える・複写する・消す・並べ替える）と、
+//!   計算の操作・その結果・選んだ工程の計算の状態
+//! - 工程の設定のウィンドウ: 選んだ工程の条件（工程の中身）と、表示中の結果の計算に使った条件
+//! - 手順の設定のウィンドウ: 手順の名前と素材
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use crate::settings_panel_renderer::window_body_max_height;
-use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, ScrollArea, Window};
+use egui::{CollapsingHeader, Context, DragValue, Panel, Rect, ScrollArea, Window};
 use viewmodel::cutting_simulation_session::{
     flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
-    CuttingToolKind, ImportedConditions, MachiningOperationContent, MachiningStock,
-    OperationJobStatus, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins,
+    CuttingToolKind, ImportedConditions, MachiningBoundary, MachiningOperationContent,
+    MachiningStage, MachiningStock, OperationJobStatus, OperationSpec, ScanlineCutDirection,
+    ScanlineToolRange, StockMargins, Tool,
 };
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
@@ -180,10 +184,46 @@ fn operation_status_message(
     }
 }
 
+/// 工程リストの初めの高さ（論理座標）
+const LIST_DEFAULT_HEIGHT: f32 = 220.0;
+/// 設定のウィンドウの幅（論理座標）
+const SETTINGS_WINDOW_WIDTH: f32 = 360.0;
+/// 設定のウィンドウを置く、範囲の端からの間（論理座標）
+const SETTINGS_WINDOW_MARGIN: f32 = 16.0;
+
+/// 工程の表の列の見出しの文言のキー
+const COLUMN_KEYS: [&str; 6] = [
+    "conditions.list.column.order",
+    "conditions.list.column.name",
+    "conditions.list.column.stage",
+    "conditions.list.column.kind",
+    "conditions.list.column.tool",
+    "conditions.list.column.status",
+];
+
+/// 工程の設定のウィンドウの頁
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum OperationSettingsPage {
+    /// 加工条件（名前・加工の段階・工具・加工の種類と条件）
+    #[default]
+    Machining,
+    /// 加工領域・加工対象
+    Region,
+}
+
 #[derive(Debug, Clone)]
 pub struct MachiningConditionsUiState {
-    pub open: bool,
+    /// 工程リストを出しているか
+    pub(crate) list_shown: bool,
+    /// 工程の設定のウィンドウを開いているか
+    pub(crate) operation_settings_open: bool,
+    /// 工程の設定のウィンドウの出している頁
+    pub(crate) operation_settings_page: OperationSettingsPage,
+    /// 手順の設定のウィンドウを開いているか
+    pub(crate) sequence_settings_open: bool,
     pub locale: UiLocale,
+    /// 加工手順の名前
+    pub(crate) sequence_name: String,
     /// 加工手順の加工工程の一覧（加工の順）
     pub(crate) operations: Vec<OperationRow>,
     /// 選んだ加工工程
@@ -224,10 +264,13 @@ pub struct MachiningConditionsUiState {
 }
 
 /// 加工工程の一覧の 1 行
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct OperationRow {
     pub(crate) id: MachiningOperationId,
     pub(crate) name: String,
+    pub(crate) stage: MachiningStage,
+    pub(crate) spec: OperationSpec,
+    pub(crate) tool: Tool<f64>,
     pub(crate) status: JobStatusLine,
     /// 空間モデルの CL が、今の条件の結果（取込済み）
     pub(crate) toolpath_current: bool,
@@ -264,6 +307,33 @@ pub(crate) enum OperationCommand {
     Rename(String),
 }
 
+/// 加工の段階 `stage` の文言のキー
+fn stage_key(stage: MachiningStage) -> &'static str {
+    match stage {
+        MachiningStage::Rough => "conditions.stage.rough",
+        MachiningStage::SemiFinish => "conditions.stage.semi_finish",
+        MachiningStage::Finish => "conditions.stage.finish",
+    }
+}
+
+/// 加工の種類 `spec` の文言のキー
+fn spec_kind_key(spec: &OperationSpec) -> &'static str {
+    match spec {
+        OperationSpec::Scanline(_) => "conditions.kind.scanline",
+    }
+}
+
+/// 工程の表の行の操作（右クリックのメニュー）
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RowAction {
+    OpenSettings,
+    Submit,
+    Redo,
+    ImportToolpath,
+    Import,
+    Command(OperationCommand),
+}
+
 /// 加工工程の一覧に出す、工程の計算の状態の短い文言のキー
 fn operation_row_status_key(status: &JobStatusLine) -> &'static str {
     match status {
@@ -284,7 +354,7 @@ fn operation_row_status_key(status: &JobStatusLine) -> &'static str {
     }
 }
 
-/// 加工条件のウィンドウに出す、今の条件の計算の状態
+/// 工程リストに出す、今の条件の計算の状態
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum JobStatusLine {
     /// 今の条件で投入していない
@@ -424,36 +494,112 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// ウィンドウを、範囲 `area`（メニューバーの下）の左上に置く
-    pub fn show(&mut self, ctx: &Context, area: Rect) {
-        if !self.open {
+    /// 工具 `tool` の短い文言（種類と径）
+    fn tool_text(&self, tool: &Tool<f64>) -> String {
+        let kind = if tool.is_ball_end_mill() {
+            self.text("conditions.tool.ball")
+        } else {
+            self.text("conditions.tool.flat")
+        };
+        self.text_with_args(
+            "conditions.list.tool",
+            &[("kind", kind), ("diameter", tool.diameter().to_string())],
+        )
+    }
+
+    /// 工程リストを、画面の下のパネルに置く（出していなければ何もしない）
+    pub fn show_list(&mut self, ui: &mut egui::Ui) {
+        if !self.list_shown {
             return;
         }
-
-        let mut open = self.open;
-        Window::new(self.text("conditions.window.title"))
-            .anchor(Align2::LEFT_TOP, [16.0, 16.0])
-            .constrain_to(area)
-            .default_width(360.0)
+        Panel::bottom("operation_list")
             .resizable(true)
-            .open(&mut open)
-            .show(ctx, |ui| {
-                // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
+            .default_size(LIST_DEFAULT_HEIGHT)
+            .show(ui, |ui| {
+                self.show_list_toolbar(ui);
+                self.show_job_commands(ui);
+                ui.separator();
                 ScrollArea::vertical()
-                    .max_height(window_body_max_height(ui, area))
-                    .show(ui, |ui| {
-                        ui.label(self.text("conditions.intro"));
-                        ui.separator();
-                        self.show_operations(ui);
-                        self.show_target(ui);
-                        self.show_tool(ui);
-                        self.show_machining(ui);
-                        self.show_stock(ui);
-                        ui.separator();
-                        self.show_imported(ui);
-                    });
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| self.show_operation_table(ui));
             });
-        self.open = open;
+    }
+
+    /// 工程の設定・手順の設定のウィンドウを、範囲 `area`（メニューバーと工程リストの間）の左上に並べて置く
+    pub fn show_windows(&mut self, ctx: &Context, area: Rect) {
+        self.show_operation_settings(ctx, area);
+        self.show_sequence_settings(ctx, area);
+    }
+
+    /// 手順の名前と、設定のウィンドウを開くボタンと、工程の一覧の操作（加える・複写・消す・並べ替え）
+    fn show_list_toolbar(&mut self, ui: &mut egui::Ui) {
+        let position = self
+            .operations
+            .iter()
+            .position(|row| row.id == self.selected_operation);
+        let count = self.operations.len();
+        let mut command = None;
+        ui.horizontal_wrapped(|ui| {
+            ui.strong(self.text_with_args(
+                "conditions.list.sequence",
+                &[("name", self.sequence_name.clone())],
+            ));
+            if ui
+                .selectable_label(
+                    self.sequence_settings_open,
+                    self.text("conditions.list.sequence_settings"),
+                )
+                .clicked()
+            {
+                self.sequence_settings_open = !self.sequence_settings_open;
+            }
+            if ui
+                .selectable_label(
+                    self.operation_settings_open,
+                    self.text("conditions.list.operation_settings"),
+                )
+                .clicked()
+            {
+                self.operation_settings_open = !self.operation_settings_open;
+            }
+            ui.separator();
+            if ui.button(self.text("conditions.operations.add")).clicked() {
+                command = Some(OperationCommand::Add);
+            }
+            if ui
+                .button(self.text("conditions.operations.duplicate"))
+                .clicked()
+            {
+                command = Some(OperationCommand::Duplicate);
+            }
+            if ui
+                .add_enabled(
+                    count > 1,
+                    egui::Button::new(self.text("conditions.operations.remove")),
+                )
+                .clicked()
+            {
+                command = Some(OperationCommand::Remove);
+            }
+            let up = ui
+                .add_enabled(position.is_some_and(|at| at > 0), egui::Button::new("▲"))
+                .on_hover_text(self.text("conditions.operations.move_up"));
+            if up.clicked() {
+                command = Some(OperationCommand::Move(-1));
+            }
+            let down = ui
+                .add_enabled(
+                    position.is_some_and(|at| at + 1 < count),
+                    egui::Button::new("▼"),
+                )
+                .on_hover_text(self.text("conditions.operations.move_down"));
+            if down.clicked() {
+                command = Some(OperationCommand::Move(1));
+            }
+        });
+        if command.is_some() {
+            self.operation_command = command;
+        }
     }
 
     /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・手順の全体を投入・CL 取込・切削シミュレーション取込・
@@ -499,7 +645,10 @@ impl MachiningConditionsUiState {
                 self.open_job_manager_requested = true;
             }
         });
-        self.show_issues(ui, ConditionField::Submission);
+        // 投入を押せない理由として、すべての誤りを出す（欄ごとの誤りは、設定のウィンドウの欄の下にも出す）
+        for issue in &self.issues {
+            ui.colored_label(ui.visuals().error_fg_color, self.issue_text(issue));
+        }
         if let Some(status) = &self.status {
             ui.label(operation_status_text(self.locale, status));
         }
@@ -507,79 +656,244 @@ impl MachiningConditionsUiState {
         ui.label(self.text(imported_toolpath_key(self.imported_toolpath)));
     }
 
-    /// 選んだ工程の計算の操作と、加工工程の一覧（選ぶと、その工程の条件を下に出す）と、一覧の操作
-    fn show_operations(&mut self, ui: &mut egui::Ui) {
-        CollapsingHeader::new(self.text("conditions.header.operations"))
-            .default_open(true)
+    /// 工程の表（1 行が 1 工程。上から加工の順）。行を押すと選び、ダブルクリックで工程の設定のウィンドウを開き、
+    /// 右クリックで行の操作のメニューを出す
+    fn show_operation_table(&mut self, ui: &mut egui::Ui) {
+        let mut select = None;
+        let mut action = None;
+        let can_submit = self.issues.is_empty();
+        let count = self.operations.len();
+        egui::Grid::new("operation_table")
+            .striped(true)
+            .num_columns(COLUMN_KEYS.len())
             .show(ui, |ui| {
-                self.show_job_commands(ui);
-                ui.separator();
-                let mut command = None;
-                for row in &self.operations {
-                    let label = self.text_with_args(
-                        "conditions.operations.row",
-                        &[
-                            ("name", row.name.clone()),
-                            ("status", self.text(operation_row_key(row))),
-                        ],
-                    );
-                    let selected = row.id == self.selected_operation;
-                    if ui.selectable_label(selected, label).clicked() && !selected {
-                        command = Some(OperationCommand::Select(row.id));
-                    }
+                for key in COLUMN_KEYS {
+                    ui.strong(self.text(key));
                 }
-                let position = self
-                    .operations
-                    .iter()
-                    .position(|row| row.id == self.selected_operation);
-                let count = self.operations.len();
-                ui.horizontal(|ui| {
-                    if ui.button(self.text("conditions.operations.add")).clicked() {
-                        command = Some(OperationCommand::Add);
+                ui.end_row();
+                for (index, row) in self.operations.iter().enumerate() {
+                    let selected = row.id == self.selected_operation;
+                    let cells = [
+                        (index + 1).to_string(),
+                        row.name.clone(),
+                        self.text(stage_key(row.stage)),
+                        self.text(spec_kind_key(&row.spec)),
+                        self.tool_text(&row.tool),
+                        self.text(operation_row_key(row)),
+                    ];
+                    for cell in cells {
+                        let response = ui.selectable_label(selected, cell);
+                        // 右クリックも、その行を選んでからメニューを出す（メニューの操作は、選んだ工程に対して行う）
+                        if !selected && (response.clicked() || response.secondary_clicked()) {
+                            select = Some(row.id);
+                        }
+                        if response.double_clicked() {
+                            action = Some(RowAction::OpenSettings);
+                        }
+                        response.context_menu(|ui| {
+                            if let Some(chosen) = self.row_menu(ui, index, count, can_submit) {
+                                action = Some(chosen);
+                                ui.close();
+                            }
+                        });
                     }
-                    if ui
-                        .button(self.text("conditions.operations.duplicate"))
-                        .clicked()
-                    {
-                        command = Some(OperationCommand::Duplicate);
-                    }
-                    if ui
-                        .add_enabled(
-                            count > 1,
-                            egui::Button::new(self.text("conditions.operations.remove")),
-                        )
-                        .clicked()
-                    {
-                        command = Some(OperationCommand::Remove);
-                    }
-                    let up = ui
-                        .add_enabled(position.is_some_and(|at| at > 0), egui::Button::new("▲"))
-                        .on_hover_text(self.text("conditions.operations.move_up"));
-                    if up.clicked() {
-                        command = Some(OperationCommand::Move(-1));
-                    }
-                    let down = ui
-                        .add_enabled(
-                            position.is_some_and(|at| at + 1 < count),
-                            egui::Button::new("▼"),
-                        )
-                        .on_hover_text(self.text("conditions.operations.move_down"));
-                    if down.clicked() {
-                        command = Some(OperationCommand::Move(1));
-                    }
-                });
-                // 名前は、入力を終えたとき（ほかを押した・Enter）に決める（打つたびに工程の改訂を進めない）
-                ui.horizontal(|ui| {
-                    ui.label(self.text("conditions.operations.name"));
-                    let edit = ui.text_edit_singleline(&mut self.operation_name);
-                    if edit.lost_focus() {
-                        command = Some(OperationCommand::Rename(self.operation_name.clone()));
-                    }
-                });
-                if command.is_some() {
-                    self.operation_command = command;
+                    ui.end_row();
                 }
             });
+        if let Some(id) = select {
+            self.operation_command = Some(OperationCommand::Select(id));
+        }
+        match action {
+            Some(RowAction::OpenSettings) => self.operation_settings_open = true,
+            Some(RowAction::Submit) => self.submit_requested = true,
+            Some(RowAction::Redo) => self.redo_requested = true,
+            Some(RowAction::ImportToolpath) => self.import_toolpath_requested = true,
+            Some(RowAction::Import) => self.import_requested = true,
+            Some(RowAction::Command(command)) => self.operation_command = Some(command),
+            None => {}
+        }
+    }
+
+    /// 行（加工の順の `index` 番目。工程は全部で `count`）の右クリックのメニュー。選んだ操作を返す
+    fn row_menu(
+        &self,
+        ui: &mut egui::Ui,
+        index: usize,
+        count: usize,
+        can_submit: bool,
+    ) -> Option<RowAction> {
+        let items = [
+            (
+                RowAction::OpenSettings,
+                "conditions.list.operation_settings",
+                true,
+            ),
+            (RowAction::Submit, "conditions.submit", can_submit),
+            (RowAction::Redo, "conditions.redo", can_submit),
+            (
+                RowAction::ImportToolpath,
+                "conditions.import_toolpath",
+                true,
+            ),
+            (RowAction::Import, "conditions.import", true),
+            (
+                RowAction::Command(OperationCommand::Add),
+                "conditions.operations.add",
+                true,
+            ),
+            (
+                RowAction::Command(OperationCommand::Duplicate),
+                "conditions.operations.duplicate",
+                true,
+            ),
+            (
+                RowAction::Command(OperationCommand::Remove),
+                "conditions.operations.remove",
+                count > 1,
+            ),
+            (
+                RowAction::Command(OperationCommand::Move(-1)),
+                "conditions.operations.move_up",
+                index > 0,
+            ),
+            (
+                RowAction::Command(OperationCommand::Move(1)),
+                "conditions.operations.move_down",
+                index + 1 < count,
+            ),
+        ];
+        let mut chosen = None;
+        for (action, key, enabled) in items {
+            // 工程の設定・計算・一覧の操作の間に区切りを入れる
+            if matches!(
+                action,
+                RowAction::Submit | RowAction::Command(OperationCommand::Add)
+            ) {
+                ui.separator();
+            }
+            if ui
+                .add_enabled(enabled, egui::Button::new(self.text(key)))
+                .clicked()
+            {
+                chosen = Some(action);
+            }
+        }
+        chosen
+    }
+
+    /// 選んだ工程の設定のウィンドウ（頁: 加工条件・加工領域と加工対象）
+    fn show_operation_settings(&mut self, ctx: &Context, area: Rect) {
+        if !self.operation_settings_open {
+            return;
+        }
+        let machining_label = self.text("conditions.page.machining");
+        let region_label = self.text("conditions.page.region");
+        let mut open = true;
+        Window::new(self.text_with_args(
+            "conditions.operation_settings.title",
+            &[("name", self.operation.name.clone())],
+        ))
+        // 題に工程の名前を出すため、ウィンドウの ID は題から決めない（工程を替えても、同じ場所・大きさのまま）
+        .id(egui::Id::unique("operation_settings"))
+        // 手順の設定のウィンドウと重なったときに動かせるよう、固定しない（初めは範囲の左上）
+        .default_pos(area.left_top() + egui::vec2(SETTINGS_WINDOW_MARGIN, SETTINGS_WINDOW_MARGIN))
+        .constrain_to(area)
+        .default_width(SETTINGS_WINDOW_WIDTH)
+        .resizable(true)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.selectable_value(
+                    &mut self.operation_settings_page,
+                    OperationSettingsPage::Machining,
+                    machining_label,
+                );
+                ui.selectable_value(
+                    &mut self.operation_settings_page,
+                    OperationSettingsPage::Region,
+                    region_label,
+                );
+            });
+            ui.separator();
+            // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
+            ScrollArea::vertical()
+                .max_height(window_body_max_height(ui, area))
+                .show(ui, |ui| {
+                    match self.operation_settings_page {
+                        OperationSettingsPage::Machining => {
+                            self.show_operation_common(ui);
+                            self.show_tool(ui);
+                            self.show_machining(ui);
+                        }
+                        OperationSettingsPage::Region => {
+                            self.show_target(ui);
+                            self.show_region(ui);
+                        }
+                    }
+                    self.show_imported(ui);
+                });
+        });
+        self.operation_settings_open = open;
+    }
+
+    /// 手順の設定のウィンドウ（手順の名前と素材）
+    fn show_sequence_settings(&mut self, ctx: &Context, area: Rect) {
+        if !self.sequence_settings_open {
+            return;
+        }
+        let mut open = true;
+        // 初めは工程の設定のウィンドウの右に置き、重なったときに動かせるよう、固定しない
+        let left = SETTINGS_WINDOW_MARGIN * 2.0 + SETTINGS_WINDOW_WIDTH;
+        Window::new(self.text("conditions.sequence_settings.title"))
+            .default_pos(area.left_top() + egui::vec2(left, SETTINGS_WINDOW_MARGIN))
+            .constrain_to(area)
+            .default_width(SETTINGS_WINDOW_WIDTH)
+            .resizable(true)
+            .open(&mut open)
+            .show(ctx, |ui| {
+                ui.label(self.text_with_args(
+                    "conditions.sequence.name",
+                    &[("name", self.sequence_name.clone())],
+                ));
+                ui.label(self.text("conditions.sequence.note"));
+                ui.separator();
+                ScrollArea::vertical()
+                    .max_height(window_body_max_height(ui, area))
+                    .show(ui, |ui| self.show_stock(ui));
+            });
+        self.sequence_settings_open = open;
+    }
+
+    /// 工程の名前・加工の段階・加工の種類
+    fn show_operation_common(&mut self, ui: &mut egui::Ui) {
+        let stage_labels = [
+            MachiningStage::Rough,
+            MachiningStage::SemiFinish,
+            MachiningStage::Finish,
+        ]
+        .map(|stage| (stage, self.text(stage_key(stage))));
+        let mut rename = None;
+        // 名前は、入力を終えたとき（ほかを押した・Enter）に決める（打つたびに工程の改訂を進めない）
+        ui.horizontal(|ui| {
+            ui.label(self.text("conditions.operations.name"));
+            let edit = ui.text_edit_singleline(&mut self.operation_name);
+            if edit.lost_focus() {
+                rename = Some(self.operation_name.clone());
+            }
+        });
+        if let Some(name) = rename {
+            self.operation_command = Some(OperationCommand::Rename(name));
+        }
+        ui.horizontal(|ui| {
+            ui.label(self.text("conditions.operation.stage"));
+            for (stage, label) in stage_labels {
+                ui.radio_value(&mut self.operation.stage, stage, label);
+            }
+        });
+        ui.label(self.text_with_args(
+            "conditions.operation.kind",
+            &[("kind", self.text(spec_kind_key(&self.operation.spec)))],
+        ));
     }
 
     fn show_target(&mut self, ui: &mut egui::Ui) {
@@ -590,7 +904,29 @@ impl MachiningConditionsUiState {
                     "conditions.target.faces",
                     &[("count", self.face_count.to_string())],
                 ));
+                ui.label(self.text("conditions.target.shared"));
                 self.show_issues(ui, ConditionField::Target);
+            });
+    }
+
+    /// 加工領域（今は出すだけ。指定は後で足す）
+    fn show_region(&mut self, ui: &mut egui::Ui) {
+        CollapsingHeader::new(self.text("conditions.header.region"))
+            .default_open(true)
+            .show(ui, |ui| {
+                let text = match &self.operation.boundary {
+                    None => self.text("conditions.region.target"),
+                    Some(MachiningBoundary::Rectangle(rectangle)) => self.text_with_args(
+                        "conditions.region.rectangle",
+                        &[
+                            ("min_x", rectangle.rect_min[0].to_string()),
+                            ("max_x", rectangle.rect_max[0].to_string()),
+                            ("min_y", rectangle.rect_min[1].to_string()),
+                            ("max_y", rectangle.rect_max[1].to_string()),
+                        ],
+                    ),
+                };
+                ui.label(text);
             });
     }
 
@@ -779,14 +1115,15 @@ impl MachiningConditionsUiState {
             });
     }
 
+    /// 表示中の結果の計算に使った条件（選んだ工程の切削アニメーションを出しているときだけ）
     fn show_imported(&mut self, ui: &mut egui::Ui) {
+        let Some((job, conditions)) = &self.imported else {
+            return;
+        };
+        ui.separator();
         CollapsingHeader::new(self.text("conditions.header.imported"))
             .default_open(true)
             .show(ui, |ui| {
-                let Some((job, conditions)) = &self.imported else {
-                    ui.label(self.text("conditions.imported.none"));
-                    return;
-                };
                 let tool = &conditions.tool;
                 let kind = if tool.is_ball_end_mill() {
                     self.text("conditions.tool.ball")
@@ -848,8 +1185,9 @@ impl MachiningConditionsUiState {
 mod tests {
     use super::{
         condition_error_message, condition_field, imported_toolpath_key, job_status_key,
-        operation_row_key, operation_row_status_key, operation_status_text, ConditionField,
-        JobStatusLine, OperationJobStatus, OperationRow, OperationStatus,
+        operation_row_key, operation_row_status_key, operation_status_text, stage_key,
+        ConditionField, JobStatusLine, MachiningStage, OperationJobStatus, OperationRow,
+        OperationStatus, COLUMN_KEYS,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -936,11 +1274,55 @@ mod tests {
     }
 
     #[test]
+    fn every_list_and_settings_text_exists_in_both_languages() {
+        let keys = COLUMN_KEYS
+            .into_iter()
+            .chain(
+                [
+                    MachiningStage::Rough,
+                    MachiningStage::SemiFinish,
+                    MachiningStage::Finish,
+                ]
+                .map(stage_key),
+            )
+            .chain([
+                "conditions.list.sequence",
+                "conditions.list.sequence_settings",
+                "conditions.list.operation_settings",
+                "conditions.list.tool",
+                "conditions.kind.scanline",
+                "conditions.page.machining",
+                "conditions.page.region",
+                "conditions.operation_settings.title",
+                "conditions.sequence_settings.title",
+                "conditions.operation.stage",
+                "conditions.operation.kind",
+                "conditions.target.shared",
+                "conditions.header.region",
+                "conditions.region.target",
+                "conditions.region.rectangle",
+                "conditions.sequence.name",
+                "conditions.sequence.note",
+            ]);
+        for key in keys {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text = resolve_machining_conditions_text(locale, key, &[]);
+                assert!(!text.contains("__missing__"), "{key} ({locale:?})");
+            }
+        }
+    }
+
+    #[test]
     fn rows_whose_cl_is_current_are_shown_as_imported_unless_pending() {
-        let id = viewmodel::space_model_document::SpaceModelDocument::new().selected_operation();
+        let item = viewmodel::space_model_document::SpaceModelDocument::new()
+            .operations()
+            .remove(0);
         let row = |status, toolpath_current| OperationRow {
-            id,
-            name: "工程".to_string(),
+            id: item.id,
+            name: item.name.clone(),
+            stage: item.stage,
+            spec: item.spec,
+            tool: item.tool.clone(),
             status,
             toolpath_current,
         };

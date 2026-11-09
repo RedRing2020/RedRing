@@ -92,7 +92,7 @@ pub(crate) enum Notice {
     SettingsNotSaved,
     /// アプリの設定を保存できない（理由）
     SettingsSaveFailed { reason: UiMessage },
-    /// 投入・実行・取り込みの結果（加工条件のウィンドウの結果の行と同じ文言）
+    /// 投入・実行・取り込みの結果（工程リストの結果の行と同じ文言）
     Operation(OperationStatus),
     /// 空の空間モデルにした
     ModelCreated,

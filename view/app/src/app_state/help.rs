@@ -47,7 +47,7 @@ impl AppState {
         self.notice = notice;
     }
 
-    /// 投入・実行・取り込みの結果 `status` を、加工条件のウィンドウの結果の行と知らせの行に出す
+    /// 投入・実行・取り込みの結果 `status` を、工程リストの結果の行と知らせの行に出す
     pub(crate) fn set_operation_status(&mut self, status: OperationStatus) {
         self.notice = Notice::Operation(status.clone());
         self.cutting_simulation_status = Some(status);

@@ -1,4 +1,4 @@
-//! AppState の加工条件のウィンドウ（計算条件の入力と投入）を扱うモジュール。
+//! AppState の加工手順の画面（工程リストと設定のウィンドウ。計算条件の入力と投入）を扱うモジュール。
 
 use std::time::{Duration, Instant};
 
@@ -17,9 +17,9 @@ const JOB_STATUS_INTERVAL: Duration = Duration::from_secs(1);
 const FINISHED_JOB_STATUS_INTERVAL: Duration = Duration::from_secs(5);
 
 impl AppState {
-    /// 加工手順を開き、加工条件のウィンドウを出す（開いている場合は何もしない）
+    /// 加工手順を開き、工程リストを出す（開いている場合は何もしない）
     ///
-    /// 開いている間は、選んだ加工工程の CL の線を出し、加工条件のウィンドウで計算の状態を読む。
+    /// 開いている間は、選んだ加工工程の CL の線を出し、工程リストで計算の状態を読む。
     pub(crate) fn open_machining_sequence(&mut self) {
         if self.machining_sequence_open {
             return;
@@ -27,11 +27,12 @@ impl AppState {
         // 開く前に読んだ状態は使わず、読み直す
         self.forget_machining_sequence_state();
         self.machining_sequence_open = true;
-        self.machining_conditions_open = true;
+        self.operation_list_shown = true;
         tracing::info!("Machining sequence opened");
     }
 
-    /// 加工手順を閉じ、CAM の表示（CL の線・切削アニメーション）と、計算の状態を放す（閉じている場合は何もしない）
+    /// 加工手順を閉じ、CAM の画面（工程リスト・設定のウィンドウ）・表示（CL の線・切削アニメーション）と、計算の状態を
+    /// 放す（閉じている場合は何もしない）
     ///
     /// 計算中のジョブは、ジョブマネージャーが続ける。
     pub(crate) fn close_machining_sequence(&mut self) {
@@ -47,32 +48,50 @@ impl AppState {
         tracing::info!("Machining sequence closed");
     }
 
-    /// 加工手順を閉じた状態にし、加工条件のウィンドウに出す状態（計算の状態・条件の確かめ・結果の行）を捨てる
-    /// （CAM の表示は放さない。表示を放すのは、呼び出す側で製品形状を描き直すとき）
+    /// 加工手順を閉じた状態にし（工程リスト・設定のウィンドウも閉じる）、それらに出す状態（計算の状態・条件の確かめ・
+    /// 結果の行）を捨てる（CAM の表示は放さない。表示を放すのは、呼び出す側で製品形状を描き直すとき）
     pub(super) fn forget_machining_sequence_state(&mut self) {
         self.machining_sequence_open = false;
-        self.machining_conditions_open = false;
+        self.operation_list_shown = false;
+        self.operation_settings_open = false;
+        self.sequence_settings_open = false;
         self.forget_selected_operation_state();
         self.operation_job_statuses.clear();
     }
 
-    /// 加工手順を開いている間に、加工条件のウィンドウを出す・隠す（開いていなければ何もしない）
-    pub fn toggle_machining_conditions(&mut self) {
-        if !self.machining_sequence_open {
-            tracing::debug!(
-                "The machining sequence is not open; the machining conditions window is not shown"
-            );
-            return;
+    /// 加工手順を開いている間に、工程リストを出す・隠す（開いていなければ何もしない）
+    pub fn toggle_operation_list(&mut self) {
+        if let Some(shown) = self.toggle_sequence_screen(|state| &mut state.operation_list_shown) {
+            tracing::info!("Operation list {}", shown_or_hidden(shown));
         }
-        self.machining_conditions_open = !self.machining_conditions_open;
-        tracing::info!(
-            "Machining conditions window {}",
-            if self.machining_conditions_open {
-                "shown"
-            } else {
-                "hidden"
-            }
-        );
+    }
+
+    /// 加工手順を開いている間に、工程の設定のウィンドウを開く・閉じる（開いていなければ何もしない）
+    pub(crate) fn toggle_operation_settings(&mut self) {
+        if let Some(shown) = self.toggle_sequence_screen(|state| &mut state.operation_settings_open)
+        {
+            tracing::info!("Operation settings window {}", shown_or_hidden(shown));
+        }
+    }
+
+    /// 加工手順を開いている間に、手順の設定のウィンドウを開く・閉じる（開いていなければ何もしない）
+    pub(crate) fn toggle_sequence_settings(&mut self) {
+        if let Some(shown) = self.toggle_sequence_screen(|state| &mut state.sequence_settings_open)
+        {
+            tracing::info!("Sequence settings window {}", shown_or_hidden(shown));
+        }
+    }
+
+    /// 加工手順の画面の、出しているかの印 `flag` を切り替えて、切り替えた後の値を返す（加工手順を開いていなければ
+    /// 切り替えずに `None`）
+    fn toggle_sequence_screen(&mut self, flag: fn(&mut Self) -> &mut bool) -> Option<bool> {
+        if !self.machining_sequence_open {
+            tracing::debug!("The machining sequence is not open; its screens are not shown");
+            return None;
+        }
+        let shown = flag(self);
+        *shown = !*shown;
+        Some(*shown)
     }
 
     /// 計算条件を確かめ直す必要がある場合（条件・製品形状が変わった後）に確かめる
@@ -82,7 +101,7 @@ impl AppState {
         }
     }
 
-    /// 加工条件のウィンドウを出している間、加工工程の今の改訂の計算の状態を、一定の間隔で読み直す
+    /// 工程リストを出している間、加工工程の今の改訂の計算の状態を、一定の間隔で読み直す
     ///
     /// 終わった状態（正常・失敗・取り消し）は、ジョブマネージャーでやり直す・消すまで変わらないため、間隔を長くして
     /// 読み直す。待ち・計算中の間は、ジョブマネージャーが止まっていれば起動し直す。状態は別のスレッドで読むため、
@@ -222,11 +241,16 @@ impl AppState {
         if self.cutting_animation.is_none() && self.drawn_toolpath_state != Some(toolpath_state) {
             self.refresh_operation_toolpath_lines();
         }
-        // 加工条件のウィンドウは、加工手順を開いている間だけ出す（閉じるときに、ウィンドウも隠す）
-        debug_assert!(self.machining_sequence_open || !self.machining_conditions_open);
-        // 条件の確かめと計算の状態は、ウィンドウに出すためだけに読む
-        if self.machining_conditions_open {
+        // 加工手順の画面は、加工手順を開いている間だけ出す（閉じるときに、画面もすべて閉じる）
+        let screen_shown = self.operation_list_shown
+            || self.operation_settings_open
+            || self.sequence_settings_open;
+        debug_assert!(self.machining_sequence_open || !screen_shown);
+        // 条件の確かめは画面に出すため、計算の状態は工程リストに出すためだけに読む
+        if screen_shown {
             self.refresh_condition_issues();
+        }
+        if self.operation_list_shown {
             self.refresh_job_status();
         }
         let selected = self.document.selected_operation();
@@ -240,11 +264,18 @@ impl AppState {
                     == ImportedToolpathState::Current,
                 id: item.id,
                 name: item.name,
+                stage: item.stage,
+                spec: item.spec,
+                tool: item.tool,
             })
             .collect();
         MachiningConditionsUiState {
-            open: self.machining_conditions_open,
+            list_shown: self.operation_list_shown,
+            operation_settings_open: self.operation_settings_open,
+            operation_settings_page: self.operation_settings_page,
+            sequence_settings_open: self.sequence_settings_open,
             locale: self.ui_locale,
+            sequence_name: self.document.sequence_name().to_string(),
             operations,
             selected_operation: selected,
             operation_name: self
@@ -276,7 +307,12 @@ impl AppState {
     }
 
     pub(crate) fn apply_machining_conditions_state(&mut self, state: MachiningConditionsUiState) {
-        self.machining_conditions_open = state.open;
+        // 画面を出しているか・頁は、一覧の操作より先に受け取る（行のダブルクリックは、選ぶ操作と設定のウィンドウを開く
+        // ことを同時に行う）
+        self.operation_list_shown = state.list_shown;
+        self.operation_settings_open = state.operation_settings_open;
+        self.operation_settings_page = state.operation_settings_page;
+        self.sequence_settings_open = state.sequence_settings_open;
         self.tool_length_input = state.tool_length_input;
         // 工程の一覧の操作は、条件の編集より先に行う（選び直した工程に、前の工程の条件を書かないように）
         if let Some(command) = state.operation_command {
@@ -333,4 +369,13 @@ fn copied_operation_name(locale: UiLocale, name: &str) -> String {
         "conditions.operations.copy_name",
         &[("name", name.to_string())],
     )
+}
+
+/// ログに書く、画面を出したか（`shown`）の言葉
+fn shown_or_hidden(shown: bool) -> &'static str {
+    if shown {
+        "shown"
+    } else {
+        "hidden"
+    }
 }

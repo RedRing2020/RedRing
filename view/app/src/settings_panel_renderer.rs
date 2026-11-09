@@ -118,9 +118,11 @@ impl SettingsPanelRenderer {
         let full_output = self.egui_context.run_ui(raw_input, |ui| {
             menu.show(ui);
             notice.show(ui);
+            // 工程リストは、画面の下のステータスバーの上のパネルとし、ウィンドウはその上に置く
+            conditions.show_list(ui);
             area = ui.available_rect_before_wrap();
             panel.show(ui, area);
-            conditions.show(ui, area);
+            conditions.show_windows(ui, area);
             help.show(ui, area);
         });
         let pixels_per_point = full_output.pixels_per_point;

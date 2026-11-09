@@ -7,9 +7,10 @@ use std::collections::HashSet;
 use std::fmt;
 use std::num::NonZeroU32;
 
-use cam_core::{MachiningStage, ToleranceProfile};
+use cam_core::ToleranceProfile;
 pub use cam_core::{
-    OperationSpec, ScanlineCutDirection, ScanlineParams, ScanlineToolRange, StockMargins, Tool,
+    MachiningBoundary, MachiningStage, OperationSpec, ScanlineCutDirection, ScanlineParams,
+    ScanlineToolRange, StockMargins, Tool,
 };
 use cam_entity::{MachiningOperation, MachiningSequence};
 pub use cam_entity::{
@@ -392,21 +393,16 @@ impl MachiningSequenceStore {
             .collect())
     }
 
-    /// 加工手順 `sequence` の加工工程の ID と名前（加工の順）
+    /// 加工手順 `sequence` の名前
     ///
     /// # Errors
     ///
     /// 保管していない加工手順の場合。
-    pub fn operation_names(
+    pub fn sequence_name(
         &self,
         sequence: MachiningSequenceId,
-    ) -> Result<Vec<(MachiningOperationId, &str)>, MachiningSequenceError> {
-        Ok(self
-            .sequence(sequence)?
-            .operations()
-            .iter()
-            .map(|operation| (operation.id(), operation.content().name.as_str()))
-            .collect())
+    ) -> Result<&str, MachiningSequenceError> {
+        Ok(self.sequence(sequence)?.name())
     }
 
     /// 加工手順 `sequence` の加工工程 `operation` の改訂の鍵

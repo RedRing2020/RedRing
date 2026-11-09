@@ -29,7 +29,7 @@ impl AppState {
             }
         }
 
-        // 設定パネル・加工条件のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
+        // 設定パネル・設定のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
         // F1 は文字を打たないため、入力欄の編集中も受ける
         if matches!(
             key,
@@ -54,7 +54,7 @@ impl AppState {
         if let winit::keyboard::Key::Character(ch) = key {
             match ch.as_str() {
                 "M" => {
-                    self.toggle_machining_conditions();
+                    self.toggle_operation_list();
                 }
                 "L" => {
                     self.import_cutting_simulation();

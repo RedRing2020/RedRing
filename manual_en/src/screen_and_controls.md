@@ -4,7 +4,7 @@
 
 | Part | Contents |
 |---|---|
-| Menu bar | "File" creates, opens, saves, and saves as a model file, loads a shape file, and exits (see "Model Files" below). "Machining" opens and closes the machining sequence and shows or hides the Machining Conditions window ([Cutting Simulation](./cutting_simulation_demo.md)). "View" → "Language" selects the language of the screen text. "Help" → "Controls" shows the list of keys, and "About" shows the version, the location of the log file, and a link to the manual |
+| Menu bar | "File" creates, opens, saves, and saves as a model file, loads a shape file, and exits (see "Model Files" below). "Machining" opens and closes the machining sequence, shows or hides the operation list, and opens or closes the operation settings and sequence settings windows ([Cutting Simulation](./cutting_simulation_demo.md)). "View" → "Language" selects the language of the screen text. "Help" → "Controls" shows the list of keys, and "About" shows the version, the location of the log file, and a link to the manual |
 | Model view | Shows the product shape, the stock, the toolpath lines, and the tool lines |
 | Progress bar at the top left | Appears when a cutting simulation is imported. Drag it with the left button to move to any time (scrubbing) |
 | Status bar at the bottom of the screen | Shows the last message on one line: the results of loading a shape, submitting, running, and importing, and the reasons why an operation could not be done. Warnings are yellow and failures are red |
@@ -35,11 +35,13 @@ The screen text can be Japanese or English, selected with "View" → "Language" 
 
 | Window | How to open | Contents |
 |---|---|---|
-| Machining Conditions | "Machining" → "Open machining sequence". While it is open, `Shift+M` or "Machining" → "Machining conditions window" shows or hides it | Input of the tool, machining, and stock conditions, and submitting and importing the cutting simulation ([Cutting Simulation](./cutting_simulation_demo.md)) |
+| Operation list (bottom of the screen) | "Machining" → "Open machining sequence". While it is open, `Shift+M` or "Machining" → "Operation list" shows or hides it | The table of the operations of the machining sequence, and submitting and importing the cutting simulation ([Cutting Simulation](./cutting_simulation_demo.md)) |
+| Operation settings | Double-click or right-click menu of an operation row, "Operation settings" in the operation list, or "Machining" → "Operation settings" | Input of the tool and machining conditions of the selected operation |
+| Sequence settings | "Sequence settings" in the operation list, or "Machining" → "Sequence settings" | Input of the stock (margins, precision) of the machining sequence |
 | Controls | `F1`, `h`, or "Help" → "Controls" | The list of key and mouse controls (the same as "Key Bindings" below) |
 | Settings | `Shift+S` | Display settings. The tabs are "Display" (frame step distance, cutting animation colors, gouge coloring), "Tool" (tool wireframe divisions, toolpath display), and "Debug" (debug views) |
 
-While editing a field in the settings panel or the Machining Conditions window, typed characters are not used as keys (except `Esc` to quit).
+While editing a field in the settings panel or the operation settings or sequence settings window, typed characters are not used as keys (except `Esc` to quit).
 
 ## Camera
 
@@ -63,7 +65,7 @@ The same as the "Controls" window opened with the `F1` or `h` key.
 | | `t` | Standard CAD view |
 | | `f` | Front view |
 | | `e` | Emergency escape (bring back a camera inside a shape) |
-| Cutting simulation | `Shift+M` | While a machining sequence is open, show or hide the Machining Conditions window (submit with "Submit") |
+| Cutting simulation | `Shift+M` | While a machining sequence is open, show or hide the operation list (submit with "Submit") |
 | | `Shift+L` | While a machining sequence is open, import the latest cutting simulation calculated with the current conditions |
 | | `k` / `j` | Step forward / back by the frame step distance |
 | | `.` / `,` | Move the tool to the next / previous segment endpoint |
