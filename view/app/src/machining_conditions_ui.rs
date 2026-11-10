@@ -291,7 +291,10 @@ pub struct MachiningConditionsUiState {
     pub(crate) submit_sequence_requested: bool,
     /// 選んだ工程の、ツールパス生成の結果（CL）だけを取り込む
     pub(crate) import_toolpath_requested: bool,
-    pub import_requested: bool,
+    /// 選んだ工程の切削シミュレーションの表示を切り替える（出していれば閉じ、出していなければ取り込んで出す）
+    pub(crate) toggle_simulation_requested: bool,
+    /// 選んだ工程の切削アニメーションを出しているか（「切削シミュレーション表示」の選んだ印）
+    pub(crate) simulation_shown: bool,
     pub open_job_manager_requested: bool,
 }
 
@@ -682,7 +685,7 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・手順の全体を投入・CL 取込・切削シミュレーション取込・
+    /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・手順の全体を投入・CL 取込・切削シミュレーション表示・
     /// ジョブマネージャーを開く）と、その結果・選んだ工程の計算の状態
     fn show_job_commands(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_wrapped(|ui| {
@@ -712,11 +715,14 @@ impl MachiningConditionsUiState {
             if import_toolpath.clicked() {
                 self.import_toolpath_requested = true;
             }
-            let import = ui
-                .button(self.text("conditions.import"))
+            let simulation = ui
+                .add(
+                    egui::Button::new(self.text("conditions.import"))
+                        .selected(self.simulation_shown),
+                )
                 .on_hover_text(self.text("conditions.import.hint"));
-            if import.clicked() {
-                self.import_requested = true;
+            if simulation.clicked() {
+                self.toggle_simulation_requested = true;
             }
             if ui
                 .button(self.text("conditions.open_job_manager"))
@@ -790,7 +796,7 @@ impl MachiningConditionsUiState {
             Some(RowAction::Submit) => self.submit_requested = true,
             Some(RowAction::Redo) => self.redo_requested = true,
             Some(RowAction::ImportToolpath) => self.import_toolpath_requested = true,
-            Some(RowAction::Import) => self.import_requested = true,
+            Some(RowAction::Import) => self.toggle_simulation_requested = true,
             Some(RowAction::Command(command)) => self.operation_command = Some(command),
             None => {}
         }

@@ -217,6 +217,27 @@ impl AppState {
         }
     }
 
+    /// 選んだ工程の切削アニメーションを出しているか（ほかの工程を選ぶと閉じるため、出していれば選んだ工程のもの）
+    pub(crate) fn cutting_simulation_shown(&self) -> bool {
+        self.cutting_animation.is_some()
+            && self.imported_operation == Some(self.document.selected_operation())
+    }
+
+    /// 選んだ工程の切削シミュレーションの表示を切り替える。出していれば、切削アニメーションを閉じて、製品形状と選んだ
+    /// 工程の CL の線に戻す（メモリを放す。カメラは動かさない）。出していなければ、取り込んで出す
+    pub(crate) fn toggle_cutting_simulation(&mut self) {
+        if !self.cutting_simulation_shown() {
+            self.import_cutting_simulation();
+            return;
+        }
+        // 条件の編集のダイアログを開いている間は、取り込みと同じく切り替えない
+        if self.is_condition_dialog_open() {
+            return;
+        }
+        self.close_cutting_animation();
+        tracing::info!("Cutting simulation display closed");
+    }
+
     /// 正常に実行済みの最も新しい切削シミュレーションを取り込み、製品形状に重ねて再生できるようにする
     pub(crate) fn import_cutting_simulation(&mut self) {
         // CAM の表示は、加工手順を開いている間だけ出す。条件の編集のダイアログを開いている間は取り込まない
