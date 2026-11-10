@@ -6,10 +6,11 @@
 //! - 工程の設定のダイアログ: 選んだ工程の条件（工程の中身）と、表示中の結果の計算に使った条件
 //! - 手順の設定のダイアログ: 手順の名前と素材
 //!
-//! 条件は、ダイアログ（モーダル）で編集し、「適用」するまで工程・手順に入れない（触っただけで再計算待ちにしない）。
+//! 条件は、ダイアログで編集し、「適用」するまで工程・手順に入れない（触っただけで再計算待ちにしない）。ダイアログを
+//! 開いている間は、見る操作（カメラ・切削アニメーション・表示の設定）だけを受け、工程リストは押せない。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
-use egui::{CollapsingHeader, Context, DragValue, Id, Modal, Panel, Rect, ScrollArea};
+use egui::{CollapsingHeader, Context, DragValue, Id, Panel, Rect, ScrollArea, Window};
 use viewmodel::cutting_simulation_session::{
     flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
     CuttingToolKind, ImportedConditions, MachiningBoundary, MachiningOperationContent,
@@ -189,6 +190,8 @@ fn operation_status_message(
 const LIST_DEFAULT_HEIGHT: f32 = 220.0;
 /// 条件の編集のダイアログの幅（論理座標）
 const DIALOG_WIDTH: f32 = 380.0;
+/// 条件の編集のダイアログを置く、範囲の左上からの間（論理座標）
+const DIALOG_MARGIN: f32 = 16.0;
 /// 条件の編集のダイアログの、スクロールする中身のほかの高さ（題・頁の切り替え・区切り・ボタンの行。論理座標）
 const DIALOG_CHROME_HEIGHT: f32 = 140.0;
 /// 条件の編集のダイアログの、スクロールする中身の最小の高さ（論理座標）
@@ -222,7 +225,7 @@ pub(crate) enum DialogResult {
     Cancel,
 }
 
-/// 範囲 `area` の中央に置くダイアログの、スクロールする中身の最大の高さ（題・ボタンの行を範囲に収める）
+/// 範囲 `area` に置くダイアログの、スクロールする中身の最大の高さ（題・ボタンの行を範囲に収める）
 fn dialog_body_max_height(area: Rect) -> f32 {
     (area.height() - DIALOG_CHROME_HEIGHT).max(DIALOG_BODY_MIN_HEIGHT)
 }
@@ -539,21 +542,25 @@ impl MachiningConditionsUiState {
         if !self.list_shown {
             return;
         }
+        // 条件の編集のダイアログを開いている間は、押せない（選んだ工程が替わると、編集している工程と食い違うため）
+        let enabled = self.dialog.is_none();
         Panel::bottom("operation_list")
             .resizable(true)
             .default_size(LIST_DEFAULT_HEIGHT)
             .show(ui, |ui| {
-                self.show_list_toolbar(ui);
-                self.show_job_commands(ui);
-                ui.separator();
-                ScrollArea::vertical()
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| self.show_operation_table(ui));
+                ui.add_enabled_ui(enabled, |ui| {
+                    self.show_list_toolbar(ui);
+                    self.show_job_commands(ui);
+                    ui.separator();
+                    ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| self.show_operation_table(ui));
+                });
             });
     }
 
-    /// 開いている条件の編集のダイアログ（モーダル）を出す。中身は範囲 `area`（メニューバーと工程リストの間）に
-    /// 収まる高さでスクロールする
+    /// 開いている条件の編集のダイアログを、範囲 `area`（メニューバーと工程リストの間）の左上に出す（タイトルの行で
+    /// 動かせる）。中身は範囲に収まる高さでスクロールする
     pub fn show_windows(&mut self, ctx: &Context, area: Rect) {
         let Some(dialog) = self.dialog else {
             return;
@@ -565,39 +572,47 @@ impl MachiningConditionsUiState {
             ),
             ConditionDialog::Sequence => self.text("conditions.sequence_settings.title"),
         };
-        let response = Modal::new(Id::unique("condition_dialog")).show(ctx, |ui| {
-            ui.set_width(DIALOG_WIDTH);
-            ui.heading(title);
-            match dialog {
-                ConditionDialog::Operation => self.show_operation_dialog(ui, area),
-                ConditionDialog::Sequence => self.show_sequence_dialog(ui, area),
-            }
-            ui.separator();
-            ui.horizontal(|ui| {
-                // 適用と同時に投入するときは、誤りのある条件を適用しない（投入できないため）
-                let can_apply = dialog == ConditionDialog::Sequence
-                    || !self.submit_on_apply
-                    || self.dialog_issues.is_empty();
-                if ui
-                    .add_enabled(
-                        can_apply,
-                        egui::Button::new(self.text("conditions.dialog.apply")),
-                    )
-                    .clicked()
-                {
-                    self.dialog_result = Some(DialogResult::Apply);
+        let mut open = true;
+        Window::new(title)
+            // 題に工程の名前を出すため、ID は題から決めない（工程・ダイアログを替えても、同じ場所に出す）
+            .id(Id::unique("condition_dialog"))
+            .default_pos(area.left_top() + egui::vec2(DIALOG_MARGIN, DIALOG_MARGIN))
+            .constrain_to(area)
+            .collapsible(false)
+            .resizable(false)
+            .open(&mut open)
+            .show(ctx, |ui| {
+                ui.set_width(DIALOG_WIDTH);
+                match dialog {
+                    ConditionDialog::Operation => self.show_operation_dialog(ui, area),
+                    ConditionDialog::Sequence => self.show_sequence_dialog(ui, area),
                 }
-                if ui.button(self.text("conditions.dialog.cancel")).clicked() {
-                    self.dialog_result = Some(DialogResult::Cancel);
-                }
-                if dialog == ConditionDialog::Operation {
-                    let label = self.text("conditions.dialog.submit_on_apply");
-                    ui.checkbox(&mut self.submit_on_apply, label);
-                }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    // 適用と同時に投入するときは、誤りのある条件を適用しない（投入できないため）
+                    let can_apply = dialog == ConditionDialog::Sequence
+                        || !self.submit_on_apply
+                        || self.dialog_issues.is_empty();
+                    if ui
+                        .add_enabled(
+                            can_apply,
+                            egui::Button::new(self.text("conditions.dialog.apply")),
+                        )
+                        .clicked()
+                    {
+                        self.dialog_result = Some(DialogResult::Apply);
+                    }
+                    if ui.button(self.text("conditions.dialog.cancel")).clicked() {
+                        self.dialog_result = Some(DialogResult::Cancel);
+                    }
+                    if dialog == ConditionDialog::Operation {
+                        let label = self.text("conditions.dialog.submit_on_apply");
+                        ui.checkbox(&mut self.submit_on_apply, label);
+                    }
+                });
             });
-        });
-        // 外を押したとき・Esc は、適用しない
-        if response.should_close() && self.dialog_result.is_none() {
+        // 閉じるボタンは、適用しない（Esc は、キー操作の側でキャンセルにする）
+        if !open && self.dialog_result.is_none() {
             self.dialog_result = Some(DialogResult::Cancel);
         }
     }

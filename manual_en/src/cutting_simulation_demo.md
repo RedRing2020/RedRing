@@ -73,8 +73,9 @@ Importing does not change the camera (direction and zoom), so you can compare th
 
 ### Editing Conditions (Operation Settings and Sequence Settings Dialogs)
 
-- Conditions are edited in a dialog and are not put into the operation or the sequence until you press "Apply". Just touching a field does not make the operation need recalculation. "Cancel", clicking outside the dialog, or `Esc` discards the edits and closes it
-- While a dialog is open, other operations (selecting an operation, keys, menus, dropping files) cannot be used
+- Conditions are edited in a dialog and are not put into the operation or the sequence until you press "Apply". Just touching a field does not make the operation need recalculation. "Cancel", the close button of the dialog, or `Esc` discards the edits and closes it (`Esc` while editing a field only leaves the field)
+- The dialog can be moved by its title bar. While it is open, the camera (rotate, pan, zoom, `r`, `t`, `f`, `e`), cutting animation playback and stepping, and the settings panel can still be used
+- While it is open, the operation list cannot be pressed. The "Machining" items, the "File" items other than Exit (including saving), the file keys (such as `Ctrl+N`), `Shift+M`, `Shift+L`, and dropped files are not accepted either
 - In the operation settings, if "Submit when applied" to the right of "Apply" and "Cancel" is checked, the operation is submitted after the conditions are applied (the choice is kept the next time you open it). While it is checked, "Apply" cannot be pressed if the conditions have errors
 - Condition errors are shown in red below the field to fix, even before applying
 

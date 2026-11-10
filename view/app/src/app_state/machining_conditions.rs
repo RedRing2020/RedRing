@@ -84,7 +84,7 @@ impl AppState {
 
     /// 加工手順を開いている間に、工程リストを出す・隠す（開いていなければ何もしない）
     pub fn toggle_operation_list(&mut self) {
-        if !self.machining_sequence_open {
+        if !self.machining_sequence_open || self.is_condition_dialog_open() {
             tracing::debug!("The machining sequence is not open; the operation list is not shown");
             return;
         }
@@ -115,9 +115,17 @@ impl AppState {
         tracing::info!("Condition dialog opened: {dialog:?}");
     }
 
-    /// 条件の編集のダイアログを開いているか（開いている間は、キー操作を受けない）
+    /// 条件の編集のダイアログを開いているか（開いている間は、見る操作のほか、工程・文書を替える操作を受けない）
     pub(crate) fn is_condition_dialog_open(&self) -> bool {
         self.condition_draft.is_some()
+    }
+
+    /// 条件の編集のダイアログを、編集した条件を捨てて閉じる
+    pub(crate) fn cancel_condition_dialog(&mut self) {
+        if self.condition_draft.take().is_some() {
+            self.draft_issues = None;
+            tracing::info!("Condition dialog canceled");
+        }
     }
 
     /// 編集した条件を工程・手順に入れて、ダイアログを閉じる（今と同じなら、工程の改訂を進めない）。工程の設定で「適用と
@@ -404,19 +412,15 @@ impl AppState {
         self.operation_list_shown = state.list_shown;
         self.operation_settings_page = state.dialog_page;
         self.submit_on_apply = state.submit_on_apply;
-        // ダイアログを開いている間は、編集した条件を受け取り、適用・キャンセルだけを行う（モーダルのため、ほかの操作は
-        // 来ない）
+        // ダイアログを開いている間は、編集した条件を受け取り、適用・キャンセルだけを行う（工程リストは押せないため、
+        // ほかの操作は来ない）
         if let Some(draft) = &mut self.condition_draft {
             draft.content = state.operation;
             draft.stock = state.stock;
             draft.tool_length_input = state.tool_length_input;
             match state.dialog_result {
                 Some(DialogResult::Apply) => self.apply_condition_draft(),
-                Some(DialogResult::Cancel) => {
-                    self.condition_draft = None;
-                    self.draft_issues = None;
-                    tracing::info!("Condition dialog canceled");
-                }
+                Some(DialogResult::Cancel) => self.cancel_condition_dialog(),
                 None => {}
             }
             return;

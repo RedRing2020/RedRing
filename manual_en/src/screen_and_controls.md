@@ -41,7 +41,7 @@ The screen text can be Japanese or English, selected with "View" → "Language" 
 | Controls | `F1`, `h`, or "Help" → "Controls" | The list of key and mouse controls (the same as "Key Bindings" below) |
 | Settings | `Shift+S` | Display settings. The tabs are "Display" (frame step distance, cutting animation colors, gouge coloring), "Tool" (tool wireframe divisions, toolpath display), and "Debug" (debug views) |
 
-While editing a field in the settings panel, and while the operation settings or sequence settings dialog is open, typed characters are not used as keys (except `Esc` to quit).
+While editing a field in the settings panel or a settings dialog, typed characters are not used as keys (except `Esc` to quit).
 
 ## Camera
 

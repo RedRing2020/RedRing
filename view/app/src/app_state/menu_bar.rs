@@ -11,6 +11,7 @@ impl AppState {
             locale: self.ui_locale,
             machining_sequence_open: self.machining_sequence_open,
             operation_list_shown: self.operation_list_shown,
+            condition_dialog_open: self.is_condition_dialog_open(),
             file_requested: None,
             machining_requested: None,
             locale_requested: None,

@@ -83,6 +83,8 @@ impl ApplicationHandler for App {
                 WindowEvent::RedrawRequested => state.render(),
                 WindowEvent::KeyboardInput { event, .. } => {
                     let pressed = event.state == ElementState::Pressed;
+                    // Esc でダイアログを閉じたときにアプリを終えないよう、キーを処理する前に確かめる
+                    let dialog_open = state.is_condition_dialog_open();
                     state.handle_keyboard_input(
                         &event.logical_key,
                         &event.key_without_modifiers(),
@@ -93,7 +95,7 @@ impl ApplicationHandler for App {
                     // ダイアログを開いている間は、ダイアログを閉じるだけにする
                     if pressed
                         && !event.repeat
-                        && !state.is_condition_dialog_open()
+                        && !dialog_open
                         && matches!(event.logical_key, Key::Named(NamedKey::Escape))
                     {
                         state.request_exit();
