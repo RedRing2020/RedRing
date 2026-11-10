@@ -70,13 +70,13 @@ impl AppRenderer {
         &mut self,
         window: &Window,
         menu: &mut MenuBarUiState,
-        notice: NoticeBarUiState<'_>,
+        notice: &mut NoticeBarUiState<'_>,
         panel: &mut SettingsPanelUiState,
         conditions: &mut MachiningConditionsUiState,
         help: &mut HelpUiState,
     ) {
         self.settings_panel_renderer
-            .prepare(window, menu, &notice, panel, conditions, help);
+            .prepare(window, menu, notice, panel, conditions, help);
     }
 
     pub fn update_selection_rect_overlay(

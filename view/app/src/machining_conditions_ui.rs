@@ -85,6 +85,34 @@ pub(crate) enum OperationStatus {
     JobManagerFailed(UiMessage),
 }
 
+/// 計算条件の問題 `issue` の、言語 `locale` の文言
+pub(crate) fn condition_issue_text(locale: UiLocale, issue: &ConditionIssue) -> String {
+    match issue {
+        ConditionIssue::NoProductShape => {
+            resolve_machining_conditions_text(locale, "conditions.issue.no_product_shape", &[])
+        }
+        ConditionIssue::Condition(error) => {
+            let (key, args) = condition_error_message(error);
+            resolve_machining_conditions_text(locale, key, &args)
+        }
+        ConditionIssue::Other(message) => resolve_machining_conditions_text(
+            locale,
+            "conditions.issue.other",
+            &[("reason", resolve_failure_message(locale, message))],
+        ),
+    }
+}
+
+/// 選んだ工程の今の条件の計算の状態 `status` の、言語 `locale` の文言
+pub(crate) fn job_status_text(locale: UiLocale, status: &JobStatusLine) -> String {
+    resolve_machining_conditions_text(locale, job_status_key(status), &[])
+}
+
+/// 空間モデルの CL の状態 `state` の、言語 `locale` の文言
+pub(crate) fn imported_toolpath_text(locale: UiLocale, state: ImportedToolpathState) -> String {
+    resolve_machining_conditions_text(locale, imported_toolpath_key(state), &[])
+}
+
 /// 結果 `status` の、言語 `locale` の文言
 pub(crate) fn operation_status_text(locale: UiLocale, status: &OperationStatus) -> String {
     let (key, args) = operation_status_message(locale, status);
@@ -278,12 +306,6 @@ pub struct MachiningConditionsUiState {
     pub(crate) dialog_issues: Vec<ConditionIssue>,
     /// 表示中の結果のジョブの番号と、計算に使った条件
     pub imported: Option<(u64, ImportedConditions)>,
-    /// 加工工程の今の改訂の計算の状態
-    pub(crate) job_status: JobStatusLine,
-    /// 空間モデルに取り込んだ CL が、今の条件の結果か
-    pub imported_toolpath: ImportedToolpathState,
-    /// 最後の操作の結果
-    pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
     /// 選んだ工程の空間モデルの CL を消して、ツールパス生成から投入し直す
     pub(crate) redo_requested: bool,
@@ -503,17 +525,7 @@ impl MachiningConditionsUiState {
     }
 
     fn issue_text(&self, issue: &ConditionIssue) -> String {
-        match issue {
-            ConditionIssue::NoProductShape => self.text("conditions.issue.no_product_shape"),
-            ConditionIssue::Condition(error) => {
-                let (key, args) = condition_error_message(error);
-                self.text_with_args(key, &args)
-            }
-            ConditionIssue::Other(message) => self.text_with_args(
-                "conditions.issue.other",
-                &[("reason", resolve_failure_message(self.locale, message))],
-            ),
-        }
+        condition_issue_text(self.locale, issue)
     }
 
     /// ダイアログで編集している条件の、欄 `field` の問題を出す
@@ -622,11 +634,6 @@ impl MachiningConditionsUiState {
 
     /// 手順の名前と、設定のダイアログを開くボタンと、工程の一覧の操作（加える・複写・消す・並べ替え）
     fn show_list_toolbar(&mut self, ui: &mut egui::Ui) {
-        let position = self
-            .operations
-            .iter()
-            .position(|row| row.id == self.selected_operation);
-        let count = self.operations.len();
         let mut command = None;
         ui.horizontal_wrapped(|ui| {
             ui.strong(self.text_with_args(
@@ -657,27 +664,27 @@ impl MachiningConditionsUiState {
             }
             if ui
                 .add_enabled(
-                    count > 1,
+                    self.command_enabled(&OperationCommand::Remove, self.selected_position()),
                     egui::Button::new(self.text("conditions.operations.remove")),
                 )
                 .clicked()
             {
                 command = Some(OperationCommand::Remove);
             }
-            let up = ui
-                .add_enabled(position.is_some_and(|at| at > 0), egui::Button::new("▲"))
-                .on_hover_text(self.text("conditions.operations.move_up"));
-            if up.clicked() {
-                command = Some(OperationCommand::Move(-1));
-            }
-            let down = ui
-                .add_enabled(
-                    position.is_some_and(|at| at + 1 < count),
-                    egui::Button::new("▼"),
-                )
-                .on_hover_text(self.text("conditions.operations.move_down"));
-            if down.clicked() {
-                command = Some(OperationCommand::Move(1));
+            for (offset, label, key) in [
+                (-1, "▲", "conditions.operations.move_up"),
+                (1, "▼", "conditions.operations.move_down"),
+            ] {
+                let moved = OperationCommand::Move(offset);
+                let response = ui
+                    .add_enabled(
+                        self.command_enabled(&moved, self.selected_position()),
+                        egui::Button::new(label),
+                    )
+                    .on_hover_text(self.text(key));
+                if response.clicked() {
+                    command = Some(moved);
+                }
             }
         });
         if command.is_some() {
@@ -686,22 +693,34 @@ impl MachiningConditionsUiState {
     }
 
     /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・手順の全体を投入・CL 取込・切削シミュレーション表示・
-    /// ジョブマネージャーを開く）と、その結果・選んだ工程の計算の状態
+    /// ジョブマネージャーを開く）。結果と状態は、行の数で工程リストの高さを変えないよう、ステータスバーに出す
     fn show_job_commands(&mut self, ui: &mut egui::Ui) {
+        // 投入・やり直しを押せない理由（条件の誤り）は、押せないボタンに乗せたときに出す
+        let reasons = self
+            .issues
+            .iter()
+            .map(|issue| condition_issue_text(self.locale, issue))
+            .collect::<Vec<_>>()
+            .join("\n");
         ui.horizontal_wrapped(|ui| {
-            let can_submit = self.issues.is_empty();
+            let can_submit = self.action_enabled(&RowAction::Submit, self.selected_position());
             let submit = ui
                 .add_enabled(
                     can_submit,
                     egui::Button::new(self.text("conditions.submit")),
                 )
-                .on_hover_text(self.text("conditions.submit.hint"));
+                .on_hover_text(self.text("conditions.submit.hint"))
+                .on_disabled_hover_text(&reasons);
             if submit.clicked() {
                 self.submit_requested = true;
             }
             let redo = ui
-                .add_enabled(can_submit, egui::Button::new(self.text("conditions.redo")))
-                .on_hover_text(self.text("conditions.redo.hint"));
+                .add_enabled(
+                    self.action_enabled(&RowAction::Redo, self.selected_position()),
+                    egui::Button::new(self.text("conditions.redo")),
+                )
+                .on_hover_text(self.text("conditions.redo.hint"))
+                .on_disabled_hover_text(&reasons);
             if redo.clicked() {
                 self.redo_requested = true;
             }
@@ -731,15 +750,38 @@ impl MachiningConditionsUiState {
                 self.open_job_manager_requested = true;
             }
         });
-        // 投入を押せない理由として、すべての誤りを出す（欄ごとの誤りは、設定のダイアログの欄の下にも出す）
-        for issue in &self.issues {
-            ui.colored_label(ui.visuals().error_fg_color, self.issue_text(issue));
+    }
+
+    /// 加工の順の `position` 番目の工程に対して行う操作 `action` を、今押せるか（ボタンと右クリックのメニューで同じ
+    /// 決め方にする）
+    fn action_enabled(&self, action: &RowAction, position: Option<usize>) -> bool {
+        match action {
+            RowAction::Submit | RowAction::Redo => self.issues.is_empty(),
+            RowAction::Command(command) => self.command_enabled(command, position),
+            RowAction::OpenSettings | RowAction::ImportToolpath | RowAction::Import => true,
         }
-        if let Some(status) = &self.status {
-            ui.label(operation_status_text(self.locale, status));
+    }
+
+    /// 選んだ工程の、加工の順の位置
+    fn selected_position(&self) -> Option<usize> {
+        self.operations
+            .iter()
+            .position(|row| row.id == self.selected_operation)
+    }
+
+    /// 加工の順の `position` 番目の工程に対して行う一覧の操作 `command` を、今押せるか（消すのは工程が 2 つ以上、
+    /// 動かすのは端を越えないとき）
+    fn command_enabled(&self, command: &OperationCommand, position: Option<usize>) -> bool {
+        let count = self.operations.len();
+        match command {
+            OperationCommand::Remove => count > 1,
+            OperationCommand::Move(offset) => position
+                .and_then(|at| at.checked_add_signed(*offset))
+                .is_some_and(|to| to < count),
+            OperationCommand::Select(_) | OperationCommand::Add | OperationCommand::Duplicate => {
+                true
+            }
         }
-        ui.label(self.text(job_status_key(&self.job_status)));
-        ui.label(self.text(imported_toolpath_key(self.imported_toolpath)));
     }
 
     /// 工程の表（1 行が 1 工程。上から加工の順）。行を押すと選び、ダブルクリックで工程の設定のダイアログを開き、
@@ -747,8 +789,6 @@ impl MachiningConditionsUiState {
     fn show_operation_table(&mut self, ui: &mut egui::Ui) {
         let mut select = None;
         let mut action = None;
-        let can_submit = self.issues.is_empty();
-        let count = self.operations.len();
         egui::Grid::new("operation_table")
             .striped(true)
             .num_columns(COLUMN_KEYS.len())
@@ -777,7 +817,7 @@ impl MachiningConditionsUiState {
                             action = Some(RowAction::OpenSettings);
                         }
                         response.context_menu(|ui| {
-                            if let Some(chosen) = self.row_menu(ui, index, count, can_submit) {
+                            if let Some(chosen) = self.row_menu(ui, index) {
                                 action = Some(chosen);
                                 ui.close();
                             }
@@ -802,56 +842,42 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 行（加工の順の `index` 番目。工程は全部で `count`）の右クリックのメニュー。選んだ操作を返す
-    fn row_menu(
-        &self,
-        ui: &mut egui::Ui,
-        index: usize,
-        count: usize,
-        can_submit: bool,
-    ) -> Option<RowAction> {
+    /// 加工の順の `index` 番目の行の右クリックのメニュー（その行を選んでから行う）。選んだ操作を返す。押せるかは、
+    /// 右クリックした行で決める（行を選ぶ操作を受け取る前のフレームでも、その行の状態で出す）
+    fn row_menu(&self, ui: &mut egui::Ui, index: usize) -> Option<RowAction> {
         let items = [
             (
                 RowAction::OpenSettings,
                 "conditions.list.operation_settings",
-                true,
             ),
-            (RowAction::Submit, "conditions.submit", can_submit),
-            (RowAction::Redo, "conditions.redo", can_submit),
-            (
-                RowAction::ImportToolpath,
-                "conditions.import_toolpath",
-                true,
-            ),
-            (RowAction::Import, "conditions.import", true),
+            (RowAction::Submit, "conditions.submit"),
+            (RowAction::Redo, "conditions.redo"),
+            (RowAction::ImportToolpath, "conditions.import_toolpath"),
+            (RowAction::Import, "conditions.import"),
             (
                 RowAction::Command(OperationCommand::Add),
                 "conditions.operations.add",
-                true,
             ),
             (
                 RowAction::Command(OperationCommand::Duplicate),
                 "conditions.operations.duplicate",
-                true,
             ),
             (
                 RowAction::Command(OperationCommand::Remove),
                 "conditions.operations.remove",
-                count > 1,
             ),
             (
                 RowAction::Command(OperationCommand::Move(-1)),
                 "conditions.operations.move_up",
-                index > 0,
             ),
             (
                 RowAction::Command(OperationCommand::Move(1)),
                 "conditions.operations.move_down",
-                index + 1 < count,
             ),
         ];
         let mut chosen = None;
-        for (action, key, enabled) in items {
+        for (action, key) in items {
+            let enabled = self.action_enabled(&action, Some(index));
             // 工程の設定・計算・一覧の操作の間に区切りを入れる
             if matches!(
                 action,
@@ -1363,7 +1389,11 @@ mod tests {
 
     #[test]
     fn rows_whose_cl_is_current_are_shown_as_imported_unless_pending() {
-        let item = viewmodel::space_model_document::SpaceModelDocument::new()
+        let names = viewmodel::space_model_document::DefaultNames {
+            sequence: "加工手順",
+            operation: "スキャン加工",
+        };
+        let item = viewmodel::space_model_document::SpaceModelDocument::new(names)
             .operations()
             .remove(0);
         let row = |status, toolpath_current| OperationRow {

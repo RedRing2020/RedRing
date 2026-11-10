@@ -115,8 +115,9 @@ impl AppState {
             self.camera = camera;
         }
         self.update_camera_uniforms();
+        // 画面の下の行を起動の案内に戻すだけで、新しいメッセージとして一覧には足さない
         if self.notice == crate::help_ui::Notice::DebugViewShown {
-            self.set_notice(crate::help_ui::Notice::Startup);
+            self.notice = crate::help_ui::Notice::Startup;
         }
         self.refresh_snapshot_window_title();
     }

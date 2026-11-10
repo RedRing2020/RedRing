@@ -42,6 +42,8 @@ impl SettingsPanelRenderer {
     pub(crate) fn new(window: &Window, device: &Device, format: TextureFormat) -> Self {
         let egui_context = Context::default();
         install_cjk_system_font(&egui_context);
+        // 画面の文字は選べないようにする（押したときに選んだまま残らないように）。写したい文字は、個別に選べるようにする
+        egui_context.all_styles_mut(|style| style.interaction.selectable_labels = false);
 
         let egui_state = State::new(
             egui_context.clone(),
@@ -108,7 +110,7 @@ impl SettingsPanelRenderer {
         &mut self,
         window: &Window,
         menu: &mut MenuBarUiState,
-        notice: &NoticeBarUiState<'_>,
+        notice: &mut NoticeBarUiState<'_>,
         panel: &mut SettingsPanelUiState,
         conditions: &mut MachiningConditionsUiState,
         help: &mut HelpUiState,
@@ -212,8 +214,17 @@ impl SettingsPanelRenderer {
     }
 }
 
+/// 記号（📋 など）を、決めた形で描くためのフォントの集まりの名前
+pub(crate) const SYMBOL_FONT_FAMILY: &str = "symbols";
+
 fn install_cjk_system_font(ctx: &Context) {
     let mut fonts = egui::FontDefinitions::default();
+    // 記号は、この集まりで描く。NotoEmoji の 📋 は斜めに傾けた絵で、小さく描くと札に見えるため、まっすぐな形の
+    // emoji-icon-font を先に使う
+    fonts.families.insert(
+        egui::FontFamily::Name(SYMBOL_FONT_FAMILY.into()),
+        vec!["emoji-icon-font".to_owned(), "NotoEmoji-Regular".to_owned()],
+    );
 
     if let Some(font_bytes) = load_system_cjk_font_bytes() {
         let font_name = "system_cjk".to_owned();

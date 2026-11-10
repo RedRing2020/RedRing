@@ -6,6 +6,12 @@ use geo_contracts::TriangleMesh3DConstructor;
 
 use super::*;
 
+/// 試験で作る加工手順・加工工程の名前
+pub(crate) const NAMES: DefaultNames<'static> = DefaultNames {
+    sequence: "加工手順",
+    operation: "スキャン加工",
+};
+
 /// 試験ごとの一時のファイルの名前（並べて走る試験どうしで分ける）
 fn temporary_file(extension: &str) -> PathBuf {
     static NEXT: AtomicUsize = AtomicUsize::new(0);
@@ -34,7 +40,7 @@ fn pyramid() -> TriangleMesh3D<f64> {
 pub(crate) fn document_with_pyramid() -> SpaceModelDocument {
     let path = temporary_file("stl");
     geo_io::stl::save_stl(&pyramid(), &path).unwrap();
-    let mut document = SpaceModelDocument::new();
+    let mut document = SpaceModelDocument::new(NAMES);
     document.import_stl(&path).unwrap();
     std::fs::remove_file(&path).unwrap();
     document
@@ -42,11 +48,14 @@ pub(crate) fn document_with_pyramid() -> SpaceModelDocument {
 
 #[test]
 fn new_documents_have_one_operation_and_no_changes() {
-    let document = SpaceModelDocument::new();
+    let document = SpaceModelDocument::new(NAMES);
     assert!(!document.is_modified());
     assert_eq!(document.path(), None);
     assert!(document.shapes().entities().is_empty());
-    assert_eq!(document.operation_content(), &initial_operation_content());
+    assert_eq!(
+        document.operation_content(),
+        &initial_operation_content(NAMES.operation.to_string())
+    );
     assert_eq!(document.stock(), initial_stock());
 }
 
@@ -61,7 +70,7 @@ fn imported_shapes_are_displayed_and_are_a_change() {
 
 #[test]
 fn only_edits_that_change_the_conditions_are_changes() {
-    let mut document = SpaceModelDocument::new();
+    let mut document = SpaceModelDocument::new(NAMES);
     document.set_operation_content(document.operation_content().clone());
     document.set_stock(document.stock());
     // 表示中の製品形状がなく、加工の対象は空のまま
@@ -73,7 +82,7 @@ fn only_edits_that_change_the_conditions_are_changes() {
     document.set_operation_content(content);
     assert!(document.is_modified());
 
-    let mut document = SpaceModelDocument::new();
+    let mut document = SpaceModelDocument::new(NAMES);
     document.set_stock(MachiningStock {
         precision: 0.2,
         ..document.stock()
@@ -83,7 +92,7 @@ fn only_edits_that_change_the_conditions_are_changes() {
 
 #[test]
 fn edited_conditions_are_held_by_the_operation_and_the_sequence() {
-    let mut document = SpaceModelDocument::new();
+    let mut document = SpaceModelDocument::new(NAMES);
     let mut content = document.operation_content().clone();
     content.tool = CuttingToolKind::FlatEndMill.tool(8.0, Some(20.0));
     let stock = MachiningStock {
@@ -105,7 +114,10 @@ fn opened_documents_target_the_visible_faces_without_a_change() {
     // 加工の対象を合わせていない加工手順
     let sequence = sequences.create_sequence("手順".to_string(), Vec::new(), initial_stock());
     sequences
-        .add_operation(sequence, initial_operation_content())
+        .add_operation(
+            sequence,
+            initial_operation_content(NAMES.operation.to_string()),
+        )
         .unwrap();
     let info = SpaceModelSaveInfo {
         program_version: "0.1.0".to_string(),
@@ -113,7 +125,7 @@ fn opened_documents_target_the_visible_faces_without_a_change() {
     };
     save_space_model(&path, &SpaceModel::new(shapes, sequences), &info).unwrap();
 
-    let mut document = SpaceModelDocument::open(&path).unwrap();
+    let mut document = SpaceModelDocument::open(&path, NAMES).unwrap();
     assert!(!document.is_modified());
     let (shapes, sequences, _, _) = document.machining();
     assert_eq!(
@@ -138,7 +150,7 @@ fn saved_documents_are_opened_with_the_same_contents_and_no_changes() {
     assert!(!document.is_modified());
     assert_eq!(document.path(), Some(path.as_path()));
 
-    let mut opened = SpaceModelDocument::open(&path).unwrap();
+    let mut opened = SpaceModelDocument::open(&path, NAMES).unwrap();
     assert!(!opened.is_modified());
     assert_eq!(opened.path(), Some(path.as_path()));
     assert_eq!(opened.operation_content(), &content);
@@ -160,7 +172,10 @@ fn saved_documents_are_opened_with_the_same_contents_and_no_changes() {
     opened.save_as(&path, "0.1.0").unwrap();
     assert!(!opened.is_modified());
     assert_eq!(
-        SpaceModelDocument::open(&path).unwrap().stock().precision,
+        SpaceModelDocument::open(&path, NAMES)
+            .unwrap()
+            .stock()
+            .precision,
         0.3
     );
     std::fs::remove_file(&path).unwrap();
@@ -178,8 +193,11 @@ fn model_files_without_machining_sequences_get_one_operation() {
     };
     save_space_model(&path, &model, &info).unwrap();
 
-    let document = SpaceModelDocument::open(&path).unwrap();
-    assert_eq!(document.operation_content(), &initial_operation_content());
+    let document = SpaceModelDocument::open(&path, NAMES).unwrap();
+    assert_eq!(
+        document.operation_content(),
+        &initial_operation_content(NAMES.operation.to_string())
+    );
     assert_eq!(document.shapes().entities().len(), 1);
     std::fs::remove_file(&path).unwrap();
 }
@@ -188,10 +206,10 @@ fn model_files_without_machining_sequences_get_one_operation() {
 fn unreadable_model_files_are_not_opened() {
     let path = temporary_file("rrm");
     std::fs::write(&path, b"not a model file").unwrap();
-    assert!(SpaceModelDocument::open(&path).is_err());
+    assert!(SpaceModelDocument::open(&path, NAMES).is_err());
     std::fs::remove_file(&path).unwrap();
     assert!(matches!(
-        SpaceModelDocument::open(&path),
+        SpaceModelDocument::open(&path, NAMES),
         Err(SpaceModelFileError::Io(_))
     ));
 }
@@ -199,7 +217,7 @@ fn unreadable_model_files_are_not_opened() {
 #[test]
 fn operations_are_added_duplicated_moved_selected_and_removed() {
     use application::machining_sequence::OperationSpec;
-    let mut document = SpaceModelDocument::new();
+    let mut document = SpaceModelDocument::new(NAMES);
     let first = document.selected_operation();
     assert_eq!(document.operations().len(), 1);
     assert!(!document.is_modified());
@@ -216,7 +234,7 @@ fn operations_are_added_duplicated_moved_selected_and_removed() {
             .iter()
             .map(|item| (item.id, item.name.as_str()))
             .collect::<Vec<_>>(),
-        vec![(first, OPERATION_NAME), (rough, "荒")]
+        vec![(first, NAMES.operation), (rough, "荒")]
     );
     // 複写は、選んだ工程の中身を受け継ぐ
     let mut content = document.operation_content().clone();
@@ -237,7 +255,7 @@ fn operations_are_added_duplicated_moved_selected_and_removed() {
     // 選び直し（手順にない工程は選ばない）
     assert!(document.select_operation(first));
     assert_eq!(document.selected_operation(), first);
-    let unknown = SpaceModelDocument::new().selected_operation();
+    let unknown = SpaceModelDocument::new(NAMES).selected_operation();
     assert!(!document.select_operation(unknown));
     // 消すと、次の工程（最後なら前の工程）を選ぶ
     assert!(document.select_operation(rough));
@@ -274,7 +292,7 @@ fn operations_are_added_duplicated_moved_selected_and_removed() {
     // 保存して開き直しても、工程の並びはそのまま
     let path = temporary_file("rrm");
     document.save_as(&path, "0.1.0").unwrap();
-    let reopened = SpaceModelDocument::open(&path).unwrap();
+    let reopened = SpaceModelDocument::open(&path, NAMES).unwrap();
     std::fs::remove_file(&path).unwrap();
     assert_eq!(reopened.operations(), document.operations());
 }

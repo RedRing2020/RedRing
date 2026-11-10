@@ -35,7 +35,7 @@ Display:
 
 | Symptom | What to check |
 |---|---|
-| "Import CL" or "Show cutting simulation" does not import | After changing the conditions or the visible product shape, nothing can be imported until you submit again. Check the line with the result of the last operation in the operation list and the log (`logs/redring.log`) |
+| "Import CL" or "Show cutting simulation" does not import | After changing the conditions or the visible product shape, nothing can be imported until you submit again. Check the list opened with 📋 in the status bar and the log (`logs/redring.log`) |
 | "Submit" cannot be pressed | A condition error is shown in red below the field to fix. Fix it to enable the button |
 | "Submit" says that the job manager is not installed | Check that `redring-job-manager` and `redring-batch-runner` are in the same folder as the app. When built from source, build with `cargo build --release` |
 | The calculation stays "waiting" | Check the job manager log (`%LOCALAPPDATA%\RedRing\jobs\manager.log`) |
