@@ -92,15 +92,16 @@ impl AppState {
         (top, bottom - top)
     }
 
-    /// カメラのユニフォームを更新（3D の表示は、メニューバーと工程リスト・ステータスバーの間の帯に描き、帯の中心を
-    /// 見る中心にする）
+    /// カメラのユニフォームを更新（見る中心を、メニューバーと工程リスト・ステータスバーの間の帯の中心にする。拡大
+    /// 縮小率はウィンドウの全体で決め、工程リストの高さを変えても変えない）
     pub fn update_camera_uniforms(&mut self) {
         let view_matrix = self.camera.view_matrix();
         let (band_top, band_height) = self.view_band();
-        let aspect = self.graphic.config.width as f32 / band_height;
-        let projection_matrix = viewmodel_graphics::project_into_band(
+        let screen_height = (self.graphic.config.height as f32).max(1.0);
+        let aspect = self.graphic.config.width as f32 / screen_height;
+        let projection_matrix = viewmodel_graphics::center_in_band(
             self.camera.projection_matrix(aspect),
-            (self.graphic.config.height as f32).max(1.0),
+            screen_height,
             band_top,
             band_height,
         );
