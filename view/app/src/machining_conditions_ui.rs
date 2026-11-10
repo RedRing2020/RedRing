@@ -334,7 +334,7 @@ pub(crate) struct OperationRow {
     pub(crate) toolpath_current: bool,
 }
 
-/// 加工工程の一覧の行に出す状態の文言のキー（計算済み・未投入（ジョブマネージャーの結果を消したとき）・状態不明
+/// 加工工程の一覧の行に出す状態の文言のキー（計算済み・未計算（ジョブマネージャーの結果を消したとき）・状態不明
 /// （ジョブマネージャーが動いていない・見つからない）の工程は、空間モデルの CL が今の条件の結果なら取込済み。CL が正本
 /// のため、ジョブの側を見なくてよい。計算待ち・計算中・失敗などは、そのまま出す）
 fn operation_row_key(row: &OperationRow) -> &'static str {
@@ -1284,11 +1284,11 @@ mod tests {
         let status = OperationStatus::SubmitFailed(failure("failure.orchestration"));
         assert_eq!(
             operation_status_text(UiLocale::Ja, &status),
-            "投入できません（ジョブを投入・実行できません）"
+            "計算を始められません（計算のジョブを扱えません）"
         );
         assert_eq!(
             operation_status_text(UiLocale::En, &status),
-            "Cannot submit (Cannot submit or run the job)"
+            "Cannot start the calculation (Cannot handle the calculation job)"
         );
     }
 
