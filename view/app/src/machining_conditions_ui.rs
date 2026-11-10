@@ -342,21 +342,32 @@ fn calculation_waiting_or_done(status: &JobStatusLine) -> bool {
     matches!(status, JobStatusLine::Status(status) if status.is_waiting_or_done())
 }
 
-/// 計算に乗せたときに出す、工程の計算の状態の案内（次にできること）の文言のキー（案内のない状態は `None`）
-fn calculation_guide_key(row: &OperationRow) -> Option<&'static str> {
-    match row.status {
+/// 選んだ工程の、計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` に応じた、次に
+/// できることの案内（画面の下の行の右に出す。案内のない状態は `None`）
+pub(crate) fn navigation_text(
+    locale: UiLocale,
+    status: &JobStatusLine,
+    toolpath_current: bool,
+) -> Option<String> {
+    navigation_key(status, toolpath_current)
+        .map(|key| resolve_machining_conditions_text(locale, key, &[]))
+}
+
+/// [`navigation_text`] の文言のキー
+fn navigation_key(status: &JobStatusLine, toolpath_current: bool) -> Option<&'static str> {
+    match status {
         JobStatusLine::Status(OperationJobStatus::Queued | OperationJobStatus::Running) => {
-            Some("conditions.submit.guide.in_progress")
+            Some("conditions.navigation.in_progress")
         }
-        JobStatusLine::Status(OperationJobStatus::Succeeded) if row.toolpath_current => {
-            Some("conditions.submit.guide.imported_with_simulation")
+        JobStatusLine::Status(OperationJobStatus::Succeeded) if toolpath_current => {
+            Some("conditions.navigation.imported_with_simulation")
         }
         JobStatusLine::Status(OperationJobStatus::Succeeded) => {
-            Some("conditions.submit.guide.calculated")
+            Some("conditions.navigation.calculated")
         }
         // ジョブマネージャーの結果を消した後・別の PC で開いたとき（CL から切削シミュレーションだけを計算する）
-        JobStatusLine::NotSubmitted if row.toolpath_current => {
-            Some("conditions.submit.guide.imported_toolpath_only")
+        JobStatusLine::NotSubmitted if toolpath_current => {
+            Some("conditions.navigation.imported_toolpath_only")
         }
         _ => None,
     }
@@ -740,12 +751,8 @@ impl MachiningConditionsUiState {
                     can_submit,
                     egui::Button::new(self.text("conditions.submit")),
                 )
-                .on_hover_ui(|ui| {
-                    ui.label(self.submit_hover_text(position, true));
-                })
-                .on_disabled_hover_ui(|ui| {
-                    ui.label(self.submit_hover_text(position, false));
-                });
+                .on_hover_text(self.text("conditions.submit.hint"))
+                .on_disabled_hover_text(&reasons);
             if submit.clicked() {
                 self.submit_requested = true;
             }
@@ -808,25 +815,6 @@ impl MachiningConditionsUiState {
         self.issues
             .iter()
             .map(|issue| self.issue_text(issue))
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    /// 加工の順の `position` 番目の工程の計算に乗せたときの文。計算の状態の案内（次にできること）の後に、押せる
-    /// ときは計算の説明、押せないときは条件の誤りを続ける
-    fn submit_hover_text(&self, position: Option<usize>, enabled: bool) -> String {
-        let guide = position
-            .and_then(|at| self.operations.get(at))
-            .and_then(calculation_guide_key)
-            .map(|key| self.text(key));
-        let detail = if enabled {
-            self.text("conditions.submit.hint")
-        } else {
-            self.issue_reasons()
-        };
-        guide
-            .into_iter()
-            .chain((!detail.is_empty()).then_some(detail))
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -954,13 +942,10 @@ impl MachiningConditionsUiState {
             ) {
                 ui.separator();
             }
-            let mut response = ui.add_enabled(enabled, egui::Button::new(self.text(key)));
-            if action == RowAction::Submit {
-                response = response.on_disabled_hover_ui(|ui| {
-                    ui.label(self.submit_hover_text(Some(index), false));
-                });
-            }
-            if response.clicked() {
+            if ui
+                .add_enabled(enabled, egui::Button::new(self.text(key)))
+                .clicked()
+            {
                 chosen = Some(action);
             }
         }
@@ -1328,8 +1313,8 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        calculation_guide_key, calculation_waiting_or_done, condition_error_message,
-        condition_field, imported_toolpath_key, job_status_key, operation_row_key,
+        calculation_waiting_or_done, condition_error_message, condition_field,
+        imported_toolpath_key, job_status_key, navigation_key, navigation_text, operation_row_key,
         operation_row_status_key, operation_status_text, stage_key, ConditionField, JobStatusLine,
         MachiningStage, OperationJobStatus, OperationRow, OperationStatus, COLUMN_KEYS,
     };
@@ -1543,54 +1528,42 @@ mod tests {
     }
 
     #[test]
-    fn the_calculation_guide_tells_what_can_be_done_next() {
-        let names = viewmodel::space_model_document::DefaultNames {
-            sequence: "加工手順",
-            operation: "スキャン加工",
-        };
-        let item = viewmodel::space_model_document::SpaceModelDocument::new(names)
-            .operations()
-            .remove(0);
-        let row = |status, toolpath_current| OperationRow {
-            id: item.id,
-            name: item.name.clone(),
-            stage: item.stage,
-            spec: item.spec,
-            tool: item.tool.clone(),
-            status,
-            toolpath_current,
-        };
+    fn the_navigation_tells_what_can_be_done_next_for_the_selected_operation() {
         let succeeded = JobStatusLine::Status(OperationJobStatus::Succeeded);
         let cases = [
             (
-                row(JobStatusLine::Status(OperationJobStatus::Running), false),
-                Some("conditions.submit.guide.in_progress"),
+                JobStatusLine::Status(OperationJobStatus::Running),
+                false,
+                Some("conditions.navigation.in_progress"),
             ),
             (
-                row(succeeded.clone(), false),
-                Some("conditions.submit.guide.calculated"),
+                succeeded.clone(),
+                false,
+                Some("conditions.navigation.calculated"),
             ),
             (
-                row(succeeded, true),
-                Some("conditions.submit.guide.imported_with_simulation"),
+                succeeded,
+                true,
+                Some("conditions.navigation.imported_with_simulation"),
             ),
             (
-                row(JobStatusLine::NotSubmitted, true),
-                Some("conditions.submit.guide.imported_toolpath_only"),
+                JobStatusLine::NotSubmitted,
+                true,
+                Some("conditions.navigation.imported_toolpath_only"),
             ),
-            (row(JobStatusLine::NotSubmitted, false), None),
+            (JobStatusLine::NotSubmitted, false, None),
             (
-                row(JobStatusLine::Status(OperationJobStatus::Failed), true),
+                JobStatusLine::Status(OperationJobStatus::Failed),
+                true,
                 None,
             ),
         ];
-        for (row, key) in cases {
-            assert_eq!(calculation_guide_key(&row), key, "{:?}", row.status);
-            if let Some(key) = key {
-                for locale in [UiLocale::Ja, UiLocale::En] {
-                    let text = resolve_machining_conditions_text(locale, key, &[]);
-                    assert!(!text.contains("__missing__"), "{key}");
-                }
+        for (status, toolpath_current, key) in cases {
+            assert_eq!(navigation_key(&status, toolpath_current), key, "{status:?}");
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text = navigation_text(locale, &status, toolpath_current);
+                assert_eq!(text.is_some(), key.is_some());
+                assert!(!text.unwrap_or_default().contains("__missing__"));
             }
         }
     }

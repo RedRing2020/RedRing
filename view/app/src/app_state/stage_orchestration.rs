@@ -49,6 +49,7 @@ impl AppState {
             unread: self.unread_notice,
             details: self.notice_details(),
             log_opened: false,
+            navigation: self.navigation_text(),
         };
         self.renderer.prepare_ui_windows(
             &self.window,

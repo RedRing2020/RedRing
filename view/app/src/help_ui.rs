@@ -5,8 +5,8 @@ use crate::machining_conditions_ui::{operation_status_text, OperationStatus};
 use crate::settings_panel_renderer::SYMBOL_FONT_FAMILY;
 use egui::containers::menu::{MenuButton, MenuConfig};
 use egui::{
-    Align2, Color32, Context, Grid, Label, Panel, PopupCloseBehavior, Rect, RichText, ScrollArea,
-    Ui, Window,
+    Align, Align2, Color32, Context, Grid, Label, Layout, Panel, PopupCloseBehavior, Rect,
+    RichText, ScrollArea, Ui, Window,
 };
 use std::collections::VecDeque;
 use viewmodel::failure_message_catalog::resolve_failure_message;
@@ -240,6 +240,8 @@ pub struct NoticeBarUiState<'a> {
     pub(crate) details: Vec<(NoticeLevel, String)>,
     /// 一覧を開いた（まだ開いていないメッセージの印を消す）
     pub(crate) log_opened: bool,
+    /// 右に出す、次にできることの案内（選んだ工程の状態に応じて。`None` は出さない）
+    pub(crate) navigation: Option<String>,
 }
 
 /// 重さ `level` の文字の色（普段の文字は `None`）
@@ -281,7 +283,16 @@ impl NoticeBarUiState<'_> {
                 }
                 response.on_hover_text(resolve_help_text(self.locale, "notice.log.hint", &[]));
                 let text = level_text(ui, self.notice.level(), self.notice.text(self.locale));
-                ui.add(Label::new(text).truncate());
+                // 案内を右に寄せて先に置き、メッセージは残りの幅で切り詰める
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if let Some(navigation) = &self.navigation {
+                        ui.label(navigation);
+                        ui.separator();
+                    }
+                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        ui.add(Label::new(text).truncate());
+                    });
+                });
             });
         });
     }
