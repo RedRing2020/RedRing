@@ -72,11 +72,14 @@ impl ProcessLauncher {
 
 impl Launcher for ProcessLauncher {
     fn launch(&self, spec: &LaunchSpec) -> std::io::Result<Box<dyn RunningJob>> {
-        // 標準エラー出力を残す（ランナーがログに書けずに止まったときの理由。前の実行の分は消す）
-        if let Some(parent) = spec.stderr.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let stderr = File::create(&spec.stderr)?;
+        // 標準エラー出力を残す（ランナーがログに書けずに止まったときの理由。前の実行の分は消す）。補助の情報のため、
+        // ファイルを作れなければ捨てて起動する（ログのフォルダに書けないことは、ランナーが終了の番号で返す）
+        let stderr = spec
+            .stderr
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| File::create(&spec.stderr))
+            .map_or_else(|_| Stdio::null(), Stdio::from);
         let mut command = Command::new(&self.runner);
         command
             .args(spec.args())

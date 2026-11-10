@@ -17,6 +17,8 @@ use crate::args::{JobKind, RunnerArgs};
 const TOOLPATH_FILE: &str = "toolpath.bin";
 /// 切削シミュレーションの成果物のファイルの名前
 const CUTTING_SIMULATION_FILE: &str = "cutting_simulation.bin";
+/// ツールパスを読むときのバッファーの大きさ（大きなファイルで、読み込みの呼び出しの回数を減らす）
+const TOOLPATH_READ_BUFFER_BYTES: usize = 1 << 20;
 /// ログのファイルの名前（書いている間は `runner.log.tmp`）
 const LOG_FILE: &str = "runner.log";
 
@@ -138,7 +140,7 @@ fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
                 })?;
             // ツールパスは大きくなることがあるため、丸ごと読まずに、ファイルから読みながら組み立てる
             let mut toolpath = File::open(toolpath_path)
-                .map(BufReader::new)
+                .map(|file| BufReader::with_capacity(TOOLPATH_READ_BUFFER_BYTES, file))
                 .map_err(|error| {
                     Failure::new(
                         ExitCode::InputUnreadable,
