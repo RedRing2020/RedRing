@@ -28,14 +28,17 @@ use crate::product_shape_converter::{
 };
 use crate::toolpath_converter::ToolPathVisualizationSettings;
 
-/// 加工手順・加工工程の名前（名前を編集できるようになるまでの固定の名前）
-const SEQUENCE_NAME: &str = "加工手順";
-const OPERATION_NAME: &str = "スキャン加工";
+/// 空間モデルに加工手順・加工工程がないときに作る、加工手順・加工工程の名前（画面の言語の名前を渡す）
+#[derive(Debug, Clone, Copy)]
+pub struct DefaultNames<'a> {
+    pub sequence: &'a str,
+    pub operation: &'a str,
+}
 
-/// 新しく作る加工工程の中身（直径 10 mm のボールエンドミル、ピックフィード 2 mm）
-fn initial_operation_content() -> MachiningOperationContent {
+/// 新しく作る、名前が `name` の加工工程の中身（直径 10 mm のボールエンドミル、ピックフィード 2 mm）
+fn initial_operation_content(name: String) -> MachiningOperationContent {
     scanline_finish_operation_content(
-        OPERATION_NAME.to_string(),
+        name,
         CuttingToolKind::BallEndMill.tool(10.0, None),
         ScanlineParams {
             stepover: 2.0,
@@ -79,39 +82,34 @@ pub struct SpaceModelDocument {
     display: ProductShapeDisplaySettings,
 }
 
-impl Default for SpaceModelDocument {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SpaceModelDocument {
-    /// 空の空間モデル（製品形状なし。加工工程を 1 つ持つ加工手順）の文書を作る
-    pub fn new() -> Self {
+    /// 空の空間モデル（製品形状なし。加工工程を 1 つ持つ加工手順。名前は `names`）の文書を作る
+    pub fn new(names: DefaultNames<'_>) -> Self {
         Self::from_model(
             SpaceModel::new(ProductShapeStore::new(), MachiningSequenceStore::new()),
             None,
+            names,
         )
     }
 
     /// モデルファイル `path` を開く
     ///
     /// 加工手順がなければ、加工工程を 1 つ持つ加工手順を作る。加工工程は、最初の加工手順の最初の加工工程を編集の
-    /// 対象にする（なければ作る）。
+    /// 対象にする（なければ作る）。作る加工手順・加工工程の名前は `names`。
     ///
     /// # Errors
     ///
     /// モデルファイルを読めない場合。
-    pub fn open(path: &Path) -> Result<Self, SpaceModelFileError> {
+    pub fn open(path: &Path, names: DefaultNames<'_>) -> Result<Self, SpaceModelFileError> {
         let (model, _) = load_space_model(path)?;
-        Ok(Self::from_model(model, Some(path.to_path_buf())))
+        Ok(Self::from_model(model, Some(path.to_path_buf()), names))
     }
 
-    fn from_model(mut model: SpaceModel, path: Option<PathBuf>) -> Self {
+    fn from_model(mut model: SpaceModel, path: Option<PathBuf>, names: DefaultNames<'_>) -> Self {
         let sequence = match model.sequences.sequence_ids().first() {
             Some(&sequence) => sequence,
             None => model.sequences.create_sequence(
-                SEQUENCE_NAME.to_string(),
+                names.sequence.to_string(),
                 Vec::new(),
                 initial_stock(),
             ),
@@ -125,7 +123,10 @@ impl SpaceModelDocument {
             Some(&operation) => operation,
             None => model
                 .sequences
-                .add_operation(sequence, initial_operation_content())
+                .add_operation(
+                    sequence,
+                    initial_operation_content(names.operation.to_string()),
+                )
                 .expect("the sequence is held"),
         };
         let mut document = Self {
@@ -263,10 +264,7 @@ impl SpaceModelDocument {
     /// 編集の対象の加工工程のすぐ後に、名前が `name` の新しい加工工程（既定の工具・走査線の条件）を加え、編集の対象に
     /// する
     pub fn add_operation(&mut self, name: String) {
-        let content = MachiningOperationContent {
-            name,
-            ..initial_operation_content()
-        };
+        let content = initial_operation_content(name);
         self.insert_after_selected(content);
     }
 

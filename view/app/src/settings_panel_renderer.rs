@@ -42,6 +42,8 @@ impl SettingsPanelRenderer {
     pub(crate) fn new(window: &Window, device: &Device, format: TextureFormat) -> Self {
         let egui_context = Context::default();
         install_cjk_system_font(&egui_context);
+        // 画面の文字は選べないようにする（押したときに選んだまま残らないように）。写したい文字は、個別に選べるようにする
+        egui_context.all_styles_mut(|style| style.interaction.selectable_labels = false);
 
         let egui_state = State::new(
             egui_context.clone(),
@@ -108,7 +110,7 @@ impl SettingsPanelRenderer {
         &mut self,
         window: &Window,
         menu: &mut MenuBarUiState,
-        notice: &NoticeBarUiState<'_>,
+        notice: &mut NoticeBarUiState<'_>,
         panel: &mut SettingsPanelUiState,
         conditions: &mut MachiningConditionsUiState,
         help: &mut HelpUiState,

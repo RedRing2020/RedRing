@@ -2,7 +2,12 @@
 
 use crate::help_messages::resolve_help_text;
 use crate::machining_conditions_ui::{operation_status_text, OperationStatus};
-use egui::{Align2, Color32, Context, Grid, Panel, Rect, Ui, Window};
+use egui::containers::menu::{MenuButton, MenuConfig};
+use egui::{
+    Align2, Color32, Context, Grid, Label, Panel, PopupCloseBehavior, Rect, RichText, ScrollArea,
+    Ui, Window,
+};
+use std::collections::VecDeque;
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
 
@@ -60,7 +65,7 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
 ];
 
 /// 知らせの重さ
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum NoticeLevel {
     Info,
     Warning,
@@ -204,26 +209,109 @@ impl Notice {
     }
 }
 
-/// 画面の下の知らせの行（最後の知らせを 1 行で出す）
-#[derive(Debug, Clone, Copy)]
+/// 画面の下の行（最後のメッセージを 1 行で出し、📋 から最近のメッセージと選んだ工程の状態の一覧を開く）
+#[derive(Debug, Clone)]
 pub struct NoticeBarUiState<'a> {
     pub locale: UiLocale,
     pub(crate) notice: &'a Notice,
+    /// 最近のメッセージ（新しい順）
+    pub(crate) history: &'a VecDeque<Notice>,
+    /// まだ一覧を開いていない、注意・失敗のメッセージのうち最も重いもの（`None` はない）
+    pub(crate) unread: Option<NoticeLevel>,
+    /// 一覧に出す、選んだ工程の状態の行（重さと文言。加工手順を開いていなければ空）
+    pub(crate) details: Vec<(NoticeLevel, String)>,
+    /// 一覧を開いた（まだ開いていないメッセージの印を消す）
+    pub(crate) log_opened: bool,
+}
+
+/// 重さ `level` の文字の色（普段の文字は `None`）
+fn level_color(ui: &Ui, level: NoticeLevel) -> Option<Color32> {
+    match level {
+        NoticeLevel::Info => None,
+        NoticeLevel::Warning => Some(ui.visuals().warn_fg_color),
+        NoticeLevel::Error => Some(ui.visuals().error_fg_color),
+    }
+}
+
+/// 重さ `level` の色を付けた文字 `text`
+fn level_text(ui: &Ui, level: NoticeLevel, text: String) -> RichText {
+    match level_color(ui, level) {
+        Some(color) => RichText::new(text).color(color),
+        None => RichText::new(text),
+    }
 }
 
 impl NoticeBarUiState<'_> {
-    pub fn show(&self, ui: &mut Ui) {
-        let notice = self.notice;
+    /// 画面の下の行に、一覧を開く 📋 と、最後のメッセージを 1 行で出す（長い文は切り詰める。全文は一覧で見る）
+    pub fn show(&mut self, ui: &mut Ui) {
         Panel::bottom("notice_bar").show(ui, |ui| {
-            let text = notice.text(self.locale);
-            match notice.level() {
-                NoticeLevel::Info => ui.label(text),
-                NoticeLevel::Warning => ui.colored_label(ui.visuals().warn_fg_color, text),
-                NoticeLevel::Error => ui.colored_label(ui.visuals().error_fg_color, text),
-            };
+            ui.horizontal(|ui| {
+                // まだ開いていない注意・失敗があれば、その重さの色にする（記号のフォントは単色のため、色を付けられる）
+                let icon = match self.unread {
+                    Some(level) => level_text(ui, level, "📋".to_string()),
+                    None => RichText::new("📋"),
+                };
+                // 一覧の中の文字を選ぶ・スクロールするときに閉じないよう、外を押したときだけ閉じる
+                let config =
+                    MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside);
+                let (response, log) = MenuButton::new(icon)
+                    .config(config)
+                    .ui(ui, |ui| self.show_log(ui));
+                if log.is_some() {
+                    self.log_opened = true;
+                }
+                response.on_hover_text(resolve_help_text(self.locale, "notice.log.hint", &[]));
+                let text = level_text(ui, self.notice.level(), self.notice.text(self.locale));
+                ui.add(Label::new(text).truncate());
+            });
         });
     }
+
+    /// 一覧（選んだ工程の状態と、最近のメッセージ。メッセージの文は写せるように選べる）
+    fn show_log(&self, ui: &mut Ui) {
+        ui.set_max_width(LOG_WIDTH);
+        ScrollArea::vertical()
+            .max_height(LOG_MAX_HEIGHT)
+            .show(ui, |ui| {
+                if !self.details.is_empty() {
+                    ui.strong(resolve_help_text(self.locale, "notice.log.state", &[]));
+                    for (level, text) in &self.details {
+                        ui.label(level_text(ui, *level, text.clone()));
+                    }
+                    ui.separator();
+                }
+                ui.strong(resolve_help_text(self.locale, "notice.log.history", &[]));
+                for notice in self.history {
+                    let text = level_text(ui, notice.level(), notice.text(self.locale));
+                    ui.add(Label::new(text).wrap().selectable(true));
+                }
+            });
+    }
 }
+
+/// 最近のメッセージの一覧 `history`（新しい順）に、メッセージ `notice` を足す（上限 `limit` を超えた古いものは
+/// 捨てる）。同じメッセージが続くときは足さない（キーを押し続けたときに、一覧が同じメッセージで埋まらないように）
+pub(crate) fn push_notice_history(history: &mut VecDeque<Notice>, notice: &Notice, limit: usize) {
+    if history.front() == Some(notice) {
+        return;
+    }
+    history.push_front(notice.clone());
+    history.truncate(limit);
+}
+
+/// まだ一覧を開いていないメッセージのうち最も重いもの `unread` に、重さ `level` のメッセージを加えた結果（注意・
+/// 失敗だけを数える）
+pub(crate) fn next_unread(unread: Option<NoticeLevel>, level: NoticeLevel) -> Option<NoticeLevel> {
+    if level > NoticeLevel::Info {
+        unread.max(Some(level))
+    } else {
+        unread
+    }
+}
+
+/// メッセージの一覧の幅・最も高い高さ（論理座標）
+const LOG_WIDTH: f32 = 520.0;
+const LOG_MAX_HEIGHT: f32 = 360.0;
 
 /// ヘルプのウィンドウ（操作の一覧・バージョンの情報）の開閉と中身
 #[derive(Debug, Clone)]
@@ -327,7 +415,8 @@ impl HelpUiState {
             .open(&mut open)
             .show(ctx, |ui| {
                 ui.heading(version);
-                ui.label(log_file);
+                // ログのファイルの場所は、写せるように選べる（ほかの文字は選べない）
+                ui.add(Label::new(log_file).selectable(true));
                 ui.hyperlink_to(manual, &manual_url);
             });
         self.about_open = open;
@@ -337,6 +426,47 @@ impl HelpUiState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_notice_log_has_texts_and_errors_are_heavier_than_warnings() {
+        for locale in [UiLocale::Ja, UiLocale::En] {
+            for key in ["notice.log.hint", "notice.log.state", "notice.log.history"] {
+                assert!(
+                    !resolve_help_text(locale, key, &[]).contains("__missing__"),
+                    "{key}"
+                );
+            }
+        }
+        // 📋 の印は、まだ開いていない注意・失敗のうち最も重いものの色にする（情報は印にしない）
+        assert_eq!(next_unread(None, NoticeLevel::Info), None);
+        assert_eq!(
+            next_unread(None, NoticeLevel::Warning),
+            Some(NoticeLevel::Warning)
+        );
+        assert_eq!(
+            next_unread(Some(NoticeLevel::Warning), NoticeLevel::Error),
+            Some(NoticeLevel::Error)
+        );
+        assert_eq!(
+            next_unread(Some(NoticeLevel::Error), NoticeLevel::Warning),
+            Some(NoticeLevel::Error)
+        );
+        assert_eq!(
+            next_unread(Some(NoticeLevel::Error), NoticeLevel::Info),
+            Some(NoticeLevel::Error)
+        );
+    }
+
+    #[test]
+    fn the_history_keeps_the_newest_messages_without_repeating_the_same_one() {
+        let mut history = VecDeque::new();
+        push_notice_history(&mut history, &Notice::NotImported, 2);
+        push_notice_history(&mut history, &Notice::NotImported, 2);
+        assert_eq!(history, [Notice::NotImported]);
+        push_notice_history(&mut history, &Notice::ModelCreated, 2);
+        push_notice_history(&mut history, &Notice::SettingsNotSaved, 2);
+        assert_eq!(history, [Notice::SettingsNotSaved, Notice::ModelCreated]);
+    }
 
     #[test]
     fn every_help_row_and_notice_has_a_text() {

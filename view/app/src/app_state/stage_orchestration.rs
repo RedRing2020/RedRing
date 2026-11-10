@@ -42,17 +42,24 @@ impl AppState {
         let mut settings_panel_state = self.prepare_settings_panel_state();
         let mut machining_conditions_state = self.prepare_machining_conditions_state();
         let mut help_state = self.prepare_help_state();
+        let mut notice_bar_state = NoticeBarUiState {
+            locale: self.ui_locale,
+            notice: &self.notice,
+            history: &self.notice_history,
+            unread: self.unread_notice,
+            details: self.notice_details(),
+            log_opened: false,
+        };
         self.renderer.prepare_ui_windows(
             &self.window,
             &mut menu_bar_state,
-            NoticeBarUiState {
-                locale: self.ui_locale,
-                notice: &self.notice,
-            },
+            &mut notice_bar_state,
             &mut settings_panel_state,
             &mut machining_conditions_state,
             &mut help_state,
         );
+        let log_opened = notice_bar_state.log_opened;
+        self.apply_notice_bar_state(log_opened);
         self.apply_help_state(help_state);
         self.apply_settings_panel_state(settings_panel_state);
         self.apply_machining_conditions_state(machining_conditions_state);

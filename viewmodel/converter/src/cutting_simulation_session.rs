@@ -566,7 +566,7 @@ pub(crate) mod tests {
     use application::product_shape::ProductShapeError;
 
     use super::*;
-    use crate::space_model_document::tests::document_with_pyramid;
+    use crate::space_model_document::tests::{document_with_pyramid, NAMES};
     use crate::space_model_document::ImportedToolpathState;
 
     /// 走査線の条件 `content` を `edit` で変えた中身
@@ -940,7 +940,7 @@ pub(crate) mod tests {
     #[test]
     fn nothing_is_submitted_without_visible_product_shapes() {
         let mut session = CuttingSimulationSession::in_process();
-        let mut document = SpaceModelDocument::new();
+        let mut document = SpaceModelDocument::new(NAMES);
         coarse(&mut document);
         assert!(matches!(
             session.check(&mut document)[..],

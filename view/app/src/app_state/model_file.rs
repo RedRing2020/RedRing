@@ -86,7 +86,11 @@ impl AppState {
         match action {
             FileAction::New => {
                 if self.confirm_discard() {
-                    self.replace_document(SpaceModelDocument::new());
+                    let document = super::machining_conditions::with_default_names(
+                        self.ui_locale,
+                        SpaceModelDocument::new,
+                    );
+                    self.replace_document(document);
                     self.set_notice(Notice::ModelCreated);
                 }
             }
@@ -207,7 +211,10 @@ impl AppState {
 
     fn open_model_file(&mut self, path: &Path) {
         let file = file_name(path);
-        match SpaceModelDocument::open(path) {
+        let opened = super::machining_conditions::with_default_names(self.ui_locale, |names| {
+            SpaceModelDocument::open(path, names)
+        });
+        match opened {
             Ok(document) => {
                 tracing::info!(path = %path.display(), "model file opened");
                 self.replace_document(document);

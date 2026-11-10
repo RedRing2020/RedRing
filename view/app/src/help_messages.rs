@@ -5,6 +5,9 @@ use viewmodel::message_catalog::{
 };
 
 const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
+    ("notice.log.hint", "最近のメッセージと、選んだ工程の状態を見る"),
+    ("notice.log.state", "選んだ工程の状態"),
+    ("notice.log.history", "最近のメッセージ（新しい順）"),
     ("help.window.title", "操作の一覧"),
     (
         "help.note.text_input",
@@ -103,6 +106,9 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
 ];
 
 const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
+    ("notice.log.hint", "Show recent messages and the state of the selected operation"),
+    ("notice.log.state", "State of the selected operation"),
+    ("notice.log.history", "Recent messages (newest first)"),
     ("help.window.title", "Controls"),
     (
         "help.note.text_input",

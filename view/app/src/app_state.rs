@@ -3,7 +3,7 @@ use crate::app_settings::AppSettings;
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::help_ui::Notice;
-use crate::machining_conditions_ui::{JobStatusLine, OperationSettingsPage, OperationStatus};
+use crate::machining_conditions_ui::{JobStatusLine, OperationSettingsPage};
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
@@ -205,9 +205,6 @@ pub struct AppState {
     /// 今のウィンドウのタイトル（文書のタイトルを出しているときだけ。出し直すときは空にする）
     window_title: String,
 
-    /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
-    cutting_simulation_status: Option<OperationStatus>,
-
     /// 切削アニメーションのツールパスの線を描くか
     toolpath_lines_visible: bool,
 
@@ -236,6 +233,9 @@ pub struct AppState {
     help_about_open: bool,
     /// 画面の下の知らせの行に出している、最後の知らせ
     notice: Notice,
+    /// 最近のメッセージ（新しい順。数に上限がある）と、まだ一覧を開いていない注意・失敗のうち最も重いもの
+    notice_history: std::collections::VecDeque<Notice>,
+    unread_notice: Option<crate::help_ui::NoticeLevel>,
 
     /// デバッグ用: シミュレーションスナップショット状態
     debug_snapshot: DebugSnapshotState,
@@ -265,6 +265,7 @@ impl AppState {
         let renderer = AppRendererFactory::create_empty(&window, &graphic.device, &graphic.config);
         let viewing_operation_settings = ViewingOperationSettings::default();
 
+        let first_notice = settings_notice.unwrap_or(Notice::Startup);
         let mut app_state = Self {
             window,
             graphic,
@@ -282,7 +283,7 @@ impl AppState {
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
             tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings::default(),
             toolpath_visualization_settings: ToolPathVisualizationSettings::default(),
-            document: SpaceModelDocument::default(),
+            document: machining_conditions::with_default_names(ui_locale, SpaceModelDocument::new),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
             cutting_animation_colors: SnapshotShadedColorSettings::default(),
@@ -303,7 +304,6 @@ impl AppState {
             file_actions: Vec::new(),
             exit_confirmed: false,
             window_title: String::new(),
-            cutting_simulation_status: None,
             toolpath_lines_visible: true,
             tool_lines_visible: true,
             cutting_animation_job_id: None,
@@ -314,7 +314,9 @@ impl AppState {
             app_settings_path,
             help_controls_open: false,
             help_about_open: false,
-            notice: settings_notice.unwrap_or(Notice::Startup),
+            notice: Notice::Startup,
+            notice_history: std::collections::VecDeque::new(),
+            unread_notice: None,
             debug_snapshot: DebugSnapshotState::default(),
             main_view: None,
             snapshot_scrub_active: false,
@@ -326,6 +328,8 @@ impl AppState {
         };
 
         app_state.apply_viewing_operation_settings();
+        // 最初のメッセージ（起動の案内・設定を読めなかったこと）も、最近のメッセージの一覧に入れる
+        app_state.set_notice(first_notice);
         app_state
     }
 }

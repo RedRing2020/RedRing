@@ -274,7 +274,6 @@ impl AppState {
     pub(crate) fn forget_selected_operation_state(&mut self) {
         self.invalidate_conditions();
         self.cutting_simulation_job_status = JobStatusLine::Reading;
-        self.cutting_simulation_status = None;
     }
 
     /// 加工工程の一覧の操作 `command` を行う
@@ -396,9 +395,6 @@ impl AppState {
                 .cutting_animation_job_id
                 .zip(self.imported_conditions.clone())
                 .filter(|_| self.imported_operation == Some(selected)),
-            job_status: self.cutting_simulation_job_status.clone(),
-            imported_toolpath: self.document.imported_toolpath_state(),
-            status: self.cutting_simulation_status.clone(),
             submit_requested: false,
             redo_requested: false,
             submit_sequence_requested: false,
@@ -458,6 +454,22 @@ impl AppState {
             self.open_job_manager();
         }
     }
+}
+
+/// 言語 `locale` の、空間モデルに加工手順・加工工程がないときに作る加工手順・加工工程の名前で、`make` を行う
+pub(super) fn with_default_names<R>(
+    locale: UiLocale,
+    make: impl FnOnce(viewmodel::space_model_document::DefaultNames<'_>) -> R,
+) -> R {
+    let text = |key| {
+        crate::machining_conditions_messages::resolve_machining_conditions_text(locale, key, &[])
+    };
+    let sequence = text("conditions.sequence.default_name");
+    let operation = text("conditions.operations.default_name");
+    make(viewmodel::space_model_document::DefaultNames {
+        sequence: &sequence,
+        operation: &operation,
+    })
 }
 
 /// 言語 `locale` の、`number` 番目の新しい加工工程の名前
