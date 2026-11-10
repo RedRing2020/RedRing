@@ -147,14 +147,13 @@ pub(crate) fn rotate_arcball_from_delta(
     );
 }
 
-/// 画面平面に沿って注視点を移動する。
+/// 画面平面に沿って注視点を、マウスの 1 ピクセルあたり `move_distance` だけ移動する。
 pub(crate) fn pan(
     target: &mut Vec3f,
     rotation: &Quaternionf,
-    distance: f32,
+    move_distance: f32,
     delta_x: f32,
     delta_y: f32,
-    sensitivity: f32,
 ) {
     let rotation_matrix = quaternion_to_matrix(rotation);
     let right = Vec3f::new(
@@ -168,7 +167,6 @@ pub(crate) fn pan(
         rotation_matrix[2][1],
     );
 
-    let move_distance = sensitivity * distance;
     let offset = right * (-delta_x * move_distance) + up * (delta_y * move_distance);
 
     *target = *target + offset;

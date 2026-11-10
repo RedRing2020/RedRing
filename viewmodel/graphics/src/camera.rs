@@ -61,6 +61,12 @@ pub enum ProjectionMode {
     Orthographic,
 }
 
+/// パン（移動）感度の既定の値
+pub const DEFAULT_PAN_SENSITIVITY: f32 = 0.003;
+
+/// 透視投影の縦の視野角（ラジアン）
+const PERSPECTIVE_FOV_Y: f32 = 45.0 * std::f32::consts::PI / 180.0;
+
 /// カメラの各ビュー操作感度設定
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CameraControlSensitivity {
@@ -68,7 +74,8 @@ pub struct CameraControlSensitivity {
     pub rotate: f32,
     /// Arcballデルタ変換スケール
     pub arcball: f32,
-    /// パン（移動）感度
+    /// パン（移動）感度（既定の値 [`DEFAULT_PAN_SENSITIVITY`] で、マウスの動きに見えている形がちょうど付いてくる。
+    /// その倍率として使う）
     pub pan: f32,
     /// ズーム（ドラッグ）感度
     pub zoom_drag: f32,
@@ -83,7 +90,7 @@ impl Default for CameraControlSensitivity {
         Self {
             rotate: 0.01,
             arcball: 2.0,
-            pan: 0.003,
+            pan: DEFAULT_PAN_SENSITIVITY,
             zoom_drag: 0.04,
             zoom_wheel: 6.0,
             wheel_pixel_to_line: 0.2,
@@ -307,16 +314,38 @@ impl Camera {
         );
     }
 
-    /// パン操作
-    pub fn pan(&mut self, delta_x: f32, delta_y: f32) {
+    /// パン操作（画面の縦横比 `aspect`・高さ `screen_height` のピクセルで、マウスを `delta_x`・`delta_y` 動かした分）
+    ///
+    /// 動かす量は、見えている範囲の大きさから決める（既定の感度で、見えている形がマウスにちょうど付いてくる）。
+    /// 拡大縮小で表示の範囲を変えても、マウスとの対応は変わらない。
+    pub fn pan(&mut self, delta_x: f32, delta_y: f32, aspect: f32, screen_height: f32) {
+        let per_pixel = self.visible_height(aspect) / screen_height.max(1.0);
+        let move_distance = per_pixel * self.control_sensitivity.pan / DEFAULT_PAN_SENSITIVITY;
         navigate_pan(
             &mut self.target,
             &self.rotation,
-            self.distance,
+            move_distance,
             delta_x,
             delta_y,
-            self.control_sensitivity.pan,
         );
+    }
+
+    /// 画面の縦横比 `aspect` で、画面の縦に見えている長さ（注視点の深さで。投影行列と同じ決め方）
+    fn visible_height(&self, aspect: f32) -> f32 {
+        match self.projection_mode {
+            ProjectionMode::Orthographic => match self.orthographic_bounds {
+                Some((left, right, bottom, top)) => {
+                    // 投影行列は、縦横比が表示の範囲より横長なら縦の範囲を、縦長なら横の範囲を保つ
+                    if aspect > (right - left) / (top - bottom) {
+                        top - bottom
+                    } else {
+                        (right - left) / aspect
+                    }
+                }
+                None => self.distance * self.zoom,
+            },
+            ProjectionMode::Perspective => 2.0 * self.distance * (PERSPECTIVE_FOV_Y * 0.5).tan(),
+        }
     }
 
     /// ズーム操作（距離調整）

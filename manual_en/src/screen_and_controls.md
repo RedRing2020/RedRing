@@ -48,7 +48,7 @@ While editing a field in the settings panel or a settings dialog, typed characte
 | Control | Action |
 |---|---|
 | `Ctrl+left drag` | Rotate |
-| `Ctrl+middle drag` | Pan |
+| `Ctrl+middle drag` | Pan (the visible shape follows the mouse, at any zoom) |
 | `Ctrl+right drag` or `Ctrl+wheel` | Zoom |
 | `r` | Reset the camera (fit to the shapes) |
 | `t` | Standard CAD view |

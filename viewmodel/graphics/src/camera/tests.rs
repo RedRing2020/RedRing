@@ -24,9 +24,26 @@ fn test_camera_pan() {
     let mut camera = Camera::new();
     let initial_target = camera.target;
 
-    camera.pan(1.0, 0.0);
+    camera.pan(1.0, 0.0, 1.0, 100.0);
 
     assert_ne!(camera.target, initial_target);
+}
+
+#[test]
+fn panning_follows_the_cursor_at_the_visible_scale() {
+    // 縦に 100 の長さが見えている高さ 100 ピクセルの画面では、10 ピクセルの移動で、注視点が 10 だけ動く
+    let mut camera = Camera::new();
+    camera.set_projection_mode(ProjectionMode::Orthographic);
+    camera.set_orthographic_bounds(-50.0, 50.0, -50.0, 50.0);
+    let start = camera.target;
+    camera.pan(0.0, 10.0, 1.0, 100.0);
+    let moved = camera.target - start;
+    assert!((moved.norm() - 10.0).abs() < 1e-3);
+    // 表示の範囲を 2 倍にすると（縮小）、同じマウスの動きで 2 倍動く（見えている形はマウスに付いてくる）
+    camera.set_orthographic_bounds(-100.0, 100.0, -100.0, 100.0);
+    let start = camera.target;
+    camera.pan(0.0, 10.0, 1.0, 100.0);
+    assert!(((camera.target - start).norm() - 20.0).abs() < 1e-3);
 }
 
 #[test]

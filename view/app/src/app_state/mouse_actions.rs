@@ -191,7 +191,9 @@ impl AppState {
                 self.update_camera_uniforms();
             }
             MouseOperation::Pan => {
-                self.camera.pan(delta_x, delta_y);
+                let screen_height = (self.graphic.config.height as f32).max(1.0);
+                let aspect = self.graphic.config.width as f32 / screen_height;
+                self.camera.pan(delta_x, delta_y, aspect, screen_height);
                 self.update_camera_uniforms();
             }
             MouseOperation::Zoom => {
