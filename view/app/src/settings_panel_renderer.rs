@@ -214,15 +214,16 @@ impl SettingsPanelRenderer {
     }
 }
 
-/// 記号（📋 など）を、OS の日本語のフォントの形ではなく、記号のフォントの形で描くためのフォントの集まりの名前
+/// 記号（📋 など）を、決めた形で描くためのフォントの集まりの名前
 pub(crate) const SYMBOL_FONT_FAMILY: &str = "symbols";
 
 fn install_cjk_system_font(ctx: &Context) {
     let mut fonts = egui::FontDefinitions::default();
-    // 日本語のフォントを先頭に入れると、そのフォントにある別の形の記号が使われる。記号は、この集まりで描く
+    // 記号は、この集まりで描く。NotoEmoji の 📋 は斜めに傾けた絵で、小さく描くと札に見えるため、まっすぐな形の
+    // emoji-icon-font を先に使う
     fonts.families.insert(
         egui::FontFamily::Name(SYMBOL_FONT_FAMILY.into()),
-        vec!["NotoEmoji-Regular".to_owned(), "emoji-icon-font".to_owned()],
+        vec!["emoji-icon-font".to_owned(), "NotoEmoji-Regular".to_owned()],
     );
 
     if let Some(font_bytes) = load_system_cjk_font_bytes() {
