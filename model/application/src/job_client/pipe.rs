@@ -504,8 +504,7 @@ impl JobClient for PipeJobClient {
     }
 
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError> {
-        // 状態を読むスレッドがつなげば（止まっていれば起動して）、ジョブマネージャーが待ちのジョブを実行する（待たない）
-        self.request_status();
+        // ジョブマネージャーが、待ちのジョブを自分で実行する
         Ok(0)
     }
 

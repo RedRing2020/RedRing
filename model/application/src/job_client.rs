@@ -105,7 +105,8 @@ pub(crate) trait JobClient: fmt::Debug {
     /// ツールパス生成のジョブ（番号の順）
     fn toolpath_jobs(&self) -> Result<Vec<ToolpathJob>, CamSimulationWorkflowError>;
 
-    /// 待ちのジョブを実行させる。実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すだけで 0）
+    /// 同じプロセスの中で実行するときに、待ちのジョブを実行する。実行したジョブの数を返す（外のジョブマネージャーは、
+    /// 待ちのジョブを自分で実行するため、何もせず 0）
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError>;
 
     /// ジョブマネージャーのウィンドウを開く（動いていなければ、ウィンドウを出して起動する）

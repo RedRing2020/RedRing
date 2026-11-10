@@ -110,6 +110,8 @@ pub(crate) enum Notice {
     JobManagerNotRunning,
     /// ジョブマネージャーが見つからないため、計算の投入と状態の確認ができない
     JobManagerNotFound,
+    /// 計算待ち・計算中のジョブがあるのに、ジョブマネージャーが停止中のため計算されていない
+    JobManagerStopped,
     /// モデルファイルに保存した（ファイルの名前）
     ModelSaved { file: String },
     /// モデルファイルに保存できない（ファイルの名前と理由）
@@ -136,7 +138,8 @@ impl Notice {
             | Self::InverseOffsetToolDiffers
             | Self::SettingsLoadFailed { .. }
             | Self::SettingsNotSaved
-            | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
+            | Self::SettingsSaveFailed { .. }
+            | Self::JobManagerStopped => NoticeLevel::Warning,
             Self::Operation(status) => match status {
                 OperationStatus::SubmitFailed(_)
                 | OperationStatus::SequenceSubmitFailed { .. }
@@ -197,6 +200,7 @@ impl Notice {
             Self::JobManagerNotFound => {
                 resolve_help_text(locale, "notice.job_manager_not_found", &[])
             }
+            Self::JobManagerStopped => resolve_help_text(locale, "notice.job_manager_stopped", &[]),
             Self::ModelOpened { file } => {
                 resolve_help_text(locale, "notice.model_opened", &[("file", file.clone())])
             }
@@ -575,5 +579,6 @@ mod tests {
             NoticeLevel::Info
         );
         assert_eq!(Notice::NotImported.level(), NoticeLevel::Warning);
+        assert_eq!(Notice::JobManagerStopped.level(), NoticeLevel::Warning);
     }
 }

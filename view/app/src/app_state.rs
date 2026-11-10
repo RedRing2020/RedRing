@@ -189,6 +189,8 @@ pub struct AppState {
     /// ジョブマネージャーが動いていない・見つからないことを、最後に画面の下の行に出した状態（`None` は、出していない・
     /// 動いている）
     job_manager_unavailable: Option<JobStatusLine>,
+    /// 最後に読めた状態に、計算待ち・計算中の工程があったか
+    jobs_pending: bool,
     /// 加工手順のすべての加工工程の、今の改訂の計算の状態（加工の順）
     operation_job_statuses: Vec<(MachiningOperationId, JobStatusLine)>,
     /// 取り込んだ切削シミュレーションの加工工程（取り込んだ条件は、その工程を選んでいるときだけ出す）
@@ -302,6 +304,7 @@ impl AppState {
             cutting_simulation_job_status: JobStatusLine::NotSubmitted,
             operation_job_statuses: Vec::new(),
             job_manager_unavailable: None,
+            jobs_pending: false,
             imported_operation: None,
             drawn_toolpath_state: None,
             job_status_read_at: None,

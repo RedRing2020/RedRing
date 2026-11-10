@@ -66,6 +66,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "notice.job_manager_not_found",
         "ジョブマネージャーが見つからないため、計算の投入と状態の確認ができません",
     ),
+    (
+        "notice.job_manager_stopped",
+        "ジョブマネージャーが停止中のため計算されていません",
+    ),
     ("notice.model_opened", "開きました: {file}"),
     ("notice.model_open_failed", "開けません: {file}（{reason}）"),
     ("notice.model_saved", "保存しました: {file}"),
@@ -177,6 +181,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "notice.job_manager_not_found",
         "Cannot submit calculations or check their status because the job manager is not found",
+    ),
+    (
+        "notice.job_manager_stopped",
+        "Calculations are not running because the job manager is stopped",
     ),
     ("notice.model_opened", "Opened: {file}"),
     ("notice.model_open_failed", "Cannot open: {file} ({reason})"),

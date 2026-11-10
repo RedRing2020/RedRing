@@ -515,12 +515,12 @@ impl CuttingSimulationSession {
         Ok(latest)
     }
 
-    /// 待ちのジョブがあるときに、ジョブマネージャーが止まっていれば起動し直す（同じプロセスの中で実行する試験では、
-    /// 待ちのジョブを実行する）。実行したジョブの数を返す
+    /// 同じプロセスの中で実行するときに、待ちのジョブを実行する。実行したジョブの数を返す（外のジョブマネージャー
+    /// は、待ちのジョブを自分で実行するため、何もせず 0）
     ///
     /// # Errors
     ///
-    /// ジョブマネージャーがない・起動できない場合。
+    /// 同じプロセスの中で実行するときの、ジョブの状態の更新の失敗。
     pub fn run_queued_jobs(&mut self) -> Result<usize, CuttingSimulationSessionError> {
         Ok(self.workflow.run_queued_jobs()?)
     }

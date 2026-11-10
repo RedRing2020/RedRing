@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use viewmodel::cutting_simulation_session::OperationJobState;
+use viewmodel::cutting_simulation_session::{OperationJobState, OperationJobStatus};
 use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
 
 use super::AppState;
@@ -264,21 +264,35 @@ impl AppState {
     }
 
     /// ジョブマネージャーが動いていない・見つからないことを、変わったときに 1 度だけ画面の下の行に出す（動いていない
-    /// のは情報、見つからないのは失敗）。状態を読めた（ジョブマネージャーが動いている）ら、次に変わったときにまた出す。
-    /// 読めない・読んでいる間は、どちらとも決めない（同じメッセージを出し直さないように）
+    /// のは情報、見つからないのは失敗。最後に読めた状態に計算待ち・計算中の工程があれば、計算されていないことを注意
+    /// として出す）。状態を読めた（ジョブマネージャーが動いている）ら、次に変わったときにまた出す。読めない・読んで
+    /// いる間は、どちらとも決めない（同じメッセージを出し直さないように）
     fn notify_job_manager_availability(&mut self) {
         let Some(first) = self.operation_job_statuses.first().map(|(_, s)| s.clone()) else {
             return;
         };
         let unavailable = match first {
             JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => Some(first),
-            JobStatusLine::NotSubmitted | JobStatusLine::Status(_) => None,
+            JobStatusLine::NotSubmitted | JobStatusLine::Status(_) => {
+                self.jobs_pending = self.operation_job_statuses.iter().any(|(_, status)| {
+                    matches!(
+                        status,
+                        JobStatusLine::Status(
+                            OperationJobStatus::Queued | OperationJobStatus::Running
+                        )
+                    )
+                });
+                None
+            }
             JobStatusLine::Unreadable | JobStatusLine::Reading => return,
         };
         if unavailable == self.job_manager_unavailable {
             return;
         }
         match &unavailable {
+            Some(JobStatusLine::ManagerNotRunning) if self.jobs_pending => {
+                self.set_notice(Notice::JobManagerStopped);
+            }
             Some(JobStatusLine::ManagerNotRunning) => self.set_notice(Notice::JobManagerNotRunning),
             Some(JobStatusLine::ManagerNotFound) => self.set_notice(Notice::JobManagerNotFound),
             _ => {}
