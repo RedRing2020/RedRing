@@ -95,6 +95,11 @@ impl AppState {
         }
     }
 
+    /// 3D の表示で、パンのドラッグをしているか
+    pub fn is_view_panning(&self) -> bool {
+        self.mouse_input.operation() == crate::mouse_input::MouseOperation::Pan
+    }
+
     pub fn handle_cursor_moved(&mut self, x: f32, y: f32) {
         self.last_cursor_position = self.cursor_position;
         self.cursor_position = Some((x, y));
@@ -116,6 +121,18 @@ impl AppState {
 
         if let Some(origin) = self.selection_rect_drag_origin {
             self.active_selection_rect = Some(SelectionRect::from_points(origin, (x, y)));
+        }
+
+        // パンは、画面の上のカーソルの移動量で動かす（OS のポインターの速さ・加速を含めて、形がカーソルに付いてくる。
+        // マウスの生の移動量は、それを含まない）
+        if self.is_view_panning() {
+            if let Some((last_x, last_y)) = self.last_cursor_position {
+                let screen_height = (self.graphic.config.height as f32).max(1.0);
+                let aspect = self.graphic.config.width as f32 / screen_height;
+                self.camera
+                    .pan(x - last_x, y - last_y, aspect, screen_height);
+                self.update_camera_uniforms();
+            }
         }
     }
 
@@ -190,12 +207,8 @@ impl AppState {
                 );
                 self.update_camera_uniforms();
             }
-            MouseOperation::Pan => {
-                let screen_height = (self.graphic.config.height as f32).max(1.0);
-                let aspect = self.graphic.config.width as f32 / screen_height;
-                self.camera.pan(delta_x, delta_y, aspect, screen_height);
-                self.update_camera_uniforms();
-            }
+            // パンは、カーソルの移動（`handle_cursor_moved`）で動かす
+            MouseOperation::Pan => {}
             MouseOperation::Zoom => {
                 self.camera.zoom(delta_x, delta_y);
                 self.update_camera_uniforms();

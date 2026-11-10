@@ -111,7 +111,11 @@ impl ApplicationHandler for App {
                 } if !settings_ui_consumed => {
                     state.handle_mouse_button(button, button_state);
                 }
-                WindowEvent::CursorMoved { position, .. } if !settings_ui_consumed => {
+                // 3D の表示で始めたパンのドラッグの間は、画面の部品の上を通っても位置を受ける（戻ったときに跳ばない
+                // ように）
+                WindowEvent::CursorMoved { position, .. }
+                    if !settings_ui_consumed || state.is_view_panning() =>
+                {
                     state.handle_cursor_moved(position.x as f32, position.y as f32);
                 }
                 WindowEvent::MouseWheel { delta, .. } if !settings_ui_consumed => {
