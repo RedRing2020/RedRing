@@ -83,11 +83,27 @@ impl AppState {
         self.graphic.render(&mut self.renderer);
     }
 
-    /// カメラのユニフォームを更新
+    /// 3D の表示に使う帯の上端と高さ（物理ピクセル。メニューバーの下から、工程リスト・ステータスバーの上まで。帯は
+    /// 1 ピクセル以上の高さにする）
+    pub(super) fn view_band(&self) -> (f32, f32) {
+        let screen_height = (self.graphic.config.height as f32).max(1.0);
+        let top = self.renderer.top_inset().clamp(0.0, screen_height - 1.0);
+        let bottom = (screen_height - self.renderer.bottom_inset()).clamp(top + 1.0, screen_height);
+        (top, bottom - top)
+    }
+
+    /// カメラのユニフォームを更新（3D の表示は、メニューバーと工程リスト・ステータスバーの間の帯に描き、帯の中心を
+    /// 見る中心にする）
     pub fn update_camera_uniforms(&mut self) {
         let view_matrix = self.camera.view_matrix();
-        let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
-        let projection_matrix = self.camera.projection_matrix(aspect);
+        let (band_top, band_height) = self.view_band();
+        let aspect = self.graphic.config.width as f32 / band_height;
+        let projection_matrix = viewmodel_graphics::project_into_band(
+            self.camera.projection_matrix(aspect),
+            (self.graphic.config.height as f32).max(1.0),
+            band_top,
+            band_height,
+        );
 
         tracing::debug!(
             "Camera updated: mode={:?}, aspect={:.3}, target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds={:?}",

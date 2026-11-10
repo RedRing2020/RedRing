@@ -32,6 +32,26 @@ pub fn build_view_projection_matrix(
     (proj * view).to_column_major()
 }
 
+/// 列優先の投影行列 `proj` を、高さ `screen_height` の画面のうち、上端から `top` の位置にある高さ `height` の帯
+/// （幅は画面の全体）に描くように写す（単位はどれも同じ。帯の外にも描く）
+///
+/// `proj` は、帯の縦横比で作っておく。クリップ座標の y を帯の範囲に縮めて動かすだけで、深さは変えない。
+pub fn project_into_band(
+    proj: [[f32; 4]; 4],
+    screen_height: f32,
+    top: f32,
+    height: f32,
+) -> [[f32; 4]; 4] {
+    // 正規化した座標の y で、帯の高さの割合と、帯の中心の位置（上が +1）
+    let scale = height / screen_height;
+    let offset = 1.0 - 2.0 * (top + height * 0.5) / screen_height;
+    let mut mapped = proj;
+    for column in &mut mapped {
+        column[1] = scale * column[1] + offset * column[3];
+    }
+    mapped
+}
+
 /// 投影方式の種類
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ProjectionMode {

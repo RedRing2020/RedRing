@@ -35,6 +35,8 @@ pub(crate) struct SettingsPanelRenderer {
     menu_bar_bottom: f32,
     /// 画面の下の知らせの行の上端（論理座標。最後に描いた画面の値）
     notice_bar_top: f32,
+    /// 下端の UI（工程リスト・ステータスバー）の高さ（論理座標。最後に描いた画面の値）
+    bottom_inset: f32,
     pixels_per_point: f32,
 }
 
@@ -62,6 +64,7 @@ impl SettingsPanelRenderer {
             pending_frame: None,
             menu_bar_bottom: 0.0,
             notice_bar_top: f32::INFINITY,
+            bottom_inset: 0.0,
             pixels_per_point: 1.0,
         }
     }
@@ -104,6 +107,12 @@ impl SettingsPanelRenderer {
         self.menu_bar_bottom * self.pixels_per_point
     }
 
+    /// 工程リスト・ステータスバーなど下端の UI の高さ（物理ピクセル。最後に描いた画面の値。画面の大きさを変えた
+    /// 直後も、下端からの高さは同じため、そのまま使える）
+    pub(crate) fn bottom_inset(&self) -> f32 {
+        self.bottom_inset * self.pixels_per_point
+    }
+
     /// メニューバー・知らせの行と、設定パネル・加工条件・ヘルプのウィンドウを、同じ egui の文脈で描く（ウィンドウは
     /// メニューバーと知らせの行の間に置く）
     pub(crate) fn prepare(
@@ -130,6 +139,7 @@ impl SettingsPanelRenderer {
         let pixels_per_point = full_output.pixels_per_point;
         self.menu_bar_bottom = area.top();
         self.notice_bar_top = area.bottom();
+        self.bottom_inset = (self.egui_context.content_rect().bottom() - area.bottom()).max(0.0);
         self.pixels_per_point = pixels_per_point;
         let paint_jobs = self
             .egui_context

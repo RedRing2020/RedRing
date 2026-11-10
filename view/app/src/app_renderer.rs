@@ -99,6 +99,11 @@ impl AppRenderer {
         self.settings_panel_renderer.top_inset()
     }
 
+    /// 工程リスト・ステータスバーなど下端の UI の高さ（物理ピクセル）
+    pub fn bottom_inset(&self) -> f32 {
+        self.settings_panel_renderer.bottom_inset()
+    }
+
     pub fn update_snapshot_overlay(
         &mut self,
         queue: &wgpu::Queue,

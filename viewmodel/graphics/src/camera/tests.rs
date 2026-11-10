@@ -247,3 +247,39 @@ fn test_issue_242_zoom_magnitude_sensitivity() {
         "横方向ズームが有効"
     );
 }
+
+#[test]
+fn a_projection_mapped_into_a_band_draws_the_view_between_its_top_and_bottom() {
+    // 高さ 1000 の画面の、上端から 100 の位置の高さ 600 の帯（正規化した y は +0.8 から -0.4）
+    let proj = Camera::new().projection_matrix(2.0);
+    let mapped = project_into_band(proj, 1000.0, 100.0, 600.0);
+    // 写す変換を、クリップ座標 (x, y, z, w) に直接当てる
+    let band = |clip: [f32; 4]| {
+        let identity = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+        let m = project_into_band(identity, 1000.0, 100.0, 600.0);
+        let y = (0..4).map(|c| m[c][1] * clip[c]).sum::<f32>();
+        let w = (0..4).map(|c| m[c][3] * clip[c]).sum::<f32>();
+        y / w
+    };
+    assert!((band([0.0, 1.0, 0.5, 1.0]) - 0.8).abs() < 1e-6);
+    assert!((band([0.0, -1.0, 0.5, 1.0]) + 0.4).abs() < 1e-6);
+    assert!((band([0.0, 0.0, 0.5, 1.0]) - 0.2).abs() < 1e-6);
+    // w が 1 でない点（透視投影）も、同じ位置に写る
+    assert!((band([0.0, 2.0, 1.0, 2.0]) - 0.8).abs() < 1e-6);
+    // 実際の射影行列の y の行は、帯の高さの割合 0.6 と中心 +0.2 で写す（w の行を使う）
+    for c in 0..4 {
+        let expected = 0.6 * proj[c][1] + 0.2 * proj[c][3];
+        assert!((mapped[c][1] - expected).abs() < 1e-6);
+    }
+    // 深さ・x・w の行は変えない
+    for c in 0..4 {
+        assert_eq!(mapped[c][0], proj[c][0]);
+        assert_eq!(mapped[c][2], proj[c][2]);
+        assert_eq!(mapped[c][3], proj[c][3]);
+    }
+}

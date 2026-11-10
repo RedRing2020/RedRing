@@ -21,11 +21,19 @@ impl AppState {
             winit::event::ElementState::Pressed => {
                 if self.mouse_input.is_ctrl_pressed() {
                     self.arcball_drag_start = self.cursor_position;
+                    // 回転は、3D の表示の帯の中の位置で決める（帯の中心が回転の中心）
                     let viewport_width = self.graphic.config.width as f32;
-                    let viewport_height = self.graphic.config.height as f32;
+                    let (band_top, band_height) = self.view_band();
+                    // 帯の外で押したときも、帯の中に寄せる（最初の動きで回転が跳ねないように）
                     self.arcball_virtual_cursor = Some(
                         self.cursor_position
-                            .unwrap_or((viewport_width * 0.5, viewport_height * 0.5)),
+                            .map(|(x, y)| {
+                                (
+                                    x.clamp(0.0, viewport_width),
+                                    (y - band_top).clamp(0.0, band_height),
+                                )
+                            })
+                            .unwrap_or((viewport_width * 0.5, band_height * 0.5)),
                     );
                     tracing::debug!(
                         "Ctrl+left drag: started camera rotation start={:?} current={:?} virtual_start={:?}",
@@ -149,7 +157,7 @@ impl AppState {
         match self.mouse_input.operation() {
             MouseOperation::Rotate => {
                 let viewport_width = self.graphic.config.width as f32;
-                let viewport_height = self.graphic.config.height as f32;
+                let (_, viewport_height) = self.view_band();
                 let (prev_x, prev_y) = self
                     .arcball_virtual_cursor
                     .unwrap_or((viewport_width * 0.5, viewport_height * 0.5));
