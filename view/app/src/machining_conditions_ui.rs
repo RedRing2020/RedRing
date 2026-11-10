@@ -69,8 +69,8 @@ pub(crate) enum OperationStatus {
         submitted: usize,
         reason: UiMessage,
     },
-    /// 計算の状態をまだ読めていないため、手順の全体を投入しない
-    SequenceStatusNotRead,
+    /// 計算の状態を読めないため、手順の全体を投入しない（画面に出す理由）
+    SequenceStatusUnreadable(UiMessage),
     /// 取り込んだ切削シミュレーションのジョブの番号
     Imported { job: u64 },
     /// 取り込める（正常終了した）切削シミュレーションがない
@@ -193,9 +193,10 @@ fn operation_status_message(
             args.push(("submitted", submitted.to_string()));
             ("conditions.status.sequence_submit_failed", args)
         }
-        OperationStatus::SequenceStatusNotRead => {
-            ("conditions.status.sequence_status_not_read", vec![])
-        }
+        OperationStatus::SequenceStatusUnreadable(message) => (
+            "conditions.status.sequence_status_unreadable",
+            reason(message),
+        ),
         OperationStatus::Imported { job } => {
             ("conditions.status.imported", vec![("job", job.to_string())])
         }
@@ -333,12 +334,16 @@ pub(crate) struct OperationRow {
     pub(crate) toolpath_current: bool,
 }
 
-/// 加工工程の一覧の行に出す状態の文言のキー（計算済み・未投入（ジョブマネージャーの結果を消したとき）の工程は、空間
-/// モデルの CL が今の条件の結果なら取込済み。計算待ち・計算中・失敗などは、そのまま出す）
+/// 加工工程の一覧の行に出す状態の文言のキー（計算済み・未投入（ジョブマネージャーの結果を消したとき）・状態不明
+/// （ジョブマネージャーが動いていない・見つからない）の工程は、空間モデルの CL が今の条件の結果なら取込済み。CL が正本
+/// のため、ジョブの側を見なくてよい。計算待ち・計算中・失敗などは、そのまま出す）
 fn operation_row_key(row: &OperationRow) -> &'static str {
     let finished_or_gone = matches!(
         row.status,
-        JobStatusLine::Status(OperationJobStatus::Succeeded) | JobStatusLine::NotSubmitted
+        JobStatusLine::Status(OperationJobStatus::Succeeded)
+            | JobStatusLine::NotSubmitted
+            | JobStatusLine::ManagerNotRunning
+            | JobStatusLine::ManagerNotFound
     );
     if row.toolpath_current && finished_or_gone {
         "conditions.operations.status.imported"
@@ -395,6 +400,9 @@ fn operation_row_status_key(status: &JobStatusLine) -> &'static str {
         JobStatusLine::NotSubmitted => "conditions.operations.status.none",
         JobStatusLine::Unreadable => "conditions.operations.status.unreadable",
         JobStatusLine::Reading => "conditions.operations.status.reading",
+        JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => {
+            "conditions.operations.status.unknown"
+        }
         JobStatusLine::Status(OperationJobStatus::Queued) => "conditions.operations.status.queued",
         JobStatusLine::Status(OperationJobStatus::Running) => {
             "conditions.operations.status.running"
@@ -419,10 +427,15 @@ pub(crate) enum JobStatusLine {
     Unreadable,
     /// 状態をまだ読めていない（読み終えるのを待たないため、初めて読む前）
     Reading,
+    /// ジョブマネージャーが動いていないため、状態が分からない（読むときは起動しない）
+    ManagerNotRunning,
+    /// ジョブマネージャーが見つからないため、状態が分からない
+    ManagerNotFound,
 }
 
 impl JobStatusLine {
-    /// 投入し直すか条件を変えるまで変わらない状態か
+    /// 投入し直すか条件を変えるまで変わらない状態か（ジョブマネージャーが動いていない・見つからない間は、外から
+    /// 起動したときにすぐ気づけるよう、短い間隔で読み直す。つなげるかを確かめるだけで軽い）
     pub(crate) fn is_final(&self) -> bool {
         matches!(
             self,
@@ -431,14 +444,6 @@ impl JobStatusLine {
                     | OperationJobStatus::Failed
                     | OperationJobStatus::Canceled
             )
-        )
-    }
-
-    /// 計算を待っている・計算している
-    pub(crate) fn is_pending(&self) -> bool {
-        matches!(
-            self,
-            Self::Status(OperationJobStatus::Queued | OperationJobStatus::Running)
         )
     }
 }
@@ -458,6 +463,8 @@ fn job_status_key(status: &JobStatusLine) -> &'static str {
         JobStatusLine::NotSubmitted => "conditions.job.none",
         JobStatusLine::Unreadable => "conditions.job.unreadable",
         JobStatusLine::Reading => "conditions.job.reading",
+        JobStatusLine::ManagerNotRunning => "conditions.job.manager_not_running",
+        JobStatusLine::ManagerNotFound => "conditions.job.manager_not_found",
         JobStatusLine::Status(OperationJobStatus::Queued) => "conditions.job.queued",
         JobStatusLine::Status(OperationJobStatus::Running) => "conditions.job.running",
         JobStatusLine::Status(OperationJobStatus::Succeeded) => "conditions.job.succeeded",
@@ -1327,7 +1334,7 @@ mod tests {
                 submitted: 1,
                 reason: failure("failure.conditions"),
             },
-            OperationStatus::SequenceStatusNotRead,
+            OperationStatus::SequenceStatusUnreadable(failure("failure.job_manager_not_found")),
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
             OperationStatus::ToolpathImported { job: 1 },
@@ -1420,6 +1427,20 @@ mod tests {
             operation_row_key(&row(succeeded, false)),
             "conditions.operations.status.succeeded"
         );
+        // ジョブマネージャーが動いていない・見つからないときは、CL が今の条件の結果なら取込済み、そうでなければ状態不明
+        for unavailable in [
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+        ] {
+            assert_eq!(
+                operation_row_key(&row(unavailable.clone(), true)),
+                "conditions.operations.status.imported"
+            );
+            assert_eq!(
+                operation_row_key(&row(unavailable, false)),
+                "conditions.operations.status.unknown"
+            );
+        }
         // 計算し直している間・失敗したときは、計算の状態を出す
         assert_eq!(
             operation_row_key(&row(queued, true)),

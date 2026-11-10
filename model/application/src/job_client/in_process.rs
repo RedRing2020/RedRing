@@ -223,6 +223,13 @@ impl JobClient for InProcessJobClient {
         }))
     }
 
+    fn read_status_now(&mut self) -> Result<super::JobStatusSnapshot, CamSimulationWorkflowError> {
+        Ok(super::JobStatusSnapshot {
+            pending: Vec::new(),
+            simulations: self.simulation_jobs()?,
+        })
+    }
+
     fn import(
         &self,
         simulation_job_id: u64,

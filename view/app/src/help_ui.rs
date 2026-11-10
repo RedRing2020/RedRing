@@ -106,6 +106,12 @@ pub(crate) enum Notice {
     ModelOpened { file: String },
     /// モデルファイルを開けない（ファイルの名前と理由）
     ModelOpenFailed { file: String, reason: UiMessage },
+    /// ジョブマネージャーが動いていないため、計算の状態が分からない（計算開始すると起動する）
+    JobManagerNotRunning,
+    /// ジョブマネージャーが見つからないため、計算の投入と状態の確認ができない
+    JobManagerNotFound,
+    /// 計算待ち・計算中のジョブがあるのに、ジョブマネージャーが停止中のため計算されていない
+    JobManagerStopped,
     /// モデルファイルに保存した（ファイルの名前）
     ModelSaved { file: String },
     /// モデルファイルに保存できない（ファイルの名前と理由）
@@ -119,10 +125,12 @@ impl Notice {
             | Self::ShapeImported { .. }
             | Self::ModelCreated
             | Self::ModelOpened { .. }
-            | Self::ModelSaved { .. } => NoticeLevel::Info,
+            | Self::ModelSaved { .. }
+            | Self::JobManagerNotRunning => NoticeLevel::Info,
             Self::ShapeImportFailed { .. }
             | Self::ModelOpenFailed { .. }
-            | Self::ModelSaveFailed { .. } => NoticeLevel::Error,
+            | Self::ModelSaveFailed { .. }
+            | Self::JobManagerNotFound => NoticeLevel::Error,
             Self::NotImported
             | Self::NoToolSegments
             | Self::ApplyWithoutAnimation
@@ -130,15 +138,17 @@ impl Notice {
             | Self::InverseOffsetToolDiffers
             | Self::SettingsLoadFailed { .. }
             | Self::SettingsNotSaved
-            | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
+            | Self::SettingsSaveFailed { .. }
+            | Self::JobManagerStopped => NoticeLevel::Warning,
             Self::Operation(status) => match status {
                 OperationStatus::SubmitFailed(_)
                 | OperationStatus::SequenceSubmitFailed { .. }
                 | OperationStatus::ImportFailed(_)
-                | OperationStatus::JobManagerFailed(_) => NoticeLevel::Error,
-                OperationStatus::NothingToImport
-                | OperationStatus::NoToolpathToImport
-                | OperationStatus::SequenceStatusNotRead => NoticeLevel::Warning,
+                | OperationStatus::JobManagerFailed(_)
+                | OperationStatus::SequenceStatusUnreadable(_) => NoticeLevel::Error,
+                OperationStatus::NothingToImport | OperationStatus::NoToolpathToImport => {
+                    NoticeLevel::Warning
+                }
                 OperationStatus::Submitted { .. }
                 | OperationStatus::Redone
                 | OperationStatus::SequenceSubmitted { .. }
@@ -184,6 +194,13 @@ impl Notice {
             ),
             Self::Operation(status) => operation_status_text(locale, status),
             Self::ModelCreated => resolve_help_text(locale, "notice.model_created", &[]),
+            Self::JobManagerNotRunning => {
+                resolve_help_text(locale, "notice.job_manager_not_running", &[])
+            }
+            Self::JobManagerNotFound => {
+                resolve_help_text(locale, "notice.job_manager_not_found", &[])
+            }
+            Self::JobManagerStopped => resolve_help_text(locale, "notice.job_manager_stopped", &[]),
             Self::ModelOpened { file } => {
                 resolve_help_text(locale, "notice.model_opened", &[("file", file.clone())])
             }
@@ -562,5 +579,6 @@ mod tests {
             NoticeLevel::Info
         );
         assert_eq!(Notice::NotImported.level(), NoticeLevel::Warning);
+        assert_eq!(Notice::JobManagerStopped.level(), NoticeLevel::Warning);
     }
 }

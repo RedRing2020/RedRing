@@ -72,9 +72,9 @@ impl AppState {
         let job_status = &self.cutting_simulation_job_status;
         // 失敗・読めない計算は失敗、前の条件の CL は注意の色で出す
         let job_level = match job_status {
-            JobStatusLine::Status(OperationJobStatus::Failed) | JobStatusLine::Unreadable => {
-                NoticeLevel::Error
-            }
+            JobStatusLine::Status(OperationJobStatus::Failed)
+            | JobStatusLine::Unreadable
+            | JobStatusLine::ManagerNotFound => NoticeLevel::Error,
             JobStatusLine::Status(OperationJobStatus::Canceled) => NoticeLevel::Warning,
             _ => NoticeLevel::Info,
         };

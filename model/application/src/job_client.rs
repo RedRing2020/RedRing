@@ -105,7 +105,8 @@ pub(crate) trait JobClient: fmt::Debug {
     /// ツールパス生成のジョブ（番号の順）
     fn toolpath_jobs(&self) -> Result<Vec<ToolpathJob>, CamSimulationWorkflowError>;
 
-    /// 待ちのジョブを実行させる。実行したジョブの数を返す（外のジョブマネージャーでは、止まっていれば起動し直すだけで 0）
+    /// 同じプロセスの中で実行するときに、待ちのジョブを実行する。実行したジョブの数を返す（外のジョブマネージャーは、
+    /// 待ちのジョブを自分で実行するため、何もせず 0）
     fn run_pending(&mut self) -> Result<usize, CamSimulationWorkflowError>;
 
     /// ジョブマネージャーのウィンドウを開く（動いていなければ、ウィンドウを出して起動する）
@@ -117,6 +118,10 @@ pub(crate) trait JobClient: fmt::Debug {
     /// 計算の状態（画面を止めない実装は、読み終えるのを待たずに最後に読んだ状態を返し、まだ読めていない・前に読んだ
     /// 状態が古ければ `None`）
     fn status_snapshot(&self) -> Result<Option<JobStatusSnapshot>, CamSimulationWorkflowError>;
+
+    /// 計算の状態を、今読む（ジョブマネージャーが動いていなければ起動して、口が開くのを待つ）。読んだ状態は、
+    /// [`Self::status_snapshot`] でも返す
+    fn read_status_now(&mut self) -> Result<JobStatusSnapshot, CamSimulationWorkflowError>;
 
     /// 正常に終わった切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
     /// 投入した入力

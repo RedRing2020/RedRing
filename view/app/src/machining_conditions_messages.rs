@@ -61,6 +61,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.operations.status.canceled", "取り消し"),
     ("conditions.operations.status.unreadable", "読めません"),
     ("conditions.operations.status.reading", "読んでいます"),
+    ("conditions.operations.status.unknown", "状態不明"),
     ("conditions.target.faces", "表示中の製品形状の面: {count}"),
     ("conditions.header.tool", "工具"),
     ("conditions.tool.ball", "ボールエンドミル"),
@@ -160,8 +161,8 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "{position} 番目の工程「{operation}」を投入できません（{reason}）。その前の {submitted} 工程は投入しました",
     ),
     (
-        "conditions.status.sequence_status_not_read",
-        "計算の状態をまだ読んでいないため、手順の全体を投入していません。少し待ってからもう一度押してください",
+        "conditions.status.sequence_status_unreadable",
+        "計算の状態を読めないため、手順の全体を投入していません（{reason}）。少し待ってから、もう一度押してください",
     ),
     ("conditions.submit_sequence", "手順の全体を投入"),
     ("conditions.status.imported", "ジョブ {job} を取り込みました"),
@@ -188,6 +189,14 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "今の条件の計算: ジョブマネージャーから状態を読めません",
     ),
     ("conditions.job.reading", "今の条件の計算: 状態を読んでいます"),
+    (
+        "conditions.job.manager_not_running",
+        "今の条件の計算: ジョブマネージャーが動いていないため、分かりません（計算開始すると起動します）",
+    ),
+    (
+        "conditions.job.manager_not_found",
+        "今の条件の計算: ジョブマネージャーが見つからないため、分かりません",
+    ),
     ("conditions.toolpath.none", "空間モデルの CL: まだ取り込んでいません"),
     ("conditions.toolpath.current", "空間モデルの CL: 今の条件の結果です"),
     ("conditions.toolpath.outdated", "空間モデルの CL: 前の条件の結果です"),
@@ -298,6 +307,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.operations.status.canceled", "canceled"),
     ("conditions.operations.status.unreadable", "cannot read"),
     ("conditions.operations.status.reading", "reading"),
+    ("conditions.operations.status.unknown", "unknown"),
     ("conditions.target.faces", "Visible product shape faces: {count}"),
     ("conditions.header.tool", "Tool"),
     ("conditions.tool.ball", "Ball end mill"),
@@ -403,8 +413,8 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "Cannot submit operation {position} \"{operation}\" ({reason}). The {submitted} operations before it were submitted",
     ),
     (
-        "conditions.status.sequence_status_not_read",
-        "The whole sequence was not submitted because the calculation status has not been read yet. Wait a moment and try again",
+        "conditions.status.sequence_status_unreadable",
+        "The whole sequence was not submitted because the calculation status cannot be read ({reason}). Wait a moment and try again",
     ),
     ("conditions.submit_sequence", "Submit the whole sequence"),
     ("conditions.status.imported", "Imported job {job}"),
@@ -433,6 +443,14 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.job.reading",
         "Calculation for the current conditions: reading the status",
+    ),
+    (
+        "conditions.job.manager_not_running",
+        "Calculation for the current conditions: unknown because the job manager is not running (it starts when you start a calculation)",
+    ),
+    (
+        "conditions.job.manager_not_found",
+        "Calculation for the current conditions: unknown because the job manager is not found",
     ),
     ("conditions.toolpath.none", "CL in the space model: not imported yet"),
     ("conditions.toolpath.current", "CL in the space model: result of the current conditions"),

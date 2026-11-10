@@ -71,6 +71,9 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
             message("failure.inverse_offset_display")
         }
         CamSimulationWorkflowError::JobManagerNotFound => message("failure.job_manager_not_found"),
+        CamSimulationWorkflowError::JobManagerNotRunning => {
+            message("failure.job_manager_not_running")
+        }
         CamSimulationWorkflowError::JobStore(_) => message("failure.job_store"),
         CamSimulationWorkflowError::NoCurrentImportedToolpath => {
             message("failure.no_current_imported_toolpath")
@@ -221,6 +224,7 @@ mod tests {
             CamSimulationWorkflowError::Conditions(Vec::new()),
             CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces),
             CamSimulationWorkflowError::JobManagerNotFound,
+            CamSimulationWorkflowError::JobManagerNotRunning,
             CamSimulationWorkflowError::JobStore("reason".to_string()),
             CamSimulationWorkflowError::NoCurrentImportedToolpath,
         ];

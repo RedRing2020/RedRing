@@ -128,6 +128,24 @@ pub enum CuttingSimulationSessionError {
     Playback(CuttingSimulationPlaybackError),
 }
 
+impl CuttingSimulationSessionError {
+    /// ジョブマネージャーが動いていないため、できなかったか（計算の状態を読むときは、起動しない）
+    pub fn is_job_manager_not_running(&self) -> bool {
+        matches!(
+            self,
+            Self::Workflow(CamSimulationWorkflowError::JobManagerNotRunning)
+        )
+    }
+
+    /// ジョブマネージャーが見つからない（インストールされていない）ため、できなかったか
+    pub fn is_job_manager_not_found(&self) -> bool {
+        matches!(
+            self,
+            Self::Workflow(CamSimulationWorkflowError::JobManagerNotFound)
+        )
+    }
+}
+
 impl std::fmt::Display for CuttingSimulationSessionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -203,8 +221,9 @@ pub enum SequenceSubmissionError {
         operation: String,
         error: CuttingSimulationSessionError,
     },
-    /// 計算の状態をまだ読めていない・読めない（投入し直さない工程を決められないため、どの工程も投入していない）
-    StatusNotRead,
+    /// 計算の状態を読めない（ジョブマネージャーが見つからない・起動できない等。投入し直さない工程を決められない
+    /// ため、どの工程も投入していない）
+    StatusUnreadable(CuttingSimulationSessionError),
     /// 工程の投入の失敗（その前の `submitted` 個の工程は投入した。工程の加工の順の番号（1 から）・名前と理由）
     Submit {
         position: usize,
@@ -222,7 +241,7 @@ impl std::fmt::Display for SequenceSubmissionError {
                 operation,
                 error,
             } => write!(f, "operation {position} ({operation:?}): {error}"),
-            Self::StatusNotRead => write!(f, "the job status has not been read"),
+            Self::StatusUnreadable(error) => write!(f, "cannot read the job status: {error}"),
             Self::Submit {
                 position,
                 operation,
@@ -317,14 +336,23 @@ impl CuttingSimulationSession {
     ) -> Result<SubmissionKind, CuttingSimulationSessionError> {
         document.target_visible_faces();
         let (_, sequences, sequence, operation) = document.machining();
-        // 状態を読めなくても、投入はジョブマネージャーにつなぎ直して行うため、まだ読めていないときと同じに決める
-        let state = self
-            .workflow
-            .latest_revision_job_status(sequences, sequence, operation)
-            .unwrap_or_else(|error| {
-                tracing::warn!("Cannot read the job status before submitting: {error}");
-                OperationJobState::NotRead
-            });
+        // 切削シミュレーションだけを投入するかは、状態を今読んでから決める（ジョブマネージャーが動いていなければ起動
+        // する。読まずに決めると、計算済みのジョブがあっても重ねて投入する）。見つからなければ投入できない。ほかの理由で
+        // 読めなくても、投入はつなぎ直して行うため、まだ読めていないときと同じに決める
+        let state =
+            match self
+                .workflow
+                .latest_revision_job_states_now(sequences, sequence, &[operation])
+            {
+                Ok(mut states) => states.remove(0),
+                Err(CamSimulationWorkflowError::JobManagerNotFound) => {
+                    return Err(CamSimulationWorkflowError::JobManagerNotFound.into());
+                }
+                Err(error) => {
+                    tracing::warn!("Cannot read the job status before submitting: {error}");
+                    OperationJobState::NotRead
+                }
+            };
         let kind = SubmissionKind::of(document.imported_toolpath_state(), state);
         self.submit_kind(document, operation, kind)?;
         Ok(kind)
@@ -402,13 +430,12 @@ impl CuttingSimulationSession {
             )?;
         }
         let ids: Vec<MachiningOperationId> = operations.iter().map(|item| item.id).collect();
+        // 計算待ち・計算中・計算済みの工程を投入し直さないよう、状態を今読んでから決める（ジョブマネージャーが動いて
+        // いなければ起動する）
         let states = self
             .workflow
-            .latest_revision_job_states(sequences, sequence, &ids)
-            .map_err(|_| SequenceSubmissionError::StatusNotRead)?;
-        if states.contains(&OperationJobState::NotRead) {
-            return Err(SequenceSubmissionError::StatusNotRead);
-        }
+            .latest_revision_job_states_now(sequences, sequence, &ids)
+            .map_err(|error| SequenceSubmissionError::StatusUnreadable(error.into()))?;
         let mut submission = SequenceSubmission {
             submitted: 0,
             simulation_only: 0,
@@ -488,12 +515,12 @@ impl CuttingSimulationSession {
         Ok(latest)
     }
 
-    /// 待ちのジョブがあるときに、ジョブマネージャーが止まっていれば起動し直す（同じプロセスの中で実行する試験では、
-    /// 待ちのジョブを実行する）。実行したジョブの数を返す
+    /// 同じプロセスの中で実行するときに、待ちのジョブを実行する。実行したジョブの数を返す（外のジョブマネージャー
+    /// は、待ちのジョブを自分で実行するため、何もせず 0）
     ///
     /// # Errors
     ///
-    /// ジョブマネージャーがない・起動できない場合。
+    /// 同じプロセスの中で実行するときの、ジョブの状態の更新の失敗。
     pub fn run_queued_jobs(&mut self) -> Result<usize, CuttingSimulationSessionError> {
         Ok(self.workflow.run_queued_jobs()?)
     }

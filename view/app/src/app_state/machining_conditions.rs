@@ -2,10 +2,11 @@
 
 use std::time::{Duration, Instant};
 
-use viewmodel::cutting_simulation_session::OperationJobState;
+use viewmodel::cutting_simulation_session::{OperationJobState, OperationJobStatus};
 use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
 
 use super::AppState;
+use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
     ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState, OperationCommand,
     OperationRow,
@@ -203,7 +204,8 @@ impl AppState {
     /// 工程リストを出している間、加工工程の今の改訂の計算の状態を、一定の間隔で読み直す
     ///
     /// 終わった状態（正常・失敗・取り消し）は、ジョブマネージャーでやり直す・消すまで変わらないため、間隔を長くして
-    /// 読み直す。待ち・計算中の間は、ジョブマネージャーが止まっていれば起動し直す。状態は別のスレッドで読むため、
+    /// 読み直す。読むだけでは、ジョブマネージャーを起動しない（動いていなければ、状態不明にする。計算待ちのジョブを
+    /// 残して止まったときは、次にジョブマネージャーを使う操作をするまで計算が止まる）。状態は別のスレッドで読むため、
     /// ここでは最後に読んだ状態を出す（画面を止めない）。
     fn refresh_job_status(&mut self) {
         // 間隔は、一覧のどれかの工程の状態で決める。まだ読めていない間は、描くたびに確かめる（読むのは別のスレッドで、
@@ -238,28 +240,64 @@ impl AppState {
                 .map(|(operation, state)| (operation, line(state)))
                 .collect(),
             Err(error) => {
-                if self.cutting_simulation_job_status != JobStatusLine::Unreadable {
-                    tracing::warn!("Cannot read the job status: {error}");
-                }
+                // ジョブマネージャーが動いていない・見つからないときは、状態が分からない（読むときは起動しない）
+                let line = if error.is_job_manager_not_running() {
+                    JobStatusLine::ManagerNotRunning
+                } else if error.is_job_manager_not_found() {
+                    JobStatusLine::ManagerNotFound
+                } else {
+                    if self.cutting_simulation_job_status != JobStatusLine::Unreadable {
+                        tracing::warn!("Cannot read the job status: {error}");
+                    }
+                    JobStatusLine::Unreadable
+                };
                 self.document
                     .operations()
                     .into_iter()
-                    .map(|item| (item.id, JobStatusLine::Unreadable))
+                    .map(|item| (item.id, line.clone()))
                     .collect()
             }
         };
+        self.notify_job_manager_availability();
         let status = self.operation_job_status(self.document.selected_operation());
-        // どれかの工程が待ち・計算中なら、ジョブマネージャーが止まっていれば起動し直す
-        let pending = self
-            .operation_job_statuses
-            .iter()
-            .any(|(_, status)| status.is_pending());
-        if pending {
-            if let Err(error) = self.cutting_simulation.run_queued_jobs() {
-                tracing::warn!("Cannot start the job manager: {error}");
-            }
-        }
         self.cutting_simulation_job_status = status;
+    }
+
+    /// ジョブマネージャーが動いていない・見つからないことを、変わったときに 1 度だけ画面の下の行に出す（動いていない
+    /// のは情報、見つからないのは失敗。最後に読めた状態に計算待ち・計算中の工程があれば、計算されていないことを注意
+    /// として出す）。状態を読めた（ジョブマネージャーが動いている）ら、次に変わったときにまた出す。読めない・読んで
+    /// いる間は、どちらとも決めない（同じメッセージを出し直さないように）
+    fn notify_job_manager_availability(&mut self) {
+        let Some(first) = self.operation_job_statuses.first().map(|(_, s)| s.clone()) else {
+            return;
+        };
+        let unavailable = match first {
+            JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => Some(first),
+            JobStatusLine::NotSubmitted | JobStatusLine::Status(_) => {
+                self.jobs_pending = self.operation_job_statuses.iter().any(|(_, status)| {
+                    matches!(
+                        status,
+                        JobStatusLine::Status(
+                            OperationJobStatus::Queued | OperationJobStatus::Running
+                        )
+                    )
+                });
+                None
+            }
+            JobStatusLine::Unreadable | JobStatusLine::Reading => return,
+        };
+        if unavailable == self.job_manager_unavailable {
+            return;
+        }
+        match &unavailable {
+            Some(JobStatusLine::ManagerNotRunning) if self.jobs_pending => {
+                self.set_notice(Notice::JobManagerStopped);
+            }
+            Some(JobStatusLine::ManagerNotRunning) => self.set_notice(Notice::JobManagerNotRunning),
+            Some(JobStatusLine::ManagerNotFound) => self.set_notice(Notice::JobManagerNotFound),
+            _ => {}
+        }
+        self.job_manager_unavailable = unavailable;
     }
 
     /// 加工工程 `operation` の、最後に読んだ計算の状態（まだ読んでいなければ、読んでいる）
