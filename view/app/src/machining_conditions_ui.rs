@@ -342,6 +342,26 @@ fn calculation_waiting_or_done(status: &JobStatusLine) -> bool {
     matches!(status, JobStatusLine::Status(status) if status.is_waiting_or_done())
 }
 
+/// 計算に乗せたときに出す、工程の計算の状態の案内（次にできること）の文言のキー（案内のない状態は `None`）
+fn calculation_guide_key(row: &OperationRow) -> Option<&'static str> {
+    match row.status {
+        JobStatusLine::Status(OperationJobStatus::Queued | OperationJobStatus::Running) => {
+            Some("conditions.submit.guide.in_progress")
+        }
+        JobStatusLine::Status(OperationJobStatus::Succeeded) if row.toolpath_current => {
+            Some("conditions.submit.guide.imported_with_simulation")
+        }
+        JobStatusLine::Status(OperationJobStatus::Succeeded) => {
+            Some("conditions.submit.guide.calculated")
+        }
+        // ジョブマネージャーの結果を消した後・別の PC で開いたとき（CL から切削シミュレーションだけを計算する）
+        JobStatusLine::NotSubmitted if row.toolpath_current => {
+            Some("conditions.submit.guide.imported_toolpath_only")
+        }
+        _ => None,
+    }
+}
+
 /// 加工工程の一覧の行に出す状態の文言のキー（計算済み・未計算（ジョブマネージャーの結果を消したとき）・状態不明
 /// （ジョブマネージャーが動いていない・見つからない）の工程は、空間モデルの CL が今の条件の結果なら取込済み。CL が正本
 /// のため、ジョブの側を見なくてよい。計算待ち・計算中・失敗などは、そのまま出す）
@@ -710,13 +730,8 @@ impl MachiningConditionsUiState {
     /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・手順の全体を投入・CL 取込・切削シミュレーション表示・
     /// ジョブマネージャーを開く）。結果と状態は、行の数で工程リストの高さを変えないよう、ステータスバーに出す
     fn show_job_commands(&mut self, ui: &mut egui::Ui) {
-        // 投入・やり直しを押せない理由（条件の誤り）は、押せないボタンに乗せたときに出す
-        let reasons = self
-            .issues
-            .iter()
-            .map(|issue| condition_issue_text(self.locale, issue))
-            .collect::<Vec<_>>()
-            .join("\n");
+        // 計算・再計算を押せない理由（計算の状態の案内・条件の誤り）は、押せないボタンに乗せたときに出す
+        let reasons = self.issue_reasons();
         ui.horizontal_wrapped(|ui| {
             let position = self.selected_position();
             let can_submit = self.action_enabled(&RowAction::Submit, position);
@@ -725,12 +740,12 @@ impl MachiningConditionsUiState {
                     can_submit,
                     egui::Button::new(self.text("conditions.submit")),
                 )
-                .on_hover_text(self.text("conditions.submit.hint"));
-            if !can_submit {
-                submit
-                    .clone()
-                    .on_disabled_hover_text(self.submit_disabled_text(position, &reasons));
-            }
+                .on_hover_ui(|ui| {
+                    ui.label(self.submit_hover_text(position, true));
+                })
+                .on_disabled_hover_ui(|ui| {
+                    ui.label(self.submit_hover_text(position, false));
+                });
             if submit.clicked() {
                 self.submit_requested = true;
             }
@@ -778,7 +793,9 @@ impl MachiningConditionsUiState {
         match action {
             RowAction::Submit => {
                 self.issues.is_empty()
-                    && position.is_none_or(|at| self.submit_blocked_reason(at).is_none())
+                    && position
+                        .and_then(|at| self.operations.get(at))
+                        .is_none_or(|row| !calculation_waiting_or_done(&row.status))
             }
             RowAction::Redo => self.issues.is_empty(),
             RowAction::Command(command) => self.command_enabled(command, position),
@@ -786,24 +803,30 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 加工の順の `position` 番目の工程を計算できない理由（今の条件の計算が計算待ち・計算中・計算済み。状態が分から
-    /// ない・まだ読めていないときは、押したときに読み直して決めるため、押せる）
-    fn submit_blocked_reason(&self, position: usize) -> Option<String> {
-        let row = self.operations.get(position)?;
-        calculation_waiting_or_done(&row.status).then(|| {
-            self.text_with_args(
-                "conditions.submit.blocked",
-                &[("status", self.text(operation_row_key(row)))],
-            )
-        })
+    /// 今の条件の誤りの文（1 つ 1 行）
+    fn issue_reasons(&self) -> String {
+        self.issues
+            .iter()
+            .map(|issue| self.issue_text(issue))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
-    /// 計算を押せない理由の文（計算待ち・計算中・計算済みと、条件の誤り `reasons`）
-    fn submit_disabled_text(&self, position: Option<usize>, reasons: &str) -> String {
-        position
-            .and_then(|at| self.submit_blocked_reason(at))
+    /// 加工の順の `position` 番目の工程の計算に乗せたときの文。計算の状態の案内（次にできること）の後に、押せる
+    /// ときは計算の説明、押せないときは条件の誤りを続ける
+    fn submit_hover_text(&self, position: Option<usize>, enabled: bool) -> String {
+        let guide = position
+            .and_then(|at| self.operations.get(at))
+            .and_then(calculation_guide_key)
+            .map(|key| self.text(key));
+        let detail = if enabled {
+            self.text("conditions.submit.hint")
+        } else {
+            self.issue_reasons()
+        };
+        guide
             .into_iter()
-            .chain((!reasons.is_empty()).then(|| reasons.to_string()))
+            .chain((!detail.is_empty()).then_some(detail))
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -931,17 +954,11 @@ impl MachiningConditionsUiState {
             ) {
                 ui.separator();
             }
-            let response = ui.add_enabled(enabled, egui::Button::new(self.text(key)));
-            if !enabled && action == RowAction::Submit {
-                let reasons = self
-                    .issues
-                    .iter()
-                    .map(|issue| self.issue_text(issue))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                response
-                    .clone()
-                    .on_disabled_hover_text(self.submit_disabled_text(Some(index), &reasons));
+            let mut response = ui.add_enabled(enabled, egui::Button::new(self.text(key)));
+            if action == RowAction::Submit {
+                response = response.on_disabled_hover_ui(|ui| {
+                    ui.label(self.submit_hover_text(Some(index), false));
+                });
             }
             if response.clicked() {
                 chosen = Some(action);
@@ -1311,10 +1328,10 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        calculation_waiting_or_done, condition_error_message, condition_field,
-        imported_toolpath_key, job_status_key, operation_row_key, operation_row_status_key,
-        operation_status_text, stage_key, ConditionField, JobStatusLine, MachiningStage,
-        OperationJobStatus, OperationRow, OperationStatus, COLUMN_KEYS,
+        calculation_guide_key, calculation_waiting_or_done, condition_error_message,
+        condition_field, imported_toolpath_key, job_status_key, operation_row_key,
+        operation_row_status_key, operation_status_text, stage_key, ConditionField, JobStatusLine,
+        MachiningStage, OperationJobStatus, OperationRow, OperationStatus, COLUMN_KEYS,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -1523,16 +1540,58 @@ mod tests {
         ] {
             assert!(!calculation_waiting_or_done(&status), "{status:?}");
         }
-        for locale in [UiLocale::Ja, UiLocale::En] {
-            let text = resolve_machining_conditions_text(
-                locale,
-                "conditions.submit.blocked",
-                &[("status", "x".to_string())],
-            );
-            assert!(
-                text.contains('x') && !text.contains("__missing__"),
-                "{text}"
-            );
+    }
+
+    #[test]
+    fn the_calculation_guide_tells_what_can_be_done_next() {
+        let names = viewmodel::space_model_document::DefaultNames {
+            sequence: "加工手順",
+            operation: "スキャン加工",
+        };
+        let item = viewmodel::space_model_document::SpaceModelDocument::new(names)
+            .operations()
+            .remove(0);
+        let row = |status, toolpath_current| OperationRow {
+            id: item.id,
+            name: item.name.clone(),
+            stage: item.stage,
+            spec: item.spec,
+            tool: item.tool.clone(),
+            status,
+            toolpath_current,
+        };
+        let succeeded = JobStatusLine::Status(OperationJobStatus::Succeeded);
+        let cases = [
+            (
+                row(JobStatusLine::Status(OperationJobStatus::Running), false),
+                Some("conditions.submit.guide.in_progress"),
+            ),
+            (
+                row(succeeded.clone(), false),
+                Some("conditions.submit.guide.calculated"),
+            ),
+            (
+                row(succeeded, true),
+                Some("conditions.submit.guide.imported_with_simulation"),
+            ),
+            (
+                row(JobStatusLine::NotSubmitted, true),
+                Some("conditions.submit.guide.imported_toolpath_only"),
+            ),
+            (row(JobStatusLine::NotSubmitted, false), None),
+            (
+                row(JobStatusLine::Status(OperationJobStatus::Failed), true),
+                None,
+            ),
+        ];
+        for (row, key) in cases {
+            assert_eq!(calculation_guide_key(&row), key, "{:?}", row.status);
+            if let Some(key) = key {
+                for locale in [UiLocale::Ja, UiLocale::En] {
+                    let text = resolve_machining_conditions_text(locale, key, &[]);
+                    assert!(!text.contains("__missing__"), "{key}");
+                }
+            }
         }
     }
 

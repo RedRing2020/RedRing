@@ -111,8 +111,20 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "選んだ工程を計算します。今の条件の CL があり、今の条件の計算が残っていなければ、その CL から切削シミュレーションだけを計算します",
     ),
     (
-        "conditions.submit.blocked",
-        "今の条件の計算が「{status}」のため、計算できません",
+        "conditions.submit.guide.in_progress",
+        "今の条件の計算が進んでいます。終わるまでお待ちください",
+    ),
+    (
+        "conditions.submit.guide.calculated",
+        "今の条件の計算は済んでいます。結果を取り込めます",
+    ),
+    (
+        "conditions.submit.guide.imported_with_simulation",
+        "CL 取込済みです。切削シミュレーションを表示できます",
+    ),
+    (
+        "conditions.submit.guide.imported_toolpath_only",
+        "CL 取込済みです。切削シミュレーションを計算できます",
     ),
     ("conditions.redo", "再計算"),
     (
@@ -371,8 +383,20 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "Calculates the selected operation. If the CL of the current conditions exists and no calculation of the current conditions remains, only the cutting simulation is calculated from that CL",
     ),
     (
-        "conditions.submit.blocked",
-        "Cannot calculate because the calculation for the current conditions is \"{status}\"",
+        "conditions.submit.guide.in_progress",
+        "The calculation for the current conditions is in progress. Wait until it finishes",
+    ),
+    (
+        "conditions.submit.guide.calculated",
+        "The calculation for the current conditions is done. You can import the result",
+    ),
+    (
+        "conditions.submit.guide.imported_with_simulation",
+        "The CL is imported. You can show the cutting simulation",
+    ),
+    (
+        "conditions.submit.guide.imported_toolpath_only",
+        "The CL is imported. You can calculate the cutting simulation",
     ),
     ("conditions.redo", "Recalculate"),
     (

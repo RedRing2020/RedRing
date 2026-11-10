@@ -70,6 +70,8 @@ impl AppState {
                 "The machining operation is already waiting, calculating, or calculated"
             );
             self.set_operation_status(OperationStatus::AlreadyCalculated);
+            // 押したときに読んだ状態を、すぐ表とボタンに出す
+            self.job_status_read_at = None;
             return false;
         };
         let result = kind.map(|kind| {
