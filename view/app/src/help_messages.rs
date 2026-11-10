@@ -60,7 +60,7 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("notice.model_created", "新しい空間モデルにしました"),
     (
         "notice.job_manager_not_running",
-        "ジョブマネージャーが動いていないため、計算の状態が分かりません。投入すると起動します",
+        "ジョブマネージャーが動いていないため、計算の状態が分かりません。計算開始すると起動します",
     ),
     (
         "notice.job_manager_not_found",
@@ -176,7 +176,7 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("notice.model_created", "Started a new space model"),
     (
         "notice.job_manager_not_running",
-        "The calculation status is unknown because the job manager is not running. It starts when you submit",
+        "The calculation status is unknown because the job manager is not running. It starts when you start a calculation",
     ),
     (
         "notice.job_manager_not_found",

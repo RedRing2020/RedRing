@@ -106,7 +106,7 @@ pub(crate) enum Notice {
     ModelOpened { file: String },
     /// モデルファイルを開けない（ファイルの名前と理由）
     ModelOpenFailed { file: String, reason: UiMessage },
-    /// ジョブマネージャーが動いていないため、計算の状態が分からない（投入すると起動する）
+    /// ジョブマネージャーが動いていないため、計算の状態が分からない（計算開始すると起動する）
     JobManagerNotRunning,
     /// ジョブマネージャーが見つからないため、計算の投入と状態の確認ができない
     JobManagerNotFound,

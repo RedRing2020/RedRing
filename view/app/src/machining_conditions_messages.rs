@@ -191,7 +191,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.job.reading", "今の条件の計算: 状態を読んでいます"),
     (
         "conditions.job.manager_not_running",
-        "今の条件の計算: ジョブマネージャーが動いていないため、分かりません（投入すると起動します）",
+        "今の条件の計算: ジョブマネージャーが動いていないため、分かりません（計算開始すると起動します）",
     ),
     (
         "conditions.job.manager_not_found",
@@ -446,7 +446,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     (
         "conditions.job.manager_not_running",
-        "Calculation for the current conditions: unknown because the job manager is not running (it starts when you submit)",
+        "Calculation for the current conditions: unknown because the job manager is not running (it starts when you start a calculation)",
     ),
     (
         "conditions.job.manager_not_found",
