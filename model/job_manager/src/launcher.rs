@@ -1,6 +1,7 @@
 //! ランナーの起動（実行中のランナーの終わりの確かめと、止めること）
 
 use std::ffi::OsString;
+use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 
@@ -15,6 +16,8 @@ pub struct LaunchSpec {
     pub output: PathBuf,
     pub logs: PathBuf,
     pub progress: PathBuf,
+    /// ランナーの標準エラー出力を書くファイル（ランナーの引数には渡さない）
+    pub stderr: PathBuf,
 }
 
 impl LaunchSpec {
@@ -69,12 +72,20 @@ impl ProcessLauncher {
 
 impl Launcher for ProcessLauncher {
     fn launch(&self, spec: &LaunchSpec) -> std::io::Result<Box<dyn RunningJob>> {
+        // 標準エラー出力を残す（ランナーがログに書けずに止まったときの理由。前の実行の分は消す）。補助の情報のため、
+        // ファイルを作れなければ捨てて起動する（ログのフォルダに書けないことは、ランナーが終了の番号で返す）
+        let stderr = spec
+            .stderr
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| File::create(&spec.stderr))
+            .map_or_else(|_| Stdio::null(), Stdio::from);
         let mut command = Command::new(&self.runner);
         command
             .args(spec.args())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            .stderr(stderr);
         // Windows では、ランナーのコンソールのウィンドウを出さない
         #[cfg(windows)]
         {

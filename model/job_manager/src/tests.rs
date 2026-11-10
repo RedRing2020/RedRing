@@ -34,12 +34,13 @@ impl Drop for TempRoot {
     }
 }
 
-/// 偽のランナーの共有の状態（起動した引数・止めたジョブ・種類ごとの終了の番号）
+/// 偽のランナーの共有の状態（起動した引数・止めたジョブ・種類ごとの終了の番号・標準エラー出力）
 #[derive(Default)]
 struct FakeState {
     launched: Vec<LaunchSpec>,
     stopped: Vec<PathBuf>,
     exit_codes: HashMap<&'static str, i32>,
+    stderr: &'static str,
     fail_to_launch: bool,
     /// 終わるまでの確かめの回数
     polls_until_done: usize,
@@ -58,6 +59,7 @@ impl Launcher for FakeLauncher {
         Ok(Box::new(FakeJob {
             spec: spec.clone(),
             code: state.exit_codes.get(spec.job_type).copied().unwrap_or(0),
+            stderr: state.stderr,
             polls_left: state.polls_until_done,
             state: self.0.clone(),
         }))
@@ -67,6 +69,7 @@ impl Launcher for FakeLauncher {
 struct FakeJob {
     spec: LaunchSpec,
     code: i32,
+    stderr: &'static str,
     polls_left: usize,
     state: Rc<RefCell<FakeState>>,
 }
@@ -91,6 +94,7 @@ impl RunningJob for FakeJob {
             self.spec.logs.join("runner.log"),
             format!("start\nfailed exit_code={} code=no_solution\n", self.code),
         )?;
+        fs::write(&self.spec.stderr, self.stderr)?;
         Ok(Some(Some(self.code)))
     }
 
@@ -253,6 +257,67 @@ fn a_failed_job_records_the_reason_and_fails_the_jobs_waiting_for_it() {
     }));
     assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Failed);
     assert_eq!(launcher.0.borrow().launched.len(), 1);
+}
+
+#[test]
+fn a_runner_that_ends_with_another_exit_code_records_the_last_line_of_its_standard_error() {
+    // メモリを確保できずに止まったとき（Windows の 0xC0000409）は、ランナーはログに理由を書けない
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher
+        .0
+        .borrow_mut()
+        .exit_codes
+        .insert("cam", -1_073_740_791);
+    launcher.0.borrow_mut().stderr = "memory allocation of 6000000000 bytes failed\n";
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+
+    service.tick(1);
+    service.tick(2);
+    let cam = status_of(&root.store(), 1);
+    assert_eq!(
+        cam.error,
+        Some(StoredJobError::RunnerExitCode {
+            code: -1_073_740_791
+        })
+    );
+    let error = cam.last_error.unwrap();
+    assert!(
+        error.ends_with("memory allocation of 6000000000 bytes failed"),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_panic_records_its_message_without_the_note_line() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().exit_codes.insert("cam", 101);
+    launcher.0.borrow_mut().stderr = "\nthread 'main' panicked at src/run.rs:1:1:\nindex out of bounds\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n";
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+
+    service.tick(1);
+    service.tick(2);
+    let error = status_of(&root.store(), 1).last_error.unwrap();
+    assert!(error.ends_with("index out of bounds"), "{error}");
+}
+
+#[test]
+fn a_runner_that_reports_its_own_failure_records_the_line_of_its_log() {
+    // ランナーが決めた終了の番号では、標準エラー出力に何かあっても、ログの理由を出す
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().exit_codes.insert("cam", 5);
+    launcher.0.borrow_mut().stderr = "something else\n";
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+
+    service.tick(1);
+    service.tick(2);
+    let error = status_of(&root.store(), 1).last_error.unwrap();
+    assert!(error.contains("code=no_solution"), "{error}");
 }
 
 #[test]
@@ -626,6 +691,7 @@ fn launch_arguments_name_only_files_under_the_job_folder() {
         output: PathBuf::from("out"),
         logs: PathBuf::from("logs"),
         progress: PathBuf::from("progress.json"),
+        stderr: PathBuf::from("logs/runner.stderr.log"),
     };
     let args: Vec<String> = spec
         .args()

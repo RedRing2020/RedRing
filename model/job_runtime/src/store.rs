@@ -11,6 +11,7 @@
 //!     input/input.bin         入力
 //!     output/                 成果物（toolpath.bin・cutting_simulation.bin）
 //!     logs/runner.log         ログ
+//!     logs/runner.stderr.log  ランナーの標準エラー出力
 //!     progress.json           進み具合
 //! ```
 //!
@@ -60,6 +61,8 @@ const INPUT_TOOLPATH_FILE: &str = "toolpath.bin";
 const OUTPUT_DIR: &str = "output";
 const LOGS_DIR: &str = "logs";
 const LOG_FILE: &str = "runner.log";
+/// ランナーの標準エラー出力（メモリを確保できずに止まったときなど、ランナーがログに書けない理由が残る）
+const STDERR_FILE: &str = "runner.stderr.log";
 const PROGRESS_FILE: &str = "progress.json";
 /// 成果物を、投入した側が取り込んだ印（ジョブの記録とは別のファイル。記録を書くスレッドと重ならないように）
 const IMPORTED_FILE: &str = "imported";
@@ -710,6 +713,11 @@ impl JobStore {
     /// ログのファイル
     pub fn log_file(&self, job_id: u64) -> PathBuf {
         self.logs_dir(job_id).join(LOG_FILE)
+    }
+
+    /// ランナーの標準エラー出力のファイル
+    pub fn stderr_file(&self, job_id: u64) -> PathBuf {
+        self.logs_dir(job_id).join(STDERR_FILE)
     }
 
     /// 成果物・ログの参照（`result://<cam|sim>/<ジョブの番号>/...`・`log://<cam|sim>/<ジョブの番号>/...`）が指す
