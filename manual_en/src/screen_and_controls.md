@@ -7,7 +7,7 @@
 | Menu bar | "File" creates, opens, saves, and saves as a model file, loads a shape file, and exits (see "Model Files" below). "Machining" opens and closes the machining sequence, shows or hides the operation list, and opens the operation settings and sequence settings dialogs ([Cutting Simulation](./cutting_simulation_demo.md)). "View" → "Language" selects the language of the screen text. "Help" → "Controls" shows the list of keys, and "About" shows the version, the location of the log file, and a link to the manual |
 | Model view | Shows the product shape, the stock, the toolpath lines, and the tool lines. It is drawn between the menu bar and the operation list or status bar (the view center and the center of rotation are the center of that area. Changing the height of the operation list does not change the zoom. When the view is fitted to the whole shape, for example after loading a shape, it is fitted into that area) |
 | Progress bar at the top left | Appears when a cutting simulation is imported. Drag it with the left button to move to any time (scrubbing) |
-| Status bar at the bottom of the screen | Shows the last message on one line: the results of loading a shape, submitting, running, and importing, and the reasons why an operation could not be done. Warnings are yellow and failures are red. Long messages are cut to one line. Press 📋 at the left to open a list of recent messages (newest first, in full; the text can be selected and copied) and, while a machining sequence is open, the state of the selected operation (calculation state, state of the CL in the space model, condition errors). While there are warnings or failures not yet seen in the list, 📋 is shown in yellow or red |
+| Status bar at the bottom of the screen | Shows the last message on one line: the results of loading a shape, calculating, and importing, and the reasons why an operation could not be done. Warnings are yellow and failures are red. Long messages are cut to one line. Press 📋 at the left to open a list of recent messages (newest first, in full; the text can be selected and copied) and, while a machining sequence is open, the state of the selected operation (calculation state, state of the CL in the space model, condition errors). While there are warnings or failures not yet seen in the list, 📋 is shown in yellow or red |
 | Window title | Shows the name of the open model file ("Untitled" until it is saved). When there are unsaved changes, `*` follows the name. When a cutting simulation is imported, shows the current time (`Snapshot 1/N`), the segment number, the remaining volume, and the playback speed |
 
 ## Model Files
@@ -25,7 +25,7 @@ The product shape and the machining sequence and operation (machining conditions
 
 - When you drop a file onto the window, a model file is opened like "Open…", and an STL file is loaded like "Load…"
 - When there are unsaved changes (a loaded shape, or changed machining conditions or stock), New, Open, and Exit (including the window's close button and the `Esc` key) ask whether to save them. "Save" saves and continues, "Don't Save" discards the changes and continues, and "Cancel" does nothing
-- After opening a model file again, you can import the results of the calculations submitted before (while the job manager keeps them)
+- After opening a model file again, you can import the results of the calculations done before (while the job manager keeps them)
 - If the same model file is opened in two apps and saved in both, the one saved last is kept
 - A model file saved by a newer version of the app may not open (the status bar shows why)
 
@@ -35,7 +35,7 @@ The screen text can be Japanese or English, selected with "View" → "Language" 
 
 | Window | How to open | Contents |
 |---|---|---|
-| Operation list (bottom of the screen) | "Machining" → "Open machining sequence". While it is open, `Shift+M` or "Machining" → "Operation list" shows or hides it | The table of the operations of the machining sequence, and submitting and importing the cutting simulation ([Cutting Simulation](./cutting_simulation_demo.md)) |
+| Operation list (bottom of the screen) | "Machining" → "Open machining sequence". While it is open, `Shift+M` or "Machining" → "Operation list" shows or hides it | The table of the operations of the machining sequence, and calculating and importing the cutting simulation ([Cutting Simulation](./cutting_simulation_demo.md)) |
 | Operation settings (dialog) | Double-click or right-click menu of an operation row, "Operation settings" in the operation list, or "Machining" → "Operation settings" | Input of the tool and machining conditions of the selected operation (put into the operation with "Apply") |
 | Sequence settings (dialog) | "Sequence settings" in the operation list, or "Machining" → "Sequence settings" | Input of the stock (margins, precision) of the machining sequence (put into the sequence with "Apply") |
 | Controls | `F1`, `h`, or "Help" → "Controls" | The list of key and mouse controls (the same as "Key Bindings" below) |
@@ -65,7 +65,7 @@ The same as the "Controls" window opened with the `F1` or `h` key.
 | | `t` | Standard CAD view |
 | | `f` | Front view |
 | | `e` | Emergency escape (bring back a camera inside a shape) |
-| Cutting simulation | `Shift+M` | While a machining sequence is open, show or hide the operation list (submit with "Submit") |
+| Cutting simulation | `Shift+M` | While a machining sequence is open, show or hide the operation list (calculate with "Calculate") |
 | | `Shift+L` | While a machining sequence is open, import the latest cutting simulation calculated with the current conditions |
 | | `k` / `j` | Step forward / back by the frame step distance |
 | | `.` / `,` | Move the tool to the next / previous segment endpoint |

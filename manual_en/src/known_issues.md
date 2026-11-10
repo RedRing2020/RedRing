@@ -35,13 +35,13 @@ Display:
 
 | Symptom | What to check |
 |---|---|
-| "Import CL" or "Show cutting simulation" does not import | After changing the conditions or the visible product shape, nothing can be imported until you submit again. Check the list opened with 📋 in the status bar and the log (`logs/redring.log`) |
-| "Submit" cannot be pressed | A condition error is shown in red below the field to fix. Fix it to enable the button |
-| "Submit" says that the job manager is not installed | Check that `redring-job-manager` and `redring-batch-runner` are in the same folder as the app. When built from source, build with `cargo build --release` |
+| "Import CL" or "Show cutting simulation" does not import | After changing the conditions or the visible product shape, nothing can be imported until you calculate again. Check the list opened with 📋 in the status bar and the log (`logs/redring.log`) |
+| "Calculate" cannot be pressed | A condition error is shown in red below the field to fix. Fix it to enable the button |
+| "Calculate" says that the job manager is not installed | Check that `redring-job-manager` and `redring-batch-runner` are in the same folder as the app. When built from source, build with `cargo build --release` |
 | The calculation stays "waiting" | Check the job manager log (`%LOCALAPPDATA%\RedRing\jobs\manager.log`) |
 | The calculation "failed" | The reason is in the job log (`%LOCALAPPDATA%\RedRing\jobs\<job number>\logs\runner.log`) |
 | Drawing stops while the open-file dialog is open | It resumes when the dialog is closed |
-| Rotating the stock stops drawing or the screen disappears | With a fine stock precision (for example 0.01 mm), the GPU load becomes high and the GPU device can be lost. The app then shows an error message and ends. Submit again with a coarser precision |
+| Rotating the stock stops drawing or the screen disappears | With a fine stock precision (for example 0.01 mm), the GPU load becomes high and the GPU device can be lost. The app then shows an error message and ends. Calculate again with a coarser precision |
 | The camera is inside a shape | Press the `e` key (emergency escape) or the `r` key (reset) |
 | Keys do not work | While editing a field in the settings panel or a settings dialog, typed characters are not used as keys. While the operation settings or sequence settings dialog is open, `Shift+M`, `Shift+L`, and the file keys are not accepted. Click outside the field |
 
