@@ -116,8 +116,10 @@ impl AppState {
             Err(failure) => {
                 tracing::warn!("Cannot submit the machining sequence: {failure}");
                 match failure {
-                    SequenceSubmissionError::StatusNotRead => {
-                        self.set_operation_status(OperationStatus::SequenceStatusNotRead);
+                    SequenceSubmissionError::StatusUnreadable(error) => {
+                        self.set_operation_status(OperationStatus::SequenceStatusUnreadable(
+                            cutting_simulation_failure_message(&error),
+                        ));
                         false
                     }
                     SequenceSubmissionError::Conditions {

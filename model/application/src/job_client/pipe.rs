@@ -236,7 +236,8 @@ fn read_status_loop(connector: &Connector, status: &Mutex<StatusState>, requests
                 }
             }
             let generation = lock(status).generation;
-            let read = read_status(connector);
+            // 状態を読むだけでは、ジョブマネージャーを起動しない（動いていなければ、そのことを返す）
+            let read = read_status(connector, false);
             let mut state = lock(status);
             if state.generation == generation {
                 state.latest = Some((read, Instant::now()));
@@ -263,9 +264,17 @@ fn record_imported(connector: &Connector, simulation_job_id: u64) {
     }
 }
 
-/// 1 つの接続で、取り込みを待つ投入とジョブの一覧を読む（この順に読む。間に取り込まれた投入は、ジョブの一覧に出る）
-fn read_status(connector: &Connector) -> Result<JobStatusSnapshot, CamSimulationWorkflowError> {
-    let mut client = connector.connect()?;
+/// 1 つの接続で、取り込みを待つ投入とジョブの一覧を読む（この順に読む。間に取り込まれた投入は、ジョブの一覧に出る）。
+/// `start` のときは、ジョブマネージャーが動いていなければ起動して待つ。そうでなければ、動いていないことを返す
+fn read_status(
+    connector: &Connector,
+    start: bool,
+) -> Result<JobStatusSnapshot, CamSimulationWorkflowError> {
+    let mut client = if start {
+        connector.connect()?
+    } else {
+        connector.connect_running()?
+    };
     let pending = client.pending_submissions().map_err(client_error)?;
     let jobs = client.jobs().map_err(client_error)?;
     Ok(JobStatusSnapshot {
@@ -296,6 +305,21 @@ impl Connector {
             Err(error) => return Err(store_error(error.to_string())),
         };
         client(connection)
+    }
+
+    /// 動いているジョブマネージャーの口につなぐ（起動しない。動いていなければ、実行ファイルがあれば動いていない誤り、
+    /// なければ見つからない誤り）。読み書きには時間の上限を設ける
+    fn connect_running(&self) -> Result<Client<Connection>, CamSimulationWorkflowError> {
+        let endpoint = self.endpoint()?;
+        match connect_now(endpoint) {
+            Ok(connection) => client(connection),
+            Err(error) if not_running(&error) => Err(if self.manager.is_file() {
+                CamSimulationWorkflowError::JobManagerNotRunning
+            } else {
+                CamSimulationWorkflowError::JobManagerNotFound
+            }),
+            Err(error) => Err(store_error(error.to_string())),
+        }
     }
 
     /// 起動したジョブマネージャーの口が開くのを待ってつなぐ（起動したジョブマネージャーが終われば、待たずに誤りにする）
@@ -517,6 +541,16 @@ impl JobClient for PipeJobClient {
         // 状態を読むスレッドで伝える（画面を止めない。伝えられなかったことは、ログに書く）
         self.send(Work::RecordImported(simulation_job_id));
         Ok(())
+    }
+
+    fn read_status_now(&mut self) -> Result<JobStatusSnapshot, CamSimulationWorkflowError> {
+        let snapshot = read_status(&self.connector, true)?;
+        // 読めた状態を、最後に読んだ状態にもする（読み終えるのを待たずに返す側も、同じ状態を返すように。読めなかった
+        // ときは、前に読めた状態を残す）
+        let mut state = lock(&self.status);
+        state.generation += 1;
+        state.latest = Some((Ok(snapshot.clone()), Instant::now()));
+        Ok(snapshot)
     }
 
     fn status_snapshot(&self) -> Result<Option<JobStatusSnapshot>, CamSimulationWorkflowError> {

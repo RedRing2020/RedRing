@@ -180,6 +180,48 @@ fn submitting_without_the_job_manager_installed_fails_without_a_submission() {
     assert!(!inbox.exists() || fs::read_dir(&inbox).unwrap().next().is_none());
 }
 
+/// 別のスレッドが計算の状態を読み終えるまで待ち、読んだ結果を返す
+fn read_status_in_background(
+    client: &PipeJobClient,
+) -> Result<super::JobStatusSnapshot, CamSimulationWorkflowError> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        match client.status_snapshot() {
+            Ok(None) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Ok(None) => panic!("the status was not read in time"),
+            Ok(Some(snapshot)) => return Ok(snapshot),
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+#[test]
+fn reading_the_status_does_not_start_the_job_manager() {
+    // 実行ファイルはあるが動いていない（口が開いていない）ときは、起動せずに、動いていないと答える（起動しようとすると、
+    // 実行できないファイルのため、起動の失敗になる）
+    let root = TempRoot::new();
+    let manager = root.path.join("redring-job-manager.exe");
+    fs::write(&manager, b"not a program").unwrap();
+    let client = PipeJobClient::new(Ok(root.endpoint.clone()), manager);
+    assert_eq!(
+        read_status_in_background(&client).unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotRunning
+    );
+}
+
+#[test]
+fn reading_the_status_without_the_job_manager_installed_reports_it_is_not_found() {
+    // 見つからないときは、投入していないとはみなさず、見つからないと答える
+    let root = TempRoot::new();
+    let client = root.client_without_manager();
+    assert_eq!(
+        read_status_in_background(&client).unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotFound
+    );
+}
+
 #[test]
 fn opening_the_job_manager_window_without_the_job_manager_installed_fails() {
     let root = TempRoot::new();

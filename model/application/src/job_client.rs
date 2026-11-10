@@ -118,6 +118,10 @@ pub(crate) trait JobClient: fmt::Debug {
     /// 状態が古ければ `None`）
     fn status_snapshot(&self) -> Result<Option<JobStatusSnapshot>, CamSimulationWorkflowError>;
 
+    /// 計算の状態を、今読む（ジョブマネージャーが動いていなければ起動して、口が開くのを待つ）。読んだ状態は、
+    /// [`Self::status_snapshot`] でも返す
+    fn read_status_now(&mut self) -> Result<JobStatusSnapshot, CamSimulationWorkflowError>;
+
     /// 正常に終わった切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
     /// 投入した入力
     fn import(

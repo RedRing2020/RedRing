@@ -265,6 +265,8 @@ pub enum CamSimulationWorkflowError {
     InverseOffsetDisplay(CamSolverError),
     /// ジョブマネージャーがインストールされていない（アプリと同じフォルダにない）
     JobManagerNotFound,
+    /// ジョブマネージャーが動いていない（計算の状態を読むときは、起動しない）
+    JobManagerNotRunning,
     /// ジョブの保存先を読み書きできない・ジョブマネージャーを起動できない（理由）
     JobStore(String),
     /// 加工工程の今の条件の CL を、空間モデルに取り込んでいない
@@ -301,6 +303,7 @@ impl fmt::Display for CamSimulationWorkflowError {
                 write!(f, "inverse offset shape cannot be displayed: {error}")
             }
             Self::JobManagerNotFound => write!(f, "the job manager is not installed"),
+            Self::JobManagerNotRunning => write!(f, "the job manager is not running"),
             Self::JobStore(reason) => write!(f, "job store failed: {reason}"),
             Self::NoCurrentImportedToolpath => {
                 write!(f, "no imported toolpath of the current conditions")
@@ -542,33 +545,17 @@ impl CamSimulationWorkflow {
             .map(|job| job.job_id))
     }
 
-    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂（今の改訂の鍵）で、最後に投入した
-    /// 計算の状態（今の改訂で投入していなければ `OperationJobState::NotSubmitted`）。改訂の鍵を持たない投入元（前の版の
-    /// 記録）は、今の改訂とみなさない
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_ids` のそれぞれの、今の改訂（今の改訂の鍵）で
+    /// 最後に投入した計算の状態（`operation_ids` の順。同じ 1 回の読み取りの状態から決める。今の改訂で投入していなければ
+    /// `OperationJobState::NotSubmitted`）。改訂の鍵を持たない投入元（前の版の記録）は、今の改訂とみなさない
     ///
     /// 状態は読み終えるのを待たずに、最後に読んだものから決める（画面を止めないように。まだ読めていなければ
-    /// `OperationJobState::NotRead`）。
+    /// `OperationJobState::NotRead`）。ジョブマネージャーは起動しない。
     ///
     /// # Errors
     ///
-    /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合。
-    pub fn latest_revision_job_status(
-        &self,
-        sequences: &MachiningSequenceStore,
-        sequence_id: MachiningSequenceId,
-        operation_id: MachiningOperationId,
-    ) -> Result<OperationJobState, CamSimulationWorkflowError> {
-        Ok(self
-            .latest_revision_job_states(sequences, sequence_id, &[operation_id])?
-            .remove(0))
-    }
-
-    /// 加工工程 `operation_ids` のそれぞれの、今の改訂の計算の状態（`operation_ids` の順。同じ 1 回の読み取りの状態から
-    /// 決める。決め方は `latest_revision_job_status`）
-    ///
-    /// # Errors
-    ///
-    /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合。
+    /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合（ジョブマネージャーが
+    /// 動いていない・見つからない場合を含む）。
     pub fn latest_revision_job_states(
         &self,
         sequences: &MachiningSequenceStore,
@@ -579,16 +566,36 @@ impl CamSimulationWorkflow {
             .iter()
             .map(|&operation_id| current_revision(sequences, sequence_id, operation_id))
             .collect::<Result<Vec<_>, _>>()?;
-        // ジョブマネージャーがなければ、投入したジョブもない（形状の読み込み・表示は、ジョブマネージャーなしで使える）
-        let snapshot = match self.jobs.status_snapshot() {
-            Err(CamSimulationWorkflowError::JobManagerNotFound) => {
-                return Ok(vec![OperationJobState::NotSubmitted; operation_ids.len()]);
-            }
-            result => match result? {
-                Some(snapshot) => snapshot,
-                None => return Ok(vec![OperationJobState::NotRead; operation_ids.len()]),
-            },
+        // ジョブマネージャーが動いていない・見つからないときは、状態が分からないため誤りにする（投入していないとは
+        // みなさない。計算済みのジョブがあるかもしれないため）
+        let Some(snapshot) = self.jobs.status_snapshot()? else {
+            return Ok(vec![OperationJobState::NotRead; operation_ids.len()]);
         };
+        Ok(operation_ids
+            .iter()
+            .zip(&currents)
+            .map(|(&operation_id, current)| operation_state(&snapshot, operation_id, current))
+            .collect())
+    }
+
+    /// [`Self::latest_revision_job_states`] と同じく、加工工程の今の改訂の計算の状態を、ジョブマネージャーに今問い
+    /// 合わせて返す（動いていなければ起動して、口が開くのを待つ。画面を止める）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順・加工手順にない加工工程の場合、ジョブマネージャーが見つからない・起動できない・状態を
+    /// 読めない場合。
+    pub fn latest_revision_job_states_now(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_ids: &[MachiningOperationId],
+    ) -> Result<Vec<OperationJobState>, CamSimulationWorkflowError> {
+        let currents = operation_ids
+            .iter()
+            .map(|&operation_id| current_revision(sequences, sequence_id, operation_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        let snapshot = self.jobs.read_status_now()?;
         Ok(operation_ids
             .iter()
             .zip(&currents)

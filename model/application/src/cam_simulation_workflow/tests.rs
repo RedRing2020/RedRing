@@ -300,8 +300,9 @@ impl Machining {
     fn status(&self, workflow: &CamSimulationWorkflow) -> Option<OperationJobStatus> {
         // 同じプロセスの中で実行するワークフローは、状態を読み終えてから返す
         match workflow
-            .latest_revision_job_status(&self.store, self.sequence, self.operation)
+            .latest_revision_job_states(&self.store, self.sequence, &[self.operation])
             .unwrap()
+            .remove(0)
         {
             OperationJobState::NotRead => panic!("the status must be read at once"),
             OperationJobState::NotSubmitted => None,

@@ -58,6 +58,14 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("notice.shape_imported", "形状を読み込みました: {file}"),
     ("notice.shape_import_failed", "形状を読み込めません: {file}（{reason}）"),
     ("notice.model_created", "新しい空間モデルにしました"),
+    (
+        "notice.job_manager_not_running",
+        "ジョブマネージャーが動いていないため、計算の状態が分かりません。投入すると起動します",
+    ),
+    (
+        "notice.job_manager_not_found",
+        "ジョブマネージャーが見つからないため、計算の投入と状態の確認ができません",
+    ),
     ("notice.model_opened", "開きました: {file}"),
     ("notice.model_open_failed", "開けません: {file}（{reason}）"),
     ("notice.model_saved", "保存しました: {file}"),
@@ -162,6 +170,14 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("notice.shape_imported", "Loaded the shape: {file}"),
     ("notice.shape_import_failed", "Cannot load the shape: {file} ({reason})"),
     ("notice.model_created", "Started a new space model"),
+    (
+        "notice.job_manager_not_running",
+        "The calculation status is unknown because the job manager is not running. It starts when you submit",
+    ),
+    (
+        "notice.job_manager_not_found",
+        "Cannot submit calculations or check their status because the job manager is not found",
+    ),
     ("notice.model_opened", "Opened: {file}"),
     ("notice.model_open_failed", "Cannot open: {file} ({reason})"),
     ("notice.model_saved", "Saved: {file}"),

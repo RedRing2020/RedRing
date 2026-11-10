@@ -38,6 +38,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "ジョブマネージャーがインストールされていないため、計算を投入できません",
     ),
     (
+        "failure.job_manager_not_running",
+        "ジョブマネージャーが動いていません",
+    ),
+    (
         "failure.job_store",
         "ジョブマネージャーにつなげないか、起動できません",
     ),
@@ -133,6 +137,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.job_manager_not_found",
         "Cannot submit the calculation because the job manager is not installed",
+    ),
+    (
+        "failure.job_manager_not_running",
+        "The job manager is not running",
     ),
     (
         "failure.job_store",

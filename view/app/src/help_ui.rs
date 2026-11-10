@@ -106,6 +106,10 @@ pub(crate) enum Notice {
     ModelOpened { file: String },
     /// モデルファイルを開けない（ファイルの名前と理由）
     ModelOpenFailed { file: String, reason: UiMessage },
+    /// ジョブマネージャーが動いていないため、計算の状態が分からない（投入すると起動する）
+    JobManagerNotRunning,
+    /// ジョブマネージャーが見つからないため、計算の投入と状態の確認ができない
+    JobManagerNotFound,
     /// モデルファイルに保存した（ファイルの名前）
     ModelSaved { file: String },
     /// モデルファイルに保存できない（ファイルの名前と理由）
@@ -119,10 +123,12 @@ impl Notice {
             | Self::ShapeImported { .. }
             | Self::ModelCreated
             | Self::ModelOpened { .. }
-            | Self::ModelSaved { .. } => NoticeLevel::Info,
+            | Self::ModelSaved { .. }
+            | Self::JobManagerNotRunning => NoticeLevel::Info,
             Self::ShapeImportFailed { .. }
             | Self::ModelOpenFailed { .. }
-            | Self::ModelSaveFailed { .. } => NoticeLevel::Error,
+            | Self::ModelSaveFailed { .. }
+            | Self::JobManagerNotFound => NoticeLevel::Error,
             Self::NotImported
             | Self::NoToolSegments
             | Self::ApplyWithoutAnimation
@@ -135,10 +141,11 @@ impl Notice {
                 OperationStatus::SubmitFailed(_)
                 | OperationStatus::SequenceSubmitFailed { .. }
                 | OperationStatus::ImportFailed(_)
-                | OperationStatus::JobManagerFailed(_) => NoticeLevel::Error,
-                OperationStatus::NothingToImport
-                | OperationStatus::NoToolpathToImport
-                | OperationStatus::SequenceStatusNotRead => NoticeLevel::Warning,
+                | OperationStatus::JobManagerFailed(_)
+                | OperationStatus::SequenceStatusUnreadable(_) => NoticeLevel::Error,
+                OperationStatus::NothingToImport | OperationStatus::NoToolpathToImport => {
+                    NoticeLevel::Warning
+                }
                 OperationStatus::Submitted { .. }
                 | OperationStatus::Redone
                 | OperationStatus::SequenceSubmitted { .. }
@@ -184,6 +191,12 @@ impl Notice {
             ),
             Self::Operation(status) => operation_status_text(locale, status),
             Self::ModelCreated => resolve_help_text(locale, "notice.model_created", &[]),
+            Self::JobManagerNotRunning => {
+                resolve_help_text(locale, "notice.job_manager_not_running", &[])
+            }
+            Self::JobManagerNotFound => {
+                resolve_help_text(locale, "notice.job_manager_not_found", &[])
+            }
             Self::ModelOpened { file } => {
                 resolve_help_text(locale, "notice.model_opened", &[("file", file.clone())])
             }
