@@ -530,6 +530,7 @@ impl<L: Launcher> JobManagerService<L> {
             output: self.store.output_dir(job.job_id),
             logs: self.store.logs_dir(job.job_id),
             progress: self.store.progress_file(job.job_id),
+            stderr: self.store.stderr_file(job.job_id),
         }
     }
 }
@@ -590,7 +591,10 @@ fn fail(job: &mut StoredJob, error: StoredJobError, detail: Option<String>, now_
     job.updated_at_ms = now_ms;
 }
 
-/// ランナーの失敗の理由（終了の番号の意味と、ログの最後の行）
+/// ランナーの失敗の理由（終了の番号の意味と、ログか標準エラー出力の最後の行）
+///
+/// ランナーが決めた終了の番号では、ランナーがログに書いた理由を先に見る。ほかの終了の番号・番号のない終わり方
+/// （メモリを確保できずに止まった・panic など）では、ランナーはログに理由を書けないため、標準エラー出力を先に見る
 fn runner_failure(
     code: Option<i32>,
     store: &JobStore,
@@ -609,14 +613,38 @@ fn runner_failure(
     let log = store.log_file(job_id);
     let mut partial = log.clone().into_os_string();
     partial.push(".tmp");
-    (
+    let from_log = || last_log_line(&log).or_else(|| last_log_line(Path::new(&partial)));
+    let from_stderr = || stderr_reason(&store.stderr_file(job_id));
+    let detail = if matches!(
         error,
-        last_log_line(&log).or_else(|| last_log_line(Path::new(&partial))),
-    )
+        StoredJobError::RunnerExitCode { .. } | StoredJobError::RunnerStopped
+    ) {
+        from_stderr().or_else(from_log)
+    } else {
+        from_log().or_else(from_stderr)
+    };
+    (error, detail)
 }
 
 /// ログの最後の空でない行（末尾の `MAX_LOG_TAIL_BYTES` バイトから。`MAX_LOG_LINE_CHARS` 文字まで）
 fn last_log_line(path: &Path) -> Option<String> {
+    let lines = tail_lines(path)?;
+    lines.into_iter().next_back()
+}
+
+/// 標準エラー出力の理由の行。panic なら、`panicked at` の次の行（panic の文。後に続く `note:` の行やバックトレース
+/// を理由にしない）。そうでなければ、最後の空でない行
+fn stderr_reason(path: &Path) -> Option<String> {
+    let lines = tail_lines(path)?;
+    let panic_message = lines
+        .iter()
+        .rposition(|line| line.contains("panicked at"))
+        .and_then(|index| lines.get(index + 1));
+    panic_message.or(lines.last()).cloned()
+}
+
+/// ファイルの末尾（`MAX_LOG_TAIL_BYTES` バイト）の空でない行（前後の空白を除き、`MAX_LOG_LINE_CHARS` 文字まで）
+fn tail_lines(path: &Path) -> Option<Vec<String>> {
     use std::io::{Read, Seek, SeekFrom};
     let mut file = std::fs::File::open(path).ok()?;
     let length = file.metadata().ok()?.len();
@@ -624,9 +652,12 @@ fn last_log_line(path: &Path) -> Option<String> {
         .ok()?;
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes).ok()?;
-    String::from_utf8_lossy(&bytes)
-        .lines()
-        .rev()
-        .find(|line| !line.trim().is_empty())
-        .map(|line| line.trim().chars().take(MAX_LOG_LINE_CHARS).collect())
+    Some(
+        String::from_utf8_lossy(&bytes)
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(|line| line.chars().take(MAX_LOG_LINE_CHARS).collect())
+            .collect(),
+    )
 }

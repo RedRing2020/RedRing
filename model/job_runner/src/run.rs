@@ -1,7 +1,7 @@
 //! 入力のファイルを読み、計算し、成果物・ログ・進み具合を書く
 
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -98,10 +98,12 @@ impl Failure {
     }
 }
 
-/// 計算の失敗を、入力の中身の誤りか計算の失敗かで終了の番号に分ける
+/// 計算の失敗を、入力の中身の誤り・入力を読めない・計算の失敗で終了の番号に分ける
 fn job_failure(failure: JobRunFailure) -> Failure {
     let code = if failure.is_invalid_input() {
         ExitCode::InputInvalid
+    } else if failure.is_unreadable_input() {
+        ExitCode::InputUnreadable
     } else {
         ExitCode::JobFailed
     };
@@ -130,12 +132,23 @@ fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
                     "--toolpath is required for sim".to_string(),
                 )
             })?;
-            let toolpath = read_file(toolpath_path, "toolpath")?;
             let input =
                 read_cutting_simulation_input_v1(&mut input.as_slice()).map_err(|error| {
                     Failure::new(ExitCode::InputInvalid, format!("invalid input: {error}"))
                 })?;
-            let run = run_cutting_simulation(&input, &toolpath).map_err(job_failure)?;
+            // ツールパスは大きくなることがあるため、丸ごと読まずに、ファイルから読みながら組み立てる
+            let mut toolpath = File::open(toolpath_path)
+                .map(BufReader::new)
+                .map_err(|error| {
+                    Failure::new(
+                        ExitCode::InputUnreadable,
+                        format!(
+                            "cannot read the toolpath {}: {error}",
+                            toolpath_path.display()
+                        ),
+                    )
+                })?;
+            let run = run_cutting_simulation(&input, &mut toolpath).map_err(job_failure)?;
             log.line(&format!("snapshots={}", run.snapshot_count));
             (run.artifact, CUTTING_SIMULATION_FILE)
         }
