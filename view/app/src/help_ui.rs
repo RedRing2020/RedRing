@@ -2,6 +2,7 @@
 
 use crate::help_messages::resolve_help_text;
 use crate::machining_conditions_ui::{operation_status_text, OperationStatus};
+use crate::settings_panel_renderer::SYMBOL_FONT_FAMILY;
 use egui::containers::menu::{MenuButton, MenuConfig};
 use egui::{
     Align2, Color32, Context, Grid, Label, Panel, PopupCloseBehavior, Rect, RichText, ScrollArea,
@@ -250,7 +251,8 @@ impl NoticeBarUiState<'_> {
                 let icon = match self.unread {
                     Some(level) => level_text(ui, level, "📋".to_string()),
                     None => RichText::new("📋"),
-                };
+                }
+                .family(egui::FontFamily::Name(SYMBOL_FONT_FAMILY.into()));
                 // 一覧の中の文字を選ぶ・スクロールするときに閉じないよう、外を押したときだけ閉じる
                 let config =
                     MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside);
