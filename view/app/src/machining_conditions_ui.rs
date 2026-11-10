@@ -3,12 +3,14 @@
 //! 表示の設定（設定パネル）とは分けて、次の 3 つを扱う。
 //! - 工程リスト（画面の下のパネル）: 加工手順 1 つの加工工程の表（選ぶ・加える・複写する・消す・並べ替える）と、
 //!   計算の操作・その結果・選んだ工程の計算の状態
-//! - 工程の設定のウィンドウ: 選んだ工程の条件（工程の中身）と、表示中の結果の計算に使った条件
-//! - 手順の設定のウィンドウ: 手順の名前と素材
+//! - 工程の設定のダイアログ: 選んだ工程の条件（工程の中身）と、表示中の結果の計算に使った条件
+//! - 手順の設定のダイアログ: 手順の名前と素材
+//!
+//! 条件は、ダイアログで編集し、「適用」するまで工程・手順に入れない（触っただけで再計算待ちにしない）。ダイアログを
+//! 開いている間は、見る操作（カメラ・切削アニメーション・表示の設定）だけを受け、工程リストは押せない。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
-use crate::settings_panel_renderer::window_body_max_height;
-use egui::{CollapsingHeader, Context, DragValue, Panel, Rect, ScrollArea, Window};
+use egui::{CollapsingHeader, Context, DragValue, Id, Panel, Rect, ScrollArea, Window};
 use viewmodel::cutting_simulation_session::{
     flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
     CuttingToolKind, ImportedConditions, MachiningBoundary, MachiningOperationContent,
@@ -186,10 +188,14 @@ fn operation_status_message(
 
 /// 工程リストの初めの高さ（論理座標）
 const LIST_DEFAULT_HEIGHT: f32 = 220.0;
-/// 設定のウィンドウの幅（論理座標）
-const SETTINGS_WINDOW_WIDTH: f32 = 360.0;
-/// 設定のウィンドウを置く、範囲の端からの間（論理座標）
-const SETTINGS_WINDOW_MARGIN: f32 = 16.0;
+/// 条件の編集のダイアログの幅（論理座標）
+const DIALOG_WIDTH: f32 = 380.0;
+/// 条件の編集のダイアログを置く、範囲の左上からの間（論理座標）
+const DIALOG_MARGIN: f32 = 16.0;
+/// 条件の編集のダイアログの、スクロールする中身のほかの高さ（題・頁の切り替え・区切り・ボタンの行。論理座標）
+const DIALOG_CHROME_HEIGHT: f32 = 140.0;
+/// 条件の編集のダイアログの、スクロールする中身の最小の高さ（論理座標）
+const DIALOG_BODY_MIN_HEIGHT: f32 = 120.0;
 
 /// 工程の表の列の見出しの文言のキー
 const COLUMN_KEYS: [&str; 6] = [
@@ -201,7 +207,30 @@ const COLUMN_KEYS: [&str; 6] = [
     "conditions.list.column.status",
 ];
 
-/// 工程の設定のウィンドウの頁
+/// 条件の編集のダイアログ（適用するまで、工程・手順の条件を変えない）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ConditionDialog {
+    /// 選んだ工程の設定
+    Operation,
+    /// 手順の設定（素材）
+    Sequence,
+}
+
+/// 条件の編集のダイアログで選んだ操作
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DialogResult {
+    /// 編集した条件を工程・手順に入れる
+    Apply,
+    /// 編集した条件を捨てる
+    Cancel,
+}
+
+/// 範囲 `area` に置くダイアログの、スクロールする中身の最大の高さ（題・ボタンの行を範囲に収める）
+fn dialog_body_max_height(area: Rect) -> f32 {
+    (area.height() - DIALOG_CHROME_HEIGHT).max(DIALOG_BODY_MIN_HEIGHT)
+}
+
+/// 工程の設定のダイアログの頁
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum OperationSettingsPage {
     /// 加工条件（名前・加工の段階・工具・加工の種類と条件）
@@ -215,12 +244,15 @@ pub(crate) enum OperationSettingsPage {
 pub struct MachiningConditionsUiState {
     /// 工程リストを出しているか
     pub(crate) list_shown: bool,
-    /// 工程の設定のウィンドウを開いているか
-    pub(crate) operation_settings_open: bool,
-    /// 工程の設定のウィンドウの出している頁
-    pub(crate) operation_settings_page: OperationSettingsPage,
-    /// 手順の設定のウィンドウを開いているか
-    pub(crate) sequence_settings_open: bool,
+    /// 開いている条件の編集のダイアログ（`None` は開いていない）と、工程の設定の出している頁
+    pub(crate) dialog: Option<ConditionDialog>,
+    pub(crate) dialog_page: OperationSettingsPage,
+    /// 開くように頼んだダイアログ（工程リストのボタン・行のダブルクリック・右クリックのメニュー）
+    pub(crate) open_dialog_requested: Option<ConditionDialog>,
+    /// ダイアログで選んだ操作
+    pub(crate) dialog_result: Option<DialogResult>,
+    /// 工程の設定を適用すると同時に、選んだ工程を投入する
+    pub(crate) submit_on_apply: bool,
     pub locale: UiLocale,
     /// 加工手順の名前
     pub(crate) sequence_name: String,
@@ -228,22 +260,22 @@ pub struct MachiningConditionsUiState {
     pub(crate) operations: Vec<OperationRow>,
     /// 選んだ加工工程
     pub(crate) selected_operation: MachiningOperationId,
-    /// 選んだ加工工程の、入力している名前
-    pub(crate) operation_name: String,
     /// 加工工程の一覧の操作
     pub(crate) operation_command: Option<OperationCommand>,
     /// 表示中の製品形状の面の数
     pub face_count: usize,
-    /// 加工工程の中身（工具・走査線の条件）
+    /// ダイアログで編集している、選んだ加工工程の中身（名前・工具・走査線の条件）と加工手順の素材（余裕・精度）。
+    /// 適用するまで、工程・手順に入れない
     pub operation: MachiningOperationContent,
-    /// 加工手順の素材（素材の余裕・精度）
     pub stock: MachiningStock,
     /// 工具長を指定するときの入力値（指定しない間も保つ）
     pub tool_length_input: f64,
     /// ツールパス生成のトレランス（mm）
     pub toolpath_tolerance: f64,
-    /// 加工工程・加工手順の条件の問題（投入前の確認の結果）
+    /// 今の（適用した）加工工程・加工手順の条件の問題（投入前の確認の結果）
     pub issues: Vec<ConditionIssue>,
+    /// ダイアログで編集している条件の問題
+    pub(crate) dialog_issues: Vec<ConditionIssue>,
     /// 表示中の結果のジョブの番号と、計算に使った条件
     pub imported: Option<(u64, ImportedConditions)>,
     /// 加工工程の今の改訂の計算の状態
@@ -303,8 +335,6 @@ pub(crate) enum OperationCommand {
     Remove,
     /// 選んだ工程を、加工の順で動かす（負は前へ）
     Move(isize),
-    /// 選んだ工程の名前を替える
-    Rename(String),
 }
 
 /// 加工の段階 `stage` の文言のキー
@@ -483,10 +513,10 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 欄 `field` の問題を出す
+    /// ダイアログで編集している条件の、欄 `field` の問題を出す
     fn show_issues(&self, ui: &mut egui::Ui, field: ConditionField) {
         for issue in self
-            .issues
+            .dialog_issues
             .iter()
             .filter(|issue| condition_field(issue) == field)
         {
@@ -512,26 +542,82 @@ impl MachiningConditionsUiState {
         if !self.list_shown {
             return;
         }
+        // 条件の編集のダイアログを開いている間は、押せない（選んだ工程が替わると、編集している工程と食い違うため）
+        let enabled = self.dialog.is_none();
         Panel::bottom("operation_list")
             .resizable(true)
             .default_size(LIST_DEFAULT_HEIGHT)
             .show(ui, |ui| {
-                self.show_list_toolbar(ui);
-                self.show_job_commands(ui);
-                ui.separator();
-                ScrollArea::vertical()
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| self.show_operation_table(ui));
+                ui.add_enabled_ui(enabled, |ui| {
+                    self.show_list_toolbar(ui);
+                    self.show_job_commands(ui);
+                    ui.separator();
+                    ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| self.show_operation_table(ui));
+                });
             });
     }
 
-    /// 工程の設定・手順の設定のウィンドウを、範囲 `area`（メニューバーと工程リストの間）の左上に並べて置く
+    /// 開いている条件の編集のダイアログを、範囲 `area`（メニューバーと工程リストの間）の左上に出す（タイトルの行で
+    /// 動かせる）。中身は範囲に収まる高さでスクロールする
     pub fn show_windows(&mut self, ctx: &Context, area: Rect) {
-        self.show_operation_settings(ctx, area);
-        self.show_sequence_settings(ctx, area);
+        let Some(dialog) = self.dialog else {
+            return;
+        };
+        let title = match dialog {
+            ConditionDialog::Operation => self.text_with_args(
+                "conditions.operation_settings.title",
+                &[("name", self.operation.name.clone())],
+            ),
+            ConditionDialog::Sequence => self.text("conditions.sequence_settings.title"),
+        };
+        let mut open = true;
+        Window::new(title)
+            // 題に工程の名前を出すため、ID は題から決めない（工程・ダイアログを替えても、同じ場所に出す）
+            .id(Id::unique("condition_dialog"))
+            .default_pos(area.left_top() + egui::vec2(DIALOG_MARGIN, DIALOG_MARGIN))
+            .constrain_to(area)
+            .collapsible(false)
+            .resizable(false)
+            .open(&mut open)
+            .show(ctx, |ui| {
+                ui.set_width(DIALOG_WIDTH);
+                match dialog {
+                    ConditionDialog::Operation => self.show_operation_dialog(ui, area),
+                    ConditionDialog::Sequence => self.show_sequence_dialog(ui, area),
+                }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    // 適用と同時に投入するときは、誤りのある条件を適用しない（投入できないため）
+                    let can_apply = dialog == ConditionDialog::Sequence
+                        || !self.submit_on_apply
+                        || self.dialog_issues.is_empty();
+                    if ui
+                        .add_enabled(
+                            can_apply,
+                            egui::Button::new(self.text("conditions.dialog.apply")),
+                        )
+                        .clicked()
+                    {
+                        self.dialog_result = Some(DialogResult::Apply);
+                    }
+                    if ui.button(self.text("conditions.dialog.cancel")).clicked() {
+                        self.dialog_result = Some(DialogResult::Cancel);
+                    }
+                    if dialog == ConditionDialog::Operation {
+                        let label = self.text("conditions.dialog.submit_on_apply");
+                        ui.checkbox(&mut self.submit_on_apply, label);
+                    }
+                });
+            });
+        // 閉じるボタンは、適用しない（Esc は、キー操作の側でキャンセルにする）
+        if !open && self.dialog_result.is_none() {
+            self.dialog_result = Some(DialogResult::Cancel);
+        }
     }
 
-    /// 手順の名前と、設定のウィンドウを開くボタンと、工程の一覧の操作（加える・複写・消す・並べ替え）
+    /// 手順の名前と、設定のダイアログを開くボタンと、工程の一覧の操作（加える・複写・消す・並べ替え）
     fn show_list_toolbar(&mut self, ui: &mut egui::Ui) {
         let position = self
             .operations
@@ -545,22 +631,16 @@ impl MachiningConditionsUiState {
                 &[("name", self.sequence_name.clone())],
             ));
             if ui
-                .selectable_label(
-                    self.sequence_settings_open,
-                    self.text("conditions.list.sequence_settings"),
-                )
+                .button(self.text("conditions.list.sequence_settings"))
                 .clicked()
             {
-                self.sequence_settings_open = !self.sequence_settings_open;
+                self.open_dialog_requested = Some(ConditionDialog::Sequence);
             }
             if ui
-                .selectable_label(
-                    self.operation_settings_open,
-                    self.text("conditions.list.operation_settings"),
-                )
+                .button(self.text("conditions.list.operation_settings"))
                 .clicked()
             {
-                self.operation_settings_open = !self.operation_settings_open;
+                self.open_dialog_requested = Some(ConditionDialog::Operation);
             }
             ui.separator();
             if ui.button(self.text("conditions.operations.add")).clicked() {
@@ -645,7 +725,7 @@ impl MachiningConditionsUiState {
                 self.open_job_manager_requested = true;
             }
         });
-        // 投入を押せない理由として、すべての誤りを出す（欄ごとの誤りは、設定のウィンドウの欄の下にも出す）
+        // 投入を押せない理由として、すべての誤りを出す（欄ごとの誤りは、設定のダイアログの欄の下にも出す）
         for issue in &self.issues {
             ui.colored_label(ui.visuals().error_fg_color, self.issue_text(issue));
         }
@@ -656,7 +736,7 @@ impl MachiningConditionsUiState {
         ui.label(self.text(imported_toolpath_key(self.imported_toolpath)));
     }
 
-    /// 工程の表（1 行が 1 工程。上から加工の順）。行を押すと選び、ダブルクリックで工程の設定のウィンドウを開き、
+    /// 工程の表（1 行が 1 工程。上から加工の順）。行を押すと選び、ダブルクリックで工程の設定のダイアログを開き、
     /// 右クリックで行の操作のメニューを出す
     fn show_operation_table(&mut self, ui: &mut egui::Ui) {
         let mut select = None;
@@ -704,7 +784,9 @@ impl MachiningConditionsUiState {
             self.operation_command = Some(OperationCommand::Select(id));
         }
         match action {
-            Some(RowAction::OpenSettings) => self.operation_settings_open = true,
+            Some(RowAction::OpenSettings) => {
+                self.open_dialog_requested = Some(ConditionDialog::Operation);
+            }
             Some(RowAction::Submit) => self.submit_requested = true,
             Some(RowAction::Redo) => self.redo_requested = true,
             Some(RowAction::ImportToolpath) => self.import_toolpath_requested = true,
@@ -781,87 +863,53 @@ impl MachiningConditionsUiState {
         chosen
     }
 
-    /// 選んだ工程の設定のウィンドウ（頁: 加工条件・加工領域と加工対象）
-    fn show_operation_settings(&mut self, ctx: &Context, area: Rect) {
-        if !self.operation_settings_open {
-            return;
-        }
+    /// 工程の設定のダイアログの中身（頁: 加工条件・加工領域と加工対象）
+    fn show_operation_dialog(&mut self, ui: &mut egui::Ui, area: Rect) {
         let machining_label = self.text("conditions.page.machining");
         let region_label = self.text("conditions.page.region");
-        let mut open = true;
-        Window::new(self.text_with_args(
-            "conditions.operation_settings.title",
-            &[("name", self.operation.name.clone())],
-        ))
-        // 題に工程の名前を出すため、ウィンドウの ID は題から決めない（工程を替えても、同じ場所・大きさのまま）
-        .id(egui::Id::unique("operation_settings"))
-        // 手順の設定のウィンドウと重なったときに動かせるよう、固定しない（初めは範囲の左上）
-        .default_pos(area.left_top() + egui::vec2(SETTINGS_WINDOW_MARGIN, SETTINGS_WINDOW_MARGIN))
-        .constrain_to(area)
-        .default_width(SETTINGS_WINDOW_WIDTH)
-        .resizable(true)
-        .open(&mut open)
-        .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.selectable_value(
-                    &mut self.operation_settings_page,
-                    OperationSettingsPage::Machining,
-                    machining_label,
-                );
-                ui.selectable_value(
-                    &mut self.operation_settings_page,
-                    OperationSettingsPage::Region,
-                    region_label,
-                );
-            });
-            ui.separator();
-            // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
-            ScrollArea::vertical()
-                .max_height(window_body_max_height(ui, area))
-                .show(ui, |ui| {
-                    match self.operation_settings_page {
-                        OperationSettingsPage::Machining => {
-                            self.show_operation_common(ui);
-                            self.show_tool(ui);
-                            self.show_machining(ui);
-                        }
-                        OperationSettingsPage::Region => {
-                            self.show_target(ui);
-                            self.show_region(ui);
-                        }
-                    }
-                    self.show_imported(ui);
-                });
+        ui.horizontal(|ui| {
+            ui.selectable_value(
+                &mut self.dialog_page,
+                OperationSettingsPage::Machining,
+                machining_label,
+            );
+            ui.selectable_value(
+                &mut self.dialog_page,
+                OperationSettingsPage::Region,
+                region_label,
+            );
         });
-        self.operation_settings_open = open;
+        ui.separator();
+        // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
+        ScrollArea::vertical()
+            .max_height(dialog_body_max_height(area))
+            .show(ui, |ui| {
+                match self.dialog_page {
+                    OperationSettingsPage::Machining => {
+                        self.show_operation_common(ui);
+                        self.show_tool(ui);
+                        self.show_machining(ui);
+                    }
+                    OperationSettingsPage::Region => {
+                        self.show_target(ui);
+                        self.show_region(ui);
+                    }
+                }
+                self.show_imported(ui);
+            });
     }
 
-    /// 手順の設定のウィンドウ（手順の名前と素材）
-    fn show_sequence_settings(&mut self, ctx: &Context, area: Rect) {
-        if !self.sequence_settings_open {
-            return;
-        }
-        let mut open = true;
-        // 初めは工程の設定のウィンドウの右に置き、重なったときに動かせるよう、固定しない
-        let left = SETTINGS_WINDOW_MARGIN * 2.0 + SETTINGS_WINDOW_WIDTH;
-        Window::new(self.text("conditions.sequence_settings.title"))
-            .default_pos(area.left_top() + egui::vec2(left, SETTINGS_WINDOW_MARGIN))
-            .constrain_to(area)
-            .default_width(SETTINGS_WINDOW_WIDTH)
-            .resizable(true)
-            .open(&mut open)
-            .show(ctx, |ui| {
-                ui.label(self.text_with_args(
-                    "conditions.sequence.name",
-                    &[("name", self.sequence_name.clone())],
-                ));
-                ui.label(self.text("conditions.sequence.note"));
-                ui.separator();
-                ScrollArea::vertical()
-                    .max_height(window_body_max_height(ui, area))
-                    .show(ui, |ui| self.show_stock(ui));
-            });
-        self.sequence_settings_open = open;
+    /// 手順の設定のダイアログの中身（手順の名前と素材）
+    fn show_sequence_dialog(&mut self, ui: &mut egui::Ui, area: Rect) {
+        ui.label(self.text_with_args(
+            "conditions.sequence.name",
+            &[("name", self.sequence_name.clone())],
+        ));
+        ui.label(self.text("conditions.sequence.note"));
+        ui.separator();
+        ScrollArea::vertical()
+            .max_height(dialog_body_max_height(area))
+            .show(ui, |ui| self.show_stock(ui));
     }
 
     /// 工程の名前・加工の段階・加工の種類
@@ -872,18 +920,10 @@ impl MachiningConditionsUiState {
             MachiningStage::Finish,
         ]
         .map(|stage| (stage, self.text(stage_key(stage))));
-        let mut rename = None;
-        // 名前は、入力を終えたとき（ほかを押した・Enter）に決める（打つたびに工程の改訂を進めない）
         ui.horizontal(|ui| {
             ui.label(self.text("conditions.operations.name"));
-            let edit = ui.text_edit_singleline(&mut self.operation_name);
-            if edit.lost_focus() {
-                rename = Some(self.operation_name.clone());
-            }
+            ui.text_edit_singleline(&mut self.operation.name);
         });
-        if let Some(name) = rename {
-            self.operation_command = Some(OperationCommand::Rename(name));
-        }
         ui.horizontal(|ui| {
             ui.label(self.text("conditions.operation.stage"));
             for (stage, label) in stage_labels {
@@ -1303,6 +1343,9 @@ mod tests {
                 "conditions.region.rectangle",
                 "conditions.sequence.name",
                 "conditions.sequence.note",
+                "conditions.dialog.apply",
+                "conditions.dialog.cancel",
+                "conditions.dialog.submit_on_apply",
             ]);
         for key in keys {
             for locale in [UiLocale::Ja, UiLocale::En] {

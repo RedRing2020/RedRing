@@ -8,7 +8,7 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("help.window.title", "操作の一覧"),
     (
         "help.note.text_input",
-        "設定パネル・設定のウィンドウの入力欄を編集している間は、打った文字はキー操作になりません（Esc での終了を除く）。",
+        "設定パネル・設定のダイアログの入力欄を編集している間は、打った文字はキー操作になりません（Esc での終了を除く）。設定のダイアログを開いている間は、見る操作のキーだけを受けます。",
     ),
     ("help.header.camera", "カメラ"),
     ("help.header.cutting", "切削シミュレーション"),
@@ -106,7 +106,7 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("help.window.title", "Controls"),
     (
         "help.note.text_input",
-        "While editing a field in the settings panel or a settings window, typed characters are not used as keys (except Esc to quit).",
+        "While editing a field in the settings panel or a settings dialog, typed characters are not used as keys (except Esc to quit). While a settings dialog is open, only the viewing keys are used.",
     ),
     ("help.header.camera", "Camera"),
     ("help.header.cutting", "Cutting simulation"),

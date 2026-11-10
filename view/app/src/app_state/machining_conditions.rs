@@ -1,4 +1,4 @@
-//! AppState の加工手順の画面（工程リストと設定のウィンドウ。計算条件の入力と投入）を扱うモジュール。
+//! AppState の加工手順の画面（工程リストと条件の編集のダイアログ。計算条件の入力と投入）を扱うモジュール。
 
 use std::time::{Duration, Instant};
 
@@ -7,7 +7,11 @@ use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationI
 
 use super::AppState;
 use crate::machining_conditions_ui::{
-    JobStatusLine, MachiningConditionsUiState, OperationCommand, OperationRow,
+    ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState, OperationCommand,
+    OperationRow,
+};
+use viewmodel::cutting_simulation_session::{
+    ConditionIssue, MachiningOperationContent, MachiningStock,
 };
 use viewmodel::message_catalog::UiLocale;
 
@@ -15,6 +19,24 @@ use viewmodel::message_catalog::UiLocale;
 const JOB_STATUS_INTERVAL: Duration = Duration::from_secs(1);
 /// 終わった計算の状態を読み直す間隔（ジョブマネージャーでやり直す・消すと変わる）
 const FINISHED_JOB_STATUS_INTERVAL: Duration = Duration::from_secs(5);
+
+/// 条件の編集のダイアログで編集している条件（適用するまで、工程・手順に入れない）
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct ConditionDraft {
+    dialog: ConditionDialog,
+    content: MachiningOperationContent,
+    stock: MachiningStock,
+    /// 工具長を指定するときの入力値（キャンセルしたら、前の値に戻す）
+    tool_length_input: f64,
+}
+
+/// 編集している条件（工程の中身・手順の素材）と、その条件の問題
+#[derive(Debug, Clone)]
+pub(super) struct DraftIssues {
+    content: MachiningOperationContent,
+    stock: MachiningStock,
+    issues: Vec<ConditionIssue>,
+}
 
 impl AppState {
     /// 加工手順を開き、工程リストを出す（開いている場合は何もしない）
@@ -31,7 +53,7 @@ impl AppState {
         tracing::info!("Machining sequence opened");
     }
 
-    /// 加工手順を閉じ、CAM の画面（工程リスト・設定のウィンドウ）・表示（CL の線・切削アニメーション）と、計算の状態を
+    /// 加工手順を閉じ、CAM の画面（工程リスト・条件の編集のダイアログ）・表示（CL の線・切削アニメーション）と、計算の状態を
     /// 放す（閉じている場合は何もしない）
     ///
     /// 計算中のジョブは、ジョブマネージャーが続ける。
@@ -48,50 +70,127 @@ impl AppState {
         tracing::info!("Machining sequence closed");
     }
 
-    /// 加工手順を閉じた状態にし（工程リスト・設定のウィンドウも閉じる）、それらに出す状態（計算の状態・条件の確かめ・
-    /// 結果の行）を捨てる（CAM の表示は放さない。表示を放すのは、呼び出す側で製品形状を描き直すとき）
+    /// 加工手順を閉じた状態にし（工程リストも閉じ、編集している条件は適用せずに捨てる）、それらに出す状態（計算の
+    /// 状態・条件の確かめ・結果の行）を捨てる（CAM の表示は放さない。表示を放すのは、呼び出す側で製品形状を描き直す
+    /// とき）
     pub(super) fn forget_machining_sequence_state(&mut self) {
         self.machining_sequence_open = false;
         self.operation_list_shown = false;
-        self.operation_settings_open = false;
-        self.sequence_settings_open = false;
+        self.condition_draft = None;
+        self.draft_issues = None;
         self.forget_selected_operation_state();
         self.operation_job_statuses.clear();
     }
 
     /// 加工手順を開いている間に、工程リストを出す・隠す（開いていなければ何もしない）
     pub fn toggle_operation_list(&mut self) {
-        if let Some(shown) = self.toggle_sequence_screen(|state| &mut state.operation_list_shown) {
-            tracing::info!("Operation list {}", shown_or_hidden(shown));
+        if !self.machining_sequence_open || self.is_condition_dialog_open() {
+            tracing::debug!("The machining sequence is not open; the operation list is not shown");
+            return;
+        }
+        self.operation_list_shown = !self.operation_list_shown;
+        tracing::info!(
+            "Operation list {}",
+            if self.operation_list_shown {
+                "shown"
+            } else {
+                "hidden"
+            }
+        );
+    }
+
+    /// 加工手順を開いている間に、条件の編集のダイアログ `dialog` を、今の工程・手順の条件で開く（開いていない・ほかの
+    /// ダイアログを開いている間は何もしない）
+    pub(crate) fn open_condition_dialog(&mut self, dialog: ConditionDialog) {
+        if !self.machining_sequence_open || self.condition_draft.is_some() {
+            tracing::debug!("The condition dialog is not opened");
+            return;
+        }
+        self.condition_draft = Some(ConditionDraft {
+            dialog,
+            content: self.document.operation_content().clone(),
+            stock: self.document.stock(),
+            tool_length_input: self.tool_length_input,
+        });
+        tracing::info!("Condition dialog opened: {dialog:?}");
+    }
+
+    /// 条件の編集のダイアログを開いているか（開いている間は、見る操作のほか、工程・文書を替える操作を受けない）
+    pub(crate) fn is_condition_dialog_open(&self) -> bool {
+        self.condition_draft.is_some()
+    }
+
+    /// 条件の編集のダイアログを、編集した条件を捨てて閉じる
+    pub(crate) fn cancel_condition_dialog(&mut self) {
+        if self.condition_draft.take().is_some() {
+            self.draft_issues = None;
+            tracing::info!("Condition dialog canceled");
         }
     }
 
-    /// 加工手順を開いている間に、工程の設定のウィンドウを開く・閉じる（開いていなければ何もしない）
-    pub(crate) fn toggle_operation_settings(&mut self) {
-        if let Some(shown) = self.toggle_sequence_screen(|state| &mut state.operation_settings_open)
+    /// 編集した条件を工程・手順に入れて、ダイアログを閉じる（今と同じなら、工程の改訂を進めない）。工程の設定で「適用と
+    /// 同時に投入する」を選んでいれば、選んだ工程を投入する
+    fn apply_condition_draft(&mut self) {
+        let Some(draft) = self.condition_draft.take() else {
+            return;
+        };
+        self.draft_issues = None;
+        self.tool_length_input = draft.tool_length_input;
+        match draft.dialog {
+            ConditionDialog::Operation => {
+                // 名前は、前後の空白を除き、空なら替えない（名前は計算に使わないため、工程の改訂は進めない）
+                let mut content = draft.content;
+                let name = std::mem::replace(
+                    &mut content.name,
+                    self.document.operation_content().name.clone(),
+                );
+                if content != *self.document.operation_content() {
+                    self.document.set_operation_content(content);
+                    self.invalidate_conditions();
+                }
+                self.document.rename_selected_operation(&name);
+            }
+            ConditionDialog::Sequence => {
+                if draft.stock != self.document.stock() {
+                    self.document.set_stock(draft.stock);
+                    self.invalidate_conditions();
+                }
+            }
+        }
+        tracing::info!("Conditions applied: {:?}", draft.dialog);
+        if draft.dialog == ConditionDialog::Operation
+            && self.submit_on_apply
+            && self.submit_cutting_simulation()
         {
-            tracing::info!("Operation settings window {}", shown_or_hidden(shown));
+            // 投入した計算の状態を、すぐに読み直す
+            self.job_status_read_at = None;
         }
     }
 
-    /// 加工手順を開いている間に、手順の設定のウィンドウを開く・閉じる（開いていなければ何もしない）
-    pub(crate) fn toggle_sequence_settings(&mut self) {
-        if let Some(shown) = self.toggle_sequence_screen(|state| &mut state.sequence_settings_open)
-        {
-            tracing::info!("Sequence settings window {}", shown_or_hidden(shown));
+    /// 編集している条件の問題（条件が変わったときだけ確かめ直す）
+    fn draft_issues(&mut self) -> Vec<ConditionIssue> {
+        let Some(draft) = &self.condition_draft else {
+            return Vec::new();
+        };
+        let current = self
+            .draft_issues
+            .as_ref()
+            .is_some_and(|cached| cached.content == draft.content && cached.stock == draft.stock);
+        if !current {
+            let (content, stock) = (draft.content.clone(), draft.stock);
+            let issues = self
+                .cutting_simulation
+                .check_draft(&mut self.document, &content, stock);
+            self.draft_issues = Some(DraftIssues {
+                content,
+                stock,
+                issues,
+            });
         }
-    }
-
-    /// 加工手順の画面の、出しているかの印 `flag` を切り替えて、切り替えた後の値を返す（加工手順を開いていなければ
-    /// 切り替えずに `None`）
-    fn toggle_sequence_screen(&mut self, flag: fn(&mut Self) -> &mut bool) -> Option<bool> {
-        if !self.machining_sequence_open {
-            tracing::debug!("The machining sequence is not open; its screens are not shown");
-            return None;
-        }
-        let shown = flag(self);
-        *shown = !*shown;
-        Some(*shown)
+        self.draft_issues
+            .as_ref()
+            .map(|cached| cached.issues.clone())
+            .unwrap_or_default()
     }
 
     /// 計算条件を確かめ直す必要がある場合（条件・製品形状が変わった後）に確かめる
@@ -176,7 +275,6 @@ impl AppState {
         self.invalidate_conditions();
         self.cutting_simulation_job_status = JobStatusLine::Reading;
         self.cutting_simulation_status = None;
-        self.operation_name_input = None;
     }
 
     /// 加工工程の一覧の操作 `command` を行う
@@ -213,10 +311,6 @@ impl AppState {
                 self.document.move_selected_operation(offset);
                 self.job_status_read_at = None;
             }
-            OperationCommand::Rename(name) => {
-                self.operation_name_input = None;
-                self.document.rename_selected_operation(&name);
-            }
         }
         if self.document.selected_operation() != before {
             self.forget_selected_operation_state();
@@ -227,6 +321,7 @@ impl AppState {
     /// 条件・製品形状が変わった後に、計算条件と計算の状態を確かめ直す
     pub(crate) fn invalidate_conditions(&mut self) {
         self.condition_issues = None;
+        self.draft_issues = None;
         self.job_status_read_at = None;
     }
 
@@ -242,10 +337,9 @@ impl AppState {
             self.refresh_operation_toolpath_lines();
         }
         // 加工手順の画面は、加工手順を開いている間だけ出す（閉じるときに、画面もすべて閉じる）
-        let screen_shown = self.operation_list_shown
-            || self.operation_settings_open
-            || self.sequence_settings_open;
+        let screen_shown = self.operation_list_shown || self.condition_draft.is_some();
         debug_assert!(self.machining_sequence_open || !screen_shown);
+        let dialog_issues = self.draft_issues();
         // 条件の確かめは画面に出すため、計算の状態は工程リストに出すためだけに読む
         if screen_shown {
             self.refresh_condition_issues();
@@ -269,26 +363,34 @@ impl AppState {
                 tool: item.tool,
             })
             .collect();
+        // ダイアログを開いている間は、編集している条件を出す（ダイアログの外では使わない）
+        let (operation, stock, tool_length_input) = match &self.condition_draft {
+            Some(draft) => (draft.content.clone(), draft.stock, draft.tool_length_input),
+            None => (
+                self.document.operation_content().clone(),
+                self.document.stock(),
+                self.tool_length_input,
+            ),
+        };
         MachiningConditionsUiState {
             list_shown: self.operation_list_shown,
-            operation_settings_open: self.operation_settings_open,
-            operation_settings_page: self.operation_settings_page,
-            sequence_settings_open: self.sequence_settings_open,
+            dialog: self.condition_draft.as_ref().map(|draft| draft.dialog),
+            dialog_page: self.operation_settings_page,
+            open_dialog_requested: None,
+            dialog_result: None,
+            submit_on_apply: self.submit_on_apply,
             locale: self.ui_locale,
             sequence_name: self.document.sequence_name().to_string(),
             operations,
             selected_operation: selected,
-            operation_name: self
-                .operation_name_input
-                .clone()
-                .unwrap_or_else(|| self.document.operation_content().name.clone()),
             operation_command: None,
             face_count: self.document.shapes().visible_face_ids().len(),
-            operation: self.document.operation_content().clone(),
-            stock: self.document.stock(),
-            tool_length_input: self.tool_length_input,
+            operation,
+            stock,
+            tool_length_input,
             toolpath_tolerance: self.document.toolpath_tolerance(),
             issues: self.condition_issues.clone().unwrap_or_default(),
+            dialog_issues,
             // 取り込んだ条件は、取り込んだ工程を選んでいるときだけ出す
             imported: self
                 .cutting_animation_job_id
@@ -307,29 +409,33 @@ impl AppState {
     }
 
     pub(crate) fn apply_machining_conditions_state(&mut self, state: MachiningConditionsUiState) {
-        // 画面を出しているか・頁は、一覧の操作より先に受け取る（行のダブルクリックは、選ぶ操作と設定のウィンドウを開く
-        // ことを同時に行う）
         self.operation_list_shown = state.list_shown;
-        self.operation_settings_open = state.operation_settings_open;
-        self.operation_settings_page = state.operation_settings_page;
-        self.sequence_settings_open = state.sequence_settings_open;
-        self.tool_length_input = state.tool_length_input;
-        // 工程の一覧の操作は、条件の編集より先に行う（選び直した工程に、前の工程の条件を書かないように）
-        if let Some(command) = state.operation_command {
-            self.run_operation_command(command);
+        self.operation_settings_page = state.dialog_page;
+        self.submit_on_apply = state.submit_on_apply;
+        // ダイアログを開いている間は、編集した条件を受け取り、適用・キャンセルだけを行う（工程リストは押せないため、
+        // ほかの操作は来ない）
+        if let Some(draft) = &mut self.condition_draft {
+            draft.content = state.operation;
+            draft.stock = state.stock;
+            draft.tool_length_input = state.tool_length_input;
+            match state.dialog_result {
+                Some(DialogResult::Apply) => self.apply_condition_draft(),
+                Some(DialogResult::Cancel) => self.cancel_condition_dialog(),
+                None => {}
+            }
             return;
         }
-        // 入力している名前（工程の名前と同じに戻したら、入力していないとする）
-        self.operation_name_input = (state.operation_name
-            != self.document.operation_content().name)
-            .then(|| state.operation_name.clone());
-        if state.operation != *self.document.operation_content() {
-            self.document.set_operation_content(state.operation);
-            self.invalidate_conditions();
+        // 行のダブルクリックは、工程を選ぶ操作と、ダイアログを開くことを同時に行う。選んだ後に開き、選んだ工程の条件を
+        // 編集する
+        let command = state.operation_command;
+        if let Some(command) = command.clone() {
+            self.run_operation_command(command);
         }
-        if state.stock != self.document.stock() {
-            self.document.set_stock(state.stock);
-            self.invalidate_conditions();
+        if let Some(dialog) = state.open_dialog_requested {
+            self.open_condition_dialog(dialog);
+        }
+        if command.is_some() {
+            return;
         }
         if state.submit_requested && self.submit_cutting_simulation() {
             // 投入した計算の状態を、すぐに読み直す
@@ -369,13 +475,4 @@ fn copied_operation_name(locale: UiLocale, name: &str) -> String {
         "conditions.operations.copy_name",
         &[("name", name.to_string())],
     )
-}
-
-/// ログに書く、画面を出したか（`shown`）の言葉
-fn shown_or_hidden(shown: bool) -> &'static str {
-    if shown {
-        "shown"
-    } else {
-        "hidden"
-    }
 }

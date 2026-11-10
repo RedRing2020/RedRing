@@ -21,6 +21,9 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.page.region", "加工領域・加工対象"),
     ("conditions.operation_settings.title", "工程の設定: {name}"),
     ("conditions.sequence_settings.title", "手順の設定"),
+    ("conditions.dialog.apply", "適用"),
+    ("conditions.dialog.cancel", "キャンセル"),
+    ("conditions.dialog.submit_on_apply", "適用と同時に投入する"),
     ("conditions.operation.stage", "加工の段階"),
     ("conditions.operation.kind", "加工の種類: {kind}"),
     (
@@ -253,6 +256,9 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.page.region", "Region and target"),
     ("conditions.operation_settings.title", "Operation settings: {name}"),
     ("conditions.sequence_settings.title", "Sequence settings"),
+    ("conditions.dialog.apply", "Apply"),
+    ("conditions.dialog.cancel", "Cancel"),
+    ("conditions.dialog.submit_on_apply", "Submit when applied"),
     ("conditions.operation.stage", "Stage"),
     ("conditions.operation.kind", "Machining type: {kind}"),
     (

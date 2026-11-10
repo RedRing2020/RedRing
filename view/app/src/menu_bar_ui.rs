@@ -86,10 +86,10 @@ pub struct MenuBarUiState {
     pub locale: UiLocale,
     /// 加工手順を開いているか（「加工」の項目を選べるかを決める）
     pub machining_sequence_open: bool,
-    /// 工程リスト・工程の設定・手順の設定を出しているか（「加工」の項目の選んだ印）
+    /// 工程リストを出しているか（「加工」→「工程リスト」の選んだ印）
     pub operation_list_shown: bool,
-    pub operation_settings_open: bool,
-    pub sequence_settings_open: bool,
+    /// 条件の編集のダイアログを開いているか（開いている間は、文書・工程を替える項目を選べない）
+    pub condition_dialog_open: bool,
     /// 「ファイル」で選ばれた項目
     pub file_requested: Option<FileMenuItem>,
     /// 「加工」で選ばれた項目
@@ -121,7 +121,9 @@ impl MenuBarUiState {
                         if let Some(shortcut) = shortcut {
                             button = button.shortcut_text(*shortcut);
                         }
-                        if ui.add(button).clicked() {
+                        // 終了のほかは、条件の編集のダイアログを開いている間は選べない
+                        let enabled = *item == FileMenuItem::Exit || !self.condition_dialog_open;
+                        if ui.add_enabled(enabled, button).clicked() {
                             self.file_requested = Some(*item);
                         }
                     }
@@ -135,15 +137,10 @@ impl MenuBarUiState {
                         };
                         // 開く操作は閉じている間だけ、ほかは開いている間だけ選べる
                         let enabled = (*item == MachiningMenuItem::OpenSequence)
-                            != self.machining_sequence_open;
-                        let shown = match item {
-                            MachiningMenuItem::OpenSequence | MachiningMenuItem::CloseSequence => {
-                                false
-                            }
-                            MachiningMenuItem::OperationList => self.operation_list_shown,
-                            MachiningMenuItem::OperationSettings => self.operation_settings_open,
-                            MachiningMenuItem::SequenceSettings => self.sequence_settings_open,
-                        };
+                            != self.machining_sequence_open
+                            && !self.condition_dialog_open;
+                        let shown =
+                            *item == MachiningMenuItem::OperationList && self.operation_list_shown;
                         let mut button = egui::Button::new(self.text(key)).selected(shown);
                         if let Some(shortcut) = shortcut {
                             button = button.shortcut_text(*shortcut);

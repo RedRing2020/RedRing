@@ -28,7 +28,7 @@ use winit::window::Window;
 mod app_lifecycle;
 // AppState の切削シミュレーションの投入・実行・取り込みと切削アニメーションの描画
 mod cutting_simulation;
-// AppState の加工手順の画面（工程リストと設定のウィンドウ。計算条件の入力と投入）
+// AppState の加工手順の画面（工程リストと条件の編集のダイアログ。計算条件の入力と投入）
 mod machining_conditions;
 // AppState のメニューバーの項目
 mod menu_bar;
@@ -161,18 +161,21 @@ pub struct AppState {
     /// 切削アニメーションを描いている色（取り込みと「設定を反映」で、設定の色にする）
     cutting_animation_colors: SnapshotShadedColorSettings,
 
-    /// 工程の設定のウィンドウの、工具長を指定するときの入力値（mm）
+    /// 工程の設定のダイアログの、工具長を指定するときの入力値（mm）
     tool_length_input: f64,
 
     /// 加工手順を開いているか（開いている間だけ、CAM の操作・表示を出す。閉じたら CAM の表示を放す）
     machining_sequence_open: bool,
     /// 工程リストを出しているか（加工手順を開いている間だけ出せる）
     operation_list_shown: bool,
-    /// 工程の設定のウィンドウを開いているか（加工手順を開いている間だけ開ける）と、出している頁
-    operation_settings_open: bool,
+    /// 開いている条件の編集のダイアログと、編集している条件（加工手順を開いている間だけ開ける）
+    condition_draft: Option<machining_conditions::ConditionDraft>,
+    /// 編集している条件と、その条件の問題（条件が変わったら確かめ直す）
+    draft_issues: Option<machining_conditions::DraftIssues>,
+    /// 工程の設定のダイアログで出している頁（次に開いたときも同じ頁を出す）
     operation_settings_page: OperationSettingsPage,
-    /// 手順の設定のウィンドウを開いているか（加工手順を開いている間だけ開ける）
-    sequence_settings_open: bool,
+    /// 工程の設定を適用すると同時に投入する
+    submit_on_apply: bool,
 
     /// 次に投入する計算条件の問題（`None` は、条件・製品形状が変わって確かめ直す必要がある）
     condition_issues: Option<Vec<ConditionIssue>>,
@@ -187,8 +190,6 @@ pub struct AppState {
     operation_job_statuses: Vec<(MachiningOperationId, JobStatusLine)>,
     /// 取り込んだ切削シミュレーションの加工工程（取り込んだ条件は、その工程を選んでいるときだけ出す）
     imported_operation: Option<MachiningOperationId>,
-    /// 工程の設定のウィンドウで入力している、選んだ加工工程の名前（決めるまでは工程の名前を変えない。`None` は工程の名前）
-    operation_name_input: Option<String>,
     /// 描いている CL の線の工程と、そのときの CL の状態・加工手順を開いていたか（条件を変えて状態が変わったら
     /// 線の色を描き直し、加工手順を開いた・閉じたら線を出す・消す）
     drawn_toolpath_state: Option<(
@@ -288,15 +289,15 @@ impl AppState {
             tool_length_input: 50.0,
             machining_sequence_open: false,
             operation_list_shown: false,
-            operation_settings_open: false,
+            condition_draft: None,
+            draft_issues: None,
             operation_settings_page: OperationSettingsPage::default(),
-            sequence_settings_open: false,
+            submit_on_apply: false,
             condition_issues: None,
             imported_conditions: None,
             cutting_simulation_job_status: JobStatusLine::NotSubmitted,
             operation_job_statuses: Vec::new(),
             imported_operation: None,
-            operation_name_input: None,
             drawn_toolpath_state: None,
             job_status_read_at: None,
             file_actions: Vec::new(),

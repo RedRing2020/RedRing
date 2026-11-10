@@ -2,6 +2,7 @@
 
 use super::model_file::FileAction;
 use super::AppState;
+use crate::machining_conditions_ui::ConditionDialog;
 use crate::menu_bar_ui::{FileMenuItem, MachiningMenuItem, MenuBarUiState};
 
 impl AppState {
@@ -10,8 +11,7 @@ impl AppState {
             locale: self.ui_locale,
             machining_sequence_open: self.machining_sequence_open,
             operation_list_shown: self.operation_list_shown,
-            operation_settings_open: self.operation_settings_open,
-            sequence_settings_open: self.sequence_settings_open,
+            condition_dialog_open: self.is_condition_dialog_open(),
             file_requested: None,
             machining_requested: None,
             locale_requested: None,
@@ -35,8 +35,12 @@ impl AppState {
             Some(MachiningMenuItem::OpenSequence) => self.open_machining_sequence(),
             Some(MachiningMenuItem::CloseSequence) => self.close_machining_sequence(),
             Some(MachiningMenuItem::OperationList) => self.toggle_operation_list(),
-            Some(MachiningMenuItem::OperationSettings) => self.toggle_operation_settings(),
-            Some(MachiningMenuItem::SequenceSettings) => self.toggle_sequence_settings(),
+            Some(MachiningMenuItem::OperationSettings) => {
+                self.open_condition_dialog(ConditionDialog::Operation);
+            }
+            Some(MachiningMenuItem::SequenceSettings) => {
+                self.open_condition_dialog(ConditionDialog::Sequence);
+            }
             None => {}
         }
         if let Some(locale) = state.locale_requested {

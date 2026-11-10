@@ -18,13 +18,30 @@ impl AppState {
             return;
         }
 
+        // 条件の編集のダイアログを開いている間は、Esc でダイアログをキャンセルする（入力欄の編集中は、入力欄を離れる
+        // だけにする）
+        if self.is_condition_dialog_open()
+            && matches!(
+                key,
+                winit::keyboard::Key::Named(winit::keyboard::NamedKey::Escape)
+            )
+        {
+            if !self.renderer.is_settings_using_keyboard() {
+                self.cancel_condition_dialog();
+            }
+            return;
+        }
+
         // Ctrl とのファイルの操作の組み合わせは、ほかのキー操作にしない（Ctrl+Shift+S で Shift+S の操作を動かさない）。
-        // 入力欄の編集中も受ける（Ctrl との組み合わせは文字を打たない）。AltGr（Ctrl+Alt）は文字を打つため除く
+        // 入力欄の編集中も受ける（Ctrl との組み合わせは文字を打たない）。AltGr（Ctrl+Alt）は文字を打つため除く。条件の
+        // 編集のダイアログを開いている間は、文書を替える・保存する操作をしない（編集している条件と食い違うため）
         if self.mouse_input.is_ctrl_pressed() && !self.mouse_input.is_alt_pressed() {
             if let Some(action) =
                 file_shortcut(key_without_modifiers, self.mouse_input.is_shift_pressed())
             {
-                self.request_file_action(action);
+                if !self.is_condition_dialog_open() {
+                    self.request_file_action(action);
+                }
                 return;
             }
         }
