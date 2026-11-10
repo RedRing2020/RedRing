@@ -74,7 +74,7 @@ impl AppState {
                     self.toggle_operation_list();
                 }
                 "L" => {
-                    self.import_cutting_simulation();
+                    self.toggle_cutting_simulation();
                 }
                 "r" => {
                     self.camera.reset();

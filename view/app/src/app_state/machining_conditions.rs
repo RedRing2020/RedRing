@@ -403,7 +403,8 @@ impl AppState {
             redo_requested: false,
             submit_sequence_requested: false,
             import_toolpath_requested: false,
-            import_requested: false,
+            toggle_simulation_requested: false,
+            simulation_shown: self.cutting_simulation_shown(),
             open_job_manager_requested: false,
         }
     }
@@ -450,8 +451,8 @@ impl AppState {
         if state.import_toolpath_requested {
             self.import_toolpath();
         }
-        if state.import_requested {
-            self.import_cutting_simulation();
+        if state.toggle_simulation_requested {
+            self.toggle_cutting_simulation();
         }
         if state.open_job_manager_requested {
             self.open_job_manager();
