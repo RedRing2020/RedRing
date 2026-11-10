@@ -146,9 +146,9 @@ impl Notice {
                 | OperationStatus::ImportFailed(_)
                 | OperationStatus::JobManagerFailed(_)
                 | OperationStatus::SequenceStatusUnreadable(_) => NoticeLevel::Error,
-                OperationStatus::NothingToImport | OperationStatus::NoToolpathToImport => {
-                    NoticeLevel::Warning
-                }
+                OperationStatus::NothingToImport
+                | OperationStatus::NoToolpathToImport
+                | OperationStatus::AlreadyCalculated => NoticeLevel::Warning,
                 OperationStatus::Submitted { .. }
                 | OperationStatus::Redone
                 | OperationStatus::SequenceSubmitted { .. }

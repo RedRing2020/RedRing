@@ -181,22 +181,18 @@ pub enum SubmissionKind {
 }
 
 impl SubmissionKind {
-    /// 工程に取り込んだ CL の状態 `toolpath` と、工程の今の改訂の計算の状態 `state` から決める投入（今の条件の CL が
-    /// あり、今の改訂の計算が計算待ち・計算中・正常に終わっていなければ、切削シミュレーションだけ。CL をもう一度
-    /// 計算しないように）
-    fn of(toolpath: ImportedToolpathState, state: OperationJobState) -> Self {
-        let done_or_pending = matches!(
-            state,
-            OperationJobState::Status(
-                OperationJobStatus::Queued
-                    | OperationJobStatus::Running
-                    | OperationJobStatus::Succeeded
-            )
-        );
-        if toolpath == ImportedToolpathState::Current && !done_or_pending {
-            Self::SimulationOnly
+    /// 工程に取り込んだ CL の状態 `toolpath` と、工程の今の改訂の計算の状態 `state` から決める投入（今の改訂の計算
+    /// が計算待ち・計算中・正常に終わっていれば、投入しない `None`。今の条件の CL があれば、CL をもう一度計算しない
+    /// ように、切削シミュレーションだけ）
+    fn of(toolpath: ImportedToolpathState, state: OperationJobState) -> Option<Self> {
+        let done_or_pending =
+            matches!(state, OperationJobState::Status(status) if status.is_waiting_or_done());
+        if done_or_pending {
+            None
+        } else if toolpath == ImportedToolpathState::Current {
+            Some(Self::SimulationOnly)
         } else {
-            Self::Full
+            Some(Self::Full)
         }
     }
 }
@@ -324,8 +320,9 @@ impl CuttingSimulationSession {
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程から投入し（実行しない）、投入した計算を返す
     ///
-    /// 空間モデルに今の条件の CL があり、今の改訂の計算が計算待ち・計算中・正常に終わっていなければ、その CL を入力に
-    /// して切削シミュレーションだけを投入する。そうでなければ、ツールパス生成から投入する。
+    /// 今の改訂の計算が計算待ち・計算中・正常に終わっていれば、重ねて投入せずに `None` を返す。そうでなく、空間モデル
+    /// に今の条件の CL があれば、その CL を入力にして切削シミュレーションだけを投入する。どちらでもなければ、ツール
+    /// パス生成から投入する。
     ///
     /// # Errors
     ///
@@ -333,7 +330,7 @@ impl CuttingSimulationSession {
     pub fn submit(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Result<SubmissionKind, CuttingSimulationSessionError> {
+    ) -> Result<Option<SubmissionKind>, CuttingSimulationSessionError> {
         document.target_visible_faces();
         let (_, sequences, sequence, operation) = document.machining();
         // 切削シミュレーションだけを投入するかは、状態を今読んでから決める（ジョブマネージャーが動いていなければ起動
@@ -353,9 +350,11 @@ impl CuttingSimulationSession {
                     OperationJobState::NotRead
                 }
             };
-        let kind = SubmissionKind::of(document.imported_toolpath_state(), state);
+        let Some(kind) = SubmissionKind::of(document.imported_toolpath_state(), state) else {
+            return Ok(None);
+        };
         self.submit_kind(document, operation, kind)?;
-        Ok(kind)
+        Ok(Some(kind))
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の空間モデルの CL を除き、ツールパス生成から投入し直す
@@ -442,19 +441,12 @@ impl CuttingSimulationSession {
             skipped: 0,
         };
         for (index, (item, state)) in operations.iter().zip(states).enumerate() {
-            let done_or_pending = matches!(
-                state,
-                OperationJobState::Status(
-                    OperationJobStatus::Queued
-                        | OperationJobStatus::Running
-                        | OperationJobStatus::Succeeded
-                )
-            );
-            if done_or_pending {
+            let Some(kind) =
+                SubmissionKind::of(document.imported_toolpath_state_of(item.id), state)
+            else {
                 submission.skipped += 1;
                 continue;
-            }
-            let kind = SubmissionKind::of(document.imported_toolpath_state_of(item.id), state);
+            };
             self.submit_kind(document, item.id, kind).map_err(|error| {
                 SequenceSubmissionError::Submit {
                     position: index + 1,
@@ -721,26 +713,36 @@ pub(crate) mod tests {
         for state in not_done {
             assert_eq!(
                 SubmissionKind::of(ImportedToolpathState::Current, state),
-                SubmissionKind::SimulationOnly
+                Some(SubmissionKind::SimulationOnly)
             );
-        }
-        for state in not_done.into_iter().chain(done_or_pending) {
             for toolpath in [ImportedToolpathState::None, ImportedToolpathState::Outdated] {
-                assert_eq!(SubmissionKind::of(toolpath, state), SubmissionKind::Full);
+                assert_eq!(
+                    SubmissionKind::of(toolpath, state),
+                    Some(SubmissionKind::Full)
+                );
             }
         }
+        // 計算待ち・計算中・計算済みの計算は、重ねて投入しない
         for state in done_or_pending {
-            assert_eq!(
-                SubmissionKind::of(ImportedToolpathState::Current, state),
-                SubmissionKind::Full
-            );
+            for toolpath in [
+                ImportedToolpathState::None,
+                ImportedToolpathState::Outdated,
+                ImportedToolpathState::Current,
+            ] {
+                assert_eq!(SubmissionKind::of(toolpath, state), None);
+            }
         }
     }
 
     #[test]
     fn only_the_toolpath_is_imported_and_redoing_removes_it_and_submits_again() {
         let (mut session, mut document) = coarse_session();
-        assert_eq!(session.submit(&mut document).unwrap(), SubmissionKind::Full);
+        assert_eq!(
+            session.submit(&mut document).unwrap(),
+            Some(SubmissionKind::Full)
+        );
+        // 計算待ちの間は、重ねて投入しない
+        assert_eq!(session.submit(&mut document).unwrap(), None);
         // 計算が終わるまでは、CL を取り込めない
         assert!(matches!(
             session.import_toolpath(&mut document),
@@ -754,9 +756,8 @@ pub(crate) mod tests {
             ImportedToolpathState::Current
         );
         assert!(document.is_modified());
-        // 今の改訂の計算が正常に終わっているため、投入はツールパス生成から
-        assert_eq!(session.submit(&mut document).unwrap(), SubmissionKind::Full);
-        session.run_queued_jobs().unwrap();
+        // 今の改訂の計算が正常に終わっているため、投入しない
+        assert_eq!(session.submit(&mut document).unwrap(), None);
 
         // やり直しは、CL を除いてツールパス生成から投入する
         session.redo(&mut document).unwrap();

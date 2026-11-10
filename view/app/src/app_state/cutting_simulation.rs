@@ -55,25 +55,34 @@ fn stock_class_color(colors: &SnapshotShadedColorSettings, class: DeviationClass
 }
 
 impl AppState {
-    /// 表示中の製品形状で、選んだ加工工程を投入する（実行しない。今の条件の CL があり、今の条件の計算が残って
-    /// いなければ、切削シミュレーションだけ）
+    /// 表示中の製品形状で、選んだ加工工程を投入する（実行しない。今の条件の計算が計算待ち・計算中・計算済みなら
+    /// 投入しない。今の条件の CL があれば、切削シミュレーションだけ）
     ///
     /// 投入できたかを返す。
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
-        let result = self
+        let Some(kind) = self
             .cutting_simulation
             .submit(&mut self.document)
-            .map(|kind| {
-                let simulation_only = kind == SubmissionKind::SimulationOnly;
-                (
-                    if simulation_only {
-                        "the cutting simulation of the imported toolpath"
-                    } else {
-                        "the toolpath generation and the cutting simulation"
-                    },
-                    OperationStatus::Submitted { simulation_only },
-                )
-            });
+            .transpose()
+        else {
+            // 押した後に読んだ状態が、計算待ち・計算中・計算済みだった（ボタンは最後に読んだ状態で決めるため）
+            tracing::info!(
+                "The machining operation is already waiting, calculating, or calculated"
+            );
+            self.set_operation_status(OperationStatus::AlreadyCalculated);
+            return false;
+        };
+        let result = kind.map(|kind| {
+            let simulation_only = kind == SubmissionKind::SimulationOnly;
+            (
+                if simulation_only {
+                    "the cutting simulation of the imported toolpath"
+                } else {
+                    "the toolpath generation and the cutting simulation"
+                },
+                OperationStatus::Submitted { simulation_only },
+            )
+        });
         self.finish_submission(result, "the machining operation")
     }
 
