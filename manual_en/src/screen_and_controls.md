@@ -5,7 +5,7 @@
 | Part | Contents |
 |---|---|
 | Menu bar | "File" creates, opens, saves, and saves as a model file, loads a shape file, and exits (see "Model Files" below). "Machining" opens and closes the machining sequence, shows or hides the operation list, and opens the operation settings and sequence settings dialogs ([Cutting Simulation](./cutting_simulation_demo.md)). "View" → "Language" selects the language of the screen text. "Help" → "Controls" shows the list of keys, and "About" shows the version, the location of the log file, and a link to the manual |
-| Model view | Shows the product shape, the stock, the toolpath lines, and the tool lines |
+| Model view | Shows the product shape, the stock, the toolpath lines, and the tool lines. It is drawn between the menu bar and the operation list or status bar (the view center and the center of rotation are the center of that area. Changing the height of the operation list does not change the zoom. When the view is fitted to the whole shape, for example after loading a shape, it is fitted into that area) |
 | Progress bar at the top left | Appears when a cutting simulation is imported. Drag it with the left button to move to any time (scrubbing) |
 | Status bar at the bottom of the screen | Shows the last message on one line: the results of loading a shape, submitting, running, and importing, and the reasons why an operation could not be done. Warnings are yellow and failures are red. Long messages are cut to one line. Press 📋 at the left to open a list of recent messages (newest first, in full; the text can be selected and copied) and, while a machining sequence is open, the state of the selected operation (calculation state, state of the CL in the space model, condition errors). While there are warnings or failures not yet seen in the list, 📋 is shown in yellow or red |
 | Window title | Shows the name of the open model file ("Untitled" until it is saved). When there are unsaved changes, `*` follows the name. When a cutting simulation is imported, shows the current time (`Snapshot 1/N`), the segment number, the remaining volume, and the playback speed |
@@ -48,7 +48,7 @@ While editing a field in the settings panel or a settings dialog, typed characte
 | Control | Action |
 |---|---|
 | `Ctrl+left drag` | Rotate |
-| `Ctrl+middle drag` | Pan |
+| `Ctrl+middle drag` | Pan (the visible shape follows the mouse, at any zoom) |
 | `Ctrl+right drag` or `Ctrl+wheel` | Zoom |
 | `r` | Reset the camera (fit to the shapes) |
 | `t` | Standard CAD view |

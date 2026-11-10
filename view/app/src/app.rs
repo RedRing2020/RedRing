@@ -104,11 +104,13 @@ impl ApplicationHandler for App {
                 WindowEvent::ModifiersChanged(modifiers) => {
                     state.mouse_input.update_modifiers(modifiers.state());
                 }
+                // 離したことは、画面の部品の上でも必ず受ける（3D の表示で始めた回転・パンを、続いたままにしない。押した
+                // ことを受けなかったボタンを離しても、操作を終えるだけで害はない）
                 WindowEvent::MouseInput {
                     button,
                     state: button_state,
                     ..
-                } if !settings_ui_consumed => {
+                } if !settings_ui_consumed || button_state == ElementState::Released => {
                     state.handle_mouse_button(button, button_state);
                 }
                 WindowEvent::CursorMoved { position, .. } if !settings_ui_consumed => {
