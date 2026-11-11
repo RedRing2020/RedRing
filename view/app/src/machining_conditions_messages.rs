@@ -135,6 +135,11 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.redo.hint",
         "選んだ工程の空間モデルの CL を消して、ツールパス生成から計算し直します",
     ),
+    ("conditions.stop", "計算停止"),
+    (
+        "conditions.stop.hint",
+        "選んだ工程の今の条件の、計算待ち・計算中の計算を止めます",
+    ),
     ("conditions.import_toolpath", "CL 取込"),
     (
         "conditions.import_toolpath.hint",
@@ -168,6 +173,19 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.status.recalculation_waiting",
         "今の条件の計算が計算待ちのため、再計算していません（計算が始まってから再計算できます）",
     ),
+    (
+        "conditions.status.stopped",
+        "今の条件の計算を停止しています（止まると、状態が取り消しになります）",
+    ),
+    (
+        "conditions.status.stop_not_accepted",
+        "今の条件の計算に、まだジョブマネージャーが受け取っていないものがあるため、すべては停止していません（少し待ってから、もう一度停止してください）",
+    ),
+    (
+        "conditions.status.nothing_to_stop",
+        "今の条件の計算は、計算待ち・計算中でないため、停止していません",
+    ),
+    ("conditions.status.stop_failed", "計算を停止できません（{reason}）"),
     (
         "conditions.status.sequence_submitted",
         "手順の {submitted} 工程の計算を始めました（計算待ち・計算中・計算済みの {skipped} 工程は、計算し直していません）",
@@ -419,6 +437,11 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.redo.hint",
         "Deletes the CL of the selected operation from the space model and calculates again from toolpath generation",
     ),
+    ("conditions.stop", "Stop calculation"),
+    (
+        "conditions.stop.hint",
+        "Stops the waiting or running calculation for the current conditions of the selected operation",
+    ),
     ("conditions.import_toolpath", "Import CL"),
     (
         "conditions.import_toolpath.hint",
@@ -452,6 +475,19 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.status.recalculation_waiting",
         "Not recalculated because the calculation for the current conditions is waiting (it can be recalculated after the calculation starts)",
     ),
+    (
+        "conditions.status.stopped",
+        "Stopping the calculation for the current conditions (the status becomes canceled when it stops)",
+    ),
+    (
+        "conditions.status.stop_not_accepted",
+        "Not all of the calculation for the current conditions was stopped because the job manager has not received part of it yet (wait a moment and stop it again)",
+    ),
+    (
+        "conditions.status.nothing_to_stop",
+        "Not stopped because the calculation for the current conditions is not waiting or calculating",
+    ),
+    ("conditions.status.stop_failed", "Cannot stop the calculation ({reason})"),
     (
         "conditions.status.sequence_submitted",
         "Started calculating {submitted} operations of the sequence ({skipped} waiting, calculating, or calculated operations were not calculated again)",

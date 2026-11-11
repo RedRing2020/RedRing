@@ -59,6 +59,14 @@ pub(crate) enum OperationStatus {
     AlreadyCalculated,
     /// 今の条件の計算が計算待ちのため、再計算しない（計算が始まってから再計算できる）
     RecalculationWaiting,
+    /// 今の条件の計算待ち・計算中の計算を止めている（取り消すよう頼んだ。止まるのは待たない）
+    Stopped,
+    /// 今の条件の計算に、待ってもジョブマネージャーが受け取らない投入があり、すべては止めていない
+    StopNotYetAccepted,
+    /// 今の条件の計算は、計算待ち・計算中でないため、止めていない
+    NothingToStop,
+    /// 計算を止められない（画面に出す理由）
+    StopFailed(UiMessage),
     /// 投入できない（画面に出す理由）
     SubmitFailed(UiMessage),
     /// 手順の全体を投入した（投入した工程・そのうち切削シミュレーションだけを投入した工程・投入し直さなかった工程の数）
@@ -211,6 +219,10 @@ fn operation_status_message(
         OperationStatus::RecalculationWaiting => {
             ("conditions.status.recalculation_waiting", vec![])
         }
+        OperationStatus::Stopped => ("conditions.status.stopped", vec![]),
+        OperationStatus::StopNotYetAccepted => ("conditions.status.stop_not_accepted", vec![]),
+        OperationStatus::NothingToStop => ("conditions.status.nothing_to_stop", vec![]),
+        OperationStatus::StopFailed(message) => ("conditions.status.stop_failed", reason(message)),
         OperationStatus::ToolpathImported { job } => (
             "conditions.status.toolpath_imported",
             vec![("job", job.to_string())],
@@ -320,6 +332,8 @@ pub struct MachiningConditionsUiState {
     pub submit_requested: bool,
     /// 選んだ工程の空間モデルの CL を消して、ツールパス生成から投入し直す
     pub(crate) redo_requested: bool,
+    /// 選んだ工程の今の条件の、計算待ち・計算中の計算を止める
+    pub(crate) stop_requested: bool,
     /// 手順の全体を投入する
     pub(crate) submit_sequence_requested: bool,
     /// 選んだ工程の、ツールパス生成の結果（CL）だけを取り込む
@@ -456,6 +470,7 @@ enum RowAction {
     OpenSettings,
     Submit,
     Redo,
+    Stop,
     ImportToolpath,
     Import,
     Command(OperationCommand),
@@ -766,7 +781,7 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・手順の全体を投入・CL 取込・切削シミュレーション表示・
+    /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・計算停止・手順の全体を投入・CL 取込・切削シミュレーション表示・
     /// ジョブマネージャーを開く）。結果と状態は、行の数で工程リストの高さを変えないよう、ステータスバーに出す
     fn show_job_commands(&mut self, ui: &mut egui::Ui) {
         // 計算・再計算を押せない理由（計算の状態の案内・条件の誤り）は、押せないボタンに乗せたときに出す
@@ -795,6 +810,15 @@ impl MachiningConditionsUiState {
             );
             if redo.clicked() {
                 self.redo_requested = true;
+            }
+            let stop = ui
+                .add_enabled(
+                    self.action_enabled(&RowAction::Stop, self.selected_position()),
+                    egui::Button::new(self.text("conditions.stop")),
+                )
+                .on_hover_text(self.text("conditions.stop.hint"));
+            if stop.clicked() {
+                self.stop_requested = true;
             }
             // 手順の全体は、すべての工程を確かめてから投入する（誤りは、工程の名前とともに出す）
             if ui.button(self.text("conditions.submit_sequence")).clicked() {
@@ -848,6 +872,17 @@ impl MachiningConditionsUiState {
                         })
             }
             RowAction::Command(command) => self.command_enabled(command, position),
+            // 止められるのは、今の条件の計算が計算待ち・計算中のときだけ
+            RowAction::Stop => position
+                .and_then(|at| self.operations.get(at))
+                .is_some_and(|row| {
+                    matches!(
+                        row.status,
+                        JobStatusLine::Status(
+                            OperationJobStatus::Queued | OperationJobStatus::Running
+                        )
+                    )
+                }),
             // 空間モデルの CL が今の条件の結果（取込済み）なら、取り込み直しても同じ CL のため押せない
             RowAction::ImportToolpath => position
                 .and_then(|at| self.operations.get(at))
@@ -938,6 +973,7 @@ impl MachiningConditionsUiState {
             }
             Some(RowAction::Submit) => self.submit_requested = true,
             Some(RowAction::Redo) => self.redo_requested = true,
+            Some(RowAction::Stop) => self.stop_requested = true,
             Some(RowAction::ImportToolpath) => self.import_toolpath_requested = true,
             Some(RowAction::Import) => self.toggle_simulation_requested = true,
             Some(RowAction::Command(command)) => self.operation_command = Some(command),
@@ -955,6 +991,7 @@ impl MachiningConditionsUiState {
             ),
             (RowAction::Submit, "conditions.submit"),
             (RowAction::Redo, "conditions.redo"),
+            (RowAction::Stop, "conditions.stop"),
             (RowAction::ImportToolpath, "conditions.import_toolpath"),
             (RowAction::Import, "conditions.import"),
             (
@@ -1436,6 +1473,10 @@ mod tests {
             OperationStatus::NothingToImport,
             OperationStatus::AlreadyCalculated,
             OperationStatus::RecalculationWaiting,
+            OperationStatus::Stopped,
+            OperationStatus::StopNotYetAccepted,
+            OperationStatus::NothingToStop,
+            OperationStatus::StopFailed(failure("failure.job_manager_not_found")),
             OperationStatus::ToolpathImported { job: 1 },
             OperationStatus::NoToolpathToImport,
             OperationStatus::ImportFailed(failure("failure.animation.replay")),
