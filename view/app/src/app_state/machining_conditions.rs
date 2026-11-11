@@ -8,8 +8,8 @@ use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationI
 use super::AppState;
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
-    calculation_blocked, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
-    OperationCommand, OperationRow, OperationStatus,
+    submission_on_apply, ApplySubmission, ConditionDialog, DialogResult, JobStatusLine,
+    MachiningConditionsUiState, OperationCommand, OperationRow,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,
@@ -138,7 +138,7 @@ impl AppState {
         };
         self.draft_issues = None;
         self.tool_length_input = draft.tool_length_input;
-        let mut submit = draft.dialog == ConditionDialog::Operation && self.submit_on_apply;
+        let mut submission = None;
         match draft.dialog {
             ConditionDialog::Operation => {
                 // 名前は、前後の空白を除き、空なら替えない。属性（名前・加工の段階）は計算に使わないため、属性だけを
@@ -157,15 +157,15 @@ impl AppState {
                     }
                 }
                 self.document.rename_selected_operation(&name);
-                // 計算の条件が変わったときは、最後に読んだ状態は前の条件のものなので、比べずに投入する
-                if submit && !conditions_changed {
+                if self.submit_on_apply {
                     let operation = self.document.selected_operation();
                     let toolpath_current =
                         self.document.imported_toolpath_state() == ImportedToolpathState::Current;
-                    submit = !calculation_blocked(
+                    submission = Some(submission_on_apply(
+                        conditions_changed,
                         &self.operation_job_status(operation),
                         toolpath_current,
-                    );
+                    ));
                 }
             }
             ConditionDialog::Sequence => {
@@ -176,16 +176,19 @@ impl AppState {
             }
         }
         tracing::info!("Conditions applied: {:?}", draft.dialog);
-        if draft.dialog == ConditionDialog::Operation && self.submit_on_apply && !submit {
-            // 計算のボタンを押して計算済みだったときと同じく、計算しなかったことを出す
-            tracing::info!(
-                "The applied operation is not submitted because it is already calculated"
-            );
-            self.set_operation_status(OperationStatus::AlreadyCalculated);
-        }
-        if submit && self.submit_cutting_simulation() {
-            // 投入した計算の状態を、すぐに読み直す
-            self.job_status_read_at = None;
+        match submission {
+            Some(ApplySubmission::Submit) => {
+                if self.submit_cutting_simulation() {
+                    // 投入した計算の状態を、すぐに読み直す
+                    self.job_status_read_at = None;
+                }
+            }
+            Some(ApplySubmission::Skip(status)) => {
+                // 計算しなかったことと、その理由を出す
+                tracing::info!("The applied operation is not submitted: {status:?}");
+                self.set_operation_status(status);
+            }
+            None => {}
         }
     }
 

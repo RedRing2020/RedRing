@@ -170,6 +170,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "今の条件の計算が、計算待ち・計算中・計算済みのため、計算を始めていません",
     ),
     (
+        "conditions.status.already_imported",
+        "今の条件の CL を取り込み済みのため、計算を始めていません",
+    ),
+    (
         "conditions.status.recalculation_waiting",
         "今の条件の計算が計算待ちのため、再計算していません（計算が始まってから再計算できます）",
     ),
@@ -470,6 +474,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.status.already_calculated",
         "The calculation was not started because the calculation for the current conditions is waiting, calculating, or calculated",
+    ),
+    (
+        "conditions.status.already_imported",
+        "The calculation was not started because the toolpath for the current conditions is already imported",
     ),
     (
         "conditions.status.recalculation_waiting",

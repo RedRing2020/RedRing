@@ -60,6 +60,8 @@ pub(crate) enum OperationStatus {
     Redone { canceled: bool },
     /// 今の条件の計算が計算待ち・計算中・計算済みのため、投入しない
     AlreadyCalculated,
+    /// 計算の状態は分からないが、今の条件の CL を取り込み済みのため、投入しない
+    AlreadyImported,
     /// 今の条件の計算が計算待ちのため、再計算しない（計算が始まってから再計算できる）
     RecalculationWaiting,
     /// 今の条件の計算待ち・計算中の計算を止めている（取り消すよう頼んだ。止まるのは待たない）
@@ -219,6 +221,7 @@ fn operation_status_message(
         }
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
         OperationStatus::AlreadyCalculated => ("conditions.status.already_calculated", vec![]),
+        OperationStatus::AlreadyImported => ("conditions.status.already_imported", vec![]),
         OperationStatus::RecalculationWaiting => {
             ("conditions.status.recalculation_waiting", vec![])
         }
@@ -374,11 +377,40 @@ fn with_disabled_reasons(response: egui::Response, reasons: &str) -> egui::Respo
     }
 }
 
+/// 「適用と同時に計算する」で適用したときに、選んだ工程を計算するか
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum ApplySubmission {
+    /// 計算する
+    Submit,
+    /// 計算しない（画面に出す理由）
+    Skip(OperationStatus),
+}
+
+/// 「適用と同時に計算する」で適用したときに、計算の条件が変わったか `conditions_changed`・最後に読んだ計算の状態
+/// `status`・空間モデルの CL が今の条件の結果か `toolpath_current` から、選んだ工程を計算するか
+///
+/// 計算の条件が変わったときは、最後に読んだ状態は前の条件のものなので、比べずに計算する。変わらないときは、計算の
+/// ボタンが押せる状態のときだけ計算する（取込済みの工程の属性だけを替えたときに、ジョブマネージャーを起動しない）。
+pub(crate) fn submission_on_apply(
+    conditions_changed: bool,
+    status: &JobStatusLine,
+    toolpath_current: bool,
+) -> ApplySubmission {
+    if conditions_changed || !calculation_blocked(status, toolpath_current) {
+        return ApplySubmission::Submit;
+    }
+    match status {
+        JobStatusLine::Status(_) => ApplySubmission::Skip(OperationStatus::AlreadyCalculated),
+        // ジョブマネージャーが動いていない・見つからないため状態は分からないが、今の条件の CL がある
+        _ => ApplySubmission::Skip(OperationStatus::AlreadyImported),
+    }
+}
+
 /// 計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から、計算を押せないか（今の条件の
 /// 計算が計算待ち・計算中・計算済みのとき。重ねて投入しないように。ジョブマネージャーが動いていない・見つからない
 /// ときは、今の条件の CL があれば取込済みとして出すため、計算済みと同じに扱う。動けば状態を読み直し、未計算と分かれば
 /// 切削シミュレーションだけを計算できる）
-pub(crate) fn calculation_blocked(status: &JobStatusLine, toolpath_current: bool) -> bool {
+fn calculation_blocked(status: &JobStatusLine, toolpath_current: bool) -> bool {
     match status {
         JobStatusLine::Status(status) => status.is_waiting_or_done(),
         JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => toolpath_current,
@@ -1532,8 +1564,8 @@ mod tests {
         calculation_blocked, condition_error_message, condition_field, imported_toolpath_key,
         job_status_key, navigation_key, navigation_text, next_action_of, operation_row_key,
         operation_row_status_key, operation_status_text, row_status_color, stage_key,
-        ConditionField, JobStatusLine, MachiningStage, OperationJobStatus, OperationRow,
-        OperationStatus, RowAction, COLUMN_KEYS,
+        submission_on_apply, ApplySubmission, ConditionField, JobStatusLine, MachiningStage,
+        OperationJobStatus, OperationRow, OperationStatus, RowAction, COLUMN_KEYS,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -1606,6 +1638,7 @@ mod tests {
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
             OperationStatus::AlreadyCalculated,
+            OperationStatus::AlreadyImported,
             OperationStatus::RecalculationWaiting,
             OperationStatus::Stopped,
             OperationStatus::StopNotYetAccepted,
@@ -1760,6 +1793,74 @@ mod tests {
             for toolpath_current in [false, true] {
                 assert!(
                     !calculation_blocked(&status, toolpath_current),
+                    "{status:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn applying_submits_unless_unchanged_conditions_are_already_calculated_or_imported() {
+        use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
+        let statuses = [
+            JobStatusLine::Status(Queued),
+            JobStatusLine::Status(Running),
+            JobStatusLine::Status(Succeeded),
+            JobStatusLine::Status(Failed),
+            JobStatusLine::Status(Canceled),
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+        ];
+        // 計算の条件が変わったときは、最後に読んだ状態によらず計算する
+        for status in &statuses {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(true, status, toolpath_current),
+                    ApplySubmission::Submit,
+                    "{status:?}"
+                );
+            }
+        }
+        // 変わらないときは、計算待ち・計算中・計算済みなら計算しない
+        for status in [Queued, Running, Succeeded] {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(false, &JobStatusLine::Status(status), toolpath_current),
+                    ApplySubmission::Skip(OperationStatus::AlreadyCalculated)
+                );
+            }
+        }
+        // ジョブマネージャーが動いていない・見つからないときは、取込済みの工程を計算しない（起動しない）
+        for status in [
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+        ] {
+            assert_eq!(
+                submission_on_apply(false, &status, true),
+                ApplySubmission::Skip(OperationStatus::AlreadyImported),
+                "{status:?}"
+            );
+            assert_eq!(
+                submission_on_apply(false, &status, false),
+                ApplySubmission::Submit,
+                "{status:?}"
+            );
+        }
+        // 未計算・計算失敗・取り消しと、状態が分からない・まだ読めていないときは計算する（計算するときに読み直す）
+        for status in [
+            JobStatusLine::Status(Failed),
+            JobStatusLine::Status(Canceled),
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+        ] {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(false, &status, toolpath_current),
+                    ApplySubmission::Submit,
                     "{status:?}"
                 );
             }
