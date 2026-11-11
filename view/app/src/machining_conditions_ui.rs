@@ -797,7 +797,10 @@ impl MachiningConditionsUiState {
                 self.submit_sequence_requested = true;
             }
             let import_toolpath = ui
-                .button(self.text("conditions.import_toolpath"))
+                .add_enabled(
+                    self.action_enabled(&RowAction::ImportToolpath, self.selected_position()),
+                    egui::Button::new(self.text("conditions.import_toolpath")),
+                )
                 .on_hover_text(self.text("conditions.import_toolpath.hint"));
             if import_toolpath.clicked() {
                 self.import_toolpath_requested = true;
@@ -841,7 +844,11 @@ impl MachiningConditionsUiState {
                         })
             }
             RowAction::Command(command) => self.command_enabled(command, position),
-            RowAction::OpenSettings | RowAction::ImportToolpath | RowAction::Import => true,
+            // 空間モデルの CL が今の条件の結果（取込済み）なら、取り込み直しても同じ CL のため押せない
+            RowAction::ImportToolpath => position
+                .and_then(|at| self.operations.get(at))
+                .is_none_or(|row| !row.toolpath_current),
+            RowAction::OpenSettings | RowAction::Import => true,
         }
     }
 
