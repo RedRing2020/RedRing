@@ -373,6 +373,49 @@ fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
 }
 
 #[test]
+fn the_current_revision_jobs_except_a_submission_are_canceled() {
+    let (shapes, face) = pyramid_shape();
+    let machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    // 工程から投入していないジョブは、取り消さない
+    submit(&mut workflow, request(0.01)).unwrap();
+    machining.submit(&mut workflow, &shapes).unwrap();
+    let kept = machining.submit(&mut workflow, &shapes).unwrap();
+    // 前の投入のツールパス生成と切削シミュレーションだけを取り消す
+    let canceled = workflow
+        .cancel_latest_revision_jobs(
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+            &kept.submission_id,
+        )
+        .unwrap();
+    assert_eq!(canceled, 2);
+    assert_eq!(workflow.run_queued_jobs().unwrap(), 4);
+    let statuses: Vec<CamJobStatus> = machining
+        .operation_simulations(&workflow)
+        .iter()
+        .map(|job| job.status)
+        .collect();
+    assert_eq!(
+        statuses,
+        vec![CamJobStatus::Canceled, CamJobStatus::Succeeded]
+    );
+    // 終わったジョブは取り消さない
+    assert_eq!(
+        workflow
+            .cancel_latest_revision_jobs(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                "none",
+            )
+            .unwrap(),
+        0
+    );
+}
+
+#[test]
 fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
     let (shapes, face) = pyramid_shape();
     let machining = Machining::new(vec![face]);

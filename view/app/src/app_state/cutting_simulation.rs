@@ -93,15 +93,20 @@ impl AppState {
     ///
     /// 投入できたかを返す。
     pub(crate) fn redo_cutting_simulation(&mut self) -> bool {
-        let result = self
-            .cutting_simulation
-            .redo(&mut self.document)
-            .map(|canceled| {
-                (
-                    "the machining operation again",
-                    OperationStatus::Redone { canceled },
-                )
-            });
+        let Some(result) = self.cutting_simulation.redo(&mut self.document).transpose() else {
+            // 押した後に読んだ状態が計算待ちだった（ボタンは最後に読んだ状態で決めるため）
+            tracing::info!("The machining operation is already waiting for the calculation");
+            self.set_operation_status(OperationStatus::RecalculationWaiting);
+            // 押したときに読んだ状態を、すぐ表とボタンに出す
+            self.job_status_read_at = None;
+            return false;
+        };
+        let result = result.map(|canceled| {
+            (
+                "the machining operation again",
+                OperationStatus::Redone { canceled },
+            )
+        });
         let submitted = self.finish_submission(result, "the machining operation again");
         if submitted
             && self.cutting_animation.is_some()

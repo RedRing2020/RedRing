@@ -57,6 +57,8 @@ pub(crate) enum OperationStatus {
     Redone { canceled: bool },
     /// 今の条件の計算が計算待ち・計算中・計算済みのため、投入しない
     AlreadyCalculated,
+    /// 今の条件の計算が計算待ちのため、再計算しない（計算待ちの計算は、最初から計算する）
+    RecalculationWaiting,
     /// 投入できない（画面に出す理由）
     SubmitFailed(UiMessage),
     /// 手順の全体を投入した（投入した工程・そのうち切削シミュレーションだけを投入した工程・投入し直さなかった工程の数）
@@ -206,6 +208,9 @@ fn operation_status_message(
         }
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
         OperationStatus::AlreadyCalculated => ("conditions.status.already_calculated", vec![]),
+        OperationStatus::RecalculationWaiting => {
+            ("conditions.status.recalculation_waiting", vec![])
+        }
         OperationStatus::ToolpathImported { job } => (
             "conditions.status.toolpath_imported",
             vec![("job", job.to_string())],
@@ -818,7 +823,16 @@ impl MachiningConditionsUiState {
                         .and_then(|at| self.operations.get(at))
                         .is_none_or(|row| !calculation_waiting_or_done(&row.status))
             }
-            RowAction::Redo => self.issues.is_empty(),
+            // 計算待ちの計算は、まだ始まっていないため今の条件で最初から計算する（ジョブマネージャーがまだ受け取って
+            // いない、取り消せない投入も計算待ち）
+            RowAction::Redo => {
+                self.issues.is_empty()
+                    && position
+                        .and_then(|at| self.operations.get(at))
+                        .is_none_or(|row| {
+                            row.status != JobStatusLine::Status(OperationJobStatus::Queued)
+                        })
+            }
             RowAction::Command(command) => self.command_enabled(command, position),
             RowAction::OpenSettings | RowAction::ImportToolpath | RowAction::Import => true,
         }
@@ -1403,6 +1417,7 @@ mod tests {
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
             OperationStatus::AlreadyCalculated,
+            OperationStatus::RecalculationWaiting,
             OperationStatus::ToolpathImported { job: 1 },
             OperationStatus::NoToolpathToImport,
             OperationStatus::ImportFailed(failure("failure.animation.replay")),

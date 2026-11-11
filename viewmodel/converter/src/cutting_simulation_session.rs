@@ -358,8 +358,11 @@ impl CuttingSimulationSession {
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の空間モデルの CL を除き、ツールパス生成から投入し直す
-    /// （実行しない。CL は、投入できたときだけ除く）。投入できたら、今の条件の前の計算待ち・計算中のジョブを取り消す
-    /// よう頼む（取り消し終えるのを待たない）。前のジョブを取り消すよう頼んだかを返す
+    /// （実行しない。CL は、投入できたときだけ除く）。投入できたら、今の条件の前の計算中のジョブを取り消すよう頼む
+    /// （取り消し終えるのを待たない）。前のジョブを取り消すよう頼んだかを返す
+    ///
+    /// 今の条件の計算が計算待ちなら、投入せずに `None` を返す（計算待ちの計算は、まだ始まっていないため、今の条件で
+    /// 最初から計算する。ジョブマネージャーがまだ受け取っていない投入も計算待ちのため、取り消せない投入に重ねない）。
     ///
     /// # Errors
     ///
@@ -367,9 +370,26 @@ impl CuttingSimulationSession {
     pub fn redo(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Result<bool, CuttingSimulationSessionError> {
+    ) -> Result<Option<bool>, CuttingSimulationSessionError> {
         document.target_visible_faces();
         let (shapes, sequences, sequence, operation) = document.machining();
+        // 計算待ちかは、状態を今読んで決める（ボタンは最後に読んだ状態で決めるため）。見つからなければ投入できない。
+        // ほかの理由で読めなくても、投入はつなぎ直して行う
+        match self
+            .workflow
+            .latest_revision_job_states_now(sequences, sequence, &[operation])
+        {
+            Ok(states) if states[0] == OperationJobState::Status(OperationJobStatus::Queued) => {
+                return Ok(None);
+            }
+            Ok(_) => {}
+            Err(CamSimulationWorkflowError::JobManagerNotFound) => {
+                return Err(CamSimulationWorkflowError::JobManagerNotFound.into());
+            }
+            Err(error) => {
+                tracing::warn!("Cannot read the job status before recalculating: {error}");
+            }
+        }
         let submission = self
             .workflow
             .submit_operation(shapes, sequences, sequence, operation)?;
@@ -388,7 +408,7 @@ impl CuttingSimulationSession {
             }
         };
         document.remove_toolpath();
-        Ok(canceled)
+        Ok(Some(canceled))
     }
 
     /// 加工工程 `operation` から、計算 `kind` を投入する
@@ -776,7 +796,7 @@ pub(crate) mod tests {
         assert_eq!(session.submit(&mut document).unwrap(), None);
 
         // やり直しは、CL を除いてツールパス生成から投入する（計算待ち・計算中のジョブはない）
-        assert!(!session.redo(&mut document).unwrap());
+        assert_eq!(session.redo(&mut document).unwrap(), Some(false));
         assert_eq!(
             document.imported_toolpath_state(),
             ImportedToolpathState::None
@@ -796,22 +816,17 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn recalculating_while_waiting_cancels_the_current_jobs_and_submits_again() {
+    fn recalculating_while_waiting_submits_nothing() {
         let (mut session, mut document) = coarse_session();
         assert_eq!(
             session.submit(&mut document).unwrap(),
             Some(SubmissionKind::Full)
         );
-        // 計算待ちのジョブ（ツールパス生成と切削シミュレーション）を取り消してから、最初から計算するジョブを投入する
-        assert!(session.redo(&mut document).unwrap());
-        // 取り消したジョブは計算せず、新しく投入した 2 つだけを計算する
+        // 計算待ちの計算は、今の条件で最初から計算するため、再計算しない（重ねて投入しない）
+        assert_eq!(session.redo(&mut document).unwrap(), None);
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
-        assert_eq!(
-            session.job_states(&mut document).unwrap()[0].1,
-            OperationJobState::Status(OperationJobStatus::Succeeded)
-        );
         // 計算が終わった後の再計算は、取り消すジョブがない
-        assert!(!session.redo(&mut document).unwrap());
+        assert_eq!(session.redo(&mut document).unwrap(), Some(false));
     }
 
     #[test]

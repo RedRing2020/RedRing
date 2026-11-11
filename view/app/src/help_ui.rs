@@ -148,7 +148,8 @@ impl Notice {
                 | OperationStatus::SequenceStatusUnreadable(_) => NoticeLevel::Error,
                 OperationStatus::NothingToImport
                 | OperationStatus::NoToolpathToImport
-                | OperationStatus::AlreadyCalculated => NoticeLevel::Warning,
+                | OperationStatus::AlreadyCalculated
+                | OperationStatus::RecalculationWaiting => NoticeLevel::Warning,
                 OperationStatus::Submitted { .. }
                 | OperationStatus::Redone { .. }
                 | OperationStatus::SequenceSubmitted { .. }
