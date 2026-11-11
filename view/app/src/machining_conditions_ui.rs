@@ -354,9 +354,16 @@ fn with_disabled_reasons(response: egui::Response, reasons: &str) -> egui::Respo
     }
 }
 
-/// 今の条件の計算が計算待ち・計算中・計算済みか（計算を押せない。重ねて投入しないように）
-fn calculation_waiting_or_done(status: &JobStatusLine) -> bool {
-    matches!(status, JobStatusLine::Status(status) if status.is_waiting_or_done())
+/// 計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から、計算を押せないか（今の条件の
+/// 計算が計算待ち・計算中・計算済みのとき。重ねて投入しないように。ジョブマネージャーが動いていない・見つからない
+/// ときは、今の条件の CL があれば取込済みとして出すため、計算済みと同じに扱う。動けば状態を読み直し、未計算と分かれば
+/// 切削シミュレーションだけを計算できる）
+fn calculation_blocked(status: &JobStatusLine, toolpath_current: bool) -> bool {
+    match status {
+        JobStatusLine::Status(status) => status.is_waiting_or_done(),
+        JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => toolpath_current,
+        _ => false,
+    }
 }
 
 /// 選んだ工程の、計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` に応じた、次に
@@ -821,7 +828,7 @@ impl MachiningConditionsUiState {
                 self.issues.is_empty()
                     && position
                         .and_then(|at| self.operations.get(at))
-                        .is_none_or(|row| !calculation_waiting_or_done(&row.status))
+                        .is_none_or(|row| !calculation_blocked(&row.status, row.toolpath_current))
             }
             // 計算待ちの計算は、まだ始まっていない（ジョブマネージャーがまだ受け取っていない、取り消せない投入も
             // 計算待ち）。計算が始まってから再計算できる
@@ -1341,8 +1348,8 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        calculation_waiting_or_done, condition_error_message, condition_field,
-        imported_toolpath_key, job_status_key, navigation_key, navigation_text, operation_row_key,
+        calculation_blocked, condition_error_message, condition_field, imported_toolpath_key,
+        job_status_key, navigation_key, navigation_text, operation_row_key,
         operation_row_status_key, operation_status_text, stage_key, ConditionField, JobStatusLine,
         MachiningStage, OperationJobStatus, OperationRow, OperationStatus, COLUMN_KEYS,
     };
@@ -1540,7 +1547,20 @@ mod tests {
     fn calculation_is_blocked_only_while_waiting_calculating_or_calculated() {
         use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
         for status in [Queued, Running, Succeeded] {
-            assert!(calculation_waiting_or_done(&JobStatusLine::Status(status)));
+            for toolpath_current in [false, true] {
+                assert!(calculation_blocked(
+                    &JobStatusLine::Status(status),
+                    toolpath_current
+                ));
+            }
+        }
+        // ジョブマネージャーが動いていない・見つからないときは、取込済みと出す工程（今の条件の CL がある）だけ押せない
+        for status in [
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+        ] {
+            assert!(calculation_blocked(&status, true), "{status:?}");
+            assert!(!calculation_blocked(&status, false), "{status:?}");
         }
         // 計算失敗・取り消しは計算し直せる。未計算（CL だけの工程は切削シミュレーションだけ）と、状態が分からない・
         // まだ読めていないときは、押したときに読み直して決める
@@ -1548,12 +1568,15 @@ mod tests {
             JobStatusLine::Status(Failed),
             JobStatusLine::Status(Canceled),
             JobStatusLine::NotSubmitted,
-            JobStatusLine::ManagerNotRunning,
-            JobStatusLine::ManagerNotFound,
             JobStatusLine::Unreadable,
             JobStatusLine::Reading,
         ] {
-            assert!(!calculation_waiting_or_done(&status), "{status:?}");
+            for toolpath_current in [false, true] {
+                assert!(
+                    !calculation_blocked(&status, toolpath_current),
+                    "{status:?}"
+                );
+            }
         }
     }
 
