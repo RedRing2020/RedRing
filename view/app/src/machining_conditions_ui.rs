@@ -251,6 +251,9 @@ const DIALOG_CHROME_HEIGHT: f32 = 140.0;
 /// 条件の編集のダイアログの、スクロールする中身の最小の高さ（論理座標）
 const DIALOG_BODY_MIN_HEIGHT: f32 = 120.0;
 
+/// 工程の表の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
+const SELECTED_ROW_OPACITY: f32 = 0.45;
+
 /// 工程の表の列の見出しの文言のキー
 const COLUMN_KEYS: [&str; 6] = [
     "conditions.list.column.order",
@@ -1008,7 +1011,14 @@ impl MachiningConditionsUiState {
             .num_columns(COLUMN_KEYS.len())
             .with_row_color(move |row, style| {
                 if Some(row) == selected_row {
-                    Some(style.visuals.selection.bg_fill)
+                    // 選んだ行は、選択の色を薄めて、文字との差を抑える
+                    Some(
+                        style
+                            .visuals
+                            .selection
+                            .bg_fill
+                            .gamma_multiply(SELECTED_ROW_OPACITY),
+                    )
                 } else if row > 0 && Some(row) == hovered_row {
                     Some(style.visuals.widgets.hovered.weak_bg_fill)
                 } else if row % 2 == 1 {
