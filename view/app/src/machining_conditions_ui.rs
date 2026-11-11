@@ -337,6 +337,16 @@ pub(crate) struct OperationRow {
     pub(crate) toolpath_current: bool,
 }
 
+/// 押せないボタン `response` に乗せたときに、押せない理由 `reasons` を出す（理由がないとき、計算の状態のせいで
+/// 押せないときは、空の吹き出しを出さないように付けない）
+fn with_disabled_reasons(response: egui::Response, reasons: &str) -> egui::Response {
+    if reasons.is_empty() {
+        response
+    } else {
+        response.on_disabled_hover_text(reasons)
+    }
+}
+
 /// 今の条件の計算が計算待ち・計算中・計算済みか（計算を押せない。重ねて投入しないように）
 fn calculation_waiting_or_done(status: &JobStatusLine) -> bool {
     matches!(status, JobStatusLine::Status(status) if status.is_waiting_or_done())
@@ -746,23 +756,25 @@ impl MachiningConditionsUiState {
         ui.horizontal_wrapped(|ui| {
             let position = self.selected_position();
             let can_submit = self.action_enabled(&RowAction::Submit, position);
-            let submit = ui
-                .add_enabled(
+            let submit = with_disabled_reasons(
+                ui.add_enabled(
                     can_submit,
                     egui::Button::new(self.text("conditions.submit")),
                 )
-                .on_hover_text(self.text("conditions.submit.hint"))
-                .on_disabled_hover_text(&reasons);
+                .on_hover_text(self.text("conditions.submit.hint")),
+                &reasons,
+            );
             if submit.clicked() {
                 self.submit_requested = true;
             }
-            let redo = ui
-                .add_enabled(
+            let redo = with_disabled_reasons(
+                ui.add_enabled(
                     self.action_enabled(&RowAction::Redo, self.selected_position()),
                     egui::Button::new(self.text("conditions.redo")),
                 )
-                .on_hover_text(self.text("conditions.redo.hint"))
-                .on_disabled_hover_text(&reasons);
+                .on_hover_text(self.text("conditions.redo.hint")),
+                &reasons,
+            );
             if redo.clicked() {
                 self.redo_requested = true;
             }
