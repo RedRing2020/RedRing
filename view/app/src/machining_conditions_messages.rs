@@ -110,6 +110,22 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.submit.hint",
         "選んだ工程を計算します。今の条件の CL があり、今の条件の計算が残っていなければ、その CL から切削シミュレーションだけを計算します",
     ),
+    (
+        "conditions.navigation.in_progress",
+        "今の条件の計算が進んでいます。終わるまでお待ちください",
+    ),
+    (
+        "conditions.navigation.calculated",
+        "今の条件の計算は済んでいます。結果を取り込めます",
+    ),
+    (
+        "conditions.navigation.imported_with_simulation",
+        "CL 取込済みです。切削シミュレーションを表示できます",
+    ),
+    (
+        "conditions.navigation.imported_toolpath_only",
+        "CL 取込済みです。切削シミュレーションを計算できます",
+    ),
     ("conditions.redo", "再計算"),
     (
         "conditions.redo.hint",
@@ -136,6 +152,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "空間モデルの CL を消して、ツールパス生成から再計算を始めました",
     ),
     ("conditions.status.submit_failed", "計算を始められません（{reason}）"),
+    (
+        "conditions.status.already_calculated",
+        "今の条件の計算が、計算待ち・計算中・計算済みのため、計算を始めていません",
+    ),
     (
         "conditions.status.sequence_submitted",
         "手順の {submitted} 工程の計算を始めました（計算待ち・計算中・計算済みの {skipped} 工程は、計算し直していません）",
@@ -362,6 +382,22 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.submit.hint",
         "Calculates the selected operation. If the CL of the current conditions exists and no calculation of the current conditions remains, only the cutting simulation is calculated from that CL",
     ),
+    (
+        "conditions.navigation.in_progress",
+        "The calculation for the current conditions is in progress. Wait until it finishes",
+    ),
+    (
+        "conditions.navigation.calculated",
+        "The calculation for the current conditions is done. You can import the result",
+    ),
+    (
+        "conditions.navigation.imported_with_simulation",
+        "The CL is imported. You can show the cutting simulation",
+    ),
+    (
+        "conditions.navigation.imported_toolpath_only",
+        "The CL is imported. You can calculate the cutting simulation",
+    ),
     ("conditions.redo", "Recalculate"),
     (
         "conditions.redo.hint",
@@ -388,6 +424,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "Deleted the CL from the space model and started recalculating from toolpath generation",
     ),
     ("conditions.status.submit_failed", "Cannot start the calculation ({reason})"),
+    (
+        "conditions.status.already_calculated",
+        "The calculation was not started because the calculation for the current conditions is waiting, calculating, or calculated",
+    ),
     (
         "conditions.status.sequence_submitted",
         "Started calculating {submitted} operations of the sequence ({skipped} waiting, calculating, or calculated operations were not calculated again)",

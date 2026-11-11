@@ -102,6 +102,13 @@ pub enum OperationJobStatus {
     Canceled,
 }
 
+impl OperationJobStatus {
+    /// 計算待ち・計算中・正常に終わったか（同じ条件の計算を、重ねて投入しない）
+    pub fn is_waiting_or_done(self) -> bool {
+        matches!(self, Self::Queued | Self::Running | Self::Succeeded)
+    }
+}
+
 /// 計算条件の誤りを出す入力の欄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CamConditionField {

@@ -3,7 +3,8 @@
 use super::AppState;
 use crate::help_ui::{next_unread, push_notice_history, HelpUiState, Notice, NoticeLevel};
 use crate::machining_conditions_ui::{
-    condition_issue_text, imported_toolpath_text, job_status_text, JobStatusLine, OperationStatus,
+    condition_issue_text, imported_toolpath_text, job_status_text, navigation_text, JobStatusLine,
+    OperationStatus,
 };
 use viewmodel::cutting_simulation_session::OperationJobStatus;
 use viewmodel::message_catalog::UiLocale;
@@ -94,6 +95,18 @@ impl AppState {
                 .map(|issue| (NoticeLevel::Error, condition_issue_text(locale, issue))),
         );
         details
+    }
+
+    /// 画面の下の行の右に出す、選んだ工程で次にできることの案内（加工手順を開いていなければ出さない）
+    pub(crate) fn navigation_text(&self) -> Option<String> {
+        if !self.machining_sequence_open {
+            return None;
+        }
+        navigation_text(
+            self.ui_locale,
+            &self.cutting_simulation_job_status,
+            self.document.imported_toolpath_state() == ImportedToolpathState::Current,
+        )
     }
 
     /// メッセージの一覧を開いたら、まだ開いていないメッセージの印を消す
