@@ -224,6 +224,9 @@ impl SettingsPanelRenderer {
     }
 }
 
+/// 日本語のフォントの文字を下げる量（文字の大きさに対する割合）
+const CJK_Y_OFFSET_FACTOR: f32 = 0.25;
+
 /// 記号（📋 など）を、決めた形で描くためのフォントの集まりの名前
 pub(crate) const SYMBOL_FONT_FAMILY: &str = "symbols";
 
@@ -238,9 +241,14 @@ fn install_cjk_system_font(ctx: &Context) {
 
     if let Some(font_bytes) = load_system_cjk_font_bytes() {
         let font_name = "system_cjk".to_owned();
+        // 日本語のフォントは、行の高さに比べて文字が上に寄って描かれるため、少し下げて行の中央にそろえる
+        let tweak = egui::FontTweak {
+            y_offset_factor: CJK_Y_OFFSET_FACTOR,
+            ..Default::default()
+        };
         fonts.font_data.insert(
             font_name.clone(),
-            egui::FontData::from_owned(font_bytes).into(),
+            egui::FontData::from_owned(font_bytes).tweak(tweak).into(),
         );
 
         if let Some(family) = fonts.families.get_mut(&egui::FontFamily::Proportional) {

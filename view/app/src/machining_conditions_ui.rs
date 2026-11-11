@@ -832,14 +832,18 @@ impl MachiningConditionsUiState {
         // 計算・再計算を押せない理由（計算の状態の案内・条件の誤り）は、押せないボタンに乗せたときに出す
         let reasons = self.issue_reasons();
         // 選んだ工程の状態で次に押すボタンは、枠を選択の色で太くして目立たせる（表示している間の「切削シミュレーション
-        // 表示」は地の色が変わるため、見分けられる）
+        // 表示」は地の色が変わるため、見分けられる）。枠はボタンを置いた後に上から描く（ボタンの枠の太さを変えると、
+        // ボタンが大きくなり、ボタンの行と工程の表が動くため）
         let next = self.next_action(self.selected_position());
         let emphasis = Stroke::new(2.0, ui.visuals().selection.stroke.color);
-        let emphasized = |button: egui::Button<'static>, action: &RowAction| {
+        let emphasize = |ui: &egui::Ui, response: &egui::Response, action: &RowAction| {
             if next.as_ref() == Some(action) {
-                button.stroke(emphasis)
-            } else {
-                button
+                ui.painter().rect_stroke(
+                    response.rect,
+                    ui.visuals().widgets.inactive.corner_radius,
+                    emphasis,
+                    egui::StrokeKind::Inside,
+                );
             }
         };
         ui.horizontal_wrapped(|ui| {
@@ -848,14 +852,12 @@ impl MachiningConditionsUiState {
             let submit = with_disabled_reasons(
                 ui.add_enabled(
                     can_submit,
-                    emphasized(
-                        egui::Button::new(self.text("conditions.submit")),
-                        &RowAction::Submit,
-                    ),
+                    egui::Button::new(self.text("conditions.submit")),
                 )
                 .on_hover_text(self.text("conditions.submit.hint")),
                 &reasons,
             );
+            emphasize(ui, &submit, &RowAction::Submit);
             if submit.clicked() {
                 self.submit_requested = true;
             }
@@ -886,12 +888,10 @@ impl MachiningConditionsUiState {
             let import_toolpath = ui
                 .add_enabled(
                     self.action_enabled(&RowAction::ImportToolpath, self.selected_position()),
-                    emphasized(
-                        egui::Button::new(self.text("conditions.import_toolpath")),
-                        &RowAction::ImportToolpath,
-                    ),
+                    egui::Button::new(self.text("conditions.import_toolpath")),
                 )
                 .on_hover_text(self.text("conditions.import_toolpath.hint"));
+            emphasize(ui, &import_toolpath, &RowAction::ImportToolpath);
             if import_toolpath.clicked() {
                 self.import_toolpath_requested = true;
             }
