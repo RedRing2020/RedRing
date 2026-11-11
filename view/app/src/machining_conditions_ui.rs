@@ -393,6 +393,10 @@ fn navigation_key(status: &JobStatusLine, toolpath_current: bool) -> Option<&'st
         JobStatusLine::NotSubmitted if toolpath_current => {
             Some("conditions.navigation.imported_toolpath_only")
         }
+        // 取込済みと出し、計算を押せない（状態を読むだけでは、ジョブマネージャーを起動しない）
+        JobStatusLine::ManagerNotRunning if toolpath_current => {
+            Some("conditions.navigation.imported_manager_not_running")
+        }
         _ => None,
     }
 }
@@ -1612,6 +1616,13 @@ mod tests {
                 Some("conditions.navigation.imported_toolpath_only"),
             ),
             (JobStatusLine::NotSubmitted, false, None),
+            (
+                JobStatusLine::ManagerNotRunning,
+                true,
+                Some("conditions.navigation.imported_manager_not_running"),
+            ),
+            (JobStatusLine::ManagerNotRunning, false, None),
+            (JobStatusLine::ManagerNotFound, true, None),
             (
                 JobStatusLine::Status(OperationJobStatus::Failed),
                 true,

@@ -126,6 +126,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.navigation.imported_toolpath_only",
         "CL 取込済みです。切削シミュレーションを計算できます",
     ),
+    (
+        "conditions.navigation.imported_manager_not_running",
+        "ジョブマネージャーを開くと、切削シミュレーションの結果があるか確かめられます",
+    ),
     ("conditions.redo", "再計算"),
     (
         "conditions.redo.hint",
@@ -405,6 +409,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.navigation.imported_toolpath_only",
         "The CL is imported. You can calculate the cutting simulation",
+    ),
+    (
+        "conditions.navigation.imported_manager_not_running",
+        "Open the job manager to check whether there is a cutting simulation result",
     ),
     ("conditions.redo", "Recalculate"),
     (
