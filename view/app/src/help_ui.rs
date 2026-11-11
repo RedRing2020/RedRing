@@ -145,13 +145,17 @@ impl Notice {
                 | OperationStatus::SequenceSubmitFailed { .. }
                 | OperationStatus::ImportFailed(_)
                 | OperationStatus::JobManagerFailed(_)
-                | OperationStatus::SequenceStatusUnreadable(_) => NoticeLevel::Error,
+                | OperationStatus::SequenceStatusUnreadable(_)
+                | OperationStatus::StopFailed(_) => NoticeLevel::Error,
                 OperationStatus::NothingToImport
                 | OperationStatus::NoToolpathToImport
                 | OperationStatus::AlreadyCalculated
-                | OperationStatus::RecalculationWaiting => NoticeLevel::Warning,
+                | OperationStatus::RecalculationWaiting
+                | OperationStatus::StopNotYetAccepted
+                | OperationStatus::NothingToStop => NoticeLevel::Warning,
                 OperationStatus::Submitted { .. }
                 | OperationStatus::Redone { .. }
+                | OperationStatus::Stopped
                 | OperationStatus::SequenceSubmitted { .. }
                 | OperationStatus::Imported { .. }
                 | OperationStatus::ToolpathImported { .. } => NoticeLevel::Info,

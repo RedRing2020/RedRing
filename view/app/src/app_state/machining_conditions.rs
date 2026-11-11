@@ -435,6 +435,7 @@ impl AppState {
                 .filter(|_| self.imported_operation == Some(selected)),
             submit_requested: false,
             redo_requested: false,
+            stop_requested: false,
             submit_sequence_requested: false,
             import_toolpath_requested: false,
             toggle_simulation_requested: false,
@@ -478,6 +479,9 @@ impl AppState {
         }
         if state.redo_requested && self.redo_cutting_simulation() {
             self.job_status_read_at = None;
+        }
+        if state.stop_requested {
+            self.stop_cutting_simulation();
         }
         if state.submit_sequence_requested && self.submit_sequence() {
             self.job_status_read_at = None;

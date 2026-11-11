@@ -180,6 +180,23 @@ pub enum SubmissionKind {
     SimulationOnly,
 }
 
+/// 計算停止で、ジョブマネージャーが投入を受け取るのを待って取り消し直す回数（最初の 1 回を含む）
+const STOP_ATTEMPTS: u32 = 8;
+
+/// 計算停止で、取り消し直すまでの間
+const STOP_RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(250);
+
+/// 計算停止の結果
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StopOutcome {
+    /// 今の条件の計算待ち・計算中のジョブを取り消すよう頼んだ
+    Stopped,
+    /// 今の条件の計算は、待ってもジョブマネージャーが受け取らない投入があり、すべては取り消せなかった
+    NotYetAccepted,
+    /// 今の条件の計算待ち・計算中のジョブがない
+    NothingToStop,
+}
+
 /// 再計算の結果
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RedoOutcome {
@@ -408,7 +425,7 @@ impl CuttingSimulationSession {
             sequences,
             sequence,
             operation,
-            &submission.submission_id,
+            Some(&submission.submission_id),
         ) {
             Ok(count) => count > 0,
             Err(error) => {
@@ -418,6 +435,43 @@ impl CuttingSimulationSession {
         };
         document.remove_toolpath();
         Ok(RedoOutcome::Submitted { canceled })
+    }
+
+    /// 選んだ加工工程の今の条件の、計算待ち・計算中のジョブ（ツールパス生成と切削シミュレーション）を取り消すよう
+    /// 頼む（取り消し終えるのを待たない。ジョブマネージャーが動いていなければ起動する）
+    ///
+    /// 取り消せるのは、ジョブマネージャーが受け取ったジョブだけのため、まだ受け取っていない投入があれば、受け取る
+    /// まで少しの間待ってから、もう一度取り消す（受け取りは短い間隔で行われる。待つ間は画面を止める）。
+    ///
+    /// # Errors
+    ///
+    /// ジョブマネージャーが見つからない・状態を読めない・取り消しを頼めない場合。
+    pub fn stop(
+        &mut self,
+        document: &SpaceModelDocument,
+    ) -> Result<StopOutcome, CuttingSimulationSessionError> {
+        let (_, sequences, sequence, operation) = document.machining();
+        let mut canceled = 0;
+        for attempt in 1..=STOP_ATTEMPTS {
+            // 受け取っていない投入を先に読む（後で読むと、間に受け取られたジョブを取り消さずに終える）
+            let pending = self
+                .workflow
+                .latest_revision_has_pending_now(sequences, sequence, operation)?;
+            canceled += self
+                .workflow
+                .cancel_latest_revision_jobs(sequences, sequence, operation, None)?;
+            if !pending {
+                return Ok(if canceled > 0 {
+                    StopOutcome::Stopped
+                } else {
+                    StopOutcome::NothingToStop
+                });
+            }
+            if attempt < STOP_ATTEMPTS {
+                std::thread::sleep(STOP_RETRY_INTERVAL);
+            }
+        }
+        Ok(StopOutcome::NotYetAccepted)
     }
 
     /// 加工工程 `operation` から、計算 `kind` を投入する
@@ -825,6 +879,24 @@ pub(crate) mod tests {
             document.imported_toolpath_state(),
             ImportedToolpathState::Outdated
         );
+    }
+
+    #[test]
+    fn stopping_cancels_the_waiting_calculation_of_the_current_conditions() {
+        let (mut session, mut document) = coarse_session();
+        assert_eq!(
+            session.submit(&mut document).unwrap(),
+            Some(SubmissionKind::Full)
+        );
+        assert_eq!(session.stop(&document).unwrap(), StopOutcome::Stopped);
+        // 取り消したジョブは計算しない
+        assert_eq!(session.run_queued_jobs().unwrap(), 0);
+        assert_eq!(
+            session.job_states(&mut document).unwrap()[0].1,
+            OperationJobState::Status(OperationJobStatus::Canceled)
+        );
+        // 計算待ち・計算中のジョブがなければ、何もしない
+        assert_eq!(session.stop(&document).unwrap(), StopOutcome::NothingToStop);
     }
 
     #[test]

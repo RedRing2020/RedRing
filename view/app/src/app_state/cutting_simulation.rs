@@ -10,7 +10,7 @@ use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::SequenceSubmissionError;
 use viewmodel::cutting_simulation_session::{
-    CuttingSimulationSessionError, RedoOutcome, SubmissionKind,
+    CuttingSimulationSessionError, RedoOutcome, StopOutcome, SubmissionKind,
 };
 use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
 use viewmodel::mesh_converter::WireframeVertex;
@@ -204,6 +204,28 @@ impl AppState {
                 false
             }
         }
+    }
+
+    /// 選んだ加工工程の今の条件の、計算待ち・計算中の計算を止める（取り消すよう頼み、止まるのを待たない）
+    pub(crate) fn stop_cutting_simulation(&mut self) {
+        let status = match self.cutting_simulation.stop(&self.document) {
+            Ok(StopOutcome::Stopped) => {
+                tracing::info!("Requested the job manager to cancel the calculation");
+                OperationStatus::Stopped
+            }
+            Ok(StopOutcome::NotYetAccepted) => {
+                tracing::info!("The job manager has not received the calculation yet");
+                OperationStatus::StopNotYetAccepted
+            }
+            Ok(StopOutcome::NothingToStop) => OperationStatus::NothingToStop,
+            Err(error) => {
+                tracing::warn!("Cannot stop the calculation: {error}");
+                OperationStatus::StopFailed(cutting_simulation_failure_message(&error))
+            }
+        };
+        self.set_operation_status(status);
+        // 止めた計算の状態を、すぐに読み直す
+        self.job_status_read_at = None;
     }
 
     /// ジョブマネージャーのウィンドウを開く（動いていなければ、ウィンドウを出して起動する）

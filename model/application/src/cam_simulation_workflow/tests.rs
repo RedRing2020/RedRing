@@ -387,7 +387,7 @@ fn the_current_revision_jobs_except_a_submission_are_canceled() {
             &machining.store,
             machining.sequence,
             machining.operation,
-            &kept.submission_id,
+            Some(&kept.submission_id),
         )
         .unwrap();
     assert_eq!(canceled, 2);
@@ -408,7 +408,7 @@ fn the_current_revision_jobs_except_a_submission_are_canceled() {
                 &machining.store,
                 machining.sequence,
                 machining.operation,
-                "none",
+                None,
             )
             .unwrap(),
         0

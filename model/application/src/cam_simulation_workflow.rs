@@ -500,7 +500,7 @@ impl CamSimulationWorkflow {
     }
 
     /// 加工工程 `operation_id` の今の改訂の、計算待ち・計算中のジョブ（ツールパス生成と切削シミュレーション）のうち、
-    /// 投入 `kept_submission_id` のもの以外を取り消すよう頼み、頼んだジョブの数を返す（取り消し終えるのを待たない。
+    /// 投入 `kept_submission_id`（あれば）のもの以外を取り消すよう頼み、頼んだジョブの数を返す（取り消し終えるのを待たない。
     /// 前の改訂のジョブ・ほかの工程のジョブには触れない。ジョブマネージャーがまだ取り込んでいない投入は取り消せない）
     ///
     /// # Errors
@@ -512,7 +512,7 @@ impl CamSimulationWorkflow {
         sequences: &MachiningSequenceStore,
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
-        kept_submission_id: &str,
+        kept_submission_id: Option<&str>,
     ) -> Result<usize, CamSimulationWorkflowError> {
         let current = current_revision(sequences, sequence_id, operation_id)?;
         let active = |status: CamJobStatus| {
@@ -521,17 +521,14 @@ impl CamSimulationWorkflow {
                 CamJobStatus::Queued | CamJobStatus::Running | CamJobStatus::NeedsRecompute
             )
         };
+        let kept = |submission_id: &str| kept_submission_id == Some(submission_id);
         // 切削シミュレーションを先に取り消す（ツールパス生成を先に取り消すと、それを待つ切削シミュレーションが、
         // 依存するジョブの取り消しによる失敗になるため）
         let mut job_ids: Vec<u64> = self
             .jobs
             .simulation_jobs()?
             .into_iter()
-            .filter(|job| {
-                current(&job.source)
-                    && active(job.status)
-                    && job.submission_id != kept_submission_id
-            })
+            .filter(|job| current(&job.source) && active(job.status) && !kept(&job.submission_id))
             .map(|job| job.job_id)
             .collect();
         job_ids.extend(
@@ -539,9 +536,7 @@ impl CamSimulationWorkflow {
                 .toolpath_jobs()?
                 .into_iter()
                 .filter(|job| {
-                    current(&job.source)
-                        && active(job.status)
-                        && job.submission_id != kept_submission_id
+                    current(&job.source) && active(job.status) && !kept(&job.submission_id)
                 })
                 .map(|job| job.job_id),
         );
@@ -660,6 +655,27 @@ impl CamSimulationWorkflow {
             .zip(&currents)
             .map(|(&operation_id, current)| operation_state(&snapshot, operation_id, current))
             .collect())
+    }
+
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂で、ジョブマネージャーがまだ
+    /// 受け取っていない投入があるか（ジョブマネージャーに今問い合わせる。動いていなければ起動して、口が開くのを待つ）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順・加工手順にない加工工程の場合、ジョブマネージャーが見つからない・起動できない・状態を
+    /// 読めない場合。
+    pub fn latest_revision_has_pending_now(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<bool, CamSimulationWorkflowError> {
+        let current = current_revision(sequences, sequence_id, operation_id)?;
+        let snapshot = self.jobs.read_status_now()?;
+        Ok(snapshot
+            .pending
+            .iter()
+            .any(|submission| !submission.rejected && current(&submission.source)))
     }
 
     /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
