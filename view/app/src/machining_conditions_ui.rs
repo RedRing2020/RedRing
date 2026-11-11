@@ -1041,8 +1041,7 @@ impl MachiningConditionsUiState {
                         self.text(spec_kind_key(&row.spec)),
                         self.tool_text(&row.tool),
                     ];
-                    // 欄はすべて、行の高さの中央にそろえる（状態の欄は、計算中の印のぶん高い）。文字は押せない（画面の
-                    // 設定）ため、行のどこを押しても行を選べる
+                    // 欄はすべて、行の高さの中央にそろえる。文字は押せない（画面の設定）ため、行のどこを押しても行を選べる
                     let mut area = Rect::NOTHING;
                     for text in texts {
                         area = area.union(centered_label(ui, text));
@@ -1056,7 +1055,9 @@ impl MachiningConditionsUiState {
                         });
                         // 進み具合の割合はまだないため、計算中は動いていることだけを出す
                         if row.status == JobStatusLine::Status(OperationJobStatus::Running) {
-                            ui.spinner();
+                            // 印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）
+                            let size = ui.text_style_height(&egui::TextStyle::Body);
+                            ui.add(egui::Spinner::new().size(size));
                         }
                     });
                     // 行のすべての欄と、行の間の半分を、押せる範囲にする
