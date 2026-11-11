@@ -402,7 +402,13 @@ pub(crate) fn submission_on_apply(
     match status {
         JobStatusLine::Status(_) => ApplySubmission::Skip(OperationStatus::AlreadyCalculated),
         // ジョブマネージャーが動いていない・見つからないため状態は分からないが、今の条件の CL がある
-        _ => ApplySubmission::Skip(OperationStatus::AlreadyImported),
+        JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => {
+            ApplySubmission::Skip(OperationStatus::AlreadyImported)
+        }
+        // 今は計算のボタンを止めない状態（止めるようにするときは、計算しない理由の文言を足す）
+        JobStatusLine::NotSubmitted | JobStatusLine::Unreadable | JobStatusLine::Reading => {
+            ApplySubmission::Submit
+        }
     }
 }
 
