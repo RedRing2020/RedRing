@@ -150,6 +150,7 @@ impl Notice {
                 OperationStatus::NothingToImport
                 | OperationStatus::NoToolpathToImport
                 | OperationStatus::AlreadyCalculated
+                | OperationStatus::AlreadyImported
                 | OperationStatus::RecalculationWaiting
                 | OperationStatus::StopNotYetAccepted
                 | OperationStatus::NothingToStop => NoticeLevel::Warning,

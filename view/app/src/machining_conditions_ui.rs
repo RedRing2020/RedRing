@@ -60,6 +60,8 @@ pub(crate) enum OperationStatus {
     Redone { canceled: bool },
     /// 今の条件の計算が計算待ち・計算中・計算済みのため、投入しない
     AlreadyCalculated,
+    /// 計算の状態は分からないが、今の条件の CL を取り込み済みのため、投入しない
+    AlreadyImported,
     /// 今の条件の計算が計算待ちのため、再計算しない（計算が始まってから再計算できる）
     RecalculationWaiting,
     /// 今の条件の計算待ち・計算中の計算を止めている（取り消すよう頼んだ。止まるのは待たない）
@@ -219,6 +221,7 @@ fn operation_status_message(
         }
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
         OperationStatus::AlreadyCalculated => ("conditions.status.already_calculated", vec![]),
+        OperationStatus::AlreadyImported => ("conditions.status.already_imported", vec![]),
         OperationStatus::RecalculationWaiting => {
             ("conditions.status.recalculation_waiting", vec![])
         }
@@ -371,6 +374,41 @@ fn with_disabled_reasons(response: egui::Response, reasons: &str) -> egui::Respo
         response
     } else {
         response.on_disabled_hover_text(reasons)
+    }
+}
+
+/// 「適用と同時に計算する」で適用したときに、選んだ工程を計算するか
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum ApplySubmission {
+    /// 計算する
+    Submit,
+    /// 計算しない（画面に出す理由）
+    Skip(OperationStatus),
+}
+
+/// 「適用と同時に計算する」で適用したときに、計算の条件が変わったか `conditions_changed`・最後に読んだ計算の状態
+/// `status`・空間モデルの CL が今の条件の結果か `toolpath_current` から、選んだ工程を計算するか
+///
+/// 計算の条件が変わったときは、最後に読んだ状態は前の条件のものなので、比べずに計算する。変わらないときは、計算の
+/// ボタンが押せる状態のときだけ計算する（取込済みの工程の属性だけを替えたときに、ジョブマネージャーを起動しない）。
+pub(crate) fn submission_on_apply(
+    conditions_changed: bool,
+    status: &JobStatusLine,
+    toolpath_current: bool,
+) -> ApplySubmission {
+    if conditions_changed || !calculation_blocked(status, toolpath_current) {
+        return ApplySubmission::Submit;
+    }
+    match status {
+        JobStatusLine::Status(_) => ApplySubmission::Skip(OperationStatus::AlreadyCalculated),
+        // ジョブマネージャーが動いていない・見つからないため状態は分からないが、今の条件の CL がある
+        JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => {
+            ApplySubmission::Skip(OperationStatus::AlreadyImported)
+        }
+        // 今は計算のボタンを止めない状態（止めるようにするときは、計算しない理由の文言を足す）
+        JobStatusLine::NotSubmitted | JobStatusLine::Unreadable | JobStatusLine::Reading => {
+            ApplySubmission::Submit
+        }
     }
 }
 
@@ -717,7 +755,7 @@ impl MachiningConditionsUiState {
         let title = match dialog {
             ConditionDialog::Operation => self.text_with_args(
                 "conditions.operation_settings.title",
-                &[("name", self.operation.name.clone())],
+                &[("name", self.operation.attributes.name.clone())],
             ),
             ConditionDialog::Sequence => self.text("conditions.sequence_settings.title"),
         };
@@ -1223,17 +1261,20 @@ impl MachiningConditionsUiState {
         .map(|stage| (stage, self.text(stage_key(stage))));
         ui.horizontal(|ui| {
             ui.label(self.text("conditions.operations.name"));
-            ui.text_edit_singleline(&mut self.operation.name);
+            ui.text_edit_singleline(&mut self.operation.attributes.name);
         });
         ui.horizontal(|ui| {
             ui.label(self.text("conditions.operation.stage"));
             for (stage, label) in stage_labels {
-                ui.radio_value(&mut self.operation.stage, stage, label);
+                ui.radio_value(&mut self.operation.attributes.stage, stage, label);
             }
         });
         ui.label(self.text_with_args(
             "conditions.operation.kind",
-            &[("kind", self.text(spec_kind_key(&self.operation.spec)))],
+            &[(
+                "kind",
+                self.text(spec_kind_key(&self.operation.conditions.spec)),
+            )],
         ));
     }
 
@@ -1255,7 +1296,7 @@ impl MachiningConditionsUiState {
         CollapsingHeader::new(self.text("conditions.header.region"))
             .default_open(true)
             .show(ui, |ui| {
-                let text = match &self.operation.boundary {
+                let text = match &self.operation.conditions.boundary {
                     None => self.text("conditions.region.target"),
                     Some(MachiningBoundary::Rectangle(rectangle)) => self.text_with_args(
                         "conditions.region.rectangle",
@@ -1279,7 +1320,7 @@ impl MachiningConditionsUiState {
         CollapsingHeader::new(self.text("conditions.header.tool"))
             .default_open(true)
             .show(ui, |ui| {
-                let tool = &self.operation.tool;
+                let tool = &self.operation.conditions.tool;
                 let shown_kind = CuttingToolKind::of(tool).unwrap_or_default();
                 let shown_diameter = tool.diameter();
                 let shown_specified = tool.cutting_length.is_some();
@@ -1317,7 +1358,7 @@ impl MachiningConditionsUiState {
                     || specified != shown_specified
                     || length_changed
                 {
-                    self.operation.tool =
+                    self.operation.conditions.tool =
                         kind.tool(diameter, specified.then_some(self.tool_length_input));
                 }
                 self.show_issues(ui, ConditionField::Tool);
@@ -1342,16 +1383,17 @@ impl MachiningConditionsUiState {
             "conditions.machining.tolerance",
             &[("tolerance", self.toolpath_tolerance.to_string())],
         );
-        let cusp_height_label = flat_surface_cusp_height(&self.operation).map(|height| {
-            self.text_with_args(
-                "conditions.machining.cusp_height",
-                &[("height", format!("{height:.4}"))],
-            )
-        });
+        let cusp_height_label =
+            flat_surface_cusp_height(&self.operation.conditions).map(|height| {
+                self.text_with_args(
+                    "conditions.machining.cusp_height",
+                    &[("height", format!("{height:.4}"))],
+                )
+            });
         CollapsingHeader::new(self.text("conditions.header.machining"))
             .default_open(true)
             .show(ui, |ui| {
-                let OperationSpec::Scanline(scanline) = &mut self.operation.spec;
+                let OperationSpec::Scanline(scanline) = &mut self.operation.conditions.spec;
                 for (value, label, suffix, speed) in [
                     (&mut scanline.stepover, stepover_label, " mm", 0.1),
                     (&mut scanline.feed_rate, feed_rate_label, " mm/min", 10.0),
@@ -1528,8 +1570,8 @@ mod tests {
         calculation_blocked, condition_error_message, condition_field, imported_toolpath_key,
         job_status_key, navigation_key, navigation_text, next_action_of, operation_row_key,
         operation_row_status_key, operation_status_text, row_status_color, stage_key,
-        ConditionField, JobStatusLine, MachiningStage, OperationJobStatus, OperationRow,
-        OperationStatus, RowAction, COLUMN_KEYS,
+        submission_on_apply, ApplySubmission, ConditionField, JobStatusLine, MachiningStage,
+        OperationJobStatus, OperationRow, OperationStatus, RowAction, COLUMN_KEYS,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -1602,6 +1644,7 @@ mod tests {
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
             OperationStatus::AlreadyCalculated,
+            OperationStatus::AlreadyImported,
             OperationStatus::RecalculationWaiting,
             OperationStatus::Stopped,
             OperationStatus::StopNotYetAccepted,
@@ -1756,6 +1799,74 @@ mod tests {
             for toolpath_current in [false, true] {
                 assert!(
                     !calculation_blocked(&status, toolpath_current),
+                    "{status:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn applying_submits_unless_unchanged_conditions_are_already_calculated_or_imported() {
+        use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
+        let statuses = [
+            JobStatusLine::Status(Queued),
+            JobStatusLine::Status(Running),
+            JobStatusLine::Status(Succeeded),
+            JobStatusLine::Status(Failed),
+            JobStatusLine::Status(Canceled),
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+        ];
+        // 計算の条件が変わったときは、最後に読んだ状態によらず計算する
+        for status in &statuses {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(true, status, toolpath_current),
+                    ApplySubmission::Submit,
+                    "{status:?}"
+                );
+            }
+        }
+        // 変わらないときは、計算待ち・計算中・計算済みなら計算しない
+        for status in [Queued, Running, Succeeded] {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(false, &JobStatusLine::Status(status), toolpath_current),
+                    ApplySubmission::Skip(OperationStatus::AlreadyCalculated)
+                );
+            }
+        }
+        // ジョブマネージャーが動いていない・見つからないときは、取込済みの工程を計算しない（起動しない）
+        for status in [
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+        ] {
+            assert_eq!(
+                submission_on_apply(false, &status, true),
+                ApplySubmission::Skip(OperationStatus::AlreadyImported),
+                "{status:?}"
+            );
+            assert_eq!(
+                submission_on_apply(false, &status, false),
+                ApplySubmission::Submit,
+                "{status:?}"
+            );
+        }
+        // 未計算・計算失敗・取り消しと、状態が分からない・まだ読めていないときは計算する（計算するときに読み直す）
+        for status in [
+            JobStatusLine::Status(Failed),
+            JobStatusLine::Status(Canceled),
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+        ] {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(false, &status, toolpath_current),
+                    ApplySubmission::Submit,
                     "{status:?}"
                 );
             }

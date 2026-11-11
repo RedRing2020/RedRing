@@ -44,7 +44,11 @@ impl AppState {
             .collect();
         tracing::info!(
             "Inverse offset shape: tool={:?}, step={} deg, triangles {}",
-            self.document.operation_content().tool.tool_type(),
+            self.document
+                .operation_content()
+                .conditions
+                .tool
+                .tool_type(),
             ANGLE_STEP_DEGREES,
             counts.join(" ")
         );
@@ -77,7 +81,7 @@ impl AppState {
         self.use_main_view_camera();
         self.show_debug_stage(mesh_stage, true);
         // 取り込んだ結果の工具と今の計算条件の工具が違うと、ツールパスの線は逆オフセット形状に乗らない
-        let tool = &self.document.operation_content().tool;
+        let tool = &self.document.operation_content().conditions.tool;
         // 取り込んだ工程を選んでいるときだけ比べる（ほかの工程の工具と比べても意味がない）
         let imported_selected = self.imported_operation == Some(self.document.selected_operation());
         let imported_tool_differs = imported_selected

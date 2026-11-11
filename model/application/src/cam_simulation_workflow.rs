@@ -841,17 +841,18 @@ fn resolve_operation_request<'a>(
         .ok_or(CamSimulationWorkflowError::EmptyProductShape)?;
     let stock_margins = sequence.stock().margins;
     let stock = stock_around_product(bounds, stock_margins);
-    let content = operation.content();
+    // 計算の入力は、工程の計算の条件だけから作る（属性は使わない）
+    let conditions = &operation.content().conditions;
     let solver_input = CamSolverInput {
         operation_id: operation.id().to_string(),
-        tool: content.tool.clone(),
+        tool: conditions.tool.clone(),
         geometry,
-        operation: content.spec,
+        operation: conditions.spec,
         units: LengthUnit::Millimeter,
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
-        chord_tolerance: content.tolerance_profile.tolerance_mm(),
+        chord_tolerance: conditions.tolerance_profile.tolerance_mm(),
         tessellation_limits: TessellationLimits::default(),
-        boundary: content.boundary,
+        boundary: conditions.boundary,
     };
     let workflow_request = CamSimulationWorkflowRequest {
         solver_input,

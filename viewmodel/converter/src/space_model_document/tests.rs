@@ -78,7 +78,7 @@ fn only_edits_that_change_the_conditions_are_changes() {
     assert!(!document.is_modified());
 
     let mut content = document.operation_content().clone();
-    content.name = "変えた名前".to_string();
+    content.attributes.name = "変えた名前".to_string();
     document.set_operation_content(content);
     assert!(document.is_modified());
 
@@ -94,7 +94,7 @@ fn only_edits_that_change_the_conditions_are_changes() {
 fn edited_conditions_are_held_by_the_operation_and_the_sequence() {
     let mut document = SpaceModelDocument::new(NAMES);
     let mut content = document.operation_content().clone();
-    content.tool = CuttingToolKind::FlatEndMill.tool(8.0, Some(20.0));
+    content.conditions.tool = CuttingToolKind::FlatEndMill.tool(8.0, Some(20.0));
     let stock = MachiningStock {
         precision: 0.2,
         ..document.stock()
@@ -142,7 +142,7 @@ fn saved_documents_are_opened_with_the_same_contents_and_no_changes() {
     let path = temporary_file("rrm");
     let mut document = document_with_pyramid();
     let mut content = document.operation_content().clone();
-    content.name = "保存した工程".to_string();
+    content.attributes.name = "保存した工程".to_string();
     document.set_operation_content(content.clone());
     document.target_visible_faces();
 
@@ -238,15 +238,15 @@ fn operations_are_added_duplicated_moved_selected_and_removed() {
     );
     // 複写は、選んだ工程の中身を受け継ぐ
     let mut content = document.operation_content().clone();
-    let OperationSpec::Scanline(mut scanline) = content.spec;
+    let OperationSpec::Scanline(mut scanline) = content.conditions.spec;
     scanline.stepover = 4.0;
-    content.spec = OperationSpec::Scanline(scanline);
+    content.conditions.spec = OperationSpec::Scanline(scanline);
     document.set_operation_content(content);
     document.duplicate_operation("荒 2".to_string());
     let copy = document.selected_operation();
-    let OperationSpec::Scanline(copied) = document.operation_content().spec;
+    let OperationSpec::Scanline(copied) = document.operation_content().conditions.spec;
     assert_eq!(copied.stepover, 4.0);
-    assert_eq!(document.operation_content().name, "荒 2");
+    assert_eq!(document.operation_content().attributes.name, "荒 2");
 
     // 並べ替え（端で止まる）
     assert!(document.move_selected_operation(-5));
@@ -277,7 +277,7 @@ fn operations_are_added_duplicated_moved_selected_and_removed() {
         .operation_revision_key(document.sequence, first)
         .unwrap();
     document.rename_selected_operation("  仕上げ  ");
-    assert_eq!(document.operation_content().name, "仕上げ");
+    assert_eq!(document.operation_content().attributes.name, "仕上げ");
     assert_eq!(
         document
             .model
@@ -287,7 +287,7 @@ fn operations_are_added_duplicated_moved_selected_and_removed() {
         key
     );
     document.rename_selected_operation("   ");
-    assert_eq!(document.operation_content().name, "仕上げ");
+    assert_eq!(document.operation_content().attributes.name, "仕上げ");
 
     // 保存して開き直しても、工程の並びはそのまま
     let path = temporary_file("rrm");

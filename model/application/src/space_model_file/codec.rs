@@ -48,8 +48,9 @@ use uuid::Uuid;
 use super::{SpaceModelFileError, SpaceModelSaveInfo};
 use crate::imported_toolpath::ImportedToolpathRecord;
 use crate::machining_sequence::{
-    MachiningOperationContent, MachiningOperationId, MachiningOperationRecord,
-    MachiningRevisionKey, MachiningSequenceId, MachiningSequenceRecord, MachiningStock,
+    MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
+    MachiningOperationId, MachiningOperationRecord, MachiningRevisionKey, MachiningSequenceId,
+    MachiningSequenceRecord, MachiningStock,
 };
 use crate::product_shape::{ProductFaceGeometry, ProductFaceRecord};
 
@@ -629,13 +630,25 @@ fn write_content(
     out: &mut ByteWriter,
     content: &MachiningOperationContent,
 ) -> Result<(), SpaceModelFileError> {
-    out.string(&content.name, "operation.name")?;
-    out.u8(match content.stage {
+    // 保存の形は、属性と計算の条件に分ける前と同じ（名前・加工の段階・加工の種類と条件・工具・加工領域・精度の順）。
+    // 組の中まで分解し、項目を足したときに書き忘れをコンパイルで気づけるようにする
+    let MachiningOperationContent {
+        attributes: MachiningOperationAttributes { name, stage },
+        conditions:
+            MachiningOperationConditions {
+                spec,
+                tool,
+                boundary,
+                tolerance_profile,
+            },
+    } = content;
+    out.string(name, "operation.name")?;
+    out.u8(match stage {
         MachiningStage::Rough => 1,
         MachiningStage::SemiFinish => 2,
         MachiningStage::Finish => 3,
     });
-    let OperationSpec::Scanline(scanline) = content.spec;
+    let OperationSpec::Scanline(scanline) = spec;
     out.u8(1);
     out.f64(scanline.stepover);
     out.f64(scanline.feed_rate);
@@ -649,7 +662,6 @@ fn write_content(
         ScanlineCutDirection::ZigZag => 3,
     });
     out.f64(scanline.angle_degrees);
-    let tool = &content.tool;
     out.u8(match tool.tool_type {
         ToolType::FlatEndMill => 1,
         ToolType::RadiusEndMill => 2,
@@ -665,7 +677,7 @@ fn write_content(
             out.f64(length);
         }
     }
-    match content.boundary {
+    match boundary {
         None => out.u8(0),
         Some(MachiningBoundary::Rectangle(rectangle)) => {
             out.u8(1);
@@ -679,7 +691,7 @@ fn write_content(
             }
         }
     }
-    out.u8(match content.tolerance_profile {
+    out.u8(match tolerance_profile {
         ToleranceProfile::PressRough => 1,
         ToleranceProfile::MoldFinish => 2,
     });
@@ -741,18 +753,19 @@ fn read_content(cursor: &mut ByteReader<'_>) -> Result<MachiningOperationContent
         _ => return Err("operation.tolerance_profile"),
     };
     Ok(MachiningOperationContent {
-        name,
-        stage,
-        spec: OperationSpec::Scanline(ScanlineParams {
-            stepover,
-            feed_rate,
-            tool_range,
-            cut_direction,
-            angle_degrees,
-        }),
-        tool,
-        boundary,
-        tolerance_profile,
+        attributes: MachiningOperationAttributes { name, stage },
+        conditions: MachiningOperationConditions {
+            spec: OperationSpec::Scanline(ScanlineParams {
+                stepover,
+                feed_rate,
+                tool_range,
+                cut_direction,
+                angle_degrees,
+            }),
+            tool,
+            boundary,
+            tolerance_profile,
+        },
     })
 }
 
