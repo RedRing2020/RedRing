@@ -650,7 +650,8 @@ impl CuttingSimulationSession {
                 (scanline, solver_input.chord_tolerance)
             }
             None => {
-                let OperationSpec::Scanline(scanline) = document.operation_content().spec;
+                let OperationSpec::Scanline(scanline) =
+                    document.operation_content().conditions.spec;
                 (scanline, document.toolpath_tolerance())
             }
         };
@@ -692,21 +693,17 @@ pub(crate) mod tests {
         content: MachiningOperationContent,
         edit: impl FnOnce(&mut ScanlineParams),
     ) -> MachiningOperationContent {
-        let OperationSpec::Scanline(mut scanline) = content.spec;
-        edit(&mut scanline);
-        MachiningOperationContent {
-            spec: OperationSpec::Scanline(scanline),
-            ..content
-        }
+        let mut content = content;
+        let OperationSpec::Scanline(scanline) = &mut content.conditions.spec;
+        edit(scanline);
+        content
     }
 
     /// 文書 `document` の加工工程を、粗い条件（直径 6 mm・工具長 30 mm のボールエンドミル、ピックフィード 6 mm。
     /// テストを速くする）にする
     fn coarse(document: &mut SpaceModelDocument) {
-        let content = MachiningOperationContent {
-            tool: CuttingToolKind::BallEndMill.tool(6.0, Some(30.0)),
-            ..document.operation_content().clone()
-        };
+        let mut content = document.operation_content().clone();
+        content.conditions.tool = CuttingToolKind::BallEndMill.tool(6.0, Some(30.0));
         document.set_operation_content(with_scanline(content, |scanline| scanline.stepover = 6.0));
     }
 
@@ -724,7 +721,7 @@ pub(crate) mod tests {
         let (mut session, mut document) = coarse_session();
         if let Some(length) = cutting_length {
             let mut content = document.operation_content().clone();
-            content.tool.cutting_length = length;
+            content.conditions.tool.cutting_length = length;
             document.set_operation_content(content);
         }
         session.submit(&mut document).unwrap();
@@ -754,9 +751,9 @@ pub(crate) mod tests {
         document.duplicate_operation("仕上げ".to_string());
         // 誤りのある工程があれば、どの工程も投入しない（誤りの工程の名前を返す）
         let mut wrong = document.operation_content().clone();
-        let OperationSpec::Scanline(mut scanline) = wrong.spec;
+        let OperationSpec::Scanline(mut scanline) = wrong.conditions.spec;
         scanline.stepover = 1000.0;
-        wrong.spec = OperationSpec::Scanline(scanline);
+        wrong.conditions.spec = OperationSpec::Scanline(scanline);
         document.set_operation_content(wrong);
         assert!(matches!(
             session.submit_sequence(&mut document),
@@ -767,9 +764,9 @@ pub(crate) mod tests {
 
         // 誤りを直すと、すべての工程を投入する
         let mut fixed = document.operation_content().clone();
-        let OperationSpec::Scanline(mut scanline) = fixed.spec;
+        let OperationSpec::Scanline(mut scanline) = fixed.conditions.spec;
         scanline.stepover = 3.0;
-        fixed.spec = OperationSpec::Scanline(scanline);
+        fixed.conditions.spec = OperationSpec::Scanline(scanline);
         document.set_operation_content(fixed);
         assert_eq!(
             session.submit_sequence(&mut document).unwrap(),
@@ -875,6 +872,35 @@ pub(crate) mod tests {
         });
         document.set_operation_content(wrong);
         assert!(session.redo(&mut document).is_err());
+        assert_eq!(
+            document.imported_toolpath_state(),
+            ImportedToolpathState::Outdated
+        );
+    }
+
+    #[test]
+    fn changing_only_the_attributes_keeps_the_imported_toolpath_current() {
+        let (mut session, mut document) = coarse_session();
+        session.submit(&mut document).unwrap();
+        session.run_queued_jobs().unwrap();
+        session.import_toolpath(&mut document).unwrap();
+
+        // 名前・加工の段階は計算に使わないため、変えても取り込んだ CL は今の条件の結果のまま（計算し直さない）
+        let mut content = document.operation_content().clone();
+        content.attributes.name = "荒".to_string();
+        content.attributes.stage = MachiningStage::Rough;
+        document.set_operation_content(content);
+        assert_eq!(
+            document.imported_toolpath_state(),
+            ImportedToolpathState::Current
+        );
+        assert_eq!(session.submit(&mut document).unwrap(), None);
+
+        // 計算の条件を変えると、今の条件の結果でなくなる
+        let changed = with_scanline(document.operation_content().clone(), |scanline| {
+            scanline.stepover = 5.0
+        });
+        document.set_operation_content(changed);
         assert_eq!(
             document.imported_toolpath_state(),
             ImportedToolpathState::Outdated
@@ -1012,13 +1038,11 @@ pub(crate) mod tests {
     #[test]
     fn the_edited_conditions_are_submitted_and_returned_with_the_imported_result() {
         let (mut session, mut document) = coarse_session();
-        let content = with_scanline(
-            MachiningOperationContent {
-                tool: CuttingToolKind::FlatEndMill.tool(6.0, Some(25.0)),
-                ..document.operation_content().clone()
-            },
-            |scanline| scanline.cut_direction = ScanlineCutDirection::ZigZag,
-        );
+        let mut content = document.operation_content().clone();
+        content.conditions.tool = CuttingToolKind::FlatEndMill.tool(6.0, Some(25.0));
+        let content = with_scanline(content, |scanline| {
+            scanline.cut_direction = ScanlineCutDirection::ZigZag
+        });
         document.set_operation_content(content.clone());
         document.set_stock(MachiningStock {
             margins: StockMargins {
@@ -1031,8 +1055,11 @@ pub(crate) mod tests {
         session.run_queued_jobs().unwrap();
 
         let imported = session.import_latest(&mut document).unwrap().conditions;
-        assert_eq!(imported.tool, content.tool);
-        assert_eq!(OperationSpec::Scanline(imported.scanline), content.spec);
+        assert_eq!(imported.tool, content.conditions.tool);
+        assert_eq!(
+            OperationSpec::Scanline(imported.scanline),
+            content.conditions.spec
+        );
         assert_eq!(imported.toolpath_tolerance, document.toolpath_tolerance());
         assert_eq!(imported.precision, 0.2);
         // 四角錐（0〜20, 0〜20, 0〜6）を囲む箱の上に 2 を足した素材

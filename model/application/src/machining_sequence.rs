@@ -1,7 +1,7 @@
 //! 加工手順・加工工程のエンティティの保管と編集（設計: CAM_PROCESS_ENTITY_DESIGN.md）
 //!
-//! エンティティは保管先の中だけで持ち、作成と編集は保管先の関数で行う。関数に出てくる値の型（工程の中身・素材・ID と、
-//! 中身の工具・加工の種類と条件・素材の余裕）は、ここから再エクスポートする。
+//! エンティティは保管先の中だけで持ち、作成と編集は保管先の関数で行う。関数に出てくる値の型（工程の中身・属性・
+//! 計算の条件・素材・ID と、中身の工具・加工の種類と条件・素材の余裕）は、ここから再エクスポートする。
 
 use std::collections::HashSet;
 use std::fmt;
@@ -14,19 +14,19 @@ pub use cam_core::{
 };
 use cam_entity::{MachiningOperation, MachiningSequence};
 pub use cam_entity::{
-    MachiningOperationContent, MachiningOperationId, MachiningRevisionKey, MachiningSequenceId,
-    MachiningStock,
+    MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
+    MachiningOperationId, MachiningRevisionKey, MachiningSequenceId, MachiningStock,
 };
 use geo_entity::FaceId;
 
-/// 加工工程の中身 `content` で、平らな面を隣り合うパスの間がピックフィードで削ったときに残る山の高さ（mm）
+/// 加工工程の計算の条件 `conditions` で、平らな面を隣り合うパスの間がピックフィードで削ったときに残る山の高さ（mm）
 ///
 /// ボールエンドミルは r − √(r² − (s/2)²)、フラットエンドミルは底が平らなので 0 とする。パスの間はピックフィード
 /// 以下になるため、平らな面での上限の値になる。傾いた面では山の高さが変わるため、目安の値とする。ピックフィードが
 /// 工具径を超える場合と、ほかの種類の工具の場合は `None`。
-pub fn flat_surface_cusp_height(content: &MachiningOperationContent) -> Option<f64> {
-    let OperationSpec::Scanline(scanline) = content.spec;
-    let tool = &content.tool;
+pub fn flat_surface_cusp_height(conditions: &MachiningOperationConditions) -> Option<f64> {
+    let OperationSpec::Scanline(scanline) = conditions.spec;
+    let tool = &conditions.tool;
     let stepover = scanline.stepover;
     if stepover > tool.diameter() {
         return None;
@@ -125,12 +125,16 @@ pub fn scanline_finish_operation_content(
     scanline: ScanlineParams,
 ) -> MachiningOperationContent {
     MachiningOperationContent {
-        name,
-        stage: MachiningStage::Finish,
-        spec: OperationSpec::Scanline(scanline),
-        tool,
-        boundary: None,
-        tolerance_profile: DEFAULT_TOLERANCE_PROFILE,
+        attributes: MachiningOperationAttributes {
+            name,
+            stage: MachiningStage::Finish,
+        },
+        conditions: MachiningOperationConditions {
+            spec: OperationSpec::Scanline(scanline),
+            tool,
+            boundary: None,
+            tolerance_profile: DEFAULT_TOLERANCE_PROFILE,
+        },
     }
 }
 
@@ -456,6 +460,7 @@ impl MachiningSequenceStore {
         Ok(self
             .operation(sequence, operation)?
             .content()
+            .conditions
             .tolerance_profile
             .tolerance_mm())
     }

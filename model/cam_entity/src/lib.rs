@@ -7,7 +7,8 @@ mod machining_operation;
 mod machining_sequence;
 
 pub use machining_operation::{
-    MachiningOperation, MachiningOperationContent, MachiningOperationId, MachiningRevisionKey,
+    MachiningOperation, MachiningOperationAttributes, MachiningOperationConditions,
+    MachiningOperationContent, MachiningOperationId, MachiningRevisionKey,
 };
 pub use machining_sequence::{MachiningSequence, MachiningSequenceId, MachiningStock};
 

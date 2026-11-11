@@ -11,7 +11,10 @@ use geo_algorithms::{Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 use geo_entity::FaceId;
 
 use super::*;
-use crate::machining_sequence::{MachiningOperationContent, MachiningStock};
+use crate::machining_sequence::{
+    MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
+    MachiningStock,
+};
 use crate::product_shape::ProductShapeError;
 
 /// 確かめた入力を、投入元なしで投入する（加工工程を通さない投入。ジョブの実行と取り込みを確かめる）
@@ -210,18 +213,22 @@ fn precision_finer_than_the_toolpath_tolerance_is_not_submitted() {
 /// 加工工程の中身（四角錐を、直径 6 のボールエンドミルで粗い走査線で仕上げる）
 fn operation_content() -> MachiningOperationContent {
     MachiningOperationContent {
-        name: "仕上げ".to_string(),
-        stage: MachiningStage::Finish,
-        spec: OperationSpec::Scanline(ScanlineParams {
-            stepover: 6.0,
-            feed_rate: 1200.0,
-            tool_range: cam_core::ScanlineToolRange::default(),
-            cut_direction: cam_core::ScanlineCutDirection::default(),
-            angle_degrees: 0.0,
-        }),
-        tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
-        boundary: None,
-        tolerance_profile: ToleranceProfile::PressRough,
+        attributes: MachiningOperationAttributes {
+            name: "仕上げ".to_string(),
+            stage: MachiningStage::Finish,
+        },
+        conditions: MachiningOperationConditions {
+            spec: OperationSpec::Scanline(ScanlineParams {
+                stepover: 6.0,
+                feed_rate: 1200.0,
+                tool_range: cam_core::ScanlineToolRange::default(),
+                cut_direction: cam_core::ScanlineCutDirection::default(),
+                angle_degrees: 0.0,
+            }),
+            tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+            boundary: None,
+            tolerance_profile: ToleranceProfile::PressRough,
+        },
     }
 }
 
@@ -346,14 +353,14 @@ fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
     let result = workflow
         .import(submitted(&workflow, &submission.submission_id).job_id)
         .unwrap();
-    let content = operation_content();
+    let conditions = operation_content().conditions;
     let solver_input = result.solver_input.as_ref().unwrap();
-    assert_eq!(solver_input.tool, content.tool);
-    assert_eq!(solver_input.operation, content.spec);
+    assert_eq!(solver_input.tool, conditions.tool);
+    assert_eq!(solver_input.operation, conditions.spec);
     assert_eq!(solver_input.operation_id, machining.operation.to_string());
     // 精度プロファイル press_rough のトレランス
     assert_eq!(solver_input.chord_tolerance, 0.001);
-    assert_eq!(result.simulation_input.tool, content.tool);
+    assert_eq!(result.simulation_input.tool, conditions.tool);
     assert_eq!(result.simulation_input.precision, stock().precision);
     assert_eq!(
         result.simulation_input.stock,
@@ -700,7 +707,7 @@ fn all_condition_errors_are_reported_before_submitting() {
     // press_rough のトレランス 0.001 より細かい精度
     invalid.precision = 0.0005;
     machining.set_stock(invalid);
-    let OperationSpec::Scanline(mut scanline) = operation_content().spec;
+    let OperationSpec::Scanline(mut scanline) = operation_content().conditions.spec;
     // ピックフィードが工具径 6 を超える
     scanline.stepover = 7.0;
     machining
@@ -709,9 +716,12 @@ fn all_condition_errors_are_reported_before_submitting() {
             machining.sequence,
             machining.operation,
             MachiningOperationContent {
-                spec: OperationSpec::Scanline(scanline),
-                // 工具長が 0
-                tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 0.0),
+                conditions: MachiningOperationConditions {
+                    spec: OperationSpec::Scanline(scanline),
+                    // 工具長が 0
+                    tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 0.0),
+                    ..operation_content().conditions
+                },
                 ..operation_content()
             },
         )

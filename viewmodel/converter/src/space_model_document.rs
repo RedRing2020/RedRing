@@ -226,10 +226,10 @@ impl SpaceModelDocument {
                     .expect("the listed operation is in the sequence");
                 OperationListItem {
                     id,
-                    name: content.name.clone(),
-                    stage: content.stage,
-                    spec: content.spec,
-                    tool: content.tool.clone(),
+                    name: content.attributes.name.clone(),
+                    stage: content.attributes.stage,
+                    spec: content.conditions.spec,
+                    tool: content.conditions.tool.clone(),
                 }
             })
             .collect()
@@ -272,7 +272,7 @@ impl SpaceModelDocument {
     /// 改訂の番号は 1 から。計算の結果・取り込んだ CL は受け継がない）
     pub fn duplicate_operation(&mut self, name: String) {
         let mut content = self.operation_content().clone();
-        content.name = name;
+        content.attributes.name = name;
         self.insert_after_selected(content);
     }
 
@@ -290,11 +290,11 @@ impl SpaceModelDocument {
     /// （名前は計算に使わないため、工程の改訂は進めない）
     pub fn rename_selected_operation(&mut self, name: &str) {
         let name = name.trim();
-        if name.is_empty() || name == self.operation_content().name {
+        if name.is_empty() || name == self.operation_content().attributes.name {
             return;
         }
         let mut content = self.operation_content().clone();
-        content.name = name.to_string();
+        content.attributes.name = name.to_string();
         self.model
             .sequences
             .set_operation_content(self.sequence, self.operation, content)
@@ -364,10 +364,10 @@ impl SpaceModelDocument {
             .expect("the document holds its machining operation")
     }
 
-    /// 編集の対象の加工工程の中身を `content` にする（今と違えば保存していない変更になり、計算に使う中身が違えば工程の
+    /// 編集の対象の加工工程の中身を `content` にする（今と違えば保存していない変更になり、計算の条件が違えば工程の
     /// 改訂の番号も増える）
     pub fn set_operation_content(&mut self, content: MachiningOperationContent) {
-        // 名前だけを替えたときは改訂しないため、中身を比べて保存していない変更にする
+        // 属性（名前・加工の段階）だけを替えたときは改訂しないため、中身を比べて保存していない変更にする
         if *self.operation_content() != content {
             self.modified = true;
         }

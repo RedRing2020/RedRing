@@ -13,18 +13,22 @@ fn stock() -> MachiningStock {
 
 fn content(stepover: f64) -> MachiningOperationContent {
     MachiningOperationContent {
-        name: "仕上げ".to_string(),
-        stage: MachiningStage::Finish,
-        spec: OperationSpec::Scanline(ScanlineParams {
-            stepover,
-            feed_rate: 1200.0,
-            tool_range: cam_core::ScanlineToolRange::default(),
-            cut_direction: cam_core::ScanlineCutDirection::default(),
-            angle_degrees: 0.0,
-        }),
-        tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
-        boundary: None,
-        tolerance_profile: ToleranceProfile::PressRough,
+        attributes: MachiningOperationAttributes {
+            name: "仕上げ".to_string(),
+            stage: MachiningStage::Finish,
+        },
+        conditions: MachiningOperationConditions {
+            spec: OperationSpec::Scanline(ScanlineParams {
+                stepover,
+                feed_rate: 1200.0,
+                tool_range: cam_core::ScanlineToolRange::default(),
+                cut_direction: cam_core::ScanlineCutDirection::default(),
+                angle_degrees: 0.0,
+            }),
+            tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+            boundary: None,
+            tolerance_profile: ToleranceProfile::PressRough,
+        },
     }
 }
 
@@ -114,7 +118,7 @@ fn unknown_sequences_and_operations_are_reported() {
 #[test]
 fn scanline_operations_are_made_with_the_default_tolerance_profile() {
     let tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
-    let OperationSpec::Scanline(scanline) = content(2.0).spec;
+    let OperationSpec::Scanline(scanline) = content(2.0).conditions.spec;
     let made = scanline_finish_operation_content("仕上げ".to_string(), tool, scanline);
     assert_eq!(made, content(2.0));
 
@@ -140,9 +144,9 @@ fn the_held_content_and_stock_are_read_back() {
 #[test]
 fn cusp_heights_on_flat_surfaces_follow_the_tool_and_the_stepover() {
     let with = |tool: Tool<f64>, stepover: f64| {
-        flat_surface_cusp_height(&MachiningOperationContent {
+        flat_surface_cusp_height(&MachiningOperationConditions {
             tool,
-            ..content(stepover)
+            ..content(stepover).conditions
         })
     };
     let ball = || Tool::ball_end_mill("BEM10".to_string(), 10.0, 30.0);

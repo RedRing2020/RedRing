@@ -16,8 +16,9 @@ use geo_entity::{
 
 use super::*;
 use crate::machining_sequence::{
-    MachiningOperationContent, MachiningOperationId, MachiningOperationRecord,
-    MachiningRevisionKey, MachiningSequenceId, MachiningSequenceRecord, MachiningStock,
+    MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
+    MachiningOperationId, MachiningOperationRecord, MachiningRevisionKey, MachiningSequenceId,
+    MachiningSequenceRecord, MachiningStock,
 };
 use crate::product_shape::{ProductFaceGeometry, ProductFaceRecord};
 
@@ -107,31 +108,35 @@ fn content(name: &str) -> MachiningOperationContent {
     let mut tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
     tool.cutting_length = None;
     MachiningOperationContent {
-        name: name.to_string(),
-        stage: MachiningStage::SemiFinish,
-        spec: OperationSpec::Scanline(ScanlineParams {
-            stepover: 0.5,
-            feed_rate: 1200.0,
-            tool_range: ScanlineToolRange::GeometryExtent,
-            cut_direction: ScanlineCutDirection::ZigZag,
-            angle_degrees: 45.0,
-        }),
-        tool,
-        boundary: Some(MachiningBoundary::Rectangle(RectangleBoundary {
-            rect_min: [1.0, 2.0],
-            rect_max: [3.0, 4.0],
-        })),
-        tolerance_profile: ToleranceProfile::MoldFinish,
+        attributes: MachiningOperationAttributes {
+            name: name.to_string(),
+            stage: MachiningStage::SemiFinish,
+        },
+        conditions: MachiningOperationConditions {
+            spec: OperationSpec::Scanline(ScanlineParams {
+                stepover: 0.5,
+                feed_rate: 1200.0,
+                tool_range: ScanlineToolRange::GeometryExtent,
+                cut_direction: ScanlineCutDirection::ZigZag,
+                angle_degrees: 45.0,
+            }),
+            tool,
+            boundary: Some(MachiningBoundary::Rectangle(RectangleBoundary {
+                rect_min: [1.0, 2.0],
+                rect_max: [3.0, 4.0],
+            })),
+            tolerance_profile: ToleranceProfile::MoldFinish,
+        },
     }
 }
 
 /// ID を決めた加工手順の記録（加工の対象の 1 つは製品形状にない面）
 fn sequence_records() -> Vec<MachiningSequenceRecord> {
     let mut rough = content("荒");
-    rough.stage = MachiningStage::Rough;
-    rough.boundary = None;
-    rough.tool = Tool::flat_end_mill("EM10".to_string(), 10.0, 50.0);
-    rough.tolerance_profile = ToleranceProfile::PressRough;
+    rough.attributes.stage = MachiningStage::Rough;
+    rough.conditions.boundary = None;
+    rough.conditions.tool = Tool::flat_end_mill("EM10".to_string(), 10.0, 50.0);
+    rough.conditions.tolerance_profile = ToleranceProfile::PressRough;
     vec![MachiningSequenceRecord {
         id: MachiningSequenceId::from_uuid(uuid(10)),
         name: "手順".to_string(),

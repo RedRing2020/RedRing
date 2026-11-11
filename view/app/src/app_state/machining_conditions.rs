@@ -8,8 +8,8 @@ use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationI
 use super::AppState;
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
-    ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState, OperationCommand,
-    OperationRow,
+    calculation_blocked, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
+    OperationCommand, OperationRow,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,
@@ -130,26 +130,43 @@ impl AppState {
     }
 
     /// 編集した条件を工程・手順に入れて、ダイアログを閉じる（今と同じなら、工程の改訂を進めない）。工程の設定で「適用と
-    /// 同時に投入する」を選んでいれば、選んだ工程を投入する
+    /// 同時に投入する」を選んでいれば、選んだ工程を投入する（計算の条件が変わっていなければ、計算のボタンが押せる状態の
+    /// ときだけ。取込済みの工程の属性だけを替えたときに、ジョブマネージャーを起動しないように）
     fn apply_condition_draft(&mut self) {
         let Some(draft) = self.condition_draft.take() else {
             return;
         };
         self.draft_issues = None;
         self.tool_length_input = draft.tool_length_input;
+        let mut submit = draft.dialog == ConditionDialog::Operation && self.submit_on_apply;
         match draft.dialog {
             ConditionDialog::Operation => {
-                // 名前は、前後の空白を除き、空なら替えない（名前は計算に使わないため、工程の改訂は進めない）
+                // 名前は、前後の空白を除き、空なら替えない。属性（名前・加工の段階）は計算に使わないため、属性だけを
+                // 替えても工程の改訂は進めず、条件の確かめ・計算の状態も読み直さない
                 let mut content = draft.content;
                 let name = std::mem::replace(
-                    &mut content.name,
-                    self.document.operation_content().name.clone(),
+                    &mut content.attributes.name,
+                    self.document.operation_content().attributes.name.clone(),
                 );
-                if content != *self.document.operation_content() {
+                let current = self.document.operation_content();
+                let conditions_changed = content.conditions != current.conditions;
+                if content != *current {
                     self.document.set_operation_content(content);
-                    self.invalidate_conditions();
+                    if conditions_changed {
+                        self.invalidate_conditions();
+                    }
                 }
                 self.document.rename_selected_operation(&name);
+                // 計算の条件が変わったときは、最後に読んだ状態は前の条件のものなので、比べずに投入する
+                if submit && !conditions_changed {
+                    let operation = self.document.selected_operation();
+                    let toolpath_current =
+                        self.document.imported_toolpath_state() == ImportedToolpathState::Current;
+                    submit = !calculation_blocked(
+                        &self.operation_job_status(operation),
+                        toolpath_current,
+                    );
+                }
             }
             ConditionDialog::Sequence => {
                 if draft.stock != self.document.stock() {
@@ -159,24 +176,20 @@ impl AppState {
             }
         }
         tracing::info!("Conditions applied: {:?}", draft.dialog);
-        if draft.dialog == ConditionDialog::Operation
-            && self.submit_on_apply
-            && self.submit_cutting_simulation()
-        {
+        if submit && self.submit_cutting_simulation() {
             // 投入した計算の状態を、すぐに読み直す
             self.job_status_read_at = None;
         }
     }
 
-    /// 編集している条件の問題（条件が変わったときだけ確かめ直す）
+    /// 編集している条件の問題（計算の条件・素材が変わったときだけ確かめ直す。属性は計算に使わない）
     fn draft_issues(&mut self) -> Vec<ConditionIssue> {
         let Some(draft) = &self.condition_draft else {
             return Vec::new();
         };
-        let current = self
-            .draft_issues
-            .as_ref()
-            .is_some_and(|cached| cached.content == draft.content && cached.stock == draft.stock);
+        let current = self.draft_issues.as_ref().is_some_and(|cached| {
+            cached.content.conditions == draft.content.conditions && cached.stock == draft.stock
+        });
         if !current {
             let (content, stock) = (draft.content.clone(), draft.stock);
             let issues = self
@@ -336,8 +349,10 @@ impl AppState {
                 self.document.add_operation(name);
             }
             OperationCommand::Duplicate => {
-                let name =
-                    copied_operation_name(self.ui_locale, &self.document.operation_content().name);
+                let name = copied_operation_name(
+                    self.ui_locale,
+                    &self.document.operation_content().attributes.name,
+                );
                 self.document.duplicate_operation(name);
             }
             OperationCommand::Remove => {

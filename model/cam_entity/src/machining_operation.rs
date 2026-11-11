@@ -59,13 +59,18 @@ impl fmt::Display for MachiningRevisionKey {
     }
 }
 
-/// 加工工程の中身（変えると改訂の番号が増える）
+/// 加工工程の属性（計算に使わない。変えても改訂の番号は増えない）
 #[derive(Debug, Clone, PartialEq)]
-pub struct MachiningOperationContent {
+pub struct MachiningOperationAttributes {
     /// 利用者が付ける名前
     pub name: String,
     /// 加工の段階
     pub stage: MachiningStage,
+}
+
+/// 加工工程の計算の条件（計算の入力はこれだけから作る。変えると改訂の番号が増える）
+#[derive(Debug, Clone, PartialEq)]
+pub struct MachiningOperationConditions {
     /// 加工の種類と、その条件（送りを含む）
     pub spec: OperationSpec,
     /// 工具
@@ -74,6 +79,15 @@ pub struct MachiningOperationContent {
     pub boundary: Option<MachiningBoundary>,
     /// ツールパス生成のトレランスを決める精度プロファイル
     pub tolerance_profile: ToleranceProfile,
+}
+
+/// 加工工程の中身（属性と計算の条件）
+#[derive(Debug, Clone, PartialEq)]
+pub struct MachiningOperationContent {
+    /// 属性（変えても改訂の番号は増えない）
+    pub attributes: MachiningOperationAttributes,
+    /// 計算の条件（変えると改訂の番号が増える）
+    pub conditions: MachiningOperationConditions,
 }
 
 /// 加工工程
@@ -131,15 +145,13 @@ impl MachiningOperation {
         self.revision_key
     }
 
-    /// 中身を `content` に替える。今の中身と違えば、改訂の番号を増やす
+    /// 中身を `content` に替える。計算の条件が今と違えば、改訂の番号を増やす
+    ///
+    /// 属性だけを替えたときは改訂しない（計算の結果を、今の改訂の結果のまま使う）。
     pub fn set_content(&mut self, content: MachiningOperationContent) {
-        // 名前は計算に使わないため、名前だけを替えたときは改訂しない（計算の結果を、今の改訂の結果のまま使う）
-        let computed_changed = MachiningOperationContent {
-            name: self.content.name.clone(),
-            ..content.clone()
-        } != self.content;
+        let conditions_changed = content.conditions != self.content.conditions;
         self.content = content;
-        if computed_changed {
+        if conditions_changed {
             self.revise();
         }
     }

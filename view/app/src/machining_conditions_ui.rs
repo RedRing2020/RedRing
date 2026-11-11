@@ -378,7 +378,7 @@ fn with_disabled_reasons(response: egui::Response, reasons: &str) -> egui::Respo
 /// 計算が計算待ち・計算中・計算済みのとき。重ねて投入しないように。ジョブマネージャーが動いていない・見つからない
 /// ときは、今の条件の CL があれば取込済みとして出すため、計算済みと同じに扱う。動けば状態を読み直し、未計算と分かれば
 /// 切削シミュレーションだけを計算できる）
-fn calculation_blocked(status: &JobStatusLine, toolpath_current: bool) -> bool {
+pub(crate) fn calculation_blocked(status: &JobStatusLine, toolpath_current: bool) -> bool {
     match status {
         JobStatusLine::Status(status) => status.is_waiting_or_done(),
         JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => toolpath_current,
@@ -717,7 +717,7 @@ impl MachiningConditionsUiState {
         let title = match dialog {
             ConditionDialog::Operation => self.text_with_args(
                 "conditions.operation_settings.title",
-                &[("name", self.operation.name.clone())],
+                &[("name", self.operation.attributes.name.clone())],
             ),
             ConditionDialog::Sequence => self.text("conditions.sequence_settings.title"),
         };
@@ -1223,17 +1223,20 @@ impl MachiningConditionsUiState {
         .map(|stage| (stage, self.text(stage_key(stage))));
         ui.horizontal(|ui| {
             ui.label(self.text("conditions.operations.name"));
-            ui.text_edit_singleline(&mut self.operation.name);
+            ui.text_edit_singleline(&mut self.operation.attributes.name);
         });
         ui.horizontal(|ui| {
             ui.label(self.text("conditions.operation.stage"));
             for (stage, label) in stage_labels {
-                ui.radio_value(&mut self.operation.stage, stage, label);
+                ui.radio_value(&mut self.operation.attributes.stage, stage, label);
             }
         });
         ui.label(self.text_with_args(
             "conditions.operation.kind",
-            &[("kind", self.text(spec_kind_key(&self.operation.spec)))],
+            &[(
+                "kind",
+                self.text(spec_kind_key(&self.operation.conditions.spec)),
+            )],
         ));
     }
 
@@ -1255,7 +1258,7 @@ impl MachiningConditionsUiState {
         CollapsingHeader::new(self.text("conditions.header.region"))
             .default_open(true)
             .show(ui, |ui| {
-                let text = match &self.operation.boundary {
+                let text = match &self.operation.conditions.boundary {
                     None => self.text("conditions.region.target"),
                     Some(MachiningBoundary::Rectangle(rectangle)) => self.text_with_args(
                         "conditions.region.rectangle",
@@ -1279,7 +1282,7 @@ impl MachiningConditionsUiState {
         CollapsingHeader::new(self.text("conditions.header.tool"))
             .default_open(true)
             .show(ui, |ui| {
-                let tool = &self.operation.tool;
+                let tool = &self.operation.conditions.tool;
                 let shown_kind = CuttingToolKind::of(tool).unwrap_or_default();
                 let shown_diameter = tool.diameter();
                 let shown_specified = tool.cutting_length.is_some();
@@ -1317,7 +1320,7 @@ impl MachiningConditionsUiState {
                     || specified != shown_specified
                     || length_changed
                 {
-                    self.operation.tool =
+                    self.operation.conditions.tool =
                         kind.tool(diameter, specified.then_some(self.tool_length_input));
                 }
                 self.show_issues(ui, ConditionField::Tool);
@@ -1342,16 +1345,17 @@ impl MachiningConditionsUiState {
             "conditions.machining.tolerance",
             &[("tolerance", self.toolpath_tolerance.to_string())],
         );
-        let cusp_height_label = flat_surface_cusp_height(&self.operation).map(|height| {
-            self.text_with_args(
-                "conditions.machining.cusp_height",
-                &[("height", format!("{height:.4}"))],
-            )
-        });
+        let cusp_height_label =
+            flat_surface_cusp_height(&self.operation.conditions).map(|height| {
+                self.text_with_args(
+                    "conditions.machining.cusp_height",
+                    &[("height", format!("{height:.4}"))],
+                )
+            });
         CollapsingHeader::new(self.text("conditions.header.machining"))
             .default_open(true)
             .show(ui, |ui| {
-                let OperationSpec::Scanline(scanline) = &mut self.operation.spec;
+                let OperationSpec::Scanline(scanline) = &mut self.operation.conditions.spec;
                 for (value, label, suffix, speed) in [
                     (&mut scanline.stepover, stepover_label, " mm", 0.1),
                     (&mut scanline.feed_rate, feed_rate_label, " mm/min", 10.0),
