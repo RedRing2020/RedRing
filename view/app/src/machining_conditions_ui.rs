@@ -52,10 +52,13 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
 pub(crate) enum OperationStatus {
     /// 投入した（今の条件の CL から、切削シミュレーションだけを投入したか）
     Submitted { simulation_only: bool },
-    /// 空間モデルの CL を消して、ツールパス生成から投入し直した
-    Redone,
+    /// 空間モデルの CL を消して、ツールパス生成から投入し直した（今の条件の計算待ち・計算中のジョブを取り消すよう
+    /// 頼んだか）
+    Redone { canceled: bool },
     /// 今の条件の計算が計算待ち・計算中・計算済みのため、投入しない
     AlreadyCalculated,
+    /// 今の条件の計算が計算待ちのため、再計算しない（計算が始まってから再計算できる）
+    RecalculationWaiting,
     /// 投入できない（画面に出す理由）
     SubmitFailed(UiMessage),
     /// 手順の全体を投入した（投入した工程・そのうち切削シミュレーションだけを投入した工程・投入し直さなかった工程の数）
@@ -134,7 +137,8 @@ fn operation_status_message(
         OperationStatus::Submitted {
             simulation_only: true,
         } => ("conditions.status.submitted_simulation", vec![]),
-        OperationStatus::Redone => ("conditions.status.redone", vec![]),
+        OperationStatus::Redone { canceled: false } => ("conditions.status.redone", vec![]),
+        OperationStatus::Redone { canceled: true } => ("conditions.status.redone_canceled", vec![]),
         OperationStatus::SubmitFailed(message) => {
             ("conditions.status.submit_failed", reason(message))
         }
@@ -204,6 +208,9 @@ fn operation_status_message(
         }
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
         OperationStatus::AlreadyCalculated => ("conditions.status.already_calculated", vec![]),
+        OperationStatus::RecalculationWaiting => {
+            ("conditions.status.recalculation_waiting", vec![])
+        }
         OperationStatus::ToolpathImported { job } => (
             "conditions.status.toolpath_imported",
             vec![("job", job.to_string())],
@@ -347,9 +354,16 @@ fn with_disabled_reasons(response: egui::Response, reasons: &str) -> egui::Respo
     }
 }
 
-/// 今の条件の計算が計算待ち・計算中・計算済みか（計算を押せない。重ねて投入しないように）
-fn calculation_waiting_or_done(status: &JobStatusLine) -> bool {
-    matches!(status, JobStatusLine::Status(status) if status.is_waiting_or_done())
+/// 計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から、計算を押せないか（今の条件の
+/// 計算が計算待ち・計算中・計算済みのとき。重ねて投入しないように。ジョブマネージャーが動いていない・見つからない
+/// ときは、今の条件の CL があれば取込済みとして出すため、計算済みと同じに扱う。動けば状態を読み直し、未計算と分かれば
+/// 切削シミュレーションだけを計算できる）
+fn calculation_blocked(status: &JobStatusLine, toolpath_current: bool) -> bool {
+    match status {
+        JobStatusLine::Status(status) => status.is_waiting_or_done(),
+        JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => toolpath_current,
+        _ => false,
+    }
 }
 
 /// 選んだ工程の、計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` に応じた、次に
@@ -378,6 +392,10 @@ fn navigation_key(status: &JobStatusLine, toolpath_current: bool) -> Option<&'st
         // ジョブマネージャーの結果を消した後・別の PC で開いたとき（CL から切削シミュレーションだけを計算する）
         JobStatusLine::NotSubmitted if toolpath_current => {
             Some("conditions.navigation.imported_toolpath_only")
+        }
+        // 取込済みと出し、計算を押せない（状態を読むだけでは、ジョブマネージャーを起動しない）
+        JobStatusLine::ManagerNotRunning if toolpath_current => {
+            Some("conditions.navigation.imported_manager_not_running")
         }
         _ => None,
     }
@@ -783,7 +801,10 @@ impl MachiningConditionsUiState {
                 self.submit_sequence_requested = true;
             }
             let import_toolpath = ui
-                .button(self.text("conditions.import_toolpath"))
+                .add_enabled(
+                    self.action_enabled(&RowAction::ImportToolpath, self.selected_position()),
+                    egui::Button::new(self.text("conditions.import_toolpath")),
+                )
                 .on_hover_text(self.text("conditions.import_toolpath.hint"));
             if import_toolpath.clicked() {
                 self.import_toolpath_requested = true;
@@ -814,11 +835,24 @@ impl MachiningConditionsUiState {
                 self.issues.is_empty()
                     && position
                         .and_then(|at| self.operations.get(at))
-                        .is_none_or(|row| !calculation_waiting_or_done(&row.status))
+                        .is_none_or(|row| !calculation_blocked(&row.status, row.toolpath_current))
             }
-            RowAction::Redo => self.issues.is_empty(),
+            // 計算待ちの計算は、まだ始まっていない（ジョブマネージャーがまだ受け取っていない、取り消せない投入も
+            // 計算待ち）。計算が始まってから再計算できる
+            RowAction::Redo => {
+                self.issues.is_empty()
+                    && position
+                        .and_then(|at| self.operations.get(at))
+                        .is_none_or(|row| {
+                            row.status != JobStatusLine::Status(OperationJobStatus::Queued)
+                        })
+            }
             RowAction::Command(command) => self.command_enabled(command, position),
-            RowAction::OpenSettings | RowAction::ImportToolpath | RowAction::Import => true,
+            // 空間モデルの CL が今の条件の結果（取込済み）なら、取り込み直しても同じ CL のため押せない
+            RowAction::ImportToolpath => position
+                .and_then(|at| self.operations.get(at))
+                .is_none_or(|row| !row.toolpath_current),
+            RowAction::OpenSettings | RowAction::Import => true,
         }
     }
 
@@ -1325,8 +1359,8 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        calculation_waiting_or_done, condition_error_message, condition_field,
-        imported_toolpath_key, job_status_key, navigation_key, navigation_text, operation_row_key,
+        calculation_blocked, condition_error_message, condition_field, imported_toolpath_key,
+        job_status_key, navigation_key, navigation_text, operation_row_key,
         operation_row_status_key, operation_status_text, stage_key, ConditionField, JobStatusLine,
         MachiningStage, OperationJobStatus, OperationRow, OperationStatus, COLUMN_KEYS,
     };
@@ -1363,7 +1397,8 @@ mod tests {
             OperationStatus::Submitted {
                 simulation_only: true,
             },
-            OperationStatus::Redone,
+            OperationStatus::Redone { canceled: false },
+            OperationStatus::Redone { canceled: true },
             OperationStatus::SubmitFailed(failure("failure.orchestration")),
             OperationStatus::SequenceSubmitted {
                 submitted: 2,
@@ -1400,6 +1435,7 @@ mod tests {
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
             OperationStatus::AlreadyCalculated,
+            OperationStatus::RecalculationWaiting,
             OperationStatus::ToolpathImported { job: 1 },
             OperationStatus::NoToolpathToImport,
             OperationStatus::ImportFailed(failure("failure.animation.replay")),
@@ -1522,7 +1558,20 @@ mod tests {
     fn calculation_is_blocked_only_while_waiting_calculating_or_calculated() {
         use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
         for status in [Queued, Running, Succeeded] {
-            assert!(calculation_waiting_or_done(&JobStatusLine::Status(status)));
+            for toolpath_current in [false, true] {
+                assert!(calculation_blocked(
+                    &JobStatusLine::Status(status),
+                    toolpath_current
+                ));
+            }
+        }
+        // ジョブマネージャーが動いていない・見つからないときは、取込済みと出す工程（今の条件の CL がある）だけ押せない
+        for status in [
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+        ] {
+            assert!(calculation_blocked(&status, true), "{status:?}");
+            assert!(!calculation_blocked(&status, false), "{status:?}");
         }
         // 計算失敗・取り消しは計算し直せる。未計算（CL だけの工程は切削シミュレーションだけ）と、状態が分からない・
         // まだ読めていないときは、押したときに読み直して決める
@@ -1530,12 +1579,15 @@ mod tests {
             JobStatusLine::Status(Failed),
             JobStatusLine::Status(Canceled),
             JobStatusLine::NotSubmitted,
-            JobStatusLine::ManagerNotRunning,
-            JobStatusLine::ManagerNotFound,
             JobStatusLine::Unreadable,
             JobStatusLine::Reading,
         ] {
-            assert!(!calculation_waiting_or_done(&status), "{status:?}");
+            for toolpath_current in [false, true] {
+                assert!(
+                    !calculation_blocked(&status, toolpath_current),
+                    "{status:?}"
+                );
+            }
         }
     }
 
@@ -1564,6 +1616,13 @@ mod tests {
                 Some("conditions.navigation.imported_toolpath_only"),
             ),
             (JobStatusLine::NotSubmitted, false, None),
+            (
+                JobStatusLine::ManagerNotRunning,
+                true,
+                Some("conditions.navigation.imported_manager_not_running"),
+            ),
+            (JobStatusLine::ManagerNotRunning, false, None),
+            (JobStatusLine::ManagerNotFound, true, None),
             (
                 JobStatusLine::Status(OperationJobStatus::Failed),
                 true,

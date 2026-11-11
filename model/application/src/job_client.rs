@@ -57,6 +57,8 @@ pub(crate) struct SimulationSubmission {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ToolpathJob {
     pub job_id: u64,
+    /// 投入の ID
+    pub submission_id: String,
     pub source: Option<CamJobSource>,
     pub status: CamJobStatus,
     /// その成果物を入力にする切削シミュレーションのジョブがある（ツールパス生成のジョブ 1 つに、切削シミュレーションは
@@ -139,4 +141,7 @@ pub(crate) trait JobClient: fmt::Debug {
     /// 切削シミュレーションのジョブ `simulation_job_id` の結果（その CL）を、空間モデルに取り込んだと伝える（ジョブ
     /// マネージャーが、取り込み済みの CL の元をまとめて消せるように。画面を止めない実装は、伝え終えるのを待たない）
     fn record_imported(&self, simulation_job_id: u64) -> Result<(), CamSimulationWorkflowError>;
+
+    /// 計算待ち・計算中のジョブ `job_ids` を取り消すよう頼む（計算中はランナーを止める。取り消し終えるのを待たない）
+    fn cancel(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError>;
 }

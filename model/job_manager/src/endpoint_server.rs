@@ -31,12 +31,16 @@ const ACCEPT_RETRY_INTERVAL: Duration = Duration::from_secs(1);
 /// ウィンドウを開く口（開けたら `true`）
 pub type OpenWindow = Arc<dyn Fn() -> bool + Send + Sync>;
 
+/// ジョブを取り消すよう、ジョブの記録を書くサービスに頼む口（頼めたら `true`。取り消し終えるのを待たない）
+pub type CancelJobs = Arc<dyn Fn(Vec<u64>) -> bool + Send + Sync>;
+
 /// 口 `endpoint` を開き、保存先 `store` の要求を受けるスレッドを始める（ほかのプロセスが口を開いている間は、閉じる
 /// まで開き直す）。ウィンドウを開く要求は `open_window` で行い、版を確かめたときに `manager_version` を返す
 pub fn start_endpoint_server(
     endpoint: Endpoint,
     store: JobStore,
     open_window: OpenWindow,
+    cancel_jobs: CancelJobs,
     manager_version: &'static str,
 ) -> JoinHandle<()> {
     std::thread::spawn(move || {
@@ -63,6 +67,7 @@ pub fn start_endpoint_server(
                     let mut handler = StoreHandler {
                         store: store.clone(),
                         open_window: Arc::clone(&open_window),
+                        cancel_jobs: Arc::clone(&cancel_jobs),
                     };
                     std::thread::spawn(move || {
                         if let Err(error) =
@@ -85,6 +90,7 @@ pub fn start_endpoint_server(
 struct StoreHandler {
     store: JobStore,
     open_window: OpenWindow,
+    cancel_jobs: CancelJobs,
 }
 
 /// 保存先の誤りを、口の誤りにする
@@ -269,6 +275,18 @@ impl Handler for StoreHandler {
         })
     }
 
+    fn cancel(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError> {
+        // ジョブの記録を書くのはサービスのスレッドだけのため、頼むだけにする
+        if (self.cancel_jobs)(job_ids) {
+            Ok(())
+        } else {
+            Err(HandlerError::new(
+                ErrorKind::StoreUnavailable,
+                "the job manager service is not running",
+            ))
+        }
+    }
+
     fn record_imported(&mut self, simulation_job_id: u64) -> Result<(), HandlerError> {
         let (jobs, _) = self
             .store
@@ -346,11 +364,17 @@ mod tests {
         let store = JobStore::open(&root).unwrap();
         let opened = Arc::new(AtomicU64::new(0));
         let counted = Arc::clone(&opened);
+        let canceled = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let asked = Arc::clone(&canceled);
         start_endpoint_server(
             endpoint.clone(),
             store.clone(),
             Arc::new(move || {
                 counted.fetch_add(1, Ordering::Relaxed);
+                true
+            }),
+            Arc::new(move |job_ids| {
+                asked.lock().unwrap().extend(job_ids);
                 true
             }),
             "0.0.0",
@@ -418,6 +442,9 @@ mod tests {
         ));
         client.open_window().unwrap();
         assert_eq!(opened.load(Ordering::Relaxed), 1);
+        // 取り消しは、ジョブの記録を書くサービスに頼む
+        client.cancel(vec![2, 1]).unwrap();
+        assert_eq!(*canceled.lock().unwrap(), vec![2, 1]);
         // 正常に終わった切削シミュレーションでなければ、取り込んだと記録しない
         assert!(matches!(
             client.record_imported(2),

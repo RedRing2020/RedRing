@@ -57,6 +57,7 @@ impl TempRoot {
             self.endpoint.clone(),
             JobStore::open(self.store_root()).unwrap(),
             std::sync::Arc::new(|| true),
+            std::sync::Arc::new(|_| true),
             "0.0.0",
         );
         // 受け手のスレッドが口を開くまで待つ（開く前につなぐと、ジョブマネージャーを起動しようとするため）

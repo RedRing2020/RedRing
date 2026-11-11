@@ -126,6 +126,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.navigation.imported_toolpath_only",
         "CL 取込済みです。切削シミュレーションを計算できます",
     ),
+    (
+        "conditions.navigation.imported_manager_not_running",
+        "ジョブマネージャーを開くと、切削シミュレーションの結果があるか確かめられます",
+    ),
     ("conditions.redo", "再計算"),
     (
         "conditions.redo.hint",
@@ -151,10 +155,18 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.status.redone",
         "空間モデルの CL を消して、ツールパス生成から再計算を始めました",
     ),
+    (
+        "conditions.status.redone_canceled",
+        "今の条件の計算を取り消し、空間モデルの CL を消して、ツールパス生成から再計算を始めました",
+    ),
     ("conditions.status.submit_failed", "計算を始められません（{reason}）"),
     (
         "conditions.status.already_calculated",
         "今の条件の計算が、計算待ち・計算中・計算済みのため、計算を始めていません",
+    ),
+    (
+        "conditions.status.recalculation_waiting",
+        "今の条件の計算が計算待ちのため、再計算していません（計算が始まってから再計算できます）",
     ),
     (
         "conditions.status.sequence_submitted",
@@ -398,6 +410,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.navigation.imported_toolpath_only",
         "The CL is imported. You can calculate the cutting simulation",
     ),
+    (
+        "conditions.navigation.imported_manager_not_running",
+        "Open the job manager to check whether there is a cutting simulation result",
+    ),
     ("conditions.redo", "Recalculate"),
     (
         "conditions.redo.hint",
@@ -423,10 +439,18 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.status.redone",
         "Deleted the CL from the space model and started recalculating from toolpath generation",
     ),
+    (
+        "conditions.status.redone_canceled",
+        "Canceled the calculation for the current conditions, deleted the CL from the space model, and started recalculating from toolpath generation",
+    ),
     ("conditions.status.submit_failed", "Cannot start the calculation ({reason})"),
     (
         "conditions.status.already_calculated",
         "The calculation was not started because the calculation for the current conditions is waiting, calculating, or calculated",
+    ),
+    (
+        "conditions.status.recalculation_waiting",
+        "Not recalculated because the calculation for the current conditions is waiting (it can be recalculated after the calculation starts)",
     ),
     (
         "conditions.status.sequence_submitted",

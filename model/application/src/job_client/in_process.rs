@@ -108,22 +108,24 @@ impl JobClient for InProcessJobClient {
     }
 
     fn toolpath_jobs(&self) -> Result<Vec<ToolpathJob>, CamSimulationWorkflowError> {
-        let mut job_ids: Vec<u64> = self
-            .submissions
-            .iter()
-            .map(|(_, toolpath_job_id, _)| *toolpath_job_id)
-            .collect();
-        job_ids.sort_unstable();
-        job_ids.dedup();
-        job_ids
-            .into_iter()
-            .map(|job_id| {
+        // ツールパス生成のジョブは、それを作った（最初の）投入の ID を持つ（後の投入は、その下に切削シミュレーション
+        // だけを置く）
+        let mut jobs: Vec<(u64, &str)> = Vec::new();
+        for (submission_id, toolpath_job_id, _) in &self.submissions {
+            if !jobs.iter().any(|(job_id, _)| job_id == toolpath_job_id) {
+                jobs.push((*toolpath_job_id, submission_id));
+            }
+        }
+        jobs.sort_unstable();
+        jobs.into_iter()
+            .map(|(job_id, submission_id)| {
                 let result = self
                     .orchestrator
                     .query_result(JobWorkflowResultQuery { job_id })?;
                 // 投入はいつも切削シミュレーションを置く
                 Ok(ToolpathJob {
                     job_id,
+                    submission_id: submission_id.to_string(),
                     source: result.job.spec.source.clone(),
                     status: result.job.status,
                     simulated: true,
@@ -171,6 +173,13 @@ impl JobClient for InProcessJobClient {
             .ok_or(CamSimulationWorkflowError::NotSucceededSimulation(
                 simulation_job_id,
             ))
+    }
+
+    fn cancel(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
+        for &job_id in job_ids {
+            self.orchestrator.cancel_job(job_id)?;
+        }
+        Ok(())
     }
 
     fn toolpath_result(

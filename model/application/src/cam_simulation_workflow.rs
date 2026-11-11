@@ -499,6 +499,58 @@ impl CamSimulationWorkflow {
         self.jobs.open_manager_window()
     }
 
+    /// 加工工程 `operation_id` の今の改訂の、計算待ち・計算中のジョブ（ツールパス生成と切削シミュレーション）のうち、
+    /// 投入 `kept_submission_id` のもの以外を取り消すよう頼み、頼んだジョブの数を返す（取り消し終えるのを待たない。
+    /// 前の改訂のジョブ・ほかの工程のジョブには触れない。ジョブマネージャーがまだ取り込んでいない投入は取り消せない）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順・加工手順にない加工工程の場合、ジョブマネージャーがない・起動できない・ジョブを
+    /// 読めない・取り消しを頼めない場合。
+    pub fn cancel_latest_revision_jobs(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+        kept_submission_id: &str,
+    ) -> Result<usize, CamSimulationWorkflowError> {
+        let current = current_revision(sequences, sequence_id, operation_id)?;
+        let active = |status: CamJobStatus| {
+            matches!(
+                status,
+                CamJobStatus::Queued | CamJobStatus::Running | CamJobStatus::NeedsRecompute
+            )
+        };
+        // 切削シミュレーションを先に取り消す（ツールパス生成を先に取り消すと、それを待つ切削シミュレーションが、
+        // 依存するジョブの取り消しによる失敗になるため）
+        let mut job_ids: Vec<u64> = self
+            .jobs
+            .simulation_jobs()?
+            .into_iter()
+            .filter(|job| {
+                current(&job.source)
+                    && active(job.status)
+                    && job.submission_id != kept_submission_id
+            })
+            .map(|job| job.job_id)
+            .collect();
+        job_ids.extend(
+            self.jobs
+                .toolpath_jobs()?
+                .into_iter()
+                .filter(|job| {
+                    current(&job.source)
+                        && active(job.status)
+                        && job.submission_id != kept_submission_id
+                })
+                .map(|job| job.job_id),
+        );
+        if !job_ids.is_empty() {
+            self.jobs.cancel(&job_ids)?;
+        }
+        Ok(job_ids.len())
+    }
+
     /// 加工工程 `operation_id` から投入した切削シミュレーションのジョブ（前の改訂を含む。番号の順）
     fn operation_simulations(
         &self,
