@@ -162,7 +162,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     (
         "conditions.status.recalculation_waiting",
-        "今の条件の計算が計算待ちのため、再計算していません（計算待ちの計算は、最初から計算します）",
+        "今の条件の計算が計算待ちのため、再計算していません（計算が始まってから再計算できます）",
     ),
     (
         "conditions.status.sequence_submitted",
@@ -442,7 +442,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     (
         "conditions.status.recalculation_waiting",
-        "Not recalculated because the calculation for the current conditions is waiting (a waiting calculation is calculated from the beginning)",
+        "Not recalculated because the calculation for the current conditions is waiting (it can be recalculated after the calculation starts)",
     ),
     (
         "conditions.status.sequence_submitted",

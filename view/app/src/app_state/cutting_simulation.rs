@@ -9,7 +9,9 @@ use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::SequenceSubmissionError;
-use viewmodel::cutting_simulation_session::{CuttingSimulationSessionError, SubmissionKind};
+use viewmodel::cutting_simulation_session::{
+    CuttingSimulationSessionError, RedoOutcome, SubmissionKind,
+};
 use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
 use viewmodel::mesh_converter::WireframeVertex;
 
@@ -93,20 +95,21 @@ impl AppState {
     ///
     /// 投入できたかを返す。
     pub(crate) fn redo_cutting_simulation(&mut self) -> bool {
-        let Some(result) = self.cutting_simulation.redo(&mut self.document).transpose() else {
-            // 押した後に読んだ状態が計算待ちだった（ボタンは最後に読んだ状態で決めるため）
-            tracing::info!("The machining operation is already waiting for the calculation");
-            self.set_operation_status(OperationStatus::RecalculationWaiting);
-            // 押したときに読んだ状態を、すぐ表とボタンに出す
-            self.job_status_read_at = None;
-            return false;
-        };
-        let result = result.map(|canceled| {
-            (
+        let result = match self.cutting_simulation.redo(&mut self.document) {
+            Ok(RedoOutcome::Waiting) => {
+                // 押した後に読んだ状態が計算待ちだった（ボタンは最後に読んだ状態で決めるため）
+                tracing::info!("The machining operation is already waiting for the calculation");
+                self.set_operation_status(OperationStatus::RecalculationWaiting);
+                // 押したときに読んだ状態を、すぐ表とボタンに出す
+                self.job_status_read_at = None;
+                return false;
+            }
+            Ok(RedoOutcome::Submitted { canceled }) => Ok((
                 "the machining operation again",
                 OperationStatus::Redone { canceled },
-            )
-        });
+            )),
+            Err(error) => Err(error),
+        };
         let submitted = self.finish_submission(result, "the machining operation again");
         if submitted
             && self.cutting_animation.is_some()

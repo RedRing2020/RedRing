@@ -180,6 +180,15 @@ pub enum SubmissionKind {
     SimulationOnly,
 }
 
+/// 再計算の結果
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedoOutcome {
+    /// 今の条件の計算が計算待ちのため、投入しなかった
+    Waiting,
+    /// 投入した（`canceled` は、今の条件の前の計算を取り消すよう頼んだか）
+    Submitted { canceled: bool },
+}
+
 impl SubmissionKind {
     /// 工程に取り込んだ CL の状態 `toolpath` と、工程の今の改訂の計算の状態 `state` から決める投入（今の改訂の計算
     /// が計算待ち・計算中・正常に終わっていれば、投入しない `None`。今の条件の CL があれば、CL をもう一度計算しない
@@ -359,10 +368,10 @@ impl CuttingSimulationSession {
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の空間モデルの CL を除き、ツールパス生成から投入し直す
     /// （実行しない。CL は、投入できたときだけ除く）。投入できたら、今の条件の前の計算中のジョブを取り消すよう頼む
-    /// （取り消し終えるのを待たない）。前のジョブを取り消すよう頼んだかを返す
+    /// （取り消し終えるのを待たない）
     ///
-    /// 今の条件の計算が計算待ちなら、投入せずに `None` を返す（計算待ちの計算は、まだ始まっていないため、今の条件で
-    /// 最初から計算する。ジョブマネージャーがまだ受け取っていない投入も計算待ちのため、取り消せない投入に重ねない）。
+    /// 今の条件の計算が計算待ちなら、投入せずに `RedoOutcome::Waiting` を返す（計算待ちの計算は、まだ始まって
+    /// いない。ジョブマネージャーがまだ受け取っていない投入も計算待ちのため、取り消せない投入に重ねない）。
     ///
     /// # Errors
     ///
@@ -370,7 +379,7 @@ impl CuttingSimulationSession {
     pub fn redo(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Result<Option<bool>, CuttingSimulationSessionError> {
+    ) -> Result<RedoOutcome, CuttingSimulationSessionError> {
         document.target_visible_faces();
         let (shapes, sequences, sequence, operation) = document.machining();
         // 計算待ちかは、状態を今読んで決める（ボタンは最後に読んだ状態で決めるため）。見つからなければ投入できない。
@@ -380,7 +389,7 @@ impl CuttingSimulationSession {
             .latest_revision_job_states_now(sequences, sequence, &[operation])
         {
             Ok(states) if states[0] == OperationJobState::Status(OperationJobStatus::Queued) => {
-                return Ok(None);
+                return Ok(RedoOutcome::Waiting);
             }
             Ok(_) => {}
             Err(CamSimulationWorkflowError::JobManagerNotFound) => {
@@ -408,7 +417,7 @@ impl CuttingSimulationSession {
             }
         };
         document.remove_toolpath();
-        Ok(Some(canceled))
+        Ok(RedoOutcome::Submitted { canceled })
     }
 
     /// 加工工程 `operation` から、計算 `kind` を投入する
@@ -796,7 +805,10 @@ pub(crate) mod tests {
         assert_eq!(session.submit(&mut document).unwrap(), None);
 
         // やり直しは、CL を除いてツールパス生成から投入する（計算待ち・計算中のジョブはない）
-        assert_eq!(session.redo(&mut document).unwrap(), Some(false));
+        assert_eq!(
+            session.redo(&mut document).unwrap(),
+            RedoOutcome::Submitted { canceled: false }
+        );
         assert_eq!(
             document.imported_toolpath_state(),
             ImportedToolpathState::None
@@ -822,11 +834,14 @@ pub(crate) mod tests {
             session.submit(&mut document).unwrap(),
             Some(SubmissionKind::Full)
         );
-        // 計算待ちの計算は、今の条件で最初から計算するため、再計算しない（重ねて投入しない）
-        assert_eq!(session.redo(&mut document).unwrap(), None);
+        // 計算待ちの計算は、まだ始まっていないため、再計算しない（重ねて投入しない）
+        assert_eq!(session.redo(&mut document).unwrap(), RedoOutcome::Waiting);
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
         // 計算が終わった後の再計算は、取り消すジョブがない
-        assert_eq!(session.redo(&mut document).unwrap(), Some(false));
+        assert_eq!(
+            session.redo(&mut document).unwrap(),
+            RedoOutcome::Submitted { canceled: false }
+        );
     }
 
     #[test]

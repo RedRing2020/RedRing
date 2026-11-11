@@ -57,7 +57,7 @@ pub(crate) enum OperationStatus {
     Redone { canceled: bool },
     /// 今の条件の計算が計算待ち・計算中・計算済みのため、投入しない
     AlreadyCalculated,
-    /// 今の条件の計算が計算待ちのため、再計算しない（計算待ちの計算は、最初から計算する）
+    /// 今の条件の計算が計算待ちのため、再計算しない（計算が始まってから再計算できる）
     RecalculationWaiting,
     /// 投入できない（画面に出す理由）
     SubmitFailed(UiMessage),
@@ -823,8 +823,8 @@ impl MachiningConditionsUiState {
                         .and_then(|at| self.operations.get(at))
                         .is_none_or(|row| !calculation_waiting_or_done(&row.status))
             }
-            // 計算待ちの計算は、まだ始まっていないため今の条件で最初から計算する（ジョブマネージャーがまだ受け取って
-            // いない、取り消せない投入も計算待ち）
+            // 計算待ちの計算は、まだ始まっていない（ジョブマネージャーがまだ受け取っていない、取り消せない投入も
+            // 計算待ち）。計算が始まってから再計算できる
             RowAction::Redo => {
                 self.issues.is_empty()
                     && position
