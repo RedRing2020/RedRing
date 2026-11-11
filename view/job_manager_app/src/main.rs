@@ -122,7 +122,7 @@ fn main() -> ExitCode {
         };
         // ウィンドウを開く要求は、トレイの見えないウィンドウに頼むため、トレイを置いてから口を開く
         if configured_store {
-            start_endpoint(&store);
+            start_endpoint(&store, &channel);
         }
         // 吹き出しは別のスレッドで出す（記録を読む・エクスプローラーを待つ間も、ジョブの管理を止めない）
         let notified_store = store.clone();
@@ -143,7 +143,7 @@ fn main() -> ExitCode {
         let _ = (given_store, event_rx);
         let opener = WindowOpener::new();
         if configured_store {
-            start_endpoint(&store, &opener);
+            start_endpoint(&store, &channel, &opener);
         }
         if !background {
             opener.show(&store, &channel);
@@ -243,7 +243,11 @@ impl WindowOpener {
 
 /// この利用者の、ジョブマネージャーに問い合わせる口を開き、保存先 `store` の要求を受ける（開けなくても、ジョブの
 /// 管理は続ける）
-fn start_endpoint(store: &JobStore, #[cfg(not(windows))] opener: &WindowOpener) {
+fn start_endpoint(
+    store: &JobStore,
+    channel: &ServiceChannel,
+    #[cfg(not(windows))] opener: &WindowOpener,
+) {
     let endpoint = match job_ipc::Endpoint::for_current_user() {
         Ok(endpoint) => endpoint,
         Err(error) => {
@@ -258,10 +262,18 @@ fn start_endpoint(store: &JobStore, #[cfg(not(windows))] opener: &WindowOpener) 
     };
     #[cfg(not(windows))]
     let open_window = opener.open_window();
+    // 取り消しは、ジョブの記録を書くサービスのスレッドに頼む（送り口は、受け手の接続ごとのスレッドで共有する）
+    let requests = channel.requests.clone();
+    let cancel_jobs: job_manager::CancelJobs = Arc::new(move |job_ids| {
+        requests
+            .send(service::ServiceRequest::CancelFromApp(job_ids))
+            .is_ok()
+    });
     job_manager::start_endpoint_server(
         endpoint,
         store.clone(),
         open_window,
+        cancel_jobs,
         env!("CARGO_PKG_VERSION"),
     );
 }

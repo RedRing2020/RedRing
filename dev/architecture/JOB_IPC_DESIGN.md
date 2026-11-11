@@ -84,6 +84,7 @@ CAD/CAM のアプリが、ジョブの保存先のファイルを直接読み書
 | `read_job_file`（ジョブの番号・ファイル: 入力・入力の CL・成果物） | `job_file`（大きさ。続けて中身） | `import` |
 | `open_window` | `ok` | `open_manager_window` |
 | `record_imported`（切削シミュレーションのジョブの番号） | `ok` | `record_imported`（#1191） |
+| `cancel`（ジョブの番号の列） | `ok` | `cancel`（#1238。計算待ち・計算中の再計算。受け手は、ジョブの記録を書くサービスのスレッドに頼み、取り消し終えるのを待たない。終わったジョブ・ないジョブは何もしない） |
 
 - ウィンドウを前に出す権利は、利用者が操作しているアプリの側にある。Windows では、アプリが `open_window` を送る前に、パイプの相手のプロセス（`GetNamedPipeServerProcessId`）に前に出す権利を渡す（PR 3）
 

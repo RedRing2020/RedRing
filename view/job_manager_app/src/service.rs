@@ -34,6 +34,8 @@ pub(crate) enum JobCommand {
 pub(crate) enum ServiceRequest {
     /// ジョブの操作（結果は `ServiceChannel::replies` に返す）
     Command(JobCommand),
+    /// CAD/CAM のアプリが口で頼んだ、ジョブの取り消し（画面の操作ではないため、結果は返さずにログに書く）
+    CancelFromApp(Vec<u64>),
     /// 実行中のランナーを止めて、サービスを終える（終えたら `done` に送る）
     Quit { done: Sender<()> },
 }
@@ -164,6 +166,12 @@ pub(crate) fn start_service(
                     write(format!("quit {stopped:?}"));
                     let _ = done.send(());
                     return;
+                }
+                Some(Ok(ServiceRequest::CancelFromApp(job_ids))) => {
+                    for job_id in job_ids {
+                        let result = service.cancel(job_id, now_ms());
+                        write(format!("cancel from the app {job_id} -> {result:?}"));
+                    }
                 }
                 Some(Ok(ServiceRequest::Command(command))) => {
                     let result = run_command(&mut service, &command, now_ms());

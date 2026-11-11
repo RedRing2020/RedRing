@@ -494,6 +494,7 @@ impl JobClient for PipeJobClient {
             .filter(|job| job.kind == JobKind::Cam)
             .map(|job| ToolpathJob {
                 job_id: job.job_id,
+                submission_id: job.submission_id.clone(),
                 source: job.source.as_ref().map(source),
                 status: status(job.status),
                 simulated: jobs.iter().any(|other| {
@@ -534,6 +535,16 @@ impl JobClient for PipeJobClient {
 
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
         Ok(simulation_jobs(&self.jobs()?))
+    }
+
+    fn cancel(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
+        self.connector
+            .connect()?
+            .cancel(job_ids.to_vec())
+            .map_err(client_error)?;
+        // 取り消しが一覧に出るように、読み直しを頼む（待たない）
+        self.request_status();
+        Ok(())
     }
 
     fn record_imported(&self, simulation_job_id: u64) -> Result<(), CamSimulationWorkflowError> {

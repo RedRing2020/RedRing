@@ -27,6 +27,9 @@ pub enum Request {
     OpenWindow,
     /// 切削シミュレーションのジョブの結果（その CL）を取り込んだことを伝える
     RecordImported { simulation_job_id: u64 },
+    /// ジョブを取り消す（計算待ちは取り消し、計算中はランナーを止める。終わったジョブ・ないジョブは何もしない。
+    /// 取り消し終えるのを待たない）
+    Cancel { job_ids: Vec<u64> },
 }
 
 /// 応答

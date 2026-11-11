@@ -96,7 +96,12 @@ impl AppState {
         let result = self
             .cutting_simulation
             .redo(&mut self.document)
-            .map(|()| ("the machining operation again", OperationStatus::Redone));
+            .map(|canceled| {
+                (
+                    "the machining operation again",
+                    OperationStatus::Redone { canceled },
+                )
+            });
         let submitted = self.finish_submission(result, "the machining operation again");
         if submitted
             && self.cutting_animation.is_some()

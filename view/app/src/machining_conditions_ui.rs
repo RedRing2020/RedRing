@@ -52,8 +52,9 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
 pub(crate) enum OperationStatus {
     /// 投入した（今の条件の CL から、切削シミュレーションだけを投入したか）
     Submitted { simulation_only: bool },
-    /// 空間モデルの CL を消して、ツールパス生成から投入し直した
-    Redone,
+    /// 空間モデルの CL を消して、ツールパス生成から投入し直した（今の条件の計算待ち・計算中のジョブを取り消すよう
+    /// 頼んだか）
+    Redone { canceled: bool },
     /// 今の条件の計算が計算待ち・計算中・計算済みのため、投入しない
     AlreadyCalculated,
     /// 投入できない（画面に出す理由）
@@ -134,7 +135,8 @@ fn operation_status_message(
         OperationStatus::Submitted {
             simulation_only: true,
         } => ("conditions.status.submitted_simulation", vec![]),
-        OperationStatus::Redone => ("conditions.status.redone", vec![]),
+        OperationStatus::Redone { canceled: false } => ("conditions.status.redone", vec![]),
+        OperationStatus::Redone { canceled: true } => ("conditions.status.redone_canceled", vec![]),
         OperationStatus::SubmitFailed(message) => {
             ("conditions.status.submit_failed", reason(message))
         }
@@ -1363,7 +1365,8 @@ mod tests {
             OperationStatus::Submitted {
                 simulation_only: true,
             },
-            OperationStatus::Redone,
+            OperationStatus::Redone { canceled: false },
+            OperationStatus::Redone { canceled: true },
             OperationStatus::SubmitFailed(failure("failure.orchestration")),
             OperationStatus::SequenceSubmitted {
                 submitted: 2,

@@ -358,7 +358,8 @@ impl CuttingSimulationSession {
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の空間モデルの CL を除き、ツールパス生成から投入し直す
-    /// （実行しない。CL は、投入できたときだけ除く）
+    /// （実行しない。CL は、投入できたときだけ除く）。投入できたら、今の条件の前の計算待ち・計算中のジョブを取り消す
+    /// よう頼む（取り消し終えるのを待たない）。前のジョブを取り消すよう頼んだかを返す
     ///
     /// # Errors
     ///
@@ -366,13 +367,28 @@ impl CuttingSimulationSession {
     pub fn redo(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Result<(), CuttingSimulationSessionError> {
+    ) -> Result<bool, CuttingSimulationSessionError> {
         document.target_visible_faces();
         let (shapes, sequences, sequence, operation) = document.machining();
-        self.workflow
+        let submission = self
+            .workflow
             .submit_operation(shapes, sequences, sequence, operation)?;
+        // 取り消すのは投入できてから（先に取り消すと、投入できなかったときに今の計算を失うため）。頼めなくても、
+        // 投入は済んでいる（前の計算が残り、重ねて計算するだけ）
+        let canceled = match self.workflow.cancel_latest_revision_jobs(
+            sequences,
+            sequence,
+            operation,
+            &submission.submission_id,
+        ) {
+            Ok(count) => count > 0,
+            Err(error) => {
+                tracing::warn!("Cannot cancel the earlier calculation when recalculating: {error}");
+                false
+            }
+        };
         document.remove_toolpath();
-        Ok(())
+        Ok(canceled)
     }
 
     /// 加工工程 `operation` から、計算 `kind` を投入する
@@ -759,8 +775,8 @@ pub(crate) mod tests {
         // 今の改訂の計算が正常に終わっているため、投入しない
         assert_eq!(session.submit(&mut document).unwrap(), None);
 
-        // やり直しは、CL を除いてツールパス生成から投入する
-        session.redo(&mut document).unwrap();
+        // やり直しは、CL を除いてツールパス生成から投入する（計算待ち・計算中のジョブはない）
+        assert!(!session.redo(&mut document).unwrap());
         assert_eq!(
             document.imported_toolpath_state(),
             ImportedToolpathState::None
@@ -777,6 +793,25 @@ pub(crate) mod tests {
             document.imported_toolpath_state(),
             ImportedToolpathState::Outdated
         );
+    }
+
+    #[test]
+    fn recalculating_while_waiting_cancels_the_current_jobs_and_submits_again() {
+        let (mut session, mut document) = coarse_session();
+        assert_eq!(
+            session.submit(&mut document).unwrap(),
+            Some(SubmissionKind::Full)
+        );
+        // 計算待ちのジョブ（ツールパス生成と切削シミュレーション）を取り消してから、最初から計算するジョブを投入する
+        assert!(session.redo(&mut document).unwrap());
+        // 取り消したジョブは計算せず、新しく投入した 2 つだけを計算する
+        assert_eq!(session.run_queued_jobs().unwrap(), 2);
+        assert_eq!(
+            session.job_states(&mut document).unwrap()[0].1,
+            OperationJobState::Status(OperationJobStatus::Succeeded)
+        );
+        // 計算が終わった後の再計算は、取り消すジョブがない
+        assert!(!session.redo(&mut document).unwrap());
     }
 
     #[test]

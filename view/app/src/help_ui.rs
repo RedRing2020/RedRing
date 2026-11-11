@@ -150,7 +150,7 @@ impl Notice {
                 | OperationStatus::NoToolpathToImport
                 | OperationStatus::AlreadyCalculated => NoticeLevel::Warning,
                 OperationStatus::Submitted { .. }
-                | OperationStatus::Redone
+                | OperationStatus::Redone { .. }
                 | OperationStatus::SequenceSubmitted { .. }
                 | OperationStatus::Imported { .. }
                 | OperationStatus::ToolpathImported { .. } => NoticeLevel::Info,

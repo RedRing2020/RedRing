@@ -151,6 +151,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.status.redone",
         "空間モデルの CL を消して、ツールパス生成から再計算を始めました",
     ),
+    (
+        "conditions.status.redone_canceled",
+        "今の条件の計算を取り消し、空間モデルの CL を消して、ツールパス生成から再計算を始めました",
+    ),
     ("conditions.status.submit_failed", "計算を始められません（{reason}）"),
     (
         "conditions.status.already_calculated",
@@ -422,6 +426,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.status.redone",
         "Deleted the CL from the space model and started recalculating from toolpath generation",
+    ),
+    (
+        "conditions.status.redone_canceled",
+        "Canceled the calculation for the current conditions, deleted the CL from the space model, and started recalculating from toolpath generation",
     ),
     ("conditions.status.submit_failed", "Cannot start the calculation ({reason})"),
     (
