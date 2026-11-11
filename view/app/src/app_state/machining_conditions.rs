@@ -9,7 +9,7 @@ use super::AppState;
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
     calculation_blocked, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
-    OperationCommand, OperationRow,
+    OperationCommand, OperationRow, OperationStatus,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,
@@ -176,6 +176,13 @@ impl AppState {
             }
         }
         tracing::info!("Conditions applied: {:?}", draft.dialog);
+        if draft.dialog == ConditionDialog::Operation && self.submit_on_apply && !submit {
+            // 計算のボタンを押して計算済みだったときと同じく、計算しなかったことを出す
+            tracing::info!(
+                "The applied operation is not submitted because it is already calculated"
+            );
+            self.set_operation_status(OperationStatus::AlreadyCalculated);
+        }
         if submit && self.submit_cutting_simulation() {
             // 投入した計算の状態を、すぐに読み直す
             self.job_status_read_at = None;

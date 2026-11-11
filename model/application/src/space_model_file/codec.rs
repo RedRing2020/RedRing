@@ -630,18 +630,25 @@ fn write_content(
     out: &mut ByteWriter,
     content: &MachiningOperationContent,
 ) -> Result<(), SpaceModelFileError> {
-    // 保存の形は、属性と計算の条件に分ける前と同じ（名前・加工の段階・加工の種類と条件・工具・加工領域・精度の順）
+    // 保存の形は、属性と計算の条件に分ける前と同じ（名前・加工の段階・加工の種類と条件・工具・加工領域・精度の順）。
+    // 組の中まで分解し、項目を足したときに書き忘れをコンパイルで気づけるようにする
     let MachiningOperationContent {
-        attributes,
-        conditions,
+        attributes: MachiningOperationAttributes { name, stage },
+        conditions:
+            MachiningOperationConditions {
+                spec,
+                tool,
+                boundary,
+                tolerance_profile,
+            },
     } = content;
-    out.string(&attributes.name, "operation.name")?;
-    out.u8(match attributes.stage {
+    out.string(name, "operation.name")?;
+    out.u8(match stage {
         MachiningStage::Rough => 1,
         MachiningStage::SemiFinish => 2,
         MachiningStage::Finish => 3,
     });
-    let OperationSpec::Scanline(scanline) = conditions.spec;
+    let OperationSpec::Scanline(scanline) = spec;
     out.u8(1);
     out.f64(scanline.stepover);
     out.f64(scanline.feed_rate);
@@ -655,7 +662,6 @@ fn write_content(
         ScanlineCutDirection::ZigZag => 3,
     });
     out.f64(scanline.angle_degrees);
-    let tool = &conditions.tool;
     out.u8(match tool.tool_type {
         ToolType::FlatEndMill => 1,
         ToolType::RadiusEndMill => 2,
@@ -671,7 +677,7 @@ fn write_content(
             out.f64(length);
         }
     }
-    match conditions.boundary {
+    match boundary {
         None => out.u8(0),
         Some(MachiningBoundary::Rectangle(rectangle)) => {
             out.u8(1);
@@ -685,7 +691,7 @@ fn write_content(
             }
         }
     }
-    out.u8(match conditions.tolerance_profile {
+    out.u8(match tolerance_profile {
         ToleranceProfile::PressRough => 1,
         ToleranceProfile::MoldFinish => 2,
     });
