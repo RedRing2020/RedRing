@@ -10,7 +10,10 @@
 //! 開いている間は、見る操作（カメラ・切削アニメーション・表示の設定）だけを受け、工程リストは押せない。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
-use egui::{CollapsingHeader, Context, DragValue, Id, Panel, Rect, ScrollArea, Window};
+use egui::{
+    CollapsingHeader, Color32, Context, DragValue, Id, Panel, Rect, RichText, ScrollArea, Stroke,
+    Window,
+};
 use viewmodel::cutting_simulation_session::{
     flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
     CuttingToolKind, ImportedConditions, MachiningBoundary, MachiningOperationContent,
@@ -248,6 +251,9 @@ const DIALOG_CHROME_HEIGHT: f32 = 140.0;
 /// 条件の編集のダイアログの、スクロールする中身の最小の高さ（論理座標）
 const DIALOG_BODY_MIN_HEIGHT: f32 = 120.0;
 
+/// 工程の表の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
+const SELECTED_ROW_OPACITY: f32 = 0.45;
+
 /// 工程の表の列の見出しの文言のキー
 const COLUMN_KEYS: [&str; 6] = [
     "conditions.list.column.order",
@@ -446,6 +452,45 @@ pub(crate) enum OperationCommand {
     Remove,
     /// 選んだ工程を、加工の順で動かす（負は前へ）
     Move(isize),
+}
+
+/// 工程の表の状態の欄の、状態の文言のキー `key` ごとの色（ジョブマネージャーの一覧と同じ色。色を付けない状態は
+/// `None`）
+fn row_status_color(key: &str) -> Option<Color32> {
+    match key {
+        "conditions.operations.status.queued" => Some(Color32::GRAY),
+        "conditions.operations.status.running" => Some(Color32::from_rgb(80, 160, 255)),
+        "conditions.operations.status.succeeded" | "conditions.operations.status.imported" => {
+            Some(Color32::from_rgb(80, 200, 120))
+        }
+        "conditions.operations.status.failed" | "conditions.operations.status.unreadable" => {
+            Some(Color32::from_rgb(230, 90, 90))
+        }
+        "conditions.operations.status.canceled" => Some(Color32::from_rgb(200, 160, 60)),
+        _ => None,
+    }
+}
+
+/// 計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から決める、次に押す操作（目立たせる。
+/// 未計算・計算失敗・取り消しは計算（取込済みで切削シミュレーションの結果がない工程も、切削シミュレーションだけを
+/// 計算するため計算。画面の下の案内と同じ）、計算済みで取り込んでいなければ CL 取込。計算待ち・計算中・計算済みで
+/// 取込済み、状態が分からない工程はない）
+fn next_action_of(status: &JobStatusLine, toolpath_current: bool) -> Option<RowAction> {
+    match status {
+        JobStatusLine::NotSubmitted => Some(RowAction::Submit),
+        JobStatusLine::Status(OperationJobStatus::Failed | OperationJobStatus::Canceled) => {
+            Some(RowAction::Submit)
+        }
+        JobStatusLine::Status(OperationJobStatus::Succeeded) if !toolpath_current => {
+            Some(RowAction::ImportToolpath)
+        }
+        _ => None,
+    }
+}
+
+/// 欄の文字を、行の高さの中央にそろえて置き、欄の範囲を返す
+fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> Rect {
+    ui.horizontal_centered(|ui| ui.label(text)).response.rect
 }
 
 /// 加工の段階 `stage` の文言のキー
@@ -786,6 +831,21 @@ impl MachiningConditionsUiState {
     fn show_job_commands(&mut self, ui: &mut egui::Ui) {
         // 計算・再計算を押せない理由（計算の状態の案内・条件の誤り）は、押せないボタンに乗せたときに出す
         let reasons = self.issue_reasons();
+        // 選んだ工程の状態で次に押すボタンは、枠を選択の色で太くして目立たせる（表示している間の「切削シミュレーション
+        // 表示」は地の色が変わるため、見分けられる）。枠はボタンを置いた後に上から描く（ボタンの枠の太さを変えると、
+        // ボタンが大きくなり、ボタンの行と工程の表が動くため）
+        let next = self.next_action(self.selected_position());
+        let emphasis = Stroke::new(2.0, ui.visuals().selection.stroke.color);
+        let emphasize = |ui: &egui::Ui, response: &egui::Response, action: &RowAction| {
+            if next.as_ref() == Some(action) {
+                ui.painter().rect_stroke(
+                    response.rect,
+                    ui.visuals().widgets.inactive.corner_radius,
+                    emphasis,
+                    egui::StrokeKind::Inside,
+                );
+            }
+        };
         ui.horizontal_wrapped(|ui| {
             let position = self.selected_position();
             let can_submit = self.action_enabled(&RowAction::Submit, position);
@@ -797,6 +857,7 @@ impl MachiningConditionsUiState {
                 .on_hover_text(self.text("conditions.submit.hint")),
                 &reasons,
             );
+            emphasize(ui, &submit, &RowAction::Submit);
             if submit.clicked() {
                 self.submit_requested = true;
             }
@@ -830,6 +891,7 @@ impl MachiningConditionsUiState {
                     egui::Button::new(self.text("conditions.import_toolpath")),
                 )
                 .on_hover_text(self.text("conditions.import_toolpath.hint"));
+            emphasize(ui, &import_toolpath, &RowAction::ImportToolpath);
             if import_toolpath.clicked() {
                 self.import_toolpath_requested = true;
             }
@@ -900,6 +962,17 @@ impl MachiningConditionsUiState {
             .join("\n")
     }
 
+    /// 加工の順の `position` 番目の工程の状態で、次に押す操作（押せないとき・ダイアログを開いていて工程リストを押せない
+    /// ときは、目立たせない）
+    fn next_action(&self, position: Option<usize>) -> Option<RowAction> {
+        if self.dialog.is_some() {
+            return None;
+        }
+        let row = position.and_then(|at| self.operations.get(at))?;
+        next_action_of(&row.status, row.toolpath_current)
+            .filter(|action| self.action_enabled(action, position))
+    }
+
     /// 選んだ工程の、加工の順の位置
     fn selected_position(&self) -> Option<usize> {
         self.operations
@@ -922,48 +995,104 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 工程の表（1 行が 1 工程。上から加工の順）。行を押すと選び、ダブルクリックで工程の設定のダイアログを開き、
-    /// 右クリックで行の操作のメニューを出す
+    /// 工程の表（1 行が 1 工程。上から加工の順。ジョブマネージャーの一覧と同じ見た目）。行のどこを押しても選び、
+    /// ダブルクリックで工程の設定のダイアログを開き、右クリックで行の操作のメニューを出す。選んだ行・マウスが乗った
+    /// 行は、行の全体に色を付ける
     fn show_operation_table(&mut self, ui: &mut egui::Ui) {
         let mut select = None;
         let mut action = None;
+        // 乗った行は、前の描画のもの（行を描き終えるまで分からないため）。見出しの行が 0 のため、工程の行は 1 から
+        let hovered_id = ui.scope_id().with("operation_table_hovered");
+        let hovered_row = ui.data(|data| data.get_temp::<Option<usize>>(hovered_id).flatten());
+        let selected_row = self.selected_position().map(|at| at + 1);
+        let mut hovered_now = None;
+        let row_spacing = ui.spacing().item_spacing.y;
         egui::Grid::new("operation_table")
-            .striped(true)
             .num_columns(COLUMN_KEYS.len())
+            .with_row_color(move |row, style| {
+                if Some(row) == selected_row {
+                    // 選んだ行は、選択の色を薄めて、文字との差を抑える
+                    Some(
+                        style
+                            .visuals
+                            .selection
+                            .bg_fill
+                            .gamma_multiply(SELECTED_ROW_OPACITY),
+                    )
+                } else if row > 0 && Some(row) == hovered_row {
+                    Some(style.visuals.widgets.hovered.weak_bg_fill)
+                } else if row % 2 == 1 {
+                    Some(style.visuals.faint_bg_color)
+                } else {
+                    None
+                }
+            })
             .show(ui, |ui| {
                 for key in COLUMN_KEYS {
-                    ui.strong(self.text(key));
+                    ui.label(RichText::new(self.text(key)).strong());
                 }
                 ui.end_row();
                 for (index, row) in self.operations.iter().enumerate() {
                     let selected = row.id == self.selected_operation;
-                    let cells = [
+                    let texts = [
                         (index + 1).to_string(),
                         row.name.clone(),
                         self.text(stage_key(row.stage)),
                         self.text(spec_kind_key(&row.spec)),
                         self.tool_text(&row.tool),
-                        self.text(operation_row_key(row)),
                     ];
-                    for cell in cells {
-                        let response = ui.selectable_label(selected, cell);
-                        // 右クリックも、その行を選んでからメニューを出す（メニューの操作は、選んだ工程に対して行う）
-                        if !selected && (response.clicked() || response.secondary_clicked()) {
-                            select = Some(row.id);
-                        }
-                        if response.double_clicked() {
-                            action = Some(RowAction::OpenSettings);
-                        }
-                        response.context_menu(|ui| {
-                            if let Some(chosen) = self.row_menu(ui, index) {
-                                action = Some(chosen);
-                                ui.close();
-                            }
-                        });
+                    // 欄はすべて、行の高さの中央にそろえる。文字は押せない（画面の設定）ため、行のどこを押しても行を選べる
+                    let mut area = Rect::NOTHING;
+                    for text in texts {
+                        area = area.union(centered_label(ui, text));
                     }
+                    let status_key = operation_row_key(row);
+                    let status = ui.horizontal_centered(|ui| {
+                        let text = RichText::new(self.text(status_key));
+                        ui.label(match row_status_color(status_key) {
+                            Some(color) => text.color(color),
+                            None => text,
+                        });
+                        // 進み具合の割合はまだないため、計算中は動いていることだけを出す
+                        if row.status == JobStatusLine::Status(OperationJobStatus::Running) {
+                            // 印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）
+                            let size = ui.text_style_height(&egui::TextStyle::Body);
+                            ui.add(egui::Spinner::new().size(size));
+                        }
+                    });
+                    // 行のすべての欄と、行の間の半分を、押せる範囲にする
+                    let area = area
+                        .union(status.response.rect)
+                        .expand2(egui::vec2(0.0, row_spacing / 2.0));
+                    let response = ui.interact(
+                        area,
+                        ui.scope_id().with(("operation_row", row.id)),
+                        egui::Sense::click(),
+                    );
+                    // 右クリックも、その行を選んでからメニューを出す（メニューの操作は、選んだ工程に対して行う）
+                    if !selected && (response.clicked() || response.secondary_clicked()) {
+                        select = Some(row.id);
+                    }
+                    if response.double_clicked() {
+                        action = Some(RowAction::OpenSettings);
+                    }
+                    if response.hovered() {
+                        hovered_now = Some(index + 1);
+                    }
+                    response.context_menu(|ui| {
+                        if let Some(chosen) = self.row_menu(ui, index) {
+                            action = Some(chosen);
+                            ui.close();
+                        }
+                    });
                     ui.end_row();
                 }
             });
+        if hovered_now != hovered_row {
+            ui.data_mut(|data| data.insert_temp(hovered_id, hovered_now));
+            // 乗った行の色を、すぐに描き直す
+            ui.ctx().request_repaint();
+        }
         if let Some(id) = select {
             self.operation_command = Some(OperationCommand::Select(id));
         }
@@ -1397,9 +1526,10 @@ impl MachiningConditionsUiState {
 mod tests {
     use super::{
         calculation_blocked, condition_error_message, condition_field, imported_toolpath_key,
-        job_status_key, navigation_key, navigation_text, operation_row_key,
-        operation_row_status_key, operation_status_text, stage_key, ConditionField, JobStatusLine,
-        MachiningStage, OperationJobStatus, OperationRow, OperationStatus, COLUMN_KEYS,
+        job_status_key, navigation_key, navigation_text, next_action_of, operation_row_key,
+        operation_row_status_key, operation_status_text, row_status_color, stage_key,
+        ConditionField, JobStatusLine, MachiningStage, OperationJobStatus, OperationRow,
+        OperationStatus, RowAction, COLUMN_KEYS,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -1629,6 +1759,68 @@ mod tests {
                     "{status:?}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn the_next_button_follows_the_status_of_the_selected_operation() {
+        use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
+        let cases = [
+            (JobStatusLine::NotSubmitted, false, Some(RowAction::Submit)),
+            (
+                JobStatusLine::Status(Failed),
+                false,
+                Some(RowAction::Submit),
+            ),
+            (JobStatusLine::Status(Failed), true, Some(RowAction::Submit)),
+            (
+                JobStatusLine::Status(Canceled),
+                false,
+                Some(RowAction::Submit),
+            ),
+            (
+                JobStatusLine::Status(Succeeded),
+                false,
+                Some(RowAction::ImportToolpath),
+            ),
+            // 計算待ち・計算中・計算済みで取込済み・状態が分からないときは、目立たせない
+            (JobStatusLine::Status(Queued), false, None),
+            (JobStatusLine::Status(Running), false, None),
+            (JobStatusLine::Status(Succeeded), true, None),
+            // 取込済みで切削シミュレーションの結果がない工程は、切削シミュレーションだけを計算する
+            (JobStatusLine::NotSubmitted, true, Some(RowAction::Submit)),
+            (JobStatusLine::ManagerNotRunning, false, None),
+            (JobStatusLine::Reading, false, None),
+        ];
+        for (status, toolpath_current, action) in cases {
+            assert_eq!(
+                next_action_of(&status, toolpath_current),
+                action,
+                "{status:?} {toolpath_current}"
+            );
+        }
+    }
+
+    #[test]
+    fn row_statuses_are_colored_like_the_job_manager() {
+        for key in [
+            "conditions.operations.status.queued",
+            "conditions.operations.status.running",
+            "conditions.operations.status.succeeded",
+            "conditions.operations.status.imported",
+            "conditions.operations.status.failed",
+            "conditions.operations.status.canceled",
+            "conditions.operations.status.unreadable",
+        ] {
+            assert!(row_status_color(key).is_some(), "{key}");
+        }
+        // 未計算・状態不明・読んでいる間は、色を付けない
+        for key in [
+            "conditions.operations.status.none",
+            "conditions.operations.status.unknown",
+            "conditions.operations.status.reading",
+        ] {
+            assert!(row_status_color(key).is_none(), "{key}");
         }
     }
 

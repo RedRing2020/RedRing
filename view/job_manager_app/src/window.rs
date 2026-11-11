@@ -33,6 +33,9 @@ const DAY_MS: u64 = 24 * 60 * 60 * 1000;
 /// ログのタブに出す、ログの末尾の大きさ
 const LOG_TAIL_BYTES: u64 = 64 * 1024;
 
+/// ジョブの一覧の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
+const SELECTED_ROW_OPACITY: f32 = 0.45;
+
 const STATUSES: [StoredJobStatus; 5] = [
     StoredJobStatus::Queued,
     StoredJobStatus::Running,
@@ -912,7 +915,14 @@ impl JobManagerWindow {
                 .num_columns(7)
                 .with_row_color(move |row, style| {
                     if selected_rows.contains(&row) {
-                        Some(style.visuals.selection.bg_fill)
+                        // 選んだ行は、選択の色を薄めて、文字との差を抑える
+                        Some(
+                            style
+                                .visuals
+                                .selection
+                                .bg_fill
+                                .gamma_multiply(SELECTED_ROW_OPACITY),
+                        )
                     } else if row > 0 && Some(row) == hovered_row {
                         Some(style.visuals.widgets.hovered.weak_bg_fill)
                     } else if row % 2 == 1 {
@@ -941,7 +951,7 @@ impl JobManagerWindow {
                         } else {
                             job.job_id.to_string()
                         };
-                        // 欄はすべて、行の高さの中央にそろえる（状態の欄は、計算中の印のぶん高い）
+                        // 欄はすべて、行の高さの中央にそろえる
                         let mut cells = vec![centered_label(ui, id)];
                         cells.push(centered_label(ui, self.source_text(job)));
                         cells.push(centered_label(
@@ -958,7 +968,9 @@ impl JobManagerWindow {
                             );
                             // 進み具合の割合はまだないため、計算中は動いていることだけを出す
                             if job.status == StoredJobStatus::Running {
-                                ui.spinner();
+                                // 印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）
+                                let size = ui.text_style_height(&egui::TextStyle::Body);
+                                ui.add(egui::Spinner::new().size(size));
                             }
                         });
                         cells.push(status.response.rect);
