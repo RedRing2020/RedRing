@@ -20,7 +20,7 @@ use crate::inverse_offset::{CutterShape, MeshTriangles};
 use crate::inverse_offset_shape::InverseOffsetShape;
 use crate::process_template::{TemplateFailure, validate_rectangle_boundary};
 use crate::scan_frame::{ScanFrame, ScanRegion};
-use crate::scanline::generate_scanline_toolpath;
+use crate::scanline::{estimate_scanline_points, generate_scanline_toolpath};
 
 /// solver の失敗分類。
 ///
@@ -265,6 +265,26 @@ pub fn solve_toolpath(
         input.chord_tolerance,
         point_limit,
     )
+}
+
+/// 計算を始める前に、入力契約から生成するツールパスの点の数を見積もる（生成と同じ形状・工具・範囲で、走査ラインを
+/// 抜き出して数える。桁が合う程度）
+///
+/// # Errors
+///
+/// 入力の誤り、形状の三角形への分割の失敗、未対応の工具、範囲が空の場合。
+pub fn estimate_toolpath_points(input: &CamSolverInput) -> Result<u64, CamSolverError> {
+    let OperationSpec::Scanline(params) = input.operation;
+    let frame = ScanFrame::from_degrees(params.angle_degrees);
+    let (cutter, work_bounds) = build_cutter(input, frame)?;
+    let region = machining_region(
+        &cutter,
+        work_bounds,
+        frame,
+        input.boundary,
+        params.tool_range,
+    )?;
+    estimate_scanline_points(&cutter, &params, &region, input.chord_tolerance)
 }
 
 /// 入力を確かめ、ツールパス生成と同じ形状と工具で逆オフセット形状を作る（加工の座標。走査線の角度によらない）

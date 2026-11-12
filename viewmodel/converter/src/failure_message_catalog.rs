@@ -50,6 +50,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "空間モデルに今の条件の CL がありません",
     ),
     (
+        "failure.toolpath_too_large",
+        "ツールパスが約 {gb} GB になり、計算に使えるメモリの上限を超えます",
+    ),
+    (
         "failure.inverse_offset_shape",
         "逆オフセット形状を作れません",
     ),
@@ -149,6 +153,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.no_current_imported_toolpath",
         "The space model has no CL of the current conditions",
+    ),
+    (
+        "failure.toolpath_too_large",
+        "The toolpath would need about {gb} GB, more than the memory limit for the calculation",
     ),
     (
         "failure.inverse_offset_shape",

@@ -3,6 +3,7 @@
 use std::ops::RangeInclusive;
 
 use super::{AppState, SnapshotShadedColorSettings};
+use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use crate::machining_conditions_ui::OperationStatus;
 use render::mesh_list::MeshListItem;
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
@@ -10,10 +11,13 @@ use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::SequenceSubmissionError;
 use viewmodel::cutting_simulation_session::{
-    CuttingSimulationSessionError, RedoOutcome, StopOutcome, SubmissionKind,
+    CuttingSimulationSessionError, LargeToolpath, RedoOutcome, SequenceOutcome, StopOutcome,
+    SubmissionKind, SubmitOutcome,
 };
-use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
+use viewmodel::failure_message_mapper::{cutting_simulation_failure_message, format_gb};
 use viewmodel::mesh_converter::WireframeVertex;
+use viewmodel::message_catalog::UiLocale;
+use winit::window::Window;
 
 /// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
 const FRAME_STEP_DIVISIONS: f64 = 100.0;
@@ -23,6 +27,53 @@ const STOCK_BLOCK_KEYS: RangeInclusive<u64> = (1 << 63)..=u64::MAX;
 
 /// 素材の面の分類の、キーの中の位置（分類ごとのキーは続いた範囲になる）
 const CLASS_SHIFT: u32 = 60;
+
+/// ツールパスが大きくなる工程 `large` を出して、計算するかを確かめる（計算するなら `true`）
+fn confirm_large_toolpaths(window: &Window, locale: UiLocale, large: &[LargeToolpath]) -> bool {
+    let text = |key, args: &[(&str, String)]| resolve_machining_conditions_text(locale, key, args);
+    let operations = large
+        .iter()
+        .map(|item| {
+            text(
+                if item.near_limit {
+                    "conditions.confirm.large_toolpath_item_near_limit"
+                } else {
+                    "conditions.confirm.large_toolpath_item"
+                },
+                &[
+                    ("position", item.position.to_string()),
+                    ("operation", item.operation.clone()),
+                    ("gb", format_gb(item.memory_gb)),
+                ],
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let calculate = text("conditions.confirm.calculate", &[]);
+    let answer = rfd::MessageDialog::new()
+        .set_parent(window)
+        .set_level(rfd::MessageLevel::Warning)
+        .set_title(crate::app::APP_TITLE)
+        .set_description(text(
+            "conditions.confirm.large_toolpath",
+            &[("operations", operations)],
+        ))
+        .set_buttons(rfd::MessageButtons::OkCancelCustom(
+            calculate.clone(),
+            text("conditions.confirm.cancel", &[]),
+        ))
+        .show();
+    tracing::info!(
+        ?large,
+        ?answer,
+        "Asked whether to calculate large toolpaths"
+    );
+    match answer {
+        rfd::MessageDialogResult::Ok => true,
+        rfd::MessageDialogResult::Custom(label) => label == calculate,
+        _ => false,
+    }
+}
 
 /// 素材の面の分類の、キーの中の番号
 fn class_index(class: DeviationClass) -> u64 {
@@ -62,19 +113,26 @@ impl AppState {
     ///
     /// 投入できたかを返す。
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
-        let Some(kind) = self
-            .cutting_simulation
-            .submit(&mut self.document)
-            .transpose()
-        else {
-            // 押した後に読んだ状態が、計算待ち・計算中・計算済みだった（ボタンは最後に読んだ状態で決めるため）
-            tracing::info!(
-                "The machining operation is already waiting, calculating, or calculated"
-            );
-            self.set_operation_status(OperationStatus::AlreadyCalculated);
-            // 押したときに読んだ状態を、すぐ表とボタンに出す
-            self.job_status_read_at = None;
-            return false;
+        let (window, locale) = (&self.window, self.ui_locale);
+        let kind = match self.cutting_simulation.submit(&mut self.document, |large| {
+            confirm_large_toolpaths(window, locale, large)
+        }) {
+            Ok(SubmitOutcome::Submitted(kind)) => Ok(kind),
+            Ok(SubmitOutcome::AlreadyCalculated) => {
+                // 押した後に読んだ状態が、計算待ち・計算中・計算済みだった（ボタンは最後に読んだ状態で決めるため）
+                tracing::info!(
+                    "The machining operation is already waiting, calculating, or calculated"
+                );
+                self.set_operation_status(OperationStatus::AlreadyCalculated);
+                // 押したときに読んだ状態を、すぐ表とボタンに出す
+                self.job_status_read_at = None;
+                return false;
+            }
+            Ok(SubmitOutcome::Declined) => {
+                self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                return false;
+            }
+            Err(error) => Err(error),
         };
         let result = kind.map(|kind| {
             let simulation_only = kind == SubmissionKind::SimulationOnly;
@@ -95,7 +153,14 @@ impl AppState {
     ///
     /// 投入できたかを返す。
     pub(crate) fn redo_cutting_simulation(&mut self) -> bool {
-        let result = match self.cutting_simulation.redo(&mut self.document) {
+        let (window, locale) = (&self.window, self.ui_locale);
+        let result = match self.cutting_simulation.redo(&mut self.document, |large| {
+            confirm_large_toolpaths(window, locale, large)
+        }) {
+            Ok(RedoOutcome::Declined) => {
+                self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                return false;
+            }
             Ok(RedoOutcome::Waiting) => {
                 // 押した後に読んだ状態が計算待ちだった（ボタンは最後に読んだ状態で決めるため）
                 tracing::info!("The machining operation is already waiting for the calculation");
@@ -122,8 +187,17 @@ impl AppState {
 
     /// 加工手順のすべての加工工程を投入する（実行しない）。1 つでも投入できたかを返す
     pub(crate) fn submit_sequence(&mut self) -> bool {
-        match self.cutting_simulation.submit_sequence(&mut self.document) {
-            Ok(submission) => {
+        let (window, locale) = (&self.window, self.ui_locale);
+        match self
+            .cutting_simulation
+            .submit_sequence(&mut self.document, |large| {
+                confirm_large_toolpaths(window, locale, large)
+            }) {
+            Ok(SequenceOutcome::Declined) => {
+                self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                false
+            }
+            Ok(SequenceOutcome::Submitted(submission)) => {
                 tracing::info!(
                     submitted = submission.submitted,
                     simulation_only = submission.simulation_only,

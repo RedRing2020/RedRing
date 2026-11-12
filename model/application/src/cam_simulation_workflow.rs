@@ -19,13 +19,14 @@ use std::fmt;
 
 use cam_algorithms::{
     CamSolverError, CamSolverInput, InverseOffsetShape, ScanlineInputError,
-    build_inverse_offset_shape,
+    build_inverse_offset_shape, estimate_toolpath_points,
 };
 use cam_core::{CoordinateFrame, LengthUnit, StockMargins};
 use cam_entity::MachiningOperation;
 use cam_sim::{
     CuttingSimulationInput, CuttingSimulationInputError, SnapshotInterval,
-    cutting_simulation_input_errors, stock_around_product,
+    TOOLPATH_MEMORY_LIMIT_BYTES, cutting_simulation_input_errors, stock_around_product,
+    toolpath_memory_bytes,
 };
 /// 軸に平行な直方体の型（素材の形に使う）
 pub use geo_algorithms::Aabb3D;
@@ -278,6 +279,8 @@ pub enum CamSimulationWorkflowError {
     JobStore(String),
     /// 加工工程の今の条件の CL を、空間モデルに取り込んでいない
     NoCurrentImportedToolpath,
+    /// 見積もったツールパスが、ツールパス生成のメモリの上限を超える
+    ToolpathTooLarge(ToolpathEstimate),
 }
 
 impl fmt::Display for CamSimulationWorkflowError {
@@ -315,6 +318,11 @@ impl fmt::Display for CamSimulationWorkflowError {
             Self::NoCurrentImportedToolpath => {
                 write!(f, "no imported toolpath of the current conditions")
             }
+            Self::ToolpathTooLarge(estimate) => write!(
+                f,
+                "the estimated toolpath ({} points, {} bytes) exceeds the memory limit",
+                estimate.points, estimate.memory_bytes
+            ),
         }
     }
 }
@@ -384,6 +392,41 @@ impl CamSimulationWorkflow {
         operation_id: MachiningOperationId,
     ) -> Result<(), CamSimulationWorkflowError> {
         resolve_operation_request(shapes, sequences, sequence_id, operation_id).map(|_| ())
+    }
+
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` のツールパスの大きさを、計算を始める前に
+    /// 見積もり、確かめずに計算してよいか・確かめてから計算するかを返す
+    ///
+    /// 見積もれないときは、確かめずに計算してよいとする（計算すれば、計算の失敗として理由が分かる）。
+    ///
+    /// # Errors
+    ///
+    /// 投入前の確認（[`Self::check_operation`]）の誤り、見積もったツールパスがメモリの上限を超える場合。
+    pub fn check_toolpath_size(
+        shapes: &ProductShapeStore,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<ToolpathSize, CamSimulationWorkflowError> {
+        let (request, _) = resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
+        let started = std::time::Instant::now();
+        match estimate_toolpath_points(&request.solver_input) {
+            Ok(points) => {
+                tracing::info!(
+                    points,
+                    memory_bytes = toolpath_memory_bytes(points),
+                    elapsed_ms = started.elapsed().as_millis() as u64,
+                    "Estimated the toolpath size before the calculation"
+                );
+                toolpath_size(points)
+            }
+            Err(error) => {
+                tracing::warn!(
+                    "Cannot estimate the toolpath size, calculating without asking: {error}"
+                );
+                Ok(ToolpathSize::Normal)
+            }
+        }
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、投入したときのツールパス生成と同じ逆オフセット形状を
@@ -813,6 +856,59 @@ fn current_revision(
                 && source.revision_key.as_deref() == Some(revision_key.as_str())
         })
     })
+}
+
+/// ツールパス生成のメモリの見積もりが、計算の前に確かめる目安（バイト。2 GB）
+const TOOLPATH_CONFIRM_BYTES: u64 = 2_000_000_000;
+
+/// 計算を始める前に見積もったツールパスの大きさ（桁が合う程度）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToolpathEstimate {
+    /// パスの点の数
+    pub points: u64,
+    /// 生成に使うメモリ（バイト）
+    pub memory_bytes: u64,
+}
+
+impl ToolpathEstimate {
+    /// 生成に使うメモリ（GB）
+    pub fn memory_gb(&self) -> f64 {
+        self.memory_bytes as f64 / 1e9
+    }
+
+    /// 生成に使うメモリが、メモリの上限に近いか（上限の 8 割以上。見積もりの幅のため、計算しても途中で上限を
+    /// 超えて止まることがある）
+    pub fn is_near_limit(&self) -> bool {
+        self.memory_bytes >= TOOLPATH_MEMORY_LIMIT_BYTES / 10 * 8
+    }
+}
+
+/// 見積もったツールパスの大きさで決める、計算の始め方
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolpathSize {
+    /// 確かめずに計算してよい
+    Normal,
+    /// 確かめる目安を超えるため、確かめてから計算する
+    Large(ToolpathEstimate),
+}
+
+/// 点 `points` 個のツールパスの計算の始め方
+///
+/// # Errors
+///
+/// メモリの見積もりがツールパス生成のメモリの上限を超える場合。
+fn toolpath_size(points: u64) -> Result<ToolpathSize, CamSimulationWorkflowError> {
+    let estimate = ToolpathEstimate {
+        points,
+        memory_bytes: toolpath_memory_bytes(points),
+    };
+    if estimate.memory_bytes > TOOLPATH_MEMORY_LIMIT_BYTES {
+        Err(CamSimulationWorkflowError::ToolpathTooLarge(estimate))
+    } else if estimate.memory_bytes >= TOOLPATH_CONFIRM_BYTES {
+        Ok(ToolpathSize::Large(estimate))
+    } else {
+        Ok(ToolpathSize::Normal)
+    }
 }
 
 /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、ツールパス生成から切削シミュレーション
