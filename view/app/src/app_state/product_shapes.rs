@@ -85,7 +85,8 @@ impl AppState {
         let device = self.graphic.device.clone();
         if let Some(mesh_stage) = self.main_mesh_stage() {
             mesh_stage.set_overlay_toolpath_visible(visible);
-            mesh_stage.set_overlay_toolpath_line_data(&device, lines);
+            let lines = mesh_stage.set_overlay_toolpath_line_data(&device, &lines);
+            self.report_lines(lines);
         }
     }
 
