@@ -1133,12 +1133,31 @@ fn the_toolpath_stops_when_its_points_exceed_the_limit() {
     // ピックフィードがとても小さいと、走査ラインの並びを作る前に止める
     let OperationSpec::Scanline(mut params) = input.operation;
     params.stepover = 1e-12;
-    let tiny = CamSolverInput {
+    let tiny_stepover = CamSolverInput {
         operation: OperationSpec::Scanline(params),
         ..input
     };
     assert_eq!(
-        solve_toolpath(&tiny, points).unwrap_err(),
+        solve_toolpath(&tiny_stepover, points).unwrap_err(),
+        CamSolverError::TooManyPoints
+    );
+    // 工具の半径がとても小さいと、走査ライン上の X の並びを作る前に止める（Y にとても薄い形状で、走査ラインは
+    // 上限より少なく、ライン上の X は約 1e10 個。止めないと、並びだけで約 80 GB を確保しようとする）
+    let thin_strip = mesh(
+        &[
+            (0.0, 0.0, 0.0),
+            (10.0, 0.0, 0.0),
+            (10.0, 1e-6, 0.0),
+            (0.0, 1e-6, 0.0),
+        ],
+        &[[0, 1, 2], [0, 2, 3]],
+    );
+    let mut tiny_tool = solver_input(SolverGeometry::TriangleMesh(thin_strip));
+    tiny_tool.tool = Tool::ball_end_mill("BEM-tiny".to_string(), 2e-9, 30.0);
+    let OperationSpec::Scanline(params) = &mut tiny_tool.operation;
+    params.stepover = 2e-9;
+    assert_eq!(
+        solve_toolpath(&tiny_tool, 1_000_000).unwrap_err(),
         CamSolverError::TooManyPoints
     );
 }

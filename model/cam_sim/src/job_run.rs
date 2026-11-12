@@ -2,7 +2,7 @@
 //!
 //! 入力の値から成果物のバイト列を作る。
 
-use std::io::Read;
+use std::io::{Read, Write};
 
 use cam_algorithms::{CamSolverError, CamSolverInput, ProductSurface, solve_toolpath};
 use cam_core::{
@@ -17,8 +17,8 @@ use crate::{CuttingSimulationInput, CuttingSimulator};
 
 /// ツールパス生成の点 1 つあたりに使うメモリの見積もり（バイト）
 ///
-/// 生成の間はパスの点（24 バイト）と線分（120 バイト）を持ち、成果物のバイト列（線分 1 本あたり約 62 バイト。伸ばす
-/// ときに最大で 2 倍の領域）を作る間は線分とバイト列を持つ。多い側に余裕を足して 250 バイトとする。
+/// 生成の間はパスの点（24 バイト）と線分（120 バイト）を持ち、成果物のバイト列（線分 1 本あたり約 62 バイト。長さを
+/// 数えてから確保する）を作る間は線分とバイト列を持つ。多い側に余裕を足して 250 バイトとする。
 const TOOLPATH_BYTES_PER_POINT: u64 = 250;
 
 /// ツールパス生成に使ってよいメモリの上限（バイト。8 GB。点の数に直し、超えたら止める）
@@ -184,15 +184,34 @@ fn encode_toolpath_artifact(
     let mut header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, 0);
     header.unit = unit;
     header.frame = frame;
-    let mut bytes = Vec::new();
+    // 先に長さだけを数えて、ちょうどの大きさを確保する（伸ばしながら書くと、伸ばす瞬間に古い領域と新しい領域を
+    // 同時に持ち、ツールパスのバイト列の 3 倍までメモリを使うため）
+    let mut counter = ByteCounter(0);
+    header.write_to(&mut counter)?;
+    let header_len = counter.0;
+    write_toolpath_payload_v1(&mut counter, toolpath)?;
+    let mut bytes = Vec::with_capacity(counter.0);
     header.write_to(&mut bytes)?;
-    let header_len = bytes.len();
     write_toolpath_payload_v1(&mut bytes, toolpath)?;
     header.payload_len = (bytes.len() - header_len) as u64;
     let mut head = Vec::with_capacity(header_len);
     header.write_to(&mut head)?;
     bytes[..header_len].copy_from_slice(&head);
     Ok(bytes)
+}
+
+/// 書いたバイトの数だけを数える書き先
+struct ByteCounter(usize);
+
+impl Write for ByteCounter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0 += buf.len();
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 /// 成果物の読み込みの失敗の分類
