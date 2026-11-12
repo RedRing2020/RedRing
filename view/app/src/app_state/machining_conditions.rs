@@ -388,6 +388,18 @@ impl AppState {
     }
 
     pub(crate) fn prepare_machining_conditions_state(&mut self) -> MachiningConditionsUiState {
+        // 計算の条件・素材・加工の対象を変えて、切削アニメーションの工程の CL を除いたら（前の条件の結果のため）、
+        // アニメーションを閉じる
+        if self.cutting_animation.is_some()
+            && self.imported_operation.is_some_and(|operation| {
+                self.document.imported_toolpath_state_of(operation) == ImportedToolpathState::None
+            })
+        {
+            tracing::info!(
+                "Closing the cutting animation because its CL is of the previous conditions"
+            );
+            self.close_cutting_animation();
+        }
         // 条件・素材・加工の対象を変えて、選んだ工程の CL が今の条件の結果かが変わったら、線の色を描き直す。加工手順を
         // 開いた・閉じたら、線を出す・消す
         let toolpath_state = (

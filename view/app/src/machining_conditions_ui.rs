@@ -623,7 +623,6 @@ fn imported_toolpath_key(state: ImportedToolpathState) -> &'static str {
     match state {
         ImportedToolpathState::None => "conditions.toolpath.none",
         ImportedToolpathState::Current => "conditions.toolpath.current",
-        ImportedToolpathState::Outdated => "conditions.toolpath.outdated",
     }
 }
 
@@ -2037,11 +2036,7 @@ mod tests {
     #[test]
     fn every_imported_toolpath_state_has_a_message() {
         use viewmodel::space_model_document::ImportedToolpathState;
-        for state in [
-            ImportedToolpathState::None,
-            ImportedToolpathState::Current,
-            ImportedToolpathState::Outdated,
-        ] {
+        for state in [ImportedToolpathState::None, ImportedToolpathState::Current] {
             for locale in [UiLocale::Ja, UiLocale::En] {
                 let text =
                     resolve_machining_conditions_text(locale, imported_toolpath_key(state), &[]);

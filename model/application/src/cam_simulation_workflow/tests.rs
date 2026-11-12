@@ -938,14 +938,11 @@ fn the_toolpath_of_an_imported_result_is_copied_into_the_space_model() {
             .unwrap()
     );
 
-    // 条件を変えると、前の条件の結果になる
+    // 条件を変えると、前の条件の結果になり、今の条件の結果としては使わない
     let mut changed = stock();
     changed.margins.top = 10.0;
     machining.set_stock(changed);
-    assert_eq!(
-        state(&toolpaths, &machining),
-        ImportedToolpathState::Outdated
-    );
+    assert_eq!(state(&toolpaths, &machining), ImportedToolpathState::None);
     // 前の条件の結果は、今の条件の結果として取り込まない
     assert!(
         !toolpaths
@@ -957,10 +954,7 @@ fn the_toolpath_of_an_imported_result_is_copied_into_the_space_model() {
             )
             .unwrap()
     );
-    assert_eq!(
-        state(&toolpaths, &machining),
-        ImportedToolpathState::Outdated
-    );
+    assert_eq!(state(&toolpaths, &machining), ImportedToolpathState::None);
 }
 
 #[test]

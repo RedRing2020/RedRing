@@ -104,10 +104,39 @@ fn imported_toolpaths_are_current_until_the_conditions_change() {
             },
         )
         .unwrap();
+    // 前の条件の CL は、除く前でも使わない
     assert_eq!(
         store.state(&sequences, sequence, operation).unwrap(),
-        ImportedToolpathState::Outdated
+        ImportedToolpathState::None
     );
+}
+
+#[test]
+fn the_cl_of_previous_conditions_is_removed() {
+    let (mut sequences, sequence, operation) = one_operation();
+    let mut store =
+        ImportedToolpathStore::from_records(vec![record_of(&sequences, sequence, operation)])
+            .unwrap();
+    // 今の条件の CL は除かない
+    assert_eq!(
+        store.remove_outdated(&sequences, sequence).unwrap(),
+        Vec::new()
+    );
+    assert_eq!(store.records().len(), 1);
+    sequences
+        .set_stock(
+            sequence,
+            MachiningStock {
+                margins: StockMargins::default(),
+                precision: 0.2,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        store.remove_outdated(&sequences, sequence).unwrap(),
+        vec![operation]
+    );
+    assert!(store.records().is_empty());
 }
 
 #[test]

@@ -137,6 +137,15 @@ impl SpaceModelDocument {
             modified: false,
             display: ProductShapeDisplaySettings::default(),
         };
+        // 前の版で残した、前の条件の CL を除く（すべての加工手順。利用者が変えたものではないため、保存していない
+        // 変更にしない）
+        for sequence in document.model.sequences.sequence_ids() {
+            document
+                .model
+                .toolpaths
+                .remove_outdated(&document.model.sequences, sequence)
+                .expect("the sequence is held");
+        }
         // 加工の対象は表示中の面にするため、開いたときに合わせる（作った加工手順・前に合わせていない加工の対象。
         // 利用者が変えたものではないため、保存していない変更にしない）
         document.target_visible_faces();
@@ -426,17 +435,17 @@ impl SpaceModelDocument {
             .unwrap_or(ImportedToolpathState::None)
     }
 
-    /// 編集の対象の加工工程に取り込んだ CL の線（今の表示の設定 `settings` で作る）と、その CL が今の条件の結果か
-    /// （取り込んでいなければ `None`）
+    /// 編集の対象の加工工程に取り込んだ、今の条件の CL の線（今の表示の設定 `settings` で作る。取り込んでいなければ
+    /// `None`）
     pub fn selected_toolpath_wireframe(
         &self,
         settings: &ToolPathVisualizationSettings,
-    ) -> Option<(Vec<WireframeVertex>, ImportedToolpathState)> {
+    ) -> Option<Vec<WireframeVertex>> {
+        if self.imported_toolpath_state() != ImportedToolpathState::Current {
+            return None;
+        }
         let toolpath = self.model.toolpaths.toolpath(self.operation)?;
-        Some((
-            create_toolpath_wireframe_vertices(&toolpath, settings),
-            self.imported_toolpath_state(),
-        ))
+        Some(create_toolpath_wireframe_vertices(&toolpath, settings))
     }
 
     /// 編集の対象の加工工程に取り込んだ CL が、今の条件の結果か
@@ -499,7 +508,9 @@ impl SpaceModelDocument {
         )
     }
 
-    /// 加工手順を `edit` で編集し、編集の対象の加工工程の改訂が変われば、保存していない変更にする
+    /// 加工手順を `edit` で編集し、編集の対象の加工工程の改訂が変われば、保存していない変更にして、改訂が進んだ工程の
+    /// 前の条件の CL を除く（前の条件の CL は使わない。計算の条件・素材・加工の対象のどれを変えても、編集の対象の
+    /// 工程の改訂は進む）
     fn edit_sequences(
         &mut self,
         edit: impl FnOnce(&mut MachiningSequenceStore, MachiningSequenceId, MachiningOperationId),
@@ -508,6 +519,10 @@ impl SpaceModelDocument {
         edit(&mut self.model.sequences, self.sequence, self.operation);
         if self.revision_key() != before {
             self.modified = true;
+            self.model
+                .toolpaths
+                .remove_outdated(&self.model.sequences, self.sequence)
+                .expect("the document holds its machining sequence");
         }
     }
 

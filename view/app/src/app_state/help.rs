@@ -88,7 +88,7 @@ impl AppState {
         }
         let locale = self.ui_locale;
         let job_status = &self.cutting_simulation_job_status;
-        // 失敗・読めない計算は失敗、前の条件の CL は注意の色で出す
+        // 失敗・読めない計算は失敗の色で出す
         let job_level = match job_status {
             JobStatusLine::Status(OperationJobStatus::Failed)
             | JobStatusLine::Unreadable
@@ -97,13 +97,9 @@ impl AppState {
             _ => NoticeLevel::Info,
         };
         let toolpath = self.document.imported_toolpath_state();
-        let toolpath_level = match toolpath {
-            ImportedToolpathState::Outdated => NoticeLevel::Warning,
-            ImportedToolpathState::None | ImportedToolpathState::Current => NoticeLevel::Info,
-        };
         let mut details = vec![
             (job_level, job_status_text(locale, job_status)),
-            (toolpath_level, imported_toolpath_text(locale, toolpath)),
+            (NoticeLevel::Info, imported_toolpath_text(locale, toolpath)),
         ];
         details.extend(
             self.condition_issues

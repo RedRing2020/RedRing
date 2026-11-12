@@ -6,10 +6,6 @@ use render::mesh_list::MeshListItem;
 use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
 use stage::MeshStage;
 use std::path::Path;
-use viewmodel::space_model_document::ImportedToolpathState;
-
-/// 今の条件の結果でない CL の線の色
-const OUTDATED_TOOLPATH_COLOR: [f32; 3] = [0.55, 0.55, 0.55];
 
 impl AppState {
     /// STL ファイルを製品形状として取り込み、表示中の製品形状を表示する
@@ -57,9 +53,8 @@ impl AppState {
         self.build_product_shape_stage(false);
     }
 
-    /// 切削アニメーションを出していないときに、選んだ加工工程の空間モデルの CL の線を描き直す（今の条件の結果でない
-    /// CL は灰色にする）。CL の線は、加工手順を開いている間だけ出す（閉じている・CL を取り込んでいなければ、線を消して
-    /// 放す）
+    /// 切削アニメーションを出していないときに、選んだ加工工程の空間モデルの CL の線を描き直す。CL の線は、加工手順を
+    /// 開いている間だけ出す（閉じている・CL を取り込んでいなければ、線を消して放す）
     pub(super) fn refresh_operation_toolpath_lines(&mut self) {
         if self.cutting_animation.is_some() {
             return;
@@ -76,11 +71,9 @@ impl AppState {
         } else {
             None
         };
-        let lines = match wireframe {
-            Some((vertices, ImportedToolpathState::Current)) => line_vertices(&vertices, None),
-            Some((vertices, _)) => line_vertices(&vertices, Some(OUTDATED_TOOLPATH_COLOR)),
-            None => Vec::new(),
-        };
+        let lines = wireframe
+            .map(|vertices| line_vertices(&vertices, None))
+            .unwrap_or_default();
         let visible = self.toolpath_lines_visible;
         let device = self.graphic.device.clone();
         if let Some(mesh_stage) = self.main_mesh_stage() {
