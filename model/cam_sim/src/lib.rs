@@ -38,7 +38,10 @@ pub use job_input_file::{
     write_cutting_simulation_input_v1,
 };
 /// ジョブ 1 つの計算（入力から成果物のバイト列を作る）。
-pub use job_run::{CuttingSimulationRun, JobRunFailure, run_cam_solver, run_cutting_simulation};
+pub use job_run::{
+    CuttingSimulationRun, JobRunFailure, TOOLPATH_MEMORY_LIMIT_BYTES, run_cam_solver,
+    run_cutting_simulation, toolpath_memory_bytes,
+};
 pub use preflight::{CuttingSimulationInputError, cutting_simulation_input_errors};
 pub use product_deviation::ProductDeviations;
 /// 成果物の差分のキーフレームと正本から、任意の時点の素材を作り直す再生の入口。

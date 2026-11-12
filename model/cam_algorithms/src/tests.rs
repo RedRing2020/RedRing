@@ -13,7 +13,7 @@ use geo_contracts::{
 
 use crate::{
     CamSolverError, CamSolverInput, CutterShape, InverseOffsetShape, ScanlineInputError,
-    SolverGeometry, build_inverse_offset_shape, solve_toolpath,
+    SolverGeometry, build_inverse_offset_shape, estimate_toolpath_points, solve_toolpath,
 };
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {
@@ -1160,6 +1160,82 @@ fn the_toolpath_stops_when_its_points_exceed_the_limit() {
         solve_toolpath(&tiny_tool, 1_000_000).unwrap_err(),
         CamSolverError::TooManyPoints
     );
+}
+
+/// ツールパスのパスの点の数（パスごとに、線分の数より 1 つ多い）
+fn toolpath_points(input: &CamSolverInput) -> u64 {
+    solve_toolpath(input, usize::MAX)
+        .unwrap()
+        .contour_levels
+        .iter()
+        .map(|level| level.cutting_segments().len() as u64 + 1)
+        .sum()
+}
+
+#[test]
+fn the_toolpath_points_are_estimated_before_the_calculation() {
+    // 走査ラインが抜き出す数より少なければ、すべてのラインを数えるため、生成と同じ数になる
+    let flat = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
+    assert_eq!(
+        estimate_toolpath_points(&flat).unwrap(),
+        toolpath_points(&flat)
+    );
+    // 走査ラインが多いときは、抜き出したラインから掛け戻す（曲面・走査線の角度があっても、桁が合う）
+    let mut dome = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    let OperationSpec::Scanline(params) = &mut dome.operation;
+    params.stepover = 0.6;
+    params.angle_degrees = 30.0;
+    let (estimate, actual) = (
+        estimate_toolpath_points(&dome).unwrap() as f64,
+        toolpath_points(&dome) as f64,
+    );
+    assert!(
+        (0.8..1.25).contains(&(estimate / actual)),
+        "{estimate} {actual}"
+    );
+}
+
+#[test]
+fn x_samples_are_estimated_only_where_the_tool_touches_the_shape() {
+    // 離れた 2 つの 1 mm 角（X: 0..1 と 99..100）。工具が当たるのは走査ラインの 2% ほど
+    let squares = mesh(
+        &[
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (99.0, 0.0, 0.0),
+            (100.0, 0.0, 0.0),
+            (100.0, 1.0, 0.0),
+            (99.0, 1.0, 0.0),
+        ],
+        &[[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7]],
+    );
+    let mut input = solver_input(SolverGeometry::TriangleMesh(squares));
+    input.tool = Tool::ball_end_mill("BEM0.01".to_string(), 0.01, 30.0);
+    let OperationSpec::Scanline(params) = &mut input.operation;
+    params.stepover = 0.01;
+    params.tool_range = ScanlineToolRange::GeometryExtent;
+    // 抜き出したラインの X は約 128 万個のため、X の数で見積もる（当たらない所を数えると 50 倍になる）
+    let (estimate, actual) = (
+        estimate_toolpath_points(&input).unwrap() as f64,
+        toolpath_points(&input) as f64,
+    );
+    assert!(
+        (0.5..2.0).contains(&(estimate / actual)),
+        "{estimate} {actual}"
+    );
+}
+
+#[test]
+fn a_toolpath_with_too_many_x_samples_is_estimated_without_finding_the_passes() {
+    // 工具の半径がとても小さいと、パスを求めずに X の数で見積もる（すぐに返り、上限を超える大きさになる）
+    let mut input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
+    input.tool = Tool::ball_end_mill("BEM-tiny".to_string(), 2e-6, 30.0);
+    let OperationSpec::Scanline(params) = &mut input.operation;
+    params.stepover = 2e-6;
+    // 約 5e6 本 × 約 1e7 個
+    assert!(estimate_toolpath_points(&input).unwrap() > 10_000_000_000_000);
 }
 
 #[test]

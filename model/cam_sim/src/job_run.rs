@@ -22,7 +22,12 @@ use crate::{CuttingSimulationInput, CuttingSimulator};
 const TOOLPATH_BYTES_PER_POINT: u64 = 250;
 
 /// ツールパス生成に使ってよいメモリの上限（バイト。8 GB。点の数に直し、超えたら止める）
-const TOOLPATH_MEMORY_LIMIT_BYTES: u64 = 8_000_000_000;
+pub const TOOLPATH_MEMORY_LIMIT_BYTES: u64 = 8_000_000_000;
+
+/// 点 `points` 個のツールパスの生成に使うメモリの見積もり（バイト）
+pub fn toolpath_memory_bytes(points: u64) -> u64 {
+    points.saturating_mul(TOOLPATH_BYTES_PER_POINT)
+}
 
 /// メモリの上限 `memory_bytes` に収まる、ツールパスの点の数
 fn toolpath_point_limit(memory_bytes: u64) -> usize {

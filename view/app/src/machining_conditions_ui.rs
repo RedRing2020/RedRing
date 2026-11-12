@@ -64,6 +64,8 @@ pub(crate) enum OperationStatus {
     AlreadyImported,
     /// 今の条件の計算が計算待ちのため、再計算しない（計算が始まってから再計算できる）
     RecalculationWaiting,
+    /// ツールパスが大きくなることを確かめて、計算しないことにした
+    LargeToolpathDeclined,
     /// 今の条件の計算待ち・計算中の計算を止めている（取り消すよう頼んだ。止まるのは待たない）
     Stopped,
     /// 今の条件の計算に、待ってもジョブマネージャーが受け取らない投入があり、すべては止めていない
@@ -222,6 +224,9 @@ fn operation_status_message(
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
         OperationStatus::AlreadyCalculated => ("conditions.status.already_calculated", vec![]),
         OperationStatus::AlreadyImported => ("conditions.status.already_imported", vec![]),
+        OperationStatus::LargeToolpathDeclined => {
+            ("conditions.status.large_toolpath_declined", vec![])
+        }
         OperationStatus::RecalculationWaiting => {
             ("conditions.status.recalculation_waiting", vec![])
         }
@@ -1646,6 +1651,7 @@ mod tests {
             OperationStatus::AlreadyCalculated,
             OperationStatus::AlreadyImported,
             OperationStatus::RecalculationWaiting,
+            OperationStatus::LargeToolpathDeclined,
             OperationStatus::Stopped,
             OperationStatus::StopNotYetAccepted,
             OperationStatus::NothingToStop,

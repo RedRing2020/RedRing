@@ -156,6 +156,7 @@ impl Notice {
                 | OperationStatus::NothingToStop => NoticeLevel::Warning,
                 OperationStatus::Submitted { .. }
                 | OperationStatus::Redone { .. }
+                | OperationStatus::LargeToolpathDeclined
                 | OperationStatus::Stopped
                 | OperationStatus::SequenceSubmitted { .. }
                 | OperationStatus::Imported { .. }

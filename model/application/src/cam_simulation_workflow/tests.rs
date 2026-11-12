@@ -380,6 +380,68 @@ fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
 }
 
 #[test]
+fn toolpath_sizes_are_split_by_the_confirmation_and_the_memory_limit() {
+    // 点 1 つあたり 250 バイトで、2 GB は 800 万点、8 GB は 3200 万点
+    assert_eq!(toolpath_size(7_999_999).unwrap(), ToolpathSize::Normal);
+    let large = ToolpathEstimate {
+        points: 8_000_000,
+        memory_bytes: 2_000_000_000,
+    };
+    assert_eq!(
+        toolpath_size(8_000_000).unwrap(),
+        ToolpathSize::Large(large)
+    );
+    assert!(matches!(
+        toolpath_size(32_000_000).unwrap(),
+        ToolpathSize::Large(_)
+    ));
+    assert_eq!(
+        toolpath_size(32_000_001).unwrap_err(),
+        CamSimulationWorkflowError::ToolpathTooLarge(ToolpathEstimate {
+            points: 32_000_001,
+            memory_bytes: 8_000_000_250,
+        })
+    );
+}
+
+#[test]
+fn the_toolpath_size_of_an_operation_is_checked_before_the_calculation() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let check = |machining: &Machining| {
+        CamSimulationWorkflow::check_toolpath_size(
+            &shapes,
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+        )
+    };
+    assert_eq!(check(&machining).unwrap(), ToolpathSize::Normal);
+    // 工具が小さく、ピックフィードがとても小さいと、確かめる目安・メモリの上限を超える
+    let mut check_with_stepover = |stepover: f64| {
+        let mut content = operation_content();
+        content.conditions.tool = Tool::ball_end_mill("BEM0.1".to_string(), 0.1, 30.0);
+        let OperationSpec::Scanline(params) = &mut content.conditions.spec;
+        params.stepover = stepover;
+        machining
+            .store
+            .set_operation_content(machining.sequence, machining.operation, content)
+            .unwrap();
+        check(&machining)
+    };
+    // 約 1600 万点（約 4 GB）
+    assert!(matches!(
+        check_with_stepover(0.002),
+        Ok(ToolpathSize::Large(_))
+    ));
+    // 約 6500 万点（約 16 GB）
+    assert!(matches!(
+        check_with_stepover(0.0005),
+        Err(CamSimulationWorkflowError::ToolpathTooLarge(_))
+    ));
+}
+
+#[test]
 fn the_current_revision_jobs_except_a_submission_are_canceled() {
     let (shapes, face) = pyramid_shape();
     let machining = Machining::new(vec![face]);

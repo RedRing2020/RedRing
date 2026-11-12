@@ -76,39 +76,14 @@ pub(crate) fn generate_scanline_toolpath(
             ScanlineCutDirection::ZigZag => line % 2 == 0,
         };
         let passes_before = passes.len();
-        let mut run: Vec<Point3D<f64>> = Vec::new();
-        // 直前の点が工具が形状に接触しない点の場合の X
-        let mut outside = None;
-        // 送る向きに並べた X
-        let mut xs_in_feed_order =
-            uniform_samples(x_min, x_max, cutter.shape().radius(), point_limit)?;
-        if !forward {
-            xs_in_feed_order.reverse();
-        }
-        for x in xs_in_feed_order {
-            match cutter.tip_point_at(x, y) {
-                Some(point) => {
-                    if let Some(start) = outside
-                        .take()
-                        .and_then(|outside| contact_end(cutter, y, point, outside, tolerance))
-                    {
-                        run.push(start);
-                    }
-                    run.push(point);
-                }
-                None => {
-                    if let Some(end) = run
-                        .last()
-                        .and_then(|&inside| contact_end(cutter, y, inside, x, tolerance))
-                    {
-                        run.push(end);
-                    }
-                    flush_run(&mut run, &mut passes, cutter, y, tolerance);
-                    outside = Some(x);
-                }
-            }
-        }
-        flush_run(&mut run, &mut passes, cutter, y, tolerance);
+        scan_line(
+            cutter,
+            (y, x_min, x_max),
+            forward,
+            tolerance,
+            point_limit,
+            &mut passes,
+        )?;
         points = passes[passes_before..]
             .iter()
             .fold(points, |sum, pass| sum.saturating_add(pass.len()));
@@ -155,6 +130,157 @@ pub(crate) fn generate_scanline_toolpath(
         levels,
         Vec::new(),
     ))
+}
+
+/// 見積もりで抜き出す走査ラインの数
+const ESTIMATE_SAMPLE_LINES: usize = 64;
+
+/// 見積もりで、抜き出した走査ラインの上で求める X の数の合計の上限（超えるなら、パスを求めずに X の数で見積もる。
+/// 見積もりに時間をかけすぎないため）
+const ESTIMATE_MAX_SAMPLES: f64 = 200_000.0;
+
+/// X の数で見積もるときに、工具が形状に接触するかを確かめる、走査ライン 1 本あたりの X の数
+const ESTIMATE_CONTACT_PROBES: usize = 1024;
+
+/// 走査線の向きの座標の逆オフセット形状 `cutter` の、範囲 `region` のスキャン加工のパスの点の数を、トレランス
+/// `tolerance` で見積もる
+///
+/// 走査ラインを等間隔に抜き出し（全体が少なければすべて）、生成と同じ処理で各ラインのパスの点を数え、全体の走査
+/// ラインの数との割合で掛け戻す。抜き出したラインの上の X の数が多すぎるときは、パスを求めずに、X の数に工具が形状
+/// に接触する割合（ライン上を粗く確かめる）を掛けて見積もる（工具が形状に接触する所では、X ごとにパスの点を置く
+/// ため。トレランスに収めるために足す点は数えない）。
+///
+/// # Errors
+///
+/// トレランスが正の有限値でない場合と、範囲が空の場合。
+pub(crate) fn estimate_scanline_points(
+    cutter: &InverseOffsetShape,
+    params: &ScanlineParams,
+    region: &ScanRegion,
+    tolerance: f64,
+) -> Result<u64, CamSolverError> {
+    if !(tolerance.is_finite() && tolerance > 0.0) {
+        return Err(CamSolverError::InvalidInput(
+            "scanline toolpath requires a positive finite tolerance".to_string(),
+        ));
+    }
+    let Some((y_min, y_max)) = region.y_range() else {
+        return Err(CamSolverError::NoSolution(
+            "scanline region is empty".to_string(),
+        ));
+    };
+    // 走査ラインの数は並びを作らずに数える（生成と同じ間隔。とても多くても f64 で数える）
+    let span = y_max - y_min;
+    let intervals = if span > 0.0 {
+        (span / params.stepover).ceil().max(1.0)
+    } else {
+        0.0
+    };
+    let lines = intervals + 1.0;
+    let samples = (ESTIMATE_SAMPLE_LINES as f64).min(lines) as usize;
+    let sampled: Vec<(f64, f64, f64)> = (0..samples)
+        .filter_map(|i| {
+            let index = if samples > 1 {
+                (i as f64 * intervals / (samples - 1) as f64).round()
+            } else {
+                0.0
+            };
+            let y = if intervals > 0.0 {
+                y_min + span * index / intervals
+            } else {
+                y_min
+            };
+            let (x_min, x_max) = region.x_range_at(y)?;
+            (x_min != x_max).then_some((y, x_min, x_max))
+        })
+        .collect();
+    let scale = lines / samples as f64;
+    let radius = cutter.shape().radius();
+    let xs: f64 = sampled
+        .iter()
+        .map(|&(_, x_min, x_max)| ((x_max - x_min) / radius).ceil().max(1.0) + 1.0)
+        .sum();
+    if xs > ESTIMATE_MAX_SAMPLES {
+        let contact_xs: f64 = sampled
+            .iter()
+            .map(|&(y, x_min, x_max)| {
+                let line_xs = ((x_max - x_min) / radius).ceil().max(1.0) + 1.0;
+                let contacts = (0..ESTIMATE_CONTACT_PROBES)
+                    .filter(|&i| {
+                        let t = (i as f64 + 0.5) / ESTIMATE_CONTACT_PROBES as f64;
+                        cutter
+                            .tip_point_at(x_min + (x_max - x_min) * t, y)
+                            .is_some()
+                    })
+                    .count();
+                line_xs * contacts as f64 / ESTIMATE_CONTACT_PROBES as f64
+            })
+            .sum();
+        return Ok((contact_xs * scale) as u64);
+    }
+    let mut points = 0usize;
+    for &(y, x_min, x_max) in &sampled {
+        let mut passes = Vec::new();
+        scan_line(
+            cutter,
+            (y, x_min, x_max),
+            true,
+            tolerance,
+            usize::MAX,
+            &mut passes,
+        )?;
+        points += passes.iter().map(Vec::len).sum::<usize>();
+    }
+    Ok((points as f64 * scale) as u64)
+}
+
+/// 走査ライン `y` の上を、X の範囲 [`x_min`, `x_max`] で送る向き（`forward` なら X の増える向き）に進み、工具が形状
+/// に接触する区間をパスにして `passes` に足す
+///
+/// # Errors
+///
+/// ライン上の X の数が `point_limit` を超える場合（並びを作る前に止める）。
+fn scan_line(
+    cutter: &InverseOffsetShape,
+    (y, x_min, x_max): (f64, f64, f64),
+    forward: bool,
+    tolerance: f64,
+    point_limit: usize,
+    passes: &mut Vec<Vec<Point3D<f64>>>,
+) -> Result<(), CamSolverError> {
+    let mut run: Vec<Point3D<f64>> = Vec::new();
+    // 直前の点が工具が形状に接触しない点の場合の X
+    let mut outside = None;
+    // 送る向きに並べた X
+    let mut xs_in_feed_order = uniform_samples(x_min, x_max, cutter.shape().radius(), point_limit)?;
+    if !forward {
+        xs_in_feed_order.reverse();
+    }
+    for x in xs_in_feed_order {
+        match cutter.tip_point_at(x, y) {
+            Some(point) => {
+                if let Some(start) = outside
+                    .take()
+                    .and_then(|outside| contact_end(cutter, y, point, outside, tolerance))
+                {
+                    run.push(start);
+                }
+                run.push(point);
+            }
+            None => {
+                if let Some(end) = run
+                    .last()
+                    .and_then(|&inside| contact_end(cutter, y, inside, x, tolerance))
+                {
+                    run.push(end);
+                }
+                flush_run(&mut run, passes, cutter, y, tolerance);
+                outside = Some(x);
+            }
+        }
+    }
+    flush_run(&mut run, passes, cutter, y, tolerance);
+    Ok(())
 }
 
 /// 工具が形状に接触する点 `inside` と、接触しない X `outside` の間を二分し、`outside` からトレランス以内の接触する

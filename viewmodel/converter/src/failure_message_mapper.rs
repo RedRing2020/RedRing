@@ -27,6 +27,15 @@ fn job_message(key: &str, job: u64) -> UiMessage {
     }
 }
 
+/// メモリの大きさ `gb`（GB）の、画面に出す数（10 未満は小数 1 桁、それ以上は整数）
+pub fn format_gb(gb: f64) -> String {
+    if gb < 10.0 {
+        format!("{gb:.1}")
+    } else {
+        format!("{gb:.0}")
+    }
+}
+
 /// 投入・実行・取り込みの失敗 `error` の、画面に出す理由
 pub fn cutting_simulation_failure_message(error: &CuttingSimulationSessionError) -> UiMessage {
     match error {
@@ -78,6 +87,13 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
         CamSimulationWorkflowError::NoCurrentImportedToolpath => {
             message("failure.no_current_imported_toolpath")
         }
+        CamSimulationWorkflowError::ToolpathTooLarge(estimate) => UiMessage {
+            key: "failure.toolpath_too_large".to_string(),
+            args: vec![UiMessageArg {
+                name: "gb".to_string(),
+                value: format_gb(estimate.memory_gb()),
+            }],
+        },
     }
 }
 

@@ -16,11 +16,12 @@ const LOG_FILE_NAME: &str = "redring.log";
 
 /// デフォルトのログフィルタ設定
 ///
-/// wgpu/Vulkan関連は警告のみ、フレーム高頻度層はwarnで抑制。
+/// wgpu/Vulkan関連は警告のみ、フレーム高頻度層はwarnで抑制。計算の前の確かめ（ツールパスの大きさの見積もりと
+/// かかった時間）は `application=info` で残す。
 /// 必要時は RUST_LOG で明示的に詳細化する。
 const DEFAULT_LOG_FILTER: &str = "warn,\
     wgpu=warn,wgpu_hal=warn,wgpu_core=warn,naga=warn,\
-    redring=info,stage=warn,viewmodel_graphics=warn,viewmodel=warn,render=warn,cam_core=info";
+    redring=info,application=info,stage=warn,viewmodel_graphics=warn,viewmodel=warn,render=warn,cam_core=info";
 
 /// 初期化のときに開いたログのファイルの絶対パス（作れずコンソールだけのときは設定しない）
 static LOG_FILE_PATH: OnceLock<String> = OnceLock::new();

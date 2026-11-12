@@ -174,6 +174,20 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "今の条件の CL を取り込み済みのため、計算を始めていません",
     ),
     (
+        "conditions.status.large_toolpath_declined",
+        "ツールパスが大きくなるため、計算を始めていません",
+    ),
+    (
+        "conditions.confirm.large_toolpath",
+        "ツールパスの生成に多くのメモリを使う工程があります。計算に長い時間がかかり、ほかのアプリが遅くなることがあります。計算しますか？\n\n{operations}",
+    ),
+    (
+        "conditions.confirm.large_toolpath_item",
+        "{position}. {operation}: 約 {gb} GB",
+    ),
+    ("conditions.confirm.calculate", "計算する"),
+    ("conditions.confirm.cancel", "やめる"),
+    (
         "conditions.status.recalculation_waiting",
         "今の条件の計算が計算待ちのため、再計算していません（計算が始まってから再計算できます）",
     ),
@@ -479,6 +493,20 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.status.already_imported",
         "The calculation was not started because the toolpath for the current conditions is already imported",
     ),
+    (
+        "conditions.status.large_toolpath_declined",
+        "The calculation was not started because the toolpath would be large",
+    ),
+    (
+        "conditions.confirm.large_toolpath",
+        "Some operations need a lot of memory to generate the toolpath. The calculation may take a long time and slow down other applications. Calculate?\n\n{operations}",
+    ),
+    (
+        "conditions.confirm.large_toolpath_item",
+        "{position}. {operation}: about {gb} GB",
+    ),
+    ("conditions.confirm.calculate", "Calculate"),
+    ("conditions.confirm.cancel", "Cancel"),
     (
         "conditions.status.recalculation_waiting",
         "Not recalculated because the calculation for the current conditions is waiting (it can be recalculated after the calculation starts)",

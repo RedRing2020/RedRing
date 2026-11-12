@@ -27,7 +27,7 @@ pub use process_template::{
 pub use product_surface::ProductSurface;
 pub use solver::{
     CamSolverError, CamSolverInput, GeometryKind, ScanlineInputError, SolverGeometry,
-    build_inverse_offset_shape, solve_toolpath,
+    build_inverse_offset_shape, estimate_toolpath_points, solve_toolpath,
 };
 pub use tessellation::triangle_aspect_ratio;
 
