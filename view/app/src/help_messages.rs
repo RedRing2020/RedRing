@@ -84,6 +84,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "線が多すぎて GPU のメモリが足りないため、表示できません",
     ),
     (
+        "notice.shapes_not_drawn",
+        "形状が大きすぎて GPU のメモリが足りないため、表示できない形状があります",
+    ),
+    (
         "notice.apply_without_animation",
         "切削アニメーションの表示中ではないため、設定を反映できません",
     ),
@@ -205,6 +209,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "notice.lines_not_drawn",
         "The lines cannot be shown because there are too many for the GPU memory",
+    ),
+    (
+        "notice.shapes_not_drawn",
+        "Some shapes cannot be shown because they are too large for the GPU memory",
     ),
     (
         "notice.apply_without_animation",

@@ -1,3 +1,4 @@
+use crate::gpu_buffer::{checked_buffer, GpuDataError};
 use crate::shader;
 use crate::uniform_factory;
 use crate::vertex_3d::MeshVertex;
@@ -47,71 +48,13 @@ impl Default for LineUniforms {
     }
 }
 
-/// 線分の頂点を GPU に置けない（GPU のメモリが足りない）
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LineDataError {
-    /// 置こうとした頂点の数
-    pub vertices: usize,
-    /// GPU の誤り
-    pub reason: String,
-}
-
-impl std::fmt::Display for LineDataError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "cannot place {} line vertices on the GPU: {}",
-            self.vertices, self.reason
-        )
-    }
-}
-
-impl std::error::Error for LineDataError {}
-
 /// バッファー 1 つの大きさの上限 `max_buffer_size`（バイト）に収まる、線分の頂点の数（線分を途中で分けないよう
 /// 偶数。少なくとも 1 本の線分）
-pub fn line_vertices_per_buffer(max_buffer_size: u64) -> usize {
+pub(crate) fn line_vertices_per_buffer(max_buffer_size: u64) -> usize {
     let vertex_size = std::mem::size_of::<MeshVertex>() as u64;
     // 描くときの頂点の数は u32 で渡す
     let vertices = (max_buffer_size / vertex_size).min(u64::from(u32::MAX));
     (usize::try_from(vertices).unwrap_or(usize::MAX) & !1).max(2)
-}
-
-/// 頂点のバイト列 `contents` を置いた頂点のバッファー
-///
-/// GPU のメモリが足りない・GPU の内部の誤り・検証の誤り（大きさが上限を超えるなど）のときは、アプリを止めずに
-/// 誤りの理由を返す（`create_buffer_init` は、置けないときに止まるため使わない）。
-fn vertex_buffer(device: &wgpu::Device, contents: &[u8]) -> Result<wgpu::Buffer, String> {
-    // 書き込む大きさは、コピーの単位の倍数で 0 より大きくする
-    let align = wgpu::COPY_BUFFER_ALIGNMENT;
-    let size = (contents.len() as u64).div_ceil(align).max(1) * align;
-    let out_of_memory = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
-    let internal = device.push_error_scope(wgpu::ErrorFilter::Internal);
-    let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
-    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Line Vertex Buffer"),
-        size,
-        usage: wgpu::BufferUsages::VERTEX,
-        mapped_at_creation: true,
-    });
-    let mapped = match buffer.get_mapped_range_mut(..) {
-        Ok(mut range) => {
-            range.slice(..contents.len()).copy_from_slice(contents);
-            drop(range);
-            buffer.unmap();
-            Ok(())
-        }
-        Err(error) => Err(error.to_string()),
-    };
-    // 積んだ順と逆に取り出す
-    let validation = pollster::block_on(validation.pop());
-    let internal = pollster::block_on(internal.pop());
-    let out_of_memory = pollster::block_on(out_of_memory.pop());
-    match (out_of_memory.or(internal).or(validation), mapped) {
-        (Some(error), _) => Err(error.to_string()),
-        (None, Err(error)) => Err(error),
-        (None, Ok(())) => Ok(buffer),
-    }
 }
 
 /// 線分レンダリングリソース
@@ -283,7 +226,7 @@ impl LineResources {
         &mut self,
         device: &wgpu::Device,
         vertices: &[MeshVertex],
-    ) -> Result<(), LineDataError> {
+    ) -> Result<(), GpuDataError> {
         tracing::debug!(
             "LineResources.update_line_data(): {} vertices",
             vertices.len()
@@ -310,11 +253,16 @@ impl LineResources {
         let per_buffer = line_vertices_per_buffer(device.limits().max_buffer_size);
         let mut buffers = Vec::new();
         for chunk in vertices.chunks(per_buffer) {
-            let buffer = vertex_buffer(device, bytemuck::cast_slice(chunk)).map_err(|reason| {
-                LineDataError {
-                    vertices: vertices.len(),
-                    reason,
-                }
+            let buffer = checked_buffer(
+                device,
+                "Line Vertex Buffer",
+                wgpu::BufferUsages::VERTEX,
+                bytemuck::cast_slice(chunk),
+            )
+            .map_err(|reason| GpuDataError {
+                what: "line vertices",
+                count: vertices.len(),
+                reason,
             })?;
             // 1 つのバッファーの頂点の数は u32 に収まる（`line_vertices_per_buffer`）
             buffers.push((buffer, chunk.len() as u32));

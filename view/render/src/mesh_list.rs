@@ -8,6 +8,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::ops::RangeInclusive;
 
+use crate::gpu_buffer::{indexed_parts, GpuDataError, IndexedPart};
 use crate::mesh::MeshUniforms;
 use crate::shader;
 use crate::vertex_3d::MeshVertex;
@@ -21,11 +22,9 @@ pub struct MeshListItem {
     pub color: [f32; 4],
 }
 
-/// GPU に置いた 1 つのメッシュ
+/// GPU に置いた 1 つのメッシュ（バッファー 1 つの大きさの上限に収まるように分けた塊）
 struct GpuMesh {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    index_count: u32,
+    parts: Vec<IndexedPart>,
     color: [f32; 4],
 }
 
@@ -213,43 +212,65 @@ impl MeshListResources {
     }
 
     /// 描画するメッシュをすべて置き換える（三角形のないメッシュは描かない）
-    pub fn set_meshes(&mut self, device: &wgpu::Device, items: Vec<(u64, MeshListItem)>) {
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで置けないメッシュがある場合（そのメッシュは描かず、ほかのメッシュは置く。最初の
+    /// 誤りを返す）。
+    pub fn set_meshes(
+        &mut self,
+        device: &wgpu::Device,
+        items: Vec<(u64, MeshListItem)>,
+    ) -> Result<(), GpuDataError> {
         self.meshes.clear();
         self.colors.clear();
+        let mut result = Ok(());
         for (key, item) in items {
-            self.set_mesh(device, key, item);
+            // 最初の誤りを残す
+            result = result.and(self.set_mesh(device, key, item));
         }
+        result
     }
 
     /// キー `key` のメッシュを差し替える（三角形がなければ削除する）
-    pub fn set_mesh(&mut self, device: &wgpu::Device, key: u64, item: MeshListItem) {
-        let previous = if item.vertices.is_empty() || item.indices.is_empty() {
-            self.meshes.remove(&key)
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで置けない場合（前のメッシュも削除し、描かない）。
+    pub fn set_mesh(
+        &mut self,
+        device: &wgpu::Device,
+        key: u64,
+        item: MeshListItem,
+    ) -> Result<(), GpuDataError> {
+        // 前のメッシュを先に放す（新しいメッシュを置くメモリに使えるように）。色は、新しい色を数えてから減らす
+        // （同じ色への差し替えでは uniform を作り直さない）
+        let previous = self.meshes.remove(&key).map(|mesh| mesh.color);
+        let placed = if item.vertices.is_empty() || item.indices.is_empty() {
+            Ok(())
         } else {
-            // 前の色を減らす前に新しい色を数えるため、同じ色への差し替えでは uniform を作り直さない
-            let (view_proj, layout) = (self.view_proj, &self.bind_group_layout);
-            self.colors.acquire(item.color, || {
-                color_uniform(device, layout, view_proj, item.color)
-            });
-            let mesh = GpuMesh {
-                vertex_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Mesh List Vertex Buffer"),
-                    contents: bytemuck::cast_slice(&item.vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                }),
-                index_buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Mesh List Index Buffer"),
-                    contents: bytemuck::cast_slice(&item.indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                }),
-                index_count: item.indices.len() as u32,
-                color: item.color,
-            };
-            self.meshes.insert(key, mesh)
+            match indexed_parts(device, "Mesh List Buffer", &item.vertices, &item.indices) {
+                Ok(parts) => {
+                    let (view_proj, layout) = (self.view_proj, &self.bind_group_layout);
+                    self.colors.acquire(item.color, || {
+                        color_uniform(device, layout, view_proj, item.color)
+                    });
+                    self.meshes.insert(
+                        key,
+                        GpuMesh {
+                            parts,
+                            color: item.color,
+                        },
+                    );
+                    Ok(())
+                }
+                Err(error) => Err(error),
+            }
         };
         if let Some(previous) = previous {
-            self.colors.release(previous.color);
+            self.colors.release(previous);
         }
+        placed
     }
 
     /// キーが `keys` の範囲のメッシュの色を `color` にする（頂点と頂点番号のバッファは作り直さない）
@@ -357,9 +378,9 @@ fn draw<'a>(
         .get(mesh.color)
         .expect("every mesh's color has a uniform");
     render_pass.set_bind_group(0, &uniform.bind_group, &[]);
-    render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-    render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-    render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+    for part in &mesh.parts {
+        part.draw(render_pass);
+    }
 }
 
 #[cfg(test)]

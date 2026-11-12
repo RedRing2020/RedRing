@@ -1,9 +1,9 @@
+use crate::gpu_buffer::{indexed_parts, GpuDataError, IndexedPart};
 use crate::shader;
 use crate::uniform_factory;
 use crate::vertex_3d::MeshVertex;
 use bytemuck::{Pod, Zeroable};
 use viewmodel_graphics::build_view_projection_matrix;
-use wgpu::util::DeviceExt;
 
 /// メッシュレンダリング用のUniform構造体（簡略版）
 #[repr(C)]
@@ -41,9 +41,8 @@ pub struct MeshResources {
     pub uniform_buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
-    pub vertex_buffer: Option<wgpu::Buffer>,
-    pub index_buffer: Option<wgpu::Buffer>,
-    pub index_count: u32,
+    /// メッシュの塊（バッファー 1 つの大きさの上限に収まるように分ける）
+    parts: Vec<IndexedPart>,
     pub wireframe_mode: bool,
     pub base_color: [f32; 4],
 }
@@ -167,9 +166,7 @@ impl MeshResources {
             uniform_buffer,
             bind_group_layout,
             bind_group,
-            vertex_buffer: None,
-            index_buffer: None,
-            index_count: 0,
+            parts: Vec::new(),
             wireframe_mode: false,
             base_color: [1.0, 0.5, 0.2, 1.0],
         }
@@ -203,35 +200,24 @@ impl MeshResources {
         self.update_uniforms(queue, &uniforms);
     }
 
-    /// メッシュデータを更新
+    /// メッシュデータを更新する（前のメッシュは放す）。バッファー 1 つの大きさの上限に収まるように分けて置く
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで置けない場合（メッシュは描かない）。
     pub fn update_mesh_data(
         &mut self,
         device: &wgpu::Device,
         vertices: &[MeshVertex],
         indices: &[u32],
-    ) {
-        // 頂点バッファを作成
-        if !vertices.is_empty() {
-            self.vertex_buffer = Some(device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("Mesh Vertex Buffer"),
-                    contents: bytemuck::cast_slice(vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                },
-            ));
+    ) -> Result<(), GpuDataError> {
+        // 前のメッシュを先に放す（新しいメッシュを置くメモリに使えるように）
+        self.parts.clear();
+        if vertices.is_empty() || indices.is_empty() {
+            return Ok(());
         }
-
-        // インデックスバッファを作成
-        if !indices.is_empty() {
-            self.index_buffer = Some(device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("Mesh Index Buffer"),
-                    contents: bytemuck::cast_slice(indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                },
-            ));
-            self.index_count = indices.len() as u32;
-        }
+        self.parts = indexed_parts(device, "Mesh Buffer", vertices, indices)?;
+        Ok(())
     }
 
     /// ワイヤーフレームモードを切り替え
@@ -251,8 +237,7 @@ impl MeshResources {
 
     /// メッシュをレンダリング
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        if let (Some(vertex_buffer), Some(index_buffer)) = (&self.vertex_buffer, &self.index_buffer)
-        {
+        if !self.parts.is_empty() {
             // ワイヤーフレームモードに応じてパイプラインを選択
             let pipeline = if self.wireframe_mode {
                 &self.wireframe_pipeline
@@ -262,9 +247,9 @@ impl MeshResources {
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, &self.bind_group, &[]);
-            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
+            for part in &self.parts {
+                part.draw(render_pass);
+            }
         }
     }
 }

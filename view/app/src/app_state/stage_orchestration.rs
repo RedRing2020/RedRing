@@ -21,7 +21,7 @@ impl AppState {
             self.graphic.config.format,
         ));
         let lines = mesh_stage.set_line_data(&self.graphic.device, &vertices);
-        self.report_lines(lines);
+        self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
 
         // エンティティの線は、デバッグ用の表示として描く（通常の表示は取っておく）
         self.show_debug_stage(mesh_stage, false);

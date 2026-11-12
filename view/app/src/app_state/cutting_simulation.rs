@@ -407,9 +407,10 @@ impl AppState {
         self.cutting_animation_colors = self.snapshot_shaded_color_settings;
         animation.set_deviations_shown(self.cutting_animation_colors.deviations.shown);
         let stock_blocks = animation.take_initial_stock_blocks();
-        let (mesh_stage, positions, lines) =
+        let (mesh_stage, positions, meshes, lines) =
             self.build_cutting_animation_stage(&animation, stock_blocks);
-        self.report_lines(lines);
+        self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
+        self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         // 取り込み直しても見ていた向き・拡大を保つ。カメラは STL の読み込みで製品形状に合わせているため、表示中の
         // 製品形状がない場合だけ合わせる
         if self.document.shapes().visible_face_ids().is_empty() {
@@ -476,9 +477,9 @@ impl AppState {
         // ツールパスの線を重ねたデバッグ表示にも、同じ線を描く
         if let Some(debug_stage) = self.debug_toolpath_overlay_stage() {
             let debug_lines = debug_stage.set_overlay_toolpath_line_data(device, &toolpath_lines);
-            self.report_lines(debug_lines);
+            self.report_not_drawn(debug_lines, crate::help_ui::Notice::LinesNotDrawn);
         }
-        self.report_lines(lines);
+        self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         // 色分けするかが変わった場合は、最後の時点の素材の面が作り直されて届く
         if let Some(animation) = &mut self.cutting_animation {
             animation.set_deviations_shown(colors.deviations.shown);
@@ -492,16 +493,12 @@ impl AppState {
     }
 
     /// 切削アニメーションの最初のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置と、
-    /// 線を GPU に置けたか
+    /// 面・線を GPU に置けたか
     fn build_cutting_animation_stage(
         &self,
         animation: &CuttingAnimation,
         stock_blocks: Vec<StockBlockMesh>,
-    ) -> (
-        Box<MeshStage>,
-        Vec<[f32; 3]>,
-        Result<(), render::line::LineDataError>,
-    ) {
+    ) -> (Box<MeshStage>, Vec<[f32; 3]>, GpuPlaced, GpuPlaced) {
         let positions: Vec<[f32; 3]> = stock_blocks
             .iter()
             .flat_map(|block| block.vertices.iter().map(|vertex| vertex.position))
@@ -529,7 +526,7 @@ impl AppState {
 
         let device = &self.graphic.device;
         let mut mesh_stage = Box::new(MeshStage::new(device, self.graphic.config.format));
-        mesh_stage.set_mesh_list(device, items);
+        let meshes = mesh_stage.set_mesh_list(device, items);
         mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
         mesh_stage.set_overlay_tool_visible(self.tool_lines_visible);
         let lines = mesh_stage
@@ -541,7 +538,7 @@ impl AppState {
                     Some(self.cutting_animation_colors.tool_wire_color),
                 ),
             ));
-        (mesh_stage, positions, lines)
+        (mesh_stage, positions, meshes, lines)
     }
 
     /// 切削アニメーション `animation` のツールパスの線の頂点（今の表示の設定で作る）
@@ -606,19 +603,25 @@ impl AppState {
         let device = self.graphic.device.clone();
         let device = &device;
         if let Some(mesh_stage) = self.main_mesh_stage() {
+            let mut meshes = Ok(());
             for block in blocks {
                 // 三角形のない分類の面も渡し、前の面の同じ分類のメッシュを除く
                 for (key, item) in stock_block_items(block, &colors) {
-                    mesh_stage.set_mesh_list_item(device, key, item);
+                    // 最初の誤りを残す
+                    meshes = meshes.and(mesh_stage.set_mesh_list_item(device, key, item));
                 }
             }
             let lines = mesh_stage.set_overlay_tool_line_data(device, &tool_lines);
-            self.report_lines(lines);
+            self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
+            self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         }
         // 工具の位置（区間の端点に置いたか）は面を受け取った後に決まるため、タイトルは受け取った後にも出す
         self.refresh_snapshot_window_title();
     }
 }
+
+/// 面・線を GPU に置けたか（置けなければ、その誤り）
+type GpuPlaced = Result<(), render::gpu_buffer::GpuDataError>;
 
 /// ブロックの素材の面の、分類ごとのメッシュ（三角形のない分類は空のメッシュ）
 fn stock_block_items(

@@ -25,7 +25,8 @@ impl AppState {
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
+        let meshes = mesh_stage.set_mesh_data(&self.graphic.device, &vertices, &indices);
+        self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
         self.show_debug_stage(mesh_stage, false);
     }
 

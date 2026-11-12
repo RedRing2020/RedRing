@@ -68,7 +68,8 @@ impl AppState {
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        mesh_stage.set_mesh_list(&self.graphic.device, items);
+        let meshes = mesh_stage.set_mesh_list(&self.graphic.device, items);
+        self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
         let lines = match &self.cutting_animation {
             Some(animation) => mesh_stage.set_overlay_toolpath_line_data(
                 &self.graphic.device,
@@ -76,7 +77,7 @@ impl AppState {
             ),
             None => Ok(()),
         };
-        self.report_lines(lines);
+        self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
         // ほかのデバッグ表示から切り替えても、通常の表示と同じカメラで描く
         self.enter_debug_view();
