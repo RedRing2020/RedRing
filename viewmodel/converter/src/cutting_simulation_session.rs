@@ -15,7 +15,10 @@ pub use application::machining_sequence::{
     flat_surface_cusp_height, MachiningBoundary, MachiningOperationContent, MachiningStage,
     MachiningStock, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
 };
-use application::machining_sequence::{MachiningSequenceStore, ScanlineParams};
+use application::machining_sequence::{
+    MachiningRevisionKey, MachiningSequenceStore, ScanlineParams,
+};
+use std::collections::HashMap;
 
 use application::cutting_simulation_playback::{
     CuttingSimulationPlayback, CuttingSimulationPlaybackError,
@@ -89,9 +92,11 @@ pub struct ImportedCuttingSimulation {
     pub conditions: ImportedConditions,
 }
 
-/// 計算条件の確かめで見つかった問題（製品形状がない・条件の誤り・そのほか）
+/// 計算条件の確かめで見つかった問題（条件を設定していない・製品形状がない・条件の誤り・そのほか）
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConditionIssue {
+    /// 工程の計算の条件を、まだ設定していない（条件を一度も適用していない）
+    NotSet,
     /// 加工の対象の製品形状がない、または形状にできない
     NoProductShape,
     /// 計算条件の誤り（出す欄は `CamConditionError::field`）
@@ -126,6 +131,8 @@ pub enum CuttingSimulationSessionError {
     NoSucceededToolpath,
     /// 取り込んだ結果を再生できない
     Playback(CuttingSimulationPlaybackError),
+    /// 工程の計算の条件を、まだ設定していない（条件を一度も適用していない）
+    ConditionsNotSet,
 }
 
 impl CuttingSimulationSessionError {
@@ -159,6 +166,9 @@ impl std::fmt::Display for CuttingSimulationSessionError {
                 "no succeeded toolpath generation of the current conditions to import"
             ),
             Self::Playback(error) => write!(f, "{error}"),
+            Self::ConditionsNotSet => {
+                write!(f, "the calculation conditions of the operation are not set")
+            }
         }
     }
 }
@@ -356,6 +366,8 @@ impl std::fmt::Display for SequenceSubmissionError {
 #[derive(Debug, Default)]
 pub struct CuttingSimulationSession {
     workflow: CamSimulationWorkflow,
+    /// 工程ごとに、確かめた改訂の鍵と、その改訂の計算の条件に誤りがあったか
+    condition_errors: HashMap<MachiningOperationId, (MachiningRevisionKey, bool)>,
 }
 
 impl CuttingSimulationSession {
@@ -364,17 +376,64 @@ impl CuttingSimulationSession {
     pub(crate) fn in_process() -> Self {
         Self {
             workflow: CamSimulationWorkflow::in_process(),
+            condition_errors: HashMap::new(),
         }
     }
 
-    /// 表示中の製品形状と加工工程・加工手順の条件を、投入と同じ判定で確かめ、問題をすべて返す（問題がなければ空）
+    /// 表示中の製品形状と加工工程・加工手順の条件を、投入と同じ判定で確かめ、問題をすべて返す（問題がなければ空。
+    /// 条件を設定していない工程は、そのことだけを返す）
     pub fn check(&self, document: &mut SpaceModelDocument) -> Vec<ConditionIssue> {
         document.target_visible_faces();
+        if !document.conditions_set_of(document.selected_operation()) {
+            return vec![ConditionIssue::NotSet];
+        }
         let (shapes, sequences, sequence, operation) = document.machining();
         match CamSimulationWorkflow::check_operation(shapes, sequences, sequence, operation) {
             Ok(()) => Vec::new(),
             Err(error) => ConditionIssue::from_workflow_error(&error),
         }
+    }
+
+    /// 工程ごとに覚えた、計算の条件の確かめの結果を捨てる（別の文書では、同じ工程の ID・改訂の鍵でも形状が違いうる）
+    pub fn forget_condition_checks(&mut self) {
+        self.condition_errors.clear();
+    }
+
+    /// 表示中の製品形状のすべての面を加工の対象として、加工手順の工程のうち、計算の条件に誤りがある工程（加工の順。
+    /// 条件を設定していない工程は含めない）
+    ///
+    /// 工程の改訂ごとに確かめた結果を覚え、改訂が進んだ工程（計算の条件・素材・加工の対象が変わった）だけを
+    /// 確かめ直す。
+    pub fn operations_with_condition_errors(
+        &mut self,
+        document: &mut SpaceModelDocument,
+    ) -> Vec<MachiningOperationId> {
+        document.target_visible_faces();
+        let operations = document.operations();
+        self.condition_errors
+            .retain(|operation, _| operations.iter().any(|item| item.id == *operation));
+        let (shapes, sequences, sequence, _) = document.machining();
+        let mut errors = Vec::new();
+        for item in operations.iter().filter(|item| item.conditions_set) {
+            let Some(key) = document.revision_key_of(item.id) else {
+                continue;
+            };
+            let has_errors = match self.condition_errors.get(&item.id) {
+                Some(&(checked, has_errors)) if checked == key => has_errors,
+                _ => {
+                    let has_errors = CamSimulationWorkflow::check_operation(
+                        shapes, sequences, sequence, item.id,
+                    )
+                    .is_err();
+                    self.condition_errors.insert(item.id, (key, has_errors));
+                    has_errors
+                }
+            };
+            if has_errors {
+                errors.push(item.id);
+            }
+        }
+        errors
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、選んだ加工工程の中身を `content` に、加工手順の素材を `stock` に
@@ -435,6 +494,9 @@ impl CuttingSimulationSession {
         confirm: impl FnOnce(&[LargeToolpath]) -> bool,
     ) -> Result<SubmitOutcome, CuttingSimulationSessionError> {
         document.target_visible_faces();
+        if !document.conditions_set_of(document.selected_operation()) {
+            return Err(CuttingSimulationSessionError::ConditionsNotSet);
+        }
         let (_, sequences, sequence, operation) = document.machining();
         // 切削シミュレーションだけを投入するかは、状態を今読んでから決める（ジョブマネージャーが動いていなければ起動
         // する。読まずに決めると、計算済みのジョブがあっても重ねて投入する）。見つからなければ投入できない。ほかの理由で
@@ -486,6 +548,9 @@ impl CuttingSimulationSession {
         confirm: impl FnOnce(&[LargeToolpath]) -> bool,
     ) -> Result<RedoOutcome, CuttingSimulationSessionError> {
         document.target_visible_faces();
+        if !document.conditions_set_of(document.selected_operation()) {
+            return Err(CuttingSimulationSessionError::ConditionsNotSet);
+        }
         // 大きさは、状態を読む前に確かめる（確かめている間に状態が変わっても、読んだ状態ですぐに投入するため）
         let operation = document.selected_operation();
         let (position, name) = operation_label(document, operation);
@@ -617,13 +682,16 @@ impl CuttingSimulationSession {
         let operations = document.operations();
         let (shapes, sequences, sequence, _) = document.machining();
         for (index, item) in operations.iter().enumerate() {
-            CamSimulationWorkflow::check_operation(shapes, sequences, sequence, item.id).map_err(
-                |error| SequenceSubmissionError::Conditions {
-                    position: index + 1,
-                    operation: item.name.clone(),
-                    error: error.into(),
-                },
-            )?;
+            let conditions = |error| SequenceSubmissionError::Conditions {
+                position: index + 1,
+                operation: item.name.clone(),
+                error,
+            };
+            if !item.conditions_set {
+                return Err(conditions(CuttingSimulationSessionError::ConditionsNotSet));
+            }
+            CamSimulationWorkflow::check_operation(shapes, sequences, sequence, item.id)
+                .map_err(|error| conditions(error.into()))?;
         }
         let ids: Vec<MachiningOperationId> = operations.iter().map(|item| item.id).collect();
         // 計算待ち・計算中・計算済みの工程を投入し直さないよう、状態を今読んでから決める（ジョブマネージャーが動いて
@@ -821,11 +889,12 @@ pub(crate) mod tests {
     }
 
     /// 文書 `document` の加工工程を、粗い条件（直径 6 mm・工具長 30 mm のボールエンドミル、ピックフィード 6 mm。
-    /// テストを速くする）にする
+    /// テストを速くする）にし、条件を設定したことにする（適用したときと同じ）
     fn coarse(document: &mut SpaceModelDocument) {
         let mut content = document.operation_content().clone();
         content.conditions.tool = CuttingToolKind::BallEndMill.tool(6.0, Some(30.0));
         document.set_operation_content(with_scanline(content, |scanline| scanline.stepover = 6.0));
+        document.mark_conditions_set();
     }
 
     /// 製品形状（四角錐）と粗い条件の文書と、同じプロセスの中でジョブを実行するセッション
@@ -1386,6 +1455,90 @@ pub(crate) mod tests {
         assert_eq!(document.imported_toolpath_state(), state);
         assert_eq!(document.is_modified(), modified);
         assert!(session.check(&mut document).is_empty());
+    }
+
+    #[test]
+    fn operations_whose_conditions_are_not_set_are_not_submitted() {
+        let mut session = CuttingSimulationSession::in_process();
+        let mut document = document_with_pyramid();
+        // 作った工程は、条件を設定していない
+        assert!(!document.conditions_set_of(document.selected_operation()));
+        assert_eq!(session.check(&mut document), vec![ConditionIssue::NotSet]);
+        assert!(matches!(
+            session.submit(&mut document, |_| true),
+            Err(CuttingSimulationSessionError::ConditionsNotSet)
+        ));
+        assert!(matches!(
+            session.redo(&mut document, |_| true),
+            Err(CuttingSimulationSessionError::ConditionsNotSet)
+        ));
+        // 全工程の計算は、設定していない工程があれば、どの工程も投入しない
+        coarse(&mut document);
+        document.add_operation("追加".to_string());
+        assert!(!document.conditions_set_of(document.selected_operation()));
+        assert!(matches!(
+            session.submit_sequence(&mut document, |_| true),
+            Err(SequenceSubmissionError::Conditions {
+                position: 2,
+                error: CuttingSimulationSessionError::ConditionsNotSet,
+                ..
+            })
+        ));
+        assert_eq!(session.run_queued_jobs().unwrap(), 0);
+        // 工程複写は、設定したかを受け継ぐ
+        document.duplicate_operation("複写".to_string());
+        assert!(!document.conditions_set_of(document.selected_operation()));
+        coarse(&mut document);
+        document.duplicate_operation("複写の複写".to_string());
+        assert!(document.conditions_set_of(document.selected_operation()));
+    }
+
+    #[test]
+    fn operations_whose_conditions_are_not_set_stay_so_after_saving_and_opening() {
+        let mut document = document_with_pyramid();
+        let path = temporary_model_file("not_set");
+        document.save_as(&path, "0.1.0").unwrap();
+        let mut opened = SpaceModelDocument::open(&path, NAMES).unwrap();
+        assert!(!opened.conditions_set_of(opened.selected_operation()));
+        // 設定すると保存していない変更になり、保存して開き直しても設定したまま
+        opened.mark_conditions_set();
+        assert!(opened.is_modified());
+        opened.save_as(&path, "0.1.0").unwrap();
+        let reopened = SpaceModelDocument::open(&path, NAMES).unwrap();
+        assert!(reopened.conditions_set_of(reopened.selected_operation()));
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn operations_with_condition_errors_are_listed_without_the_ones_not_set() {
+        let (mut session, mut document) = coarse_session();
+        let first = document.selected_operation();
+        assert_eq!(
+            session.operations_with_condition_errors(&mut document),
+            Vec::new()
+        );
+        // ピックフィードが工具径を超える工程
+        document.set_operation_content(with_scanline(
+            document.operation_content().clone(),
+            |scanline| scanline.stepover = 7.0,
+        ));
+        // 設定していない工程は、条件に誤りがあっても含めない
+        document.add_operation("追加".to_string());
+        document.set_operation_content(with_scanline(
+            document.operation_content().clone(),
+            |scanline| scanline.stepover = 1000.0,
+        ));
+        assert_eq!(
+            session.operations_with_condition_errors(&mut document),
+            vec![first]
+        );
+        // 改訂が進んだ工程だけ確かめ直す（直すと、誤りのある工程から外れる）
+        document.select_operation(first);
+        coarse(&mut document);
+        assert_eq!(
+            session.operations_with_condition_errors(&mut document),
+            Vec::new()
+        );
     }
 
     #[test]

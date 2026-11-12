@@ -218,9 +218,9 @@ impl<T: Scalar> Matrix3x3<T> {
     /// フロベニウスノルム
     pub fn frobenius_norm(&self) -> T {
         let mut sum = T::ZERO;
-        for i in 0..3 {
-            for j in 0..3 {
-                sum += self.data[i][j] * self.data[i][j];
+        for row in &self.data {
+            for &value in row {
+                sum += value * value;
             }
         }
         sum.sqrt()

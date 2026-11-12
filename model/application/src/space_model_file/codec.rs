@@ -24,6 +24,8 @@
 //!       `f64`）
 //!     - 加工領域（有無と、長方形の最小・最大の XY の `f64`×4）、精度プロファイル `u8`（1: 大物プレス荒、
 //!       2: 小物金型仕上げ）
+//! - `NSET`（必須でない）: 計算の条件を設定していない加工工程の数 `u32` と、その加工工程の ID（なければ、すべての
+//!   工程を設定した工程とする）
 //! - `CLDT`（必須でない）: 取り込んだ CL の数 `u32` と、CL ごとに、もとにした加工工程の ID・取り込んだときの改訂の番号
 //!   `u32`（1 以上）・改訂の鍵・CL の編集の番号 `u32`（0 は編集していない）・CL（ツールパスの成果物のバイト列の長さ
 //!   `u64` とバイト列）
@@ -538,6 +540,34 @@ fn read_metadata(cursor: &mut ByteReader<'_>) -> Result<Metadata, FieldError> {
     })
 }
 
+// ---- NSET ----
+
+/// 計算の条件を設定していない加工工程の ID（`NSET`）を書く
+pub(super) fn write_operations_not_set(
+    operations: &[MachiningOperationId],
+) -> Result<Vec<u8>, SpaceModelFileError> {
+    let mut out = ByteWriter::default();
+    out.count(operations.len(), "operations_not_set")?;
+    for operation in operations {
+        out.uuid(operation.as_uuid());
+    }
+    Ok(out.into_bytes())
+}
+
+/// 計算の条件を設定していない加工工程の ID（`NSET`）を読む
+pub(super) fn read_operations_not_set(
+    bytes: &[u8],
+) -> Result<Vec<MachiningOperationId>, FieldError> {
+    let mut cursor = ByteReader::new(bytes);
+    let count = cursor.count(16).map_err(|_| "operations_not_set")?;
+    let mut operations = Vec::with_capacity(count);
+    for _ in 0..count {
+        operations.push(MachiningOperationId::from_uuid(cursor.uuid()?));
+    }
+    cursor.finish()?;
+    Ok(operations)
+}
+
 // ---- MSEQ ----
 
 pub(super) fn write_sequences(
@@ -607,11 +637,13 @@ pub(super) fn read_sequences(bytes: &[u8]) -> Result<Vec<MachiningSequenceRecord
             let operation_id = MachiningOperationId::from_uuid(cursor.uuid()?);
             let revision = NonZeroU32::new(cursor.u32()?).ok_or("operation.revision")?;
             let revision_key = MachiningRevisionKey::from_uuid(cursor.uuid()?);
+            // 計算の条件を設定していない工程は、別の区画（`NSET`）で表す。なければ設定した工程
             operations.push(MachiningOperationRecord {
                 id: operation_id,
                 content: read_content(&mut cursor)?,
                 revision,
                 revision_key,
+                conditions_set: true,
             });
         }
         sequences.push(MachiningSequenceRecord {

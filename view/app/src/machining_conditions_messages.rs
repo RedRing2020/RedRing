@@ -28,7 +28,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.operation.kind", "加工の種類: {kind}"),
     (
         "conditions.target.shared",
-        "加工の対象は、手順のすべての工程で同じです。変えると、手順のすべての工程が再計算待ちになります",
+        "加工の対象は、手順のすべての工程で同じです。変えると、手順のすべての工程の CL が消え、計算し直しになります",
     ),
     ("conditions.header.region", "加工領域"),
     ("conditions.region.target", "加工の対象の XY の範囲"),
@@ -39,7 +39,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.sequence.name", "名前: {name}"),
     (
         "conditions.sequence.note",
-        "素材を変えると、手順のすべての工程が再計算待ちになります",
+        "素材を変えると、手順のすべての工程の CL が消え、計算し直しになります",
     ),
     ("conditions.header.target", "加工の対象"),
     ("conditions.operations.add", "工程追加"),
@@ -53,6 +53,8 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.sequence.default_name", "加工手順"),
     ("conditions.operations.copy_name", "{name} のコピー"),
     ("conditions.operations.status.none", "未計算"),
+    ("conditions.operations.status.not_set", "未設定"),
+    ("conditions.operations.status.condition_error", "条件エラー"),
     ("conditions.operations.status.queued", "計算待ち"),
     ("conditions.operations.status.running", "計算中"),
     ("conditions.operations.status.succeeded", "計算済み"),
@@ -275,6 +277,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.status.job_manager_failed", "ジョブマネージャーを開けません（{reason}）"),
     ("conditions.issue.no_product_shape", "製品形状がありません（ファイルを開いてください）"),
     (
+        "conditions.issue.not_set",
+        "工程の条件をまだ設定していません",
+    ),
+    (
         "conditions.issue.invalid_stock_margins",
         "余裕は 0 以上の数値にしてください",
     ),
@@ -345,7 +351,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.operation.kind", "Machining type: {kind}"),
     (
         "conditions.target.shared",
-        "The target is the same for all operations of the sequence. Changing it makes all operations of the sequence need recalculation",
+        "The target is the same for all operations of the sequence. Changing it removes the CL of all operations of the sequence, and they need to be calculated again",
     ),
     ("conditions.header.region", "Machining region"),
     ("conditions.region.target", "XY extent of the target"),
@@ -356,7 +362,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.sequence.name", "Name: {name}"),
     (
         "conditions.sequence.note",
-        "Changing the stock makes all operations of the sequence need recalculation",
+        "Changing the stock removes the CL of all operations of the sequence, and they need to be calculated again",
     ),
     ("conditions.header.target", "Target"),
     ("conditions.operations.add", "Add operation"),
@@ -370,6 +376,8 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.sequence.default_name", "Machining sequence"),
     ("conditions.operations.copy_name", "{name} (copy)"),
     ("conditions.operations.status.none", "not calculated"),
+    ("conditions.operations.status.not_set", "not set"),
+    ("conditions.operations.status.condition_error", "condition error"),
     ("conditions.operations.status.queued", "waiting"),
     ("conditions.operations.status.running", "calculating"),
     ("conditions.operations.status.succeeded", "calculated"),
@@ -600,6 +608,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.status.import_failed", "Cannot import ({reason})"),
     ("conditions.status.job_manager_failed", "Cannot open the job manager ({reason})"),
     ("conditions.issue.no_product_shape", "No product shape (open a file)"),
+    (
+        "conditions.issue.not_set",
+        "The conditions of the operation are not set yet",
+    ),
     (
         "conditions.issue.invalid_stock_margins",
         "Margins must be zero or more",

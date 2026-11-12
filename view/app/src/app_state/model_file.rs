@@ -233,6 +233,7 @@ impl AppState {
     /// 空間モデルの文書を `document` に置き換え、その製品形状を表示する
     fn replace_document(&mut self, document: SpaceModelDocument) {
         self.document = document;
+        self.cutting_simulation.forget_condition_checks();
         // 開いたモデルファイル・新規の空間モデルでは、加工手順を開かない（CAM の表示は、製品形状を描き直すときに放す）
         self.forget_machining_sequence_state();
         self.show_product_shapes();

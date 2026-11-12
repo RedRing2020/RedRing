@@ -66,6 +66,8 @@ pub struct OperationListItem {
     pub stage: MachiningStage,
     pub spec: OperationSpec,
     pub tool: Tool<f64>,
+    /// 計算の条件を設定したか（設定していない工程は計算しない）
+    pub conditions_set: bool,
 }
 
 /// 空間モデルの文書
@@ -239,6 +241,7 @@ impl SpaceModelDocument {
                     stage: content.attributes.stage,
                     spec: content.conditions.spec,
                     tool: content.conditions.tool.clone(),
+                    conditions_set: self.conditions_set_of(id),
                 }
             })
             .collect()
@@ -278,11 +281,48 @@ impl SpaceModelDocument {
     }
 
     /// 編集の対象の加工工程と同じ中身で、名前が `name` の新しい加工工程をすぐ後に加え、編集の対象にする（新しい工程の
-    /// 改訂の番号は 1 から。計算の結果・取り込んだ CL は受け継がない）
+    /// 改訂の番号は 1 から。計算の条件を設定したかは受け継ぎ、計算の結果・取り込んだ CL は受け継がない）
     pub fn duplicate_operation(&mut self, name: String) {
         let mut content = self.operation_content().clone();
         content.attributes.name = name;
+        let conditions_set = self.conditions_set_of(self.operation);
         self.insert_after_selected(content);
+        if conditions_set {
+            self.mark_conditions_set();
+        }
+    }
+
+    /// 加工工程 `operation` の計算の条件を設定したか（手順にない工程は、設定していないとする）
+    pub fn conditions_set_of(&self, operation: MachiningOperationId) -> bool {
+        self.model
+            .sequences
+            .operation_conditions_set(self.sequence, operation)
+            .unwrap_or(false)
+    }
+
+    /// 編集の対象の加工工程の計算の条件を、設定したことにする（設定していなかったら、保存していない変更にして `true`
+    /// を返す。改訂は進めない）
+    pub fn mark_conditions_set(&mut self) -> bool {
+        let changed = self
+            .model
+            .sequences
+            .mark_operation_conditions_set(self.sequence, self.operation)
+            .expect("the document holds its machining operation");
+        if changed {
+            self.modified = true;
+        }
+        changed
+    }
+
+    /// 加工工程 `operation` の今の改訂の鍵（手順にない工程は `None`）
+    pub(crate) fn revision_key_of(
+        &self,
+        operation: MachiningOperationId,
+    ) -> Option<application::machining_sequence::MachiningRevisionKey> {
+        self.model
+            .sequences
+            .operation_revision_key(self.sequence, operation)
+            .ok()
     }
 
     fn insert_after_selected(&mut self, content: MachiningOperationContent) {

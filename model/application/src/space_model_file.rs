@@ -43,6 +43,9 @@ const FACE: [u8; 4] = *b"FACE";
 const MSEQ: [u8; 4] = *b"MSEQ";
 /// 取り込んだ CL（必須でない区画。古い版のアプリは、そのまま書き戻す）
 const CLDT: [u8; 4] = *b"CLDT";
+/// 計算の条件を設定していない加工工程（必須でない区画。古い版のアプリは、すべての工程を設定したものとして読み、
+/// そのまま書き戻す）
+const NSET: [u8; 4] = *b"NSET";
 /// 本モジュールが読み書きする区画の版（これより新しい版の区画は、新しい版のアプリで保存したもの）
 pub const SECTION_VERSION: u16 = 1;
 
@@ -220,6 +223,18 @@ pub fn write_space_model<W: Write>(
     if !model.toolpaths.records().is_empty() {
         sections.push((CLDT, 0, codec::write_toolpaths(model.toolpaths.records())?));
     }
+    // 計算の条件を設定していない工程がなければ、区画を書かない
+    let not_set: Vec<MachiningOperationId> = model
+        .sequences
+        .records()
+        .iter()
+        .flat_map(|sequence| &sequence.operations)
+        .filter(|operation| !operation.conditions_set)
+        .map(|operation| operation.id)
+        .collect();
+    if !not_set.is_empty() {
+        sections.push((NSET, 0, codec::write_operations_not_set(&not_set)?));
+    }
     let mut payload = ByteWriter::default();
     // 書き戻す区画は、今の版で書いた区画と同じ種類（読めない版の CL と、その後で取り込んだ CL）でも、すべて残す
     payload.count(sections.len() + model.preserved.len(), "sections")?;
@@ -282,6 +297,7 @@ pub fn read_space_model<R: Read>(
     let mut faces = None;
     let mut sequences = None;
     let mut toolpaths = None;
+    let mut not_set = None;
     let mut preserved = Vec::new();
     for _ in 0..count {
         let header = (|| {
@@ -306,6 +322,7 @@ pub fn read_space_model<R: Read>(
             FACE => Some(&mut faces),
             MSEQ => Some(&mut sequences),
             CLDT if readable_optional => Some(&mut toolpaths),
+            NSET if readable_optional => Some(&mut not_set),
             _ => None,
         };
         let Some(slot) = slot else {
@@ -335,9 +352,24 @@ pub fn read_space_model<R: Read>(
         .map_err(section_error(INFO))?;
     let faces = codec::read_faces(faces.ok_or(SpaceModelFileError::MissingSection(FACE))?)
         .map_err(section_error(FACE))?;
-    let sequences =
+    let mut sequences =
         codec::read_sequences(sequences.ok_or(SpaceModelFileError::MissingSection(MSEQ))?)
             .map_err(section_error(MSEQ))?;
+    // 計算の条件を設定していない工程（区画がなければ、すべて設定した工程。手順にない工程の ID は使わない）
+    if let Some(bytes) = not_set {
+        let not_set: std::collections::HashSet<MachiningOperationId> =
+            codec::read_operations_not_set(bytes)
+                .map_err(section_error(NSET))?
+                .into_iter()
+                .collect();
+        for operation in sequences
+            .iter_mut()
+            .flat_map(|sequence| &mut sequence.operations)
+            .filter(|operation| not_set.contains(&operation.id))
+        {
+            operation.conditions_set = false;
+        }
+    }
     let toolpaths = match toolpaths {
         Some(bytes) => codec::read_toolpaths(bytes).map_err(section_error(CLDT))?,
         None => Vec::new(),
