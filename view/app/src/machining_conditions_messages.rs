@@ -271,7 +271,6 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("conditions.toolpath.none", "空間モデルの CL: まだ取り込んでいません"),
     ("conditions.toolpath.current", "空間モデルの CL: 今の条件の結果です"),
-    ("conditions.toolpath.outdated", "空間モデルの CL: 前の条件の結果です"),
     ("conditions.status.import_failed", "取り込めません（{reason}）"),
     ("conditions.status.job_manager_failed", "ジョブマネージャーを開けません（{reason}）"),
     ("conditions.issue.no_product_shape", "製品形状がありません（ファイルを開いてください）"),
@@ -598,10 +597,6 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     ("conditions.toolpath.none", "CL in the space model: not imported yet"),
     ("conditions.toolpath.current", "CL in the space model: result of the current conditions"),
-    (
-        "conditions.toolpath.outdated",
-        "CL in the space model: result of earlier conditions",
-    ),
     ("conditions.status.import_failed", "Cannot import ({reason})"),
     ("conditions.status.job_manager_failed", "Cannot open the job manager ({reason})"),
     ("conditions.issue.no_product_shape", "No product shape (open a file)"),

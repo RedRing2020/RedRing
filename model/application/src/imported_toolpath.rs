@@ -2,7 +2,8 @@
 //! SPACE_MODEL_FILE_DESIGN.md 3 章）
 //!
 //! 加工工程は CL を 1 つだけ持ち、取り込むたびに上書きする。CL は、取り込んだときの工程の改訂の番号と改訂の鍵を
-//! 持ち、工程の改訂の鍵と違えば、今の条件の結果ではない。取り込んだ後は、ジョブマネージャーの成果物に頼らない。
+//! 持ち、工程の改訂の鍵と違えば、今の条件の結果ではない（前の条件の CL は使わないため、改訂が進んだら除く）。
+//! 取り込んだ後は、ジョブマネージャーの成果物に頼らない。
 
 use std::fmt;
 use std::num::NonZeroU32;
@@ -39,8 +40,6 @@ pub enum ImportedToolpathState {
     None,
     /// 今の条件（工程の今の改訂）の結果
     Current,
-    /// 前の条件の結果（条件を変えた後で、計算し直していない）
-    Outdated,
 }
 
 /// 記録から保管先に戻すときの誤り
@@ -244,7 +243,8 @@ impl ImportedToolpathStore {
             .map(|toolpath| toolpath.artifact.as_slice()))
     }
 
-    /// 加工手順 `sequence` の加工工程 `operation` の CL が、今の条件の結果か
+    /// 加工手順 `sequence` の加工工程 `operation` の CL が、今の条件の結果か（前の条件の CL は、取り込んでいない
+    /// ものとして扱う。[`Self::remove_outdated`] で除く前でも使わない）
     ///
     /// # Errors
     ///
@@ -255,12 +255,38 @@ impl ImportedToolpathStore {
         sequence: MachiningSequenceId,
         operation: MachiningOperationId,
     ) -> Result<ImportedToolpathState, MachiningSequenceError> {
-        let key = sequences.operation_revision_key(sequence, operation)?;
-        Ok(match self.get(operation) {
-            None => ImportedToolpathState::None,
-            Some(toolpath) if toolpath.revision_key == key => ImportedToolpathState::Current,
-            Some(_) => ImportedToolpathState::Outdated,
-        })
+        Ok(
+            match self.current_artifact(sequences, sequence, operation)? {
+                Some(_) => ImportedToolpathState::Current,
+                None => ImportedToolpathState::None,
+            },
+        )
+    }
+
+    /// 加工手順 `sequence` の加工工程の CL のうち、前の条件の結果（工程の今の改訂の鍵と違う）を除き、除いた工程を
+    /// 返す（手順にない工程の CL は、加工工程の参照が切れたときと同じく、勝手に消さない）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順の場合。
+    pub fn remove_outdated(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence: MachiningSequenceId,
+    ) -> Result<Vec<MachiningOperationId>, MachiningSequenceError> {
+        let mut removed = Vec::new();
+        for operation in sequences.operation_ids(sequence)? {
+            let key = sequences.operation_revision_key(sequence, operation)?;
+            if self
+                .get(operation)
+                .is_some_and(|toolpath| toolpath.revision_key != key)
+            {
+                self.remove(operation);
+                tracing::info!(%operation, "Removed the CL of the previous conditions");
+                removed.push(operation);
+            }
+        }
+        Ok(removed)
     }
 }
 

@@ -1013,20 +1013,14 @@ pub(crate) mod tests {
                 SubmissionKind::of(ImportedToolpathState::Current, state),
                 Some(SubmissionKind::SimulationOnly)
             );
-            for toolpath in [ImportedToolpathState::None, ImportedToolpathState::Outdated] {
-                assert_eq!(
-                    SubmissionKind::of(toolpath, state),
-                    Some(SubmissionKind::Full)
-                );
-            }
+            assert_eq!(
+                SubmissionKind::of(ImportedToolpathState::None, state),
+                Some(SubmissionKind::Full)
+            );
         }
         // 計算待ち・計算中・計算済みの計算は、重ねて投入しない
         for state in done_or_pending {
-            for toolpath in [
-                ImportedToolpathState::None,
-                ImportedToolpathState::Outdated,
-                ImportedToolpathState::Current,
-            ] {
+            for toolpath in [ImportedToolpathState::None, ImportedToolpathState::Current] {
                 assert_eq!(SubmissionKind::of(toolpath, state), None);
             }
         }
@@ -1073,17 +1067,17 @@ pub(crate) mod tests {
             ImportedToolpathState::None
         );
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
-        // 投入できなければ、CL を除かない
+        // 計算の条件を変えると前の条件の CL は除き、誤った条件では投入できない
         session.import_toolpath(&mut document).unwrap();
         let wrong = with_scanline(document.operation_content().clone(), |scanline| {
             scanline.stepover = 1000.0
         });
         document.set_operation_content(wrong);
-        assert!(session.redo(&mut document, |_| true).is_err());
         assert_eq!(
             document.imported_toolpath_state(),
-            ImportedToolpathState::Outdated
+            ImportedToolpathState::None
         );
+        assert!(session.redo(&mut document, |_| true).is_err());
     }
 
     #[test]
@@ -1107,15 +1101,66 @@ pub(crate) mod tests {
             SubmitOutcome::AlreadyCalculated
         );
 
-        // 計算の条件を変えると、今の条件の結果でなくなる
+        // 計算の条件を変えると、前の条件の CL を除く（保存していない変更になる）
+        document
+            .save_as(&temporary_model_file("attributes"), "0.1.0")
+            .unwrap();
         let changed = with_scanline(document.operation_content().clone(), |scanline| {
             scanline.stepover = 5.0
         });
         document.set_operation_content(changed);
         assert_eq!(
             document.imported_toolpath_state(),
-            ImportedToolpathState::Outdated
+            ImportedToolpathState::None
         );
+        assert!(document.toolpaths().records().is_empty());
+        assert!(document.is_modified());
+        std::fs::remove_file(document.path().unwrap()).unwrap();
+    }
+
+    /// 試験用のモデルファイルの場所（名前に `name` を含める）
+    fn temporary_model_file(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "redring_cutting_simulation_session_{name}_{}.rrm",
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn the_cl_of_previous_conditions_left_in_a_file_is_removed_when_opened() {
+        use application::space_model_file::{load_space_model, save_space_model};
+
+        let (mut session, mut document) = coarse_session();
+        session.submit(&mut document, |_| true).unwrap();
+        session.run_queued_jobs().unwrap();
+        session.import_toolpath(&mut document).unwrap();
+        let path = temporary_model_file("outdated");
+        document.save_as(&path, "0.1.0").unwrap();
+        // 前の版で、素材を変えた後に前の条件の CL を残して保存したファイル
+        let (mut model, info) = load_space_model(&path).unwrap();
+        let sequence = model.sequences.sequence_ids()[0];
+        model
+            .sequences
+            .set_stock(
+                sequence,
+                MachiningStock {
+                    precision: 0.2,
+                    ..document.stock()
+                },
+            )
+            .unwrap();
+        assert_eq!(model.toolpaths.records().len(), 1);
+        save_space_model(&path, &model, &info).unwrap();
+
+        // 開くときに除き、保存していない変更にはしない
+        let opened = SpaceModelDocument::open(&path, NAMES).unwrap();
+        assert!(opened.toolpaths().records().is_empty());
+        assert_eq!(
+            opened.imported_toolpath_state(),
+            ImportedToolpathState::None
+        );
+        assert!(!opened.is_modified());
+        std::fs::remove_file(&path).unwrap();
     }
 
     #[test]
@@ -1191,14 +1236,14 @@ pub(crate) mod tests {
         session.run_queued_jobs().unwrap();
         assert_eq!(session.import_latest(&mut document).unwrap().job_id, 2);
 
-        // 素材を変えると、前の条件の結果は取り込まない（再計算待ち）。取り込んだ CL は前の条件の結果になる
+        // 素材を変えると、前の条件の結果は取り込まない。取り込んだ CL は前の条件の結果のため除く
         document.set_stock(MachiningStock {
             precision: 0.2,
             ..document.stock()
         });
         assert_eq!(
             document.imported_toolpath_state(),
-            ImportedToolpathState::Outdated
+            ImportedToolpathState::None
         );
         assert!(matches!(
             session.import_latest(&mut document),
