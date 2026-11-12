@@ -5,7 +5,8 @@
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use render::{
-    line::{LineDataError, LineResources},
+    gpu_buffer::GpuDataError,
+    line::LineResources,
     mesh::MeshResources,
     mesh_list::{MeshListItem, MeshListResources},
     vertex_3d::MeshVertex,
@@ -74,16 +75,24 @@ impl MeshStage {
     }
 
     /// メッシュデータを設定（ソリッド/ワイヤーフレーム用）
-    pub fn set_mesh_data(&mut self, device: &Device, vertices: Vec<MeshVertex>, indices: Vec<u32>) {
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで、メッシュを置けない場合（メッシュは描かない）。
+    pub fn set_mesh_data(
+        &mut self,
+        device: &Device,
+        vertices: &[MeshVertex],
+        indices: &[u32],
+    ) -> Result<(), GpuDataError> {
         tracing::debug!(
             "Set mesh data: {} vertices, {} indices",
             vertices.len(),
             indices.len()
         );
-
-        self.mesh_resources
-            .update_mesh_data(device, &vertices, &indices);
         self.render_mode = RenderMode::Solid;
+        self.mesh_resources
+            .update_mesh_data(device, vertices, indices)
     }
 
     /// 線分データを設定（Lines用）
@@ -95,7 +104,7 @@ impl MeshStage {
         &mut self,
         device: &Device,
         vertices: &[MeshVertex],
-    ) -> Result<(), LineDataError> {
+    ) -> Result<(), GpuDataError> {
         tracing::debug!("Set line data: {} vertices", vertices.len());
         self.render_mode = RenderMode::Lines;
         let format = self.format;
@@ -113,7 +122,7 @@ impl MeshStage {
         &mut self,
         device: &Device,
         vertices: &[MeshVertex],
-    ) -> Result<(), LineDataError> {
+    ) -> Result<(), GpuDataError> {
         let format = self.format;
         self.overlay_toolpath_line_resources
             .get_or_insert_with(|| LineResources::new(device, format))
@@ -129,7 +138,7 @@ impl MeshStage {
         &mut self,
         device: &Device,
         vertices: &[MeshVertex],
-    ) -> Result<(), LineDataError> {
+    ) -> Result<(), GpuDataError> {
         let format = self.format;
         self.overlay_tool_line_resources
             .get_or_insert_with(|| LineResources::new(device, format))
@@ -147,13 +156,30 @@ impl MeshStage {
     }
 
     /// ソリッド表示に重ねて描く、色の異なる複数のメッシュを設定（キーとメッシュの組。すべて置き換える）
-    pub fn set_mesh_list(&mut self, device: &Device, items: Vec<(u64, MeshListItem)>) {
-        self.mesh_list(device).set_meshes(device, items);
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで、置けないメッシュがある場合（そのメッシュは描かない）。
+    pub fn set_mesh_list(
+        &mut self,
+        device: &Device,
+        items: Vec<(u64, MeshListItem)>,
+    ) -> Result<(), GpuDataError> {
+        self.mesh_list(device).set_meshes(device, items)
     }
 
     /// 重ねて描くメッシュのうち、キー `key` のメッシュを差し替える（三角形がなければ削除する）
-    pub fn set_mesh_list_item(&mut self, device: &Device, key: u64, item: MeshListItem) {
-        self.mesh_list(device).set_mesh(device, key, item);
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで、メッシュを置けない場合（前のメッシュも描かない）。
+    pub fn set_mesh_list_item(
+        &mut self,
+        device: &Device,
+        key: u64,
+        item: MeshListItem,
+    ) -> Result<(), GpuDataError> {
+        self.mesh_list(device).set_mesh(device, key, item)
     }
 
     /// 重ねて描くメッシュのうち、キーが `keys` の範囲のメッシュの色を変える（メッシュは作り直さない）

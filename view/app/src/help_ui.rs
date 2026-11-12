@@ -88,6 +88,8 @@ pub(crate) enum Notice {
     NoToolSegments,
     /// 線（CL・工具など）が多すぎて GPU のメモリが足りないため、表示できない
     LinesNotDrawn,
+    /// 形状（製品形状・素材の面など）が大きすぎて GPU のメモリが足りないため、表示できない
+    ShapesNotDrawn,
     /// 切削アニメーションの表示中ではないため、設定を反映できない
     ApplyWithoutAnimation,
     /// デバッグ表示の間は、切削アニメーションのコマを動かさない
@@ -136,6 +138,7 @@ impl Notice {
             Self::NotImported
             | Self::NoToolSegments
             | Self::LinesNotDrawn
+            | Self::ShapesNotDrawn
             | Self::ApplyWithoutAnimation
             | Self::DebugViewShown
             | Self::InverseOffsetToolDiffers
@@ -185,6 +188,7 @@ impl Notice {
             Self::NotImported => resolve_help_text(locale, "notice.not_imported", &[]),
             Self::NoToolSegments => resolve_help_text(locale, "notice.no_tool_segments", &[]),
             Self::LinesNotDrawn => resolve_help_text(locale, "notice.lines_not_drawn", &[]),
+            Self::ShapesNotDrawn => resolve_help_text(locale, "notice.shapes_not_drawn", &[]),
             Self::ApplyWithoutAnimation => {
                 resolve_help_text(locale, "notice.apply_without_animation", &[])
             }
