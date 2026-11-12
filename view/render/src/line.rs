@@ -79,14 +79,15 @@ pub fn line_vertices_per_buffer(max_buffer_size: u64) -> usize {
 
 /// 頂点のバイト列 `contents` を置いた頂点のバッファー
 ///
-/// GPU のメモリが足りない・GPU の内部の誤りのときは、アプリを止めずに誤りの理由を返す（`create_buffer_init` は、
-/// 置けないときに止まるため使わない）。
+/// GPU のメモリが足りない・GPU の内部の誤り・検証の誤り（大きさが上限を超えるなど）のときは、アプリを止めずに
+/// 誤りの理由を返す（`create_buffer_init` は、置けないときに止まるため使わない）。
 fn vertex_buffer(device: &wgpu::Device, contents: &[u8]) -> Result<wgpu::Buffer, String> {
     // 書き込む大きさは、コピーの単位の倍数で 0 より大きくする
     let align = wgpu::COPY_BUFFER_ALIGNMENT;
     let size = (contents.len() as u64).div_ceil(align).max(1) * align;
     let out_of_memory = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
     let internal = device.push_error_scope(wgpu::ErrorFilter::Internal);
+    let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
     let buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Line Vertex Buffer"),
         size,
@@ -102,9 +103,11 @@ fn vertex_buffer(device: &wgpu::Device, contents: &[u8]) -> Result<wgpu::Buffer,
         }
         Err(error) => Err(error.to_string()),
     };
+    // 積んだ順と逆に取り出す
+    let validation = pollster::block_on(validation.pop());
     let internal = pollster::block_on(internal.pop());
     let out_of_memory = pollster::block_on(out_of_memory.pop());
-    match (out_of_memory.or(internal), mapped) {
+    match (out_of_memory.or(internal).or(validation), mapped) {
         (Some(error), _) => Err(error.to_string()),
         (None, Err(error)) => Err(error),
         (None, Ok(())) => Ok(buffer),
