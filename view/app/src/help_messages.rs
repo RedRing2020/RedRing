@@ -80,6 +80,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("notice.no_tool_segments", "ツールパスに区間がないため、工具を区間の端点へ移せません"),
     (
+        "notice.lines_not_drawn",
+        "線が多すぎて GPU のメモリが足りないため、表示できません",
+    ),
+    (
         "notice.apply_without_animation",
         "切削アニメーションの表示中ではないため、設定を反映できません",
     ),
@@ -197,6 +201,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "notice.no_tool_segments",
         "The toolpath has no segments to move the tool to",
+    ),
+    (
+        "notice.lines_not_drawn",
+        "The lines cannot be shown because there are too many for the GPU memory",
     ),
     (
         "notice.apply_without_animation",

@@ -69,12 +69,14 @@ impl AppState {
             self.graphic.config.format,
         ));
         mesh_stage.set_mesh_list(&self.graphic.device, items);
-        if let Some(animation) = &self.cutting_animation {
-            mesh_stage.set_overlay_toolpath_line_data(
+        let lines = match &self.cutting_animation {
+            Some(animation) => mesh_stage.set_overlay_toolpath_line_data(
                 &self.graphic.device,
-                self.toolpath_lines(animation),
-            );
-        }
+                &self.toolpath_lines(animation),
+            ),
+            None => Ok(()),
+        };
+        self.report_lines(lines);
         mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
         // ほかのデバッグ表示から切り替えても、通常の表示と同じカメラで描く
         self.enter_debug_view();

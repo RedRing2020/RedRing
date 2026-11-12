@@ -407,7 +407,9 @@ impl AppState {
         self.cutting_animation_colors = self.snapshot_shaded_color_settings;
         animation.set_deviations_shown(self.cutting_animation_colors.deviations.shown);
         let stock_blocks = animation.take_initial_stock_blocks();
-        let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation, stock_blocks);
+        let (mesh_stage, positions, lines) =
+            self.build_cutting_animation_stage(&animation, stock_blocks);
+        self.report_lines(lines);
         // 取り込み直しても見ていた向き・拡大を保つ。カメラは STL の読み込みで製品形状に合わせているため、表示中の
         // 製品形状がない場合だけ合わせる
         if self.document.shapes().visible_face_ids().is_empty() {
@@ -456,8 +458,9 @@ impl AppState {
             self.set_notice(crate::help_ui::Notice::ApplyWithoutAnimation);
             return;
         };
-        mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines.clone());
-        mesh_stage.set_overlay_tool_line_data(device, tool_lines);
+        let lines = mesh_stage
+            .set_overlay_toolpath_line_data(device, &toolpath_lines)
+            .and(mesh_stage.set_overlay_tool_line_data(device, &tool_lines));
         for class in [
             DeviationClass::NotCompared,
             DeviationClass::Uncut,
@@ -472,8 +475,10 @@ impl AppState {
         }
         // ツールパスの線を重ねたデバッグ表示にも、同じ線を描く
         if let Some(debug_stage) = self.debug_toolpath_overlay_stage() {
-            debug_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
+            let debug_lines = debug_stage.set_overlay_toolpath_line_data(device, &toolpath_lines);
+            self.report_lines(debug_lines);
         }
+        self.report_lines(lines);
         // 色分けするかが変わった場合は、最後の時点の素材の面が作り直されて届く
         if let Some(animation) = &mut self.cutting_animation {
             animation.set_deviations_shown(colors.deviations.shown);
@@ -486,12 +491,17 @@ impl AppState {
         );
     }
 
-    /// 切削アニメーションの最初のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置
+    /// 切削アニメーションの最初のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置と、
+    /// 線を GPU に置けたか
     fn build_cutting_animation_stage(
         &self,
         animation: &CuttingAnimation,
         stock_blocks: Vec<StockBlockMesh>,
-    ) -> (Box<MeshStage>, Vec<[f32; 3]>) {
+    ) -> (
+        Box<MeshStage>,
+        Vec<[f32; 3]>,
+        Result<(), render::line::LineDataError>,
+    ) {
         let positions: Vec<[f32; 3]> = stock_blocks
             .iter()
             .flat_map(|block| block.vertices.iter().map(|vertex| vertex.position))
@@ -522,15 +532,16 @@ impl AppState {
         mesh_stage.set_mesh_list(device, items);
         mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
         mesh_stage.set_overlay_tool_visible(self.tool_lines_visible);
-        mesh_stage.set_overlay_toolpath_line_data(device, self.toolpath_lines(animation));
-        mesh_stage.set_overlay_tool_line_data(
-            device,
-            line_vertices(
-                &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
-                Some(self.cutting_animation_colors.tool_wire_color),
-            ),
-        );
-        (mesh_stage, positions)
+        let lines = mesh_stage
+            .set_overlay_toolpath_line_data(device, &self.toolpath_lines(animation))
+            .and(mesh_stage.set_overlay_tool_line_data(
+                device,
+                &line_vertices(
+                    &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
+                    Some(self.cutting_animation_colors.tool_wire_color),
+                ),
+            ));
+        (mesh_stage, positions, lines)
     }
 
     /// 切削アニメーション `animation` のツールパスの線の頂点（今の表示の設定で作る）
@@ -601,7 +612,8 @@ impl AppState {
                     mesh_stage.set_mesh_list_item(device, key, item);
                 }
             }
-            mesh_stage.set_overlay_tool_line_data(device, tool_lines);
+            let lines = mesh_stage.set_overlay_tool_line_data(device, &tool_lines);
+            self.report_lines(lines);
         }
         // 工具の位置（区間の端点に置いたか）は面を受け取った後に決まるため、タイトルは受け取った後にも出す
         self.refresh_snapshot_window_title();

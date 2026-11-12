@@ -58,6 +58,17 @@ impl AppState {
         self.notice = notice;
     }
 
+    /// 線を GPU に置けなかった（`result` が誤り）ときは、表示できないことを画面の下の行に出す（線は描かない）
+    pub(crate) fn report_lines(&mut self, result: Result<(), render::line::LineDataError>) {
+        if let Err(error) = result {
+            tracing::warn!("{error}");
+            // 続けて置けないとき（素材の面を受け取るたびに工具の線を置き直す）に、同じメッセージを重ねない
+            if self.notice != Notice::LinesNotDrawn {
+                self.set_notice(Notice::LinesNotDrawn);
+            }
+        }
+    }
+
     /// 投入・実行・取り込みの結果 `status` を、画面の下の行に出す
     pub(crate) fn set_operation_status(&mut self, status: OperationStatus) {
         self.set_notice(Notice::Operation(status));
