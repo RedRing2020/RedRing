@@ -607,6 +607,7 @@ fn runner_failure(
         Some(4) => StoredJobError::InvalidInput,
         Some(5) => StoredJobError::CalculationFailed,
         Some(6) => StoredJobError::RunnerCannotWriteResult,
+        Some(7) => StoredJobError::ToolpathTooLarge,
         Some(code) => StoredJobError::RunnerExitCode { code },
         None => StoredJobError::RunnerStopped,
     };

@@ -290,6 +290,21 @@ fn a_runner_that_ends_with_another_exit_code_records_the_last_line_of_its_standa
 }
 
 #[test]
+fn a_runner_stopped_at_the_memory_limit_records_that_the_toolpath_is_too_large() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().exit_codes.insert("cam", 7);
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+
+    service.tick(1);
+    service.tick(2);
+    let cam = status_of(&root.store(), 1);
+    assert_eq!(cam.status, StoredJobStatus::Failed);
+    assert_eq!(cam.error, Some(StoredJobError::ToolpathTooLarge));
+}
+
+#[test]
 fn a_panic_records_its_message_without_the_note_line() {
     let root = TempRoot::new();
     let launcher = FakeLauncher::default();

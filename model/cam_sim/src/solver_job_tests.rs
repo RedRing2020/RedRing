@@ -328,7 +328,7 @@ fn material_left_above_flat_face(
     let mut input = scanline_input(SolverGeometry::TriangleMesh(flat), tool.clone());
     let OperationSpec::Scanline(params) = &mut input.operation;
     params.tool_range = tool_range;
-    let toolpath = cam_algorithms::solve_toolpath(&input).unwrap();
+    let toolpath = cam_algorithms::solve_toolpath(&input, usize::MAX).unwrap();
 
     // 素材の底は z = -2（平坦面より上の `stock_top` の厚さを削る）
     let stock = Aabb3D::new(

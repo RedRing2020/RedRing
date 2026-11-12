@@ -179,6 +179,10 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
         "ランナーが結果を書けません",
     ),
     (
+        "error.toolpath_too_large",
+        "ツールパスの点が多すぎるため、計算を止めました（メモリの上限を超えます）",
+    ),
+    (
         "error.runner_exit_code",
         "ランナーが終了の番号 {code} で終わりました",
     ),
@@ -423,6 +427,10 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
         "The runner cannot write the result",
     ),
     (
+        "error.toolpath_too_large",
+        "The calculation was stopped because the toolpath has too many points (it exceeds the memory limit)",
+    ),
+    (
         "error.runner_exit_code",
         "The runner ended with exit code {code}",
     ),
@@ -552,6 +560,7 @@ pub(crate) fn job_error_text(language: Language, error: &StoredJobError) -> Opti
         E::InvalidInput => ("error.invalid_input", Vec::new()),
         E::CalculationFailed => ("error.calculation_failed", Vec::new()),
         E::RunnerCannotWriteResult => ("error.runner_cannot_write_result", Vec::new()),
+        E::ToolpathTooLarge => ("error.toolpath_too_large", Vec::new()),
         E::RunnerExitCode { code } => ("error.runner_exit_code", vec![("code", code.to_string())]),
         E::RunnerStopped => ("error.runner_stopped", Vec::new()),
         E::ManagerStopped => ("error.manager_stopped", Vec::new()),
@@ -640,6 +649,7 @@ mod tests {
             E::InvalidInput,
             E::CalculationFailed,
             E::RunnerCannotWriteResult,
+            E::ToolpathTooLarge,
             E::RunnerExitCode { code: 9 },
             E::RunnerStopped,
             E::ManagerStopped,

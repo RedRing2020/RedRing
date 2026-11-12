@@ -109,7 +109,7 @@ fn feed_directions(cut_direction: ScanlineCutDirection) -> (CuttingDirection, Ve
     let mut input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
     let OperationSpec::Scanline(params) = &mut input.operation;
     params.cut_direction = cut_direction;
-    let toolpath = solve_toolpath(&input).unwrap();
+    let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
     let passes = toolpath
         .contour_levels
         .iter()
@@ -343,7 +343,7 @@ fn solve_toolpath_supports_flat_end_mill() {
         ScanlineToolRange::GeometryExtent,
     );
     input.tool = Tool::flat_end_mill("EM6".to_string(), 6.0, 30.0);
-    let toolpath = solve_toolpath(&input).unwrap();
+    let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
 
     assert_eq!(toolpath.tool_id, "EM6");
     assert_eq!(toolpath.level_count(), 21);
@@ -438,7 +438,7 @@ fn solve_toolpath_generates_scanline_passes_for_nurbs_surface() {
         solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()])),
         ScanlineToolRange::GeometryExtent,
     );
-    let toolpath = solve_toolpath(&input).unwrap();
+    let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
 
     assert_eq!(toolpath.tool_id, "BEM6");
     // 0..40 を stepover 2.0 で走査 → 21 ライン
@@ -465,7 +465,7 @@ fn solve_toolpath_generates_scanline_passes_for_nurbs_surface() {
 fn invalid_input_for_radius_end_mill() {
     let mut input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
     input.tool = Tool::radius_end_mill("REM6R1".to_string(), 6.0, 1.0, 30.0);
-    let error = solve_toolpath(&input).unwrap_err();
+    let error = solve_toolpath(&input, usize::MAX).unwrap_err();
     assert_eq!(error.code(), "invalid_input");
 }
 
@@ -479,7 +479,7 @@ fn invalid_input_for_stepover_larger_than_diameter() {
         cut_direction: ScanlineCutDirection::default(),
         angle_degrees: 0.0,
     });
-    let error = solve_toolpath(&input).unwrap_err();
+    let error = solve_toolpath(&input, usize::MAX).unwrap_err();
     assert_eq!(error.code(), "invalid_input");
     assert_eq!(
         error,
@@ -490,7 +490,10 @@ fn invalid_input_for_stepover_larger_than_diameter() {
 #[test]
 fn invalid_input_for_empty_surface_set() {
     let input = solver_input(SolverGeometry::NurbsSurfaceSet(Vec::new()));
-    assert_eq!(solve_toolpath(&input).unwrap_err().code(), "invalid_input");
+    assert_eq!(
+        solve_toolpath(&input, usize::MAX).unwrap_err().code(),
+        "invalid_input"
+    );
 }
 
 #[test]
@@ -500,7 +503,7 @@ fn no_solution_for_degenerate_geometry() {
         &[[0, 1, 2]],
     );
     let input = solver_input(SolverGeometry::TriangleMesh(collinear));
-    let error = solve_toolpath(&input).unwrap_err();
+    let error = solve_toolpath(&input, usize::MAX).unwrap_err();
     assert!(matches!(error, CamSolverError::NoSolution(_)));
 }
 
@@ -513,7 +516,7 @@ fn convergence_failure_when_chord_tolerance_unreachable() {
         max_refinement_iterations: 1,
         max_vertices_per_surface: 1_000_000,
     };
-    let error = solve_toolpath(&input).unwrap_err();
+    let error = solve_toolpath(&input, usize::MAX).unwrap_err();
     assert_eq!(error.code(), "convergence_failure");
 }
 
@@ -584,7 +587,7 @@ fn rectangle(rect_min: [f64; 2], rect_max: [f64; 2]) -> Option<MachiningBoundary
 fn rectangle_boundary_limits_scanline_region() {
     let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
     input.boundary = rectangle([10.0, 10.0], [20.0, 30.0]);
-    let toolpath = solve_toolpath(&input).unwrap();
+    let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
 
     // Y 10..30 を stepover 2.0 で走査 → 11 ライン
     assert_eq!(toolpath.level_count(), 11);
@@ -601,14 +604,14 @@ fn rectangle_within_tool_reach_outside_shape_is_accepted() {
     // 形状外側だが工具半径以内（x = -2..0）は接触し得るため受理する
     let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
     input.boundary = rectangle([-2.0, 0.0], [0.0, 40.0]);
-    assert!(solve_toolpath(&input).is_ok());
+    assert!(solve_toolpath(&input, usize::MAX).is_ok());
 }
 
 #[test]
 fn rectangle_outside_tool_reach_is_operation_boundary_out_of_domain() {
     let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
     input.boundary = rectangle([100.0, 100.0], [110.0, 110.0]);
-    let error = solve_toolpath(&input).unwrap_err();
+    let error = solve_toolpath(&input, usize::MAX).unwrap_err();
     assert_eq!(error.code(), "invalid_input");
     assert!(
         error
@@ -621,7 +624,7 @@ fn rectangle_outside_tool_reach_is_operation_boundary_out_of_domain() {
 fn degenerate_rectangle_in_solver_input_is_invalid_input() {
     let mut input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
     input.boundary = rectangle([5.0, 5.0], [5.0, 8.0]);
-    let error = solve_toolpath(&input).unwrap_err();
+    let error = solve_toolpath(&input, usize::MAX).unwrap_err();
     assert_eq!(error.code(), "invalid_input");
     assert!(error.reason().starts_with("invalid_rectangle_boundary"));
 }
@@ -646,7 +649,7 @@ fn profile_load_measurement() {
                 let mut input = solver_input(SolverGeometry::TriangleMesh(mesh.clone()));
                 input.chord_tolerance = tolerance;
                 let started = Instant::now();
-                let toolpath = solve_toolpath(&input);
+                let toolpath = solve_toolpath(&input, usize::MAX);
                 println!(
                     "{}: tolerance={} vertices={} triangles={} tessellation={}ms solve={}ms ok={}",
                     profile.token(),
@@ -674,7 +677,7 @@ fn oversized_rectangle_is_clipped_to_tool_reach() {
     // 形状 0..40 に対し ±1e6 の矩形: 走査は reach（-3..43）にクリップされ、点数は形状規模に収まる
     let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
     input.boundary = rectangle([-1.0e6, -1.0e6], [1.0e6, 1.0e6]);
-    let toolpath = solve_toolpath(&input).unwrap();
+    let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
 
     let r = input.tool.radius();
     // Y -3..43 を stepover 2.0 で走査 → 24 ライン（うち外周で非接触のラインは生成されない）
@@ -698,7 +701,7 @@ fn rectangle_touching_reach_is_out_of_domain_not_no_solution() {
     for (rect_min, rect_max) in degenerate_cases {
         let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
         input.boundary = rectangle(rect_min, rect_max);
-        let error = solve_toolpath(&input).unwrap_err();
+        let error = solve_toolpath(&input, usize::MAX).unwrap_err();
         assert_eq!(error.code(), "invalid_input", "{rect_min:?}-{rect_max:?}");
         assert!(
             error
@@ -895,12 +898,12 @@ fn cutting_points(toolpath: &cam_core::ToolPath<f64>) -> Vec<Point3D<f64>> {
 fn ball_end_mill_moves_one_radius_beyond_the_geometry_by_default() {
     // 10 × 10 の平坦面（z = 0）を、直径 6 のボールエンドミルで走査する
     let input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
-    let extended = cutting_points(&solve_toolpath(&input).unwrap());
+    let extended = cutting_points(&solve_toolpath(&input, usize::MAX).unwrap());
     let within = cutting_points(
-        &solve_toolpath(&with_tool_range(
-            input.clone(),
-            ScanlineToolRange::GeometryExtent,
-        ))
+        &solve_toolpath(
+            &with_tool_range(input.clone(), ScanlineToolRange::GeometryExtent),
+            usize::MAX,
+        )
         .unwrap(),
     );
     let r = 3.0;
@@ -985,7 +988,7 @@ fn ridged_terrain() -> TriangleMesh3D<f64> {
 /// 経路の線分を細かく分けた点で、経路の高さが CL の面の高さからトレランスを超えて下を通らない
 fn assert_path_does_not_gouge(input: &CamSolverInput) {
     let cutter = build_inverse_offset_shape(input).unwrap();
-    let toolpath = solve_toolpath(input).unwrap();
+    let toolpath = solve_toolpath(input, usize::MAX).unwrap();
     let tolerance = input.chord_tolerance;
     for level in &toolpath.contour_levels {
         for segment in level.cutting_segments() {
@@ -1032,7 +1035,7 @@ fn steps_of_the_cl_surface_become_vertical_moves_on_the_high_side() {
     // ボールの中心は壁の上の辺を回って x = 8 まで下り、そこで床の高さへ跳ぶ。経路は高い側の高さのまま進んでから下りる
     let input = solver_input(SolverGeometry::TriangleMesh(step_block()));
     let cutter = build_inverse_offset_shape(&input).unwrap();
-    let toolpath = solve_toolpath(&input).unwrap();
+    let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
     let vertical: Vec<_> = toolpath
         .contour_levels
         .iter()
@@ -1056,7 +1059,7 @@ fn points_are_not_added_on_flat_faces() {
         solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))),
         ScanlineToolRange::GeometryExtent,
     );
-    let toolpath = solve_toolpath(&input).unwrap();
+    let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
     for level in &toolpath.contour_levels {
         assert_eq!(level.cutting_segments().len(), 4);
     }
@@ -1082,7 +1085,7 @@ fn pass_ends_are_at_the_contact_boundaries_within_the_tolerance() {
     );
     let input = solver_input(SolverGeometry::TriangleMesh(squares));
     let radius = 3.0;
-    let toolpath = solve_toolpath(&input).unwrap();
+    let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
     let mut passes_per_line = std::collections::BTreeMap::new();
     for level in &toolpath.contour_levels {
         let segments = level.cutting_segments();
@@ -1113,6 +1116,53 @@ fn pass_ends_are_at_the_contact_boundaries_within_the_tolerance() {
 }
 
 #[test]
+fn the_toolpath_stops_when_its_points_exceed_the_limit() {
+    let input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
+    // パスの点の数（パスごとに、線分の数より 1 つ多い）
+    let points: usize = solve_toolpath(&input, usize::MAX)
+        .unwrap()
+        .contour_levels
+        .iter()
+        .map(|level| level.cutting_segments().len() + 1)
+        .sum();
+    // 上限ちょうどまでは作り、超えると止める
+    assert!(solve_toolpath(&input, points).is_ok());
+    let error = solve_toolpath(&input, points - 1).unwrap_err();
+    assert_eq!(error, CamSolverError::TooManyPoints);
+    assert_eq!(error.code(), "too_many_points");
+    // ピックフィードがとても小さいと、走査ラインの並びを作る前に止める
+    let OperationSpec::Scanline(mut params) = input.operation;
+    params.stepover = 1e-12;
+    let tiny_stepover = CamSolverInput {
+        operation: OperationSpec::Scanline(params),
+        ..input
+    };
+    assert_eq!(
+        solve_toolpath(&tiny_stepover, points).unwrap_err(),
+        CamSolverError::TooManyPoints
+    );
+    // 工具の半径がとても小さいと、走査ライン上の X の並びを作る前に止める（Y にとても薄い形状で、走査ラインは
+    // 上限より少なく、ライン上の X は約 1e10 個。止めないと、並びだけで約 80 GB を確保しようとする）
+    let thin_strip = mesh(
+        &[
+            (0.0, 0.0, 0.0),
+            (10.0, 0.0, 0.0),
+            (10.0, 1e-6, 0.0),
+            (0.0, 1e-6, 0.0),
+        ],
+        &[[0, 1, 2], [0, 2, 3]],
+    );
+    let mut tiny_tool = solver_input(SolverGeometry::TriangleMesh(thin_strip));
+    tiny_tool.tool = Tool::ball_end_mill("BEM-tiny".to_string(), 2e-9, 30.0);
+    let OperationSpec::Scanline(params) = &mut tiny_tool.operation;
+    params.stepover = 2e-9;
+    assert_eq!(
+        solve_toolpath(&tiny_tool, 1_000_000).unwrap_err(),
+        CamSolverError::TooManyPoints
+    );
+}
+
+#[test]
 fn scanline_toolpaths_require_a_positive_finite_tolerance() {
     let cutter = InverseOffsetShape::new(&flat_square(0.0), ball(3.0)).unwrap();
     let OperationSpec::Scanline(params) =
@@ -1128,6 +1178,7 @@ fn scanline_toolpaths_require_a_positive_finite_tolerance() {
                 crate::scan_frame::ScanFrame::from_degrees(0.0),
             ),
             tolerance,
+            usize::MAX,
         );
         assert!(
             matches!(result, Err(CamSolverError::InvalidInput(_))),
@@ -1162,7 +1213,7 @@ fn pocket_with_steep_walls() -> TriangleMesh3D<f64> {
 /// 段の端）は測らない。
 fn max_rise_of_path_above_cl_surface(input: &CamSolverInput) -> f64 {
     let cutter = build_inverse_offset_shape(input).unwrap();
-    let toolpath = solve_toolpath(input).unwrap();
+    let toolpath = solve_toolpath(input, usize::MAX).unwrap();
     let mut worst = 0.0_f64;
     for level in &toolpath.contour_levels {
         for segment in level.cutting_segments() {
@@ -1234,7 +1285,7 @@ fn angled_scanlines_run_along_the_angle_and_are_spaced_by_the_stepover() {
             solver_input(SolverGeometry::TriangleMesh(flat_square(0.0))),
             degrees,
         );
-        let toolpath = solve_toolpath(&input).unwrap();
+        let toolpath = solve_toolpath(&input, usize::MAX).unwrap();
         let (sin, cos) = f64::to_radians(degrees).sin_cos();
         // 走査線に垂直な向きの位置（パスごとに 1 つ）
         let mut offsets = Vec::new();
@@ -1308,7 +1359,7 @@ fn angled_scanlines_stay_inside_the_rectangle_boundary() {
             degrees,
         );
         input.boundary = Some(MachiningBoundary::Rectangle(rectangle));
-        let points = cutting_points(&solve_toolpath(&input).unwrap());
+        let points = cutting_points(&solve_toolpath(&input, usize::MAX).unwrap());
         assert!(!points.is_empty());
         for point in &points {
             assert!(
@@ -1354,7 +1405,7 @@ fn angled_scanlines_keep_the_tool_inside_the_geometry_extent() {
         ),
         ScanlineToolRange::GeometryExtent,
     );
-    for point in cutting_points(&solve_toolpath(&input).unwrap()) {
+    for point in cutting_points(&solve_toolpath(&input, usize::MAX).unwrap()) {
         assert!(
             (-EPS..=10.0 + EPS).contains(&point.x()) && (-EPS..=10.0 + EPS).contains(&point.y()),
             "({}, {}) is outside the geometry extent",
@@ -1372,7 +1423,7 @@ fn scanline_angles_must_be_finite() {
             degrees,
         );
         assert_eq!(
-            solve_toolpath(&input).unwrap_err(),
+            solve_toolpath(&input, usize::MAX).unwrap_err(),
             CamSolverError::InvalidScanline(ScanlineInputError::AngleNotFinite)
         );
     }

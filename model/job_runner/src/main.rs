@@ -32,6 +32,8 @@ enum ExitCode {
     JobFailed = 5,
     /// 成果物・ログ・進み具合を書けない
     OutputUnwritable = 6,
+    /// ツールパスがメモリの上限を超えるため止めた
+    TooLarge = 7,
 }
 
 fn main() -> ProcessExitCode {
