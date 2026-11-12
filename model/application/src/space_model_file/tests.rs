@@ -158,12 +158,14 @@ fn sequence_records() -> Vec<MachiningSequenceRecord> {
                 content: rough,
                 revision: NonZeroU32::new(1).unwrap(),
                 revision_key: MachiningRevisionKey::from_uuid(uuid(12)),
+                conditions_set: true,
             },
             MachiningOperationRecord {
                 id: MachiningOperationId::from_uuid(uuid(13)),
                 content: content("中"),
                 revision: NonZeroU32::new(3).unwrap(),
                 revision_key: MachiningRevisionKey::from_uuid(uuid(14)),
+                conditions_set: true,
             },
         ],
     }]
@@ -258,6 +260,34 @@ fn with_extra_section(
         .unwrap();
     out.extend_from_slice(&payload);
     out
+}
+
+#[test]
+fn operations_whose_conditions_are_not_set_round_trip() {
+    let mut model = sample_model();
+    let mut records = sequence_records();
+    records[0].operations[1].conditions_set = false;
+    model.sequences = MachiningSequenceStore::from_records(records.clone()).unwrap();
+    let written = bytes(&model);
+    // 設定していない工程があるときだけ、区画を書く
+    assert!(written.windows(4).any(|kind| kind == b"NSET"));
+    assert!(
+        !bytes(&sample_model())
+            .windows(4)
+            .any(|kind| kind == b"NSET")
+    );
+    let (read_model, _) = read(&written).unwrap();
+    assert_eq!(read_model.sequences.records(), records);
+}
+
+#[test]
+fn operations_not_in_the_sequences_are_ignored_when_reading_the_conditions_not_set() {
+    // 前の版が工程を消して書き戻した区画（手順にない工程の ID）
+    let body = super::codec::write_operations_not_set(&[MachiningOperationId::from_uuid(uuid(99))])
+        .unwrap();
+    let original = with_extra_section(&bytes(&sample_model()), *b"NSET", 1, 0, &body);
+    let (model, _) = read(&original).unwrap();
+    assert_eq!(model.sequences.records(), sequence_records());
 }
 
 #[test]

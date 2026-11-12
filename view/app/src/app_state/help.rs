@@ -115,6 +115,17 @@ impl AppState {
         if !self.machining_sequence_open {
             return None;
         }
+        // 条件を設定していない・誤りがある工程は計算できないため、計算の状態の案内を出さない（理由は確かめの一覧に出す）
+        let blocked = !self
+            .document
+            .conditions_set_of(self.document.selected_operation())
+            || self
+                .condition_issues
+                .as_ref()
+                .is_some_and(|issues| !issues.is_empty());
+        if blocked {
+            return None;
+        }
         navigation_text(
             self.ui_locale,
             &self.cutting_simulation_job_status,

@@ -179,6 +179,8 @@ pub struct AppState {
 
     /// 次に投入する計算条件の問題（`None` は、条件・製品形状が変わって確かめ直す必要がある）
     condition_issues: Option<Vec<ConditionIssue>>,
+    /// 加工手順の工程のうち、計算の条件に誤りがある工程（確かめていなければ `None`）
+    operation_condition_errors: Option<Vec<viewmodel::space_model_document::MachiningOperationId>>,
 
     /// 取り込んだ切削シミュレーションの計算に使った条件
     imported_conditions: Option<ImportedConditions>,
@@ -300,6 +302,7 @@ impl AppState {
             operation_settings_page: OperationSettingsPage::default(),
             submit_on_apply: false,
             condition_issues: None,
+            operation_condition_errors: None,
             imported_conditions: None,
             cutting_simulation_job_status: JobStatusLine::NotSubmitted,
             operation_job_statuses: Vec::new(),

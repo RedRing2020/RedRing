@@ -69,6 +69,8 @@ pub struct MachiningOperationRecord {
     pub content: MachiningOperationContent,
     pub revision: NonZeroU32,
     pub revision_key: MachiningRevisionKey,
+    /// 計算の条件を設定したか
+    pub conditions_set: bool,
 }
 
 /// 加工手順の記録（保管先から取り出し、保管先に戻す中身）
@@ -189,6 +191,7 @@ impl MachiningSequenceStore {
                     operation.content,
                     operation.revision,
                     operation.revision_key,
+                    operation.conditions_set,
                 ));
             }
             sequences.push(MachiningSequence::restore(
@@ -220,6 +223,7 @@ impl MachiningSequenceStore {
                         revision: NonZeroU32::new(operation.revision())
                             .expect("the revision of an operation starts at 1 and only increases"),
                         revision_key: operation.revision_key(),
+                        conditions_set: operation.conditions_set(),
                     })
                     .collect(),
             })
@@ -272,6 +276,36 @@ impl MachiningSequenceStore {
         self.sequence_mut(sequence)?
             .insert_operation(index, operation);
         Ok(id)
+    }
+
+    /// 加工手順 `sequence` の加工工程 `operation` の計算の条件を設定したか
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn operation_conditions_set(
+        &self,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+    ) -> Result<bool, MachiningSequenceError> {
+        Ok(self.operation(sequence, operation)?.conditions_set())
+    }
+
+    /// 加工手順 `sequence` の加工工程 `operation` の計算の条件を、設定したことにする。設定していなかったら `true`
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合。
+    pub fn mark_operation_conditions_set(
+        &mut self,
+        sequence: MachiningSequenceId,
+        operation: MachiningOperationId,
+    ) -> Result<bool, MachiningSequenceError> {
+        Ok(self
+            .sequence_mut(sequence)?
+            .operation_mut(operation)
+            .ok_or(MachiningSequenceError::UnknownOperation(operation))?
+            .mark_conditions_set())
     }
 
     /// 加工手順 `sequence` から加工工程 `operation` を除く

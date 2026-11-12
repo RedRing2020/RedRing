@@ -38,6 +38,7 @@ pub(crate) enum ConditionField {
 /// 問題 `issue` を出す欄
 pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
     match issue {
+        ConditionIssue::NotSet => ConditionField::Submission,
         ConditionIssue::NoProductShape => ConditionField::Target,
         ConditionIssue::Condition(error) => match error.field() {
             CamConditionField::Tool => ConditionField::Tool,
@@ -108,6 +109,9 @@ pub(crate) enum OperationStatus {
 /// 計算条件の問題 `issue` の、言語 `locale` の文言
 pub(crate) fn condition_issue_text(locale: UiLocale, issue: &ConditionIssue) -> String {
     match issue {
+        ConditionIssue::NotSet => {
+            resolve_machining_conditions_text(locale, "conditions.issue.not_set", &[])
+        }
         ConditionIssue::NoProductShape => {
             resolve_machining_conditions_text(locale, "conditions.issue.no_product_shape", &[])
         }
@@ -370,6 +374,19 @@ pub(crate) struct OperationRow {
     pub(crate) status: JobStatusLine,
     /// 空間モデルの CL が、今の条件の結果（取込済み）
     pub(crate) toolpath_current: bool,
+    /// 計算の条件を設定したか・条件に誤りがあるか
+    pub(crate) setup: OperationSetup,
+}
+
+/// 工程の計算の条件の状態（計算できるか）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OperationSetup {
+    /// 計算の条件を、まだ設定していない（条件を一度も適用していない。計算できない）
+    NotSet,
+    /// 計算の条件に誤りがある（計算できない）
+    ConditionError,
+    /// 計算の条件を設定し、誤りがない（計算できる）
+    Ready,
 }
 
 /// 押せないボタン `response` に乗せたときに、押せない理由 `reasons` を出す（理由がないとき、計算の状態のせいで
@@ -468,6 +485,12 @@ fn navigation_key(status: &JobStatusLine, toolpath_current: bool) -> Option<&'st
 /// （ジョブマネージャーが動いていない・見つからない）の工程は、空間モデルの CL が今の条件の結果なら取込済み。CL が正本
 /// のため、ジョブの側を見なくてよい。計算待ち・計算中・失敗などは、そのまま出す）
 fn operation_row_key(row: &OperationRow) -> &'static str {
+    // 計算できない工程は、計算の状態より先に、計算できない理由を出す
+    match row.setup {
+        OperationSetup::NotSet => return "conditions.operations.status.not_set",
+        OperationSetup::ConditionError => return "conditions.operations.status.condition_error",
+        OperationSetup::Ready => {}
+    }
     let finished_or_gone = matches!(
         row.status,
         JobStatusLine::Status(OperationJobStatus::Succeeded)
@@ -506,19 +529,29 @@ fn row_status_color(key: &str) -> Option<Color32> {
         "conditions.operations.status.succeeded" | "conditions.operations.status.imported" => {
             Some(Color32::from_rgb(80, 200, 120))
         }
-        "conditions.operations.status.failed" | "conditions.operations.status.unreadable" => {
-            Some(Color32::from_rgb(230, 90, 90))
-        }
+        "conditions.operations.status.failed"
+        | "conditions.operations.status.unreadable"
+        | "conditions.operations.status.condition_error" => Some(Color32::from_rgb(230, 90, 90)),
         "conditions.operations.status.canceled" => Some(Color32::from_rgb(200, 160, 60)),
         _ => None,
     }
 }
 
-/// 計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から決める、次に押す操作（目立たせる。
-/// 未計算・計算失敗・取り消しは計算（取込済みで切削シミュレーションの結果がない工程も、切削シミュレーションだけを
-/// 計算するため計算。画面の下の案内と同じ）、計算済みで取り込んでいなければ CL 取込。計算待ち・計算中・計算済みで
-/// 取込済み、状態が分からない工程はない）
-fn next_action_of(status: &JobStatusLine, toolpath_current: bool) -> Option<RowAction> {
+/// 計算の条件の状態 `setup`・計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から決める、
+/// 次に押す操作（目立たせる。条件を設定していない工程は工程の設定を開き、条件に誤りがある工程はない（素材・形状の
+/// 誤りもあり、工程の設定で直せるとは限らないため。理由は確かめの一覧に出す）。未計算・計算失敗・取り消しは
+/// 計算（取込済みで切削シミュレーションの結果がない工程も、切削シミュレーションだけを計算するため計算。画面の下の案内と
+/// 同じ）、計算済みで取り込んでいなければ CL 取込。計算待ち・計算中・計算済みで取込済み、状態が分からない工程はない）
+fn next_action_of(
+    setup: OperationSetup,
+    status: &JobStatusLine,
+    toolpath_current: bool,
+) -> Option<RowAction> {
+    match setup {
+        OperationSetup::NotSet => return Some(RowAction::OpenSettings),
+        OperationSetup::ConditionError => return None,
+        OperationSetup::Ready => {}
+    }
     match status {
         JobStatusLine::NotSubmitted => Some(RowAction::Submit),
         JobStatusLine::Status(OperationJobStatus::Failed | OperationJobStatus::Canceled) => {
@@ -822,10 +855,17 @@ impl MachiningConditionsUiState {
             {
                 self.open_dialog_requested = Some(ConditionDialog::Sequence);
             }
-            if ui
-                .button(self.text("conditions.list.operation_settings"))
-                .clicked()
-            {
+            let operation_settings = ui.button(self.text("conditions.list.operation_settings"));
+            // 選んだ工程の条件を設定していないときは、次に押すボタンとして目立たせる（計算の操作と同じ）
+            if self.next_action(self.selected_position()) == Some(RowAction::OpenSettings) {
+                ui.painter().rect_stroke(
+                    operation_settings.rect,
+                    ui.visuals().widgets.inactive.corner_radius,
+                    Stroke::new(2.0, ui.visuals().selection.stroke.color),
+                    egui::StrokeKind::Inside,
+                );
+            }
+            if operation_settings.clicked() {
                 self.open_dialog_requested = Some(ConditionDialog::Operation);
             }
             ui.separator();
@@ -1011,7 +1051,7 @@ impl MachiningConditionsUiState {
             return None;
         }
         let row = position.and_then(|at| self.operations.get(at))?;
-        next_action_of(&row.status, row.toolpath_current)
+        next_action_of(row.setup, &row.status, row.toolpath_current)
             .filter(|action| self.action_enabled(action, position))
     }
 
@@ -1575,7 +1615,7 @@ mod tests {
         job_status_key, navigation_key, navigation_text, next_action_of, operation_row_key,
         operation_row_status_key, operation_status_text, row_status_color, stage_key,
         submission_on_apply, ApplySubmission, ConditionField, JobStatusLine, MachiningStage,
-        OperationJobStatus, OperationRow, OperationStatus, RowAction, COLUMN_KEYS,
+        OperationJobStatus, OperationRow, OperationSetup, OperationStatus, RowAction, COLUMN_KEYS,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -1729,7 +1769,23 @@ mod tests {
             tool: item.tool.clone(),
             status,
             toolpath_current,
+            setup: OperationSetup::Ready,
         };
+        // 計算できない工程は、計算の状態・取込済みより先に、その理由を出す
+        for (setup, key) in [
+            (
+                OperationSetup::NotSet,
+                "conditions.operations.status.not_set",
+            ),
+            (
+                OperationSetup::ConditionError,
+                "conditions.operations.status.condition_error",
+            ),
+        ] {
+            let mut imported = row(JobStatusLine::Status(OperationJobStatus::Succeeded), true);
+            imported.setup = setup;
+            assert_eq!(operation_row_key(&imported), key);
+        }
         let succeeded = JobStatusLine::Status(OperationJobStatus::Succeeded);
         let queued = JobStatusLine::Status(OperationJobStatus::Queued);
         assert_eq!(
@@ -1910,11 +1966,24 @@ mod tests {
         ];
         for (status, toolpath_current, action) in cases {
             assert_eq!(
-                next_action_of(&status, toolpath_current),
+                next_action_of(OperationSetup::Ready, &status, toolpath_current),
                 action,
                 "{status:?} {toolpath_current}"
             );
         }
+        // 条件を設定していない工程は、計算の状態によらず工程の設定を開く。誤りがある工程は目立たせない
+        assert_eq!(
+            next_action_of(OperationSetup::NotSet, &JobStatusLine::NotSubmitted, false),
+            Some(RowAction::OpenSettings)
+        );
+        assert_eq!(
+            next_action_of(
+                OperationSetup::ConditionError,
+                &JobStatusLine::NotSubmitted,
+                false
+            ),
+            None
+        );
     }
 
     #[test]
@@ -1927,12 +1996,14 @@ mod tests {
             "conditions.operations.status.failed",
             "conditions.operations.status.canceled",
             "conditions.operations.status.unreadable",
+            "conditions.operations.status.condition_error",
         ] {
             assert!(row_status_color(key).is_some(), "{key}");
         }
-        // 未計算・状態不明・読んでいる間は、色を付けない
+        // 未計算・未設定・状態不明・読んでいる間は、色を付けない
         for key in [
             "conditions.operations.status.none",
+            "conditions.operations.status.not_set",
             "conditions.operations.status.unknown",
             "conditions.operations.status.reading",
         ] {

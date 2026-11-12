@@ -179,10 +179,26 @@ fn the_revision_stops_at_its_limit_and_the_revision_key_still_changes() {
         content(),
         std::num::NonZeroU32::MAX,
         saved.revision_key(),
+        true,
     );
     let mut changed = content();
     changed.conditions.tolerance_profile = ToleranceProfile::MoldFinish;
     operation.set_content(changed);
     assert_eq!(operation.revision(), u32::MAX);
     assert_ne!(operation.revision_key(), saved.revision_key());
+}
+
+#[test]
+fn new_operations_have_no_conditions_set_until_marked() {
+    let mut operation = MachiningOperation::new(content());
+    assert!(!operation.conditions_set());
+    let (revision, key) = (operation.revision(), operation.revision_key());
+    assert!(operation.mark_conditions_set());
+    assert!(operation.conditions_set());
+    // 2 度目は変わらない。改訂は進めない
+    assert!(!operation.mark_conditions_set());
+    assert_eq!(
+        (operation.revision(), operation.revision_key()),
+        (revision, key)
+    );
 }

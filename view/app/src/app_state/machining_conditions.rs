@@ -9,7 +9,7 @@ use super::AppState;
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
     submission_on_apply, ApplySubmission, ConditionDialog, DialogResult, JobStatusLine,
-    MachiningConditionsUiState, OperationCommand, OperationRow,
+    MachiningConditionsUiState, OperationCommand, OperationRow, OperationSetup,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,
@@ -157,6 +157,10 @@ impl AppState {
                     }
                 }
                 self.document.rename_selected_operation(&name);
+                // 条件を適用したので、計算の条件を設定したことにする（条件を変えなくても）
+                if self.document.mark_conditions_set() {
+                    self.invalidate_conditions();
+                }
                 if self.submit_on_apply {
                     let operation = self.document.selected_operation();
                     let toolpath_current =
@@ -383,6 +387,7 @@ impl AppState {
     /// 条件・製品形状が変わった後に、計算条件と計算の状態を確かめ直す
     pub(crate) fn invalidate_conditions(&mut self) {
         self.condition_issues = None;
+        self.operation_condition_errors = None;
         self.draft_issues = None;
         self.job_status_read_at = None;
     }
@@ -422,6 +427,14 @@ impl AppState {
             self.refresh_job_status();
         }
         let selected = self.document.selected_operation();
+        // 条件に誤りがある工程（条件の確かめを捨てたときだけ確かめ直す。改訂が進んでいない工程は、前の結果を使う）
+        if self.operation_list_shown && self.operation_condition_errors.is_none() {
+            self.operation_condition_errors = Some(
+                self.cutting_simulation
+                    .operations_with_condition_errors(&mut self.document),
+            );
+        }
+        let condition_errors = self.operation_condition_errors.clone().unwrap_or_default();
         let operations = self
             .document
             .operations()
@@ -430,6 +443,13 @@ impl AppState {
                 status: self.operation_job_status(item.id),
                 toolpath_current: self.document.imported_toolpath_state_of(item.id)
                     == ImportedToolpathState::Current,
+                setup: if !item.conditions_set {
+                    OperationSetup::NotSet
+                } else if condition_errors.contains(&item.id) {
+                    OperationSetup::ConditionError
+                } else {
+                    OperationSetup::Ready
+                },
                 id: item.id,
                 name: item.name,
                 stage: item.stage,

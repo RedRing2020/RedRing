@@ -49,6 +49,7 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "failure.no_current_imported_toolpath",
         "空間モデルに今の条件の CL がありません",
     ),
+    ("failure.conditions_not_set", "工程の条件を設定していません"),
     (
         "failure.toolpath_too_large",
         "ツールパスが約 {gb} GB になり、計算に使えるメモリの上限を超えます",
@@ -153,6 +154,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.no_current_imported_toolpath",
         "The space model has no CL of the current conditions",
+    ),
+    (
+        "failure.conditions_not_set",
+        "The conditions of the operation are not set",
     ),
     (
         "failure.toolpath_too_large",

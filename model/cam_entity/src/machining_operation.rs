@@ -99,31 +99,36 @@ pub struct MachiningOperation {
     content: MachiningOperationContent,
     revision: u32,
     revision_key: MachiningRevisionKey,
+    /// 計算の条件を設定したか（利用者が条件を一度でも適用したか）
+    conditions_set: bool,
 }
 
 impl MachiningOperation {
-    /// 新しい ID と、最初の改訂の番号（1）・新しい改訂の鍵で作る
+    /// 新しい ID と、最初の改訂の番号（1）・新しい改訂の鍵で作る（計算の条件はまだ設定していない）
     pub fn new(content: MachiningOperationContent) -> Self {
         Self {
             id: MachiningOperationId::new_random(),
             content,
             revision: 1,
             revision_key: MachiningRevisionKey::new_random(),
+            conditions_set: false,
         }
     }
 
-    /// 保存した ID・中身・改訂の番号・改訂の鍵から作る
+    /// 保存した ID・中身・改訂の番号・改訂の鍵・計算の条件を設定したかから作る
     pub fn restore(
         id: MachiningOperationId,
         content: MachiningOperationContent,
         revision: NonZeroU32,
         revision_key: MachiningRevisionKey,
+        conditions_set: bool,
     ) -> Self {
         Self {
             id,
             content,
             revision: revision.get(),
             revision_key,
+            conditions_set,
         }
     }
 
@@ -143,6 +148,16 @@ impl MachiningOperation {
     /// 改訂の鍵（改訂の番号を増やすたびに作り直す）
     pub fn revision_key(&self) -> MachiningRevisionKey {
         self.revision_key
+    }
+
+    /// 計算の条件を設定したか（設定していない工程は計算しない。作った工程の既定の条件のまま計算しないため）
+    pub fn conditions_set(&self) -> bool {
+        self.conditions_set
+    }
+
+    /// 計算の条件を設定したことにする（改訂は進めない）。設定していなかったら `true`
+    pub fn mark_conditions_set(&mut self) -> bool {
+        !std::mem::replace(&mut self.conditions_set, true)
     }
 
     /// 中身を `content` に替える。計算の条件が今と違えば、改訂の番号を増やす

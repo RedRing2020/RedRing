@@ -46,6 +46,7 @@ pub fn cutting_simulation_failure_message(error: &CuttingSimulationSessionError)
         CuttingSimulationSessionError::NoSucceededToolpath => {
             message("failure.no_succeeded_toolpath")
         }
+        CuttingSimulationSessionError::ConditionsNotSet => message("failure.conditions_not_set"),
         CuttingSimulationSessionError::Playback(error) => match error {
             CuttingSimulationPlaybackError::Artifact(_) => message("failure.animation.artifact"),
             CuttingSimulationPlaybackError::NoSnapshot => message("failure.animation.no_snapshot"),
