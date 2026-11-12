@@ -29,16 +29,19 @@ use crate::solver::CamSolverError;
 /// トレランス `tolerance` で生成する（点は加工の座標）。
 ///
 /// 各パスは `ContourLevelPath` 1 件に対応し、`z_level` にはパス内の最も高い点（段の点を含む）の高さを格納する。
+/// パスの点の数の合計が `point_limit` を超えたら、走査ラインごとに確かめて止める（メモリを使い切る前に）。
 ///
 /// # Errors
 ///
-/// トレランスが正の有限値でない場合と、どの走査ラインでも工具が形状に接しない場合。
+/// トレランスが正の有限値でない場合と、どの走査ラインでも工具が形状に接しない場合と、点の数が `point_limit` を
+/// 超える場合。
 pub(crate) fn generate_scanline_toolpath(
     cutter: &InverseOffsetShape,
     tool_id: &str,
     params: &ScanlineParams,
     (region, frame): (&ScanRegion, ScanFrame),
     tolerance: f64,
+    point_limit: usize,
 ) -> Result<ToolPath<f64>, CamSolverError> {
     if !(tolerance.is_finite() && tolerance > 0.0) {
         return Err(CamSolverError::InvalidInput(
@@ -50,9 +53,13 @@ pub(crate) fn generate_scanline_toolpath(
             "scanline region is empty".to_string(),
         ));
     };
-    let ys = uniform_samples(y_min, y_max, params.stepover);
+    // 走査ラインの数・ライン上の X の数が点の数の上限を超えるなら、並びを作る前に止める（ピックフィード・工具の半径が
+    // とても小さいと、並びだけでメモリを使い切るため）
+    let ys = uniform_samples(y_min, y_max, params.stepover, point_limit)?;
 
     let mut passes: Vec<Vec<Point3D<f64>>> = Vec::new();
+    // パスの点の数の合計
+    let mut points = 0usize;
     // 範囲を通る走査線の番号（ジグザグの送る向きを決める）
     let mut line = 0;
     for &y in &ys {
@@ -68,11 +75,13 @@ pub(crate) fn generate_scanline_toolpath(
             ScanlineCutDirection::UpCut => true,
             ScanlineCutDirection::ZigZag => line % 2 == 0,
         };
+        let passes_before = passes.len();
         let mut run: Vec<Point3D<f64>> = Vec::new();
         // 直前の点が工具が形状に接触しない点の場合の X
         let mut outside = None;
         // 送る向きに並べた X
-        let mut xs_in_feed_order = uniform_samples(x_min, x_max, cutter.shape().radius());
+        let mut xs_in_feed_order =
+            uniform_samples(x_min, x_max, cutter.shape().radius(), point_limit)?;
         if !forward {
             xs_in_feed_order.reverse();
         }
@@ -100,6 +109,12 @@ pub(crate) fn generate_scanline_toolpath(
             }
         }
         flush_run(&mut run, &mut passes, cutter, y, tolerance);
+        points = passes[passes_before..]
+            .iter()
+            .fold(points, |sum, pass| sum.saturating_add(pass.len()));
+        if points > point_limit {
+            return Err(CamSolverError::TooManyPoints);
+        }
     }
 
     if passes.is_empty() {
@@ -420,13 +435,26 @@ fn element_boundary(
 }
 
 /// [min, max] を `max_step` 以下の等間隔で両端を含めてサンプリングする。
-fn uniform_samples(min: f64, max: f64, max_step: f64) -> Vec<f64> {
+///
+/// # Errors
+///
+/// 点の数が `limit` を超える場合（並びを作る前に止める）。
+fn uniform_samples(
+    min: f64,
+    max: f64,
+    max_step: f64,
+    limit: usize,
+) -> Result<Vec<f64>, CamSolverError> {
     let span = max - min;
     if span <= 0.0 {
-        return vec![min];
+        return Ok(vec![min]);
     }
+    // 大きすぎる値は usize の最大に丸まる
     let intervals = (span / max_step).ceil().max(1.0) as usize;
-    (0..=intervals)
+    if intervals >= limit {
+        return Err(CamSolverError::TooManyPoints);
+    }
+    Ok((0..=intervals)
         .map(|i| min + span * i as f64 / intervals as f64)
-        .collect()
+        .collect())
 }

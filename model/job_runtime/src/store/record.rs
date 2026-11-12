@@ -95,6 +95,8 @@ pub enum StoredJobError {
     CalculationFailed,
     /// ランナーが成果物を書けない
     RunnerCannotWriteResult,
+    /// ツールパスがメモリの上限を超えるため、計算を止めた
+    ToolpathTooLarge,
     /// ランナーが、ほかの終了の番号で終わった
     RunnerExitCode { code: i32 },
     /// ランナーが止められた
@@ -125,6 +127,9 @@ impl std::fmt::Display for StoredJobError {
             Self::InvalidInput => write!(f, "the input is invalid"),
             Self::CalculationFailed => write!(f, "the calculation failed"),
             Self::RunnerCannotWriteResult => write!(f, "the runner cannot write the result"),
+            Self::ToolpathTooLarge => {
+                write!(f, "the toolpath is too large for the memory limit")
+            }
             Self::RunnerExitCode { code } => write!(f, "the runner ended with exit code {code}"),
             Self::RunnerStopped => write!(f, "the runner was stopped"),
             Self::ManagerStopped => write!(f, "the job manager stopped while the job was running"),

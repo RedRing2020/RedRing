@@ -100,12 +100,14 @@ impl Failure {
     }
 }
 
-/// 計算の失敗を、入力の中身の誤り・入力を読めない・計算の失敗で終了の番号に分ける
+/// 計算の失敗を、入力の中身の誤り・入力を読めない・メモリの上限を超える・計算の失敗で終了の番号に分ける
 fn job_failure(failure: JobRunFailure) -> Failure {
     let code = if failure.is_invalid_input() {
         ExitCode::InputInvalid
     } else if failure.is_unreadable_input() {
         ExitCode::InputUnreadable
+    } else if failure.is_too_large() {
+        ExitCode::TooLarge
     } else {
         ExitCode::JobFailed
     };
@@ -257,5 +259,28 @@ impl RunnerLog {
         self.file.sync_all()?;
         drop(self.file);
         fs::rename(&self.temporary, &self.path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failures_are_split_into_exit_codes_by_their_codes() {
+        let code_of = |code: &'static str| {
+            job_failure(JobRunFailure {
+                code,
+                message: String::new(),
+            })
+            .code
+        };
+        assert_eq!(code_of("invalid_input"), ExitCode::InputInvalid);
+        assert_eq!(code_of("artifact-io-failed"), ExitCode::InputUnreadable);
+        assert_eq!(
+            code_of(cam_algorithms::CamSolverError::TooManyPoints.code()),
+            ExitCode::TooLarge
+        );
+        assert_eq!(code_of("no_solution"), ExitCode::JobFailed);
     }
 }

@@ -35,6 +35,8 @@ pub enum CamSolverError {
     NoSolution(String),
     /// 入力契約は妥当だが、反復解法が収束条件を満たさない
     ConvergenceFailure(String),
+    /// ツールパスの点の数が上限を超える（メモリを使い切る前に止める）
+    TooManyPoints,
 }
 
 impl CamSolverError {
@@ -44,6 +46,7 @@ impl CamSolverError {
             Self::InvalidInput(_) | Self::InvalidScanline(_) => "invalid_input",
             Self::NoSolution(_) => "no_solution",
             Self::ConvergenceFailure(_) => "convergence_failure",
+            Self::TooManyPoints => "too_many_points",
         }
     }
 
@@ -54,6 +57,7 @@ impl CamSolverError {
             | Self::NoSolution(reason)
             | Self::ConvergenceFailure(reason) => reason,
             Self::InvalidScanline(error) => error.reason(),
+            Self::TooManyPoints => "the toolpath has more points than the limit",
         }
     }
 }
@@ -237,7 +241,10 @@ impl CamSolverInput {
 /// 走査線に角度がある場合は、形状を走査線の向きの座標へ回して逆オフセット形状を作り、0° の走査線で経路を作って、
 /// 点を加工の座標へ戻す（`ScanFrame`）。工具の中心の移動範囲と加工範囲は加工の座標の長方形とし、走査線の向きの座標へ
 /// 回して走査する。
-pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolverError> {
+pub fn solve_toolpath(
+    input: &CamSolverInput,
+    point_limit: usize,
+) -> Result<ToolPath<f64>, CamSolverError> {
     let OperationSpec::Scanline(params) = input.operation;
     let frame = ScanFrame::from_degrees(params.angle_degrees);
     let (cutter, work_bounds) = build_cutter(input, frame)?;
@@ -256,6 +263,7 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
         &params,
         (&region, frame),
         input.chord_tolerance,
+        point_limit,
     )
 }
 

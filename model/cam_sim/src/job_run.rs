@@ -4,7 +4,7 @@
 
 use std::io::Read;
 
-use cam_algorithms::{CamSolverInput, ProductSurface, solve_toolpath};
+use cam_algorithms::{CamSolverError, CamSolverInput, ProductSurface, solve_toolpath};
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, LengthUnit, ToolPath,
     read_toolpath_artifact_v1, write_toolpath_payload_v1,
@@ -14,6 +14,20 @@ use geo_algorithms::TessellationLimits;
 use crate::preflight::{PreflightFailure, preflight_cutting_simulation};
 use crate::simulation_artifact::write_cutting_simulation_artifact_v1;
 use crate::{CuttingSimulationInput, CuttingSimulator};
+
+/// ツールパス生成の点 1 つあたりに使うメモリの見積もり（バイト）
+///
+/// 生成の間はパスの点（24 バイト）と線分（120 バイト）を持ち、成果物のバイト列（線分 1 本あたり約 62 バイト。伸ばす
+/// ときに最大で 2 倍の領域）を作る間は線分とバイト列を持つ。多い側に余裕を足して 250 バイトとする。
+const TOOLPATH_BYTES_PER_POINT: u64 = 250;
+
+/// ツールパス生成に使ってよいメモリの上限（バイト。8 GB。点の数に直し、超えたら止める）
+const TOOLPATH_MEMORY_LIMIT_BYTES: u64 = 8_000_000_000;
+
+/// メモリの上限 `memory_bytes` に収まる、ツールパスの点の数
+fn toolpath_point_limit(memory_bytes: u64) -> usize {
+    usize::try_from(memory_bytes / TOOLPATH_BYTES_PER_POINT).unwrap_or(usize::MAX)
+}
 
 /// ジョブの計算の失敗
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,6 +59,11 @@ impl JobRunFailure {
     pub fn is_unreadable_input(&self) -> bool {
         self.code == "artifact-io-failed"
     }
+
+    /// ツールパスの点の数がメモリの上限を超えるため止めた失敗か
+    pub fn is_too_large(&self) -> bool {
+        self.code == CamSolverError::TooManyPoints.code()
+    }
 }
 
 /// 切削シミュレーションの成果物
@@ -56,10 +75,18 @@ pub struct CuttingSimulationRun {
     pub snapshot_count: usize,
 }
 
-/// ツールパスを生成し、ツールパスの成果物のバイト列（`ArtifactKind::ToolPath`）を返す
+/// ツールパスを生成し、ツールパスの成果物のバイト列（`ArtifactKind::ToolPath`）を返す（点の数がメモリの上限を
+/// 超えるなら、使い切る前に止める）
 pub fn run_cam_solver(input: &CamSolverInput) -> Result<Vec<u8>, JobRunFailure> {
-    let toolpath = solve_toolpath(input).map_err(|error| {
-        JobRunFailure::new(error.code(), format!("cam process failed: {}", error))
+    let point_limit = toolpath_point_limit(TOOLPATH_MEMORY_LIMIT_BYTES);
+    let toolpath = solve_toolpath(input, point_limit).map_err(|error| {
+        let limit = match error {
+            CamSolverError::TooManyPoints => format!(
+                " (point limit {point_limit} for the memory limit of {TOOLPATH_MEMORY_LIMIT_BYTES} bytes)"
+            ),
+            _ => String::new(),
+        };
+        JobRunFailure::new(error.code(), format!("cam process failed: {error}{limit}"))
     })?;
     encode_toolpath_artifact(&toolpath, input.units, input.coordinate_frame).map_err(|error| {
         JobRunFailure::new(
