@@ -237,6 +237,8 @@ pub struct LargeToolpath {
     pub operation: String,
     /// ツールパスの生成に使うメモリの見積もり（GB）
     pub memory_gb: f64,
+    /// 見積もりがメモリの上限に近い（計算しても、途中で上限を超えて止まることがある）
+    pub near_limit: bool,
 }
 
 impl SubmissionKind {
@@ -277,6 +279,7 @@ fn large_toolpath(
         position,
         operation: name.to_string(),
         memory_gb: estimate.memory_gb(),
+        near_limit: estimate.is_near_limit(),
     }))
 }
 
@@ -291,7 +294,8 @@ fn operation_label(
         .enumerate()
         .find(|(_, item)| item.id == operation)
         .map(|(index, item)| (index + 1, item.name))
-        .expect("the selected operation is in the machining sequence")
+        // 選んだ工程は手順の中にあるはずだが、なくても計算の操作を落とさない（番号 0・名前なしで出す）
+        .unwrap_or((0, String::new()))
 }
 
 /// 手順の全体の投入の結果

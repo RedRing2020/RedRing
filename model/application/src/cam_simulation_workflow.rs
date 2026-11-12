@@ -875,6 +875,12 @@ impl ToolpathEstimate {
     pub fn memory_gb(&self) -> f64 {
         self.memory_bytes as f64 / 1e9
     }
+
+    /// 生成に使うメモリが、メモリの上限に近いか（上限の 8 割以上。見積もりの幅のため、計算しても途中で上限を
+    /// 超えて止まることがある）
+    pub fn is_near_limit(&self) -> bool {
+        self.memory_bytes >= TOOLPATH_MEMORY_LIMIT_BYTES / 10 * 8
+    }
 }
 
 /// 見積もったツールパスの大きさで決める、計算の始め方

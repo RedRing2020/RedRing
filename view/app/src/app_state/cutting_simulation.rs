@@ -35,7 +35,11 @@ fn confirm_large_toolpaths(window: &Window, locale: UiLocale, large: &[LargeTool
         .iter()
         .map(|item| {
             text(
-                "conditions.confirm.large_toolpath_item",
+                if item.near_limit {
+                    "conditions.confirm.large_toolpath_item_near_limit"
+                } else {
+                    "conditions.confirm.large_toolpath_item"
+                },
                 &[
                     ("position", item.position.to_string()),
                     ("operation", item.operation.clone()),

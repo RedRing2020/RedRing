@@ -391,10 +391,18 @@ fn toolpath_sizes_are_split_by_the_confirmation_and_the_memory_limit() {
         toolpath_size(8_000_000).unwrap(),
         ToolpathSize::Large(large)
     );
+    assert!(!large.is_near_limit());
     assert!(matches!(
         toolpath_size(32_000_000).unwrap(),
         ToolpathSize::Large(_)
     ));
+    // 上限の 8 割（6.4 GB。2560 万点）からは、上限に近い
+    let near = |points| ToolpathEstimate {
+        points,
+        memory_bytes: points * 250,
+    };
+    assert!(!near(25_599_999).is_near_limit());
+    assert!(near(25_600_000).is_near_limit());
     assert_eq!(
         toolpath_size(32_000_001).unwrap_err(),
         CamSimulationWorkflowError::ToolpathTooLarge(ToolpathEstimate {
