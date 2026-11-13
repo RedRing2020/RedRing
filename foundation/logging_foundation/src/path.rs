@@ -16,10 +16,10 @@ pub(crate) fn prepare_log_file(log_dir: &str, log_file_name: &str) -> Option<Pat
         return None;
     }
 
-    if log_file_path.exists() {
-        if let Err(e) = fs::remove_file(&log_file_path) {
-            eprintln!("Failed to delete the old log file ({:?}): {}", e.kind(), e);
-        }
+    if log_file_path.exists()
+        && let Err(e) = fs::remove_file(&log_file_path)
+    {
+        eprintln!("Failed to delete the old log file ({:?}): {}", e.kind(), e);
     }
 
     Some(log_file_path)

@@ -1,7 +1,7 @@
 //! 切削シミュレーションを取り込んだ後のウィンドウのタイトルの文言（日本語・英語）
 
 use viewmodel::message_catalog::{
-    resolve_message, TableMessageCatalog, UiLocale, UiMessage, UiMessageArg,
+    TableMessageCatalog, UiLocale, UiMessage, UiMessageArg, resolve_message,
 };
 
 const WINDOW_TITLE_TEMPLATE_JA: &[(&str, &str)] = &[

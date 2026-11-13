@@ -207,9 +207,15 @@ impl Camera {
 
         tracing::debug!(
             "view_matrix: forward=({:.3}, {:.3}, {:.3}), camera_pos=({:.1}, {:.1}, {:.1}), target=({:.1}, {:.1}, {:.1})",
-            forward.x(), forward.y(), forward.z(),
-            camera_pos.x(), camera_pos.y(), camera_pos.z(),
-            self.target.x(), self.target.y(), self.target.z()
+            forward.x(),
+            forward.y(),
+            forward.z(),
+            camera_pos.x(),
+            camera_pos.y(),
+            camera_pos.z(),
+            self.target.x(),
+            self.target.y(),
+            self.target.z()
         );
 
         Matrix4x4::look_at(&camera_pos, &self.target, &up)

@@ -2,7 +2,7 @@
 name = "geo_io"
 publish = false
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "File I/O operations and binary encoding for geometric data (STL, OBJ, PLY, meshes, NURBS surfaces)"
 license = "MIT OR Apache-2.0"
 

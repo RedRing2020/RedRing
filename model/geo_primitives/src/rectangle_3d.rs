@@ -7,8 +7,8 @@ mod transform;
 
 use crate::{Direction3D, Point2D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, PointClassification, PrimitiveKind, PrimitiveMetadata,
-    Rect3DConstructor, Rect3DContainment, Rect3DProperties, Scalar,
+    PointClassification, PrimitiveKind, PrimitiveMetadata, Rect3DConstructor, Rect3DContainment,
+    Rect3DProperties, Scalar, default_distance_tolerance,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]

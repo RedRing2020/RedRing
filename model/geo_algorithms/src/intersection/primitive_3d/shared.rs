@@ -11,11 +11,7 @@ pub(crate) fn point_intersection_if<T: Scalar>(
     point: &Point3D<T>,
     condition: bool,
 ) -> Option<Point3D<T>> {
-    if condition {
-        Some(*point)
-    } else {
-        None
-    }
+    if condition { Some(*point) } else { None }
 }
 
 pub(crate) fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(
@@ -150,15 +146,15 @@ pub(crate) fn convex_solid_linear_intersection<T: Scalar>(
     let point_at = |parameter: T| origin + direction * parameter;
     if let Some((enter, exit)) = overlap {
         let (start, end) = (point_at(enter), point_at(exit));
-        if start.distance_to(end) > tolerance {
-            if let Some(segment) = LineSegment3D::new(start, end) {
-                return IntersectionResult::new(
-                    IntersectionGeometry::Segment(segment),
-                    IntersectionTopology::Crossing,
-                    false,
-                    tolerance,
-                );
-            }
+        if start.distance_to(end) > tolerance
+            && let Some(segment) = LineSegment3D::new(start, end)
+        {
+            return IntersectionResult::new(
+                IntersectionGeometry::Segment(segment),
+                IntersectionTopology::Crossing,
+                false,
+                tolerance,
+            );
         }
         return IntersectionResult::point(
             point_at((enter + exit) / (T::ONE + T::ONE)),

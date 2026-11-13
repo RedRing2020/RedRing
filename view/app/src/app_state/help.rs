@@ -1,10 +1,10 @@
 //! AppState のヘルプ（操作の一覧・バージョンの情報）と、画面の下の知らせの行を扱うモジュール。
 
 use super::AppState;
-use crate::help_ui::{next_unread, push_notice_history, HelpUiState, Notice, NoticeLevel};
+use crate::help_ui::{HelpUiState, Notice, NoticeLevel, next_unread, push_notice_history};
 use crate::machining_conditions_ui::{
-    condition_issue_text, imported_toolpath_text, job_status_text, navigation_text, JobStatusLine,
-    OperationStatus,
+    JobStatusLine, OperationStatus, condition_issue_text, imported_toolpath_text, job_status_text,
+    navigation_text,
 };
 use viewmodel::cutting_simulation_session::OperationJobStatus;
 use viewmodel::message_catalog::UiLocale;

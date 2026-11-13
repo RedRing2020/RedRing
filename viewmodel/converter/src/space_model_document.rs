@@ -11,20 +11,20 @@ use application::cam_simulation_workflow::{CamSimulationWorkflowResult, CamToolp
 pub use application::imported_toolpath::ImportedToolpathState;
 pub use application::machining_sequence::MachiningOperationId;
 use application::machining_sequence::{
-    scanline_finish_operation_content, MachiningOperationContent, MachiningSequenceId,
-    MachiningSequenceStore, MachiningStage, MachiningStock, OperationSpec, ScanlineCutDirection,
-    ScanlineParams, ScanlineToolRange, StockMargins, Tool,
+    MachiningOperationContent, MachiningSequenceId, MachiningSequenceStore, MachiningStage,
+    MachiningStock, OperationSpec, ScanlineCutDirection, ScanlineParams, ScanlineToolRange,
+    StockMargins, Tool, scanline_finish_operation_content,
 };
 use application::product_shape::{EntityDisplayProperties, ProductShapeError, ProductShapeStore};
 use application::space_model_file::{
-    load_space_model, save_space_model, SpaceModel, SpaceModelFileError, SpaceModelSaveInfo,
+    SpaceModel, SpaceModelFileError, SpaceModelSaveInfo, load_space_model, save_space_model,
 };
 
 use crate::cam_sim_visualization_converter::create_toolpath_wireframe_vertices;
 use crate::cutting_simulation_session::CuttingToolKind;
 use crate::mesh_converter::WireframeVertex;
 use crate::product_shape_converter::{
-    face_set_entity_to_mesh, ProductShapeDisplaySettings, ProductShapeMesh,
+    ProductShapeDisplaySettings, ProductShapeMesh, face_set_entity_to_mesh,
 };
 use crate::toolpath_converter::ToolPathVisualizationSettings;
 

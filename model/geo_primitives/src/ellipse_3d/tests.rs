@@ -4,8 +4,8 @@
 
 use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDistance,
-    Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, PointClassification,
+    Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDistance, Ellipse3DEvaluation,
+    Ellipse3DProjection, Ellipse3DProperties, PointClassification, default_distance_tolerance,
 };
 
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};

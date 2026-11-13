@@ -210,9 +210,9 @@ pub fn circular_arc_to_polyline<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::{
-        circular_arc_to_polyline, CircularArcDirection, CircularArcPolylineOptions,
-        DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM, DEFAULT_CIRCULAR_ARC_MAX_ANGLE_STEP_RAD,
-        DEFAULT_MAX_CIRCULAR_ARC_DIVISIONS,
+        CircularArcDirection, CircularArcPolylineOptions, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
+        DEFAULT_CIRCULAR_ARC_MAX_ANGLE_STEP_RAD, DEFAULT_MAX_CIRCULAR_ARC_DIVISIONS,
+        circular_arc_to_polyline,
     };
     use crate::Point3D;
     use geo_contracts::LineSegment3DSupportLine;

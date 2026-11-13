@@ -12,8 +12,8 @@ pub use application::cam_simulation_workflow::{
     CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
 };
 pub use application::machining_sequence::{
-    flat_surface_cusp_height, MachiningBoundary, MachiningOperationContent, MachiningStage,
-    MachiningStock, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
+    MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock, OperationSpec,
+    ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool, flat_surface_cusp_height,
 };
 use application::machining_sequence::{
     MachiningRevisionKey, MachiningSequenceStore, ScanlineParams,
@@ -26,7 +26,7 @@ use application::cutting_simulation_playback::{
 
 use crate::cutting_animation::CuttingAnimation;
 use crate::failure_message_mapper::workflow_failure_message;
-use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
+use crate::inverse_offset_shape_converter::{InverseOffsetShapeMesh, inverse_offset_shape_meshes};
 use crate::space_model_document::{ImportedToolpathState, SpaceModelDocument};
 use i18n_foundation::UiMessage;
 
@@ -529,10 +529,10 @@ impl CuttingSimulationSession {
         };
         if kind == SubmissionKind::Full {
             let (position, name) = operation_label(document, operation);
-            if let Some(large) = large_toolpath(document, operation, (position, &name))? {
-                if !confirm(&[large]) {
-                    return Ok(SubmitOutcome::Declined);
-                }
+            if let Some(large) = large_toolpath(document, operation, (position, &name))?
+                && !confirm(&[large])
+            {
+                return Ok(SubmitOutcome::Declined);
             }
         }
         self.submit_kind(document, operation, kind)?;
@@ -563,10 +563,10 @@ impl CuttingSimulationSession {
         // 大きさは、状態を読む前に確かめる（確かめている間に状態が変わっても、読んだ状態ですぐに投入するため）
         let operation = document.selected_operation();
         let (position, name) = operation_label(document, operation);
-        if let Some(large) = large_toolpath(document, operation, (position, &name))? {
-            if !confirm(&[large]) {
-                return Ok(RedoOutcome::Declined);
-            }
+        if let Some(large) = large_toolpath(document, operation, (position, &name))?
+            && !confirm(&[large])
+        {
+            return Ok(RedoOutcome::Declined);
         }
         let (shapes, sequences, sequence, operation) = document.machining();
         // 計算待ちかは、状態を今読んで決める（ボタンは最後に読んだ状態で決めるため）。見つからなければ投入できない。
@@ -890,8 +890,8 @@ pub(crate) mod tests {
     use application::product_shape::ProductShapeError;
 
     use super::*;
-    use crate::space_model_document::tests::{document_with_pyramid, NAMES};
     use crate::space_model_document::ImportedToolpathState;
+    use crate::space_model_document::tests::{NAMES, document_with_pyramid};
 
     /// 走査線の条件 `content` を `edit` で変えた中身
     fn with_scanline(
@@ -1462,9 +1462,11 @@ pub(crate) mod tests {
                 CamConditionError::StepoverExceedsToolDiameter { tool_diameter: 6.0 }
             )]
         );
-        assert!(session
-            .check_draft(&mut document, &applied, stock)
-            .is_empty());
+        assert!(
+            session
+                .check_draft(&mut document, &applied, stock)
+                .is_empty()
+        );
         // 文書の工程・手順は替えない（再計算待ちにも、保存していない変更にもならない）
         assert_eq!(*document.operation_content(), applied);
         assert_eq!(document.stock(), stock);

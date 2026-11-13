@@ -332,11 +332,10 @@ mod tests {
         let seg2 = TopoLineSegment3D::new(Point3D::new(2.0, 0.0, 0.0), Point3D::new(3.0, 0.0, 0.0))
             .unwrap();
 
-        assert!(CompositeCurve3D::new(vec![
-            CurveSegment3D::Line(seg1),
-            CurveSegment3D::Line(seg2),
-        ])
-        .is_none());
+        assert!(
+            CompositeCurve3D::new(vec![CurveSegment3D::Line(seg1), CurveSegment3D::Line(seg2),])
+                .is_none()
+        );
     }
 
     #[test]
@@ -349,32 +348,33 @@ mod tests {
         )
         .unwrap();
 
-        assert!(CompositeCurve3D::new(vec![
-            CurveSegment3D::Line(seg1),
-            CurveSegment3D::Line(seg2),
-        ])
-        .is_none());
+        assert!(
+            CompositeCurve3D::new(vec![CurveSegment3D::Line(seg1), CurveSegment3D::Line(seg2),])
+                .is_none()
+        );
 
-        assert!(CompositeCurve3D::new_with_tolerance(
-            vec![
-                CurveSegment3D::Line(
-                    TopoLineSegment3D::new(
-                        Point3D::new(0.0, 0.0, 0.0),
-                        Point3D::new(1.0, 0.0, 0.0),
-                    )
-                    .unwrap()
-                ),
-                CurveSegment3D::Line(
-                    TopoLineSegment3D::new(
-                        Point3D::new(1.0, 0.0, 1.0e-4),
-                        Point3D::new(2.0, 0.0, 1.0e-4),
-                    )
-                    .unwrap(),
-                ),
-            ],
-            1.0e-3,
-        )
-        .is_some());
+        assert!(
+            CompositeCurve3D::new_with_tolerance(
+                vec![
+                    CurveSegment3D::Line(
+                        TopoLineSegment3D::new(
+                            Point3D::new(0.0, 0.0, 0.0),
+                            Point3D::new(1.0, 0.0, 0.0),
+                        )
+                        .unwrap()
+                    ),
+                    CurveSegment3D::Line(
+                        TopoLineSegment3D::new(
+                            Point3D::new(1.0, 0.0, 1.0e-4),
+                            Point3D::new(2.0, 0.0, 1.0e-4),
+                        )
+                        .unwrap(),
+                    ),
+                ],
+                1.0e-3,
+            )
+            .is_some()
+        );
     }
 
     #[test]

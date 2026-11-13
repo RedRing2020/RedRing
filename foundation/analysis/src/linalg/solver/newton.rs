@@ -8,12 +8,12 @@ mod tests;
 
 use std::any::TypeId;
 
+use crate::Scalar;
 use crate::consts::numerical::{
     DERIVATIVE_ZERO_THRESHOLD_F32, DERIVATIVE_ZERO_THRESHOLD_F64, LINEAR_SOLVER_TOLERANCE_F32,
     LINEAR_SOLVER_TOLERANCE_F64,
 };
 use crate::linalg::{DynamicMatrix, GaussianSolver, LinearSolver, Vector};
-use crate::Scalar;
 
 #[inline]
 fn derivative_zero_threshold<T: Scalar>() -> T {
@@ -27,11 +27,7 @@ fn derivative_zero_threshold<T: Scalar>() -> T {
 #[inline]
 fn solver_tolerance<T: Scalar>(tol: T) -> T {
     let threshold = derivative_zero_threshold::<T>();
-    if tol < threshold {
-        threshold
-    } else {
-        tol
-    }
+    if tol < threshold { threshold } else { tol }
 }
 
 #[inline]

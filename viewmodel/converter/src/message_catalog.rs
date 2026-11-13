@@ -1,11 +1,11 @@
 pub use i18n_foundation::{
-    resolve_message, MessageCatalog, MessageTemplateTable, TableMessageCatalog, UiLocale,
-    UiMessage, UiMessageArg,
+    MessageCatalog, MessageTemplateTable, TableMessageCatalog, UiLocale, UiMessage, UiMessageArg,
+    resolve_message,
 };
 
 #[cfg(test)]
 mod tests {
-    use super::{resolve_message, TableMessageCatalog, UiLocale, UiMessage, UiMessageArg};
+    use super::{TableMessageCatalog, UiLocale, UiMessage, UiMessageArg, resolve_message};
 
     const DEMO_JA: &[(&str, &str)] = &[
         ("demo.hello", "こんにちは {name}"),

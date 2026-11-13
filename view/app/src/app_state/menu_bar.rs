@@ -1,7 +1,7 @@
 //! AppState のメニューバーの項目を扱うモジュール。
 
-use super::model_file::FileAction;
 use super::AppState;
+use super::model_file::FileAction;
 use crate::machining_conditions_ui::ConditionDialog;
 use crate::menu_bar_ui::{FileMenuItem, MachiningMenuItem, MenuBarUiState};
 

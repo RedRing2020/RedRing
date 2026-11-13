@@ -6,10 +6,10 @@ mod transform;
 
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, Angle, AngularRelation, InfiniteLine2DConstructor,
-    InfiniteLine2DContainment, InfiniteLine2DDistance, InfiniteLine2DEvaluation,
-    InfiniteLine2DProjection, InfiniteLine2DProperties, ParallelRelation, PerpendicularRelation,
-    PrimitiveKind, PrimitiveMetadata, Scalar,
+    Angle, AngularRelation, InfiniteLine2DConstructor, InfiniteLine2DContainment,
+    InfiniteLine2DDistance, InfiniteLine2DEvaluation, InfiniteLine2DProjection,
+    InfiniteLine2DProperties, ParallelRelation, PerpendicularRelation, PrimitiveKind,
+    PrimitiveMetadata, Scalar, default_distance_tolerance,
 };
 
 /// 2次元無限直線（Core実装）

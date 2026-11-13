@@ -1,7 +1,7 @@
 //! AppState の製品形状の取り込みと表示を扱うモジュール。
 
-use super::cutting_simulation::line_vertices;
 use super::AppState;
+use super::cutting_simulation::line_vertices;
 use render::mesh_list::MeshListItem;
 use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
 use stage::MeshStage;
@@ -116,10 +116,8 @@ impl AppState {
         ));
         let meshes = mesh_stage.set_mesh_list(&self.graphic.device, items);
         self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
-        if fit_camera {
-            if let Some(fit) = Self::build_camera_fit(&positions) {
-                self.apply_camera_fit(fit);
-            }
+        if fit_camera && let Some(fit) = Self::build_camera_fit(&positions) {
+            self.apply_camera_fit(fit);
         }
         self.renderer.set_stage(mesh_stage);
         self.refresh_operation_toolpath_lines();

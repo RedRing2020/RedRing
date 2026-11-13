@@ -1,5 +1,5 @@
 use viewmodel::message_catalog::{
-    resolve_message, TableMessageCatalog, UiLocale, UiMessage, UiMessageArg,
+    TableMessageCatalog, UiLocale, UiMessage, UiMessageArg, resolve_message,
 };
 
 const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
@@ -76,8 +76,14 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.header.machining", "スキャン加工の条件"),
     ("conditions.machining.stepover", "ピックフィード"),
     ("conditions.machining.feed_rate", "送り"),
-    ("conditions.machining.angle", "走査線の角度（X 軸から反時計回り）"),
-    ("conditions.machining.cut_direction", "送り方（主軸は右回り）"),
+    (
+        "conditions.machining.angle",
+        "走査線の角度（X 軸から反時計回り）",
+    ),
+    (
+        "conditions.machining.cut_direction",
+        "送り方（主軸は右回り）",
+    ),
     ("conditions.machining.cut_direction.down", "ダウンカット"),
     ("conditions.machining.cut_direction.up", "アップカット"),
     (
@@ -153,7 +159,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "選んだ工程の今の条件の切削シミュレーションを取り込んで表示し、その CL も空間モデルに取り込みます。表示している間に押すと、表示を閉じます",
     ),
     ("conditions.open_job_manager", "ジョブマネージャーを開く"),
-    ("conditions.status.submitted", "ツールパス生成から計算を始めました"),
+    (
+        "conditions.status.submitted",
+        "ツールパス生成から計算を始めました",
+    ),
     (
         "conditions.status.submitted_simulation",
         "今の条件の CL から、切削シミュレーションだけの計算を始めました",
@@ -166,7 +175,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.status.redone_canceled",
         "今の条件の計算を取り消し、空間モデルの CL を消して、ツールパス生成から再計算を始めました",
     ),
-    ("conditions.status.submit_failed", "計算を始められません（{reason}）"),
+    (
+        "conditions.status.submit_failed",
+        "計算を始められません（{reason}）",
+    ),
     (
         "conditions.status.already_calculated",
         "今の条件の計算が、計算待ち・計算中・計算済みのため、計算を始めていません",
@@ -209,7 +221,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.status.nothing_to_stop",
         "今の条件の計算は、計算待ち・計算中でないため、停止していません",
     ),
-    ("conditions.status.stop_failed", "計算を停止できません（{reason}）"),
+    (
+        "conditions.status.stop_failed",
+        "計算を停止できません（{reason}）",
+    ),
     (
         "conditions.status.sequence_submitted",
         "手順の {submitted} 工程の計算を始めました（計算待ち・計算中・計算済みの {skipped} 工程は、計算し直していません）",
@@ -239,17 +254,26 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "計算の状態を読めないため、全工程を計算していません（{reason}）。少し待ってから、もう一度押してください",
     ),
     ("conditions.submit_sequence", "全工程を計算"),
-    ("conditions.status.imported", "ジョブ {job} を取り込みました"),
+    (
+        "conditions.status.imported",
+        "ジョブ {job} を取り込みました",
+    ),
     (
         "conditions.status.nothing_to_import",
         "取り込める結果がありません（計算が終わった後に取り込みます）",
     ),
-    ("conditions.status.toolpath_imported", "ジョブ {job} の CL を取り込みました"),
+    (
+        "conditions.status.toolpath_imported",
+        "ジョブ {job} の CL を取り込みました",
+    ),
     (
         "conditions.status.no_toolpath_to_import",
         "取り込める CL がありません（ツールパス生成が終わった後に取り込みます）",
     ),
-    ("conditions.job.none", "今の条件の計算: ジョブがありません（計算していない、または消した）"),
+    (
+        "conditions.job.none",
+        "今の条件の計算: ジョブがありません（計算していない、または消した）",
+    ),
     ("conditions.job.queued", "今の条件の計算: 計算待ち"),
     ("conditions.job.running", "今の条件の計算: 計算中"),
     (
@@ -257,12 +281,18 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "今の条件の計算: 計算完了（取り込んで表示します）",
     ),
     ("conditions.job.failed", "今の条件の計算: 計算失敗"),
-    ("conditions.job.canceled", "今の条件の計算: 取り消されました"),
+    (
+        "conditions.job.canceled",
+        "今の条件の計算: 取り消されました",
+    ),
     (
         "conditions.job.unreadable",
         "今の条件の計算: ジョブマネージャーから状態を読めません",
     ),
-    ("conditions.job.reading", "今の条件の計算: 状態を読んでいます"),
+    (
+        "conditions.job.reading",
+        "今の条件の計算: 状態を読んでいます",
+    ),
     (
         "conditions.job.manager_not_running",
         "今の条件の計算: ジョブマネージャーが動いていないため、分かりません（計算開始すると起動します）",
@@ -271,11 +301,26 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.job.manager_not_found",
         "今の条件の計算: ジョブマネージャーが見つからないため、分かりません",
     ),
-    ("conditions.toolpath.none", "空間モデルの CL: まだ取り込んでいません"),
-    ("conditions.toolpath.current", "空間モデルの CL: 今の条件の結果です"),
-    ("conditions.status.import_failed", "取り込めません（{reason}）"),
-    ("conditions.status.job_manager_failed", "ジョブマネージャーを開けません（{reason}）"),
-    ("conditions.issue.no_product_shape", "製品形状がありません（ファイルを開いてください）"),
+    (
+        "conditions.toolpath.none",
+        "空間モデルの CL: まだ取り込んでいません",
+    ),
+    (
+        "conditions.toolpath.current",
+        "空間モデルの CL: 今の条件の結果です",
+    ),
+    (
+        "conditions.status.import_failed",
+        "取り込めません（{reason}）",
+    ),
+    (
+        "conditions.status.job_manager_failed",
+        "ジョブマネージャーを開けません（{reason}）",
+    ),
+    (
+        "conditions.issue.no_product_shape",
+        "製品形状がありません（ファイルを開いてください）",
+    ),
     (
         "conditions.issue.not_set",
         "工程の条件をまだ設定していません",
@@ -284,8 +329,14 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.issue.invalid_stock_margins",
         "余裕は 0 以上の数値にしてください",
     ),
-    ("conditions.issue.invalid_stock", "素材が体積を持つ直方体になりません"),
-    ("conditions.issue.invalid_tool", "工具径・工具長は正の数値にしてください"),
+    (
+        "conditions.issue.invalid_stock",
+        "素材が体積を持つ直方体になりません",
+    ),
+    (
+        "conditions.issue.invalid_tool",
+        "工具径・工具長は正の数値にしてください",
+    ),
     (
         "conditions.issue.invalid_toolpath_input",
         "工具・加工の条件が正しくありません（{reason}）",
@@ -298,8 +349,14 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.issue.stepover_exceeds_tool_diameter",
         "ピックフィードは工具径（{diameter} mm）以下にしてください",
     ),
-    ("conditions.issue.feed_rate_not_positive", "送りは正の数値にしてください"),
-    ("conditions.issue.invalid_precision", "精度は正の数値にしてください"),
+    (
+        "conditions.issue.feed_rate_not_positive",
+        "送りは正の数値にしてください",
+    ),
+    (
+        "conditions.issue.invalid_precision",
+        "精度は正の数値にしてください",
+    ),
     (
         "conditions.issue.precision_finer_than_tolerance",
         "精度はツールパス生成のトレランス（{tolerance} mm）以上にしてください",
@@ -311,13 +368,19 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.issue.other", "計算できません（{reason}）"),
     ("conditions.header.imported", "表示中の結果の条件"),
     ("conditions.imported.job", "ジョブ {job}"),
-    ("conditions.imported.tool", "工具: {kind} φ{diameter} mm・工具長 {length}"),
+    (
+        "conditions.imported.tool",
+        "工具: {kind} φ{diameter} mm・工具長 {length}",
+    ),
     ("conditions.imported.length_unlimited", "指定なし"),
     (
         "conditions.imported.scanline",
         "加工: {cut_direction}・ピックフィード {stepover} mm・送り {feed_rate} mm/min・走査線の角度 {angle}°",
     ),
-    ("conditions.imported.tolerance", "ツールパス生成のトレランス: {tolerance} mm"),
+    (
+        "conditions.imported.tolerance",
+        "ツールパス生成のトレランス: {tolerance} mm",
+    ),
     (
         "conditions.imported.stock",
         "素材: X {x} × Y {y} × Z {z} mm",
@@ -342,11 +405,17 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.kind.scanline", "Scanline"),
     ("conditions.page.machining", "Machining conditions"),
     ("conditions.page.region", "Region and target"),
-    ("conditions.operation_settings.title", "Operation settings: {name}"),
+    (
+        "conditions.operation_settings.title",
+        "Operation settings: {name}",
+    ),
     ("conditions.sequence_settings.title", "Sequence settings"),
     ("conditions.dialog.apply", "Apply"),
     ("conditions.dialog.cancel", "Cancel"),
-    ("conditions.dialog.submit_on_apply", "Calculate when applied"),
+    (
+        "conditions.dialog.submit_on_apply",
+        "Calculate when applied",
+    ),
     ("conditions.operation.stage", "Stage"),
     ("conditions.operation.kind", "Machining type: {kind}"),
     (
@@ -368,8 +437,14 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.operations.add", "Add operation"),
     ("conditions.operations.duplicate", "Duplicate operation"),
     ("conditions.operations.remove", "Delete operation"),
-    ("conditions.operations.move_up", "Move earlier in the machining order"),
-    ("conditions.operations.move_down", "Move later in the machining order"),
+    (
+        "conditions.operations.move_up",
+        "Move earlier in the machining order",
+    ),
+    (
+        "conditions.operations.move_down",
+        "Move later in the machining order",
+    ),
     ("conditions.operations.name", "Name"),
     ("conditions.operations.new_name", "Operation {number}"),
     ("conditions.operations.default_name", "Scanline"),
@@ -377,7 +452,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.operations.copy_name", "{name} (copy)"),
     ("conditions.operations.status.none", "not calculated"),
     ("conditions.operations.status.not_set", "not set"),
-    ("conditions.operations.status.condition_error", "condition error"),
+    (
+        "conditions.operations.status.condition_error",
+        "condition error",
+    ),
     ("conditions.operations.status.queued", "waiting"),
     ("conditions.operations.status.running", "calculating"),
     ("conditions.operations.status.succeeded", "calculated"),
@@ -387,7 +465,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.operations.status.unreadable", "cannot read"),
     ("conditions.operations.status.reading", "reading"),
     ("conditions.operations.status.unknown", "unknown"),
-    ("conditions.target.faces", "Visible product shape faces: {count}"),
+    (
+        "conditions.target.faces",
+        "Visible product shape faces: {count}",
+    ),
     ("conditions.header.tool", "Tool"),
     ("conditions.tool.ball", "Ball end mill"),
     ("conditions.tool.flat", "Flat end mill"),
@@ -428,14 +509,20 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "Toolpath tolerance: {tolerance} mm (fixed)",
     ),
     ("conditions.header.stock", "Stock"),
-    ("conditions.stock.margins", "Margins around the product bounds"),
+    (
+        "conditions.stock.margins",
+        "Margins around the product bounds",
+    ),
     ("conditions.stock.minus_x", "-X side"),
     ("conditions.stock.plus_x", "+X side"),
     ("conditions.stock.minus_y", "-Y side"),
     ("conditions.stock.plus_y", "+Y side"),
     ("conditions.stock.top", "top"),
     ("conditions.stock.bottom", "bottom"),
-    ("conditions.stock.precision", "Precision (stock surface detail)"),
+    (
+        "conditions.stock.precision",
+        "Precision (stock surface detail)",
+    ),
     ("conditions.submit", "Calculate"),
     (
         "conditions.submit.hint",
@@ -482,7 +569,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "Imports and shows the cutting simulation of the current conditions of the selected operation, and imports its CL into the space model. Press it again while it is shown to close it",
     ),
     ("conditions.open_job_manager", "Open job manager"),
-    ("conditions.status.submitted", "Started the calculation from toolpath generation"),
+    (
+        "conditions.status.submitted",
+        "Started the calculation from toolpath generation",
+    ),
     (
         "conditions.status.submitted_simulation",
         "Started calculating only the cutting simulation from the CL of the current conditions",
@@ -495,7 +585,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.status.redone_canceled",
         "Canceled the calculation for the current conditions, deleted the CL from the space model, and started recalculating from toolpath generation",
     ),
-    ("conditions.status.submit_failed", "Cannot start the calculation ({reason})"),
+    (
+        "conditions.status.submit_failed",
+        "Cannot start the calculation ({reason})",
+    ),
     (
         "conditions.status.already_calculated",
         "The calculation was not started because the calculation for the current conditions is waiting, calculating, or calculated",
@@ -538,7 +631,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.status.nothing_to_stop",
         "Not stopped because the calculation for the current conditions is not waiting or calculating",
     ),
-    ("conditions.status.stop_failed", "Cannot stop the calculation ({reason})"),
+    (
+        "conditions.status.stop_failed",
+        "Cannot stop the calculation ({reason})",
+    ),
     (
         "conditions.status.sequence_submitted",
         "Started calculating {submitted} operations of the sequence ({skipped} waiting, calculating, or calculated operations were not calculated again)",
@@ -573,20 +669,38 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.status.nothing_to_import",
         "No result to import (import it after the calculation finishes)",
     ),
-    ("conditions.status.toolpath_imported", "Imported the CL of job {job}"),
+    (
+        "conditions.status.toolpath_imported",
+        "Imported the CL of job {job}",
+    ),
     (
         "conditions.status.no_toolpath_to_import",
         "No CL to import (import it after the toolpath generation finishes)",
     ),
-    ("conditions.job.none", "Calculation for the current conditions: no job (not calculated or deleted)"),
-    ("conditions.job.queued", "Calculation for the current conditions: waiting"),
-    ("conditions.job.running", "Calculation for the current conditions: calculating"),
+    (
+        "conditions.job.none",
+        "Calculation for the current conditions: no job (not calculated or deleted)",
+    ),
+    (
+        "conditions.job.queued",
+        "Calculation for the current conditions: waiting",
+    ),
+    (
+        "conditions.job.running",
+        "Calculation for the current conditions: calculating",
+    ),
     (
         "conditions.job.succeeded",
         "Calculation for the current conditions: completed (import it to show it)",
     ),
-    ("conditions.job.failed", "Calculation for the current conditions: calculation failed"),
-    ("conditions.job.canceled", "Calculation for the current conditions: canceled"),
+    (
+        "conditions.job.failed",
+        "Calculation for the current conditions: calculation failed",
+    ),
+    (
+        "conditions.job.canceled",
+        "Calculation for the current conditions: canceled",
+    ),
     (
         "conditions.job.unreadable",
         "Calculation for the current conditions: cannot read the status from the job manager",
@@ -603,11 +717,26 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.job.manager_not_found",
         "Calculation for the current conditions: unknown because the job manager is not found",
     ),
-    ("conditions.toolpath.none", "CL in the space model: not imported yet"),
-    ("conditions.toolpath.current", "CL in the space model: result of the current conditions"),
-    ("conditions.status.import_failed", "Cannot import ({reason})"),
-    ("conditions.status.job_manager_failed", "Cannot open the job manager ({reason})"),
-    ("conditions.issue.no_product_shape", "No product shape (open a file)"),
+    (
+        "conditions.toolpath.none",
+        "CL in the space model: not imported yet",
+    ),
+    (
+        "conditions.toolpath.current",
+        "CL in the space model: result of the current conditions",
+    ),
+    (
+        "conditions.status.import_failed",
+        "Cannot import ({reason})",
+    ),
+    (
+        "conditions.status.job_manager_failed",
+        "Cannot open the job manager ({reason})",
+    ),
+    (
+        "conditions.issue.no_product_shape",
+        "No product shape (open a file)",
+    ),
     (
         "conditions.issue.not_set",
         "The conditions of the operation are not set yet",
@@ -616,7 +745,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.issue.invalid_stock_margins",
         "Margins must be zero or more",
     ),
-    ("conditions.issue.invalid_stock", "The stock is not a box with volume"),
+    (
+        "conditions.issue.invalid_stock",
+        "The stock is not a box with volume",
+    ),
     (
         "conditions.issue.invalid_tool",
         "Tool diameter and length must be positive",
@@ -625,13 +757,22 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.issue.invalid_toolpath_input",
         "Tool or machining conditions are invalid ({reason})",
     ),
-    ("conditions.issue.stepover_not_positive", "Stepover must be positive"),
+    (
+        "conditions.issue.stepover_not_positive",
+        "Stepover must be positive",
+    ),
     (
         "conditions.issue.stepover_exceeds_tool_diameter",
         "Stepover must not exceed the tool diameter ({diameter} mm)",
     ),
-    ("conditions.issue.feed_rate_not_positive", "Feed rate must be positive"),
-    ("conditions.issue.invalid_precision", "Precision must be positive"),
+    (
+        "conditions.issue.feed_rate_not_positive",
+        "Feed rate must be positive",
+    ),
+    (
+        "conditions.issue.invalid_precision",
+        "Precision must be positive",
+    ),
     (
         "conditions.issue.precision_finer_than_tolerance",
         "Precision must not be finer than the toolpath tolerance ({tolerance} mm)",
@@ -641,7 +782,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "Precision is too fine for the stock size. Use {finest_precision} mm or coarser",
     ),
     ("conditions.issue.other", "Cannot calculate ({reason})"),
-    ("conditions.header.imported", "Conditions of the displayed result"),
+    (
+        "conditions.header.imported",
+        "Conditions of the displayed result",
+    ),
     ("conditions.imported.job", "Job {job}"),
     (
         "conditions.imported.tool",
@@ -652,7 +796,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.imported.scanline",
         "Machining: {cut_direction}, stepover {stepover} mm, feed {feed_rate} mm/min, scan angle {angle}°",
     ),
-    ("conditions.imported.tolerance", "Toolpath tolerance: {tolerance} mm"),
+    (
+        "conditions.imported.tolerance",
+        "Toolpath tolerance: {tolerance} mm",
+    ),
     (
         "conditions.imported.stock",
         "Stock: X {x} x Y {y} x Z {z} mm",

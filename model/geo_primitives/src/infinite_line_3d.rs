@@ -7,10 +7,10 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, Angle, AngularRelation, InfiniteLine3DConstructor,
-    InfiniteLine3DContainment, InfiniteLine3DDistance, InfiniteLine3DEvaluation,
-    InfiniteLine3DProjection, InfiniteLine3DProperties, ParallelRelation, PerpendicularRelation,
-    PrimitiveKind, PrimitiveMetadata, Scalar,
+    Angle, AngularRelation, InfiniteLine3DConstructor, InfiniteLine3DContainment,
+    InfiniteLine3DDistance, InfiniteLine3DEvaluation, InfiniteLine3DProjection,
+    InfiniteLine3DProperties, ParallelRelation, PerpendicularRelation, PrimitiveKind,
+    PrimitiveMetadata, Scalar, default_distance_tolerance,
 };
 
 /// 3次元空間の無限直線（Core実装）

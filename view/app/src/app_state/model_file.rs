@@ -95,10 +95,10 @@ impl AppState {
                 }
             }
             FileAction::Open => {
-                if self.confirm_discard() {
-                    if let Some(path) = self.model_file_dialog().pick_file() {
-                        self.open_model_file(&path);
-                    }
+                if self.confirm_discard()
+                    && let Some(path) = self.model_file_dialog().pick_file()
+                {
+                    self.open_model_file(&path);
                 }
             }
             FileAction::OpenPath(path) => {

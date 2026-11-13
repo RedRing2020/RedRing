@@ -2,12 +2,12 @@
 
 use geo_contracts::PointClassification::{Inside, OnBoundary, Outside};
 use geo_contracts::{
-    default_distance_tolerance, ConicalSolid3DConstructor, ConicalSolid3DContainment,
-    CylindricalSolid3DConstructor, CylindricalSolid3DContainment, EllipsoidalSolid3DConstructor,
-    EllipsoidalSolid3DContainment, PointClassification, Rect2DConstructor, Rect2DContainment,
-    Rect3DConstructor, Rect3DContainment, SphericalSolid3DConstructor, SphericalSolid3DContainment,
+    ConicalSolid3DConstructor, ConicalSolid3DContainment, CylindricalSolid3DConstructor,
+    CylindricalSolid3DContainment, EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment,
+    PointClassification, Rect2DConstructor, Rect2DContainment, Rect3DConstructor,
+    Rect3DContainment, SphericalSolid3DConstructor, SphericalSolid3DContainment,
     TorusSolid3DConstructor, TorusSolid3DContainment, Triangle2DConstructor, Triangle2DContainment,
-    Triangle3DConstructor, Triangle3DContainment,
+    Triangle3DConstructor, Triangle3DContainment, default_distance_tolerance,
 };
 use geo_primitives::{
     ConicalSolid3D, CylindricalSolid3D, Direction3D, EllipsoidalSolid3D, Point2D, Point3D, Rect2D,

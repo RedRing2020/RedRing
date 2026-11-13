@@ -32,9 +32,9 @@ pub use point_classification::PointClassification;
 pub use similarity_transform_2d::SimilarityTransform2D;
 pub use similarity_transform_3d::SimilarityTransform3D;
 pub use tolerance::{
-    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
-    default_orthogonality_dot_error_tolerance, default_parallel_cross_error_tolerance,
-    ToleranceSettings,
+    ToleranceSettings, default_angle_tolerance, default_distance_tolerance,
+    default_kernel_numerical_zero_tolerance, default_orthogonality_dot_error_tolerance,
+    default_parallel_cross_error_tolerance,
 };
 pub use transform_error::TransformError;
 pub use vector_2d::Vector2D;

@@ -1,4 +1,4 @@
-use crate::gpu_buffer::{checked_buffer, GpuDataError};
+use crate::gpu_buffer::{GpuDataError, checked_buffer};
 use crate::shader;
 use crate::uniform_factory;
 use crate::vertex_3d::MeshVertex;

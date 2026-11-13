@@ -5,4 +5,4 @@ mod camera_presets;
 mod camera_projection;
 mod camera_transition;
 
-pub use camera::{build_view_projection_matrix, center_in_band, Camera, CameraControlSensitivity};
+pub use camera::{Camera, CameraControlSensitivity, build_view_projection_matrix, center_in_band};

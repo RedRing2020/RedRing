@@ -288,10 +288,10 @@ fn load_system_cjk_font_bytes() -> Option<Vec<u8>> {
             ..Query::default()
         };
 
-        if let Some(face_id) = db.query(&query) {
-            if let Some(bytes) = db.with_face_data(face_id, |data, _index| data.to_vec()) {
-                return Some(bytes);
-            }
+        if let Some(face_id) = db.query(&query)
+            && let Some(bytes) = db.with_face_data(face_id, |data, _index| data.to_vec())
+        {
+            return Some(bytes);
         }
     }
 

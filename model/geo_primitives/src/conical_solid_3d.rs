@@ -21,8 +21,8 @@ mod transform;
 
 use crate::{Direction3D, Point3D};
 use geo_contracts::{
-    default_distance_tolerance, ConicalSolid3DConstructor, ConicalSolid3DContainment,
-    ConicalSolid3DDistance, ConicalSolid3DProperties, PointClassification, Scalar,
+    ConicalSolid3DConstructor, ConicalSolid3DContainment, ConicalSolid3DDistance,
+    ConicalSolid3DProperties, PointClassification, Scalar, default_distance_tolerance,
 };
 
 /// 3次元円錐ソリッド（STEP準拠のCore実装）

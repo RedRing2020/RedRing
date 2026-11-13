@@ -1,6 +1,6 @@
 use crate::app_renderer::{AppRenderer, RenderFrameContext};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use wgpu::{Device, Queue, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureView};
 use winit::window::Window;
 

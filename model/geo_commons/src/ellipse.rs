@@ -4,7 +4,7 @@
 //! `(a cos θ, b sin θ)` とする。`θ` についての式は `x = tan(θ/2)` で 4 次多項式にし、楕円を半周ずつ
 //! （`-π/2 <= θ <= π/2` と、点を原点について反転した残りの半周）に分けて `|x| <= 1` の区間で解く。
 
-use analysis::{polynomial_real_roots_in_interval, Scalar};
+use analysis::{Scalar, polynomial_real_roots_in_interval};
 
 /// 点 `(u, v)` までの距離が極値になる楕円上のパラメータ（`-π/2 <= θ < 3π/2`）
 ///

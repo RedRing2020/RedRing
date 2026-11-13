@@ -8,7 +8,7 @@ mod bounds;
 mod tests;
 mod transform;
 
-use crate::curve_evaluation::{validate_curve, CurveDefinition};
+use crate::curve_evaluation::{CurveDefinition, validate_curve};
 use crate::{KnotVector, Scalar, WeightStorage};
 use geo_contracts::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,

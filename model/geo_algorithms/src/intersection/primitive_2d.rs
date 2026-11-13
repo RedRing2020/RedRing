@@ -285,15 +285,15 @@ pub fn triangle2d_line_segment2d_intersection<T: Scalar>(
 
     if let Some((enter, exit)) = clip_segment_by_triangle(triangle, start, direction, T::ZERO) {
         let (overlap_start, overlap_end) = (point_at(enter), point_at(exit));
-        if overlap_start.distance_to(overlap_end) > tolerance {
-            if let Some(overlap) = LineSegment2D::new(overlap_start, overlap_end) {
-                return IntersectionResult::new(
-                    IntersectionGeometry::Segment2D(overlap),
-                    IntersectionTopology::Crossing,
-                    false,
-                    tolerance,
-                );
-            }
+        if overlap_start.distance_to(overlap_end) > tolerance
+            && let Some(overlap) = LineSegment2D::new(overlap_start, overlap_end)
+        {
+            return IntersectionResult::new(
+                IntersectionGeometry::Segment2D(overlap),
+                IntersectionTopology::Crossing,
+                false,
+                tolerance,
+            );
         }
     }
     let touching = clip_segment_by_triangle(triangle, start, direction, tolerance)
@@ -326,11 +326,7 @@ fn clip_segment_by_triangle<T: Scalar>(
         // 辺から三角形の内側へ向かう符号付き距離
         let inward = |vector: Vector2D<T>| {
             let value = edge.cross(vector) / edge_length;
-            if counterclockwise {
-                value
-            } else {
-                -value
-            }
+            if counterclockwise { value } else { -value }
         };
         let offset = inward(Vector2D::from_points(edge_start, start)) + margin;
         let rate = inward(direction);

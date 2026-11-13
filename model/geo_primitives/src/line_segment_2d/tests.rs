@@ -3,9 +3,9 @@
 use super::*;
 use crate::{LineSegment2D, Point2D};
 use geo_contracts::{
-    default_distance_tolerance, Bounded, LineSegment2DConstructor, LineSegment2DContainment,
-    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
-    LineSegment2DProperties, ParallelRelation,
+    Bounded, LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DDistance,
+    LineSegment2DEvaluation, LineSegment2DProjection, LineSegment2DProperties, ParallelRelation,
+    default_distance_tolerance,
 };
 
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
