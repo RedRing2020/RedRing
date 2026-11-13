@@ -366,8 +366,8 @@ impl std::fmt::Display for SequenceSubmissionError {
 #[derive(Debug, Default)]
 pub struct CuttingSimulationSession {
     workflow: CamSimulationWorkflow,
-    /// 工程ごとに、確かめた改訂の鍵と、その改訂の計算の条件に誤りがあったか
-    condition_errors: HashMap<MachiningOperationId, (MachiningRevisionKey, bool)>,
+    /// 工程ごとに、確かめた改訂の鍵と、その改訂の計算条件の問題（誤りがなければ空）
+    condition_issues: HashMap<MachiningOperationId, (MachiningRevisionKey, Vec<ConditionIssue>)>,
 }
 
 impl CuttingSimulationSession {
@@ -376,7 +376,7 @@ impl CuttingSimulationSession {
     pub(crate) fn in_process() -> Self {
         Self {
             workflow: CamSimulationWorkflow::in_process(),
-            condition_errors: HashMap::new(),
+            condition_issues: HashMap::new(),
         }
     }
 
@@ -396,21 +396,21 @@ impl CuttingSimulationSession {
 
     /// 工程ごとに覚えた、計算の条件の確かめの結果を捨てる（別の文書では、同じ工程の ID・改訂の鍵でも形状が違いうる）
     pub fn forget_condition_checks(&mut self) {
-        self.condition_errors.clear();
+        self.condition_issues.clear();
     }
 
-    /// 表示中の製品形状のすべての面を加工の対象として、加工手順の工程のうち、計算の条件に誤りがある工程（加工の順。
-    /// 条件を設定していない工程は含めない）
+    /// 表示中の製品形状のすべての面を加工の対象として、加工手順の工程のうち、計算の条件に誤りがある工程と、その問題
+    /// （加工の順。問題は、工程を選んで [`Self::check`] で確かめたときと同じ。条件を設定していない工程は含めない）
     ///
     /// 工程の改訂ごとに確かめた結果を覚え、改訂が進んだ工程（計算の条件・素材・加工の対象が変わった）だけを
     /// 確かめ直す。確かめ直す工程はまとめて確かめ、加工の対象の形状は 1 回だけ作る。
-    pub fn operations_with_condition_errors(
+    pub fn operation_condition_issues(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Vec<MachiningOperationId> {
+    ) -> Vec<(MachiningOperationId, Vec<ConditionIssue>)> {
         document.target_visible_faces();
         let operations = document.operations();
-        self.condition_errors
+        self.condition_issues
             .retain(|operation, _| operations.iter().any(|item| item.id == *operation));
         // 設定した工程と、今の改訂の鍵（加工の順）
         let keyed: Vec<(MachiningOperationId, MachiningRevisionKey)> = operations
@@ -422,7 +422,7 @@ impl CuttingSimulationSession {
             .iter()
             .copied()
             .filter(|(id, key)| {
-                !matches!(self.condition_errors.get(id), Some((checked, _)) if checked == key)
+                !matches!(self.condition_issues.get(id), Some((checked, _)) if checked == key)
             })
             .collect();
         if !stale.is_empty() {
@@ -431,17 +431,19 @@ impl CuttingSimulationSession {
             let results =
                 CamSimulationWorkflow::check_operations(shapes, sequences, sequence, &ids);
             for ((id, key), result) in stale.into_iter().zip(results) {
-                self.condition_errors.insert(id, (key, result.is_err()));
+                let issues = match result {
+                    Ok(()) => Vec::new(),
+                    Err(error) => ConditionIssue::from_workflow_error(&error),
+                };
+                self.condition_issues.insert(id, (key, issues));
             }
         }
         keyed
             .into_iter()
-            .filter(|(id, _)| {
-                self.condition_errors
-                    .get(id)
-                    .is_some_and(|(_, has_errors)| *has_errors)
+            .filter_map(|(id, _)| {
+                let (_, issues) = self.condition_issues.get(&id)?;
+                (!issues.is_empty()).then(|| (id, issues.clone()))
             })
-            .map(|(id, _)| id)
             .collect()
     }
 
@@ -1528,11 +1530,11 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn operations_with_condition_errors_are_listed_without_the_ones_not_set() {
+    fn operation_condition_issues_are_listed_without_the_ones_not_set() {
         let (mut session, mut document) = coarse_session();
         let first = document.selected_operation();
         assert_eq!(
-            session.operations_with_condition_errors(&mut document),
+            session.operation_condition_issues(&mut document),
             Vec::new()
         );
         // ピックフィードが工具径を超える工程
@@ -1546,15 +1548,21 @@ pub(crate) mod tests {
             document.operation_content().clone(),
             |scanline| scanline.stepover = 1000.0,
         ));
+        // 問題は、工程を選んで確かめたときと同じ
+        let added = document.selected_operation();
+        document.select_operation(first);
+        let issues = session.check(&mut document);
+        assert!(!issues.is_empty());
+        document.select_operation(added);
         assert_eq!(
-            session.operations_with_condition_errors(&mut document),
-            vec![first]
+            session.operation_condition_issues(&mut document),
+            vec![(first, issues)]
         );
         // 改訂が進んだ工程だけ確かめ直す（直すと、誤りのある工程から外れる）
         document.select_operation(first);
         coarse(&mut document);
         assert_eq!(
-            session.operations_with_condition_errors(&mut document),
+            session.operation_condition_issues(&mut document),
             Vec::new()
         );
     }
@@ -1568,6 +1576,11 @@ pub(crate) mod tests {
             session.check(&mut document)[..],
             [ConditionIssue::NoProductShape]
         ));
+        // 工程リストの条件の問題も、工程を選んで確かめたときと同じ
+        assert_eq!(
+            session.operation_condition_issues(&mut document),
+            vec![(document.selected_operation(), session.check(&mut document))]
+        );
         let error = session.submit(&mut document, |_| true).unwrap_err();
         assert!(matches!(
             error,

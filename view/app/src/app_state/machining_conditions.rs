@@ -431,10 +431,12 @@ impl AppState {
         if self.operation_list_shown && self.operation_condition_errors.is_none() {
             self.operation_condition_errors = Some(
                 self.cutting_simulation
-                    .operations_with_condition_errors(&mut self.document),
+                    .operation_condition_issues(&mut self.document)
+                    .into_iter()
+                    .collect(),
             );
         }
-        let condition_errors = self.operation_condition_errors.clone().unwrap_or_default();
+        let condition_errors = self.operation_condition_errors.as_ref();
         let operations = self
             .document
             .operations()
@@ -445,8 +447,10 @@ impl AppState {
                     == ImportedToolpathState::Current,
                 setup: if !item.conditions_set {
                     OperationSetup::NotSet
-                } else if condition_errors.contains(&item.id) {
-                    OperationSetup::ConditionError
+                } else if let Some(issues) =
+                    condition_errors.and_then(|errors| errors.get(&item.id))
+                {
+                    OperationSetup::ConditionError(issues.clone())
                 } else {
                     OperationSetup::Ready
                 },
