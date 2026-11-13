@@ -183,8 +183,9 @@ impl AppState {
             }
         }
         tracing::info!("Conditions applied: {:?}", draft.dialog);
-        // 工程の改訂が進んだら、前の条件の計算は使わないため取り消す（続けて投入するときは、投入した後に取り消す）
-        if revision_advanced && submission != Some(ApplySubmission::Submit) {
+        // 工程の改訂が進んだら、前の条件の計算は使わないため取り消す（続けて投入するときも、投入する前に取り消す。
+        // 投入しなかった・できなかったときも取り消し、その理由を最後に出すように）
+        if revision_advanced {
             self.cancel_superseded_jobs();
         }
         match submission {
