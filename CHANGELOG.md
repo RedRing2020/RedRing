@@ -44,6 +44,7 @@
 - 配布物の zip に、ジョブマネージャー（`redring-job-manager.exe`）とランナー（`redring-batch-runner.exe`）を入れる。ソースからは `cargo build --release` の後に `cargo run --release -p redring` で起動する（#1078）
 
 ### Removed
+- Trunk の設定（`.trunk/`）。CI でもスクリプトでも使っておらず、ワークスペースと違う edition（2021）と Rust の版（1.81.0）を持っていた。書式と静的解析は `cargo fmt`・Clippy・`scripts/check_all_before_push.ps1` と CI で行う（#1290）
 - 使っていない依存（geo_core の `approx`、geo_io の `tokio` と `async` 機能、job_domain の `analysis`、アプリの `smol_str` と `tracing-appender`）。Rust 1.100 の使っていない依存の警告が出なくなる（#1278）
 - 加工条件のウィンドウの「投入したらすぐ実行する」と、`Shift+R`（キューにあるジョブを実行）。計算はジョブマネージャーが投入の順に行う（#1078）
 
