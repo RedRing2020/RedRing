@@ -326,11 +326,7 @@ fn clip_segment_by_triangle<T: Scalar>(
         // 辺から三角形の内側へ向かう符号付き距離
         let inward = |vector: Vector2D<T>| {
             let value = edge.cross(vector) / edge_length;
-            if counterclockwise {
-                value
-            } else {
-                -value
-            }
+            if counterclockwise { value } else { -value }
         };
         let offset = inward(Vector2D::from_points(edge_start, start)) + margin;
         let rate = inward(direction);

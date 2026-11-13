@@ -12,8 +12,8 @@ pub use application::cam_simulation_workflow::{
     CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
 };
 pub use application::machining_sequence::{
-    flat_surface_cusp_height, MachiningBoundary, MachiningOperationContent, MachiningStage,
-    MachiningStock, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
+    MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock, OperationSpec,
+    ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool, flat_surface_cusp_height,
 };
 use application::machining_sequence::{
     MachiningRevisionKey, MachiningSequenceStore, ScanlineParams,
@@ -26,7 +26,7 @@ use application::cutting_simulation_playback::{
 
 use crate::cutting_animation::CuttingAnimation;
 use crate::failure_message_mapper::workflow_failure_message;
-use crate::inverse_offset_shape_converter::{inverse_offset_shape_meshes, InverseOffsetShapeMesh};
+use crate::inverse_offset_shape_converter::{InverseOffsetShapeMesh, inverse_offset_shape_meshes};
 use crate::space_model_document::{ImportedToolpathState, SpaceModelDocument};
 use i18n_foundation::UiMessage;
 
@@ -890,8 +890,8 @@ pub(crate) mod tests {
     use application::product_shape::ProductShapeError;
 
     use super::*;
-    use crate::space_model_document::tests::{document_with_pyramid, NAMES};
     use crate::space_model_document::ImportedToolpathState;
+    use crate::space_model_document::tests::{NAMES, document_with_pyramid};
 
     /// 走査線の条件 `content` を `edit` で変えた中身
     fn with_scanline(
@@ -1462,9 +1462,11 @@ pub(crate) mod tests {
                 CamConditionError::StepoverExceedsToolDiameter { tool_diameter: 6.0 }
             )]
         );
-        assert!(session
-            .check_draft(&mut document, &applied, stock)
-            .is_empty());
+        assert!(
+            session
+                .check_draft(&mut document, &applied, stock)
+                .is_empty()
+        );
         // 文書の工程・手順は替えない（再計算待ちにも、保存していない変更にもならない）
         assert_eq!(*document.operation_content(), applied);
         assert_eq!(document.stock(), stock);

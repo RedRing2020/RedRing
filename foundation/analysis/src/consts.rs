@@ -233,7 +233,7 @@ pub mod test_constants {
 
 #[cfg(test)]
 mod tests {
-    use super::{special, GeometricTolerance};
+    use super::{GeometricTolerance, special};
     use crate::consts::test_constants::{
         SOLVER_TOLERANCE_F32, SOLVER_TOLERANCE_F64, TOLERANCE_F32, TOLERANCE_F64,
     };

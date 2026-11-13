@@ -13,8 +13,8 @@ use crate::basis::basis_derivatives;
 use crate::curve_evaluation::clamp_to_domain;
 use crate::{KnotVector, Scalar, WeightStorage};
 use geo_contracts::{
-    default_distance_tolerance, default_parallel_cross_error_tolerance, NurbsError,
-    NurbsSurface3DConstructor, NurbsSurface3DEvaluation, NurbsSurface3DProperties,
+    NurbsError, NurbsSurface3DConstructor, NurbsSurface3DEvaluation, NurbsSurface3DProperties,
+    default_distance_tolerance, default_parallel_cross_error_tolerance,
 };
 use geo_core::{Direction3D, Point3D, Vector3D};
 

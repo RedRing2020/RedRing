@@ -20,24 +20,23 @@ pub use linalg::vector::{Vector2, Vector3, Vector4};
 
 // 定数の再エクスポート
 pub use consts::{
-    game, precision, test_constants, GeometricTolerance, DEG_TO_RAD, DERIVATIVE_ZERO_THRESHOLD_F32,
-    DERIVATIVE_ZERO_THRESHOLD_F64, E, GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI,
-    PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
+    DEG_TO_RAD, DERIVATIVE_ZERO_THRESHOLD_F32, DERIVATIVE_ZERO_THRESHOLD_F64, E,
+    GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, GeometricTolerance, PI, PI_2, PI_3,
+    PI_4, PI_6, RAD_TO_DEG, TAU, game, precision, test_constants,
 };
 
 // 数値計算関数の再エクスポート（numericsモジュールから）
 // Newton solver は generic / multivariate API を正本として公開する。
 pub use crate::linalg::solver::newton::{
-    newton_inverse_generic, newton_solve_bounded_generic, newton_solve_generic,
-    newton_solve_multivariate, newton_solve_multivariate_bounded,
-    newton_solve_multivariate_bounded_with_solver, newton_solve_multivariate_with_solver,
-    newton_solve_with_numeric_derivative_bounded_generic, MultivariateNewtonBounds,
-    MultivariateNewtonOptions,
+    MultivariateNewtonBounds, MultivariateNewtonOptions, newton_inverse_generic,
+    newton_solve_bounded_generic, newton_solve_generic, newton_solve_multivariate,
+    newton_solve_multivariate_bounded, newton_solve_multivariate_bounded_with_solver,
+    newton_solve_multivariate_with_solver, newton_solve_with_numeric_derivative_bounded_generic,
 };
 pub use crate::numerics::{
-    adaptive_gauss_legendre, find_span_in_non_decreasing_sequence, is_within_closed_range,
-    minimize_unimodal, newton_arc_length, polynomial_real_roots_in_interval, trapezoidal_rule,
-    NormedVector,
+    NormedVector, adaptive_gauss_legendre, find_span_in_non_decreasing_sequence,
+    is_within_closed_range, minimize_unimodal, newton_arc_length,
+    polynomial_real_roots_in_interval, trapezoidal_rule,
 };
 
 // 単位系の再エクスポート

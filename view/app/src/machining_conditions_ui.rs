@@ -15,10 +15,10 @@ use egui::{
     Window,
 };
 use viewmodel::cutting_simulation_session::{
-    flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
-    CuttingToolKind, ImportedConditions, MachiningBoundary, MachiningOperationContent,
-    MachiningStage, MachiningStock, OperationJobStatus, OperationSpec, ScanlineCutDirection,
-    ScanlineToolRange, StockMargins, Tool,
+    CamConditionError, CamConditionField, ConditionIssue, CuttingToolKind, ImportedConditions,
+    MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock,
+    OperationJobStatus, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
+    flat_surface_cusp_height,
 };
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
@@ -1611,11 +1611,12 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
+        ApplySubmission, COLUMN_KEYS, ConditionField, JobStatusLine, MachiningStage,
+        OperationJobStatus, OperationRow, OperationSetup, OperationStatus, RowAction,
         calculation_blocked, condition_error_message, condition_field, imported_toolpath_key,
         job_status_key, navigation_key, navigation_text, next_action_of, operation_row_key,
         operation_row_status_key, operation_status_text, row_status_color, stage_key,
-        submission_on_apply, ApplySubmission, ConditionField, JobStatusLine, MachiningStage,
-        OperationJobStatus, OperationRow, OperationSetup, OperationStatus, RowAction, COLUMN_KEYS,
+        submission_on_apply,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};

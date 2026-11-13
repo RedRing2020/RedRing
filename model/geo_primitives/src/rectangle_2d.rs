@@ -7,8 +7,8 @@ mod transform;
 
 use crate::Point2D;
 use geo_contracts::{
-    default_distance_tolerance, PointClassification, PrimitiveKind, PrimitiveMetadata,
-    Rect2DConstructor, Rect2DContainment, Rect2DProperties, Scalar,
+    PointClassification, PrimitiveKind, PrimitiveMetadata, Rect2DConstructor, Rect2DContainment,
+    Rect2DProperties, Scalar, default_distance_tolerance,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -2,7 +2,7 @@
 name = "geo_nurbs"
 publish = false
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 authors = ["RedRing Development Team"]
 description = "NURBS curves and surfaces for RedRing CAD/CAM platform"
 license = "MIT OR Apache-2.0"

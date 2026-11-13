@@ -94,7 +94,7 @@ fn reference_length(a: f64, b: f64, start_degrees: f64, end_degrees: f64) -> f64
 /// 一般の範囲の楕円弧の長さが、弧長の積分と一致する
 #[test]
 fn test_length_matches_arc_length_integral() {
-    use geo_contracts::{default_distance_tolerance, EllipseArc3DDerived};
+    use geo_contracts::{EllipseArc3DDerived, default_distance_tolerance};
     let tolerance = default_distance_tolerance::<f64>();
     // 長半軸 4・短半軸 2 の 45°〜135°
     let arc = create_test_ellipse_arc();

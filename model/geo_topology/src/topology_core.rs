@@ -6,13 +6,13 @@
 use crate::tolerance::ResolvedEdgeToleranceSettings;
 use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};
 use geo_contracts::{
-    default_kernel_numerical_zero_tolerance, Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived,
-    EllipseArc3DEndpoint, EllipseArc3DEvaluation, InfiniteLine3DEvaluation,
-    LineSegment3DProperties, LineSegment3DSupportLine, NurbsCurve3DDerived, NurbsCurve3DEvaluation,
-    NurbsCurve3DProperties, Scalar,
+    Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived, EllipseArc3DEndpoint,
+    EllipseArc3DEvaluation, InfiniteLine3DEvaluation, LineSegment3DProperties,
+    LineSegment3DSupportLine, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    Scalar, default_kernel_numerical_zero_tolerance,
 };
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// トポロジー要素の識別子
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -138,12 +138,7 @@ impl<T: Scalar> CurveRef<T> {
                 assert!(
                     !is_out_of_domain,
                     "CurveRef::point_at_parameter received out-of-domain NURBS parameter: t={:?}, domain=[{:?}, {:?}], tolerance={:?}, accepted_bounds=[{:?}, {:?}]",
-                    t,
-                    u_min,
-                    u_max,
-                    tolerance,
-                    lower_bound,
-                    upper_bound
+                    t, u_min, u_max, tolerance, lower_bound, upper_bound
                 );
 
                 let adjusted_t = if t < u_min {

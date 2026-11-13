@@ -22,9 +22,9 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment,
-    EllipsoidalSolid3DDistance, EllipsoidalSolid3DProjection, EllipsoidalSolid3DProperties,
-    PointClassification, Scalar,
+    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance,
+    EllipsoidalSolid3DProjection, EllipsoidalSolid3DProperties, PointClassification, Scalar,
+    default_distance_tolerance,
 };
 
 /// 3次元楕円体ソリッド（STEP準拠のCore実装）

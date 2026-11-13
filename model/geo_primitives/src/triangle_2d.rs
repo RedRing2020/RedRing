@@ -7,9 +7,9 @@ mod transform;
 
 use crate::{Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
-    PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DBoundaryAccess, Triangle2DConstructor,
-    Triangle2DContainment, Triangle2DDistance,
+    PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DBoundaryAccess,
+    Triangle2DConstructor, Triangle2DContainment, Triangle2DDistance, default_distance_tolerance,
+    default_kernel_numerical_zero_tolerance,
 };
 
 /// 2次元三角形

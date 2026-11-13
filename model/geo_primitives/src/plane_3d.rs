@@ -8,8 +8,8 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, Plane3DConstructor, Plane3DContainment, Plane3DDistance,
-    Plane3DProjection, Plane3DProperties, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
+    Plane3DConstructor, Plane3DContainment, Plane3DDistance, Plane3DProjection, Plane3DProperties,
+    PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq, default_distance_tolerance,
 };
 
 /// 3次元平面（座標系付き）

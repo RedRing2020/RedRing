@@ -5,8 +5,8 @@
 //! 通常の表示と見比べる表示（逆オフセット形状）は、ツールパスの線を重ね、カメラを通常の表示と共有する（その表示の間に
 //! 動かしたカメラは、戻した後も使う）。
 
-use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
+use super::debug_snapshot_state::SnapshotPlaybackMode;
 use stage::{MeshStage, RenderStage};
 use viewmodel_graphics::Camera;
 

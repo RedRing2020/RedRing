@@ -21,20 +21,20 @@ pub use operations::{CrossCollision, CrossDistance, CrossIntersection};
 pub use octree::{Octree, OctreeNode, OctreeTolerance};
 
 pub use curve_discretization::{
-    circular_arc_to_polyline, CircularArcDirection, CircularArcPolylineOptions,
-    DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
+    CircularArcDirection, CircularArcPolylineOptions, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
+    circular_arc_to_polyline,
 };
 
 pub use mesh_adjacency::{TriangleMeshAdjacency, TriangleMeshEdge, TriangleMeshOrientation};
 pub use mesh_concatenation::concatenate_triangle_meshes;
 pub use surface_discretization::{
-    tessellate_surfaces, SurfaceTessellationError, TessellationLimits,
+    SurfaceTessellationError, TessellationLimits, tessellate_surfaces,
 };
 
 // geo_algorithms が提供する交差結果型
 pub use result::{IntersectionGeometry, IntersectionResult, IntersectionTopology};
 
-pub use geo_contracts::{default_kernel_numerical_zero_tolerance, Scalar};
+pub use geo_contracts::{Scalar, default_kernel_numerical_zero_tolerance};
 // 形状の API（trait定義）の再エクスポート
 pub use geo_contracts::{
     LineSegment3DConstructor, LineSegment3DDistance, LineSegment3DProperties,

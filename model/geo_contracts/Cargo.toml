@@ -2,7 +2,7 @@
 name = "geo_contracts"
 publish = false
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "Shape contract definitions for geometric model crates"
 license = "MIT OR Apache-2.0"
 

@@ -1,7 +1,7 @@
 use crate::app_renderer::{AppRenderer, AppRendererFactory};
 use crate::app_settings::AppSettings;
 use crate::entity_manager::EntityManager;
-use crate::graphic::{init_graphic, Graphic};
+use crate::graphic::{Graphic, init_graphic};
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{JobStatusLine, OperationSettingsPage};
 use crate::mouse_input::MouseInput;

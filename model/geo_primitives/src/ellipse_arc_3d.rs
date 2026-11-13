@@ -10,11 +10,10 @@ mod transform;
 use crate::{Direction3D, Ellipse3D, Point3D};
 use analysis::AngleRange;
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, Angle, Ellipse3DConstructor,
-    Ellipse3DDistance, Ellipse3DEvaluation, Ellipse3DProperties, EllipseArc3DConstructor,
-    EllipseArc3DContainment, EllipseArc3DDerived, EllipseArc3DDistance, EllipseArc3DEndpoint,
-    EllipseArc3DEvaluation, EllipseArc3DProperties, EllipseArc3DTrimRange, PrimitiveKind,
-    PrimitiveMetadata, Scalar,
+    Angle, Ellipse3DConstructor, Ellipse3DDistance, Ellipse3DEvaluation, Ellipse3DProperties,
+    EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DDerived, EllipseArc3DDistance,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DProperties, EllipseArc3DTrimRange,
+    PrimitiveKind, PrimitiveMetadata, Scalar, default_angle_tolerance, default_distance_tolerance,
 };
 
 /// 3次元楕円弧

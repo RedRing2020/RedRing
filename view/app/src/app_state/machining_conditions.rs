@@ -8,8 +8,8 @@ use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationI
 use super::AppState;
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
-    submission_on_apply, ApplySubmission, ConditionDialog, DialogResult, JobStatusLine,
-    MachiningConditionsUiState, OperationCommand, OperationRow, OperationSetup,
+    ApplySubmission, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
+    OperationCommand, OperationRow, OperationSetup, submission_on_apply,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,

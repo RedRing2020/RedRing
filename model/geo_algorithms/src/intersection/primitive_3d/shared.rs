@@ -11,11 +11,7 @@ pub(crate) fn point_intersection_if<T: Scalar>(
     point: &Point3D<T>,
     condition: bool,
 ) -> Option<Point3D<T>> {
-    if condition {
-        Some(*point)
-    } else {
-        None
-    }
+    if condition { Some(*point) } else { None }
 }
 
 pub(crate) fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(

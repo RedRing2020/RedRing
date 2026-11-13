@@ -9,10 +9,10 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
     Circle3DConstructor, Circle3DContainment, Circle3DDistance, Circle3DEvaluation,
     Circle3DProjection, Circle3DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata,
-    Scalar, TolerantEq,
+    Scalar, TolerantEq, default_angle_tolerance, default_distance_tolerance,
+    default_kernel_numerical_zero_tolerance,
 };
 
 /// 3次元空間の円

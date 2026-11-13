@@ -1,7 +1,7 @@
 //! AppState の製品形状の取り込みと表示を扱うモジュール。
 
-use super::cutting_simulation::line_vertices;
 use super::AppState;
+use super::cutting_simulation::line_vertices;
 use render::mesh_list::MeshListItem;
 use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
 use stage::MeshStage;

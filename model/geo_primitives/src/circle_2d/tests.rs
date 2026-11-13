@@ -3,9 +3,8 @@
 use crate::{Circle2D, Point2D};
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
 use geo_contracts::{
-    default_distance_tolerance, Bounded, Circle2DConstructor, Circle2DContainment,
-    Circle2DDistance, Circle2DEvaluation, Circle2DProjection, Circle2DProperties,
-    PointClassification,
+    Bounded, Circle2DConstructor, Circle2DContainment, Circle2DDistance, Circle2DEvaluation,
+    Circle2DProjection, Circle2DProperties, PointClassification, default_distance_tolerance,
 };
 use std::f64::consts::{PI, TAU};
 

@@ -21,8 +21,8 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, Angle, ConicalSurface3DConstructor, ConicalSurface3DDistance,
-    ConicalSurface3DEvaluation, ConicalSurface3DProperties, Scalar,
+    Angle, ConicalSurface3DConstructor, ConicalSurface3DDistance, ConicalSurface3DEvaluation,
+    ConicalSurface3DProperties, Scalar, default_distance_tolerance,
 };
 
 /// 3次元円錐サーフェス（STEP準拠のCore実装）

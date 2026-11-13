@@ -1,7 +1,7 @@
 //! AppState のキーボード入力ハンドリングを扱うモジュール。
 
-use super::model_file::FileAction;
 use super::AppState;
+use super::model_file::FileAction;
 use winit::keyboard::Key;
 
 impl AppState {

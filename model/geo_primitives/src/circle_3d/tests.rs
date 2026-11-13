@@ -3,9 +3,9 @@
 use crate::{Circle3D, Direction3D, Point3D, Vector3D};
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    default_distance_tolerance, Bounded, Circle3DConstructor, Circle3DContainment,
-    Circle3DDistance, Circle3DEvaluation, Circle3DProjection, Circle3DProperties,
-    PointClassification, PrimitiveKind, PrimitiveMetadata, TolerantEq,
+    Bounded, Circle3DConstructor, Circle3DContainment, Circle3DDistance, Circle3DEvaluation,
+    Circle3DProjection, Circle3DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata,
+    TolerantEq, default_distance_tolerance,
 };
 
 // 近似等価性チェック用のヘルパー関数
@@ -151,12 +151,14 @@ fn test_from_three_points_passes_through_all_points() {
     }
 
     // 一直線上の 3 点は円を作れない
-    assert!(Circle3D::from_three_points(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(1.0, 1.0, 1.0),
-        Point3D::new(2.0, 2.0, 2.0),
-    )
-    .is_none());
+    assert!(
+        Circle3D::from_three_points(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 1.0, 1.0),
+            Point3D::new(2.0, 2.0, 2.0),
+        )
+        .is_none()
+    );
 }
 
 #[test]

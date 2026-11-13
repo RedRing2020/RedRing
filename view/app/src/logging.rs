@@ -5,7 +5,7 @@
 //! - 起動ごとにログファイルを新規作成（古いログは自動削除）
 //! - モジュール別のログレベルフィルタリング
 
-use logging_foundation::{init_logging as init_with_foundation, LoggingInitConfig};
+use logging_foundation::{LoggingInitConfig, init_logging as init_with_foundation};
 use std::sync::OnceLock;
 
 /// ログディレクトリのパス

@@ -2,7 +2,7 @@
 name = "analysis"
 publish = false
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "Numerical analysis and geometric sampling for RedRing CAD/CAM"
 license = "MIT"
 

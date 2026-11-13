@@ -3,7 +3,7 @@
 //! キーはエラーの種類ごとに決める。表にないキーは、思わぬ失敗として「詳しくはログを確かめてください」の文言にする。
 //! 文言は、ほかの文言の括弧の中に入れて出すため、括弧を使わない。
 
-use i18n_foundation::{resolve_message, TableMessageCatalog, UiLocale, UiMessage};
+use i18n_foundation::{TableMessageCatalog, UiLocale, UiMessage, resolve_message};
 
 const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     ("failure.input_registration", "計算の入力を登録できません"),

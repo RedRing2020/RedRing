@@ -134,15 +134,18 @@ mod tests {
 
         let surface = face_set_entity_to_mesh(surface_entity, 0.05).unwrap();
         assert!(surface.indices.len() > 6);
-        assert!(surface
-            .indices
-            .iter()
-            .all(|&index| (index as usize) < surface.vertices.len()));
-        for mesh in [&mesh, &surface] {
-            assert!(mesh
-                .vertices
+        assert!(
+            surface
+                .indices
                 .iter()
-                .all(|vertex| unit_length(vertex.normal)));
+                .all(|&index| (index as usize) < surface.vertices.len())
+        );
+        for mesh in [&mesh, &surface] {
+            assert!(
+                mesh.vertices
+                    .iter()
+                    .all(|vertex| unit_length(vertex.normal))
+            );
         }
     }
 }

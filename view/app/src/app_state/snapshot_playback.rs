@@ -1,7 +1,7 @@
 //! AppState のSnapshot再生・スクラブ制御を扱うモジュール。
 
-use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
+use super::debug_snapshot_state::SnapshotPlaybackMode;
 use crate::selection_rect::SelectionRect;
 use crate::snapshot_overlay_renderer::snapshot_track_rect;
 use crate::window_title_messages::resolve_window_title_text;

@@ -1,6 +1,6 @@
 use crate::consts::test_constants::{SOLVER_TOLERANCE_F64, TOLERANCE_F64};
-use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
 use crate::linalg::DynamicMatrix;
+use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
 
 /// 共通テストデータ
 fn get_test_2x2() -> (DynamicMatrix<f64>, Vec<f64>, Vec<f64>) {

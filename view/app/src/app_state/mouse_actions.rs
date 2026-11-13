@@ -1,7 +1,7 @@
 //! AppState のマウス入力ハンドリングを扱うモジュール。
 
-use super::snapshot_playback::SnapshotLoadTrigger;
 use super::AppState;
+use super::snapshot_playback::SnapshotLoadTrigger;
 use crate::selection_rect::SelectionRect;
 
 impl AppState {

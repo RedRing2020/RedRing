@@ -8,7 +8,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::ops::RangeInclusive;
 
-use crate::gpu_buffer::{indexed_parts, GpuDataError, IndexedPart};
+use crate::gpu_buffer::{GpuDataError, IndexedPart, indexed_parts};
 use crate::mesh::MeshUniforms;
 use crate::shader;
 use crate::vertex_3d::MeshVertex;
@@ -385,7 +385,7 @@ fn draw<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::{color_key, SharedByColor};
+    use super::{SharedByColor, color_key};
 
     const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
     const GLASS: [f32; 4] = [0.5, 0.5, 0.5, 0.4];

@@ -6,7 +6,7 @@ use super::{AppState, SnapshotShadedColorSettings};
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use crate::machining_conditions_ui::OperationStatus;
 use render::mesh_list::MeshListItem;
-use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
+use render::vertex_3d::{MeshVertex, convert_vertex_data_to_mesh_vertices};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
 use viewmodel::cutting_simulation_session::SequenceSubmissionError;

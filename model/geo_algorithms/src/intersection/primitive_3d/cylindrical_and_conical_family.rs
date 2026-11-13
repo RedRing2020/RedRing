@@ -8,9 +8,9 @@ use crate::{
 };
 use analysis::{minimize_unimodal, polynomial_real_roots_in_interval};
 use geo_contracts::{
-    default_parallel_cross_error_tolerance, ConicalSolid3DDistance, ConicalSolid3DProperties,
-    ConicalSurface3DDistance, CylindricalSurface3DProperties, InfiniteLine3DProperties,
-    LineSegment3DProperties, Ray3DProperties, Scalar,
+    ConicalSolid3DDistance, ConicalSolid3DProperties, ConicalSurface3DDistance,
+    CylindricalSurface3DProperties, InfiniteLine3DProperties, LineSegment3DProperties,
+    Ray3DProperties, Scalar, default_parallel_cross_error_tolerance,
 };
 
 fn conical_solid3d_point3d_intersection_raw<T: Scalar>(

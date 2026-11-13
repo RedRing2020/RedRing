@@ -1,4 +1,4 @@
-use crate::gpu_buffer::{indexed_parts, GpuDataError, IndexedPart};
+use crate::gpu_buffer::{GpuDataError, IndexedPart, indexed_parts};
 use crate::shader;
 use crate::uniform_factory;
 use crate::vertex_3d::MeshVertex;

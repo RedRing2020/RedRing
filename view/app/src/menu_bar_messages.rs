@@ -1,4 +1,4 @@
-use viewmodel::message_catalog::{resolve_message, TableMessageCatalog, UiLocale, UiMessage};
+use viewmodel::message_catalog::{TableMessageCatalog, UiLocale, UiMessage, resolve_message};
 
 const MENU_BAR_TEMPLATE_JA: &[(&str, &str)] = &[
     ("menu.file", "ファイル"),

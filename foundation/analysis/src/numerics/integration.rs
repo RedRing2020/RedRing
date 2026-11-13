@@ -183,7 +183,7 @@ fn gauss_legendre_5<T: Scalar>(f: &impl Fn(T) -> T, a: T, b: T) -> T {
 
 #[cfg(test)]
 mod tests {
-    use super::{adaptive_gauss_legendre, newton_arc_length, trapezoidal_rule, NormedVector};
+    use super::{NormedVector, adaptive_gauss_legendre, newton_arc_length, trapezoidal_rule};
     use crate::consts::test_constants::{
         INTEGRATION_TOLERANCE, INTEGRATION_TOLERANCE_LOOSE, INTEGRATION_TOLERANCE_STRICT,
         TOLERANCE_F64,

@@ -449,9 +449,11 @@ fn intersection_3d_linear_and_planar() {
     let segment_apart =
         LineSegment3D::new(Point3D::new(0.0, -1.0, 1.0), Point3D::new(0.0, 1.0, 1.0)).unwrap();
     assert!(segment_a.intersection(&segment_b, TOLERANCE).intersects());
-    assert!(!segment_a
-        .intersection(&segment_apart, TOLERANCE)
-        .intersects());
+    assert!(
+        !segment_a
+            .intersection(&segment_apart, TOLERANCE)
+            .intersects()
+    );
     assert!(line.intersection(&segment_b, TOLERANCE).intersects());
 
     let ray_a = Ray3D::new(Point3D::new(-1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
@@ -527,30 +529,41 @@ fn intersection_3d_quadric() {
     assert_eq!(point_count(&chord.intersection(&sphere, TOLERANCE)), 1);
 
     let solid = SphericalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap();
-    assert!(solid
-        .intersection(&Point3D::new(0.5, 0.0, 0.0), TOLERANCE)
-        .intersects());
-    assert!(!solid
-        .intersection(&Point3D::new(2.0, 0.0, 0.0), TOLERANCE)
-        .intersects());
+    assert!(
+        solid
+            .intersection(&Point3D::new(0.5, 0.0, 0.0), TOLERANCE)
+            .intersects()
+    );
+    assert!(
+        !solid
+            .intersection(&Point3D::new(2.0, 0.0, 0.0), TOLERANCE)
+            .intersects()
+    );
 
     let cone_solid = ConicalSolid3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0, 2.0).unwrap();
-    assert!(cone_solid
-        .intersection(&Point3D::new(0.0, 0.0, 0.5), TOLERANCE)
-        .intersects());
-    assert!(!cone_solid
-        .intersection(&Point3D::new(5.0, 0.0, 0.0), TOLERANCE)
-        .intersects());
+    assert!(
+        cone_solid
+            .intersection(&Point3D::new(0.0, 0.0, 0.5), TOLERANCE)
+            .intersects()
+    );
+    assert!(
+        !cone_solid
+            .intersection(&Point3D::new(5.0, 0.0, 0.0), TOLERANCE)
+            .intersects()
+    );
 
     let cone =
         ConicalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0, Angle::from_degrees(45.0))
             .unwrap();
-    assert!(cone
-        .intersection(&Point3D::new(1.0, 0.0, 0.0), TOLERANCE)
-        .intersects());
-    assert!(!cone
-        .intersection(&Point3D::new(0.0, 0.0, 0.0), TOLERANCE)
-        .intersects());
+    assert!(
+        cone.intersection(&Point3D::new(1.0, 0.0, 0.0), TOLERANCE)
+            .intersects()
+    );
+    assert!(
+        !cone
+            .intersection(&Point3D::new(0.0, 0.0, 0.0), TOLERANCE)
+            .intersects()
+    );
 
     let horizontal_line =
         InfiniteLine3D::from_two_points(Point3D::new(-3.0, 0.0, 0.0), Point3D::new(3.0, 0.0, 0.0))
@@ -738,9 +751,11 @@ fn intersection_3d_spherical_solid_returns_the_chord() {
     assert_eq!(tangent.topology, IntersectionTopology::Touching);
     let near_tangent = sphere.intersection(&line_along_x(1.0 + TOLERANCE / 2.0, 0.0), TOLERANCE);
     assert_eq!(near_tangent.topology, IntersectionTopology::Touching);
-    assert!(!sphere
-        .intersection(&line_along_x(1.1, 0.0), TOLERANCE)
-        .intersects());
+    assert!(
+        !sphere
+            .intersection(&line_along_x(1.1, 0.0), TOLERANCE)
+            .intersects()
+    );
 
     let from_center =
         Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
@@ -790,15 +805,21 @@ fn intersection_3d_conical_solid_returns_the_inside_interval() {
     assert_eq!(point_count(&tangent), 1);
     let near_tangent = cone.intersection(&line_along_x(0.5 + TOLERANCE / 2.0, 1.0), TOLERANCE);
     assert_eq!(near_tangent.topology, IntersectionTopology::Touching);
-    assert!(!cone
-        .intersection(&line_along_x(0.6, 1.0), TOLERANCE)
-        .intersects());
-    assert!(!cone
-        .intersection(&line_along_x(0.0, -0.5), TOLERANCE)
-        .intersects());
-    assert!(!cone
-        .intersection(&line_along_x(0.0, 2.5), TOLERANCE)
-        .intersects());
+    assert!(
+        !cone
+            .intersection(&line_along_x(0.6, 1.0), TOLERANCE)
+            .intersects()
+    );
+    assert!(
+        !cone
+            .intersection(&line_along_x(0.0, -0.5), TOLERANCE)
+            .intersects()
+    );
+    assert!(
+        !cone
+            .intersection(&line_along_x(0.0, 2.5), TOLERANCE)
+            .intersects()
+    );
 
     let from_axis = Ray3D::new(Point3D::new(0.0, 0.0, 1.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
     assert_segment(
@@ -874,8 +895,8 @@ fn nurbs_unit_circle() -> NurbsCurve3D<f64> {
 #[test]
 fn distance_3d_nurbs_curve_to_shapes() {
     use geo_contracts::{
-        default_distance_tolerance, Circle3DConstructor, CylindricalSolid3DConstructor,
-        EllipsoidalSolid3DConstructor,
+        Circle3DConstructor, CylindricalSolid3DConstructor, EllipsoidalSolid3DConstructor,
+        default_distance_tolerance,
     };
 
     let tolerance = default_distance_tolerance::<f64>();
@@ -934,7 +955,7 @@ fn distance_3d_nurbs_curve_to_shapes() {
 #[test]
 fn distance_3d_nurbs_curve_with_constant_distance() {
     use geo_contracts::{
-        default_distance_tolerance, Circle3DConstructor, CylindricalSolid3DConstructor,
+        Circle3DConstructor, CylindricalSolid3DConstructor, default_distance_tolerance,
     };
 
     // 曲線全体で距離が一定になる配置（区間の下界が 2 次で近づくので、分割の回数の上限に達しない）

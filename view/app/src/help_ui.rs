@@ -1,7 +1,7 @@
 //! ヘルプ（操作の一覧・バージョンの情報）のウィンドウと、画面の下の知らせの行
 
 use crate::help_messages::resolve_help_text;
-use crate::machining_conditions_ui::{operation_status_text, OperationStatus};
+use crate::machining_conditions_ui::{OperationStatus, operation_status_text};
 use crate::settings_panel_renderer::SYMBOL_FONT_FAMILY;
 use egui::containers::menu::{MenuButton, MenuConfig};
 use egui::{

@@ -67,7 +67,7 @@ pub(crate) fn load_settings(path: &Path) -> std::io::Result<AppSettings> {
     let file = match std::fs::File::open(path) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(AppSettings::default())
+            return Ok(AppSettings::default());
         }
         Err(error) => return Err(error),
     };

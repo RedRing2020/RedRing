@@ -1,8 +1,7 @@
 use crate::{IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D, Vector3D};
 use geo_contracts::{
-    default_parallel_cross_error_tolerance, LineSegment3DProperties, Plane3DDistance,
-    Plane3DProperties, Ray3DConstructor, Ray3DEvaluation, Ray3DProperties, Scalar,
-    Triangle3DBoundaryAccess,
+    LineSegment3DProperties, Plane3DDistance, Plane3DProperties, Ray3DConstructor, Ray3DEvaluation,
+    Ray3DProperties, Scalar, Triangle3DBoundaryAccess, default_parallel_cross_error_tolerance,
 };
 
 fn triangle3d_line_segment3d_intersection_raw<T: Scalar>(

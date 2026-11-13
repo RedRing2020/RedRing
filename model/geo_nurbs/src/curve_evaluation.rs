@@ -3,8 +3,8 @@
 //! 制御点の座標を `[x0, y0, (z0,) x1, ...]` と並べた配列から、点・1 階導関数・長さを求める。
 
 use crate::basis::basis_derivatives;
-use crate::{constants, WeightStorage};
-use geo_contracts::{default_distance_tolerance, NurbsError, Scalar};
+use crate::{WeightStorage, constants};
+use geo_contracts::{NurbsError, Scalar, default_distance_tolerance};
 
 /// 定義域 `(start, end)` から距離トレランス分を超えて外れない `t` を定義域に収めて返す（外れる・有限でない場合は `None`）
 pub(crate) fn clamp_to_domain<T: Scalar>(t: T, (start, end): (T, T)) -> Option<T> {

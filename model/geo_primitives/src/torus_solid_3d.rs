@@ -13,8 +13,8 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, PointClassification, Scalar, TorusSolid3DConstructor,
-    TorusSolid3DContainment, TorusSolid3DDistance, TorusSolid3DProperties,
+    PointClassification, Scalar, TorusSolid3DConstructor, TorusSolid3DContainment,
+    TorusSolid3DDistance, TorusSolid3DProperties, default_distance_tolerance,
 };
 
 /// STEP AP214 準拠のトーラス固体
