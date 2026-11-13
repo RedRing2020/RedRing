@@ -6,7 +6,7 @@ Start the RedRing preview either from the Windows package (zip) or by building i
 
 - OS: tested on Windows (Linux and macOS are expected to work because wgpu, the GPU rendering foundation, supports them, but they are not tested)
 - GPU: a GPU that supports Vulkan, DirectX 12, or Metal
-- To build from source: the latest stable Rust (install with [rustup](https://rustup.rs/)) and Git
+- To build from source: Rust (install with [rustup](https://rustup.rs/). The version is set in `rust-toolchain.toml` of the repository, and rustup uses it when you build) and Git
 
 A finer stock precision (for example 0.01 mm) needs more memory and GPU load. Try the default precision (0.05 mm) first.
 

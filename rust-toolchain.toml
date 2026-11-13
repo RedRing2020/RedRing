@@ -1,0 +1,5 @@
+# Rust の版（手元・CI・リリースのビルドは、すべてこの版で行う。上げる手順は dev/DEPENDENCY_AUDIT_OPERATION.md）
+[toolchain]
+channel = "1.100.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

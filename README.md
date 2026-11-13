@@ -89,7 +89,7 @@ Development structure and responsibility separation designs are managed via GitH
 
 ### Core Technologies
 
-- **Rust** (latest stable recommended) - Systems programming language
+- **Rust** (the version set in `rust-toolchain.toml`) - Systems programming language
 - **wgpu** - Cross-platform GPU API
 - **winit** - Window management and event handling
 
@@ -147,7 +147,7 @@ For design documents (architecture, error handling guidelines, and trait design 
 
 #### Basic Requirements
 
-- **Rust** (latest stable recommended) - Install from [official site](https://www.rust-lang.org/)
+- **Rust** - Install [rustup](https://rustup.rs/). rustup uses the version set in `rust-toolchain.toml` when you build
 - **cargo** (included with Rust)
 - **git** - For repository cloning
 
