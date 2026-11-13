@@ -630,7 +630,6 @@ CylindricalSurface3D および CylindricalSolid3D に対する collision/interse
 - `geometry`
 - `priority: medium`
 - `release:triage`
-- `cad-essential`
 ```
 
 ---
