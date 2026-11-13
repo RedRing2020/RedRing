@@ -60,7 +60,7 @@ Toolpath generation and the cutting simulation are calculated by the job manager
   - "Start when Windows starts": when checked, the job manager starts without a window when you sign in to Windows
   - "Language": selects the language of the job manager screens (日本語 or English)
   - "Quit": quits the job manager. When a job is being calculated, you are asked to confirm (the calculation stops, and the job fails)
-- When a calculation finishes, a notification is shown from the system tray icon. Toolpath generation and the cutting simulation are calculated one after the other, so the notification is shown once, when both have finished (or when one fails). Click the notification to open the window
+- When a calculation finishes, a notification is shown from the system tray icon. Toolpath generation and the cutting simulation are calculated one after the other, so the notification is shown once, when both have finished (or when one fails). Click the notification to open the window. While the notification is shown, Windows does not pass clicks on the icon to the job manager, so clicking the icon does not open the window (click the notification, or click the icon after the notification disappears)
 - "Open job manager" in the operation list of the app also opens the job manager window
 - The details of a job whose CL was imported into a space model show "The CL was imported into a space model"
 - Select a job in the list and use the buttons at the top of the window. Only the buttons that apply to the job's state can be pressed. `Ctrl`+click adds or removes a job, and `Shift`+click selects a range (when several jobs are selected, only "Delete" can be pressed)
