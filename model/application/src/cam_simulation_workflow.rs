@@ -18,11 +18,11 @@ pub use cam_algorithms::{InverseOffsetPart, InverseOffsetPartKind};
 use std::fmt;
 
 use cam_algorithms::{
-    CamSolverError, CamSolverInput, InverseOffsetShape, ScanlineInputError,
+    CamSolverError, CamSolverInput, InverseOffsetShape, ScanlineInputError, SolverGeometry,
     build_inverse_offset_shape, estimate_toolpath_points,
 };
 use cam_core::{CoordinateFrame, LengthUnit, StockMargins};
-use cam_entity::MachiningOperation;
+use cam_entity::{MachiningOperation, MachiningSequence};
 use cam_sim::{
     CuttingSimulationInput, CuttingSimulationInputError, SnapshotInterval,
     TOOLPATH_MEMORY_LIMIT_BYTES, cutting_simulation_input_errors, stock_around_product,
@@ -392,6 +392,57 @@ impl CamSimulationWorkflow {
         operation_id: MachiningOperationId,
     ) -> Result<(), CamSimulationWorkflowError> {
         resolve_operation_request(shapes, sequences, sequence_id, operation_id).map(|_| ())
+    }
+
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_ids` のそれぞれについて、投入の前に計算条件の
+    /// 誤りをすべて確かめ、`operation_ids` の順に返す（[`Self::check_operation`] と同じ判定）
+    ///
+    /// 加工の対象は手順で共有するため、その形状は 1 回だけ作る（工程がなければ作らない）。加工の対象の面を形状に
+    /// できない場合・形状が空の場合は、手順にある工程のすべてにその誤りを返す。
+    pub fn check_operations(
+        shapes: &ProductShapeStore,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_ids: &[MachiningOperationId],
+    ) -> Vec<Result<(), CamSimulationWorkflowError>> {
+        if operation_ids.is_empty() {
+            return Vec::new();
+        }
+        let sequence = match sequences.sequence(sequence_id) {
+            Ok(sequence) => sequence,
+            Err(error) => {
+                return vec![Err(CamSimulationWorkflowError::Sequence(error)); operation_ids.len()];
+            }
+        };
+        let mut target = resolve_target_geometry(shapes, sequence);
+        let mut results = Vec::with_capacity(operation_ids.len());
+        for &operation_id in operation_ids {
+            // 工程を探してから形状の誤りを返す（[`Self::check_operation`] と同じ順）
+            let operation = match sequences.operation(sequence_id, operation_id) {
+                Ok(operation) => operation,
+                Err(error) => {
+                    results.push(Err(CamSimulationWorkflowError::Sequence(error)));
+                    continue;
+                }
+            };
+            let (geometry, bounds) = match &mut target {
+                Ok((geometry, bounds)) => (geometry, *bounds),
+                Err(error) => {
+                    results.push(Err(error.clone()));
+                    continue;
+                }
+            };
+            // 形状を入力に渡し、確かめた後すぐに戻して、次の工程の確かめに使い回す（この間で抜けない）
+            let (mut request, errors) =
+                operation_request(sequence, operation, geometry_take(geometry), bounds);
+            *geometry = geometry_take(&mut request.solver_input.geometry);
+            results.push(if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(CamSimulationWorkflowError::Conditions(errors))
+            });
+        }
+        results
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` のツールパスの大きさを、計算を始める前に
@@ -929,12 +980,50 @@ fn resolve_operation_request<'a>(
     let operation = sequences
         .operation(sequence_id, operation_id)
         .map_err(CamSimulationWorkflowError::Sequence)?;
+    let (geometry, bounds) = resolve_target_geometry(shapes, sequence)?;
+    let (workflow_request, errors) = operation_request(sequence, operation, geometry, bounds);
+    if errors.is_empty() {
+        Ok((workflow_request, operation))
+    } else {
+        Err(CamSimulationWorkflowError::Conditions(errors))
+    }
+}
+
+/// 加工手順 `sequence` の加工の対象の面から、ツールパス生成の入力の形状と、それを囲む箱を作る
+fn resolve_target_geometry(
+    shapes: &ProductShapeStore,
+    sequence: &MachiningSequence,
+) -> Result<(SolverGeometry, Aabb3D<f64>), CamSimulationWorkflowError> {
     let geometry = shapes
         .resolve_solver_geometry(sequence.target_faces())
         .map_err(CamSimulationWorkflowError::ProductShape)?;
     let bounds = geometry
         .aabb()
         .ok_or(CamSimulationWorkflowError::EmptyProductShape)?;
+    Ok((geometry, bounds))
+}
+
+/// 形状 `geometry` を取り出し、空の形状を残す（大きな形状を写さずに、入力の間で受け渡すため）
+fn geometry_take(geometry: &mut SolverGeometry) -> SolverGeometry {
+    std::mem::replace(geometry, empty_geometry())
+}
+
+/// 中身のない形状（形状を使わない判定に渡す・取り出した後に残す）
+fn empty_geometry() -> SolverGeometry {
+    SolverGeometry::NurbsSurfaceSet(Vec::new())
+}
+
+/// 加工手順 `sequence` の加工工程 `operation` と、加工の対象の形状 `geometry`（囲む箱 `bounds`）から、ツールパス生成から
+/// 切削シミュレーションまでの入力を組み立て、計算条件の誤りをすべて返す（誤りがあっても、入力を返す）
+///
+/// 余裕が不正な場合は素材を決められないため、製品形状を囲む箱を素材として残りの条件を確かめ、
+/// 素材の大きさで決まる線の本数は判定しない。
+fn operation_request(
+    sequence: &MachiningSequence,
+    operation: &MachiningOperation,
+    geometry: SolverGeometry,
+    bounds: Aabb3D<f64>,
+) -> (CamSimulationWorkflowRequest, Vec<CamConditionError>) {
     let stock_margins = sequence.stock().margins;
     let stock = stock_around_product(bounds, stock_margins);
     // 計算の入力は、工程の計算の条件だけから作る（属性は使わない）
@@ -968,11 +1057,7 @@ fn resolve_operation_request<'a>(
             errors
         }
     };
-    if errors.is_empty() {
-        Ok((workflow_request, operation))
-    } else {
-        Err(CamSimulationWorkflowError::Conditions(errors))
-    }
+    (workflow_request, errors)
 }
 
 /// 計算条件の誤りをすべて返す（ツールパス生成と切削シミュレーションの実行のときと同じ判定）
@@ -992,8 +1077,10 @@ fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionE
             request.solver_input.tool.diameter(),
         ));
     }
+    // 切削シミュレーションの入力の判定は製品形状を使わないため、大きな形状を写さない
+    let simulation = simulation_input_with(request, empty_geometry());
     errors.extend(
-        cutting_simulation_input_errors(&simulation_input(request))
+        cutting_simulation_input_errors(&simulation)
             .into_iter()
             .map(CamConditionError::from_simulation_input),
     );
@@ -1002,12 +1089,20 @@ fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionE
 
 /// 切削シミュレーションの入力（工具・製品形状・トレランスはツールパス生成の入力と同じ）
 fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulationInput {
+    simulation_input_with(request, request.solver_input.geometry.clone())
+}
+
+/// 製品形状を `product` にした、切削シミュレーションの入力（工具・トレランスはツールパス生成の入力と同じ）
+fn simulation_input_with(
+    request: &CamSimulationWorkflowRequest,
+    product: SolverGeometry,
+) -> CuttingSimulationInput {
     CuttingSimulationInput {
         stock: request.stock,
         tool: request.solver_input.tool.clone(),
         precision: request.precision,
         snapshot_interval: request.snapshot_interval.clone(),
-        product: request.solver_input.geometry.clone(),
+        product,
         tolerance: request.solver_input.chord_tolerance,
     }
 }

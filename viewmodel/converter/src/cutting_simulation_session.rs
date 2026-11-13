@@ -403,7 +403,7 @@ impl CuttingSimulationSession {
     /// 条件を設定していない工程は含めない）
     ///
     /// 工程の改訂ごとに確かめた結果を覚え、改訂が進んだ工程（計算の条件・素材・加工の対象が変わった）だけを
-    /// 確かめ直す。
+    /// 確かめ直す。確かめ直す工程はまとめて確かめ、加工の対象の形状は 1 回だけ作る。
     pub fn operations_with_condition_errors(
         &mut self,
         document: &mut SpaceModelDocument,
@@ -412,28 +412,37 @@ impl CuttingSimulationSession {
         let operations = document.operations();
         self.condition_errors
             .retain(|operation, _| operations.iter().any(|item| item.id == *operation));
-        let (shapes, sequences, sequence, _) = document.machining();
-        let mut errors = Vec::new();
-        for item in operations.iter().filter(|item| item.conditions_set) {
-            let Some(key) = document.revision_key_of(item.id) else {
-                continue;
-            };
-            let has_errors = match self.condition_errors.get(&item.id) {
-                Some(&(checked, has_errors)) if checked == key => has_errors,
-                _ => {
-                    let has_errors = CamSimulationWorkflow::check_operation(
-                        shapes, sequences, sequence, item.id,
-                    )
-                    .is_err();
-                    self.condition_errors.insert(item.id, (key, has_errors));
-                    has_errors
-                }
-            };
-            if has_errors {
-                errors.push(item.id);
+        // 設定した工程と、今の改訂の鍵（加工の順）
+        let keyed: Vec<(MachiningOperationId, MachiningRevisionKey)> = operations
+            .iter()
+            .filter(|item| item.conditions_set)
+            .filter_map(|item| Some((item.id, document.revision_key_of(item.id)?)))
+            .collect();
+        let stale: Vec<(MachiningOperationId, MachiningRevisionKey)> = keyed
+            .iter()
+            .copied()
+            .filter(|(id, key)| {
+                !matches!(self.condition_errors.get(id), Some((checked, _)) if checked == key)
+            })
+            .collect();
+        if !stale.is_empty() {
+            let (shapes, sequences, sequence, _) = document.machining();
+            let ids: Vec<MachiningOperationId> = stale.iter().map(|(id, _)| *id).collect();
+            let results =
+                CamSimulationWorkflow::check_operations(shapes, sequences, sequence, &ids);
+            for ((id, key), result) in stale.into_iter().zip(results) {
+                self.condition_errors.insert(id, (key, result.is_err()));
             }
         }
-        errors
+        keyed
+            .into_iter()
+            .filter(|(id, _)| {
+                self.condition_errors
+                    .get(id)
+                    .is_some_and(|(_, has_errors)| *has_errors)
+            })
+            .map(|(id, _)| id)
+            .collect()
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、選んだ加工工程の中身を `content` に、加工手順の素材を `stock` に
@@ -681,19 +690,26 @@ impl CuttingSimulationSession {
         document.target_visible_faces();
         let operations = document.operations();
         let (shapes, sequences, sequence, _) = document.machining();
-        for (index, item) in operations.iter().enumerate() {
-            let conditions = |error| SequenceSubmissionError::Conditions {
-                position: index + 1,
-                operation: item.name.clone(),
-                error,
-            };
-            if !item.conditions_set {
-                return Err(conditions(CuttingSimulationSessionError::ConditionsNotSet));
-            }
-            CamSimulationWorkflow::check_operation(shapes, sequences, sequence, item.id)
-                .map_err(|error| conditions(error.into()))?;
-        }
         let ids: Vec<MachiningOperationId> = operations.iter().map(|item| item.id).collect();
+        // 加工の順に、最初の誤りを返す。最初の未設定の工程より前の工程だけを、まとめて確かめる（加工の対象の形状は
+        // 1 回だけ作る）
+        let not_set = operations.iter().position(|item| !item.conditions_set);
+        let checked = &ids[..not_set.unwrap_or(ids.len())];
+        let checks = CamSimulationWorkflow::check_operations(shapes, sequences, sequence, checked);
+        let conditions = |index: usize, error| SequenceSubmissionError::Conditions {
+            position: index + 1,
+            operation: operations[index].name.clone(),
+            error,
+        };
+        for (index, check) in checks.into_iter().enumerate() {
+            check.map_err(|error| conditions(index, error.into()))?;
+        }
+        if let Some(index) = not_set {
+            return Err(conditions(
+                index,
+                CuttingSimulationSessionError::ConditionsNotSet,
+            ));
+        }
         // 計算待ち・計算中・計算済みの工程を投入し直さないよう、状態を今読んでから決める（ジョブマネージャーが動いて
         // いなければ起動する）
         let states = self
