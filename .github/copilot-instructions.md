@@ -179,7 +179,7 @@ AIは、命名や進行管理の判断時に次の順で必ず参照すること
 1. PR/ブランチ/命名運用の正本: `dev/GIT_PR_WORKFLOW_OPERATION.md`
   - 特に「Phase と PR系列の命名を固定する」「タイトル表記フォーマットを固定する」を最優先で参照
 2. Issueラベル運用の正本: `dev/ISSUE_LABEL_OPERATION.md`
-  - 特に `phase-*` の意味（段階管理）と PR命名との対応ルールを参照
+  - 特に軸ごとのラベルと付け方（種別・層・領域・優先度・リリース）を参照。Issue を作るときは、この決まりでラベルを付ける
 3. 用語統一の正本: `dev/AI_TERMINOLOGY_GLOSSARY.md`
 
 補足:
