@@ -6,8 +6,10 @@
 
 use std::fmt::{Display, Formatter};
 
-use cam_core::ToolPath;
+use cam_core::{Tool, ToolPath};
+use geo_algorithms::Aabb3D;
 
+use crate::SnapshotInterval;
 use crate::constants::MAX_DEXEL_LINES;
 use crate::simulation_input::CuttingSimulationInput;
 use crate::stock_model::SweptToolShape;
@@ -54,12 +56,15 @@ pub enum CuttingSimulationInputError {
     TooManyDexelLines { lines: usize, finest_precision: f64 },
 }
 
-/// 切削シミュレーションの入力の誤りをすべて返す（線の本数は、素材・工具・精度が正しい場合だけ判定する）
+/// 切削シミュレーションの入力のうち、素材 `stock`・工具 `tool`・精度 `precision`・記録の間隔 `snapshot_interval` の
+/// 誤りをすべて返す（製品形状は見ない。線の本数は、素材・工具・精度が正しい場合だけ判定する）
 pub fn cutting_simulation_input_errors(
-    input: &CuttingSimulationInput,
+    stock: &Aabb3D<f64>,
+    tool: &Tool<f64>,
+    precision: f64,
+    snapshot_interval: &SnapshotInterval,
 ) -> Vec<CuttingSimulationInputError> {
     let mut errors = Vec::new();
-    let stock = &input.stock;
     let stock_is_finite = [stock.min(), stock.max()]
         .iter()
         .all(|point| point.x().is_finite() && point.y().is_finite() && point.z().is_finite());
@@ -67,7 +72,6 @@ pub fn cutting_simulation_input_errors(
     if !stock_is_finite || !stock_has_volume {
         errors.push(CuttingSimulationInputError::Stock);
     }
-    let tool = &input.tool;
     let positive = |value: f64| value.is_finite() && value > 0.0;
     if !positive(tool.radius())
         || !tool.cutting_length.is_none_or(positive)
@@ -75,19 +79,19 @@ pub fn cutting_simulation_input_errors(
     {
         errors.push(CuttingSimulationInputError::Tool);
     }
-    if !positive(input.precision) {
+    if !positive(precision) {
         errors.push(CuttingSimulationInputError::Precision);
     }
     let values_are_valid = errors.is_empty();
-    if !input.snapshot_interval.is_valid() {
+    if !snapshot_interval.is_valid() {
         errors.push(CuttingSimulationInputError::SnapshotInterval);
     }
     if values_are_valid {
-        let lines = dexel_line_count(stock, dexel_spacing(tool.radius(), input.precision));
+        let lines = dexel_line_count(stock, dexel_spacing(tool.radius(), precision));
         if lines > MAX_DEXEL_LINES {
             errors.push(CuttingSimulationInputError::TooManyDexelLines {
                 lines,
-                finest_precision: finest_precision(input),
+                finest_precision: finest_precision(stock, tool.radius(), precision),
             });
         }
     }
@@ -99,7 +103,12 @@ pub(crate) fn preflight_cutting_simulation(
     toolpath: &ToolPath<f64>,
     input: &CuttingSimulationInput,
 ) -> Result<(), PreflightFailure> {
-    let input_errors = cutting_simulation_input_errors(input);
+    let input_errors = cutting_simulation_input_errors(
+        &input.stock,
+        &input.tool,
+        input.precision,
+        &input.snapshot_interval,
+    );
     // 線の本数の上限は設定を補えば満たせるため NotReady とし、ほかは InvalidInput とする
     if let Some(&error) = input_errors
         .iter()
@@ -147,23 +156,15 @@ pub(crate) fn preflight_cutting_simulation(
     }
 }
 
-/// 格子の線の本数が上限に収まる、最も細かい精度を有効数字 2 桁に切り上げた値（`input.precision` では上限を超える
-/// 場合）
-fn finest_precision(input: &CuttingSimulationInput) -> f64 {
-    let fits = |precision: f64| {
-        dexel_line_count(&input.stock, dexel_spacing(input.tool.radius(), precision))
-            <= MAX_DEXEL_LINES
+/// 素材 `stock` を半径 `tool_radius` の工具で切削するときに、格子の線の本数が上限に収まる、最も細かい精度を有効数字
+/// 2 桁に切り上げた値（精度 `precision` では上限を超える場合）
+fn finest_precision(stock: &Aabb3D<f64>, tool_radius: f64, precision: f64) -> f64 {
+    let fits = |candidate: f64| {
+        dexel_line_count(stock, dexel_spacing(tool_radius, candidate)) <= MAX_DEXEL_LINES
     };
     // 各方向に 1 本ずつになる精度では必ず収まる。収まる側を保ったまま二分する
-    let longest = input
-        .stock
-        .width()
-        .max(input.stock.height())
-        .max(input.stock.depth());
-    let (mut coarse, mut fine) = (
-        longest * longest / (8.0 * input.tool.radius()),
-        input.precision,
-    );
+    let longest = stock.width().max(stock.height()).max(stock.depth());
+    let (mut coarse, mut fine) = (longest * longest / (8.0 * tool_radius), precision);
     for _ in 0..64 {
         let middle = 0.5 * (coarse + fine);
         if fits(middle) {
@@ -369,8 +370,16 @@ mod tests {
             },
             ..input(0.0)
         };
+        let errors = |input: &CuttingSimulationInput| {
+            cutting_simulation_input_errors(
+                &input.stock,
+                &input.tool,
+                input.precision,
+                &input.snapshot_interval,
+            )
+        };
         assert_eq!(
-            cutting_simulation_input_errors(&malformed),
+            errors(&malformed),
             vec![
                 CuttingSimulationInputError::Tool,
                 CuttingSimulationInputError::Precision,
@@ -378,10 +387,10 @@ mod tests {
             ]
         );
         assert!(matches!(
-            cutting_simulation_input_errors(&input(1.0e-6))[..],
+            errors(&input(1.0e-6))[..],
             [CuttingSimulationInputError::TooManyDexelLines { .. }]
         ));
-        assert_eq!(cutting_simulation_input_errors(&input(0.01)), vec![]);
+        assert_eq!(errors(&input(0.01)), vec![]);
     }
 
     #[test]
