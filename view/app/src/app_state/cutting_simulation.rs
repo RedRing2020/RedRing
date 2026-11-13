@@ -204,6 +204,7 @@ impl AppState {
                     skipped = submission.skipped,
                     "Submitted the machining sequence to the job manager"
                 );
+                self.cancel_superseded_jobs();
                 self.set_operation_status(OperationStatus::SequenceSubmitted {
                     submitted: submission.submitted,
                     simulation_only: submission.simulation_only,
@@ -239,6 +240,10 @@ impl AppState {
                         submitted,
                         error,
                     } => {
+                        // 前の工程までは投入したため（ジョブマネージャーは動いている）、前の条件の計算を取り消す
+                        if submitted > 0 {
+                            self.cancel_superseded_jobs();
+                        }
                         self.set_operation_status(OperationStatus::SequenceSubmitFailed {
                             position,
                             operation,
@@ -267,6 +272,8 @@ impl AppState {
                     stock = ?self.document.stock(),
                     "Submitted {submitted} to the job manager (import with Shift+L after it finishes)"
                 );
+                // 投入したジョブマネージャーは動いているため、前の条件の計算もここで取り消す（投入の結果を後に出す）
+                self.cancel_superseded_jobs();
                 self.set_operation_status(status);
                 true
             }
@@ -276,6 +283,29 @@ impl AppState {
                     cutting_simulation_failure_message(&error),
                 ));
                 false
+            }
+        }
+    }
+
+    /// 加工手順のすべての工程の、前の条件の計算待ち・計算中の計算を取り消すよう頼み、取り消したら画面の下の行に出す
+    /// （止まるのは待たない。ジョブマネージャーが動いていなければ、起動せずに何もしない）
+    pub(crate) fn cancel_superseded_jobs(&mut self) {
+        match self
+            .cutting_simulation
+            .cancel_superseded_jobs(&mut self.document)
+        {
+            Ok(0) => {}
+            Ok(count) => {
+                tracing::info!(
+                    count,
+                    "Requested the job manager to cancel the calculations of the earlier conditions"
+                );
+                self.set_operation_status(OperationStatus::EarlierConditionsCanceled);
+                // 取り消しを、すぐ表に出す
+                self.job_status_read_at = None;
+            }
+            Err(error) => {
+                tracing::warn!("Cannot cancel the calculations of the earlier conditions: {error}");
             }
         }
     }

@@ -547,6 +547,17 @@ impl JobClient for PipeJobClient {
         Ok(())
     }
 
+    fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError> {
+        match self.connector.connect_running() {
+            Ok(_) => Ok(true),
+            Err(
+                CamSimulationWorkflowError::JobManagerNotRunning
+                | CamSimulationWorkflowError::JobManagerNotFound,
+            ) => Ok(false),
+            Err(error) => Err(error),
+        }
+    }
+
     fn record_imported(&self, simulation_job_id: u64) -> Result<(), CamSimulationWorkflowError> {
         // 状態を読むスレッドで伝える（画面を止めない。伝えられなかったことは、ログに書く）
         self.send(Work::RecordImported(simulation_job_id));

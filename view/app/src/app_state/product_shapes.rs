@@ -22,6 +22,8 @@ impl AppState {
         tracing::info!(path = %path.display(), "product shape imported");
         self.set_notice(crate::help_ui::Notice::ShapeImported { file });
         self.invalidate_conditions();
+        // 加工の対象が変わり、工程の改訂が進むため、前の条件の計算を取り消す
+        self.cancel_superseded_jobs();
         self.show_product_shapes();
     }
 

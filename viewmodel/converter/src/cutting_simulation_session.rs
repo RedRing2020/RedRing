@@ -646,6 +646,29 @@ impl CuttingSimulationSession {
         Ok(StopOutcome::NotYetAccepted)
     }
 
+    /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての工程の、前の条件（今の改訂より前）で投入した
+    /// 計算待ち・計算中のジョブを取り消すよう頼み、頼んだジョブの数を返す（取り消し終えるのを待たない。ジョブマネージャー
+    /// が動いていなければ、起動せずに何もしない）
+    ///
+    /// # Errors
+    ///
+    /// ジョブを読めない・取り消しを頼めない場合。
+    pub fn cancel_superseded_jobs(
+        &mut self,
+        document: &mut SpaceModelDocument,
+    ) -> Result<usize, CuttingSimulationSessionError> {
+        document.target_visible_faces();
+        let operations: Vec<MachiningOperationId> = document
+            .operations()
+            .into_iter()
+            .map(|item| item.id)
+            .collect();
+        let (_, sequences, sequence, _) = document.machining();
+        Ok(self
+            .workflow
+            .cancel_superseded_jobs(sequences, sequence, &operations)?)
+    }
+
     /// 加工工程 `operation` から、計算 `kind` を投入する
     fn submit_kind(
         &mut self,
@@ -1266,6 +1289,34 @@ pub(crate) mod tests {
         );
         // 計算待ち・計算中のジョブがなければ、何もしない
         assert_eq!(session.stop(&document).unwrap(), StopOutcome::NothingToStop);
+    }
+
+    #[test]
+    fn changing_the_conditions_cancels_the_waiting_calculation_of_the_earlier_conditions() {
+        let (mut session, mut document) = coarse_session();
+        assert_eq!(
+            session.submit(&mut document, |_| true).unwrap(),
+            SubmitOutcome::Submitted(SubmissionKind::Full)
+        );
+        // 今の条件のジョブは取り消さない
+        assert_eq!(session.cancel_superseded_jobs(&mut document).unwrap(), 0);
+        // 条件を変えて投入し直すと、前の条件の計算待ちのジョブ（ツールパス生成と切削シミュレーション）だけを取り消す
+        document.set_operation_content(with_scanline(
+            document.operation_content().clone(),
+            |scanline| scanline.stepover *= 0.5,
+        ));
+        assert_eq!(
+            session.submit(&mut document, |_| true).unwrap(),
+            SubmitOutcome::Submitted(SubmissionKind::Full)
+        );
+        assert_eq!(session.cancel_superseded_jobs(&mut document).unwrap(), 2);
+        assert_eq!(session.run_queued_jobs().unwrap(), 2);
+        assert_eq!(
+            session.job_states(&mut document).unwrap()[0].1,
+            OperationJobState::Status(OperationJobStatus::Succeeded)
+        );
+        // 取り消したジョブ・終わったジョブは、もう取り消さない
+        assert_eq!(session.cancel_superseded_jobs(&mut document).unwrap(), 0);
     }
 
     #[test]

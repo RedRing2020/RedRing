@@ -90,6 +90,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "ジョブマネージャーが動いていないため、計算の状態が分かりません。計算開始すると起動します",
     ),
     (
+        "notice.job_manager_available",
+        "ジョブマネージャーにつながりました",
+    ),
+    (
         "notice.job_manager_not_found",
         "ジョブマネージャーが見つからないため、計算と状態の確認ができません",
     ),
@@ -251,6 +255,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "notice.job_manager_not_running",
         "The calculation status is unknown because the job manager is not running. It starts when you start a calculation",
+    ),
+    (
+        "notice.job_manager_available",
+        "Connected to the job manager",
     ),
     (
         "notice.job_manager_not_found",
