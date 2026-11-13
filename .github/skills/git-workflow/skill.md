@@ -72,22 +72,23 @@ pwsh -NoProfile -File .\scripts\check_all_before_push.ps1
 - 検査項目: fmt / clippy / テスト / 実行時文言の言語ポリシー / ソースコード中の GitHub 固有情報 / 呼び出し元のない公開メソッド・trait定義のメソッド（警告のみ）
 - Copilot のコードレビューは利用枠を大きく消費するため、PR を出す前に差分のセルフレビュー（例: Claude Code の `/code-review`）で不具合を直しておく。Copilot の指摘はまとめて直してから push し、再レビューは最後に 1 回だけ依頼する（`dev/GIT_PR_WORKFLOW_OPERATION.md`）
 
-### 2. タイトル
+### 2. 題名
 
 ```
-issue #<番号> [Phase<番号>][<系列>-<枝番>] <対象>: <要約>
+<種別>(<範囲>): <要約> (#<Issue の番号>)
 ```
 
-- 例: `issue #815 [Design][B-2] geo_contracts: 直線系の trait定義の呼び出し元のないメソッドの削除`
-- `Phase`（実施段階）と `PR系列`（変更単位）を混同しない（`dev/ISSUE_LABEL_OPERATION.md`）
+- 例: `feat(cam): 工程リストの条件エラーの行に、理由を吹き出しで出す (#1282)`
+- 種別（`feat`・`fix`・`perf`・`refactor`・`docs`・`test`・`chore`）と範囲の決め方は `dev/GIT_PR_WORKFLOW_OPERATION.md` の「PR の題名の形を固定する」に従う
+- 1 つの Issue を複数の PR に分けるときも、段階の番号（`Phase`・`[A-1]` など）は付けず、要約でその PR が受け持つ部分を書く
 
 ### 3. 本文
 
-本文の先頭に、この PR に含む単位と含めない単位を明記する。
+1 つの Issue を複数の PR に分けるときは、途中の PR の本文の先頭に、この PR に含むものと別の PR に回すものを書く。
 
 ```markdown
-- 含む単位: B-2（直線系の trait定義のメソッドの削除）
-- 含めない単位: B-3 以降（円・楕円系）は別 PR
+- 含むもの: 直線系の trait定義のメソッドの削除
+- 別の PR に回すもの: 円・楕円系
 
 ## 概要
 ...
