@@ -73,6 +73,7 @@ foreach ($item in $issues) {
             $triageAdded = $add -contains 'release:triage'
         } else {
             # 1 件で止めず、残りの Issue も確かめる
+            if ($Issue -gt 0) { exit $LASTEXITCODE }
             $reasons += "既定のラベルを付けられなかった（$($add -join ', ')）"
             $editFailed = $true
         }
