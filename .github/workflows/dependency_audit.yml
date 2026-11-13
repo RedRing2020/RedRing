@@ -47,7 +47,13 @@ jobs:
       # cargo-deny は自分のコンテナの Rust で動くため、rust-toolchain.toml の版を読んで渡し、コンテナの中で入れさせる
       - name: Read the Rust version
         id: rust
-        run: echo "version=$(grep -oP '^channel = "\K[^"]+' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(grep -oP '^channel = "\K[^"]+' rust-toolchain.toml || true)
+          if [ -z "$version" ]; then
+            echo "::error file=rust-toolchain.toml::Cannot read the Rust version (write it as channel = \"x.y.z\")"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Run cargo deny
         uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
