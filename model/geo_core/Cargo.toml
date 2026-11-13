@@ -10,7 +10,6 @@ license = "MIT"
 # 数値計算の安定性
 num-traits = "0.2"
 analysis = { path = "../../foundation/analysis" }
-approx = "0.5"                                    # 許容誤差ベース比較
 
 # シリアル化サポート（オプション）
 serde = { version = "1.0", optional = true, features = ["derive"] }

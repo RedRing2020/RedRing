@@ -19,12 +19,8 @@ thiserror = "2.0"
 # SVG parsing
 roxmltree = "0.21"
 
-# Optional async support
-tokio = { version = "1.0", features = ["fs", "io-util"], optional = true }
-
 [features]
 default = []
-async = ["tokio"]
 
 [dev-dependencies]
 tempfile = "3.0"
