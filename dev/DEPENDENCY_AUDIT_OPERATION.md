@@ -59,6 +59,16 @@ Rust の版は、リポジトリの直下の `rust-toolchain.toml` の 1 か所�
 2. `pwsh -NoProfile -File scripts/check_all_before_push.ps1` を回し、新しい Clippy の指摘・警告を直す
 3. 版を上げる変更と、指摘を直す変更を 1 つの PR にする（CHANGELOG に版を書く）
 
+## 手元のビルドの結果の片付け
+
+cargo は、ビルドの条件が変わると、前の結果を消さずに別の名前で作り直す。古い結果は `cargo clean` するまで `target` に残り、50 GB を超えたことがある（#1303）。条件が変わるのは、主に次のとき。
+
+- 依存の版が変わった（`Cargo.lock` の変更。Dependabot の PR・依存を上げる PR をマージした後に、`develop` を取り込んだとき）。変わった依存を使うクレートが、すべて作り直しになる
+- Rust の版を上げた（`rust-toolchain.toml`）
+- アプリのクレートの版を上げた（`view/app/Cargo.toml` の `version`）
+
+これらを取り込んだ後は、次のビルドの前に `cargo clean` をする。次のビルドは最初からになるため、急ぐ作業の途中では後に回してよい。Windows では、エディターの rust-analyzer が `target` の中のマクロの DLL を開いたままにするため、先に rust-analyzer を止める（VS Code のコマンドパレットの「rust-analyzer: Stop server」。片付けた後に「rust-analyzer: Start server」で動かし直す）。止めないと、`cargo clean` はアクセスが拒否されて途中で止まる。`target` の大きさは、エクスプローラーのフォルダのプロパティなどで、ときどき確かめる。
+
 ## GitHub Actions の決まり
 
 - 第三者の Action は、コミットの SHA で固定し、版を行末のコメントに書く（例: `uses: actions/checkout@<SHA> # v4.4.0`）。タグやブランチ（`@v4`・`@master`）は付け替えられるため使わない

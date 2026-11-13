@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### Changed
+- 依存・Rust・アプリの版を上げた変更を取り込んだ後は、手元で `cargo clean` をする手順にした（古いビルドの結果が `target` に溜まり、50 GB を超えたため。`dev/DEPENDENCY_AUDIT_OPERATION.md`）（#1303）
 - application の公開 API を、ViewModel から呼ばれるものだけにした。線・円・円弧の形状とトポロジーの作成、保管先の port は crate の中だけの trait に分けた（ViewModel が使う三角形の作成は公開のまま）。同じプロセスの中でジョブを実行する口（`JobWorkflowOrchestrator`）は crate の中だけにして試験のときだけ入れ、使っていない問い合わせを消した。モデルファイルの読み書きの下位の関数も crate の中だけにした。動きは変わらない（#1065）
 - 切削シミュレーションの入力の判定（`cutting_simulation_input_errors`）が、素材・工具・精度・記録の間隔だけを受け取り、製品形状を受け取らないようにした。条件の確かめで、中身のない形状を作って渡す処理をなくした。判定の結果は変わらない（#1287）
 - すべてのクレートの edition をルートの Cargo.toml の 1 か所（`workspace.package`）で決め、2024 にそろえた。2021 だったクレートは、edition 2024 の書式で整え直し、入れ子の `if let` を 1 つの条件にまとめた。画面と計算の動きは変わらない（#1280）
