@@ -1005,12 +1005,7 @@ fn resolve_target_geometry(
 
 /// 形状 `geometry` を取り出し、空の形状を残す（大きな形状を写さずに、入力の間で受け渡すため）
 fn geometry_take(geometry: &mut SolverGeometry) -> SolverGeometry {
-    std::mem::replace(geometry, empty_geometry())
-}
-
-/// 中身のない形状（形状を使わない判定に渡す・取り出した後に残す）
-fn empty_geometry() -> SolverGeometry {
-    SolverGeometry::NurbsSurfaceSet(Vec::new())
+    std::mem::replace(geometry, SolverGeometry::NurbsSurfaceSet(Vec::new()))
 }
 
 /// 加工手順 `sequence` の加工工程 `operation` と、加工の対象の形状 `geometry`（囲む箱 `bounds`）から、ツールパス生成から
@@ -1077,32 +1072,27 @@ fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionE
             request.solver_input.tool.diameter(),
         ));
     }
-    // 切削シミュレーションの入力の判定は製品形状を使わないため、大きな形状を写さない
-    let simulation = simulation_input_with(request, empty_geometry());
     errors.extend(
-        cutting_simulation_input_errors(&simulation)
-            .into_iter()
-            .map(CamConditionError::from_simulation_input),
+        cutting_simulation_input_errors(
+            &request.stock,
+            &request.solver_input.tool,
+            request.precision,
+            &request.snapshot_interval,
+        )
+        .into_iter()
+        .map(CamConditionError::from_simulation_input),
     );
     errors
 }
 
 /// 切削シミュレーションの入力（工具・製品形状・トレランスはツールパス生成の入力と同じ）
 fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulationInput {
-    simulation_input_with(request, request.solver_input.geometry.clone())
-}
-
-/// 製品形状を `product` にした、切削シミュレーションの入力（工具・トレランスはツールパス生成の入力と同じ）
-fn simulation_input_with(
-    request: &CamSimulationWorkflowRequest,
-    product: SolverGeometry,
-) -> CuttingSimulationInput {
     CuttingSimulationInput {
         stock: request.stock,
         tool: request.solver_input.tool.clone(),
         precision: request.precision,
         snapshot_interval: request.snapshot_interval.clone(),
-        product,
+        product: request.solver_input.geometry.clone(),
         tolerance: request.solver_input.chord_tolerance,
     }
 }
