@@ -6,7 +6,7 @@ RedRing のプレビュー版は、Windows 用の配布物（zip）を使うか�
 
 - OS: Windows で動作を確かめています（Linux・macOS は、GPU の描画の基盤 wgpu が対応するため動く見込みですが、確かめていません）
 - GPU: Vulkan・DirectX 12・Metal のいずれかに対応する GPU
-- ソースからビルドする場合: 最新の stable の Rust（[rustup](https://rustup.rs/) で入れます）と Git
+- ソースからビルドする場合: Rust（[rustup](https://rustup.rs/) で入れます。版はリポジトリの `rust-toolchain.toml` で決めていて、ビルドするときに rustup がその版を使います）と Git
 
 素材の精度を細かくする（例えば 0.01 mm）と、メモリと GPU の負荷が大きくなります。最初は既定の精度（0.05 mm）で試してください。
 

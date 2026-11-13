@@ -46,6 +46,19 @@
 - Dependabot の PR も、ほかの PR と同じく CI（ビルド・試験・依存の検査）が通ってからマージする
 - 互換のない更新（0.x のマイナー・メジャー）は、変更の内容を確かめ、必要なら Issue にして対応する
 
+## Rust の版
+
+Rust の版は、リポジトリの直下の `rust-toolchain.toml` の 1 か所で決める（#1279）。rustup はリポジトリの中ではこのファイルに従うため、手元・CI・リリースのビルドが同じ版になる。stable が上がっても、CI の結果は変わらない（新しい Clippy の指摘で、急に CI が落ちることがない）。
+
+- CI・リリースのワークフローは、版を書かずに、共通の手順 `.github/actions/setup-rust`（引数なしの `rustup toolchain install`）で `rust-toolchain.toml` の版と部品を入れる。cargo-deny は自分のコンテナで動くため、`rust-toolchain.toml` の版を読んで Action に渡す
+- Cargo.toml には `rust-version` を書かない（版を書く場所を 2 つにしないため）
+
+版を上げるときは、次の順に行う。
+
+1. `rust-toolchain.toml` の `channel` を新しい版にする
+2. `pwsh -NoProfile -File scripts/check_all_before_push.ps1` を回し、新しい Clippy の指摘・警告を直す
+3. 版を上げる変更と、指摘を直す変更を 1 つの PR にする（CHANGELOG に版を書く）
+
 ## GitHub Actions の決まり
 
 - 第三者の Action は、コミットの SHA で固定し、版を行末のコメントに書く（例: `uses: actions/checkout@<SHA> # v4.4.0`）。タグやブランチ（`@v4`・`@master`）は付け替えられるため使わない

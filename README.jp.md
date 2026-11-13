@@ -88,7 +88,7 @@ CAM のツールパス生成（スキャン加工）と切削シミュレーシ�
 
 ### コア技術
 
-- **Rust** (最新 stable 推奨) - システムプログラミング言語
+- **Rust** (`rust-toolchain.toml` で決めた版) - システムプログラミング言語
 - **wgpu** - クロスプラットフォーム GPU API
 - **winit** - ウィンドウ管理・イベント処理
 
@@ -146,7 +146,7 @@ RedRing は以下の原則に基づいて設計されています：
 
 #### 基本要件
 
-- **Rust** (最新 stable 推奨) - [公式サイト](https://www.rust-lang.org/)からインストール
+- **Rust** - [rustup](https://rustup.rs/) をインストール（ビルドするときに、rustup が `rust-toolchain.toml` で決めた版を使います）
 - **cargo** (Rust に同梱)
 - **git** - リポジトリのクローン用
 
