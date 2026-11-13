@@ -75,7 +75,7 @@ Development structure and responsibility separation designs are managed via GitH
 | ------------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------ |
 | `README.md`                                                        | General Users & New Developers | Project Overview & Build Instructions                        |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | Developers                     | Workspace Structure & Migration Status & Test Strategy       |
-| [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | Maintainers                    | Issue Label Rules & Release/Phase Operation                  |
+| [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | Maintainers                    | Issue Label Rules & Release Triage                           |
 | [`dev/architecture/`](dev/architecture/)                           | Contributors                   | Design Documents (the source of truth for design)            |
 | [User Manual](https://redring2020.github.io/RedRing/en/)           | Users                          | Getting Started & Controls & Cutting Simulation              |
 | [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | Geometry Library Developers    | Detailed Geometry Abstraction Specifications                 |

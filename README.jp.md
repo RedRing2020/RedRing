@@ -74,7 +74,7 @@ CAM のツールパス生成（スキャン加工）と切削シミュレーシ�
 | `README.jp.md` (本文書)                                            | 日本語利用者・新規開発者 | プロジェクト概要・ビルド方法                   |
 | `README.md`                                                        | 英語圏利用者・国際開発者 | Project Overview & Build Instructions          |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | 開発者                   | ワークスペース構成・移行ステータス・テスト戦略 |
-| [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | メンテナー               | Issueラベル運用・Release/Phase管理             |
+| [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | メンテナー               | Issueラベル運用・リリースの振り分け             |
 | [`dev/architecture/`](dev/architecture/)                           | コントリビューター       | 設計書（設計の正本）                           |
 | [利用者向けマニュアル](https://redring2020.github.io/RedRing/)     | 利用者                   | 動かし方・操作・切削シミュレーション           |
 | [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | 幾何ライブラリ開発者     | 幾何抽象化の詳細仕様                           |
