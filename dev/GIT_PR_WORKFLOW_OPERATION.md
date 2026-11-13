@@ -47,19 +47,22 @@
 	- `<種別>(<範囲>): <要約> (#<Issue の番号>)`
 - 種別は、次のどれか 1 つにする
 
-| 種別 | 使うとき |
-|---|---|
-| `feat` | 機能を足す・変える |
-| `fix` | 不具合を直す |
-| `perf` | 振る舞いを変えずに速くする・メモリを減らす |
-| `refactor` | 振る舞いを変えずにコードを整理する |
-| `docs` | 文書だけを変える |
-| `test` | 試験だけを足す・直す |
-| `chore` | 依存・ビルド・CI・開発の環境など、上のどれにも当たらないもの |
+| 種別 | 使うとき | 主な Issue の種別のラベル（`dev/ISSUE_LABEL_OPERATION.md`） |
+|---|---|---|
+| `feat` | 機能を足す・変える | `enhancement` |
+| `fix` | 不具合を直す | `bug` |
+| `perf` | 振る舞いを変えずに速くする・メモリを減らす | `enhancement`（領域の `performance`） |
+| `refactor` | 振る舞いを変えずにコードを整理する | `refactor`・`tech-debt` |
+| `docs` | 文書だけを変える | `documentation`・`design`・`investigation` |
+| `test` | 試験だけを足す・直す | （Issue の種別によらない） |
+| `chore` | 依存・ビルド・CI・開発の環境など、上のどれにも当たらないもの | `tech-debt` |
+
+- PR の種別は、Issue の種別のラベルではなく、PR で変えるものの中身で選ぶ（表の右の欄は目安。たとえば `tech-debt` の Issue でも、コードの整理だけなら `refactor`、依存・設定だけなら `chore`）
 
 - 範囲は、主に変える領域を小文字で書く（例: `cam`・`app`・`view`・`job`・`ci`・`dev`・`deps`）。多くの領域にまたがり、1 つに絞れないときは省いてよい
 - 要約は日本語で、何がどう変わるかを書く（作業の名前ではなく、変わった後の結果）
 - Issue の番号は末尾に括弧で書く。複数の Issue を閉じるときは `(#553, #667)` のように並べる。Issue のない PR（Dependabot など）は付けない
+- Dependabot の PR の題名は、Dependabot が付けたまま（`chore(deps): Bump …`。要約は英語）でよい。種別と範囲は `.github/dependabot.yml` の `commit-message` で決める
 - コミットの題名も同じ形にする（PR の題名は、マージのコミットの題名にもなる）
 - 例:
 	- `feat(cam): 工程リストの条件エラーの行に、理由を吹き出しで出す (#1282)`
