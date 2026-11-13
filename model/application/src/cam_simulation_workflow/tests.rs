@@ -727,6 +727,113 @@ fn operations_that_cannot_be_machined_are_not_submitted() {
 }
 
 #[test]
+fn operations_checked_together_have_the_same_results_as_one_by_one() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    // ピックフィードが工具径 6 を超える工程と、正しい工程を足す
+    let OperationSpec::Scanline(mut scanline) = operation_content().conditions.spec;
+    scanline.stepover = 7.0;
+    let invalid = machining
+        .store
+        .add_operation(
+            machining.sequence,
+            MachiningOperationContent {
+                conditions: MachiningOperationConditions {
+                    spec: OperationSpec::Scanline(scanline),
+                    ..operation_content().conditions
+                },
+                ..operation_content()
+            },
+        )
+        .unwrap();
+    let valid = machining
+        .store
+        .add_operation(machining.sequence, operation_content())
+        .unwrap();
+    // 加工手順にない工程も混ぜる
+    let unknown = Machining::new(vec![face]).operation;
+    let ids = [machining.operation, invalid, unknown, valid];
+    let together = CamSimulationWorkflow::check_operations(
+        &shapes,
+        &machining.store,
+        machining.sequence,
+        &ids,
+    );
+    let one_by_one: Vec<_> = ids
+        .iter()
+        .map(|&id| {
+            CamSimulationWorkflow::check_operation(
+                &shapes,
+                &machining.store,
+                machining.sequence,
+                id,
+            )
+        })
+        .collect();
+    assert_eq!(together, one_by_one);
+    assert!(together[0].is_ok() && together[3].is_ok());
+    assert!(matches!(
+        together[1],
+        Err(CamSimulationWorkflowError::Conditions(_))
+    ));
+    assert!(matches!(
+        together[2],
+        Err(CamSimulationWorkflowError::Sequence(
+            MachiningSequenceError::UnknownOperation(_)
+        ))
+    ));
+}
+
+#[test]
+fn operations_checked_together_share_the_errors_of_the_target_shape() {
+    let (shapes, _) = pyramid_shape();
+    let empty = Machining::new(Vec::new());
+    let ids = [empty.operation, empty.operation];
+    assert_eq!(
+        CamSimulationWorkflow::check_operations(&shapes, &empty.store, empty.sequence, &ids),
+        vec![
+            Err(CamSimulationWorkflowError::ProductShape(
+                ProductShapeError::NoFaces
+            ));
+            2
+        ]
+    );
+    // 保管していない加工手順
+    let other = Machining::new(Vec::new());
+    assert_eq!(
+        CamSimulationWorkflow::check_operations(&shapes, &empty.store, other.sequence, &ids),
+        vec![
+            Err(CamSimulationWorkflowError::Sequence(
+                MachiningSequenceError::UnknownSequence(other.sequence)
+            ));
+            2
+        ]
+    );
+    assert!(
+        CamSimulationWorkflow::check_operations(&shapes, &empty.store, empty.sequence, &[])
+            .is_empty()
+    );
+    // 形状を作れないときも、手順にない工程は、1 つずつ確かめたときと同じく手順にない工程の誤り
+    let unknown = other.operation;
+    let ids = [empty.operation, unknown];
+    let together =
+        CamSimulationWorkflow::check_operations(&shapes, &empty.store, empty.sequence, &ids);
+    let one_by_one: Vec<_> = ids
+        .iter()
+        .map(|&id| {
+            CamSimulationWorkflow::check_operation(&shapes, &empty.store, empty.sequence, id)
+        })
+        .collect();
+    assert_eq!(together, one_by_one);
+    assert_eq!(
+        together[1],
+        Err(CamSimulationWorkflowError::Sequence(
+            MachiningSequenceError::UnknownOperation(unknown)
+        ))
+    );
+}
+
+#[test]
 fn stock_without_xy_margins_has_the_xy_size_of_the_product_shape() {
     let (shapes, face) = pyramid_shape();
     let mut machining = Machining::new(vec![face]);
