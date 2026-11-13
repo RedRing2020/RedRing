@@ -413,10 +413,10 @@ impl AppState {
         self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         // 取り込み直しても見ていた向き・拡大を保つ。カメラは STL の読み込みで製品形状に合わせているため、表示中の
         // 製品形状がない場合だけ合わせる
-        if self.document.shapes().visible_face_ids().is_empty() {
-            if let Some(fit) = Self::build_camera_fit(&positions) {
-                self.apply_camera_fit(fit);
-            }
+        if self.document.shapes().visible_face_ids().is_empty()
+            && let Some(fit) = Self::build_camera_fit(&positions)
+        {
+            self.apply_camera_fit(fit);
         }
         self.discard_main_view();
         self.renderer.set_stage(mesh_stage);

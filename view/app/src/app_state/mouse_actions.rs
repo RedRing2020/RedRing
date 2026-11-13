@@ -44,17 +44,17 @@ impl AppState {
                     return;
                 }
 
-                if let Some(cursor) = self.cursor_position {
-                    if self.is_cursor_on_snapshot_track(cursor) {
-                        if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::SnapshotScrub) {
-                            return;
-                        }
-                        self.snapshot_scrub_active = true;
-                        self.mouse_input.cancel_operation();
-                        self.set_snapshot_cursor_from_x(cursor.0, true);
-                        tracing::debug!("Left click: started snapshot scrubbing");
+                if let Some(cursor) = self.cursor_position
+                    && self.is_cursor_on_snapshot_track(cursor)
+                {
+                    if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::SnapshotScrub) {
                         return;
                     }
+                    self.snapshot_scrub_active = true;
+                    self.mouse_input.cancel_operation();
+                    self.set_snapshot_cursor_from_x(cursor.0, true);
+                    tracing::debug!("Left click: started snapshot scrubbing");
+                    return;
                 }
 
                 tracing::debug!(
@@ -84,12 +84,11 @@ impl AppState {
                 }
                 self.arcball_virtual_cursor = None;
 
-                if self.selection_rect_drag_origin.take().is_some() {
-                    if let Some(rect) = self.active_selection_rect.take() {
-                        if !rect.is_empty() {
-                            self.last_selection_rect = Some(rect);
-                        }
-                    }
+                if self.selection_rect_drag_origin.take().is_some()
+                    && let Some(rect) = self.active_selection_rect.take()
+                    && !rect.is_empty()
+                {
+                    self.last_selection_rect = Some(rect);
                 }
             }
         }
@@ -120,14 +119,14 @@ impl AppState {
 
         // パンは、画面の上のカーソルの移動量で動かす（OS のポインターの速さ・加速を含めて、形がカーソルに付いてくる。
         // マウスの生の移動量は、それを含まない）
-        if self.mouse_input.operation() == crate::mouse_input::MouseOperation::Pan {
-            if let Some((last_x, last_y)) = self.last_cursor_position {
-                let screen_height = (self.graphic.config.height as f32).max(1.0);
-                let aspect = self.graphic.config.width as f32 / screen_height;
-                self.camera
-                    .pan(x - last_x, y - last_y, aspect, screen_height);
-                self.update_camera_uniforms();
-            }
+        if self.mouse_input.operation() == crate::mouse_input::MouseOperation::Pan
+            && let Some((last_x, last_y)) = self.last_cursor_position
+        {
+            let screen_height = (self.graphic.config.height as f32).max(1.0);
+            let aspect = self.graphic.config.width as f32 / screen_height;
+            self.camera
+                .pan(x - last_x, y - last_y, aspect, screen_height);
+            self.update_camera_uniforms();
         }
     }
 

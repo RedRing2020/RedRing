@@ -58,10 +58,10 @@ impl EntityManager {
             return false;
         }
 
-        if let Some(prev_id) = self.selected {
-            if let Some(prev) = self.geometric.get_mut(&prev_id) {
-                prev.selected = false;
-            }
+        if let Some(prev_id) = self.selected
+            && let Some(prev) = self.geometric.get_mut(&prev_id)
+        {
+            prev.selected = false;
         }
 
         if let Some(current) = self.geometric.get_mut(&id) {
@@ -74,10 +74,10 @@ impl EntityManager {
     }
 
     pub fn clear_selection(&mut self) {
-        if let Some(prev_id) = self.selected {
-            if let Some(prev) = self.geometric.get_mut(&prev_id) {
-                prev.selected = false;
-            }
+        if let Some(prev_id) = self.selected
+            && let Some(prev) = self.geometric.get_mut(&prev_id)
+        {
+            prev.selected = false;
         }
         self.selected = None;
         self.dirty = true;

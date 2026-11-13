@@ -61,10 +61,10 @@ pub fn polynomial_real_roots_in_interval<T: Scalar>(
         } else {
             None
         };
-        if let Some(root) = root {
-            if roots.last() != Some(&root) {
-                roots.push(root);
-            }
+        if let Some(root) = root
+            && roots.last() != Some(&root)
+        {
+            roots.push(root);
         }
     }
     roots

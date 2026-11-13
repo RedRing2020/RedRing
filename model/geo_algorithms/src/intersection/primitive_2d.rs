@@ -285,15 +285,15 @@ pub fn triangle2d_line_segment2d_intersection<T: Scalar>(
 
     if let Some((enter, exit)) = clip_segment_by_triangle(triangle, start, direction, T::ZERO) {
         let (overlap_start, overlap_end) = (point_at(enter), point_at(exit));
-        if overlap_start.distance_to(overlap_end) > tolerance {
-            if let Some(overlap) = LineSegment2D::new(overlap_start, overlap_end) {
-                return IntersectionResult::new(
-                    IntersectionGeometry::Segment2D(overlap),
-                    IntersectionTopology::Crossing,
-                    false,
-                    tolerance,
-                );
-            }
+        if overlap_start.distance_to(overlap_end) > tolerance
+            && let Some(overlap) = LineSegment2D::new(overlap_start, overlap_end)
+        {
+            return IntersectionResult::new(
+                IntersectionGeometry::Segment2D(overlap),
+                IntersectionTopology::Crossing,
+                false,
+                tolerance,
+            );
         }
     }
     let touching = clip_segment_by_triangle(triangle, start, direction, tolerance)

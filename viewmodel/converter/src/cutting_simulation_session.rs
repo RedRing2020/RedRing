@@ -529,10 +529,10 @@ impl CuttingSimulationSession {
         };
         if kind == SubmissionKind::Full {
             let (position, name) = operation_label(document, operation);
-            if let Some(large) = large_toolpath(document, operation, (position, &name))? {
-                if !confirm(&[large]) {
-                    return Ok(SubmitOutcome::Declined);
-                }
+            if let Some(large) = large_toolpath(document, operation, (position, &name))?
+                && !confirm(&[large])
+            {
+                return Ok(SubmitOutcome::Declined);
             }
         }
         self.submit_kind(document, operation, kind)?;
@@ -563,10 +563,10 @@ impl CuttingSimulationSession {
         // 大きさは、状態を読む前に確かめる（確かめている間に状態が変わっても、読んだ状態ですぐに投入するため）
         let operation = document.selected_operation();
         let (position, name) = operation_label(document, operation);
-        if let Some(large) = large_toolpath(document, operation, (position, &name))? {
-            if !confirm(&[large]) {
-                return Ok(RedoOutcome::Declined);
-            }
+        if let Some(large) = large_toolpath(document, operation, (position, &name))?
+            && !confirm(&[large])
+        {
+            return Ok(RedoOutcome::Declined);
         }
         let (shapes, sequences, sequence, operation) = document.machining();
         // 計算待ちかは、状態を今読んで決める（ボタンは最後に読んだ状態で決めるため）。見つからなければ投入できない。

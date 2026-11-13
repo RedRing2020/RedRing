@@ -420,12 +420,12 @@ impl AppState {
         }
 
         if reached_end {
-            if let Some(series) = &self.debug_snapshot.series {
-                if !series.frames.is_empty() {
-                    self.debug_snapshot.cursor = series.frames.len() - 1;
-                    self.debug_snapshot.frame_update_required = true;
-                    self.sync_snapshot_visual_frame();
-                }
+            if let Some(series) = &self.debug_snapshot.series
+                && !series.frames.is_empty()
+            {
+                self.debug_snapshot.cursor = series.frames.len() - 1;
+                self.debug_snapshot.frame_update_required = true;
+                self.sync_snapshot_visual_frame();
             }
             self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Paused;
             self.debug_snapshot.last_playback_tick = None;

@@ -35,15 +35,15 @@ impl AppState {
         // Ctrl とのファイルの操作の組み合わせは、ほかのキー操作にしない（Ctrl+Shift+S で Shift+S の操作を動かさない）。
         // 入力欄の編集中も受ける（Ctrl との組み合わせは文字を打たない）。AltGr（Ctrl+Alt）は文字を打つため除く。条件の
         // 編集のダイアログを開いている間は、文書を替える・保存する操作をしない（編集している条件と食い違うため）
-        if self.mouse_input.is_ctrl_pressed() && !self.mouse_input.is_alt_pressed() {
-            if let Some(action) =
+        if self.mouse_input.is_ctrl_pressed()
+            && !self.mouse_input.is_alt_pressed()
+            && let Some(action) =
                 file_shortcut(key_without_modifiers, self.mouse_input.is_shift_pressed())
-            {
-                if !self.is_condition_dialog_open() {
-                    self.request_file_action(action);
-                }
-                return;
+        {
+            if !self.is_condition_dialog_open() {
+                self.request_file_action(action);
             }
+            return;
         }
 
         // 設定パネル・設定のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
