@@ -55,7 +55,7 @@ pub struct SpaceModelId(Uuid);
 
 impl SpaceModelId {
     /// ランダムな ID を作る
-    pub fn new_random() -> Self {
+    pub(crate) fn new_random() -> Self {
         Self(Uuid::new_v4())
     }
 }
@@ -201,7 +201,7 @@ impl From<cam_core::BinaryFormatError> for SpaceModelFileError {
 /// # Errors
 ///
 /// 書き込みの失敗、個数・長さが形式に収まらない場合。
-pub fn write_space_model<W: Write>(
+pub(crate) fn write_space_model<W: Write>(
     writer: &mut W,
     model: &SpaceModel,
     info: &SpaceModelSaveInfo,
@@ -272,7 +272,7 @@ fn write_section(out: &mut ByteWriter, kind: [u8; 4], version: u16, flags: u16, 
 ///
 /// 読み込みの失敗、形式の誤り（本体の後ろに余りがある場合を含む）、知らない必須の区画・読めない版の区画がある場合、
 /// 必須の区画がない場合、ID が重なっている場合。
-pub fn read_space_model<R: Read>(
+pub(crate) fn read_space_model<R: Read>(
     reader: &mut R,
 ) -> Result<(SpaceModel, SpaceModelSaveInfo), SpaceModelFileError> {
     let (header, payload) = read_artifact_v1(reader)?;
@@ -421,7 +421,7 @@ pub fn save_space_model(
 ///
 /// # Errors
 ///
-/// ファイルを読めない場合、大きさの上限を超える場合、[`read_space_model`] の誤り。
+/// ファイルを読めない場合、大きさの上限を超える場合、`read_space_model` の誤り。
 pub fn load_space_model(
     path: &Path,
 ) -> Result<(SpaceModel, SpaceModelSaveInfo), SpaceModelFileError> {

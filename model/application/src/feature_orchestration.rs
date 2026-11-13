@@ -2,16 +2,14 @@
 
 use crate::geometry_orchestration::{
     CreateArcGeometryRequest, CreateCircleGeometryRequest, CreateLineGeometryRequest,
-    DebugShapeGeometryMutationPort, GeometryOrchestrationError, GeometryOrchestrator,
-    LineGeometryMutationPort,
+    CurveGeometryMutationPort, GeometryOrchestrationError, GeometryOrchestrator,
 };
 /// 作ったエンティティの向き（`Direction3D::as_vector`）を計算に使うベクトルの型
 pub use crate::primitives::Vector3D;
 use crate::primitives::{Angle, Arc3D, Circle3D, Direction3D, LineSegment3D, Point3D};
 use crate::topology_orchestration::{
     CreateArcTopologyRequest, CreateCircleTopologyRequest, CreateLineTopologyRequest,
-    DebugShapeTopologyMutationPort, LineTopologyMutationPort, TopologyOrchestrationError,
-    TopologyOrchestrator,
+    CurveTopologyMutationPort, TopologyOrchestrationError, TopologyOrchestrator,
 };
 use geo_contracts::{
     Arc3DProperties, Circle3DProperties, EntityDisplayProperties, EntityIdentity,
@@ -374,53 +372,57 @@ pub trait FeatureCommandOrchestration {
     ) -> Result<CreateArcFeatureResult, FeatureOrchestrationError>;
 }
 
-pub trait LineEntityStorePort {
+pub(crate) trait LineEntityStorePort {
     fn insert_line_entity(
         &self,
         entity: StoredLineEntity,
         feature_name: String,
     ) -> Result<StoredLineEntityDto, FeatureOrchestrationError>;
+    #[cfg(test)]
     fn contains(&self, entity_id: EntityId) -> Result<bool, FeatureOrchestrationError>;
 }
 
-pub trait CurveTopologyStorePort {
+pub(crate) trait CurveTopologyStorePort {
     fn insert_curve_topology(
         &self,
         edge: StoredCurveTopology,
         valid: bool,
     ) -> Result<StoredCurveTopologyDto, FeatureOrchestrationError>;
+    #[cfg(test)]
     fn contains_topology(&self, edge_id: TopoId) -> Result<bool, FeatureOrchestrationError>;
 }
 
-pub trait CircleEntityStorePort {
+pub(crate) trait CircleEntityStorePort {
     fn insert_circle_entity(
         &self,
         entity: StoredCircleEntity,
         feature_name: String,
     ) -> Result<StoredCircleEntityDto, FeatureOrchestrationError>;
+    #[cfg(test)]
     fn contains_circle(&self, entity_id: EntityId) -> Result<bool, FeatureOrchestrationError>;
 }
 
-pub trait ArcEntityStorePort {
+pub(crate) trait ArcEntityStorePort {
     fn insert_arc_entity(
         &self,
         entity: StoredArcEntity,
         feature_name: String,
     ) -> Result<StoredArcEntityDto, FeatureOrchestrationError>;
+    #[cfg(test)]
     fn contains_arc(&self, entity_id: EntityId) -> Result<bool, FeatureOrchestrationError>;
 }
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct InMemoryLineEntityStore;
+pub(crate) struct InMemoryLineEntityStore;
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct InMemoryCurveTopologyStore;
+pub(crate) struct InMemoryCurveTopologyStore;
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct InMemoryCircleEntityStore;
+pub(crate) struct InMemoryCircleEntityStore;
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct InMemoryArcEntityStore;
+pub(crate) struct InMemoryArcEntityStore;
 
 impl LineEntityStorePort for InMemoryLineEntityStore {
     fn insert_line_entity(
@@ -454,6 +456,7 @@ impl LineEntityStorePort for InMemoryLineEntityStore {
         Ok(dto)
     }
 
+    #[cfg(test)]
     fn contains(&self, entity_id: EntityId) -> Result<bool, FeatureOrchestrationError> {
         let store = line_entity_store()
             .lock()
@@ -482,6 +485,7 @@ impl CurveTopologyStorePort for InMemoryCurveTopologyStore {
         Ok(dto)
     }
 
+    #[cfg(test)]
     fn contains_topology(&self, edge_id: TopoId) -> Result<bool, FeatureOrchestrationError> {
         let store = curve_topology_store()
             .lock()
@@ -517,6 +521,7 @@ impl CircleEntityStorePort for InMemoryCircleEntityStore {
         Ok(dto)
     }
 
+    #[cfg(test)]
     fn contains_circle(&self, entity_id: EntityId) -> Result<bool, FeatureOrchestrationError> {
         let store = circle_entity_store()
             .lock()
@@ -560,6 +565,7 @@ impl ArcEntityStorePort for InMemoryArcEntityStore {
         Ok(dto)
     }
 
+    #[cfg(test)]
     fn contains_arc(&self, entity_id: EntityId) -> Result<bool, FeatureOrchestrationError> {
         let store = arc_entity_store()
             .lock()
