@@ -12,7 +12,8 @@
     リリース・優先度の既定を付ける
 
 .PARAMETER Issue
-    この番号の Issue だけを見る（作ったときに既定を付けるため。決まりの誤りでは失敗にしない）
+    この番号の Issue だけを見る（作ったときに既定を付けるため。決まりの誤りでは失敗にせず、既定を付けられなかった
+    ときだけ失敗にする）
 
 .PARAMETER TriageDays
     作ってからこの日数より長く release:triage のままの Issue を、決まりに沿っていない Issue として出す
@@ -51,6 +52,7 @@ function Count-Axis($names, $axis) {
 }
 
 $problems = [System.Collections.Generic.List[string]]::new()
+$editFailed = $false
 if ($Issue -eq 0 -and $issues.Count -ge $limit) {
     $problems.Add("- 開いている Issue が $limit 件に達したため、それより後の Issue は確かめていない")
 }
@@ -72,6 +74,7 @@ foreach ($item in $issues) {
         } else {
             # 1 件で止めず、残りの Issue も確かめる
             $reasons += "既定のラベルを付けられなかった（$($add -join ', ')）"
+            $editFailed = $true
         }
     }
 
@@ -102,5 +105,5 @@ Write-Host $report
 if ($env:GITHUB_STEP_SUMMARY) {
     "## Issue のラベル`n`n$report" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 }
-if ($Issue -eq 0 -and $problems.Count -gt 0) { exit 1 }
+if ($editFailed -or ($Issue -eq 0 -and $problems.Count -gt 0)) { exit 1 }
 exit 0

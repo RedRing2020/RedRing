@@ -78,7 +78,7 @@ Issue の種別・かかわる層と領域・優先度・リリースの対象�
 
 `.github/workflows/issue_labels.yml` が `scripts/check_issue_labels.ps1` を動かす。
 
-- **Issue を作ったとき**: リリースのラベルがなければ `release:triage`、優先度がなければ `priority: medium` を付ける（中身を読まずに決まる既定だけ）
+- **Issue を作ったとき**: リリースのラベルがなければ `release:triage`、優先度がなければ `priority: medium` を付ける（中身を読まずに決まる既定だけ）。既定を付けられなかったときだけ、ワークフローを失敗にする
 - **週に 1 回（月曜 9:00 JST）・手動**: 開いている Issue に同じ既定を付けたうえで、次の Issue を一覧にしてジョブの要約に出す。1 件でもあればワークフローを失敗にする（GitHub の通知で気づく）
   - 種別がない・2 つ以上ある
   - 優先度・リリースが 2 つ以上ある

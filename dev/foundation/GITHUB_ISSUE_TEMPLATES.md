@@ -2,6 +2,7 @@
 
 **作成日**: 2026年2月8日  
 **用途**: ROADMAP_2026_Q1_Q2.md の各項目をIssue化する際のテンプレート
+**ラベル**: 付けるラベルは `dev/ISSUE_LABEL_OPERATION.md` の軸（種別・層・領域・優先度・リリース）による（2026年11月13日に、この文書のラベルを今の軸に合わせた）
 
 ---
 
@@ -195,9 +196,10 @@ CAM演算結果（工具経路、オフセット結果）を視覚的に確認�
 
 ## ラベル
 - `enhancement`
-- `visualization`
+- `view`
 - `cam`
-- `tier-1`
+- `priority: high`
+- `release:triage`
 ```
 
 ---
@@ -353,10 +355,11 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
 🟠 高優先（Tier 2）
 
 ## ラベル
-- `refactoring`
+- `refactor`
+- `foundation`
 - `architecture`
-- `foundation-pattern`
-- `tier-2`
+- `priority: medium`
+- `release:triage`
 ```
 
 ---
@@ -485,10 +488,10 @@ EllipseArc2D および EllipseArc3D に対する collision/intersection 機能�
 
 ## ラベル
 - `enhancement`
+- `model`
 - `geometry`
-- `collision`
-- `intersection`
-- `tier-2`
+- `priority: medium`
+- `release:triage`
 ```
 
 ---
@@ -623,10 +626,10 @@ CylindricalSurface3D および CylindricalSolid3D に対する collision/interse
 
 ## ラベル
 - `enhancement`
+- `model`
 - `geometry`
-- `collision`
-- `intersection`
-- `tier-2`
+- `priority: medium`
+- `release:triage`
 - `cad-essential`
 ```
 
@@ -653,25 +656,7 @@ CylindricalSurface3D および CylindricalSolid3D に対する collision/interse
 
 ### 2. ラベルの使い分け
 
-**優先度ラベル**:
-- `tier-1` - 最優先
-- `tier-2` - 高優先
-- `tier-3` - 中優先
-- `tier-4` - 中長期
-
-**カテゴリラベル**:
-- `enhancement` - 新機能
-- `refactoring` - リファクタリング
-- `bug` - バグ修正
-- `documentation` - ドキュメント
-
-**技術領域ラベル**:
-- `visualization` - 可視化
-- `geometry` - 幾何処理
-- `cam` - CAM機能
-- `collision` - 衝突判定
-- `intersection` - 交差判定
-- `architecture` - アーキテクチャ
+ラベルの軸（種別・層・領域・優先度・リリース）と付け方は `dev/ISSUE_LABEL_OPERATION.md` による。種別・優先度・リリースは必ず 1 つずつ付け、Issue を作るときに 1 回でまとめて付ける。
 
 ### 3. マイルストーンの設定
 
@@ -714,7 +699,7 @@ CylindricalSurface3D および CylindricalSolid3D に対する collision/interse
    # GitHub CLI を使用する場合
    gh issue create --title "[Visualization] CAM可視化システム設計・実装" \
                     --body-file issue_template_cam_viz.md \
-                    --label "enhancement,visualization,cam,tier-1" \
+                    --label "enhancement,view,cam,priority: high,release:triage" \
                     --milestone "2026 Q1"
    ```
 
