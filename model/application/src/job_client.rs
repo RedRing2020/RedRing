@@ -11,6 +11,8 @@ mod pipe;
 
 #[cfg(any(test, feature = "test-fixtures"))]
 mod in_process;
+#[cfg(any(test, feature = "test-fixtures"))]
+mod orchestrator;
 
 use std::fmt;
 

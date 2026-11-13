@@ -84,14 +84,13 @@ impl std::fmt::Display for GeometryOrchestrationError {
 
 impl std::error::Error for GeometryOrchestrationError {}
 
-pub trait LineGeometryMutationPort {
+/// 線・円・円弧の形状を作る
+pub(crate) trait CurveGeometryMutationPort {
     fn create_line_geometry(
         &self,
         request: CreateLineGeometryRequest,
     ) -> Result<CreateLineGeometryResult, GeometryOrchestrationError>;
-}
 
-pub trait DebugShapeGeometryMutationPort {
     fn create_circle_geometry(
         &self,
         request: CreateCircleGeometryRequest,
@@ -101,7 +100,10 @@ pub trait DebugShapeGeometryMutationPort {
         &self,
         request: CreateArcGeometryRequest,
     ) -> Result<CreateArcGeometryResult, GeometryOrchestrationError>;
+}
 
+/// 三角形の形状を作る
+pub trait DebugShapeGeometryMutationPort {
     fn create_triangle_geometry(
         &self,
         request: CreateTriangleGeometryRequest,
@@ -111,7 +113,7 @@ pub trait DebugShapeGeometryMutationPort {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct GeometryOrchestrator;
 
-impl LineGeometryMutationPort for GeometryOrchestrator {
+impl CurveGeometryMutationPort for GeometryOrchestrator {
     fn create_line_geometry(
         &self,
         request: CreateLineGeometryRequest,
@@ -123,9 +125,7 @@ impl LineGeometryMutationPort for GeometryOrchestrator {
 
         Ok(CreateLineGeometryResult { line })
     }
-}
 
-impl DebugShapeGeometryMutationPort for GeometryOrchestrator {
     fn create_circle_geometry(
         &self,
         request: CreateCircleGeometryRequest,
@@ -152,7 +152,9 @@ impl DebugShapeGeometryMutationPort for GeometryOrchestrator {
 
         Ok(CreateArcGeometryResult { arc })
     }
+}
 
+impl DebugShapeGeometryMutationPort for GeometryOrchestrator {
     fn create_triangle_geometry(
         &self,
         request: CreateTriangleGeometryRequest,
@@ -184,8 +186,8 @@ impl DebugShapeGeometryMutationPort for GeometryOrchestrator {
 mod tests {
     use super::{
         CreateArcGeometryRequest, CreateCircleGeometryRequest, CreateLineGeometryRequest,
-        CreateTriangleGeometryRequest, DebugShapeGeometryMutationPort, GeometryOrchestrationError,
-        GeometryOrchestrator, LineGeometryMutationPort,
+        CreateTriangleGeometryRequest, CurveGeometryMutationPort, DebugShapeGeometryMutationPort,
+        GeometryOrchestrationError, GeometryOrchestrator,
     };
     use geo_contracts::LineSegment3DProperties;
     use geo_contracts::{Arc3DProperties, Circle3DProperties, Triangle3DBoundaryAccess};

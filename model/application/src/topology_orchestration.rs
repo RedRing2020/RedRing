@@ -64,14 +64,13 @@ impl std::fmt::Display for TopologyOrchestrationError {
 
 impl std::error::Error for TopologyOrchestrationError {}
 
-pub trait LineTopologyMutationPort {
+/// 線・円弧・円のトポロジーを作る
+pub(crate) trait CurveTopologyMutationPort {
     fn create_line_topology(
         &self,
         request: CreateLineTopologyRequest,
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError>;
-}
 
-pub trait DebugShapeTopologyMutationPort {
     fn create_arc_topology(
         &self,
         request: CreateArcTopologyRequest,
@@ -81,7 +80,10 @@ pub trait DebugShapeTopologyMutationPort {
         &self,
         request: CreateCircleTopologyRequest,
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError>;
+}
 
+/// 三角形のトポロジーを作る
+pub trait DebugShapeTopologyMutationPort {
     fn create_triangle_topology(
         &self,
         request: CreateTriangleTopologyRequest,
@@ -91,7 +93,7 @@ pub trait DebugShapeTopologyMutationPort {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct TopologyOrchestrator;
 
-impl LineTopologyMutationPort for TopologyOrchestrator {
+impl CurveTopologyMutationPort for TopologyOrchestrator {
     fn create_line_topology(
         &self,
         request: CreateLineTopologyRequest,
@@ -115,9 +117,7 @@ impl LineTopologyMutationPort for TopologyOrchestrator {
 
         Ok(CreateCurveTopologyResult { edge, validation })
     }
-}
 
-impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
     fn create_arc_topology(
         &self,
         request: CreateArcTopologyRequest,
@@ -183,7 +183,9 @@ impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
 
         Ok(CreateCurveTopologyResult { edge, validation })
     }
+}
 
+impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
     fn create_triangle_topology(
         &self,
         request: CreateTriangleTopologyRequest,
@@ -241,7 +243,7 @@ impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
 mod tests {
     use super::{
         CreateArcTopologyRequest, CreateCircleTopologyRequest, CreateLineTopologyRequest,
-        CreateTriangleTopologyRequest, DebugShapeTopologyMutationPort, LineTopologyMutationPort,
+        CreateTriangleTopologyRequest, CurveTopologyMutationPort, DebugShapeTopologyMutationPort,
         TopologyOrchestrator,
     };
     use crate::primitives::{Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};

@@ -690,8 +690,9 @@ pub struct LayerMembershipDto {
 - submit / status / cancel / retry の実行方式境界を担う
 - geometry / topology / entity を直接保持しない
 - 既存 `job_runtime` / `cam_sim::CamJobExecutorAdapter` との接続窓口として育てる
-- 2026-04-10 時点の最小実装では、`JobWorkflowOrchestrator` が `submit_workflow` command と `query_status` / `query_result` query を提供する
-- `job_runtime::JobEvent` は `job_domain::CamJobEvent` へ正規化し、ViewModel 側は runtime 固有 enum を直接扱わない
+- 2026-04-10 時点の最小実装では、`JobWorkflowOrchestrator` が `submit_workflow` command と `query_status` / `query_result` query を提供していた
+- ジョブの計算をアプリの外のジョブマネージャーに移した後は、`JobWorkflowOrchestrator` は同じプロセスの中でジョブを実行する試験用の口（`job_client` の `in_process`）だけが使うため、crate の中だけにし、試験のときだけ入れる（#1065）。試験にも呼び出し元のない `query_status`・`take_event_batch`（イベントの取り出し）・`list_succeeded_jobs` は消した。ジョブの UI（#988）で要るときは、呼び出し元と一緒に足す。公開するのは、誤りの型 `JobOrchestrationError` だけとする
+- イベントを ViewModel に渡すときは、`job_runtime::JobEvent` を `job_domain::CamJobEvent` へ正規化し、ViewModel 側は runtime 固有 enum を直接扱わない
 - `job_runtime::JobRecord` は `job_domain::CamJobRecord` に写像して返し、Application が query 境界の正本となる
 
 ### 6.4 entity / topology orchestration の初期配置
@@ -803,8 +804,9 @@ pub trait PlanarStroke2DProperties<T: Scalar> {
 - この triangle 導線は topology を参照するが、EntityID を生成して保存する経路ではないため、現時点では `entity commit` ではなく `topology-aware preview` 寄りの暫定導線とみなす
 - 通常の平面トポロジーとして triangle を Wire / Loop で扱う場合は、各辺を `LineSegment` 相当の直線 edge として表現する方針を採る
 - #256 で扱う三角形限定 topology は、工具逆オフセット法計算の前段で局所的な凸部縫合と探索効率向上を目的とする別系統の用途であり、ここでの通常 topology 表現とは分離して扱う
-- geometry の差し替え点は `LineGeometryMutationPort` と `DebugShapeGeometryMutationPort` である
-- topology の差し替え点は `LineTopologyMutationPort` と `DebugShapeTopologyMutationPort` である
+- geometry の差し替え点は `CurveGeometryMutationPort`（線・円・円弧。crate の中だけ）と `DebugShapeGeometryMutationPort`（三角形）である
+- topology の差し替え点は `CurveTopologyMutationPort`（線・円弧・円。crate の中だけ）と `DebugShapeTopologyMutationPort`（三角形）である
+- 線・円・円弧の port と保管先の port は `FeatureOrchestrator` の後ろにあり、ViewModel からは呼ばないため crate の中だけとする。ViewModel が直接呼ぶ三角形の port だけを公開する（#1065）
 - entity / topology 保存の差し替え点は `LineEntityStorePort` / `CircleEntityStorePort` / `ArcEntityStorePort` / `CurveTopologyStorePort` である
 - 現在は in-memory 実装だが、ECS 置換時はこれら port の背後実装を ECS adapter へ差し替え、ViewModel 側の command 入口は維持する
 
