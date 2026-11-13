@@ -379,12 +379,12 @@ pub(crate) struct OperationRow {
 }
 
 /// 工程の計算の条件の状態（計算できるか）
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum OperationSetup {
     /// 計算の条件を、まだ設定していない（条件を一度も適用していない。計算できない）
     NotSet,
-    /// 計算の条件に誤りがある（計算できない）
-    ConditionError,
+    /// 計算の条件に誤りがある（計算できない。工程を選んで確かめたときと同じ問題）
+    ConditionError(Vec<ConditionIssue>),
     /// 計算の条件を設定し、誤りがない（計算できる）
     Ready,
 }
@@ -488,7 +488,9 @@ fn operation_row_key(row: &OperationRow) -> &'static str {
     // 計算できない工程は、計算の状態より先に、計算できない理由を出す
     match row.setup {
         OperationSetup::NotSet => return "conditions.operations.status.not_set",
-        OperationSetup::ConditionError => return "conditions.operations.status.condition_error",
+        OperationSetup::ConditionError(_) => {
+            return "conditions.operations.status.condition_error";
+        }
         OperationSetup::Ready => {}
     }
     let finished_or_gone = matches!(
@@ -543,13 +545,13 @@ fn row_status_color(key: &str) -> Option<Color32> {
 /// 計算（取込済みで切削シミュレーションの結果がない工程も、切削シミュレーションだけを計算するため計算。画面の下の案内と
 /// 同じ）、計算済みで取り込んでいなければ CL 取込。計算待ち・計算中・計算済みで取込済み、状態が分からない工程はない）
 fn next_action_of(
-    setup: OperationSetup,
+    setup: &OperationSetup,
     status: &JobStatusLine,
     toolpath_current: bool,
 ) -> Option<RowAction> {
     match setup {
         OperationSetup::NotSet => return Some(RowAction::OpenSettings),
-        OperationSetup::ConditionError => return None,
+        OperationSetup::ConditionError(_) => return None,
         OperationSetup::Ready => {}
     }
     match status {
@@ -1037,7 +1039,12 @@ impl MachiningConditionsUiState {
 
     /// 今の条件の誤りの文（1 つ 1 行）
     fn issue_reasons(&self) -> String {
-        self.issues
+        self.reasons_text(&self.issues)
+    }
+
+    /// 問題 `issues` の文（1 つ 1 行）
+    fn reasons_text(&self, issues: &[ConditionIssue]) -> String {
+        issues
             .iter()
             .map(|issue| self.issue_text(issue))
             .collect::<Vec<_>>()
@@ -1051,7 +1058,7 @@ impl MachiningConditionsUiState {
             return None;
         }
         let row = position.and_then(|at| self.operations.get(at))?;
-        next_action_of(row.setup, &row.status, row.toolpath_current)
+        next_action_of(&row.setup, &row.status, row.toolpath_current)
             .filter(|action| self.action_enabled(action, position))
     }
 
@@ -1151,6 +1158,15 @@ impl MachiningConditionsUiState {
                         ui.scope_id().with(("operation_row", row.id)),
                         egui::Sense::click(),
                     );
+                    // 条件エラーの行は、状態の欄に乗せると、その理由を出す（工程を選ばなくても理由が分かるように）
+                    let response = match &row.setup {
+                        OperationSetup::ConditionError(issues)
+                            if ui.rect_contains_pointer(status.response.rect) =>
+                        {
+                            response.on_hover_text_at_pointer(self.reasons_text(issues))
+                        }
+                        _ => response,
+                    };
                     // 右クリックも、その行を選んでからメニューを出す（メニューの操作は、選んだ工程に対して行う）
                     if !selected && (response.clicked() || response.secondary_clicked()) {
                         select = Some(row.id);
@@ -1779,7 +1795,7 @@ mod tests {
                 "conditions.operations.status.not_set",
             ),
             (
-                OperationSetup::ConditionError,
+                OperationSetup::ConditionError(vec![ConditionIssue::NoProductShape]),
                 "conditions.operations.status.condition_error",
             ),
         ] {
@@ -1967,19 +1983,19 @@ mod tests {
         ];
         for (status, toolpath_current, action) in cases {
             assert_eq!(
-                next_action_of(OperationSetup::Ready, &status, toolpath_current),
+                next_action_of(&OperationSetup::Ready, &status, toolpath_current),
                 action,
                 "{status:?} {toolpath_current}"
             );
         }
         // 条件を設定していない工程は、計算の状態によらず工程の設定を開く。誤りがある工程は目立たせない
         assert_eq!(
-            next_action_of(OperationSetup::NotSet, &JobStatusLine::NotSubmitted, false),
+            next_action_of(&OperationSetup::NotSet, &JobStatusLine::NotSubmitted, false),
             Some(RowAction::OpenSettings)
         );
         assert_eq!(
             next_action_of(
-                OperationSetup::ConditionError,
+                &OperationSetup::ConditionError(vec![ConditionIssue::NoProductShape]),
                 &JobStatusLine::NotSubmitted,
                 false
             ),
