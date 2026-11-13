@@ -116,6 +116,8 @@ pub(crate) enum Notice {
     JobManagerNotFound,
     /// 計算待ち・計算中のジョブがあるのに、ジョブマネージャーが停止中のため計算されていない
     JobManagerStopped,
+    /// 動いていなかったジョブマネージャーにつながり、計算の状態を読めた
+    JobManagerAvailable,
     /// モデルファイルに保存した（ファイルの名前）
     ModelSaved { file: String },
     /// モデルファイルに保存できない（ファイルの名前と理由）
@@ -130,7 +132,8 @@ impl Notice {
             | Self::ModelCreated
             | Self::ModelOpened { .. }
             | Self::ModelSaved { .. }
-            | Self::JobManagerNotRunning => NoticeLevel::Info,
+            | Self::JobManagerNotRunning
+            | Self::JobManagerAvailable => NoticeLevel::Info,
             Self::ShapeImportFailed { .. }
             | Self::ModelOpenFailed { .. }
             | Self::ModelSaveFailed { .. }
@@ -164,6 +167,7 @@ impl Notice {
                 | OperationStatus::Redone { .. }
                 | OperationStatus::LargeToolpathDeclined
                 | OperationStatus::Stopped
+                | OperationStatus::EarlierConditionsCanceled
                 | OperationStatus::SequenceSubmitted { .. }
                 | OperationStatus::Imported { .. }
                 | OperationStatus::ToolpathImported { .. } => NoticeLevel::Info,
@@ -216,6 +220,9 @@ impl Notice {
                 resolve_help_text(locale, "notice.job_manager_not_found", &[])
             }
             Self::JobManagerStopped => resolve_help_text(locale, "notice.job_manager_stopped", &[]),
+            Self::JobManagerAvailable => {
+                resolve_help_text(locale, "notice.job_manager_available", &[])
+            }
             Self::ModelOpened { file } => {
                 resolve_help_text(locale, "notice.model_opened", &[("file", file.clone())])
             }
@@ -561,6 +568,10 @@ mod tests {
                     key: "failure.job_manager_not_found".to_string(),
                     args: Vec::new(),
                 })),
+                Notice::JobManagerNotRunning,
+                Notice::JobManagerNotFound,
+                Notice::JobManagerStopped,
+                Notice::JobManagerAvailable,
             ];
             for notice in notices {
                 let text = notice.text(locale);

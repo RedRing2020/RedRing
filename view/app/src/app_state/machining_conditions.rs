@@ -139,6 +139,7 @@ impl AppState {
         self.draft_issues = None;
         self.tool_length_input = draft.tool_length_input;
         let mut submission = None;
+        let mut revision_advanced = false;
         match draft.dialog {
             ConditionDialog::Operation => {
                 // 名前は、前後の空白を除き、空なら替えない。属性（名前・加工の段階）は計算に使わないため、属性だけを
@@ -154,6 +155,7 @@ impl AppState {
                     self.document.set_operation_content(content);
                     if conditions_changed {
                         self.invalidate_conditions();
+                        revision_advanced = true;
                     }
                 }
                 self.document.rename_selected_operation(&name);
@@ -176,10 +178,16 @@ impl AppState {
                 if draft.stock != self.document.stock() {
                     self.document.set_stock(draft.stock);
                     self.invalidate_conditions();
+                    revision_advanced = true;
                 }
             }
         }
         tracing::info!("Conditions applied: {:?}", draft.dialog);
+        // 工程の改訂が進んだら、前の条件の計算は使わないため取り消す（続けて投入するときも、投入する前に取り消す。
+        // 投入しなかった・できなかったときも取り消し、その理由を最後に出すように）
+        if revision_advanced {
+            self.cancel_superseded_jobs();
+        }
         match submission {
             Some(ApplySubmission::Submit) => {
                 if self.submit_cutting_simulation() {
@@ -292,8 +300,9 @@ impl AppState {
 
     /// ジョブマネージャーが動いていない・見つからないことを、変わったときに 1 度だけ画面の下の行に出す（動いていない
     /// のは情報、見つからないのは失敗。最後に読めた状態に計算待ち・計算中の工程があれば、計算されていないことを注意
-    /// として出す）。状態を読めた（ジョブマネージャーが動いている）ら、次に変わったときにまた出す。読めない・読んで
-    /// いる間は、どちらとも決めない（同じメッセージを出し直さないように）
+    /// として出す）。状態を読めた（ジョブマネージャーが動いている）ら、次に変わったときにまた出す。そのとき、画面の下の
+    /// 行がまだ動いていない・見つからないことを出していれば、つながったことに替える（古いメッセージを出し続けない
+    /// ように）。読めない・読んでいる間は、どちらとも決めない（同じメッセージを出し直さないように）
     fn notify_job_manager_availability(&mut self) {
         let Some(first) = self.operation_job_statuses.first().map(|(_, s)| s.clone()) else {
             return;
@@ -322,6 +331,15 @@ impl AppState {
             }
             Some(JobStatusLine::ManagerNotRunning) => self.set_notice(Notice::JobManagerNotRunning),
             Some(JobStatusLine::ManagerNotFound) => self.set_notice(Notice::JobManagerNotFound),
+            None if matches!(
+                self.notice,
+                Notice::JobManagerNotRunning
+                    | Notice::JobManagerNotFound
+                    | Notice::JobManagerStopped
+            ) =>
+            {
+                self.set_notice(Notice::JobManagerAvailable);
+            }
             _ => {}
         }
         self.job_manager_unavailable = unavailable;

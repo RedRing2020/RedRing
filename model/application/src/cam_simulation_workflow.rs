@@ -609,29 +609,68 @@ impl CamSimulationWorkflow {
         kept_submission_id: Option<&str>,
     ) -> Result<usize, CamSimulationWorkflowError> {
         let current = current_revision(sequences, sequence_id, operation_id)?;
+        self.cancel_active_jobs(|source, submission_id| {
+            current(source) && kept_submission_id != Some(submission_id)
+        })
+    }
+
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_ids` から、今の改訂より前に投入した、計算待ち・
+    /// 計算中のジョブ（ツールパス生成と切削シミュレーション）を取り消すよう頼み、頼んだジョブの数を返す（取り消し終える
+    /// のを待たない。今の改訂のジョブ・ほかの工程のジョブ・終わったジョブには触れない。改訂の鍵を持たない投入元（前の版
+    /// の記録）は、前の改訂とみなす）。ジョブマネージャーが動いていなければ、起動せずに何もしない
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順・加工手順にない加工工程の場合、ジョブマネージャーにつなげない（動いていない・見つからない
+    /// ときを除く）・ジョブを読めない・取り消しを頼めない場合。
+    pub fn cancel_superseded_jobs(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_ids: &[MachiningOperationId],
+    ) -> Result<usize, CamSimulationWorkflowError> {
+        let currents = operation_ids
+            .iter()
+            .map(|&operation_id| current_revision(sequences, sequence_id, operation_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        let source_ids: Vec<String> = operation_ids.iter().map(ToString::to_string).collect();
+        if !self.jobs.manager_running()? {
+            return Ok(0);
+        }
+        self.cancel_active_jobs(|source, _| {
+            source
+                .as_ref()
+                .is_some_and(|source| source_ids.contains(&source.source_id))
+                && !currents.iter().any(|current| current(source))
+        })
+    }
+
+    /// 計算待ち・計算中のジョブのうち、投入元と投入の ID が `cancels` に当たるものを取り消すよう頼み、頼んだジョブの数を
+    /// 返す（ジョブマネージャーがまだ取り込んでいない投入は取り消せない）
+    fn cancel_active_jobs(
+        &mut self,
+        cancels: impl Fn(&Option<CamJobSource>, &str) -> bool,
+    ) -> Result<usize, CamSimulationWorkflowError> {
         let active = |status: CamJobStatus| {
             matches!(
                 status,
                 CamJobStatus::Queued | CamJobStatus::Running | CamJobStatus::NeedsRecompute
             )
         };
-        let kept = |submission_id: &str| kept_submission_id == Some(submission_id);
         // 切削シミュレーションを先に取り消す（ツールパス生成を先に取り消すと、それを待つ切削シミュレーションが、
         // 依存するジョブの取り消しによる失敗になるため）
         let mut job_ids: Vec<u64> = self
             .jobs
             .simulation_jobs()?
             .into_iter()
-            .filter(|job| current(&job.source) && active(job.status) && !kept(&job.submission_id))
+            .filter(|job| active(job.status) && cancels(&job.source, &job.submission_id))
             .map(|job| job.job_id)
             .collect();
         job_ids.extend(
             self.jobs
                 .toolpath_jobs()?
                 .into_iter()
-                .filter(|job| {
-                    current(&job.source) && active(job.status) && !kept(&job.submission_id)
-                })
+                .filter(|job| active(job.status) && cancels(&job.source, &job.submission_id))
                 .map(|job| job.job_id),
         );
         if !job_ids.is_empty() {

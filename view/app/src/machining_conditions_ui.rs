@@ -69,6 +69,8 @@ pub(crate) enum OperationStatus {
     LargeToolpathDeclined,
     /// 今の条件の計算待ち・計算中の計算を止めている（取り消すよう頼んだ。止まるのは待たない）
     Stopped,
+    /// 前の条件の、計算待ち・計算中の計算を取り消した（取り消すよう頼んだ。止まるのは待たない）
+    EarlierConditionsCanceled,
     /// 今の条件の計算に、待ってもジョブマネージャーが受け取らない投入があり、すべては止めていない
     StopNotYetAccepted,
     /// 今の条件の計算は、計算待ち・計算中でないため、止めていない
@@ -235,6 +237,9 @@ fn operation_status_message(
             ("conditions.status.recalculation_waiting", vec![])
         }
         OperationStatus::Stopped => ("conditions.status.stopped", vec![]),
+        OperationStatus::EarlierConditionsCanceled => {
+            ("conditions.status.earlier_conditions_canceled", vec![])
+        }
         OperationStatus::StopNotYetAccepted => ("conditions.status.stop_not_accepted", vec![]),
         OperationStatus::NothingToStop => ("conditions.status.nothing_to_stop", vec![]),
         OperationStatus::StopFailed(message) => ("conditions.status.stop_failed", reason(message)),
@@ -1709,6 +1714,7 @@ mod tests {
             OperationStatus::RecalculationWaiting,
             OperationStatus::LargeToolpathDeclined,
             OperationStatus::Stopped,
+            OperationStatus::EarlierConditionsCanceled,
             OperationStatus::StopNotYetAccepted,
             OperationStatus::NothingToStop,
             OperationStatus::StopFailed(failure("failure.job_manager_not_found")),

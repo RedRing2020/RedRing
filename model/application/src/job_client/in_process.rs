@@ -182,6 +182,10 @@ impl JobClient for InProcessJobClient {
         Ok(())
     }
 
+    fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError> {
+        Ok(true)
+    }
+
     fn toolpath_result(
         &self,
         toolpath_job_id: u64,

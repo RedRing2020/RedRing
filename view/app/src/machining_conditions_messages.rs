@@ -214,6 +214,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "今の条件の計算を停止しています（止まると、状態が取り消しになります）",
     ),
     (
+        "conditions.status.earlier_conditions_canceled",
+        "前の条件の計算待ち・計算中の計算を取り消しました",
+    ),
+    (
         "conditions.status.stop_not_accepted",
         "今の条件の計算に、まだジョブマネージャーが受け取っていないものがあるため、すべては停止していません（少し待ってから、もう一度停止してください）",
     ),
@@ -622,6 +626,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.status.stopped",
         "Stopping the calculation for the current conditions (the status becomes canceled when it stops)",
+    ),
+    (
+        "conditions.status.earlier_conditions_canceled",
+        "Canceled the waiting and running calculations for the earlier conditions",
     ),
     (
         "conditions.status.stop_not_accepted",
