@@ -127,7 +127,8 @@ OS・コンテナなど、動かす環境によって違う処理は、`foundati
     - `platform_foundation` は、ワークスペースの他のクレートに依存しない
     - foundation の他のクレート（`analysis` など）は、`platform_foundation` に依存しない（純粋な計算に環境への依存を入れないため）
     - Model・Application・View のクレートは、要るものだけが依存する（`scripts/_arch_rules_data.ps1` で、依存してよいクレートを決める）
-    - OS の API のクレート（windows-sys など）を使ってよいのは、`platform_foundation` と、画面の部品の OS への依存を持つ View の実行ファイル（`job_manager_app`）だけとする
+    - OS の API のクレート（windows-sys など）を使ってよいのは、`platform_foundation` と、画面の部品の OS への依存を持つ View の実行ファイル（`job_manager_app`）だけとする。ただし、移す順の 2 を終えるまでは、`job_ipc` も使う
+    - 外のクレート（windows-sys など）の決まりは、今の依存チェック（`scripts/check_architecture_dependencies.ps1`）では検査しない（ワークスペースの中のクレートの依存だけを見るため）。検査に足すまでは人が守る。検査に足すことは、後の課題とする
 - **試験**
     - 環境に依存する実装の試験は、`platform_foundation` の中で行う（環境ごとに、CI の Ubuntu と Windows で確かめる）
     - 業務のクレートの試験は、今ある境目の trait（`job_manager` の `Launcher` など）で差し替える。`platform_foundation` を差し替えるための trait は作らない
@@ -135,13 +136,12 @@ OS・コンテナなど、動かす環境によって違う処理は、`foundati
 
 | 順 | 今の場所 | 中身 | 扱い |
 |---|---|---|---|
-| 1 | `job_manager` の `launcher.rs` | コンソールを出さない指定（`#[cfg(windows)]`） | `platform_foundation` の `process` に移し、ランナーをジョブオブジェクトに入れる処理と一緒に入れる（`JOB_MANAGER_STORAGE_DESIGN.md` 3.3） |
-| 2 | `job_ipc` の `endpoint/windows.rs`・`unix.rs` | 名前付きパイプ・UNIX ドメインソケット（windows-sys） | `platform_foundation` の `ipc` に移す。枠・要求と応答の型は `job_ipc` に残す |
-| 3 | `application` の `job_client/pipe.rs` | ウィンドウを前に出す権利を渡す（`#[cfg(windows)]`） | `platform_foundation` に移す |
-| 4 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` に移し、3 か所で共有する |
-| 5 | `job_manager_app` の `main.rs`・`locale.rs`・`store_change.rs` | タスクトレイ・レジストリ・ロケールなど（windows-sys） | タスクトレイなどの画面の部品は残す。画面の部品でないもの（レジストリ・ロケールの取得など）を移すかは、そのときに決める |
+| 1 | `job_manager` の `launcher.rs`、`application` の `job_client/pipe.rs` | コンソールを出さない指定（`#[cfg(windows)]`。ランナーとジョブマネージャーを起動するとき） | `platform_foundation` の `process` に移し、2 か所で同じ API を使う。ランナーをジョブオブジェクトに入れる処理と一緒に入れる（`JOB_MANAGER_STORAGE_DESIGN.md` 3.3） |
+| 2 | `job_ipc` の `endpoint/windows.rs`・`unix.rs` | 名前付きパイプ・UNIX ドメインソケット、ウィンドウを前に出す権利を渡す（`allow_server_foreground`）（windows-sys） | `platform_foundation` の `ipc` に移す。枠・要求と応答の型は `job_ipc` に残す |
+| 3 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` に移し、3 か所で共有する |
+| 4 | `job_manager_app` の `main.rs`・`tray.rs`・`locale.rs`・`store_change.rs` | タスクトレイ（ウィンドウを前に出す権利を渡す処理を含む）・レジストリ・ロケールなど（windows-sys） | タスクトレイなどの画面の部品は残す。画面の部品でないもの（レジストリ・ロケールの取得など）を移すかは、そのときに決める |
 
-- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行う。2 から 5 は、分けて行う
+- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行う。2 から 4 は、分けて行う
 - クレートを作る変更で、ワークスペースの `members`・`scripts/_arch_rules_data.ps1`・この文書の層の図を更新する（依存チェック運用）
 
 ## 📏 運用ルール
