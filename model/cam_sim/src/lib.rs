@@ -24,6 +24,8 @@ mod stock_model;
 mod tri_dexel;
 mod workflow;
 
+/// ツールパス生成の入力と、計算の区切りごとの記録（ツールパス生成を続きから計算するため）。
+pub use cam_algorithms::{CamSolverInput, Checkpoints, SavedRecord};
 /// デクセルの区間の端の、量子化した法線。
 pub use dexel_normal::DexelNormal;
 /// シミュレーション実行時のエラー型。
@@ -40,7 +42,7 @@ pub use job_input_file::{
 /// ジョブ 1 つの計算（入力から成果物のバイト列を作る）。
 pub use job_run::{
     CuttingSimulationRun, JobRunFailure, TOOLPATH_MEMORY_LIMIT_BYTES, run_cam_solver,
-    run_cutting_simulation, toolpath_memory_bytes,
+    run_cam_solver_resumable, run_cutting_simulation, toolpath_memory_bytes,
 };
 pub use preflight::{CuttingSimulationInputError, cutting_simulation_input_errors};
 pub use product_deviation::ProductDeviations;

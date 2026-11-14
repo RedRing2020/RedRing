@@ -21,15 +21,23 @@ use cam_core::{
 use geo_algorithms::Point3D;
 use geo_contracts::default_kernel_numerical_zero_tolerance;
 
+use crate::checkpoint::Checkpoints;
 use crate::inverse_offset_shape::InverseOffsetShape;
 use crate::scan_frame::{ScanFrame, ScanRegion};
 use crate::solver::CamSolverError;
+
+mod resume;
+
+use resume::{ScanState, encode_passes};
 
 /// 走査線の向きの座標 `frame` の逆オフセット形状 `cutter` から、その座標の範囲 `region` のスキャン加工 ToolPath を、
 /// トレランス `tolerance` で生成する（点は加工の座標）。
 ///
 /// 各パスは `ContourLevelPath` 1 件に対応し、`z_level` にはパス内の最も高い点（段の点を含む）の高さを格納する。
 /// パスの点の数の合計が `point_limit` を超えたら、走査ラインごとに確かめて止める（メモリを使い切る前に）。
+///
+/// `checkpoints` があれば、走査ラインを区切りとして、パスを足した走査ラインごとに記録を書き足す。前の実行の記録があれば、
+/// そのパスを読み戻し、続きの走査ラインから計算する（記録を使えなければ、捨てて最初から計算する）。
 ///
 /// # Errors
 ///
@@ -42,6 +50,7 @@ pub(crate) fn generate_scanline_toolpath(
     (region, frame): (&ScanRegion, ScanFrame),
     tolerance: f64,
     point_limit: usize,
+    mut checkpoints: Option<&mut dyn Checkpoints>,
 ) -> Result<ToolPath<f64>, CamSolverError> {
     if !(tolerance.is_finite() && tolerance > 0.0) {
         return Err(CamSolverError::InvalidInput(
@@ -58,11 +67,15 @@ pub(crate) fn generate_scanline_toolpath(
     let ys = uniform_samples(y_min, y_max, params.stepover, point_limit)?;
 
     let mut passes: Vec<Vec<Point3D<f64>>> = Vec::new();
+    let start = match checkpoints.as_deref_mut() {
+        Some(checkpoints) => resume::restore(checkpoints, ys.len(), point_limit, &mut passes),
+        None => ScanState::default(),
+    };
     // パスの点の数の合計
-    let mut points = 0usize;
+    let mut points = start.points;
     // 範囲を通る走査線の番号（ジグザグの送る向きを決める）
-    let mut line = 0;
-    for &y in &ys {
+    let mut line = start.line;
+    for (index, &y) in ys.iter().enumerate().skip(start.next) {
         let Some((x_min, x_max)) = region.x_range_at(y) else {
             continue;
         };
@@ -73,7 +86,7 @@ pub(crate) fn generate_scanline_toolpath(
         let forward = match params.cut_direction {
             ScanlineCutDirection::DownCut => false,
             ScanlineCutDirection::UpCut => true,
-            ScanlineCutDirection::ZigZag => line % 2 == 0,
+            ScanlineCutDirection::ZigZag => line.is_multiple_of(2),
         };
         let passes_before = passes.len();
         scan_line(
@@ -89,6 +102,17 @@ pub(crate) fn generate_scanline_toolpath(
             .fold(points, |sum, pass| sum.saturating_add(pass.len()));
         if points > point_limit {
             return Err(CamSolverError::TooManyPoints);
+        }
+        // パスのない走査ラインは書かない（次の走査ラインの位置は、次の記録の状態が持つ）
+        if let Some(checkpoints) = checkpoints.as_deref_mut()
+            && passes.len() > passes_before
+        {
+            let state = ScanState {
+                next: index + 1,
+                line,
+                points,
+            };
+            checkpoints.record(&state.encode(), &encode_passes(&passes[passes_before..]));
         }
     }
 

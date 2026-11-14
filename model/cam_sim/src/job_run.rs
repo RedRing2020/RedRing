@@ -4,7 +4,10 @@
 
 use std::io::{Read, Write};
 
-use cam_algorithms::{CamSolverError, CamSolverInput, ProductSurface, solve_toolpath};
+use cam_algorithms::{
+    CamSolverError, CamSolverInput, Checkpoints, ProductSurface, solve_toolpath,
+    solve_toolpath_resumable,
+};
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, LengthUnit, ToolPath,
     read_toolpath_artifact_v1, write_toolpath_payload_v1,
@@ -84,7 +87,30 @@ pub struct CuttingSimulationRun {
 /// 超えるなら、使い切る前に止める）
 pub fn run_cam_solver(input: &CamSolverInput) -> Result<Vec<u8>, JobRunFailure> {
     let point_limit = toolpath_point_limit(TOOLPATH_MEMORY_LIMIT_BYTES);
-    let toolpath = solve_toolpath(input, point_limit).map_err(|error| {
+    toolpath_artifact(input, point_limit, solve_toolpath(input, point_limit))
+}
+
+/// [`run_cam_solver`] と同じくツールパスを生成し、計算の区切りごとに `checkpoints` に記録を書き足す。前の実行の記録が
+/// あれば、続きから計算する（記録を使えなければ、捨てて最初から計算する）
+pub fn run_cam_solver_resumable(
+    input: &CamSolverInput,
+    checkpoints: &mut dyn Checkpoints,
+) -> Result<Vec<u8>, JobRunFailure> {
+    let point_limit = toolpath_point_limit(TOOLPATH_MEMORY_LIMIT_BYTES);
+    toolpath_artifact(
+        input,
+        point_limit,
+        solve_toolpath_resumable(input, point_limit, checkpoints),
+    )
+}
+
+/// 点の数の上限 `point_limit` で生成した `solved` を、ツールパスの成果物のバイト列にする
+fn toolpath_artifact(
+    input: &CamSolverInput,
+    point_limit: usize,
+    solved: Result<ToolPath<f64>, CamSolverError>,
+) -> Result<Vec<u8>, JobRunFailure> {
+    let toolpath = solved.map_err(|error| {
         let limit = match error {
             CamSolverError::TooManyPoints => format!(
                 " (point limit {point_limit} for the memory limit of {TOOLPATH_MEMORY_LIMIT_BYTES} bytes)"

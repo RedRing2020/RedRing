@@ -7,11 +7,12 @@ use std::time::Instant;
 
 use cam_sim::{
     JobRunFailure, read_cam_solver_input_v1, read_cutting_simulation_input_v1, run_cam_solver,
-    run_cutting_simulation,
+    run_cam_solver_resumable, run_cutting_simulation,
 };
 
 use crate::ExitCode;
 use crate::args::{JobKind, RunnerArgs};
+use crate::resume::{ResumeFile, checksum, file_checksum};
 
 /// ツールパス生成の成果物のファイルの名前
 const TOOLPATH_FILE: &str = "toolpath.bin";
@@ -58,6 +59,17 @@ pub(crate) fn run(args: &RunnerArgs) -> ExitCode {
             failure.code
         }
     };
+    // 途中の結果は、終わったら要らない（成功なら成果物ができ、失敗なら次は最初から計算するため。消せなくても、終わり
+    // 方は変えない）
+    if let Some(resume) = &args.resume
+        && let Err(error) = fs::remove_file(resume)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        log.line(&format!(
+            "resume: cannot remove {}: {error}",
+            resume.display()
+        ));
+    }
     let state = if code == ExitCode::Succeeded {
         "succeeded"
     } else {
@@ -123,10 +135,15 @@ fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
     let input = read_file(&args.input, "input")?;
     let (artifact, file_name) = match args.job_kind {
         JobKind::Cam => {
+            let input_checksum = checksum(&input);
             let input = read_cam_solver_input_v1(&mut input.as_slice()).map_err(|error| {
                 Failure::new(ExitCode::InputInvalid, format!("invalid input: {error}"))
             })?;
-            let artifact = run_cam_solver(&input).map_err(job_failure)?;
+            let artifact = match &args.resume {
+                Some(path) => solve_resumable(path, input_checksum, &input, log),
+                None => run_cam_solver(&input),
+            }
+            .map_err(job_failure)?;
             (artifact, TOOLPATH_FILE)
         }
         JobKind::Sim => {
@@ -167,6 +184,55 @@ fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
             )
         })?;
     Ok(path)
+}
+
+/// 途中の結果のファイル `path` に区切りごとの記録を書き足しながら、ツールパスを生成する（記録があれば続きから計算する）
+///
+/// ファイルを使えない（ランナーの実行ファイルを読めない・ファイルを開けない）ときは、記録せずに最初から計算する。
+/// 途中の結果の扱いは、ランナーのログに書く（画面には出さない）。
+fn solve_resumable(
+    path: &Path,
+    input_checksum: u64,
+    input: &cam_sim::CamSolverInput,
+    log: &mut RunnerLog,
+) -> Result<Vec<u8>, JobRunFailure> {
+    let runner_checksum = match std::env::current_exe().and_then(|runner| file_checksum(&runner)) {
+        Ok(checksum) => checksum,
+        Err(error) => {
+            log.line(&format!(
+                "resume: cannot read the runner: {error}; computing without recording"
+            ));
+            return run_cam_solver(input);
+        }
+    };
+    let mut resume = match ResumeFile::open(path, runner_checksum, input_checksum) {
+        Ok(resume) => resume,
+        Err(error) => {
+            log.line(&format!(
+                "resume: cannot use {}: {error}; computing without recording",
+                path.display()
+            ));
+            // 次の実行でも使えないままにならないように、消す
+            if let Err(error) = fs::remove_file(path)
+                && error.kind() != std::io::ErrorKind::NotFound
+            {
+                log.line(&format!(
+                    "resume: cannot remove {}: {error}",
+                    path.display()
+                ));
+            }
+            return run_cam_solver(input);
+        }
+    };
+    let mut write_notes = |resume: &mut ResumeFile| {
+        for note in resume.take_notes() {
+            log.line(&note);
+        }
+    };
+    write_notes(&mut resume);
+    let solved = run_cam_solver_resumable(input, &mut resume);
+    write_notes(&mut resume);
+    solved
 }
 
 fn remove_if_exists(path: &Path) -> Result<(), Failure> {

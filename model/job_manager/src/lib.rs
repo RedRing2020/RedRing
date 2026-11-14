@@ -304,6 +304,9 @@ impl<L: Launcher> JobManagerService<L> {
         // 書けなければ、止めたランナーを残し、次の回に「止められた」失敗として記録する
         self.store.write_job(&self.lock, &job)?;
         self.running.remove(&job_id);
+        // 取り消したジョブは続けられないため、途中の結果を消す。消せなくても取り消しは済んでいる（再計算するときに
+        // 消し直す）
+        let _ = self.store.remove_resume(&self.lock, job_id);
         Ok(true)
     }
 
@@ -342,8 +345,8 @@ impl<L: Launcher> JobManagerService<L> {
     /// なければ空）
     ///
     /// そのジョブと依存関係でつながる、失敗・取り消し・中断のジョブもあわせて戻す（前のジョブが終わったままでは
-    /// 計算できず、後のジョブは前のジョブの失敗で失敗になっているため）。戻したジョブの前の計算の成果物・ログは
-    /// 消す。計算した回数は数え続ける。
+    /// 計算できず、後のジョブは前のジョブの失敗で失敗になっているため）。戻したジョブの前の計算の成果物・ログ・
+    /// 途中の結果は消す。計算した回数は数え続ける。
     pub fn retry(&mut self, job_id: u64, now_ms: u64) -> Result<Vec<u64>, StoreError> {
         let (jobs, _) = self.store.load_jobs()?;
         let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
@@ -361,14 +364,15 @@ impl<L: Launcher> JobManagerService<L> {
             return Ok(Vec::new());
         }
         let targets = connected_jobs(&jobs, job_id, retryable);
-        self.requeue(&by_id, &targets, now_ms)?;
+        self.requeue(&by_id, &targets, Resume::Remove, now_ms)?;
         Ok(targets.into_iter().collect())
     }
 
     /// 中断のジョブを、計算待ちに戻す。戻したジョブの番号（小さい順。中断でなければ空）
     ///
     /// そのジョブが待つ（依存関係で前の）中断のジョブもあわせて戻す（前のジョブが中断のままでは計算できないため）。
-    /// 前の計算のログ・進み具合は消す。計算した回数は数え続ける。
+    /// 前の計算のログ・進み具合は消し、途中の結果は残す（ツールパス生成は、途中の結果から続けて計算する）。計算した
+    /// 回数は数え続ける。
     pub fn resume(&mut self, job_id: u64, now_ms: u64) -> Result<Vec<u64>, StoreError> {
         let (jobs, _) = self.store.load_jobs()?;
         let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
@@ -381,20 +385,24 @@ impl<L: Launcher> JobManagerService<L> {
             return Ok(Vec::new());
         }
         let targets = earlier_jobs(&jobs, job_id, interrupted);
-        self.requeue(&by_id, &targets, now_ms)?;
+        self.requeue(&by_id, &targets, Resume::Keep, now_ms)?;
         Ok(targets.into_iter().collect())
     }
 
-    /// ジョブ `targets` を、計算待ちに戻す（前の計算のファイルを先にすべて消す。消せないファイルがあれば、記録を
-    /// 変えずに誤りにする）
+    /// ジョブ `targets` を、計算待ちに戻す（前の計算のファイルを先にすべて消す。途中の結果は `resume` で残すかを
+    /// 決める。消せないファイルがあれば、記録を変えずに誤りにする）
     fn requeue(
         &mut self,
         by_id: &HashMap<u64, &StoredJob>,
         targets: &BTreeSet<u64>,
+        resume: Resume,
         now_ms: u64,
     ) -> Result<(), StoreError> {
         for &id in targets {
             self.store.remove_job_outputs(&self.lock, id)?;
+            if resume == Resume::Remove {
+                self.store.remove_resume(&self.lock, id)?;
+            }
         }
         // 前のジョブ（番号の小さいジョブ）から戻す
         for &id in targets {
@@ -600,8 +608,19 @@ impl<L: Launcher> JobManagerService<L> {
             logs: self.store.logs_dir(job.job_id),
             progress: self.store.progress_file(job.job_id),
             stderr: self.store.stderr_file(job.job_id),
+            // ツールパス生成だけが途中の結果を持つ（切削シミュレーションは、続けるときも最初から計算する）
+            resume: (job.kind == StoredJobKind::Cam).then(|| self.store.resume_file(job.job_id)),
         }
     }
+}
+
+/// 計算待ちに戻すときの、途中の結果の扱い
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Resume {
+    /// 残す（続きから計算する）
+    Keep,
+    /// 消す（最初から計算する）
+    Remove,
 }
 
 /// ジョブ `start` と、その成果物を使う後のジョブ（依存関係を後の向きにたどる。`member` を満たすジョブだけを

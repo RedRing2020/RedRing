@@ -1255,6 +1255,7 @@ fn scanline_toolpaths_require_a_positive_finite_tolerance() {
             ),
             tolerance,
             usize::MAX,
+            None,
         );
         assert!(
             matches!(result, Err(CamSolverError::InvalidInput(_))),
@@ -1503,4 +1504,110 @@ fn scanline_angles_must_be_finite() {
             CamSolverError::InvalidScanline(ScanlineInputError::AngleNotFinite)
         );
     }
+}
+
+/// 区切りの記録をメモリに持つ（前の実行の記録 `saved` を渡し、書き足した記録と捨てた理由を覚える）
+#[derive(Default)]
+struct MemoryCheckpoints {
+    saved: std::collections::VecDeque<crate::SavedRecord>,
+    recorded: Vec<crate::SavedRecord>,
+    discarded: Option<String>,
+}
+
+impl crate::Checkpoints for MemoryCheckpoints {
+    fn next_saved(&mut self) -> Option<crate::SavedRecord> {
+        self.saved.pop_front()
+    }
+
+    fn discard(&mut self, reason: &str) {
+        self.saved.clear();
+        self.discarded = Some(reason.to_string());
+    }
+
+    fn record(&mut self, state: &[u8], result: &[u8]) {
+        self.recorded.push(crate::SavedRecord {
+            state: state.to_vec(),
+            result: result.to_vec(),
+        });
+    }
+}
+
+/// ジグザグに送る、中央が盛り上がった曲面のスキャン加工の入力
+fn zigzag_dome_input() -> CamSolverInput {
+    let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    let OperationSpec::Scanline(params) = &mut input.operation;
+    params.cut_direction = ScanlineCutDirection::ZigZag;
+    input
+}
+
+/// 記録 `saved` を前の実行の記録として渡して、続きから計算する
+fn resume_from(
+    input: &CamSolverInput,
+    saved: &[crate::SavedRecord],
+) -> (cam_core::ToolPath<f64>, MemoryCheckpoints) {
+    let mut checkpoints = MemoryCheckpoints {
+        saved: saved.iter().cloned().collect(),
+        ..MemoryCheckpoints::default()
+    };
+    let toolpath = crate::solve_toolpath_resumable(input, usize::MAX, &mut checkpoints).unwrap();
+    (toolpath, checkpoints)
+}
+
+#[test]
+fn resuming_from_any_scanline_gives_the_same_toolpath_as_from_the_start() {
+    let input = zigzag_dome_input();
+    let mut first = MemoryCheckpoints::default();
+    let full = crate::solve_toolpath_resumable(&input, usize::MAX, &mut first).unwrap();
+    assert_eq!(full, solve_toolpath(&input, usize::MAX).unwrap());
+    let records = first.recorded;
+    assert!(records.len() >= 3, "{}", records.len());
+
+    for done in [1, records.len() / 2, records.len() - 1, records.len()] {
+        let (toolpath, checkpoints) = resume_from(&input, &records[..done]);
+        assert_eq!(toolpath, full, "resumed after {done} records");
+        // 続きの走査ラインの記録だけを書き足す
+        assert_eq!(checkpoints.recorded, records[done..]);
+        assert_eq!(checkpoints.discarded, None);
+    }
+}
+
+#[test]
+fn unusable_scanline_records_are_discarded_and_computed_from_the_start() {
+    let input = zigzag_dome_input();
+    let mut first = MemoryCheckpoints::default();
+    let full = crate::solve_toolpath_resumable(&input, usize::MAX, &mut first).unwrap();
+    let records = first.recorded;
+
+    let mut short_paths = records[..2].to_vec();
+    short_paths[1].result.pop();
+    let mut wrong_count = records[..2].to_vec();
+    wrong_count[1].state = records[0].state.clone();
+    let mut not_scan = records[..1].to_vec();
+    not_scan[0].state[0] = b'X';
+    let reversed = vec![records[1].clone(), records[0].clone()];
+    for saved in [short_paths, wrong_count, not_scan, reversed] {
+        let (toolpath, checkpoints) = resume_from(&input, &saved);
+        assert_eq!(toolpath, full);
+        assert!(checkpoints.discarded.is_some());
+        assert_eq!(checkpoints.recorded, records);
+    }
+}
+
+#[test]
+fn scanline_records_over_the_point_limit_are_discarded_before_reading_the_points() {
+    let input = zigzag_dome_input();
+    let mut first = MemoryCheckpoints::default();
+    crate::solve_toolpath_resumable(&input, usize::MAX, &mut first).unwrap();
+    // 2 つ目の記録までの点の数（状態の最後の数）より 1 少ない上限
+    let state = &first.recorded[1].state;
+    let points = u64::from_le_bytes(state[state.len() - 8..].try_into().unwrap()) as usize;
+    let mut checkpoints = MemoryCheckpoints {
+        saved: first.recorded[..2].iter().cloned().collect(),
+        ..MemoryCheckpoints::default()
+    };
+    let _ = crate::solve_toolpath_resumable(&input, points - 1, &mut checkpoints);
+    assert_eq!(
+        checkpoints.discarded.as_deref(),
+        Some("the paths of the scanline records exceed the point limit")
+    );
 }

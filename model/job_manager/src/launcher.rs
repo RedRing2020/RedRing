@@ -21,6 +21,8 @@ pub struct LaunchSpec {
     pub progress: PathBuf,
     /// ランナーの標準エラー出力を書くファイル（ランナーの引数には渡さない）
     pub stderr: PathBuf,
+    /// ツールパス生成の途中の結果のファイル（ツールパス生成だけ）
+    pub resume: Option<PathBuf>,
 }
 
 impl LaunchSpec {
@@ -43,6 +45,9 @@ impl LaunchSpec {
             "--progress".into(),
             self.progress.clone().into(),
         ]);
+        if let Some(resume) = &self.resume {
+            args.extend(["--resume".into(), resume.clone().into()]);
+        }
         args
     }
 }

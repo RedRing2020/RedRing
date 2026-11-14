@@ -622,6 +622,62 @@ fn interrupted_cam_and_sim(root: &TempRoot) -> (JobManagerService<FakeLauncher>,
     (service, launcher)
 }
 
+/// ジョブ `job_id` の途中の結果のファイルを書く
+fn write_resume(root: &TempRoot, job_id: u64) -> PathBuf {
+    let resume = root.store().resume_file(job_id);
+    fs::create_dir_all(resume.parent().unwrap()).unwrap();
+    fs::write(&resume, b"records").unwrap();
+    resume
+}
+
+#[test]
+fn only_toolpath_generation_is_given_the_resume_file() {
+    let root = TempRoot::new();
+    let (mut service, launcher) = interrupted_cam_and_sim(&root);
+    service.resume(1, 3).unwrap();
+    launcher.0.borrow_mut().polls_until_done = 0;
+    for now in 4..10 {
+        service.tick(now);
+    }
+    let resumes: Vec<_> = launcher
+        .0
+        .borrow()
+        .launched
+        .iter()
+        .map(|spec| (spec.job_type, spec.resume.clone()))
+        .collect();
+    let toolpath_resume = Some(root.store().resume_file(1));
+    assert_eq!(
+        resumes,
+        [
+            ("cam", toolpath_resume.clone()),
+            ("cam", toolpath_resume),
+            ("sim", None)
+        ]
+    );
+}
+
+#[test]
+fn resuming_keeps_the_resume_file_and_retrying_or_canceling_removes_it() {
+    let root = TempRoot::new();
+    let (mut service, _) = interrupted_cam_and_sim(&root);
+    let resume = write_resume(&root, 1);
+    assert_eq!(service.resume(1, 3).unwrap(), vec![1]);
+    assert!(resume.exists());
+
+    let root = TempRoot::new();
+    let (mut service, _) = interrupted_cam_and_sim(&root);
+    let resume = write_resume(&root, 1);
+    assert_eq!(service.retry(1, 3).unwrap(), vec![1]);
+    assert!(!resume.exists());
+
+    let root = TempRoot::new();
+    let (mut service, _) = interrupted_cam_and_sim(&root);
+    let resume = write_resume(&root, 1);
+    assert!(service.cancel(1, 3).unwrap());
+    assert!(!resume.exists());
+}
+
 #[test]
 fn resuming_an_interrupted_job_queues_it_and_the_waiting_job_runs_after_it() {
     let root = TempRoot::new();
@@ -862,6 +918,7 @@ fn launch_arguments_name_only_files_under_the_job_folder() {
         logs: PathBuf::from("logs"),
         progress: PathBuf::from("progress.json"),
         stderr: PathBuf::from("logs/runner.stderr.log"),
+        resume: None,
     };
     let args: Vec<String> = spec
         .args()
@@ -884,6 +941,21 @@ fn launch_arguments_name_only_files_under_the_job_folder() {
             "--progress",
             "progress.json"
         ]
+    );
+    let cam = LaunchSpec {
+        job_type: "cam",
+        toolpath: None,
+        resume: Some(PathBuf::from("resume/toolpath.resume")),
+        ..spec
+    };
+    let args: Vec<String> = cam
+        .args()
+        .into_iter()
+        .map(|arg| arg.into_string().unwrap())
+        .collect();
+    assert_eq!(
+        args[args.len() - 2..],
+        ["--resume", "resume/toolpath.resume"]
     );
 }
 

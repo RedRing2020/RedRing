@@ -4,7 +4,8 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 pub(crate) const USAGE: &str = "usage: redring-batch-runner --job-type <cam|sim> --input <file> \
---output <dir> --logs <dir> [--toolpath <file> (sim only, required)] [--progress <file>]";
+--output <dir> --logs <dir> [--toolpath <file> (sim only, required)] [--resume <file> (cam only)] \
+[--progress <file>]";
 
 /// ジョブの種類
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +26,8 @@ pub(crate) struct RunnerArgs {
     pub output: PathBuf,
     pub logs: PathBuf,
     pub progress: Option<PathBuf>,
+    /// ツールパス生成の途中の結果のファイル（区切りごとの記録。あれば続きから計算する）
+    pub resume: Option<PathBuf>,
 }
 
 impl RunnerArgs {
@@ -36,6 +39,7 @@ impl RunnerArgs {
         let mut output = None;
         let mut logs = None;
         let mut progress = None;
+        let mut resume = None;
         let mut args = args.into_iter();
         while let Some(name) = args.next() {
             let slot = match name.to_str() {
@@ -45,6 +49,7 @@ impl RunnerArgs {
                 Some("--output") => &mut output,
                 Some("--logs") => &mut logs,
                 Some("--progress") => &mut progress,
+                Some("--resume") => &mut resume,
                 _ => return Err(format!("unknown argument: {}", name.to_string_lossy())),
             };
             let value = args
@@ -71,6 +76,9 @@ impl RunnerArgs {
             (JobKind::Cam, Some(_)) => return Err("--toolpath is only for sim".to_string()),
             (_, toolpath) => toolpath.map(PathBuf::from),
         };
+        if job_kind == JobKind::Sim && resume.is_some() {
+            return Err("--resume is only for cam".to_string());
+        }
         Ok(Self {
             job_kind,
             input: required(input, "--input")?,
@@ -78,6 +86,7 @@ impl RunnerArgs {
             output: required(output, "--output")?,
             logs: required(logs, "--logs")?,
             progress: progress.map(PathBuf::from),
+            resume: resume.map(PathBuf::from),
         })
     }
 }
@@ -107,6 +116,7 @@ mod tests {
         assert_eq!(cam.input, PathBuf::from("in.bin"));
         assert_eq!(cam.toolpath, None);
         assert_eq!(cam.progress, None);
+        assert_eq!(cam.resume, None);
 
         let sim = parse(&[
             "--job-type",
@@ -140,6 +150,13 @@ mod tests {
         assert!(with(&["--job-type", "nc"]).is_err());
         assert!(with(&["--job-type", "sim"]).is_err());
         assert!(with(&["--job-type", "cam", "--toolpath", "tp"]).is_err());
+        assert!(with(&["--job-type", "sim", "--toolpath", "tp", "--resume", "r"]).is_err());
+        assert_eq!(
+            with(&["--job-type", "cam", "--resume", "r"])
+                .unwrap()
+                .resume,
+            Some(PathBuf::from("r"))
+        );
         assert!(with(&["--job-type", "cam", "--input", "again"]).is_err());
         assert!(with(&["--job-type", "cam", "--verbose"]).is_err());
         assert!(with(&["--job-type"]).is_err());
