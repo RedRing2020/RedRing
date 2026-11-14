@@ -1,4 +1,4 @@
-//! ジョブが終わったときに示すか（タスクトレイの吹き出し）
+//! ジョブが終わったとき・中断にしたときに示すか（タスクトレイの吹き出し）
 
 use job_manager::ManagerEvent;
 use job_runtime::store::{StoredJob, StoredJobKind, StoredJobStatus};
@@ -8,13 +8,17 @@ use job_runtime::store::{StoredJob, StoredJobKind, StoredJobStatus};
 pub(crate) enum Finish {
     Succeeded,
     Failed,
+    /// 起動のときに、前に実行中だったジョブを中断にした（中断は自動では続けないため示す。トレイの終了で中断に
+    /// したときは、出来事がないため示さない）
+    Interrupted,
 }
 
 /// 出来事 `event` で示すジョブ（終わり方・番号・種類）。ジョブの記録 `jobs` は、出来事の後のもの
 ///
 /// 1 つの投入は、ツールパス生成とその成果物を使う切削シミュレーションのように、続くジョブを持つ。続けて計算する
 /// ジョブの途中では示さない。正常に終わったときは、そのジョブを待つ終わっていないジョブがないとき（最後のジョブ）
-/// だけ示す。失敗したときは、失敗したジョブだけを示し、その失敗で計算できなくなった後のジョブは示さない。
+/// だけ示す。失敗したときは、失敗したジョブだけを示し、その失敗で計算できなくなった後のジョブは示さない。中断に
+/// したジョブは示す。
 #[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn finished_job(
     event: &ManagerEvent,
@@ -31,9 +35,14 @@ pub(crate) fn finished_job(
             status: StoredJobStatus::Failed,
             ..
         } => (Finish::Failed, *job_id),
+        ManagerEvent::Interrupted { job_id } => (Finish::Interrupted, *job_id),
         _ => return None,
     };
     let job = jobs.iter().find(|job| job.job_id == job_id)?;
+    // 吹き出しを出す前に、計算待ちに戻した・取り消した中断のジョブは示さない
+    if finish == Finish::Interrupted && job.status != StoredJobStatus::Interrupted {
+        return None;
+    }
     // 同じ回の仕事で後のジョブを起動していることがあるため、終わっていない後のジョブはすべて待っているとみなす
     let waited = jobs
         .iter()
@@ -124,6 +133,24 @@ mod tests {
         assert_eq!(finished_job(&blocked, &jobs), None);
         assert_eq!(
             finished_job(&ManagerEvent::Started { job_id: 1 }, &jobs),
+            None
+        );
+    }
+
+    #[test]
+    fn a_job_interrupted_at_start_is_shown() {
+        let jobs = vec![
+            job(1, StoredJobKind::Cam, vec![], StoredJobStatus::Interrupted),
+            job(2, StoredJobKind::Sim, vec![1], StoredJobStatus::Queued),
+        ];
+        assert_eq!(
+            finished_job(&ManagerEvent::Interrupted { job_id: 1 }, &jobs),
+            Some((Finish::Interrupted, 1, StoredJobKind::Cam))
+        );
+        // 吹き出しを出す前に、計算待ちに戻した
+        let resumed = vec![job(1, StoredJobKind::Cam, vec![], StoredJobStatus::Queued)];
+        assert_eq!(
+            finished_job(&ManagerEvent::Interrupted { job_id: 1 }, &resumed),
             None
         );
     }

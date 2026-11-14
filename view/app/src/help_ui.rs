@@ -164,6 +164,7 @@ impl Notice {
                 | OperationStatus::StopNotYetAccepted
                 | OperationStatus::NothingToStop => NoticeLevel::Warning,
                 OperationStatus::Submitted { .. }
+                | OperationStatus::Resumed
                 | OperationStatus::Redone { .. }
                 | OperationStatus::LargeToolpathDeclined
                 | OperationStatus::Stopped

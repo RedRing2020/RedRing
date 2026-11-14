@@ -188,6 +188,8 @@ pub enum SubmissionKind {
     Full,
     /// 空間モデルに取り込んだ今の条件の CL を入力にする、切削シミュレーションだけ
     SimulationOnly,
+    /// 今の条件の中断のジョブを、計算待ちに戻す（新しく投入しない）
+    Resume,
 }
 
 /// 計算停止で、ジョブマネージャーが投入を受け取るのを待って取り消し直す回数（最初の 1 回を含む）
@@ -253,13 +255,15 @@ pub struct LargeToolpath {
 
 impl SubmissionKind {
     /// 工程に取り込んだ CL の状態 `toolpath` と、工程の今の改訂の計算の状態 `state` から決める投入（今の改訂の計算
-    /// が計算待ち・計算中・正常に終わっていれば、投入しない `None`。今の条件の CL があれば、CL をもう一度計算しない
-    /// ように、切削シミュレーションだけ）
+    /// が計算待ち・計算中・正常に終わっていれば、投入しない `None`。中断なら、そのジョブを続ける。今の条件の CL が
+    /// あれば、CL をもう一度計算しないように、切削シミュレーションだけ）
     fn of(toolpath: ImportedToolpathState, state: OperationJobState) -> Option<Self> {
         let done_or_pending =
             matches!(state, OperationJobState::Status(status) if status.is_waiting_or_done());
         if done_or_pending {
             None
+        } else if state == OperationJobState::Status(OperationJobStatus::Interrupted) {
+            Some(Self::Resume)
         } else if toolpath == ImportedToolpathState::Current {
             Some(Self::SimulationOnly)
         } else {
@@ -690,6 +694,10 @@ impl CuttingSimulationSession {
                     sequence,
                     operation,
                 )?;
+            }
+            SubmissionKind::Resume => {
+                self.workflow
+                    .resume_latest_revision_jobs(sequences, sequence, operation)?;
             }
         }
         Ok(())
@@ -1133,6 +1141,16 @@ pub(crate) mod tests {
             for toolpath in [ImportedToolpathState::None, ImportedToolpathState::Current] {
                 assert_eq!(SubmissionKind::of(toolpath, state), None);
             }
+        }
+        // 中断の計算は、新しく投入せずに続ける
+        for toolpath in [ImportedToolpathState::None, ImportedToolpathState::Current] {
+            assert_eq!(
+                SubmissionKind::of(
+                    toolpath,
+                    OperationJobState::Status(OperationJobStatus::Interrupted)
+                ),
+                Some(SubmissionKind::Resume)
+            );
         }
     }
 

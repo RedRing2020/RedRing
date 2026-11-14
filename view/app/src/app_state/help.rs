@@ -93,7 +93,9 @@ impl AppState {
             JobStatusLine::Status(OperationJobStatus::Failed)
             | JobStatusLine::Unreadable
             | JobStatusLine::ManagerNotFound => NoticeLevel::Error,
-            JobStatusLine::Status(OperationJobStatus::Canceled) => NoticeLevel::Warning,
+            JobStatusLine::Status(
+                OperationJobStatus::Canceled | OperationJobStatus::Interrupted,
+            ) => NoticeLevel::Warning,
             _ => NoticeLevel::Info,
         };
         let toolpath = self.document.imported_toolpath_state();

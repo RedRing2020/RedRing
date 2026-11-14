@@ -547,6 +547,16 @@ impl JobClient for PipeJobClient {
         Ok(())
     }
 
+    fn resume(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
+        self.connector
+            .connect()?
+            .resume(job_ids.to_vec())
+            .map_err(client_error)?;
+        // 計算待ちに戻したことが一覧に出るように、読み直しを頼む（待たない）
+        self.request_status();
+        Ok(())
+    }
+
     fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError> {
         match self.connector.connect_running() {
             Ok(_) => Ok(true),
@@ -762,6 +772,7 @@ fn status(status: JobStatus) -> CamJobStatus {
         JobStatus::Succeeded => CamJobStatus::Succeeded,
         JobStatus::Failed => CamJobStatus::Failed,
         JobStatus::Canceled => CamJobStatus::Canceled,
+        JobStatus::Interrupted => CamJobStatus::Interrupted,
     }
 }
 
@@ -770,7 +781,13 @@ fn store_error(reason: impl Into<String>) -> CamSimulationWorkflowError {
 }
 
 fn client_error(error: ClientError) -> CamSimulationWorkflowError {
-    store_error(error.to_string())
+    match error {
+        ClientError::Remote {
+            kind: ErrorKind::UnsupportedVersion,
+            ..
+        } => CamSimulationWorkflowError::JobManagerOutdated,
+        error => store_error(error.to_string()),
+    }
 }
 
 /// Windows では、ジョブマネージャーのコンソールのウィンドウを出さない

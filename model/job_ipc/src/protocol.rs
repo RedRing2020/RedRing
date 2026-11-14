@@ -3,8 +3,9 @@
 use serde::{Deserialize, Serialize};
 
 /// 口の版（要求・応答の形を変えたら上げる。要求を足すだけなら上げない。前のジョブマネージャーは、知らない要求に
-/// 正しくない要求の誤りを返す）
-pub const PROTOCOL_VERSION: u32 = 1;
+/// 正しくない要求の誤りを返す。ジョブの状態の値を足したら上げる。前のアプリは知らない状態を読めず、ジョブの一覧を
+/// まるごと読めなくなるため。版 2 で中断を足した）
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// 要求
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,9 +28,11 @@ pub enum Request {
     OpenWindow,
     /// 切削シミュレーションのジョブの結果（その CL）を取り込んだことを伝える
     RecordImported { simulation_job_id: u64 },
-    /// ジョブを取り消す（計算待ちは取り消し、計算中はランナーを止める。終わったジョブ・ないジョブは何もしない。
-    /// 取り消し終えるのを待たない）
+    /// ジョブを取り消す（計算待ち・中断は取り消し、計算中はランナーを止める。終わったジョブ・ないジョブは何も
+    /// しない。取り消し終えるのを待たない）
     Cancel { job_ids: Vec<u64> },
+    /// 中断のジョブを、計算待ちに戻す（中断でないジョブ・ないジョブは何もしない。戻し終えるのを待たない）
+    Resume { job_ids: Vec<u64> },
 }
 
 /// 応答
@@ -89,6 +92,8 @@ pub enum JobStatus {
     Succeeded,
     Failed,
     Canceled,
+    /// 計算の途中で、ジョブマネージャーの終了・異常終了・OS の再起動で止まった
+    Interrupted,
 }
 
 /// 投入元（投入元の ID・改訂の番号・改訂の鍵）

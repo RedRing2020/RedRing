@@ -83,14 +83,17 @@ pub(crate) fn check_folder(current: &Path, chosen: &Path) -> Result<FolderConten
     Ok(FolderContents::Other)
 }
 
-/// 保存先 `store` に、待ち・計算中のジョブ、または取り込みを待つ投入があるか
+/// 保存先 `store` に、待ち・計算中のジョブ（中断のジョブを待つものを除く）、または取り込みを待つ投入があるか
 ///
 /// 読めない保存先は、あるとみなす（読めない間に替えると、待ちのジョブが残るため）。保存先のフォルダがない（外した
 /// ドライブなど）ときは、ないとみなす。
 pub(crate) fn is_busy(store: &JobStore) -> bool {
     let unreadable = |error: &StoreError| !matches!(error, StoreError::Io(error) if error.kind() == std::io::ErrorKind::NotFound);
     let jobs = match store.load_jobs() {
-        Ok((jobs, _)) => jobs.iter().any(|job| !job.status.is_terminal()),
+        Ok((jobs, _)) => {
+            let idle = job_manager::idle_jobs(&jobs);
+            jobs.iter().any(|job| !idle.contains(&job.job_id))
+        }
         Err(error) => unreadable(&error),
     };
     let submissions = match store.inbox_submissions() {

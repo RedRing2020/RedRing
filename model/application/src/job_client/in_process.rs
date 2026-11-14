@@ -182,6 +182,11 @@ impl JobClient for InProcessJobClient {
         Ok(())
     }
 
+    fn resume(&mut self, _job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
+        // 同じプロセスの中で実行するため、計算の途中で止まった中断のジョブを持たない
+        Ok(())
+    }
+
     fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError> {
         Ok(true)
     }

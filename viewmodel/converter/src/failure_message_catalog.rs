@@ -38,6 +38,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "ジョブマネージャーがインストールされていないため、計算できません",
     ),
     (
+        "failure.job_manager_outdated",
+        "動いているジョブマネージャーの版が、このアプリと違います。ジョブマネージャーを起動し直してください",
+    ),
+    (
         "failure.job_manager_not_running",
         "ジョブマネージャーが動いていません",
     ),
@@ -142,6 +146,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.job_manager_not_found",
         "Cannot calculate because the job manager is not installed",
+    ),
+    (
+        "failure.job_manager_outdated",
+        "The running job manager is a different version from this app. Restart the job manager",
     ),
     (
         "failure.job_manager_not_running",

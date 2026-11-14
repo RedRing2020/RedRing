@@ -11,7 +11,9 @@ use std::time::{Duration, Instant};
 
 use crate::locale::{self, Language};
 use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText, ScrollArea};
-use job_manager::{DeletePlan, delete_plan, imported_sources, old_jobs, superseded_jobs};
+use job_manager::{
+    DeletePlan, delete_plan, idle_jobs, imported_sources, old_jobs, superseded_jobs,
+};
 use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
 
 use crate::messages::{change_failure_text, job_error_text, store_failure_key, text};
@@ -36,12 +38,13 @@ const LOG_TAIL_BYTES: u64 = 64 * 1024;
 /// ジョブの一覧の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
 const SELECTED_ROW_OPACITY: f32 = 0.45;
 
-const STATUSES: [StoredJobStatus; 5] = [
+const STATUSES: [StoredJobStatus; 6] = [
     StoredJobStatus::Queued,
     StoredJobStatus::Running,
     StoredJobStatus::Succeeded,
     StoredJobStatus::Failed,
     StoredJobStatus::Canceled,
+    StoredJobStatus::Interrupted,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -358,6 +361,7 @@ impl JobManagerWindow {
             StoredJobStatus::Succeeded => "status.succeeded",
             StoredJobStatus::Failed => "status.failed",
             StoredJobStatus::Canceled => "status.canceled",
+            StoredJobStatus::Interrupted => "status.interrupted",
         })
     }
 
@@ -374,7 +378,7 @@ impl JobManagerWindow {
 
     /// 選んだジョブの操作（状態で操作できるものだけを押せる。削除のほかは、1 つだけ選んだときに押せる）
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
-        use StoredJobStatus::{Canceled, Failed, Queued, Running};
+        use StoredJobStatus::{Canceled, Failed, Interrupted, Queued, Running};
         let idle = self.service.outstanding() == 0;
         let selected = self
             .selected_job()
@@ -384,8 +388,9 @@ impl JobManagerWindow {
             selected.is_some_and(|(_, status)| allowed.contains(&status))
         };
         let buttons = [
-            ("toolbar.cancel", can(&[Queued, Running])),
-            ("toolbar.retry", can(&[Failed, Canceled])),
+            ("toolbar.cancel", can(&[Queued, Running, Interrupted])),
+            ("toolbar.resume", can(&[Interrupted])),
+            ("toolbar.retry", can(&[Failed, Canceled, Interrupted])),
             ("toolbar.delete", idle && !self.selection.is_empty()),
             ("toolbar.raise", can(&[Queued])),
             ("toolbar.lower", can(&[Queued])),
@@ -414,6 +419,7 @@ impl JobManagerWindow {
         };
         match key {
             "toolbar.cancel" => self.send(JobCommand::Cancel(job_id)),
+            "toolbar.resume" => self.send(JobCommand::Resume(job_id)),
             "toolbar.retry" => self.send(JobCommand::Retry(job_id)),
             "toolbar.raise" => self.send(JobCommand::ChangePriority { job_id, delta: 1 }),
             _ => self.send(JobCommand::ChangePriority { job_id, delta: -1 }),
@@ -478,15 +484,10 @@ impl JobManagerWindow {
         {
             return targets.clone();
         }
-        let finished: BTreeSet<u64> = self
-            .jobs
-            .iter()
-            .filter(|job| job.status.is_terminal())
-            .map(|job| job.job_id)
-            .collect();
+        let idle = idle_jobs(&self.jobs);
         let superseded: Vec<u64> = superseded_jobs(&self.jobs)
             .into_iter()
-            .filter(|id| finished.contains(id))
+            .filter(|id| idle.contains(id))
             .collect();
         let imported = imported_sources(&self.jobs, |job_id| {
             bulk.imported_marks.get(&job_id).copied()
@@ -824,9 +825,11 @@ impl JobManagerWindow {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 self.show_language_menu(ui);
                 // 計算待ち・計算中のジョブがある間・保存先を読めない間は替えない（選んだときに、取り込みを待つ投入も
-                // 確かめる。保存先のフォルダがない（外したドライブなど）ときは替えられる）
+                // 確かめる。保存先のフォルダがない（外したドライブなど）ときは替えられる。中断のジョブと、それを待つ
+                // ジョブは、利用者が操作するまで計算しないため替えられる）
+                let idle = idle_jobs(&self.jobs);
                 let busy = self.service.outstanding() > 0
-                    || self.jobs.iter().any(|job| !job.status.is_terminal())
+                    || self.jobs.iter().any(|job| !idle.contains(&job.job_id))
                     || self
                         .store_error
                         .is_some_and(|failure| failure != StoreFailure::NotFound);
@@ -1168,6 +1171,7 @@ fn status_icon(status: StoredJobStatus) -> &'static str {
         StoredJobStatus::Succeeded => "✔",
         StoredJobStatus::Failed => "⚠",
         StoredJobStatus::Canceled => "⏹",
+        StoredJobStatus::Interrupted => "⏯",
     }
 }
 
@@ -1178,6 +1182,7 @@ fn status_color(status: StoredJobStatus) -> Color32 {
         StoredJobStatus::Succeeded => Color32::from_rgb(80, 200, 120),
         StoredJobStatus::Failed => Color32::from_rgb(230, 90, 90),
         StoredJobStatus::Canceled => Color32::from_rgb(200, 160, 60),
+        StoredJobStatus::Interrupted => Color32::from_rgb(170, 130, 230),
     }
 }
 

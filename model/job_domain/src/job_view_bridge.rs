@@ -17,6 +17,8 @@ pub enum CamJobStatus {
     Succeeded,
     Failed,
     Canceled,
+    /// 計算の途中で、ジョブマネージャーの終了・異常終了・OS の再起動で止まった（計算で続けられる）
+    Interrupted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

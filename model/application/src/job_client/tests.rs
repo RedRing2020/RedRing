@@ -377,6 +377,33 @@ fn broken_or_tampered_records_do_not_break_reading_or_importing() {
 }
 
 #[test]
+fn interrupted_jobs_are_read_through_the_endpoint_and_can_be_resumed() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    client.submit(submission()).unwrap();
+    manager.tick(1);
+    drop(manager);
+
+    // ツールパス生成が中断し、切削シミュレーションが待っている
+    let lock = store.lock().unwrap();
+    let (mut jobs, _) = store.load_jobs().unwrap();
+    jobs[0].status = StoredJobStatus::Interrupted;
+    jobs[1].status = StoredJobStatus::Queued;
+    store.write_job(&lock, &jobs[0]).unwrap();
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(
+        client.toolpath_jobs().unwrap()[0].status,
+        CamJobStatus::Interrupted
+    );
+    let simulations = client.simulation_jobs().unwrap();
+    assert_eq!(simulations[0].status, CamJobStatus::Queued);
+    assert_eq!(simulations[0].toolpath_status, CamJobStatus::Interrupted);
+    client.resume(&[1]).unwrap();
+}
+
+#[test]
 fn the_job_manager_window_is_opened_through_the_endpoint() {
     let root = TempRoot::new();
     let mut client = root.client();
