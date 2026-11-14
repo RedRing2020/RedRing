@@ -373,7 +373,8 @@ impl Connector {
         if background {
             command.arg("--background");
         }
-        hide_console_window(&mut command);
+        // ジョブマネージャーのコンソールのウィンドウを出さない
+        platform_foundation::process::hide_console_window(&mut command);
         let child = command
             .spawn()
             .map_err(|error| store_error(format!("cannot start the job manager: {error}")))?;
@@ -788,16 +789,4 @@ fn client_error(error: ClientError) -> CamSimulationWorkflowError {
         } => CamSimulationWorkflowError::JobManagerOutdated,
         error => store_error(error.to_string()),
     }
-}
-
-/// Windows では、ジョブマネージャーのコンソールのウィンドウを出さない
-fn hide_console_window(command: &mut Command) {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
-    #[cfg(not(windows))]
-    let _ = command;
 }
