@@ -56,6 +56,8 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
 pub(crate) enum OperationStatus {
     /// 投入した（今の条件の CL から、切削シミュレーションだけを投入したか）
     Submitted { simulation_only: bool },
+    /// 今の条件の中断した計算を、計算待ちに戻すよう頼んだ
+    Resumed,
     /// 空間モデルの CL を消して、ツールパス生成から投入し直した（今の条件の計算待ち・計算中のジョブを取り消すよう
     /// 頼んだか）
     Redone { canceled: bool },
@@ -158,6 +160,7 @@ fn operation_status_message(
         OperationStatus::Submitted {
             simulation_only: true,
         } => ("conditions.status.submitted_simulation", vec![]),
+        OperationStatus::Resumed => ("conditions.status.resumed", vec![]),
         OperationStatus::Redone { canceled: false } => ("conditions.status.redone", vec![]),
         OperationStatus::Redone { canceled: true } => ("conditions.status.redone_canceled", vec![]),
         OperationStatus::SubmitFailed(message) => {
@@ -474,6 +477,9 @@ fn navigation_key(status: &JobStatusLine, toolpath_current: bool) -> Option<&'st
         JobStatusLine::Status(OperationJobStatus::Succeeded) => {
             Some("conditions.navigation.calculated")
         }
+        JobStatusLine::Status(OperationJobStatus::Interrupted) => {
+            Some("conditions.navigation.interrupted")
+        }
         // ジョブマネージャーの結果を消した後・別の PC で開いたとき（CL から切削シミュレーションだけを計算する）
         JobStatusLine::NotSubmitted if toolpath_current => {
             Some("conditions.navigation.imported_toolpath_only")
@@ -540,13 +546,14 @@ fn row_status_color(key: &str) -> Option<Color32> {
         | "conditions.operations.status.unreadable"
         | "conditions.operations.status.condition_error" => Some(Color32::from_rgb(230, 90, 90)),
         "conditions.operations.status.canceled" => Some(Color32::from_rgb(200, 160, 60)),
+        "conditions.operations.status.interrupted" => Some(Color32::from_rgb(170, 130, 230)),
         _ => None,
     }
 }
 
 /// 計算の条件の状態 `setup`・計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から決める、
 /// 次に押す操作（目立たせる。条件を設定していない工程は工程の設定を開き、条件に誤りがある工程はない（素材・形状の
-/// 誤りもあり、工程の設定で直せるとは限らないため。理由は確かめの一覧に出す）。未計算・計算失敗・取り消しは
+/// 誤りもあり、工程の設定で直せるとは限らないため。理由は確かめの一覧に出す）。未計算・計算失敗・取り消し・中断は
 /// 計算（取込済みで切削シミュレーションの結果がない工程も、切削シミュレーションだけを計算するため計算。画面の下の案内と
 /// 同じ）、計算済みで取り込んでいなければ CL 取込。計算待ち・計算中・計算済みで取込済み、状態が分からない工程はない）
 fn next_action_of(
@@ -561,9 +568,11 @@ fn next_action_of(
     }
     match status {
         JobStatusLine::NotSubmitted => Some(RowAction::Submit),
-        JobStatusLine::Status(OperationJobStatus::Failed | OperationJobStatus::Canceled) => {
-            Some(RowAction::Submit)
-        }
+        JobStatusLine::Status(
+            OperationJobStatus::Failed
+            | OperationJobStatus::Canceled
+            | OperationJobStatus::Interrupted,
+        ) => Some(RowAction::Submit),
         JobStatusLine::Status(OperationJobStatus::Succeeded) if !toolpath_current => {
             Some(RowAction::ImportToolpath)
         }
@@ -624,6 +633,9 @@ fn operation_row_status_key(status: &JobStatusLine) -> &'static str {
         JobStatusLine::Status(OperationJobStatus::Canceled) => {
             "conditions.operations.status.canceled"
         }
+        JobStatusLine::Status(OperationJobStatus::Interrupted) => {
+            "conditions.operations.status.interrupted"
+        }
     }
 }
 
@@ -653,6 +665,7 @@ impl JobStatusLine {
                 OperationJobStatus::Succeeded
                     | OperationJobStatus::Failed
                     | OperationJobStatus::Canceled
+                    | OperationJobStatus::Interrupted
             )
         )
     }
@@ -679,6 +692,7 @@ fn job_status_key(status: &JobStatusLine) -> &'static str {
         JobStatusLine::Status(OperationJobStatus::Succeeded) => "conditions.job.succeeded",
         JobStatusLine::Status(OperationJobStatus::Failed) => "conditions.job.failed",
         JobStatusLine::Status(OperationJobStatus::Canceled) => "conditions.job.canceled",
+        JobStatusLine::Status(OperationJobStatus::Interrupted) => "conditions.job.interrupted",
     }
 }
 
@@ -1672,6 +1686,7 @@ mod tests {
             OperationStatus::Submitted {
                 simulation_only: true,
             },
+            OperationStatus::Resumed,
             OperationStatus::Redone { canceled: false },
             OperationStatus::Redone { canceled: true },
             OperationStatus::SubmitFailed(failure("failure.orchestration")),

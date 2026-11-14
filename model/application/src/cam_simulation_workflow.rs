@@ -101,6 +101,8 @@ pub enum OperationJobStatus {
     Failed,
     /// 取り消された
     Canceled,
+    /// 計算の途中で、ジョブマネージャーの終了・異常終了・OS の再起動で止まった（計算で続けられる）
+    Interrupted,
 }
 
 impl OperationJobStatus {
@@ -273,6 +275,8 @@ pub enum CamSimulationWorkflowError {
     InverseOffsetDisplay(CamSolverError),
     /// ジョブマネージャーがインストールされていない（アプリと同じフォルダにない）
     JobManagerNotFound,
+    /// 動いているジョブマネージャーの口の版が、このアプリと違う（前の版のジョブマネージャーが動き続けている）
+    JobManagerOutdated,
     /// ジョブマネージャーが動いていない（計算の状態を読むときは、起動しない）
     JobManagerNotRunning,
     /// ジョブの保存先を読み書きできない・ジョブマネージャーを起動できない（理由）
@@ -313,6 +317,12 @@ impl fmt::Display for CamSimulationWorkflowError {
                 write!(f, "inverse offset shape cannot be displayed: {error}")
             }
             Self::JobManagerNotFound => write!(f, "the job manager is not installed"),
+            Self::JobManagerOutdated => {
+                write!(
+                    f,
+                    "the running job manager is a different version from this app"
+                )
+            }
             Self::JobManagerNotRunning => write!(f, "the job manager is not running"),
             Self::JobStore(reason) => write!(f, "job store failed: {reason}"),
             Self::NoCurrentImportedToolpath => {
@@ -593,7 +603,7 @@ impl CamSimulationWorkflow {
         self.jobs.open_manager_window()
     }
 
-    /// 加工工程 `operation_id` の今の改訂の、計算待ち・計算中のジョブ（ツールパス生成と切削シミュレーション）のうち、
+    /// 加工工程 `operation_id` の今の改訂の、計算待ち・計算中・中断のジョブ（ツールパス生成と切削シミュレーション）のうち、
     /// 投入 `kept_submission_id`（あれば）のもの以外を取り消すよう頼み、頼んだジョブの数を返す（取り消し終えるのを待たない。
     /// 前の改訂のジョブ・ほかの工程のジョブには触れない。ジョブマネージャーがまだ取り込んでいない投入は取り消せない）
     ///
@@ -614,8 +624,31 @@ impl CamSimulationWorkflow {
         })
     }
 
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂の、中断のジョブ（ツールパス
+    /// 生成と切削シミュレーション）を計算待ちに戻すよう頼み、頼んだジョブの数を返す（戻し終えるのを待たない。前の改訂
+    /// のジョブ・ほかの工程のジョブには触れない）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順・加工手順にない加工工程の場合、ジョブマネージャーがない・起動できない・ジョブを
+    /// 読めない・頼めない場合。
+    pub fn resume_latest_revision_jobs(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<usize, CamSimulationWorkflowError> {
+        let current = current_revision(sequences, sequence_id, operation_id)?;
+        let job_ids = self
+            .job_ids(|status, source, _| status == CamJobStatus::Interrupted && current(source))?;
+        if !job_ids.is_empty() {
+            self.jobs.resume(&job_ids)?;
+        }
+        Ok(job_ids.len())
+    }
+
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_ids` から、今の改訂より前に投入した、計算待ち・
-    /// 計算中のジョブ（ツールパス生成と切削シミュレーション）を取り消すよう頼み、頼んだジョブの数を返す（取り消し終える
+    /// 計算中・中断のジョブ（ツールパス生成と切削シミュレーション）を取り消すよう頼み、頼んだジョブの数を返す（取り消し終える
     /// のを待たない。今の改訂のジョブ・ほかの工程のジョブ・終わったジョブには触れない。改訂の鍵を持たない投入元（前の版
     /// の記録）は、前の改訂とみなす）。ジョブマネージャーが動いていなければ、起動せずに何もしない
     ///
@@ -645,7 +678,7 @@ impl CamSimulationWorkflow {
         })
     }
 
-    /// 計算待ち・計算中のジョブのうち、投入元と投入の ID が `cancels` に当たるものを取り消すよう頼み、頼んだジョブの数を
+    /// 計算待ち・計算中・中断のジョブのうち、投入元と投入の ID が `cancels` に当たるものを取り消すよう頼み、頼んだジョブの数を
     /// 返す（ジョブマネージャーがまだ取り込んでいない投入は取り消せない）
     fn cancel_active_jobs(
         &mut self,
@@ -654,29 +687,43 @@ impl CamSimulationWorkflow {
         let active = |status: CamJobStatus| {
             matches!(
                 status,
-                CamJobStatus::Queued | CamJobStatus::Running | CamJobStatus::NeedsRecompute
+                CamJobStatus::Queued
+                    | CamJobStatus::Running
+                    | CamJobStatus::NeedsRecompute
+                    | CamJobStatus::Interrupted
             )
         };
-        // 切削シミュレーションを先に取り消す（ツールパス生成を先に取り消すと、それを待つ切削シミュレーションが、
-        // 依存するジョブの取り消しによる失敗になるため）
+        let job_ids = self.job_ids(|status, source, submission_id| {
+            active(status) && cancels(source, submission_id)
+        })?;
+        if !job_ids.is_empty() {
+            self.jobs.cancel(&job_ids)?;
+        }
+        Ok(job_ids.len())
+    }
+
+    /// 状態・投入元・投入の ID が `matches` に当たるジョブの番号（切削シミュレーションを先に、ツールパス生成を後に
+    /// 並べる。ツールパス生成を先に取り消すと、それを待つ切削シミュレーションが、依存するジョブの取り消しによる失敗に
+    /// なるため）
+    fn job_ids(
+        &self,
+        matches: impl Fn(CamJobStatus, &Option<CamJobSource>, &str) -> bool,
+    ) -> Result<Vec<u64>, CamSimulationWorkflowError> {
         let mut job_ids: Vec<u64> = self
             .jobs
             .simulation_jobs()?
             .into_iter()
-            .filter(|job| active(job.status) && cancels(&job.source, &job.submission_id))
+            .filter(|job| matches(job.status, &job.source, &job.submission_id))
             .map(|job| job.job_id)
             .collect();
         job_ids.extend(
             self.jobs
                 .toolpath_jobs()?
                 .into_iter()
-                .filter(|job| active(job.status) && cancels(&job.source, &job.submission_id))
+                .filter(|job| matches(job.status, &job.source, &job.submission_id))
                 .map(|job| job.job_id),
         );
-        if !job_ids.is_empty() {
-            self.jobs.cancel(&job_ids)?;
-        }
-        Ok(job_ids.len())
+        Ok(job_ids)
     }
 
     /// 加工工程 `operation_id` から投入した切削シミュレーションのジョブ（前の改訂を含む。番号の順）
@@ -891,12 +938,14 @@ fn operation_state(
         CamJobStatus::Succeeded => OperationJobStatus::Succeeded,
         CamJobStatus::Failed => OperationJobStatus::Failed,
         CamJobStatus::Canceled => OperationJobStatus::Canceled,
+        CamJobStatus::Interrupted => OperationJobStatus::Interrupted,
         CamJobStatus::Running => OperationJobStatus::Running,
         // 切削シミュレーションは、ツールパス生成の計算の間も待っている
         CamJobStatus::Queued | CamJobStatus::NeedsRecompute => match job.toolpath_status {
             CamJobStatus::Running => OperationJobStatus::Running,
             CamJobStatus::Failed => OperationJobStatus::Failed,
             CamJobStatus::Canceled => OperationJobStatus::Canceled,
+            CamJobStatus::Interrupted => OperationJobStatus::Interrupted,
             _ => OperationJobStatus::Queued,
         },
     })

@@ -1171,3 +1171,43 @@ fn only_the_imported_toolpath_of_the_current_conditions_is_submitted() {
         CamSimulationWorkflowError::NoCurrentImportedToolpath
     );
 }
+
+#[test]
+fn an_operation_is_interrupted_when_its_toolpath_or_simulation_job_is_interrupted() {
+    let operation_id = MachiningOperationId::from_uuid(uuid::Uuid::from_u128(1));
+    let source = Some(CamJobSource {
+        source_id: operation_id.to_string(),
+        revision: 1,
+        revision_key: Some("key".to_string()),
+    });
+    let snapshot = |status, toolpath_status| JobStatusSnapshot {
+        pending: Vec::new(),
+        simulations: vec![SimulationJob {
+            job_id: 2,
+            submission_id: "submission".to_string(),
+            source: source.clone(),
+            status,
+            toolpath_status,
+        }],
+    };
+    let current = |_: &Option<CamJobSource>| true;
+    // 切削シミュレーションは、中断のツールパス生成を待っている
+    assert_eq!(
+        operation_state(
+            &snapshot(CamJobStatus::Queued, CamJobStatus::Interrupted),
+            operation_id,
+            &current
+        ),
+        OperationJobState::Status(OperationJobStatus::Interrupted)
+    );
+    assert_eq!(
+        operation_state(
+            &snapshot(CamJobStatus::Interrupted, CamJobStatus::Succeeded),
+            operation_id,
+            &current
+        ),
+        OperationJobState::Status(OperationJobStatus::Interrupted)
+    );
+    // 中断は、重ねて投入しない状態ではない（計算で続ける）
+    assert!(!OperationJobStatus::Interrupted.is_waiting_or_done());
+}

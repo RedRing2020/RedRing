@@ -44,7 +44,7 @@ use files::{
     copy_limited, is_plain_name, is_temporary, read_limited, remove_temporary_entries,
     write_atomically,
 };
-use record::OLDEST_STORE_FORMAT_VERSION;
+use record::{INTERRUPTED_FORMAT_VERSION, OLDEST_STORE_FORMAT_VERSION};
 
 const LOCK_FILE: &str = "manager.lock";
 const LAST_JOB_ID_FILE: &str = "last_job_id";
@@ -327,8 +327,17 @@ impl JobStore {
     }
 
     /// ジョブの記録を書く
+    ///
+    /// 形式の版は、中断の記録は [`INTERRUPTED_FORMAT_VERSION`]、ほかの記録は [`STORE_FORMAT_VERSION`] 以下の
+    /// 記録の版（表せる最も古い版）とする。
     pub fn write_job(&self, _lock: &JobStoreLock, job: &StoredJob) -> Result<(), StoreError> {
-        let bytes = serde_json::to_vec_pretty(job).map_err(std::io::Error::other)?;
+        let mut job = job.clone();
+        job.format_version = if job.status == StoredJobStatus::Interrupted {
+            INTERRUPTED_FORMAT_VERSION
+        } else {
+            job.format_version.min(STORE_FORMAT_VERSION)
+        };
+        let bytes = serde_json::to_vec_pretty(&job).map_err(std::io::Error::other)?;
         write_atomically(&self.job_dir(job.job_id).join(JOB_FILE), &bytes)?;
         Ok(())
     }
@@ -748,9 +757,14 @@ impl JobStore {
     }
 }
 
-/// 読める記録・要求の形式の版か
+/// 読める要求の形式の版か
 fn is_supported_format_version(version: u32) -> bool {
     (OLDEST_STORE_FORMAT_VERSION..=STORE_FORMAT_VERSION).contains(&version)
+}
+
+/// 読める記録の形式の版か（中断の記録の版まで）
+fn is_supported_record_version(version: u32) -> bool {
+    (OLDEST_STORE_FORMAT_VERSION..=INTERRUPTED_FORMAT_VERSION).contains(&version)
 }
 
 /// 利用者ごとのアプリのデータのフォルダの下の `RedRing`（分からないときは `None`）
@@ -780,7 +794,7 @@ fn parse_job_id(name: &str) -> Option<u64> {
 fn read_job(path: &Path, job_id: u64) -> Result<StoredJob, String> {
     let bytes = read_limited(path, MAX_JSON_BYTES).map_err(|error| error.to_string())?;
     let job: StoredJob = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
-    if !is_supported_format_version(job.format_version) {
+    if !is_supported_record_version(job.format_version) {
         return Err(format!("unsupported format version {}", job.format_version));
     }
     if job.job_id != job_id {

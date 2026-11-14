@@ -10,6 +10,10 @@ use serde::{Deserialize, Serialize};
 /// 残るため、版を上げずに足した。
 pub const STORE_FORMAT_VERSION: u32 = 3;
 
+/// 中断（[`StoredJobStatus::Interrupted`]）の記録の形式の版（前の版の読む側は中断を知らないため、版を上げて、読めない
+/// 記録として扱わせる。ほかの状態の記録は、表せる最も古い版 [`STORE_FORMAT_VERSION`] で書く）
+pub(super) const INTERRUPTED_FORMAT_VERSION: u32 = 4;
+
 /// 切削シミュレーションの入力に CL のファイルを持てる、最も古い要求の形式の版
 pub const TOOLPATH_FILE_FORMAT_VERSION: u32 = 3;
 
@@ -48,10 +52,12 @@ pub enum StoredJobStatus {
     Succeeded,
     Failed,
     Canceled,
+    /// 計算の途中で、ジョブマネージャーの終了・異常終了・OS の再起動で止まった（利用者が選ぶまで計算しない）
+    Interrupted,
 }
 
 impl StoredJobStatus {
-    /// 終わった状態か（正常に終わった・失敗・取り消し）
+    /// 終わった状態か（正常に終わった・失敗・取り消し。中断は、続けて計算できるため含めない）
     pub fn is_terminal(self) -> bool {
         matches!(self, Self::Succeeded | Self::Failed | Self::Canceled)
     }

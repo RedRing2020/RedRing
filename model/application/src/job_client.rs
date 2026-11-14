@@ -144,8 +144,11 @@ pub(crate) trait JobClient: fmt::Debug {
     /// マネージャーが、取り込み済みの CL の元をまとめて消せるように。画面を止めない実装は、伝え終えるのを待たない）
     fn record_imported(&self, simulation_job_id: u64) -> Result<(), CamSimulationWorkflowError>;
 
-    /// 計算待ち・計算中のジョブ `job_ids` を取り消すよう頼む（計算中はランナーを止める。取り消し終えるのを待たない）
+    /// 計算待ち・計算中・中断のジョブ `job_ids` を取り消すよう頼む（計算中はランナーを止める。取り消し終えるのを待たない）
     fn cancel(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError>;
+
+    /// 中断のジョブ `job_ids` を計算待ちに戻すよう頼む（戻し終えるのを待たない）
+    fn resume(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError>;
 
     /// ジョブマネージャーが動いているか（起動しない。同じプロセスの中で実行する実装は、いつも動いている。動いていない・
     /// 見つからないときは偽、ほかの理由でつなげないときは誤り）

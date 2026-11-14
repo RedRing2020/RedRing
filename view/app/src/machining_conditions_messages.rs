@@ -61,6 +61,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.operations.status.imported", "取込済み"),
     ("conditions.operations.status.failed", "計算失敗"),
     ("conditions.operations.status.canceled", "取り消し"),
+    ("conditions.operations.status.interrupted", "中断"),
     ("conditions.operations.status.unreadable", "読めません"),
     ("conditions.operations.status.reading", "読んでいます"),
     ("conditions.operations.status.unknown", "状態不明"),
@@ -127,6 +128,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "今の条件の計算は済んでいます。結果を取り込めます",
     ),
     (
+        "conditions.navigation.interrupted",
+        "今の条件の計算は、途中で止まりました。計算を続けられます",
+    ),
+    (
         "conditions.navigation.imported_with_simulation",
         "CL 取込済みです。切削シミュレーションを表示できます",
     ),
@@ -166,6 +171,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     (
         "conditions.status.submitted_simulation",
         "今の条件の CL から、切削シミュレーションだけの計算を始めました",
+    ),
+    (
+        "conditions.status.resumed",
+        "中断した計算を、計算待ちに戻しました",
     ),
     (
         "conditions.status.redone",
@@ -288,6 +297,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     (
         "conditions.job.canceled",
         "今の条件の計算: 取り消されました",
+    ),
+    (
+        "conditions.job.interrupted",
+        "今の条件の計算: 途中で止まりました（中断）",
     ),
     (
         "conditions.job.unreadable",
@@ -466,6 +479,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.operations.status.imported", "imported"),
     ("conditions.operations.status.failed", "calculation failed"),
     ("conditions.operations.status.canceled", "canceled"),
+    ("conditions.operations.status.interrupted", "interrupted"),
     ("conditions.operations.status.unreadable", "cannot read"),
     ("conditions.operations.status.reading", "reading"),
     ("conditions.operations.status.unknown", "unknown"),
@@ -541,6 +555,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "The calculation for the current conditions is done. You can import the result",
     ),
     (
+        "conditions.navigation.interrupted",
+        "The calculation for the current conditions stopped partway. You can continue the calculation",
+    ),
+    (
         "conditions.navigation.imported_with_simulation",
         "The CL is imported. You can show the cutting simulation",
     ),
@@ -580,6 +598,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.status.submitted_simulation",
         "Started calculating only the cutting simulation from the CL of the current conditions",
+    ),
+    (
+        "conditions.status.resumed",
+        "Returned the interrupted calculation to waiting",
     ),
     (
         "conditions.status.redone",
@@ -708,6 +730,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.job.canceled",
         "Calculation for the current conditions: canceled",
+    ),
+    (
+        "conditions.job.interrupted",
+        "Calculation for the current conditions: stopped partway (interrupted)",
     ),
     (
         "conditions.job.unreadable",

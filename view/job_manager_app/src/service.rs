@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use job_manager::{JobManagerService, ManagerEvent, ProcessLauncher};
+use job_manager::{AppJobRequest, JobManagerService, ManagerEvent, ProcessLauncher};
 use job_runtime::store::{JobStore, StoreError};
 
 /// 受付のフォルダとランナーを確かめる間隔
@@ -19,6 +19,8 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum JobCommand {
     Cancel(u64),
+    /// 中断のジョブを、計算待ちに戻す
+    Resume(u64),
     Retry(u64),
     /// 選んだジョブを、その成果物を使う後のジョブとあわせて消す（計算待ち・計算中のものは残す）
     Delete(Vec<u64>),
@@ -34,8 +36,8 @@ pub(crate) enum JobCommand {
 pub(crate) enum ServiceRequest {
     /// ジョブの操作（結果は `ServiceChannel::replies` に返す）
     Command(JobCommand),
-    /// CAD/CAM のアプリが口で頼んだ、ジョブの取り消し（画面の操作ではないため、結果は返さずにログに書く）
-    CancelFromApp(Vec<u64>),
+    /// CAD/CAM のアプリが口で頼んだ、ジョブの操作（画面の操作ではないため、結果は返さずにログに書く）
+    FromApp(AppJobRequest),
     /// 実行中のランナーを止めて、サービスを終える（終えたら `done` に送る）
     Quit { done: Sender<()> },
 }
@@ -123,8 +125,8 @@ impl ServiceChannel {
 ///
 /// サービスはランナーのプロセスを持つため、スレッドの中で作り、ずっと動かす。画面の操作は 1 回分の仕事の間に
 /// 受け取り、受け取ったらすぐに次の回の仕事をする（操作した結果が早く一覧に出るように）。口を閉じても（ウィンドウを
-/// 閉じても）、仕事は続ける。出来事と操作は保存先の `manager.log`（英語。起動のたびに書き直す）に書き、1 回分の
-/// 仕事の出来事は `event_sender` にも送る（受け取る側がなくなっても、仕事は続ける）。
+/// 閉じても）、仕事は続ける。出来事と操作は保存先の `manager.log`（英語。起動のたびに書き直す）に書き、起動のときと
+/// 1 回分の仕事の出来事は `event_sender` にも送る（受け取る側がなくなっても、仕事は続ける）。
 pub(crate) fn start_service(
     store: JobStore,
     runner: PathBuf,
@@ -150,7 +152,10 @@ pub(crate) fn start_service(
             }
         };
         write(format!("started store={}", store.root().display()));
-        events.iter().for_each(|event| write(describe(event)));
+        for event in events {
+            write(describe(&event));
+            let _ = event_sender.send(event);
+        }
         let mut commands = Some(command_rx);
         loop {
             for event in service.tick(now_ms()) {
@@ -167,10 +172,16 @@ pub(crate) fn start_service(
                     let _ = done.send(());
                     return;
                 }
-                Some(Ok(ServiceRequest::CancelFromApp(job_ids))) => {
+                Some(Ok(ServiceRequest::FromApp(AppJobRequest::Cancel(job_ids)))) => {
                     for job_id in job_ids {
                         let result = service.cancel(job_id, now_ms());
                         write(format!("cancel from the app {job_id} -> {result:?}"));
+                    }
+                }
+                Some(Ok(ServiceRequest::FromApp(AppJobRequest::Resume(job_ids)))) => {
+                    for job_id in job_ids {
+                        let result = service.resume(job_id, now_ms());
+                        write(format!("resume from the app {job_id} -> {result:?}"));
                     }
                 }
                 Some(Ok(ServiceRequest::Command(command))) => {
@@ -214,6 +225,7 @@ fn run_command(
     // 操作の間に状態が変わって操作できなくなったジョブは、何もしない（一覧を読み直せば分かる）
     match command {
         JobCommand::Cancel(job_id) => service.cancel(*job_id, now_ms).map(|_| Vec::new()),
+        JobCommand::Resume(job_id) => service.resume(*job_id, now_ms).map(|_| Vec::new()),
         JobCommand::Retry(job_id) => service.retry(*job_id, now_ms).map(|_| Vec::new()),
         JobCommand::Delete(job_ids) => service
             .delete(job_ids)

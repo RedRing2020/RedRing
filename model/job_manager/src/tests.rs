@@ -373,7 +373,7 @@ fn a_second_manager_on_the_same_store_is_refused() {
 }
 
 #[test]
-fn restarting_fails_the_interrupted_job_and_keeps_the_queue() {
+fn restarting_interrupts_the_running_job_and_keeps_the_queue() {
     let root = TempRoot::new();
     let launcher = FakeLauncher::default();
     launcher.0.borrow_mut().polls_until_done = 10;
@@ -399,8 +399,11 @@ fn restarting_fails_the_interrupted_job_and_keeps_the_queue() {
         JobManagerService::start(root.store(), launcher.clone(), 5).unwrap();
     assert_eq!(events, vec![ManagerEvent::Interrupted { job_id: 1 }]);
     let interrupted = status_of(&root.store(), 1);
-    assert_eq!(interrupted.status, StoredJobStatus::Failed);
-    assert!(interrupted.last_error.unwrap().contains("stopped"));
+    assert_eq!(interrupted.status, StoredJobStatus::Interrupted);
+    assert_eq!(interrupted.error, Some(StoredJobError::ManagerStopped));
+    assert_eq!(interrupted.started_at_ms, None);
+    // 中断の記録は、前の版の読む側が読めない版で書く
+    assert_eq!(record_version(&root.store(), 1), 4);
     service.tick(6);
     service.tick(7);
     assert_eq!(
@@ -577,13 +580,136 @@ fn quitting_stops_the_running_job_and_keeps_the_waiting_jobs() {
         vec![root.store().input_file(1)]
     );
     let stopped = status_of(&root.store(), 1);
-    assert_eq!(stopped.status, StoredJobStatus::Failed);
+    assert_eq!(stopped.status, StoredJobStatus::Interrupted);
     assert_eq!(
         stopped.last_error.as_deref(),
         Some("the job manager was quit")
     );
     assert_eq!(stopped.started_at_ms, None);
+    // 中断のジョブを待つジョブは、失敗にせず待つ
+    service.tick(3);
     assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Queued);
+}
+
+/// 保存先 `store` のジョブ `job_id` の記録のファイルに書いた形式の版
+fn record_version(store: &JobStore, job_id: u64) -> u64 {
+    let text = fs::read_to_string(store.job_dir(job_id).join("job.json")).unwrap();
+    serde_json::from_str::<serde_json::Value>(&text).unwrap()["format_version"]
+        .as_u64()
+        .unwrap()
+}
+
+/// 投入（ツールパス生成と、それを待つ切削シミュレーション）のツールパス生成を、ジョブマネージャーの終了で中断にする
+fn interrupted_cam_and_sim(root: &TempRoot) -> (JobManagerService<FakeLauncher>, FakeLauncher) {
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 10;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(1);
+    service.stop_running(2).unwrap();
+    assert_eq!(
+        status_of(&root.store(), 1).status,
+        StoredJobStatus::Interrupted
+    );
+    (service, launcher)
+}
+
+#[test]
+fn resuming_an_interrupted_job_queues_it_and_the_waiting_job_runs_after_it() {
+    let root = TempRoot::new();
+    let (mut service, launcher) = interrupted_cam_and_sim(&root);
+    let logs = root.store().logs_dir(1);
+    fs::create_dir_all(&logs).unwrap();
+    fs::write(logs.join("runner.log.tmp"), b"partial").unwrap();
+
+    // 中断でないジョブは戻さない
+    assert!(service.resume(2, 3).unwrap().is_empty());
+    assert_eq!(service.resume(1, 3).unwrap(), vec![1]);
+    let resumed = status_of(&root.store(), 1);
+    assert_eq!(resumed.status, StoredJobStatus::Queued);
+    assert_eq!(resumed.error, None);
+    assert_eq!(resumed.attempts, 1);
+    assert!(!logs.exists());
+    assert_eq!(record_version(&root.store(), 1), 3);
+
+    launcher.0.borrow_mut().polls_until_done = 0;
+    for now in 4..10 {
+        service.tick(now);
+    }
+    assert_eq!(
+        status_of(&root.store(), 1).status,
+        StoredJobStatus::Succeeded
+    );
+    assert_eq!(
+        status_of(&root.store(), 2).status,
+        StoredJobStatus::Succeeded
+    );
+}
+
+#[test]
+fn resuming_a_later_interrupted_job_also_queues_the_interrupted_job_it_waits_for() {
+    let root = TempRoot::new();
+    let (mut service, _) = interrupted_cam_and_sim(&root);
+    // 切削シミュレーションも中断にする（書き換えた記録で、前のジョブを待つ中断のジョブを作る）
+    let mut sim = status_of(&root.store(), 2);
+    sim.status = StoredJobStatus::Interrupted;
+    let lock = &service.lock;
+    root.store().write_job(lock, &sim).unwrap();
+
+    assert_eq!(service.resume(2, 3).unwrap(), vec![1, 2]);
+    assert_eq!(status_of(&root.store(), 1).status, StoredJobStatus::Queued);
+    assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Queued);
+}
+
+#[test]
+fn retrying_an_interrupted_job_queues_it() {
+    let root = TempRoot::new();
+    let (mut service, _) = interrupted_cam_and_sim(&root);
+    assert_eq!(service.retry(1, 3).unwrap(), vec![1]);
+    assert_eq!(status_of(&root.store(), 1).status, StoredJobStatus::Queued);
+}
+
+#[test]
+fn canceling_an_interrupted_job_fails_the_job_waiting_for_it() {
+    let root = TempRoot::new();
+    let (mut service, _) = interrupted_cam_and_sim(&root);
+    assert!(service.cancel(1, 3).unwrap());
+    let canceled = status_of(&root.store(), 1);
+    assert_eq!(canceled.status, StoredJobStatus::Canceled);
+    assert_eq!(canceled.error, None);
+    assert_eq!(canceled.last_error, None);
+    service.tick(4);
+    let waiting = status_of(&root.store(), 2);
+    assert_eq!(waiting.status, StoredJobStatus::Failed);
+    assert_eq!(
+        waiting.error,
+        Some(StoredJobError::DependencyCanceled { job: 1 })
+    );
+}
+
+#[test]
+fn an_interrupted_job_is_deleted_with_the_job_waiting_for_it() {
+    let root = TempRoot::new();
+    let (mut service, _) = interrupted_cam_and_sim(&root);
+    let (jobs, _) = root.store().load_jobs().unwrap();
+    assert_eq!(idle_jobs(&jobs), HashSet::from([1, 2]));
+    assert_eq!(
+        service.delete(&[1]).unwrap(),
+        DeletePlan {
+            deleted: BTreeSet::from([1, 2]),
+            kept: BTreeSet::new(),
+        }
+    );
+    assert!(!root.store().job_dir(1).exists());
+    assert!(!root.store().job_dir(2).exists());
+}
+
+#[test]
+fn old_jobs_leave_interrupted_jobs() {
+    let root = TempRoot::new();
+    let (_service, _) = interrupted_cam_and_sim(&root);
+    let (jobs, _) = root.store().load_jobs().unwrap();
+    assert!(old_jobs(&jobs, u64::MAX).is_empty());
 }
 
 #[test]

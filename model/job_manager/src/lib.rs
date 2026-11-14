@@ -18,7 +18,7 @@ use job_runtime::store::{
     StoredJobStatus, plan_schedule,
 };
 
-pub use endpoint_server::{CancelJobs, OpenWindow, start_endpoint_server};
+pub use endpoint_server::{AppJobRequest, OpenWindow, RequestJobs, start_endpoint_server};
 pub use launcher::{LaunchSpec, Launcher, ProcessLauncher, RunningJob};
 
 /// 同時に実行するジョブの数
@@ -37,7 +37,7 @@ pub enum ManagerEvent {
         job_id: u64,
         reason: String,
     },
-    /// ジョブマネージャーが止まったときに実行中だったため、失敗にした
+    /// ジョブマネージャーが止まったときに実行中だったため、中断にした
     Interrupted {
         job_id: u64,
     },
@@ -64,30 +64,50 @@ pub enum ManagerEvent {
 pub struct DeletePlan {
     /// 消すジョブ（選んだジョブと、その成果物を使う後のジョブ）
     pub deleted: BTreeSet<u64>,
-    /// 消さない、選んだジョブ（それか、その成果物を使う後のジョブが、計算待ち・計算中）
+    /// 消さない、選んだジョブ（それか、その成果物を使う後のジョブが、計算待ち（中断のジョブを待つものを除く）・計算中）
     pub kept: BTreeSet<u64>,
 }
 
 /// ジョブの記録 `jobs` のうち、選んだジョブ `selected` を消すときに消すジョブ
 ///
 /// 選んだジョブは、その成果物を使う後のジョブ（依存関係をたどったすべて）とあわせて消す（後のジョブだけが残っても、
-/// 計算も取り込みもできないため）。選んだジョブか後のジョブのどれかが計算待ち・計算中なら、どれも消さない。ない
-/// ジョブは数えない。後のジョブだけを選んだときは、前のジョブを残す。
+/// 計算も取り込みもできないため）。選んだジョブか後のジョブのどれかが計算待ち・計算中なら、どれも消さない。ただし、
+/// 中断のジョブと、それを待つ計算待ちのジョブ（中断のジョブを計算で続けるまで実行されない）は、終わったジョブと
+/// 同じに消す。ないジョブは数えない。後のジョブだけを選んだときは、前のジョブを残す。
 pub fn delete_plan(jobs: &[StoredJob], selected: &[u64]) -> DeletePlan {
     let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
+    let idle = idle_jobs(jobs);
+    let deletable = |id: &u64| idle.contains(id);
     let mut plan = DeletePlan::default();
     for &job_id in selected {
         if !by_id.contains_key(&job_id) {
             continue;
         }
         let family = later_jobs(jobs, job_id, |_| true);
-        if family.iter().all(|id| by_id[id].status.is_terminal()) {
+        if family.iter().all(deletable) {
             plan.deleted.extend(family);
         } else {
             plan.kept.insert(job_id);
         }
     }
     plan
+}
+
+/// ジョブの記録 `jobs` のうち、ランナーが動いておらず、利用者が操作するまで計算しないジョブ（終わったジョブ・中断の
+/// ジョブと、中断のジョブを待つ（計算待ちのジョブを通して待つものを含む）計算待ちのジョブ）
+pub fn idle_jobs(jobs: &[StoredJob]) -> HashSet<u64> {
+    let status: HashMap<u64, StoredJobStatus> =
+        jobs.iter().map(|job| (job.job_id, job.status)).collect();
+    let queued = |id: &u64| status.get(id) == Some(&StoredJobStatus::Queued);
+    let mut idle: HashSet<u64> = HashSet::new();
+    for job in jobs {
+        if job.status.is_terminal() {
+            idle.insert(job.job_id);
+        } else if job.status == StoredJobStatus::Interrupted {
+            idle.extend(later_jobs(jobs, job.job_id, queued));
+        }
+    }
+    idle
 }
 
 /// ジョブの記録 `jobs` のうち、前の改訂の結果のジョブ（番号の順）
@@ -180,7 +200,7 @@ pub struct JobManagerService<L: Launcher> {
 }
 
 impl<L: Launcher> JobManagerService<L> {
-    /// 保存先を排他に開き、書きかけのものを片付け、前に実行中だったジョブを失敗にして始める
+    /// 保存先を排他に開き、書きかけのものを片付け、前に実行中だったジョブを中断にして始める
     ///
     /// ほかのジョブマネージャーが保存先を開いていれば `StoreError::AlreadyLocked`。
     pub fn start(
@@ -203,9 +223,7 @@ impl<L: Launcher> JobManagerService<L> {
         for mut job in jobs {
             if job.status == StoredJobStatus::Running {
                 // ランナーは別のプロセスのため、止まったジョブマネージャーからは引き継げない
-                fail(&mut job, StoredJobError::ManagerStopped, None, now_ms);
-                // 止まっていた間を計算の時間に数えないように、始めた時刻を消す
-                job.started_at_ms = None;
+                interrupt(&mut job, StoredJobError::ManagerStopped, now_ms);
                 service.store.write_job(&service.lock, &job)?;
                 events.push(ManagerEvent::Interrupted { job_id: job.job_id });
             }
@@ -271,6 +289,9 @@ impl<L: Launcher> JobManagerService<L> {
             None => job.started_at_ms = None,
         }
         job.status = StoredJobStatus::Canceled;
+        // 中断のジョブの、止まった理由を残さない（取り消しの理由に見えないように）
+        job.last_error = None;
+        job.error = None;
         job.updated_at_ms = now_ms;
         // 書けなければ、止めたランナーを残し、次の回に「止められた」失敗として記録する
         self.store.write_job(&self.lock, &job)?;
@@ -278,10 +299,10 @@ impl<L: Launcher> JobManagerService<L> {
         Ok(true)
     }
 
-    /// 実行中のランナーをすべて止め、そのジョブを失敗にする（ジョブマネージャーを終了するときに）
+    /// 実行中のランナーをすべて止め、そのジョブを中断にする（ジョブマネージャーを終了するときに）
     ///
     /// 記録を読み書きできなくても・止められないランナーがあっても、ほかのランナーは止め、最初の誤りを返す。書けな
-    /// かった記録は実行中のまま残り、次に起動したときに失敗になる。
+    /// かった記録は実行中のまま残り、次に起動したときに中断になる。
     pub fn stop_running(&mut self, now_ms: u64) -> Result<(), StoreError> {
         let mut first_error = None;
         let jobs = match self.store.load_jobs() {
@@ -300,8 +321,7 @@ impl<L: Launcher> JobManagerService<L> {
                 first_error.get_or_insert(error.into());
             }
             if let Some(mut job) = jobs.iter().find(|job| job.job_id == job_id).cloned() {
-                fail(&mut job, StoredJobError::ManagerQuit, None, now_ms);
-                job.started_at_ms = None;
+                interrupt(&mut job, StoredJobError::ManagerQuit, now_ms);
                 if let Err(error) = self.store.write_job(&self.lock, &job) {
                     first_error.get_or_insert(error);
                 }
@@ -310,9 +330,10 @@ impl<L: Launcher> JobManagerService<L> {
         first_error.map_or(Ok(()), Err)
     }
 
-    /// 失敗・取り消しで終わったジョブを、計算待ちに戻す。戻したジョブの番号（小さい順。戻せなければ空）
+    /// 失敗・取り消し・中断のジョブを、最初から計算するように計算待ちに戻す。戻したジョブの番号（小さい順。戻せ
+    /// なければ空）
     ///
-    /// そのジョブと依存関係でつながる、失敗・取り消しで終わったジョブもあわせて戻す（前のジョブが終わったままでは
+    /// そのジョブと依存関係でつながる、失敗・取り消し・中断のジョブもあわせて戻す（前のジョブが終わったままでは
     /// 計算できず、後のジョブは前のジョブの失敗で失敗になっているため）。戻したジョブの前の計算の成果物・ログは
     /// 消す。計算した回数は数え続ける。
     pub fn retry(&mut self, job_id: u64, now_ms: u64) -> Result<Vec<u64>, StoreError> {
@@ -322,7 +343,9 @@ impl<L: Launcher> JobManagerService<L> {
             by_id.get(id).is_some_and(|job| {
                 matches!(
                     job.status,
-                    StoredJobStatus::Failed | StoredJobStatus::Canceled
+                    StoredJobStatus::Failed
+                        | StoredJobStatus::Canceled
+                        | StoredJobStatus::Interrupted
                 )
             })
         };
@@ -330,12 +353,43 @@ impl<L: Launcher> JobManagerService<L> {
             return Ok(Vec::new());
         }
         let targets = connected_jobs(&jobs, job_id, retryable);
-        // 前の計算のファイルを先にすべて消す（消せないファイルがあれば、記録を変えずに誤りにする）
-        for &id in &targets {
+        self.requeue(&by_id, &targets, now_ms)?;
+        Ok(targets.into_iter().collect())
+    }
+
+    /// 中断のジョブを、計算待ちに戻す。戻したジョブの番号（小さい順。中断でなければ空）
+    ///
+    /// そのジョブが待つ（依存関係で前の）中断のジョブもあわせて戻す（前のジョブが中断のままでは計算できないため）。
+    /// 前の計算のログ・進み具合は消す。計算した回数は数え続ける。
+    pub fn resume(&mut self, job_id: u64, now_ms: u64) -> Result<Vec<u64>, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
+        let interrupted = |id: &u64| {
+            by_id
+                .get(id)
+                .is_some_and(|job| job.status == StoredJobStatus::Interrupted)
+        };
+        if !interrupted(&job_id) {
+            return Ok(Vec::new());
+        }
+        let targets = earlier_jobs(&jobs, job_id, interrupted);
+        self.requeue(&by_id, &targets, now_ms)?;
+        Ok(targets.into_iter().collect())
+    }
+
+    /// ジョブ `targets` を、計算待ちに戻す（前の計算のファイルを先にすべて消す。消せないファイルがあれば、記録を
+    /// 変えずに誤りにする）
+    fn requeue(
+        &mut self,
+        by_id: &HashMap<u64, &StoredJob>,
+        targets: &BTreeSet<u64>,
+        now_ms: u64,
+    ) -> Result<(), StoreError> {
+        for &id in targets {
             self.store.remove_job_outputs(&self.lock, id)?;
         }
         // 前のジョブ（番号の小さいジョブ）から戻す
-        for &id in &targets {
+        for &id in targets {
             let mut job = by_id[&id].clone();
             job.status = StoredJobStatus::Queued;
             job.started_at_ms = None;
@@ -346,7 +400,7 @@ impl<L: Launcher> JobManagerService<L> {
             job.updated_at_ms = now_ms;
             self.store.write_job(&self.lock, &job)?;
         }
-        Ok(targets.into_iter().collect())
+        Ok(())
     }
 
     /// 選んだジョブ `job_ids` を、その成果物を使う後のジョブとあわせて消す（決め方は [`delete_plan`]）。消した
@@ -550,6 +604,24 @@ fn later_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> 
     found
 }
 
+/// ジョブ `start` と、それが待つ前のジョブ（依存関係を前の向きにたどる。`member` を満たすジョブだけをたどる。
+/// 小さい順）
+fn earlier_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> BTreeSet<u64> {
+    let mut found = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(id) = pending.pop() {
+        let Some(job) = jobs.iter().find(|job| job.job_id == id) else {
+            continue;
+        };
+        for &dependency in &job.depends_on {
+            if member(&dependency) && found.insert(dependency) {
+                pending.push(dependency);
+            }
+        }
+    }
+    found
+}
+
 /// ジョブ `start` と、依存関係（前のジョブ・後のジョブのどちら向きも）でつながる、`member` を満たすジョブ（小さい順）
 fn connected_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> BTreeSet<u64> {
     let mut found = BTreeSet::from([start]);
@@ -588,6 +660,16 @@ fn fail(job: &mut StoredJob, error: StoredJobError, detail: Option<String>, now_
         None => error.to_string(),
     });
     job.error = Some(error);
+    job.updated_at_ms = now_ms;
+}
+
+/// ジョブ `job` を、止まった理由の種類 `error` で中断にする
+fn interrupt(job: &mut StoredJob, error: StoredJobError, now_ms: u64) {
+    job.status = StoredJobStatus::Interrupted;
+    job.last_error = Some(error.to_string());
+    job.error = Some(error);
+    // 止まっていた間を計算の時間に数えないように、始めた時刻を消す
+    job.started_at_ms = None;
     job.updated_at_ms = now_ms;
 }
 

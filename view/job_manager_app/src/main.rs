@@ -262,18 +262,19 @@ fn start_endpoint(
     };
     #[cfg(not(windows))]
     let open_window = opener.open_window();
-    // 取り消しは、ジョブの記録を書くサービスのスレッドに頼む（送り口は、受け手の接続ごとのスレッドで共有する）
+    // 取り消し・中断のジョブの計算は、ジョブの記録を書くサービスのスレッドに頼む（送り口は、受け手の接続ごとの
+    // スレッドで共有する）
     let requests = channel.requests.clone();
-    let cancel_jobs: job_manager::CancelJobs = Arc::new(move |job_ids| {
+    let request_jobs: job_manager::RequestJobs = Arc::new(move |request| {
         requests
-            .send(service::ServiceRequest::CancelFromApp(job_ids))
+            .send(service::ServiceRequest::FromApp(request))
             .is_ok()
     });
     job_manager::start_endpoint_server(
         endpoint,
         store.clone(),
         open_window,
-        cancel_jobs,
+        request_jobs,
         env!("CARGO_PKG_VERSION"),
     );
 }
@@ -319,7 +320,8 @@ fn show_window(
     }
 }
 
-/// ジョブが終わったときに、トレイの吹き出しを出す（示すジョブの決め方は `notification::finished_job`）
+/// ジョブが終わったとき・起動のときに中断にしたときに、トレイの吹き出しを出す（示すジョブの決め方は
+/// `notification::finished_job`）
 #[cfg(windows)]
 fn notify_finished(
     notifier: &tray::TrayNotifier,
@@ -328,8 +330,11 @@ fn notify_finished(
 ) {
     use job_runtime::store::StoredJobKind;
     use notification::{Finish, finished_job};
-    // 終わったジョブの出来事のときだけ、記録を読む
-    if !matches!(event, job_manager::ManagerEvent::Finished { .. }) {
+    // 終わったジョブ・中断にしたジョブの出来事のときだけ、記録を読む
+    if !matches!(
+        event,
+        job_manager::ManagerEvent::Finished { .. } | job_manager::ManagerEvent::Interrupted { .. }
+    ) {
         return;
     }
     let Ok((jobs, _)) = store.load_jobs() else {
@@ -346,6 +351,7 @@ fn notify_finished(
     let key = match finish {
         Finish::Succeeded => "notify.succeeded",
         Finish::Failed => "notify.failed",
+        Finish::Interrupted => "notify.interrupted",
     };
     let text = messages::text(
         locale,

@@ -134,16 +134,20 @@ impl AppState {
             }
             Err(error) => Err(error),
         };
-        let result = kind.map(|kind| {
-            let simulation_only = kind == SubmissionKind::SimulationOnly;
-            (
-                if simulation_only {
-                    "the cutting simulation of the imported toolpath"
-                } else {
-                    "the toolpath generation and the cutting simulation"
+        let result = kind.map(|kind| match kind {
+            SubmissionKind::Full => (
+                "the toolpath generation and the cutting simulation",
+                OperationStatus::Submitted {
+                    simulation_only: false,
                 },
-                OperationStatus::Submitted { simulation_only },
-            )
+            ),
+            SubmissionKind::SimulationOnly => (
+                "the cutting simulation of the imported toolpath",
+                OperationStatus::Submitted {
+                    simulation_only: true,
+                },
+            ),
+            SubmissionKind::Resume => ("the interrupted calculation", OperationStatus::Resumed),
         });
         self.finish_submission(result, "the machining operation")
     }

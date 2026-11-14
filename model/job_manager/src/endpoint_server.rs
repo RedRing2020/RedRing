@@ -31,8 +31,17 @@ const ACCEPT_RETRY_INTERVAL: Duration = Duration::from_secs(1);
 /// ウィンドウを開く口（開けたら `true`）
 pub type OpenWindow = Arc<dyn Fn() -> bool + Send + Sync>;
 
-/// ジョブを取り消すよう、ジョブの記録を書くサービスに頼む口（頼めたら `true`。取り消し終えるのを待たない）
-pub type CancelJobs = Arc<dyn Fn(Vec<u64>) -> bool + Send + Sync>;
+/// CAD/CAM のアプリが口で頼む、ジョブの操作
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AppJobRequest {
+    /// ジョブを取り消す
+    Cancel(Vec<u64>),
+    /// 中断のジョブを、計算待ちに戻す
+    Resume(Vec<u64>),
+}
+
+/// ジョブの操作を、ジョブの記録を書くサービスに頼む口（頼めたら `true`。終えるのを待たない）
+pub type RequestJobs = Arc<dyn Fn(AppJobRequest) -> bool + Send + Sync>;
 
 /// 口 `endpoint` を開き、保存先 `store` の要求を受けるスレッドを始める（ほかのプロセスが口を開いている間は、閉じる
 /// まで開き直す）。ウィンドウを開く要求は `open_window` で行い、版を確かめたときに `manager_version` を返す
@@ -40,7 +49,7 @@ pub fn start_endpoint_server(
     endpoint: Endpoint,
     store: JobStore,
     open_window: OpenWindow,
-    cancel_jobs: CancelJobs,
+    request_jobs: RequestJobs,
     manager_version: &'static str,
 ) -> JoinHandle<()> {
     std::thread::spawn(move || {
@@ -67,7 +76,7 @@ pub fn start_endpoint_server(
                     let mut handler = StoreHandler {
                         store: store.clone(),
                         open_window: Arc::clone(&open_window),
-                        cancel_jobs: Arc::clone(&cancel_jobs),
+                        request_jobs: Arc::clone(&request_jobs),
                     };
                     std::thread::spawn(move || {
                         if let Err(error) =
@@ -90,7 +99,21 @@ pub fn start_endpoint_server(
 struct StoreHandler {
     store: JobStore,
     open_window: OpenWindow,
-    cancel_jobs: CancelJobs,
+    request_jobs: RequestJobs,
+}
+
+impl StoreHandler {
+    /// ジョブの操作 `request` をサービスに頼む（ジョブの記録を書くのはサービスのスレッドだけのため、頼むだけにする）
+    fn ask(&self, request: AppJobRequest) -> Result<(), HandlerError> {
+        if (self.request_jobs)(request) {
+            Ok(())
+        } else {
+            Err(HandlerError::new(
+                ErrorKind::StoreUnavailable,
+                "the job manager service is not running",
+            ))
+        }
+    }
 }
 
 /// 保存先の誤りを、口の誤りにする
@@ -124,6 +147,7 @@ fn status_to_ipc(status: StoredJobStatus) -> JobStatus {
         StoredJobStatus::Succeeded => JobStatus::Succeeded,
         StoredJobStatus::Failed => JobStatus::Failed,
         StoredJobStatus::Canceled => JobStatus::Canceled,
+        StoredJobStatus::Interrupted => JobStatus::Interrupted,
     }
 }
 
@@ -276,15 +300,11 @@ impl Handler for StoreHandler {
     }
 
     fn cancel(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError> {
-        // ジョブの記録を書くのはサービスのスレッドだけのため、頼むだけにする
-        if (self.cancel_jobs)(job_ids) {
-            Ok(())
-        } else {
-            Err(HandlerError::new(
-                ErrorKind::StoreUnavailable,
-                "the job manager service is not running",
-            ))
-        }
+        self.ask(AppJobRequest::Cancel(job_ids))
+    }
+
+    fn resume(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError> {
+        self.ask(AppJobRequest::Resume(job_ids))
     }
 
     fn record_imported(&mut self, simulation_job_id: u64) -> Result<(), HandlerError> {
@@ -364,8 +384,8 @@ mod tests {
         let store = JobStore::open(&root).unwrap();
         let opened = Arc::new(AtomicU64::new(0));
         let counted = Arc::clone(&opened);
-        let canceled = Arc::new(std::sync::Mutex::new(Vec::new()));
-        let asked = Arc::clone(&canceled);
+        let requested = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let asked = Arc::clone(&requested);
         start_endpoint_server(
             endpoint.clone(),
             store.clone(),
@@ -373,8 +393,8 @@ mod tests {
                 counted.fetch_add(1, Ordering::Relaxed);
                 true
             }),
-            Arc::new(move |job_ids| {
-                asked.lock().unwrap().extend(job_ids);
+            Arc::new(move |request| {
+                asked.lock().unwrap().push(request);
                 true
             }),
             "0.0.0",
@@ -442,9 +462,16 @@ mod tests {
         ));
         client.open_window().unwrap();
         assert_eq!(opened.load(Ordering::Relaxed), 1);
-        // 取り消しは、ジョブの記録を書くサービスに頼む
+        // 取り消し・中断のジョブの計算は、ジョブの記録を書くサービスに頼む
         client.cancel(vec![2, 1]).unwrap();
-        assert_eq!(*canceled.lock().unwrap(), vec![2, 1]);
+        client.resume(vec![3]).unwrap();
+        assert_eq!(
+            *requested.lock().unwrap(),
+            vec![
+                AppJobRequest::Cancel(vec![2, 1]),
+                AppJobRequest::Resume(vec![3])
+            ]
+        );
         // 正常に終わった切削シミュレーションでなければ、取り込んだと記録しない
         assert!(matches!(
             client.record_imported(2),

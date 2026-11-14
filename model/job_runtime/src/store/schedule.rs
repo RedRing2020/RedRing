@@ -8,6 +8,8 @@
 //! - 依存するジョブが失敗・取り消しで終わった・記録がない・自分より後の番号の（書き換えられた記録の）待ちのジョブは、
 //!   実行できない。実行できないジョブを待つジョブも実行できない。実行できないジョブは、ほかのジョブの優先順位を
 //!   上げない
+//! - 依存するジョブが中断の待ちのジョブは、実行せず、実行できないジョブにもしない（中断のジョブを計算で続けたら、
+//!   そのまま実行できるように）。中断のジョブは、ほかのジョブの優先順位を上げない
 //! - 記録を今は読めない依存先（ほかのプロセスが開いている等）は、読めるようになるまで待つ
 
 use std::collections::{HashMap, HashSet};
@@ -64,7 +66,10 @@ pub fn plan_schedule(jobs: &[StoredJob], unreadable: &[u64]) -> SchedulePlan {
     let mut effective: HashMap<u64, i32> =
         jobs.iter().map(|job| (job.job_id, job.priority)).collect();
     for job in ordered.iter().rev() {
-        if job.status.is_terminal() || blocked_ids.contains(&job.job_id) {
+        if job.status.is_terminal()
+            || job.status == StoredJobStatus::Interrupted
+            || blocked_ids.contains(&job.job_id)
+        {
             continue;
         }
         let priority = effective[&job.job_id];
