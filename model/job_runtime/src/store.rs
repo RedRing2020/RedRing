@@ -64,6 +64,9 @@ const LOG_FILE: &str = "runner.log";
 /// ランナーの標準エラー出力（メモリを確保できずに止まったときなど、ランナーがログに書けない理由が残る）
 const STDERR_FILE: &str = "runner.stderr.log";
 const PROGRESS_FILE: &str = "progress.json";
+/// ツールパス生成の途中の結果（`*.tmp` にしない: 一時のファイルとして片付けられないように）
+const RESUME_DIR: &str = "resume";
+const RESUME_FILE: &str = "toolpath.resume";
 /// 成果物を、投入した側が取り込んだ印（ジョブの記録とは別のファイル。記録を書くスレッドと重ならないように）
 const IMPORTED_FILE: &str = "imported";
 const TOOLPATH_FILE: &str = "toolpath.bin";
@@ -544,7 +547,8 @@ impl JobStore {
         }
     }
 
-    /// ジョブの成果物・ログ・進み具合を消す（計算し直す前に。前の計算のものを、今の計算のものと見誤らないように）
+    /// ジョブの成果物・ログ・進み具合を消す（計算し直す前に。前の計算のものを、今の計算のものと見誤らないように）。
+    /// 途中の結果は消さない（[`Self::remove_resume`]）
     pub fn remove_job_outputs(&self, _lock: &JobStoreLock, job_id: u64) -> Result<(), StoreError> {
         let ignore_missing = |result: std::io::Result<()>| match result {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -554,6 +558,14 @@ impl JobStore {
         ignore_missing(fs::remove_dir_all(self.logs_dir(job_id)))?;
         ignore_missing(fs::remove_file(self.progress_file(job_id)))?;
         Ok(())
+    }
+
+    /// ジョブの途中の結果を消す
+    pub fn remove_resume(&self, _lock: &JobStoreLock, job_id: u64) -> Result<(), StoreError> {
+        match fs::remove_dir_all(self.job_dir(job_id).join(RESUME_DIR)) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            other => Ok(other?),
+        }
     }
 
     /// 使った番号の最大（ジョブのフォルダ `job_ids` と、消したときに書いた番号の大きいほう。なければ 0）
@@ -685,6 +697,11 @@ impl JobStore {
     /// 進み具合のファイル
     pub fn progress_file(&self, job_id: u64) -> PathBuf {
         self.job_dir(job_id).join(PROGRESS_FILE)
+    }
+
+    /// ツールパス生成の途中の結果のファイル
+    pub fn resume_file(&self, job_id: u64) -> PathBuf {
+        self.job_dir(job_id).join(RESUME_DIR).join(RESUME_FILE)
     }
 
     /// ジョブ `job_id` の成果物を、投入した側が取り込んだ印を付ける（中身は、取り込んだ結果のジョブの番号

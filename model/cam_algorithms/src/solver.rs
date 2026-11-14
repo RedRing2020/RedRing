@@ -16,6 +16,7 @@ use geo_algorithms::{
     tessellate_surfaces,
 };
 
+use crate::checkpoint::Checkpoints;
 use crate::inverse_offset::{CutterShape, MeshTriangles};
 use crate::inverse_offset_shape::InverseOffsetShape;
 use crate::process_template::{TemplateFailure, validate_rectangle_boundary};
@@ -245,6 +246,31 @@ pub fn solve_toolpath(
     input: &CamSolverInput,
     point_limit: usize,
 ) -> Result<ToolPath<f64>, CamSolverError> {
+    solve(input, point_limit, None)
+}
+
+/// [`solve_toolpath`] と同じく ToolPath を生成し、計算の区切りごとに `checkpoints` に記録を書き足す。前の実行の記録が
+/// あれば、続きから計算する（記録を使えなければ、捨てて最初から計算する）
+///
+/// 続きから計算した ToolPath は、最初から計算した ToolPath と同じになる。工具と形状の準備は、続けるときも作り直す。
+///
+/// # Errors
+///
+/// [`solve_toolpath`] と同じ。
+pub fn solve_toolpath_resumable(
+    input: &CamSolverInput,
+    point_limit: usize,
+    checkpoints: &mut dyn Checkpoints,
+) -> Result<ToolPath<f64>, CamSolverError> {
+    solve(input, point_limit, Some(checkpoints))
+}
+
+/// ToolPath を生成する（`checkpoints` があれば、区切りごとに記録を書き足し、前の実行の記録から続ける）
+fn solve(
+    input: &CamSolverInput,
+    point_limit: usize,
+    checkpoints: Option<&mut dyn Checkpoints>,
+) -> Result<ToolPath<f64>, CamSolverError> {
     let OperationSpec::Scanline(params) = input.operation;
     let frame = ScanFrame::from_degrees(params.angle_degrees);
     let (cutter, work_bounds) = build_cutter(input, frame)?;
@@ -264,6 +290,7 @@ pub fn solve_toolpath(
         (&region, frame),
         input.chord_tolerance,
         point_limit,
+        checkpoints,
     )
 }
 
