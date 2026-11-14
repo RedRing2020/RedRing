@@ -44,6 +44,12 @@ pub enum ManagerEvent {
     Started {
         job_id: u64,
     },
+    /// 起動したランナーを、ジョブマネージャーが止まると一緒に止まる組に入れられなかった（ジョブマネージャーが
+    /// 異常終了しても、ランナーは止まらずに動き続ける）
+    Ungrouped {
+        job_id: u64,
+        reason: String,
+    },
     /// ランナーが終わった（終わったときの状態と、失敗の理由）
     Finished {
         job_id: u64,
@@ -190,10 +196,12 @@ pub fn old_jobs(jobs: &[StoredJob], before_ms: u64) -> Vec<u64> {
 
 /// ジョブマネージャーのサービス
 pub struct JobManagerService<L: Launcher> {
-    store: JobStore,
-    lock: JobStoreLock,
+    // フィールドは並びの順に捨てる。ランナー（ランチャーの組）を、保存先の排他より先に捨てる（ランナーを止めて
+    // から排他を外し、次のジョブマネージャーのランナーと重ならないように）
     launcher: L,
     running: HashMap<u64, Box<dyn RunningJob>>,
+    store: JobStore,
+    lock: JobStoreLock,
     /// 読めないと知らせたジョブ・見送ったと知らせた投入（同じ出来事を毎回書かないため）
     reported_unreadable: HashSet<u64>,
     reported_postponed: HashSet<String>,
@@ -539,8 +547,15 @@ impl<L: Launcher> JobManagerService<L> {
                         job.status = StoredJobStatus::Queued;
                         return Err(error);
                     }
+                    let ungrouped = running.ungrouped_reason().map(str::to_string);
                     self.running.insert(next, running);
                     events.push(ManagerEvent::Started { job_id: next });
+                    if let Some(reason) = ungrouped {
+                        events.push(ManagerEvent::Ungrouped {
+                            job_id: next,
+                            reason,
+                        });
+                    }
                 }
                 Err(error) => {
                     fail(

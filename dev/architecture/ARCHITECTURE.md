@@ -141,7 +141,7 @@ OS・コンテナなど、動かす環境によって違う処理は、`foundati
 | 3 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` に移し、3 か所で共有する |
 | 4 | `job_manager_app` の `main.rs`・`tray.rs`・`locale.rs`・`store_change.rs` | タスクトレイ（ウィンドウを前に出す権利を渡す処理を含む）・レジストリ・ロケールなど（windows-sys） | タスクトレイなどの画面の部品は残す。画面の部品でないもの（レジストリ・ロケールの取得など）を移すかは、そのときに決める |
 
-- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行う。2 から 4 は、分けて行う
+- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行った（`platform_foundation` の `process`。表の今の場所は、移す前の場所）。2 から 4 は、分けて行う
 - クレートを作る変更で、ワークスペースの `members`・`scripts/_arch_rules_data.ps1`・この文書の層の図を更新する（依存チェック運用）
 
 ## 📏 運用ルール

@@ -1,9 +1,12 @@
 //! ランナーの起動（実行中のランナーの終わりの確かめと、止めること）
 
+use std::cell::OnceCell;
 use std::ffi::OsString;
 use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+
+use platform_foundation::process::{ChildGroup, hide_console_window};
 
 /// ランナーに渡す引数（パスはすべて保存先のジョブのフォルダの下）
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +53,10 @@ pub trait RunningJob {
     fn try_finish(&mut self) -> std::io::Result<Option<Option<i32>>>;
     /// 止めて、終わるのを待つ
     fn stop(&mut self) -> std::io::Result<()>;
+    /// ジョブマネージャーが止まると一緒に止まる組に入れられなかった理由（入れたとき・組を使わないときは `None`）
+    fn ungrouped_reason(&self) -> Option<&str> {
+        None
+    }
 }
 
 /// ランナーを起動する
@@ -58,15 +65,33 @@ pub trait Launcher {
 }
 
 /// ランナーの実行ファイルを、シェルを通さずに起動する
-#[derive(Debug, Clone)]
+///
+/// ランナーは、このプロセスが終わる（異常終了を含む）と一緒に止まる組に入れる（`ChildGroup`。組を持たない OS では
+/// 入れない）。このランチャーを捨てたときも、組のランナーは止まる。組を作れない・組に入れられないときは、組に入れずに
+/// 動かし、その理由を `RunningJob::ungrouped_reason` で返す（組を使えない環境でも計算できるように）。
+#[derive(Debug)]
 pub struct ProcessLauncher {
     runner: PathBuf,
+    /// 最初に起動するときに作る（作れなければ、組に入れずに起動し、次の起動で作り直す）
+    group: OnceCell<ChildGroup>,
 }
 
 impl ProcessLauncher {
     /// 実行ファイル `runner` を起動するランチャー
     pub fn new(runner: PathBuf) -> Self {
-        Self { runner }
+        Self {
+            runner,
+            group: OnceCell::new(),
+        }
+    }
+
+    /// ランナーの組（まだなければ作る）
+    fn group(&self) -> std::io::Result<&ChildGroup> {
+        if let Some(group) = self.group.get() {
+            return Ok(group);
+        }
+        let group = ChildGroup::new()?;
+        Ok(self.group.get_or_init(|| group))
     }
 }
 
@@ -86,20 +111,21 @@ impl Launcher for ProcessLauncher {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(stderr);
-        // Windows では、ランナーのコンソールのウィンドウを出さない
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            command.creation_flags(CREATE_NO_WINDOW);
-        }
-        let child = command.spawn()?;
-        Ok(Box::new(ProcessJob { child }))
+        hide_console_window(&mut command);
+        let (child, ungrouped) = match self.group() {
+            Ok(group) => group.spawn(&mut command)?,
+            Err(error) => (command.spawn()?, Some(error)),
+        };
+        Ok(Box::new(ProcessJob {
+            child,
+            ungrouped: ungrouped.map(|error| error.to_string()),
+        }))
     }
 }
 
 struct ProcessJob {
     child: Child,
+    ungrouped: Option<String>,
 }
 
 impl RunningJob for ProcessJob {
@@ -113,5 +139,9 @@ impl RunningJob for ProcessJob {
             self.child.kill()?;
         }
         self.child.wait().map(|_| ())
+    }
+
+    fn ungrouped_reason(&self) -> Option<&str> {
+        self.ungrouped.as_deref()
     }
 }

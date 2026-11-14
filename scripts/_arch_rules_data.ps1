@@ -8,7 +8,7 @@
 
 # Layer groups
 $ARCH_LAYERS = [ordered]@{
-    Foundation  = @("analysis", "i18n_foundation", "logging_foundation")
+    Foundation  = @("analysis", "i18n_foundation", "logging_foundation", "platform_foundation")
     Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
     Application = @("application")
     ViewModel   = @("viewmodel", "viewmodel-graphics")
@@ -25,6 +25,8 @@ $ARCH_ALLOWED_DEPS = @{
     analysis             = @()
     i18n_foundation      = @()
     logging_foundation   = @()
+    # 動かす環境の違いの吸収は、ワークスペースの他のクレートに依存しない（ARCHITECTURE.md の動かす環境に依存するコードの方針）
+    platform_foundation  = @()
 
     geo_contracts  = @("analysis", "geo_core")
     geo_commons    = @("analysis")
@@ -44,11 +46,11 @@ $ARCH_ALLOWED_DEPS = @{
     # ランナーは引数・ファイル・終了の番号だけを持ち、入力の読み込みと計算は cam_sim に任せる
     job_runner     = @("cam_sim")
     # ジョブマネージャーは CAD/CAM に依らず、ジョブの保存先とランナーの起動と、問い合わせる口の受け手を持つ
-    job_manager    = @("job_runtime", "job_ipc")
+    job_manager    = @("job_runtime", "job_ipc", "platform_foundation")
     # ジョブマネージャーに問い合わせる口は、ジョブの保存先の形式と分けるため、ワークスペースの他のクレートに依存しない
     job_ipc        = @()
 
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc", "platform_foundation")
 
     viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application")
     "viewmodel-graphics" = @("analysis")

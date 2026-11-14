@@ -42,6 +42,8 @@ struct FakeState {
     exit_codes: HashMap<&'static str, i32>,
     stderr: &'static str,
     fail_to_launch: bool,
+    /// 起動したランナーを組に入れられなかった理由
+    ungrouped: Option<&'static str>,
     /// 終わるまでの確かめの回数
     polls_until_done: usize,
 }
@@ -61,6 +63,7 @@ impl Launcher for FakeLauncher {
             code: state.exit_codes.get(spec.job_type).copied().unwrap_or(0),
             stderr: state.stderr,
             polls_left: state.polls_until_done,
+            ungrouped: state.ungrouped,
             state: self.0.clone(),
         }))
     }
@@ -71,6 +74,7 @@ struct FakeJob {
     code: i32,
     stderr: &'static str,
     polls_left: usize,
+    ungrouped: Option<&'static str>,
     state: Rc<RefCell<FakeState>>,
 }
 
@@ -104,6 +108,10 @@ impl RunningJob for FakeJob {
             .stopped
             .push(self.spec.input.clone());
         Ok(())
+    }
+
+    fn ungrouped_reason(&self) -> Option<&str> {
+        self.ungrouped
     }
 }
 
@@ -799,6 +807,27 @@ fn raising_the_priority_of_a_waiting_job_runs_it_first() {
     service.tick(4);
     assert_eq!(status_of(&root.store(), 3).status, StoredJobStatus::Running);
     assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Queued);
+}
+
+#[test]
+fn a_runner_that_cannot_be_put_in_the_group_runs_and_the_reason_is_reported() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().ungrouped = Some("cannot add the child process to the group");
+    launcher.0.borrow_mut().polls_until_done = 1;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher, 0).unwrap();
+    submit(
+        &root.store(),
+        "a1",
+        vec![job(StoredJobKind::Cam, "a.bin", vec![], 0)],
+    );
+    let events = service.tick(1);
+    assert!(events.contains(&ManagerEvent::Started { job_id: 1 }));
+    assert!(events.contains(&ManagerEvent::Ungrouped {
+        job_id: 1,
+        reason: "cannot add the child process to the group".to_string(),
+    }));
+    assert_eq!(status_of(&root.store(), 1).status, StoredJobStatus::Running);
 }
 
 #[test]
