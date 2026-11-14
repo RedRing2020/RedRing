@@ -59,6 +59,17 @@ pub(crate) fn run(args: &RunnerArgs) -> ExitCode {
             failure.code
         }
     };
+    // 途中の結果は、終わったら要らない（成功なら成果物ができ、失敗なら次は最初から計算するため。消せなくても、終わり
+    // 方は変えない）
+    if let Some(resume) = &args.resume
+        && let Err(error) = fs::remove_file(resume)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        log.line(&format!(
+            "resume: cannot remove {}: {error}",
+            resume.display()
+        ));
+    }
     let state = if code == ExitCode::Succeeded {
         "succeeded"
     } else {
@@ -172,16 +183,6 @@ fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
                 format!("cannot write {}: {error}", path.display()),
             )
         })?;
-    // 途中の結果は、成果物を書き終えたら要らない（消せなくても、成果物はできている）
-    if let Some(resume) = &args.resume
-        && let Err(error) = fs::remove_file(resume)
-        && error.kind() != std::io::ErrorKind::NotFound
-    {
-        log.line(&format!(
-            "resume: cannot remove {}: {error}",
-            resume.display()
-        ));
-    }
     Ok(path)
 }
 

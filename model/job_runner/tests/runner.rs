@@ -265,3 +265,18 @@ fn a_cam_job_continues_from_the_records_of_the_previous_run() {
     );
     assert!(!resume.exists());
 }
+
+#[test]
+fn a_failed_cam_job_removes_the_resume_file() {
+    let dir = WorkDir::new();
+    let input = dir.path("input.bin");
+    let mut invalid = cam_input();
+    invalid.tool = Tool::ball_end_mill("BEM0".to_string(), 0.0, 40.0);
+    write_cam_input(&input, &invalid);
+    let resume = dir.path("resume").join("toolpath.resume");
+    fs::create_dir_all(resume.parent().unwrap()).unwrap();
+    fs::write(&resume, b"records of an earlier run").unwrap();
+
+    assert_eq!(run_cam_job_with_resume(&dir, &input, &resume), 4);
+    assert!(!resume.exists());
+}
