@@ -52,6 +52,7 @@ Rust の版は、リポジトリの直下の `rust-toolchain.toml` の 1 か所�
 
 - CI・リリースのワークフローは、版を書かずに、共通の手順 `.github/actions/setup-rust`（引数なしの `rustup toolchain install`）で `rust-toolchain.toml` の版と部品を入れる。cargo-deny は自分のコンテナで動くため、`rust-toolchain.toml` の版を読んで Action に渡す
 - Cargo.toml には `rust-version` を書かない（版を書く場所を 2 つにしないため）
+- `develop` への PR・push の CI（`develop_ci.yml`）は、Ubuntu の job（`build-test`）に加えて、Windows の job（`windows-build-test`）で clippy と試験を回す。Windows のときだけコンパイルするコード（ジョブマネージャーのタスクトレイ・名前付きパイプの口・ランナーの起動など）は、Ubuntu ではコンパイルされないため（#1307）
 
 版を上げるときは、次の順に行う。
 
