@@ -289,7 +289,7 @@ impl<L: Launcher> JobManagerService<L> {
             None => job.started_at_ms = None,
         }
         job.status = StoredJobStatus::Canceled;
-        // 中断のジョブの、止まった理由を残さない（取り消しの理由に見えないように）
+        // 止まった理由（中断のジョブの理由など）を残さない（取り消しの理由に見えないように）
         job.last_error = None;
         job.error = None;
         job.updated_at_ms = now_ms;
