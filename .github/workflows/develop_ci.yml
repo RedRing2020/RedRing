@@ -68,6 +68,31 @@ jobs:
           cargo doc --workspace --no-deps --verbose
           echo "✅ Documentation built successfully (develop branch - no deployment)"
 
+  # Windows のときだけコンパイルするコード（ジョブマネージャーのタスクトレイ・名前付きパイプの口・ランナーの起動など）を、
+  # リリースを待たずに確かめる
+  windows-build-test:
+    name: Windows Build and Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Rust の版と部品は、リポジトリの rust-toolchain.toml で決める（ここでは、その版を入れる）
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-on-failure: true
+
+      - name: Run Clippy lints
+        run: cargo clippy --all-targets --all-features --workspace -- -D warnings
+
+      - name: Run tests
+        run: cargo test --workspace
+
   docker-build-batch-runner:
     name: Docker Build Batch Runner
     runs-on: ubuntu-latest
@@ -182,7 +207,7 @@ jobs:
   check-no-deployment:
     name: Development Branch Status
     runs-on: ubuntu-latest
-    needs: [build-test, docker-build-batch-runner, docker-smoke-test-nonroot, docker-security-scan, architecture-dependency-check]
+    needs: [build-test, windows-build-test, docker-build-batch-runner, docker-smoke-test-nonroot, docker-security-scan, architecture-dependency-check]
 
     steps:
       - name: Development branch notification
