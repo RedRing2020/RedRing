@@ -159,7 +159,7 @@ pub(crate) fn dispatch_messages(until_open: bool) {
             TranslateMessage(&message);
             DispatchMessageW(&message);
         }
-        // 開く頼みは、配ったメッセージ（トレイ・2 つ目の起動）の中で記録する
+        // 開く頼みは、配ったメッセージ（待ちの列に置いた、ウィンドウを開くメッセージ・メニュー）の中で記録する
         let requested = STATE.with(|cell| {
             cell.borrow()
                 .as_ref()
@@ -215,7 +215,12 @@ unsafe extern "system" fn window_proc(
     match message {
         WM_TRAY => {
             match (lparam & 0xffff) as u32 {
-                WM_LBUTTONUP | NIN_BALLOONUSERCLICK => open_window(),
+                // トレイのアイコンのクリックは送られたメッセージで届き、`GetMessageW` の中で配られて
+                // `GetMessageW` は戻らない。開く頼みを確かめるループが進むように、2 つ目の起動と同じく待ちの列に置く
+                // SAFETY: `hwnd` はこのスレッドが作った見えないウィンドウ
+                WM_LBUTTONUP | NIN_BALLOONUSERCLICK => unsafe {
+                    PostMessageW(hwnd, WM_OPEN_WINDOW, 0, 0);
+                },
                 WM_RBUTTONUP => show_menu(hwnd),
                 _ => {}
             }
