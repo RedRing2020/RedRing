@@ -1,6 +1,6 @@
 # RedRing アーキテクチャ構成
 
-**最終更新日**: 2026年10月12日
+**最終更新日**: 2026年11月14日
 
 RedRing のレイヤー構成、クレートの責務と依存の規則を定義する。クレートの依存の検査は `scripts/check_architecture_dependencies.ps1` と、そのルール `scripts/_arch_rules_data.ps1` で行う。
 
@@ -8,7 +8,7 @@ RedRing のレイヤー構成、クレートの責務と依存の規則を定義
 
 | ディレクトリ | レイヤー | 役割 |
 | --- | --- | --- |
-| `foundation/` | 基盤 | ドメインに依存しない数値計算・ログ・ローカライズ |
+| `foundation/` | 基盤 | ドメインに依存しない数値計算・ログ・ローカライズ・動かす環境（OS など）の違いの吸収 |
 | `model/` | モデル | 幾何（`geo_*`）・CAM（`cam_*`）・ジョブ（`job_*`）・ユースケースの orchestration（`application`） |
 | `viewmodel/` | ビューモデル | モデルのデータを描画用のデータに変換する |
 | `view/` | ビュー | GPU 描画・ステージ・アプリケーション |
@@ -32,7 +32,7 @@ model
   job_manager → job_runtime（ジョブを管理してランナーを起動するジョブマネージャーのサービス）
   job_manager_app → job_manager / job_runtime（ジョブマネージャーの画面と実行ファイル。View の層から Model の層への依存の例外）
   ↓
-foundation（analysis / logging_foundation / i18n_foundation）
+foundation（analysis / logging_foundation / i18n_foundation / platform_foundation）
 ```
 
 各クレートに許可された依存の正本は `scripts/_arch_rules_data.ps1` とする。
@@ -41,6 +41,7 @@ foundation（analysis / logging_foundation / i18n_foundation）
 
 - **`foundation/analysis`**: 線形代数などの純粋な数値解析・抽象型・許容誤差
 - **`foundation/logging_foundation`** / **`foundation/i18n_foundation`**: ログの初期化・レート制御 / ローカライズのメッセージカタログ
+- **`foundation/platform_foundation`**: 動かす環境（OS・コンテナなど）によって違う処理の、環境に依らない API の薄いラッパー（子プロセスの扱い・プロセスの間の口・利用者のフォルダの場所など）。ドメインの知識と画面の部品を持たない（動かす環境に依存するコードの方針）
 - **`geo_contracts`**: 幾何の trait定義の正本（抽象化）。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義し、`geo_core` の値型で型付けし、その値型を再エクスポートする。形状の具体型と実装を持たない
 - **`geo_commons`**: `analysis` のみに依存する、形状の型に依存しない共通の数値計算（楕円・楕円体の最近点と距離等）
 - **`geo_core`**: 最下位の幾何の値型（点・ベクトル・方向・相似変換・AABB・点の分類）と、許容誤差の既定値・変換のエラー。`analysis` のみに依存し、trait定義を持たず、操作は固有メソッドで提供する
@@ -106,6 +107,42 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **依存方針**:
     - `job_runtime` は `geo_*` / `cam_*` / View系へ依存しない
     - `cam_*` / 将来のCAE側は `job_runtime` をアダプタ経由で利用する
+
+### 動かす環境に依存するコードの方針（2026年11月）
+
+OS・コンテナなど、動かす環境によって違う処理は、`foundation/platform_foundation` に集め、環境に依らない API の薄いラッパーとして使う。業務のクレートは、環境ごとの違い（`#[cfg(windows)]` など）と、OS の API のクレート（windows-sys など）を持たない。
+
+- **置くもの**: 動かす環境によって違う処理を、環境に依らない API で見せるもの
+    - OS の違い: 子プロセスの扱い（親のプロセスが終わると一緒に止まる組・コンソールを出さない指定）、プロセスの間の口（名前付きパイプ・UNIX ドメインソケット）、ウィンドウを前に出す権利を渡す処理
+    - 動かす環境の違い: 利用者のフォルダの場所（`%LOCALAPPDATA%`・`$XDG_DATA_HOME` など）
+- **置かないもの**
+    - ドメインの知識（ジョブ・ランナー・CAM など）。API は OS の言葉（プロセス・口・フォルダ）だけで作る。たとえば、ランナーの引数・ジョブのフォルダを知るランナーの起動（`job_manager` の `ProcessLauncher`）は業務のクレートに残し、その中の OS に依存する所だけを `platform_foundation` で呼ぶ
+    - 画面の部品（タスクトレイ・ウィンドウ・吹き出し）。View の層に残す
+    - 環境に依らない処理
+- **API の形**
+    - 環境ごとの違いは、クレートの中（環境ごとのファイル）に閉じる。使う側に `#[cfg]` を書かせない
+    - 対応しない環境では、何もしない形（その仕組みがないときの今の動き）にするか、使えないことをエラーで返す。どちらにするかは、その API ごとに決めて、ドキュメントコメントに書く
+    - 役割ごとにモジュールを分ける（`process`・`ipc` など）。呼ぶ所ができたときに足し、使う所のないモジュール・API を置かない（`GEO_API_ADDITION_RULES.md` と同じ考え）
+- **依存**
+    - `platform_foundation` は、ワークスペースの他のクレートに依存しない
+    - foundation の他のクレート（`analysis` など）は、`platform_foundation` に依存しない（純粋な計算に環境への依存を入れないため）
+    - Model・Application・View のクレートは、要るものだけが依存する（`scripts/_arch_rules_data.ps1` で、依存してよいクレートを決める）
+    - OS の API のクレート（windows-sys など）を使ってよいのは、`platform_foundation` と、画面の部品の OS への依存を持つ View の実行ファイル（`job_manager_app`）だけとする
+- **試験**
+    - 環境に依存する実装の試験は、`platform_foundation` の中で行う（環境ごとに、CI の Ubuntu と Windows で確かめる）
+    - 業務のクレートの試験は、今ある境目の trait（`job_manager` の `Launcher` など）で差し替える。`platform_foundation` を差し替えるための trait は作らない
+- **移す順**（今の環境に依存するコードと、移す先）
+
+| 順 | 今の場所 | 中身 | 扱い |
+|---|---|---|---|
+| 1 | `job_manager` の `launcher.rs` | コンソールを出さない指定（`#[cfg(windows)]`） | `platform_foundation` の `process` に移し、ランナーをジョブオブジェクトに入れる処理と一緒に入れる（`JOB_MANAGER_STORAGE_DESIGN.md` 3.3） |
+| 2 | `job_ipc` の `endpoint/windows.rs`・`unix.rs` | 名前付きパイプ・UNIX ドメインソケット（windows-sys） | `platform_foundation` の `ipc` に移す。枠・要求と応答の型は `job_ipc` に残す |
+| 3 | `application` の `job_client/pipe.rs` | ウィンドウを前に出す権利を渡す（`#[cfg(windows)]`） | `platform_foundation` に移す |
+| 4 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` に移し、3 か所で共有する |
+| 5 | `job_manager_app` の `main.rs`・`locale.rs`・`store_change.rs` | タスクトレイ・レジストリ・ロケールなど（windows-sys） | タスクトレイなどの画面の部品は残す。画面の部品でないもの（レジストリ・ロケールの取得など）を移すかは、そのときに決める |
+
+- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行う。2 から 5 は、分けて行う
+- クレートを作る変更で、ワークスペースの `members`・`scripts/_arch_rules_data.ps1`・この文書の層の図を更新する（依存チェック運用）
 
 ## 📏 運用ルール
 
