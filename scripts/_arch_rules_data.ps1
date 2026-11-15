@@ -60,7 +60,7 @@ $ARCH_ALLOWED_DEPS = @{
     redring = @("analysis", "logging_foundation", "platform_foundation", "render", "stage", "viewmodel", "viewmodel-graphics")
     # 例外: ジョブマネージャーの画面は CAD/CAM の画面とは別の小さなアプリで、間に ViewModel を挟むほどの変換がないため、
     # ジョブマネージャーのサービスとジョブの記録の型に直接依存する（CAM_OPERATION_UI_DESIGN.md 3.7）
-    job_manager_app = @("i18n_foundation", "job_manager", "job_runtime", "job_ipc", "platform_foundation")
+    job_manager_app = @("i18n_foundation", "logging_foundation", "job_manager", "job_runtime", "job_ipc", "platform_foundation")
 }
 
 # Forbidden dependency rules

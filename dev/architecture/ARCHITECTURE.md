@@ -30,7 +30,7 @@ model
   cam_sim / application → job_domain → job_runtime
   job_runner → cam_sim（ジョブ 1 つを計算するランナーの実行ファイル）
   job_manager → job_runtime（ジョブを管理してランナーを起動するジョブマネージャーのサービス）
-  job_manager_app → job_manager / job_runtime（ジョブマネージャーの画面と実行ファイル。View の層から Model の層への依存の例外）
+  job_manager_app → job_manager / job_runtime（ジョブマネージャーの画面と実行ファイル。View の層から Model の層への依存の例外。ログの書き方は logging_foundation を使う）
   ↓
 foundation（analysis / logging_foundation / i18n_foundation / platform_foundation）
 ```

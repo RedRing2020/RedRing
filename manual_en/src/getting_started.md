@@ -79,7 +79,7 @@ Toolpath generation and the cutting simulation are calculated by the job manager
     - Submissions that could not be taken in: submissions the job manager could not take in, for example because of a different app version
 - The language of the job manager screens is selected separately from the app ("Language" at the top right of the window, or "Language" in the system tray menu). It changes at once, and the same language is used at the next start. Until you select one, it follows the Windows display language (Japanese for Japanese, English otherwise). The selected language is saved in a per-user settings file (`%APPDATA%\RedRing\job_manager.json` on Windows)
 - The job manager keeps calculating after you close the app. When you close the job manager window, it stays in the system tray and keeps calculating. To stop it, use "Quit" in the system tray menu (opening a machining sequence in the app does not start the job manager; it starts when you calculate, import, or press "Open job manager". If you quit the job manager while jobs are waiting, the calculation stops until you do one of those operations)
-- Job records and results are kept in the job store. At first, it is `%LOCALAPPDATA%\RedRing\jobs` on Windows. The job manager log is `manager.log` in the job store. Hover over "Job store: …" at the top of the window to see its location
+- Job records and results are kept in the job store. At first, it is `%LOCALAPPDATA%\RedRing\jobs` on Windows. The job manager log is `%LOCALAPPDATA%\RedRing\logs\job_manager.log` on Windows (the same place even if you change the job store). Hover over "Job store: …" at the top of the window to see its location
 - You can change the job store with "Change job store…" at the top right of the window (not while jobs are waiting or calculating)
   - After you choose a folder, you are asked to confirm. The job manager then restarts and lists the jobs in the new job store. The jobs and files in the previous job store are kept (they are listed again if you change back)
   - If you choose a folder used as a job store before, its jobs are listed. If the folder contains files that are not part of a job store, the confirmation says so. Choose an empty folder or a folder used as a job store
@@ -93,7 +93,7 @@ Toolpath generation and the cutting simulation are calculated by the job manager
 
 ## Log
 
-- The log is written to `logs/redring.log` in the working folder at startup (the extracted folder when the package is started by double-clicking, or the repository root in the steps above when built from source). It is rewritten at each start
+- The log is written to `logs/redring.log` in the working folder at startup (the extracted folder when the package is started by double-clicking, or the repository root in the steps above when built from source). A new log is started at each start, and the logs of the previous five starts are kept with numbered names (`redring.1.log` is the previous one, `redring.2.log` the one before, and so on; the job manager log works the same way). If the app or the job manager stops, you can still check the log from before it stopped after starting it again
 - A build with `--release` does not open a console window. A build without `--release` also writes the same content to the console (the terminal it was started from)
 - The location of the log file is also shown in "Help" → "About"
 - The results of operations and the reasons why an operation could not be done also appear in the status bar at the bottom of the screen

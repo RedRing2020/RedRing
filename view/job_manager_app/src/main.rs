@@ -97,7 +97,11 @@ fn main() -> ExitCode {
     };
     // 出来事は、受け取り始めるまで溜めておく（ジョブが終わったときの吹き出しに使う）
     let (event_tx, event_rx) = std::sync::mpsc::channel();
-    let (service, channel) = match service::start_service(store.clone(), runner, event_tx) {
+    // ログは、既定の保存先と同じ利用者ごとのデータのフォルダの下の `logs` に書く（保存先を替えても同じ場所）
+    let log_dir =
+        JobStore::default_root().and_then(|root| root.parent().map(|folder| folder.join("logs")));
+    let (service, channel) = match service::start_service(store.clone(), runner, log_dir, event_tx)
+    {
         Ok(started) => started,
         Err(StoreError::AlreadyLocked) => {
             #[cfg(windows)]
