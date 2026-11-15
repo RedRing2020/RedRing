@@ -4,4 +4,5 @@
 
 pub mod file;
 pub mod folder;
+pub mod ipc;
 pub mod process;

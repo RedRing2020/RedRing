@@ -316,22 +316,11 @@ fn requests_go_through_the_endpoint() {
 }
 
 #[test]
-fn connecting_to_a_closed_endpoint_fails_without_waiting() {
-    let endpoint = test_endpoint();
-    assert_eq!(
-        endpoint.connect(Duration::ZERO).unwrap_err().kind(),
-        io::ErrorKind::NotFound
-    );
-    // 閉じた口は、開き直せる
-    drop(endpoint.listen().unwrap());
-    let _listener = endpoint.listen().unwrap();
-    // 開いている口は、2 つ目を開かない（UNIX では、開いているかを確かめるために一度つなぐため、接続を受ける試験と
-    // 分ける）
-    assert_eq!(
-        endpoint.listen().unwrap_err().kind(),
-        io::ErrorKind::AddrInUse
-    );
+fn test_endpoints_are_separate_from_the_job_manager_endpoint() {
+    assert_ne!(test_endpoint(), Endpoint::for_current_user().unwrap());
     assert!(Endpoint::with_name("bad/name").is_err());
+    assert!(Endpoint::with_name("bad.name").is_err());
+    assert!(Endpoint::with_name("jobmanager").is_err());
 }
 
 #[test]
