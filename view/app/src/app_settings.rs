@@ -84,7 +84,7 @@ pub(crate) fn load_settings(path: &Path) -> std::io::Result<AppSettings> {
         .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
 }
 
-/// 設定を書く（書きかけのファイルに書き終えてから名前を替え、途中で止まっても前の設定を壊さない）
+/// 設定を書く（書きかけのファイルに書き、ドライブまで書き込んでから名前を替え、途中で止まっても前の設定を壊さない）
 pub(crate) fn save_settings(path: &Path, settings: &AppSettings) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -92,11 +92,9 @@ pub(crate) fn save_settings(path: &Path, settings: &AppSettings) -> std::io::Res
     let text = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
     // 書きかけのファイルの名前は、プロセスごとに分ける（2 つ起動していても、互いの書きかけを替えない）
     let temp = path.with_file_name(format!("{SETTINGS_FILE_NAME}.{}.tmp", std::process::id()));
-    let result = std::fs::write(&temp, text).and_then(|()| std::fs::rename(&temp, path));
-    if result.is_err() {
-        let _ = std::fs::remove_file(&temp);
-    }
-    result
+    platform_foundation::file::replace_file(path, &temp, |file| {
+        std::io::Write::write_all(file, text.as_bytes())
+    })
 }
 
 #[cfg(test)]

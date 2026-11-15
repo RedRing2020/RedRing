@@ -21,6 +21,7 @@ render = { path = "../render" }
 stage = { path = "../stage" }
 analysis = { path = "../../foundation/analysis" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
+platform_foundation = { path = "../../foundation/platform_foundation" }
 bytemuck = { version = "1.24", features = ["derive"] }
 # 0.37 から標準のフォントが既定で入らないため、英字のフォントと、記号（▲・▼・→ など）のフォントを入れる（日本語は OS の
 # フォントを足す）

@@ -399,22 +399,12 @@ pub fn save_space_model(
     model: &SpaceModel,
     info: &SpaceModelSaveInfo,
 ) -> Result<(), SpaceModelFileError> {
-    let temporary = temporary_path(path);
-    let result = (|| {
-        let mut file = fs::File::create(&temporary)?;
-        let mut writer = std::io::BufWriter::new(&mut file);
+    platform_foundation::file::replace_file(path, &temporary_path(path), |file| {
+        let mut writer = std::io::BufWriter::new(file);
         write_space_model(&mut writer, model, info)?;
         writer.flush()?;
-        drop(writer);
-        file.sync_all()?;
-        drop(file);
-        fs::rename(&temporary, path)?;
         Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result
+    })
 }
 
 /// モデルファイル `path` を読む

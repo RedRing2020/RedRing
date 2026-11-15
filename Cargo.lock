@@ -1731,6 +1731,7 @@ dependencies = [
  "job_ipc",
  "job_manager",
  "job_runtime",
+ "platform_foundation",
  "rfd",
  "serde",
  "serde_json",
@@ -1747,6 +1748,7 @@ dependencies = [
  "geo_algorithms",
  "job_manager",
  "job_runtime",
+ "platform_foundation",
  "serde_json",
 ]
 
@@ -1754,6 +1756,7 @@ dependencies = [
 name = "job_runtime"
 version = "0.1.0"
 dependencies = [
+ "platform_foundation",
  "serde",
  "serde_json",
 ]
@@ -2862,6 +2865,7 @@ dependencies = [
  "egui-winit",
  "fontdb",
  "logging_foundation",
+ "platform_foundation",
  "pollster",
  "render",
  "rfd",
