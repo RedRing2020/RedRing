@@ -24,8 +24,9 @@ mod tests;
 const RETRY_INTERVAL: Duration = Duration::from_millis(50);
 /// 口の名前の 1 つの部分の長さの上限
 const MAX_NAME_PART_BYTES: usize = 64;
-/// 同時につなげる数の上限の、指定できる最大（Windows のパイプのインスタンスの数の上限）
-const MAX_CONNECTIONS_LIMIT: usize = 254;
+/// 同時につなげる数の上限の、指定できる最大（Windows のパイプのインスタンスの数の上限 254 から、次の接続を待つ
+/// インスタンスの分を除く）
+const MAX_CONNECTIONS_LIMIT: usize = 253;
 
 /// 口の場所
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,7 +54,7 @@ impl Endpoint {
         platform::Address::for_current_user(group, name).map(Self)
     }
 
-    /// 口を開く。同時につなげる数を `max_connections`（1 から 254 まで）までにする（同じ口を、
+    /// 口を開く。同時につなげる数を `max_connections`（1 から 253 まで）までにする（同じ口を、
     /// ほかのプロセスが開いていれば開かない）
     ///
     /// # Errors
@@ -110,7 +111,8 @@ fn is_plain_name(part: &str) -> bool {
 pub struct Listener(platform::Listener);
 
 impl Listener {
-    /// 次の接続を待って受ける（同時につないでいる数が上限のときは、空くまで待つ）
+    /// 次の接続を待って受ける（同時につないでいる数が上限のときは、Windows では空くまで待ってから受け、ほかの OS
+    /// では受けてすぐに閉じる。つないだ側は、待ち続けずに接続が閉じたと分かる）
     ///
     /// # Errors
     ///

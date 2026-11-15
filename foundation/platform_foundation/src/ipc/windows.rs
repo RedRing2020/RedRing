@@ -9,6 +9,8 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::{AsRawHandle, FromRawHandle};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{
@@ -45,12 +47,29 @@ const PIPE_BUFFER_BYTES: u32 = 64 * 1024;
 /// 同時につないでいる数が上限のときに、空くのを待つ間隔
 const BUSY_INTERVAL: Duration = Duration::from_millis(50);
 
-/// パイプの接続（つなぐ側は、非同期の読み書きで時間の上限を設けられる）
+/// 同時につないでいる数
+type Slots = Arc<AtomicUsize>;
+
+/// 受けた接続の、同時につないでいる数の 1 つ分（放したら減らす）
+#[derive(Debug)]
+struct Slot(Slots);
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// パイプの接続（つなぐ側は、非同期の読み書きで時間の上限を設けられる。受けた側は、閉じたら同時につないでいる数を
+/// 減らす）
 #[derive(Debug)]
 pub(super) struct Stream {
     file: File,
     /// つなぐ側の、非同期の読み書き（受ける側は `None` で、同期に読み書きする）
     overlapped: Option<OverlappedIo>,
+    /// 受けた側の、同時につないでいる数の 1 つ分（つなぐ側は `None`）。`file` より後に置き、パイプのハンドルを
+    /// 閉じてから減らす（減らした数を見て作るインスタンスが、閉じる前のハンドルの分で上限に当たらないように）
+    _slot: Option<Slot>,
 }
 
 /// 非同期の読み書きの、終わりを知らせるイベントと、時間の上限
@@ -306,13 +325,19 @@ impl Drop for SecurityDescriptor {
 }
 
 /// 開いたパイプ（次の接続を待つインスタンスを持つ）
+///
+/// パイプのインスタンスの数の上限は、同時につなげる数より 1 つ多くする。同時につなげる数だけつないでいても、次の
+/// 接続を待つインスタンスを持ち続け、パイプの名前を、インスタンスのない間にほかのプロセスに取られないようにする。
+/// 同時につなげる数だけつないでいる間は、次の接続を待つインスタンスにつないだ側を、空くまで待たせる（それより後に
+/// つなぐ側は、インスタンスが空いていない（`ResourceBusy`）として、つなぎ直す）。
 pub(super) struct Listener {
     name: Vec<u16>,
-    /// 同時につなげる数の上限（パイプのインスタンスの数）
-    max_connections: u32,
+    /// 同時につなげる数の上限
+    max_connections: usize,
     security: SecurityDescriptor,
-    /// 次の接続を待つインスタンス（最初のインスタンス。受けたら、次の接続のときに作る）
+    /// 次の接続を待つインスタンス（最初のインスタンス。受けたら、次の接続を待つインスタンスをすぐに作る）
     next: Option<File>,
+    slots: Slots,
 }
 
 impl std::fmt::Debug for Listener {
@@ -346,10 +371,10 @@ impl Listener {
         }
         let mut listener = Self {
             name: address.wide(),
-            // 範囲は呼ぶ側（`Endpoint::listen`）で確かめている
-            max_connections: max_connections as u32,
+            max_connections,
             security: SecurityDescriptor(descriptor),
             next: None,
+            slots: Arc::new(AtomicUsize::new(0)),
         };
         listener.next = Some(listener.create_instance(true).map_err(|error| {
             // 最初のインスタンスを作れないのは、ほかのプロセスが同じ名前のパイプを開いているとき
@@ -373,13 +398,15 @@ impl Listener {
         } else {
             0
         };
+        // 次の接続を待つインスタンスの分だけ多くする（範囲は、呼ぶ側（`Endpoint::listen`）で確かめている）
+        let max_instances = (self.max_connections + 1) as u32;
         // SAFETY: 名前は終わりが 0 の UTF-16 の文字列。属性はこの関数の中で生きている
         let handle = unsafe {
             CreateNamedPipeW(
                 self.name.as_ptr(),
                 PIPE_ACCESS_DUPLEX | first_flag,
                 PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
-                self.max_connections,
+                max_instances,
                 PIPE_BUFFER_BYTES,
                 PIPE_BUFFER_BYTES,
                 0,
@@ -393,7 +420,7 @@ impl Listener {
         Ok(unsafe { File::from_raw_handle(handle) })
     }
 
-    /// 次の接続を待つインスタンス（なければ作る。同時につないでいる数が上限のときは、空くまで待つ）
+    /// 次の接続を待つインスタンス（なければ作る。インスタンスの数が上限のときは、空くまで待つ）
     fn waiting_instance(&mut self) -> io::Result<File> {
         if let Some(instance) = self.next.take() {
             return Ok(instance);
@@ -410,10 +437,14 @@ impl Listener {
     }
 
     /// 接続を待って受ける。受けたら、次の接続を待つインスタンスをすぐに作る（パイプの名前を、インスタンスのない
-    /// 間にほかのプロセスに取られないように）
+    /// 間にほかのプロセスに取られないように）。同時につないでいる数が上限のときは、空くまで待ってから受ける
     pub(super) fn accept(&mut self) -> io::Result<Stream> {
         loop {
             let instance = self.waiting_instance()?;
+            // 空くまで、次の接続を待つインスタンスを持ったまま待つ（受けた後も、インスタンスの数が上限に収まるように）
+            while self.slots.load(Ordering::SeqCst) >= self.max_connections {
+                std::thread::sleep(BUSY_INTERVAL);
+            }
             // SAFETY: 自分で作ったパイプのインスタンスで、接続を待つ（同期）
             let connected =
                 unsafe { ConnectNamedPipe(instance.as_raw_handle(), std::ptr::null_mut()) } != 0;
@@ -423,12 +454,15 @@ impl Listener {
             } else {
                 unsafe { GetLastError() }
             };
-            // 待ち始める前につながっていたときも、接続を受けたとする
+            // 待ち始める前につながっていたときも、接続を受けたとする。つないでいる数は上限より少ないため、次の接続を
+            // 待つインスタンスの分の空きがある（つないでいる数は、ハンドルを閉じてから減らす）
             if connected || error == ERROR_PIPE_CONNECTED {
-                self.next = self.create_instance(false).ok();
+                self.slots.fetch_add(1, Ordering::SeqCst);
+                self.next = Some(self.create_instance(false)?);
                 return Ok(Stream {
                     file: instance,
                     overlapped: None,
+                    _slot: Some(Slot(Arc::clone(&self.slots))),
                 });
             }
             // つないですぐに切った接続は、新しいインスタンスを作ってから捨て、待ち直す
@@ -467,6 +501,7 @@ pub(super) fn connect(address: &Address) -> io::Result<Stream> {
     Ok(Stream {
         file,
         overlapped: Some(OverlappedIo::new()?),
+        _slot: None,
     })
 }
 

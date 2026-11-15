@@ -60,6 +60,61 @@ fn connecting_to_a_closed_endpoint_fails_without_waiting() {
 }
 
 #[test]
+fn the_endpoint_stays_open_while_its_only_connection_comes_and_goes() {
+    let endpoint = test_endpoint();
+    let mut listener = endpoint.listen(1).unwrap();
+    let server = std::thread::spawn(move || {
+        let connection = listener.accept().unwrap();
+        (listener, connection)
+    });
+    let client = endpoint.connect(Duration::from_secs(5)).unwrap();
+    let (_listener, connection) = server.join().unwrap();
+    // 1 つだけつなげる口でも、接続を受けて閉じた後に、ほかが同じ口を開けない
+    drop(connection);
+    drop(client);
+    assert_eq!(
+        endpoint.listen(1).unwrap_err().kind(),
+        io::ErrorKind::AddrInUse
+    );
+}
+
+#[test]
+fn a_connection_over_the_limit_is_served_after_a_connection_closes() {
+    let endpoint = test_endpoint();
+    let mut listener = endpoint.listen(1).unwrap();
+    let (accepted, first) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        accepted.send(listener.accept().unwrap()).unwrap();
+        // 受けた接続が閉じた後の接続を受ける
+        let mut connection = listener.accept().unwrap();
+        connection.write_all(&[7]).unwrap();
+        connection.flush().unwrap();
+    });
+    let _first_client = endpoint.connect(Duration::from_secs(5)).unwrap();
+    let first = first.recv().unwrap();
+
+    // 上限を超えた接続は、Windows では空くまで待たされ、ほかの OS では閉じられる（待ち続けない）
+    let mut over = endpoint.connect(Duration::from_secs(5)).unwrap();
+    over.set_io_timeout(Some(Duration::from_secs(5))).unwrap();
+    let mut byte = [0u8; 1];
+    if cfg!(windows) {
+        drop(first);
+        over.read_exact(&mut byte).unwrap();
+    } else {
+        match over.read(&mut byte) {
+            Ok(read) => assert_eq!(read, 0),
+            Err(error) => assert_ne!(error.kind(), io::ErrorKind::TimedOut, "{error:?}"),
+        }
+        drop(first);
+        let mut next = endpoint.connect(Duration::from_secs(5)).unwrap();
+        next.set_io_timeout(Some(Duration::from_secs(5))).unwrap();
+        next.read_exact(&mut byte).unwrap();
+    }
+    assert_eq!(byte, [7]);
+    server.join().unwrap();
+}
+
+#[test]
 fn a_silent_other_side_times_out() {
     let endpoint = test_endpoint();
     let mut listener = endpoint.listen(4).unwrap();
