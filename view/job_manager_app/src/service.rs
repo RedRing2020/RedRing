@@ -18,6 +18,8 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// 画面からの、ジョブの操作
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum JobCommand {
+    /// 計算中のジョブを止めて、中断にする（後から計算できる。途中の結果を持つジョブは、その続きから計算する）
+    Stop(u64),
     Cancel(u64),
     /// 中断のジョブを、計算待ちに戻す
     Resume(u64),
@@ -187,9 +189,14 @@ pub(crate) fn start_service(
                     }
                 }
                 Some(Ok(ServiceRequest::Command(command))) => {
-                    let result = run_command(&mut service, &command, now_ms());
+                    let mut events = Vec::new();
+                    let result = run_command(&mut service, &command, now_ms(), &mut events);
                     // 英語の詳しい理由はログに書き、画面には種類を返す
                     write(format!("command {command:?} -> {result:?}"));
+                    for event in events {
+                        write(describe(&event));
+                        let _ = event_sender.send(event);
+                    }
                     let _ = reply_tx.send(result.map_err(|error| StoreFailure::of(&error)));
                 }
                 Some(Err(RecvTimeoutError::Timeout)) => {}
@@ -219,13 +226,19 @@ pub(crate) fn now_ms() -> u64 {
         .map_or(0, |elapsed| elapsed.as_millis() as u64)
 }
 
+/// 操作 `command` をする。操作で出た出来事（停止の前に終わったランナーの終わりなど）は `events` に足す
 fn run_command(
     service: &mut JobManagerService<ProcessLauncher>,
     command: &JobCommand,
     now_ms: u64,
+    events: &mut Vec<ManagerEvent>,
 ) -> Result<Vec<u64>, StoreError> {
     // 操作の間に状態が変わって操作できなくなったジョブは、何もしない（一覧を読み直せば分かる）
     match command {
+        JobCommand::Stop(job_id) => service.stop(*job_id, now_ms).map(|event| {
+            events.extend(event);
+            Vec::new()
+        }),
         JobCommand::Cancel(job_id) => service.cancel(*job_id, now_ms).map(|_| Vec::new()),
         JobCommand::Resume(job_id) => service.resume(*job_id, now_ms).map(|_| Vec::new()),
         JobCommand::Retry(job_id) => service.retry(*job_id, now_ms).map(|_| Vec::new()),

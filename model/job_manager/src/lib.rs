@@ -349,21 +349,59 @@ impl<L: Launcher> JobManagerService<L> {
             let Some(mut job) = jobs.iter().find(|job| job.job_id == job_id).cloned() else {
                 continue;
             };
-            match finished {
-                Some(code) => match self.record_finished(&mut job, code, now_ms) {
-                    Ok(event) => events.push(event),
-                    Err(error) => events.push(ManagerEvent::Error(error.to_string())),
-                },
-                None => {
-                    let saved_until = self.store.has_resume(job.job_id).then_some(now_ms);
-                    interrupt(&mut job, StoredJobError::ManagerQuit, saved_until, now_ms);
-                    if let Err(error) = self.store.write_job(&self.lock, &job) {
-                        events.push(ManagerEvent::Error(error.to_string()));
-                    }
-                }
+            match self.record_stopped(&mut job, finished, StoredJobError::ManagerQuit, now_ms) {
+                Ok(event) => events.extend(event),
+                Err(error) => events.push(ManagerEvent::Error(error.to_string())),
             }
         }
         events
+    }
+
+    /// 計算中のジョブのランナーを止め、中断にする（ほかの計算中のジョブは止めない）。途中の結果（ツールパス生成の
+    /// 記録）は残し、後から続きを計算できる。途中の結果を持たないジョブ（切削シミュレーション）は、続けるときに
+    /// 最初から計算する。計算中でないジョブ・ないジョブは、何もしない
+    ///
+    /// 止める前にランナーが終わっていれば、中断にせず、ふだん終わりを読んだときと同じに終わり方（成功・失敗）を
+    /// 記録し、その終わりの出来事を返す（止めた・何もしないときは `None`）。記録を書けなければ、止めたランナーを
+    /// 残し、次の回に、ランナーの終わり方から失敗として記録する。
+    pub fn stop(&mut self, job_id: u64, now_ms: u64) -> Result<Option<ManagerEvent>, StoreError> {
+        if !self.running.contains_key(&job_id) {
+            return Ok(None);
+        }
+        let (jobs, _) = self.store.load_jobs()?;
+        let Some(mut job) = jobs
+            .into_iter()
+            .find(|job| job.job_id == job_id && job.status == StoredJobStatus::Running)
+        else {
+            return Ok(None);
+        };
+        let Some(running) = self.running.get_mut(&job_id) else {
+            return Ok(None);
+        };
+        let finished = running.stop()?;
+        let event =
+            self.record_stopped(&mut job, finished, StoredJobError::StoppedByUser, now_ms)?;
+        self.running.remove(&job_id);
+        Ok(event)
+    }
+
+    /// 止めたランナーのジョブ `job` を記録する。止める前に終わっていれば（`finished` が終了の番号）その終わり方を
+    /// 記録して終わりの出来事を返し、止めたなら理由 `reason` で中断にする（途中の結果があれば、止めた時刻までの
+    /// 計算の時間を足す）
+    fn record_stopped(
+        &self,
+        job: &mut StoredJob,
+        finished: Option<Option<i32>>,
+        reason: StoredJobError,
+        now_ms: u64,
+    ) -> Result<Option<ManagerEvent>, StoreError> {
+        if let Some(code) = finished {
+            return self.record_finished(job, code, now_ms).map(Some);
+        }
+        let saved_until = self.store.has_resume(job.job_id).then_some(now_ms);
+        interrupt(job, reason, saved_until, now_ms);
+        self.store.write_job(&self.lock, job)?;
+        Ok(None)
     }
 
     /// 失敗・取り消し・中断のジョブを、最初から計算するように計算待ちに戻す。戻したジョブの番号（小さい順。戻せ
