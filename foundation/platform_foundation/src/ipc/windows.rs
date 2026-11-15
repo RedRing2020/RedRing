@@ -457,8 +457,9 @@ impl Listener {
             // 待ち始める前につながっていたときも、接続を受けたとする。つないでいる数は上限より少ないため、次の接続を
             // 待つインスタンスの分の空きがある（つないでいる数は、ハンドルを閉じてから減らす）
             if connected || error == ERROR_PIPE_CONNECTED {
-                self.slots.fetch_add(1, Ordering::SeqCst);
+                // 次の接続を待つインスタンスを作れてから数を増やす（作れずに戻るときに、増やした数が残らないように）
                 self.next = Some(self.create_instance(false)?);
+                self.slots.fetch_add(1, Ordering::SeqCst);
                 return Ok(Stream {
                     file: instance,
                     overlapped: None,
