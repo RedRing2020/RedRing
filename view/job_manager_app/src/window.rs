@@ -377,6 +377,10 @@ impl JobManagerWindow {
     }
 
     /// 選んだジョブの操作（状態で操作できるものだけを押せる。削除のほかは、1 つだけ選んだときに押せる）
+    ///
+    /// メニューバーのように、枠のない項目を横に並べる（乗ると背景の色が変わる）。危なさの段階で左から並べ、段階の間に
+    /// 区切りを入れる。元に戻せる操作（計算再開・停止・優先順位）、結果を捨てる操作（再計算・取り消し）、消す操作
+    /// （削除・まとめて削除）の順にする（押し間違えても、危ない操作に触れにくいように）
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
         use StoredJobStatus::{Canceled, Failed, Interrupted, Queued, Running};
         let idle = self.service.outstanding() == 0;
@@ -387,28 +391,40 @@ impl JobManagerWindow {
         let can = |allowed: &[StoredJobStatus]| {
             selected.is_some_and(|(_, status)| allowed.contains(&status))
         };
-        let buttons = [
-            ("toolbar.cancel", can(&[Queued, Running, Interrupted])),
+        let reversible = [
             ("toolbar.resume", can(&[Interrupted])),
-            ("toolbar.retry", can(&[Failed, Canceled, Interrupted])),
-            ("toolbar.delete", idle && !self.selection.is_empty()),
+            ("toolbar.stop", can(&[Running])),
             ("toolbar.raise", can(&[Queued])),
             ("toolbar.lower", can(&[Queued])),
         ];
+        let discarding = [
+            ("toolbar.retry", can(&[Failed, Canceled, Interrupted])),
+            ("toolbar.cancel", can(&[Queued, Running, Interrupted])),
+        ];
+        let deleting = [
+            ("toolbar.delete", idle && !self.selection.is_empty()),
+            ("toolbar.bulk_delete", idle),
+        ];
         let mut clicked = None;
-        for (key, enabled) in buttons {
-            if ui
-                .add_enabled(enabled, egui::Button::new(self.text(key)))
-                .clicked()
-            {
-                clicked = Some(key);
+        for (index, group) in [&reversible[..], &discarding[..], &deleting[..]]
+            .into_iter()
+            .enumerate()
+        {
+            if index > 0 {
+                ui.separator();
+            }
+            for &(key, enabled) in group {
+                if ui
+                    .add_enabled(enabled, egui::Button::new(self.text(key)).frame(false))
+                    .clicked()
+                {
+                    clicked = Some(key);
+                }
             }
         }
-        if ui
-            .add_enabled(idle, egui::Button::new(self.text("toolbar.bulk_delete")))
-            .clicked()
-        {
+        if clicked == Some("toolbar.bulk_delete") {
             self.open_bulk_delete();
+            return;
         }
         if clicked == Some("toolbar.delete") {
             self.request_delete();
@@ -418,6 +434,7 @@ impl JobManagerWindow {
             return;
         };
         match key {
+            "toolbar.stop" => self.send(JobCommand::Stop(job_id)),
             "toolbar.cancel" => self.send(JobCommand::Cancel(job_id)),
             "toolbar.resume" => self.send(JobCommand::Resume(job_id)),
             "toolbar.retry" => self.send(JobCommand::Retry(job_id)),

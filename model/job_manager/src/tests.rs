@@ -644,6 +644,78 @@ fn quitting_records_a_runner_that_has_already_failed_instead_of_interrupting_it(
     assert_eq!(finished.error, Some(StoredJobError::CalculationFailed));
 }
 
+#[test]
+fn stopping_a_running_job_interrupts_it_and_keeps_its_resume_file() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 10;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(1_000);
+    let resume = root.store().resume_file(1);
+    fs::create_dir_all(resume.parent().unwrap()).unwrap();
+    fs::write(&resume, b"records").unwrap();
+
+    assert_eq!(service.stop(1, 4_000).unwrap(), None);
+    assert_eq!(
+        launcher.0.borrow().stopped,
+        vec![root.store().input_file(1)]
+    );
+    let stopped = status_of(&root.store(), 1);
+    assert_eq!(stopped.status, StoredJobStatus::Interrupted);
+    assert_eq!(stopped.error, Some(StoredJobError::StoppedByUser));
+    assert_eq!(stopped.elapsed_before_ms, 3_000);
+    assert!(resume.is_file());
+    // 止めたジョブを待つジョブは、失敗にせず待つ。ランナーは、止めたジョブの後のジョブを起動しない
+    service.tick(5_000);
+    assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Queued);
+    assert_eq!(launcher.0.borrow().launched.len(), 1);
+    // 計算で、続きから計算するように計算待ちに戻せる
+    assert_eq!(service.resume(1, 6_000).unwrap(), vec![1]);
+    assert!(resume.is_file());
+}
+
+#[test]
+fn only_a_running_job_can_be_stopped() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 10;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(1);
+
+    // 計算待ちのジョブ・ないジョブは止めない
+    assert_eq!(service.stop(2, 2).unwrap(), None);
+    assert_eq!(service.stop(9, 2).unwrap(), None);
+    assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Queued);
+    assert!(launcher.0.borrow().stopped.is_empty());
+}
+
+#[test]
+fn stopping_a_runner_that_has_already_finished_records_its_result() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(1);
+
+    let event = service.stop(1, 2).unwrap();
+    assert!(launcher.0.borrow().stopped.is_empty());
+    assert_eq!(
+        status_of(&root.store(), 1).status,
+        StoredJobStatus::Succeeded
+    );
+    // 終わりの出来事を返す（完了の通知・ログに使う）
+    assert!(matches!(
+        event,
+        Some(ManagerEvent::Finished {
+            job_id: 1,
+            status: StoredJobStatus::Succeeded,
+            ..
+        })
+    ));
+}
+
 /// 保存先 `store` のジョブ `job_id` の記録のファイルに書いた形式の版
 fn record_version(store: &JobStore, job_id: u64) -> u64 {
     let text = fs::read_to_string(store.job_dir(job_id).join("job.json")).unwrap();

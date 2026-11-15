@@ -41,8 +41,9 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ("details.attempts", "計算した回数: {count}"),
     ("details.no_log", "ログはまだありません"),
     ("source.none", "（なし）"),
+    ("toolbar.stop", "停止"),
     ("toolbar.cancel", "取り消し"),
-    ("toolbar.resume", "計算"),
+    ("toolbar.resume", "計算再開"),
     ("toolbar.retry", "再計算"),
     ("toolbar.delete", "削除"),
     ("toolbar.raise", "▲ 上げる"),
@@ -194,6 +195,7 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
         "計算中にジョブマネージャーが止まりました",
     ),
     ("error.manager_quit", "ジョブマネージャーを終了しました"),
+    ("error.stopped_by_user", "計算を停止しました"),
     (
         "store_failure.already_locked",
         "ほかのジョブマネージャーが保存先を使っています",
@@ -289,8 +291,9 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ("details.attempts", "Calculated: {count} times"),
     ("details.no_log", "No log yet"),
     ("source.none", "(none)"),
+    ("toolbar.stop", "Stop"),
     ("toolbar.cancel", "Cancel"),
-    ("toolbar.resume", "Calculate"),
+    ("toolbar.resume", "Resume"),
     ("toolbar.retry", "Recalculate"),
     ("toolbar.delete", "Delete"),
     ("toolbar.raise", "▲ Raise"),
@@ -448,6 +451,7 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
         "The job manager stopped during the calculation",
     ),
     ("error.manager_quit", "The job manager was quit"),
+    ("error.stopped_by_user", "The calculation was stopped"),
     (
         "store_failure.already_locked",
         "Another job manager is using the job store",
@@ -577,6 +581,7 @@ pub(crate) fn job_error_text(language: Language, error: &StoredJobError) -> Opti
         E::RunnerStopped => ("error.runner_stopped", Vec::new()),
         E::ManagerStopped => ("error.manager_stopped", Vec::new()),
         E::ManagerQuit => ("error.manager_quit", Vec::new()),
+        E::StoppedByUser => ("error.stopped_by_user", Vec::new()),
         E::Unknown => return None,
     };
     Some(text(language, key, &args))
@@ -666,6 +671,7 @@ mod tests {
             E::RunnerStopped,
             E::ManagerStopped,
             E::ManagerQuit,
+            E::StoppedByUser,
         ];
         for language in Language::ALL {
             for error in &errors {

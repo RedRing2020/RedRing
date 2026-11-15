@@ -52,7 +52,8 @@ pub enum StoredJobStatus {
     Succeeded,
     Failed,
     Canceled,
-    /// 計算の途中で、ジョブマネージャーの終了・異常終了・OS の再起動で止まった（利用者が選ぶまで計算しない）
+    /// 計算の途中で、ジョブマネージャーの終了・利用者の停止・異常終了・OS の再起動で止まった（利用者が選ぶまで計算
+    /// しない）
     Interrupted,
 }
 
@@ -111,6 +112,8 @@ pub enum StoredJobError {
     ManagerStopped,
     /// ジョブマネージャーを終了した
     ManagerQuit,
+    /// 利用者が計算を止めた（後から計算できる。途中の結果を持つジョブは、その続きから計算する）
+    StoppedByUser,
     /// 読む側が知らない種類（新しい版で足した種類。英語の文 `last_error` を出す）
     #[serde(other)]
     Unknown,
@@ -140,6 +143,7 @@ impl std::fmt::Display for StoredJobError {
             Self::RunnerStopped => write!(f, "the runner was stopped"),
             Self::ManagerStopped => write!(f, "the job manager stopped while the job was running"),
             Self::ManagerQuit => write!(f, "the job manager was quit"),
+            Self::StoppedByUser => write!(f, "the calculation was stopped"),
             Self::Unknown => write!(f, "unknown error"),
         }
     }
