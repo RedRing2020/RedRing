@@ -102,12 +102,16 @@ impl RunningJob for FakeJob {
         Ok(Some(Some(self.code)))
     }
 
-    fn stop(&mut self) -> std::io::Result<()> {
+    fn stop(&mut self) -> std::io::Result<Option<Option<i32>>> {
+        // もう終わっている（確かめの回数を使い切った）ランナーは止めずに、終わり方を返す
+        if self.polls_left == 0 {
+            return self.try_finish();
+        }
         self.state
             .borrow_mut()
             .stopped
             .push(self.spec.input.clone());
-        Ok(())
+        Ok(None)
     }
 
     fn ungrouped_reason(&self) -> Option<&str> {
@@ -582,7 +586,7 @@ fn quitting_stops_the_running_job_and_keeps_the_waiting_jobs() {
     submit(&root.store(), "a1", cam_and_sim());
     service.tick(1);
 
-    service.stop_running(2).unwrap();
+    service.stop_running(2);
     assert_eq!(
         launcher.0.borrow().stopped,
         vec![root.store().input_file(1)]
@@ -597,6 +601,47 @@ fn quitting_stops_the_running_job_and_keeps_the_waiting_jobs() {
     // 中断のジョブを待つジョブは、失敗にせず待つ
     service.tick(3);
     assert_eq!(status_of(&root.store(), 2).status, StoredJobStatus::Queued);
+}
+
+#[test]
+fn quitting_records_a_runner_that_has_already_succeeded_instead_of_interrupting_it() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    // ランナーは起動した後すぐに終わるが、ジョブマネージャーはまだ終わりを読んでいない
+    service.tick(1);
+    assert_eq!(status_of(&root.store(), 1).status, StoredJobStatus::Running);
+
+    let events = service.stop_running(2);
+    assert!(launcher.0.borrow().stopped.is_empty());
+    let finished = status_of(&root.store(), 1);
+    assert_eq!(finished.status, StoredJobStatus::Succeeded);
+    assert_eq!(finished.last_error, None);
+    assert!(matches!(
+        events.as_slice(),
+        [ManagerEvent::Finished {
+            job_id: 1,
+            status: StoredJobStatus::Succeeded,
+            ..
+        }]
+    ));
+}
+
+#[test]
+fn quitting_records_a_runner_that_has_already_failed_instead_of_interrupting_it() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().exit_codes.insert("cam", 5);
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(1);
+
+    service.stop_running(2);
+    assert!(launcher.0.borrow().stopped.is_empty());
+    let finished = status_of(&root.store(), 1);
+    assert_eq!(finished.status, StoredJobStatus::Failed);
+    assert_eq!(finished.error, Some(StoredJobError::CalculationFailed));
 }
 
 /// 保存先 `store` のジョブ `job_id` の記録のファイルに書いた形式の版
@@ -614,7 +659,7 @@ fn interrupted_cam_and_sim(root: &TempRoot) -> (JobManagerService<FakeLauncher>,
     let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
     submit(&root.store(), "a1", cam_and_sim());
     service.tick(1);
-    service.stop_running(2).unwrap();
+    service.stop_running(2);
     assert_eq!(
         status_of(&root.store(), 1).status,
         StoredJobStatus::Interrupted
@@ -1121,13 +1166,13 @@ fn quitting_adds_the_calculated_time_of_a_job_with_a_resume_file() {
     let root = TempRoot::new();
     let mut service = running_cam_and_sim(&root, 1_000);
     write_resume(&root, 1);
-    service.stop_running(4_000).unwrap();
+    service.stop_running(4_000);
     assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 3_000);
 
     // 続けて計算し、また止めると足していく
     service.resume(1, 5_000).unwrap();
     service.tick(6_000);
-    service.stop_running(7_000).unwrap();
+    service.stop_running(7_000);
     assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 4_000);
 
     // 再計算は最初から計算するため、0 に戻す
@@ -1139,7 +1184,7 @@ fn quitting_adds_the_calculated_time_of_a_job_with_a_resume_file() {
 fn a_job_without_a_resume_file_does_not_keep_its_calculated_time() {
     let root = TempRoot::new();
     let mut service = running_cam_and_sim(&root, 1_000);
-    service.stop_running(4_000).unwrap();
+    service.stop_running(4_000);
     assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 0);
 }
 
@@ -1176,6 +1221,6 @@ fn an_empty_resume_file_does_not_keep_the_calculated_time() {
     let resume = root.store().resume_file(1);
     fs::create_dir_all(resume.parent().unwrap()).unwrap();
     fs::write(&resume, b"").unwrap();
-    service.stop_running(4_000).unwrap();
+    service.stop_running(4_000);
     assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 0);
 }

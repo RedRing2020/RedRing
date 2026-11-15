@@ -167,8 +167,10 @@ pub(crate) fn start_service(
                 .map(|receiver| receiver.recv_timeout(POLL_INTERVAL))
             {
                 Some(Ok(ServiceRequest::Quit { done })) => {
-                    let stopped = service.stop_running(now_ms());
-                    write(format!("quit {stopped:?}"));
+                    for event in service.stop_running(now_ms()) {
+                        write(describe(&event));
+                    }
+                    write("quit".to_string());
                     let _ = done.send(());
                     return;
                 }

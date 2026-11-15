@@ -164,8 +164,8 @@ impl RunningJob for Finished {
         Ok(Some(Some(0)))
     }
 
-    fn stop(&mut self) -> std::io::Result<()> {
-        Ok(())
+    fn stop(&mut self) -> std::io::Result<Option<Option<i32>>> {
+        Ok(Some(Some(0)))
     }
 }
 

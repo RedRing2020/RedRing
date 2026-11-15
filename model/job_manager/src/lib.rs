@@ -302,7 +302,9 @@ impl<L: Launcher> JobManagerService<L> {
             return Ok(false);
         }
         match self.running.get_mut(&job_id) {
-            Some(running) => running.stop()?,
+            Some(running) => {
+                running.stop()?;
+            }
             // 計算を始めていないジョブ（前の計算の時刻が残るジョブを含む）は、計算の時間を持たない
             None => job.started_at_ms = None,
         }
@@ -320,36 +322,48 @@ impl<L: Launcher> JobManagerService<L> {
         Ok(true)
     }
 
-    /// 実行中のランナーをすべて止め、そのジョブを中断にする（ジョブマネージャーを終了するときに）
+    /// 実行中のランナーをすべて止め、そのジョブを中断にする（ジョブマネージャーを終了するときに）。止める前に終わって
+    /// いたランナーのジョブは、中断にせず、ふだん終わりを読んだときと同じに、その終わり方（成功・失敗）を記録する。
+    /// 記録した終わりと、誤りの出来事を返す
     ///
-    /// 記録を読み書きできなくても・止められないランナーがあっても、ほかのランナーは止め、最初の誤りを返す。書けな
-    /// かった記録は実行中のまま残り、次に起動したときに中断になる。
-    pub fn stop_running(&mut self, now_ms: u64) -> Result<(), StoreError> {
-        let mut first_error = None;
+    /// 記録を読み書きできなくても・止められないランナーがあっても、ほかのランナーは止める。書けなかった記録は実行中の
+    /// まま残り、次に起動したときに中断になる。
+    pub fn stop_running(&mut self, now_ms: u64) -> Vec<ManagerEvent> {
+        let mut events = Vec::new();
         let jobs = match self.store.load_jobs() {
             Ok((jobs, _)) => jobs,
             Err(error) => {
-                first_error = Some(error);
+                events.push(ManagerEvent::Error(error.to_string()));
                 Vec::new()
             }
         };
-        let mut stopped: Vec<u64> = self.running.keys().copied().collect();
-        stopped.sort_unstable();
-        for job_id in stopped {
-            if let Some(mut running) = self.running.remove(&job_id)
-                && let Err(error) = running.stop()
-            {
-                first_error.get_or_insert(error.into());
-            }
-            if let Some(mut job) = jobs.iter().find(|job| job.job_id == job_id).cloned() {
-                let saved_until = self.store.has_resume(job.job_id).then_some(now_ms);
-                interrupt(&mut job, StoredJobError::ManagerQuit, saved_until, now_ms);
-                if let Err(error) = self.store.write_job(&self.lock, &job) {
-                    first_error.get_or_insert(error);
+        let mut running: Vec<_> = std::mem::take(&mut self.running).into_iter().collect();
+        running.sort_unstable_by_key(|(job_id, _)| *job_id);
+        for (job_id, mut runner) in running {
+            let finished = runner.stop().unwrap_or_else(|error| {
+                events.push(ManagerEvent::Error(format!(
+                    "cannot stop the runner of job {job_id}: {error}"
+                )));
+                None
+            });
+            let Some(mut job) = jobs.iter().find(|job| job.job_id == job_id).cloned() else {
+                continue;
+            };
+            match finished {
+                Some(code) => match self.record_finished(&mut job, code, now_ms) {
+                    Ok(event) => events.push(event),
+                    Err(error) => events.push(ManagerEvent::Error(error.to_string())),
+                },
+                None => {
+                    let saved_until = self.store.has_resume(job.job_id).then_some(now_ms);
+                    interrupt(&mut job, StoredJobError::ManagerQuit, saved_until, now_ms);
+                    if let Err(error) = self.store.write_job(&self.lock, &job) {
+                        events.push(ManagerEvent::Error(error.to_string()));
+                    }
                 }
             }
         }
-        first_error.map_or(Ok(()), Err)
+        events
     }
 
     /// 失敗・取り消し・中断のジョブを、最初から計算するように計算待ちに戻す。戻したジョブの番号（小さい順。戻せ
@@ -505,29 +519,40 @@ impl<L: Launcher> JobManagerService<L> {
                 self.running.remove(&job_id);
                 continue;
             };
-            let domain = domain(job.kind);
-            if code == Some(0) && self.store.result_file(job_id, job.kind).is_file() {
-                job.status = StoredJobStatus::Succeeded;
-                job.result_ref = RefFactory::result(domain, job_id, &["ok"]).ok();
-                job.log_ref = RefFactory::log(domain, job_id, &["ok"]).ok();
-                job.last_error = None;
-                job.error = None;
-                job.updated_at_ms = now_ms;
-            } else {
-                let (error, log_line) = runner_failure(code, &self.store, job_id);
-                fail(job, error, log_line, now_ms);
-                job.log_ref = RefFactory::log(domain, job_id, &["failed"]).ok();
-            }
             // 書けなければ、終わったランナーを残し、次の回に記録し直す
-            self.store.write_job(&self.lock, job)?;
+            events.push(self.record_finished(job, code, now_ms)?);
             self.running.remove(&job_id);
-            events.push(ManagerEvent::Finished {
-                job_id,
-                status: job.status,
-                error: job.last_error.clone(),
-            });
         }
         Ok(())
+    }
+
+    /// 終わったランナーのジョブ `job` に、終了の番号 `code` から終わり方（成果物があれば成功、なければ失敗）を記録し、
+    /// 終わりの出来事を返す
+    fn record_finished(
+        &self,
+        job: &mut StoredJob,
+        code: Option<i32>,
+        now_ms: u64,
+    ) -> Result<ManagerEvent, StoreError> {
+        let (job_id, domain) = (job.job_id, domain(job.kind));
+        if code == Some(0) && self.store.result_file(job_id, job.kind).is_file() {
+            job.status = StoredJobStatus::Succeeded;
+            job.result_ref = RefFactory::result(domain, job_id, &["ok"]).ok();
+            job.log_ref = RefFactory::log(domain, job_id, &["ok"]).ok();
+            job.last_error = None;
+            job.error = None;
+            job.updated_at_ms = now_ms;
+        } else {
+            let (error, log_line) = runner_failure(code, &self.store, job_id);
+            fail(job, error, log_line, now_ms);
+            job.log_ref = RefFactory::log(domain, job_id, &["failed"]).ok();
+        }
+        self.store.write_job(&self.lock, job)?;
+        Ok(ManagerEvent::Finished {
+            job_id,
+            status: job.status,
+            error: job.last_error.clone(),
+        })
     }
 
     fn schedule(
