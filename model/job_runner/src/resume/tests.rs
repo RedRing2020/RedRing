@@ -176,3 +176,32 @@ fn a_state_too_long_to_read_back_is_not_written() {
     let (_, saved) = open_and_read(&dir.file(), 2);
     assert!(saved.is_empty());
 }
+
+#[test]
+fn a_resume_file_without_records_is_left_empty() {
+    let dir = TempDir::new();
+    let (file, saved) = open_and_read(&dir.file(), 2);
+    assert!(saved.is_empty());
+    drop(file);
+    assert_eq!(fs::metadata(dir.file()).unwrap().len(), 0);
+
+    // 記録を捨てたときも、壊れた記録しかないときも空にする
+    write_records(&dir.file(), &[record(1)]);
+    let mut file = ResumeFile::open(&dir.file(), 1, 2).unwrap();
+    file.discard("the records are broken");
+    drop(file);
+    assert_eq!(fs::metadata(dir.file()).unwrap().len(), 0);
+
+    write_records(&dir.file(), &[record(1)]);
+    let len = fs::metadata(dir.file()).unwrap().len();
+    fs::OpenOptions::new()
+        .write(true)
+        .open(dir.file())
+        .unwrap()
+        .set_len(len - 1)
+        .unwrap();
+    let (file, saved) = open_and_read(&dir.file(), 2);
+    assert!(saved.is_empty());
+    drop(file);
+    assert_eq!(fs::metadata(dir.file()).unwrap().len(), 0);
+}

@@ -230,8 +230,18 @@ impl<L: Launcher> JobManagerService<L> {
         let (jobs, _) = service.store.load_jobs()?;
         for mut job in jobs {
             if job.status == StoredJobStatus::Running {
-                // ランナーは別のプロセスのため、止まったジョブマネージャーからは引き継げない
-                interrupt(&mut job, StoredJobError::ManagerStopped, now_ms);
+                // ランナーは別のプロセスのため、止まったジョブマネージャーからは引き継げない。止まった時刻は記録され
+                // ないため、途中の結果を最後に書いた時刻までを計算の時間に数える
+                let saved_until = service
+                    .store
+                    .resume_saved_at_ms(job.job_id)
+                    .map(|saved| saved.min(now_ms));
+                interrupt(
+                    &mut job,
+                    StoredJobError::ManagerStopped,
+                    saved_until,
+                    now_ms,
+                );
                 service.store.write_job(&service.lock, &job)?;
                 events.push(ManagerEvent::Interrupted { job_id: job.job_id });
             }
@@ -332,7 +342,8 @@ impl<L: Launcher> JobManagerService<L> {
                 first_error.get_or_insert(error.into());
             }
             if let Some(mut job) = jobs.iter().find(|job| job.job_id == job_id).cloned() {
-                interrupt(&mut job, StoredJobError::ManagerQuit, now_ms);
+                let saved_until = self.store.has_resume(job.job_id).then_some(now_ms);
+                interrupt(&mut job, StoredJobError::ManagerQuit, saved_until, now_ms);
                 if let Err(error) = self.store.write_job(&self.lock, &job) {
                     first_error.get_or_insert(error);
                 }
@@ -409,6 +420,9 @@ impl<L: Launcher> JobManagerService<L> {
             let mut job = by_id[&id].clone();
             job.status = StoredJobStatus::Queued;
             job.started_at_ms = None;
+            if resume == Resume::Remove {
+                job.elapsed_before_ms = 0;
+            }
             job.result_ref = None;
             job.log_ref = None;
             job.last_error = None;
@@ -697,11 +711,17 @@ fn fail(job: &mut StoredJob, error: StoredJobError, detail: Option<String>, now_
     job.updated_at_ms = now_ms;
 }
 
-/// ジョブ `job` を、止まった理由の種類 `error` で中断にする
-fn interrupt(job: &mut StoredJob, error: StoredJobError, now_ms: u64) {
+/// ジョブ `job` を、止まった理由の種類 `error` で中断にする。途中の結果があれば、その時刻 `saved_until_ms` までの
+/// 計算の時間を、中断する前までの時間に足す（続きから計算するため）
+fn interrupt(job: &mut StoredJob, error: StoredJobError, saved_until_ms: Option<u64>, now_ms: u64) {
     job.status = StoredJobStatus::Interrupted;
     job.last_error = Some(error.to_string());
     job.error = Some(error);
+    if let (Some(started), Some(saved_until)) = (job.started_at_ms, saved_until_ms) {
+        job.elapsed_before_ms = job
+            .elapsed_before_ms
+            .saturating_add(saved_until.saturating_sub(started));
+    }
     // 止まっていた間を計算の時間に数えないように、始めた時刻を消す
     job.started_at_ms = None;
     job.updated_at_ms = now_ms;

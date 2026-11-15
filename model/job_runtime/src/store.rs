@@ -454,6 +454,7 @@ impl JobStore {
                 created_at_ms: now_ms,
                 updated_at_ms: now_ms,
                 started_at_ms: None,
+                elapsed_before_ms: 0,
                 result_ref: None,
                 log_ref: None,
                 last_error: None,
@@ -558,6 +559,25 @@ impl JobStore {
         ignore_missing(fs::remove_dir_all(self.logs_dir(job_id)))?;
         ignore_missing(fs::remove_file(self.progress_file(job_id)))?;
         Ok(())
+    }
+
+    /// ジョブに、途中の結果の記録があるか（記録のない途中の結果は、空のファイル）
+    pub fn has_resume(&self, job_id: u64) -> bool {
+        fs::metadata(self.resume_file(job_id)).is_ok_and(|metadata| metadata.len() > 0)
+    }
+
+    /// ジョブの途中の結果の記録を最後に書いた時刻（UNIX 時刻のミリ秒。記録がなければ `None`）
+    pub fn resume_saved_at_ms(&self, job_id: u64) -> Option<u64> {
+        let metadata = fs::metadata(self.resume_file(job_id)).ok()?;
+        if metadata.len() == 0 {
+            return None;
+        }
+        let since_epoch = metadata
+            .modified()
+            .ok()?
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()?;
+        u64::try_from(since_epoch.as_millis()).ok()
     }
 
     /// ジョブの途中の結果を消す

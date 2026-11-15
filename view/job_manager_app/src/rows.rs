@@ -61,15 +61,19 @@ pub(crate) fn job_rows(jobs: &[StoredJob], filter: Option<StoredJobStatus>) -> V
     rows
 }
 
-/// 計算にかかった時間（計算中は今までの時間）。まだ始めていなければ `None`
+/// 計算にかかった時間（計算中は今までの時間。中断する前までの時間を含む）。まだ始めていなければ `None`
 pub(crate) fn elapsed_ms(job: &StoredJob, now_ms: u64) -> Option<u64> {
-    let started = job.started_at_ms?;
-    let end = match job.status {
-        StoredJobStatus::Running => now_ms,
-        StoredJobStatus::Queued => return None,
-        _ => job.updated_at_ms,
+    let current = match job.status {
+        StoredJobStatus::Queued => None,
+        StoredJobStatus::Running => job
+            .started_at_ms
+            .map(|started| now_ms.saturating_sub(started)),
+        _ => job
+            .started_at_ms
+            .map(|started| job.updated_at_ms.saturating_sub(started)),
     };
-    Some(end.saturating_sub(started))
+    (current.is_some() || job.elapsed_before_ms > 0)
+        .then(|| job.elapsed_before_ms.saturating_add(current.unwrap_or(0)))
 }
 
 /// 時間を `分:秒`（1 時間以上は `時:分:秒`）で書く
@@ -124,6 +128,7 @@ mod tests {
             created_at_ms: 0,
             updated_at_ms: 0,
             started_at_ms: None,
+            elapsed_before_ms: 0,
             result_ref: None,
             log_ref: None,
             last_error: None,
@@ -174,5 +179,18 @@ mod tests {
         assert_eq!(format_elapsed(3_725_000), "1:02:05");
         assert_eq!(format_size(512), "512 B");
         assert_eq!(format_size(3 * 1024 * 1024 / 2), "1.5 MB");
+    }
+
+    #[test]
+    fn elapsed_time_includes_the_time_before_the_interruption() {
+        let mut interrupted = job(1, Cam, &[], StoredJobStatus::Interrupted);
+        interrupted.elapsed_before_ms = 60_000;
+        assert_eq!(elapsed_ms(&interrupted, 9_000), Some(60_000));
+        let mut resumed = interrupted.clone();
+        resumed.status = Queued;
+        assert_eq!(elapsed_ms(&resumed, 9_000), Some(60_000));
+        resumed.status = Running;
+        resumed.started_at_ms = Some(1_000);
+        assert_eq!(elapsed_ms(&resumed, 4_000), Some(63_000));
     }
 }
