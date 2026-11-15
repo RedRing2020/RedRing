@@ -56,8 +56,9 @@ impl LaunchSpec {
 pub trait RunningJob {
     /// 終わっていれば終了の番号（番号のない終わり方は `None` の `Some`）、終わっていなければ `Ok(None)`
     fn try_finish(&mut self) -> std::io::Result<Option<Option<i32>>>;
-    /// 止めて、終わるのを待つ
-    fn stop(&mut self) -> std::io::Result<()>;
+    /// 止めて、終わるのを待つ。止める前にもう終わっていれば、止めずに、その終了の番号（番号のない終わり方は `None`
+    /// の `Some`）を返す。止めたときは `None`
+    fn stop(&mut self) -> std::io::Result<Option<Option<i32>>>;
     /// ジョブマネージャーが止まると一緒に止まる組に入れられなかった理由（入れたとき・組を使わないときは `None`）
     fn ungrouped_reason(&self) -> Option<&str> {
         None
@@ -138,12 +139,14 @@ impl RunningJob for ProcessJob {
         Ok(self.child.try_wait()?.map(|status| status.code()))
     }
 
-    fn stop(&mut self) -> std::io::Result<()> {
-        // すでに終わっていれば kill は誤りを返すため、終わりを待つだけにする
-        if self.child.try_wait()?.is_none() {
-            self.child.kill()?;
+    fn stop(&mut self) -> std::io::Result<Option<Option<i32>>> {
+        // すでに終わっていれば、止めずに、その終わり方を返す（kill は誤りを返すことがあるため）
+        if let Some(status) = self.child.try_wait()? {
+            return Ok(Some(status.code()));
         }
-        self.child.wait().map(|_| ())
+        self.child.kill()?;
+        self.child.wait()?;
+        Ok(None)
     }
 
     fn ungrouped_reason(&self) -> Option<&str> {
