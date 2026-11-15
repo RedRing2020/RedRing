@@ -97,9 +97,10 @@ fn main() -> ExitCode {
     };
     // 出来事は、受け取り始めるまで溜めておく（ジョブが終わったときの吹き出しに使う）
     let (event_tx, event_rx) = std::sync::mpsc::channel();
-    // ログは、既定の保存先と同じ利用者ごとのデータのフォルダの下の `logs` に書く（保存先を替えても同じ場所）
-    let log_dir =
-        JobStore::default_root().and_then(|root| root.parent().map(|folder| folder.join("logs")));
+    // ログは、利用者ごとのデータのフォルダの下の `RedRing` の下の `logs` に書く（既定の保存先と同じフォルダの下。
+    // 保存先を替えても同じ場所）
+    let log_dir = platform_foundation::folder::user_data_folder()
+        .map(|folder| folder.join(settings::APP_FOLDER_NAME).join("logs"));
     let (service, channel) = match service::start_service(store.clone(), runner, log_dir, event_tx)
     {
         Ok(started) => started,

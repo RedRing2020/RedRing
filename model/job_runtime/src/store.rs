@@ -46,6 +46,8 @@ use files::{
 };
 use record::{INTERRUPTED_FORMAT_VERSION, OLDEST_STORE_FORMAT_VERSION};
 
+/// 利用者ごとのアプリのデータのフォルダの下の、RedRing のフォルダ
+const APP_FOLDER_NAME: &str = "RedRing";
 const LOCK_FILE: &str = "manager.lock";
 const LAST_JOB_ID_FILE: &str = "last_job_id";
 const INBOX_DIR: &str = "inbox";
@@ -177,7 +179,11 @@ impl JobStore {
     ///
     /// 利用者ごとのフォルダが分からないときは `None`（空・相対のパスは使わない。起動したフォルダで保存先が変わるため）。
     pub fn default_root() -> Option<PathBuf> {
-        Some(per_user_data_folder()?.join(JOBS_DIR))
+        Some(
+            platform_foundation::folder::user_data_folder()?
+                .join(APP_FOLDER_NAME)
+                .join(JOBS_DIR),
+        )
     }
 
     /// 保存先 `root` を開く（受付・ジョブのフォルダがなければ作る）
@@ -803,22 +809,6 @@ fn is_supported_format_version(version: u32) -> bool {
 /// 読める記録の形式の版か（中断の記録の版まで）
 fn is_supported_record_version(version: u32) -> bool {
     (OLDEST_STORE_FORMAT_VERSION..=INTERRUPTED_FORMAT_VERSION).contains(&version)
-}
-
-/// 利用者ごとのアプリのデータのフォルダの下の `RedRing`（分からないときは `None`）
-fn per_user_data_folder() -> Option<PathBuf> {
-    let absolute = |name: &str| {
-        std::env::var_os(name)
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute())
-    };
-    let base = if cfg!(windows) {
-        absolute("LOCALAPPDATA")
-    } else {
-        absolute("XDG_DATA_HOME")
-            .or_else(|| absolute("HOME").map(|home| home.join(".local").join("share")))
-    }?;
-    Some(base.join("RedRing"))
 }
 
 /// ジョブの番号の名前（先頭が 0 でない 10 進数）を読む

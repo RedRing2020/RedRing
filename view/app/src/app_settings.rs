@@ -48,18 +48,11 @@ impl AppSettings {
 
 /// 設定のファイルの場所（利用者ごとのフォルダが分からないときは `None`）
 pub(crate) fn settings_file_path() -> Option<PathBuf> {
-    // 空・相対のパスは使わない（起動したフォルダに置かれ、起動の場所で設定が変わるため）
-    let absolute = |name: &str| {
-        std::env::var_os(name)
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute())
-    };
-    let base = if cfg!(windows) {
-        absolute("APPDATA")
-    } else {
-        absolute("XDG_CONFIG_HOME").or_else(|| absolute("HOME").map(|home| home.join(".config")))
-    }?;
-    Some(base.join(SETTINGS_DIR_NAME).join(SETTINGS_FILE_NAME))
+    Some(
+        platform_foundation::folder::user_config_folder()?
+            .join(SETTINGS_DIR_NAME)
+            .join(SETTINGS_FILE_NAME),
+    )
 }
 
 /// 設定を読む（ファイルがないときは既定の設定）
