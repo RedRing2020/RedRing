@@ -1,8 +1,12 @@
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// 残す前の回のログの数
 const PREVIOUS_LOGS_KEPT: usize = 5;
+
+/// 前の回のログをずらせず、同じファイルに続けて書くときの区切りの行
+const NEXT_START_LINE: &str = "----- next start -----";
 
 /// ログディレクトリとファイル名からログファイルパスを組み立てる。
 pub fn compose_log_file_path(log_dir: &str, log_file_name: &str) -> PathBuf {
@@ -12,7 +16,8 @@ pub fn compose_log_file_path(log_dir: &str, log_file_name: &str) -> PathBuf {
 /// ログのファイル `log_file_path` を、新しく書き始めるように開く（フォルダがなければ作る）
 ///
 /// 前の回までのログは、番号付きの名前にずらして `PREVIOUS_LOGS_KEPT` 回分を残す（`redring.log` → `redring.1.log`
-/// → `redring.2.log` …。それより古いものは消す）。ずらせなくても、今のログを作り直して続ける。開けなければ `None`。
+/// → `redring.2.log` …。それより古いものは消す）。前の回のログをずらせないときは、前の回の中身を消さないように、
+/// 区切りの行を書いてから同じファイルの末尾に続けて書く。開けなければ `None`。
 pub fn open_log_file(log_file_path: &Path) -> Option<fs::File> {
     let log_dir = log_file_path.parent().unwrap_or(Path::new("."));
     let log_file_name = log_file_path.file_name()?.to_string_lossy();
@@ -20,8 +25,19 @@ pub fn open_log_file(log_file_path: &Path) -> Option<fs::File> {
         eprintln!("Failed to create the log directory ({:?}): {}", e.kind(), e);
         return None;
     }
-    keep_previous_logs(log_dir, &log_file_name, PREVIOUS_LOGS_KEPT);
-    match fs::File::create(log_file_path) {
+    let opened = if keep_previous_logs(log_dir, &log_file_name, PREVIOUS_LOGS_KEPT) {
+        fs::File::create(log_file_path)
+    } else {
+        fs::OpenOptions::new()
+            .append(true)
+            .open(log_file_path)
+            .and_then(|mut file| {
+                writeln!(file)?;
+                writeln!(file, "{NEXT_START_LINE}")?;
+                Ok(file)
+            })
+    };
+    match opened {
         Ok(file) => Some(file),
         Err(e) => {
             eprintln!("Failed to create the log file ({:?}): {}", e.kind(), e);
@@ -33,8 +49,9 @@ pub fn open_log_file(log_file_path: &Path) -> Option<fs::File> {
 /// 前の回のログ `log_file_name` を、番号付きの名前に 1 つずつずらし、`kept` 回分を残す
 ///
 /// ずらす先にまだファイルがある（ほかのプログラムが開いていて、消せなかった・ずらせなかった）ときは、ずらさない
-/// （名前の変更は置き換えになるため、残っているログを上書きして消さないように）。
-fn keep_previous_logs(log_dir: &Path, log_file_name: &str, kept: usize) {
+/// （名前の変更は置き換えになるため、残っているログを上書きして消さないように）。前の回のログ `log_file_name` が
+/// 残っていない（ずらせた・はじめからない）なら `true`。
+fn keep_previous_logs(log_dir: &Path, log_file_name: &str, kept: usize) -> bool {
     let numbered = |number: usize| log_dir.join(numbered_name(log_file_name, number));
     let _ = fs::remove_file(numbered(kept));
     let shift = |from: PathBuf, to: PathBuf| {
@@ -45,7 +62,9 @@ fn keep_previous_logs(log_dir: &Path, log_file_name: &str, kept: usize) {
     for number in (1..kept).rev() {
         shift(numbered(number), numbered(number + 1));
     }
-    shift(log_dir.join(log_file_name), numbered(1));
+    let current = log_dir.join(log_file_name);
+    shift(current.clone(), numbered(1));
+    !current.exists()
 }
 
 /// ログのファイルの名前 `log_file_name` の、`number` 回前の名前（拡張子の前に番号を入れる）
@@ -93,7 +112,6 @@ mod tests {
 
     /// 起動 1 回分のログを書く
     fn start(folder: &Folder, run: usize) {
-        use std::io::Write;
         let mut file = open_log_file(&folder.0.join("app.log")).unwrap();
         write!(file, "run {run}").unwrap();
     }
@@ -143,6 +161,33 @@ mod tests {
         assert_eq!(folder.read("app.1.log"), "previous");
         assert_eq!(folder.read("app.2.log"), "left");
         assert_eq!(folder.read("app.4.log"), "stray");
+    }
+
+    #[test]
+    fn the_previous_log_is_kept_when_the_oldest_cannot_be_removed() {
+        let folder = Folder::new("blocked");
+        fs::create_dir_all(&folder.0).unwrap();
+        fs::write(folder.0.join("app.log"), "previous").unwrap();
+        for back in 1..=4 {
+            fs::write(
+                folder.0.join(format!("app.{back}.log")),
+                format!("old {back}"),
+            )
+            .unwrap();
+        }
+        // 消せないいちばん古いログの代わりに、中身のあるフォルダを置く
+        fs::create_dir_all(folder.0.join("app.5.log").join("inside")).unwrap();
+        start(&folder, 1);
+        assert_eq!(
+            folder.read("app.log"),
+            format!("previous\n{NEXT_START_LINE}\nrun 1")
+        );
+        for back in 1..=4 {
+            assert_eq!(
+                folder.read(&format!("app.{back}.log")),
+                format!("old {back}")
+            );
+        }
     }
 
     #[test]
