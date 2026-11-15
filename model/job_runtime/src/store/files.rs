@@ -1,18 +1,18 @@
 //! 保存先のファイルの読み書き（書きかけを読ませない書き方・大きさの上限つきの読み込み・名前の検証）
 
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 /// 書きかけのファイル・フォルダの名前の接尾辞
 pub(crate) const TEMPORARY_SUFFIX: &str = ".tmp";
 
-/// 一時の名前（`<名前>.tmp`）で書き終えてから、正しい名前に変える
+/// 一時の名前（`<名前>.tmp`）で書き、ドライブまで書き込んでから、正しい名前に変えて置き換える
 pub(crate) fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let temporary = temporary_path(path);
-    fs::write(&temporary, bytes)?;
-    fs::rename(&temporary, path)
+    platform_foundation::file::replace_file(path, &temporary_path(path), |file| {
+        file.write_all(bytes)
+    })
 }
 
 /// `path` の名前に `.tmp` を足したパス

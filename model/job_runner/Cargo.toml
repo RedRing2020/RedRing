@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 cam_sim = { path = "../cam_sim" }
+platform_foundation = { path = "../../foundation/platform_foundation" }
 
 [dev-dependencies]
 cam_algorithms = { path = "../cam_algorithms" }

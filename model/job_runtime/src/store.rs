@@ -240,7 +240,8 @@ impl JobStore {
         Ok(())
     }
 
-    /// 投入を受付のフォルダに置く（`inbox/<投入の ID>.tmp/` に要求と入力を書いてから、名前を変える）
+    /// 投入を受付のフォルダに置く（`inbox/<投入の ID>.tmp/` に要求と入力を書き、ドライブまで書き込んでから、名前を
+    /// 変える）
     ///
     /// 投入の ID・入力のファイルの名前は、ASCII の英数字・`-`・`_` だけとする（投入の ID は `.` を含まない）。
     pub fn write_submission(
@@ -271,11 +272,11 @@ impl JobStore {
         }
         fs::create_dir_all(&temporary)?;
         for (name, bytes) in inputs {
-            fs::write(temporary.join(name), bytes)?;
+            write_atomically(&temporary.join(name), bytes)?;
         }
         let bytes = serde_json::to_vec_pretty(request).map_err(std::io::Error::other)?;
-        fs::write(temporary.join(REQUEST_FILE), bytes)?;
-        fs::rename(&temporary, inbox.join(submission_id))?;
+        write_atomically(&temporary.join(REQUEST_FILE), &bytes)?;
+        platform_foundation::file::rename(&temporary, &inbox.join(submission_id))?;
         Ok(())
     }
 
@@ -500,7 +501,7 @@ impl JobStore {
         if temporary.exists() {
             fs::remove_dir_all(&temporary)?;
         }
-        fs::rename(&dir, &temporary)?;
+        platform_foundation::file::rename(&dir, &temporary)?;
         // 名前を変えた時点でジョブはない。消し残し（ほかのプロセスが開いていたファイル）は、起動のときに片付ける
         let _ = fs::remove_dir_all(&temporary);
         Ok(())
@@ -636,7 +637,7 @@ impl JobStore {
         }
         let bytes = serde_json::to_vec_pretty(job).map_err(std::io::Error::other)?;
         write_atomically(&temporary.join(JOB_FILE), &bytes)?;
-        fs::rename(&temporary, &dir)?;
+        platform_foundation::file::rename(&temporary, &dir)?;
         Ok(())
     }
 
@@ -646,7 +647,7 @@ impl JobStore {
         if rejected.exists() {
             fs::remove_dir_all(&rejected)?;
         }
-        fs::rename(inbox.join(submission_id), &rejected)?;
+        platform_foundation::file::rename(&inbox.join(submission_id), &rejected)?;
         write_atomically(&rejected.join(REJECTED_REASON_FILE), reason.as_bytes())?;
         Ok(())
     }

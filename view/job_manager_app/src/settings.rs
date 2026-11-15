@@ -59,7 +59,7 @@ fn read_settings(path: &Path) -> std::io::Result<Option<Map<String, Value>>> {
     }
 }
 
-/// 設定のファイルを書く（一時の名前で書き終えてから名前を変える）
+/// 設定のファイルを書く（一時の名前で書き、ドライブまで書き込んでから名前を変えて置き換える）
 fn write_settings(path: &Path, settings: &Map<String, Value>) -> std::io::Result<()> {
     if let Some(folder) = path.parent() {
         std::fs::create_dir_all(folder)?;
@@ -68,13 +68,9 @@ fn write_settings(path: &Path, settings: &Map<String, Value>) -> std::io::Result
     // ほかのプロセスと一時のファイルが重ならないよう、プロセスの番号を名前に入れる
     let mut temporary = path.as_os_str().to_os_string();
     temporary.push(format!(".{}.tmp", std::process::id()));
-    let temporary = PathBuf::from(temporary);
-    let written =
-        std::fs::write(&temporary, bytes).and_then(|()| std::fs::rename(&temporary, path));
-    if written.is_err() {
-        let _ = std::fs::remove_file(&temporary);
-    }
-    written
+    platform_foundation::file::replace_file(path, &PathBuf::from(temporary), |file| {
+        std::io::Write::write_all(file, &bytes)
+    })
 }
 
 /// ジョブマネージャーの設定のファイル（Windows では `%APPDATA%\RedRing\job_manager.json`）

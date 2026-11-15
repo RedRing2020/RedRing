@@ -274,11 +274,12 @@ fn write_progress(args: &RunnerArgs, state: &str, fraction: f64) -> Result<(), F
         })
 }
 
-/// 一時の名前（`<名前>.tmp`）で書き終えてから、正しい名前に変える（読む側が書きかけを読まないように）
+/// 一時の名前（`<名前>.tmp`）で書き、ドライブまで書き込んでから、正しい名前に変えて置き換える（読む側が書きかけを
+/// 読まないように）
 fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let temporary = temporary_path(path);
-    fs::write(&temporary, bytes)?;
-    fs::rename(&temporary, path)
+    platform_foundation::file::replace_file(path, &temporary_path(path), |file| {
+        file.write_all(bytes)
+    })
 }
 
 fn temporary_path(path: &Path) -> PathBuf {
@@ -324,7 +325,7 @@ impl RunnerLog {
         self.file.flush()?;
         self.file.sync_all()?;
         drop(self.file);
-        fs::rename(&self.temporary, &self.path)
+        platform_foundation::file::rename(&self.temporary, &self.path)
     }
 }
 

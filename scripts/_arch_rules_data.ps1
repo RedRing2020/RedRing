@@ -41,10 +41,10 @@ $ARCH_ALLOWED_DEPS = @{
     cam_algorithms = @("analysis", "cam_core", "geo_contracts", "geo_algorithms")
     cam_entity     = @("cam_core", "geo_entity")
     cam_sim        = @("analysis", "cam_core", "cam_algorithms", "geo_algorithms", "geo_io", "job_runtime", "job_domain")
-    job_runtime    = @("analysis")
+    job_runtime    = @("analysis", "platform_foundation")
     job_domain     = @("analysis", "job_runtime")
     # ランナーは引数・ファイル・終了の番号だけを持ち、入力の読み込みと計算は cam_sim に任せる
-    job_runner     = @("cam_sim")
+    job_runner     = @("cam_sim", "platform_foundation")
     # ジョブマネージャーは CAD/CAM に依らず、ジョブの保存先とランナーの起動と、問い合わせる口の受け手を持つ
     job_manager    = @("job_runtime", "job_ipc", "platform_foundation")
     # ジョブマネージャーに問い合わせる口は、ジョブの保存先の形式と分けるため、ワークスペースの他のクレートに依存しない
@@ -57,10 +57,10 @@ $ARCH_ALLOWED_DEPS = @{
 
     render  = @("analysis", "logging_foundation", "viewmodel", "viewmodel-graphics")
     stage   = @("analysis", "logging_foundation", "render", "viewmodel", "viewmodel-graphics")
-    redring = @("analysis", "logging_foundation", "render", "stage", "viewmodel", "viewmodel-graphics")
+    redring = @("analysis", "logging_foundation", "platform_foundation", "render", "stage", "viewmodel", "viewmodel-graphics")
     # 例外: ジョブマネージャーの画面は CAD/CAM の画面とは別の小さなアプリで、間に ViewModel を挟むほどの変換がないため、
     # ジョブマネージャーのサービスとジョブの記録の型に直接依存する（CAM_OPERATION_UI_DESIGN.md 3.7）
-    job_manager_app = @("i18n_foundation", "job_manager", "job_runtime", "job_ipc")
+    job_manager_app = @("i18n_foundation", "job_manager", "job_runtime", "job_ipc", "platform_foundation")
 }
 
 # Forbidden dependency rules
