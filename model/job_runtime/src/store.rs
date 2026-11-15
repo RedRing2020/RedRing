@@ -240,7 +240,8 @@ impl JobStore {
         Ok(())
     }
 
-    /// 投入を受付のフォルダに置く（`inbox/<投入の ID>.tmp/` に要求と入力を書いてから、名前を変える）
+    /// 投入を受付のフォルダに置く（`inbox/<投入の ID>.tmp/` に要求と入力を書き、ドライブまで書き込んでから、名前を
+    /// 変える）
     ///
     /// 投入の ID・入力のファイルの名前は、ASCII の英数字・`-`・`_` だけとする（投入の ID は `.` を含まない）。
     pub fn write_submission(
@@ -271,10 +272,10 @@ impl JobStore {
         }
         fs::create_dir_all(&temporary)?;
         for (name, bytes) in inputs {
-            fs::write(temporary.join(name), bytes)?;
+            write_atomically(&temporary.join(name), bytes)?;
         }
         let bytes = serde_json::to_vec_pretty(request).map_err(std::io::Error::other)?;
-        fs::write(temporary.join(REQUEST_FILE), bytes)?;
+        write_atomically(&temporary.join(REQUEST_FILE), &bytes)?;
         platform_foundation::file::rename(&temporary, &inbox.join(submission_id))?;
         Ok(())
     }
