@@ -192,20 +192,20 @@ pub enum SubmissionKind {
     Resume,
 }
 
-/// 計算停止で、ジョブマネージャーが投入を受け取るのを待って取り消し直す回数（最初の 1 回を含む）
+/// 停止で、ジョブマネージャーが投入を受け取るのを待って止め直す回数（最初の 1 回を含む）
 const STOP_ATTEMPTS: u32 = 8;
 
-/// 計算停止で、取り消し直すまでの間
+/// 停止で、止め直すまでの間
 const STOP_RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(250);
 
-/// 計算停止の結果
+/// 停止の結果
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StopOutcome {
-    /// 今の条件の計算待ち・計算中のジョブを取り消すよう頼んだ
+    /// 今の条件の計算中のジョブを止める・計算待ちのジョブを取り消すよう頼んだ
     Stopped,
-    /// 今の条件の計算は、待ってもジョブマネージャーが受け取らない投入があり、すべては取り消せなかった
+    /// 今の条件の計算は、待ってもジョブマネージャーが受け取らない投入があり、すべては止められなかった
     NotYetAccepted,
-    /// 今の条件の計算待ち・計算中のジョブがない
+    /// 今の条件の、止める計算中のジョブ・取り消す計算待ちのジョブがない
     NothingToStop,
 }
 
@@ -613,31 +613,32 @@ impl CuttingSimulationSession {
         Ok(RedoOutcome::Submitted { canceled })
     }
 
-    /// 選んだ加工工程の今の条件の、計算待ち・計算中のジョブ（ツールパス生成と切削シミュレーション）を取り消すよう
-    /// 頼む（取り消し終えるのを待たない。ジョブマネージャーが動いていなければ起動する）
+    /// 選んだ加工工程の今の条件の計算を止めるよう頼む（止め終えるのを待たない。ジョブマネージャーが動いていなければ
+    /// 起動する）。計算中のジョブ（ツールパス生成と切削シミュレーション）は止めて中断にし（途中の結果を残し、後から
+    /// 計算を続けられる）、計算中のジョブがなければ、まだ始まっていない計算待ちのジョブを取り消す
     ///
     /// 取り消せるのは、ジョブマネージャーが受け取ったジョブだけのため、まだ受け取っていない投入があれば、受け取る
-    /// まで少しの間待ってから、もう一度取り消す（受け取りは短い間隔で行われる。待つ間は画面を止める）。
+    /// まで少しの間待ってから、もう一度止める（受け取りは短い間隔で行われる。待つ間は画面を止める）。
     ///
     /// # Errors
     ///
-    /// ジョブマネージャーが見つからない・状態を読めない・取り消しを頼めない場合。
+    /// ジョブマネージャーが見つからない・状態を読めない・止める（取り消す）ことを頼めない場合。
     pub fn stop(
         &mut self,
         document: &SpaceModelDocument,
     ) -> Result<StopOutcome, CuttingSimulationSessionError> {
         let (_, sequences, sequence, operation) = document.machining();
-        let mut canceled = 0;
+        let mut requested = 0;
         for attempt in 1..=STOP_ATTEMPTS {
             // 受け取っていない投入を先に読む（後で読むと、間に受け取られたジョブを取り消さずに終える）
             let pending = self
                 .workflow
                 .latest_revision_has_pending_now(sequences, sequence, operation)?;
-            canceled += self
+            requested += self
                 .workflow
-                .cancel_latest_revision_jobs(sequences, sequence, operation, None)?;
+                .stop_latest_revision_jobs(sequences, sequence, operation)?;
             if !pending {
-                return Ok(if canceled > 0 {
+                return Ok(if requested > 0 {
                     StopOutcome::Stopped
                 } else {
                     StopOutcome::NothingToStop

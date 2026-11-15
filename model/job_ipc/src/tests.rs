@@ -52,6 +52,7 @@ struct FakeHandler {
     opened: Arc<AtomicUsize>,
     canceled: Arc<Mutex<Vec<u64>>>,
     resumed: Arc<Mutex<Vec<u64>>>,
+    stopped: Arc<Mutex<Vec<u64>>>,
 }
 
 /// 受け手が返す成果物（小分けを 3 つ以上にする大きさ）
@@ -124,6 +125,11 @@ impl Handler for FakeHandler {
 
     fn resume(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError> {
         self.resumed.lock().unwrap().extend(job_ids);
+        Ok(())
+    }
+
+    fn stop(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError> {
+        self.stopped.lock().unwrap().extend(job_ids);
         Ok(())
     }
 }
@@ -242,6 +248,7 @@ fn requests_go_through_the_endpoint() {
     let (submitted, opened) = (Arc::clone(&handler.submitted), Arc::clone(&handler.opened));
     let canceled = Arc::clone(&handler.canceled);
     let resumed = Arc::clone(&handler.resumed);
+    let stopped = Arc::clone(&handler.stopped);
     let server = std::thread::spawn(move || {
         let mut handler = handler;
         let mut connection = listener.accept().unwrap();
@@ -287,6 +294,7 @@ fn requests_go_through_the_endpoint() {
     client.record_imported(1).unwrap();
     client.cancel(vec![3, 2]).unwrap();
     client.resume(vec![4]).unwrap();
+    client.stop(vec![5]).unwrap();
     assert!(matches!(
         client.record_imported(9),
         Err(ClientError::Remote {
@@ -304,6 +312,7 @@ fn requests_go_through_the_endpoint() {
     assert_eq!(opened.load(Ordering::Relaxed), 1);
     assert_eq!(*canceled.lock().unwrap(), vec![3, 2]);
     assert_eq!(*resumed.lock().unwrap(), vec![4]);
+    assert_eq!(*stopped.lock().unwrap(), vec![5]);
 }
 
 #[test]

@@ -187,6 +187,11 @@ impl JobClient for InProcessJobClient {
         Ok(())
     }
 
+    fn stop(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
+        // 同じプロセスの中で実行するため、中断を持たない。止める頼みは取り消しにする
+        self.cancel(job_ids)
+    }
+
     fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError> {
         Ok(true)
     }

@@ -182,6 +182,19 @@ pub(crate) fn start_service(
                         write(format!("cancel from the app {job_id} -> {result:?}"));
                     }
                 }
+                Some(Ok(ServiceRequest::FromApp(AppJobRequest::Stop(job_ids)))) => {
+                    for job_id in job_ids {
+                        // 画面の停止と同じ処理にする（止める前に終わっていたジョブの終わりも通知する）
+                        let mut events = Vec::new();
+                        let command = JobCommand::Stop(job_id);
+                        let result = run_command(&mut service, &command, now_ms(), &mut events);
+                        write(format!("stop from the app {job_id} -> {result:?}"));
+                        for event in events {
+                            write(describe(&event));
+                            let _ = event_sender.send(event);
+                        }
+                    }
+                }
                 Some(Ok(ServiceRequest::FromApp(AppJobRequest::Resume(job_ids)))) => {
                     for job_id in job_ids {
                         let result = service.resume(job_id, now_ms());

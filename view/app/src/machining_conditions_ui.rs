@@ -929,7 +929,7 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 選んだ工程・手順の全体の計算の操作（投入・やり直し・計算停止・手順の全体を投入・CL 取込・切削シミュレーション表示・
+    /// 選んだ工程・手順の全体の計算の操作（計算と停止・やり直し・手順の全体を投入・CL 取込・切削シミュレーション表示・
     /// ジョブマネージャーを開く）。結果と状態は、行の数で工程リストの高さを変えないよう、ステータスバーに出す
     fn show_job_commands(&mut self, ui: &mut egui::Ui) {
         // 計算・再計算を押せない理由（計算の状態の案内・条件の誤り）は、押せないボタンに乗せたときに出す
@@ -950,19 +950,24 @@ impl MachiningConditionsUiState {
             }
         };
         ui.horizontal_wrapped(|ui| {
+            // 計算と停止は、選んだ工程の計算の状態で替わる 1 つのボタンにする
             let position = self.selected_position();
-            let can_submit = self.action_enabled(&RowAction::Submit, position);
-            let submit = with_disabled_reasons(
-                ui.add_enabled(
-                    can_submit,
-                    egui::Button::new(self.text("conditions.submit")),
+            let (action, key) = self.calculate_or_stop(position);
+            let mut calculate = ui
+                .add_enabled(
+                    self.action_enabled(&action, position),
+                    egui::Button::new(self.text(key)),
                 )
-                .on_hover_text(self.text("conditions.submit.hint")),
-                &reasons,
-            );
-            emphasize(ui, &submit, &RowAction::Submit);
-            if submit.clicked() {
-                self.submit_requested = true;
+                .on_hover_text(self.text(&format!("{key}.hint")));
+            if action == RowAction::Submit {
+                calculate = with_disabled_reasons(calculate, &reasons);
+            }
+            emphasize(ui, &calculate, &action);
+            if calculate.clicked() {
+                match action {
+                    RowAction::Stop => self.stop_requested = true,
+                    _ => self.submit_requested = true,
+                }
             }
             let redo = with_disabled_reasons(
                 ui.add_enabled(
@@ -974,15 +979,6 @@ impl MachiningConditionsUiState {
             );
             if redo.clicked() {
                 self.redo_requested = true;
-            }
-            let stop = ui
-                .add_enabled(
-                    self.action_enabled(&RowAction::Stop, self.selected_position()),
-                    egui::Button::new(self.text("conditions.stop")),
-                )
-                .on_hover_text(self.text("conditions.stop.hint"));
-            if stop.clicked() {
-                self.stop_requested = true;
             }
             // 手順の全体は、すべての工程を確かめてから投入する（誤りは、工程の名前とともに出す）
             if ui.button(self.text("conditions.submit_sequence")).clicked() {
@@ -1227,6 +1223,24 @@ impl MachiningConditionsUiState {
         }
     }
 
+    /// 工程リストの `position` 番目の工程の、計算と停止のボタンの操作と文言のキー（今の条件の計算が計算待ち・計算中
+    /// なら停止、中断なら計算再開、ほかは計算。工程を選んでいなければ計算）
+    fn calculate_or_stop(&self, position: Option<usize>) -> (RowAction, &'static str) {
+        if self.action_enabled(&RowAction::Stop, position) {
+            return (RowAction::Stop, "conditions.stop");
+        }
+        let interrupted = position
+            .and_then(|at| self.operations.get(at))
+            .is_some_and(|row| {
+                row.status == JobStatusLine::Status(OperationJobStatus::Interrupted)
+            });
+        if interrupted {
+            (RowAction::Submit, "conditions.resume")
+        } else {
+            (RowAction::Submit, "conditions.submit")
+        }
+    }
+
     /// 加工の順の `index` 番目の行の右クリックのメニュー（その行を選んでから行う）。選んだ操作を返す。押せるかは、
     /// 右クリックした行で決める（行を選ぶ操作を受け取る前のフレームでも、その行の状態で出す）
     fn row_menu(&self, ui: &mut egui::Ui, index: usize) -> Option<RowAction> {
@@ -1235,9 +1249,8 @@ impl MachiningConditionsUiState {
                 RowAction::OpenSettings,
                 "conditions.list.operation_settings",
             ),
-            (RowAction::Submit, "conditions.submit"),
+            self.calculate_or_stop(Some(index)),
             (RowAction::Redo, "conditions.redo"),
-            (RowAction::Stop, "conditions.stop"),
             (RowAction::ImportToolpath, "conditions.import_toolpath"),
             (RowAction::Import, "conditions.import"),
             (
@@ -1267,7 +1280,7 @@ impl MachiningConditionsUiState {
             // 工程の設定・計算・一覧の操作の間に区切りを入れる
             if matches!(
                 action,
-                RowAction::Submit | RowAction::Command(OperationCommand::Add)
+                RowAction::Submit | RowAction::Stop | RowAction::Command(OperationCommand::Add)
             ) {
                 ui.separator();
             }

@@ -38,6 +38,8 @@ pub enum AppJobRequest {
     Cancel(Vec<u64>),
     /// 中断のジョブを、計算待ちに戻す
     Resume(Vec<u64>),
+    /// 計算中のジョブを止めて、中断にする
+    Stop(Vec<u64>),
 }
 
 /// ジョブの操作を、ジョブの記録を書くサービスに頼む口（頼めたら `true`。終えるのを待たない）
@@ -307,6 +309,10 @@ impl Handler for StoreHandler {
         self.ask(AppJobRequest::Resume(job_ids))
     }
 
+    fn stop(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError> {
+        self.ask(AppJobRequest::Stop(job_ids))
+    }
+
     fn record_imported(&mut self, simulation_job_id: u64) -> Result<(), HandlerError> {
         let (jobs, _) = self
             .store
@@ -465,11 +471,13 @@ mod tests {
         // 取り消し・中断のジョブの計算は、ジョブの記録を書くサービスに頼む
         client.cancel(vec![2, 1]).unwrap();
         client.resume(vec![3]).unwrap();
+        client.stop(vec![4]).unwrap();
         assert_eq!(
             *requested.lock().unwrap(),
             vec![
                 AppJobRequest::Cancel(vec![2, 1]),
-                AppJobRequest::Resume(vec![3])
+                AppJobRequest::Resume(vec![3]),
+                AppJobRequest::Stop(vec![4])
             ]
         );
         // 正常に終わった切削シミュレーションでなければ、取り込んだと記録しない
