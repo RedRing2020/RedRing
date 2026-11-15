@@ -57,7 +57,7 @@ pub trait RunningJob {
     /// 終わっていれば終了の番号（番号のない終わり方は `None` の `Some`）、終わっていなければ `Ok(None)`
     fn try_finish(&mut self) -> std::io::Result<Option<Option<i32>>>;
     /// 止めて、終わるのを待つ。止める前にもう終わっていれば、止めずに、その終了の番号（番号のない終わり方は `None`
-    /// の `Some`）を返す。止めたときは `None`
+    /// の `Some`）を返す。止めようとした間に自分で成功して終わったときも、その番号を返す。止めたときは `None`
     fn stop(&mut self) -> std::io::Result<Option<Option<i32>>>;
     /// ジョブマネージャーが止まると一緒に止まる組に入れられなかった理由（入れたとき・組を使わないときは `None`）
     fn ungrouped_reason(&self) -> Option<&str> {
@@ -145,8 +145,10 @@ impl RunningJob for ProcessJob {
             return Ok(Some(status.code()));
         }
         self.child.kill()?;
-        self.child.wait()?;
-        Ok(None)
+        // 確かめてから止めるまでの間に、自分で成功して終わったもの（止めたプロセスは 0 で終わらない）は、成功を返す。
+        // 失敗の番号は、止めたときの番号と見分けられないため、止めたとする
+        let status = self.child.wait()?;
+        Ok((status.code() == Some(0)).then_some(Some(0)))
     }
 
     fn ungrouped_reason(&self) -> Option<&str> {
