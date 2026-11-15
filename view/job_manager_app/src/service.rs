@@ -1,6 +1,5 @@
 //! ジョブマネージャーのサービスを、画面とは別のスレッドで一定の間隔で動かす
 
-use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -123,15 +122,25 @@ impl ServiceChannel {
     }
 }
 
+/// ジョブマネージャーのログのファイルの名前
+const LOG_FILE_NAME: &str = "job_manager.log";
+
+/// 前の版が保存先の中に書いていたログのファイルの名前
+const OLD_LOG_FILE_NAME: &str = "manager.log";
+
 /// サービスのスレッドを始める。保存先を排他に開けたら、そのスレッドと、操作を渡す口を返す
 ///
 /// サービスはランナーのプロセスを持つため、スレッドの中で作り、ずっと動かす。画面の操作は 1 回分の仕事の間に
 /// 受け取り、受け取ったらすぐに次の回の仕事をする（操作した結果が早く一覧に出るように）。口を閉じても（ウィンドウを
-/// 閉じても）、仕事は続ける。出来事と操作は保存先の `manager.log`（英語。起動のたびに書き直す）に書き、起動のときと
-/// 1 回分の仕事の出来事は `event_sender` にも送る（受け取る側がなくなっても、仕事は続ける）。
+/// 閉じても）、仕事は続ける。出来事と操作はログのフォルダ `log_dir` の `job_manager.log`（英語。フォルダが分からない
+/// ときは保存先の中）に書き、起動のときと 1 回分の仕事の出来事は `event_sender` にも送る（受け取る側がなくなっても、
+/// 仕事は続ける）。ログは、保存先を排他に開けた後に新しく書き始める（前の回のログは、番号付きの名前で数回分を残す。
+/// 同じ保存先で後から起動したジョブマネージャーが、動いている方のログをずらさないように。保存先が違えばずらすが、
+/// ずらしたログも残る）。ログを開けなければ、ログを書かずに続ける。
 pub(crate) fn start_service(
     store: JobStore,
     runner: PathBuf,
+    log_dir: Option<PathBuf>,
     event_sender: Sender<ManagerEvent>,
 ) -> Result<(JoinHandle<()>, ServiceChannel), StoreError> {
     let (started_tx, started_rx) = mpsc::channel();
@@ -147,7 +156,10 @@ pub(crate) fn start_service(
                 }
             };
         let _ = started_tx.send(Ok(()));
-        let mut log = File::create(store.root().join("manager.log")).ok();
+        // 前の版は保存先の中にログを書いていたため、残っていれば消す（今のログと取り違えないように）
+        let _ = std::fs::remove_file(store.root().join(OLD_LOG_FILE_NAME));
+        let log_dir = log_dir.unwrap_or_else(|| store.root().to_path_buf());
+        let mut log = logging_foundation::open_log_file(&log_dir.join(LOG_FILE_NAME));
         let mut write = |line: String| {
             if let Some(file) = log.as_mut() {
                 let _ = writeln!(file, "{} {line}", now_ms());

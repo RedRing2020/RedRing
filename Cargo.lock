@@ -1731,6 +1731,7 @@ dependencies = [
  "job_ipc",
  "job_manager",
  "job_runtime",
+ "logging_foundation",
  "platform_foundation",
  "rfd",
  "serde",

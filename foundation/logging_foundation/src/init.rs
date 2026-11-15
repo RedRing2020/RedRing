@@ -1,7 +1,6 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::path::prepare_log_file;
+use crate::path::{compose_log_file_path, open_log_file};
 
 /// ロギング初期化時の設定値。
 pub struct LoggingInitConfig<'a> {
@@ -12,29 +11,24 @@ pub struct LoggingInitConfig<'a> {
 }
 
 /// ログ出力先を準備して subscriber を初期化する。書き込むログのファイルを返す（作れずコンソールだけのときは `None`）。
+///
+/// 前の回までのログは、番号付きの名前にずらして残す（`open_log_file`）。
 pub fn init_logging(config: &LoggingInitConfig<'_>) -> Option<PathBuf> {
-    let Some(path) = prepare_log_file(config.log_dir, config.log_file_name) else {
+    let path = compose_log_file_path(config.log_dir, config.log_file_name);
+    let Some(file) = open_log_file(&path) else {
+        eprintln!("  Continuing with console logging only");
         init_console_only_logging(config);
         return None;
     };
-    if init_dual_output_logging(config, &path) {
-        Some(path)
-    } else {
-        None
-    }
+    init_dual_output_logging(config, file, &path);
+    Some(path)
 }
 
-fn init_dual_output_logging(config: &LoggingInitConfig<'_>, log_file_path: &Path) -> bool {
-    let file = match fs::File::create(log_file_path) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Failed to create the log file ({:?}): {}", e.kind(), e);
-            eprintln!("  Continuing with console logging only");
-            init_console_only_logging(config);
-            return false;
-        }
-    };
-
+fn init_dual_output_logging(
+    config: &LoggingInitConfig<'_>,
+    file: std::fs::File,
+    log_file_path: &Path,
+) {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| config.default_filter.to_string());
 
     use tracing_subscriber::layer::SubscriberExt;
@@ -57,7 +51,6 @@ fn init_dual_output_logging(config: &LoggingInitConfig<'_>, log_file_path: &Path
 
     tracing::info!("{} started", config.app_name);
     tracing::info!("Log file: {}", log_file_path.display());
-    true
 }
 
 fn init_console_only_logging(config: &LoggingInitConfig<'_>) {
