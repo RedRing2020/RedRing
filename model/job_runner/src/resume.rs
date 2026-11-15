@@ -32,6 +32,10 @@ const SYNC_INTERVAL: Duration = Duration::from_secs(3);
 /// 途中の結果のファイル
 pub(crate) struct ResumeFile {
     file: File,
+    runner_checksum: u64,
+    input_checksum: u64,
+    /// ファイルに頭がある（記録のないうちは頭も書かず、空のファイルにする）
+    has_header: bool,
     /// 前の実行の記録を読み戻している間の、読み戻した所（読み戻し終えたら `None`）
     reading: Option<Reading>,
     /// 次に読み戻す・書く記録の通し番号
@@ -46,7 +50,10 @@ pub(crate) struct ResumeFile {
 }
 
 impl ResumeFile {
-    /// 途中の結果のファイル `path` を開く（なければ作る）
+    /// 途中の結果のファイル `path` を開く（なければ空のファイルを作る）
+    ///
+    /// 頭は、最初の記録を書くときに書く。記録のない途中の結果は、空のファイルにする（中を読まなくても、記録があるか
+    /// が分かるように）。
     ///
     /// 頭のランナーの実行ファイルの検査の値 `runner_checksum`・入力のファイルの検査の値 `input_checksum` が今の計算と
     /// 違えば、前の記録を捨てる。記録は、読み戻すときに、通し番号が 0 から続き、検査の値が合うところまでを使い、その
@@ -62,23 +69,22 @@ impl ResumeFile {
             .truncate(false)
             .open(path)?;
         let mut notes = Vec::new();
-        let reason = if file.metadata()?.len() == 0 {
-            Some(None)
-        } else {
-            check_header(&mut file, runner_checksum, input_checksum)?.map(Some)
-        };
-        if let Some(reason) = reason {
-            if let Some(reason) = reason {
-                notes.push(format!("resume: {reason}; computing from the start"));
-            }
-            file.set_len(0)?;
-            write_header(&mut file, runner_checksum, input_checksum)?;
-        }
         let len = file.metadata()?.len();
-        file.seek(SeekFrom::Start(HEADER_LEN))?;
+        let has_header = if len == 0 {
+            false
+        } else if let Some(reason) = check_header(&mut file, runner_checksum, input_checksum)? {
+            notes.push(format!("resume: {reason}; computing from the start"));
+            file.set_len(0)?;
+            false
+        } else {
+            true
+        };
         Ok(Self {
             file,
-            reading: Some(Reading {
+            runner_checksum,
+            input_checksum,
+            has_header,
+            reading: has_header.then_some(Reading {
                 len,
                 end: HEADER_LEN,
             }),
@@ -108,14 +114,23 @@ impl ResumeFile {
         }
     }
 
-    /// 前の実行の記録の読み戻しを終える。読み戻した所より後ろ（読み戻していない記録・壊れた記録）を捨てる
+    /// 前の実行の記録の読み戻しを終える。読み戻した所より後ろ（読み戻していない記録・壊れた記録）を捨てる。使える
+    /// 記録がなければ、空にする
     fn finish_reading(&mut self) -> io::Result<()> {
-        if let Some(Reading { len, end }) = self.reading.take()
-            && end < len
-        {
-            self.file.set_len(end)?;
+        if let Some(Reading { len, end }) = self.reading.take() {
+            if self.next_sequence == 0 {
+                self.empty()?;
+            } else if end < len {
+                self.file.set_len(end)?;
+            }
         }
         Ok(())
+    }
+
+    /// 記録をすべて捨て、空のファイルにする
+    fn empty(&mut self) -> io::Result<()> {
+        self.has_header = false;
+        self.file.set_len(0)
     }
 
     /// 読み戻した所 `reading` の次の記録を読み、記録とその長さを返す。通し番号が続き検査の値の合う記録がなければ
@@ -155,6 +170,10 @@ impl ResumeFile {
         }
         self.finish_reading()?;
         self.note_resumed();
+        if !self.has_header {
+            write_header(&mut self.file, self.runner_checksum, self.input_checksum)?;
+            self.has_header = true;
+        }
         let mut bytes = Vec::with_capacity(
             RECORD_HEAD_LEN as usize + state.len() + result.len() + CHECKSUM_LEN as usize,
         );
@@ -216,7 +235,7 @@ impl Checkpoints for ResumeFile {
             .push(format!("resume: {reason}; computing from the start"));
         self.reading = None;
         self.next_sequence = 0;
-        if let Err(error) = self.file.set_len(HEADER_LEN) {
+        if let Err(error) = self.empty() {
             self.write_failed = true;
             self.notes
                 .push(format!("resume: cannot discard the records: {error}"));

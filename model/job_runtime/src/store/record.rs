@@ -168,6 +168,9 @@ pub struct StoredJob {
     /// 最後に計算を始めた時刻（UNIX 時刻のミリ秒。まだ始めていなければ `None`）
     #[serde(default)]
     pub started_at_ms: Option<u64>,
+    /// 中断する前までに計算した時間の合計（ミリ秒。途中の結果から続けて計算するジョブだけが持つ。なければ 0）
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub elapsed_before_ms: u64,
     pub result_ref: Option<String>,
     pub log_ref: Option<String>,
     /// 直近の誤り（英語の文。ログと照らし合わせるため）
@@ -212,4 +215,8 @@ pub enum DependencyRef {
     Submitted(usize),
     /// すでにあるジョブの番号
     Existing(u64),
+}
+
+fn is_zero(value: &u64) -> bool {
+    *value == 0
 }

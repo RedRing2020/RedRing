@@ -78,6 +78,7 @@ mod tests {
             created_at_ms: 0,
             updated_at_ms: 0,
             started_at_ms: None,
+            elapsed_before_ms: 0,
             result_ref: None,
             log_ref: None,
             last_error: None,

@@ -1105,3 +1105,77 @@ fn imported_sources_are_finished_cam_jobs_with_a_mark() {
     store.mark_imported(3, 9).unwrap();
     assert_eq!(imported_sources(&jobs, marks(&store)), vec![1]);
 }
+
+/// ツールパス生成と切削シミュレーションを投入し、時刻 `started_at_ms` にツールパス生成を始める
+fn running_cam_and_sim(root: &TempRoot, started_at_ms: u64) -> JobManagerService<FakeLauncher> {
+    let launcher = FakeLauncher::default();
+    launcher.0.borrow_mut().polls_until_done = 10;
+    let (mut service, _) = JobManagerService::start(root.store(), launcher, 0).unwrap();
+    submit(&root.store(), "a1", cam_and_sim());
+    service.tick(started_at_ms);
+    service
+}
+
+#[test]
+fn quitting_adds_the_calculated_time_of_a_job_with_a_resume_file() {
+    let root = TempRoot::new();
+    let mut service = running_cam_and_sim(&root, 1_000);
+    write_resume(&root, 1);
+    service.stop_running(4_000).unwrap();
+    assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 3_000);
+
+    // 続けて計算し、また止めると足していく
+    service.resume(1, 5_000).unwrap();
+    service.tick(6_000);
+    service.stop_running(7_000).unwrap();
+    assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 4_000);
+
+    // 再計算は最初から計算するため、0 に戻す
+    service.retry(1, 8_000).unwrap();
+    assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 0);
+}
+
+#[test]
+fn a_job_without_a_resume_file_does_not_keep_its_calculated_time() {
+    let root = TempRoot::new();
+    let mut service = running_cam_and_sim(&root, 1_000);
+    service.stop_running(4_000).unwrap();
+    assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 0);
+}
+
+#[test]
+fn restarting_adds_the_time_until_the_resume_file_was_last_written() {
+    let root = TempRoot::new();
+    let now_ms = || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64
+    };
+    let started = now_ms() - 5_000;
+    let service = running_cam_and_sim(&root, started);
+    write_resume(&root, 1);
+    // ジョブマネージャーが止まった（記録は実行中のまま）
+    drop(service);
+
+    JobManagerService::start(root.store(), FakeLauncher::default(), now_ms() + 60_000).unwrap();
+    let interrupted = status_of(&root.store(), 1);
+    assert_eq!(interrupted.status, StoredJobStatus::Interrupted);
+    // 起動した時刻ではなく、途中の結果を書いた時刻までを数える（時刻を秒で丸めるファイルシステムの分だけ短くなりうる）
+    assert!(
+        (3_000..60_000).contains(&interrupted.elapsed_before_ms),
+        "{}",
+        interrupted.elapsed_before_ms
+    );
+}
+
+#[test]
+fn an_empty_resume_file_does_not_keep_the_calculated_time() {
+    let root = TempRoot::new();
+    let mut service = running_cam_and_sim(&root, 1_000);
+    let resume = root.store().resume_file(1);
+    fs::create_dir_all(resume.parent().unwrap()).unwrap();
+    fs::write(&resume, b"").unwrap();
+    service.stop_running(4_000).unwrap();
+    assert_eq!(status_of(&root.store(), 1).elapsed_before_ms, 0);
+}
