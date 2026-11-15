@@ -2,26 +2,34 @@
 
 mod common;
 
-use std::fs;
+use std::fs::{self, File};
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
-use cam_core::{Tool, read_toolpath_artifact_v1};
+use cam_core::{OperationSpec, Tool, read_toolpath_artifact_v1};
 use cam_sim::{
     Checkpoints, SavedRecord, read_cutting_simulation_artifact_v1, run_cam_solver,
     run_cam_solver_resumable,
 };
 use common::{WorkDir, cam_input, write_cam_input, write_sim_input};
 
+/// 引数 `args` でランナーを起動するコマンド
+fn runner(args: &[&std::ffi::OsStr]) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_redring-batch-runner"));
+    command.args(args);
+    command
+}
+
+/// コマンド `command` を終わるまで動かし、終了の番号を返す
+fn exit_code(mut command: Command) -> i32 {
+    command.output().unwrap().status.code().unwrap()
+}
+
 /// ランナーを起動し、終了の番号を返す
 fn run(args: &[&std::ffi::OsStr]) -> i32 {
-    Command::new(env!("CARGO_BIN_EXE_redring-batch-runner"))
-        .args(args)
-        .output()
-        .unwrap()
-        .status
-        .code()
-        .unwrap()
+    exit_code(runner(args))
 }
 
 fn run_job(dir: &WorkDir, job_type: &str, input: &Path, toolpath: Option<&Path>) -> i32 {
@@ -50,8 +58,13 @@ fn run_job(dir: &WorkDir, job_type: &str, input: &Path, toolpath: Option<&Path>)
 
 /// 途中の結果のファイル `resume` を渡して、ツールパス生成のランナーを起動する
 fn run_cam_job_with_resume(dir: &WorkDir, input: &Path, resume: &Path) -> i32 {
+    exit_code(cam_job_with_resume(dir, input, resume))
+}
+
+/// 途中の結果のファイル `resume` を渡す、ツールパス生成のランナーのコマンド
+fn cam_job_with_resume(dir: &WorkDir, input: &Path, resume: &Path) -> Command {
     let (output, logs) = (dir.path("output"), dir.path("logs"));
-    run(&[
+    runner(&[
         "--job-type".as_ref(),
         "cam".as_ref(),
         "--input".as_ref(),
@@ -109,6 +122,83 @@ fn resume_file_bytes(input: &[u8], records: &[SavedRecord]) -> Vec<u8> {
         bytes.extend_from_slice(&checksum.to_le_bytes());
     }
     bytes
+}
+
+/// 途中の結果のファイルの、続きから計算するのに使える記録（頭のあとの、通し番号が続き、状態が長すぎず、検査の値
+/// の合う記録。書きかけの記録は数えない）を数える。前に数えた所より先だけを読む
+struct UsableRecords<'a> {
+    path: &'a Path,
+    /// 数えた記録の終わりの位置（まだ数えていなければ 0）
+    end: u64,
+    count: u64,
+}
+
+impl<'a> UsableRecords<'a> {
+    /// 頭の長さ（印・形式の版・ランナーと入力の検査の値）
+    const HEADER_LEN: u64 = 8 + 4 + 8 + 8;
+    /// 状態の長さの上限（ランナーと同じ）
+    const MAX_STATE_LEN: usize = 4096;
+
+    fn new(path: &'a Path) -> Self {
+        Self {
+            path,
+            end: 0,
+            count: 0,
+        }
+    }
+
+    /// 今のファイルの記録の数（ファイルがない・数えた所より短いときは、最初から数え直す）
+    fn update(&mut self) -> u64 {
+        let Ok(mut file) = File::open(self.path) else {
+            (self.end, self.count) = (0, 0);
+            return 0;
+        };
+        let len = file.metadata().unwrap().len();
+        if len < self.end.max(Self::HEADER_LEN) {
+            (self.end, self.count) = (0, 0);
+            return 0;
+        }
+        if self.end == 0 {
+            let mut magic = [0; 8];
+            file.read_exact(&mut magic).unwrap();
+            if &magic != b"RRRESUME" {
+                return 0;
+            }
+            self.end = Self::HEADER_LEN;
+        }
+        let mut rest = Vec::new();
+        file.seek(SeekFrom::Start(self.end)).unwrap();
+        file.read_to_end(&mut rest).unwrap();
+        let mut rest = rest.as_slice();
+        while rest.len() >= 16 {
+            let sequence = u64::from_le_bytes(rest[..8].try_into().unwrap());
+            let state_len = u32::from_le_bytes(rest[8..12].try_into().unwrap()) as usize;
+            let result_len = u32::from_le_bytes(rest[12..16].try_into().unwrap()) as usize;
+            let body_len = 16 + state_len + result_len;
+            if sequence != self.count
+                || state_len > Self::MAX_STATE_LEN
+                || rest.len() < body_len + 8
+            {
+                break;
+            }
+            let checksum = u64::from_le_bytes(rest[body_len..body_len + 8].try_into().unwrap());
+            if checksum != fnv1a(&rest[..body_len]) {
+                break;
+            }
+            self.count += 1;
+            self.end += (body_len + 8) as u64;
+            rest = &rest[body_len + 8..];
+        }
+        self.count
+    }
+}
+
+/// ランナーのログ（途中で止まったときは、書きかけのログ）
+fn runner_log(dir: &WorkDir) -> String {
+    let logs = dir.path("logs");
+    fs::read_to_string(logs.join("runner.log"))
+        .or_else(|_| fs::read_to_string(logs.join("runner.log.tmp")))
+        .unwrap_or_default()
 }
 
 fn log_text(dir: &WorkDir) -> String {
@@ -278,5 +368,89 @@ fn a_failed_cam_job_removes_the_resume_file() {
     fs::write(&resume, b"records of an earlier run").unwrap();
 
     assert_eq!(run_cam_job_with_resume(&dir, &input, &resume), 4);
+    assert!(!resume.exists());
+}
+
+#[test]
+fn a_cam_job_killed_part_way_again_and_again_continues_to_the_same_toolpath() {
+    /// 強制終了する回数
+    const KILLS: u64 = 8;
+    let dir = WorkDir::new();
+    let input = dir.path("input.bin");
+    // 走査ラインを多くし、何回止めても計算が終わりきらないようにする（走査ラインごとに 1 つ記録する）。最初から
+    // 計算するのに 0.4 秒より短ければ、走査ラインを 10 倍にする（速いビルド・速い PC では、止めるまでに進む記録が多い）
+    let mut solver_input = cam_input();
+    let mut stepover = 0.1;
+    let (full, total) = loop {
+        let OperationSpec::Scanline(params) = &mut solver_input.operation;
+        params.stepover = stepover;
+        let mut recorded = Recorded::default();
+        let started = Instant::now();
+        let full = run_cam_solver_resumable(&solver_input, &mut recorded).unwrap();
+        if started.elapsed() >= Duration::from_millis(400) || stepover <= 0.01 {
+            break (full, recorded.0.len() as u64);
+        }
+        stepover /= 10.0;
+    };
+    write_cam_input(&input, &solver_input);
+    let resume = dir.path("resume").join("toolpath.resume");
+    let mut records = UsableRecords::new(&resume);
+
+    let mut previous = 0;
+    for round in 0..KILLS {
+        let mut child = cam_job_with_resume(&dir, &input, &resume)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        // 前の回の続きから、回ごとに違う数の記録を書き足すまで待ち、回ごとに違う間を置いて止める。止める前に計算が
+        // 終わらないよう、眠らずに確かめ続ける（Windows では短い眠りが十数ミリ秒になるため）
+        let target = previous + 1 + round * 3 % 7;
+        let started = Instant::now();
+        while records.update() < target
+            && child.try_wait().unwrap().is_none()
+            && started.elapsed() < Duration::from_secs(60)
+        {
+            std::thread::yield_now();
+        }
+        let pause = Instant::now();
+        while pause.elapsed() < Duration::from_micros(200 * (round % 4)) {
+            std::thread::yield_now();
+        }
+        let observed = records.update();
+        let running = child.try_wait().unwrap().is_none();
+        if running {
+            child.kill().unwrap();
+        }
+        let status = child.wait().unwrap();
+        assert!(
+            running && observed >= target,
+            "before kill {round}, the runner ended or did not reach {target} records ({observed} of \
+             {total}, {status}): {}",
+            runner_log(&dir)
+        );
+        let now = records.update();
+        assert!(
+            now >= observed,
+            "kill {round} lost records: {observed} before it, {now} after it"
+        );
+        previous = now;
+    }
+
+    assert_eq!(
+        run_cam_job_with_resume(&dir, &input, &resume),
+        0,
+        "{}",
+        log_text(&dir)
+    );
+    assert!(
+        log_text(&dir).contains(&format!("resume: continuing from {previous} records")),
+        "{}",
+        log_text(&dir)
+    );
+    assert_eq!(
+        fs::read(dir.path("output").join("toolpath.bin")).unwrap(),
+        full
+    );
     assert!(!resume.exists());
 }
