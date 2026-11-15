@@ -150,6 +150,9 @@ pub(crate) trait JobClient: fmt::Debug {
     /// 中断のジョブ `job_ids` を計算待ちに戻すよう頼む（戻し終えるのを待たない）
     fn resume(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError>;
 
+    /// 計算中のジョブ `job_ids` を止めて中断にするよう頼む（途中の結果を残す。止め終えるのを待たない）
+    fn stop(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError>;
+
     /// ジョブマネージャーが動いているか（起動しない。同じプロセスの中で実行する実装は、いつも動いている。動いていない・
     /// 見つからないときは偽、ほかの理由でつなげないときは誤り）
     fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError>;

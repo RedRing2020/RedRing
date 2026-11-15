@@ -492,6 +492,104 @@ fn the_current_revision_jobs_except_a_submission_are_canceled() {
     );
 }
 
+/// 止め方を決める試験の切削シミュレーション（投入元 `current` が今の改訂）
+fn simulation(
+    job_id: u64,
+    current: bool,
+    status: CamJobStatus,
+    toolpath: CamJobStatus,
+) -> SimulationJob {
+    SimulationJob {
+        job_id,
+        submission_id: format!("s{job_id}"),
+        source: current.then(|| CamJobSource {
+            source_id: "op".to_string(),
+            revision: 1,
+            revision_key: None,
+        }),
+        status,
+        toolpath_status: toolpath,
+    }
+}
+
+/// 止め方を決める試験のツールパス生成（投入元 `current` が今の改訂）
+fn toolpath(job_id: u64, current: bool, status: CamJobStatus) -> ToolpathJob {
+    ToolpathJob {
+        job_id,
+        submission_id: format!("s{job_id}"),
+        source: current.then(|| CamJobSource {
+            source_id: "op".to_string(),
+            revision: 1,
+            revision_key: None,
+        }),
+        status,
+        simulated: true,
+    }
+}
+
+#[test]
+fn stopping_interrupts_running_jobs_and_keeps_the_simulations_waiting_for_them() {
+    use CamJobStatus::{Interrupted, Queued, Running, Succeeded};
+    let current = |source: &Option<CamJobSource>| source.is_some();
+    // 計算中のツールパス生成は止め、それを待つ切削シミュレーションは待たせる。関係のない計算待ちは取り消す
+    let plan = stop_plan(
+        &[
+            simulation(2, true, Queued, Running),
+            simulation(4, true, Queued, Queued),
+            simulation(6, false, Queued, Running),
+        ],
+        &[
+            toolpath(1, true, Running),
+            toolpath(3, true, Queued),
+            toolpath(5, false, Running),
+        ],
+        current,
+    );
+    assert_eq!(plan.stop, vec![1]);
+    assert_eq!(plan.cancel, vec![4, 3]);
+    // 止めた直後にもう一度止めても、中断のツールパス生成を待つ切削シミュレーションは取り消さない
+    let plan = stop_plan(
+        &[simulation(2, true, Queued, Interrupted)],
+        &[toolpath(1, true, Interrupted)],
+        current,
+    );
+    assert_eq!(plan, StopPlan::default());
+    // 計算中の切削シミュレーションも止める
+    let plan = stop_plan(
+        &[simulation(2, true, Running, Succeeded)],
+        &[toolpath(1, true, Succeeded)],
+        current,
+    );
+    assert_eq!(plan.stop, vec![2]);
+    assert!(plan.cancel.is_empty());
+}
+
+#[test]
+fn stopping_without_a_running_job_cancels_the_waiting_jobs_of_the_current_revision() {
+    let (shapes, face) = pyramid_shape();
+    let machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    // 工程から投入していないジョブは、止めない
+    submit(&mut workflow, request(0.01)).unwrap();
+    machining.submit(&mut workflow, &shapes).unwrap();
+    let stop = |workflow: &mut CamSimulationWorkflow| {
+        workflow
+            .stop_latest_revision_jobs(&machining.store, machining.sequence, machining.operation)
+            .unwrap()
+    };
+    // 計算中のジョブがないため、まだ始まっていない計算待ちのツールパス生成と切削シミュレーションを取り消す
+    assert_eq!(stop(&mut workflow), 2);
+    assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
+    let statuses: Vec<CamJobStatus> = machining
+        .operation_simulations(&workflow)
+        .iter()
+        .map(|job| job.status)
+        .collect();
+    assert_eq!(statuses, vec![CamJobStatus::Canceled]);
+    // 終わったジョブは止めない
+    assert_eq!(stop(&mut workflow), 0);
+}
+
 #[test]
 fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
     let (shapes, face) = pyramid_shape();

@@ -36,7 +36,7 @@ use job_domain::{CamJobSource, CamJobStatus};
 use crate::imported_toolpath::ImportedToolpathStore;
 use crate::job_client::{
     JobClient, JobStatusSnapshot, JobSubmission, PipeJobClient, SimulationJob,
-    SimulationSubmission, SimulationToolpath,
+    SimulationSubmission, SimulationToolpath, ToolpathJob,
 };
 use crate::job_orchestration::JobOrchestrationError;
 use crate::machining_sequence::{
@@ -624,6 +624,39 @@ impl CamSimulationWorkflow {
         })
     }
 
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂の計算を止めるよう頼み、頼んだ
+    /// ジョブの数を返す（止め終えるのを待たない。前の改訂のジョブ・ほかの工程のジョブには触れない）
+    ///
+    /// 計算中のジョブは止めて中断にし（途中の結果を残し、後から計算を続けられる）、まだ始まっていない計算待ちのジョブは
+    /// 取り消す（`stop_plan`）。計算中・中断のツールパス生成を待つ計算待ちの切削シミュレーションは、取り消さずに待た
+    /// せる（ツールパス生成を続けたら、そのまま進むように。止めた直後にもう一度止めたときも同じ）。中断のジョブには
+    /// 触れない。ジョブマネージャーがまだ取り込んでいない投入は止められない。
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順・加工手順にない加工工程の場合、ジョブマネージャーがない・起動できない・ジョブを
+    /// 読めない・頼めない場合。
+    pub fn stop_latest_revision_jobs(
+        &mut self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<usize, CamSimulationWorkflowError> {
+        let current = current_revision(sequences, sequence_id, operation_id)?;
+        let plan = stop_plan(
+            &self.jobs.simulation_jobs()?,
+            &self.jobs.toolpath_jobs()?,
+            current,
+        );
+        if !plan.stop.is_empty() {
+            self.jobs.stop(&plan.stop)?;
+        }
+        if !plan.cancel.is_empty() {
+            self.jobs.cancel(&plan.cancel)?;
+        }
+        Ok(plan.stop.len() + plan.cancel.len())
+    }
+
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂の、中断のジョブ（ツールパス
     /// 生成と切削シミュレーション）を計算待ちに戻すよう頼み、頼んだジョブの数を返す（戻し終えるのを待たない。前の改訂
     /// のジョブ・ほかの工程のジョブには触れない）
@@ -978,6 +1011,49 @@ fn operation_source(operation: &MachiningOperation) -> CamJobSource {
 
 /// 投入元が、保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂か（工程の ID と改訂の鍵が
 /// 同じか）を判定する関数。改訂の鍵を持たない投入元は、今の改訂とみなさない
+/// 計算の止め方（止めて中断にする計算中のジョブと、取り消す計算待ちのジョブ。どちらも切削シミュレーションを先に、
+/// ツールパス生成を後に並べる。ツールパス生成を先に取り消すと、それを待つ切削シミュレーションが、依存するジョブの
+/// 取り消しによる失敗になるため）
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct StopPlan {
+    stop: Vec<u64>,
+    cancel: Vec<u64>,
+}
+
+/// 投入元が `current` に当たるジョブの止め方を、切削シミュレーション `simulations` とツールパス生成 `toolpaths`
+/// から決める。計算中のジョブは止め、計算待ちのジョブは取り消す。ただし、計算中・中断のツールパス生成を待つ計算待ちの
+/// 切削シミュレーションは、取り消さない（止めたツールパス生成を続けたら、そのまま進むように）
+fn stop_plan(
+    simulations: &[SimulationJob],
+    toolpaths: &[ToolpathJob],
+    current: impl Fn(&Option<CamJobSource>) -> bool,
+) -> StopPlan {
+    let waiting = |status: CamJobStatus| {
+        matches!(status, CamJobStatus::Queued | CamJobStatus::NeedsRecompute)
+    };
+    let mut plan = StopPlan::default();
+    for job in simulations.iter().filter(|job| current(&job.source)) {
+        if job.status == CamJobStatus::Running {
+            plan.stop.push(job.job_id);
+        } else if waiting(job.status)
+            && !matches!(
+                job.toolpath_status,
+                CamJobStatus::Running | CamJobStatus::Interrupted
+            )
+        {
+            plan.cancel.push(job.job_id);
+        }
+    }
+    for job in toolpaths.iter().filter(|job| current(&job.source)) {
+        if job.status == CamJobStatus::Running {
+            plan.stop.push(job.job_id);
+        } else if waiting(job.status) {
+            plan.cancel.push(job.job_id);
+        }
+    }
+    plan
+}
+
 fn current_revision(
     sequences: &MachiningSequenceStore,
     sequence_id: MachiningSequenceId,

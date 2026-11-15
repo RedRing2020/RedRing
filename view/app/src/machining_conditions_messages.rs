@@ -148,10 +148,15 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.redo.hint",
         "選んだ工程の空間モデルの CL を消して、ツールパス生成から計算し直します",
     ),
-    ("conditions.stop", "計算停止"),
+    ("conditions.stop", "停止"),
     (
         "conditions.stop.hint",
-        "選んだ工程の今の条件の、計算待ち・計算中の計算を止めます",
+        "選んだ工程の今の条件の計算を止めます。計算中の計算は中断になり、後から続けられます（計算待ちの計算は取り消します）",
+    ),
+    ("conditions.resume", "計算再開"),
+    (
+        "conditions.resume.hint",
+        "選んだ工程の、途中で止まった今の条件の計算を、続きから計算します",
     ),
     ("conditions.import_toolpath", "CL 取込"),
     (
@@ -220,7 +225,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     (
         "conditions.status.stopped",
-        "今の条件の計算を停止しています（止まると、状態が取り消しになります）",
+        "今の条件の計算を停止しています（止まると、計算中だった計算は中断、計算待ちだった計算は取り消しになります）",
     ),
     (
         "conditions.status.earlier_conditions_canceled",
@@ -575,10 +580,15 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.redo.hint",
         "Deletes the CL of the selected operation from the space model and calculates again from toolpath generation",
     ),
-    ("conditions.stop", "Stop calculation"),
+    ("conditions.stop", "Stop"),
     (
         "conditions.stop.hint",
-        "Stops the waiting or running calculation for the current conditions of the selected operation",
+        "Stops the calculation for the current conditions of the selected operation. A running calculation becomes interrupted and can be continued later (a waiting calculation is canceled)",
+    ),
+    ("conditions.resume", "Resume"),
+    (
+        "conditions.resume.hint",
+        "Continues the calculation for the current conditions of the selected operation from where it stopped",
     ),
     ("conditions.import_toolpath", "Import CL"),
     (
@@ -647,7 +657,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     (
         "conditions.status.stopped",
-        "Stopping the calculation for the current conditions (the status becomes canceled when it stops)",
+        "Stopping the calculation for the current conditions (when it stops, a running calculation becomes interrupted and a waiting calculation becomes canceled)",
     ),
     (
         "conditions.status.earlier_conditions_canceled",

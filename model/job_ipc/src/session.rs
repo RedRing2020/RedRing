@@ -68,6 +68,9 @@ pub trait Handler {
 
     /// 中断のジョブ `job_ids` を計算待ちに戻すよう頼む（戻し終えるのを待たない）
     fn resume(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError>;
+
+    /// 計算中のジョブ `job_ids` を止めて中断にするよう頼む（止め終えるのを待たない）
+    fn stop(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError>;
 }
 
 fn error_response(kind: ErrorKind, message: impl Into<String>) -> Response {
@@ -191,6 +194,7 @@ pub fn serve(
             ),
             Request::Cancel { job_ids } => reply(handler.cancel(job_ids).map(|()| Response::Ok)),
             Request::Resume { job_ids } => reply(handler.resume(job_ids).map(|()| Response::Ok)),
+            Request::Stop { job_ids } => reply(handler.stop(job_ids).map(|()| Response::Ok)),
         };
         write_json(connection, &response)?;
         connection.flush()?;
@@ -399,6 +403,18 @@ impl<C: Read + Write> Client<C> {
     /// 読み書きできない・ジョブマネージャーが誤り（頼みを受けられない）を返した場合。
     pub fn resume(&mut self, job_ids: Vec<u64>) -> Result<(), ClientError> {
         match self.call(&Request::Resume { job_ids })? {
+            Response::Ok => Ok(()),
+            _ => Err(ClientError::UnexpectedResponse),
+        }
+    }
+
+    /// 計算中のジョブ `job_ids` を止めて中断にするよう頼む（止め終えるのを待たない）
+    ///
+    /// # Errors
+    ///
+    /// 読み書きできない・ジョブマネージャーが誤り（頼みを受けられない）を返した場合。
+    pub fn stop(&mut self, job_ids: Vec<u64>) -> Result<(), ClientError> {
+        match self.call(&Request::Stop { job_ids })? {
             Response::Ok => Ok(()),
             _ => Err(ClientError::UnexpectedResponse),
         }

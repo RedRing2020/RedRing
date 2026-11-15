@@ -401,6 +401,8 @@ fn interrupted_jobs_are_read_through_the_endpoint_and_can_be_resumed() {
     assert_eq!(simulations[0].status, CamJobStatus::Queued);
     assert_eq!(simulations[0].toolpath_status, CamJobStatus::Interrupted);
     client.resume(&[1]).unwrap();
+    // 計算中のジョブを止める頼みも、口で届く
+    client.stop(&[1]).unwrap();
 }
 
 #[test]

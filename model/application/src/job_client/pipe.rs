@@ -558,6 +558,16 @@ impl JobClient for PipeJobClient {
         Ok(())
     }
 
+    fn stop(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
+        self.connector
+            .connect()?
+            .stop(job_ids.to_vec())
+            .map_err(client_error)?;
+        // 中断にしたことが一覧に出るように、読み直しを頼む（待たない）
+        self.request_status();
+        Ok(())
+    }
+
     fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError> {
         match self.connector.connect_running() {
             Ok(_) => Ok(true),
