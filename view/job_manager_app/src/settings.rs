@@ -8,6 +8,10 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
+/// 利用者ごとのフォルダ（設定・データ）の下の、RedRing のフォルダの名前
+pub(crate) const APP_FOLDER_NAME: &str = "RedRing";
+/// 設定のファイルの名前
+const SETTINGS_FILE_NAME: &str = "job_manager.json";
 /// 設定のファイルの大きさの上限
 const MAX_SETTINGS_FILE_BYTES: u64 = 64 * 1024;
 
@@ -75,17 +79,11 @@ fn write_settings(path: &Path, settings: &Map<String, Value>) -> std::io::Result
 
 /// ジョブマネージャーの設定のファイル（Windows では `%APPDATA%\RedRing\job_manager.json`）
 fn settings_file_path() -> Option<PathBuf> {
-    let absolute = |name: &str| {
-        std::env::var_os(name)
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute())
-    };
-    let base = if cfg!(windows) {
-        absolute("APPDATA")
-    } else {
-        absolute("XDG_CONFIG_HOME").or_else(|| absolute("HOME").map(|home| home.join(".config")))
-    }?;
-    Some(base.join("RedRing").join("job_manager.json"))
+    Some(
+        platform_foundation::folder::user_config_folder()?
+            .join(APP_FOLDER_NAME)
+            .join(SETTINGS_FILE_NAME),
+    )
 }
 
 #[cfg(test)]

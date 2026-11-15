@@ -139,10 +139,10 @@ OS・コンテナなど、動かす環境によって違う処理は、`foundati
 |---|---|---|---|
 | 1 | `job_manager` の `launcher.rs`、`application` の `job_client/pipe.rs` | コンソールを出さない指定（`#[cfg(windows)]`。ランナーとジョブマネージャーを起動するとき） | `platform_foundation` の `process` に移し、2 か所で同じ API を使う。ランナーをジョブオブジェクトに入れる処理と一緒に入れる（`JOB_MANAGER_STORAGE_DESIGN.md` 3.3） |
 | 2 | `job_ipc` の `endpoint/windows.rs`・`unix.rs` | 名前付きパイプ・UNIX ドメインソケット、ウィンドウを前に出す権利を渡す（`allow_server_foreground`）（windows-sys） | `platform_foundation` の `ipc` に移す。枠・要求と応答の型は `job_ipc` に残す |
-| 3 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` に移し、3 か所で共有する |
+| 3 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` の `folder` に移し、3 か所で共有する（データのフォルダ・設定のフォルダ。その下の `RedRing` のフォルダの名前は、使う側が付ける） |
 | 4 | `job_manager_app` の `main.rs`・`tray.rs`・`locale.rs`・`store_change.rs` | タスクトレイ（ウィンドウを前に出す権利を渡す処理を含む）・レジストリ・ロケールなど（windows-sys） | タスクトレイなどの画面の部品は残す。画面の部品でないもの（レジストリ・ロケールの取得など）を移すかは、そのときに決める |
 
-- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行った（`platform_foundation` の `process`。表の今の場所は、移す前の場所）。2 から 4 は、分けて行う
+- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行った（`platform_foundation` の `process`）。3 は、`platform_foundation` の `folder` で行った（ジョブマネージャーのログのフォルダも、ここから求める）。表の今の場所は、移す前の場所。2 と 4 は、分けて行う
 - クレートを作る変更で、ワークスペースの `members`・`scripts/_arch_rules_data.ps1`・この文書の層の図を更新する（依存チェック運用）
 
 ## 📏 運用ルール

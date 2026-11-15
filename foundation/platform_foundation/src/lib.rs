@@ -3,4 +3,5 @@
 //! 環境ごとの違いは、このクレートの中に閉じる。対応しない環境での動きは、API ごとにドキュメントコメントに書く。
 
 pub mod file;
+pub mod folder;
 pub mod process;
