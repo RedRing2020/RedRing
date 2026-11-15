@@ -1,9 +1,9 @@
-//! 名前付きパイプの口（設計: JOB_IPC_DESIGN.md 3.1）
+//! 名前付きパイプの口
 //!
-//! パイプの名前は利用者の SID から決め、接続できるのをその利用者だけにし（持ち主もその利用者にする）、ネットワーク
-//! からの接続を拒む。最初のインスタンスは `FILE_FLAG_FIRST_PIPE_INSTANCE` で作る（ほかのプロセスが先に作っていれば
-//! 開かない）。つなぐ側は、パイプの持ち主が自分であることを確かめる。つなぐ側の接続は非同期の読み書き（overlapped）で
-//! 開き、読み書きに時間の上限を設けられる。
+//! パイプの名前は、口の名前と利用者の SID から決める（`\\.\pipe\<まとまり>.<名前>.<SID>`）。接続できるのを
+//! その利用者だけにし（持ち主もその利用者にする）、ネットワークからの接続を拒む。最初のインスタンスは
+//! `FILE_FLAG_FIRST_PIPE_INSTANCE` で作る（ほかのプロセスが先に作っていれば開かない）。つなぐ側は、パイプの持ち主が
+//! 自分であることを確かめる。つなぐ側の接続は非同期の読み書き（overlapped）で開き、読み書きに時間の上限を設けられる。
 
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -38,10 +38,8 @@ use windows_sys::Win32::System::Threading::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
-use super::MAX_CONNECTIONS;
-
 /// パイプの名前の始まり
-const PIPE_PREFIX: &str = r"\\.\pipe\RedRing.JobManager.";
+const PIPE_PREFIX: &str = r"\\.\pipe\";
 /// パイプの送り・受けの大きさ
 const PIPE_BUFFER_BYTES: u32 = 64 * 1024;
 /// 同時につないでいる数が上限のときに、空くのを待つ間隔
@@ -152,7 +150,7 @@ impl OverlappedIo {
             }
             return Err(io::Error::new(
                 io::ErrorKind::TimedOut,
-                "the job manager did not answer in time",
+                "the other side did not answer in time",
             ));
         }
         // SAFETY: 終わった読み書きの結果を読む
@@ -215,13 +213,10 @@ impl Write for Stream {
 pub(super) struct Address(String);
 
 impl Address {
-    pub(super) fn for_current_user() -> io::Result<Self> {
-        Ok(Self(format!("{PIPE_PREFIX}{}", UserSid::current()?.text)))
-    }
-
-    pub(super) fn with_name(name: &str) -> io::Result<Self> {
+    /// まとまり `group` の、名前 `name` の、この利用者のパイプ
+    pub(super) fn for_current_user(group: &str, name: &str) -> io::Result<Self> {
         Ok(Self(format!(
-            "{PIPE_PREFIX}{}.{name}",
+            "{PIPE_PREFIX}{group}.{name}.{}",
             UserSid::current()?.text
         )))
     }
@@ -313,6 +308,8 @@ impl Drop for SecurityDescriptor {
 /// 開いたパイプ（次の接続を待つインスタンスを持つ）
 pub(super) struct Listener {
     name: Vec<u16>,
+    /// 同時につなげる数の上限（パイプのインスタンスの数）
+    max_connections: u32,
     security: SecurityDescriptor,
     /// 次の接続を待つインスタンス（最初のインスタンス。受けたら、次の接続のときに作る）
     next: Option<File>,
@@ -327,7 +324,7 @@ impl std::fmt::Debug for Listener {
 }
 
 impl Listener {
-    pub(super) fn bind(address: &Address) -> io::Result<Self> {
+    pub(super) fn bind(address: &Address, max_connections: usize) -> io::Result<Self> {
         let sid = UserSid::current()?;
         // 持ち主をこの利用者にし、この利用者だけにすべての権利を渡す（親の権利を引き継がない）
         let text: Vec<u16> = format!("O:{0}D:P(A;;GA;;;{0})", sid.text)
@@ -349,16 +346,15 @@ impl Listener {
         }
         let mut listener = Self {
             name: address.wide(),
+            // 範囲は呼ぶ側（`Endpoint::listen`）で確かめている
+            max_connections: max_connections as u32,
             security: SecurityDescriptor(descriptor),
             next: None,
         };
         listener.next = Some(listener.create_instance(true).map_err(|error| {
             // 最初のインスタンスを作れないのは、ほかのプロセスが同じ名前のパイプを開いているとき
             if error.raw_os_error() == Some(ERROR_ACCESS_DENIED as i32) {
-                io::Error::new(
-                    io::ErrorKind::AddrInUse,
-                    "the job manager endpoint is already open",
-                )
+                io::Error::new(io::ErrorKind::AddrInUse, "the endpoint is already open")
             } else {
                 error
             }
@@ -383,7 +379,7 @@ impl Listener {
                 self.name.as_ptr(),
                 PIPE_ACCESS_DUPLEX | first_flag,
                 PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
-                MAX_CONNECTIONS as u32,
+                self.max_connections,
                 PIPE_BUFFER_BYTES,
                 PIPE_BUFFER_BYTES,
                 0,
@@ -465,7 +461,7 @@ pub(super) fn connect(address: &Address) -> io::Result<Stream> {
     if !owned_by_current_user(&file)? {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "the job manager endpoint is owned by another user",
+            "the endpoint is owned by another user",
         ));
     }
     Ok(Stream {

@@ -1704,10 +1704,9 @@ dependencies = [
 name = "job_ipc"
 version = "0.1.0"
 dependencies = [
- "libc",
+ "platform_foundation",
  "serde",
  "serde_json",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2556,6 +2555,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 name = "platform_foundation"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "windows-sys 0.61.2",
 ]
 

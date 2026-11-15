@@ -58,7 +58,7 @@ foundation（analysis / logging_foundation / i18n_foundation / platform_foundati
 - **`job_runtime`** / **`job_domain`**: CAD / CAM / CAE に依存しない実行制御 / ジョブ投入のポリシー
 - **`job_runner`**: ジョブ 1 つの計算だけを行うランナーの実行ファイル（`redring-batch-runner`）。引数・入力と成果物のファイル・ログ・進み具合・終了の番号だけを持つ（`JOB_MANAGER_STORAGE_DESIGN.md` 3 章）
 - **`job_manager`**: ジョブマネージャーのサービス。ジョブの保存先を排他に開き、投入の取り込み・実行の順・ランナーの起動と終わりの判断・取り消しを行う。保存先から答える、問い合わせる口の受け手も持つ。CAD/CAM に依らない（`JOB_MANAGER_STORAGE_DESIGN.md` 3.2、`JOB_IPC_DESIGN.md`）
-- **`job_ipc`**: ジョブマネージャーに問い合わせる口。利用者ごとの口（Windows では名前付きパイプ、ほかの OS では UNIX ドメインソケット）の開き方・つなぎ方、枠、要求と応答の型、要求を送る側と受ける側を持つ。ジョブの保存先の形式と分けるため、ワークスペースの他のクレートに依存しない（`JOB_IPC_DESIGN.md`）
+- **`job_ipc`**: ジョブマネージャーに問い合わせる口。口の名前、枠、要求と応答の型、要求を送る側と受ける側を持つ（利用者ごとの口の開き方・つなぎ方は `platform_foundation` の `ipc`）。ジョブの保存先の形式と分けるため、`platform_foundation` のほかには、ワークスペースの他のクレートに依存しない（`JOB_IPC_DESIGN.md`）
 - **`application`**: テセレーション・シミュレーション・ジョブ投入などのユースケースの orchestration（`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`）
 - **`viewmodel/*`**: モデルのデータの描画用への変換（`converter`）、カメラ等のグラフィックス制御（`graphics`）
 - **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）、ジョブマネージャーの画面と実行ファイル（`job_manager_app`。`redring-job-manager`。CAD/CAM の ViewModel を通さず、`job_manager`・`job_runtime` に直接依存する。`CAM_OPERATION_UI_DESIGN.md` 3.7）
@@ -128,7 +128,7 @@ OS・コンテナなど、動かす環境によって違う処理は、`foundati
     - `platform_foundation` は、ワークスペースの他のクレートに依存しない
     - foundation の他のクレート（`analysis` など）は、`platform_foundation` に依存しない（純粋な計算に環境への依存を入れないため）
     - Model・Application・View のクレートは、要るものだけが依存する（`scripts/_arch_rules_data.ps1` で、依存してよいクレートを決める）
-    - OS の API のクレート（windows-sys など）を使ってよいのは、`platform_foundation` と、画面の部品の OS への依存を持つ View の実行ファイル（`job_manager_app`）だけとする。ただし、移す順の 2 を終えるまでは、`job_ipc` も使う
+    - OS の API のクレート（windows-sys など）を使ってよいのは、`platform_foundation` と、画面の部品の OS への依存を持つ View の実行ファイル（`job_manager_app`）だけとする
     - 外のクレート（windows-sys など）の決まりは、今の依存チェック（`scripts/check_architecture_dependencies.ps1`）では検査しない（ワークスペースの中のクレートの依存だけを見るため）。検査に足すまでは人が守る。検査に足すことは、後の課題とする
 - **試験**
     - 環境に依存する実装の試験は、`platform_foundation` の中で行う（環境ごとに、CI の Ubuntu と Windows で確かめる）
@@ -142,7 +142,7 @@ OS・コンテナなど、動かす環境によって違う処理は、`foundati
 | 3 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` の `folder` に移し、3 か所で共有する（データのフォルダ・設定のフォルダ。その下の `RedRing` のフォルダの名前は、使う側が付ける） |
 | 4 | `job_manager_app` の `main.rs`・`tray.rs`・`locale.rs`・`store_change.rs` | タスクトレイ（ウィンドウを前に出す権利を渡す処理を含む）・レジストリ・ロケールなど（windows-sys） | タスクトレイなどの画面の部品は残す。画面の部品でないもの（レジストリ・ロケールの取得など）を移すかは、そのときに決める |
 
-- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行った（`platform_foundation` の `process`）。3 は、`platform_foundation` の `folder` で行った（ジョブマネージャーのログのフォルダも、ここから求める）。表の今の場所は、移す前の場所。2 と 4 は、分けて行う
+- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行った（`platform_foundation` の `process`）。3 は、`platform_foundation` の `folder` で行った（ジョブマネージャーのログのフォルダも、ここから求める）。2 は、`platform_foundation` の `ipc` で行った（口の名前は、`job_ipc` が渡す）。表の今の場所は、移す前の場所。4 は、分けて行う
 - クレートを作る変更で、ワークスペースの `members`・`scripts/_arch_rules_data.ps1`・この文書の層の図を更新する（依存チェック運用）
 
 ## 📏 運用ルール
