@@ -5,7 +5,7 @@
 //! シェルを作る。
 //!
 //! 表に足す前に、頂点・稜線の許容誤差を、測ったずれに合わせて広げ、1 つの角にある頂点と、重なる稜線を
-//! まとめる（6.1・6.2）。
+//! まとめる（6.1・6.2）。作れなかった面は、外して表を作り直す（8.4）。
 
 #[cfg(test)]
 mod tests;
@@ -17,12 +17,13 @@ use analysis::consts::import_tolerance::{DEVIATION_FACTOR, ELEMENT_TOLERANCE_LIM
 use geo_contracts::{
     Circle3DProperties, Ellipse3DProperties, InfiniteLine3DConstructor, InfiniteLine3DDistance,
     InfiniteLine3DEvaluation, NurbsCurve3DEvaluation, NurbsCurve3DProperties, Plane3DConstructor,
+    SphericalSurface3DProperties,
 };
 use geo_core::{Direction3D, Point3D, Vector3D};
 use geo_topology::{
     Brep, BrepError, CurveRef, EdgeIndex, EdgeUse, FaceIndex, ParameterCurve, ShellIndex,
     SolidIndex, SurfaceRef, TopoEllipse3D, TopoInfiniteLine3D, TopoNurbsCurve3D, TopoPlane3D,
-    TopologyToleranceSettings, VertexIndex,
+    TopoSphericalSurface3D, TopologyToleranceSettings, VertexIndex,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::f64::consts::TAU;
@@ -37,6 +38,18 @@ const SAMPLES_PER_CONTROL_POINT: usize = 16;
 const MAX_NEWTON_STEPS: usize = 32;
 /// 2 本の稜線が重なるかを確かめるときに、区間を分ける数（区間の両端を含めて この数 + 1 個の点で比べる）
 const EDGE_COMPARISON_SEGMENTS: usize = 8;
+/// 作れなかった面を外して表を作り直す回数の上限（設計 8.4）
+const MAX_REBUILDS: usize = 8;
+/// 座標の大きさの上限（mm に直した後の値。設計 4.3）
+const MAX_COORDINATE_MM: f64 = 1.0e9;
+/// 1 つの表現の要素の面の数の上限（設計 4.3）
+const MAX_FACES_PER_ITEM: usize = 500_000;
+/// 1 つの表現の要素で、写した後の曲線の制御点の合計の上限（設計 4.3）
+const MAX_CONTROL_POINTS_PER_ITEM: usize = 10_000_000;
+/// 1 つのループの稜線の数の上限（設計 4.3）
+const MAX_EDGES_PER_LOOP: usize = 100_000;
+/// 全体の許容誤差が、f64 の刻みで表せる小ささか確かめるときの、座標の大きさの最大に対する比（設計 6.1）
+const PRECISION_RATIO: f64 = 1.0e-12;
 
 /// 読み込みで、頂点・稜線の許容誤差を広げるときの設定（設計 6.1）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -72,6 +85,9 @@ pub struct Topologies {
     pub items: Vec<Built>,
     /// 外した要素と、その理由
     pub skipped: Vec<TopologySkipped>,
+    /// 全体の許容誤差が、座標の大きさに対して f64 の刻みで表せない小ささ（座標の大きさの最大 × 1e-12 より
+    /// 小さい）か（値は変えない）
+    pub tolerance_below_precision: bool,
 }
 
 /// 表現の要素 1 つから作った B-rep
@@ -93,6 +109,9 @@ pub struct Built {
     pub unoriented_faces: Vec<u64>,
     /// ファイルで閉じたシェルとされているが、作ったシェルが閉じていないもの（ファイルのシェルの番号）
     pub open_shells: Vec<u64>,
+    /// 作り直しても表現の要素を作れず、面 1 つだけを面単体として読んだ B-rep か（同じ要素から、面ごとに
+    /// 1 つずつできる）
+    pub single_face: bool,
 }
 
 /// 読み込みで直したこと（番号はファイルの番号）
@@ -114,6 +133,9 @@ pub enum Correction {
     FaceReversed { face: u64 },
     /// 内側のループが外側のループと同じ回りだったため、ループ `bound` を逆にした
     LoopReversed { face: u64, bound: u64 },
+    /// 閉じた曲面の上で、切れ目（稜線に沿って行って戻るループ）だけで囲まれた面を、曲面の全体とし、切れ目を
+    /// 捨てた
+    SlitLoopsRemoved { face: u64 },
 }
 
 /// 外した要素（面・シェル・立体）
@@ -150,8 +172,26 @@ pub enum TopologyError {
     NoLoopPlane,
     /// 同じ面を、逆の向きで 2 回使う
     ReversedReuse,
+    /// 周期的な曲面の上で、読めない回り方のループがある（1 回より多くまわる、u・v の両方でまわる、同じ向きの
+    /// 周期をまわるループが 3 つ以上ある）
+    UnsupportedWinding,
+    /// 上限を超えた（設計 4.3。表現の要素ごと止める）
+    LimitExceeded(TopologyLimit),
     /// B-rep の表に足せない
     Brep(BrepError),
+}
+
+/// 段 3 の上限（設計 4.3）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TopologyLimit {
+    /// 座標の大きさ（有限でない値を含む）
+    Coordinate,
+    /// 1 つの表現の要素の面の数
+    FacesPerItem,
+    /// 1 つの表現の要素で、写した後の曲線の制御点の合計
+    ControlPointsPerItem,
+    /// 1 つのループの稜線の数
+    EdgesPerLoop,
 }
 
 /// 理由と、その起きた要素
@@ -191,46 +231,180 @@ pub fn build(
     }
     let mut topologies = Topologies::default();
     let mut seen = BTreeSet::new();
+    let mut max_coordinate = 0.0_f64;
     for representation in records.representations.values() {
-        let uncertainty = records
-            .contexts
-            .get(&representation.context)
-            .and_then(|context| context.uncertainty_mm);
+        let context = BuildContext {
+            records,
+            geometries,
+            tolerances,
+            settings,
+            uncertainty: records
+                .contexts
+                .get(&representation.context)
+                .and_then(|context| context.uncertainty_mm),
+        };
         for &item in &representation.items {
             if !seen.insert(item) {
                 continue;
             }
-            let builder = ItemBuilder {
-                records,
-                geometries,
-                global: tolerances.distance_tolerance,
-                initial: tolerances.distance_tolerance,
-                limit: tolerances.distance_tolerance,
-                factor: settings.deviation_factor,
-                brep: Brep::new(tolerances)?,
-                shapes: BTreeMap::new(),
-                vertex_groups: BTreeMap::new(),
-                groups: Vec::new(),
-                merged_edges: BTreeMap::new(),
-                face_failures: BTreeMap::new(),
-                points: BTreeMap::new(),
-                edges: BTreeMap::new(),
-                segments: HashMap::new(),
-                faces: BTreeMap::new(),
-                built_faces: Vec::new(),
-                corrections: Vec::new(),
-                unoriented: Vec::new(),
-                skipped: Vec::new(),
-            };
-            let builder = builder.prepare(item, uncertainty, settings.limit_ratio);
-            let (built, mut skipped) = builder.item(item);
-            topologies.skipped.append(&mut skipped);
-            if let Some(built) = built {
-                topologies.items.push(built);
-            }
+            let mut result = build_item(&context, item, MAX_REBUILDS)?;
+            topologies.items.append(&mut result.built);
+            topologies.skipped.append(&mut result.skipped);
+            max_coordinate = max_coordinate.max(result.limits.max_coordinate);
         }
     }
+    topologies.tolerance_below_precision =
+        tolerances.distance_tolerance < max_coordinate * PRECISION_RATIO;
     Ok(topologies)
+}
+
+/// 表現の要素を作るときに共通の入力
+struct BuildContext<'a> {
+    records: &'a Records,
+    geometries: &'a Geometries,
+    tolerances: TopologyToleranceSettings<f64>,
+    settings: ImportToleranceSettings,
+    /// 表現の文脈の許容誤差（mm）
+    uncertainty: Option<f64>,
+}
+
+impl<'a> BuildContext<'a> {
+    /// 面 `excluded` を外し、表現の要素を作る前の準備をしたもの（`only` があれば、その面（と、逆の向きで読むか）
+    /// だけを、要素の許容誤差の初めの値と上限 `limits` で読む）
+    fn builder(
+        &self,
+        item: u64,
+        excluded: &BTreeMap<u64, Failure>,
+        only: Option<((u64, bool), ItemLimits)>,
+    ) -> Result<ItemBuilder<'a>, BrepError> {
+        let mut builder = self.raw_builder(excluded)?;
+        Ok(match only {
+            Some((face, limits)) => {
+                builder.only = Some(face);
+                builder.initial = limits.initial;
+                builder.limit = limits.limit;
+                builder.max_coordinate = limits.max_coordinate;
+                builder.prepare(item, None)
+            }
+            None => builder.prepare(item, Some((self.uncertainty, self.settings.limit_ratio))),
+        })
+    }
+
+    /// 準備をしていない、面 `excluded` を外す表
+    fn raw_builder(&self, excluded: &BTreeMap<u64, Failure>) -> Result<ItemBuilder<'a>, BrepError> {
+        let global = self.tolerances.distance_tolerance;
+        Ok(ItemBuilder {
+            records: self.records,
+            geometries: self.geometries,
+            global,
+            initial: global,
+            limit: global,
+            factor: self.settings.deviation_factor,
+            brep: Brep::new(self.tolerances)?,
+            excluded: excluded.clone(),
+            only: None,
+            touched: false,
+            stopped: None,
+            max_coordinate: 0.0,
+            shapes: BTreeMap::new(),
+            vertex_groups: BTreeMap::new(),
+            groups: Vec::new(),
+            merged_edges: BTreeMap::new(),
+            face_failures: BTreeMap::new(),
+            points: BTreeMap::new(),
+            edges: BTreeMap::new(),
+            segments: HashMap::new(),
+            faces: BTreeMap::new(),
+            built_faces: Vec::new(),
+            corrections: Vec::new(),
+            unoriented: Vec::new(),
+            skipped: Vec::new(),
+            failed: Vec::new(),
+        })
+    }
+}
+
+/// 表現の要素の、要素の許容誤差の初めの値と上限・頂点の座標の大きさの最大
+#[derive(Debug, Clone, Copy)]
+struct ItemLimits {
+    initial: f64,
+    limit: f64,
+    max_coordinate: f64,
+}
+
+/// 表現の要素 1 つを作った結果
+struct ItemResult {
+    built: Vec<Built>,
+    skipped: Vec<TopologySkipped>,
+    /// 作れなかった面のうち、表に稜線・頂点を足した後に作れなかった面（ファイルの面の番号と理由）
+    failed: Vec<(u64, Failure)>,
+    limits: ItemLimits,
+}
+
+/// 表現の要素 `item` を作る（設計 8.4）
+///
+/// 作れなかった面があれば、その面を外して初めから作り直す（外した面の稜線・頂点を表に残さないため）。作り直しで
+/// また作れない面が出れば、それも外して作り直す（`max_rebuilds` 回まで）。それでも作れなければ、残りの面を
+/// 1 つずつ、面単体として読む。
+fn build_item(
+    context: &BuildContext,
+    item: u64,
+    max_rebuilds: usize,
+) -> Result<ItemResult, BrepError> {
+    let mut excluded: BTreeMap<u64, Failure> = BTreeMap::new();
+    let mut limits = None;
+    for _ in 0..=max_rebuilds {
+        let result = context.builder(item, &excluded, None)?.item(item);
+        if result.failed.is_empty() {
+            return Ok(result);
+        }
+        limits = Some(result.limits);
+        for (face, failure) in result.failed {
+            excluded.entry(face).or_insert(failure);
+        }
+    }
+    let Some(limits) = limits else {
+        return Ok(ItemResult {
+            built: Vec::new(),
+            skipped: Vec::new(),
+            failed: Vec::new(),
+            limits: ItemLimits {
+                initial: context.tolerances.distance_tolerance,
+                limit: context.tolerances.distance_tolerance,
+                max_coordinate: 0.0,
+            },
+        });
+    };
+    let mut skipped: Vec<TopologySkipped> = excluded
+        .iter()
+        .map(|(&id, failure)| TopologySkipped {
+            id,
+            cause: failure.cause,
+            reason: failure.reason,
+        })
+        .collect();
+    let mut built = Vec::new();
+    let faces = context.raw_builder(&excluded)?.item_faces(item);
+    for face in faces {
+        if excluded.contains_key(&face.0) {
+            continue;
+        }
+        let result = context
+            .builder(item, &excluded, Some((face, limits)))?
+            .item(item);
+        for entry in result.skipped {
+            if !skipped.contains(&entry) {
+                skipped.push(entry);
+            }
+        }
+        built.extend(result.built);
+    }
+    Ok(ItemResult {
+        built,
+        skipped,
+        failed: Vec::new(),
+        limits,
+    })
 }
 
 /// 作った面（ファイルの面の番号・ループのファイルの番号と外側のループか・面ごとに向きが決まる曲面の上か）
@@ -269,6 +443,9 @@ struct VertexGroup {
     index: Option<VertexIndex>,
 }
 
+/// ファイルの稜線から、面のループが使う回数と、初めに使う面（ファイルの番号）
+type EdgeUses = BTreeMap<u64, (usize, u64)>;
+
 /// 前もって集めた面（ファイルの番号・型の曲面（ないときは `None`）・ループの稜線のファイルの番号）
 struct PreparedFace {
     id: u64,
@@ -286,6 +463,16 @@ struct ItemBuilder<'a> {
     limit: f64,
     factor: f64,
     brep: Brep<f64>,
+    /// 外す面（ファイルの面の番号と、前に作れなかった理由）
+    excluded: BTreeMap<u64, Failure>,
+    /// この面（と、逆の向きで読むか）だけを読む（作り直しても作れないときに、面を 1 つずつ読む）
+    only: Option<(u64, bool)>,
+    /// 今作っている面のために、表に稜線・頂点を足し始めたか（作れなかったときに、作り直すかを決める）
+    touched: bool,
+    /// 上限を超えたため、表現の要素ごと止める理由
+    stopped: Option<Failure>,
+    /// 頂点の座標の大きさの最大
+    max_coordinate: f64,
     /// ファイルの稜線の形（前もって求める）
     shapes: BTreeMap<u64, Result<EdgeShape, Failure>>,
     /// ファイルの頂点から、まとめた頂点（`groups` の位置）
@@ -308,6 +495,8 @@ struct ItemBuilder<'a> {
     /// 向きを決められなかった面（ファイルの面の番号）
     unoriented: Vec<u64>,
     skipped: Vec<TopologySkipped>,
+    /// 作れなかった面（作り直すときに外す）
+    failed: Vec<(u64, Failure)>,
 }
 
 impl<'a> ItemBuilder<'a> {
@@ -355,12 +544,36 @@ impl<'a> ItemBuilder<'a> {
 
     /// 表に足す前に、表現の要素 `item` の稜線の形を求め、頂点・稜線の許容誤差を広げ、頂点と稜線をまとめる
     /// （設計 6.1 の順。頂点を使う稜線の許容誤差以上にそろえるのは、表に稜線を足すときに行う）
-    fn prepare(mut self, item: u64, uncertainty: Option<f64>, limit_ratio: f64) -> Self {
+    ///
+    /// `limits` は、表現の文脈の許容誤差と上限の比（`None` なら、初めの値と上限は決めてある）。
+    fn prepare(mut self, item: u64, limits: Option<(Option<f64>, f64)>) -> Self {
         let Ok((shells, _)) = self.item_shells(item) else {
             return self;
         };
-        let (faces, uses) = self.collect_faces(&shells);
-        self.set_limits(&uses, uncertainty, limit_ratio);
+        let (faces, uses, all_edges) = self.collect_faces(&shells);
+        if let Some((uncertainty, limit_ratio)) = limits {
+            self.set_limits(&all_edges, uncertainty, limit_ratio);
+        }
+        // 写した後の制御点の多くは、NURBS 曲線の稜線から来る。稜線の形を求める前に数える
+        let control_points = uses
+            .keys()
+            .filter_map(|&edge| match self.topology(edge) {
+                Ok(Topology::Edge { curve, .. }) => match self.geometries.curves.get(curve) {
+                    Some(Curve::Base(CurveRef::Nurbs(nurbs))) => Some(nurbs.control_point_count()),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .fold(0_usize, usize::saturating_add);
+        if control_points > MAX_CONTROL_POINTS_PER_ITEM {
+            self.stopped.get_or_insert(Failure::new(
+                item,
+                TopologyError::LimitExceeded(TopologyLimit::ControlPointsPerItem),
+            ));
+        }
+        if self.stopped.is_some() {
+            return self;
+        }
         // 1. 頂点を、その頂点を使う曲線に合わせて広げる
         let mut vertex_tolerances: BTreeMap<u64, f64> = BTreeMap::new();
         for &edge in uses.keys() {
@@ -402,14 +615,152 @@ impl<'a> ItemBuilder<'a> {
         self
     }
 
-    /// シェル `shells` の面（向きの旗をたどった元の面。NURBS 曲面の面と、曲面を型にできなかった面は、
-    /// `face` と同じく除く）と、面のループが稜線を使う回数と初めに使う面（ファイルの稜線から）
-    fn collect_faces(&self, shells: &[u64]) -> (Vec<PreparedFace>, BTreeMap<u64, (usize, u64)>) {
+    /// シェル `shells` の読む面（向きの旗をたどった元の面。外す面、NURBS 曲面の面と、曲面を型にできなかった
+    /// 面は、`face` と同じく除く。1 つの面だけを読むときは、その面）と、面のループが稜線を使う回数と初めに使う面
+    /// （ファイルの稜線から）と、外す面を含むすべての面の稜線（立体の大きさを測るため）。面の数・ループの稜線の
+    /// 数・多角形のループの点の座標が上限を超えれば、止める理由を残す
+    fn collect_faces(&mut self, shells: &[u64]) -> (Vec<PreparedFace>, EdgeUses, BTreeSet<u64>) {
+        let candidates = match self.only {
+            Some((face, _)) => vec![face],
+            None => {
+                let faces: Vec<u64> = self
+                    .item_faces_of(shells)
+                    .into_iter()
+                    .map(|(face, _)| face)
+                    .collect();
+                if faces.len() > MAX_FACES_PER_ITEM {
+                    self.stopped.get_or_insert(Failure::new(
+                        faces.get(MAX_FACES_PER_ITEM).copied().unwrap_or_default(),
+                        TopologyError::LimitExceeded(TopologyLimit::FacesPerItem),
+                    ));
+                    return (Vec::new(), BTreeMap::new(), BTreeSet::new());
+                }
+                faces
+            }
+        };
         let mut faces = Vec::new();
-        let mut uses: BTreeMap<u64, (usize, u64)> = BTreeMap::new();
+        let mut uses: EdgeUses = BTreeMap::new();
+        let mut all_edges = BTreeSet::new();
+        for face in candidates {
+            let Ok(Topology::Face {
+                bounds, surface, ..
+            }) = self.topology(face)
+            else {
+                continue;
+            };
+            self.check_bounds(bounds);
+            let edges: Vec<u64> = bounds
+                .iter()
+                .flat_map(|&bound| self.bound_edges(bound))
+                .map(|(edge, _)| edge)
+                .collect();
+            all_edges.extend(edges.iter().copied());
+            if !self.reads(face) {
+                continue;
+            }
+            let surface = match surface {
+                Some(surface) => match self.geometries.surfaces.get(surface) {
+                    Some(typed) if !matches!(typed.surface, SurfaceRef::Nurbs(_)) => {
+                        Some(typed.surface.clone())
+                    }
+                    _ => continue,
+                },
+                None => None,
+            };
+            for &edge in &edges {
+                uses.entry(edge).or_insert((0, face)).0 += 1;
+            }
+            faces.push(PreparedFace {
+                id: face,
+                surface,
+                edges,
+            });
+        }
+        (faces, uses, all_edges)
+    }
+
+    /// 面 `face` を、この表で読むか（外す面でなく、1 つの面だけを読むときはその面）
+    fn reads(&self, face: u64) -> bool {
+        !self.excluded.contains_key(&face) && self.only.is_none_or(|(only, _)| only == face)
+    }
+
+    /// ループ `bounds` の稜線の数と、多角形のループの点の座標を確かめる（上限を超えれば、止める理由を残す）
+    fn check_bounds(&mut self, bounds: &[u64]) {
+        for &bound in bounds {
+            let Ok(Topology::FaceBound { bound: inner, .. }) = self.topology(bound) else {
+                continue;
+            };
+            let length = match self.topology(*inner) {
+                Ok(Topology::EdgeLoop { edges }) => edges.len(),
+                Ok(Topology::PolyLoop { points }) => points.len(),
+                _ => continue,
+            };
+            if length > MAX_EDGES_PER_LOOP {
+                self.stopped.get_or_insert(Failure::new(
+                    *inner,
+                    TopologyError::LimitExceeded(TopologyLimit::EdgesPerLoop),
+                ));
+                return;
+            }
+            if let Ok(Topology::PolyLoop { points }) = self.topology(*inner) {
+                for &point in points {
+                    if let Ok(position) = self.point(point) {
+                        self.check_coordinate(point, position);
+                    }
+                }
+            }
+        }
+    }
+
+    /// ループ `bound` の稜線の使用（ファイルの稜線と、ループの中で向きを逆にして使うか。ループの `.F.` は
+    /// 含めない。稜線のループでなければ空）
+    fn bound_edges(&self, bound: u64) -> Vec<(u64, bool)> {
+        let Ok(Topology::FaceBound { bound: inner, .. }) = self.topology(bound) else {
+            return Vec::new();
+        };
+        let Ok(Topology::EdgeLoop { edges: oriented }) = self.topology(*inner) else {
+            return Vec::new();
+        };
+        oriented
+            .iter()
+            .filter_map(|&oriented| {
+                self.resolve(oriented, |topology| match topology {
+                    Topology::OrientedEdge { edge, orientation } => Some((*edge, *orientation)),
+                    _ => None,
+                })
+                .ok()
+            })
+            .collect()
+    }
+
+    /// 点 `point`（ファイルの番号 `id`）の座標の大きさを確かめ、最大を覚える（上限を超えれば、止める理由を残す）
+    fn check_coordinate(&mut self, id: u64, point: Point3D<f64>) {
+        let size = point.x().abs().max(point.y().abs()).max(point.z().abs());
+        if !size.is_finite() || size > MAX_COORDINATE_MM {
+            self.stopped.get_or_insert(Failure::new(
+                id,
+                TopologyError::LimitExceeded(TopologyLimit::Coordinate),
+            ));
+            return;
+        }
+        self.max_coordinate = self.max_coordinate.max(size);
+    }
+
+    /// 表現の要素 `item` の面（向きの旗をたどった元の面と、逆の向きで読むか。シェルをたどる順で、同じ面は
+    /// 初めの 1 回だけ）
+    fn item_faces(&self, item: u64) -> Vec<(u64, bool)> {
+        match self.item_shells(item) {
+            Ok((shells, _)) => self.item_faces_of(&shells),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    /// シェル `shells` の面（`item_faces` と同じ）
+    fn item_faces_of(&self, shells: &[u64]) -> Vec<(u64, bool)> {
+        let mut faces = Vec::new();
         let mut seen = HashSet::new();
         for &shell in shells {
-            let Ok((shell, _)) = self.resolve(shell, |topology| match topology {
+            let Ok((shell, shell_reversed)) = self.resolve(shell, |topology| match topology {
                 Topology::OrientedShell { shell, orientation } => Some((*shell, *orientation)),
                 _ => None,
             }) else {
@@ -422,82 +773,36 @@ impl<'a> ItemBuilder<'a> {
                 continue;
             };
             for &face in shell_faces {
-                let Ok((face, _)) = self.resolve(face, |topology| match topology {
+                if let Ok((face, reversed)) = self.resolve(face, |topology| match topology {
                     Topology::OrientedFace { face, orientation } => Some((*face, *orientation)),
                     _ => None,
-                }) else {
-                    continue;
-                };
-                if !seen.insert(face) {
-                    continue;
+                }) && seen.insert(face)
+                {
+                    faces.push((face, shell_reversed ^ reversed));
                 }
-                let Ok(Topology::Face {
-                    bounds, surface, ..
-                }) = self.topology(face)
-                else {
-                    continue;
-                };
-                let surface = match surface {
-                    Some(surface) => match self.geometries.surfaces.get(surface) {
-                        Some(typed) if !matches!(typed.surface, SurfaceRef::Nurbs(_)) => {
-                            Some(typed.surface.clone())
-                        }
-                        _ => continue,
-                    },
-                    None => None,
-                };
-                let mut edges = Vec::new();
-                for &bound in bounds {
-                    let Ok(Topology::FaceBound { bound: inner, .. }) = self.topology(bound) else {
-                        continue;
-                    };
-                    let Ok(Topology::EdgeLoop { edges: oriented }) = self.topology(*inner) else {
-                        continue;
-                    };
-                    for &oriented in oriented {
-                        if let Ok((edge, _)) = self.resolve(oriented, |topology| match topology {
-                            Topology::OrientedEdge { edge, orientation } => {
-                                Some((*edge, *orientation))
-                            }
-                            _ => None,
-                        }) {
-                            uses.entry(edge).or_insert((0, face)).0 += 1;
-                            edges.push(edge);
-                        }
-                    }
-                }
-                faces.push(PreparedFace {
-                    id: face,
-                    surface,
-                    edges,
-                });
             }
         }
-        (faces, uses)
+        faces
     }
 
     /// 要素の許容誤差の上限と初めの値を決める（上限は、稜線 `edges` の頂点と曲線の外形の箱の対角の長さに比
     /// `limit_ratio` を掛けた値。円・楕円はその全体を囲む箱、NURBS 曲線は制御点で箱を広げる。初めの値は、
     /// 文脈の許容誤差 `uncertainty`（なければ全体の許容誤差））
-    fn set_limits(
-        &mut self,
-        edges: &BTreeMap<u64, (usize, u64)>,
-        uncertainty: Option<f64>,
-        limit_ratio: f64,
-    ) {
+    fn set_limits(&mut self, edges: &BTreeSet<u64>, uncertainty: Option<f64>, limit_ratio: f64) {
         let mut points = Vec::new();
-        for &edge in edges.keys() {
+        for &edge in edges {
             let Ok(Topology::Edge {
                 start, end, curve, ..
             }) = self.topology(edge)
             else {
                 continue;
             };
-            points.extend(
-                [*start, *end]
-                    .iter()
-                    .filter_map(|&vertex| self.vertex_point(vertex).ok()),
-            );
+            for vertex in [*start, *end] {
+                if let Ok(point) = self.vertex_point(vertex) {
+                    self.check_coordinate(vertex, point);
+                    points.push(point);
+                }
+            }
             let around = |center: Point3D<f64>, radius: f64| {
                 [
                     center + Vector3D::new(-radius, -radius, -radius),
@@ -629,7 +934,7 @@ impl<'a> ItemBuilder<'a> {
 
     /// 稜線をまとめる: 同じ頂点の間で、区間を分けた点が両方の許容誤差の和の中で重なり、それぞれ 1 つの面の
     /// ループだけが 1 回使う稜線の組を、1 本の稜線にまとめる（両端が同じ頂点の稜線はまとめない）
-    fn merge_edges(&mut self, uses: &BTreeMap<u64, (usize, u64)>) {
+    fn merge_edges(&mut self, uses: &EdgeUses) {
         // 両端の頂点の組から、まとめる候補の稜線と、それを使う面
         let mut candidates: BTreeMap<(usize, usize), Vec<(u64, u64)>> = BTreeMap::new();
         for (&edge, &(count, face)) in uses {
@@ -757,14 +1062,36 @@ impl<'a> ItemBuilder<'a> {
         }
     }
 
-    /// 表現の要素 `item` の B-rep と、外した要素（面が 1 つもできなければ、B-rep は `None`）
-    fn item(mut self, item: u64) -> (Option<Built>, Vec<TopologySkipped>) {
+    /// 表現の要素 `item` の B-rep と、外した要素・作れなかった面（面が 1 つもできなければ、B-rep はない）
+    fn item(mut self, item: u64) -> ItemResult {
+        if let Some(failure) = self.stopped.take() {
+            self.skip(item, failure);
+            return self.result();
+        }
+        if let Some((face, reversed)) = self.only {
+            // 面単体: その面だけの開いたシェルにし、立体は作らない
+            let index = match self.face(face, reversed) {
+                Ok(index) => index,
+                Err(failure) => {
+                    self.skip(face, failure);
+                    return self.result();
+                }
+            };
+            self.orient_faces();
+            return match self.brep.add_shell(vec![index]) {
+                Ok(shell) => self.finish(item, vec![shell], None, Vec::new()),
+                Err(error) => {
+                    self.skip(face, Failure::new(face, TopologyError::Brep(error)));
+                    self.result()
+                }
+            };
+        }
         // シェルと、立体の要素か（立体なら、初めのシェルが外側）
         let (shells, solid) = match self.item_shells(item) {
             Ok(shells) => shells,
             Err(failure) => {
                 self.skip(item, failure);
-                return (None, self.skipped);
+                return self.result();
             }
         };
         let mut shell_faces = Vec::with_capacity(shells.len());
@@ -775,7 +1102,7 @@ impl<'a> ItemBuilder<'a> {
             }
         }
         if self.built_faces.is_empty() {
-            return (None, self.skipped);
+            return self.result();
         }
         self.orient_faces();
 
@@ -813,7 +1140,18 @@ impl<'a> ItemBuilder<'a> {
                 }
             }
         }
+        self.finish(item, shell_indices, solid_index, open_shells)
+    }
 
+    /// 作った B-rep の結果
+    fn finish(
+        self,
+        item: u64,
+        shells: Vec<ShellIndex>,
+        solid: Option<SolidIndex>,
+        open_shells: Vec<u64>,
+    ) -> ItemResult {
+        let limits = self.limits();
         let (ids, mut indices): (Vec<u64>, Vec<FaceIndex>) = self
             .built_faces
             .iter()
@@ -823,14 +1161,38 @@ impl<'a> ItemBuilder<'a> {
         let built = Built {
             item,
             brep,
-            shells: shell_indices,
-            solid: solid_index,
+            shells,
+            solid,
             faces: ids.into_iter().zip(indices).collect(),
             corrections: self.corrections,
             unoriented_faces: self.unoriented,
             open_shells,
+            single_face: self.only.is_some(),
         };
-        (Some(built), self.skipped)
+        ItemResult {
+            built: vec![built],
+            skipped: self.skipped,
+            failed: self.failed,
+            limits,
+        }
+    }
+
+    /// B-rep を作らなかったときの結果
+    fn result(self) -> ItemResult {
+        ItemResult {
+            built: Vec::new(),
+            limits: self.limits(),
+            skipped: self.skipped,
+            failed: self.failed,
+        }
+    }
+
+    fn limits(&self) -> ItemLimits {
+        ItemLimits {
+            initial: self.initial,
+            limit: self.limit,
+            max_coordinate: self.max_coordinate,
+        }
     }
 
     fn skip(&mut self, id: u64, failure: Failure) {
@@ -865,6 +1227,14 @@ impl<'a> ItemBuilder<'a> {
                 }
             };
             let reversed = reversed ^ face_reversed;
+            if let Some(&failure) = self.excluded.get(&face) {
+                // 前に作れなかった面は、理由を 1 回だけ残して外す
+                if !self.faces.contains_key(&face) {
+                    self.skip(face, failure);
+                    self.faces.insert(face, (None, reversed));
+                }
+                continue;
+            }
             let index = match self.faces.get(&face) {
                 Some(&(index, built_reversed)) if built_reversed == reversed => index,
                 Some(_) => {
@@ -876,6 +1246,10 @@ impl<'a> ItemBuilder<'a> {
                         Ok(index) => Some(index),
                         Err(failure) => {
                             self.skip(face, failure);
+                            // 表に稜線・頂点を足した後に作れなかった面は、外して作り直す
+                            if self.touched {
+                                self.failed.push((face, failure));
+                            }
                             None
                         }
                     };
@@ -894,6 +1268,7 @@ impl<'a> ItemBuilder<'a> {
 
     /// 面 `id` を作る（`reversed` なら、ループと面の向きを逆にする）
     fn face(&mut self, id: u64, reversed: bool) -> Result<FaceIndex, Failure> {
+        self.touched = false;
         let Topology::Face {
             bounds,
             surface,
@@ -921,35 +1296,65 @@ impl<'a> ItemBuilder<'a> {
         if let Some(&failure) = self.face_failures.get(&id) {
             return Err(failure);
         }
+        let record_loops: Vec<Vec<(u64, bool)>> = bounds
+            .iter()
+            .map(|&bound| self.bound_edges(bound))
+            .collect();
+        // 閉じた曲面の上で、切れ目と頂点だけのループで囲まれた面は、曲面の全体とする（切れ目の稜線は作らない）
+        let slit_only = typed.is_some_and(|typed| typed.surface.is_closed())
+            && record_loops.iter().any(|edges| is_slit(edges))
+            && bounds
+                .iter()
+                .zip(&record_loops)
+                .all(|(&bound, edges)| is_slit(edges) || self.is_vertex_loop(bound));
+        // 面の向きは、ファイルの `same_sense` と、型の曲面の法線が STEP の法線と逆かの組で決める。面ごとに
+        // 決まる曲面では、継ぎ目の稜線で決め、継ぎ目がなければループの回りで決める（初めは表とし、後で確かめる）
+        let file_sense = same_sense.unwrap_or(true);
+        let sense = match typed {
+            Some(typed) => match (typed.sense, &typed.surface) {
+                (Sense::Same, _) => Some((file_sense ^ reversed, false)),
+                (Sense::Reversed, _) => Some((!file_sense ^ reversed, false)),
+                (Sense::PerFace { profile_axis }, SurfaceRef::Sphere(sphere)) => Some(
+                    match self.seam_reverses_step_normal(sphere, profile_axis, &record_loops) {
+                        Some(step_reversed) => ((file_sense != step_reversed) ^ reversed, false),
+                        None => (true, true),
+                    },
+                ),
+                (Sense::PerFace { .. }, _) => Some((true, true)),
+            },
+            None => None,
+        };
         let mut loops = Vec::with_capacity(bounds.len());
         let mut loop_bounds = Vec::with_capacity(bounds.len());
-        for &bound in &bounds {
-            if let Some((mut uses, outer)) = self.bound(bound)? {
-                if reversed {
-                    reverse(&mut uses);
+        if !slit_only {
+            for &bound in &bounds {
+                if let Some((mut uses, outer)) = self.bound(bound)? {
+                    if reversed {
+                        reverse(&mut uses);
+                    }
+                    loops.push(uses);
+                    loop_bounds.push((bound, outer));
                 }
-                loops.push(uses);
-                loop_bounds.push((bound, outer));
             }
         }
-        // 面の向きは、ファイルの `same_sense` と、型の曲面の法線が STEP の法線と逆かの組で決める。面ごとに
-        // 決まる曲面では、ループの回りで決める（初めは表とし、後で確かめる）
-        let (surface, same_sense, per_face) = match typed {
-            Some(typed) => {
-                let same_sense = same_sense.unwrap_or(true);
-                match typed.sense {
-                    Sense::Same => (typed.surface.clone(), same_sense ^ reversed, false),
-                    Sense::Reversed => (typed.surface.clone(), !same_sense ^ reversed, false),
-                    Sense::PerFace => (typed.surface.clone(), true, true),
-                }
+        let (surface, same_sense, per_face) = match (typed, sense) {
+            (Some(typed), Some((same_sense, per_face))) => {
+                (typed.surface.clone(), same_sense, per_face)
             }
             // ループの法線を曲面の法線にするため、面は表
-            None => (self.loop_plane(id, &loops)?, true, false),
+            _ => (self.loop_plane(id, &loops)?, true, false),
         };
         let index = self
             .brep
             .add_face(surface, same_sense, loops)
             .map_err(|error| Failure::new(id, TopologyError::Brep(error)))?;
+        if !self.brep.has_readable_winding(index) {
+            return Err(Failure::new(id, TopologyError::UnsupportedWinding));
+        }
+        if slit_only {
+            self.corrections
+                .push(Correction::SlitLoopsRemoved { face: id });
+        }
         self.built_faces.push(BuiltFace {
             id,
             index,
@@ -959,9 +1364,74 @@ impl<'a> ItemBuilder<'a> {
         Ok(index)
     }
 
+    /// ループ `bound` が、頂点だけのループか
+    fn is_vertex_loop(&self, bound: u64) -> bool {
+        matches!(
+            self.topology(bound),
+            Ok(Topology::FaceBound { bound: inner, .. })
+                if matches!(self.topology(*inner), Ok(Topology::VertexLoop { .. }))
+        )
+    }
+
+    /// 回転でできた球 `sphere`（回した円の軸 `profile_axis`）の面で、ループ `loops` の継ぎ目の稜線（同じループで
+    /// 行きと帰りに使う稜線）から、STEP の法線が型の曲面の法線（外向き）と逆かを決める（決まらなければ `None`）
+    ///
+    /// 継ぎ目は回転の角度 0 の位置にあり、回した円の上にあるので、継ぎ目の点での STEP の法線（回る向き × 回した
+    /// 円の接線）が求まる。継ぎ目の点が回した円の平面から外れる、または回転の軸の上にあるときは決めない。
+    fn seam_reverses_step_normal(
+        &self,
+        sphere: &TopoSphericalSurface3D<f64>,
+        profile_axis: Direction3D<f64>,
+        loops: &[Vec<(u64, bool)>],
+    ) -> Option<bool> {
+        // 継ぎ目らしい稜線が複数あれば、すべてが同じ答えのときだけ決める（回転の角度 π の位置の切れ目は、回した
+        // 円の平面の上にあるが、逆の答えになる）
+        let mut answer = None;
+        for edges in loops {
+            for (position, &(edge, reversed)) in edges.iter().enumerate() {
+                let paired = edges
+                    .iter()
+                    .skip(position + 1)
+                    .any(|&(other, other_reversed)| other == edge && other_reversed != reversed);
+                if !paired {
+                    continue;
+                }
+                let offset = self.edge_midpoint(edge)? - sphere.center();
+                let around = sphere.axis().as_vector().cross(offset);
+                if offset.dot(profile_axis.as_vector()).abs() > self.limit
+                    || around.length() <= self.limit
+                {
+                    return None;
+                }
+                let tangent = profile_axis.as_vector().cross(offset);
+                let reversed = around.cross(tangent).dot(offset) < 0.0;
+                if answer.is_some_and(|answer| answer != reversed) {
+                    return None;
+                }
+                answer = Some(reversed);
+            }
+        }
+        answer
+    }
+
+    /// ファイルの稜線 `edge`（まとめた稜線は、まとめ先）の区間の中ほどの点
+    fn edge_midpoint(&self, edge: u64) -> Option<Point3D<f64>> {
+        let edge = self.merged_edges.get(&edge).map_or(edge, |&(into, _)| into);
+        let (curve, (t0, t1)) = match (self.shapes.get(&edge), self.edges.get(&edge)) {
+            (Some(Ok(shape)), _) => (&shape.curve, shape.range),
+            (_, Some(Ok((index, _)))) => {
+                let built = self.brep.edge(*index);
+                (built.curve(), built.parameter_range())
+            }
+            _ => return None,
+        };
+        Some(curve.point_at_parameter((t0 + t1) / 2.0))
+    }
+
     /// ループ `bound`（`FACE_BOUND`）の稜線の使用と、外側のループ（`FACE_OUTER_BOUND`）か（頂点だけのループは
     /// `None`）
     fn bound(&mut self, bound: u64) -> Result<Option<(Vec<EdgeUse>, bool)>, Failure> {
+        self.touched = true;
         let Topology::FaceBound {
             bound: inner,
             orientation,
@@ -1382,6 +1852,33 @@ impl<'a> ItemBuilder<'a> {
             }
         }
     }
+}
+
+/// ループの稜線の使用 `edges`（ファイルの稜線と、逆に使うか）が切れ目か（稜線に沿って行き、同じ道を戻る。
+/// 続けて使う同じ稜線の行きと帰りを打ち消していき、ループの初めと終わりをつないでも、何も残らない）
+fn is_slit(edges: &[(u64, bool)]) -> bool {
+    let mut reduced: Vec<(u64, bool)> = Vec::with_capacity(edges.len());
+    for &(edge, reversed) in edges {
+        if reduced.last() == Some(&(edge, !reversed)) {
+            reduced.pop();
+        } else {
+            reduced.push((edge, reversed));
+        }
+    }
+    // ループの初めと終わりで打ち消し合う使用を消す
+    let (mut first, mut last) = (0, reduced.len());
+    while last - first >= 2 {
+        match (reduced.get(first), reduced.get(last - 1)) {
+            (Some(&(a, a_reversed)), Some(&(b, b_reversed)))
+                if a == b && a_reversed != b_reversed =>
+            {
+                first += 1;
+                last -= 1;
+            }
+            _ => break,
+        }
+    }
+    !edges.is_empty() && first == last
 }
 
 /// 点 `from` から `to` への線分の曲線と区間

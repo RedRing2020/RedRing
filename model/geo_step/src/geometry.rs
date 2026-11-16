@@ -53,15 +53,16 @@ pub struct Surface {
 }
 
 /// 型の曲面の法線と、STEP の曲面の法線の関係
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Sense {
     /// 同じ向き
     Same,
     /// 逆の向き（押し出し・回転の面は、型の曲面を外向きにそろえるため、STEP の曲線と向きによって逆になる）
     Reversed,
     /// 面ごとに決まる（中心が軸の上の円を回した球は、円の半分ずつが球の全体を作り、面がどちらの半分から
-    /// 作られたかで STEP の法線が逆になる。面の点だけからは決まらないため、面のループの回りで決める）
-    PerFace,
+    /// 作られたかで STEP の法線が逆になる。面の点だけからは決まらないため、面の継ぎ目の稜線か、面のループの
+    /// 回りで決める）。`profile_axis` は、回した円の軸（円の進む向きを決める。回転の軸は、球の軸）
+    PerFace { profile_axis: Direction3D<f64> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -418,7 +419,7 @@ impl<'a> Converter<'a> {
                     Sense::Same => *distance,
                     Sense::Reversed => -distance,
                     // 面ごとに向きの決まる曲面のオフセットは、動かす側が決まらない
-                    Sense::PerFace => return Err(GeometryError::Unsupported),
+                    Sense::PerFace { .. } => return Err(GeometryError::Unsupported),
                 };
                 Surface {
                     surface: offset(basis.surface, distance)?,
@@ -625,7 +626,9 @@ impl<'a> Converter<'a> {
                             TopoSphericalSurface3D::new(center_foot, k, reference, circle.radius())
                                 .ok_or(GeometryError::InvalidShape)?,
                         ),
-                        sense: Sense::PerFace,
+                        sense: Sense::PerFace {
+                            profile_axis: circle.axis(),
+                        },
                     });
                 }
                 if major <= circle.radius() {

@@ -1177,3 +1177,233 @@ fn coincident_edges_in_one_loop_are_not_merged() {
     });
     assert!(!merged);
 }
+
+/// 記録 `records` を型にした幾何（試験の許容誤差で）
+fn convert_geometry(records: &Records) -> Geometries {
+    let geometries = convert(records, &geometry_tolerances());
+    assert!(geometries.skipped.is_empty(), "{:?}", geometries.skipped);
+    geometries
+}
+
+/// 稜線 2 → 1 を開いた直線の上の閉じた稜線にした立方体（下の面と右の面は、稜線を作るところで作れない）
+fn cube_with_a_broken_edge() -> (Polyhedron, u64) {
+    let cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let mut cube = cube;
+    let edge = cube.edges[&(2, 1)];
+    let Some(Topology::Edge { end, start, .. }) = cube.builder.records.topology.get_mut(&edge)
+    else {
+        panic!("an edge");
+    };
+    *end = *start;
+    (cube, edge)
+}
+
+#[test]
+fn faces_that_failed_after_adding_edges_are_removed_by_rebuilding() {
+    let (cube, edge) = cube_with_a_broken_edge();
+
+    let topologies = cube.builder.build();
+    assert_eq!(topologies.items.len(), 1);
+    let built = &topologies.items[0];
+    assert!(!built.single_face);
+    assert_eq!(built.faces.len(), 4);
+    // 外した面の理由は、作り直しても 1 回ずつだけ残る
+    let skipped: Vec<(u64, u64, TopologyError)> = topologies
+        .skipped
+        .iter()
+        .map(|skipped| (skipped.id, skipped.cause, skipped.reason))
+        .collect();
+    assert_eq!(
+        skipped,
+        vec![
+            (cube.faces[0], edge, TopologyError::ClosedOnOpenCurve),
+            (cube.faces[3], edge, TopologyError::ClosedOnOpenCurve),
+        ]
+    );
+    let report = built.brep.validate();
+    assert!(report.is_valid(), "{report:?}");
+}
+
+#[test]
+fn faces_are_read_one_by_one_when_rebuilding_does_not_settle() {
+    // 作り直しの回数を 0 にして、面を 1 つずつ読む段まで進める
+    let (cube, _) = cube_with_a_broken_edge();
+    let geometries = convert_geometry(&cube.builder.records);
+    let context = BuildContext {
+        records: &cube.builder.records,
+        geometries: &geometries,
+        tolerances: TopologyToleranceSettings::new(TOLERANCE),
+        settings: ImportToleranceSettings::default(),
+        uncertainty: None,
+    };
+
+    let result = build_item(&context, cube.item, 0).unwrap();
+    let readable: Vec<u64> = [1, 2, 4, 5].iter().map(|&face| cube.faces[face]).collect();
+    assert_eq!(result.built.len(), readable.len());
+    for (built, &face) in result.built.iter().zip(&readable) {
+        assert!(built.single_face);
+        assert_eq!(built.item, cube.item);
+        assert_eq!(built.faces.keys().copied().collect::<Vec<_>>(), vec![face]);
+        assert!(built.solid.is_none());
+        assert_eq!(built.shells.len(), 1);
+        assert!(built.open_shells.is_empty());
+    }
+    let skipped: Vec<u64> = result.skipped.iter().map(|skipped| skipped.id).collect();
+    assert_eq!(skipped, vec![cube.faces[0], cube.faces[3]]);
+}
+
+#[test]
+fn faces_that_failed_before_adding_edges_need_no_rebuilding() {
+    // 上の面の平面を、稜線から上限を超えて離す（稜線を作る前に外れる）。作り直しの回数が 0 でも、面を 1 つずつ
+    // 読む段に進まない
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let top = cube.faces[1];
+    set_face_plane(&mut cube.builder, top, [0.0, 0.0, 1.01], [0.0, 0.0, 1.0]);
+    let geometries = convert_geometry(&cube.builder.records);
+    let context = BuildContext {
+        records: &cube.builder.records,
+        geometries: &geometries,
+        tolerances: TopologyToleranceSettings::new(TOLERANCE),
+        settings: ImportToleranceSettings::default(),
+        uncertainty: None,
+    };
+
+    let result = build_item(&context, cube.item, 0).unwrap();
+    let [built] = result.built.as_slice() else {
+        panic!("one item");
+    };
+    assert!(!built.single_face);
+    assert_eq!(built.faces.len(), 5);
+    let skipped: Vec<u64> = result.skipped.iter().map(|skipped| skipped.id).collect();
+    assert_eq!(skipped, vec![top]);
+}
+
+/// 半径 1 の円柱の側面（z = 0・1・2 の円をループにする）の記録と、面
+fn cylinder_with_three_circles() -> (Builder, u64) {
+    let mut builder = Builder::new();
+    let side_surface = {
+        let placement = builder.placement([0.0; 3], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]);
+        builder.geometry(Geometry::CylindricalSurface {
+            placement,
+            radius: 1.0,
+        })
+    };
+    let mut bounds = Vec::new();
+    for (height, forward) in [(0.0, true), (1.0, false), (2.0, false)] {
+        let vertex = builder.vertex([1.0, 0.0, height]);
+        let circle = builder.circle([0.0, 0.0, height], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0], 1.0);
+        let edge = builder.edge(vertex, vertex, circle, true);
+        bounds.push(builder.bound(&[(edge, forward)], true));
+    }
+    let face = builder.face(bounds, side_surface, true);
+    builder.open_shell(vec![face]);
+    (builder, face)
+}
+
+#[test]
+fn a_face_with_three_loops_around_the_axis_is_skipped() {
+    let (builder, face) = cylinder_with_three_circles();
+
+    let topologies = builder.build();
+    assert!(topologies.items.is_empty());
+    let [skipped] = topologies.skipped.as_slice() else {
+        panic!("{:?}", topologies.skipped);
+    };
+    assert_eq!(
+        (skipped.id, skipped.cause, skipped.reason),
+        (face, face, TopologyError::UnsupportedWinding)
+    );
+}
+
+#[test]
+fn coordinates_beyond_the_limit_stop_the_item() {
+    let mut points = CUBE_POINTS;
+    points[6] = [2.0e9, 1.0, 1.0];
+    let cube = polyhedron(&points, &CUBE_FACES, &[]);
+
+    let topologies = cube.builder.build();
+    assert!(topologies.items.is_empty());
+    let [skipped] = topologies.skipped.as_slice() else {
+        panic!("{:?}", topologies.skipped);
+    };
+    assert_eq!(skipped.id, cube.item);
+    assert_eq!(
+        skipped.reason,
+        TopologyError::LimitExceeded(TopologyLimit::Coordinate)
+    );
+}
+
+#[test]
+fn a_tolerance_too_small_for_the_coordinates_is_reported() {
+    // 全体の許容誤差 1e-9 は、大きさ 1 の座標では刻みより大きく、大きさ 1e4 の座標では小さい（1e4 × 1e-12）
+    for (scale, below) in [(1.0, false), (1.0e4, true)] {
+        let points = CUBE_POINTS.map(|point| point.map(|value| value * scale));
+        let cube = polyhedron(&points, &CUBE_FACES, &[]);
+        let topologies = cube.builder.build();
+        assert_eq!(topologies.tolerance_below_precision, below, "{scale}");
+    }
+}
+
+/// 軸の上に中心のある円（軸 `profile_axis`、基準の方向 x）を z 軸のまわりに回した球の全体の面（ループは、回した
+/// 円の上の継ぎ目を行って戻る切れ目）の記録と、面
+fn revolved_sphere_with_a_seam(profile_axis: [f64; 3]) -> (Builder, u64) {
+    let mut builder = Builder::new();
+    let north = builder.vertex([0.0, 0.0, 1.0]);
+    let south = builder.vertex([0.0, 0.0, -1.0]);
+    let profile = builder.circle([0.0; 3], profile_axis, [1.0, 0.0, 0.0], 1.0);
+    let axis = {
+        let location = builder.point([0.0; 3]);
+        let up = builder.direction([0.0, 0.0, 1.0]);
+        builder.geometry(Geometry::Axis {
+            location,
+            axis: Some(up),
+        })
+    };
+    let sphere = builder.geometry(Geometry::SurfaceOfRevolution {
+        curve: profile,
+        axis,
+    });
+    // 継ぎ目は、回した円の (1, 0, 0) を通る半分（円の角度の増える向きに、南の極から北の極へ、または逆）
+    let (start, end) = if profile_axis[1] < 0.0 {
+        (south, north)
+    } else {
+        (north, south)
+    };
+    let seam = builder.edge(start, end, profile, true);
+    let bound = builder.bound(&[(seam, true), (seam, false)], true);
+    let face = builder.face(vec![bound], sphere, true);
+    builder.solid(vec![face]);
+    (builder, face)
+}
+
+#[test]
+fn the_seam_decides_the_sense_of_a_revolved_sphere() {
+    // 円の軸が -y なら、継ぎ目の点 (1, 0, 0) で STEP の法線（回る向き y × 円の接線 z）は外向き。+y なら内向き
+    for (profile_axis, outward) in [([0.0, -1.0, 0.0], true), ([0.0, 1.0, 0.0], false)] {
+        let (builder, face) = revolved_sphere_with_a_seam(profile_axis);
+
+        let topologies = builder.build();
+        assert!(topologies.skipped.is_empty(), "{:?}", topologies.skipped);
+        let built = &topologies.items[0];
+        assert!(built.unoriented_faces.is_empty());
+        // 切れ目だけで囲まれた面は、球の全体になる
+        assert_eq!(
+            built.corrections,
+            vec![Correction::SlitLoopsRemoved { face }]
+        );
+        let brep_face = built.brep.face(built.faces[&face]);
+        assert!(brep_face.loops().is_empty());
+        assert_eq!(brep_face.same_sense(), outward, "{profile_axis:?}");
+    }
+}
+
+#[test]
+fn slits_are_found_by_cancelling_the_way_back() {
+    // 行って同じ道を戻るループは切れ目。トーラスを 2 本の継ぎ目で切ったループは、切れ目ではない
+    assert!(is_slit(&[(1, false), (1, true)]));
+    assert!(is_slit(&[(1, false), (2, false), (2, true), (1, true)]));
+    assert!(is_slit(&[(2, false), (2, true), (1, true), (1, false)]));
+    assert!(!is_slit(&[(1, false), (2, false), (1, true), (2, true)]));
+    assert!(!is_slit(&[(1, false), (1, false)]));
+    assert!(!is_slit(&[]));
+}

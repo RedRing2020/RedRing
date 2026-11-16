@@ -550,7 +550,10 @@ fn extrusions_revolutions_and_offsets_in_the_design_range_are_read() {
     assert!((torus.major_radius() - 4.0).abs() < 1.0e-12);
     assert_eq!(torus.minor_radius(), 1.0);
     // 中心が軸の上の円を回した球は、STEP の法線との関係が面ごとに決まる
-    assert_eq!(geometries.surfaces[&sphere].sense, Sense::PerFace);
+    assert!(matches!(
+        geometries.surfaces[&sphere].sense,
+        Sense::PerFace { .. }
+    ));
     let SurfaceRef::Sphere(sphere) = &geometries.surfaces[&sphere].surface else {
         panic!("a sphere");
     };
