@@ -27,7 +27,7 @@ pub use geo_core::{Point2D, Point3D, Vector2D, Vector3D};
 pub use parameter_curve::ParameterCurve;
 pub use surface_ref::SurfaceRef;
 pub use tolerance::TopologyToleranceSettings;
-pub use topology_validator::{BrepValidationReport, TopologyValidator};
+pub use topology_validator::BrepValidationReport;
 
 pub type TopoArc3D<T> = geo_primitives::Arc3D<T>;
 pub type TopoCircle3D<T> = geo_primitives::Circle3D<T>;

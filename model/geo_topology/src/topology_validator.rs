@@ -1,9 +1,7 @@
 //! B-rep の表の確かめ（稜線と頂点の整合・ループのつながり・多様体でない稜線・面の向きの規則）
 
 use crate::brep::{shift_to_side, use_parameters};
-use crate::{
-    Brep, EdgeIndex, FaceIndex, LoopIndex, Point2D, SurfaceRef, TopologyToleranceSettings,
-};
+use crate::{Brep, EdgeIndex, FaceIndex, LoopIndex, Point2D, SurfaceRef};
 use geo_contracts::{ConicalSurface3DProperties, Scalar};
 
 /// ループの向きを求めるときに、稜線の使用 1 つから取る点の数
@@ -38,72 +36,58 @@ impl BrepValidationReport {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct TopologyValidator<T: Scalar> {
-    tolerances: TopologyToleranceSettings<T>,
-}
-
-impl<T: Scalar> TopologyValidator<T> {
-    pub fn new(tolerances: TopologyToleranceSettings<T>) -> Self {
-        Self { tolerances }
-    }
-
-    pub fn tolerances(&self) -> TopologyToleranceSettings<T> {
-        self.tolerances
-    }
-
-    /// B-rep の表の全体を確かめる
-    pub fn validate(&self, brep: &Brep<T>) -> BrepValidationReport {
-        let tolerance = self.tolerances.distance_tolerance;
-        let edges = || (0..brep.edge_count()).map(EdgeIndex);
+impl<T: Scalar> Brep<T> {
+    /// B-rep の表の全体を確かめる（稜線の端の点は、頂点の許容誤差で確かめる。パラメータ曲線と面の曲面は、
+    /// 面を足すときに稜線の許容誤差で確かめてある）
+    pub fn validate(&self) -> BrepValidationReport {
+        let edges = || (0..self.edge_count()).map(EdgeIndex);
         let edges_off_vertices = edges()
             .filter(|&index| {
-                let edge = brep.edge(index);
+                let edge = self.edge(index);
                 let curve = edge.curve();
                 let (t0, t1) = edge.parameter_range();
+                // 頂点の許容誤差は、稜線の許容誤差以上
                 let off = |vertex, t| {
-                    brep.vertex(vertex)
-                        .point()
-                        .distance_to(curve.point_at_parameter(t))
-                        > tolerance
+                    let vertex = self.vertex(vertex);
+                    vertex.point().distance_to(curve.point_at_parameter(t)) > vertex.tolerance()
                 };
                 off(edge.start(), t0) || off(edge.end(), t1)
             })
             .collect();
-        let disconnected_loops = (0..brep.loop_count())
+        let disconnected_loops = (0..self.loop_count())
             .map(LoopIndex)
             .filter(|&loop_index| {
-                let uses = brep.face_loop(loop_index).uses();
+                let uses = self.face_loop(loop_index).uses();
                 (0..uses.len()).any(|position| {
                     let next = uses[(position + 1) % uses.len()];
-                    brep.use_end(uses[position]) != brep.use_start(next)
+                    self.use_end(uses[position]) != self.use_start(next)
                 })
             })
             .collect();
         let non_manifold_edges = edges()
-            .filter(|&edge| brep.edge(edge).uses().len() > 2)
+            .filter(|&edge| self.edge(edge).uses().len() > 2)
             .collect();
         let inconsistently_oriented_edges = edges()
             .filter(|&edge| {
-                let uses = brep.edge(edge).uses();
+                let uses = self.edge(edge).uses();
                 uses.len() == 2 && {
                     let forward = |position: usize| {
                         let location = uses[position];
-                        brep.face_loop(location.loop_index).uses()[location.position].forward
+                        self.face_loop(location.loop_index).uses()[location.position].forward
                     };
                     forward(0) == forward(1)
                 }
             })
             .collect();
-        let faces = || (0..brep.face_count()).map(FaceIndex);
+        let faces = || (0..self.face_count()).map(FaceIndex);
         let faces_without_boundary = faces()
             .filter(|&face| {
-                let face = brep.face(face);
+                let face = self.face(face);
                 face.loops().is_empty() && !face.surface().is_closed()
             })
             .collect();
         let misoriented_faces = faces()
-            .filter(|&face| !is_face_oriented(brep, face, tolerance))
+            .filter(|&face| !is_face_oriented(self, face))
             .collect();
 
         BrepValidationReport {
@@ -129,13 +113,13 @@ enum LoopInUv<T: Scalar> {
 ///
 /// (u, v) では、曲面の自然な法線の側から見て、面がループの左にあることは、周期をまわらない外側のループが
 /// 反時計回り・内側のループが時計回りになることに当たる。周期をまわるループは、面の側を巻く向きで確かめる。
-fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex, tolerance: T) -> bool {
+fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex) -> bool {
     let face = brep.face(index);
     let surface = face.surface();
     let mut plain_areas = Vec::new();
     let mut windings = Vec::new();
     for &loop_index in face.loops() {
-        match loop_in_uv(brep, loop_index, surface, face.same_sense(), tolerance) {
+        match loop_in_uv(brep, loop_index, surface, face.same_sense()) {
             Some(LoopInUv::Plain { area }) => plain_areas.push(area),
             Some(LoopInUv::Winding {
                 turns_u,
@@ -225,11 +209,10 @@ fn loop_in_uv<T: Scalar>(
     index: LoopIndex,
     surface: &SurfaceRef<T>,
     same_sense: bool,
-    tolerance: T,
 ) -> Option<LoopInUv<T>> {
     let face_loop = brep.face_loop(index);
     let mut points: Vec<Point2D<T>> = Vec::with_capacity(face_loop.uses().len() * SAMPLES_PER_USE);
-    // 最後の使用の終わりの (u, v) と、中ほどの v
+    // 最後の使用の終わりの (u, v) と、中ほどの v・稜線の許容誤差
     let mut last = None;
     for (edge_use, curve) in face_loop.uses().iter().zip(face_loop.parameter_curves()) {
         let (t_start, t_end) = use_parameters(brep.edge(edge_use.edge), *edge_use);
@@ -239,16 +222,21 @@ fn loop_in_uv<T: Scalar>(
             points.push(curve.point_at(t)?);
         }
         let middle = curve.point_at((t_start + t_end) / T::from_f64(2.0))?;
-        last = Some((curve.point_at(t_end)?, middle.y()));
+        last = Some((
+            curve.point_at(t_end)?,
+            middle.y(),
+            brep.edge(edge_use.edge).tolerance(),
+        ));
     }
-    let (first, (end, last_middle_v)) = (*points.first()?, last?);
+    let (first, (end, last_middle_v, last_tolerance)) = (*points.first()?, last?);
     let sense = if same_sense { T::ONE } else { -T::ONE };
     let (u_period, v_period) = surface.periods();
-    // 初めの点が極・頂点なら、閉じるときに極の線に沿って移る先の u（初めの u を、周期の分だけ動かしたもの）
+    // 初めの点が極・頂点なら、閉じるときに極の線に沿って移る先の u（初めの u を、周期の分だけ動かしたもの）。
+    // 面を足すときと同じく、つなぎ目の前の使用（最後の使用）の稜線の許容誤差で見分ける
     let first_point = brep
         .vertex(brep.use_start(*face_loop.uses().first()?))
         .point();
-    let closing_u = match (surface.singular_v(first_point, tolerance), u_period) {
+    let closing_u = match (surface.singular_v(first_point, last_tolerance), u_period) {
         (Some(pole_v), Some(period)) => {
             let decreasing = (pole_v > last_middle_v) == same_sense;
             shift_to_side(first.x(), end.x(), period, decreasing)
