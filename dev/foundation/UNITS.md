@@ -12,9 +12,10 @@ RedRing プロジェクト全体で使用する単位系を以下に統一しま
 
 ### 角度
 
-- **基本単位: ラジアン (rad)**
-- 内部計算は全てラジアン単位
-- UI での表示は度 (degree) に変換可能
+- **角度は `analysis` の `Angle` で持つ**（形状の型の角度も `Angle`。角度の許容誤差は、下の「許容誤差」のとおりラジアンの数値）
+- `Angle` は中でラジアンを持つ。度からもラジアンからも作れ（`from_degrees`・`from_radians`）、どちらでも読める（`to_degrees`・`to_radians`）
+- 外部の値は、その単位のまま `Angle` にする（度で書かれた値は `from_degrees` で作る）
+- 画面での表示は度とする
 
 ### その他の単位
 
@@ -22,52 +23,16 @@ RedRing プロジェクト全体で使用する単位系を以下に統一しま
 - 体積: mm³ (立方ミリメートル)
 - 曲率: mm⁻¹ (逆ミリメートル)
 
-## 許容誤差設定
+## 許容誤差
 
-### 標準設定 (standard)
-
-```rust
-ToleranceContext {
-    linear: 1e-6,      // 1マイクロメートル (0.001mm)
-    angular: 1e-8,     // 約0.0057度
-    parametric: 1e-10, // パラメータ空間の無次元許容誤差
-    curvature: 1e-3,   // 曲率許容誤差 (mm⁻¹)
-    area: 1e-12,       // 面積許容誤差 (mm²)
-    volume: 1e-18,     // 体積許容誤差 (mm³)
-}
-```
-
-### 高精度設定 (high_precision)
-
-```rust
-ToleranceContext {
-    linear: 1e-9,      // 1ナノメートル (0.000001mm)
-    angular: 1e-10,    // より高精度な角度
-    parametric: 1e-12, // より高精度なパラメータ
-    curvature: 1e-6,   // 高精度曲率 (mm⁻¹)
-    area: 1e-18,       // 高精度面積 (mm²)
-    volume: 1e-27,     // 高精度体積 (mm³)
-}
-```
-
-### 緩い設定 (relaxed)
-
-```rust
-ToleranceContext {
-    linear: 1e-3,      // 1マイクロメートル (0.001mm)
-    angular: 1e-6,     // 低精度角度
-    parametric: 1e-8,  // 低精度パラメータ
-    curvature: 1e-1,   // 低精度曲率 (mm⁻¹)
-    area: 1e-6,        // 低精度面積 (mm²)
-    volume: 1e-9,      // 低精度体積 (mm³)
-}
-```
+- 長さの許容誤差は mm、角度の許容誤差はラジアンで表す
+- 値と使い分けは、コード（`analysis` の `consts`、`geo_core` の `ToleranceSettings`）と `dev/architecture/GEOMETRIC_TOLERANCE_USAGE_RULES.md` を正本とする（この文書には値を書き写さない）
 
 ## 実装指針
 
 ### 1. 入力データの変換
 
-- 外部ファイル (STL, STEP, OBJ 等) からの入力データは、必要に応じて mm 単位に変換
+- 外部ファイル (STL, STEP, OBJ 等) からの入力データは、長さを mm 単位に変換し、角度は `Angle` にする
 - 変換係数:
   - メートル → mm: `* 1000.0`
   - インチ → mm: `* 25.4`
@@ -92,30 +57,6 @@ ToleranceContext {
   - ボルト穴径: 8.0 (8mm)
   - 板厚: 5.0 (5mm)
   - 機械部品サイズ: 100.0 〜 1000.0 (100mm〜1000mm)
-
-## 移行作業
-
-### geo-core クレート
-
-- [x] ToleranceContext の単位系コメント整備済み
-- [ ] Scalar の単位系ドキュメント追加
-- [ ] Vector2D/Vector3D の単位系コメント追加
-
-### analysis クレート
-
-- [ ] 数値解析関数のパラメータ単位コメント追加
-- [ ] サンプリング関数の距離パラメータ単位明記
-- [ ] 統計解析結果の単位情報追加
-
-### model クレート
-
-- [ ] 既存幾何要素の単位系コメント整備
-- [ ] アダプターレイヤーの単位変換確認
-
-### render/stage クレート
-
-- [ ] 描画座標系と CAD 座標系の変換確認
-- [ ] ビューポート変換での単位一貫性確保
 
 ## 注意事項
 
