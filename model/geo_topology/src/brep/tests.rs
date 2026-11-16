@@ -235,6 +235,13 @@ fn a_seam_edge_is_used_twice_by_one_face() {
     assert!(uses.iter().all(|location| location.face == face));
     assert_eq!((uses[0].position, uses[1].position), (4, 5));
     assert!(brep.validate().is_valid());
+
+    // ループを逆にしても、2 回の使用の位置は、それぞれの使用を指す
+    let face_loop = brep.face(face).loops()[0];
+    brep.reverse_loop(face_loop).unwrap();
+    let uses = brep.edge(slit).uses();
+    assert_eq!((uses[0].position, uses[1].position), (1, 0));
+    assert!(brep.validate().disconnected_loops.is_empty());
 }
 
 #[test]
@@ -708,8 +715,21 @@ fn an_inner_loop_must_turn_the_other_way() {
         let mut brep = Brep::new(tolerances()).unwrap();
         let outer = square(&mut brep, 4.0, 0.0, true);
         let hole = square(&mut brep, 1.0, 1.0, hole_counterclockwise);
-        brep.add_face(surface(), true, vec![outer, hole]).unwrap();
+        let face = brep.add_face(surface(), true, vec![outer, hole]).unwrap();
         assert_eq!(brep.validate().is_valid(), valid);
+        assert_eq!(brep.is_face_oriented(face), valid);
+
+        // 内側のループを逆にすると、規則に合うかが入れ替わる
+        let hole_loop = brep.face(face).loops()[1];
+        let first = brep.face_loop(hole_loop).uses()[0];
+        brep.reverse_loop(hole_loop).unwrap();
+        assert_eq!(brep.is_face_oriented(face), !valid);
+        let reversed = brep.face_loop(hole_loop).uses();
+        assert_eq!(reversed[3].edge, first.edge);
+        assert_eq!(reversed[3].forward, !first.forward);
+        let location = brep.edge(first.edge).uses()[0];
+        assert_eq!(location.position, 3);
+        assert!(brep.validate().disconnected_loops.is_empty());
     }
 }
 
@@ -1079,5 +1099,87 @@ fn element_tolerances_must_be_finite() {
             Err(BrepError::InvalidTolerance),
             "tolerance = {tolerance}"
         );
+    }
+}
+
+#[test]
+fn a_shell_of_all_faces_of_a_closed_shape_is_closed() {
+    let (mut brep, faces) = tetrahedron();
+    let shell = brep.add_shell(faces.clone()).unwrap();
+    assert_eq!(brep.shell(shell).faces(), faces.as_slice());
+    assert!(brep.is_shell_closed(shell));
+
+    // 面が欠けると、1 回しか使われない稜線が残る
+    let open = brep.add_shell(faces[..3].to_vec()).unwrap();
+    assert!(!brep.is_shell_closed(open));
+
+    let solid = brep.add_solid(vec![shell]).unwrap();
+    assert_eq!(brep.solid(solid).shells(), &[shell]);
+}
+
+#[test]
+fn shells_and_solids_must_refer_to_elements_in_the_table_once() {
+    let (mut brep, faces) = tetrahedron();
+    assert_eq!(brep.add_shell(Vec::new()), Err(BrepError::EmptyShell));
+    assert_eq!(
+        brep.add_shell(vec![FaceIndex(faces.len())]),
+        Err(BrepError::UnknownFace)
+    );
+    assert_eq!(
+        brep.add_shell(vec![faces[0], faces[0]]),
+        Err(BrepError::DuplicateFace)
+    );
+    let shell = brep.add_shell(faces).unwrap();
+    assert_eq!(brep.add_solid(Vec::new()), Err(BrepError::EmptySolid));
+    assert_eq!(
+        brep.add_solid(vec![ShellIndex(1)]),
+        Err(BrepError::UnknownShell)
+    );
+    assert_eq!(
+        brep.add_solid(vec![shell, shell]),
+        Err(BrepError::DuplicateShell)
+    );
+}
+
+#[test]
+fn reversing_a_face_flips_its_normal_and_its_orientation_check() {
+    let (mut brep, face) = triangle_face([0, 2, 1], true);
+    assert_eq!(brep.validate().misoriented_faces, vec![face]);
+    brep.reverse_face(face).unwrap();
+    assert!(!brep.face(face).same_sense());
+    assert!(brep.validate().is_valid());
+}
+
+#[test]
+fn canonical_order_follows_the_shells() {
+    let (mut brep, faces) = tetrahedron();
+    // シェルの面を逆の順に並べる
+    let reversed: Vec<FaceIndex> = faces.iter().rev().copied().collect();
+    let shell = brep.add_shell(reversed.clone()).unwrap();
+    let mut kept = reversed.clone();
+    let ordered = brep.into_canonical_order(&mut kept);
+
+    // 面はシェルの順に並び、外で持っている番号は並べた後の番号になる
+    assert_eq!(kept, (0..faces.len()).map(FaceIndex).collect::<Vec<_>>());
+    assert_eq!(
+        ordered.shell(shell).faces(),
+        &(0..faces.len()).map(FaceIndex).collect::<Vec<_>>()[..]
+    );
+    // 並べた後も、要素どうしの参照が保たれる
+    for face in 0..ordered.face_count() {
+        for &loop_index in ordered.face(FaceIndex(face)).loops() {
+            assert_eq!(ordered.face_loop(loop_index).face(), FaceIndex(face));
+        }
+    }
+    // 稜線の初めての使用は、並べた後の初めの面の初めのループ
+    assert_eq!(ordered.edge(EdgeIndex(0)).uses()[0].face, FaceIndex(0));
+    assert!(ordered.is_shell_closed(shell));
+    assert!(ordered.validate().is_valid());
+
+    // 同じ表からは同じ並びになる
+    let again = ordered.clone().into_canonical_order(&mut []);
+    for edge in 0..ordered.edge_count() {
+        let (a, b) = (ordered.edge(EdgeIndex(edge)), again.edge(EdgeIndex(edge)));
+        assert_eq!((a.start(), a.end()), (b.start(), b.end()));
     }
 }
