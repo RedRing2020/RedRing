@@ -18,15 +18,16 @@ use geo_contracts::{
 /// 作った線分・円・円弧のエンティティの形を読むための trait
 pub use geo_contracts::{ArcEntity3DProperties, CircleEntity3DProperties, LineEntity3DProperties};
 use geo_entity::{EntityId, GeometricEntity};
-use geo_topology::{Edge as TopologyEdge, TopoId};
+use geo_topology::Brep;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
 type StoredLineEntity = GeometricEntity<f64, LineSegment3D<f64>>;
 type StoredLineEntityMap = HashMap<EntityId, StoredLineEntity>;
 type SharedLineEntityStore = Mutex<StoredLineEntityMap>;
-type StoredCurveTopology = TopologyEdge<f64>;
-type StoredCurveTopologyMap = HashMap<TopoId, StoredCurveTopology>;
+type StoredCurveTopology = Brep<f64>;
+/// エンティティごとの、線・円・円弧の B-rep
+type StoredCurveTopologyMap = HashMap<EntityId, StoredCurveTopology>;
 type SharedCurveTopologyStore = Mutex<StoredCurveTopologyMap>;
 type StoredCircleEntity = GeometricEntity<f64, Circle3D<f64>>;
 type StoredCircleEntityMap = HashMap<EntityId, StoredCircleEntity>;
@@ -108,9 +109,6 @@ pub struct StoredLineEntityDto {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredCurveTopologyDto {
-    pub edge_id: TopoId,
-    pub start_vertex_id: TopoId,
-    pub end_vertex_id: TopoId,
     pub valid: bool,
 }
 
@@ -385,11 +383,12 @@ pub(crate) trait LineEntityStorePort {
 pub(crate) trait CurveTopologyStorePort {
     fn insert_curve_topology(
         &self,
-        edge: StoredCurveTopology,
+        entity_id: EntityId,
+        brep: StoredCurveTopology,
         valid: bool,
     ) -> Result<StoredCurveTopologyDto, FeatureOrchestrationError>;
     #[cfg(test)]
-    fn contains_topology(&self, edge_id: TopoId) -> Result<bool, FeatureOrchestrationError>;
+    fn contains_topology(&self, entity_id: EntityId) -> Result<bool, FeatureOrchestrationError>;
 }
 
 pub(crate) trait CircleEntityStorePort {
@@ -468,29 +467,23 @@ impl LineEntityStorePort for InMemoryLineEntityStore {
 impl CurveTopologyStorePort for InMemoryCurveTopologyStore {
     fn insert_curve_topology(
         &self,
-        edge: StoredCurveTopology,
+        entity_id: EntityId,
+        brep: StoredCurveTopology,
         valid: bool,
     ) -> Result<StoredCurveTopologyDto, FeatureOrchestrationError> {
-        let dto = StoredCurveTopologyDto {
-            edge_id: edge.id(),
-            start_vertex_id: edge.start_vertex().id(),
-            end_vertex_id: edge.end_vertex().id(),
-            valid,
-        };
-
         let mut store = curve_topology_store()
             .lock()
             .map_err(|_| FeatureOrchestrationError::EntityStorePoisoned)?;
-        store.insert(edge.id(), edge);
-        Ok(dto)
+        store.insert(entity_id, brep);
+        Ok(StoredCurveTopologyDto { valid })
     }
 
     #[cfg(test)]
-    fn contains_topology(&self, edge_id: TopoId) -> Result<bool, FeatureOrchestrationError> {
+    fn contains_topology(&self, entity_id: EntityId) -> Result<bool, FeatureOrchestrationError> {
         let store = curve_topology_store()
             .lock()
             .map_err(|_| FeatureOrchestrationError::EntityStorePoisoned)?;
-        Ok(store.contains_key(&edge_id))
+        Ok(store.contains_key(&entity_id))
     }
 }
 
@@ -597,8 +590,11 @@ impl FeatureCommandOrchestration for FeatureOrchestrator {
             request.output_index,
             &request.local_key,
         );
-        let topology_dto = InMemoryCurveTopologyStore
-            .insert_curve_topology(topology.edge, topology.validation.is_valid())?;
+        let topology_dto = InMemoryCurveTopologyStore.insert_curve_topology(
+            entity.id(),
+            topology.brep,
+            topology.validation.is_valid(),
+        )?;
         let dto = InMemoryLineEntityStore.insert_line_entity(entity, request.feature_name)?;
 
         Ok(CreateLineFeatureResult {
@@ -628,8 +624,11 @@ impl FeatureCommandOrchestration for FeatureOrchestrator {
             request.output_index,
             &request.local_key,
         );
-        let topology_dto = InMemoryCurveTopologyStore
-            .insert_curve_topology(topology.edge, topology.validation.is_valid())?;
+        let topology_dto = InMemoryCurveTopologyStore.insert_curve_topology(
+            entity.id(),
+            topology.brep,
+            topology.validation.is_valid(),
+        )?;
         let dto = InMemoryCircleEntityStore.insert_circle_entity(entity, request.feature_name)?;
 
         Ok(CreateCircleFeatureResult {
@@ -658,8 +657,11 @@ impl FeatureCommandOrchestration for FeatureOrchestrator {
             request.output_index,
             &request.local_key,
         );
-        let topology_dto = InMemoryCurveTopologyStore
-            .insert_curve_topology(topology.edge, topology.validation.is_valid())?;
+        let topology_dto = InMemoryCurveTopologyStore.insert_curve_topology(
+            entity.id(),
+            topology.brep,
+            topology.validation.is_valid(),
+        )?;
         let dto = InMemoryArcEntityStore.insert_arc_entity(entity, request.feature_name)?;
 
         Ok(CreateArcFeatureResult {
@@ -703,7 +705,7 @@ mod tests {
         );
         assert!(
             InMemoryCurveTopologyStore
-                .contains_topology(result.topology.edge_id)
+                .contains_topology(result.entity.entity_id)
                 .expect("topology store should be readable")
         );
     }
@@ -732,7 +734,7 @@ mod tests {
         );
         assert!(
             InMemoryCurveTopologyStore
-                .contains_topology(result.topology.edge_id)
+                .contains_topology(result.entity.entity_id)
                 .expect("topology store should be readable")
         );
     }
@@ -763,7 +765,7 @@ mod tests {
         );
         assert!(
             InMemoryCurveTopologyStore
-                .contains_topology(result.topology.edge_id)
+                .contains_topology(result.entity.entity_id)
                 .expect("topology store should be readable")
         );
     }

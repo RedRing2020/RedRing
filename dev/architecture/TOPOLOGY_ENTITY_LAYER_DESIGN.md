@@ -13,6 +13,8 @@
 
 本書は、個別 shape の意味論や実装計画そのものを定義する文書ではない。
 
+> 注: 本書の `Edge`・`Wire`・`TopoId`・`shared_tolerance`・`WireValidationReport` は、#1344 で B-rep の表（`Brep`）に置き換えた（頂点を番号で共有するため、頂点どうしの離れを測る `shared_tolerance` は持たない）。今の形は `BREP_AND_STEP_IMPORT_DESIGN.md` 5 章を正本とし、本書の稜線の許容誤差の内訳（δ_ideal・δ_eval・δ_bind）の考え方はそのまま使う。
+
 ## 正本の役割分担
 
 - shape 意味論の正本: `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md`
