@@ -1,9 +1,9 @@
-//! 利用者ごとのフォルダの場所（動かす環境ごとの決まり）
+//! 利用者ごとのフォルダの場所（動かす環境ごとの決まり）と、フォルダがこの PC にあるか
 //!
-//! 環境の変数が空・相対のパスのときは使わない（起動したフォルダで場所が変わるため）。
+//! 利用者ごとのフォルダは、環境の変数が空・相対のパスのときは使わない（起動したフォルダで場所が変わるため）。
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[cfg(not(windows))]
 mod other;
@@ -31,6 +31,15 @@ pub fn user_data_folder() -> Option<PathBuf> {
 /// 分からないときは `None`。
 pub fn user_config_folder() -> Option<PathBuf> {
     platform::config_folder(absolute_variable)
+}
+
+/// パス `path`（実際のパス。`std::fs::canonicalize` で求めたもの）が、この PC のフォルダか（ネットワークのフォルダ・
+/// ドライブでない）
+///
+/// Windows では、ドライブの種類で確かめる（固定・取り外しできる・CD・RAM のドライブ。UNC のパスは使わない）。ほかの
+/// OS では確かめず、`true`。
+pub fn is_on_this_pc(path: &Path) -> bool {
+    platform::is_on_this_pc(path)
 }
 
 /// 環境の変数 `name` の値（絶対のパスのときだけ）

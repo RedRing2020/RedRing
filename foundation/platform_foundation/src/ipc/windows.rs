@@ -241,7 +241,7 @@ impl Address {
     }
 
     fn wide(&self) -> Vec<u16> {
-        self.0.encode_utf16().chain(std::iter::once(0)).collect()
+        crate::wide(&self.0)
     }
 }
 
@@ -352,10 +352,7 @@ impl Listener {
     pub(super) fn bind(address: &Address, max_connections: usize) -> io::Result<Self> {
         let sid = UserSid::current()?;
         // 持ち主をこの利用者にし、この利用者だけにすべての権利を渡す（親の権利を引き継がない）
-        let text: Vec<u16> = format!("O:{0}D:P(A;;GA;;;{0})", sid.text)
-            .encode_utf16()
-            .chain(std::iter::once(0))
-            .collect();
+        let text = crate::wide(&format!("O:{0}D:P(A;;GA;;;{0})", sid.text));
         let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
         // SAFETY: `text` は終わりが 0 の UTF-16 の文字列
         if unsafe {

@@ -13,11 +13,9 @@ use std::sync::mpsc::Sender;
 
 use eframe::egui::{self, ViewportCommand};
 use job_runtime::store::{JobStore, StoredJobStatus};
-use windows_sys::Win32::Foundation::{ERROR_SUCCESS, HWND, LPARAM, LRESULT, POINT, WPARAM};
+use platform_foundation::autostart;
+use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows_sys::Win32::System::Registry::{
-    HKEY_CURRENT_USER, REG_SZ, RRF_RT_REG_SZ, RegDeleteKeyValueW, RegGetValueW, RegSetKeyValueW,
-};
 use windows_sys::Win32::UI::Shell::{
     NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_TIP, NIIF_ERROR, NIIF_INFO, NIM_ADD, NIM_DELETE,
     NIM_MODIFY, NIN_BALLOONUSERCLICK, NOTIFYICONDATAW, Shell_NotifyIconW,
@@ -47,9 +45,6 @@ const MENU_AUTOSTART: i32 = 2;
 const MENU_QUIT: i32 = 3;
 /// 言語の項目（この番号に、選べる言語の並びの位置を足す）
 const MENU_LANGUAGE: i32 = 100;
-/// Windows の起動のときに起動するプログラムを置くレジストリのキーと、値の名前
-const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-const RUN_VALUE: &str = "RedRing Job Manager";
 
 struct TrayState {
     hwnd: HWND,
@@ -289,7 +284,8 @@ fn show_menu(hwnd: HWND) {
         .collect();
     // 書いたコマンドが、このジョブマネージャーのコマンドと同じときだけチェックを付ける（ほかの保存先・前の場所の
     // ジョブマネージャーのコマンドは、選ぶとこのコマンドで書き直す）
-    let autostart_enabled = command.is_some() && registered_autostart_command() == command;
+    let autostart_enabled =
+        command.is_some() && autostart::registered_command(crate::AUTOSTART_NAME) == command;
     // SAFETY: 作ったメニューを、この関数の中で消す。文字列は終わりが 0 の UTF-16
     let chosen = unsafe {
         let menu = CreatePopupMenu();
@@ -345,8 +341,8 @@ fn show_menu(hwnd: HWND) {
         MENU_OPEN => open_window(),
         MENU_AUTOSTART => {
             let changed = match (autostart_enabled, &command) {
-                (true, _) => disable_autostart(),
-                (false, Some(command)) => enable_autostart(command),
+                (true, _) => autostart::unregister(crate::AUTOSTART_NAME),
+                (false, Some(command)) => autostart::register(crate::AUTOSTART_NAME, command),
                 (false, None) => Err(std::io::Error::other("cannot find the executable")),
             };
             if let Err(error) = changed {
@@ -508,73 +504,6 @@ unsafe fn create_icon() -> HICON {
             mask.as_ptr(),
             bgra.as_ptr(),
         )
-    }
-}
-
-/// Windows の起動のときに起動するように書いたコマンド（書いていなければ `None`）
-fn registered_autostart_command() -> Option<String> {
-    let key = wide(RUN_KEY);
-    let value = wide(RUN_VALUE);
-    let mut buffer = vec![0u16; 1024];
-    let mut bytes = (buffer.len() * 2) as u32;
-    // SAFETY: `buffer` の大きさを `bytes` で渡す
-    let status = unsafe {
-        RegGetValueW(
-            HKEY_CURRENT_USER,
-            key.as_ptr(),
-            value.as_ptr(),
-            RRF_RT_REG_SZ,
-            std::ptr::null_mut(),
-            buffer.as_mut_ptr().cast(),
-            &mut bytes,
-        )
-    };
-    (status == ERROR_SUCCESS).then(|| {
-        let length = buffer.iter().position(|&c| c == 0).unwrap_or(buffer.len());
-        String::from_utf16_lossy(&buffer[..length])
-    })
-}
-
-/// Windows の起動のときに起動するように書いたコマンドが保存先を指定していれば、指定しないコマンド `command` に書き直す
-/// （書いていない・指定していなければ、何もしない）
-pub(crate) fn drop_autostart_store(command: &str) -> std::io::Result<()> {
-    match registered_autostart_command() {
-        Some(registered) if registered.contains(" --store ") => enable_autostart(command),
-        _ => Ok(()),
-    }
-}
-
-fn enable_autostart(command: &str) -> std::io::Result<()> {
-    let key = wide(RUN_KEY);
-    let value = wide(RUN_VALUE);
-    let data = wide(command);
-    // SAFETY: `data` の大きさ（終わりの 0 を含む）をバイトで渡す
-    let status = unsafe {
-        RegSetKeyValueW(
-            HKEY_CURRENT_USER,
-            key.as_ptr(),
-            value.as_ptr(),
-            REG_SZ,
-            data.as_ptr().cast(),
-            (data.len() * 2) as u32,
-        )
-    };
-    registry_result(status)
-}
-
-fn disable_autostart() -> std::io::Result<()> {
-    let key = wide(RUN_KEY);
-    let value = wide(RUN_VALUE);
-    // SAFETY: 引数は終わりが 0 の UTF-16 の文字列
-    let status = unsafe { RegDeleteKeyValueW(HKEY_CURRENT_USER, key.as_ptr(), value.as_ptr()) };
-    registry_result(status)
-}
-
-fn registry_result(status: u32) -> std::io::Result<()> {
-    if status == ERROR_SUCCESS {
-        Ok(())
-    } else {
-        Err(std::io::Error::from_raw_os_error(status as i32))
     }
 }
 

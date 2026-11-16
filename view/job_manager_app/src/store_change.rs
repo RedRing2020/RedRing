@@ -52,7 +52,7 @@ pub(crate) enum ChangeFailure {
 /// フォルダの場合。
 pub(crate) fn check_folder(current: &Path, chosen: &Path) -> Result<FolderContents, ChangeFailure> {
     let chosen_real = std::fs::canonicalize(chosen).map_err(|_| ChangeFailure::Inaccessible)?;
-    if !is_local(&chosen_real) {
+    if !platform_foundation::folder::is_on_this_pc(&chosen_real) {
         return Err(ChangeFailure::NotLocal);
     }
     // 書いたとおりのパスでも比べる（今の保存先を読めない（外したドライブなど）ときは、実際のパスにできないため）
@@ -135,9 +135,8 @@ pub(crate) fn switch(
         return Err(ChangeFailure::SettingNotSaved);
     }
     // Windows の起動のときのコマンドが保存先を指定していれば、設定の保存先で起動するように書き直す
-    #[cfg(windows)]
     if let Some(command) = crate::autostart_command(None)
-        && let Err(error) = crate::tray::drop_autostart_store(&command)
+        && let Err(error) = crate::drop_autostart_store(&command)
     {
         eprintln!("cannot update the autostart command: {error}");
     }
@@ -150,40 +149,6 @@ pub(crate) fn switch(
         })?;
     // 待ち・計算中のジョブがないため、サービスはすぐに終わる
     crate::exit_process(requests)
-}
-
-/// パス `path`（実際のパス）が、この PC のフォルダか（ネットワークのフォルダ・ドライブでない）
-#[cfg(windows)]
-fn is_local(path: &Path) -> bool {
-    use std::path::{Component, Prefix};
-    use windows_sys::Win32::Storage::FileSystem::GetDriveTypeW;
-    use windows_sys::Win32::System::WindowsProgramming::{
-        DRIVE_CDROM, DRIVE_FIXED, DRIVE_RAMDISK, DRIVE_REMOVABLE,
-    };
-    let Some(Component::Prefix(prefix)) = path.components().next() else {
-        return false;
-    };
-    let letter = match prefix.kind() {
-        Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => letter,
-        // UNC のパス（\\サーバー\共有）・デバイスのパスは使わない
-        _ => return false,
-    };
-    let root: Vec<u16> = format!("{}:\\", char::from(letter))
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect();
-    // SAFETY: `root` は終わりが 0 の UTF-16 の文字列
-    let kind = unsafe { GetDriveTypeW(root.as_ptr()) };
-    matches!(
-        kind,
-        DRIVE_FIXED | DRIVE_REMOVABLE | DRIVE_CDROM | DRIVE_RAMDISK
-    )
-}
-
-/// パス `path` が、この PC のフォルダか（Windows のほかは確かめない）
-#[cfg(not(windows))]
-fn is_local(_path: &Path) -> bool {
-    true
 }
 
 #[cfg(test)]

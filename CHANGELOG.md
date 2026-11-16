@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### Changed
+- ジョブマネージャーの、画面の部品でない OS への依存（OS の表示の言語の取得、ネットワークのドライブの判定、Windows の起動のときに起動するプログラムのレジストリ）を、`platform_foundation` の `locale`・`folder`・`autostart` に移した。Windows 以外の OS の表示の言語は、言語の名前の主な言語のコード（`ja_JP.UTF-8` の `ja` など。大文字と小文字を区別しない）で日本語かを決める（#1310）
 - ジョブマネージャーに問い合わせる口（名前付きパイプ・UNIX ドメインソケット）の開き方・つなぎ方を、`job_ipc` から `platform_foundation` の `ipc` に移した。Windows のパイプの名前は変わらない。Windows 以外では、ソケットの場所が `$XDG_RUNTIME_DIR/RedRing/JobManager.sock`（ない場合は一時のフォルダの下の `RedRing-<利用者の番号>/JobManager.sock`）になる（#1310）
 - 利用者ごとのフォルダ（データのフォルダ・設定のフォルダ）の場所を求める処理を、ジョブの保存先・アプリの設定・ジョブマネージャーの設定とログで別々に持たず、`platform_foundation` の `folder` にまとめた（場所は変わらない。#1310）
 - アプリとジョブマネージャーのログを、起動のたびに消さず、前の 5 回分を番号付きの名前で残すようにした（`redring.log` → `redring.1.log` → … `redring.5.log`）。止まった・強制終了した後に起動し直しても、止まる前のログを確かめられる。ジョブマネージャーのログは、ジョブの保存先の中ではなく、利用者ごとのデータのフォルダ（Windows では `%LOCALAPPDATA%\RedRing\logs\job_manager.log`）に書く（#1252）
