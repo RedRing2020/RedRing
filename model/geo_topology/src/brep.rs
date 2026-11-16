@@ -430,7 +430,7 @@ pub(crate) fn use_parameters<T: Scalar>(edge: &BrepEdge<T>, edge_use: EdgeUse) -
 
 /// `value` を周期 `period` の分だけ動かして、`reference` の片側（`decreasing` なら `(reference - period,
 /// reference]`、そうでなければ `[reference, reference + period)`）に置いた値
-fn shift_to_side<T: Scalar>(value: T, reference: T, period: T, decreasing: bool) -> T {
+pub(crate) fn shift_to_side<T: Scalar>(value: T, reference: T, period: T, decreasing: bool) -> T {
     let turns = (reference - value) / period;
     if decreasing {
         value + turns.floor() * period

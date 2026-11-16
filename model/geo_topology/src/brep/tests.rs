@@ -812,8 +812,8 @@ fn a_hole_in_a_torus_may_be_the_only_loop() {
 }
 
 #[test]
-fn a_reversed_loop_through_the_cone_apex_is_reported() {
-    // 半頂角 45° の円錐（z = 0 で半径 1、頂点は z = -1）の、頂点までの母線 2 本と底の短い円弧で囲む扇形
+fn a_loop_through_the_cone_apex_is_checked_from_any_starting_use() {
+    // 半頂角 45° の円錐（z = 0 で半径 1、頂点は z = -1）の、頂点までの母線 2 本と底の円弧で囲む、幅 `width` の扇形
     let surface = SurfaceRef::Cone(
         TopoConicalSurface3D::new_standard(
             Point3D::new(0.0, 0.0, 0.0),
@@ -823,29 +823,37 @@ fn a_reversed_loop_through_the_cone_apex_is_reported() {
         .unwrap(),
     );
     let rim = horizontal_circle(0.0, 1.0);
-    for (reversed, valid) in [(false, true), (true, false)] {
-        let mut brep = Brep::new();
-        let rim0 = brep.add_vertex(rim.point_at_parameter(0.0));
-        let rim1 = brep.add_vertex(rim.point_at_parameter(1.0));
-        let apex = brep.add_vertex(Point3D::new(0.0, 0.0, -1.0));
-        let down = line_edge(&mut brep, rim0, apex);
-        let up = line_edge(&mut brep, apex, rim1);
-        let arc = brep
-            .add_edge(rim0, rim1, CurveRef::Circle(rim), (0.0, 1.0))
-            .unwrap();
-        // (u, v) で反時計回り: 母線を下り、母線を上り、底の円弧を戻る
-        let uses = if reversed {
-            vec![forward(arc), backward(up), backward(down)]
-        } else {
-            vec![forward(down), forward(up), backward(arc)]
-        };
-        let face = brep
-            .add_face(surface.clone(), true, vec![uses], tolerances())
-            .unwrap();
-        let report = validator().validate(&brep);
-        assert_eq!(report.is_valid(), valid, "reversed = {reversed}");
-        if !valid {
-            assert_eq!(report.misoriented_faces, vec![face]);
+    // 幅が π を超える扇形も確かめる
+    for width in [1.0, 5.0] {
+        for reversed in [false, true] {
+            // ループの初めの使用を、頂点から始まらない 2 通りと、頂点から始まる 1 通りにずらす
+            for rotation in 0..3 {
+                let mut brep = Brep::new();
+                let rim0 = brep.add_vertex(rim.point_at_parameter(0.0));
+                let rim1 = brep.add_vertex(rim.point_at_parameter(width));
+                let apex = brep.add_vertex(Point3D::new(0.0, 0.0, -1.0));
+                let down = line_edge(&mut brep, rim0, apex);
+                let up = line_edge(&mut brep, apex, rim1);
+                let arc = brep
+                    .add_edge(rim0, rim1, CurveRef::Circle(rim), (0.0, width))
+                    .unwrap();
+                // (u, v) で反時計回り: 母線を下り、母線を上り、底の円弧を戻る。逆にしたものは規則に合わない
+                let mut uses = if reversed {
+                    vec![forward(arc), backward(up), backward(down)]
+                } else {
+                    vec![forward(down), forward(up), backward(arc)]
+                };
+                uses.rotate_left(rotation);
+                let face = brep
+                    .add_face(surface.clone(), true, vec![uses], tolerances())
+                    .unwrap();
+                let report = validator().validate(&brep);
+                let case = format!("width = {width}, reversed = {reversed}, rotation = {rotation}");
+                assert_eq!(report.is_valid(), !reversed, "{case}");
+                if reversed {
+                    assert_eq!(report.misoriented_faces, vec![face], "{case}");
+                }
+            }
         }
     }
 }
