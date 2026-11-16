@@ -104,8 +104,13 @@ impl CurveTopologyMutationPort for TopologyOrchestrator {
         request: CreateLineTopologyRequest,
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
         let (mut brep, tolerance) = new_brep(TopologyOrchestrationError::InvalidLineTopology)?;
-        let start = brep.add_vertex(request.line.start_point(), tolerance);
-        let end = brep.add_vertex(request.line.end_point(), tolerance);
+        let error = TopologyOrchestrationError::InvalidLineTopology;
+        let start = brep
+            .add_vertex(request.line.start_point(), tolerance)
+            .map_err(|_| error)?;
+        let end = brep
+            .add_vertex(request.line.end_point(), tolerance)
+            .map_err(|_| error)?;
         // 稜線は、線分の母線と、その区間（母線が終点から始点の向きなら、母線を逆にして区間を小さい順にする）
         let support_line = request.line.support_line();
         let (start_param, end_param) = (request.line.start_param(), request.line.end_param());
@@ -140,8 +145,10 @@ impl CurveTopologyMutationPort for TopologyOrchestrator {
         let start_angle = offset.dot(y).atan2(offset.dot(x));
         let end_angle = start_angle + arc.angle_span().to_radians();
         let (mut brep, tolerance) = new_brep(error)?;
-        let start = brep.add_vertex(start_point, tolerance);
-        let end = brep.add_vertex(arc.end_point(), tolerance);
+        let start = brep.add_vertex(start_point, tolerance).map_err(|_| error)?;
+        let end = brep
+            .add_vertex(arc.end_point(), tolerance)
+            .map_err(|_| error)?;
         let edge = brep
             .add_edge(
                 start,
@@ -160,7 +167,9 @@ impl CurveTopologyMutationPort for TopologyOrchestrator {
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
         // 1 周の稜線は、始点と終点が同じ頂点
         let (mut brep, tolerance) = new_brep(TopologyOrchestrationError::InvalidCircleTopology)?;
-        let vertex = brep.add_vertex(request.circle.point_at_parameter(0.0), tolerance);
+        let vertex = brep
+            .add_vertex(request.circle.point_at_parameter(0.0), tolerance)
+            .map_err(|_| TopologyOrchestrationError::InvalidCircleTopology)?;
         let edge = brep
             .add_edge(
                 vertex,
@@ -216,7 +225,10 @@ impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
             request.triangle.vertex_c(),
         ];
         let (mut brep, tolerance) = new_brep(error)?;
-        let vertices = points.map(|point| brep.add_vertex(point, tolerance));
+        let mut vertices = Vec::with_capacity(points.len());
+        for point in points {
+            vertices.push(brep.add_vertex(point, tolerance).map_err(|_| error)?);
+        }
         let mut uses = Vec::with_capacity(3);
         for side in 0..3 {
             let (start, end) = (side, (side + 1) % 3);

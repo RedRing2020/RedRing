@@ -172,7 +172,7 @@ pub enum BrepError {
     EmptyLoop,
     /// 稜線を、面の曲面の上のパラメータ曲線で表せない
     NoParameterCurve,
-    /// 表の全体の許容誤差が、正の有限の値でない
+    /// 表の全体の許容誤差が正の有限の値でない、または頂点・稜線の許容誤差が有限の値でない
     InvalidTolerance,
 }
 
@@ -224,12 +224,23 @@ impl<T: Scalar> Brep<T> {
     }
 
     /// 許容誤差 `tolerance`（表の全体の許容誤差より小さければ、全体の許容誤差）の頂点を足す
-    pub fn add_vertex(&mut self, point: Point3D<T>, tolerance: T) -> VertexIndex {
+    ///
+    /// # Errors
+    ///
+    /// 許容誤差が有限の値でない（無限大・NaN）とき。
+    pub fn add_vertex(
+        &mut self,
+        point: Point3D<T>,
+        tolerance: T,
+    ) -> Result<VertexIndex, BrepError> {
+        if !tolerance.is_finite() {
+            return Err(BrepError::InvalidTolerance);
+        }
         self.vertices.push(BrepVertex {
             point,
             tolerance: tolerance.max(self.tolerance),
         });
-        VertexIndex(self.vertices.len() - 1)
+        Ok(VertexIndex(self.vertices.len() - 1))
     }
 
     /// 頂点 `start` から `end` へ、母曲線 `curve` の区間 `parameter_range` の、許容誤差 `tolerance` の稜線を足す
@@ -240,7 +251,8 @@ impl<T: Scalar> Brep<T> {
     ///
     /// # Errors
     ///
-    /// 頂点が表にない、区間が空、NURBS の区間が母曲線の範囲の外、または円・楕円の区間が 1 周を超えるとき。
+    /// 頂点が表にない、許容誤差が有限の値でない、区間が空、NURBS の区間が母曲線の範囲の外、または円・楕円の
+    /// 区間が 1 周を超えるとき。
     pub fn add_edge(
         &mut self,
         start: VertexIndex,
@@ -251,6 +263,9 @@ impl<T: Scalar> Brep<T> {
     ) -> Result<EdgeIndex, BrepError> {
         if start.0 >= self.vertices.len() || end.0 >= self.vertices.len() {
             return Err(BrepError::UnknownVertex);
+        }
+        if !tolerance.is_finite() {
+            return Err(BrepError::InvalidTolerance);
         }
         let mut range = parameter_range;
         if let CurveRef::Nurbs(nurbs) = &curve {
