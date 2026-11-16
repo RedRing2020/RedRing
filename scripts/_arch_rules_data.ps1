@@ -9,7 +9,7 @@
 # Layer groups
 $ARCH_LAYERS = [ordered]@{
     Foundation  = @("analysis", "i18n_foundation", "logging_foundation", "platform_foundation")
-    Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
+    Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
     Application = @("application")
     ViewModel   = @("viewmodel", "viewmodel-graphics")
     View        = @("render", "stage", "redring", "job_manager_app")
@@ -36,6 +36,8 @@ $ARCH_ALLOWED_DEPS = @{
     geo_topology   = @("analysis", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs")
     geo_algorithms = @("analysis", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology")
     geo_io         = @("analysis", "geo_contracts", "geo_core", "geo_primitives", "geo_algorithms", "logging_foundation")
+    # STEP のデータ交換は、位相（geo_topology）に依存するため geo_io と分ける（BREP_AND_STEP_IMPORT_DESIGN.md 4.2）
+    geo_step       = @("analysis", "geo_contracts", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms")
     geo_entity     = @("geo_contracts", "geo_primitives")
     cam_core       = @("analysis", "geo_contracts", "geo_primitives", "geo_algorithms")
     cam_algorithms = @("analysis", "cam_core", "geo_contracts", "geo_algorithms")
@@ -50,7 +52,7 @@ $ARCH_ALLOWED_DEPS = @{
     # ジョブマネージャーに問い合わせる口は、ジョブの保存先の形式と分けるため、platform_foundation のほかには、ワークスペースの他のクレートに依存しない
     job_ipc        = @("platform_foundation")
 
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc", "platform_foundation")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_step", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc", "platform_foundation")
 
     viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application")
     "viewmodel-graphics" = @("analysis")
@@ -67,7 +69,7 @@ $ARCH_ALLOWED_DEPS = @{
 # 許可されていない依存はすべてエラーになる。ここには、特に守る境界を明示する。
 $ARCH_VIEW_AND_VIEWMODEL = @("viewmodel", "viewmodel-graphics", "render", "stage", "redring")
 $ARCH_CAM_CRATES = @("cam_core", "cam_algorithms", "cam_entity", "cam_sim")
-$ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity")
+$ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity")
 $ARCH_FORBIDDEN_DEPS = @{
     # 基盤はワークスペースの他のクレートに依存しない
     analysis           = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_runtime", "job_domain")
@@ -83,6 +85,7 @@ $ARCH_FORBIDDEN_DEPS = @{
     geo_topology       = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_algorithms     = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_io             = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    geo_step           = @("geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_entity         = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     cam_core           = @("cam_algorithms", "cam_entity", "cam_sim", "geo_entity") + $ARCH_VIEW_AND_VIEWMODEL
     cam_algorithms     = @("cam_entity", "cam_sim", "geo_entity", "application") + $ARCH_VIEW_AND_VIEWMODEL
