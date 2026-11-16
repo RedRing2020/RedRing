@@ -455,3 +455,23 @@ fn unknown_contexts_and_malformed_representations_are_recorded() {
         ]
     );
 }
+
+#[test]
+fn measures_written_as_complex_entities_are_read() {
+    // 換算の値と許容誤差を、引数のない部分が先に並ぶ複合のエンティティで書く
+    let complex = INCH_DEGREE
+        .replace(
+            "%6=LENGTH_MEASURE_WITH_UNIT(LENGTH_MEASURE(25.4),%8);",
+            "%6=(LENGTH_MEASURE_WITH_UNIT() MEASURE_WITH_UNIT(LENGTH_MEASURE(25.4),%8));",
+        )
+        .replace(
+            "%4=UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-05),%1,'distance_accuracy_value','');",
+            "%4=(LENGTH_MEASURE_WITH_UNIT() MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-05),%1) UNCERTAINTY_MEASURE_WITH_UNIT('distance_accuracy_value',''));",
+        );
+    let records = solid_in(&complex, "45.");
+    let context = &records.contexts[&5];
+
+    assert_eq!(context.length_to_mm, 25.4);
+    assert!(!context.default_units);
+    assert!((context.uncertainty_mm.unwrap() - 25.4e-5).abs() < 1.0e-15);
+}

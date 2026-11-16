@@ -5,7 +5,7 @@
 //! する。
 
 use super::parameters::{at, enumeration, part, real, reference, references, text};
-use crate::syntax::{Entity, StepFile};
+use crate::syntax::{Entity, Record, StepFile};
 
 /// 換算の単位の連なりの上限
 const MAX_CONVERSION_DEPTH: usize = 4;
@@ -121,7 +121,7 @@ fn unit_factor(file: &StepFile, entity: &Entity, kind: UnitKind, depth: usize) -
         return Some(1.0);
     }
     let measure = file.entities.get(&at(conversion, 1).and_then(reference)?)?;
-    let measure = measure.records.first()?;
+    let measure = measure_part(&measure.records)?;
     let value = at(measure, 0).and_then(real)?;
     let base = file.entities.get(&at(measure, 1).and_then(reference)?)?;
     Some(value * unit_factor(file, base, kind, depth + 1)?)
@@ -152,12 +152,20 @@ fn si_prefix(prefix: &str) -> Option<f64> {
 
 /// 長さの許容誤差（`UNCERTAINTY_MEASURE_WITH_UNIT`）を mm に直した値
 fn uncertainty_mm(file: &StepFile, id: u64) -> Option<f64> {
-    let record = file.entities.get(&id)?.records.first()?;
-    if record.name != "UNCERTAINTY_MEASURE_WITH_UNIT" {
-        return None;
-    }
+    let records = &file.entities.get(&id)?.records;
+    part(records, "UNCERTAINTY_MEASURE_WITH_UNIT")?;
+    let record = measure_part(records)?;
     let value = at(record, 0).and_then(real)?;
     let unit = file.entities.get(&at(record, 1).and_then(reference)?)?;
     part(&unit.records, "LENGTH_UNIT")?;
     Some(value * unit_factor(file, unit, UnitKind::Length, 0)?)
+}
+
+/// 値と単位を持つ部分（単純なエンティティは、その部分。複合のエンティティは `MEASURE_WITH_UNIT` の部分。
+/// 複合のエンティティでは、`LENGTH_MEASURE_WITH_UNIT()` のような引数のない部分が先に並ぶことがある）
+fn measure_part(records: &[Record]) -> Option<&Record> {
+    match records {
+        [record] => Some(record),
+        _ => part(records, "MEASURE_WITH_UNIT"),
+    }
 }
