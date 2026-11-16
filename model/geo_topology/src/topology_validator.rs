@@ -103,7 +103,7 @@ impl<T: Scalar> TopologyValidator<T> {
             })
             .collect();
         let misoriented_faces = faces()
-            .filter(|&face| !is_face_oriented(brep, face))
+            .filter(|&face| !is_face_oriented(brep, face, tolerance))
             .collect();
 
         BrepValidationReport {
@@ -129,13 +129,13 @@ enum LoopInUv<T: Scalar> {
 ///
 /// (u, v) では、曲面の自然な法線の側から見て、面がループの左にあることは、周期をまわらない外側のループが
 /// 反時計回り・内側のループが時計回りになることに当たる。周期をまわるループは、面の側を巻く向きで確かめる。
-fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex) -> bool {
+fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex, tolerance: T) -> bool {
     let face = brep.face(index);
     let surface = face.surface();
     let mut plain_areas = Vec::new();
     let mut windings = Vec::new();
     for &loop_index in face.loops() {
-        match loop_in_uv(brep, loop_index, surface, face.same_sense()) {
+        match loop_in_uv(brep, loop_index, surface, face.same_sense(), tolerance) {
             Some(LoopInUv::Plain { area }) => plain_areas.push(area),
             Some(LoopInUv::Winding {
                 turns_u,
@@ -216,17 +216,23 @@ fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex) -> bool {
     }
 }
 
-/// ループを、パラメータ曲線に沿って取った点で (u, v) に写す（パラメータ曲線を評価できなければ `None`）
+/// ループを、パラメータ曲線に沿って取った点で (u, v) に写す
+///
+/// パラメータ曲線を評価できない、またはループが (u, v) で閉じない（極・頂点でない初めの点に、巻き数の分を
+/// 除いて戻らない）ときは `None`。極・頂点では、面がループの左にある前提で移る向きを決めるため、向きの
+/// 逆のループは、極・頂点でない点に戻るときに周期の分だけずれる。
 fn loop_in_uv<T: Scalar>(
     brep: &Brep<T>,
     index: LoopIndex,
     surface: &SurfaceRef<T>,
     same_sense: bool,
+    tolerance: T,
 ) -> Option<LoopInUv<T>> {
     let face_loop = brep.face_loop(index);
     let mut points: Vec<Point2D<T>> = Vec::with_capacity(face_loop.uses().len() * SAMPLES_PER_USE);
     // 稜線の使用に沿って進んだ u・v の和（極の線に沿って移る分と、周期の分の移しは含めない）
     let (mut progress_u, mut progress_v) = (T::ZERO, T::ZERO);
+    let mut end = None;
     for (edge_use, curve) in face_loop.uses().iter().zip(face_loop.parameter_curves()) {
         let (t_start, t_end) = use_parameters(brep.edge(edge_use.edge), *edge_use);
         for sample in 0..SAMPLES_PER_USE {
@@ -234,9 +240,10 @@ fn loop_in_uv<T: Scalar>(
                 t_start + (t_end - t_start) * T::from_f64(sample as f64 / SAMPLES_PER_USE as f64);
             points.push(curve.point_at(t)?);
         }
-        let (start, end) = (curve.point_at(t_start)?, curve.point_at(t_end)?);
-        progress_u += end.x() - start.x();
-        progress_v += end.y() - start.y();
+        let (start, end_point) = (curve.point_at(t_start)?, curve.point_at(t_end)?);
+        progress_u += end_point.x() - start.x();
+        progress_v += end_point.y() - start.y();
+        end = Some(end_point);
     }
     let sense = if same_sense { T::ONE } else { -T::ONE };
     let (u_period, v_period) = surface.periods();
@@ -244,6 +251,21 @@ fn loop_in_uv<T: Scalar>(
         |delta: T, period: Option<T>| period.map_or(T::ZERO, |period| (delta / period).round());
     let turns_u = turns(progress_u, u_period);
     let turns_v = turns(progress_v, v_period);
+    // 初めの点が極・頂点でなければ、終わりの点は、巻き数の分を除いて初めの点に戻る（ずれは周期の整数倍で
+    // 出るため、周期の半分で見分ける）
+    let first_use = *face_loop.uses().first()?;
+    let first_point = brep.vertex(brep.use_start(first_use)).point();
+    if surface.singular_v(first_point, tolerance).is_none() {
+        let (first, last) = (*points.first()?, end?);
+        let closes = |gap: T, turns: T, period: Option<T>| {
+            period.is_none_or(|period| (gap - turns * period).abs() < period / T::from_f64(2.0))
+        };
+        if !closes(last.x() - first.x(), turns_u, u_period)
+            || !closes(last.y() - first.y(), turns_v, v_period)
+        {
+            return None;
+        }
+    }
     if turns_u == T::ZERO && turns_v == T::ZERO {
         let area = (0..points.len()).fold(T::ZERO, |sum, position| {
             let a = points[position];
