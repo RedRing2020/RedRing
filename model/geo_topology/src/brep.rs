@@ -39,15 +39,21 @@ element_index!(
     FaceIndex
 );
 
-/// 頂点
+/// 頂点（許容誤差は、その頂点を使う稜線の許容誤差以上）
 #[derive(Debug, Clone)]
 pub struct BrepVertex<T: Scalar> {
     point: Point3D<T>,
+    tolerance: T,
 }
 
 impl<T: Scalar> BrepVertex<T> {
     pub fn point(&self) -> Point3D<T> {
         self.point
+    }
+
+    /// 頂点の許容誤差（頂点の点から、この距離の中を同じ頂点とみなす）
+    pub fn tolerance(&self) -> T {
+        self.tolerance
     }
 }
 
@@ -58,6 +64,8 @@ pub struct BrepEdge<T: Scalar> {
     parameter_range: (T, T),
     start: VertexIndex,
     end: VertexIndex,
+    /// 稜線の許容誤差（稜線を使う面の曲面と、この距離の中で合う）
+    tolerance: T,
     uses: Vec<EdgeUseLocation>,
 }
 
@@ -77,6 +85,10 @@ impl<T: Scalar> BrepEdge<T> {
 
     pub fn end(&self) -> VertexIndex {
         self.end
+    }
+
+    pub(crate) fn tolerance(&self) -> T {
+        self.tolerance
     }
 
     /// この稜線を使うループの位置（使った順）
@@ -160,6 +172,8 @@ pub enum BrepError {
     EmptyLoop,
     /// 稜線を、面の曲面の上のパラメータ曲線で表せない
     NoParameterCurve,
+    /// 表の全体の許容誤差が、正の有限の値でない
+    InvalidTolerance,
 }
 
 impl std::fmt::Display for BrepError {
@@ -170,6 +184,7 @@ impl std::fmt::Display for BrepError {
             Self::InvalidParameterRange => "invalid parameter range",
             Self::EmptyLoop => "empty loop",
             Self::NoParameterCurve => "no parameter curve",
+            Self::InvalidTolerance => "invalid tolerance",
         };
         f.write_str(text)
     }
@@ -180,37 +195,48 @@ impl std::error::Error for BrepError {}
 /// B-rep の表
 #[derive(Debug, Clone)]
 pub struct Brep<T: Scalar> {
+    /// 表の全体の許容誤差（頂点・稜線の許容誤差の下限）
+    tolerance: T,
     vertices: Vec<BrepVertex<T>>,
     edges: Vec<BrepEdge<T>>,
     loops: Vec<BrepLoop<T>>,
     faces: Vec<BrepFace<T>>,
 }
 
-impl<T: Scalar> Default for Brep<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<T: Scalar> Brep<T> {
-    /// 空の表
-    pub fn new() -> Self {
-        Self {
+    /// 空の表（`tolerances` の距離の許容誤差を、頂点・稜線の許容誤差の下限にする）
+    ///
+    /// # Errors
+    ///
+    /// 許容誤差が正の有限の値でないとき。
+    pub fn new(tolerances: TopologyToleranceSettings<T>) -> Result<Self, BrepError> {
+        let tolerance = tolerances.distance_tolerance;
+        if !(tolerance > T::ZERO && tolerance.is_finite()) {
+            return Err(BrepError::InvalidTolerance);
+        }
+        Ok(Self {
+            tolerance,
             vertices: Vec::new(),
             edges: Vec::new(),
             loops: Vec::new(),
             faces: Vec::new(),
-        }
+        })
     }
 
-    pub fn add_vertex(&mut self, point: Point3D<T>) -> VertexIndex {
-        self.vertices.push(BrepVertex { point });
+    /// 許容誤差 `tolerance`（表の全体の許容誤差より小さければ、全体の許容誤差）の頂点を足す
+    pub fn add_vertex(&mut self, point: Point3D<T>, tolerance: T) -> VertexIndex {
+        self.vertices.push(BrepVertex {
+            point,
+            tolerance: tolerance.max(self.tolerance),
+        });
         VertexIndex(self.vertices.len() - 1)
     }
 
-    /// 頂点 `start` から `end` へ、母曲線 `curve` の区間 `parameter_range` の稜線を足す
+    /// 頂点 `start` から `end` へ、母曲線 `curve` の区間 `parameter_range` の、許容誤差 `tolerance` の稜線を足す
     ///
-    /// NURBS の区間は、母曲線の範囲の外へ許容幅を超えて出ていれば足さず、端の微小なずれは範囲に収める。
+    /// 稜線の許容誤差は、表の全体の許容誤差より小さければ全体の許容誤差にする。始点・終点の頂点の許容誤差は、
+    /// 稜線の許容誤差より小さければ、稜線の許容誤差まで広げる。NURBS の区間は、母曲線の範囲の外へ許容幅を
+    /// 超えて出ていれば足さず、端の微小なずれは範囲に収める。
     ///
     /// # Errors
     ///
@@ -221,6 +247,7 @@ impl<T: Scalar> Brep<T> {
         end: VertexIndex,
         curve: CurveRef<T>,
         parameter_range: (T, T),
+        tolerance: T,
     ) -> Result<EdgeIndex, BrepError> {
         if start.0 >= self.vertices.len() || end.0 >= self.vertices.len() {
             return Err(BrepError::UnknownVertex);
@@ -250,11 +277,17 @@ impl<T: Scalar> Brep<T> {
         {
             return Err(BrepError::InvalidParameterRange);
         }
+        let tolerance = tolerance.max(self.tolerance);
+        for vertex in [start, end] {
+            let vertex = &mut self.vertices[vertex.0];
+            vertex.tolerance = vertex.tolerance.max(tolerance);
+        }
         self.edges.push(BrepEdge {
             curve,
             parameter_range: range,
             start,
             end,
+            tolerance,
             uses: Vec::new(),
         });
         Ok(EdgeIndex(self.edges.len() - 1))
@@ -263,8 +296,8 @@ impl<T: Scalar> Brep<T> {
     /// 曲面 `surface` の上に、ループ `loops`（稜線の使用の並びの並び）で囲まれた面を足す
     ///
     /// 稜線の使用ごとに、曲面の上のパラメータ曲線を作る。パラメータ曲線を曲面の上で評価した点と稜線の点の
-    /// 離れは、`tolerances` の距離の許容誤差の中に収める。周期的な曲面では、ループの中で前の使用の終わりに
-    /// つながるように、周期の分だけ動かす。
+    /// 離れは、稜線の許容誤差の中に収める。周期的な曲面では、ループの中で前の使用の終わりにつながるように、
+    /// 周期の分だけ動かす。
     ///
     /// # Errors
     ///
@@ -274,7 +307,6 @@ impl<T: Scalar> Brep<T> {
         surface: SurfaceRef<T>,
         same_sense: bool,
         loops: Vec<Vec<EdgeUse>>,
-        tolerances: TopologyToleranceSettings<T>,
     ) -> Result<FaceIndex, BrepError> {
         let mut loop_curves = Vec::with_capacity(loops.len());
         for uses in &loops {
@@ -287,12 +319,7 @@ impl<T: Scalar> Brep<T> {
             {
                 return Err(BrepError::UnknownEdge);
             }
-            loop_curves.push(self.loop_parameter_curves(
-                &surface,
-                same_sense,
-                uses,
-                tolerances.distance_tolerance,
-            )?);
+            loop_curves.push(self.loop_parameter_curves(&surface, same_sense, uses)?);
         }
         let face = FaceIndex(self.faces.len());
         let mut loop_indices = Vec::with_capacity(loops.len());
@@ -324,28 +351,29 @@ impl<T: Scalar> Brep<T> {
     ///
     /// 球の極・円錐の頂点では、隣り合う使用の u が本当に違う（極は (u, v) では v が一定の線になる）。そこでは、
     /// 面がループの左にある向きに極の線に沿って進むように、次の使用の u を選ぶ（面の外向きの法線が曲面の
-    /// 法線と同じなら、上の極では u の負の向き、下の極では正の向き）。
+    /// 法線と同じなら、上の極では u の負の向き、下の極では正の向き）。つなぎ目が極かは、前の使用の稜線の
+    /// 許容誤差で見分ける（頂点の許容誤差は、ほかの稜線を足すと広がるため使わない）。
     fn loop_parameter_curves(
         &self,
         surface: &SurfaceRef<T>,
         same_sense: bool,
         uses: &[EdgeUse],
-        tolerance: T,
     ) -> Result<Vec<ParameterCurve<T>>, BrepError> {
         let (u_period, v_period) = surface.periods();
         let mut curves: Vec<ParameterCurve<T>> = Vec::with_capacity(uses.len());
-        // 前の使用の終わりの (u, v)・点と、前の使用の中ほどの v
-        let mut previous: Option<(Point2D<T>, Point3D<T>, T)> = None;
+        // 前の使用の終わりの (u, v)・頂点と、前の使用の中ほどの v・前の使用の稜線の許容誤差
+        let mut previous: Option<(Point2D<T>, VertexIndex, T, T)> = None;
         for &edge_use in uses {
             let edge = self.edge(edge_use.edge);
             let curve =
-                ParameterCurve::exact(surface, &edge.curve, edge.parameter_range, tolerance)
+                ParameterCurve::exact(surface, &edge.curve, edge.parameter_range, edge.tolerance)
                     .ok_or(BrepError::NoParameterCurve)?;
             let (t_start, t_end) = use_parameters(edge, edge_use);
             let start = curve.point_at(t_start).ok_or(BrepError::NoParameterCurve)?;
             let curve = match previous {
-                Some((end, end_point, middle_v)) => {
-                    let u = match (surface.singular_v(end_point, tolerance), u_period) {
+                Some((end, end_vertex, middle_v, previous_tolerance)) => {
+                    let joint = self.vertex(end_vertex).point;
+                    let u = match (surface.singular_v(joint, previous_tolerance), u_period) {
                         (Some(pole_v), Some(period)) => {
                             let decreasing = (pole_v > middle_v) == same_sense;
                             shift_to_side(start.x(), end.x(), period, decreasing)
@@ -364,8 +392,9 @@ impl<T: Scalar> Brep<T> {
                 .ok_or(BrepError::NoParameterCurve)?;
             previous = Some((
                 curve.point_at(t_end).ok_or(BrepError::NoParameterCurve)?,
-                edge.curve.point_at_parameter(t_end),
+                self.use_end(edge_use),
                 middle.y(),
+                edge.tolerance,
             ));
             curves.push(curve);
         }

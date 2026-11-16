@@ -22,7 +22,6 @@ model/geo_core/src/aabb_2d.rs:min_point
 model/geo_primitives/src/arc_2d.rs:circle
 model/geo_primitives/src/line_segment_2d.rs:support_line
 model/geo_primitives/src/line_segment_3d.rs:support_line
-model/geo_topology/src/topology_validator.rs:tolerances
 
 # 形状の基本の生成
 model/geo_primitives/src/arc_2d.rs:from_center_radius

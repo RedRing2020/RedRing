@@ -2,11 +2,11 @@ use geo_contracts::Scalar;
 
 /// topology 判定で外部から与える公開設定。
 ///
-/// 稜線の端の点と頂点の離れ、パラメータ曲線を曲面の上で評価した点と稜線の点の離れを、この距離で確かめる。
-/// 頂点はループの中で番号で共有するため、頂点どうしの離れを測る距離は持たない。
+/// B-rep の表の全体の許容誤差（頂点・稜線の許容誤差の下限）を与える。頂点はループの中で番号で共有するため、
+/// 頂点どうしの離れを測る距離は持たない。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TopologyToleranceSettings<T: Scalar> {
-    /// topology 判定全体の代表距離トレランス。
+    /// B-rep の表の全体の許容誤差（頂点・稜線の許容誤差の下限。確かめは、頂点・稜線ごとの許容誤差で行う）。
     pub distance_tolerance: T,
 }
 
