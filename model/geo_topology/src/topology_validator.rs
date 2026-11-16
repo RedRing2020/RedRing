@@ -87,7 +87,7 @@ impl<T: Scalar> Brep<T> {
             })
             .collect();
         let misoriented_faces = faces()
-            .filter(|&face| !is_face_oriented(self, face))
+            .filter(|&face| !self.is_face_oriented(face))
             .collect();
 
         BrepValidationReport {
@@ -109,10 +109,17 @@ enum LoopInUv<T: Scalar> {
     Winding { turns_u: T, turns_v: T, mean_v: T },
 }
 
-/// 面のループが、面の外向きの法線の側から見て面がループの左にある規則に合うか
-///
-/// (u, v) では、曲面の自然な法線の側から見て、面がループの左にあることは、周期をまわらない外側のループが
-/// 反時計回り・内側のループが時計回りになることに当たる。周期をまわるループは、面の側を巻く向きで確かめる。
+impl<T: Scalar> Brep<T> {
+    /// 面 `index` のループが、面の外向きの法線の側から見て面がループの左にある規則に合うか（ループの巻き方を
+    /// 決められない面は、合わないとする）
+    ///
+    /// (u, v) では、曲面の自然な法線の側から見て、面がループの左にあることは、周期をまわらない外側のループが
+    /// 反時計回り・内側のループが時計回りになることに当たる。周期をまわるループは、面の側を巻く向きで確かめる。
+    pub fn is_face_oriented(&self, index: FaceIndex) -> bool {
+        is_face_oriented(self, index)
+    }
+}
+
 fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex) -> bool {
     let face = brep.face(index);
     let surface = face.surface();
