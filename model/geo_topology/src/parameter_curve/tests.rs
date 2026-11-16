@@ -245,3 +245,48 @@ fn a_nurbs_surface_has_no_exact_parameter_curve() {
         ParameterCurve::exact(&surface, &CurveRef::Line(line), (0.0, 1.0), TOLERANCE).is_none()
     );
 }
+
+#[test]
+fn the_surface_deviation_is_the_largest_distance_from_the_surface() {
+    // 半径 2 の円柱に、半径 2.001 の円を載せる
+    let cylinder = SurfaceRef::Cylinder(
+        TopoCylindricalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 2.0).unwrap(),
+    );
+    let circle = TopoCircle3D::new_xy_plane(Point3D::new(0.0, 0.0, 1.5), 2.001).unwrap();
+    let deviation =
+        ParameterCurve::surface_deviation(&cylinder, &CurveRef::Circle(circle), (0.0, PI)).unwrap();
+    assert!((deviation - 0.001).abs() < 1.0e-9, "{deviation}");
+    assert!(
+        ParameterCurve::exact(&cylinder, &CurveRef::Circle(circle), (0.0, PI), TOLERANCE).is_none()
+    );
+
+    // 平面から、端で 0.002 離れる直線
+    let plane = SurfaceRef::Plane(
+        TopoPlane3D::from_point_and_normal(Point3D::new(0.0, 0.0, 0.0), direction(0.0, 0.0, 1.0))
+            .unwrap(),
+    );
+    let line = TopoInfiniteLine3D::from_two_points(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.001),
+    )
+    .unwrap();
+    let length = (1.0_f64 + 1.0e-6).sqrt();
+    let deviation =
+        ParameterCurve::surface_deviation(&plane, &CurveRef::Line(line), (0.0, 2.0 * length))
+            .unwrap();
+    assert!((deviation - 0.002).abs() < 1.0e-9, "{deviation}");
+
+    // 円柱を斜めの平面で切った楕円は、(u, v) で直線にならないが、円柱の上にある
+    let ellipse = TopoEllipse3D::new(
+        Point3D::new(0.0, 0.0, 1.0),
+        2.0 * 2.0_f64.sqrt(),
+        2.0,
+        direction(1.0, 0.0, -1.0),
+        direction(1.0, 0.0, 1.0),
+    )
+    .unwrap();
+    let curve = CurveRef::Ellipse(ellipse);
+    let deviation = ParameterCurve::surface_deviation(&cylinder, &curve, (0.0, PI)).unwrap();
+    assert!(deviation < 1.0e-12, "{deviation}");
+    assert!(ParameterCurve::exact(&cylinder, &curve, (0.0, PI), TOLERANCE).is_none());
+}

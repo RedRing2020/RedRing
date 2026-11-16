@@ -3,6 +3,9 @@
 //! 表現の要素（立体・シェル・面の集まり）ごとに、1 つの `Brep` を作る。稜線の区間は頂点の位置から決め（8.2）、
 //! 向きの旗は形で確かめて直す（8.1）。直したことは記録する。作れない面は、理由を記録して外し、残りの面で
 //! シェルを作る。
+//!
+//! 表に足す前に、頂点・稜線の許容誤差を、測ったずれに合わせて広げ、1 つの角にある頂点と、重なる稜線を
+//! まとめる（6.1・6.2）。
 
 #[cfg(test)]
 mod tests;
@@ -10,14 +13,16 @@ mod tests;
 use crate::geometry::{Conic, Curve, Geometries, Sense};
 use crate::record::{Geometry, Records, Topology};
 use analysis::consts::DERIVATIVE_ZERO_THRESHOLD_F64;
+use analysis::consts::import_tolerance::{DEVIATION_FACTOR, ELEMENT_TOLERANCE_LIMIT_RATIO};
 use geo_contracts::{
     Circle3DProperties, Ellipse3DProperties, InfiniteLine3DConstructor, InfiniteLine3DDistance,
     InfiniteLine3DEvaluation, NurbsCurve3DEvaluation, NurbsCurve3DProperties, Plane3DConstructor,
 };
 use geo_core::{Direction3D, Point3D, Vector3D};
 use geo_topology::{
-    Brep, BrepError, CurveRef, EdgeIndex, EdgeUse, FaceIndex, ShellIndex, SolidIndex, SurfaceRef,
-    TopoInfiniteLine3D, TopoNurbsCurve3D, TopoPlane3D, TopologyToleranceSettings, VertexIndex,
+    Brep, BrepError, CurveRef, EdgeIndex, EdgeUse, FaceIndex, ParameterCurve, ShellIndex,
+    SolidIndex, SurfaceRef, TopoEllipse3D, TopoInfiniteLine3D, TopoNurbsCurve3D, TopoPlane3D,
+    TopologyToleranceSettings, VertexIndex,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::f64::consts::TAU;
@@ -30,6 +35,35 @@ const SAMPLES_PER_USE: usize = 8;
 const SAMPLES_PER_CONTROL_POINT: usize = 16;
 /// NURBS 曲線の上の点のパラメータを、ニュートン法で詰める回数の上限
 const MAX_NEWTON_STEPS: usize = 32;
+/// 2 本の稜線が重なるかを確かめるときに、区間を分ける数（区間の両端を含めて この数 + 1 個の点で比べる）
+const EDGE_COMPARISON_SEGMENTS: usize = 8;
+
+/// 読み込みで、頂点・稜線の許容誤差を広げるときの設定（設計 6.1）
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ImportToleranceSettings {
+    /// 要素の許容誤差の上限の、読み込む立体の大きさ（頂点と曲線の外形の箱の対角の長さ）に対する比（正）
+    pub limit_ratio: f64,
+    /// 測ったずれに掛ける倍率（1 以上）
+    pub deviation_factor: f64,
+}
+
+impl Default for ImportToleranceSettings {
+    fn default() -> Self {
+        Self {
+            limit_ratio: ELEMENT_TOLERANCE_LIMIT_RATIO,
+            deviation_factor: DEVIATION_FACTOR,
+        }
+    }
+}
+
+impl ImportToleranceSettings {
+    fn is_valid(&self) -> bool {
+        self.limit_ratio > 0.0
+            && self.limit_ratio.is_finite()
+            && self.deviation_factor >= 1.0
+            && self.deviation_factor.is_finite()
+    }
+}
 
 /// 作った B-rep と、外した要素
 #[derive(Debug, Clone, Default)]
@@ -62,8 +96,16 @@ pub struct Built {
 }
 
 /// 読み込みで直したこと（番号はファイルの番号）
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Correction {
+    /// 頂点 `vertex` を、同じ角にある頂点 `into` にまとめた
+    VertexMerged { vertex: u64, into: u64 },
+    /// 稜線 `edge` を、同じ頂点の間で重なる稜線 `into` にまとめた
+    EdgeMerged { edge: u64, into: u64 },
+    /// 頂点 `vertex`（まとめた頂点は、まとめ先）の許容誤差を、初めの値から `tolerance` に広げた
+    VertexToleranceWidened { vertex: u64, tolerance: f64 },
+    /// 稜線 `edge`（まとめた稜線は、まとめ先）の許容誤差を、初めの値から `tolerance` に広げた
+    EdgeToleranceWidened { edge: u64, tolerance: f64 },
     /// 開いた曲線の稜線で、`same_sense` と頂点の順が食い違ったため、頂点の順を使った
     EdgeSense { edge: u64 },
     /// 頂点が直線から外れた稜線を、頂点の間の線分にした
@@ -75,7 +117,7 @@ pub enum Correction {
 }
 
 /// 外した要素（面・シェル・立体）
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TopologySkipped {
     /// 外した要素のファイルの番号
     pub id: u64,
@@ -85,8 +127,11 @@ pub struct TopologySkipped {
 }
 
 /// 要素を作れない理由
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TopologyError {
+    /// 頂点が曲線から、または稜線が面の曲面から、許容誤差の上限を超えてずれている（`deviation` は測った
+    /// ずれ。理由の起きた要素は、頂点か稜線）
+    ToleranceExceeded { deviation: f64 },
     /// 参照の先が、期待した種類の位相・幾何の記録でない
     MissingReference,
     /// 曲線・曲面を型にできなかった（理由は、幾何の段で記録してある）
@@ -124,21 +169,33 @@ impl Failure {
 
 /// 中間データの位相の記録から、表現の要素ごとに B-rep を作る
 ///
-/// `tolerances` は、B-rep の表の全体の許容誤差（モデルの値）。頂点・稜線の許容誤差は、全体の許容誤差にする。
+/// `tolerances` は、B-rep の表の全体の許容誤差（モデルの値）。頂点・稜線の許容誤差の初めの値は、表現の
+/// 文脈の許容誤差（なければ全体の許容誤差）とし、全体の許容誤差と上限の間に収める。上限は、表現の要素の
+/// 頂点と曲線の外形の箱の対角の長さに `settings` の比を掛けた値（全体の許容誤差より小さければ、全体の
+/// 許容誤差）。
 ///
 /// # Errors
 ///
-/// 全体の許容誤差が正の有限の値でないとき。
+/// 全体の許容誤差が正の有限の値でない、または `settings` の比が正の有限の値でない・倍率が 1 以上の有限の値で
+/// ないとき（`BrepError::InvalidTolerance`）。
 pub fn build(
     records: &Records,
     geometries: &Geometries,
     tolerances: TopologyToleranceSettings<f64>,
+    settings: ImportToleranceSettings,
 ) -> Result<Topologies, BrepError> {
     // 許容誤差は、要素を作る前に確かめる
     Brep::new(tolerances)?;
+    if !settings.is_valid() {
+        return Err(BrepError::InvalidTolerance);
+    }
     let mut topologies = Topologies::default();
     let mut seen = BTreeSet::new();
     for representation in records.representations.values() {
+        let uncertainty = records
+            .contexts
+            .get(&representation.context)
+            .and_then(|context| context.uncertainty_mm);
         for &item in &representation.items {
             if !seen.insert(item) {
                 continue;
@@ -146,9 +203,16 @@ pub fn build(
             let builder = ItemBuilder {
                 records,
                 geometries,
-                tolerance: tolerances.distance_tolerance,
+                global: tolerances.distance_tolerance,
+                initial: tolerances.distance_tolerance,
+                limit: tolerances.distance_tolerance,
+                factor: settings.deviation_factor,
                 brep: Brep::new(tolerances)?,
-                vertices: BTreeMap::new(),
+                shapes: BTreeMap::new(),
+                vertex_groups: BTreeMap::new(),
+                groups: Vec::new(),
+                merged_edges: BTreeMap::new(),
+                face_failures: BTreeMap::new(),
                 points: BTreeMap::new(),
                 edges: BTreeMap::new(),
                 segments: HashMap::new(),
@@ -158,6 +222,7 @@ pub fn build(
                 unoriented: Vec::new(),
                 skipped: Vec::new(),
             };
+            let builder = builder.prepare(item, uncertainty, settings.limit_ratio);
             let (built, mut skipped) = builder.item(item);
             topologies.skipped.append(&mut skipped);
             if let Some(built) = built {
@@ -176,14 +241,60 @@ struct BuiltFace {
     per_face: bool,
 }
 
+/// ファイルの稜線から求めた、B-rep の稜線の形
+#[derive(Debug, Clone)]
+struct EdgeShape {
+    /// B-rep の稜線の始点・終点（ファイルの頂点）
+    first: u64,
+    last: u64,
+    curve: CurveRef<f64>,
+    range: (f64, f64),
+    /// B-rep の稜線が、ファイルの始点から終点へ進むか
+    along: bool,
+    tolerance: f64,
+    /// 稜線を表に足すときに記録する、直したこと
+    correction: Option<Correction>,
+}
+
+/// 1 つの角にまとめた頂点
+#[derive(Debug, Clone)]
+struct VertexGroup {
+    /// まとめ先（初めの頂点）のファイルの番号と点・許容誤差
+    id: u64,
+    point: Point3D<f64>,
+    own_tolerance: f64,
+    /// まとめた頂点をすべて含む許容誤差
+    tolerance: f64,
+    members: Vec<u64>,
+    index: Option<VertexIndex>,
+}
+
+/// 前もって集めた面（ファイルの番号・型の曲面（ないときは `None`）・ループの稜線のファイルの番号）
+struct PreparedFace {
+    id: u64,
+    surface: Option<SurfaceRef<f64>>,
+    edges: Vec<u64>,
+}
+
 /// 表現の要素 1 つの B-rep を作る
 struct ItemBuilder<'a> {
     records: &'a Records,
     geometries: &'a Geometries,
-    tolerance: f64,
+    /// 全体の許容誤差、要素の許容誤差の初めの値と上限、ずれに掛ける倍率
+    global: f64,
+    initial: f64,
+    limit: f64,
+    factor: f64,
     brep: Brep<f64>,
-    /// ファイルの頂点から、B-rep の頂点
-    vertices: BTreeMap<u64, VertexIndex>,
+    /// ファイルの稜線の形（前もって求める）
+    shapes: BTreeMap<u64, Result<EdgeShape, Failure>>,
+    /// ファイルの頂点から、まとめた頂点（`groups` の位置）
+    vertex_groups: BTreeMap<u64, usize>,
+    groups: Vec<VertexGroup>,
+    /// まとめた稜線から、まとめ先の稜線と、まとめ先の B-rep の稜線がファイルの始点から終点へ進むか
+    merged_edges: BTreeMap<u64, (u64, bool)>,
+    /// 稜線が面の曲面から上限を超えてずれている面
+    face_failures: BTreeMap<u64, Failure>,
     /// 多角形のループの点から、B-rep の頂点
     points: BTreeMap<u64, VertexIndex>,
     /// ファイルの稜線から、B-rep の稜線と、B-rep の稜線がファイルの稜線と同じ向きか
@@ -227,22 +338,430 @@ impl<'a> ItemBuilder<'a> {
         Err(Failure::new(id, TopologyError::TooDeep))
     }
 
-    /// 表現の要素 `item` の B-rep と、外した要素（面が 1 つもできなければ、B-rep は `None`）
-    fn item(mut self, item: u64) -> (Option<Built>, Vec<TopologySkipped>) {
-        // シェルと、立体の要素か（立体なら、初めのシェルが外側）
-        let (shells, solid) = match self.topology(item) {
-            Ok(Topology::Solid { outer, voids }) => (
+    /// 表現の要素 `item` のシェルと、立体の要素か（立体なら、初めのシェルが外側）
+    fn item_shells(&self, item: u64) -> Result<(Vec<u64>, bool), Failure> {
+        match self.topology(item)? {
+            Topology::Solid { outer, voids } => Ok((
                 std::iter::once(*outer)
                     .chain(voids.iter().copied())
                     .collect(),
                 true,
-            ),
-            Ok(Topology::SurfaceModel { shells }) => (shells.clone(), false),
-            Ok(Topology::Shell { .. } | Topology::OrientedShell { .. }) => (vec![item], false),
-            Ok(_) => {
-                self.skip(item, Failure::new(item, TopologyError::MissingReference));
-                return (None, self.skipped);
+            )),
+            Topology::SurfaceModel { shells } => Ok((shells.clone(), false)),
+            Topology::Shell { .. } | Topology::OrientedShell { .. } => Ok((vec![item], false)),
+            _ => Err(Failure::new(item, TopologyError::MissingReference)),
+        }
+    }
+
+    /// 表に足す前に、表現の要素 `item` の稜線の形を求め、頂点・稜線の許容誤差を広げ、頂点と稜線をまとめる
+    /// （設計 6.1 の順。頂点を使う稜線の許容誤差以上にそろえるのは、表に稜線を足すときに行う）
+    fn prepare(mut self, item: u64, uncertainty: Option<f64>, limit_ratio: f64) -> Self {
+        let Ok((shells, _)) = self.item_shells(item) else {
+            return self;
+        };
+        let (faces, uses) = self.collect_faces(&shells);
+        self.set_limits(&uses, uncertainty, limit_ratio);
+        // 1. 頂点を、その頂点を使う曲線に合わせて広げる
+        let mut vertex_tolerances: BTreeMap<u64, f64> = BTreeMap::new();
+        for &edge in uses.keys() {
+            let shape = self.checked_edge_shape(edge).map(|(shape, deviations)| {
+                for (vertex, deviation) in deviations {
+                    let tolerance = vertex_tolerances.entry(vertex).or_insert(self.initial);
+                    *tolerance = tolerance.max(deviation * self.factor);
+                }
+                shape
+            });
+            self.shapes.insert(edge, shape);
+        }
+        // 2. 頂点をまとめ、同じ頂点の間で重なる稜線をまとめる
+        self.group_vertices(&vertex_tolerances);
+        self.merge_edges(&uses);
+        // 3. 稜線を、面の曲面に合わせて広げる
+        for face in &faces {
+            self.fit_edges_to_surface(face);
+        }
+        for group in &self.groups {
+            if group.tolerance > self.initial {
+                self.corrections.push(Correction::VertexToleranceWidened {
+                    vertex: group.id,
+                    tolerance: group.tolerance,
+                });
             }
+        }
+        for (&edge, shape) in &self.shapes {
+            if let Ok(shape) = shape
+                && !self.merged_edges.contains_key(&edge)
+                && shape.tolerance > self.initial
+            {
+                self.corrections.push(Correction::EdgeToleranceWidened {
+                    edge,
+                    tolerance: shape.tolerance,
+                });
+            }
+        }
+        self
+    }
+
+    /// シェル `shells` の面（向きの旗をたどった元の面。NURBS 曲面の面と、曲面を型にできなかった面は、
+    /// `face` と同じく除く）と、面のループが稜線を使う回数と初めに使う面（ファイルの稜線から）
+    fn collect_faces(&self, shells: &[u64]) -> (Vec<PreparedFace>, BTreeMap<u64, (usize, u64)>) {
+        let mut faces = Vec::new();
+        let mut uses: BTreeMap<u64, (usize, u64)> = BTreeMap::new();
+        let mut seen = HashSet::new();
+        for &shell in shells {
+            let Ok((shell, _)) = self.resolve(shell, |topology| match topology {
+                Topology::OrientedShell { shell, orientation } => Some((*shell, *orientation)),
+                _ => None,
+            }) else {
+                continue;
+            };
+            let Ok(Topology::Shell {
+                faces: shell_faces, ..
+            }) = self.topology(shell)
+            else {
+                continue;
+            };
+            for &face in shell_faces {
+                let Ok((face, _)) = self.resolve(face, |topology| match topology {
+                    Topology::OrientedFace { face, orientation } => Some((*face, *orientation)),
+                    _ => None,
+                }) else {
+                    continue;
+                };
+                if !seen.insert(face) {
+                    continue;
+                }
+                let Ok(Topology::Face {
+                    bounds, surface, ..
+                }) = self.topology(face)
+                else {
+                    continue;
+                };
+                let surface = match surface {
+                    Some(surface) => match self.geometries.surfaces.get(surface) {
+                        Some(typed) if !matches!(typed.surface, SurfaceRef::Nurbs(_)) => {
+                            Some(typed.surface.clone())
+                        }
+                        _ => continue,
+                    },
+                    None => None,
+                };
+                let mut edges = Vec::new();
+                for &bound in bounds {
+                    let Ok(Topology::FaceBound { bound: inner, .. }) = self.topology(bound) else {
+                        continue;
+                    };
+                    let Ok(Topology::EdgeLoop { edges: oriented }) = self.topology(*inner) else {
+                        continue;
+                    };
+                    for &oriented in oriented {
+                        if let Ok((edge, _)) = self.resolve(oriented, |topology| match topology {
+                            Topology::OrientedEdge { edge, orientation } => {
+                                Some((*edge, *orientation))
+                            }
+                            _ => None,
+                        }) {
+                            uses.entry(edge).or_insert((0, face)).0 += 1;
+                            edges.push(edge);
+                        }
+                    }
+                }
+                faces.push(PreparedFace {
+                    id: face,
+                    surface,
+                    edges,
+                });
+            }
+        }
+        (faces, uses)
+    }
+
+    /// 要素の許容誤差の上限と初めの値を決める（上限は、稜線 `edges` の頂点と曲線の外形の箱の対角の長さに比
+    /// `limit_ratio` を掛けた値。円・楕円はその全体を囲む箱、NURBS 曲線は制御点で箱を広げる。初めの値は、
+    /// 文脈の許容誤差 `uncertainty`（なければ全体の許容誤差））
+    fn set_limits(
+        &mut self,
+        edges: &BTreeMap<u64, (usize, u64)>,
+        uncertainty: Option<f64>,
+        limit_ratio: f64,
+    ) {
+        let mut points = Vec::new();
+        for &edge in edges.keys() {
+            let Ok(Topology::Edge {
+                start, end, curve, ..
+            }) = self.topology(edge)
+            else {
+                continue;
+            };
+            points.extend(
+                [*start, *end]
+                    .iter()
+                    .filter_map(|&vertex| self.vertex_point(vertex).ok()),
+            );
+            let around = |center: Point3D<f64>, radius: f64| {
+                [
+                    center + Vector3D::new(-radius, -radius, -radius),
+                    center + Vector3D::new(radius, radius, radius),
+                ]
+            };
+            match self.geometries.curves.get(curve) {
+                Some(Curve::Base(CurveRef::Circle(circle))) => {
+                    points.extend(around(circle.center(), circle.radius()));
+                }
+                Some(Curve::Base(CurveRef::Ellipse(ellipse))) => {
+                    points.extend(around(ellipse.center(), ellipse.semi_major_axis()));
+                }
+                Some(Curve::Base(CurveRef::Nurbs(nurbs))) => {
+                    points.extend(
+                        (0..nurbs.control_point_count())
+                            .filter_map(|index| nurbs.control_point(index)),
+                    );
+                }
+                _ => {}
+            }
+        }
+        let mut bounds: Option<(Point3D<f64>, Point3D<f64>)> = None;
+        for point in points {
+            bounds = Some(match bounds {
+                Some((low, high)) => (
+                    Point3D::new(
+                        low.x().min(point.x()),
+                        low.y().min(point.y()),
+                        low.z().min(point.z()),
+                    ),
+                    Point3D::new(
+                        high.x().max(point.x()),
+                        high.y().max(point.y()),
+                        high.z().max(point.z()),
+                    ),
+                ),
+                None => (point, point),
+            });
+        }
+        let size = bounds.map_or(0.0, |(low, high)| low.distance_to(high));
+        let limit = size * limit_ratio;
+        self.limit = if limit.is_finite() {
+            limit.max(self.global)
+        } else {
+            self.global
+        };
+        self.initial = uncertainty
+            .filter(|value| value.is_finite())
+            .map_or(self.global, |value| value.clamp(self.global, self.limit));
+    }
+
+    /// 頂点をまとめる: 点が両方の許容誤差の和の中で重なる頂点を、1 つの角にまとめる（1 本の稜線の両端の
+    /// 頂点はまとめない。まとめた許容誤差が上限を超えるときもまとめない）
+    fn group_vertices(&mut self, tolerances: &BTreeMap<u64, f64>) {
+        let ends: HashSet<(u64, u64)> = self
+            .shapes
+            .values()
+            .filter_map(|shape| shape.as_ref().ok())
+            .map(|shape| (shape.first.min(shape.last), shape.first.max(shape.last)))
+            .collect();
+        // 格子の大きさを許容誤差の和の最大以上にし、隣の格子までを探す
+        let cell = 2.0
+            * tolerances
+                .values()
+                .fold(self.initial, |max, &value| max.max(value));
+        let key = |point: Point3D<f64>| {
+            (
+                (point.x() / cell).floor() as i64,
+                (point.y() / cell).floor() as i64,
+                (point.z() / cell).floor() as i64,
+            )
+        };
+        let mut grid: HashMap<(i64, i64, i64), Vec<usize>> = HashMap::new();
+        for (&vertex, &tolerance) in tolerances {
+            let Ok(point) = self.vertex_point(vertex) else {
+                continue;
+            };
+            let (x, y, z) = key(point);
+            let mut best: Option<(f64, usize)> = None;
+            for neighbor in (-1..=1).flat_map(|dx| {
+                (-1..=1).flat_map(move |dy| (-1..=1).map(move |dz| (x + dx, y + dy, z + dz)))
+            }) {
+                for &position in grid.get(&neighbor).into_iter().flatten() {
+                    let Some(group) = self.groups.get(position) else {
+                        continue;
+                    };
+                    let distance = group.point.distance_to(point);
+                    let joinable = distance <= group.own_tolerance + tolerance
+                        && group.tolerance.max(distance + tolerance) <= self.limit
+                        && !group.members.iter().any(|&member| {
+                            ends.contains(&(member.min(vertex), member.max(vertex)))
+                        });
+                    if joinable && best.is_none_or(|(nearest, _)| distance < nearest) {
+                        best = Some((distance, position));
+                    }
+                }
+            }
+            match best.and_then(|(distance, position)| {
+                self.groups
+                    .get_mut(position)
+                    .map(|group| (distance, position, group))
+            }) {
+                Some((distance, position, group)) => {
+                    group.tolerance = group.tolerance.max(distance + tolerance);
+                    group.members.push(vertex);
+                    self.corrections.push(Correction::VertexMerged {
+                        vertex,
+                        into: group.id,
+                    });
+                    self.vertex_groups.insert(vertex, position);
+                }
+                None => {
+                    let position = self.groups.len();
+                    self.groups.push(VertexGroup {
+                        id: vertex,
+                        point,
+                        own_tolerance: tolerance,
+                        tolerance,
+                        members: vec![vertex],
+                        index: None,
+                    });
+                    grid.entry((x, y, z)).or_default().push(position);
+                    self.vertex_groups.insert(vertex, position);
+                }
+            }
+        }
+    }
+
+    /// 稜線をまとめる: 同じ頂点の間で、区間を分けた点が両方の許容誤差の和の中で重なり、それぞれ 1 つの面の
+    /// ループだけが 1 回使う稜線の組を、1 本の稜線にまとめる（両端が同じ頂点の稜線はまとめない）
+    fn merge_edges(&mut self, uses: &BTreeMap<u64, (usize, u64)>) {
+        // 両端の頂点の組から、まとめる候補の稜線と、それを使う面
+        let mut candidates: BTreeMap<(usize, usize), Vec<(u64, u64)>> = BTreeMap::new();
+        for (&edge, &(count, face)) in uses {
+            if count != 1 {
+                continue;
+            }
+            let Some(Ok(shape)) = self.shapes.get(&edge) else {
+                continue;
+            };
+            let (Some(&first), Some(&last)) = (
+                self.vertex_groups.get(&shape.first),
+                self.vertex_groups.get(&shape.last),
+            ) else {
+                continue;
+            };
+            if first != last {
+                candidates
+                    .entry((first.min(last), first.max(last)))
+                    .or_default()
+                    .push((edge, face));
+            }
+        }
+        for edges in candidates.values() {
+            let mut used = vec![false; edges.len()];
+            for (position, &(edge, face)) in edges.iter().enumerate() {
+                for (other_position, &(other, other_face)) in
+                    edges.iter().enumerate().skip(position + 1)
+                {
+                    if used.get(position) == Some(&true) {
+                        break;
+                    }
+                    // 同じ面のループの中の 2 本はまとめない（ループの形が変わるため）
+                    if used.get(other_position) == Some(&true) || face == other_face {
+                        continue;
+                    }
+                    if self.merge_edge_pair(edge, other) {
+                        for marked in [position, other_position] {
+                            if let Some(flag) = used.get_mut(marked) {
+                                *flag = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// 稜線 `other` が稜線 `edge` と重なれば、`edge` にまとめる（まとめたか）
+    fn merge_edge_pair(&mut self, edge: u64, other: u64) -> bool {
+        let (Some(Ok(shape)), Some(Ok(other_shape))) =
+            (self.shapes.get(&edge), self.shapes.get(&other))
+        else {
+            return false;
+        };
+        // `other` の B-rep の向きが、`edge` の B-rep の向きと同じか
+        let same_direction =
+            self.vertex_groups.get(&other_shape.first) == self.vertex_groups.get(&shape.first);
+        let point = |shape: &EdgeShape, fraction: f64| {
+            let (t0, t1) = shape.range;
+            shape.curve.point_at_parameter(t0 + (t1 - t0) * fraction)
+        };
+        let distance = (0..=EDGE_COMPARISON_SEGMENTS).fold(0.0_f64, |max, index| {
+            let fraction = index as f64 / EDGE_COMPARISON_SEGMENTS as f64;
+            let other_fraction = if same_direction {
+                fraction
+            } else {
+                1.0 - fraction
+            };
+            max.max(point(shape, fraction).distance_to(point(other_shape, other_fraction)))
+        });
+        let tolerance = shape.tolerance.max(other_shape.tolerance + distance);
+        if !(distance <= shape.tolerance + other_shape.tolerance && tolerance <= self.limit) {
+            return false;
+        }
+        // `other` のファイルの始点から終点へ、まとめ先の B-rep の稜線が進むか
+        let along = other_shape.along == same_direction;
+        if let Some(Ok(shape)) = self.shapes.get_mut(&edge) {
+            shape.tolerance = tolerance;
+        }
+        self.merged_edges.insert(other, (edge, along));
+        self.corrections.push(Correction::EdgeMerged {
+            edge: other,
+            into: edge,
+        });
+        true
+    }
+
+    /// 面 `face` の稜線の許容誤差を、面の曲面からのずれに合わせて広げる（上限を超える稜線があれば、どの
+    /// 稜線も広げず、面を外す理由を残す）
+    fn fit_edges_to_surface(&mut self, face: &PreparedFace) {
+        let Some(surface) = &face.surface else {
+            return;
+        };
+        let mut widened = Vec::new();
+        for &referenced in &face.edges {
+            let edge = self
+                .merged_edges
+                .get(&referenced)
+                .map_or(referenced, |&(into, _)| into);
+            let Some(Ok(shape)) = self.shapes.get(&edge) else {
+                continue;
+            };
+            // パラメータ曲線を作れない組は、面を足すときに理由を残す
+            let Some(deviation) =
+                ParameterCurve::surface_deviation(surface, &shape.curve, shape.range)
+            else {
+                continue;
+            };
+            let tolerance = deviation * self.factor;
+            if tolerance > self.limit {
+                self.face_failures.insert(
+                    face.id,
+                    Failure::new(referenced, TopologyError::ToleranceExceeded { deviation }),
+                );
+                return;
+            }
+            if tolerance > shape.tolerance {
+                widened.push((edge, tolerance));
+            }
+        }
+        for (edge, tolerance) in widened {
+            if let Some(Ok(shape)) = self.shapes.get_mut(&edge) {
+                shape.tolerance = shape.tolerance.max(tolerance);
+            }
+        }
+    }
+
+    /// 表現の要素 `item` の B-rep と、外した要素（面が 1 つもできなければ、B-rep は `None`）
+    fn item(mut self, item: u64) -> (Option<Built>, Vec<TopologySkipped>) {
+        // シェルと、立体の要素か（立体なら、初めのシェルが外側）
+        let (shells, solid) = match self.item_shells(item) {
+            Ok(shells) => shells,
             Err(failure) => {
                 self.skip(item, failure);
                 return (None, self.skipped);
@@ -399,6 +918,9 @@ impl<'a> ItemBuilder<'a> {
             }
             None => None,
         };
+        if let Some(&failure) = self.face_failures.get(&id) {
+            return Err(failure);
+        }
         let mut loops = Vec::with_capacity(bounds.len());
         let mut loop_bounds = Vec::with_capacity(bounds.len());
         for &bound in &bounds {
@@ -489,7 +1011,7 @@ impl<'a> ItemBuilder<'a> {
                     let position = self.point(point)?;
                     let vertex = self
                         .brep
-                        .add_vertex(position, 0.0)
+                        .add_vertex(position, self.initial)
                         .map_err(|error| Failure::new(point, TopologyError::Brep(error)))?;
                     self.points.insert(point, vertex);
                     vertex
@@ -536,7 +1058,7 @@ impl<'a> ItemBuilder<'a> {
             self.brep.vertex(end).point(),
         )?;
         self.brep
-            .add_edge(start, end, line, range, 0.0)
+            .add_edge(start, end, line, range, self.initial)
             .map_err(TopologyError::Brep)
     }
 
@@ -547,35 +1069,108 @@ impl<'a> ItemBuilder<'a> {
         }
     }
 
-    /// ファイルの頂点 `id` の B-rep の頂点
-    fn vertex(&mut self, id: u64) -> Result<VertexIndex, Failure> {
-        if let Some(&vertex) = self.vertices.get(&id) {
-            return Ok(vertex);
-        }
+    /// ファイルの頂点 `id` の点
+    fn vertex_point(&self, id: u64) -> Result<Point3D<f64>, Failure> {
         let Topology::Vertex { point } = self.topology(id)? else {
             return Err(Failure::new(id, TopologyError::MissingReference));
         };
-        let position = self.point(*point)?;
-        let vertex = self
+        self.point(*point)
+    }
+
+    /// ファイルの頂点 `id` の B-rep の頂点（同じ角にまとめた頂点は、1 つの B-rep の頂点になる）
+    fn vertex(&mut self, id: u64) -> Result<VertexIndex, Failure> {
+        if !self.vertex_groups.contains_key(&id) {
+            // 前もって集めなかった頂点は、1 つだけの組にする
+            let point = self.vertex_point(id)?;
+            self.vertex_groups.insert(id, self.groups.len());
+            self.groups.push(VertexGroup {
+                id,
+                point,
+                own_tolerance: self.initial,
+                tolerance: self.initial,
+                members: vec![id],
+                index: None,
+            });
+        }
+        let group = self
+            .vertex_groups
+            .get(&id)
+            .and_then(|&position| self.groups.get(position))
+            .ok_or(Failure::new(id, TopologyError::MissingReference))?;
+        if let Some(index) = group.index {
+            return Ok(index);
+        }
+        let (position, point, tolerance) = (
+            self.vertex_groups.get(&id).copied(),
+            group.point,
+            group.tolerance,
+        );
+        let index = self
             .brep
-            .add_vertex(position, 0.0)
+            .add_vertex(point, tolerance)
             .map_err(|error| Failure::new(id, TopologyError::Brep(error)))?;
-        self.vertices.insert(id, vertex);
-        Ok(vertex)
+        if let Some(group) = position.and_then(|position| self.groups.get_mut(position)) {
+            group.index = Some(index);
+        }
+        Ok(index)
     }
 
     /// ファイルの稜線 `id` の B-rep の稜線と、B-rep の稜線がファイルの稜線と同じ向き（ファイルの始点から終点へ
-    /// 区間が増える）か
+    /// 区間が増える）か（まとめた稜線は、まとめ先の B-rep の稜線）
     fn edge(&mut self, id: u64) -> Result<(EdgeIndex, bool), Failure> {
         if let Some(&result) = self.edges.get(&id) {
             return result;
         }
-        let result = self.build_edge(id);
+        let result = match self.merged_edges.get(&id) {
+            Some(&(into, along)) => self.edge(into).map(|(index, _)| (index, along)),
+            None => self.build_edge(id),
+        };
         self.edges.insert(id, result);
         result
     }
 
     fn build_edge(&mut self, id: u64) -> Result<(EdgeIndex, bool), Failure> {
+        let shape = match self.shapes.remove(&id) {
+            Some(shape) => shape?,
+            None => {
+                // 前もって求めなかった稜線は、ここで求める（頂点のずれは、稜線の許容誤差に含め、表に足すときに
+                // 頂点の許容誤差を広げる）
+                let (mut shape, deviations) = self.checked_edge_shape(id)?;
+                for (_, deviation) in deviations {
+                    shape.tolerance = shape.tolerance.max(deviation * self.factor);
+                }
+                shape
+            }
+        };
+        if let Some(correction) = shape.correction {
+            self.corrections.push(correction);
+        }
+        let first = self.vertex(shape.first)?;
+        let last = self.vertex(shape.last)?;
+        let index = self
+            .brep
+            .add_edge(first, last, shape.curve, shape.range, shape.tolerance)
+            .map_err(|error| Failure::new(id, TopologyError::Brep(error)))?;
+        Ok((index, shape.along))
+    }
+
+    /// `edge_shape` に、頂点のずれが上限を超えないことの確かめを足したもの
+    fn checked_edge_shape(&self, id: u64) -> Result<(EdgeShape, [(u64, f64); 2]), Failure> {
+        let (shape, deviations) = self.edge_shape(id)?;
+        for (vertex, deviation) in deviations {
+            if deviation * self.factor > self.limit {
+                return Err(Failure::new(
+                    vertex,
+                    TopologyError::ToleranceExceeded { deviation },
+                ));
+            }
+        }
+        Ok((shape, deviations))
+    }
+
+    /// ファイルの稜線 `id` の B-rep の稜線の形と、両端の頂点の、曲線の区間の端からのずれ（ファイルの頂点と
+    /// ずれの組）
+    fn edge_shape(&self, id: u64) -> Result<(EdgeShape, [(u64, f64); 2]), Failure> {
         let Topology::Edge {
             start,
             end,
@@ -589,19 +1184,17 @@ impl<'a> ItemBuilder<'a> {
         let written_sense = *same_sense;
         let same_sense = written_sense.unwrap_or(true);
         let closed = start == end;
-        let start = self.vertex(start)?;
-        let end = self.vertex(end)?;
-        let from = self.brep.vertex(start).point();
-        let to = self.brep.vertex(end).point();
+        let from = self.vertex_point(start)?;
+        let to = self.vertex_point(end)?;
         let curve = self
             .geometries
             .curves
             .get(&curve_id)
             .ok_or(Failure::new(curve_id, TopologyError::MissingGeometry))?;
         let fail = |reason| Failure::new(id, reason);
-        let tolerance = self.tolerance;
-        // 型の曲線・区間・稜線の許容誤差（近似のずれ）・ファイルの向きに区間が増えるか・頂点の順で向きを
-        // 決めたか（開いた曲線）
+        let tolerance = self.initial;
+        let mut correction = None;
+        // 型の曲線・区間・近似のずれ・ファイルの向きに区間が増えるか・頂点の順で向きを決めたか（開いた曲線）
         let (curve, range, deviation, along, by_vertices) = match curve {
             Curve::Base(CurveRef::Line(line)) => {
                 if closed {
@@ -610,8 +1203,7 @@ impl<'a> ItemBuilder<'a> {
                 if line.distance_to_point(from).max(line.distance_to_point(to)) > tolerance {
                     // 頂点が直線から外れていれば、頂点の間の線分にする
                     let (segment, range) = segment(from, to).map_err(fail)?;
-                    self.corrections
-                        .push(Correction::EdgeToSegment { edge: id });
+                    correction = Some(Correction::EdgeToSegment { edge: id });
                     (segment, range, 0.0, true, false)
                 } else {
                     let (range, along) =
@@ -631,13 +1223,7 @@ impl<'a> ItemBuilder<'a> {
                 (CurveRef::Circle(*circle), range, 0.0, along, false)
             }
             Curve::Base(CurveRef::Ellipse(ellipse)) => {
-                let x = ellipse.major_axis_direction().as_vector();
-                let y = ellipse.minor_axis_direction().as_vector();
-                let angle = |point: Point3D<f64>| {
-                    let offset = point - ellipse.center();
-                    (offset.dot(y) / ellipse.semi_minor_axis())
-                        .atan2(offset.dot(x) / ellipse.semi_major_axis())
-                };
+                let angle = |point| ellipse_angle(ellipse, point, tolerance);
                 let (range, along) = closed_range(angle(from), angle(to), closed, same_sense);
                 (CurveRef::Ellipse(*ellipse), range, 0.0, along, false)
             }
@@ -662,14 +1248,33 @@ impl<'a> ItemBuilder<'a> {
         };
         // 開いた曲線では、`same_sense` と頂点の順が食い違えば、頂点の順を使う
         if by_vertices && written_sense.is_some_and(|written| written != along) {
-            self.corrections.push(Correction::EdgeSense { edge: id });
+            correction = Some(Correction::EdgeSense { edge: id });
         }
-        let (first, last) = if along { (start, end) } else { (end, start) };
-        let index = self
-            .brep
-            .add_edge(first, last, curve, range, deviation)
-            .map_err(|error| fail(TopologyError::Brep(error)))?;
-        Ok((index, along))
+        let (first, last, first_point, last_point) = if along {
+            (start, end, from, to)
+        } else {
+            (end, start, to, from)
+        };
+        let deviations = [
+            (
+                first,
+                first_point.distance_to(curve.point_at_parameter(range.0)),
+            ),
+            (
+                last,
+                last_point.distance_to(curve.point_at_parameter(range.1)),
+            ),
+        ];
+        let shape = EdgeShape {
+            first,
+            last,
+            curve,
+            range,
+            along,
+            tolerance: deviation.max(self.initial),
+            correction,
+        };
+        Ok((shape, deviations))
     }
 
     /// 曲面のない面 `id` の、ループの載る平面（法線は、最も大きいループが反時計回りに見える向き）
@@ -911,6 +1516,33 @@ fn nurbs_parameter(
         }
     }
     Some(t)
+}
+
+/// 楕円の上で、点 `point` に最も近い点の角度（半軸で割った座標の角度から、ニュートン法で、楕円の上を動く
+/// 距離が `tolerance` 以下になるまで詰める）
+fn ellipse_angle(ellipse: &TopoEllipse3D<f64>, point: Point3D<f64>, tolerance: f64) -> f64 {
+    let offset = point - ellipse.center();
+    let (a, b) = (ellipse.semi_major_axis(), ellipse.semi_minor_axis());
+    let x = offset.dot(ellipse.major_axis_direction().as_vector());
+    let y = offset.dot(ellipse.minor_axis_direction().as_vector());
+    let mut angle = (y / b).atan2(x / a);
+    for _ in 0..MAX_NEWTON_STEPS {
+        let (sin, cos) = angle.sin_cos();
+        // 楕円の点から点 `point` への向き・接線・2 階の微分（楕円の座標で）
+        let (dx, dy) = (a * cos - x, b * sin - y);
+        let (tx, ty) = (-a * sin, b * cos);
+        let slope = dx * tx + dy * ty;
+        let curvature = tx * tx + ty * ty - (dx * a * cos + dy * b * sin);
+        if curvature <= DERIVATIVE_ZERO_THRESHOLD_F64 {
+            break;
+        }
+        let step = slope / curvature;
+        angle -= step;
+        if step.abs() * (tx * tx + ty * ty).sqrt() <= tolerance {
+            break;
+        }
+    }
+    angle
 }
 
 /// 放物線・双曲線の上の点 `point` のパラメータ（`y` の軸の成分から求める）

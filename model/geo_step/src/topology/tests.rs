@@ -172,6 +172,7 @@ impl Builder {
             &self.records,
             &geometries,
             TopologyToleranceSettings::new(TOLERANCE),
+            ImportToleranceSettings::default(),
         )
         .unwrap()
     }
@@ -709,6 +710,7 @@ fn an_invalid_tolerance_is_refused() {
         &Records::default(),
         &Geometries::default(),
         TopologyToleranceSettings::new(f64::NAN),
+        ImportToleranceSettings::default(),
     );
     assert_eq!(result.err(), Some(BrepError::InvalidTolerance));
 }
@@ -863,4 +865,315 @@ fn a_closed_edge_on_a_closed_b_spline_must_start_at_its_seam() {
             );
         }
     }
+}
+
+/// 表現の文脈（番号 0）の許容誤差を `uncertainty_mm` にする
+fn set_uncertainty(builder: &mut Builder, uncertainty_mm: f64) {
+    builder.records.contexts.insert(
+        0,
+        crate::record::Context {
+            dimension: Some(3),
+            length_to_mm: 1.0,
+            angle_to_degrees: 1.0,
+            uncertainty_mm: Some(uncertainty_mm),
+            default_units: false,
+        },
+    );
+}
+
+/// 面 `face` の曲面を、点 `origin` を通り法線 `normal` の平面にする
+fn set_face_plane(builder: &mut Builder, face: u64, origin: [f64; 3], normal: [f64; 3]) {
+    let plane = plane_at(builder, origin, normal);
+    let Some(Topology::Face { surface, .. }) = builder.records.topology.get_mut(&face) else {
+        panic!("a face");
+    };
+    *surface = Some(plane);
+}
+
+/// 立方体の上の面の稜線（ファイルの番号の順）
+fn cube_top_edges(cube: &Polyhedron) -> Vec<u64> {
+    let mut edges: Vec<u64> = [(4, 5), (5, 6), (6, 7), (7, 4)]
+        .iter()
+        .map(|key| cube.edges[key])
+        .collect();
+    edges.sort();
+    edges
+}
+
+#[test]
+fn edges_off_their_face_surface_are_widened() {
+    // 上の面の平面を、稜線から 2e-4 だけ上げる（上限は、立方体の対角 √3 × 1e-3）
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let top = cube.faces[1];
+    set_face_plane(&mut cube.builder, top, [0.0, 0.0, 1.0002], [0.0, 0.0, 1.0]);
+
+    let topologies = cube.builder.build();
+    let built = assert_closed_solid(&topologies, 6);
+    let widened: Vec<u64> = built
+        .corrections
+        .iter()
+        .map(|correction| match *correction {
+            Correction::EdgeToleranceWidened { edge, tolerance } => {
+                // ずれの 1.5 倍
+                assert!((tolerance - 3.0e-4).abs() < 1.0e-12, "{tolerance}");
+                edge
+            }
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(widened, cube_top_edges(&cube));
+}
+
+#[test]
+fn a_face_beyond_the_tolerance_limit_is_skipped() {
+    // 上の面の平面を、稜線から 0.01 だけ上げる（1.5 倍の 0.015 は、上限 √3 × 1e-3 を超える）
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let top = cube.faces[1];
+    set_face_plane(&mut cube.builder, top, [0.0, 0.0, 1.01], [0.0, 0.0, 1.0]);
+
+    let topologies = cube.builder.build();
+    assert_eq!(topologies.items[0].faces.len(), 5);
+    assert!(topologies.items[0].corrections.is_empty());
+    let [skipped] = topologies.skipped.as_slice() else {
+        panic!("{:?}", topologies.skipped);
+    };
+    assert_eq!(skipped.id, top);
+    assert_eq!(skipped.cause, cube.edges[&(4, 5)]);
+    let TopologyError::ToleranceExceeded { deviation } = skipped.reason else {
+        panic!("{:?}", skipped.reason);
+    };
+    assert!((deviation - 0.01).abs() < 1.0e-12, "{deviation}");
+}
+
+/// 半径 1 の円の 4 分の 1 の弧と弦の面（弧の両端の頂点は、半径 `vertex_radius` の上）の記録と、面と弧の頂点
+fn arc_face(vertex_radius: f64) -> (Builder, u64, [u64; 2]) {
+    let mut builder = Builder::new();
+    let a = builder.vertex([vertex_radius, 0.0, 0.0]);
+    let b = builder.vertex([0.0, vertex_radius, 0.0]);
+    let circle = builder.circle([0.0; 3], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0], 1.0);
+    let line = builder.line([vertex_radius, 0.0, 0.0], [-1.0, 1.0, 0.0]);
+    let arc = builder.edge(a, b, circle, true);
+    let chord = builder.edge(b, a, line, false);
+    let plane = plane_at(&mut builder, [0.0; 3], [0.0, 0.0, 1.0]);
+    let bound = builder.bound(&[(arc, true), (chord, true)], true);
+    let face = builder.face(vec![bound], plane, true);
+    builder.open_shell(vec![face]);
+    (builder, face, [a, b])
+}
+
+#[test]
+fn vertices_off_their_curve_are_widened() {
+    // 弧の頂点を、円から 2e-4 だけ外す（上限は、頂点と円の外形の箱の対角 2√3 × 1e-3 ≒ 3.5e-3）
+    let (builder, _, [a, b]) = arc_face(1.0002);
+
+    let topologies = builder.build();
+    assert!(topologies.skipped.is_empty(), "{:?}", topologies.skipped);
+    let built = &topologies.items[0];
+    assert_eq!(built.corrections.len(), 2, "{:?}", built.corrections);
+    for (correction, vertex) in built.corrections.iter().zip([a, b]) {
+        let Correction::VertexToleranceWidened {
+            vertex: widened,
+            tolerance,
+        } = *correction
+        else {
+            panic!("{correction:?}");
+        };
+        assert_eq!(widened, vertex);
+        assert!((tolerance - 3.0e-4).abs() < 1.0e-12, "{tolerance}");
+    }
+    let report = built.brep.validate();
+    assert!(report.is_valid(), "{report:?}");
+}
+
+#[test]
+fn a_vertex_beyond_the_tolerance_limit_skips_its_faces() {
+    // 弧の頂点を、円から 0.01 だけ外す（1.5 倍の 0.015 は、上限 ≒ 3.5e-3 を超える）
+    let (builder, face, [a, _]) = arc_face(1.01);
+
+    let topologies = builder.build();
+    assert!(topologies.items.is_empty());
+    let [skipped] = topologies.skipped.as_slice() else {
+        panic!("{:?}", topologies.skipped);
+    };
+    assert_eq!((skipped.id, skipped.cause), (face, a));
+    let TopologyError::ToleranceExceeded { deviation } = skipped.reason else {
+        panic!("{:?}", skipped.reason);
+    };
+    assert!((deviation - 0.01).abs() < 1.0e-12, "{deviation}");
+}
+
+#[test]
+fn vertices_at_one_corner_are_merged() {
+    // 角 6 に、5e-7 だけ離れた 2 つ目の頂点を置き、稜線 5 → 6 と 6 → 7 はそちらを使う（文脈の許容誤差は 1e-6）
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    set_uncertainty(&mut cube.builder, 1.0e-6);
+    let second = cube.builder.vertex([1.0 + 5.0e-7, 1.0, 1.0]);
+    let mut first = None;
+    for (key, is_end) in [((5, 6), true), ((6, 7), false)] {
+        let edge = cube.edges[&key];
+        let Some(Topology::Edge { start, end, .. }) = cube.builder.records.topology.get_mut(&edge)
+        else {
+            panic!("an edge");
+        };
+        let corner = if is_end { end } else { start };
+        first = Some(*corner);
+        *corner = second;
+    }
+
+    let topologies = cube.builder.build();
+    // まとめなければ、ループがつながらず、表の確かめを通らない
+    let built = assert_closed_solid(&topologies, 6);
+    let first = first.unwrap();
+    assert_eq!(built.corrections.len(), 2, "{:?}", built.corrections);
+    assert_eq!(
+        built.corrections[0],
+        Correction::VertexMerged {
+            vertex: second,
+            into: first
+        }
+    );
+    let Correction::VertexToleranceWidened { vertex, tolerance } = built.corrections[1] else {
+        panic!("{:?}", built.corrections[1]);
+    };
+    // まとめた頂点をすべて含む: 離れ 5e-7 と 2 つ目の頂点の許容誤差 1e-6 の和
+    assert_eq!(vertex, first);
+    assert!((tolerance - 1.5e-6).abs() < 1.0e-15, "{tolerance}");
+}
+
+#[test]
+fn the_two_vertices_of_a_short_edge_are_not_merged() {
+    // 5e-7 の長さの辺を持つ五角形の面（文脈の許容誤差は 1e-6 で、両端は許容誤差の和の中で重なる）
+    let points = [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0, 1.0, 0.0],
+        [0.5, 1.0, 0.0],
+        [0.5 - 5.0e-7, 1.0, 0.0],
+    ];
+    let mut pentagon = polyhedron(&points, &[&[0, 1, 2, 3, 4]], &[]);
+    set_uncertainty(&mut pentagon.builder, 1.0e-6);
+
+    let topologies = pentagon.builder.build();
+    assert!(topologies.skipped.is_empty(), "{:?}", topologies.skipped);
+    let built = &topologies.items[0];
+    assert!(built.corrections.is_empty(), "{:?}", built.corrections);
+    let face = built.brep.face(built.faces[&pentagon.faces[0]]);
+    assert_eq!(built.brep.face_loop(face.loops()[0]).uses().len(), 5);
+    let report = built.brep.validate();
+    assert!(report.is_valid(), "{report:?}");
+}
+
+#[test]
+fn overlapping_edges_between_the_same_vertices_are_merged() {
+    // 右の面（3 番）は、下の面と共有する稜線 2 → 1 の代わりに、同じ直線の上の別の稜線 1 → 2 を使う
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let shared = cube.edges[&(2, 1)];
+    let Some(&Topology::Edge { start, end, .. }) = cube.builder.records.topology.get(&shared)
+    else {
+        panic!("an edge");
+    };
+    let line = cube.builder.line([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+    let duplicate = cube.builder.edge(end, start, line, true);
+    let oriented = cube
+        .builder
+        .records
+        .topology
+        .iter()
+        .find_map(|(&id, topology)| match topology {
+            Topology::OrientedEdge {
+                edge,
+                orientation: Some(false),
+            } if *edge == shared => Some(id),
+            _ => None,
+        })
+        .expect("the right face uses the shared edge backward");
+    cube.builder.records.topology.insert(
+        oriented,
+        Topology::OrientedEdge {
+            edge: duplicate,
+            orientation: Some(true),
+        },
+    );
+
+    let topologies = cube.builder.build();
+    // まとめなければ、シェルが閉じない
+    let built = assert_closed_solid(&topologies, 6);
+    assert_eq!(
+        built.corrections,
+        vec![Correction::EdgeMerged {
+            edge: duplicate,
+            into: shared
+        }]
+    );
+}
+
+#[test]
+fn invalid_import_tolerance_settings_are_refused() {
+    for settings in [
+        ImportToleranceSettings {
+            limit_ratio: 0.0,
+            ..ImportToleranceSettings::default()
+        },
+        ImportToleranceSettings {
+            deviation_factor: 0.5,
+            ..ImportToleranceSettings::default()
+        },
+        ImportToleranceSettings {
+            limit_ratio: f64::INFINITY,
+            ..ImportToleranceSettings::default()
+        },
+    ] {
+        let result = build(
+            &Records::default(),
+            &Geometries::default(),
+            TopologyToleranceSettings::new(TOLERANCE),
+            settings,
+        );
+        assert_eq!(result.err(), Some(BrepError::InvalidTolerance));
+    }
+}
+
+#[test]
+fn the_nearest_angle_on_an_ellipse_is_found() {
+    use geo_contracts::Ellipse3DConstructor;
+    let ellipse = TopoEllipse3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        10.0,
+        1.0,
+        Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap(),
+        Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap(),
+    )
+    .unwrap();
+    // 角度 45 度の点から、法線の向きに 1e-4 だけ外した点
+    let angle = std::f64::consts::FRAC_PI_4;
+    let on_curve = Point3D::new(10.0 * angle.cos(), angle.sin(), 0.0);
+    let normal = Vector3D::new(angle.cos(), 10.0 * angle.sin(), 0.0);
+    let point = on_curve + normal * (1.0e-4 / normal.length());
+    let found = ellipse_angle(&ellipse, point, TOLERANCE);
+    assert!((found - angle).abs() < 1.0e-9, "{found}");
+}
+
+#[test]
+fn coincident_edges_in_one_loop_are_not_merged() {
+    // 1 つのループが、同じ 2 つの頂点の間の重なる 2 本の稜線を、行きと帰りに使う
+    let mut builder = Builder::new();
+    let a = builder.vertex([0.0, 0.0, 0.0]);
+    let b = builder.vertex([1.0, 0.0, 0.0]);
+    let forward_line = builder.line([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]);
+    let backward_line = builder.line([1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]);
+    let forward = builder.edge(a, b, forward_line, true);
+    let backward = builder.edge(b, a, backward_line, true);
+    let plane = plane_at(&mut builder, [0.0; 3], [0.0, 0.0, 1.0]);
+    let bound = builder.bound(&[(forward, true), (backward, true)], true);
+    let face = builder.face(vec![bound], plane, true);
+    builder.open_shell(vec![face]);
+
+    let topologies = builder.build();
+    let merged = topologies.items.iter().any(|built| {
+        built
+            .corrections
+            .iter()
+            .any(|correction| matches!(correction, Correction::EdgeMerged { .. }))
+    });
+    assert!(!merged);
 }

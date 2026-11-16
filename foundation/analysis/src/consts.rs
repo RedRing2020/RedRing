@@ -133,6 +133,15 @@ pub mod precision {
     pub const ANGLE_360: f64 = TAU;
 }
 
+/// 形状の読み込みで、要素（頂点・稜線）の許容誤差を広げるときの既定値
+pub mod import_tolerance {
+    /// 要素の許容誤差の上限の、読み込む立体の大きさ（外形の箱の対角の長さ）に対する比
+    pub const ELEMENT_TOLERANCE_LIMIT_RATIO: f64 = 1e-3;
+
+    /// 要素の許容誤差を広げるときに、測ったずれに掛ける倍率
+    pub const DEVIATION_FACTOR: f64 = 1.5;
+}
+
 /// 後方互換性のための precision エイリアス
 pub const PI: f64 = precision::PI;
 pub const TAU: f64 = precision::TAU;
