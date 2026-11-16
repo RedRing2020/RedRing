@@ -1212,6 +1212,9 @@ dependencies = [
 [[package]]
 name = "geo_step"
 version = "0.1.0"
+dependencies = [
+ "analysis",
+]
 
 [[package]]
 name = "geo_topology"
