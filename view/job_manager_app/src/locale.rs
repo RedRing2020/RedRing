@@ -91,29 +91,12 @@ fn set_current(language: Language) {
 }
 
 /// OS の表示言語（日本語のときは日本語、それ以外は英語）
-#[cfg(windows)]
 fn os_language() -> Language {
-    use windows_sys::Win32::Globalization::GetUserDefaultUILanguage;
-    /// 言語の ID の主な言語の部分の、日本語
-    const LANG_JAPANESE: u16 = 0x11;
-    // SAFETY: 引数のない、状態を変えない関数
-    let language_id = unsafe { GetUserDefaultUILanguage() };
-    if language_id & 0x3ff == LANG_JAPANESE {
+    if platform_foundation::locale::user_language().as_deref() == Some("ja") {
         Language::Ja
     } else {
         Language::En
     }
-}
-
-/// OS の表示言語（環境の変数 `LC_ALL`・`LC_MESSAGES`・`LANG` の最初に値のあるものが日本語のときは日本語、それ以外は
-/// 英語）
-#[cfg(not(windows))]
-fn os_language() -> Language {
-    let japanese = ["LC_ALL", "LC_MESSAGES", "LANG"]
-        .iter()
-        .find_map(|name| std::env::var(name).ok().filter(|value| !value.is_empty()))
-        .is_some_and(|value| value.starts_with("ja"));
-    if japanese { Language::Ja } else { Language::En }
 }
 
 #[cfg(test)]

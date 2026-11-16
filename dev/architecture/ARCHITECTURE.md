@@ -113,7 +113,7 @@ foundation（analysis / logging_foundation / i18n_foundation / platform_foundati
 OS・コンテナなど、動かす環境によって違う処理は、`foundation/platform_foundation` に集め、環境に依らない API の薄いラッパーとして使う。業務のクレートは、環境ごとの違い（`#[cfg(windows)]` など）と、OS の API のクレート（windows-sys など）を持たない。
 
 - **置くもの**: 動かす環境によって違う処理を、環境に依らない API で見せるもの
-    - OS の違い: 子プロセスの扱い（親のプロセスが終わると一緒に止まる組・コンソールを出さない指定）、プロセスの間の口（名前付きパイプ・UNIX ドメインソケット）、ウィンドウを前に出す権利を渡す処理
+    - OS の違い: 子プロセスの扱い（親のプロセスが終わると一緒に止まる組・コンソールを出さない指定）、プロセスの間の口（名前付きパイプ・UNIX ドメインソケット）、ウィンドウを前に出す権利を渡す処理、利用者の表示の言語、フォルダがこの PC にあるか（ネットワークのドライブでないか）、サインインしたときに起動するプログラム
     - 動かす環境の違い: 利用者のフォルダの場所（`%LOCALAPPDATA%`・`$XDG_DATA_HOME` など）
     - ファイルの置き換えと名前の変更（`file`）: 一時のファイルに書き、ドライブまで書き込んでから、名前を変えて置き換える。Windows で名前の変更をほかのプログラムに一時的に断られたときの試し直し、Windows 以外でのフォルダの書き込みを、ここに閉じる。ファイルを置き換える書き込み（ジョブの保存先・ランナーの成果物と進み具合・設定・モデルファイル）と、ジョブの保存先のファイル・フォルダの名前の変更（投入・取り込み・削除・ランナーのログ）は、どれもこれを使う
 - **置かないもの**
@@ -140,9 +140,9 @@ OS・コンテナなど、動かす環境によって違う処理は、`foundati
 | 1 | `job_manager` の `launcher.rs`、`application` の `job_client/pipe.rs` | コンソールを出さない指定（`#[cfg(windows)]`。ランナーとジョブマネージャーを起動するとき） | `platform_foundation` の `process` に移し、2 か所で同じ API を使う。ランナーをジョブオブジェクトに入れる処理と一緒に入れる（`JOB_MANAGER_STORAGE_DESIGN.md` 3.3） |
 | 2 | `job_ipc` の `endpoint/windows.rs`・`unix.rs` | 名前付きパイプ・UNIX ドメインソケット、ウィンドウを前に出す権利を渡す（`allow_server_foreground`）（windows-sys） | `platform_foundation` の `ipc` に移す。枠・要求と応答の型は `job_ipc` に残す |
 | 3 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` の `folder` に移し、3 か所で共有する（データのフォルダ・設定のフォルダ。その下の `RedRing` のフォルダの名前は、使う側が付ける） |
-| 4 | `job_manager_app` の `main.rs`・`tray.rs`・`locale.rs`・`store_change.rs` | タスクトレイ（ウィンドウを前に出す権利を渡す処理を含む）・レジストリ・ロケールなど（windows-sys） | タスクトレイなどの画面の部品は残す。画面の部品でないもの（レジストリ・ロケールの取得など）を移すかは、そのときに決める |
+| 4 | `job_manager_app` の `main.rs`・`tray.rs`・`locale.rs`・`store_change.rs` | タスクトレイ（ウィンドウを前に出す権利を渡す処理を含む）・レジストリ・ロケールなど（windows-sys） | タスクトレイ・吹き出し・ウィンドウなどの画面の部品は残す。画面の部品でないもの（OS の表示の言語、ネットワークのドライブの判定、サインインしたときに起動するプログラムのレジストリ）は、`platform_foundation` の `locale`・`folder`・`autostart` に移す（起動するコマンドの組み立てと、保存先の指定を外すなどの判断は `job_manager_app` に残す） |
 
-- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行った（`platform_foundation` の `process`）。3 は、`platform_foundation` の `folder` で行った（ジョブマネージャーのログのフォルダも、ここから求める）。2 は、`platform_foundation` の `ipc` で行った（口の名前は、`job_ipc` が渡す）。表の今の場所は、移す前の場所。4 は、分けて行う
+- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行った（`platform_foundation` の `process`）。3 は、`platform_foundation` の `folder` で行った（ジョブマネージャーのログのフォルダも、ここから求める）。2 は、`platform_foundation` の `ipc` で行った（口の名前は、`job_ipc` が渡す）。4 は、`platform_foundation` の `locale`・`folder`（`is_on_this_pc`）・`autostart` で行った（`job_manager_app` で windows-sys を使うのは、タスクトレイだけになった）。表の今の場所は、移す前の場所
 - クレートを作る変更で、ワークスペースの `members`・`scripts/_arch_rules_data.ps1`・この文書の層の図を更新する（依存チェック運用）
 
 ## 📏 運用ルール

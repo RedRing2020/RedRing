@@ -98,3 +98,16 @@ fn the_xdg_folders_are_used_and_otherwise_the_home_folder() {
         None
     );
 }
+
+#[cfg(windows)]
+#[test]
+fn network_folders_are_not_on_this_pc() {
+    // Windows のフォルダは、この PC のドライブにある（一時のフォルダは、ネットワークに置く環境があるため使わない）
+    let system = std::fs::canonicalize(std::env::var_os("SystemRoot").unwrap()).unwrap();
+    assert!(super::is_on_this_pc(&system));
+    // UNC のパス（ネットワークのフォルダ）・ドライブのないパスは、この PC のフォルダとしない
+    assert!(!super::is_on_this_pc(std::path::Path::new(
+        r"\\server\share\folder"
+    )));
+    assert!(!super::is_on_this_pc(std::path::Path::new(r"relative")));
+}

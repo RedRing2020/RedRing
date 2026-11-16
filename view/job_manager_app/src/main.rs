@@ -373,11 +373,13 @@ fn notify_finished(
     );
 }
 
+/// Windows の起動のときに起動するプログラムの名前
+const AUTOSTART_NAME: &str = "RedRing Job Manager";
+
 /// Windows の起動のときに起動するコマンド（ウィンドウを出さない。設定の保存先と違う保存先を指定して起動したときは、
 /// 同じ保存先。設定の保存先のときは指定しない（後で設定の保存先を替えても、替えた保存先で起動するように））
 ///
 /// この実行ファイルの場所が分からなければ `None`。
-#[cfg(windows)]
 fn autostart_command(store: Option<&std::path::Path>) -> Option<String> {
     let exe = std::env::current_exe().ok()?;
     let mut command = format!("\"{}\" --background", exe.display());
@@ -390,6 +392,17 @@ fn autostart_command(store: Option<&std::path::Path>) -> Option<String> {
         command.push_str(&format!(" --store \"{}\"", store.display()));
     }
     Some(command)
+}
+
+/// Windows の起動のときに起動するように書いたコマンドが保存先を指定していれば、指定しないコマンド `command` に書き直す
+/// （書いていない・指定していない・起動のときに起動する仕組みのない OS では、何もしない）
+fn drop_autostart_store(command: &str) -> std::io::Result<()> {
+    match platform_foundation::autostart::registered_command(AUTOSTART_NAME) {
+        Some(registered) if registered.contains(" --store ") => {
+            platform_foundation::autostart::register(AUTOSTART_NAME, command)
+        }
+        _ => Ok(()),
+    }
 }
 
 /// 設定の保存先（設定のファイルの項目 `store`。なければ既定の保存先。利用者ごとのフォルダが分からないときは `None`）
