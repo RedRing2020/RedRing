@@ -1,25 +1,48 @@
 use super::*;
-use crate::{TopoInfiniteLine3D, TopoLineSegment3D, TopologyToleranceSettings, TopologyValidator};
-use geo_contracts::{
-    InfiniteLine3DConstructor, LineSegment3DConstructor, LineSegment3DSupportLine,
-    NurbsCurve3DConstructor, Plane3DConstructor,
+use crate::{
+    TopoCircle3D, TopoConicalSurface3D, TopoCylindricalSurface3D, TopoInfiniteLine3D, TopoPlane3D,
+    TopoSphericalSurface3D, TopoTorusSurface3D, TopologyValidator,
 };
+use geo_contracts::{
+    Angle, Circle3DConstructor, Circle3DEvaluation, ConicalSurface3DConstructor,
+    CylindricalSurface3DConstructor, InfiniteLine3DConstructor, NurbsCurve3DConstructor,
+    Plane3DConstructor, SphericalSurface3DConstructor, TorusSurface3DConstructor,
+    TorusSurface3DEvaluation,
+};
+use geo_core::Direction3D;
+use std::f64::consts::{FRAC_PI_4, PI, TAU};
 
-fn validator() -> TopologyValidator<f64> {
-    TopologyValidator::new(TopologyToleranceSettings::new(1.0e-9))
+fn tolerances() -> TopologyToleranceSettings<f64> {
+    TopologyToleranceSettings::new(1.0e-9)
 }
 
-/// 2 つの頂点の間の線分の稜線を足す
+fn validator() -> TopologyValidator<f64> {
+    TopologyValidator::new(tolerances())
+}
+
+/// 2 つの頂点の間の直線の稜線を足す
 fn line_edge(brep: &mut Brep<f64>, start: VertexIndex, end: VertexIndex) -> EdgeIndex {
-    let line =
-        TopoLineSegment3D::new(brep.vertex(start).point(), brep.vertex(end).point()).unwrap();
+    let (from, to) = (brep.vertex(start).point(), brep.vertex(end).point());
+    let line = TopoInfiniteLine3D::from_two_points(from, to).unwrap();
     brep.add_edge(
         start,
         end,
         CurveRef::Line(line),
-        (line.start_param(), line.end_param()),
+        (0.0, from.distance_to(to)),
     )
     .unwrap()
+}
+
+/// 円 `circle` の 1 周の稜線（始点と終点が同じ頂点）を足す
+fn circle_edge(brep: &mut Brep<f64>, circle: TopoCircle3D<f64>) -> EdgeIndex {
+    let vertex = brep.add_vertex(circle.point_at_parameter(0.0));
+    brep.add_edge(vertex, vertex, CurveRef::Circle(circle), (0.0, TAU))
+        .unwrap()
+}
+
+/// 中心が (0, 0, `height`)、軸が Z の、半径 `radius` の円
+fn horizontal_circle(height: f64, radius: f64) -> TopoCircle3D<f64> {
+    TopoCircle3D::new_xy_plane(Point3D::new(0.0, 0.0, height), radius).unwrap()
 }
 
 /// 3 点を通る平面
@@ -63,6 +86,7 @@ fn tetrahedron() -> (Brep<f64>, Vec<FaceIndex>) {
             plane(p[0], p[2], p[1]),
             true,
             vec![vec![forward(e02), backward(e12), backward(e01)]],
+            tolerances(),
         )
         .unwrap(),
         // 側面（-y）: 0 → 1 → 3
@@ -70,6 +94,7 @@ fn tetrahedron() -> (Brep<f64>, Vec<FaceIndex>) {
             plane(p[0], p[1], p[3]),
             true,
             vec![vec![forward(e01), forward(e13), backward(e03)]],
+            tolerances(),
         )
         .unwrap(),
         // 側面（-x）: 0 → 3 → 2
@@ -77,6 +102,7 @@ fn tetrahedron() -> (Brep<f64>, Vec<FaceIndex>) {
             plane(p[0], p[3], p[2]),
             true,
             vec![vec![forward(e03), backward(e23), backward(e02)]],
+            tolerances(),
         )
         .unwrap(),
         // 斜めの面: 1 → 2 → 3
@@ -84,6 +110,7 @@ fn tetrahedron() -> (Brep<f64>, Vec<FaceIndex>) {
             plane(p[1], p[2], p[3]),
             true,
             vec![vec![forward(e12), forward(e23), backward(e13)]],
+            tolerances(),
         )
         .unwrap(),
     ];
@@ -110,6 +137,7 @@ fn two_faces_share_one_edge() {
             first_plane,
             true,
             vec![vec![forward(ab), forward(bc), forward(ca)]],
+            tolerances(),
         )
         .unwrap();
     let second = brep
@@ -117,6 +145,7 @@ fn two_faces_share_one_edge() {
             second_plane,
             true,
             vec![vec![backward(ca), forward(cd), forward(da)]],
+            tolerances(),
         )
         .unwrap();
 
@@ -175,6 +204,7 @@ fn a_seam_edge_is_used_twice_by_one_face() {
                 forward(slit),
                 backward(slit),
             ]],
+            tolerances(),
         )
         .unwrap();
 
@@ -197,6 +227,7 @@ fn a_face_without_loops_needs_a_closed_surface() {
             ),
             true,
             Vec::new(),
+            tolerances(),
         )
         .unwrap();
 
@@ -220,8 +251,13 @@ fn a_loop_that_does_not_close_is_reported() {
         Point3D::new(1.0, 0.0, 0.0),
         Point3D::new(0.0, 1.0, 0.0),
     );
-    brep.add_face(surface, true, vec![vec![forward(ab), forward(bc)]])
-        .unwrap();
+    brep.add_face(
+        surface,
+        true,
+        vec![vec![forward(ab), forward(bc)]],
+        tolerances(),
+    )
+    .unwrap();
 
     let report = validator().validate(&brep);
     assert_eq!(report.disconnected_loops, vec![LoopIndex(0)]);
@@ -251,6 +287,7 @@ fn an_edge_used_three_times_is_not_manifold() {
             surface,
             true,
             vec![vec![forward(ab), forward(bc), forward(ca)]],
+            tolerances(),
         )
         .unwrap();
     }
@@ -263,8 +300,11 @@ fn an_edge_used_three_times_is_not_manifold() {
 fn elements_must_refer_to_elements_in_the_table() {
     let mut brep = Brep::<f64>::new();
     let a = brep.add_vertex(Point3D::new(0.0, 0.0, 0.0));
-    let line =
-        TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+    let line = TopoInfiniteLine3D::from_two_points(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+    )
+    .unwrap();
 
     assert_eq!(
         brep.add_edge(a, VertexIndex(1), CurveRef::Line(line), (0.0, 1.0)),
@@ -276,11 +316,16 @@ fn elements_must_refer_to_elements_in_the_table() {
         Point3D::new(0.0, 1.0, 0.0),
     );
     assert_eq!(
-        brep.add_face(surface.clone(), true, vec![vec![forward(EdgeIndex(0))]]),
+        brep.add_face(
+            surface.clone(),
+            true,
+            vec![vec![forward(EdgeIndex(0))]],
+            tolerances()
+        ),
         Err(BrepError::UnknownEdge)
     );
     assert_eq!(
-        brep.add_face(surface, true, vec![Vec::new()]),
+        brep.add_face(surface, true, vec![Vec::new()], tolerances()),
         Err(BrepError::EmptyLoop)
     );
 }
@@ -290,8 +335,11 @@ fn an_edge_needs_a_non_empty_parameter_range() {
     let mut brep = Brep::new();
     let a = brep.add_vertex(Point3D::new(0.0, 0.0, 0.0));
     let b = brep.add_vertex(Point3D::new(1.0, 0.0, 0.0));
-    let line =
-        TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+    let line = TopoInfiniteLine3D::from_two_points(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+    )
+    .unwrap();
 
     assert_eq!(
         brep.add_edge(a, b, CurveRef::Line(line), (1.0, 0.0)),
@@ -352,33 +400,23 @@ fn a_nurbs_edge_range_slightly_outside_the_domain_is_clamped() {
 }
 
 #[test]
-fn edge_checks_separate_vertex_binding_from_curve_endpoints() {
-    // 母線（z = 0）から離れた拘束の端点（z = 0.1）に頂点を置いた線分
-    let support_line = TopoInfiniteLine3D::from_two_points(
+fn a_vertex_off_the_curve_is_reported() {
+    // 直線（z = 0）の区間の端から 0.1 離れた頂点
+    let line = TopoInfiniteLine3D::from_two_points(
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(2.0, 0.0, 0.0),
     )
     .unwrap();
-    let start = Point3D::new(0.0, 0.0, 0.1);
-    let end = Point3D::new(2.0, 0.0, 0.1);
-    let line = TopoLineSegment3D::from_support_line_and_constraint_points(support_line, start, end)
-        .unwrap();
     let mut brep = Brep::new();
-    let a = brep.add_vertex(start);
-    let b = brep.add_vertex(end);
+    let a = brep.add_vertex(Point3D::new(0.0, 0.0, 0.1));
+    let b = brep.add_vertex(Point3D::new(2.0, 0.0, 0.0));
     let edge = brep
         .add_edge(a, b, CurveRef::Line(line), (0.0, 2.0))
         .unwrap();
 
-    let report = validator().validate_edge(&brep, edge);
-    assert!(report.binding_consistent);
-    assert!(!report.ideal_endpoint_consistent);
-    assert!(!report.evaluated_endpoint_consistent);
-    // 3 つに分けた許容誤差（1 つ 0.1 強）なら、離れ 0.1 を受け入れる
-    let loose = TopologyValidator::new(TopologyToleranceSettings::new(0.31));
-    assert!(loose.validate_edge(&brep, edge).is_valid());
-    let tight = TopologyValidator::new(TopologyToleranceSettings::new(0.29));
-    assert!(!tight.validate_edge(&brep, edge).is_valid());
+    assert_eq!(validator().validate(&brep).edges_off_vertices, vec![edge]);
+    let loose = TopologyValidator::new(TopologyToleranceSettings::new(0.11));
+    assert!(loose.validate(&brep).is_valid());
 }
 
 #[test]
@@ -393,11 +431,10 @@ fn a_nurbs_edge_may_use_part_of_the_curve() {
     let mut brep = Brep::new();
     let a = brep.add_vertex(Point3D::new(0.0, 0.0, 0.0));
     let b = brep.add_vertex(Point3D::new(1.0, 0.0, 0.0));
-    let edge = brep
-        .add_edge(a, b, CurveRef::Nurbs(curve), (2.0, 2.5))
+    brep.add_edge(a, b, CurveRef::Nurbs(curve), (2.0, 2.5))
         .unwrap();
 
-    assert!(validator().validate_edge(&brep, edge).is_valid());
+    assert!(validator().validate(&brep).is_valid());
 }
 
 #[test]
@@ -420,16 +457,356 @@ fn two_uses_in_the_same_direction_are_reported() {
         first_plane,
         true,
         vec![vec![forward(ab), forward(bc), forward(ca)]],
+        tolerances(),
     )
     .unwrap();
     brep.add_face(
         second_plane,
         true,
         vec![vec![forward(ca), forward(ad), forward(dc)]],
+        tolerances(),
     )
     .unwrap();
 
     let report = validator().validate(&brep);
     assert_eq!(report.inconsistently_oriented_edges, vec![ca]);
     assert!(!report.is_valid());
+}
+
+/// XY 平面（法線 +Z）の上の三角形の面を、頂点 `order` の順に回るループで足す
+fn triangle_face(order: [usize; 3], same_sense: bool) -> (Brep<f64>, FaceIndex) {
+    let points = [
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(0.0, 1.0, 0.0),
+    ];
+    let mut brep = Brep::new();
+    let vertices = points.map(|point| brep.add_vertex(point));
+    let uses = (0..3)
+        .map(|side| {
+            forward(line_edge(
+                &mut brep,
+                vertices[order[side]],
+                vertices[order[(side + 1) % 3]],
+            ))
+        })
+        .collect();
+    let face = brep
+        .add_face(
+            plane(points[0], points[1], points[2]),
+            same_sense,
+            vec![uses],
+            tolerances(),
+        )
+        .unwrap();
+    (brep, face)
+}
+
+#[test]
+fn a_clockwise_outer_loop_seen_from_the_normal_is_reported() {
+    // 法線 +Z の側から見て反時計回り（面がループの左）なら、向きの規則に合う
+    let (brep, _) = triangle_face([0, 1, 2], true);
+    assert!(validator().validate(&brep).is_valid());
+
+    // 時計回り（面がループの右）は、規則に合わない
+    let (brep, face) = triangle_face([0, 2, 1], true);
+    let report = validator().validate(&brep);
+    assert_eq!(report.misoriented_faces, vec![face]);
+    assert!(!report.is_valid());
+
+    // 面の外向きの法線が曲面の法線と逆（-Z）なら、時計回りが規則に合う
+    let (brep, _) = triangle_face([0, 2, 1], false);
+    assert!(validator().validate(&brep).is_valid());
+}
+
+#[test]
+fn an_inner_loop_must_turn_the_other_way() {
+    let square = |brep: &mut Brep<f64>, size: f64, offset: f64, counterclockwise: bool| {
+        let mut corners = [
+            Point3D::new(offset, offset, 0.0),
+            Point3D::new(offset + size, offset, 0.0),
+            Point3D::new(offset + size, offset + size, 0.0),
+            Point3D::new(offset, offset + size, 0.0),
+        ];
+        if !counterclockwise {
+            corners.reverse();
+        }
+        let vertices: Vec<VertexIndex> = corners
+            .iter()
+            .map(|&point| brep.add_vertex(point))
+            .collect();
+        (0..4)
+            .map(|side| forward(line_edge(brep, vertices[side], vertices[(side + 1) % 4])))
+            .collect::<Vec<_>>()
+    };
+    let surface = || {
+        plane(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+    };
+    for (hole_counterclockwise, valid) in [(false, true), (true, false)] {
+        let mut brep = Brep::new();
+        let outer = square(&mut brep, 4.0, 0.0, true);
+        let hole = square(&mut brep, 1.0, 1.0, hole_counterclockwise);
+        brep.add_face(surface(), true, vec![outer, hole], tolerances())
+            .unwrap();
+        assert_eq!(validator().validate(&brep).is_valid(), valid);
+    }
+}
+
+#[test]
+fn a_cylinder_band_has_the_upward_loop_below() {
+    // 円柱の帯（z = 0 と z = 1 の円の間）: 下の円は u の正の向き、上の円は負の向きに回る
+    let surface = SurfaceRef::Cylinder(
+        TopoCylindricalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap(),
+    );
+    for (bottom_forward, valid) in [(true, true), (false, false)] {
+        let mut brep = Brep::new();
+        let bottom = circle_edge(&mut brep, horizontal_circle(0.0, 1.0));
+        let top = circle_edge(&mut brep, horizontal_circle(1.0, 1.0));
+        let loops = vec![
+            vec![EdgeUse {
+                edge: bottom,
+                forward: bottom_forward,
+            }],
+            vec![EdgeUse {
+                edge: top,
+                forward: !bottom_forward,
+            }],
+        ];
+        let face = brep
+            .add_face(surface.clone(), true, loops, tolerances())
+            .unwrap();
+        // 1 周の円のパラメータ曲線は、周期で折り返さずに u が 2π 進む
+        let bottom_curve = &brep
+            .face_loop(brep.face(face).loops()[0])
+            .parameter_curves()[0];
+        let (start, end) = (
+            bottom_curve.point_at(0.0).unwrap(),
+            bottom_curve.point_at(TAU).unwrap(),
+        );
+        assert!(((end.x() - start.x()).abs() - TAU).abs() < 1.0e-9);
+        assert_eq!(validator().validate(&brep).is_valid(), valid);
+    }
+}
+
+#[test]
+fn a_cone_face_with_one_loop_lies_on_the_apex_side() {
+    // 半頂角 45° の円錐（z = 0 で半径 1、頂点は z = -1）の、z = 0 の円から頂点までの面
+    let surface = SurfaceRef::Cone(
+        TopoConicalSurface3D::new_standard(
+            Point3D::new(0.0, 0.0, 0.0),
+            1.0,
+            Angle::from_radians(FRAC_PI_4),
+        )
+        .unwrap(),
+    );
+    // 面は円より下（v の小さい側）なので、ループは u の負の向き（円を逆向き）に回る
+    for (forward, valid) in [(false, true), (true, false)] {
+        let mut brep = Brep::new();
+        let rim = circle_edge(&mut brep, horizontal_circle(0.0, 1.0));
+        brep.add_face(
+            surface.clone(),
+            true,
+            vec![vec![EdgeUse { edge: rim, forward }]],
+            tolerances(),
+        )
+        .unwrap();
+        assert_eq!(validator().validate(&brep).is_valid(), valid);
+    }
+}
+
+#[test]
+fn a_sphere_cap_may_lie_on_either_side_of_its_loop() {
+    // 球の緯線の円 1 つで囲む面は、北の側も南の側も閉じた面になる
+    let surface = SurfaceRef::Sphere(
+        TopoSphericalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 2.0).unwrap(),
+    );
+    let height: f64 = 1.0;
+    let radius = (4.0 - height * height).sqrt();
+    for forward in [true, false] {
+        let mut brep = Brep::new();
+        let latitude = circle_edge(&mut brep, horizontal_circle(height, radius));
+        brep.add_face(
+            surface.clone(),
+            true,
+            vec![vec![EdgeUse {
+                edge: latitude,
+                forward,
+            }]],
+            tolerances(),
+        )
+        .unwrap();
+        assert!(validator().validate(&brep).is_valid());
+    }
+}
+
+#[test]
+fn an_edge_without_an_exact_parameter_curve_is_refused() {
+    // 円柱の軸に傾いた円は、円柱の上の正確なパラメータ曲線にならない（当てはめは別に行う）
+    let surface = SurfaceRef::Cylinder(
+        TopoCylindricalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap(),
+    );
+    let tilted = TopoCircle3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Direction3D::from_vector(crate::Vector3D::new(0.0, 1.0, 1.0)).unwrap(),
+        1.0,
+    )
+    .unwrap();
+    let mut brep = Brep::new();
+    let edge = circle_edge(&mut brep, tilted);
+
+    assert_eq!(
+        brep.add_face(surface, true, vec![vec![forward(edge)]], tolerances()),
+        Err(BrepError::NoParameterCurve)
+    );
+}
+
+/// 円の上の点 `point` の、円のパラメータ（角度）
+fn angle_on(circle: &TopoCircle3D<f64>, point: Point3D<f64>) -> f64 {
+    use geo_contracts::Circle3DProperties;
+    let offset = point - circle.center();
+    let x = circle.ref_direction().as_vector();
+    let y = circle.axis().as_vector().cross(x);
+    offset.dot(y).atan2(offset.dot(x))
+}
+
+/// 円 `circle` の上の、頂点 `from` から `to` までの短い方の円弧の稜線を足し、`from` から `to` へ進む使用を返す
+fn arc_use(
+    brep: &mut Brep<f64>,
+    circle: TopoCircle3D<f64>,
+    from: VertexIndex,
+    to: VertexIndex,
+) -> EdgeUse {
+    let start = angle_on(&circle, brep.vertex(from).point());
+    let end = angle_on(&circle, brep.vertex(to).point());
+    let mut delta = end - start;
+    if delta > PI {
+        delta -= TAU;
+    } else if delta <= -PI {
+        delta += TAU;
+    }
+    if delta > 0.0 {
+        let edge = brep
+            .add_edge(from, to, CurveRef::Circle(circle), (start, start + delta))
+            .unwrap();
+        forward(edge)
+    } else {
+        let edge = brep
+            .add_edge(to, from, CurveRef::Circle(circle), (end, end - delta))
+            .unwrap();
+        backward(edge)
+    }
+}
+
+#[test]
+fn a_circle_edge_may_not_go_around_more_than_once() {
+    let mut brep = Brep::new();
+    let circle = horizontal_circle(0.0, 1.0);
+    let vertex = brep.add_vertex(circle.point_at_parameter(0.0));
+
+    assert_eq!(
+        brep.add_edge(vertex, vertex, CurveRef::Circle(circle), (0.0, 2.0 * TAU)),
+        Err(BrepError::InvalidParameterRange)
+    );
+}
+
+#[test]
+fn a_sphere_lune_wider_than_half_a_turn_turns_the_right_way_at_the_poles() {
+    // 南極から北極への経線（u = 3.5）と、北極から南極への経線（u = 0.1）で囲む、幅 3.4（> π）の月形の面。
+    // ループを逆にした、残りの幅 2.88 の月形の面も正しい
+    let surface = SurfaceRef::Sphere(
+        TopoSphericalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap(),
+    );
+    let meridian = |u: f64| {
+        TopoCircle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Direction3D::from_vector(crate::Vector3D::new(-u.sin(), u.cos(), 0.0)).unwrap(),
+            1.0,
+        )
+        .unwrap()
+    };
+    for reversed in [false, true] {
+        let mut brep = Brep::new();
+        let south = brep.add_vertex(Point3D::new(0.0, 0.0, -1.0));
+        let north = brep.add_vertex(Point3D::new(0.0, 0.0, 1.0));
+        let mut half = |u: f64, from: VertexIndex, to: VertexIndex| {
+            // 赤道の点を通る、極から極までの半周
+            let circle = meridian(u);
+            let equator = angle_on(&circle, Point3D::new(u.cos(), u.sin(), 0.0));
+            let range = (equator - PI / 2.0, equator + PI / 2.0);
+            let starts_at_north = circle.point_at_parameter(range.0).z() > 0.0;
+            let (start, end) = if starts_at_north {
+                (north, south)
+            } else {
+                (south, north)
+            };
+            let edge = brep
+                .add_edge(start, end, CurveRef::Circle(circle), range)
+                .unwrap();
+            EdgeUse {
+                edge,
+                forward: start == from && end == to,
+            }
+        };
+        let loop_uses = if reversed {
+            vec![half(0.1, south, north), half(3.5, north, south)]
+        } else {
+            vec![half(3.5, south, north), half(0.1, north, south)]
+        };
+        brep.add_face(surface.clone(), true, vec![loop_uses], tolerances())
+            .unwrap();
+        assert!(
+            validator().validate(&brep).is_valid(),
+            "reversed = {reversed}"
+        );
+    }
+}
+
+#[test]
+fn a_hole_in_a_torus_may_be_the_only_loop() {
+    // トーラスの (u, v) の四角（u = 0〜1、v = -0.3〜0.3）を囲むループ。反時計回りなら四角の面、
+    // 時計回りなら、四角を除いたトーラスの残りの面で、どちらも正しい
+    let torus = TopoTorusSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 3.0, 1.0).unwrap();
+    let surface = SurfaceRef::Torus(torus.clone());
+    let parallel = |v: f64| {
+        TopoCircle3D::new_xy_plane(Point3D::new(0.0, 0.0, v.sin()), 3.0 + v.cos()).unwrap()
+    };
+    let tube = |u: f64| {
+        TopoCircle3D::new(
+            Point3D::new(3.0 * u.cos(), 3.0 * u.sin(), 0.0),
+            Direction3D::from_vector(crate::Vector3D::new(-u.sin(), u.cos(), 0.0)).unwrap(),
+            1.0,
+        )
+        .unwrap()
+    };
+    for counterclockwise in [true, false] {
+        let mut brep = Brep::new();
+        let corner =
+            |brep: &mut Brep<f64>, u: f64, v: f64| brep.add_vertex(torus.point_at_uv(u, v));
+        let a = corner(&mut brep, 0.0, -0.3);
+        let b = corner(&mut brep, 1.0, -0.3);
+        let c = corner(&mut brep, 1.0, 0.3);
+        let d = corner(&mut brep, 0.0, 0.3);
+        let mut uses = vec![
+            arc_use(&mut brep, parallel(-0.3), a, b),
+            arc_use(&mut brep, tube(1.0), b, c),
+            arc_use(&mut brep, parallel(0.3), c, d),
+            arc_use(&mut brep, tube(0.0), d, a),
+        ];
+        if !counterclockwise {
+            uses.reverse();
+            for edge_use in &mut uses {
+                edge_use.forward = !edge_use.forward;
+            }
+        }
+        brep.add_face(surface.clone(), true, vec![uses], tolerances())
+            .unwrap();
+        assert!(
+            validator().validate(&brep).is_valid(),
+            "counterclockwise = {counterclockwise}"
+        );
+    }
 }

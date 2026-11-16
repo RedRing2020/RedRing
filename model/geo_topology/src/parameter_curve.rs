@@ -1,0 +1,208 @@
+//! 稜線の使用が持つパラメータ曲線（面の曲面のパラメータ (u, v) の上の曲線）
+//!
+//! パラメータ曲線は、稜線の母曲線と同じパラメータ `t` で (u, v) を返す（曲面の上で評価した点が、稜線の
+//! 母曲線の点と許容誤差の中で合う）。周期的な曲面の上では、周期で折り返さず、つながった値で持つ
+//! （設計: BREP_AND_STEP_IMPORT_DESIGN.md 5.5）。
+
+#[cfg(test)]
+mod tests;
+
+use crate::{
+    CurveRef, Point2D, SurfaceRef, TopoNurbsCurve2D, TopoNurbsCurve3D, TopoPlane3D, Vector2D,
+};
+use geo_contracts::{
+    Circle3DProperties, Ellipse3DProperties, InfiniteLine3DProperties, NurbsCurve2DConstructor,
+    NurbsCurve2DEvaluation, NurbsCurve2DProperties, NurbsCurve3DProperties, Plane3DProperties,
+    Scalar,
+};
+
+/// 母曲線の区間を分ける数（当てはめと確かめに使う点は、区間の両端を含めて この数 + 1 個）
+const SAMPLE_SEGMENTS: usize = 8;
+
+/// パラメータ曲線
+#[derive(Debug, Clone)]
+pub enum ParameterCurve<T: Scalar> {
+    /// 直線: (u, v) = `origin` + `t` × `direction`
+    Line {
+        origin: Point2D<T>,
+        direction: Vector2D<T>,
+    },
+    /// 楕円: (u, v) = `center` + cos `t` × `major` + sin `t` × `minor`（円は、`major` と `minor` が同じ長さで直交する）
+    Ellipse {
+        center: Point2D<T>,
+        major: Vector2D<T>,
+        minor: Vector2D<T>,
+    },
+    /// NURBS 曲線（稜線の NURBS 曲線と同じノットベクトルの値）
+    Nurbs(TopoNurbsCurve2D<T>),
+}
+
+impl<T: Scalar> ParameterCurve<T> {
+    /// 母曲線のパラメータ `t` の (u, v)（NURBS で定義域の外なら `None`）
+    pub fn point_at(&self, t: T) -> Option<Point2D<T>> {
+        match self {
+            Self::Line { origin, direction } => Some(*origin + *direction * t),
+            Self::Ellipse {
+                center,
+                major,
+                minor,
+            } => Some(*center + *major * t.cos() + *minor * t.sin()),
+            Self::Nurbs(curve) => curve.point_at_parameter(t),
+        }
+    }
+
+    /// 曲面 `surface` の上で、母曲線 `curve` の区間 `range` を正確に表すパラメータ曲線
+    ///
+    /// 平面の上の直線・円・楕円・平面の中の NURBS 曲線と、円柱・円錐・球・トーラスの上で (u, v) の直線に
+    /// なる曲線（母線・軸に垂直な円・経線・緯線）を作る。作った曲線を曲面の上で評価した点が、区間の中の点で
+    /// 母曲線から `tolerance` より離れれば `None`（正確な形にならない組。当てはめは別に行う）。
+    pub(crate) fn exact(
+        surface: &SurfaceRef<T>,
+        curve: &CurveRef<T>,
+        range: (T, T),
+        tolerance: T,
+    ) -> Option<Self> {
+        let candidate = match surface {
+            SurfaceRef::Plane(plane) => Self::on_plane(plane, curve)?,
+            SurfaceRef::Nurbs(_) => return None,
+            _ => Self::line_in_uv(surface, curve, range)?,
+        };
+        (0..=SAMPLE_SEGMENTS)
+            .all(|index| {
+                let t = sample(range, index);
+                candidate
+                    .point_at(t)
+                    .and_then(|uv| surface.point_at_uv(uv.x(), uv.y()))
+                    .is_some_and(|point| {
+                        point.distance_to(curve.point_at_parameter(t)) <= tolerance
+                    })
+            })
+            .then_some(candidate)
+    }
+
+    /// 平面の座標に写した曲線
+    fn on_plane(plane: &TopoPlane3D<T>, curve: &CurveRef<T>) -> Option<Self> {
+        let u_axis = plane.u_axis().as_vector();
+        let v_axis = plane.v_axis().as_vector();
+        let point = |point: crate::Point3D<T>| {
+            let offset = point - plane.origin();
+            Point2D::new(offset.dot(u_axis), offset.dot(v_axis))
+        };
+        let vector =
+            |vector: crate::Vector3D<T>| Vector2D::new(vector.dot(u_axis), vector.dot(v_axis));
+        match curve {
+            CurveRef::Line(line) => Some(Self::Line {
+                origin: point(line.point()),
+                direction: vector(line.direction().as_vector()),
+            }),
+            CurveRef::Circle(circle) => {
+                let x = circle.ref_direction().as_vector();
+                let y = circle.axis().as_vector().cross(x);
+                Some(Self::Ellipse {
+                    center: point(circle.center()),
+                    major: vector(x * circle.radius()),
+                    minor: vector(y * circle.radius()),
+                })
+            }
+            CurveRef::Ellipse(ellipse) => Some(Self::Ellipse {
+                center: point(ellipse.center()),
+                major: vector(
+                    ellipse.major_axis_direction().as_vector() * ellipse.semi_major_axis(),
+                ),
+                minor: vector(
+                    ellipse.minor_axis_direction().as_vector() * ellipse.semi_minor_axis(),
+                ),
+            }),
+            CurveRef::Nurbs(nurbs) => {
+                let points: Vec<Point2D<T>> = (0..nurbs.control_point_count())
+                    .map(|index| nurbs.control_point(index).map(point))
+                    .collect::<Option<_>>()?;
+                let curve = <TopoNurbsCurve2D<T> as NurbsCurve2DConstructor<T>>::new(
+                    nurbs.degree(),
+                    <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::knot_vector(nurbs).to_vec(),
+                    &points,
+                    nurbs.weights().map(<[T]>::to_vec),
+                )
+                .ok()?;
+                Some(Self::Nurbs(curve))
+            }
+        }
+    }
+
+    /// 区間の中の点の (u, v) を、周期で折り返さずにつないで、通る直線（両端の点の (u, v) は使わない。球の極
+    /// のように、端の点の u が決まらないことがあるため）
+    fn line_in_uv(surface: &SurfaceRef<T>, curve: &CurveRef<T>, range: (T, T)) -> Option<Self> {
+        let (u_period, v_period) = surface.periods();
+        let mut first: Option<(T, Point2D<T>)> = None;
+        let mut last: Option<(T, Point2D<T>)> = None;
+        for index in 1..SAMPLE_SEGMENTS {
+            let t = sample(range, index);
+            let (u, v) = surface.uv_of(curve.point_at_parameter(t))?;
+            let uv = match last {
+                Some((_, previous)) => Point2D::new(
+                    unwrap(u, previous.x(), u_period),
+                    unwrap(v, previous.y(), v_period),
+                ),
+                None => Point2D::new(u, v),
+            };
+            first.get_or_insert((t, uv));
+            last = Some((t, uv));
+        }
+        let ((t_first, uv_first), (t_last, uv_last)) = (first?, last?);
+        let direction = (uv_last - uv_first) * (T::ONE / (t_last - t_first));
+        Some(Self::Line {
+            origin: uv_first + direction * (-t_first),
+            direction,
+        })
+    }
+
+    /// (u, v) を (`du`, `dv`) だけ動かした曲線（周期の分だけ動かして、ループの中でつなぐときに使う）
+    pub(crate) fn shifted(&self, du: T, dv: T) -> Self {
+        let offset = Vector2D::new(du, dv);
+        match self {
+            Self::Line { origin, direction } => Self::Line {
+                origin: *origin + offset,
+                direction: *direction,
+            },
+            Self::Ellipse {
+                center,
+                major,
+                minor,
+            } => Self::Ellipse {
+                center: *center + offset,
+                major: *major,
+                minor: *minor,
+            },
+            Self::Nurbs(curve) => {
+                let points: Vec<Point2D<T>> = (0..curve.control_point_count())
+                    .filter_map(|index| curve.control_point(index))
+                    .map(|point| point + offset)
+                    .collect();
+                Self::Nurbs(
+                    <TopoNurbsCurve2D<T> as NurbsCurve2DConstructor<T>>::new(
+                        curve.degree(),
+                        <TopoNurbsCurve2D<T> as NurbsCurve2DProperties<T>>::knot_vector(curve)
+                            .to_vec(),
+                        &points,
+                        <TopoNurbsCurve2D<T> as NurbsCurve2DProperties<T>>::weights(curve)
+                            .map(<[T]>::to_vec),
+                    )
+                    .expect("moving the control points keeps a valid NURBS curve"),
+                )
+            }
+        }
+    }
+}
+
+/// 区間 `range` を `SAMPLE_SEGMENTS` に分けた `index` 番目の点
+fn sample<T: Scalar>(range: (T, T), index: usize) -> T {
+    range.0 + (range.1 - range.0) * T::from_f64(index as f64 / SAMPLE_SEGMENTS as f64)
+}
+
+/// `value` を、周期 `period` の分だけ動かして `reference` に近づけた値（周期がなければ、そのまま）
+pub(crate) fn unwrap<T: Scalar>(value: T, reference: T, period: Option<T>) -> T {
+    match period {
+        Some(period) => value + ((reference - value) / period).round() * period,
+        None => value,
+    }
+}

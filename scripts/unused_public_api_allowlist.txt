@@ -56,6 +56,9 @@ model/geo_nurbs/src/operations/knot_insertion.rs:insert_knot_2d
 
 # B-rep の面の基本の性質（曲面に対する面の向き）
 model/geo_topology/src/brep.rs:same_sense
+# 複合曲線の全体の、理想の始点・終点（拘束の端点と比べるための基本の取得）
+model/geo_topology/src/composite_curve.rs:ideal_start_point
+model/geo_topology/src/composite_curve.rs:ideal_end_point
 
 # NURBS の距離のニュートン法による精密化で再び使う（網羅表の未対応の NURBS の組み合わせの実装時に調整する）
 model/geo_nurbs/src/constants.rs:newton_tolerance
