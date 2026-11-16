@@ -919,7 +919,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - 必要に応じて `model/geo_primitives/src/arc_3d.rs`
 - 必要に応じて `model/geo_primitives/src/ellipse_arc_2d.rs`
 - 必要に応じて `model/geo_primitives/src/ellipse_arc_3d.rs`
-- 必要に応じて `model/geo_topology/src/topology_core.rs`
+- 必要に応じて `model/geo_topology/src/curve_ref.rs`・`model/geo_topology/src/brep.rs`
 
 実装観点:
 
@@ -1003,7 +1003,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - `model/geo_contracts/src/geometry/core.rs`
 - `model/geo_contracts/src/lib.rs`
 - `model/geo_primitives/src/lib.rs`
-- 必要に応じて `model/geo_topology/src/topology_core.rs`
+- 必要に応じて `model/geo_topology/src/curve_ref.rs`・`model/geo_topology/src/brep.rs`
 - 必要に応じて `model/geo_algorithms/src/**`
 
 実装観点:

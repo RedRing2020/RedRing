@@ -22,7 +22,6 @@ model/geo_core/src/aabb_2d.rs:min_point
 model/geo_primitives/src/arc_2d.rs:circle
 model/geo_primitives/src/line_segment_2d.rs:support_line
 model/geo_primitives/src/line_segment_3d.rs:support_line
-model/geo_topology/src/topology_core.rs:curve
 model/geo_topology/src/topology_validator.rs:tolerances
 
 # 形状の基本の生成
@@ -55,12 +54,8 @@ model/geo_contracts/src/geometry/foundation/metadata.rs:primitive_kind
 # NURBS の編集の中核のアルゴリズム（ノット挿入・次数上げ）
 model/geo_nurbs/src/operations/knot_insertion.rs:insert_knot_2d
 
-# 位相データの基本の取得と、設計途中の検査・生成
-model/geo_topology/src/topology_core.rs:value
-model/geo_topology/src/topology_core.rs:parameter_range
-model/geo_topology/src/topology_core.rs:same_sense
-model/geo_topology/src/topology_core.rs:is_local_consistent
-model/geo_topology/src/wire.rs:new_with_tolerances
+# B-rep の面の基本の性質（曲面に対する面の向き）
+model/geo_topology/src/brep.rs:same_sense
 
 # NURBS の距離のニュートン法による精密化で再び使う（網羅表の未対応の NURBS の組み合わせの実装時に調整する）
 model/geo_nurbs/src/constants.rs:newton_tolerance

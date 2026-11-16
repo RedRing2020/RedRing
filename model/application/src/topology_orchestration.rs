@@ -3,13 +3,13 @@
 use crate::primitives::{Arc3D, Circle3D, LineSegment3D, Triangle3D};
 use geo_contracts::{
     Arc3DConstructor, Arc3DEndpoint, Circle3DProperties, LineSegment3DConstructor,
-    LineSegment3DProperties, LineSegment3DSupportLine, Triangle3DBoundaryAccess,
+    LineSegment3DProperties, LineSegment3DSupportLine, Plane3DConstructor,
+    Triangle3DBoundaryAccess, default_distance_tolerance,
 };
 use geo_topology::{
-    CurveRef, Edge, EdgeValidationReport, TopologyToleranceSettings, TopologyValidator, Vertex,
-    Wire, WireValidationReport,
+    Brep, BrepValidationReport, CurveRef, EdgeIndex, EdgeUse, FaceIndex, SurfaceRef, TopoPlane3D,
+    TopologyToleranceSettings, TopologyValidator,
 };
-use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateLineTopologyRequest {
@@ -31,16 +31,20 @@ pub struct CreateTriangleTopologyRequest {
     pub triangle: Triangle3D<f64>,
 }
 
+/// 稜線 1 本の B-rep
 #[derive(Debug, Clone)]
 pub struct CreateCurveTopologyResult {
-    pub edge: Edge<f64>,
-    pub validation: EdgeValidationReport<f64>,
+    pub brep: Brep<f64>,
+    pub edge: EdgeIndex,
+    pub validation: BrepValidationReport,
 }
 
+/// 面 1 つの B-rep
 #[derive(Debug, Clone)]
-pub struct CreateWireTopologyResult {
-    pub wire: Wire<f64>,
-    pub validation: WireValidationReport<f64>,
+pub struct CreateFaceTopologyResult {
+    pub brep: Brep<f64>,
+    pub face: FaceIndex,
+    pub validation: BrepValidationReport,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,7 +91,7 @@ pub trait DebugShapeTopologyMutationPort {
     fn create_triangle_topology(
         &self,
         request: CreateTriangleTopologyRequest,
-    ) -> Result<CreateWireTopologyResult, TopologyOrchestrationError>;
+    ) -> Result<CreateFaceTopologyResult, TopologyOrchestrationError>;
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -98,58 +102,31 @@ impl CurveTopologyMutationPort for TopologyOrchestrator {
         &self,
         request: CreateLineTopologyRequest,
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
-        let start_vertex = Arc::new(Vertex::new(request.line.start_point()));
-        let end_vertex = Arc::new(Vertex::new(request.line.end_point()));
-        let edge = Edge::new(
-            start_vertex,
-            end_vertex,
-            CurveRef::Line(request.line),
-            (request.line.start_param(), request.line.end_param()),
-        )
-        .ok_or(TopologyOrchestrationError::InvalidLineTopology)?;
-
-        let validation = TopologyValidator::new(TopologyToleranceSettings::new(1.0e-9, 1.0e-9))
-            .validate_edge(&edge);
-
-        if !validation.is_valid() {
-            return Err(TopologyOrchestrationError::InvalidLineTopology);
-        }
-
-        Ok(CreateCurveTopologyResult { edge, validation })
+        let mut brep = Brep::new();
+        let start = brep.add_vertex(request.line.start_point());
+        let end = brep.add_vertex(request.line.end_point());
+        let edge = brep
+            .add_edge(
+                start,
+                end,
+                CurveRef::Line(request.line),
+                (request.line.start_param(), request.line.end_param()),
+            )
+            .map_err(|_| TopologyOrchestrationError::InvalidLineTopology)?;
+        curve_result(brep, edge, TopologyOrchestrationError::InvalidLineTopology)
     }
 
     fn create_arc_topology(
         &self,
         request: CreateArcTopologyRequest,
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
-        let start = request.arc.start_point();
-        let end = request.arc.end_point();
-        let start_vertex = Arc::new(Vertex::new(geo_topology::Point3D::new(
-            start.x(),
-            start.y(),
-            start.z(),
-        )));
-        let end_vertex = Arc::new(Vertex::new(geo_topology::Point3D::new(
-            end.x(),
-            end.y(),
-            end.z(),
-        )));
-        let edge = Edge::new(
-            start_vertex,
-            end_vertex,
-            CurveRef::Arc(request.arc),
-            (0.0, 1.0),
-        )
-        .ok_or(TopologyOrchestrationError::InvalidArcTopology)?;
-
-        let validation = TopologyValidator::new(TopologyToleranceSettings::new(1.0e-9, 1.0e-9))
-            .validate_edge(&edge);
-
-        if !validation.is_valid() {
-            return Err(TopologyOrchestrationError::InvalidArcTopology);
-        }
-
-        Ok(CreateCurveTopologyResult { edge, validation })
+        let mut brep = Brep::new();
+        let start = brep.add_vertex(request.arc.start_point());
+        let end = brep.add_vertex(request.arc.end_point());
+        let edge = brep
+            .add_edge(start, end, CurveRef::Arc(request.arc), (0.0, 1.0))
+            .map_err(|_| TopologyOrchestrationError::InvalidArcTopology)?;
+        curve_result(brep, edge, TopologyOrchestrationError::InvalidArcTopology)
     }
 
     fn create_circle_topology(
@@ -160,82 +137,86 @@ impl CurveTopologyMutationPort for TopologyOrchestrator {
         let axis = request.circle.axis();
         let full_arc = Arc3D::full_circle(center, axis, request.circle.radius())
             .ok_or(TopologyOrchestrationError::InvalidCircleTopology)?;
-        let start = full_arc.start_point();
-        let shared_vertex = Arc::new(Vertex::new(geo_topology::Point3D::new(
-            start.x(),
-            start.y(),
-            start.z(),
-        )));
-        let edge = Edge::new(
-            shared_vertex.clone(),
-            shared_vertex,
-            CurveRef::Arc(full_arc),
-            (0.0, 1.0),
+        // 1 周の稜線は、始点と終点が同じ頂点
+        let mut brep = Brep::new();
+        let vertex = brep.add_vertex(full_arc.start_point());
+        let edge = brep
+            .add_edge(vertex, vertex, CurveRef::Arc(full_arc), (0.0, 1.0))
+            .map_err(|_| TopologyOrchestrationError::InvalidCircleTopology)?;
+        curve_result(
+            brep,
+            edge,
+            TopologyOrchestrationError::InvalidCircleTopology,
         )
-        .ok_or(TopologyOrchestrationError::InvalidCircleTopology)?;
-
-        let validation = TopologyValidator::new(TopologyToleranceSettings::new(1.0e-9, 1.0e-9))
-            .validate_edge(&edge);
-
-        if !validation.is_valid() {
-            return Err(TopologyOrchestrationError::InvalidCircleTopology);
-        }
-
-        Ok(CreateCurveTopologyResult { edge, validation })
     }
+}
+
+/// 稜線 1 本の B-rep を確かめ、確かめられなければ `error` を返す
+fn curve_result(
+    brep: Brep<f64>,
+    edge: EdgeIndex,
+    error: TopologyOrchestrationError,
+) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
+    let validation =
+        TopologyValidator::new(TopologyToleranceSettings::new(default_distance_tolerance()))
+            .validate(&brep);
+    if !validation.is_valid() {
+        return Err(error);
+    }
+    Ok(CreateCurveTopologyResult {
+        brep,
+        edge,
+        validation,
+    })
 }
 
 impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
     fn create_triangle_topology(
         &self,
         request: CreateTriangleTopologyRequest,
-    ) -> Result<CreateWireTopologyResult, TopologyOrchestrationError> {
-        let point_a = request.triangle.vertex_a();
-        let point_b = request.triangle.vertex_b();
-        let point_c = request.triangle.vertex_c();
-        let vertex_a = Arc::new(Vertex::new(point_a));
-        let vertex_b = Arc::new(Vertex::new(point_b));
-        let vertex_c = Arc::new(Vertex::new(point_c));
-
-        let edge_ab_curve = LineSegment3D::new(point_a, point_b)
-            .ok_or(TopologyOrchestrationError::InvalidTriangleTopology)?;
-        let edge_bc_curve = LineSegment3D::new(point_b, point_c)
-            .ok_or(TopologyOrchestrationError::InvalidTriangleTopology)?;
-        let edge_ca_curve = LineSegment3D::new(point_c, point_a)
-            .ok_or(TopologyOrchestrationError::InvalidTriangleTopology)?;
-
-        let edge_ab = Edge::new(
-            vertex_a.clone(),
-            vertex_b.clone(),
-            CurveRef::Line(edge_ab_curve),
-            (edge_ab_curve.start_param(), edge_ab_curve.end_param()),
-        )
-        .ok_or(TopologyOrchestrationError::InvalidTriangleTopology)?;
-        let edge_bc = Edge::new(
-            vertex_b,
-            vertex_c.clone(),
-            CurveRef::Line(edge_bc_curve),
-            (edge_bc_curve.start_param(), edge_bc_curve.end_param()),
-        )
-        .ok_or(TopologyOrchestrationError::InvalidTriangleTopology)?;
-        let edge_ca = Edge::new(
-            vertex_c,
-            vertex_a,
-            CurveRef::Line(edge_ca_curve),
-            (edge_ca_curve.start_param(), edge_ca_curve.end_param()),
-        )
-        .ok_or(TopologyOrchestrationError::InvalidTriangleTopology)?;
-
-        let tolerances = TopologyToleranceSettings::new(1.0e-9, 1.0e-9);
-        let wire = Wire::new(vec![edge_ab, edge_bc, edge_ca], tolerances)
-            .ok_or(TopologyOrchestrationError::InvalidTriangleTopology)?;
-        let validation = TopologyValidator::new(tolerances).validate_wire(&wire);
-
-        if !validation.is_valid() || !wire.is_closed(tolerances) {
-            return Err(TopologyOrchestrationError::InvalidTriangleTopology);
+    ) -> Result<CreateFaceTopologyResult, TopologyOrchestrationError> {
+        let error = TopologyOrchestrationError::InvalidTriangleTopology;
+        let points = [
+            request.triangle.vertex_a(),
+            request.triangle.vertex_b(),
+            request.triangle.vertex_c(),
+        ];
+        let mut brep = Brep::new();
+        let vertices = points.map(|point| brep.add_vertex(point));
+        let mut uses = Vec::with_capacity(3);
+        for side in 0..3 {
+            let (start, end) = (side, (side + 1) % 3);
+            let line = LineSegment3D::new(points[start], points[end]).ok_or(error)?;
+            let edge = brep
+                .add_edge(
+                    vertices[start],
+                    vertices[end],
+                    CurveRef::Line(line),
+                    (line.start_param(), line.end_param()),
+                )
+                .map_err(|_| error)?;
+            uses.push(EdgeUse {
+                edge,
+                forward: true,
+            });
         }
+        // 頂点 A・B・C の順に回る向きを表にする平面
+        let plane = TopoPlane3D::from_three_points(points[0], points[1], points[2]).ok_or(error)?;
+        let face = brep
+            .add_face(SurfaceRef::Plane(plane), true, vec![uses])
+            .map_err(|_| error)?;
 
-        Ok(CreateWireTopologyResult { wire, validation })
+        let validation =
+            TopologyValidator::new(TopologyToleranceSettings::new(default_distance_tolerance()))
+                .validate(&brep);
+        if !validation.is_valid() {
+            return Err(error);
+        }
+        Ok(CreateFaceTopologyResult {
+            brep,
+            face,
+            validation,
+        })
     }
 }
 
@@ -252,7 +233,6 @@ mod tests {
     use geo_contracts::Circle3DConstructor;
     use geo_contracts::LineSegment3DConstructor;
     use geo_contracts::Triangle3DConstructor;
-    use geo_topology::TopologyToleranceSettings;
 
     #[test]
     fn create_line_topology_returns_valid_edge() {
@@ -264,8 +244,9 @@ mod tests {
             .expect("topology orchestration should succeed");
 
         assert!(result.validation.is_valid());
-        assert_eq!(result.edge.start_vertex().point().x(), 0.0);
-        assert_eq!(result.edge.end_vertex().point().x(), 2.0);
+        let edge = result.brep.edge(result.edge);
+        assert_eq!(result.brep.vertex(edge.start()).point().x(), 0.0);
+        assert_eq!(result.brep.vertex(edge.end()).point().x(), 2.0);
     }
 
     #[test]
@@ -295,14 +276,12 @@ mod tests {
             .expect("circle topology orchestration should succeed");
 
         assert!(result.validation.is_valid());
-        assert_eq!(
-            result.edge.start_vertex().id().value(),
-            result.edge.end_vertex().id().value()
-        );
+        let edge = result.brep.edge(result.edge);
+        assert_eq!(edge.start(), edge.end());
     }
 
     #[test]
-    fn create_triangle_topology_returns_valid_closed_wire() {
+    fn create_triangle_topology_returns_a_valid_face() {
         let triangle = Triangle3D::new(
             Point3D::new(0.0, 0.0, 0.0),
             Point3D::new(1.0, 0.0, 0.0),
@@ -315,11 +294,8 @@ mod tests {
             .expect("triangle topology orchestration should succeed");
 
         assert!(result.validation.is_valid());
-        assert_eq!(result.wire.edges().len(), 3);
-        assert!(
-            result
-                .wire
-                .is_closed(TopologyToleranceSettings::new(1.0e-9, 1.0e-9))
-        );
+        let face = result.brep.face(result.face);
+        assert_eq!(face.loops().len(), 1);
+        assert_eq!(result.brep.face_loop(face.loops()[0]).uses().len(), 3);
     }
 }
