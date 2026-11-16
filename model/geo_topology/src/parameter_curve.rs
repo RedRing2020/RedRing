@@ -11,9 +11,9 @@ use crate::{
     CurveRef, Point2D, SurfaceRef, TopoNurbsCurve2D, TopoNurbsCurve3D, TopoPlane3D, Vector2D,
 };
 use geo_contracts::{
-    Circle3DProperties, ConicalSurface3DProperties, Ellipse3DProperties, InfiniteLine3DProperties,
-    NurbsCurve2DConstructor, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
-    NurbsCurve3DProperties, Plane3DProperties, Scalar,
+    Circle3DProperties, Ellipse3DProperties, InfiniteLine3DProperties, NurbsCurve2DConstructor,
+    NurbsCurve2DEvaluation, NurbsCurve2DProperties, NurbsCurve3DProperties, Plane3DProperties,
+    Scalar,
 };
 
 /// 母曲線の区間を分ける数（当てはめと確かめに使う点は、区間の両端を含めて この数 + 1 個）
@@ -81,23 +81,22 @@ impl<T: Scalar> ParameterCurve<T> {
     }
 
     /// 母曲線 `curve` の区間 `range` の、解析的な曲面 `surface` からのずれの最大（区間を分けた点から、曲面の
-    /// 上の最も近い点までの距離で測る。NURBS 曲面では `None`）
+    /// 上の近い点までの距離で測る。NURBS 曲面では `None`）
+    ///
+    /// 平面・円柱・球・トーラスでは最も近い点までの距離、円錐では軸の方向の高さが同じ点までの距離（最も
+    /// 近い点までの距離を、半頂角の余弦で割った値。平たい円錐では大きくなる）になる。円錐でも、
+    /// パラメータ曲線の確かめ（曲面の上で評価した点と母曲線の点の距離）と同じ測り方なので、このずれの
+    /// 中に許容誤差を広げれば、正確な形のパラメータ曲線の確かめを通る。
     pub fn surface_deviation(
         surface: &SurfaceRef<T>,
         curve: &CurveRef<T>,
         range: (T, T),
     ) -> Option<T> {
-        // 円錐の (u, v) は軸の方向の高さが同じ点で、母線に垂直に測った距離は、その点までの距離に半頂角の
-        // 余弦を掛けた値
-        let scale = match surface {
-            SurfaceRef::Cone(cone) => cone.semi_angle().to_radians().cos(),
-            _ => T::ONE,
-        };
         (0..=SAMPLE_SEGMENTS).try_fold(T::ZERO, |deviation, index| {
             let point = curve.point_at_parameter(sample(range, index));
             let (u, v) = surface.uv_of(point)?;
             let on_surface = surface.point_at_uv(u, v)?;
-            Some(deviation.max(on_surface.distance_to(point) * scale))
+            Some(deviation.max(on_surface.distance_to(point)))
         })
     }
 
