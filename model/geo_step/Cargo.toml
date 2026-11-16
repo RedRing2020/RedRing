@@ -11,6 +11,7 @@ categories.workspace = true
 description = "STEP (ISO 10303-21) data exchange: syntax, records and B-rep construction"
 
 [dependencies]
+analysis = { path = "../../foundation/analysis" }
 
 [lints]
 workspace = true
