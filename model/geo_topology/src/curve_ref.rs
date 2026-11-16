@@ -1,23 +1,26 @@
-//! 稜線が参照する母曲線
+//! 稜線が参照する母曲線（稜線は、母曲線と、その native parameter の区間で持つ）
 
-use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};
+use crate::{Point3D, TopoCircle3D, TopoEllipse3D, TopoInfiniteLine3D, TopoNurbsCurve3D};
 use geo_contracts::{
-    Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived, EllipseArc3DEndpoint,
-    EllipseArc3DEvaluation, InfiniteLine3DEvaluation, LineSegment3DProperties,
-    LineSegment3DSupportLine, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
-    Scalar, default_kernel_numerical_zero_tolerance,
+    Circle3DEvaluation, Ellipse3DEvaluation, InfiniteLine3DEvaluation, NurbsCurve3DEvaluation,
+    NurbsCurve3DProperties, Scalar, default_kernel_numerical_zero_tolerance,
 };
 
 /// 稜線が参照する母曲線
 #[derive(Debug, Clone)]
 pub enum CurveRef<T: Scalar> {
-    Line(TopoLineSegment3D<T>),
-    Arc(TopoArc3D<T>),
-    EllipseArc(TopoEllipseArc3D<T>),
+    /// 無限の直線（パラメータは、基準点からの向きつきの距離）
+    Line(TopoInfiniteLine3D<T>),
+    /// 円（パラメータは、角度 0 の方向からの角度）
+    Circle(TopoCircle3D<T>),
+    /// 楕円（パラメータは、長軸の方向からの角度）
+    Ellipse(TopoEllipse3D<T>),
+    /// NURBS 曲線（パラメータは、ノットベクトルの値）
     Nurbs(TopoNurbsCurve3D<T>),
 }
 
 impl<T: Scalar> CurveRef<T> {
+    /// NURBS の定義域の端で、区間のわずかなはみ出しを許す幅
     pub(crate) fn nurbs_parameter_tolerance_for_domain(u_min: T, u_max: T) -> T {
         let domain_span = (u_max - u_min).abs();
         let magnitude = u_min.abs().max(u_max.abs()).max(domain_span).max(T::ONE);
@@ -30,85 +33,32 @@ impl<T: Scalar> CurveRef<T> {
         }
     }
 
-    pub fn ideal_start_point(&self) -> Point3D<T> {
-        match self {
-            Self::Line(line) => line.start_point(),
-            Self::Arc(arc) => <TopoArc3D<T> as Arc3DEndpoint<T>>::start_point(arc),
-            Self::EllipseArc(arc) => {
-                <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::start_point(arc)
-            }
-            Self::Nurbs(curve) => {
-                let (u_min, _) =
-                    <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
-                <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::point_at_parameter(curve, u_min)
-                    .expect("the end of the parameter domain should be evaluable")
-            }
-        }
-    }
-
-    pub fn ideal_end_point(&self) -> Point3D<T> {
-        match self {
-            Self::Line(line) => line.end_point(),
-            Self::Arc(arc) => <TopoArc3D<T> as Arc3DEndpoint<T>>::end_point(arc),
-            Self::EllipseArc(arc) => {
-                <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::end_point(arc)
-            }
-            Self::Nurbs(curve) => {
-                let (_, u_max) =
-                    <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
-                <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::point_at_parameter(curve, u_max)
-                    .expect("the end of the parameter domain should be evaluable")
-            }
-        }
-    }
-
-    /// 母曲線の native parameter semantics をそのまま使って評価点を返す
+    /// 母曲線の native parameter `t` の点
     ///
-    /// topology 側では family 横断で parameter を再正規化しない。
-    /// 現在の variant では Line / Arc / EllipseArc のいずれも bounded curve として
-    /// ideal start/end と整合する parameter domain を使う。
+    /// NURBS では、定義域の端のわずかなはみ出しは端に収め、それより外の `t` ではパニックする（稜線の区間は、
+    /// 表に足すときに定義域の中に収めてある）。
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         match self {
-            Self::Line(line) => line.support_line().point_at_parameter(t),
-            Self::Arc(arc) => <TopoArc3D<T> as Arc3DEvaluation<T>>::point_at_parameter(arc, t),
-            Self::EllipseArc(arc) => {
-                <TopoEllipseArc3D<T> as EllipseArc3DEvaluation<T>>::point_at_parameter(arc, t)
-            }
+            Self::Line(line) => line.point_at_parameter(t),
+            Self::Circle(circle) => circle.point_at_parameter(t),
+            Self::Ellipse(ellipse) => ellipse.point_at_parameter(t),
             Self::Nurbs(curve) => {
                 let (u_min, u_max) =
                     <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
                 let tolerance = Self::nurbs_parameter_tolerance_for_domain(u_min, u_max);
-                let lower_bound = u_min - tolerance;
-                let upper_bound = u_max + tolerance;
-                let is_out_of_domain = t < lower_bound || t > upper_bound;
                 assert!(
-                    !is_out_of_domain,
-                    "CurveRef::point_at_parameter received out-of-domain NURBS parameter: t={:?}, domain=[{:?}, {:?}], tolerance={:?}, accepted_bounds=[{:?}, {:?}]",
-                    t, u_min, u_max, tolerance, lower_bound, upper_bound
-                );
-
-                let adjusted_t = if t < u_min {
-                    u_min
-                } else if t > u_max {
+                    t >= u_min - tolerance && t <= u_max + tolerance,
+                    "CurveRef::point_at_parameter received out-of-domain NURBS parameter: t={:?}, domain=[{:?}, {:?}]",
+                    t,
+                    u_min,
                     u_max
-                } else {
-                    t
-                };
-
+                );
+                let clamped = t.max(u_min).min(u_max);
                 <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::point_at_parameter(
-                    curve, adjusted_t,
+                    curve, clamped,
                 )
                 .expect("a parameter clamped to the domain should be evaluable")
             }
-        }
-    }
-
-    pub fn length(&self) -> T {
-        match self {
-            Self::Line(line) => line.length(),
-            Self::Arc(arc) => <TopoArc3D<T> as geo_contracts::Arc3DDerived<T>>::length(arc),
-            Self::EllipseArc(arc) => <TopoEllipseArc3D<T> as EllipseArc3DDerived<T>>::length(arc),
-            Self::Nurbs(curve) => <TopoNurbsCurve3D<T> as NurbsCurve3DDerived<T>>::length(curve),
         }
     }
 }
@@ -116,10 +66,10 @@ impl<T: Scalar> CurveRef<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::NurbsCurve3DConstructor;
+    use geo_contracts::{Circle3DConstructor, NurbsCurve3DConstructor};
 
     #[test]
-    fn curve_ref_nurbs_supports_ideal_endpoints_and_native_parameter_evaluation() {
+    fn a_nurbs_curve_is_evaluated_with_its_knot_values() {
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
             1,
             vec![2.0, 2.0, 3.0, 3.0],
@@ -127,16 +77,36 @@ mod tests {
             None,
         )
         .unwrap();
-
         let curve_ref = CurveRef::Nurbs(curve);
 
-        let start = curve_ref.ideal_start_point();
-        let end = curve_ref.ideal_end_point();
+        assert!(
+            curve_ref
+                .point_at_parameter(2.0)
+                .distance_to(Point3D::new(0.0, 0.0, 0.0))
+                < 1.0e-12
+        );
+        assert!(
+            curve_ref
+                .point_at_parameter(2.5)
+                .distance_to(Point3D::new(1.0, 0.0, 0.0))
+                < 1.0e-9
+        );
+        assert!(
+            curve_ref
+                .point_at_parameter(3.0)
+                .distance_to(Point3D::new(2.0, 0.0, 0.0))
+                < 1.0e-12
+        );
+    }
 
-        assert!(start.distance_to(Point3D::new(0.0, 0.0, 0.0)) < 1.0e-12);
-        assert!(end.distance_to(Point3D::new(2.0, 0.0, 0.0)) < 1.0e-12);
+    #[test]
+    fn a_circle_is_evaluated_with_its_angle() {
+        let circle = TopoCircle3D::new_xy_plane(Point3D::new(1.0, 0.0, 0.0), 2.0).unwrap();
+        let curve_ref = CurveRef::Circle(circle);
 
-        let mid = curve_ref.point_at_parameter(2.5);
-        assert!(mid.distance_to(Point3D::new(1.0, 0.0, 0.0)) < 1.0e-9);
+        let start = curve_ref.point_at_parameter(0.0);
+        let quarter = curve_ref.point_at_parameter(std::f64::consts::FRAC_PI_2);
+        assert!((start.distance_to(Point3D::new(1.0, 0.0, 0.0)) - 2.0).abs() < 1.0e-12);
+        assert!(start.distance_to(quarter) > 2.8);
     }
 }

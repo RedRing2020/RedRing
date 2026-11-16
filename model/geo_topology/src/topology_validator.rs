@@ -1,34 +1,19 @@
-//! B-rep の表の確かめ（稜線と頂点の整合・ループのつながり・多様体でない稜線・境界のない面）
+//! B-rep の表の確かめ（稜線と頂点の整合・ループのつながり・多様体でない稜線・面の向きの規則）
 
+use crate::brep::{shift_to_side, use_parameters};
 use crate::{
-    Brep, BrepEdge, CurveRef, EdgeIndex, FaceIndex, LoopIndex, Point3D, TopologyToleranceSettings,
+    Brep, EdgeIndex, FaceIndex, LoopIndex, Point2D, SurfaceRef, TopologyToleranceSettings,
 };
-use geo_contracts::{LineSegment3DSupportLine, Scalar};
+use geo_contracts::{ConicalSurface3DProperties, Scalar};
 
-/// 稜線 1 本の確かめの結果
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EdgeValidationReport {
-    /// 頂点が、母曲線の拘束の端点と合う
-    pub binding_consistent: bool,
-    /// 母曲線の理想の端点が、拘束の端点と合う
-    pub ideal_endpoint_consistent: bool,
-    /// 区間の端で評価した点が、拘束の端点と合う
-    pub evaluated_endpoint_consistent: bool,
-}
-
-impl EdgeValidationReport {
-    pub fn is_valid(&self) -> bool {
-        self.binding_consistent
-            && self.ideal_endpoint_consistent
-            && self.evaluated_endpoint_consistent
-    }
-}
+/// ループの向きを求めるときに、稜線の使用 1 つから取る点の数
+const SAMPLES_PER_USE: usize = 16;
 
 /// B-rep の表の確かめの結果
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BrepValidationReport {
-    /// 稜線ごとの結果（稜線の番号の順）
-    pub edge_reports: Vec<EdgeValidationReport>,
+    /// 区間の端の点が、始点・終点の頂点から許容誤差より離れた稜線
+    pub edges_off_vertices: Vec<EdgeIndex>,
     /// 稜線の使用が、前の使用の終わりの頂点から始まらない（閉じていない）ループ
     pub disconnected_loops: Vec<LoopIndex>,
     /// 3 回以上使う稜線（多様体でない）
@@ -37,15 +22,19 @@ pub struct BrepValidationReport {
     pub inconsistently_oriented_edges: Vec<EdgeIndex>,
     /// ループがないのに、曲面が閉じていない面
     pub faces_without_boundary: Vec<FaceIndex>,
+    /// ループの向きが、面の外向きの法線の側から見て面がループの左にある規則に合わない面（ループの巻き方を
+    /// 決められない面を含む）
+    pub misoriented_faces: Vec<FaceIndex>,
 }
 
 impl BrepValidationReport {
     pub fn is_valid(&self) -> bool {
-        self.edge_reports.iter().all(EdgeValidationReport::is_valid)
+        self.edges_off_vertices.is_empty()
             && self.disconnected_loops.is_empty()
             && self.non_manifold_edges.is_empty()
             && self.inconsistently_oriented_edges.is_empty()
             && self.faces_without_boundary.is_empty()
+            && self.misoriented_faces.is_empty()
     }
 }
 
@@ -63,45 +52,23 @@ impl<T: Scalar> TopologyValidator<T> {
         self.tolerances
     }
 
-    /// 稜線 `index` の頂点と母曲線の整合を確かめる
-    pub fn validate_edge(&self, brep: &Brep<T>, index: EdgeIndex) -> EdgeValidationReport {
-        let budget = self.tolerances.resolve_edge_tolerances();
-        let edge = brep.edge(index);
-        let curve = edge.curve();
-        let ends = EdgeEnds::of(edge);
-        let (ideal_start, ideal_end) = ends.ideal;
-        let (constraint_start, constraint_end) = ends.constraint;
-        let close = |a: Point3D<T>, b: Point3D<T>, tolerance: T| a.distance_to(b) <= tolerance;
-        let (t0, t1) = edge.parameter_range();
-
-        EdgeValidationReport {
-            binding_consistent: close(
-                brep.vertex(edge.start()).point(),
-                constraint_start,
-                budget.bind_tolerance,
-            ) && close(
-                brep.vertex(edge.end()).point(),
-                constraint_end,
-                budget.bind_tolerance,
-            ),
-            ideal_endpoint_consistent: close(ideal_start, constraint_start, budget.ideal_tolerance)
-                && close(ideal_end, constraint_end, budget.ideal_tolerance),
-            evaluated_endpoint_consistent: close(
-                curve.point_at_parameter(t0),
-                constraint_start,
-                budget.eval_tolerance,
-            ) && close(
-                curve.point_at_parameter(t1),
-                constraint_end,
-                budget.eval_tolerance,
-            ),
-        }
-    }
-
     /// B-rep の表の全体を確かめる
     pub fn validate(&self, brep: &Brep<T>) -> BrepValidationReport {
-        let edge_reports = (0..brep.edge_count())
-            .map(|edge| self.validate_edge(brep, EdgeIndex(edge)))
+        let tolerance = self.tolerances.distance_tolerance;
+        let edges = || (0..brep.edge_count()).map(EdgeIndex);
+        let edges_off_vertices = edges()
+            .filter(|&index| {
+                let edge = brep.edge(index);
+                let curve = edge.curve();
+                let (t0, t1) = edge.parameter_range();
+                let off = |vertex, t| {
+                    brep.vertex(vertex)
+                        .point()
+                        .distance_to(curve.point_at_parameter(t))
+                        > tolerance
+                };
+                off(edge.start(), t0) || off(edge.end(), t1)
+            })
             .collect();
         let disconnected_loops = (0..brep.loop_count())
             .map(LoopIndex)
@@ -113,12 +80,10 @@ impl<T: Scalar> TopologyValidator<T> {
                 })
             })
             .collect();
-        let non_manifold_edges = (0..brep.edge_count())
-            .map(EdgeIndex)
+        let non_manifold_edges = edges()
             .filter(|&edge| brep.edge(edge).uses().len() > 2)
             .collect();
-        let inconsistently_oriented_edges = (0..brep.edge_count())
-            .map(EdgeIndex)
+        let inconsistently_oriented_edges = edges()
             .filter(|&edge| {
                 let uses = brep.edge(edge).uses();
                 uses.len() == 2 && {
@@ -130,54 +95,184 @@ impl<T: Scalar> TopologyValidator<T> {
                 }
             })
             .collect();
-        let faces_without_boundary = (0..brep.face_count())
-            .map(FaceIndex)
+        let faces = || (0..brep.face_count()).map(FaceIndex);
+        let faces_without_boundary = faces()
             .filter(|&face| {
                 let face = brep.face(face);
                 face.loops().is_empty() && !face.surface().is_closed()
             })
             .collect();
+        let misoriented_faces = faces()
+            .filter(|&face| !is_face_oriented(brep, face, tolerance))
+            .collect();
 
         BrepValidationReport {
-            edge_reports,
+            edges_off_vertices,
             disconnected_loops,
             non_manifold_edges,
             inconsistently_oriented_edges,
             faces_without_boundary,
+            misoriented_faces,
         }
     }
 }
 
-/// 稜線の端の点（理想の端点と、頂点と結びつける拘束の端点。どちらも始点と終点）
-struct EdgeEnds<T: Scalar> {
-    ideal: (Point3D<T>, Point3D<T>),
-    constraint: (Point3D<T>, Point3D<T>),
+/// ループを (u, v) に写したもの（向きは、面の外向きの法線が曲面の自然な法線と逆なら、逆にしてある）
+enum LoopInUv<T: Scalar> {
+    /// 周期をまわらないループ（`area` は符号つきの面積。反時計回りが正）
+    Plain { area: T },
+    /// 周期をまわるループ（`turns_u`・`turns_v` は u・v の周期をまわる回数、`mean_v` は v の平均）
+    Winding { turns_u: T, turns_v: T, mean_v: T },
 }
 
-impl<T: Scalar> EdgeEnds<T> {
-    fn of(edge: &BrepEdge<T>) -> Self {
-        let curve = edge.curve();
-        let ideal = (curve.ideal_start_point(), curve.ideal_end_point());
-        match curve {
-            // 線分は、母線の上の理想の端点と別に、拘束の端点を持つ
-            CurveRef::Line(line) => Self {
-                ideal,
-                constraint: (line.constraint_start_point(), line.constraint_end_point()),
-            },
-            // NURBS 曲線は、区間で母曲線の一部を使えるため、区間の端を端点とする
-            CurveRef::Nurbs(_) => {
-                let (t0, t1) = edge.parameter_range();
-                let ends = (curve.point_at_parameter(t0), curve.point_at_parameter(t1));
-                Self {
-                    ideal: ends,
-                    constraint: ends,
+/// 面のループが、面の外向きの法線の側から見て面がループの左にある規則に合うか
+///
+/// (u, v) では、曲面の自然な法線の側から見て、面がループの左にあることは、周期をまわらない外側のループが
+/// 反時計回り・内側のループが時計回りになることに当たる。周期をまわるループは、面の側を巻く向きで確かめる。
+fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex, tolerance: T) -> bool {
+    let face = brep.face(index);
+    let surface = face.surface();
+    let mut plain_areas = Vec::new();
+    let mut windings = Vec::new();
+    for &loop_index in face.loops() {
+        match loop_in_uv(brep, loop_index, surface, face.same_sense(), tolerance) {
+            Some(LoopInUv::Plain { area }) => plain_areas.push(area),
+            Some(LoopInUv::Winding {
+                turns_u,
+                turns_v,
+                mean_v,
+            }) => {
+                // 1 回より多くまわる、または u・v の両方でまわるループは扱わない
+                if turns_u.abs() > T::ONE
+                    || turns_v.abs() > T::ONE
+                    || (turns_u != T::ZERO && turns_v != T::ZERO)
+                {
+                    return false;
                 }
+                windings.push((turns_u, turns_v, mean_v));
             }
-            // 円弧・楕円弧は、それ自体の端点を端点とする
-            CurveRef::Arc(_) | CurveRef::EllipseArc(_) => Self {
-                ideal,
-                constraint: ideal,
-            },
+            None => return false,
         }
+    }
+
+    if windings.is_empty() && surface.is_closed() {
+        // 閉じた曲面では、ループで囲んだ部分を除いた残りも面になる（どのループも穴でよい）。外側のループは
+        // 1 つまで
+        return plain_areas.iter().filter(|&&area| area > T::ZERO).count() <= 1;
+    }
+    if windings.is_empty() {
+        // 面積の最も大きいループが外側（反時計回り）、ほかは穴（時計回り）
+        let Some(outer) = (0..plain_areas.len()).max_by(|&a, &b| {
+            plain_areas[a]
+                .abs()
+                .partial_cmp(&plain_areas[b].abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }) else {
+            return true;
+        };
+        return plain_areas
+            .iter()
+            .enumerate()
+            .all(|(position, &area)| (position == outer) == (area > T::ZERO));
+    }
+    // 周期をまわるループがあれば、周期をまわらないループはどれも穴
+    if plain_areas.iter().any(|&area| area >= T::ZERO) {
+        return false;
+    }
+    match surface {
+        // u・v の両方に周期があり、どちらの側も有限の面になる。まわる向きが打ち消し合えばよい
+        SurfaceRef::Torus(_) => {
+            let sum_u = windings
+                .iter()
+                .fold(T::ZERO, |sum, winding| sum + winding.0);
+            let sum_v = windings
+                .iter()
+                .fold(T::ZERO, |sum, winding| sum + winding.1);
+            sum_u == T::ZERO && sum_v == T::ZERO
+        }
+        SurfaceRef::Cylinder(_) | SurfaceRef::Cone(_) | SurfaceRef::Sphere(_) => {
+            match windings.as_slice() {
+                // 帯: u の正の向きにまわるループ（面はその上）が、負の向きにまわるループより下
+                [first, second] => {
+                    let (lower, upper) = if first.0 > T::ZERO {
+                        (first, second)
+                    } else {
+                        (second, first)
+                    };
+                    lower.0 == T::ONE && upper.0 == -T::ONE && lower.2 < upper.2
+                }
+                // 極までの面: 面は、ループから見て極の側（球はどちらの極の側でもよい）
+                [single] => match surface {
+                    SurfaceRef::Sphere(_) => true,
+                    SurfaceRef::Cone(cone) => surface
+                        .uv_of(cone.apex())
+                        .is_some_and(|(_, apex_v)| single.0 * (apex_v - single.2) > T::ZERO),
+                    _ => false,
+                },
+                _ => false,
+            }
+        }
+        SurfaceRef::Plane(_) | SurfaceRef::Nurbs(_) => false,
+    }
+}
+
+/// ループを、パラメータ曲線に沿って取った点で (u, v) に写す（パラメータ曲線を評価できなければ `None`）
+///
+/// 巻き数は、ループの終わりと初めの (u, v) の差（極・頂点の線に沿って移る分を含む）で数える。初めの点が
+/// 極・頂点なら、閉じるときの移りも、面を作るときと同じく、面がループの左にある向きに決めて含める。
+fn loop_in_uv<T: Scalar>(
+    brep: &Brep<T>,
+    index: LoopIndex,
+    surface: &SurfaceRef<T>,
+    same_sense: bool,
+    tolerance: T,
+) -> Option<LoopInUv<T>> {
+    let face_loop = brep.face_loop(index);
+    let mut points: Vec<Point2D<T>> = Vec::with_capacity(face_loop.uses().len() * SAMPLES_PER_USE);
+    // 最後の使用の終わりの (u, v) と、中ほどの v
+    let mut last = None;
+    for (edge_use, curve) in face_loop.uses().iter().zip(face_loop.parameter_curves()) {
+        let (t_start, t_end) = use_parameters(brep.edge(edge_use.edge), *edge_use);
+        for sample in 0..SAMPLES_PER_USE {
+            let t =
+                t_start + (t_end - t_start) * T::from_f64(sample as f64 / SAMPLES_PER_USE as f64);
+            points.push(curve.point_at(t)?);
+        }
+        let middle = curve.point_at((t_start + t_end) / T::from_f64(2.0))?;
+        last = Some((curve.point_at(t_end)?, middle.y()));
+    }
+    let (first, (end, last_middle_v)) = (*points.first()?, last?);
+    let sense = if same_sense { T::ONE } else { -T::ONE };
+    let (u_period, v_period) = surface.periods();
+    // 初めの点が極・頂点なら、閉じるときに極の線に沿って移る先の u（初めの u を、周期の分だけ動かしたもの）
+    let first_point = brep
+        .vertex(brep.use_start(*face_loop.uses().first()?))
+        .point();
+    let closing_u = match (surface.singular_v(first_point, tolerance), u_period) {
+        (Some(pole_v), Some(period)) => {
+            let decreasing = (pole_v > last_middle_v) == same_sense;
+            shift_to_side(first.x(), end.x(), period, decreasing)
+        }
+        _ => end.x(),
+    };
+    let turns =
+        |delta: T, period: Option<T>| period.map_or(T::ZERO, |period| (delta / period).round());
+    let turns_u = turns(closing_u - first.x(), u_period);
+    let turns_v = turns(end.y() - first.y(), v_period);
+    if turns_u == T::ZERO && turns_v == T::ZERO {
+        let area = (0..points.len()).fold(T::ZERO, |sum, position| {
+            let a = points[position];
+            let b = points[(position + 1) % points.len()];
+            sum + (a.x() * b.y() - b.x() * a.y())
+        }) / T::from_f64(2.0);
+        Some(LoopInUv::Plain { area: area * sense })
+    } else {
+        let mean_v = points.iter().fold(T::ZERO, |sum, point| sum + point.y())
+            / T::from_f64(points.len() as f64);
+        Some(LoopInUv::Winding {
+            turns_u: turns_u * sense,
+            turns_v: turns_v * sense,
+            mean_v,
+        })
     }
 }

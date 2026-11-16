@@ -2,13 +2,14 @@
 
 use crate::primitives::{Arc3D, Circle3D, LineSegment3D, Triangle3D};
 use geo_contracts::{
-    Arc3DConstructor, Arc3DEndpoint, Circle3DProperties, LineSegment3DConstructor,
-    LineSegment3DProperties, LineSegment3DSupportLine, Plane3DConstructor,
-    Triangle3DBoundaryAccess, default_distance_tolerance,
+    Arc3DEndpoint, Arc3DProperties, Circle3DConstructor, Circle3DEvaluation, Circle3DProperties,
+    InfiniteLine3DConstructor, InfiniteLine3DProperties, LineSegment3DProperties,
+    LineSegment3DSupportLine, Plane3DConstructor, Triangle3DBoundaryAccess,
+    default_distance_tolerance,
 };
 use geo_topology::{
-    Brep, BrepValidationReport, CurveRef, EdgeIndex, EdgeUse, FaceIndex, SurfaceRef, TopoPlane3D,
-    TopologyToleranceSettings, TopologyValidator,
+    Brep, BrepValidationReport, CurveRef, EdgeIndex, EdgeUse, FaceIndex, SurfaceRef,
+    TopoInfiniteLine3D, TopoPlane3D, TopologyToleranceSettings, TopologyValidator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -105,13 +106,21 @@ impl CurveTopologyMutationPort for TopologyOrchestrator {
         let mut brep = Brep::new();
         let start = brep.add_vertex(request.line.start_point());
         let end = brep.add_vertex(request.line.end_point());
-        let edge = brep
-            .add_edge(
-                start,
-                end,
-                CurveRef::Line(request.line),
-                (request.line.start_param(), request.line.end_param()),
+        // 稜線は、線分の母線と、その区間（母線が終点から始点の向きなら、母線を逆にして区間を小さい順にする）
+        let support_line = request.line.support_line();
+        let (start_param, end_param) = (request.line.start_param(), request.line.end_param());
+        let (line, range) = if start_param <= end_param {
+            (*support_line, (start_param, end_param))
+        } else {
+            let reversed = TopoInfiniteLine3D::new(
+                support_line.point(),
+                -support_line.direction().as_vector(),
             )
+            .ok_or(TopologyOrchestrationError::InvalidLineTopology)?;
+            (reversed, (-start_param, -end_param))
+        };
+        let edge = brep
+            .add_edge(start, end, CurveRef::Line(line), range)
             .map_err(|_| TopologyOrchestrationError::InvalidLineTopology)?;
         curve_result(brep, edge, TopologyOrchestrationError::InvalidLineTopology)
     }
@@ -120,12 +129,27 @@ impl CurveTopologyMutationPort for TopologyOrchestrator {
         &self,
         request: CreateArcTopologyRequest,
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
+        let error = TopologyOrchestrationError::InvalidArcTopology;
+        // 稜線は、円弧の載る円と、始点の角度から円弧の角度の分の区間
+        let arc = &request.arc;
+        let circle = Circle3D::new(arc.center(), arc.normal(), arc.radius()).ok_or(error)?;
+        let start_point = arc.start_point();
+        let offset = start_point - circle.center();
+        let x = circle.ref_direction().as_vector();
+        let y = circle.axis().as_vector().cross(x);
+        let start_angle = offset.dot(y).atan2(offset.dot(x));
+        let end_angle = start_angle + arc.angle_span().to_radians();
         let mut brep = Brep::new();
-        let start = brep.add_vertex(request.arc.start_point());
-        let end = brep.add_vertex(request.arc.end_point());
+        let start = brep.add_vertex(start_point);
+        let end = brep.add_vertex(arc.end_point());
         let edge = brep
-            .add_edge(start, end, CurveRef::Arc(request.arc), (0.0, 1.0))
-            .map_err(|_| TopologyOrchestrationError::InvalidArcTopology)?;
+            .add_edge(
+                start,
+                end,
+                CurveRef::Circle(circle),
+                (start_angle, end_angle),
+            )
+            .map_err(|_| error)?;
         curve_result(brep, edge, TopologyOrchestrationError::InvalidArcTopology)
     }
 
@@ -133,15 +157,16 @@ impl CurveTopologyMutationPort for TopologyOrchestrator {
         &self,
         request: CreateCircleTopologyRequest,
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
-        let center = request.circle.center();
-        let axis = request.circle.axis();
-        let full_arc = Arc3D::full_circle(center, axis, request.circle.radius())
-            .ok_or(TopologyOrchestrationError::InvalidCircleTopology)?;
         // 1 周の稜線は、始点と終点が同じ頂点
         let mut brep = Brep::new();
-        let vertex = brep.add_vertex(full_arc.start_point());
+        let vertex = brep.add_vertex(request.circle.point_at_parameter(0.0));
         let edge = brep
-            .add_edge(vertex, vertex, CurveRef::Arc(full_arc), (0.0, 1.0))
+            .add_edge(
+                vertex,
+                vertex,
+                CurveRef::Circle(request.circle),
+                (0.0, std::f64::consts::TAU),
+            )
             .map_err(|_| TopologyOrchestrationError::InvalidCircleTopology)?;
         curve_result(
             brep,
@@ -186,13 +211,14 @@ impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
         let mut uses = Vec::with_capacity(3);
         for side in 0..3 {
             let (start, end) = (side, (side + 1) % 3);
-            let line = LineSegment3D::new(points[start], points[end]).ok_or(error)?;
+            let line =
+                TopoInfiniteLine3D::from_two_points(points[start], points[end]).ok_or(error)?;
             let edge = brep
                 .add_edge(
                     vertices[start],
                     vertices[end],
                     CurveRef::Line(line),
-                    (line.start_param(), line.end_param()),
+                    (0.0, points[start].distance_to(points[end])),
                 )
                 .map_err(|_| error)?;
             uses.push(EdgeUse {
@@ -202,13 +228,12 @@ impl DebugShapeTopologyMutationPort for TopologyOrchestrator {
         }
         // 頂点 A・B・C の順に回る向きを表にする平面
         let plane = TopoPlane3D::from_three_points(points[0], points[1], points[2]).ok_or(error)?;
+        let tolerances = TopologyToleranceSettings::new(default_distance_tolerance());
         let face = brep
-            .add_face(SurfaceRef::Plane(plane), true, vec![uses])
+            .add_face(SurfaceRef::Plane(plane), true, vec![uses], tolerances)
             .map_err(|_| error)?;
 
-        let validation =
-            TopologyValidator::new(TopologyToleranceSettings::new(default_distance_tolerance()))
-                .validate(&brep);
+        let validation = TopologyValidator::new(tolerances).validate(&brep);
         if !validation.is_valid() {
             return Err(error);
         }

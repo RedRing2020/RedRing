@@ -119,7 +119,7 @@ STEP（ISO 10303-21。AP203・AP214・AP242 の形状）の読み込みと、そ
 
 - 曲面: 平面・円柱・円錐・球・トーラス・NURBS 曲面（`geo_primitives`・`geo_nurbs` の型）
 - 3 次元の曲線: 線分の母線（無限の直線）・円・楕円・NURBS 曲線。稜線は、曲線と区間の組で持つ（`TOPOLOGY_ENTITY_LAYER_DESIGN.md` の「母曲線と範囲」）
-- パラメータ曲線（2 次元）: 直線・円・楕円・NURBS 曲線
+- パラメータ曲線（2 次元）: 直線・円・楕円・NURBS 曲線。稜線の母曲線と同じパラメータで (u, v) を返す形で持つ（円は、楕円の 2 つの半軸が同じ長さで直交するものとして持つ）
 
 ### 5.3 向きの規則
 
@@ -183,7 +183,7 @@ STEP（ISO 10303-21。AP203・AP214・AP242 の形状）の読み込みと、そ
 | ずれに掛ける倍率 | 1.5 | `analysis` |
 
 - これらの値は、読み込みの許容誤差として `analysis` に名前をつけて置く。`geo_step` は、`analysis` の値を呼び出し元から受け取る形で使う（`GEOMETRIC_TOLERANCE_USAGE_RULES.md` の「呼び出し元が許容誤差を渡す」）
-- 今の `TopologyToleranceSettings`（全体で 1 つ）は、`Brep` の全体の許容誤差として残す。稜線の許容誤差の内訳（`TOPOLOGY_ENTITY_LAYER_DESIGN.md` の δ_ideal・δ_eval・δ_bind）は、要素ごとの許容誤差の中で同じ考え方で分ける
+- 今の `TopologyToleranceSettings`（全体で 1 つ）は、`Brep` の全体の許容誤差として残す。稜線は母曲線と区間で持ち、端点を区間の端で評価した点の 1 つにしたため、`TOPOLOGY_ENTITY_LAYER_DESIGN.md` の稜線の許容誤差の内訳（δ_ideal・δ_eval・δ_bind）は分けない
 
 ### 6.2 頂点と稜線をまとめる
 

@@ -47,7 +47,7 @@ foundation（analysis / logging_foundation / i18n_foundation / platform_foundati
 - **`geo_core`**: 最下位の幾何の値型（点・ベクトル・方向・相似変換・AABB・点の分類）と、許容誤差の既定値・変換のエラー。`analysis` のみに依存し、trait定義を持たず、操作は固有メソッドで提供する
 - **`geo_primitives`**: 解析形状の実装。`geo_contracts` の trait定義を実装し、必要に応じて `geo_commons` の計算へ委譲する
 - **`geo_nurbs`**: NURBS 曲線・曲面の実装。`geo_contracts` の trait定義を実装し、`geo_core` の型を使う
-- **`geo_topology`**: 位相構造（頂点・稜線・ループ・面の B-rep の表、複合曲線等。`BREP_AND_STEP_IMPORT_DESIGN.md` 5 章）
+- **`geo_topology`**: 位相構造（頂点・稜線・ループ・面の B-rep の表と、稜線の母曲線・面の曲面・パラメータ曲線、複合曲線等。`BREP_AND_STEP_IMPORT_DESIGN.md` 5 章）
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
 - **`geo_entity`**: 業務に依らない CAD のエンティティ基盤（識別子・属性・関係）。業務（CAM 等）の属性・表示の定義は持たない
 - **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）と、形状（三角形メッシュ・NURBS 曲面）のバイト列の読み書き（ジョブの入力・モデルファイルで共有する）
