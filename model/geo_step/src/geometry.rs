@@ -48,9 +48,20 @@ pub struct Geometries {
 #[derive(Debug, Clone)]
 pub struct Surface {
     pub surface: SurfaceRef<f64>,
-    /// 型の曲面の法線（∂u × ∂v）が、STEP の曲面の法線と逆か（押し出し・回転の面は、型の曲面の向きを外向きに
-    /// そろえるため、STEP の曲線と向きによっては逆になる）。面の向きを決めるときに使う
-    pub reversed: bool,
+    /// 型の曲面の法線（∂u × ∂v）と、STEP の曲面の法線の関係（面の向きを決めるときに使う）
+    pub sense: Sense,
+}
+
+/// 型の曲面の法線と、STEP の曲面の法線の関係
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sense {
+    /// 同じ向き
+    Same,
+    /// 逆の向き（押し出し・回転の面は、型の曲面を外向きにそろえるため、STEP の曲線と向きによって逆になる）
+    Reversed,
+    /// 面ごとに決まる（中心が軸の上の円を回した球は、円の半分ずつが球の全体を作り、面がどちらの半分から
+    /// 作られたかで STEP の法線が逆になる。面の点だけからは決まらないため、面のループの回りで決める）
+    PerFace,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -361,7 +372,7 @@ impl<'a> Converter<'a> {
         // 解析的な曲面と B-spline 曲面は、STEP と同じパラメータの取り方なので、法線の向きも同じ
         let same = |surface| Surface {
             surface,
-            reversed: false,
+            sense: Sense::Same,
         };
         Ok(match self.record(id)? {
             Record::Plane { placement } => {
@@ -403,10 +414,15 @@ impl<'a> Converter<'a> {
             Record::OffsetSurface { surface, distance } => {
                 let basis = self.surface(*surface)?;
                 // STEP のオフセットは STEP の曲面の法線の側へ。型の曲面の法線が逆なら、逆の側へ動かす
-                let distance = if basis.reversed { -distance } else { *distance };
+                let distance = match basis.sense {
+                    Sense::Same => *distance,
+                    Sense::Reversed => -distance,
+                    // 面ごとに向きの決まる曲面のオフセットは、動かす側が決まらない
+                    Sense::PerFace => return Err(GeometryError::Unsupported),
+                };
                 Surface {
                     surface: offset(basis.surface, distance)?,
-                    reversed: basis.reversed,
+                    sense: basis.sense,
                 }
             }
             _ => return Err(GeometryError::MissingReference),
@@ -437,7 +453,7 @@ impl<'a> Converter<'a> {
                         TopoPlane3D::from_origin_and_axes(line.point(), normal, line.direction())
                             .ok_or(GeometryError::InvalidShape)?,
                     ),
-                    reversed: false,
+                    sense: Sense::Same,
                 })
             }
             Curve::Base(CurveRef::Circle(circle)) => {
@@ -461,7 +477,7 @@ impl<'a> Converter<'a> {
                         )
                         .ok_or(GeometryError::InvalidShape)?,
                     ),
-                    reversed: along < 0.0,
+                    sense: sense_of(along < 0.0),
                 })
             }
             _ => Err(GeometryError::Unsupported),
@@ -472,7 +488,7 @@ impl<'a> Converter<'a> {
     /// 軸を含む平面の上の円はトーラス（ほかは範囲の外）
     ///
     /// 型の曲面は外向きの法線で作る。STEP の回転の面の法線（回る向き × 曲線の接線）と、回した曲線の点で比べ、
-    /// 逆なら `reversed` にする。
+    /// 逆なら `Sense::Reversed` にする。中心が軸の上の円を回した球は、面ごとに決まる（`Sense::PerFace`）。
     fn revolution(&mut self, curve: u64, axis: u64) -> Result<Surface, GeometryError> {
         use geo_contracts::{
             Circle3DEvaluation, Circle3DProperties, InfiniteLine3DEvaluation,
@@ -519,7 +535,7 @@ impl<'a> Converter<'a> {
                             )
                             .ok_or(GeometryError::InvalidShape)?,
                         ),
-                        reversed: step_normal(line.point(), d.as_vector()).dot(radial) < 0.0,
+                        sense: sense_of(step_normal(line.point(), d.as_vector()).dot(radial) < 0.0),
                     });
                 }
                 // 軸と交わるか（2 つの直線の間の距離）
@@ -562,7 +578,7 @@ impl<'a> Converter<'a> {
                         )
                         .ok_or(GeometryError::InvalidShape)?,
                     ),
-                    reversed: step_normal(sample, d.as_vector()).dot(outward) < 0.0,
+                    sense: sense_of(step_normal(sample, d.as_vector()).dot(outward) < 0.0),
                 })
             }
             Curve::Base(CurveRef::Circle(circle)) => {
@@ -609,7 +625,7 @@ impl<'a> Converter<'a> {
                             TopoSphericalSurface3D::new(center_foot, k, reference, circle.radius())
                                 .ok_or(GeometryError::InvalidShape)?,
                         ),
-                        reversed: step.dot(sample - center_foot) < 0.0,
+                        sense: Sense::PerFace,
                     });
                 }
                 if major <= circle.radius() {
@@ -624,7 +640,7 @@ impl<'a> Converter<'a> {
                         TopoTorusSurface3D::new(center_foot, k, reference, major, circle.radius())
                             .ok_or(GeometryError::InvalidShape)?,
                     ),
-                    reversed: step.dot(sample - circle.center()) < 0.0,
+                    sense: sense_of(step.dot(sample - circle.center()) < 0.0),
                 })
             }
             _ => Err(GeometryError::Unsupported),
@@ -726,5 +742,14 @@ fn bspline_error(error: bspline::BSplineError) -> GeometryError {
     match error {
         bspline::BSplineError::MissingPoint => GeometryError::MissingReference,
         bspline::BSplineError::Invalid => GeometryError::InvalidBSpline,
+    }
+}
+
+/// 逆か（`reversed`）から、法線の関係
+fn sense_of(reversed: bool) -> Sense {
+    if reversed {
+        Sense::Reversed
+    } else {
+        Sense::Same
     }
 }

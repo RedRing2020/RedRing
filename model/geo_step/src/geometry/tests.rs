@@ -254,8 +254,9 @@ fn de_boor(degree: usize, knots: &[f64], points: &[[f64; 4]], t: f64) -> [f64; 3
         for j in (r..=degree).rev() {
             let index = j + span - degree;
             let alpha = (t - knots[index]) / (knots[index + degree + 1 - r] - knots[index]);
-            for c in 0..4 {
-                d[j][c] = (1.0 - alpha) * d[j - 1][c] + alpha * d[j][c];
+            let previous = d[j - 1];
+            for (value, before) in d[j].iter_mut().zip(previous) {
+                *value = (1.0 - alpha) * before + alpha * *value;
             }
         }
     }
@@ -548,6 +549,8 @@ fn extrusions_revolutions_and_offsets_in_the_design_range_are_read() {
     };
     assert!((torus.major_radius() - 4.0).abs() < 1.0e-12);
     assert_eq!(torus.minor_radius(), 1.0);
+    // 中心が軸の上の円を回した球は、STEP の法線との関係が面ごとに決まる
+    assert_eq!(geometries.surfaces[&sphere].sense, Sense::PerFace);
     let SurfaceRef::Sphere(sphere) = &geometries.surfaces[&sphere].surface else {
         panic!("a sphere");
     };
@@ -627,12 +630,12 @@ fn extruded_and_revolved_surfaces_report_a_reversed_normal() {
     });
     let geometries = builder.convert();
 
-    assert!(!geometries.surfaces[&along].reversed);
-    assert!(geometries.surfaces[&against].reversed);
-    assert!(!geometries.surfaces[&outward].reversed);
-    assert!(geometries.surfaces[&inward].reversed);
+    assert_eq!(geometries.surfaces[&along].sense, Sense::Same);
+    assert_eq!(geometries.surfaces[&against].sense, Sense::Reversed);
+    assert_eq!(geometries.surfaces[&outward].sense, Sense::Same);
+    assert_eq!(geometries.surfaces[&inward].sense, Sense::Reversed);
     let offset = &geometries.surfaces[&offset_inward];
-    assert!(offset.reversed);
+    assert_eq!(offset.sense, Sense::Reversed);
     let SurfaceRef::Cylinder(cylinder) = &offset.surface else {
         panic!("a cylinder");
     };
