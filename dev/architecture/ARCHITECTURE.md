@@ -23,6 +23,7 @@ model
   application → geo_algorithms → geo_primitives / geo_nurbs → geo_contracts → geo_core
   application → geo_topology → geo_primitives / geo_nurbs
   application → geo_entity / geo_io（製品形状の取り込み）
+  application → geo_step → geo_topology / geo_algorithms（STEP の読み込み）
   geo_primitives → geo_commons
   geo_entity / geo_io → geo_primitives
   geo_io → geo_algorithms（形状のバイト列の読み書き）
@@ -51,6 +52,7 @@ foundation（analysis / logging_foundation / i18n_foundation / platform_foundati
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
 - **`geo_entity`**: 業務に依らない CAD のエンティティ基盤（識別子・属性・関係）。業務（CAM 等）の属性・表示の定義は持たない
 - **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）と、形状（三角形メッシュ・NURBS 曲面）のバイト列の読み書き（ジョブの入力・モデルファイルで共有する）
+- **`geo_step`**: STEP（ISO 10303-21）のデータ交換。構文（バイト列からエンティティの表）・中間データ・位相を作る段を持つ。ファイルを開かず、バイト列を受ける。位相に依存するため `geo_io` と分ける（`BREP_AND_STEP_IMPORT_DESIGN.md` 4 章）
 - **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小の機械制約 / 加工の条件と素材の余裕の値）
 - **`cam_algorithms`**: CAM 固有のアルゴリズム（経路生成、順序最適化、干渉回避、機械制約の検証）
 - **`cam_sim`**: CAM 特化の実行・ユースケース（ToolPath の実行、除去量の更新、結果のキャッシュ）
