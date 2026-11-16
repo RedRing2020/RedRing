@@ -5,6 +5,7 @@
 //!
 //! - `syntax`: 構文（バイト列を、エンティティの表にする）
 //! - `record`: 中間データ（エンティティの表を、幾何と位相の記録にする）
+//! - `geometry`: 幾何の記録を、曲線・曲面の型にする
 
 #![cfg_attr(
     not(test),
@@ -16,5 +17,6 @@
     )
 )]
 
+pub mod geometry;
 pub mod record;
 pub mod syntax;
