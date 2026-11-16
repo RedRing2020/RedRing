@@ -276,6 +276,23 @@ fn the_surface_deviation_is_the_largest_distance_from_the_surface() {
             .unwrap();
     assert!((deviation - 0.002).abs() < 1.0e-9, "{deviation}");
 
+    // 半頂角 45 度の円錐で、高さ 1 の半径 2 の円より 0.001 だけ大きい円（母線に垂直に測ると、0.001 × cos 45 度）
+    let cone = SurfaceRef::Cone(
+        TopoConicalSurface3D::new_standard(
+            Point3D::new(0.0, 0.0, 0.0),
+            1.0,
+            Angle::from_radians(FRAC_PI_4),
+        )
+        .unwrap(),
+    );
+    let circle = TopoCircle3D::new_xy_plane(Point3D::new(0.0, 0.0, 1.0), 2.001).unwrap();
+    let deviation =
+        ParameterCurve::surface_deviation(&cone, &CurveRef::Circle(circle), (0.0, PI)).unwrap();
+    assert!(
+        (deviation - 0.001 * FRAC_PI_4.cos()).abs() < 1.0e-12,
+        "{deviation}"
+    );
+
     // 円柱を斜めの平面で切った楕円は、(u, v) で直線にならないが、円柱の上にある
     let ellipse = TopoEllipse3D::new(
         Point3D::new(0.0, 0.0, 1.0),
