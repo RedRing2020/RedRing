@@ -11,7 +11,19 @@ use crate::menu_bar_messages::resolve_menu_bar_text;
 use viewmodel::space_model_document::SpaceModelDocument;
 
 /// 読み込める形状ファイルの形式（ファイルを開く画面の種類の名前と拡張子。大文字・小文字を区別する OS のため両方）
-const SHAPE_FILE_FORMATS: &[(&str, &[&str])] = &[("STL", &["stl", "STL"])];
+/// STEP ファイルの拡張子（大文字と小文字は区別しない）
+const STEP_EXTENSIONS: &[&str] = &["step", "stp", "STEP", "STP"];
+const SHAPE_FILE_FORMATS: &[(&str, &[&str])] =
+    &[("STL", &["stl", "STL"]), ("STEP", STEP_EXTENSIONS)];
+
+/// STEP ファイルか（拡張子で決める）
+pub(super) fn is_step_file(path: &Path) -> bool {
+    path.extension().is_some_and(|extension| {
+        STEP_EXTENSIONS
+            .iter()
+            .any(|step| extension.eq_ignore_ascii_case(step))
+    })
+}
 
 /// モデルファイルの拡張子
 const MODEL_FILE_EXTENSION: &str = "rrm";

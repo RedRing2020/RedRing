@@ -81,6 +81,14 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("notice.shape_imported", "形状を読み込みました: {file}"),
     (
+        "notice.step_imported",
+        "STEP ファイルを読み込みました: {file}（形状 {shapes} 個）",
+    ),
+    (
+        "notice.step_imported_with_skipped",
+        "STEP ファイルを読み込みました: {file}（形状 {shapes} 個。読めなかった・配置できなかった要素 {skipped} 個。理由はログを確認してください）",
+    ),
+    (
         "notice.shape_import_failed",
         "形状を読み込めません: {file}（{reason}）",
     ),
@@ -247,6 +255,14 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
         "Press F1 or choose Help → Controls to see the controls",
     ),
     ("notice.shape_imported", "Loaded the shape: {file}"),
+    (
+        "notice.step_imported",
+        "Loaded the STEP file: {file} ({shapes} shapes)",
+    ),
+    (
+        "notice.step_imported_with_skipped",
+        "Loaded the STEP file: {file} ({shapes} shapes, {skipped} elements not loaded or not placed; see the log for the reasons)",
+    ),
     (
         "notice.shape_import_failed",
         "Cannot load the shape: {file} ({reason})",

@@ -3,7 +3,7 @@
 //! エラーの種類ごとにキーを決める。エラーの中の詳しい理由（英語の文）は画面に出さず、ログに残す。
 
 use application::cam_simulation_workflow::CamSimulationWorkflowError;
-use application::product_shape::ProductShapeError;
+use application::product_shape::{ProductShapeError, StepImportError};
 use application::space_model_file::SpaceModelFileError;
 use i18n_foundation::{UiMessage, UiMessageArg};
 
@@ -113,6 +113,14 @@ pub fn product_shape_failure_message(error: &ProductShapeError) -> UiMessage {
         }
         ProductShapeError::NoFaces => message("failure.shape.no_faces"),
         ProductShapeError::SourceFaceCountMismatch => message("failure.shape.source_faces"),
+        ProductShapeError::StepFile { kind, .. } => file_failure_message(*kind),
+        ProductShapeError::Step(StepImportError::Syntax(_)) => message("failure.shape.step_syntax"),
+        ProductShapeError::Step(StepImportError::TooLarge | StepImportError::Limit(_)) => {
+            message("failure.shape.step_limit")
+        }
+        ProductShapeError::Step(StepImportError::NoShapes) => {
+            message("failure.shape.step_no_shapes")
+        }
     }
 }
 

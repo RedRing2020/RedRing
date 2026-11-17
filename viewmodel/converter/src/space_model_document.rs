@@ -17,6 +17,7 @@ use application::machining_sequence::{
 };
 use application::product_shape::{
     EntityDisplayProperties, FaceSetEntity3DProperties, ProductShapeError, ProductShapeStore,
+    StepImportReport,
 };
 use application::space_model_file::{
     SpaceModel, SpaceModelFileError, SpaceModelSaveInfo, load_space_model, save_space_model,
@@ -205,6 +206,17 @@ impl SpaceModelDocument {
         self.model.shapes.import_stl(path)?;
         self.modified = true;
         Ok(())
+    }
+
+    /// STEP ファイルを製品形状として取り込み（アセンブリの出現ごとのシェル）、今の空間モデルに加える
+    ///
+    /// # Errors
+    ///
+    /// STEP の読み込みの失敗（何も加えない）。
+    pub fn import_step(&mut self, path: &Path) -> Result<StepImportReport, ProductShapeError> {
+        let report = self.model.shapes.import_step(path)?;
+        self.modified = true;
+        Ok(report)
     }
 
     /// 表示中のエンティティ（面単体の後にシェル）の描画用のメッシュ（表示用の三角形を作れないエンティティは除き、

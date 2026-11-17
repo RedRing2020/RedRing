@@ -82,6 +82,13 @@ pub(crate) enum Notice {
     ShapeImported { file: String },
     /// 形状を読み込めない（ファイルの名前と理由）
     ShapeImportFailed { file: String, reason: UiMessage },
+    /// STEP ファイルを読み込んだ（ファイルの名前・加えた形状の数・読めなかった・配置できなかった要素の数。理由は
+    /// ログに出す）
+    StepImported {
+        file: String,
+        shapes: usize,
+        skipped: usize,
+    },
     /// 切削シミュレーションを取り込む前に、再生の操作をした
     NotImported,
     /// ツールパスに区間がないため、工具を区間の端点へ移せない
@@ -134,6 +141,13 @@ impl Notice {
             | Self::ModelSaved { .. }
             | Self::JobManagerNotRunning
             | Self::JobManagerAvailable => NoticeLevel::Info,
+            Self::StepImported { skipped, .. } => {
+                if *skipped == 0 {
+                    NoticeLevel::Info
+                } else {
+                    NoticeLevel::Warning
+                }
+            }
             Self::ShapeImportFailed { .. }
             | Self::ModelOpenFailed { .. }
             | Self::ModelSaveFailed { .. }
@@ -181,6 +195,23 @@ impl Notice {
             Self::Startup => resolve_help_text(locale, "notice.startup", &[]),
             Self::ShapeImported { file } => {
                 resolve_help_text(locale, "notice.shape_imported", &[("file", file.clone())])
+            }
+            Self::StepImported {
+                file,
+                shapes,
+                skipped,
+            } => {
+                let args = [
+                    ("file", file.clone()),
+                    ("shapes", shapes.to_string()),
+                    ("skipped", skipped.to_string()),
+                ];
+                let key = if *skipped == 0 {
+                    "notice.step_imported"
+                } else {
+                    "notice.step_imported_with_skipped"
+                };
+                resolve_help_text(locale, key, &args)
             }
             Self::ShapeImportFailed { file, reason } => resolve_help_text(
                 locale,
@@ -539,6 +570,16 @@ mod tests {
                 Notice::Startup,
                 Notice::ShapeImported {
                     file: "a.stl".to_string(),
+                },
+                Notice::StepImported {
+                    file: "a.step".to_string(),
+                    shapes: 2,
+                    skipped: 0,
+                },
+                Notice::StepImported {
+                    file: "a.step".to_string(),
+                    shapes: 2,
+                    skipped: 1,
                 },
                 Notice::ShapeImportFailed {
                     file: "a.stl".to_string(),

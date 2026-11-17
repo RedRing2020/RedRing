@@ -7,10 +7,12 @@
 
 mod bspline;
 mod conic;
+mod placement;
 #[cfg(test)]
 mod tests;
 
 pub use conic::Conic;
+pub use placement::{PlacementError, rigid_transformation};
 
 use crate::record::{Geometry as Record, Records};
 use geo_contracts::{
@@ -101,13 +103,7 @@ struct Frame {
 ///
 /// `tolerances` は、平行か・軸の上かなどの形の判定に使う（距離と角度）。
 pub fn convert(records: &Records, tolerances: &ToleranceSettings<f64>) -> Geometries {
-    let mut converter = Converter {
-        records,
-        tolerances,
-        geometries: Geometries::default(),
-        failed: BTreeMap::new(),
-        visiting: BTreeSet::new(),
-    };
+    let mut converter = Converter::new(records, tolerances);
     for (&id, record) in &records.geometry {
         // 結果は、型にする処理が覚え、型にできなければ理由を記録する
         match record {
@@ -149,6 +145,16 @@ struct Converter<'a> {
 }
 
 impl<'a> Converter<'a> {
+    fn new(records: &'a Records, tolerances: &'a ToleranceSettings<f64>) -> Self {
+        Self {
+            records,
+            tolerances,
+            geometries: Geometries::default(),
+            failed: BTreeMap::new(),
+            visiting: BTreeSet::new(),
+        }
+    }
+
     fn record(&self, id: u64) -> Result<&'a Record, GeometryError> {
         self.records
             .geometry
@@ -260,8 +266,7 @@ impl<'a> Converter<'a> {
         }
     }
 
-    /// 配置（`AXIS2_PLACEMENT_3D`）の正規直交の座標系（ISO 10303-42 の `build_axes` のとおり、軸がなければ
-    /// Z、基準の方向がなければ X（軸が X なら Y）とし、基準の方向から軸の成分を除く）
+    /// 配置（`AXIS2_PLACEMENT_3D`）の正規直交の座標系
     fn frame(&self, id: u64) -> Result<Frame, GeometryError> {
         let Record::Placement {
             location,
@@ -272,13 +277,24 @@ impl<'a> Converter<'a> {
             return Err(GeometryError::MissingReference);
         };
         let origin = self.point(*location)?;
+        self.axes(*axis, *ref_direction, origin)
+    }
+
+    /// 原点 `origin`・軸 `axis`・基準の方向 `ref_direction` の正規直交の座標系（ISO 10303-42 の `build_axes`
+    /// のとおり、軸がなければ Z、基準の方向がなければ X（軸が X なら Y）とし、基準の方向から軸の成分を除く）
+    fn axes(
+        &self,
+        axis: Option<u64>,
+        ref_direction: Option<u64>,
+        origin: Point3D<f64>,
+    ) -> Result<Frame, GeometryError> {
         let z = match axis {
-            Some(axis) => self.direction(*axis)?,
+            Some(axis) => self.direction(axis)?,
             None => Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0))
                 .ok_or(GeometryError::DegeneratePlacement)?,
         };
         let reference = match ref_direction {
-            Some(reference) => self.direction(*reference)?.as_vector(),
+            Some(reference) => self.direction(reference)?.as_vector(),
             None => {
                 let x = Vector3D::new(1.0, 0.0, 0.0);
                 if z.as_vector().cross(x).length() <= self.tolerances.angle_tolerance {

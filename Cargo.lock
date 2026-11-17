@@ -144,6 +144,7 @@ dependencies = [
  "geo_entity",
  "geo_io",
  "geo_primitives",
+ "geo_step",
  "geo_topology",
  "job_domain",
  "job_ipc",

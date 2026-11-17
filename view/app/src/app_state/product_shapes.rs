@@ -8,23 +8,42 @@ use stage::MeshStage;
 use std::path::Path;
 
 impl AppState {
-    /// STL ファイルを製品形状として取り込み、表示中の製品形状を表示する
+    /// 形状ファイル（拡張子が step・stp なら STEP、それ以外は STL）を製品形状として取り込み、表示中の製品形状を
+    /// 表示する
     pub fn import_product_shape(&mut self, path: &Path) {
         let file = super::model_file::file_name(path);
-        if let Err(error) = self.document.import_stl(path) {
-            tracing::warn!(path = %path.display(), "product shape import failed: {error}");
-            self.set_notice(crate::help_ui::Notice::ShapeImportFailed {
-                file,
-                reason: viewmodel::failure_message_mapper::product_shape_failure_message(&error),
-            });
-            return;
-        }
+        let imported = if super::model_file::is_step_file(path) {
+            self.document
+                .import_step(path)
+                .map(|report| crate::help_ui::Notice::StepImported {
+                    file: file.clone(),
+                    shapes: report.shells,
+                    skipped: report.issues(),
+                })
+        } else {
+            self.document
+                .import_stl(path)
+                .map(|()| crate::help_ui::Notice::ShapeImported { file: file.clone() })
+        };
+        let notice = match imported {
+            Ok(notice) => notice,
+            Err(error) => {
+                tracing::warn!(path = %path.display(), "product shape import failed: {error}");
+                self.set_notice(crate::help_ui::Notice::ShapeImportFailed {
+                    file,
+                    reason: viewmodel::failure_message_mapper::product_shape_failure_message(
+                        &error,
+                    ),
+                });
+                return;
+            }
+        };
         tracing::info!(path = %path.display(), "product shape imported");
         self.invalidate_conditions();
         // 加工の対象が変わり、工程の改訂が進むため、前の条件の計算を取り消す（取り込んだことを画面の下の行に残すため、
         // 取り込んだことは取り消した後に出す）
         self.cancel_superseded_jobs();
-        self.set_notice(crate::help_ui::Notice::ShapeImported { file });
+        self.set_notice(notice);
         self.show_product_shapes();
     }
 
