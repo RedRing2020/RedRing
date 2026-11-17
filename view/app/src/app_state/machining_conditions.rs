@@ -500,7 +500,7 @@ impl AppState {
             operations,
             selected_operation: selected,
             operation_command: None,
-            face_count: self.document.shapes().visible_face_ids().len(),
+            face_count: self.document.shapes().visible_face_count(),
             operation,
             stock,
             tool_length_input,

@@ -28,6 +28,7 @@ use crate::cutting_animation::CuttingAnimation;
 use crate::failure_message_mapper::workflow_failure_message;
 use crate::inverse_offset_shape_converter::{InverseOffsetShapeMesh, inverse_offset_shape_meshes};
 use crate::space_model_document::{ImportedToolpathState, SpaceModelDocument};
+use application::product_shape::ProductShapeError;
 use i18n_foundation::UiMessage;
 
 /// 選べる工具の種類（ボールエンドミル・フラットエンドミル）
@@ -97,7 +98,7 @@ pub struct ImportedCuttingSimulation {
 pub enum ConditionIssue {
     /// 工程の計算の条件を、まだ設定していない（条件を一度も適用していない）
     NotSet,
-    /// 加工の対象の製品形状がない、または形状にできない
+    /// 加工の対象の製品形状がない
     NoProductShape,
     /// 計算条件の誤り（出す欄は `CamConditionError::field`）
     Condition(CamConditionError),
@@ -111,10 +112,12 @@ impl ConditionIssue {
             CamSimulationWorkflowError::Conditions(errors) => {
                 errors.iter().cloned().map(Self::Condition).collect()
             }
-            CamSimulationWorkflowError::ProductShape(_)
-            | CamSimulationWorkflowError::EmptyProductShape => {
-                vec![Self::NoProductShape]
-            }
+            // 面がない・面が消えた・形状が空なら製品形状がないとし、形状にできない（三角形に分けられない・種類が
+            // 混ざる）なら、その理由を出す
+            CamSimulationWorkflowError::ProductShape(
+                ProductShapeError::NoFaces | ProductShapeError::UnknownFace(_),
+            )
+            | CamSimulationWorkflowError::EmptyProductShape => vec![Self::NoProductShape],
             other => vec![Self::Other(workflow_failure_message(other))],
         }
     }
@@ -407,7 +410,7 @@ impl CuttingSimulationSession {
     /// （加工の順。問題は、工程を選んで [`Self::check`] で確かめたときと同じ。条件を設定していない工程は含めない）
     ///
     /// 工程の改訂ごとに確かめた結果を覚え、改訂が進んだ工程（計算の条件・素材・加工の対象が変わった）だけを
-    /// 確かめ直す。確かめ直す工程はまとめて確かめ、加工の対象の形状は 1 回だけ作る。
+    /// 確かめ直す。確かめ直す工程はまとめて確かめ、加工の対象の形状は工程の精度ごとに 1 回だけ作る。
     pub fn operation_condition_issues(
         &mut self,
         document: &mut SpaceModelDocument,

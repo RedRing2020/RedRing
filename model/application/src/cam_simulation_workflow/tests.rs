@@ -1309,3 +1309,40 @@ fn an_operation_is_interrupted_when_its_toolpath_or_simulation_job_is_interrupte
     // 中断は、重ねて投入しない状態ではない（計算で続ける）
     assert!(!OperationJobStatus::Interrupted.is_waiting_or_done());
 }
+
+#[test]
+fn toolpaths_are_calculated_for_the_faces_of_a_shell() {
+    use crate::product_shape::SimilarityTransform3D;
+    use geo_algorithms::Vector3D;
+
+    // 一辺 10 の立方体のシェルを、x・y に 20、z に 80 動かして置く（上の面は z = 90）
+    let mut shapes = ProductShapeStore::new();
+    shapes
+        .add_shell(
+            std::sync::Arc::new(crate::product_shape::test_fixtures::cube_brep()),
+            SimilarityTransform3D::translation(Vector3D::new(20.0, 20.0, 80.0)),
+            None,
+        )
+        .unwrap();
+    let machining = Machining::new(shapes.visible_face_ids());
+    assert_eq!(machining.check(&shapes), Ok(()));
+    // 工程の工具（半径 3 のボール）で、上の面の中ほどの工具先端は上の面の高さ
+    let shape = CamSimulationWorkflow::inverse_offset_shape(
+        &shapes,
+        &machining.store,
+        machining.sequence,
+        machining.operation,
+    )
+    .unwrap();
+    assert!((shape.tip_height_at(25.0, 25.0).unwrap() - 90.0).abs() < 1e-9);
+
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let submission = machining.submit(&mut workflow, &shapes).unwrap();
+    assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
+    let result = workflow
+        .import(submitted(&workflow, &submission.submission_id).job_id)
+        .unwrap();
+    let (_, toolpath) =
+        read_toolpath_artifact_v1(&mut result.toolpath_artifact.as_slice()).unwrap();
+    assert!(toolpath.total_cutting_length() > 0.0);
+}

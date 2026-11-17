@@ -142,8 +142,11 @@ impl SpaceModelDocument {
             modified: false,
             display: ProductShapeDisplaySettings::default(),
         };
-        // 前の版で残した、前の条件の CL を除く（すべての加工手順。利用者が変えたものではないため、保存していない
-        // 変更にしない）
+        // 加工の対象は表示中の面にするため、開いたときに合わせる（作った加工手順・前に合わせていない加工の対象。
+        // 利用者が変えたものではないため、保存していない変更にしない）
+        document.target_visible_faces();
+        // 前の版で残した、前の条件の CL を除く（すべての加工手順。加工の対象を合わせた後に除く。利用者が変えたもの
+        // ではないため、保存していない変更にしない）
         for sequence in document.model.sequences.sequence_ids() {
             document
                 .model
@@ -151,9 +154,6 @@ impl SpaceModelDocument {
                 .remove_outdated(&document.model.sequences, sequence)
                 .expect("the sequence is held");
         }
-        // 加工の対象は表示中の面にするため、開いたときに合わせる（作った加工手順・前に合わせていない加工の対象。
-        // 利用者が変えたものではないため、保存していない変更にしない）
-        document.target_visible_faces();
         document.modified = false;
         document
     }

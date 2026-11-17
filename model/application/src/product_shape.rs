@@ -222,7 +222,7 @@ impl ProductShell {
         let mesh = Arc::new(triangulate_brep(&self.brep, chord_tolerance));
         for (face_id, face) in self.face_ids.iter().zip(&mesh.faces) {
             if let Err(error) = face {
-                tracing::warn!(%entity_id, %face_id, "a shell face is not displayed: {error}");
+                tracing::warn!(%entity_id, %face_id, "a shell face cannot be triangulated: {error}");
             }
         }
         if meshes.len() == CACHED_SHELL_MESHES {
@@ -231,6 +231,44 @@ impl ProductShell {
         meshes.push((key, Arc::clone(&mesh)));
         mesh
     }
+
+    /// B-rep の面の位置 `positions` の三角形を、境界の頂点を共有した 1 つの三角形メッシュにして、配置を当てる（法線は
+    /// 持たない）。配置した後の許容弦誤差を `chord_tolerance` にする（配置の拡大の分、B-rep の座標では小さくする）
+    fn solver_mesh(
+        &self,
+        positions: &[usize],
+        chord_tolerance: f64,
+        entity_id: EntityId,
+    ) -> Result<TriangleMesh3D<f64>, ProductShapeError> {
+        let mesh = self.mesh(chord_tolerance / self.placement.scale_factor(), entity_id);
+        // シェルの点の番号から、メッシュの頂点の番号
+        let mut vertex_of: Vec<Option<usize>> = vec![None; mesh.points.len()];
+        let mut vertices = Vec::new();
+        let mut triangles = Vec::new();
+        for &position in positions {
+            let face = mesh.faces[position]
+                .as_ref()
+                .map_err(|error| ProductShapeError::ShellFace(*error))?;
+            for triangle in &face.triangles {
+                triangles.push(triangle.map(|corner| {
+                    let point = face.vertices[corner];
+                    *vertex_of[point].get_or_insert_with(|| {
+                        vertices.push(self.placement.apply_point(mesh.points[point]));
+                        vertices.len() - 1
+                    })
+                }));
+            }
+        }
+        Ok(TriangleMesh3D::new(vertices, triangles)
+            .expect("the triangles of the faces index the points taken from the shell"))
+    }
+}
+
+/// 面の ID が指す面（面単体の番号、またはシェルの番号と B-rep の面の順の位置）
+#[derive(Debug, Clone, Copy)]
+enum FaceLocation {
+    Single(usize),
+    Shell { shell: usize, position: usize },
 }
 
 /// 同じ B-rep の表を持つシェルが `shells` にあれば、その三角形の置き場。なければ新しい置き場
@@ -707,50 +745,103 @@ impl ProductShapeStore {
         Ok(())
     }
 
-    /// 表示中のすべての面単体のエンティティの面の ID（加えた順。シェルの面は、トリムした面を CAM の入力にできる
-    /// まで含めない）
+    /// 表示中のすべてのエンティティの面の ID（面単体、続けてシェルの面。それぞれ加えた順で、シェルの面は B-rep の
+    /// 面の順）
     pub fn visible_face_ids(&self) -> Vec<FaceId> {
-        self.entities
+        let singles = self
+            .entities
             .iter()
             .filter(|entity| entity.display().visible)
-            .map(|entity| entity.face().id())
-            .collect()
+            .map(|entity| entity.face().id());
+        let shells = self
+            .shells
+            .iter()
+            .filter(|shell| shell.0.display().visible)
+            .flat_map(|shell| shell.shell().face_ids.iter().copied());
+        singles.chain(shells).collect()
+    }
+
+    /// 表示中のすべてのエンティティの面の数（[`Self::visible_face_ids`] の数）
+    pub fn visible_face_count(&self) -> usize {
+        let singles = self
+            .entities
+            .iter()
+            .filter(|entity| entity.display().visible)
+            .count();
+        let shells: usize = self
+            .shells
+            .iter()
+            .filter(|shell| shell.0.display().visible)
+            .map(|shell| shell.shell().face_ids.len())
+            .sum();
+        singles + shells
+    }
+
+    /// すべての面の ID が指す面
+    fn face_locations(&self) -> HashMap<FaceId, FaceLocation> {
+        let singles = self
+            .entities
+            .iter()
+            .enumerate()
+            .map(|(index, entity)| (entity.face().id(), FaceLocation::Single(index)));
+        let shells = self.shells.iter().enumerate().flat_map(|(shell, entity)| {
+            entity
+                .shell()
+                .face_ids
+                .iter()
+                .enumerate()
+                .map(move |(position, &id)| (id, FaceLocation::Shell { shell, position }))
+        });
+        singles.chain(shells).collect()
     }
 
     /// 面の ID の集合を、ツールパス生成の入力の形状にする
     ///
-    /// 三角形メッシュの面は 1 つのメッシュにつなげ、NURBS 曲面の面は曲面の集合にする。同じ面の ID は 1 回だけ使う。
+    /// 面単体の三角形メッシュの面とシェルの面は 1 つのメッシュにつなげ、NURBS 曲面の面単体は曲面の集合にする。シェル
+    /// の面は、許容弦誤差 `chord_tolerance` で三角形に分け、シェルごとに境界の頂点を共有する。同じ面の ID は 1 回
+    /// だけ使う。
     ///
     /// # Errors
     ///
-    /// 面がない場合、保持していない面がある場合、NURBS 曲面と三角形メッシュの面が混ざっている場合。
+    /// 面がない場合、保持していない面がある場合、NURBS 曲面の面単体とほかの面が混ざっている場合、シェルの面を
+    /// 三角形に分けられない場合。
     pub(crate) fn resolve_solver_geometry(
         &self,
         face_ids: &[FaceId],
+        chord_tolerance: f64,
     ) -> Result<SolverGeometry, ProductShapeError> {
+        let locations = self.face_locations();
         let mut seen = HashSet::new();
-        let mut faces = Vec::new();
+        let mut singles = Vec::new();
+        // シェルの番号と、選んだ面の位置（シェルを初めに選んだ順）
+        let mut shell_faces: Vec<(usize, Vec<usize>)> = Vec::new();
         for &face_id in face_ids {
             if !seen.insert(face_id) {
                 continue;
             }
-            let face = self
-                .entities
-                .iter()
-                .map(ProductFaceEntity::face)
-                .find(|face| face.id() == face_id)
-                .ok_or(ProductShapeError::UnknownFace(face_id))?;
-            faces.push(face.geometry());
+            match *locations
+                .get(&face_id)
+                .ok_or(ProductShapeError::UnknownFace(face_id))?
+            {
+                FaceLocation::Single(index) => singles.push(self.entities[index].face().geometry()),
+                FaceLocation::Shell { shell, position } => {
+                    match shell_faces.iter_mut().find(|(index, _)| *index == shell) {
+                        Some((_, positions)) => positions.push(position),
+                        None => shell_faces.push((shell, vec![position])),
+                    }
+                }
+            }
         }
-        if faces.is_empty() {
+        if singles.is_empty() && shell_faces.is_empty() {
             return Err(ProductShapeError::NoFaces);
         }
 
-        if faces
-            .iter()
-            .all(|geometry| matches!(geometry, ProductFaceGeometry::Surface(_)))
+        if shell_faces.is_empty()
+            && singles
+                .iter()
+                .all(|geometry| matches!(geometry, ProductFaceGeometry::Surface(_)))
         {
-            let surfaces = faces
+            let surfaces = singles
                 .into_iter()
                 .filter_map(|geometry| match geometry {
                     ProductFaceGeometry::Surface(surface) => Some(surface.clone()),
@@ -760,15 +851,27 @@ impl ProductShapeStore {
             return Ok(SolverGeometry::NurbsSurfaceSet(surfaces));
         }
 
-        let meshes = faces
+        let single_meshes = singles
             .into_iter()
             .map(|geometry| match geometry {
                 ProductFaceGeometry::Mesh(mesh) => Ok(mesh),
                 ProductFaceGeometry::Surface(_) => Err(ProductShapeError::MixedFaceKinds),
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let mesh = concatenate_triangle_meshes(&meshes);
-        Ok(SolverGeometry::TriangleMesh(mesh))
+        let shell_meshes = shell_faces
+            .iter()
+            .map(|(index, positions)| {
+                let entity = &self.shells[*index];
+                entity
+                    .shell()
+                    .solver_mesh(positions, chord_tolerance, entity.id())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let meshes: Vec<&TriangleMesh3D<f64>> =
+            single_meshes.into_iter().chain(&shell_meshes).collect();
+        Ok(SolverGeometry::TriangleMesh(concatenate_triangle_meshes(
+            &meshes,
+        )))
     }
 }
 

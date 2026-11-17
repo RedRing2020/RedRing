@@ -121,7 +121,7 @@ fn hidden_entities_are_excluded_from_the_visible_faces() {
     assert_eq!(store.visible_face_ids(), vec![shown.face_id]);
 
     let SolverGeometry::TriangleMesh(mesh) = store
-        .resolve_solver_geometry(&store.visible_face_ids())
+        .resolve_solver_geometry(&store.visible_face_ids(), 0.01)
         .unwrap()
     else {
         panic!("mesh faces resolve to a mesh");
@@ -144,7 +144,7 @@ fn mesh_faces_are_concatenated_into_one_mesh() {
     let second = store.add_face(ProductFaceGeometry::Mesh(pyramid(4.0)));
     // 同じ面を重ねて指定しても 1 回だけ使う
     let SolverGeometry::TriangleMesh(mesh) = store
-        .resolve_solver_geometry(&[first.face_id, second.face_id, first.face_id])
+        .resolve_solver_geometry(&[first.face_id, second.face_id, first.face_id], 0.01)
         .unwrap()
     else {
         panic!("mesh faces resolve to a mesh");
@@ -162,7 +162,8 @@ fn surface_faces_resolve_to_a_surface_set() {
     let faces: Vec<FaceId> = (0..2)
         .map(|_| store.add_face(ProductFaceGeometry::Surface(dome())).face_id)
         .collect();
-    let SolverGeometry::NurbsSurfaceSet(surfaces) = store.resolve_solver_geometry(&faces).unwrap()
+    let SolverGeometry::NurbsSurfaceSet(surfaces) =
+        store.resolve_solver_geometry(&faces, 0.01).unwrap()
     else {
         panic!("surface faces resolve to a surface set");
     };
@@ -178,24 +179,24 @@ fn invalid_face_sets_are_rejected() {
 
     assert_eq!(
         store
-            .resolve_solver_geometry(&[mesh.face_id, surface.face_id])
+            .resolve_solver_geometry(&[mesh.face_id, surface.face_id], 0.01)
             .unwrap_err(),
         ProductShapeError::MixedFaceKinds
     );
     assert_eq!(
         store
-            .resolve_solver_geometry(&[surface.face_id, mesh.face_id])
+            .resolve_solver_geometry(&[surface.face_id, mesh.face_id], 0.01)
             .unwrap_err(),
         ProductShapeError::MixedFaceKinds
     );
     assert_eq!(
         store
-            .resolve_solver_geometry(&[mesh.face_id, unknown])
+            .resolve_solver_geometry(&[mesh.face_id, unknown], 0.01)
             .unwrap_err(),
         ProductShapeError::UnknownFace(unknown)
     );
     assert_eq!(
-        store.resolve_solver_geometry(&[]).unwrap_err(),
+        store.resolve_solver_geometry(&[], 0.01).unwrap_err(),
         ProductShapeError::NoFaces
     );
     let missing = EntityId::new_random();
@@ -364,10 +365,15 @@ fn a_shell_gets_a_face_id_for_each_face_of_its_brep() {
     assert_eq!(ids.len(), 8);
     assert_eq!(shells[0].source, Some(tetrahedron_source()));
     assert_eq!(shells[0].placement.to_matrix(), placement.to_matrix());
-    // シェルの面は、CAM の入力にできるまで、表示中の面に含めない
-    assert!(store.visible_face_ids().is_empty());
+    // 表示中の面は、シェルの面を B-rep の面の順に含め、隠したシェルの面は含めない
+    let visible: Vec<FaceId> = shells
+        .iter()
+        .flat_map(|shell| shell.face_ids.clone())
+        .collect();
+    assert_eq!(store.visible_face_ids(), visible);
     store.set_visible(first, false).unwrap();
     assert!(!store.shell_records()[0].display.visible);
+    assert_eq!(store.visible_face_ids(), shells[1].face_ids);
 }
 
 #[test]
@@ -470,13 +476,16 @@ fn shell_faces_are_displayed_with_the_placement_and_occurrences_share_the_triang
     }
     // 2 つの出現で、三角形は 1 回だけ作る
     assert_eq!(first.shell().meshes.0.lock().unwrap().len(), 1);
-    // 置き場は、許容弦誤差の違う組を 2 つまで残す
+    // 置き場は、許容弦誤差の違う組を `CACHED_SHELL_MESHES` まで残す
     for tolerance in [0.1, 0.2, 0.3] {
         first
             .face_display_mesh(first.face_ids()[0], tolerance)
             .unwrap();
     }
-    assert_eq!(first.shell().meshes.0.lock().unwrap().len(), 2);
+    assert_eq!(
+        first.shell().meshes.0.lock().unwrap().len(),
+        CACHED_SHELL_MESHES
+    );
     let unknown = FaceId::new_random();
     assert_eq!(
         first.face_display_mesh(unknown, 0.05).unwrap_err(),
@@ -524,4 +533,131 @@ fn write_shell_samples() {
         },
     )
     .unwrap();
+}
+
+/// メッシュの三角形の辺（頂点の番号の小さい順）ごとの、使う三角形の数
+fn edge_uses(mesh: &TriangleMesh3D<f64>) -> HashMap<[usize; 2], usize> {
+    let mut uses = HashMap::new();
+    for &[a, b, c] in mesh.indices() {
+        for (from, to) in [(a, b), (b, c), (c, a)] {
+            *uses.entry([from.min(to), from.max(to)]).or_insert(0) += 1;
+        }
+    }
+    uses
+}
+
+/// メッシュの頂点が、どれも違う位置にある
+fn has_distinct_vertices(mesh: &TriangleMesh3D<f64>) -> bool {
+    let vertices = mesh.vertices();
+    vertices.iter().enumerate().all(|(index, point)| {
+        vertices[index + 1..]
+            .iter()
+            .all(|other| point.distance_to(*other) > 1.0e-9)
+    })
+}
+
+#[test]
+fn shell_faces_resolve_to_one_mesh_that_shares_the_boundary_vertices() {
+    let mut store = ProductShapeStore::new();
+    let offset = Vector3D::new(100.0, 0.0, 0.0);
+    store
+        .add_shell(
+            Arc::new(test_fixtures::cylinder_brep()),
+            SimilarityTransform3D::translation(offset),
+            None,
+        )
+        .unwrap();
+    let [shell] = store.shells() else {
+        panic!("one shell is held");
+    };
+    let face_ids = shell.face_ids();
+
+    // シェルの全体は、隙間なく閉じる（どの辺も 2 つの三角形が使い、同じ位置の頂点が 2 つない）
+    let SolverGeometry::TriangleMesh(closed) = store
+        .resolve_solver_geometry(&store.visible_face_ids(), 0.05)
+        .unwrap()
+    else {
+        panic!("shell faces resolve to a mesh");
+    };
+    assert!(closed.normals().is_none());
+    assert!(edge_uses(&closed).values().all(|&uses| uses == 2));
+    assert!(has_distinct_vertices(&closed));
+    // 配置を当てる（円柱は原点のまわり。配置で x に 100 動かす）
+    let display = shell.face_display_mesh(face_ids[0], 0.05).unwrap();
+    let closest = |point: Point3D<f64>| {
+        closed
+            .vertices()
+            .iter()
+            .map(|vertex| vertex.distance_to(point))
+            .fold(f64::INFINITY, f64::min)
+    };
+    assert!(
+        display
+            .vertices()
+            .iter()
+            .all(|&point| closest(point) < 1.0e-9)
+    );
+    assert!(closed.vertices().iter().all(|point| point.x() > 50.0));
+
+    // 隣り合う 2 つの面（側面と、端の面の 1 つ）は、境界の円の点を共有する
+    let pairs: Vec<_> = face_ids[1..]
+        .iter()
+        .map(|&other| {
+            let SolverGeometry::TriangleMesh(mesh) = store
+                .resolve_solver_geometry(&[face_ids[0], other], 0.05)
+                .unwrap()
+            else {
+                panic!("shell faces resolve to a mesh");
+            };
+            let separate = [face_ids[0], other]
+                .iter()
+                .map(|&face| shell.face_display_mesh(face, 0.05).unwrap().vertex_count())
+                .sum::<usize>();
+            (mesh, separate)
+        })
+        .collect();
+    for (mesh, separate) in &pairs {
+        assert!(has_distinct_vertices(mesh));
+        assert!(mesh.vertex_count() < *separate);
+    }
+
+    // 面単体の三角形メッシュとは、1 つのメッシュにつなげる。NURBS 曲面の面単体とは混ぜない
+    let pyramid_face = store.add_face(ProductFaceGeometry::Mesh(pyramid(8.0)));
+    let SolverGeometry::TriangleMesh(joined) = store
+        .resolve_solver_geometry(&[face_ids[0], pyramid_face.face_id], 0.05)
+        .unwrap()
+    else {
+        panic!("mesh and shell faces resolve to a mesh");
+    };
+    assert_eq!(joined.triangle_count(), display.triangle_count() + 4);
+    let dome_face = store.add_face(ProductFaceGeometry::Surface(dome()));
+    assert_eq!(
+        store
+            .resolve_solver_geometry(&[face_ids[0], dome_face.face_id], 0.05)
+            .unwrap_err(),
+        ProductShapeError::MixedFaceKinds
+    );
+}
+
+#[test]
+fn shell_faces_placed_with_a_scale_are_triangulated_finer_in_the_brep() {
+    // 2 倍に拡大して置いたシェルは、配置した後の許容弦誤差を守るため、B-rep の座標では半分の許容弦誤差で分ける
+    let mut store = ProductShapeStore::new();
+    let placement = SimilarityTransform3D::uniform_scale_about(Point3D::origin(), 2.0).unwrap();
+    store
+        .add_shell(Arc::new(test_fixtures::sphere_brep()), placement, None)
+        .unwrap();
+    store
+        .resolve_solver_geometry(&store.visible_face_ids(), 0.1)
+        .unwrap();
+    let cached: Vec<u64> = store.shells()[0]
+        .shell()
+        .meshes
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(key, _)| *key)
+        .collect();
+    assert_eq!(cached, vec![0.05_f64.to_bits()]);
 }
