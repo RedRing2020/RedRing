@@ -12,6 +12,8 @@ geo_contracts = { path = "../geo_contracts" }
 geo_primitives = { path = "../geo_primitives" }
 geo_nurbs = { path = "../geo_nurbs" }
 geo_core = { path = "../geo_core" }
+robust = "1.2.0"
+spade = "2.15.1"
 
 [lints]
 workspace = true

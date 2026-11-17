@@ -142,6 +142,9 @@ pub mod tessellation {
     /// 曲線を点に分けるときの、隣り合う弦のなす角の上限（度）。許容弦誤差が大きいときに、小さな円が多角形に
     /// 見えすぎないようにする
     pub const MAX_CHORD_ANGLE_DEGREES: f64 = 20.0;
+
+    /// (u, v) の点が極（u によらず 1 点になる v の線）の上にあるとみなす、v の差の上限
+    pub const POLE_PARAMETER_TOLERANCE: f64 = 1.0e-9;
 }
 
 /// 形状の読み込みで、要素（頂点・稜線）の許容誤差を広げるときの既定値
