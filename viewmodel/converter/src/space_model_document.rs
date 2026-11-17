@@ -15,7 +15,9 @@ use application::machining_sequence::{
     MachiningStock, OperationSpec, ScanlineCutDirection, ScanlineParams, ScanlineToolRange,
     StockMargins, Tool, scanline_finish_operation_content,
 };
-use application::product_shape::{EntityDisplayProperties, ProductShapeError, ProductShapeStore};
+use application::product_shape::{
+    EntityDisplayProperties, FaceSetEntity3DProperties, ProductShapeError, ProductShapeStore,
+};
 use application::space_model_file::{
     SpaceModel, SpaceModelFileError, SpaceModelSaveInfo, load_space_model, save_space_model,
 };
@@ -205,21 +207,37 @@ impl SpaceModelDocument {
         Ok(())
     }
 
-    /// 表示中のエンティティの描画用のメッシュ（表示用の三角形を作れないエンティティは除き、警告を出す）
+    /// 表示中のエンティティ（面単体の後にシェル）の描画用のメッシュ（表示用の三角形を作れないエンティティは除き、
+    /// 警告を出す）
     pub fn visible_meshes(&self) -> Vec<ProductShapeMesh> {
-        self.model
-            .shapes
+        let shapes = &self.model.shapes;
+        let faces = shapes
             .entities()
             .iter()
             .filter(|entity| entity.entity_visible())
-            .filter_map(|entity| {
-                face_set_entity_to_mesh(entity, self.display.chord_tolerance)
-                    .inspect_err(|error| {
-                        tracing::warn!(entity_id = %entity.id(), "product shape is not displayed: {error}");
-                    })
-                    .ok()
+            .filter_map(|entity| self.display_mesh(entity, entity.id()));
+        let shells = shapes
+            .shells()
+            .iter()
+            .filter(|shell| shell.entity_visible())
+            .filter_map(|shell| self.display_mesh(shell, shell.id()));
+        faces.chain(shells).collect()
+    }
+
+    /// エンティティ `entity_id` の描画用のメッシュ（作れなければ警告を出して `None`）
+    fn display_mesh<E>(
+        &self,
+        entity: &E,
+        entity_id: impl std::fmt::Display,
+    ) -> Option<ProductShapeMesh>
+    where
+        E: FaceSetEntity3DProperties<f64, DisplayMeshError = ProductShapeError>,
+    {
+        face_set_entity_to_mesh(entity, self.display.chord_tolerance)
+            .inspect_err(|error| {
+                tracing::warn!(%entity_id, "product shape is not displayed: {error}");
             })
-            .collect()
+            .ok()
     }
 
     /// 編集の対象の加工手順の加工工程（加工の順）

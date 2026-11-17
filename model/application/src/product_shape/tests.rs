@@ -426,3 +426,102 @@ fn shell_records_are_checked_when_restored() {
         ProductShapeRestoreError::FaceCountMismatch(fewer[0].entity_id)
     );
 }
+
+#[test]
+fn shell_faces_are_displayed_with_the_placement_and_occurrences_share_the_triangles() {
+    let mut store = ProductShapeStore::new();
+    let brep = Arc::new(test_fixtures::cube_brep());
+    let offset = Vector3D::new(100.0, 0.0, 0.0);
+    store
+        .add_shell(Arc::clone(&brep), SimilarityTransform3D::identity(), None)
+        .unwrap();
+    store
+        .add_shell(brep, SimilarityTransform3D::translation(offset), None)
+        .unwrap();
+    let [first, second] = store.shells() else {
+        panic!("two shells are held");
+    };
+    assert!(Arc::ptr_eq(&first.shell().meshes, &second.shell().meshes));
+    // 記録から戻しても、同じ部品の出現は置き場を共有する
+    let restored = ProductShapeStore::from_records(Vec::new(), store.shell_records()).unwrap();
+    let [restored_first, restored_second] = restored.shells() else {
+        panic!("two shells are restored");
+    };
+    assert!(Arc::ptr_eq(
+        &restored_first.shell().meshes,
+        &restored_second.shell().meshes
+    ));
+
+    let face_ids = second.face_ids();
+    assert_eq!(face_ids.len(), 6);
+    for (&placed_face, &face) in face_ids.iter().zip(&first.face_ids()) {
+        let placed = second.face_display_mesh(placed_face, 0.05).unwrap();
+        let original = first.face_display_mesh(face, 0.05).unwrap();
+        assert_eq!(placed.triangle_count(), original.triangle_count());
+        for (placed, original) in placed.vertices().iter().zip(original.vertices()) {
+            assert!(placed.distance_to(*original + offset) < 1.0e-9);
+        }
+        let normals = placed.normals().unwrap();
+        assert!(
+            normals
+                .iter()
+                .all(|normal| (normal.length() - 1.0).abs() < 1.0e-9)
+        );
+    }
+    // 2 つの出現で、三角形は 1 回だけ作る
+    assert_eq!(first.shell().meshes.0.lock().unwrap().len(), 1);
+    // 置き場は、許容弦誤差の違う組を 2 つまで残す
+    for tolerance in [0.1, 0.2, 0.3] {
+        first
+            .face_display_mesh(first.face_ids()[0], tolerance)
+            .unwrap();
+    }
+    assert_eq!(first.shell().meshes.0.lock().unwrap().len(), 2);
+    let unknown = FaceId::new_random();
+    assert_eq!(
+        first.face_display_mesh(unknown, 0.05).unwrap_err(),
+        ProductShapeError::UnknownFace(unknown)
+    );
+}
+
+/// 表示を確かめるモデルファイル（立方体・円柱・球・トーラス・穴のある板のシェル）を書き出す
+///
+/// `REDRING_SHELL_SAMPLES` に書き出すファイルの場所を渡して、`cargo test -p application --lib write_shell_samples
+/// -- --ignored` で実行する。
+#[test]
+#[ignore = "writes a model file to the path given by REDRING_SHELL_SAMPLES"]
+fn write_shell_samples() {
+    let Ok(path) = std::env::var("REDRING_SHELL_SAMPLES") else {
+        return;
+    };
+    let mut store = ProductShapeStore::new();
+    for (brep, offset) in [
+        (test_fixtures::cube_brep(), [0.0, 0.0, 0.0]),
+        (test_fixtures::cylinder_brep(), [40.0, 5.0, 0.0]),
+        (test_fixtures::sphere_brep(), [80.0, 5.0, 10.0]),
+        (test_fixtures::torus_brep(), [140.0, 5.0, 5.0]),
+        (test_fixtures::plate_with_hole_brep(), [0.0, 50.0, 0.0]),
+    ] {
+        let [x, y, z] = offset;
+        store
+            .add_shell(
+                Arc::new(brep),
+                SimilarityTransform3D::translation(Vector3D::new(x, y, z)),
+                None,
+            )
+            .unwrap();
+    }
+    let model = crate::space_model_file::SpaceModel::new(
+        store,
+        crate::machining_sequence::MachiningSequenceStore::new(),
+    );
+    crate::space_model_file::save_space_model(
+        std::path::Path::new(&path),
+        &model,
+        &crate::space_model_file::SpaceModelSaveInfo {
+            program_version: "shell samples".to_string(),
+            saved_at_ms: 0,
+        },
+    )
+    .unwrap();
+}

@@ -299,12 +299,15 @@ fn distance_to_segment(point: Point3D<f64>, start: Point3D<f64>, end: Point3D<f6
     }
 }
 
-/// 半径 `radius` の円の、許容弦誤差と角度の上限の角の刻み
+/// 半径 `radius` の円を、許容弦誤差 `chord_tolerance` と、隣り合う弦のなす角の上限 `max_angle` で分ける角の刻み
+/// （`2 acos(max(1 − 許容弦誤差 / 半径, cos(上限 / 2)))`。許容弦誤差が半径に比べて大きくても、上限を超えない）
+pub fn chord_angle_step(radius: f64, chord_tolerance: f64, max_angle: Angle<f64>) -> f64 {
+    let half_max = (max_angle.to_radians() / 2.0).cos();
+    2.0 * (1.0 - chord_tolerance / radius).max(half_max).acos()
+}
+
 fn angle_step(radius: f64, settings: &CurveDiscretizationSettings) -> f64 {
-    let half_max = (settings.max_angle.to_radians() / 2.0).cos();
-    2.0 * (1.0 - settings.chord_tolerance / radius)
-        .max(half_max)
-        .acos()
+    chord_angle_step(radius, settings.chord_tolerance, settings.max_angle)
 }
 
 /// 区間 `range` を、刻み `step` 以下の等しい幅で分ける

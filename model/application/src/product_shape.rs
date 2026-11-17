@@ -4,11 +4,14 @@
 //! 三角形メッシュ 1 つを持つ。シェルは B-rep の表（読み込んだ立体・シェル）を持ち、同じ部品の出現は表を共有して、
 //! 配置と面の ID の表を出現ごとに持つ（設計: BREP_AND_STEP_IMPORT_DESIGN.md 10.1・10.3）。面は全体で一意な面の
 //! ID（`FaceId`）を持ち、面への参照は面の ID だけで指す。
+//!
+//! シェルの面の表示用の三角形は、B-rep の全体を一度に分けて（隣の面と境界の頂点をそろえる）、B-rep の表と一緒に
+//! 共有する置き場に許容弦誤差ごとに残し、同じ部品の出現で使い回す（設計: TRIMMED_FACE_TESSELLATION_DESIGN.md 7 章）。
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use cam_algorithms::SolverGeometry;
 /// 製品形状の面の形（NURBS 曲面・三角形メッシュ）の型
@@ -21,11 +24,14 @@ use geo_algorithms::{
 pub use geo_contracts::{
     EntityDisplayProperties, FaceSetEntity3DProperties, TriangleMesh3DProperties,
 };
-use geo_contracts::{EntityIdentity, TriangleMesh3DConstructor};
+use geo_contracts::{EntityIdentity, SimilarityTransformable3D, TriangleMesh3DConstructor};
 use geo_entity::{Attributes, DisplayAttributes, EntityId, FaceId, GeometricEntity, Metadata};
 /// シェルの B-rep の表と、配置の型
 pub use geo_primitives::SimilarityTransform3D;
 pub use geo_topology::Brep;
+/// シェルの面を三角形にできない理由
+pub use shell_mesh::ShellFaceError;
+use shell_mesh::{ShellMesh, triangulate_brep};
 
 /// 面の形状
 #[derive(Debug, Clone)]
@@ -151,26 +157,152 @@ pub struct ShellSource {
     pub faces: Vec<u64>,
 }
 
+/// 置き場に残す B-rep の三角形の数（許容弦誤差の違う組。表示と CAM の入力で 1 つずつ）
+const CACHED_SHELL_MESHES: usize = 2;
+
+/// B-rep の三角形の置き場（許容弦誤差のビット列と三角形。古い順。同じ B-rep の表を持つシェルで共有する）
+#[derive(Default)]
+struct ShellMeshCache(Mutex<Vec<(u64, Arc<ShellMesh>)>>);
+
+impl fmt::Debug for ShellMeshCache {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // 三角形の点の並びは大きいので出さない
+        f.debug_struct("ShellMeshCache").finish_non_exhaustive()
+    }
+}
+
 /// シェル（B-rep の表と配置、B-rep の面の順の面の ID、元の要素）
 #[derive(Debug, Clone)]
 pub(crate) struct ProductShell {
     brep: Arc<Brep<f64>>,
     placement: SimilarityTransform3D<f64>,
     face_ids: Vec<FaceId>,
+    /// 面の ID から、B-rep の面の順の位置
+    face_positions: HashMap<FaceId, usize>,
     source: Option<ShellSource>,
+    meshes: Arc<ShellMeshCache>,
+}
+
+impl ProductShell {
+    fn new(
+        brep: Arc<Brep<f64>>,
+        placement: SimilarityTransform3D<f64>,
+        face_ids: Vec<FaceId>,
+        source: Option<ShellSource>,
+        meshes: Arc<ShellMeshCache>,
+    ) -> Self {
+        let face_positions = face_ids
+            .iter()
+            .enumerate()
+            .map(|(position, &id)| (id, position))
+            .collect();
+        Self {
+            brep,
+            placement,
+            face_ids,
+            face_positions,
+            source,
+            meshes,
+        }
+    }
+
+    /// 許容弦誤差 `chord_tolerance` の B-rep の三角形（置き場になければ作って残し、三角形にできない面を警告に
+    /// 出す。置き場が一杯なら、古いものを捨てる）
+    fn mesh(&self, chord_tolerance: f64, entity_id: EntityId) -> Arc<ShellMesh> {
+        let key = chord_tolerance.to_bits();
+        let mut meshes = self.meshes.0.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some((_, mesh)) = meshes.iter().find(|(cached, _)| *cached == key) {
+            return Arc::clone(mesh);
+        }
+        let mesh = Arc::new(triangulate_brep(&self.brep, chord_tolerance));
+        for (face_id, face) in self.face_ids.iter().zip(&mesh.faces) {
+            if let Err(error) = face {
+                tracing::warn!(%entity_id, %face_id, "a shell face is not displayed: {error}");
+            }
+        }
+        if meshes.len() == CACHED_SHELL_MESHES {
+            meshes.remove(0);
+        }
+        meshes.push((key, Arc::clone(&mesh)));
+        mesh
+    }
+}
+
+/// 同じ B-rep の表を持つシェルが `shells` にあれば、その三角形の置き場。なければ新しい置き場
+fn shared_meshes<'a>(
+    mut shells: impl Iterator<Item = &'a ProductShellEntity>,
+    brep: &Arc<Brep<f64>>,
+) -> Arc<ShellMeshCache> {
+    shells
+        .find(|shell| Arc::ptr_eq(&shell.shell().brep, brep))
+        .map_or_else(Arc::default, |shell| Arc::clone(&shell.shell().meshes))
 }
 
 /// シェルの製品形状のエンティティ
 #[derive(Debug, Clone)]
-pub(crate) struct ProductShellEntity(GeometricEntity<f64, ProductShell>);
+pub struct ProductShellEntity(GeometricEntity<f64, ProductShell>);
 
 impl ProductShellEntity {
-    fn id(&self) -> EntityId {
+    pub fn id(&self) -> EntityId {
         self.0.id()
     }
 
     fn shell(&self) -> &ProductShell {
         self.0.geometry()
+    }
+}
+
+impl EntityIdentity for ProductShellEntity {
+    type Id = EntityId;
+
+    fn entity_id(&self) -> EntityId {
+        self.0.id()
+    }
+}
+
+impl EntityDisplayProperties for ProductShellEntity {
+    fn entity_visible(&self) -> bool {
+        self.0.entity_visible()
+    }
+
+    fn entity_color(&self) -> [f32; 4] {
+        self.0.entity_color()
+    }
+}
+
+impl FaceSetEntity3DProperties<f64> for ProductShellEntity {
+    type FaceId = FaceId;
+    type DisplayMesh = TriangleMesh3D<f64>;
+    type DisplayMeshError = ProductShapeError;
+
+    fn face_ids(&self) -> Vec<FaceId> {
+        self.shell().face_ids.clone()
+    }
+
+    /// 面 `face_id` の三角形を、配置を当てて返す（B-rep の全体を一度に分けた三角形の、その面の分）
+    fn face_display_mesh(
+        &self,
+        face_id: FaceId,
+        chord_tolerance: f64,
+    ) -> Result<TriangleMesh3D<f64>, ProductShapeError> {
+        let shell = self.shell();
+        let position = *shell
+            .face_positions
+            .get(&face_id)
+            .ok_or(ProductShapeError::UnknownFace(face_id))?;
+        let mesh = shell.mesh(chord_tolerance, self.id());
+        let face = mesh.faces[position]
+            .as_ref()
+            .map_err(|error| ProductShapeError::ShellFace(*error))?;
+        let vertices = face
+            .vertices
+            .iter()
+            .map(|&index| mesh.points[index])
+            .collect();
+        TriangleMesh3D::with_normals(vertices, face.triangles.clone(), face.normals.clone())
+            .expect("the triangles of a face index its vertices, with one normal each")
+            .transform_similarity(&shell.placement)
+            .map_err(|_| ProductShapeError::ShellFace(ShellFaceError::Placement))
     }
 }
 
@@ -203,6 +335,8 @@ pub enum ProductShapeError {
     NoFaces,
     /// シェルの元の要素の面の数が、B-rep の面の数と合わない
     SourceFaceCountMismatch,
+    /// シェルの面を三角形にできない
+    ShellFace(ShellFaceError),
 }
 
 impl fmt::Display for ProductShapeError {
@@ -218,6 +352,7 @@ impl fmt::Display for ProductShapeError {
             Self::SourceFaceCountMismatch => {
                 write!(f, "the source faces do not match the faces of the B-rep")
             }
+            Self::ShellFace(error) => write!(f, "failed to triangulate a shell face: {error}"),
         }
     }
 }
@@ -319,6 +454,8 @@ impl ProductShapeStore {
             )));
         }
         let mut shell_entities = Vec::with_capacity(shells.len());
+        // 同じ B-rep の表（同じ部品の出現）の三角形の置き場
+        let mut shared: HashMap<*const Brep<f64>, Arc<ShellMeshCache>> = HashMap::new();
         for record in shells {
             if !entity_ids.insert(record.entity_id) {
                 return Err(ProductShapeRestoreError::DuplicateEntity(record.entity_id));
@@ -336,14 +473,16 @@ impl ProductShapeStore {
             if let Some(&duplicate) = record.face_ids.iter().find(|&&id| !face_ids.insert(id)) {
                 return Err(ProductShapeRestoreError::DuplicateFace(duplicate));
             }
+            let meshes = Arc::clone(shared.entry(Arc::as_ptr(&record.brep)).or_default());
             shell_entities.push(ProductShellEntity(GeometricEntity::restore(
                 record.entity_id,
-                ProductShell {
-                    brep: record.brep,
-                    placement: record.placement,
-                    face_ids: record.face_ids,
-                    source: record.source,
-                },
+                ProductShell::new(
+                    record.brep,
+                    record.placement,
+                    record.face_ids,
+                    record.source,
+                    meshes,
+                ),
                 record.display,
                 record.attributes,
                 record.metadata,
@@ -395,12 +534,14 @@ impl ProductShapeStore {
         {
             return Err(ProductShapeError::SourceFaceCountMismatch);
         }
-        let entity = ProductShellEntity(GeometricEntity::new(ProductShell {
+        let meshes = shared_meshes(self.shells.iter(), &brep);
+        let entity = ProductShellEntity(GeometricEntity::new(ProductShell::new(
             brep,
-            placement: placement.renormalized(),
-            face_ids: (0..face_count).map(|_| FaceId::new_random()).collect(),
+            placement.renormalized(),
+            (0..face_count).map(|_| FaceId::new_random()).collect(),
             source,
-        }));
+            meshes,
+        )));
         let id = entity.id();
         self.shells.push(entity);
         Ok(id)
@@ -457,9 +598,14 @@ impl ProductShapeStore {
         Ok(self.add_face(ProductFaceGeometry::Mesh(mesh)))
     }
 
-    /// 保持しているエンティティ（加えた順）
+    /// 保持している面単体のエンティティ（加えた順）
     pub fn entities(&self) -> &[ProductFaceEntity] {
         &self.entities
+    }
+
+    /// 保持しているシェルのエンティティ（加えた順）
+    pub fn shells(&self) -> &[ProductShellEntity] {
+        &self.shells
     }
 
     /// エンティティ `entity_id`（面単体かシェル）の表示・非表示を切り替える
@@ -553,6 +699,8 @@ impl ProductShapeStore {
         Ok(SolverGeometry::TriangleMesh(mesh))
     }
 }
+
+mod shell_mesh;
 
 #[cfg(test)]
 mod tests;

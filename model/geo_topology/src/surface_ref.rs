@@ -51,7 +51,7 @@ impl<T: Scalar> SurfaceRef<T> {
     }
 
     /// u・v の周期（周期のない方向は `None`）
-    pub(crate) fn periods(&self) -> (Option<T>, Option<T>) {
+    pub fn periods(&self) -> (Option<T>, Option<T>) {
         match self {
             Self::Plane(_) | Self::Nurbs(_) => (None, None),
             Self::Cylinder(_) | Self::Cone(_) | Self::Sphere(_) => (Some(T::TAU), None),
@@ -59,8 +59,36 @@ impl<T: Scalar> SurfaceRef<T> {
         }
     }
 
+    /// u によらず 1 点になる v（球の 2 つの極・円錐の頂点。小さい順）
+    pub fn poles(&self) -> Vec<T> {
+        match self {
+            Self::Sphere(_) => vec![-T::PI / T::from_f64(2.0), T::PI / T::from_f64(2.0)],
+            Self::Cone(surface) => {
+                vec![(surface.apex() - surface.center()).dot(surface.axis().as_vector())]
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// パラメータ (u, v) の法線（∂u × ∂v の向きの単位ベクトル。円錐の頂点・NURBS 曲面の定義域の外などで決まらなければ
+    /// `None`）
+    pub fn normal_at_uv(&self, u: T, v: T) -> Option<Vector3D<T>> {
+        let direction = match self {
+            // 平面の u・v の軸は、直交する単位ベクトル
+            Self::Plane(plane) => {
+                return Some(plane.u_axis().as_vector().cross(plane.v_axis().as_vector()));
+            }
+            Self::Cylinder(surface) => surface.normal_at(u, v),
+            Self::Cone(surface) => surface.normal_at(u, v)?,
+            Self::Sphere(surface) => surface.normal_at(u, v),
+            Self::Torus(surface) => surface.normal_at(u, v),
+            Self::Nurbs(surface) => surface.normal_at(u, v)?,
+        };
+        Some(direction.as_vector())
+    }
+
     /// 点 `point` が、u によらず 1 点になる v の線（球の極・円錐の頂点）にあれば、その v
-    pub(crate) fn singular_v(&self, point: Point3D<T>, tolerance: T) -> Option<T> {
+    pub fn singular_v(&self, point: Point3D<T>, tolerance: T) -> Option<T> {
         match self {
             Self::Sphere(surface) => {
                 let pole = surface.axis().as_vector() * surface.radius();
@@ -181,3 +209,6 @@ impl<T: Scalar> Frame<T> {
         (periodic(y.atan2(x)), z)
     }
 }
+
+#[cfg(test)]
+mod tests;
