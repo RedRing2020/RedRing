@@ -137,6 +137,13 @@ pub mod precision {
     pub const ANGLE_360: f64 = TAU;
 }
 
+/// 形状を三角形・折れ線に分けるときの既定値
+pub mod tessellation {
+    /// 曲線を点に分けるときの、隣り合う弦のなす角の上限（度）。許容弦誤差が大きいときに、小さな円が多角形に
+    /// 見えすぎないようにする
+    pub const MAX_CHORD_ANGLE_DEGREES: f64 = 20.0;
+}
+
 /// 形状の読み込みで、要素（頂点・稜線）の許容誤差を広げるときの既定値
 pub mod import_tolerance {
     /// 要素の許容誤差の上限の、読み込む立体の大きさ（外形の箱の対角の長さ）に対する比
