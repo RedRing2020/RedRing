@@ -4,7 +4,6 @@ use cam_core::{
     MachiningBoundary, MachiningStage, OperationSpec, RectangleBoundary, ScanlineCutDirection,
     ScanlineParams, ScanlineToolRange, StockMargins, ToleranceProfile, Tool,
 };
-use chrono::DateTime;
 use geo_algorithms::{
     NurbsSurface3D, NurbsSurface3DConstructor, Point3D, TriangleMesh3D, TriangleMesh3DConstructor,
     TriangleMesh3DProperties,
@@ -13,6 +12,7 @@ use geo_entity::{
     AttributeCode, AttributeValue, Attributes, DisplayAttributes, EntityId, FaceId, Metadata,
     StrokePattern,
 };
+use jiff::Timestamp;
 
 use super::*;
 use crate::machining_sequence::{
@@ -59,7 +59,7 @@ fn user_code() -> AttributeCode {
 
 /// ID・時刻を決めた面の記録（メッシュの面は表示の属性・属性・メタデータを変える）
 fn face_records() -> Vec<ProductFaceRecord> {
-    let time = DateTime::from_timestamp(1_700_000_000, 123_456_789).unwrap();
+    let time = Timestamp::new(1_700_000_000, 123_456_789).unwrap();
     let metadata = Metadata {
         name: None,
         description: None,
@@ -822,4 +822,25 @@ fn breps_whose_edges_or_loops_do_not_fit_are_rejected() {
         let bytes = codec::write_shells(&[shell]).unwrap();
         assert_eq!(codec::read_shells(&bytes).unwrap_err(), "brep");
     }
+}
+
+#[test]
+fn times_before_1970_are_written_as_floored_seconds_and_positive_nanoseconds() {
+    // 1.5 秒前は、秒 -2 とナノ秒 500,000,000 で書き、同じ時刻に読む
+    let time = Timestamp::new(-1, -500_000_000).unwrap();
+    let mut records = face_records();
+    for record in &mut records {
+        record.metadata.created_at = time;
+        record.metadata.modified_at = time;
+    }
+    let model = SpaceModel {
+        shapes: ProductShapeStore::from_records(records.clone(), Vec::new()).unwrap(),
+        ..sample_model()
+    };
+    let bytes = bytes(&model);
+    let mut written = (-2_i64).to_le_bytes().to_vec();
+    written.extend_from_slice(&500_000_000_u32.to_le_bytes());
+    assert!(bytes.windows(written.len()).any(|window| window == written));
+    let (read_model, _) = read(&bytes).unwrap();
+    assert_same_faces(&read_model.shapes.records(), &records);
 }

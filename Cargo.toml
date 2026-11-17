@@ -44,6 +44,8 @@ categories = ["graphics", "mathematics", "science"]
 [workspace.dependencies]
 pollster = "1.0.1"
 tracing = "0.1.41"
+# 時刻（時間帯の表は、使う crate だけが機能で足す）
+jiff = { version = "1", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 [workspace.lints.clippy]
