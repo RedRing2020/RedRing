@@ -455,6 +455,24 @@ fn writing_what_was_read_gives_the_same_bytes() {
         .unwrap();
         let center = Point3D::new(angle, -angle * 0.5, 2.0);
 
+        let line =
+            <InfiniteLine3D<f64> as InfiniteLine3DConstructor<f64>>::new(center, axis.as_vector())
+                .unwrap();
+        let mut first = Vec::new();
+        write_line(&mut first, &line);
+        let mut second = Vec::new();
+        write_line(&mut second, &read_line(&mut first.as_slice()).unwrap());
+        assert_eq!(first, second, "line {index}");
+
+        let ellipse =
+            <Ellipse3D<f64> as Ellipse3DConstructor<f64>>::new(center, 3.0, 1.0, axis, reference)
+                .unwrap();
+        let mut first = Vec::new();
+        write_ellipse(&mut first, &ellipse);
+        let mut second = Vec::new();
+        write_ellipse(&mut second, &read_ellipse(&mut first.as_slice()).unwrap());
+        assert_eq!(first, second, "ellipse {index}");
+
         let circle =
             <Circle3D<f64> as Circle3DConstructor<f64>>::from_frame(center, axis, reference, 1.5)
                 .unwrap();

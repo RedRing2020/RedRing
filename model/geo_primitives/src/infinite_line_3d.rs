@@ -31,7 +31,8 @@ impl<T: Scalar> PrimitiveMetadata for InfiniteLine3D<T> {
 
 impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
     fn new(point: Point3D<T>, direction: Vector3D<T>) -> Option<Self> {
-        Direction3D::from_vector(direction).map(|direction| Self { point, direction })
+        // 単位ベクトルなら正規化し直さない（作り直しても、方向の値が変わらない）
+        Direction3D::from_unit_vector(direction).map(|direction| Self { point, direction })
     }
 
     fn from_two_points(p1: Point3D<T>, p2: Point3D<T>) -> Option<Self> {
