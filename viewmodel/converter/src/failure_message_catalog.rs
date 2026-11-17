@@ -89,10 +89,7 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "failure.shape.mixed_faces",
         "NURBS の面と三角形の面が混ざっています",
     ),
-    (
-        "failure.shape.tessellation",
-        "面を表示用の三角形に分けられません",
-    ),
+    ("failure.shape.tessellation", "面を三角形に分けられません"),
     ("failure.shape.no_faces", "面がありません"),
     (
         "failure.shape.step_syntax",
@@ -217,7 +214,7 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     (
         "failure.shape.tessellation",
-        "Cannot split a face into triangles for display",
+        "Cannot split a face into triangles",
     ),
     ("failure.shape.no_faces", "There are no faces"),
     (

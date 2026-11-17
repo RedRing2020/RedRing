@@ -407,8 +407,9 @@ impl CamSimulationWorkflow {
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_ids` のそれぞれについて、投入の前に計算条件の
     /// 誤りをすべて確かめ、`operation_ids` の順に返す（[`Self::check_operation`] と同じ判定）
     ///
-    /// 加工の対象は手順で共有するため、その形状は 1 回だけ作る（工程がなければ作らない）。加工の対象の面を形状に
-    /// できない場合・形状が空の場合は、手順にある工程のすべてにその誤りを返す。
+    /// 加工の対象は手順で共有するため、その形状は工程の精度（シェルの面を三角形に分ける許容弦誤差）ごとに 1 回だけ
+    /// 作る（工程がなければ作らない）。加工の対象の面を形状にできない場合・形状が空の場合は、その精度の工程の
+    /// すべてにその誤りを返す。
     pub fn check_operations(
         shapes: &ProductShapeStore,
         sequences: &MachiningSequenceStore,
@@ -424,7 +425,8 @@ impl CamSimulationWorkflow {
                 return vec![Err(CamSimulationWorkflowError::Sequence(error)); operation_ids.len()];
             }
         };
-        let mut target = resolve_target_geometry(shapes, sequence);
+        // 許容弦誤差（ビット列）ごとの加工の対象の形状
+        let mut targets: Vec<(u64, TargetGeometry)> = Vec::new();
         let mut results = Vec::with_capacity(operation_ids.len());
         for &operation_id in operation_ids {
             // 工程を探してから形状の誤りを返す（[`Self::check_operation`] と同じ順）
@@ -435,7 +437,16 @@ impl CamSimulationWorkflow {
                     continue;
                 }
             };
-            let (geometry, bounds) = match &mut target {
+            let tolerance = operation_tolerance(operation);
+            let key = tolerance.to_bits();
+            let index = match targets.iter().position(|(cached, _)| *cached == key) {
+                Some(index) => index,
+                None => {
+                    targets.push((key, resolve_target_geometry(shapes, sequence, tolerance)));
+                    targets.len() - 1
+                }
+            };
+            let (geometry, bounds) = match &mut targets[index].1 {
                 Ok((geometry, bounds)) => (geometry, *bounds),
                 Err(error) => {
                     results.push(Err(error.clone()));
@@ -1144,7 +1155,8 @@ fn resolve_operation_request<'a>(
     let operation = sequences
         .operation(sequence_id, operation_id)
         .map_err(CamSimulationWorkflowError::Sequence)?;
-    let (geometry, bounds) = resolve_target_geometry(shapes, sequence)?;
+    let (geometry, bounds) =
+        resolve_target_geometry(shapes, sequence, operation_tolerance(operation))?;
     let (workflow_request, errors) = operation_request(sequence, operation, geometry, bounds);
     if errors.is_empty() {
         Ok((workflow_request, operation))
@@ -1153,13 +1165,27 @@ fn resolve_operation_request<'a>(
     }
 }
 
-/// 加工手順 `sequence` の加工の対象の面から、ツールパス生成の入力の形状と、それを囲む箱を作る
+/// ツールパス生成の入力の形状と、それを囲む箱（作れなければ、その誤り）
+type TargetGeometry = Result<(SolverGeometry, Aabb3D<f64>), CamSimulationWorkflowError>;
+
+/// 加工工程 `operation` の、ツールパス生成の許容弦誤差（シェルの面も、この値で三角形に分ける）
+fn operation_tolerance(operation: &MachiningOperation) -> f64 {
+    operation
+        .content()
+        .conditions
+        .tolerance_profile
+        .tolerance_mm()
+}
+
+/// 加工手順 `sequence` の加工の対象の面から、ツールパス生成の入力の形状（シェルの面は許容弦誤差
+/// `chord_tolerance` で三角形に分ける）と、それを囲む箱を作る
 fn resolve_target_geometry(
     shapes: &ProductShapeStore,
     sequence: &MachiningSequence,
-) -> Result<(SolverGeometry, Aabb3D<f64>), CamSimulationWorkflowError> {
+    chord_tolerance: f64,
+) -> TargetGeometry {
     let geometry = shapes
-        .resolve_solver_geometry(sequence.target_faces())
+        .resolve_solver_geometry(sequence.target_faces(), chord_tolerance)
         .map_err(CamSimulationWorkflowError::ProductShape)?;
     let bounds = geometry
         .aabb()
@@ -1194,7 +1220,7 @@ fn operation_request(
         operation: conditions.spec,
         units: LengthUnit::Millimeter,
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
-        chord_tolerance: conditions.tolerance_profile.tolerance_mm(),
+        chord_tolerance: operation_tolerance(operation),
         tessellation_limits: TessellationLimits::default(),
         boundary: conditions.boundary,
     };
