@@ -4,8 +4,11 @@
 //! 2 つの面は 1 本の稜線を共有し、ループは稜線の使用（どの稜線を、どちら向きに使うか）の並びで持つ。
 //! 継ぎ目の稜線は、1 つの面で 2 回使う（設計: BREP_AND_STEP_IMPORT_DESIGN.md 5 章）。
 
+mod records;
 #[cfg(test)]
 mod tests;
+
+pub use records::{BrepRecords, EdgeRecord, FaceRecord, VertexRecord};
 
 use crate::parameter_curve::unwrap;
 use crate::{
@@ -197,6 +200,8 @@ impl BrepSolid {
 pub enum BrepError {
     /// 表にない頂点
     UnknownVertex,
+    /// 頂点の点が有限の値でない
+    InvalidPoint,
     /// 表にない稜線
     UnknownEdge,
     /// 区間が空、NURBS の区間が母曲線の範囲の外、または円・楕円の区間が 1 周を超える
@@ -225,6 +230,7 @@ impl std::fmt::Display for BrepError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self {
             Self::UnknownVertex => "unknown vertex",
+            Self::InvalidPoint => "invalid point",
             Self::UnknownEdge => "unknown edge",
             Self::InvalidParameterRange => "invalid parameter range",
             Self::EmptyLoop => "empty loop",
@@ -282,7 +288,7 @@ impl<T: Scalar> Brep<T> {
     ///
     /// # Errors
     ///
-    /// 許容誤差が有限の値でない（無限大・NaN）とき。
+    /// 許容誤差が有限の値でない（無限大・NaN）、または点が有限の値でないとき。
     pub fn add_vertex(
         &mut self,
         point: Point3D<T>,
@@ -290,6 +296,9 @@ impl<T: Scalar> Brep<T> {
     ) -> Result<VertexIndex, BrepError> {
         if !tolerance.is_finite() {
             return Err(BrepError::InvalidTolerance);
+        }
+        if !(point.x().is_finite() && point.y().is_finite() && point.z().is_finite()) {
+            return Err(BrepError::InvalidPoint);
         }
         self.vertices.push(BrepVertex {
             point,
@@ -306,8 +315,8 @@ impl<T: Scalar> Brep<T> {
     ///
     /// # Errors
     ///
-    /// 頂点が表にない、許容誤差が有限の値でない、区間が空、NURBS の区間が母曲線の範囲の外、または円・楕円の
-    /// 区間が 1 周を超えるとき。
+    /// 頂点が表にない、許容誤差が有限の値でない、区間が有限の値でないか空、NURBS の区間が母曲線の範囲の外、
+    /// または円・楕円の区間が 1 周を超えるとき。
     pub fn add_edge(
         &mut self,
         start: VertexIndex,
@@ -321,6 +330,9 @@ impl<T: Scalar> Brep<T> {
         }
         if !tolerance.is_finite() {
             return Err(BrepError::InvalidTolerance);
+        }
+        if !(parameter_range.0.is_finite() && parameter_range.1.is_finite()) {
+            return Err(BrepError::InvalidParameterRange);
         }
         let mut range = parameter_range;
         if let CurveRef::Nurbs(nurbs) = &curve {
@@ -547,11 +559,14 @@ impl<T: Scalar> Brep<T> {
         let last = uses.len() - 1;
         let edges: HashSet<EdgeIndex> = uses.iter().map(|edge_use| edge_use.edge).collect();
         for edge in edges {
-            for location in &mut self.edges[edge.0].uses {
+            let locations = &mut self.edges[edge.0].uses;
+            for location in locations.iter_mut() {
                 if location.loop_index == index {
                     location.position = last - location.position;
                 }
             }
+            // 使用の並びは、面を足したときと同じく、ループと位置の順に保つ
+            locations.sort_by_key(|location| (location.loop_index.0, location.position));
         }
         let face_loop = &mut self.loops[index.0];
         face_loop.uses = uses;
