@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::f64::consts::{FRAC_PI_2, TAU};
 
-use analysis::consts::tessellation::MAX_CHORD_ANGLE_DEGREES;
+use analysis::consts::tessellation::{MAX_CHORD_ANGLE_DEGREES, MAX_TRIANGLE_NORMAL_ANGLE_DEGREES};
 
 use super::*;
 use crate::Vector3D;
@@ -212,7 +212,8 @@ fn line(from: (f64, f64), to: (f64, f64), count: usize) -> impl Iterator<Item = 
 /// 結果を確かめる
 ///
 /// - 三角形の内側の点（各三角形で 28 点）と曲面の離れが、許容弦誤差以下
-/// - (u, v) で反時計回り（3 次元で、∂u × ∂v の側から見て反時計回り）
+/// - (u, v) で反時計回り（3 次元で、∂u × ∂v の側から見て反時計回り）で、三角形の法線と曲面の法線のなす角が上限
+///   （`MAX_TRIANGLE_NORMAL_ANGLE_DEGREES`）以下
 /// - 回りの向きがそろう（同じ向きの辺を 2 つの三角形が持たない）
 /// - 1 つの三角形だけが持つ辺は、ループの辺（境界の点を結ぶ辺。同じループで行きと帰りに使う継ぎ目の稜線の辺は
 ///   除く）とちょうど同じ
@@ -262,7 +263,13 @@ fn check(
         // 極で 3 次元の面積が 0 になる三角形（極と、同じ経線の 2 点）は、向きを確かめない
         let size = a.distance_to(b).max(b.distance_to(c)).max(c.distance_to(a));
         if normal.length() > 1.0e-9 * size * size {
-            assert!(normal.dot(surface.normal(center)) > 0.0, "{triangle:?}");
+            let surface_normal = surface.normal(center);
+            let cosine = normal.dot(surface_normal) / (normal.length() * surface_normal.length());
+            assert!(
+                cosine >= MAX_TRIANGLE_NORMAL_ANGLE_DEGREES.to_radians().cos(),
+                "{} degrees in {triangle:?}",
+                cosine.acos().to_degrees()
+            );
         }
         for index in 0..3 {
             *directed
@@ -413,27 +420,32 @@ fn a_spherical_lune_through_both_poles_splits_the_pole_lines() {
     let sphere = Sphere { radius: 10.0 };
     let tolerance = 0.05;
     let (south, north) = (0, 1);
-    // u = 2 の経線を上り、北極で u = 0 へ移り、u = 0 の経線を下り、南極で u = 2 へ戻る
-    let mut loop_points = vec![LoopPoint {
-        vertex: south,
-        uv: Point2D::new(2.0, -FRAC_PI_2),
-    }];
-    let meridian = |u: f64, from: f64, to: f64| line((u, from), (u, to), 40).skip(1);
-    loop_points.extend(ring(10, meridian(2.0, -FRAC_PI_2, FRAC_PI_2)));
-    loop_points.push(LoopPoint {
-        vertex: north,
-        uv: Point2D::new(2.0, FRAC_PI_2),
-    });
-    loop_points.push(LoopPoint {
-        vertex: north,
-        uv: Point2D::new(0.0, FRAC_PI_2),
-    });
-    loop_points.extend(ring(100, meridian(0.0, FRAC_PI_2, -FRAC_PI_2)));
-    loop_points.push(LoopPoint {
-        vertex: south,
-        uv: Point2D::new(0.0, -FRAC_PI_2),
-    });
-    triangulate(&[loop_points], &sphere, tolerance);
+    // u = width の経線を上り、北極で u = 0 へ移り、u = 0 の経線を下り、南極で u = width へ戻る。経線の境界の 2 点と
+    // 極を結ぶ、曲面に垂直に立つ三角形を残さない
+    for width in [2.0, 3.0, 4.0, 5.0] {
+        for divisions in [40, 60] {
+            let meridian = |u: f64, from: f64, to: f64| line((u, from), (u, to), divisions).skip(1);
+            let mut loop_points = vec![LoopPoint {
+                vertex: south,
+                uv: Point2D::new(width, -FRAC_PI_2),
+            }];
+            loop_points.extend(ring(10, meridian(width, -FRAC_PI_2, FRAC_PI_2)));
+            loop_points.push(LoopPoint {
+                vertex: north,
+                uv: Point2D::new(width, FRAC_PI_2),
+            });
+            loop_points.push(LoopPoint {
+                vertex: north,
+                uv: Point2D::new(0.0, FRAC_PI_2),
+            });
+            loop_points.extend(ring(1000, meridian(0.0, FRAC_PI_2, -FRAC_PI_2)));
+            loop_points.push(LoopPoint {
+                vertex: south,
+                uv: Point2D::new(0.0, -FRAC_PI_2),
+            });
+            triangulate(&[loop_points], &sphere, tolerance);
+        }
+    }
 }
 
 #[test]

@@ -6,7 +6,10 @@
 //! u・v の両方に刻みのある曲面では、初めに範囲の内側に刻みの格子で点を置く。その後、内側の三角形ごとに、(u, v) の
 //! 重心と 3 つの辺の中点を曲面の上で評価し、三角形（辺）の同じ位置の点との離れ（曲面の法線の向きの成分）を測る。
 //! 重心の離れか、辺の中点の離れから見積もった三角形の中の離れの最大（2 次式で補う）が許容弦誤差を超えれば、重心と
-//! 制約でない辺の中点のうち離れの大きいほうに点を足す。辺の (u, v) の幅では分けない（極や円錐の頂点の近くでは、
+//! 制約でない辺の中点のうち離れの大きいほうに点を足す。三角形の法線と、重心での曲面の法線のなす角が上限（60 度）を
+//! 超える三角形（曲面に垂直に立つ三角形など。頂点は曲面の上にあるので、法線の向きの離れでは見つからない）と、
+//! つぶれて法線が決まらない三角形には、重心に点を足す。極でつぶれて結果から除く三角形（2 つの頂点が同じ極の点）は、
+//! 3 次元では線分で、それが (u, v) で覆う範囲は隣の三角形が 3 次元で覆うので、離れも法線も見ない。辺の (u, v) の幅では分けない（極や円錐の頂点の近くでは、
 //! (u, v) の幅が広くても曲面の上では短く、境界の辺に接する三角形を分け続けてしまうため）。
 //!
 //! 制約の辺（境界・切れ目・極の線）は分けない。制約の辺の中点の離れが許容弦誤差を超える三角形では、その離れを上限
@@ -14,6 +17,8 @@
 //! ので、点を足し続けないため）。
 
 use std::collections::{HashMap, HashSet};
+
+use analysis::consts::tessellation::MAX_TRIANGLE_NORMAL_ANGLE_DEGREES;
 
 use spade::handles::{FixedFaceHandle, FixedVertexHandle, InnerTag};
 use spade::{ConstrainedDelaunayTriangulation, Point2, PositionInTriangulation, Triangulation};
@@ -234,12 +239,13 @@ impl Mesh {
         Ok(points)
     }
 
-    /// 許容弦誤差を超える三角形に足す点の (u, v)
+    /// 許容弦誤差か法線のなす角の上限を超える三角形に足す点の (u, v)
     fn points_to_add(
         &mut self,
         surface: &impl TriangulationSurface,
         chord_tolerance: f64,
     ) -> Result<Vec<Point2D<f64>>, FaceTriangulationError> {
+        let min_cosine = MAX_TRIANGLE_NORMAL_ANGLE_DEGREES.to_radians().cos();
         let mut points = Vec::new();
         let mut seen = HashSet::new();
         for face in inside_faces(&self.cdt) {
@@ -258,6 +264,12 @@ impl Mesh {
                 )
             });
             let corners = handles.map(|index| &self.vertices[index]);
+            if collapsed(corners.map(|corner| corner.vertex)) {
+                // 極でつぶれる三角形は結果から除く。3 次元では線分で、それが (u, v) で覆う範囲は、隣の三角形が
+                // 3 次元で覆うので、離れも法線も見ない
+                self.accepted.insert(key);
+                continue;
+            }
             let centroid = Point2D::new(
                 corners.iter().map(|corner| corner.uv.x()).sum::<f64>() / 3.0,
                 corners.iter().map(|corner| corner.uv.y()).sum::<f64>() / 3.0,
@@ -301,12 +313,19 @@ impl Mesh {
                     worst_edge = Some((length, middle));
                 }
             }
-            if centroid_deviation.max(quadratic_maximum(&deviations)) <= allowed {
+            let tilted = tilted(
+                surface,
+                centroid,
+                corners.map(|corner| corner.point),
+                min_cosine,
+            );
+            let deviated = centroid_deviation.max(quadratic_maximum(&deviations)) > allowed;
+            if !tilted && !deviated {
                 self.accepted.insert(key);
                 continue;
             }
             let uv = match worst_edge {
-                Some((length, middle)) if length > centroid_deviation => middle,
+                Some((length, middle)) if deviated && length > centroid_deviation => middle,
                 _ => centroid,
             };
             if seen.insert((uv.x().to_bits(), uv.y().to_bits())) {
@@ -315,6 +334,30 @@ impl Mesh {
         }
         Ok(points)
     }
+}
+
+/// 2 つの頂点が同じ点の三角形（極でつぶれる三角形。結果から除く）か
+fn collapsed([a, b, c]: [FaceVertex; 3]) -> bool {
+    a == b || b == c || c == a
+}
+
+/// 三角形 `points` の法線と、(u, v) の重心 `centroid` での曲面の法線のなす角の余弦が `min_cosine` より小さいか
+/// （三角形がつぶれて法線が決まらないときも含む）。曲面の法線が決まらなければ、見ない
+fn tilted(
+    surface: &impl TriangulationSurface,
+    centroid: Point2D<f64>,
+    [a, b, c]: [Point3D<f64>; 3],
+    min_cosine: f64,
+) -> bool {
+    let Some(normal) = surface
+        .normal_at(centroid.x(), centroid.y())
+        .filter(|normal| normal.length().is_finite() && normal.length() > 0.0)
+    else {
+        return false;
+    };
+    let face = Vector3D::from_points(a, b).cross(Vector3D::from_points(a, c));
+    let length = face.length();
+    length == 0.0 || face.dot(normal) < min_cosine * length * normal.length()
 }
 
 /// 角で 0、辺の中点で離れ `deviations`（辺 (0, 1)・(1, 2)・(2, 0)）になる 2 次式の、三角形の中の最大（6 等分の
