@@ -2,8 +2,7 @@
 
 use analysis::linalg::matrix::Matrix4x4;
 use geo_contracts::ToleranceSettings;
-use geo_core::{Point3D, Vector3D};
-use geo_primitives::SimilarityTransform3D;
+use geo_core::{Point3D, SimilarityTransform3D, Vector3D};
 
 use super::{Converter, Frame, GeometryError};
 use crate::record::{Records, Transformation};

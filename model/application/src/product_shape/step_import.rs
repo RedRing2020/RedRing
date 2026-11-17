@@ -11,14 +11,13 @@ use std::sync::Arc;
 
 use geo_contracts::{NurbsCurve3DProperties, NurbsSurface3DProperties, ToleranceSettings};
 use geo_entity::Metadata;
-use geo_primitives::SimilarityTransform3D;
 use geo_step::geometry::{PlacementError, rigid_transformation};
 use geo_step::record::Records;
 use geo_step::syntax::{Limits, SyntaxError, SyntaxErrorKind};
 use geo_step::topology::{Built, Correction, ImportToleranceSettings, Topologies};
 use geo_topology::{Brep, CurveRef, SurfaceRef, TopologyToleranceSettings};
 
-use super::ShellSource;
+use super::{ShellSource, SimilarityTransform3D};
 
 /// アセンブリの深さの上限（循環も、ここで止まる）
 const MAX_ASSEMBLY_DEPTH: usize = 32;
