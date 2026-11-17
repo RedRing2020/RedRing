@@ -4,7 +4,7 @@
 
 Machining:
 
-- There is no NC output. The toolpath is for checking with the cutting simulation and cannot be used for actual machining (NC output is planned for v0.3.0)
+- There is no NC output. The toolpath is for checking with the cutting simulation and cannot be used for actual machining (NC output is planned for v0.4.0)
 - There are no air cuts or linking moves (approach and retract) between passes. In the cutting simulation, the tool jumps from the end of a pass to the start of the next pass and does not cut in between
 - Gaps and holes narrower than the tool radius are bridged by one pass across both sides, which passes over the gap at the cutting feed (the walls of the gap are not gouged). Small features that the tool touches along a scanline for less than the tool radius, in places where the tool does not touch the shape, may be missed and left uncut
 - For NURBS shapes, the sum of the triangulation error and the toolpath error can be up to twice the toolpath tolerance (STL stays within the tolerance)

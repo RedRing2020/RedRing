@@ -54,8 +54,10 @@ The CAM toolpath generation (scanline machining) and the cutting simulation are 
 
 ### 📅 Future Plans
 
-- 🗂️ Machining management (operations, jobs, tool library) - v0.2.0
-- 🧾 Connecting moves and NC output - v0.3.0
+- 🗂️ Machining management (operations, jobs, tool library) and machining STEP shapes - v0.2.0
+- ⏳ Long operations in the background, with progress and cancel - v0.3.0
+- 🧾 Connecting moves and NC output - v0.4.0
+- 🖱️ Picking faces to set the machining area and coordinates - v0.5.0
 - 🌐 WebAssembly support
 - 🖱️ SpaceMouse integration
 

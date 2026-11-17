@@ -74,7 +74,7 @@ For design details, see the repository's [architecture overview](https://github.
 
 **🔪 v0.1.0 preview** (November 2026): Load an STL, calculate a 3-axis scanline toolpath, and check it with the cutting simulation. There is no NC output yet, so it cannot be used for actual machining.
 
-The next version (v0.2.0) is planned to add machining management (a list of machining processes, a job manager, and tool registration).
+The next version (v0.2.0) is planned to add machining management (a list of machining processes, a job manager, and tool registration) and loading and machining STEP shapes. After that, running long operations in the background (v0.3.0) and NC output (v0.4.0) are planned.
 
 For the latest progress, see:
 
