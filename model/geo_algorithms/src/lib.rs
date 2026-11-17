@@ -7,6 +7,7 @@
 //! - `LineSegment2D` / `LineSegment3D` は bounded geometry の ideal endpoint 基準
 
 pub mod curve_discretization;
+pub mod face_triangulation;
 mod intersection;
 pub mod mesh_adjacency;
 pub mod mesh_concatenation;
@@ -26,6 +27,10 @@ pub use curve_discretization::{
     DiscretizableCurve, circular_arc_to_polyline,
 };
 
+pub use face_triangulation::{
+    AddedPoint, FaceRegion, FaceTriangulation, FaceTriangulationError, FaceTriangulationSettings,
+    FaceVertex, LoopPoint, TriangulationSurface,
+};
 pub use mesh_adjacency::{TriangleMeshAdjacency, TriangleMeshEdge, TriangleMeshOrientation};
 pub use mesh_concatenation::concatenate_triangle_meshes;
 pub use surface_discretization::{
