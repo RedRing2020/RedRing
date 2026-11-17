@@ -101,7 +101,15 @@ impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
         normal: Direction3D<T>,
         u_direction: Direction3D<T>,
     ) -> Option<Self> {
-        Self::from_origin_normal_and_u_vector(origin, normal, u_direction.as_vector())
+        let u_axis = u_direction.orthogonal_to(normal)?;
+        // V軸 = Z軸 × U軸（右手系）
+        let v_axis = Direction3D::from_vector(normal.as_vector().cross(u_axis.as_vector()))?;
+        Some(Self {
+            origin,
+            normal,
+            u_axis,
+            v_axis,
+        })
     }
 
     fn from_three_points(

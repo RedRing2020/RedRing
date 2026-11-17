@@ -440,3 +440,82 @@ fn corrupted_curve_and_surface_bytes_do_not_panic() {
         }
     }
 }
+
+#[test]
+fn writing_what_was_read_gives_the_same_bytes() {
+    // 方向を読むときに正規化し直さないので、開いて保存し直してもバイト列が変わらない
+    for index in 0..500 {
+        let angle = index as f64 * 0.731;
+        let axis = direction(angle.cos(), angle.sin() * 0.3, (angle * 1.7).sin() + 0.2);
+        let reference = Direction3D::from_vector(axis.as_vector().cross(Vector3D::new(
+            0.3,
+            -(angle * 0.9).cos(),
+            0.5,
+        )))
+        .unwrap();
+        let center = Point3D::new(angle, -angle * 0.5, 2.0);
+
+        let circle =
+            <Circle3D<f64> as Circle3DConstructor<f64>>::from_frame(center, axis, reference, 1.5)
+                .unwrap();
+        let mut first = Vec::new();
+        write_circle(&mut first, &circle);
+        let mut second = Vec::new();
+        write_circle(&mut second, &read_circle(&mut first.as_slice()).unwrap());
+        assert_eq!(first, second, "circle {index}");
+
+        let cylinder = <CylindricalSurface3D<f64> as CylindricalSurface3DConstructor<f64>>::new(
+            center, axis, reference, 2.0,
+        )
+        .unwrap();
+        let mut first = Vec::new();
+        write_cylinder(&mut first, &cylinder);
+        let mut second = Vec::new();
+        write_cylinder(&mut second, &read_cylinder(&mut first.as_slice()).unwrap());
+        assert_eq!(first, second, "cylinder {index}");
+
+        let plane = <Plane3D<f64> as Plane3DConstructor<f64>>::from_origin_and_axes(
+            center, axis, reference,
+        )
+        .unwrap();
+        let mut first = Vec::new();
+        write_plane(&mut first, &plane);
+        let mut second = Vec::new();
+        write_plane(&mut second, &read_plane(&mut first.as_slice()).unwrap());
+        assert_eq!(first, second, "plane {index}");
+
+        let cone = <ConicalSurface3D<f64> as ConicalSurface3DConstructor<f64>>::new(
+            center,
+            axis,
+            reference,
+            2.0,
+            Angle::from_radians(0.4),
+        )
+        .unwrap();
+        let mut first = Vec::new();
+        write_cone(&mut first, &cone);
+        let mut second = Vec::new();
+        write_cone(&mut second, &read_cone(&mut first.as_slice()).unwrap());
+        assert_eq!(first, second, "cone {index}");
+
+        let sphere = <SphericalSurface3D<f64> as SphericalSurface3DConstructor<f64>>::new(
+            center, axis, reference, 3.0,
+        )
+        .unwrap();
+        let mut first = Vec::new();
+        write_sphere(&mut first, &sphere);
+        let mut second = Vec::new();
+        write_sphere(&mut second, &read_sphere(&mut first.as_slice()).unwrap());
+        assert_eq!(first, second, "sphere {index}");
+
+        let torus = <TorusSurface3D<f64> as TorusSurface3DConstructor<f64>>::new(
+            center, axis, reference, 5.0, 1.0,
+        )
+        .unwrap();
+        let mut first = Vec::new();
+        write_torus(&mut first, &torus);
+        let mut second = Vec::new();
+        write_torus(&mut second, &read_torus(&mut first.as_slice()).unwrap());
+        assert_eq!(first, second, "torus {index}");
+    }
+}

@@ -480,7 +480,7 @@ fn read_direction(
     cursor: &mut &[u8],
     field: &'static str,
 ) -> Result<Direction3D<f64>, BinaryGeometryError> {
-    Direction3D::from_vector(read_vector(cursor, field)?)
+    Direction3D::from_unit_vector(read_vector(cursor, field)?)
         .ok_or(BinaryGeometryError::InvalidValue(field))
 }
 
