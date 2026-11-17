@@ -95,6 +95,15 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("failure.shape.no_faces", "面がありません"),
     (
+        "failure.shape.step_syntax",
+        "壊れているか、形式の違うファイルです",
+    ),
+    (
+        "failure.shape.step_limit",
+        "ファイルの形状が、読み込める大きさを超えています",
+    ),
+    ("failure.shape.step_no_shapes", "読める形状がありません"),
+    (
         "failure.shape.source_faces",
         "元のファイルの面の数が形状の面の数と合いません",
     ),
@@ -211,6 +220,18 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
         "Cannot split a face into triangles for display",
     ),
     ("failure.shape.no_faces", "There are no faces"),
+    (
+        "failure.shape.step_syntax",
+        "The file is broken or in another format",
+    ),
+    (
+        "failure.shape.step_limit",
+        "The shapes in the file are larger than can be loaded",
+    ),
+    (
+        "failure.shape.step_no_shapes",
+        "There are no shapes that can be loaded",
+    ),
     (
         "failure.shape.source_faces",
         "The faces of the source file do not match the faces of the shape",

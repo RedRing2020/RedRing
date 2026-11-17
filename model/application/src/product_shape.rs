@@ -32,6 +32,11 @@ pub use geo_topology::Brep;
 /// シェルの面を三角形にできない理由
 pub use shell_mesh::ShellFaceError;
 use shell_mesh::{ShellMesh, triangulate_brep};
+/// STEP の読み込みの結果・読めない理由・属性のキー
+pub use step_import::{
+    OCCURRENCE_NAMES_KEY, PRODUCT_NAME_KEY, SOLID_NAME_KEY, StepImportError, StepImportLimit,
+    StepImportReport,
+};
 
 /// 面の形状
 #[derive(Debug, Clone)]
@@ -337,6 +342,13 @@ pub enum ProductShapeError {
     SourceFaceCountMismatch,
     /// シェルの面を三角形にできない
     ShellFace(ShellFaceError),
+    /// STEP のファイルを読めない（誤りの種類と理由）
+    StepFile {
+        kind: std::io::ErrorKind,
+        reason: String,
+    },
+    /// STEP の内容を形状にできない
+    Step(StepImportError),
 }
 
 impl fmt::Display for ProductShapeError {
@@ -353,6 +365,8 @@ impl fmt::Display for ProductShapeError {
                 write!(f, "the source faces do not match the faces of the B-rep")
             }
             Self::ShellFace(error) => write!(f, "failed to triangulate a shell face: {error}"),
+            Self::StepFile { reason, .. } => write!(f, "failed to read the STEP file: {reason}"),
+            Self::Step(error) => write!(f, "failed to load STEP: {error}"),
         }
     }
 }
@@ -535,16 +549,74 @@ impl ProductShapeStore {
             return Err(ProductShapeError::SourceFaceCountMismatch);
         }
         let meshes = shared_meshes(self.shells.iter(), &brep);
-        let entity = ProductShellEntity(GeometricEntity::new(ProductShell::new(
-            brep,
-            placement.renormalized(),
-            (0..face_count).map(|_| FaceId::new_random()).collect(),
-            source,
-            meshes,
-        )));
+        Ok(self.push_shell(brep, placement, source, Metadata::default(), meshes))
+    }
+
+    /// シェルのエンティティを、三角形の置き場 `meshes` と一緒に加える（面ごとに新しい面の ID を作る。面の数は
+    /// 確かめてある）
+    fn push_shell(
+        &mut self,
+        brep: Arc<Brep<f64>>,
+        placement: SimilarityTransform3D<f64>,
+        source: Option<ShellSource>,
+        metadata: Metadata,
+        meshes: Arc<ShellMeshCache>,
+    ) -> EntityId {
+        let face_count = brep.face_count();
+        let entity = ProductShellEntity(GeometricEntity::restore(
+            EntityId::new_random(),
+            ProductShell::new(
+                brep,
+                placement.renormalized(),
+                (0..face_count).map(|_| FaceId::new_random()).collect(),
+                source,
+                meshes,
+            ),
+            DisplayAttributes::default(),
+            Attributes::new(),
+            metadata,
+        ));
         let id = entity.id();
         self.shells.push(entity);
-        Ok(id)
+        id
+    }
+
+    /// STEP ファイルを読み、アセンブリの出現ごとにシェルのエンティティとして加える（同じ部品の B-rep は共有する。
+    /// 外した要素・直したことは、要素ごとにログに出す）
+    ///
+    /// # Errors
+    ///
+    /// ファイルを読めない、構文の誤り、上限を超える、形状が 1 つも読めない場合（何も加えない）。
+    pub fn import_step(&mut self, path: &Path) -> Result<StepImportReport, ProductShapeError> {
+        let file_error = |error: std::io::Error| ProductShapeError::StepFile {
+            kind: error.kind(),
+            reason: error.to_string(),
+        };
+        let size = std::fs::metadata(path).map_err(file_error)?.len();
+        let limits = geo_step::syntax::Limits::default();
+        if size > limits.max_bytes as u64 {
+            return Err(ProductShapeError::Step(StepImportError::TooLarge));
+        }
+        let bytes = std::fs::read(path).map_err(file_error)?;
+        let file_name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let (shells, report) =
+            step_import::read_step(&bytes, &file_name).map_err(ProductShapeError::Step)?;
+        // 読み込んだ B-rep は保管先のどのシェルとも共有しないので、同じ部品の出現の間でだけ置き場を共有する
+        let mut shared: HashMap<*const Brep<f64>, Arc<ShellMeshCache>> = HashMap::new();
+        for shell in shells {
+            let meshes = Arc::clone(shared.entry(Arc::as_ptr(&shell.brep)).or_default());
+            self.push_shell(
+                shell.brep,
+                shell.placement,
+                Some(shell.source),
+                shell.metadata,
+                meshes,
+            );
+        }
+        Ok(report)
     }
 
     /// 保持しているエンティティの記録（加えた順）
@@ -701,6 +773,7 @@ impl ProductShapeStore {
 }
 
 mod shell_mesh;
+mod step_import;
 
 #[cfg(test)]
 mod tests;
