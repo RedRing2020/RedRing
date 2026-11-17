@@ -475,3 +475,264 @@ fn measures_written_as_complex_entities_are_read() {
     assert!(!context.default_units);
     assert!((context.uncertainty_mm.unwrap() - 25.4e-5).abs() < 1.0e-15);
 }
+
+/// 部品（%44。立体の表現 %28 と、形状の表現 %48）と、それを 2 回配置したアセンブリ（%52。AP203 の第 1 版の
+/// 書き方の文脈）。1 つ目の出現（%62）は 2 つの配置、2 つ目（%70）は変換の演算子で配置する。立体に面の色、
+/// 平面の面に線の色と非表示を割り当てる
+const ASSEMBLY: &str = "
+%40=PRODUCT('P1','part name','',(%41));
+%41=PRODUCT_CONTEXT('',%42,'mechanical');
+%42=APPLICATION_CONTEXT('automotive design');
+%43=PRODUCT_DEFINITION_FORMATION('','',%40);
+%44=PRODUCT_DEFINITION('design','',%43,%45);
+%45=PRODUCT_DEFINITION_CONTEXT('part definition',%42,'design');
+%46=PRODUCT_DEFINITION_SHAPE('','',%44);
+%47=SHAPE_DEFINITION_REPRESENTATION(%46,%48);
+%48=SHAPE_REPRESENTATION('part',(%13),%5);
+%49=SHAPE_REPRESENTATION_RELATIONSHIP('','',%48,%28);
+%50=PRODUCT('A1','assembly','',(%41));
+%51=PRODUCT_DEFINITION_FORMATION_WITH_SPECIFIED_SOURCE('','',%50,.NOT_KNOWN.);
+%52=PRODUCT_DEFINITION('design','',%51,%53);
+%53=DESIGN_CONTEXT('',%42,'design');
+%54=PRODUCT_DEFINITION_SHAPE('','',%52);
+%55=SHAPE_DEFINITION_REPRESENTATION(%54,%56);
+%56=SHAPE_REPRESENTATION('assembly',(%13,%60),%5);
+%60=AXIS2_PLACEMENT_3D('',%61,%11,%12);
+%61=CARTESIAN_POINT('',(100.,0.,0.));
+%62=NEXT_ASSEMBLY_USAGE_OCCURRENCE('NAUO1','instance 1','',%52,%44,$);
+%63=PRODUCT_DEFINITION_SHAPE('','',%62);
+%64=CONTEXT_DEPENDENT_SHAPE_REPRESENTATION(%65,%63);
+%65=(REPRESENTATION_RELATIONSHIP('','',%48,%56) REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION(%66) SHAPE_REPRESENTATION_RELATIONSHIP());
+%66=ITEM_DEFINED_TRANSFORMATION('','',%13,%60);
+%70=NEXT_ASSEMBLY_USAGE_OCCURRENCE('NAUO2','instance 2','',%52,%44,$);
+%71=PRODUCT_DEFINITION_SHAPE('','',%70);
+%72=CONTEXT_DEPENDENT_SHAPE_REPRESENTATION(%73,%71);
+%73=(REPRESENTATION_RELATIONSHIP('','',%48,%56) REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION(%74) SHAPE_REPRESENTATION_RELATIONSHIP());
+%74=CARTESIAN_TRANSFORMATION_OPERATOR_3D('',%11,%12,%75,2.,$);
+%75=CARTESIAN_POINT('',(0.,50.,0.));
+%80=COLOUR_RGB('',0.2,0.4,0.6);
+%81=FILL_AREA_STYLE_COLOUR('',%80);
+%82=FILL_AREA_STYLE('',(%81));
+%83=SURFACE_STYLE_FILL_AREA(%82);
+%84=SURFACE_SIDE_STYLE('',(%83));
+%85=SURFACE_STYLE_USAGE(.BOTH.,%84);
+%86=PRESENTATION_STYLE_ASSIGNMENT((%85));
+%87=STYLED_ITEM('color',(%86),%27);
+%88=DRAUGHTING_PRE_DEFINED_COLOUR('red');
+%89=CURVE_STYLE('',$,$,%88);
+%90=PRESENTATION_STYLE_ASSIGNMENT((%89));
+%91=STYLED_ITEM('',(%90),%22);
+%92=INVISIBILITY((%91));
+";
+
+fn assembly_in(context: &str) -> Records {
+    read(&step_file(
+        &(context.to_string() + &SOLID.replace("ANGLE", "0.5") + ASSEMBLY),
+    ))
+}
+
+#[test]
+fn products_and_occurrences_are_recorded() {
+    let records = assembly_in(MM_RADIAN);
+    assert!(records.skipped.is_empty(), "{:?}", records.skipped);
+
+    assert_eq!(
+        records.products[&44],
+        Product {
+            id: "P1".to_string(),
+            name: "part name".to_string(),
+            representations: vec![48],
+        }
+    );
+    // AP203 の第 1 版の文脈（DESIGN_CONTEXT）と、版の書き方の違いも受け付ける
+    assert_eq!(records.products[&52].name, "assembly");
+    assert_eq!(records.products[&52].representations, vec![56]);
+    // 部品の形状の表現から、立体の表現へ
+    assert_eq!(records.representation_links, vec![(48, 28)]);
+    assert_eq!(records.item_names[&27], "solid");
+
+    let first = &records.occurrences[&62];
+    assert_eq!(
+        (first.id.as_str(), first.name.as_str()),
+        ("NAUO1", "instance 1")
+    );
+    assert_eq!((first.parent, first.child), (52, 44));
+    assert_eq!(
+        first.placement,
+        Some(OccurrencePlacement {
+            representation_1: 48,
+            representation_2: 56,
+            transformation: Transformation::Placements {
+                item_1: 13,
+                item_2: 60
+            },
+        })
+    );
+    // 配置は、幾何の記録として読む
+    assert!(matches!(
+        records.geometry[&60],
+        Geometry::Placement { location: 61, .. }
+    ));
+    assert_eq!(records.geometry[&61], Geometry::Point([100.0, 0.0, 0.0]));
+
+    let second = &records.occurrences[&70];
+    assert_eq!(
+        second
+            .placement
+            .as_ref()
+            .map(|placement| &placement.transformation),
+        Some(&Transformation::Operator {
+            axis_1: Some(11),
+            axis_2: Some(12),
+            axis_3: None,
+            origin: 75,
+            scale: Some(2.0),
+        })
+    );
+    assert_eq!(records.geometry[&75], Geometry::Point([0.0, 50.0, 0.0]));
+}
+
+#[test]
+fn colors_and_invisibility_are_recorded() {
+    let records = assembly_in(MM_RADIAN);
+
+    // 面のスタイルの色
+    assert_eq!(
+        records.colors[&27],
+        Color {
+            red: 0.2,
+            green: 0.4,
+            blue: 0.6
+        }
+    );
+    // 名前で決まった色（線のスタイルしかなければ、それを使う）
+    assert_eq!(
+        records.colors[&22],
+        Color {
+            red: 1.0,
+            green: 0.0,
+            blue: 0.0
+        }
+    );
+    // スタイルの割り当ての非表示は、その対象の非表示
+    assert_eq!(records.invisible, BTreeSet::from([22]));
+}
+
+#[test]
+fn placements_are_read_in_the_units_of_their_representation() {
+    // インチの文脈では、配置の点を mm に直す
+    let records = assembly_in(INCH_DEGREE);
+    assert_eq!(records.geometry[&61], Geometry::Point([2540.0, 0.0, 0.0]));
+    assert_eq!(records.geometry[&75], Geometry::Point([0.0, 1270.0, 0.0]));
+}
+
+#[test]
+fn colors_follow_their_priority() {
+    // 平面の面（%22）には線の色（赤）があり、別の割り当てで面の塗りつぶしの色（緑）を足す。面の境界の線の色（黒）は
+    // 面の色にしない。円錐の面（%24）は、上書きの割り当て（黄）が、前の面の色（緑）より優先する
+    let extra = "
+%100=COLOUR_RGB('',0.,0.,0.);
+%101=CURVE_STYLE('',$,$,%100);
+%102=SURFACE_STYLE_BOUNDARY(%101);
+%103=COLOUR_RGB('',0.,1.,0.);
+%104=FILL_AREA_STYLE_COLOUR('',%103);
+%105=FILL_AREA_STYLE('',(%104));
+%106=SURFACE_STYLE_FILL_AREA(%105);
+%107=SURFACE_SIDE_STYLE('',(%102,%106));
+%108=SURFACE_STYLE_USAGE(.BOTH.,%107);
+%109=PRESENTATION_STYLE_ASSIGNMENT((%108));
+%110=STYLED_ITEM('',(%109),%22);
+%111=STYLED_ITEM('',(%109),%24);
+%112=DRAUGHTING_PRE_DEFINED_COLOUR('yellow');
+%113=CURVE_STYLE('',$,$,%112);
+%114=PRESENTATION_STYLE_ASSIGNMENT((%113));
+%115=OVER_RIDING_STYLED_ITEM('',(%114),%24,%111);
+";
+    let records = read(&step_file(
+        &(MM_RADIAN.to_string() + &SOLID.replace("ANGLE", "0.5") + ASSEMBLY + extra),
+    ));
+    let green = Color {
+        red: 0.0,
+        green: 1.0,
+        blue: 0.0,
+    };
+    assert_eq!(records.colors[&22], green);
+    assert_eq!(
+        records.colors[&24],
+        Color {
+            red: 1.0,
+            green: 1.0,
+            blue: 0.0
+        }
+    );
+}
+
+#[test]
+fn a_style_that_refers_to_itself_is_followed_once() {
+    let records = read(&step_file(
+        &(MM_RADIAN.to_string()
+            + &SOLID.replace("ANGLE", "0.5")
+            + "%100=PRESENTATION_STYLE_ASSIGNMENT((%100,%100,%100,%100,%100,%100,%100,%100));
+%101=STYLED_ITEM('',(%100),%27);"),
+    ));
+    assert!(records.colors.is_empty());
+}
+
+#[test]
+fn a_hidden_layer_hides_its_items() {
+    let records = read(&step_file(
+        &(MM_RADIAN.to_string()
+            + &SOLID.replace("ANGLE", "0.5")
+            + "%100=PRESENTATION_LAYER_ASSIGNMENT('hidden','',(%27,%24));
+%101=INVISIBILITY((%100));"),
+    ));
+    assert_eq!(records.invisible, BTreeSet::from([24, 27]));
+}
+
+#[test]
+fn an_operator_with_a_name_and_a_description_is_read() {
+    // 2 つの上位型の名前と説明を、すべて書いた形（引数が 8 つ）
+    let data = (MM_RADIAN.to_string() + &SOLID.replace("ANGLE", "0.5") + ASSEMBLY).replace(
+        "CARTESIAN_TRANSFORMATION_OPERATOR_3D('',%11,%12,%75,2.,$)",
+        "CARTESIAN_TRANSFORMATION_OPERATOR_3D('','','',%11,%12,%75,2.,$)",
+    );
+    let records = read(&step_file(&data));
+    assert!(matches!(
+        records.occurrences[&70]
+            .placement
+            .as_ref()
+            .map(|placement| &placement.transformation),
+        Some(Transformation::Operator { origin: 75, .. })
+    ));
+}
+
+#[test]
+fn a_transformed_relation_outside_occurrences_is_recorded_as_skipped() {
+    let records = read(&step_file(
+        &(MM_RADIAN.to_string()
+            + &SOLID.replace("ANGLE", "0.5")
+            + ASSEMBLY
+            + "%120=(REPRESENTATION_RELATIONSHIP('','',%48,%56) REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION(%66) SHAPE_REPRESENTATION_RELATIONSHIP());"),
+    ));
+    let skipped: Vec<(u64, SkipReason)> = records
+        .skipped
+        .iter()
+        .map(|skipped| (skipped.id, skipped.reason))
+        .collect();
+    assert_eq!(skipped, vec![(120, SkipReason::Unsupported)]);
+
+    // 文脈による形状の表現が、出現ではなく製品の定義の形状（%46）を指すときも、関係は飛ばしたと記録する
+    let records = read(&step_file(
+        &(MM_RADIAN.to_string()
+            + &SOLID.replace("ANGLE", "0.5")
+            + ASSEMBLY
+            + "%120=(REPRESENTATION_RELATIONSHIP('','',%48,%56) REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION(%66) SHAPE_REPRESENTATION_RELATIONSHIP());
+%121=CONTEXT_DEPENDENT_SHAPE_REPRESENTATION(%120,%46);"),
+    ));
+    let skipped: Vec<(u64, SkipReason)> = records
+        .skipped
+        .iter()
+        .map(|skipped| (skipped.id, skipped.reason))
+        .collect();
+    assert_eq!(skipped, vec![(120, SkipReason::Unsupported)]);
+}

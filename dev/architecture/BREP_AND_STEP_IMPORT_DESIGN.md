@@ -289,6 +289,12 @@ STEP（ISO 10303-21。AP203・AP214・AP242 の形状）の読み込みと、そ
   - 曲線・曲面・頂点・稜線・面・シェルなどのエンティティは、AP によらず同じ規格の部（ISO 10303-42）なので読み分けない。スキーマで分けるのは、短い名前の表（#1361）だけとする。製品の文脈の書き方の違い（AP203 の第 1 版の `DESIGN_CONTEXT`・AP214 の `PRODUCT_DEFINITION_CONTEXT` など）は、どちらも受け付ける（#1360）。AP242 にだけあるもの（PMI・三角形で表した形状など）は範囲の外とし、飛ばしたことを記録する
 - 幾何（点・曲線・曲面）と位相（頂点・稜線・ループ・面・シェル・立体）を、ファイルの番号を持った記録にする。ファイルで共有している要素は、1 回だけ読む
 - 製品構造（製品・形状の表現・アセンブリの出現・配置・名前・色・非表示）を記録する
+  - 製品は `PRODUCT_DEFINITION` ごとに、製品の識別子・名前と、`SHAPE_DEFINITION_REPRESENTATION` で結ばれた形状の表現を持つ。形状の表現の間の変換のない関係（`SHAPE_REPRESENTATION_RELATIONSHIP`）は、そのまま並べて持つ
+  - アセンブリの出現（`NEXT_ASSEMBLY_USAGE_OCCURRENCE`）は、親と子の製品と、`CONTEXT_DEPENDENT_SHAPE_REPRESENTATION` の配置を持つ。配置の変換（`ITEM_DEFINED_TRANSFORMATION` の 2 つの配置・`CARTESIAN_TRANSFORMATION_OPERATOR_3D` の方向と原点）は、関係の 1 つ目・2 つ目の表現の文脈の単位で、幾何の記録として読む（演算子は 2 つ目の文脈）。どちらの配置からどちらへ写すかは、段 4 で決める
+  - 色は、`STYLED_ITEM` からスタイルをたどって探す（`COLOUR_RGB` と、規格で名前の決まった色。同じ要素は 1 回だけたどる）。面の塗りつぶし（`SURFACE_STYLE_FILL_AREA`）の下の色を、面の境界・輪郭の線の色より優先する。同じ要素に複数の割り当てがあれば、上書きの割り当て（`OVER_RIDING_STYLED_ITEM`）、面の塗りつぶしの色の順に優先する
+  - 非表示は、`INVISIBILITY` の要素とする（スタイルの割り当ては、その対象。レイヤー（`PRESENTATION_LAYER_ASSIGNMENT`）は、そこに割り当てた要素）
+  - 出現の配置として読まなかった変換つきの関係は、飛ばしたと記録する
+  - `MAPPED_ITEM` による配置は、初めは読まない（後の Issue）
 
 ## 10. 製品構造とエンティティ（`application`）
 

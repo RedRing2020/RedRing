@@ -6,10 +6,12 @@
 //! 記録して飛ばす（ほかの要素は読み続ける）。参照は再帰でたどらず、順に読むため、入れ子の深さで止まらない。
 
 mod parameters;
+mod product;
 #[cfg(test)]
 mod tests;
 mod units;
 
+pub use product::{Color, Occurrence, OccurrencePlacement, Product, Transformation};
 pub use units::Context;
 
 use crate::syntax::{Record, StepFile};
@@ -39,6 +41,18 @@ pub struct Records {
     pub geometry: BTreeMap<u64, Geometry>,
     /// 位相（頂点・稜線・ループ・面・シェル・立体）
     pub topology: BTreeMap<u64, Topology>,
+    /// 製品（`PRODUCT_DEFINITION` の番号から）
+    pub products: BTreeMap<u64, Product>,
+    /// アセンブリの出現（`NEXT_ASSEMBLY_USAGE_OCCURRENCE` の番号から）
+    pub occurrences: BTreeMap<u64, Occurrence>,
+    /// 変換のない、形状の表現の間の関係（`SHAPE_REPRESENTATION_RELATIONSHIP` の `rep_1`・`rep_2`。ファイルの順）
+    pub representation_links: Vec<(u64, u64)>,
+    /// 立体・シェルなど、読んだ表現の要素の名前（要素の番号から）
+    pub item_names: BTreeMap<u64, String>,
+    /// 色（スタイルを割り当てた要素の番号から。面のスタイルの色を優先し、初めに割り当てたものを使う）
+    pub colors: BTreeMap<u64, Color>,
+    /// 非表示の要素（`INVISIBILITY`。スタイルの割り当ては、その対象の番号）
+    pub invisible: BTreeSet<u64>,
     /// 読まなかった・読めなかった要素と、その理由
     pub skipped: Vec<Skipped>,
 }
@@ -288,6 +302,7 @@ pub fn read(file: &StepFile) -> Records {
         queue: VecDeque::new(),
     };
     reader.representations();
+    reader.product_structure();
     reader.records
 }
 
@@ -333,23 +348,12 @@ impl Reader<'_> {
                 }
                 RepresentationRecord::Other => continue,
             };
-            let context_record = match self.records.contexts.get(&context) {
-                Some(context) => context.clone(),
-                None => match units::context(file, context) {
-                    Some(read) => {
-                        self.records.contexts.insert(context, read.clone());
-                        read
-                    }
-                    None => {
-                        let reason = if file.entities.contains_key(&context) {
-                            SkipReason::UnknownContext
-                        } else {
-                            SkipReason::MissingReference
-                        };
-                        self.skip(id, reason);
-                        continue;
-                    }
-                },
+            let context_record = match self.context(context) {
+                Ok(context) => context,
+                Err(reason) => {
+                    self.skip(id, reason);
+                    continue;
+                }
             };
             let mut solids = Vec::new();
             for item in items {
@@ -401,6 +405,21 @@ impl Reader<'_> {
                     items: solids,
                 },
             );
+        }
+    }
+
+    /// 表現の文脈 `context`（読んだものは覚えておく。読めなければ理由）
+    fn context(&mut self, context: u64) -> Result<Context, SkipReason> {
+        if let Some(read) = self.records.contexts.get(&context) {
+            return Ok(read.clone());
+        }
+        match units::context(self.file, context) {
+            Some(read) => {
+                self.records.contexts.insert(context, read.clone());
+                Ok(read)
+            }
+            None if self.file.entities.contains_key(&context) => Err(SkipReason::UnknownContext),
+            None => Err(SkipReason::MissingReference),
         }
     }
 
