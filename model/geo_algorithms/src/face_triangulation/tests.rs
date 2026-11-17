@@ -621,3 +621,98 @@ fn a_coarse_boundary_does_not_keep_adding_points() {
     let region = FaceRegion::new(&[lower, upper], &cylinder, &settings).unwrap();
     region.triangulate(&cylinder, &settings).unwrap();
 }
+
+/// 頂点が原点にある円錐（v の位置の半径は v × 0.5。刻みは面の中の最も大きい半径 `max_radius` で決める）
+struct Cone {
+    max_radius: f64,
+}
+
+const CONE_SLOPE: f64 = 0.5;
+
+impl TriangulationSurface for Cone {
+    fn point_at(&self, u: f64, v: f64) -> Option<Point3D<f64>> {
+        let radius = CONE_SLOPE * v;
+        Some(Point3D::new(radius * u.cos(), radius * u.sin(), v))
+    }
+    fn normal_at(&self, u: f64, v: f64) -> Option<Vector3D<f64>> {
+        let radius = CONE_SLOPE * v;
+        Some(Vector3D::new(
+            radius * u.cos(),
+            radius * u.sin(),
+            -CONE_SLOPE * radius,
+        ))
+    }
+    fn periods(&self) -> (Option<f64>, Option<f64>) {
+        (Some(TAU), None)
+    }
+    fn poles(&self) -> (Option<f64>, Option<f64>) {
+        (Some(0.0), None)
+    }
+    fn steps(&self, chord_tolerance: f64, max_angle: Angle<f64>) -> (Option<f64>, Option<f64>) {
+        (
+            Some(angle_step(self.max_radius, chord_tolerance, max_angle)),
+            None,
+        )
+    }
+    fn scale(&self) -> (f64, f64) {
+        (self.max_radius, (1.0 + CONE_SLOPE * CONE_SLOPE).sqrt())
+    }
+}
+
+impl TestSurface for Cone {
+    fn distance(&self, point: Point3D<f64>) -> f64 {
+        (point.x().hypot(point.y()) - CONE_SLOPE * point.z()).abs()
+            / (1.0 + CONE_SLOPE * CONE_SLOPE).sqrt()
+    }
+    fn normal(&self, point: Point3D<f64>) -> Vector3D<f64> {
+        let radius = point.x().hypot(point.y());
+        Vector3D::new(point.x(), point.y(), -CONE_SLOPE * radius)
+    }
+}
+
+/// 半径 `radius` の円を、許容弦誤差と角度の上限で等しく分ける数
+fn circle_points(radius: f64, chord_tolerance: f64) -> usize {
+    let step = angle_step(
+        radius,
+        chord_tolerance,
+        Angle::from_degrees(MAX_CHORD_ANGLE_DEGREES),
+    );
+    (TAU / step).ceil() as usize
+}
+
+#[test]
+fn a_small_circle_near_a_pole_is_triangulated_without_flipped_triangles() {
+    // 極の近くの緯線の境界は、自分の小さな半径で分けるので、辺の u の幅が球の u の刻みより広い
+    let sphere = Sphere { radius: 10.0 };
+    let tolerance = 0.005;
+    for latitude in [1.45, 1.5, 1.52, 1.55] {
+        let count = circle_points(10.0 * f64::cos(latitude), tolerance);
+        // 北極までの面（u が増える向き）と、南極までの面（u が減る向き）
+        let north = ring(0, line((0.0, latitude), (TAU, latitude), count));
+        triangulate(&[north], &sphere, tolerance);
+        let south = ring(0, line((TAU, -latitude), (0.0, -latitude), count));
+        triangulate(&[south], &sphere, tolerance);
+    }
+}
+
+#[test]
+fn a_cone_frustum_with_a_small_top_circle_is_triangulated() {
+    let cone = Cone { max_radius: 2.5 };
+    let tolerance = 0.001;
+    for small in [0.2, 0.4, 1.0, 2.0] {
+        // 小さい円（v = small）は u が増える向き、大きい円（v = 5）は u が減る向き
+        let lower = ring(
+            0,
+            line(
+                (0.0, small),
+                (TAU, small),
+                circle_points(CONE_SLOPE * small, tolerance),
+            ),
+        );
+        let upper = ring(
+            1000,
+            line((TAU, 5.0), (0.0, 5.0), circle_points(2.5, tolerance)),
+        );
+        triangulate(&[lower, upper], &cone, tolerance);
+    }
+}

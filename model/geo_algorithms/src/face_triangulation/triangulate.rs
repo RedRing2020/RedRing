@@ -1,4 +1,4 @@
-//! 制約つきのドロネー分割と、許容弦誤差・刻みによる細分化（設計書 6.1〜6.3）
+//! 制約つきのドロネー分割と、許容弦誤差による細分化（設計書 6.1〜6.3）
 //!
 //! 範囲の多角形の辺を制約の辺にして、三角形分割の座標（`TriangulationSurface::scale` を掛けた (u, v)）でドロネー
 //! 分割する。外から制約の辺を越えるたびに内と外が入れ替わるとして、範囲の内側の三角形を選ぶ。
@@ -6,8 +6,8 @@
 //! u・v の両方に刻みのある曲面では、初めに範囲の内側に刻みの格子で点を置く。その後、内側の三角形ごとに、(u, v) の
 //! 重心と 3 つの辺の中点を曲面の上で評価し、三角形（辺）の同じ位置の点との離れ（曲面の法線の向きの成分）を測る。
 //! 重心の離れか、辺の中点の離れから見積もった三角形の中の離れの最大（2 次式で補う）が許容弦誤差を超えれば、重心と
-//! 制約でない辺の中点のうち離れの大きいほうに点を足す。制約でない辺の (u, v) の幅が刻みの 2 倍を超えれば、その辺の
-//! 中点にも点を足す。
+//! 制約でない辺の中点のうち離れの大きいほうに点を足す。辺の (u, v) の幅では分けない（極や円錐の頂点の近くでは、
+//! (u, v) の幅が広くても曲面の上では短く、境界の辺に接する三角形を分け続けてしまうため）。
 //!
 //! 制約の辺（境界・切れ目・極の線）は分けない。制約の辺の中点の離れが許容弦誤差を超える三角形では、その離れを上限
 //! とする（分けられない辺に接する三角形のほかの辺と内側は、どこに点を足してもその辺の離れの程度より小さくできない
@@ -25,11 +25,6 @@ use super::{
 use crate::{Point2D, Point3D, Vector3D};
 
 type Cdt = ConstrainedDelaunayTriangulation<Point2<f64>>;
-
-/// 制約でない辺を分ける (u, v) の幅の、刻みに対する倍率。許容弦誤差は辺の中点と重心の離れで守るので、幅で分けるのは
-/// 大きな三角形の離れを測り損ねないためだけにする（刻みちょうどで分けると、帯を斜めに渡る辺を分け続けて、円柱でも
-/// 内側に点を足してしまう）
-const WIDTH_STEP_FACTOR: f64 = 2.0;
 
 impl FaceRegion {
     /// 範囲を、多角形の辺を必ず辺に持つ三角形に分け、許容弦誤差と刻みを守るまで内側に点を足す
@@ -92,7 +87,7 @@ impl FaceRegion {
         }
         let mut pass = 0;
         loop {
-            let points = mesh.points_to_add(surface, steps, settings.chord_tolerance)?;
+            let points = mesh.points_to_add(surface, settings.chord_tolerance)?;
             if points.is_empty() {
                 break;
             }
@@ -239,16 +234,12 @@ impl Mesh {
         Ok(points)
     }
 
-    /// 許容弦誤差か刻みを超える三角形に足す点の (u, v)
+    /// 許容弦誤差を超える三角形に足す点の (u, v)
     fn points_to_add(
         &mut self,
         surface: &impl TriangulationSurface,
-        steps: (Option<f64>, Option<f64>),
         chord_tolerance: f64,
     ) -> Result<Vec<Point2D<f64>>, FaceTriangulationError> {
-        let too_wide = |delta: f64, step: Option<f64>| {
-            step.is_some_and(|step| delta.abs() > WIDTH_STEP_FACTOR * step)
-        };
         let mut points = Vec::new();
         let mut seen = HashSet::new();
         for face in inside_faces(&self.cdt) {
@@ -283,7 +274,6 @@ impl Mesh {
             // 辺の中点の離れ（角の番号の組 (0, 1)・(1, 2)・(2, 0) の順）と、制約でない辺のうち離れの最も大きい辺の中点
             let mut deviations = [Vector3D::new(0.0, 0.0, 0.0); 3];
             let mut worst_edge: Option<(f64, Point2D<f64>)> = None;
-            let mut split = Vec::new();
             for corner in 0..3 {
                 let (from, to) = (handles[corner], handles[(corner + 1) % 3]);
                 let (start, end) = (&self.vertices[from], &self.vertices[to]);
@@ -310,25 +300,17 @@ impl Mesh {
                 if worst_edge.is_none_or(|(worst, _)| length > worst) {
                     worst_edge = Some((length, middle));
                 }
-                if too_wide(end.uv.x() - start.uv.x(), steps.0)
-                    || too_wide(end.uv.y() - start.uv.y(), steps.1)
-                {
-                    split.push(middle);
-                }
             }
-            if centroid_deviation.max(quadratic_maximum(&deviations)) > allowed {
-                split.push(match worst_edge {
-                    Some((length, middle)) if length > centroid_deviation => middle,
-                    _ => centroid,
-                });
-            }
-            if split.is_empty() {
+            if centroid_deviation.max(quadratic_maximum(&deviations)) <= allowed {
                 self.accepted.insert(key);
+                continue;
             }
-            for uv in split {
-                if seen.insert((uv.x().to_bits(), uv.y().to_bits())) {
-                    points.push(uv);
-                }
+            let uv = match worst_edge {
+                Some((length, middle)) if length > centroid_deviation => middle,
+                _ => centroid,
+            };
+            if seen.insert((uv.x().to_bits(), uv.y().to_bits())) {
+                points.push(uv);
             }
         }
         Ok(points)

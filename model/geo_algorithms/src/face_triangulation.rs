@@ -86,6 +86,9 @@ fn checked_steps(
 }
 
 /// ループの点（境界の頂点の番号と (u, v)）
+///
+/// 極（`TriangulationSurface::poles`）の上の点は、v を極の値に合わせて渡す（差が
+/// `analysis::consts::tessellation::POLE_PARAMETER_TOLERANCE` より大きいと、極の点として扱わない）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LoopPoint {
     pub vertex: usize,
