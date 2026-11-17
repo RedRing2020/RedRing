@@ -1183,3 +1183,39 @@ fn canonical_order_follows_the_shells() {
         assert_eq!((a.start(), a.end()), (b.start(), b.end()));
     }
 }
+
+#[test]
+fn a_face_with_three_loops_around_the_axis_is_not_readable() {
+    // 円柱の帯（2 つの円が逆向きに 1 回ずつまわる）は扱える。3 つ目の円を足すと扱えない
+    let surface = SurfaceRef::Cylinder(
+        TopoCylindricalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap(),
+    );
+    let mut brep = Brep::new(tolerances()).unwrap();
+    let bottom = circle_edge(&mut brep, horizontal_circle(0.0, 1.0));
+    let middle = circle_edge(&mut brep, horizontal_circle(1.0, 1.0));
+    let top = circle_edge(&mut brep, horizontal_circle(2.0, 1.0));
+    let band = brep
+        .add_face(
+            surface.clone(),
+            true,
+            vec![vec![forward(bottom)], vec![backward(top)]],
+        )
+        .unwrap();
+    assert!(brep.has_readable_winding(band));
+    let three = brep
+        .add_face(
+            surface,
+            true,
+            vec![
+                vec![forward(bottom)],
+                vec![backward(middle)],
+                vec![backward(top)],
+            ],
+        )
+        .unwrap();
+    assert!(!brep.has_readable_winding(three));
+
+    // 周期のない平面の三角形は扱える
+    let (triangle, face) = triangle_face([0, 1, 2], true);
+    assert!(triangle.has_readable_winding(face));
+}

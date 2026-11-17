@@ -118,6 +118,36 @@ impl<T: Scalar> Brep<T> {
     pub fn is_face_oriented(&self, index: FaceIndex) -> bool {
         is_face_oriented(self, index)
     }
+
+    /// 面 `index` のループの回り方が、周期的な曲面の上で扱える形か（どのループも周期を 1 回までしかまわらず、
+    /// u・v の両方ではまわらず、同じ向きの周期をまわるループが 2 つまで。パラメータ曲線を評価できないループが
+    /// あれば、扱えないとする）
+    ///
+    /// 周期をまわらないループだけの面・極までの面・帯・ループのない面がこれに当たる。面の向きの規則
+    /// （`is_face_oriented`）と同じ巻き数の数え方を使う。
+    pub fn has_readable_winding(&self, index: FaceIndex) -> bool {
+        let face = self.face(index);
+        let (mut around_u, mut around_v) = (0, 0);
+        for &loop_index in face.loops() {
+            match loop_in_uv(self, loop_index, face.surface(), face.same_sense()) {
+                Some(LoopInUv::Plain { .. }) => {}
+                Some(LoopInUv::Winding {
+                    turns_u, turns_v, ..
+                }) => {
+                    if turns_u.abs() > T::ONE
+                        || turns_v.abs() > T::ONE
+                        || (turns_u != T::ZERO && turns_v != T::ZERO)
+                    {
+                        return false;
+                    }
+                    around_u += usize::from(turns_u != T::ZERO);
+                    around_v += usize::from(turns_v != T::ZERO);
+                }
+                None => return false,
+            }
+        }
+        around_u <= 2 && around_v <= 2
+    }
 }
 
 fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex) -> bool {
