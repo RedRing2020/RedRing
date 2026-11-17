@@ -94,6 +94,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "面を表示用の三角形に分けられません",
     ),
     ("failure.shape.no_faces", "面がありません"),
+    (
+        "failure.shape.source_faces",
+        "元のファイルの面の数が形状の面の数と合いません",
+    ),
     ("failure.file.not_found", "ファイルが見つかりません"),
     (
         "failure.file.permission_denied",
@@ -207,6 +211,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
         "Cannot split a face into triangles for display",
     ),
     ("failure.shape.no_faces", "There are no faces"),
+    (
+        "failure.shape.source_faces",
+        "The faces of the source file do not match the faces of the shape",
+    ),
     ("failure.file.not_found", "The file is not found"),
     (
         "failure.file.permission_denied",

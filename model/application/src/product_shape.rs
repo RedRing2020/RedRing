@@ -1,11 +1,14 @@
 //! 製品形状のエンティティの保持・取り込みと、CAM の入力の形状への解決（設計: PRODUCT_SHAPE_ENTITY_DESIGN.md）。
 //!
-//! 製品形状のエンティティは、シェルと面単体を別の種類とする。ここでは面単体（トリムなしの NURBS 曲面 1 枚、
-//! または三角形メッシュ 1 つ）を扱う。面は全体で一意な面の ID（`FaceId`）を持ち、面への参照は面の ID だけで指す。
+//! 製品形状のエンティティは、シェルと面単体を別の種類とする。面単体は、トリムなしの NURBS 曲面 1 枚、または
+//! 三角形メッシュ 1 つを持つ。シェルは B-rep の表（読み込んだ立体・シェル）を持ち、同じ部品の出現は表を共有して、
+//! 配置と面の ID の表を出現ごとに持つ（設計: BREP_AND_STEP_IMPORT_DESIGN.md 10.1・10.3）。面は全体で一意な面の
+//! ID（`FaceId`）を持ち、面への参照は面の ID だけで指す。
 
 use std::collections::HashSet;
 use std::fmt;
 use std::path::Path;
+use std::sync::Arc;
 
 use cam_algorithms::SolverGeometry;
 /// 製品形状の面の形（NURBS 曲面・三角形メッシュ）の型
@@ -20,6 +23,9 @@ pub use geo_contracts::{
 };
 use geo_contracts::{EntityIdentity, TriangleMesh3DConstructor};
 use geo_entity::{Attributes, DisplayAttributes, EntityId, FaceId, GeometricEntity, Metadata};
+/// シェルの B-rep の表と、配置の型
+pub use geo_primitives::SimilarityTransform3D;
+pub use geo_topology::Brep;
 
 /// 面の形状
 #[derive(Debug, Clone)]
@@ -134,6 +140,40 @@ fn with_triangle_normals(mesh: &TriangleMesh3D<f64>) -> TriangleMesh3D<f64> {
         .expect("one normal is given for each vertex of valid triangles")
 }
 
+/// シェルの元の要素（読み込んだファイルの中の対応）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShellSource {
+    /// ファイルの名前
+    pub file_name: String,
+    /// アセンブリの出現の並び（根から、出現のエンティティの番号）
+    pub occurrences: Vec<u64>,
+    /// 面ごとの、元の面のエンティティの番号（B-rep の面の順）
+    pub faces: Vec<u64>,
+}
+
+/// シェル（B-rep の表と配置、B-rep の面の順の面の ID、元の要素）
+#[derive(Debug, Clone)]
+pub(crate) struct ProductShell {
+    brep: Arc<Brep<f64>>,
+    placement: SimilarityTransform3D<f64>,
+    face_ids: Vec<FaceId>,
+    source: Option<ShellSource>,
+}
+
+/// シェルの製品形状のエンティティ
+#[derive(Debug, Clone)]
+pub(crate) struct ProductShellEntity(GeometricEntity<f64, ProductShell>);
+
+impl ProductShellEntity {
+    fn id(&self) -> EntityId {
+        self.0.id()
+    }
+
+    fn shell(&self) -> &ProductShell {
+        self.0.geometry()
+    }
+}
+
 /// 加えた面単体のエンティティと、その面
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AddedProductFace {
@@ -161,6 +201,8 @@ pub enum ProductShapeError {
     Tessellation(SurfaceTessellationError),
     /// 面がない
     NoFaces,
+    /// シェルの元の要素の面の数が、B-rep の面の数と合わない
+    SourceFaceCountMismatch,
 }
 
 impl fmt::Display for ProductShapeError {
@@ -173,6 +215,9 @@ impl fmt::Display for ProductShapeError {
             Self::MixedFaceKinds => write!(f, "NURBS surface faces and mesh faces are mixed"),
             Self::Tessellation(error) => write!(f, "failed to tessellate a surface face: {error}"),
             Self::NoFaces => write!(f, "no faces are given"),
+            Self::SourceFaceCountMismatch => {
+                write!(f, "the source faces do not match the faces of the B-rep")
+            }
         }
     }
 }
@@ -190,6 +235,21 @@ pub struct ProductFaceRecord {
     pub metadata: Metadata,
 }
 
+/// シェルのエンティティの記録（保管先から取り出し、保管先に戻す中身。選択の状態は持たない）
+#[derive(Debug, Clone)]
+pub struct ProductShellRecord {
+    pub entity_id: EntityId,
+    /// B-rep の表（同じ部品の出現は、同じ表を共有する）
+    pub brep: Arc<Brep<f64>>,
+    pub placement: SimilarityTransform3D<f64>,
+    /// 面の ID（B-rep の面の順）
+    pub face_ids: Vec<FaceId>,
+    pub source: Option<ShellSource>,
+    pub display: DisplayAttributes,
+    pub attributes: Attributes,
+    pub metadata: Metadata,
+}
+
 /// 記録から製品形状の保管先に戻すときの誤り
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProductShapeRestoreError {
@@ -197,6 +257,8 @@ pub enum ProductShapeRestoreError {
     DuplicateEntity(EntityId),
     /// 面の ID が重なっている
     DuplicateFace(FaceId),
+    /// シェルの面の ID・元の要素の面の数が、B-rep の面の数と合わない
+    FaceCountMismatch(EntityId),
 }
 
 impl fmt::Display for ProductShapeRestoreError {
@@ -204,16 +266,20 @@ impl fmt::Display for ProductShapeRestoreError {
         match self {
             Self::DuplicateEntity(id) => write!(f, "duplicate product shape entity: {id}"),
             Self::DuplicateFace(id) => write!(f, "duplicate product face: {id}"),
+            Self::FaceCountMismatch(id) => {
+                write!(f, "the faces of product shell {id} do not match its B-rep")
+            }
         }
     }
 }
 
 impl std::error::Error for ProductShapeRestoreError {}
 
-/// 製品形状のエンティティの保管先（加えた順に保持する）
+/// 製品形状のエンティティの保管先（面単体とシェルを、それぞれ加えた順に保持する）
 #[derive(Debug, Default)]
 pub struct ProductShapeStore {
     entities: Vec<ProductFaceEntity>,
+    shells: Vec<ProductShellEntity>,
 }
 
 impl ProductShapeStore {
@@ -221,12 +287,16 @@ impl ProductShapeStore {
         Self::default()
     }
 
-    /// 記録 `records` を、その順に持つ保管先を作る（ID は記録のまま）
+    /// 面単体の記録 `records` とシェルの記録 `shells` を、その順に持つ保管先を作る（ID は記録のまま）
     ///
     /// # Errors
     ///
-    /// エンティティの ID、または面の ID が重なっている場合。
-    pub fn from_records(records: Vec<ProductFaceRecord>) -> Result<Self, ProductShapeRestoreError> {
+    /// エンティティの ID、または面の ID が（面単体とシェルをまたいでも）重なっている場合、シェルの面の ID・元の
+    /// 要素の面の数が、B-rep の面の数と合わない場合。
+    pub fn from_records(
+        records: Vec<ProductFaceRecord>,
+        shells: Vec<ProductShellRecord>,
+    ) -> Result<Self, ProductShapeRestoreError> {
         let mut entity_ids = HashSet::new();
         let mut face_ids = HashSet::new();
         let mut entities = Vec::with_capacity(records.len());
@@ -248,7 +318,92 @@ impl ProductShapeStore {
                 record.metadata,
             )));
         }
-        Ok(Self { entities })
+        let mut shell_entities = Vec::with_capacity(shells.len());
+        for record in shells {
+            if !entity_ids.insert(record.entity_id) {
+                return Err(ProductShapeRestoreError::DuplicateEntity(record.entity_id));
+            }
+            let face_count = record.brep.face_count();
+            let source_matches = record
+                .source
+                .as_ref()
+                .is_none_or(|source| source.faces.len() == face_count);
+            if record.face_ids.len() != face_count || !source_matches {
+                return Err(ProductShapeRestoreError::FaceCountMismatch(
+                    record.entity_id,
+                ));
+            }
+            if let Some(&duplicate) = record.face_ids.iter().find(|&&id| !face_ids.insert(id)) {
+                return Err(ProductShapeRestoreError::DuplicateFace(duplicate));
+            }
+            shell_entities.push(ProductShellEntity(GeometricEntity::restore(
+                record.entity_id,
+                ProductShell {
+                    brep: record.brep,
+                    placement: record.placement,
+                    face_ids: record.face_ids,
+                    source: record.source,
+                },
+                record.display,
+                record.attributes,
+                record.metadata,
+            )));
+        }
+        Ok(Self {
+            entities,
+            shells: shell_entities,
+        })
+    }
+
+    /// 保持しているシェルのエンティティの記録（加えた順）
+    pub fn shell_records(&self) -> Vec<ProductShellRecord> {
+        self.shells
+            .iter()
+            .map(|entity| {
+                let shell = entity.shell();
+                ProductShellRecord {
+                    entity_id: entity.id(),
+                    brep: Arc::clone(&shell.brep),
+                    placement: shell.placement,
+                    face_ids: shell.face_ids.clone(),
+                    source: shell.source.clone(),
+                    display: entity.0.display().clone(),
+                    attributes: entity.0.attributes().clone(),
+                    metadata: entity.0.metadata().clone(),
+                }
+            })
+            .collect()
+    }
+
+    /// B-rep の表 `brep` を配置 `placement` で置くシェルのエンティティを加える（面ごとに新しい面の ID を作る。
+    /// 同じ部品の出現は、同じ表を渡して共有する。配置は、合成の丸めで回転が直交からずれていても、直交に直して
+    /// 持つ）
+    ///
+    /// # Errors
+    ///
+    /// 元の要素 `source` の面の数が、B-rep の面の数と合わない場合。
+    pub fn add_shell(
+        &mut self,
+        brep: Arc<Brep<f64>>,
+        placement: SimilarityTransform3D<f64>,
+        source: Option<ShellSource>,
+    ) -> Result<EntityId, ProductShapeError> {
+        let face_count = brep.face_count();
+        if source
+            .as_ref()
+            .is_some_and(|source| source.faces.len() != face_count)
+        {
+            return Err(ProductShapeError::SourceFaceCountMismatch);
+        }
+        let entity = ProductShellEntity(GeometricEntity::new(ProductShell {
+            brep,
+            placement: placement.renormalized(),
+            face_ids: (0..face_count).map(|_| FaceId::new_random()).collect(),
+            source,
+        }));
+        let id = entity.id();
+        self.shells.push(entity);
+        Ok(id)
     }
 
     /// 保持しているエンティティの記録（加えた順）
@@ -307,7 +462,7 @@ impl ProductShapeStore {
         &self.entities
     }
 
-    /// エンティティ `entity_id` の表示・非表示を切り替える
+    /// エンティティ `entity_id`（面単体かシェル）の表示・非表示を切り替える
     ///
     /// # Errors
     ///
@@ -317,16 +472,25 @@ impl ProductShapeStore {
         entity_id: EntityId,
         visible: bool,
     ) -> Result<(), ProductShapeError> {
-        let entity = self
+        if let Some(entity) = self
             .entities
             .iter_mut()
             .find(|entity| entity.id() == entity_id)
+        {
+            entity.0.display_mut().visible = visible;
+            return Ok(());
+        }
+        let shell = self
+            .shells
+            .iter_mut()
+            .find(|shell| shell.id() == entity_id)
             .ok_or(ProductShapeError::UnknownEntity(entity_id))?;
-        entity.0.display_mut().visible = visible;
+        shell.0.display_mut().visible = visible;
         Ok(())
     }
 
-    /// 表示中のすべてのエンティティの面の ID（加えた順）
+    /// 表示中のすべての面単体のエンティティの面の ID（加えた順。シェルの面は、トリムした面を CAM の入力にできる
+    /// まで含めない）
     pub fn visible_face_ids(&self) -> Vec<FaceId> {
         self.entities
             .iter()
@@ -392,3 +556,6 @@ impl ProductShapeStore {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+pub(crate) mod test_fixtures;

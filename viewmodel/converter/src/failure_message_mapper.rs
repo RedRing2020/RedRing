@@ -110,6 +110,7 @@ pub fn product_shape_failure_message(error: &ProductShapeError) -> UiMessage {
         ProductShapeError::MixedFaceKinds => message("failure.shape.mixed_faces"),
         ProductShapeError::Tessellation(_) => message("failure.shape.tessellation"),
         ProductShapeError::NoFaces => message("failure.shape.no_faces"),
+        ProductShapeError::SourceFaceCountMismatch => message("failure.shape.source_faces"),
     }
 }
 

@@ -175,6 +175,8 @@ pub enum TopologyError {
     /// 周期的な曲面の上で、読めない回り方のループがある（1 回より多くまわる、u・v の両方でまわる、同じ向きの
     /// 周期をまわるループが 3 つ以上ある）
     UnsupportedWinding,
+    /// ループの隣り合う稜線が、同じ頂点でつながらない（理由の起きた要素は、ループ）
+    DisconnectedLoop,
     /// 上限を超えた（設計 4.3。表現の要素ごと止める）
     LimitExceeded(TopologyLimit),
     /// B-rep の表に足せない
@@ -1337,6 +1339,16 @@ impl<'a> ItemBuilder<'a> {
                     loops.push(uses);
                     loop_bounds.push((bound, outer));
                 }
+            }
+        }
+        // ループの隣り合う稜線の使用は、同じ頂点でつながる（つながらない面は、表に足さずに外す）
+        for (uses, &(bound, _)) in loops.iter().zip(&loop_bounds) {
+            let connected = uses.iter().enumerate().all(|(position, &edge_use)| {
+                uses.get((position + 1) % uses.len())
+                    .is_some_and(|&next| self.brep.use_end(edge_use) == self.brep.use_start(next))
+            });
+            if !connected {
+                return Err(Failure::new(bound, TopologyError::DisconnectedLoop));
             }
         }
         let (surface, same_sense, per_face) = match (typed, sense) {

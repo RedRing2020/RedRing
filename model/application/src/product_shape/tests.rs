@@ -279,7 +279,7 @@ fn records_are_restored_with_the_same_ids_and_contents() {
     let mut records = store.records();
     records.push(record_with_attributes());
 
-    let restored = ProductShapeStore::from_records(records.clone()).unwrap();
+    let restored = ProductShapeStore::from_records(records.clone(), Vec::new()).unwrap();
     let again = restored.records();
     assert_eq!(again.len(), 2);
     for (before, after) in records.iter().zip(&again) {
@@ -317,14 +317,112 @@ fn records_with_duplicate_ids_are_not_restored() {
     let mut same_entity = record.clone();
     same_entity.face_id = FaceId::new_random();
     assert_eq!(
-        ProductShapeStore::from_records(vec![record.clone(), same_entity]).unwrap_err(),
+        ProductShapeStore::from_records(vec![record.clone(), same_entity], Vec::new()).unwrap_err(),
         ProductShapeRestoreError::DuplicateEntity(record.entity_id)
     );
 
     let mut same_face = record.clone();
     same_face.entity_id = EntityId::new_random();
     assert_eq!(
-        ProductShapeStore::from_records(vec![record.clone(), same_face]).unwrap_err(),
+        ProductShapeStore::from_records(vec![record.clone(), same_face], Vec::new()).unwrap_err(),
         ProductShapeRestoreError::DuplicateFace(record.face_id)
+    );
+}
+
+/// 四面体の B-rep の元の要素（ファイルの名前・出現・面の番号）
+fn tetrahedron_source() -> ShellSource {
+    ShellSource {
+        file_name: "part.stp".to_string(),
+        occurrences: vec![12, 34],
+        faces: vec![101, 102, 103, 104],
+    }
+}
+
+#[test]
+fn a_shell_gets_a_face_id_for_each_face_of_its_brep() {
+    let mut store = ProductShapeStore::new();
+    let brep = Arc::new(test_fixtures::tetrahedron_brep());
+    let placement = SimilarityTransform3D::translation(Vector3D::new(10.0, 0.0, 0.0));
+    let first = store
+        .add_shell(Arc::clone(&brep), placement, Some(tetrahedron_source()))
+        .unwrap();
+    // 同じ部品の 2 つ目の出現は、同じ表を共有し、別の面の ID を持つ
+    let second = store
+        .add_shell(Arc::clone(&brep), SimilarityTransform3D::identity(), None)
+        .unwrap();
+    assert_ne!(first, second);
+
+    let shells = store.shell_records();
+    assert_eq!(shells.len(), 2);
+    assert_eq!((shells[0].entity_id, shells[1].entity_id), (first, second));
+    assert!(Arc::ptr_eq(&shells[0].brep, &shells[1].brep));
+    assert_eq!(shells[0].face_ids.len(), 4);
+    let ids: HashSet<FaceId> = shells
+        .iter()
+        .flat_map(|shell| shell.face_ids.iter().copied())
+        .collect();
+    assert_eq!(ids.len(), 8);
+    assert_eq!(shells[0].source, Some(tetrahedron_source()));
+    assert_eq!(shells[0].placement.to_matrix(), placement.to_matrix());
+    // シェルの面は、CAM の入力にできるまで、表示中の面に含めない
+    assert!(store.visible_face_ids().is_empty());
+    store.set_visible(first, false).unwrap();
+    assert!(!store.shell_records()[0].display.visible);
+}
+
+#[test]
+fn a_source_with_another_number_of_faces_is_refused() {
+    let mut store = ProductShapeStore::new();
+    let mut source = tetrahedron_source();
+    source.faces.pop();
+    assert_eq!(
+        store
+            .add_shell(
+                Arc::new(test_fixtures::tetrahedron_brep()),
+                SimilarityTransform3D::identity(),
+                Some(source),
+            )
+            .unwrap_err(),
+        ProductShapeError::SourceFaceCountMismatch
+    );
+}
+
+#[test]
+fn shell_records_are_checked_when_restored() {
+    let mut store = ProductShapeStore::new();
+    let added = store.add_face(ProductFaceGeometry::Surface(dome()));
+    store
+        .add_shell(
+            Arc::new(test_fixtures::tetrahedron_brep()),
+            SimilarityTransform3D::identity(),
+            Some(tetrahedron_source()),
+        )
+        .unwrap();
+    let faces = store.records();
+    let shells = store.shell_records();
+
+    let restored = ProductShapeStore::from_records(faces.clone(), shells.clone()).unwrap();
+    assert_eq!(restored.shell_records()[0].face_ids, shells[0].face_ids);
+
+    // 面単体とシェルをまたいで、面の ID が重なる
+    let mut same_face = shells.clone();
+    same_face[0].face_ids[2] = added.face_id;
+    assert_eq!(
+        ProductShapeStore::from_records(faces.clone(), same_face).unwrap_err(),
+        ProductShapeRestoreError::DuplicateFace(added.face_id)
+    );
+    // 面単体とシェルをまたいで、エンティティの ID が重なる
+    let mut same_entity = shells.clone();
+    same_entity[0].entity_id = added.entity_id;
+    assert_eq!(
+        ProductShapeStore::from_records(faces.clone(), same_entity).unwrap_err(),
+        ProductShapeRestoreError::DuplicateEntity(added.entity_id)
+    );
+    // 面の ID の数が、B-rep の面の数と合わない
+    let mut fewer = shells;
+    fewer[0].face_ids.pop();
+    assert_eq!(
+        ProductShapeStore::from_records(faces, fewer.clone()).unwrap_err(),
+        ProductShapeRestoreError::FaceCountMismatch(fewer[0].entity_id)
     );
 }

@@ -1429,3 +1429,42 @@ fn slits_are_found_by_cancelling_the_way_back() {
     assert!(!is_slit(&[(1, false), (1, false)]));
     assert!(!is_slit(&[]));
 }
+
+#[test]
+fn a_face_whose_loop_does_not_connect_is_skipped() {
+    // 下の面（0 番）のループの初めの稜線の使用の向きを逆にし、隣の稜線とつながらないようにする
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let bottom = cube.faces[0];
+    let Some(Topology::Face { bounds, .. }) = cube.builder.records.topology.get(&bottom) else {
+        panic!("a face");
+    };
+    let bound = bounds[0];
+    let Some(Topology::FaceBound { bound: inner, .. }) = cube.builder.records.topology.get(&bound)
+    else {
+        panic!("a bound");
+    };
+    let Some(Topology::EdgeLoop { edges }) = cube.builder.records.topology.get(inner) else {
+        panic!("an edge loop");
+    };
+    let first = edges[0];
+    let Some(Topology::OrientedEdge { orientation, .. }) =
+        cube.builder.records.topology.get_mut(&first)
+    else {
+        panic!("an oriented edge");
+    };
+    *orientation = orientation.map(|value| !value);
+
+    let topologies = cube.builder.build();
+    let built = &topologies.items[0];
+    assert_eq!(built.faces.len(), 5);
+    assert!(built.brep.validate().disconnected_loops.is_empty());
+    let skipped: Vec<(u64, u64, TopologyError)> = topologies
+        .skipped
+        .iter()
+        .map(|skipped| (skipped.id, skipped.cause, skipped.reason))
+        .collect();
+    assert_eq!(
+        skipped,
+        vec![(bottom, bound, TopologyError::DisconnectedLoop)]
+    );
+}
