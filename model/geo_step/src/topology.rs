@@ -809,20 +809,22 @@ impl<'a> ItemBuilder<'a> {
                     center + Vector3D::new(radius, radius, radius),
                 ]
             };
-            match self.geometries.curves.get(curve) {
+            let curve_points: Vec<Point3D<f64>> = match self.geometries.curves.get(curve) {
                 Some(Curve::Base(CurveRef::Circle(circle))) => {
-                    points.extend(around(circle.center(), circle.radius()));
+                    around(circle.center(), circle.radius()).to_vec()
                 }
                 Some(Curve::Base(CurveRef::Ellipse(ellipse))) => {
-                    points.extend(around(ellipse.center(), ellipse.semi_major_axis()));
+                    around(ellipse.center(), ellipse.semi_major_axis()).to_vec()
                 }
-                Some(Curve::Base(CurveRef::Nurbs(nurbs))) => {
-                    points.extend(
-                        (0..nurbs.control_point_count())
-                            .filter_map(|index| nurbs.control_point(index)),
-                    );
-                }
-                _ => {}
+                Some(Curve::Base(CurveRef::Nurbs(nurbs))) => (0..nurbs.control_point_count())
+                    .filter_map(|index| nurbs.control_point(index))
+                    .collect(),
+                _ => Vec::new(),
+            };
+            // 曲線の点も、座標の上限で確かめる（理由の要素は曲線）
+            for point in curve_points {
+                self.check_coordinate(*curve, point);
+                points.push(point);
             }
         }
         let mut bounds: Option<(Point3D<f64>, Point3D<f64>)> = None;

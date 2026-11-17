@@ -1334,6 +1334,28 @@ fn coordinates_beyond_the_limit_stop_the_item() {
 }
 
 #[test]
+fn curves_beyond_the_coordinate_limit_stop_the_item() {
+    // 頂点は小さくても、稜線の曲線（半径 2e9 の円）が上限を超えれば止める
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let edge = cube.edges[&(0, 3)];
+    let circle = cube
+        .builder
+        .circle([0.0; 3], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0], 2.0e9);
+    set_edge_curve(&mut cube.builder, edge, circle);
+
+    let topologies = cube.builder.build();
+    assert!(topologies.items.is_empty());
+    let [skipped] = topologies.skipped.as_slice() else {
+        panic!("{:?}", topologies.skipped);
+    };
+    assert_eq!((skipped.id, skipped.cause), (cube.item, circle));
+    assert_eq!(
+        skipped.reason,
+        TopologyError::LimitExceeded(TopologyLimit::Coordinate)
+    );
+}
+
+#[test]
 fn a_tolerance_too_small_for_the_coordinates_is_reported() {
     // 全体の許容誤差 1e-9 は、大きさ 1 の座標では刻みより大きく、大きさ 1e4 の座標では小さい（1e4 × 1e-12）
     for (scale, below) in [(1.0, false), (1.0e4, true)] {
