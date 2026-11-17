@@ -1027,7 +1027,14 @@ pub(super) fn read_shells(bytes: &[u8]) -> Result<Vec<ProductShellRecord>, Field
     let mut breps = Vec::with_capacity(brep_count);
     for _ in 0..brep_count {
         let records = read_brep(&mut cursor)?;
-        breps.push(Arc::new(Brep::from_records(records).map_err(|_| "brep")?));
+        let brep = Brep::from_records(records).map_err(|_| "brep")?;
+        // 保存する表なら必ず満たす性質（稜線の端と頂点の一致・ループのつながり）だけを確かめる。面の向きなどは、
+        // 取り込んだ表で合わないことがあるため求めない
+        let report = brep.validate();
+        if !report.edges_off_vertices.is_empty() || !report.disconnected_loops.is_empty() {
+            return Err("brep");
+        }
+        breps.push(Arc::new(brep));
     }
     // シェル 1 つは、ID・表の番号・配置・面の数・元の要素の有無・表示の属性などだけで 200 バイト以上
     let count = cursor.count(200).map_err(|_| "shells")?;

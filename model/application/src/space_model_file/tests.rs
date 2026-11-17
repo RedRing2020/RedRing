@@ -794,3 +794,32 @@ fn breps_that_no_shell_refers_to_are_rejected() {
     broken.extend_from_slice(&golden[4..]);
     assert_eq!(codec::read_shells(&broken).unwrap_err(), "breps");
 }
+
+#[test]
+fn breps_whose_edges_or_loops_do_not_fit_are_rejected() {
+    use crate::product_shape::test_fixtures::tetrahedron_brep;
+    use crate::product_shape::{Brep, ProductShellRecord, SimilarityTransform3D};
+    // 頂点を稜線から離した表と、ループの稜線の使用の向きを逆にした表は、表に足す処理は通るが、保存する表なら
+    // 必ず満たす性質に合わない
+    let mut moved = tetrahedron_brep().records();
+    moved.vertices[0].point = geo_topology::Point3D::new(5.0, 5.0, 5.0);
+    let mut reversed = tetrahedron_brep().records();
+    reversed.faces[0].loops[0][0].1 = !reversed.faces[0].loops[0][0].1;
+    for records in [moved, reversed] {
+        let face = face_records().remove(1);
+        let shell = ProductShellRecord {
+            entity_id: EntityId::from_uuid(uuid(30)),
+            brep: std::sync::Arc::new(Brep::from_records(records).unwrap()),
+            placement: SimilarityTransform3D::identity(),
+            face_ids: (0..4)
+                .map(|index| FaceId::from_uuid(uuid(31 + index)))
+                .collect(),
+            source: None,
+            display: face.display,
+            attributes: face.attributes,
+            metadata: face.metadata,
+        };
+        let bytes = codec::write_shells(&[shell]).unwrap();
+        assert_eq!(codec::read_shells(&bytes).unwrap_err(), "brep");
+    }
+}
