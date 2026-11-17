@@ -95,6 +95,15 @@ impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
         })
     }
 
+    fn from_frame(
+        center: Point3D<T>,
+        axis: Direction3D<T>,
+        ref_direction: Direction3D<T>,
+        radius: T,
+    ) -> Option<Self> {
+        Self::new_with_ref_direction(center, axis, ref_direction, radius)
+    }
+
     fn new_xy_plane(center: Point3D<T>, radius: T) -> Option<Self> {
         <Self as Circle3DConstructor<T>>::new(center, Direction3D::positive_z(), radius)
     }

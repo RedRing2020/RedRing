@@ -87,9 +87,7 @@ impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
         }
 
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let ref_direction = Direction3D::from_vector(
-            ref_direction.as_vector() - axis.as_vector() * ref_direction.dot(axis),
-        )?;
+        let ref_direction = ref_direction.orthogonal_to(axis)?;
 
         Some(Self {
             center,

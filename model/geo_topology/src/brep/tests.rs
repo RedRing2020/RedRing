@@ -236,12 +236,16 @@ fn a_seam_edge_is_used_twice_by_one_face() {
     assert_eq!((uses[0].position, uses[1].position), (4, 5));
     assert!(brep.validate().is_valid());
 
-    // ループを逆にしても、2 回の使用の位置は、それぞれの使用を指す
+    // ループを逆にしても、2 回の使用の位置は、それぞれの使用を指す（使用の並びは、位置の順のまま）
     let face_loop = brep.face(face).loops()[0];
     brep.reverse_loop(face_loop).unwrap();
     let uses = brep.edge(slit).uses();
-    assert_eq!((uses[0].position, uses[1].position), (1, 0));
+    assert_eq!((uses[0].position, uses[1].position), (0, 1));
     assert!(brep.validate().disconnected_loops.is_empty());
+
+    // 戻した表も、同じ使用の並びになる
+    let restored = Brep::from_records(brep.records()).unwrap();
+    assert_same_table(&brep, &restored);
 }
 
 #[test]
@@ -1218,4 +1222,135 @@ fn a_face_with_three_loops_around_the_axis_is_not_readable() {
     // 周期のない平面の三角形は扱える
     let (triangle, face) = triangle_face([0, 1, 2], true);
     assert!(triangle.has_readable_winding(face));
+}
+
+/// 表 `a` と `b` が、同じ中身（番号・向き）と同じパラメータ曲線を持つことを確かめる
+fn assert_same_table(a: &Brep<f64>, b: &Brep<f64>) {
+    let (ra, rb) = (a.records(), b.records());
+    assert_eq!(ra.tolerance, rb.tolerance);
+    assert_eq!(ra.vertices, rb.vertices);
+    assert_eq!(ra.edges.len(), rb.edges.len());
+    for edge in 0..a.edge_count() {
+        assert_eq!(
+            a.edge(EdgeIndex(edge)).uses(),
+            b.edge(EdgeIndex(edge)).uses()
+        );
+    }
+    for (ea, eb) in ra.edges.iter().zip(&rb.edges) {
+        assert_eq!(
+            (ea.start, ea.end, ea.parameter_range, ea.tolerance),
+            (eb.start, eb.end, eb.parameter_range, eb.tolerance)
+        );
+        let (t0, t1) = ea.parameter_range;
+        for t in [t0, (t0 + t1) / 2.0, t1] {
+            assert_eq!(
+                ea.curve.point_at_parameter(t),
+                eb.curve.point_at_parameter(t)
+            );
+        }
+    }
+    assert_eq!(ra.faces.len(), rb.faces.len());
+    for (fa, fb) in ra.faces.iter().zip(&rb.faces) {
+        assert_eq!((fa.same_sense, &fa.loops), (fb.same_sense, &fb.loops));
+    }
+    assert_eq!((&ra.shells, &ra.solids), (&rb.shells, &rb.solids));
+    // パラメータ曲線は、戻すときに作り直しても同じになる
+    for face in 0..a.face_count() {
+        let (face_a, face_b) = (a.face(FaceIndex(face)), b.face(FaceIndex(face)));
+        for (&loop_a, &loop_b) in face_a.loops().iter().zip(face_b.loops()) {
+            let (loop_a, loop_b) = (a.face_loop(loop_a), b.face_loop(loop_b));
+            for ((curve_a, curve_b), edge_use) in loop_a
+                .parameter_curves()
+                .iter()
+                .zip(loop_b.parameter_curves())
+                .zip(loop_a.uses())
+            {
+                let (t0, t1) = a.edge(edge_use.edge).parameter_range();
+                for t in [t0, (t0 + t1) / 2.0, t1] {
+                    assert_eq!(curve_a.point_at(t), curve_b.point_at(t));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_table_is_restored_from_its_records() {
+    // 四面体の閉じたシェルの立体（面を 1 つ裏返して戻し、ループを逆にした向きも含む）
+    let (mut brep, faces) = tetrahedron();
+    brep.reverse_face(faces[1]).unwrap();
+    brep.reverse_face(faces[1]).unwrap();
+    let shell = brep.add_shell(faces.clone()).unwrap();
+    brep.add_solid(vec![shell]).unwrap();
+    let mut indices = faces;
+    let brep = brep.into_canonical_order(&mut indices);
+
+    let restored = Brep::from_records(brep.records()).unwrap();
+    assert_same_table(&brep, &restored);
+    assert!(restored.validate().is_valid());
+    assert!(restored.is_shell_closed(ShellIndex(0)));
+
+    // 継ぎ目のある円柱の帯（周期で動かしたパラメータ曲線を含む）
+    let surface = SurfaceRef::Cylinder(
+        TopoCylindricalSurface3D::new_standard(Point3D::new(0.0, 0.0, 0.0), 1.0).unwrap(),
+    );
+    let mut band = Brep::new(tolerances()).unwrap();
+    let bottom = circle_edge(&mut band, horizontal_circle(0.0, 1.0));
+    let top = circle_edge(&mut band, horizontal_circle(1.0, 1.0));
+    band.add_face(
+        surface,
+        false,
+        vec![vec![backward(bottom)], vec![forward(top)]],
+    )
+    .unwrap();
+    let restored = Brep::from_records(band.records()).unwrap();
+    assert_same_table(&band, &restored);
+}
+
+#[test]
+fn broken_records_are_refused() {
+    let (brep, _) = tetrahedron();
+    let records = brep.records();
+
+    let mut broken = records.clone();
+    broken.vertices[0].point = Point3D::new(f64::NAN, 0.0, 0.0);
+    assert_eq!(
+        Brep::from_records(broken).err(),
+        Some(BrepError::InvalidPoint)
+    );
+
+    let mut broken = records.clone();
+    broken.edges[0].start = 99;
+    assert_eq!(
+        Brep::from_records(broken).err(),
+        Some(BrepError::UnknownVertex)
+    );
+
+    let mut broken = records.clone();
+    broken.edges[0].parameter_range = (0.0, f64::NAN);
+    assert_eq!(
+        Brep::from_records(broken).err(),
+        Some(BrepError::InvalidParameterRange)
+    );
+
+    let mut broken = records.clone();
+    broken.faces[0].loops[0][0].0 = 99;
+    assert_eq!(
+        Brep::from_records(broken).err(),
+        Some(BrepError::UnknownEdge)
+    );
+
+    let mut broken = records.clone();
+    broken.shells.push(Vec::new());
+    assert_eq!(
+        Brep::from_records(broken).err(),
+        Some(BrepError::EmptyShell)
+    );
+
+    let mut broken = records;
+    broken.tolerance = -1.0;
+    assert_eq!(
+        Brep::from_records(broken).err(),
+        Some(BrepError::InvalidTolerance)
+    );
 }

@@ -18,8 +18,9 @@ pub mod tolerance;
 pub mod topology_validator;
 
 pub use brep::{
-    Brep, BrepEdge, BrepError, BrepFace, BrepLoop, BrepShell, BrepSolid, BrepVertex, EdgeIndex,
-    EdgeUse, EdgeUseLocation, FaceIndex, LoopIndex, ShellIndex, SolidIndex, VertexIndex,
+    Brep, BrepEdge, BrepError, BrepFace, BrepLoop, BrepRecords, BrepShell, BrepSolid, BrepVertex,
+    EdgeIndex, EdgeRecord, EdgeUse, EdgeUseLocation, FaceIndex, FaceRecord, LoopIndex, ShellIndex,
+    SolidIndex, VertexIndex, VertexRecord,
 };
 pub use composite_curve::{CompositeCurve3D, CurveSegment3D};
 pub use curve_ref::CurveRef;

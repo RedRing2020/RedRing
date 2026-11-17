@@ -34,6 +34,10 @@ pub mod numerical {
 
     /// 正規化済みベクトルの内積を 0 とみなす数値誤差閾値（f32）
     pub const ORTHOGONALITY_DOT_ERROR_TOLERANCE_F32: f32 = 1e-6;
+
+    /// 正規化・直交化の丸めの範囲とみなす値の、計算機イプシロンに対する倍率（単位ベクトルの長さの 2 乗と 1 の差、
+    /// 直交する単位ベクトルの内積）
+    pub const ROUNDING_EPSILON_FACTOR: f64 = 8.0;
 }
 
 /// 特殊数学定数
