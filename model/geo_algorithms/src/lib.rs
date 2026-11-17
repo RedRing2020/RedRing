@@ -21,8 +21,9 @@ pub use operations::{CrossCollision, CrossDistance, CrossIntersection};
 pub use octree::{Octree, OctreeNode, OctreeTolerance};
 
 pub use curve_discretization::{
-    CircularArcDirection, CircularArcPolylineOptions, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
-    circular_arc_to_polyline,
+    CircularArcDirection, CircularArcPolylineOptions, CurveDiscretizationError,
+    CurveDiscretizationSettings, CurvePoint, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
+    DiscretizableCurve, circular_arc_to_polyline,
 };
 
 pub use mesh_adjacency::{TriangleMeshAdjacency, TriangleMeshEdge, TriangleMeshOrientation};
