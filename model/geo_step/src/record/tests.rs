@@ -720,4 +720,19 @@ fn a_transformed_relation_outside_occurrences_is_recorded_as_skipped() {
         .map(|skipped| (skipped.id, skipped.reason))
         .collect();
     assert_eq!(skipped, vec![(120, SkipReason::Unsupported)]);
+
+    // 文脈による形状の表現が、出現ではなく製品の定義の形状（%46）を指すときも、関係は飛ばしたと記録する
+    let records = read(&step_file(
+        &(MM_RADIAN.to_string()
+            + &SOLID.replace("ANGLE", "0.5")
+            + ASSEMBLY
+            + "%120=(REPRESENTATION_RELATIONSHIP('','',%48,%56) REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION(%66) SHAPE_REPRESENTATION_RELATIONSHIP());
+%121=CONTEXT_DEPENDENT_SHAPE_REPRESENTATION(%120,%46);"),
+    ));
+    let skipped: Vec<(u64, SkipReason)> = records
+        .skipped
+        .iter()
+        .map(|skipped| (skipped.id, skipped.reason))
+        .collect();
+    assert_eq!(skipped, vec![(120, SkipReason::Unsupported)]);
 }

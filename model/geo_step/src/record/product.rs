@@ -96,9 +96,11 @@ impl Reader<'_> {
         let index = self.index();
         let mut priorities: BTreeMap<u64, ColorPriority> = BTreeMap::new();
         let mut transformed = Vec::new();
+        // 出現の配置として読んだ変換つきの関係
+        let mut used = BTreeSet::new();
         for (&id, entity) in &file.entities {
             match entity.records.as_slice() {
-                [record] => self.product_record(id, record, &index, &mut priorities),
+                [record] => self.product_record(id, record, &index, &mut priorities, &mut used),
                 records => {
                     if self.product_complex(id, records) {
                         transformed.push(id);
@@ -107,11 +109,6 @@ impl Reader<'_> {
             }
         }
         // 出現の配置として読まなかった変換つきの関係は、飛ばしたと記録する
-        let used: BTreeSet<u64> = index
-            .placements
-            .values()
-            .map(|&(_, relation)| relation)
-            .collect();
         for relation in transformed {
             if !used.contains(&relation) {
                 self.skip(relation, SkipReason::Unsupported);
@@ -194,6 +191,7 @@ impl Reader<'_> {
         record: &Record,
         index: &Index,
         priorities: &mut BTreeMap<u64, ColorPriority>,
+        used: &mut BTreeSet<u64>,
     ) {
         let file = self.file;
         let malformed = |reader: &mut Self| reader.skip(id, SkipReason::Malformed);
@@ -230,16 +228,17 @@ impl Reader<'_> {
                     malformed(self);
                     return;
                 };
-                let placement = index
-                    .placements
-                    .get(&id)
-                    .and_then(|&(cdsr, relation)| match self.transformation(relation) {
+                let placement = index.placements.get(&id).and_then(|&(cdsr, relation)| {
+                    // 読めなかったときは、文脈による形状の表現に理由を残す（関係は、読んだ側に数える）
+                    used.insert(relation);
+                    match self.transformation(relation) {
                         Ok(placement) => Some(placement),
                         Err(reason) => {
                             self.skip(cdsr, reason);
                             None
                         }
-                    });
+                    }
+                });
                 self.records.occurrences.insert(
                     id,
                     Occurrence {
