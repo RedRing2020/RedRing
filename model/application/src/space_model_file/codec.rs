@@ -52,7 +52,6 @@ use cam_core::{
     MachiningBoundary, MachiningStage, OperationSpec, RectangleBoundary, ScanlineCutDirection,
     ScanlineParams, ScanlineToolRange, StockMargins, ToleranceProfile, Tool, ToolType,
 };
-use chrono::{DateTime, Utc};
 use geo_entity::{
     AttributeCode, AttributeValue, Attributes, DisplayAttributes, EntityId, FaceId, Metadata,
     StrokePattern,
@@ -66,6 +65,7 @@ use geo_io::binary_geometry::{
 use geo_topology::{
     BrepRecords, CurveRef, EdgeRecord, FaceRecord, Point3D, SurfaceRef, VertexRecord,
 };
+use jiff::Timestamp;
 use uuid::Uuid;
 
 use super::{SpaceModelFileError, SpaceModelSaveInfo};
@@ -168,9 +168,13 @@ impl ByteWriter {
         Ok(())
     }
 
-    fn time(&mut self, value: DateTime<Utc>) {
-        self.i64(value.timestamp());
-        self.u32(value.timestamp_subsec_nanos());
+    /// 時刻を、秒（切り捨て）と、その秒からのナノ秒（0 以上）で書く
+    fn time(&mut self, value: Timestamp) {
+        const NANOS_PER_SECOND: i128 = 1_000_000_000;
+        let nanos = value.as_nanosecond();
+        // 時刻の範囲（1 万年より内）では、秒は i64 に、秒からのナノ秒は u32 に収まる
+        self.i64(nanos.div_euclid(NANOS_PER_SECOND) as i64);
+        self.u32(nanos.rem_euclid(NANOS_PER_SECOND) as u32);
     }
 }
 
@@ -288,10 +292,10 @@ impl<'a> ByteReader<'a> {
         }
     }
 
-    fn time(&mut self, field: FieldError) -> Result<DateTime<Utc>, FieldError> {
+    fn time(&mut self, field: FieldError) -> Result<Timestamp, FieldError> {
         let seconds = self.i64()?;
-        let nanos = self.u32()?;
-        DateTime::from_timestamp(seconds, nanos).ok_or(field)
+        let nanos = i32::try_from(self.u32()?).map_err(|_| field)?;
+        Timestamp::new(seconds, nanos).map_err(|_| field)
     }
 
     fn geometry<T>(

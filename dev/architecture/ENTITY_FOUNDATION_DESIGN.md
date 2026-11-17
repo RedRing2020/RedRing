@@ -287,7 +287,7 @@ impl DisplayAttributes {
 // model/geo_entity/src/metadata.rs
 
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 /// メタデータ
 #[derive(Debug, Clone)]
@@ -302,10 +302,10 @@ pub struct Metadata {
     pub tags: Vec<String>,
     
     /// 作成日時
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     
     /// 最終更新日時
-    pub modified_at: DateTime<Utc>,
+    pub modified_at: Timestamp,
     
     /// カスタム属性（拡張用）
     pub custom: HashMap<String, String>,
@@ -313,7 +313,7 @@ pub struct Metadata {
 
 impl Default for Metadata {
     fn default() -> Self {
-        let now = Utc::now();
+        let now = Timestamp::now();
         Self {
             name: None,
             description: None,
@@ -341,7 +341,7 @@ impl Metadata {
     
     /// 最終更新日時を現在に設定
     pub fn touch(&mut self) {
-        self.modified_at = Utc::now();
+        self.modified_at = Timestamp::now();
     }
 }
 ```
@@ -554,7 +554,7 @@ impl<T: Scalar> CAMEntity<T> {
   geo_primitives = { path = "../geo_primitives" }
   geo_algorithms = { path = "../geo_algorithms" }
   uuid = { version = "1.0", features = ["v4", "serde"] }
-  chrono = { version = "0.4", features = ["serde"] }
+  jiff = { version = "1", features = ["serde"] }
   serde = { version = "1.0", features = ["derive"] }
   ```
 

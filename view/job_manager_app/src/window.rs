@@ -1206,13 +1206,16 @@ fn status_color(status: StoredJobStatus) -> Color32 {
 /// UNIX 時刻のミリ秒を、この PC の時刻で、言語 `language` の書き方（日本語は「月/日 時:分」、英語は「月の名前 日
 /// 時:分」）で書く
 fn local_time(language: Language, ms: u64) -> String {
-    use chrono::TimeZone;
-    chrono::Local
-        .timestamp_millis_opt(ms as i64)
-        .single()
+    i64::try_from(ms)
+        .ok()
+        .and_then(|ms| jiff::Timestamp::from_millisecond(ms).ok())
         .map_or_else(
             || "-".to_string(),
-            |time| time.format(time_format(language)).to_string(),
+            |time| {
+                time.to_zoned_datetime(jiff::tz::TimeZone::system())
+                    .strftime(time_format(language))
+                    .to_string()
+            },
         )
 }
 

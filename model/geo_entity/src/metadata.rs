@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -7,14 +7,14 @@ pub struct Metadata {
     pub name: Option<String>,
     pub description: Option<String>,
     pub tags: Vec<String>,
-    pub created_at: DateTime<Utc>,
-    pub modified_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub modified_at: Timestamp,
     pub custom: HashMap<String, String>,
 }
 
 impl Default for Metadata {
     fn default() -> Self {
-        let now = Utc::now();
+        let now = Timestamp::now();
         Self {
             name: None,
             description: None,
@@ -40,6 +40,6 @@ impl Metadata {
     }
 
     pub fn touch(&mut self) {
-        self.modified_at = Utc::now();
+        self.modified_at = Timestamp::now();
     }
 }
