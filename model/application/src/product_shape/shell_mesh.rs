@@ -265,22 +265,35 @@ fn prepare_face<'a>(
             } else {
                 edge_points.iter().rev().copied().collect()
             };
-            // 使用の始めの頂点が極なら、v を極の値にそろえる。B-rep がパラメータ曲線をつなぐときと同じく、前の
-            // 使用の稜線の許容誤差で見分ける（頂点の許容誤差は、ほかの稜線を足すと広がるため使わない）
+            // 使用の始めと終わりの頂点が極なら、v を極の値にそろえる。B-rep がパラメータ曲線をつなぐときと同じく、
+            // 極を通るつなぎ目の前の使用の稜線の許容誤差で見分ける（頂点の許容誤差は、ほかの稜線を足すと広がる
+            // ため使わない）
             let previous = uses[(position + uses.len() - 1) % uses.len()].edge;
-            let pole = surface.singular_v(
+            let start_pole = surface.singular_v(
                 brep.vertex(brep.use_start(*edge_use)).point(),
                 brep.edge(previous).tolerance(),
             );
-            // 使用の終わりの点は、次の使用の始めの点と同じなので入れない
-            for (offset, &(parameter, index)) in ordered[..ordered.len() - 1].iter().enumerate() {
+            let end_pole = surface.singular_v(
+                brep.vertex(brep.use_end(*edge_use)).point(),
+                brep.edge(edge_use.edge).tolerance(),
+            );
+            // 使用の終わりの点は、次の使用の始めの点と同じなので入れない。ただし極では、次の使用の u が違う
+            // （極の線に沿って進む）ので、この使用の u の極の点も入れる
+            let count = if end_pole.is_some() {
+                ordered.len()
+            } else {
+                ordered.len() - 1
+            };
+            for (offset, &(parameter, index)) in ordered[..count].iter().enumerate() {
                 let uv = curve
                     .point_at(parameter)
                     .ok_or(ShellFaceError::ParameterCurve)?;
-                let uv = match pole {
-                    Some(pole) if offset == 0 => Point2D::new(uv.x(), pole),
-                    _ => uv,
+                let pole = match offset {
+                    0 => start_pole,
+                    _ if offset == ordered.len() - 1 => end_pole,
+                    _ => None,
                 };
+                let uv = pole.map_or(uv, |pole| Point2D::new(uv.x(), pole));
                 loop_points.push(LoopPoint { vertex: index, uv });
             }
         }

@@ -15,6 +15,7 @@ use crate::{
     CurveRef, ParameterCurve, Point2D, Point3D, SurfaceRef, TopoNurbsCurve3D,
     TopologyToleranceSettings,
 };
+use analysis::consts::tessellation::POLE_PARAMETER_TOLERANCE;
 use geo_contracts::{NurbsCurve3DProperties, Scalar};
 use std::collections::{HashMap, HashSet};
 
@@ -433,7 +434,7 @@ impl<T: Scalar> Brep<T> {
     /// ループ `uses` の稜線の使用ごとのパラメータ曲線（ループの中でつながるように、周期の分だけ動かす）
     ///
     /// 球の極・円錐の頂点では、隣り合う使用の u が本当に違う（極は (u, v) では v が一定の線になる）。そこでは、
-    /// 面がループの左にある向きに極の線に沿って進むように、次の使用の u を選ぶ（面の外向きの法線が曲面の
+    /// 面がループの左にある向きに極の線に沿って進むように、次の使用の u を選ぶ（u が変わらなければ 1 周進む）（面の外向きの法線が曲面の
     /// 法線と同じなら、上の極では u の負の向き、下の極では正の向き）。つなぎ目が極かは、前の使用の稜線の
     /// 許容誤差で見分ける（頂点の許容誤差は、ほかの稜線を足すと広がるため使わない）。
     fn loop_parameter_curves(
@@ -459,7 +460,14 @@ impl<T: Scalar> Brep<T> {
                     let u = match (surface.singular_v(joint, previous_tolerance), u_period) {
                         (Some(pole_v), Some(period)) => {
                             let decreasing = (pole_v > middle_v) == same_sense;
-                            shift_to_side(start.x(), end.x(), period, decreasing)
+                            let u = shift_to_side(start.x(), end.x(), period, decreasing);
+                            // 極で同じ u の線を行って戻るループは面にならないので、u が変わらなければ 1 周
+                            // 進む（継ぎ目の稜線が極を通るループ。行きと帰りが周期の分だけ離れる）
+                            if (u - end.x()).abs() <= T::from_f64(POLE_PARAMETER_TOLERANCE) {
+                                if decreasing { u - period } else { u + period }
+                            } else {
+                                u
+                            }
                         }
                         _ => unwrap(start.x(), end.x(), u_period),
                     };

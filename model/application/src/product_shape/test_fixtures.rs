@@ -327,3 +327,109 @@ pub(crate) fn plate_with_hole_brep() -> Brep<f64> {
     solid.faces.push(face);
     solid.finish()
 }
+
+/// 試験の B-rep: 半径 10 の球で、南極から北極への半円の継ぎ目の稜線を持つ 1 つの面（ループは継ぎ目の行きと帰り）
+pub(crate) fn seamed_sphere_brep() -> Brep<f64> {
+    use geo_contracts::{Circle3DConstructor, SphericalSurface3DConstructor};
+    let mut brep = Brep::new(geo_topology::TopologyToleranceSettings::new(1.0e-9)).unwrap();
+    let origin = geo_topology::Point3D::new(0.0, 0.0, 0.0);
+    let south = brep
+        .add_vertex(geo_topology::Point3D::new(0.0, 0.0, -10.0), 0.0)
+        .unwrap();
+    let north = brep
+        .add_vertex(geo_topology::Point3D::new(0.0, 0.0, 10.0), 0.0)
+        .unwrap();
+    let direction = |x: f64, y: f64, z: f64| {
+        geo_primitives::Direction3D::from_vector(geo_topology::Vector3D::new(x, y, z)).unwrap()
+    };
+    // x と z の平面の円（角度 -π/2 が南極、π/2 が北極、0 が (10, 0, 0)）
+    let meridian = geo_topology::TopoCircle3D::from_frame(
+        origin,
+        direction(0.0, -1.0, 0.0),
+        direction(1.0, 0.0, 0.0),
+        10.0,
+    )
+    .unwrap();
+    let seam = brep
+        .add_edge(
+            south,
+            north,
+            geo_topology::CurveRef::Circle(meridian),
+            (-std::f64::consts::FRAC_PI_2, std::f64::consts::FRAC_PI_2),
+            0.0,
+        )
+        .unwrap();
+    let sphere = geo_topology::TopoSphericalSurface3D::new_standard(origin, 10.0).unwrap();
+    let face = brep
+        .add_face(
+            geo_topology::SurfaceRef::Sphere(sphere),
+            true,
+            vec![vec![edge_use(seam, true), edge_use(seam, false)]],
+        )
+        .unwrap();
+    let shell = brep.add_shell(vec![face]).unwrap();
+    brep.add_solid(vec![shell]).unwrap();
+    assert!(brep.is_shell_closed(shell));
+    brep
+}
+
+/// 試験の B-rep: 頂点 (0, 0, -10)・底の円の半径 10（z = 0）の円錐で、底の円の頂点から円錐の頂点への継ぎ目の
+/// 直線の稜線を持つもの（体積 1000π / 3）
+pub(crate) fn cone_brep() -> Brep<f64> {
+    use geo_contracts::{
+        ConicalSurface3DConstructor, InfiniteLine3DConstructor, Plane3DConstructor,
+    };
+    let mut brep = Brep::new(geo_topology::TopologyToleranceSettings::new(1.0e-9)).unwrap();
+    let base = circle_edge(&mut brep, [0.0, 0.0, 0.0], 10.0);
+    // 継ぎ目は、底の円の頂点から円錐の頂点へ
+    let rim_vertex = brep.edge(base).start();
+    let rim = brep.vertex(rim_vertex).point();
+    let apex_point = geo_topology::Point3D::new(0.0, 0.0, -10.0);
+    let apex = brep.add_vertex(apex_point, 0.0).unwrap();
+    let line = geo_topology::TopoInfiniteLine3D::from_two_points(rim, apex_point).unwrap();
+    let seam = brep
+        .add_edge(
+            rim_vertex,
+            apex,
+            geo_topology::CurveRef::Line(line),
+            (0.0, rim.distance_to(apex_point)),
+            0.0,
+        )
+        .unwrap();
+    let cone = geo_topology::TopoConicalSurface3D::new_standard(
+        geo_topology::Point3D::new(0.0, 0.0, 0.0),
+        10.0,
+        geo_primitives::Angle::from_degrees(45.0),
+    )
+    .unwrap();
+    let up = geo_primitives::Direction3D::from_vector(geo_topology::Vector3D::new(0.0, 0.0, 1.0))
+        .unwrap();
+    let top = geo_topology::TopoPlane3D::from_point_and_normal(
+        geo_topology::Point3D::new(0.0, 0.0, 0.0),
+        up,
+    )
+    .unwrap();
+    // 側面: 底の円を u の減る向きに、継ぎ目を頂点へ下り、同じ継ぎ目を上る
+    let faces = vec![
+        brep.add_face(
+            geo_topology::SurfaceRef::Cone(cone),
+            true,
+            vec![vec![
+                edge_use(base, false),
+                edge_use(seam, true),
+                edge_use(seam, false),
+            ]],
+        )
+        .unwrap(),
+        brep.add_face(
+            geo_topology::SurfaceRef::Plane(top),
+            true,
+            vec![vec![edge_use(base, true)]],
+        )
+        .unwrap(),
+    ];
+    let shell = brep.add_shell(faces).unwrap();
+    brep.add_solid(vec![shell]).unwrap();
+    assert!(brep.is_shell_closed(shell));
+    brep
+}

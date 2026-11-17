@@ -3,7 +3,8 @@ use std::f64::consts::PI;
 
 use super::*;
 use crate::product_shape::test_fixtures::{
-    cube_brep, cylinder_brep, plate_with_hole_brep, sphere_brep, torus_brep,
+    cone_brep, cube_brep, cylinder_brep, plate_with_hole_brep, seamed_sphere_brep, sphere_brep,
+    torus_brep,
 };
 
 /// B-rep の三角形が閉じていて（どの辺も、2 つの三角形が逆向きに使う）、外を向き（頂点の法線と三角形の法線が同じ
@@ -65,6 +66,9 @@ fn closed_shells_are_triangulated_without_gaps() {
             plate_with_hole_brep(),
             40.0 * 30.0 * 10.0 - PI * 25.0 * 10.0,
         ),
+        // 継ぎ目の稜線が極を通る面（行きと帰りの使用が、極の線の 1 周だけ離れる）
+        (seamed_sphere_brep(), 4.0 / 3.0 * PI * 1000.0),
+        (cone_brep(), PI * 1000.0 / 3.0),
     ] {
         let mesh = triangulate_brep(&brep, 0.05);
         assert_closed(&mesh, volume);
