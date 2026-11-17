@@ -40,6 +40,8 @@ const SECTION_REQUIRED: u16 = 1;
 
 const INFO: [u8; 4] = *b"INFO";
 const FACE: [u8; 4] = *b"FACE";
+/// シェルのエンティティ（シェルがあるときだけ書く。面の ID を加工の対象から参照されるため、必須）
+const SHEL: [u8; 4] = *b"SHEL";
 const MSEQ: [u8; 4] = *b"MSEQ";
 /// 取り込んだ CL（必須でない区画。古い版のアプリは、そのまま書き戻す）
 const CLDT: [u8; 4] = *b"CLDT";
@@ -219,6 +221,11 @@ pub(crate) fn write_space_model<W: Write>(
             codec::write_sequences(&model.sequences.records())?,
         ),
     ];
+    // シェルがなければ、区画を書かない（シェルのないモデルファイルは、区画を知らない前の版でも開ける）
+    let shells = model.shapes.shell_records();
+    if !shells.is_empty() {
+        sections.push((SHEL, SECTION_REQUIRED, codec::write_shells(&shells)?));
+    }
     // 取り込んだ CL がなければ、区画を書かない
     if !model.toolpaths.records().is_empty() {
         sections.push((CLDT, 0, codec::write_toolpaths(model.toolpaths.records())?));
@@ -295,6 +302,7 @@ pub(crate) fn read_space_model<R: Read>(
     }
     let mut info = None;
     let mut faces = None;
+    let mut shells = None;
     let mut sequences = None;
     let mut toolpaths = None;
     let mut not_set = None;
@@ -320,6 +328,7 @@ pub(crate) fn read_space_model<R: Read>(
         let slot = match kind {
             INFO => Some(&mut info),
             FACE => Some(&mut faces),
+            SHEL => Some(&mut shells),
             MSEQ => Some(&mut sequences),
             CLDT if readable_optional => Some(&mut toolpaths),
             NSET if readable_optional => Some(&mut not_set),
@@ -352,6 +361,10 @@ pub(crate) fn read_space_model<R: Read>(
         .map_err(section_error(INFO))?;
     let faces = codec::read_faces(faces.ok_or(SpaceModelFileError::MissingSection(FACE))?)
         .map_err(section_error(FACE))?;
+    let shells = match shells {
+        Some(bytes) => codec::read_shells(bytes).map_err(section_error(SHEL))?,
+        None => Vec::new(),
+    };
     let mut sequences =
         codec::read_sequences(sequences.ok_or(SpaceModelFileError::MissingSection(MSEQ))?)
             .map_err(section_error(MSEQ))?;
@@ -376,7 +389,7 @@ pub(crate) fn read_space_model<R: Read>(
     };
     let model = SpaceModel {
         id: SpaceModelId(id),
-        shapes: ProductShapeStore::from_records(faces)
+        shapes: ProductShapeStore::from_records(faces, shells)
             .map_err(SpaceModelFileError::ProductShape)?,
         sequences: MachiningSequenceStore::from_records(sequences)
             .map_err(SpaceModelFileError::MachiningSequence)?,

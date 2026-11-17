@@ -773,7 +773,8 @@ impl<T: Scalar> Brep<T> {
         self.loops.len()
     }
 
-    pub(crate) fn face_count(&self) -> usize {
+    /// 面の数
+    pub fn face_count(&self) -> usize {
         self.faces.len()
     }
 }

@@ -13,6 +13,18 @@
 //!     4: 真偽 `u8`、5: 色 `f32`×4、6: バイト列（長さ `u32` とバイト））と値。コードの小さい順に並べる
 //!   - メタデータ: 名前（有無と文字列）、説明（有無と文字列）、タグ（数 `u32` と文字列）、作った時刻・変えた時刻、
 //!     そのほかの項目（数 `u32` と、名前と値の文字列。名前の順に並べる）
+//! - `SHEL`（シェルがなければ書かない）: B-rep の表の数 `u32` と表、シェルの数 `u32` とシェル
+//!   - B-rep の表: 全体の許容誤差 `f64`、頂点の数 `u32` と頂点ごとに点 `f64`×3・許容誤差 `f64`、稜線の数 `u32` と
+//!     稜線ごとに曲線の種類 `u8`（1: 直線、2: 円、3: 楕円、4: NURBS 曲線）と `geo_io::binary_geometry` の曲線・区間
+//!     `f64`×2・始点と終点の頂点の番号 `u32`×2・許容誤差 `f64`、面の数 `u32` と面ごとに曲面の種類 `u8`（1: 平面、
+//!     2: 円柱、3: 円錐、4: 球、5: トーラス、6: NURBS 曲面）と曲面・向き `u8`（1: 曲面の法線と同じ）・ループの数
+//!     `u32` とループごとに稜線の使用の数 `u32` と使用（稜線の番号 `u32`・稜線の向きに沿うか `u8`）、シェルの数
+//!     `u32` とシェルごとに面の数 `u32` と面の番号 `u32`、立体の数 `u32` と立体ごとにシェルの数 `u32` とシェルの
+//!     番号 `u32`。番号は表の中の位置
+//!   - シェル: エンティティの ID、B-rep の表の番号 `u32`（同じ部品の出現は同じ表を指す）、配置（4×4 の行列の
+//!     `f64`×16。行の順）、面の数 `u32` と面の ID（B-rep の面の順）、元の要素（有無と、ファイルの名前（文字列）・
+//!     出現の数 `u32` と出現のエンティティの番号 `u64`・面の数 `u32` と元の面のエンティティの番号 `u64`）、
+//!     表示の属性・属性・メタデータ（`FACE` と同じ）
 //! - `MSEQ`: 加工手順の数 `u32` と、手順ごとに
 //!   - 加工手順の ID、名前（文字列）、加工の対象（数 `u32` と面の ID）
 //!   - 素材: 余裕（−X・+X・−Y・+Y・底・上の `f64`×6）、精度 `f64`
@@ -30,7 +42,11 @@
 //!   `u32`（1 以上）・改訂の鍵・CL の編集の番号 `u32`（0 は編集していない）・CL（ツールパスの成果物のバイト列の長さ
 //!   `u64` とバイト列）
 
+use std::collections::HashMap;
 use std::num::NonZeroU32;
+use std::sync::Arc;
+
+use analysis::linalg::matrix::Matrix4x4;
 
 use cam_core::{
     MachiningBoundary, MachiningStage, OperationSpec, RectangleBoundary, ScanlineCutDirection,
@@ -42,8 +58,13 @@ use geo_entity::{
     StrokePattern,
 };
 use geo_io::binary_geometry::{
-    BinaryGeometryError, read_nurbs_surface, read_triangle_mesh, write_nurbs_surface,
-    write_triangle_mesh,
+    BinaryGeometryError, read_circle, read_cone, read_cylinder, read_ellipse, read_line,
+    read_nurbs_curve, read_nurbs_surface, read_plane, read_sphere, read_torus, read_triangle_mesh,
+    write_circle, write_cone, write_cylinder, write_ellipse, write_line, write_nurbs_curve,
+    write_nurbs_surface, write_plane, write_sphere, write_torus, write_triangle_mesh,
+};
+use geo_topology::{
+    BrepRecords, CurveRef, EdgeRecord, FaceRecord, Point3D, SurfaceRef, VertexRecord,
 };
 use uuid::Uuid;
 
@@ -54,7 +75,10 @@ use crate::machining_sequence::{
     MachiningOperationId, MachiningOperationRecord, MachiningRevisionKey, MachiningSequenceId,
     MachiningSequenceRecord, MachiningStock,
 };
-use crate::product_shape::{ProductFaceGeometry, ProductFaceRecord};
+use crate::product_shape::{
+    Brep, ProductFaceGeometry, ProductFaceRecord, ProductShellRecord, ShellSource,
+    SimilarityTransform3D,
+};
 
 /// 区画の中身の読み込みの誤り（項目の名前）
 pub(super) type FieldError = &'static str;
@@ -841,4 +865,317 @@ pub(super) fn read_toolpaths(bytes: &[u8]) -> Result<Vec<ImportedToolpathRecord>
     }
     cursor.finish()?;
     Ok(toolpaths)
+}
+
+// ---- SHEL ----
+
+const CURVE_LINE: u8 = 1;
+const CURVE_CIRCLE: u8 = 2;
+const CURVE_ELLIPSE: u8 = 3;
+const CURVE_NURBS: u8 = 4;
+const SURFACE_PLANE: u8 = 1;
+const SURFACE_CYLINDER: u8 = 2;
+const SURFACE_CONE: u8 = 3;
+const SURFACE_SPHERE: u8 = 4;
+const SURFACE_TORUS: u8 = 5;
+const SURFACE_NURBS: u8 = 6;
+
+/// シェルの記録を書く（同じ B-rep の表を共有するシェルは、表を 1 回だけ書いて番号で指す）
+pub(super) fn write_shells(shells: &[ProductShellRecord]) -> Result<Vec<u8>, SpaceModelFileError> {
+    let mut breps: Vec<&Arc<Brep<f64>>> = Vec::new();
+    let mut index_of: HashMap<*const Brep<f64>, usize> = HashMap::new();
+    let mut brep_of = Vec::with_capacity(shells.len());
+    for shell in shells {
+        let index = *index_of.entry(Arc::as_ptr(&shell.brep)).or_insert_with(|| {
+            breps.push(&shell.brep);
+            breps.len() - 1
+        });
+        brep_of.push(index);
+    }
+    let mut out = ByteWriter::default();
+    out.count(breps.len(), "breps")?;
+    for brep in breps {
+        write_brep(&mut out, &brep.records())?;
+    }
+    out.count(shells.len(), "shells")?;
+    for (shell, brep) in shells.iter().zip(brep_of) {
+        out.uuid(shell.entity_id.as_uuid());
+        out.count(brep, "shell.brep")?;
+        for row in shell.placement.to_matrix().rows() {
+            for value in row {
+                out.f64(value);
+            }
+        }
+        out.count(shell.face_ids.len(), "shell.faces")?;
+        for face in &shell.face_ids {
+            out.uuid(face.as_uuid());
+        }
+        match &shell.source {
+            None => out.u8(0),
+            Some(source) => {
+                out.u8(1);
+                out.string(&source.file_name, "shell.source.file_name")?;
+                out.count(source.occurrences.len(), "shell.source.occurrences")?;
+                for &occurrence in &source.occurrences {
+                    out.u64(occurrence);
+                }
+                out.count(source.faces.len(), "shell.source.faces")?;
+                for &face in &source.faces {
+                    out.u64(face);
+                }
+            }
+        }
+        write_display(&mut out, &shell.display)?;
+        write_attributes(&mut out, &shell.attributes)?;
+        write_metadata(&mut out, &shell.metadata)?;
+    }
+    Ok(out.into_bytes())
+}
+
+pub(super) fn write_brep(
+    out: &mut ByteWriter,
+    brep: &BrepRecords<f64>,
+) -> Result<(), SpaceModelFileError> {
+    out.f64(brep.tolerance);
+    out.count(brep.vertices.len(), "brep.vertices")?;
+    for vertex in &brep.vertices {
+        out.f64(vertex.point.x());
+        out.f64(vertex.point.y());
+        out.f64(vertex.point.z());
+        out.f64(vertex.tolerance);
+    }
+    out.count(brep.edges.len(), "brep.edges")?;
+    for edge in &brep.edges {
+        match &edge.curve {
+            CurveRef::Line(line) => {
+                out.u8(CURVE_LINE);
+                write_line(&mut out.0, line);
+            }
+            CurveRef::Circle(circle) => {
+                out.u8(CURVE_CIRCLE);
+                write_circle(&mut out.0, circle);
+            }
+            CurveRef::Ellipse(ellipse) => {
+                out.u8(CURVE_ELLIPSE);
+                write_ellipse(&mut out.0, ellipse);
+            }
+            CurveRef::Nurbs(nurbs) => {
+                out.u8(CURVE_NURBS);
+                write_nurbs_curve(&mut out.0, nurbs).map_err(geometry_write_error)?;
+            }
+        }
+        out.f64(edge.parameter_range.0);
+        out.f64(edge.parameter_range.1);
+        out.count(edge.start, "brep.edge.start")?;
+        out.count(edge.end, "brep.edge.end")?;
+        out.f64(edge.tolerance);
+    }
+    out.count(brep.faces.len(), "brep.faces")?;
+    for face in &brep.faces {
+        match &face.surface {
+            SurfaceRef::Plane(plane) => {
+                out.u8(SURFACE_PLANE);
+                write_plane(&mut out.0, plane);
+            }
+            SurfaceRef::Cylinder(cylinder) => {
+                out.u8(SURFACE_CYLINDER);
+                write_cylinder(&mut out.0, cylinder);
+            }
+            SurfaceRef::Cone(cone) => {
+                out.u8(SURFACE_CONE);
+                write_cone(&mut out.0, cone);
+            }
+            SurfaceRef::Sphere(sphere) => {
+                out.u8(SURFACE_SPHERE);
+                write_sphere(&mut out.0, sphere);
+            }
+            SurfaceRef::Torus(torus) => {
+                out.u8(SURFACE_TORUS);
+                write_torus(&mut out.0, torus);
+            }
+            SurfaceRef::Nurbs(nurbs) => {
+                out.u8(SURFACE_NURBS);
+                write_nurbs_surface(&mut out.0, nurbs).map_err(geometry_write_error)?;
+            }
+        }
+        out.bool(face.same_sense);
+        out.count(face.loops.len(), "brep.face.loops")?;
+        for uses in &face.loops {
+            out.count(uses.len(), "brep.loop.uses")?;
+            for &(edge, forward) in uses {
+                out.count(edge, "brep.use.edge")?;
+                out.bool(forward);
+            }
+        }
+    }
+    for (groups, field) in [(&brep.shells, "brep.shells"), (&brep.solids, "brep.solids")] {
+        out.count(groups.len(), field)?;
+        for members in groups {
+            out.count(members.len(), field)?;
+            for &member in members {
+                out.count(member, field)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn read_shells(bytes: &[u8]) -> Result<Vec<ProductShellRecord>, FieldError> {
+    let mut cursor = ByteReader::new(bytes);
+    // B-rep の表 1 つは、許容誤差と要素の数だけで 28 バイト以上
+    let brep_count = cursor.count(28).map_err(|_| "breps")?;
+    let mut breps = Vec::with_capacity(brep_count);
+    for _ in 0..brep_count {
+        let records = read_brep(&mut cursor)?;
+        breps.push(Arc::new(Brep::from_records(records).map_err(|_| "brep")?));
+    }
+    // シェル 1 つは、ID・表の番号・配置・面の数・元の要素の有無・表示の属性などだけで 200 バイト以上
+    let count = cursor.count(200).map_err(|_| "shells")?;
+    let mut referenced = vec![false; breps.len()];
+    let mut shells = Vec::with_capacity(count);
+    for _ in 0..count {
+        let entity_id = EntityId::from_uuid(cursor.uuid()?);
+        let index = cursor.u32()? as usize;
+        let brep = breps.get(index).cloned().ok_or("shell.brep")?;
+        if let Some(flag) = referenced.get_mut(index) {
+            *flag = true;
+        }
+        let mut matrix = Matrix4x4::zeros();
+        for row in 0..4 {
+            let values = [cursor.f64()?, cursor.f64()?, cursor.f64()?, cursor.f64()?];
+            if values.iter().any(|value| !value.is_finite()) {
+                return Err("shell.placement");
+            }
+            matrix.set_row(row, values);
+        }
+        let placement =
+            SimilarityTransform3D::from_matrix(matrix).map_err(|_| "shell.placement")?;
+        let face_count = cursor.count(16).map_err(|_| "shell.faces")?;
+        let mut face_ids = Vec::with_capacity(face_count);
+        for _ in 0..face_count {
+            face_ids.push(FaceId::from_uuid(cursor.uuid()?));
+        }
+        let source = if cursor.bool("shell.source")? {
+            let file_name = cursor.string("shell.source.file_name")?;
+            let occurrences = read_u64_list(&mut cursor, "shell.source.occurrences")?;
+            let faces = read_u64_list(&mut cursor, "shell.source.faces")?;
+            Some(ShellSource {
+                file_name,
+                occurrences,
+                faces,
+            })
+        } else {
+            None
+        };
+        shells.push(ProductShellRecord {
+            entity_id,
+            brep,
+            placement,
+            face_ids,
+            source,
+            display: read_display(&mut cursor)?,
+            attributes: read_attributes(&mut cursor)?,
+            metadata: read_metadata(&mut cursor)?,
+        });
+    }
+    cursor.finish()?;
+    // どのシェルも指さない表は書かないので、あれば壊れたファイル
+    if referenced.contains(&false) {
+        return Err("breps");
+    }
+    Ok(shells)
+}
+
+fn read_u64_list(cursor: &mut ByteReader<'_>, field: FieldError) -> Result<Vec<u64>, FieldError> {
+    let count = cursor.count(8).map_err(|_| field)?;
+    let mut values = Vec::with_capacity(count);
+    for _ in 0..count {
+        values.push(cursor.u64()?);
+    }
+    Ok(values)
+}
+
+fn read_brep(cursor: &mut ByteReader<'_>) -> Result<BrepRecords<f64>, FieldError> {
+    let tolerance = cursor.f64()?;
+    let count = cursor.count(32).map_err(|_| "brep.vertices")?;
+    let mut vertices = Vec::with_capacity(count);
+    for _ in 0..count {
+        vertices.push(VertexRecord {
+            point: Point3D::new(cursor.f64()?, cursor.f64()?, cursor.f64()?),
+            tolerance: cursor.f64()?,
+        });
+    }
+    // 稜線 1 つは、曲線の種類・区間・始点と終点・許容誤差だけで 33 バイト以上
+    let count = cursor.count(33).map_err(|_| "brep.edges")?;
+    let mut edges = Vec::with_capacity(count);
+    for _ in 0..count {
+        let curve = match cursor.u8()? {
+            CURVE_LINE => CurveRef::Line(cursor.geometry(read_line)?),
+            CURVE_CIRCLE => CurveRef::Circle(cursor.geometry(read_circle)?),
+            CURVE_ELLIPSE => CurveRef::Ellipse(cursor.geometry(read_ellipse)?),
+            CURVE_NURBS => CurveRef::Nurbs(cursor.geometry(read_nurbs_curve)?),
+            _ => return Err("brep.edge.curve"),
+        };
+        edges.push(EdgeRecord {
+            curve,
+            parameter_range: (cursor.f64()?, cursor.f64()?),
+            start: cursor.u32()? as usize,
+            end: cursor.u32()? as usize,
+            tolerance: cursor.f64()?,
+        });
+    }
+    // 面 1 つは、曲面の種類・向き・ループの数だけで 6 バイト以上
+    let count = cursor.count(6).map_err(|_| "brep.faces")?;
+    let mut faces = Vec::with_capacity(count);
+    for _ in 0..count {
+        let surface = match cursor.u8()? {
+            SURFACE_PLANE => SurfaceRef::Plane(cursor.geometry(read_plane)?),
+            SURFACE_CYLINDER => SurfaceRef::Cylinder(cursor.geometry(read_cylinder)?),
+            SURFACE_CONE => SurfaceRef::Cone(cursor.geometry(read_cone)?),
+            SURFACE_SPHERE => SurfaceRef::Sphere(cursor.geometry(read_sphere)?),
+            SURFACE_TORUS => SurfaceRef::Torus(cursor.geometry(read_torus)?),
+            SURFACE_NURBS => SurfaceRef::Nurbs(cursor.geometry(read_nurbs_surface)?),
+            _ => return Err("brep.face.surface"),
+        };
+        let same_sense = cursor.bool("brep.face.same_sense")?;
+        let loop_count = cursor.count(4).map_err(|_| "brep.face.loops")?;
+        let mut loops = Vec::with_capacity(loop_count);
+        for _ in 0..loop_count {
+            let use_count = cursor.count(5).map_err(|_| "brep.loop.uses")?;
+            let mut uses = Vec::with_capacity(use_count);
+            for _ in 0..use_count {
+                uses.push((cursor.u32()? as usize, cursor.bool("brep.use.forward")?));
+            }
+            loops.push(uses);
+        }
+        faces.push(FaceRecord {
+            surface,
+            same_sense,
+            loops,
+        });
+    }
+    let mut groups = Vec::with_capacity(2);
+    for field in ["brep.shells", "brep.solids"] {
+        let count = cursor.count(4).map_err(|_| field)?;
+        let mut members_of = Vec::with_capacity(count);
+        for _ in 0..count {
+            let member_count = cursor.count(4).map_err(|_| field)?;
+            let mut members = Vec::with_capacity(member_count);
+            for _ in 0..member_count {
+                members.push(cursor.u32()? as usize);
+            }
+            members_of.push(members);
+        }
+        groups.push(members_of);
+    }
+    let solids = groups.pop().unwrap_or_default();
+    let shells = groups.pop().unwrap_or_default();
+    Ok(BrepRecords {
+        tolerance,
+        vertices,
+        edges,
+        faces,
+        shells,
+        solids,
+    })
 }

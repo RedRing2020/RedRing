@@ -174,7 +174,7 @@ fn sequence_records() -> Vec<MachiningSequenceRecord> {
 fn sample_model() -> SpaceModel {
     SpaceModel {
         id: SpaceModelId(uuid(100)),
-        shapes: ProductShapeStore::from_records(face_records()).unwrap(),
+        shapes: ProductShapeStore::from_records(face_records(), Vec::new()).unwrap(),
         sequences: MachiningSequenceStore::from_records(sequence_records()).unwrap(),
         toolpaths: ImportedToolpathStore::new(),
         preserved: Vec::new(),
@@ -385,7 +385,7 @@ fn duplicate_ids_are_rejected_by_the_stores() {
     let model = SpaceModel {
         id: SpaceModelId(uuid(100)),
         // 保管先を通さずに書くため、重なった面をそれぞれ別の保管先に入れてから記録を並べる
-        shapes: ProductShapeStore::from_records(vec![faces[0].clone()]).unwrap(),
+        shapes: ProductShapeStore::from_records(vec![faces[0].clone()], Vec::new()).unwrap(),
         sequences: MachiningSequenceStore::new(),
         toolpaths: ImportedToolpathStore::new(),
         preserved: Vec::new(),
@@ -559,4 +559,238 @@ fn imported_toolpaths_round_trip_in_an_optional_section() {
         read(&broken),
         Err(SpaceModelFileError::ImportedToolpath(_))
     ));
+}
+
+/// 面単体と、同じ四面体の B-rep を共有する 2 つのシェル（1 つは配置と元の要素を持つ）の空間モデル
+fn model_with_shells() -> SpaceModel {
+    use crate::product_shape::test_fixtures::tetrahedron_brep;
+    use crate::product_shape::{ShellSource, SimilarityTransform3D};
+    use std::sync::Arc;
+    let mut shapes = ProductShapeStore::from_records(face_records(), Vec::new()).unwrap();
+    let brep = Arc::new(tetrahedron_brep());
+    let placement = SimilarityTransform3D::rotation_about_axis(
+        geo_algorithms::Point3D::new(1.0, 2.0, 3.0),
+        geo_algorithms::Direction3D::new(0.0, 0.6, 0.8).unwrap(),
+        geo_algorithms::Angle::from_radians(0.7),
+    );
+    let first = shapes
+        .add_shell(
+            Arc::clone(&brep),
+            placement,
+            Some(ShellSource {
+                file_name: "assembly.stp".to_string(),
+                occurrences: vec![12, 34],
+                faces: vec![101, 102, 103, 104],
+            }),
+        )
+        .unwrap();
+    shapes
+        .add_shell(brep, SimilarityTransform3D::identity(), None)
+        .unwrap();
+    shapes.set_visible(first, false).unwrap();
+    SpaceModel {
+        id: SpaceModelId(uuid(100)),
+        shapes,
+        sequences: MachiningSequenceStore::from_records(sequence_records()).unwrap(),
+        toolpaths: ImportedToolpathStore::new(),
+        preserved: Vec::new(),
+        ext_attributes: Vec::new(),
+    }
+}
+
+#[test]
+fn shells_round_trip_with_the_same_breps_and_face_ids() {
+    let model = model_with_shells();
+    let written = bytes(&model);
+    let (loaded, _) = read(&written).unwrap();
+
+    let (before, after) = (model.shapes.shell_records(), loaded.shapes.shell_records());
+    assert_eq!(after.len(), 2);
+    for (a, b) in after.iter().zip(&before) {
+        assert_eq!(a.entity_id, b.entity_id);
+        assert_eq!(a.face_ids, b.face_ids);
+        assert_eq!(a.source, b.source);
+        assert_eq!(a.placement.to_matrix(), b.placement.to_matrix());
+        assert_eq!(a.display, b.display);
+        let (ra, rb) = (a.brep.records(), b.brep.records());
+        assert_eq!(ra.vertices, rb.vertices);
+        assert_eq!(ra.shells, rb.shells);
+        assert_eq!(ra.solids, rb.solids);
+        for (fa, fb) in ra.faces.iter().zip(&rb.faces) {
+            assert_eq!((fa.same_sense, &fa.loops), (fb.same_sense, &fb.loops));
+        }
+    }
+    // 同じ部品の出現は、読み直しても同じ表を共有する
+    assert!(std::sync::Arc::ptr_eq(&after[0].brep, &after[1].brep));
+    assert_same_faces(&loaded.shapes.records(), &model.shapes.records());
+    // 開いて何も変えずに保存し直すと、同じバイト列になる
+    assert_eq!(bytes(&loaded), written);
+}
+
+#[test]
+fn models_without_shells_do_not_write_the_shell_section() {
+    // シェルのないモデルファイルは、区画 SHEL を知らない前の版でも開ける
+    let written = bytes(&sample_model());
+    assert!(!written.windows(4).any(|window| window == SHEL));
+    assert!(
+        bytes(&model_with_shells())
+            .windows(4)
+            .any(|window| window == SHEL)
+    );
+}
+
+#[test]
+fn corrupted_files_with_shells_do_not_panic() {
+    let bytes = bytes(&model_with_shells());
+    for position in 0..bytes.len() {
+        for value in [0x00, 0x7f, 0xff] {
+            let mut corrupted = bytes.clone();
+            corrupted[position] = value;
+            let _ = read(&corrupted);
+        }
+        if position + 4 <= bytes.len() && position % 4 == 0 {
+            let mut corrupted = bytes.clone();
+            corrupted[position..position + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+            let _ = read(&corrupted);
+        }
+        if position % 16 == 0 {
+            let _ = read(&bytes[..position]);
+        }
+    }
+}
+
+/// ID・時刻・形を決めたシェルの記録（三角形の平面の面 1 つの B-rep を、平行移動して置く）
+fn shell_record() -> crate::product_shape::ProductShellRecord {
+    use crate::product_shape::{Brep, ProductShellRecord, ShellSource, SimilarityTransform3D};
+    use geo_contracts::{InfiniteLine3DConstructor, Plane3DConstructor};
+    use geo_topology::{
+        CurveRef, EdgeUse, SurfaceRef, TopoInfiniteLine3D, TopoPlane3D, TopologyToleranceSettings,
+    };
+    let mut brep = Brep::new(TopologyToleranceSettings::new(1.0e-6)).unwrap();
+    let points = [
+        geo_topology::Point3D::new(0.0, 0.0, 0.0),
+        geo_topology::Point3D::new(2.0, 0.0, 0.0),
+        geo_topology::Point3D::new(0.0, 2.0, 0.0),
+    ];
+    let vertices: Vec<_> = points
+        .iter()
+        .map(|&point| brep.add_vertex(point, 0.0).unwrap())
+        .collect();
+    let edges: Vec<_> = (0..3)
+        .map(|index| {
+            let (a, b) = (index, (index + 1) % 3);
+            let line = TopoInfiniteLine3D::from_two_points(points[a], points[b]).unwrap();
+            brep.add_edge(
+                vertices[a],
+                vertices[b],
+                CurveRef::Line(line),
+                (0.0, points[a].distance_to(points[b])),
+                0.0,
+            )
+            .unwrap()
+        })
+        .collect();
+    let plane = TopoPlane3D::from_three_points(points[0], points[1], points[2]).unwrap();
+    brep.add_face(
+        SurfaceRef::Plane(plane),
+        true,
+        vec![
+            edges
+                .iter()
+                .map(|&edge| EdgeUse {
+                    edge,
+                    forward: true,
+                })
+                .collect(),
+        ],
+    )
+    .unwrap();
+    let face = face_records().remove(1);
+    ProductShellRecord {
+        entity_id: EntityId::from_uuid(uuid(20)),
+        brep: std::sync::Arc::new(brep),
+        placement: SimilarityTransform3D::translation(geo_algorithms::Vector3D::new(
+            10.0, 0.0, 0.0,
+        )),
+        face_ids: vec![FaceId::from_uuid(uuid(21))],
+        source: Some(ShellSource {
+            file_name: "p.stp".to_string(),
+            occurrences: vec![7],
+            faces: vec![99],
+        }),
+        display: face.display,
+        attributes: face.attributes,
+        metadata: face.metadata,
+    }
+}
+
+/// 版 1 の区画 `SHEL` のゴールデンのバイト列（`shell_record` を書いたもの。16 進数）
+///
+/// 書き方・読み方の片方だけを変えて形式が壊れないようにする。区画の中身を変えるときは、区画の版を上げて、この
+/// バイト列を前の版として読めることを確かめる。
+const SHELL_GOLDEN_V1: &str = concat!(
+    "010000008dedb5a0f7c6b03e030000000000000000000000000000000000000000000000000000008dedb5a0f7c6b03e",
+    "0000000000000040000000000000000000000000000000008dedb5a0f7c6b03e00000000000000000000000000000040",
+    "00000000000000008dedb5a0f7c6b03e0300000001000000000000000000000000000000000000000000000000000000",
+    "000000f03f000000000000000000000000000000000000000000000000000000000000004000000000010000008dedb5",
+    "a0f7c6b03e01000000000000004000000000000000000000000000000000cc3b7f669ea0e6bfcc3b7f669ea0e63f0000",
+    "0000000000000000000000000000cd3b7f669ea0064001000000020000008dedb5a0f7c6b03e01000000000000000000",
+    "0000000000004000000000000000000000000000000000000000000000f0bf0000000000000000000000000000000000",
+    "0000000000004002000000000000008dedb5a0f7c6b03e01000000010000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000f03f000000000000f03f000000000000000000000000",
+    "000000000101000000030000000000000001010000000102000000010000000000000000010000000000000000000000",
+    "000000000000001400000000000000000000f03f00000000000000000000000000000000000000000000244000000000",
+    "00000000000000000000f03f000000000000000000000000000000000000000000000000000000000000000000000000",
+    "0000f03f0000000000000000000000000000000000000000000000000000000000000000000000000000f03f01000000",
+    "000000000000000000000000000000150105000000702e73747001000000070000000000000001000000630000000000",
+    "00000000803f0000803f0000803f0000803f010000803f0100000030010000000000000000000000f153650000000015",
+    "cd5b0700f153650000000015cd5b0700000000",
+);
+
+fn shell_golden() -> Vec<u8> {
+    (0..SHELL_GOLDEN_V1.len())
+        .step_by(2)
+        .map(|at| u8::from_str_radix(&SHELL_GOLDEN_V1[at..at + 2], 16).unwrap())
+        .collect()
+}
+
+#[test]
+fn shells_are_written_as_the_golden_bytes() {
+    assert_eq!(
+        codec::write_shells(&[shell_record()]).unwrap(),
+        shell_golden()
+    );
+}
+
+#[test]
+fn the_shell_golden_bytes_are_read() {
+    let expected = shell_record();
+    let [shell] = codec::read_shells(&shell_golden())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    assert_eq!(shell.entity_id, expected.entity_id);
+    assert_eq!(shell.face_ids, expected.face_ids);
+    assert_eq!(shell.source, expected.source);
+    assert_eq!(shell.placement.to_matrix(), expected.placement.to_matrix());
+    assert_eq!(shell.display, expected.display);
+    let (read, written) = (shell.brep.records(), expected.brep.records());
+    assert_eq!(read.tolerance, written.tolerance);
+    assert_eq!(read.vertices, written.vertices);
+    assert_eq!(read.faces[0].loops, written.faces[0].loops);
+}
+
+#[test]
+fn breps_that_no_shell_refers_to_are_rejected() {
+    // 2 つ目の表を足し、どのシェルも指さないようにする（表の数を 2 にして、同じ表をもう 1 つ書く）
+    let golden = shell_golden();
+    let brep_end = {
+        let mut out = ByteWriter::default();
+        codec::write_brep(&mut out, &shell_record().brep.records()).unwrap();
+        4 + out.into_bytes().len()
+    };
+    let mut broken = 2_u32.to_le_bytes().to_vec();
+    broken.extend_from_slice(&golden[4..brep_end]);
+    broken.extend_from_slice(&golden[4..]);
+    assert_eq!(codec::read_shells(&broken).unwrap_err(), "breps");
 }
