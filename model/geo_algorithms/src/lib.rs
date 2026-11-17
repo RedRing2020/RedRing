@@ -24,7 +24,7 @@ pub use octree::{Octree, OctreeNode, OctreeTolerance};
 pub use curve_discretization::{
     CircularArcDirection, CircularArcPolylineOptions, CurveDiscretizationError,
     CurveDiscretizationSettings, CurvePoint, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
-    DiscretizableCurve, circular_arc_to_polyline,
+    DiscretizableCurve, chord_angle_step, circular_arc_to_polyline,
 };
 
 pub use face_triangulation::{

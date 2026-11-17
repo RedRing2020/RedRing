@@ -28,11 +28,12 @@ pub struct ProductShapeMesh {
     pub color: [f32; 4],
 }
 
-/// 面を持つエンティティを、すべての面をつなげた描画用のメッシュにする
+/// 面を持つエンティティを、すべての面をつなげた描画用のメッシュにする（表示用の三角形を作れない面は除く。面ごとの
+/// 理由は、三角形を作る Model 側が一度だけ警告に出す）
 ///
 /// # Errors
 ///
-/// 面の表示用の三角形を作れない場合。
+/// どの面の表示用の三角形も作れない場合（初めの面の理由）。
 pub fn face_set_entity_to_mesh<E>(
     entity: &E,
     chord_tolerance: f64,
@@ -42,8 +43,17 @@ where
 {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
+    let mut first_error = None;
+    let mut displayed = false;
     for face_id in entity.face_ids() {
-        let mesh = entity.face_display_mesh(face_id, chord_tolerance)?;
+        let mesh = match entity.face_display_mesh(face_id, chord_tolerance) {
+            Ok(mesh) => mesh,
+            Err(error) => {
+                first_error.get_or_insert(error);
+                continue;
+            }
+        };
+        displayed = true;
         let offset = vertices.len() as u32;
         let normals = mesh.normals();
         vertices.extend(mesh.vertices().iter().enumerate().map(|(index, point)| {
@@ -61,6 +71,9 @@ where
                 .iter()
                 .flat_map(|triangle| triangle.map(|index| offset + index as u32)),
         );
+    }
+    if let (false, Some(error)) = (displayed, first_error) {
+        return Err(error);
     }
     Ok(ProductShapeMesh {
         vertices,
@@ -147,5 +160,55 @@ mod tests {
                     .all(|vertex| unit_length(vertex.normal))
             );
         }
+    }
+    /// 面ごとに、表示用の三角形を作れるか（`true`）を決めたエンティティ
+    struct Faces(Vec<bool>);
+
+    impl geo_contracts::EntityIdentity for Faces {
+        type Id = u32;
+
+        fn entity_id(&self) -> u32 {
+            0
+        }
+    }
+
+    impl EntityDisplayProperties for Faces {
+        fn entity_visible(&self) -> bool {
+            true
+        }
+
+        fn entity_color(&self) -> [f32; 4] {
+            [1.0; 4]
+        }
+    }
+
+    impl FaceSetEntity3DProperties<f64> for Faces {
+        type FaceId = usize;
+        type DisplayMesh = TriangleMesh3D<f64>;
+        type DisplayMeshError = String;
+
+        fn face_ids(&self) -> Vec<usize> {
+            (0..self.0.len()).collect()
+        }
+
+        fn face_display_mesh(&self, face_id: usize, _: f64) -> Result<TriangleMesh3D<f64>, String> {
+            if self.0[face_id] {
+                Ok(pyramid())
+            } else {
+                Err(format!("face {face_id}"))
+            }
+        }
+    }
+
+    #[test]
+    fn faces_without_triangles_are_left_out() {
+        // 作れない面だけを除く
+        let mesh = face_set_entity_to_mesh(&Faces(vec![false, true, false]), 0.05).unwrap();
+        assert_eq!(mesh.indices.len(), 12);
+        // どの面も作れなければ、初めの面の理由
+        assert_eq!(
+            face_set_entity_to_mesh(&Faces(vec![false, false]), 0.05).unwrap_err(),
+            "face 0"
+        );
     }
 }

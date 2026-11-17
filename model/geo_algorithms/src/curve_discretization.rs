@@ -7,4 +7,5 @@ pub use circular_arc::{
 };
 pub use curve_points::{
     CurveDiscretizationError, CurveDiscretizationSettings, CurvePoint, DiscretizableCurve,
+    chord_angle_step,
 };

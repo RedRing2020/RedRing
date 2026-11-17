@@ -99,7 +99,8 @@ impl<T: Scalar> BrepEdge<T> {
         self.end
     }
 
-    pub(crate) fn tolerance(&self) -> T {
+    /// 稜線の許容誤差（稜線を使う面の曲面と、この距離の中で合う）
+    pub fn tolerance(&self) -> T {
         self.tolerance
     }
 
@@ -776,6 +777,11 @@ impl<T: Scalar> Brep<T> {
     /// 面の数
     pub fn face_count(&self) -> usize {
         self.faces.len()
+    }
+
+    /// 面の番号（表の面の順）
+    pub fn face_indices(&self) -> impl ExactSizeIterator<Item = FaceIndex> + use<T> {
+        (0..self.faces.len()).map(FaceIndex)
     }
 }
 
