@@ -28,7 +28,7 @@ job_ipc = { path = "../job_ipc" }
 platform_foundation = { path = "../../foundation/platform_foundation" }
 tracing.workspace = true
 uuid = { version = "1.11", features = ["v4"] }
-chrono = "0.4"
+jiff.workspace = true
 
 [features]
 # 試験用: 同じプロセスの中でジョブを実行するワークフロー（`CamSimulationWorkflow::in_process`）
