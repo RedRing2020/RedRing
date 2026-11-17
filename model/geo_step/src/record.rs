@@ -7,6 +7,7 @@
 
 mod parameters;
 mod product;
+mod short_names;
 #[cfg(test)]
 mod tests;
 mod units;
@@ -290,7 +291,12 @@ const STRUCTURE_ITEMS: [&str; 4] = [
 ];
 
 /// エンティティの表を、幾何と位相の記録にする
-pub fn read(file: &StepFile) -> Records {
+///
+/// 短い名前で書かれたエンティティは、表の中で正式な名前に直してから読む（表を受け取るのは、写さずに直すため）。
+/// 読まなかった・読めなかった要素の記録の名前も、直した正式な名前になる（表にない短い名前は、書かれたとおり）。
+pub fn read(mut file: StepFile) -> Records {
+    to_long_names(&mut file);
+    let file = &file;
     let mut reader = Reader {
         file,
         records: Records {
@@ -304,6 +310,19 @@ pub fn read(file: &StepFile) -> Records {
     reader.representations();
     reader.product_structure();
     reader.records
+}
+
+/// 短い名前で書かれたエンティティを、正式な名前に直す
+fn to_long_names(file: &mut StepFile) {
+    for record in file
+        .entities
+        .values_mut()
+        .flat_map(|entity| entity.records.iter_mut())
+    {
+        if let Some(long) = short_names::long_name(&record.name) {
+            record.name = long.to_string();
+        }
+    }
 }
 
 struct Reader<'a> {

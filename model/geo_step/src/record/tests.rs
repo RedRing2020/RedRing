@@ -56,7 +56,7 @@ const INCH_DEGREE: &str = "
 ";
 
 fn solid_in(context: &str, angle: &str) -> Records {
-    read(&step_file(
+    read(step_file(
         &(context.to_string() + &SOLID.replace("ANGLE", angle)),
     ))
 }
@@ -183,7 +183,7 @@ fn contexts_with_different_units_are_read_in_one_file() {
 %62=CLOSED_SHELL('',());
 "
     );
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
 
     assert_eq!(records.contexts[&5].length_to_mm, 1.0);
     assert_eq!(records.contexts[&105].length_to_mm, 25.4);
@@ -205,7 +205,7 @@ fn units_default_to_millimetres_and_degrees() {
     let data = "%5=(GEOMETRIC_REPRESENTATION_CONTEXT(3) REPRESENTATION_CONTEXT('',''));"
         .to_string()
         + &SOLID.replace("ANGLE", "45.");
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
     let context = &records.contexts[&5];
 
     assert!(context.default_units);
@@ -237,7 +237,7 @@ fn two_dimensional_and_wireframe_shapes_are_skipped_and_recorded() {
 %82=GEOMETRICALLY_BOUNDED_WIREFRAME_SHAPE_REPRESENTATION('wires',(%81),%5);
 "
     );
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
 
     assert!(records.representations.is_empty());
     assert_eq!(
@@ -278,7 +278,7 @@ fn rational_b_splines_are_read_from_complex_entities() {
 %24=MANIFOLD_SURFACE_SHAPE_REPRESENTATION('surface',(%23),%5);
 "
     );
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
 
     assert_eq!(
         records.geometry[&13],
@@ -325,7 +325,7 @@ fn broken_elements_are_skipped_and_the_rest_is_read() {
                 "CONICAL_SURFACE('',%13,10.,0.5)",
                 "B_SPLINE_SURFACE_WITH_KNOTS('',40,1,((%10,%15),(%15,%10)),.UNSPECIFIED.,.F.,.F.,.F.,(2,2),(2,2),(0.,1.),(0.,1.),.UNSPECIFIED.)",
             );
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
     let reasons: BTreeMap<u64, SkipReason> = records
         .skipped
         .iter()
@@ -353,7 +353,7 @@ fn an_element_shared_by_contexts_with_different_units_is_read_once() {
 %51=SHAPE_REPRESENTATION('inch',(%42),%105);
 "
     );
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
 
     // 同じ要素の衝突は 1 回だけ記録する
     let conflicts: Vec<u64> = records
@@ -387,7 +387,7 @@ END-ISO-10303-21;
             let mut changed = bytes.to_vec();
             changed[position] = replacement;
             if let Ok(file) = parse(&changed, &Limits::default()) {
-                let _ = read(&file);
+                let _ = read(file.clone());
             }
         }
     }
@@ -405,7 +405,7 @@ fn degrees_must_be_at_least_one_in_each_direction() {
 %24=MANIFOLD_SURFACE_SHAPE_REPRESENTATION('surface',(%23),%5);
 "
     );
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
 
     assert_eq!(
         records.skipped,
@@ -440,7 +440,7 @@ fn unknown_contexts_and_malformed_representations_are_recorded() {
 %45=ADVANCED_BREP_SHAPE_REPRESENTATION('not a list',%42,%5);
 "
     );
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
     let reasons: Vec<(u64, SkipReason)> = records
         .skipped
         .iter()
@@ -526,7 +526,7 @@ const ASSEMBLY: &str = "
 ";
 
 fn assembly_in(context: &str) -> Records {
-    read(&step_file(
+    read(step_file(
         &(context.to_string() + &SOLID.replace("ANGLE", "0.5") + ASSEMBLY),
     ))
 }
@@ -648,7 +648,7 @@ fn colors_follow_their_priority() {
 %114=PRESENTATION_STYLE_ASSIGNMENT((%113));
 %115=OVER_RIDING_STYLED_ITEM('',(%114),%24,%111);
 ";
-    let records = read(&step_file(
+    let records = read(step_file(
         &(MM_RADIAN.to_string() + &SOLID.replace("ANGLE", "0.5") + ASSEMBLY + extra),
     ));
     let green = Color {
@@ -669,7 +669,7 @@ fn colors_follow_their_priority() {
 
 #[test]
 fn a_style_that_refers_to_itself_is_followed_once() {
-    let records = read(&step_file(
+    let records = read(step_file(
         &(MM_RADIAN.to_string()
             + &SOLID.replace("ANGLE", "0.5")
             + "%100=PRESENTATION_STYLE_ASSIGNMENT((%100,%100,%100,%100,%100,%100,%100,%100));
@@ -680,7 +680,7 @@ fn a_style_that_refers_to_itself_is_followed_once() {
 
 #[test]
 fn a_hidden_layer_hides_its_items() {
-    let records = read(&step_file(
+    let records = read(step_file(
         &(MM_RADIAN.to_string()
             + &SOLID.replace("ANGLE", "0.5")
             + "%100=PRESENTATION_LAYER_ASSIGNMENT('hidden','',(%27,%24));
@@ -696,7 +696,7 @@ fn an_operator_with_a_name_and_a_description_is_read() {
         "CARTESIAN_TRANSFORMATION_OPERATOR_3D('',%11,%12,%75,2.,$)",
         "CARTESIAN_TRANSFORMATION_OPERATOR_3D('','','',%11,%12,%75,2.,$)",
     );
-    let records = read(&step_file(&data));
+    let records = read(step_file(&data));
     assert!(matches!(
         records.occurrences[&70]
             .placement
@@ -708,7 +708,7 @@ fn an_operator_with_a_name_and_a_description_is_read() {
 
 #[test]
 fn a_transformed_relation_outside_occurrences_is_recorded_as_skipped() {
-    let records = read(&step_file(
+    let records = read(step_file(
         &(MM_RADIAN.to_string()
             + &SOLID.replace("ANGLE", "0.5")
             + ASSEMBLY
@@ -722,7 +722,7 @@ fn a_transformed_relation_outside_occurrences_is_recorded_as_skipped() {
     assert_eq!(skipped, vec![(120, SkipReason::Unsupported)]);
 
     // 文脈による形状の表現が、出現ではなく製品の定義の形状（%46）を指すときも、関係は飛ばしたと記録する
-    let records = read(&step_file(
+    let records = read(step_file(
         &(MM_RADIAN.to_string()
             + &SOLID.replace("ANGLE", "0.5")
             + ASSEMBLY
@@ -735,4 +735,117 @@ fn a_transformed_relation_outside_occurrences_is_recorded_as_skipped() {
         .map(|skipped| (skipped.id, skipped.reason))
         .collect();
     assert_eq!(skipped, vec![(120, SkipReason::Unsupported)]);
+}
+
+/// 記録 `data` のエンティティの名前のうち、短い名前の表にあるものを短い名前に書き換えたもの（書き換えた数と）
+fn with_short_names(data: &str) -> (String, usize) {
+    let mut text = data.to_string();
+    let mut count = 0;
+    // 名前の前の区切りと後ろの `(` で挟んで探すので、ほかの名前の一部は書き換えない
+    for &(short, long) in short_names::pairs() {
+        for prefix in ["=", "(", " "] {
+            let from = format!("{prefix}{long}(");
+            count += text.matches(&from).count();
+            text = text.replace(&from, &format!("{prefix}{short}("));
+        }
+    }
+    (text, count)
+}
+
+#[test]
+fn short_names_give_the_same_records_as_full_names() {
+    let full = MM_RADIAN.to_string() + &SOLID.replace("ANGLE", "0.5") + ASSEMBLY;
+    let (short, count) = with_short_names(&full);
+    assert!(count >= 40, "{count}");
+    assert!(short.contains("ADVFC("));
+    assert_eq!(read(step_file(&short)), read(step_file(&full)));
+}
+
+#[test]
+fn the_short_name_table_is_sorted_and_has_no_duplicates() {
+    let pairs = short_names::pairs();
+    assert!(pairs.windows(2).all(|pair| pair[0].0 < pair[1].0));
+    let longs: BTreeSet<&str> = pairs.iter().map(|&(_, long)| long).collect();
+    assert_eq!(longs.len(), pairs.len());
+    // 短い名前が別の組の正式な名前と同じなら、正しく書かれた正式な名前まで書き換わってしまう
+    assert!(pairs.iter().all(|(short, _)| !longs.contains(short)));
+    assert_eq!(short_names::long_name("ADVFC"), Some("ADVANCED_FACE"));
+    assert_eq!(short_names::long_name("ADVANCED_FACE"), None);
+}
+
+#[test]
+fn unknown_short_names_are_kept_as_written() {
+    // 表にある短い名前（平面の面）は直して読み、表にない短い名前（円錐の面）は書かれたとおりの名前で、扱わない
+    // 種類として飛ばす
+    let data = MM_RADIAN.to_string()
+        + &SOLID
+            .replace("ANGLE", "0.5")
+            .replace("%22=ADVANCED_FACE(", "%22=ADVFC(")
+            .replace("%24=ADVANCED_FACE(", "%24=QQQQQ(");
+    let records = read(step_file(&data));
+    assert!(matches!(
+        records.topology.get(&22),
+        Some(Topology::Face { .. })
+    ));
+    assert!(!records.topology.contains_key(&24));
+    let skipped: Vec<(u64, &str)> = records
+        .skipped
+        .iter()
+        .map(|skipped| (skipped.id, skipped.name.as_str()))
+        .collect();
+    assert!(skipped.contains(&(24, "QQQQQ")), "{skipped:?}");
+}
+
+#[test]
+fn every_entity_name_the_reader_matches_has_its_short_name() {
+    // 中間データの段が名前で見分ける語は、短い名前の表の正式な名前か、短い名前と正式な名前が同じエンティティか、
+    // エンティティでない語（単位の接頭語・単位の名前など）のどれか。新しく名前で見分けるエンティティを足したら、
+    // ISO の短い名前の表から組を写す
+    const SAME_SHORT_NAME: [&str; 5] = ["CIRCLE", "FACE", "LINE", "PLANE", "VECTOR"];
+    const NOT_ENTITIES: [&str; 20] = [
+        "ATTO",
+        "CENTI",
+        "DECA",
+        "DECI",
+        "DEGREE",
+        "EXA",
+        "FEMTO",
+        "GIGA",
+        "HECTO",
+        "KILO",
+        "MEGA",
+        "METRE",
+        "MICRO",
+        "MILLI",
+        "NANO",
+        "PETA",
+        "PICO",
+        "PRESENTATION_",
+        "RADIAN",
+        "TERA",
+    ];
+    let longs: BTreeSet<&str> = short_names::pairs().iter().map(|&(_, long)| long).collect();
+    let sources = [
+        include_str!("../record.rs"),
+        include_str!("product.rs"),
+        include_str!("units.rs"),
+    ];
+    let mut missing = Vec::new();
+    for source in sources {
+        for word in source.split('"').skip(1).step_by(2) {
+            let looks_like_name = word.len() >= 3
+                && word.starts_with(|c: char| c.is_ascii_uppercase())
+                && word
+                    .chars()
+                    .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
+            if looks_like_name
+                && !longs.contains(word)
+                && !SAME_SHORT_NAME.contains(&word)
+                && !NOT_ENTITIES.contains(&word)
+            {
+                missing.push(word);
+            }
+        }
+    }
+    assert!(missing.is_empty(), "{missing:?}");
 }
