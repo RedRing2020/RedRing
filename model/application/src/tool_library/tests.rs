@@ -608,3 +608,17 @@ fn files_with_the_same_library_id_as_an_earlier_one_are_not_used() {
     ));
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn line_breaks_in_the_lock_owner_do_not_break_the_lock_time() {
+    let dir = test_dir("lock-owner");
+    let path = saved_library(&dir, "mc1.rrtl");
+    let guard = shared::acquire_lock(&path, "pc-a\r\nuser").unwrap();
+    let lock = tool_library_lock(&path).unwrap();
+    assert_eq!(lock.owner, "pc-a  user");
+    assert!(lock.locked_at_ms.is_some());
+    assert!(!lock.is_stale(shared::now_ms()));
+    drop(guard);
+    assert!(tool_library_lock(&path).is_none());
+    let _ = fs::remove_dir_all(&dir);
+}

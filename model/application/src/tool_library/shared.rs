@@ -166,7 +166,7 @@ pub(super) fn now_ms() -> u64 {
 }
 
 /// 書き終えたら（誤りで止めても）、ロックのファイルを消す
-struct LockGuard(PathBuf);
+pub(super) struct LockGuard(PathBuf);
 
 impl Drop for LockGuard {
     fn drop(&mut self) {
@@ -175,13 +175,15 @@ impl Drop for LockGuard {
 }
 
 /// ロックのファイルを作る（あれば、試し直してもなければ [`ToolLibraryEditError::Locked`]）
-fn acquire_lock(path: &Path, owner: &str) -> Result<LockGuard, ToolLibraryEditError> {
+pub(super) fn acquire_lock(path: &Path, owner: &str) -> Result<LockGuard, ToolLibraryEditError> {
     let lock = lock_path(path);
     for attempt in 0..LOCK_ATTEMPTS {
         match OpenOptions::new().write(true).create_new(true).open(&lock) {
             Ok(mut file) => {
                 let guard = LockGuard(lock);
-                // 中身は書いている PC の見分けのため。書けなくてもロックは効く
+                // 中身は書いている PC の見分けのため。書けなくてもロックは効く。1 行目を書き手、2 行目を時刻とする
+                // ため、書き手の改行は空白にする
+                let owner = owner.replace(['\r', '\n'], " ");
                 let _ = writeln!(file, "{owner}\n{}", now_ms());
                 return Ok(guard);
             }

@@ -71,8 +71,12 @@ impl ToolLibraryCatalogEntry {
             && stamp.is_some()
             && stamp == self.stamp;
         if unchanged {
-            self.status = ToolLibraryStatus::Available {
-                writable: writable(&self.path).is_ok(),
+            // 中身は読み直さないが、権限の変更などで読めなくなっていないかは確かめる
+            self.status = match std::fs::File::open(&self.path) {
+                Ok(_) => ToolLibraryStatus::Available {
+                    writable: writable(&self.path).is_ok(),
+                },
+                Err(error) => ToolLibraryStatus::Unreadable(ToolLibraryFileError::Io(error)),
             };
             return;
         }
