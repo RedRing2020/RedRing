@@ -267,3 +267,344 @@ fn tool_libraries_are_saved_without_leaving_a_partial_file_and_loaded_again() {
     ));
     let _ = fs::remove_dir_all(&dir);
 }
+
+// ---- 共有の書き込みと、使うライブラリの一覧 ----
+
+/// 試験ごとのフォルダ（前の回の残りを消して作る）
+fn test_dir(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "redring-tool-library-{name}-{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// `dir` に `sample_library` を保存したファイル
+fn saved_library(dir: &Path, name: &str) -> PathBuf {
+    let path = dir.join(name);
+    save_tool_library(&path, &sample_library(), &info()).unwrap();
+    path
+}
+
+fn entry(id: u128, name: &str) -> ToolSetEntry {
+    ToolSetEntry {
+        id: ToolSetId::from_uuid(uuid(id)),
+        name: name.to_string(),
+        tool: Tool::ball_end_mill("ball_endmill_2mm".to_string(), 2.0, 10.0),
+    }
+}
+
+fn names(library: &ToolLibrary) -> Vec<&str> {
+    library
+        .toolsets
+        .iter()
+        .map(|entry| entry.name.as_str())
+        .collect()
+}
+
+#[test]
+fn edits_are_applied_to_the_library() {
+    let mut library = sample_library();
+    shared::apply_edit(
+        &mut library,
+        ToolLibraryEdit::AddToolSet(entry(10, "足した")),
+    )
+    .unwrap();
+    shared::apply_edit(
+        &mut library,
+        ToolLibraryEdit::MoveToolSet {
+            id: ToolSetId::from_uuid(uuid(10)),
+            index: 0,
+        },
+    )
+    .unwrap();
+    let mut renamed = entry(3, "替えた");
+    renamed.tool = Tool::ball_end_mill("ball_endmill_4mm".to_string(), 4.0, 20.0);
+    shared::apply_edit(
+        &mut library,
+        ToolLibraryEdit::UpdateToolSet(renamed.clone()),
+    )
+    .unwrap();
+    shared::apply_edit(
+        &mut library,
+        ToolLibraryEdit::RemoveToolSet(ToolSetId::from_uuid(uuid(2))),
+    )
+    .unwrap();
+    shared::apply_edit(
+        &mut library,
+        ToolLibraryEdit::Rename("MC 2 号機".to_string()),
+    )
+    .unwrap();
+    assert_eq!(library.name, "MC 2 号機");
+    assert_eq!(names(&library), ["足した", "替えた"]);
+    assert_eq!(library.toolsets[1], renamed);
+
+    // 範囲を超える位置は最後、同じ ID の追加は項目を替える
+    shared::apply_edit(
+        &mut library,
+        ToolLibraryEdit::MoveToolSet {
+            id: ToolSetId::from_uuid(uuid(10)),
+            index: 99,
+        },
+    )
+    .unwrap();
+    shared::apply_edit(
+        &mut library,
+        ToolLibraryEdit::AddToolSet(entry(10, "もう一度")),
+    )
+    .unwrap();
+    assert_eq!(names(&library), ["替えた", "もう一度"]);
+}
+
+#[test]
+fn edits_of_missing_tool_sets_and_invalid_values_are_rejected() {
+    let mut library = sample_library();
+    let missing = ToolSetId::from_uuid(uuid(99));
+    for edit in [
+        ToolLibraryEdit::UpdateToolSet(entry(99, "ない")),
+        ToolLibraryEdit::RemoveToolSet(missing),
+        ToolLibraryEdit::MoveToolSet {
+            id: missing,
+            index: 0,
+        },
+    ] {
+        assert!(matches!(
+            shared::apply_edit(&mut library, edit),
+            Err(ToolLibraryEditError::ToolSetNotFound(id)) if id == missing
+        ));
+    }
+    let mut invalid = entry(10, "妥当でない");
+    invalid.tool = Tool::flat_end_mill("t".to_string(), -1.0, 10.0);
+    let edits = [
+        (ToolLibraryEdit::Rename(String::new()), "library.name"),
+        (ToolLibraryEdit::AddToolSet(entry(10, "")), "toolset.name"),
+        (ToolLibraryEdit::AddToolSet(invalid), "toolset.tool"),
+    ];
+    for (edit, field) in edits {
+        assert!(matches!(
+            shared::apply_edit(&mut library, edit),
+            Err(ToolLibraryEditError::InvalidEdit(f)) if f == field
+        ));
+    }
+    assert_eq!(library, sample_library());
+}
+
+#[test]
+fn concurrent_writers_do_not_lose_each_other_edits() {
+    let dir = test_dir("concurrent");
+    let path = saved_library(&dir, "mc1.rrtl");
+    let writers: Vec<_> = (0..4_u128)
+        .map(|writer| {
+            let path = path.clone();
+            std::thread::spawn(move || {
+                for step in 0..5_u128 {
+                    let id = 100 + writer * 10 + step;
+                    edit_tool_library(
+                        &path,
+                        ToolLibraryEdit::AddToolSet(entry(id, &format!("{writer}-{step}"))),
+                        &format!("pc-{writer}"),
+                        &info(),
+                    )
+                    .unwrap();
+                }
+            })
+        })
+        .collect();
+    for writer in writers {
+        writer.join().unwrap();
+    }
+    let (library, _) = load_tool_library(&path).unwrap();
+    // 最初の 2 本と、4 つの書き手の 5 本ずつ
+    assert_eq!(library.toolsets.len(), 2 + 4 * 5);
+    // ロックのファイル・一時のファイルを残さない
+    let files: Vec<_> = fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect();
+    assert_eq!(files, [std::ffi::OsString::from("mc1.rrtl")]);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn unreadable_files_are_not_overwritten() {
+    let dir = test_dir("unreadable");
+    let path = dir.join("mc1.rrtl");
+    fs::write(&path, b"broken").unwrap();
+    assert!(matches!(
+        edit_tool_library(
+            &path,
+            ToolLibraryEdit::AddToolSet(entry(10, "足す")),
+            "pc-a",
+            &info()
+        ),
+        Err(ToolLibraryEditError::File(_))
+    ));
+    assert_eq!(fs::read(&path).unwrap(), b"broken");
+    assert!(tool_library_lock(&path).is_none());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn read_only_files_are_used_only_for_reading() {
+    let dir = test_dir("read-only");
+    let path = saved_library(&dir, "mc1.rrtl");
+    let mut permissions = fs::metadata(&path).unwrap().permissions();
+    permissions.set_readonly(true);
+    fs::set_permissions(&path, permissions.clone()).unwrap();
+
+    assert!(matches!(
+        edit_tool_library(
+            &path,
+            ToolLibraryEdit::AddToolSet(entry(10, "足す")),
+            "pc-a",
+            &info()
+        ),
+        Err(ToolLibraryEditError::ReadOnly(_))
+    ));
+    let mut catalog = ToolLibraryCatalog::open([path.clone()]);
+    assert!(matches!(
+        catalog.entries()[0].status(),
+        ToolLibraryStatus::Available { writable: false }
+    ));
+    assert_eq!(catalog.entries()[0].library(), Some(&sample_library()));
+    assert!(matches!(
+        catalog.edit(0, ToolLibraryEdit::Rename("x".to_string()), "pc-a", &info()),
+        Err(ToolLibraryEditError::ReadOnly(_))
+    ));
+    assert_eq!(load_tool_library(&path).unwrap().0, sample_library());
+
+    #[allow(clippy::permissions_set_readonly_false)]
+    permissions.set_readonly(false);
+    fs::set_permissions(&path, permissions).unwrap();
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn edits_stop_with_the_reason_while_another_writer_holds_the_lock() {
+    let dir = test_dir("locked");
+    let path = saved_library(&dir, "mc1.rrtl");
+    let lock = dir.join("mc1.rrtl.lock");
+    fs::write(&lock, "pc-b\n1700000000000\n").unwrap();
+    let result = edit_tool_library(
+        &path,
+        ToolLibraryEdit::AddToolSet(entry(10, "足す")),
+        "pc-a",
+        &info(),
+    );
+    let Err(ToolLibraryEditError::Locked(found)) = result else {
+        panic!("expected a locked library: {result:?}");
+    };
+    assert_eq!(
+        found,
+        ToolLibraryLock {
+            owner: "pc-b".to_string(),
+            locked_at_ms: Some(1_700_000_000_000),
+        }
+    );
+    // ほかの書き手のロックを消さず、ファイルも変えない
+    assert!(lock.exists());
+    assert_eq!(load_tool_library(&path).unwrap().0, sample_library());
+
+    // 古いロックは、利用者に確かめてから消すと書ける
+    assert!(found.is_stale(1_700_000_000_000 + 5 * 60 * 1000));
+    assert!(!found.is_stale(1_700_000_000_000 + 1000));
+    remove_tool_library_lock(&path).unwrap();
+    edit_tool_library(
+        &path,
+        ToolLibraryEdit::AddToolSet(entry(10, "足す")),
+        "pc-a",
+        &info(),
+    )
+    .unwrap();
+    assert!(tool_library_lock(&path).is_none());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn locks_whose_time_cannot_be_read_are_stale() {
+    let dir = test_dir("broken-lock");
+    let path = saved_library(&dir, "mc1.rrtl");
+    fs::write(dir.join("mc1.rrtl.lock"), "").unwrap();
+    let lock = tool_library_lock(&path).unwrap();
+    assert_eq!(lock.locked_at_ms, None);
+    assert!(lock.is_stale(0));
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_catalog_rereads_changed_files_and_keeps_the_last_contents_of_unreadable_ones() {
+    let dir = test_dir("catalog");
+    let path = saved_library(&dir, "mc1.rrtl");
+    let mut catalog = ToolLibraryCatalog::open([path.clone()]);
+    assert!(matches!(
+        catalog.entries()[0].status(),
+        ToolLibraryStatus::Available { writable: true }
+    ));
+
+    // 一覧から書くと、書いた内容を映す
+    catalog
+        .edit(
+            0,
+            ToolLibraryEdit::AddToolSet(entry(10, "足した")),
+            "pc-a",
+            &info(),
+        )
+        .unwrap();
+    assert_eq!(catalog.entries()[0].library().unwrap().toolsets.len(), 3);
+
+    // ほかの PC が書いた内容を、読み直して映す
+    edit_tool_library(
+        &path,
+        ToolLibraryEdit::RemoveToolSet(ToolSetId::from_uuid(uuid(10))),
+        "pc-b",
+        &info(),
+    )
+    .unwrap();
+    catalog.refresh();
+    assert_eq!(catalog.entries()[0].library(), Some(&sample_library()));
+
+    // 読めなくなっても、前に読めた内容を読むだけで使う
+    fs::write(&path, b"broken").unwrap();
+    catalog.refresh();
+    assert!(matches!(
+        catalog.entries()[0].status(),
+        ToolLibraryStatus::Unreadable(_)
+    ));
+    assert_eq!(catalog.entries()[0].library(), Some(&sample_library()));
+    assert!(matches!(
+        catalog.edit(0, ToolLibraryEdit::Rename("x".to_string()), "pc-a", &info()),
+        Err(ToolLibraryEditError::Unavailable)
+    ));
+    assert_eq!(fs::read(&path).unwrap(), b"broken");
+
+    // ないファイルの一覧
+    let missing = ToolLibraryCatalog::open([dir.join("missing.rrtl")]);
+    assert!(missing.entries()[0].library().is_none());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn files_with_the_same_library_id_as_an_earlier_one_are_not_used() {
+    let dir = test_dir("duplicate");
+    let first = saved_library(&dir, "mc1.rrtl");
+    let copy = dir.join("mc1 copy.rrtl");
+    fs::copy(&first, &copy).unwrap();
+    let mut catalog = ToolLibraryCatalog::open([first.clone(), copy]);
+    assert!(catalog.entries()[0].library().is_some());
+    assert!(matches!(
+        catalog.entries()[1].status(),
+        ToolLibraryStatus::DuplicateId { first: path } if *path == first
+    ));
+    assert!(catalog.entries()[1].library().is_none());
+    assert!(matches!(
+        catalog.edit(1, ToolLibraryEdit::Rename("x".to_string()), "pc-a", &info()),
+        Err(ToolLibraryEditError::Unavailable)
+    ));
+    assert!(matches!(
+        catalog.edit(9, ToolLibraryEdit::Rename("x".to_string()), "pc-a", &info()),
+        Err(ToolLibraryEditError::Unavailable)
+    ));
+    let _ = fs::remove_dir_all(&dir);
+}
