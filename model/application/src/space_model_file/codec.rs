@@ -34,8 +34,7 @@
 //!       ツールセットの名前（文字列）。版 1 の区画は、すべての工程を項目なしとして読む
 //!     - 加工の種類 `u8`（1: 走査線）と条件: ピックフィード・送り `f64`、工具の移動範囲 `u8`（1: 工具の半径だけ
 //!       広げる、2: 形状の範囲）、送り方 `u8`（1: ダウンカット、2: アップカット、3: ジグザグ）、走査線の角度 `f64`
-//!     - 工具: 種類 `u8`（1: フラット、2: ラジアス、3: ボール）、ID（文字列）、直径・角の半径 `f64`、工具長（有無と
-//!       `f64`）
+//!     - 工具: ツールライブラリのファイルの工具と同じ並び（`tool_library::write_tool`）
 //!     - 加工領域（有無と、長方形の最小・最大の XY の `f64`×4）、精度プロファイル `u8`（1: 大物プレス荒、
 //!       2: 小物金型仕上げ）
 //! - `NSET`（必須でない）: 計算の条件を設定していない加工工程の数 `u32` と、その加工工程の ID（なければ、すべての
@@ -52,7 +51,7 @@ use analysis::linalg::matrix::Matrix4x4;
 
 use cam_core::{
     MachiningBoundary, MachiningStage, OperationSpec, RectangleBoundary, ScanlineCutDirection,
-    ScanlineParams, ScanlineToolRange, StockMargins, ToleranceProfile, Tool, ToolType,
+    ScanlineParams, ScanlineToolRange, StockMargins, ToleranceProfile,
 };
 use geo_entity::{
     AttributeCode, AttributeValue, Attributes, DisplayAttributes, EntityId, FaceId, Metadata,
@@ -67,10 +66,10 @@ use geo_io::binary_geometry::{
 use geo_topology::{
     BrepRecords, CurveRef, EdgeRecord, FaceRecord, Point3D, SurfaceRef, VertexRecord,
 };
-use jiff::Timestamp;
 use uuid::Uuid;
 
 use super::{SpaceModelFileError, SpaceModelSaveInfo};
+use crate::binary_section::{ByteReader, ByteWriter, FieldError};
 use crate::imported_toolpath::ImportedToolpathRecord;
 use crate::machining_sequence::{
     MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
@@ -81,108 +80,7 @@ use crate::product_shape::{
     Brep, ProductFaceGeometry, ProductFaceRecord, ProductShellRecord, ShellSource,
     SimilarityTransform3D,
 };
-
-/// 区画の中身の読み込みの誤り（項目の名前）
-pub(super) type FieldError = &'static str;
-
-/// 区画の中身を書く
-#[derive(Default)]
-pub(super) struct ByteWriter(Vec<u8>);
-
-impl ByteWriter {
-    pub(super) fn into_bytes(self) -> Vec<u8> {
-        self.0
-    }
-
-    pub(super) fn bytes(&mut self, bytes: &[u8]) {
-        self.0.extend_from_slice(bytes);
-    }
-
-    fn u8(&mut self, value: u8) {
-        self.0.push(value);
-    }
-
-    pub(super) fn u16(&mut self, value: u16) {
-        self.bytes(&value.to_le_bytes());
-    }
-
-    fn u32(&mut self, value: u32) {
-        self.bytes(&value.to_le_bytes());
-    }
-
-    pub(super) fn u64(&mut self, value: u64) {
-        self.bytes(&value.to_le_bytes());
-    }
-
-    fn i32(&mut self, value: i32) {
-        self.bytes(&value.to_le_bytes());
-    }
-
-    fn i64(&mut self, value: i64) {
-        self.bytes(&value.to_le_bytes());
-    }
-
-    fn f32(&mut self, value: f32) {
-        self.bytes(&value.to_le_bytes());
-    }
-
-    fn f64(&mut self, value: f64) {
-        self.bytes(&value.to_le_bytes());
-    }
-
-    fn bool(&mut self, value: bool) {
-        self.u8(u8::from(value));
-    }
-
-    fn uuid(&mut self, value: Uuid) {
-        self.bytes(value.as_bytes());
-    }
-
-    /// 個数を `u32` で書く
-    pub(super) fn count(
-        &mut self,
-        count: usize,
-        field: &'static str,
-    ) -> Result<(), SpaceModelFileError> {
-        let count = u32::try_from(count).map_err(|_| length_overflow(field))?;
-        self.u32(count);
-        Ok(())
-    }
-
-    fn string(&mut self, value: &str, field: &'static str) -> Result<(), SpaceModelFileError> {
-        self.count(value.len(), field)?;
-        self.bytes(value.as_bytes());
-        Ok(())
-    }
-
-    fn optional_string(
-        &mut self,
-        value: Option<&str>,
-        field: &'static str,
-    ) -> Result<(), SpaceModelFileError> {
-        match value {
-            None => self.u8(0),
-            Some(value) => {
-                self.u8(1);
-                self.string(value, field)?;
-            }
-        }
-        Ok(())
-    }
-
-    /// 時刻を、秒（切り捨て）と、その秒からのナノ秒（0 以上）で書く
-    fn time(&mut self, value: Timestamp) {
-        const NANOS_PER_SECOND: i128 = 1_000_000_000;
-        let nanos = value.as_nanosecond();
-        // 時刻の範囲（1 万年より内）では、秒は i64 に、秒からのナノ秒は u32 に収まる
-        self.i64(nanos.div_euclid(NANOS_PER_SECOND) as i64);
-        self.u32(nanos.rem_euclid(NANOS_PER_SECOND) as u32);
-    }
-}
-
-fn length_overflow(field: &'static str) -> SpaceModelFileError {
-    SpaceModelFileError::Format(cam_core::BinaryFormatError::LengthOverflow(field))
-}
+use crate::tool_library::{read_tool, write_tool};
 
 fn geometry_write_error(error: BinaryGeometryError) -> SpaceModelFileError {
     SpaceModelFileError::Format(match error {
@@ -196,132 +94,6 @@ fn geometry_write_error(error: BinaryGeometryError) -> SpaceModelFileError {
             cam_core::BinaryFormatError::InvalidPayload("geometry")
         }
     })
-}
-
-/// 区画の中身を読む（信用できない入力として、残りのバイトの数を確かめながら読む）
-pub(super) struct ByteReader<'a> {
-    bytes: &'a [u8],
-}
-
-impl<'a> ByteReader<'a> {
-    pub(super) fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes }
-    }
-
-    /// `length` バイトを切り出す
-    pub(super) fn take(&mut self, length: usize) -> Result<&'a [u8], FieldError> {
-        if length > self.bytes.len() {
-            return Err("unexpected end");
-        }
-        let (taken, rest) = self.bytes.split_at(length);
-        self.bytes = rest;
-        Ok(taken)
-    }
-
-    pub(super) fn array<const N: usize>(&mut self) -> Result<[u8; N], FieldError> {
-        let (bytes, rest) = self
-            .bytes
-            .split_first_chunk::<N>()
-            .ok_or("unexpected end")?;
-        self.bytes = rest;
-        Ok(*bytes)
-    }
-
-    fn u8(&mut self) -> Result<u8, FieldError> {
-        Ok(self.array::<1>()?[0])
-    }
-
-    pub(super) fn u16(&mut self) -> Result<u16, FieldError> {
-        Ok(u16::from_le_bytes(self.array()?))
-    }
-
-    fn u32(&mut self) -> Result<u32, FieldError> {
-        Ok(u32::from_le_bytes(self.array()?))
-    }
-
-    pub(super) fn u64(&mut self) -> Result<u64, FieldError> {
-        Ok(u64::from_le_bytes(self.array()?))
-    }
-
-    fn i32(&mut self) -> Result<i32, FieldError> {
-        Ok(i32::from_le_bytes(self.array()?))
-    }
-
-    fn i64(&mut self) -> Result<i64, FieldError> {
-        Ok(i64::from_le_bytes(self.array()?))
-    }
-
-    fn f32(&mut self) -> Result<f32, FieldError> {
-        Ok(f32::from_le_bytes(self.array()?))
-    }
-
-    fn f64(&mut self) -> Result<f64, FieldError> {
-        Ok(f64::from_le_bytes(self.array()?))
-    }
-
-    fn bool(&mut self, field: FieldError) -> Result<bool, FieldError> {
-        match self.u8()? {
-            0 => Ok(false),
-            1 => Ok(true),
-            _ => Err(field),
-        }
-    }
-
-    fn uuid(&mut self) -> Result<Uuid, FieldError> {
-        Ok(Uuid::from_bytes(self.array()?))
-    }
-
-    /// 個数 `u32` を読み、1 つ `element_len` バイト以上の要素がその数だけ残りのバイトに収まることを確かめる
-    pub(super) fn count(&mut self, element_len: usize) -> Result<usize, FieldError> {
-        let count = self.u32()? as usize;
-        match count.checked_mul(element_len) {
-            Some(length) if length <= self.bytes.len() => Ok(count),
-            _ => Err("count"),
-        }
-    }
-
-    fn string(&mut self, field: FieldError) -> Result<String, FieldError> {
-        let length = self.count(1).map_err(|_| field)?;
-        let bytes = self.take(length)?;
-        String::from_utf8(bytes.to_vec()).map_err(|_| field)
-    }
-
-    fn optional_string(&mut self, field: FieldError) -> Result<Option<String>, FieldError> {
-        if self.bool(field)? {
-            self.string(field).map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn time(&mut self, field: FieldError) -> Result<Timestamp, FieldError> {
-        let seconds = self.i64()?;
-        let nanos = i32::try_from(self.u32()?).map_err(|_| field)?;
-        Timestamp::new(seconds, nanos).map_err(|_| field)
-    }
-
-    fn geometry<T>(
-        &mut self,
-        read: fn(&mut &[u8]) -> Result<T, BinaryGeometryError>,
-    ) -> Result<T, FieldError> {
-        let mut cursor = self.bytes;
-        let value = read(&mut cursor).map_err(|error| match error {
-            BinaryGeometryError::UnexpectedEnd => "unexpected end",
-            BinaryGeometryError::LengthOverflow(field)
-            | BinaryGeometryError::InvalidValue(field) => field,
-        })?;
-        self.bytes = cursor;
-        Ok(value)
-    }
-
-    /// 読み終えたことを確かめる（余りがあれば誤り）
-    pub(super) fn finish(&self) -> Result<(), FieldError> {
-        if self.bytes.is_empty() {
-            Ok(())
-        } else {
-            Err("trailing bytes")
-        }
-    }
 }
 
 // ---- INFO ----
@@ -746,21 +518,7 @@ fn write_content(
         ScanlineCutDirection::ZigZag => 3,
     });
     out.f64(scanline.angle_degrees);
-    out.u8(match tool.tool_type {
-        ToolType::FlatEndMill => 1,
-        ToolType::RadiusEndMill => 2,
-        ToolType::BallEndMill => 3,
-    });
-    out.string(&tool.id, "tool.id")?;
-    out.f64(tool.radius() * 2.0);
-    out.f64(tool.corner_radius());
-    match tool.cutting_length {
-        None => out.u8(0),
-        Some(length) => {
-            out.u8(1);
-            out.f64(length);
-        }
-    }
+    write_tool(out, tool)?;
     match boundary {
         None => out.u8(0),
         Some(MachiningBoundary::Rectangle(rectangle)) => {
@@ -821,22 +579,7 @@ fn read_content(
         _ => return Err("operation.cut_direction"),
     };
     let angle_degrees = cursor.f64()?;
-    let tool_type = match cursor.u8()? {
-        1 => ToolType::FlatEndMill,
-        2 => ToolType::RadiusEndMill,
-        3 => ToolType::BallEndMill,
-        _ => return Err("tool.type"),
-    };
-    let tool_id = cursor.string("tool.id")?;
-    let diameter = cursor.f64()?;
-    let corner_radius = cursor.f64()?;
-    let cutting_length = match cursor.u8()? {
-        0 => None,
-        1 => Some(cursor.f64()?),
-        _ => return Err("tool.cutting_length"),
-    };
-    let mut tool = Tool::new(tool_id, tool_type, diameter, corner_radius, 0.0);
-    tool.cutting_length = cutting_length;
+    let tool = read_tool(cursor)?;
     let boundary = match cursor.u8()? {
         0 => None,
         1 => Some(MachiningBoundary::Rectangle(RectangleBoundary {

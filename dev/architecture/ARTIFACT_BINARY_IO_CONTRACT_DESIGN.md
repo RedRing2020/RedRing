@@ -38,6 +38,7 @@
   - 切削シミュレーション: `RRCS`
   - ジョブの入力（成果物ではないが、同じヘッダを使う。`JOB_MANAGER_STORAGE_DESIGN.md` 5.2）: `RRCI`（ツールパス生成の入力）・`RRSI`（切削シミュレーションの入力）
   - 空間モデル（モデルファイル。成果物ではないが、同じヘッダを使う。中身は区画を並べたもの。`SPACE_MODEL_FILE_DESIGN.md` 4 章）: `RRMF`（`application::space_model_file`。#1166）
+  - ツールライブラリのファイル（成果物ではないが、同じヘッダを使う。中身はモデルファイルと同じ形の区画を並べたもの。`TOOL_LIBRARY_DESIGN.md` 4.3）: `RRTL`（`application::tool_library`。#1395）
 - `version_major: u16` = 0
 - `version_minor: u16` = 3（v0.1・v0.2 の artifact は `1`・`2`）
 - `units: u8`
