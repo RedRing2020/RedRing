@@ -1,4 +1,9 @@
 use super::*;
+use crate::machining_sequence::{
+    MachiningOperationContent, MachiningOperationId, MachiningSequenceId, MachiningSequenceStore,
+    MachiningStock, ScanlineParams, StockMargins, ToolSetReference,
+    scanline_finish_operation_content,
+};
 
 fn uuid(value: u128) -> Uuid {
     Uuid::from_u128(value)
@@ -401,7 +406,7 @@ fn concurrent_writers_do_not_lose_each_other_edits() {
             std::thread::spawn(move || {
                 for step in 0..5_u128 {
                     let id = 100 + writer * 10 + step;
-                    edit_tool_library(
+                    shared::edit_tool_library(
                         &path,
                         ToolLibraryEdit::AddToolSet(entry(id, &format!("{writer}-{step}"))),
                         &format!("pc-{writer}"),
@@ -433,7 +438,7 @@ fn unreadable_files_are_not_overwritten() {
     let path = dir.join("mc1.rrtl");
     fs::write(&path, b"broken").unwrap();
     assert!(matches!(
-        edit_tool_library(
+        shared::edit_tool_library(
             &path,
             ToolLibraryEdit::AddToolSet(entry(10, "足す")),
             "pc-a",
@@ -455,7 +460,7 @@ fn read_only_files_are_used_only_for_reading() {
     fs::set_permissions(&path, permissions.clone()).unwrap();
 
     assert!(matches!(
-        edit_tool_library(
+        shared::edit_tool_library(
             &path,
             ToolLibraryEdit::AddToolSet(entry(10, "足す")),
             "pc-a",
@@ -487,7 +492,7 @@ fn edits_stop_with_the_reason_while_another_writer_holds_the_lock() {
     let path = saved_library(&dir, "mc1.rrtl");
     let lock = dir.join("mc1.rrtl.lock");
     fs::write(&lock, "pc-b\n1700000000000\n").unwrap();
-    let result = edit_tool_library(
+    let result = shared::edit_tool_library(
         &path,
         ToolLibraryEdit::AddToolSet(entry(10, "足す")),
         "pc-a",
@@ -511,7 +516,7 @@ fn edits_stop_with_the_reason_while_another_writer_holds_the_lock() {
     assert!(found.is_stale(1_700_000_000_000 + 5 * 60 * 1000));
     assert!(!found.is_stale(1_700_000_000_000 + 1000));
     remove_tool_library_lock(&path).unwrap();
-    edit_tool_library(
+    shared::edit_tool_library(
         &path,
         ToolLibraryEdit::AddToolSet(entry(10, "足す")),
         "pc-a",
@@ -555,7 +560,7 @@ fn the_catalog_rereads_changed_files_and_keeps_the_last_contents_of_unreadable_o
     assert_eq!(catalog.entries()[0].library().unwrap().toolsets.len(), 3);
 
     // ほかの PC が書いた内容を、読み直して映す
-    edit_tool_library(
+    shared::edit_tool_library(
         &path,
         ToolLibraryEdit::RemoveToolSet(ToolSetId::from_uuid(uuid(10))),
         "pc-b",
@@ -620,5 +625,268 @@ fn line_breaks_in_the_lock_owner_do_not_break_the_lock_time() {
     assert!(!lock.is_stale(shared::now_ms()));
     drop(guard);
     assert!(tool_library_lock(&path).is_none());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+// ---- 加工工程の工具とライブラリ ----
+
+/// 工具 `tool` の工程を 1 つ持つ加工手順
+fn store_with_operation(
+    tool: Tool<f64>,
+) -> (
+    MachiningSequenceStore,
+    MachiningSequenceId,
+    MachiningOperationId,
+) {
+    let mut store = MachiningSequenceStore::new();
+    let sequence = store.create_sequence(
+        "手順".to_string(),
+        Vec::new(),
+        MachiningStock {
+            margins: StockMargins::default(),
+            precision: 0.05,
+        },
+    );
+    let content = scanline_finish_operation_content(
+        "仕上げ".to_string(),
+        tool,
+        ScanlineParams {
+            stepover: 0.5,
+            feed_rate: 1200.0,
+            tool_range: Default::default(),
+            cut_direction: Default::default(),
+            angle_degrees: 0.0,
+        },
+    );
+    let operation = store.add_operation(sequence, content).unwrap();
+    (store, sequence, operation)
+}
+
+fn revision(
+    store: &MachiningSequenceStore,
+    sequence: MachiningSequenceId,
+    operation: MachiningOperationId,
+) -> u32 {
+    store.operation(sequence, operation).unwrap().revision()
+}
+
+/// 保存した `sample_library` だけの一覧
+fn sample_catalog(name: &str) -> (PathBuf, ToolLibraryCatalog) {
+    let dir = test_dir(name);
+    let path = saved_library(&dir, "mc1.rrtl");
+    (dir, ToolLibraryCatalog::open([path]))
+}
+
+fn ball_6() -> ToolSetId {
+    ToolSetId::from_uuid(uuid(2))
+}
+
+#[test]
+fn the_tool_of_an_operation_is_compared_with_the_libraries() {
+    let (dir, catalog) = sample_catalog("operation-status");
+    let ball = sample_library().toolsets[0].tool.clone();
+    let mut content = scanline_finish_operation_content(
+        "仕上げ".to_string(),
+        ball.clone(),
+        ScanlineParams {
+            stepover: 0.5,
+            feed_rate: 1200.0,
+            tool_range: Default::default(),
+            cut_direction: Default::default(),
+            angle_degrees: 0.0,
+        },
+    );
+    let status = |content: &MachiningOperationContent| catalog.operation_tool_status(content);
+    assert_eq!(status(&content), OperationToolStatus::NotFromLibrary);
+
+    let reference = |library: u128, toolset: u128| ToolSetReference {
+        library: ToolLibraryId::from_uuid(uuid(library)),
+        toolset: ToolSetId::from_uuid(uuid(toolset)),
+        name: "R3 ボール".to_string(),
+    };
+    content.attributes.toolset = Some(reference(1, 2));
+    assert_eq!(status(&content), OperationToolStatus::SameAsLibrary);
+    content.conditions.tool = Tool::ball_end_mill("ball_endmill_6mm".to_string(), 6.0, 40.0);
+    assert_eq!(status(&content), OperationToolStatus::DiffersFromLibrary);
+    content.attributes.toolset = Some(reference(1, 99));
+    assert_eq!(status(&content), OperationToolStatus::NotInLibrary);
+    content.attributes.toolset = Some(reference(99, 2));
+    assert_eq!(status(&content), OperationToolStatus::LibraryNotFound);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn aligning_revises_the_operation_and_selecting_the_same_values_does_not() {
+    let (dir, catalog) = sample_catalog("operation-align");
+    let library = catalog.entries()[0].library().unwrap().clone();
+    let (mut store, sequence, operation) = store_with_operation(library.toolsets[0].tool.clone());
+
+    // 同じ値のツールセットを選んでも、改訂は進まない（参照だけが替わる）
+    select_operation_toolset(&mut store, sequence, operation, &library, ball_6()).unwrap();
+    assert_eq!(revision(&store, sequence, operation), 1);
+    let content = store.operation_content(sequence, operation).unwrap();
+    assert_eq!(
+        content.attributes.toolset,
+        Some(ToolSetReference {
+            library: library.id,
+            toolset: ball_6(),
+            name: "R3 ボール 突き出し 30".to_string(),
+        })
+    );
+    assert_eq!(
+        catalog.operation_tool_status(content),
+        OperationToolStatus::SameAsLibrary
+    );
+
+    // 写しを変えると「ライブラリと違う」になり、そろえると値が戻って改訂が進む
+    let mut changed = content.clone();
+    changed.conditions.tool = Tool::ball_end_mill("ball_endmill_6mm".to_string(), 6.0, 40.0);
+    store
+        .set_operation_content(sequence, operation, changed)
+        .unwrap();
+    assert_eq!(revision(&store, sequence, operation), 2);
+    align_operation_tool(&mut store, sequence, operation, &catalog).unwrap();
+    assert_eq!(revision(&store, sequence, operation), 3);
+    let content = store.operation_content(sequence, operation).unwrap();
+    assert_eq!(content.conditions.tool, library.toolsets[0].tool);
+
+    // 違う値のツールセットに選び替えると、改訂が進む
+    let flat = ToolSetId::from_uuid(uuid(3));
+    select_operation_toolset(&mut store, sequence, operation, &library, flat).unwrap();
+    assert_eq!(revision(&store, sequence, operation), 4);
+    assert!(matches!(
+        select_operation_toolset(
+            &mut store,
+            sequence,
+            operation,
+            &library,
+            ToolSetId::from_uuid(uuid(99))
+        ),
+        Err(OperationToolError::ToolSetNotFound)
+    ));
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn all_operations_of_a_sequence_are_aligned_at_once() {
+    let (dir, catalog) = sample_catalog("operation-align-all");
+    let library = catalog.entries()[0].library().unwrap().clone();
+    let (mut store, sequence, first) = store_with_operation(library.toolsets[0].tool.clone());
+    select_operation_toolset(&mut store, sequence, first, &library, ball_6()).unwrap();
+    let mut differs = store.operation_content(sequence, first).unwrap().clone();
+    differs.conditions.tool = Tool::ball_end_mill("ball_endmill_6mm".to_string(), 6.0, 40.0);
+    let second = store.add_operation(sequence, differs.clone()).unwrap();
+    // ライブラリから選んでいない工程は、そのまま
+    let mut free = differs;
+    free.attributes.toolset = None;
+    let third = store.add_operation(sequence, free.clone()).unwrap();
+
+    assert_eq!(
+        align_sequence_tools(&mut store, sequence, &catalog).unwrap(),
+        1
+    );
+    assert_eq!(revision(&store, sequence, first), 1);
+    assert_eq!(revision(&store, sequence, second), 2);
+    assert_eq!(
+        store
+            .operation_content(sequence, second)
+            .unwrap()
+            .conditions
+            .tool,
+        library.toolsets[0].tool
+    );
+    assert_eq!(store.operation_content(sequence, third).unwrap(), &free);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn operations_from_files_without_tool_sets_are_registered_and_become_the_same_as_the_library() {
+    let (dir, mut catalog) = sample_catalog("operation-register");
+    // 前の版のモデルファイルの工程（参照のない、R2 ボールの工程）
+    let tool = Tool::ball_end_mill("ball_endmill_4mm".to_string(), 4.0, 20.0);
+    let (mut store, sequence, operation) = store_with_operation(tool.clone());
+    register_operation_tool(
+        &mut store,
+        sequence,
+        operation,
+        &mut catalog,
+        0,
+        "R2 ボール".to_string(),
+        "pc-a",
+        &info(),
+    )
+    .unwrap();
+    // 工具の値は変わらないため、改訂は進まない
+    assert_eq!(revision(&store, sequence, operation), 1);
+    let content = store.operation_content(sequence, operation).unwrap();
+    assert_eq!(
+        catalog.operation_tool_status(content),
+        OperationToolStatus::SameAsLibrary
+    );
+    let reference = content.attributes.toolset.clone().unwrap();
+    let (library, _) = load_tool_library(catalog.entries()[0].path()).unwrap();
+    let registered = library
+        .toolsets
+        .iter()
+        .find(|entry| entry.id == reference.toolset)
+        .unwrap();
+    assert_eq!(registered.name, "R2 ボール");
+    assert_eq!(registered.tool, tool);
+
+    // すでにライブラリにある工具は、写しで上書きしない
+    assert!(matches!(
+        register_operation_tool(
+            &mut store,
+            sequence,
+            operation,
+            &mut catalog,
+            0,
+            "上書き".to_string(),
+            "pc-a",
+            &info(),
+        ),
+        Err(OperationToolError::AlreadyInLibrary)
+    ));
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn removed_tool_sets_are_registered_again_with_the_same_id() {
+    let (dir, mut catalog) = sample_catalog("operation-register-again");
+    let library = catalog.entries()[0].library().unwrap().clone();
+    let (mut store, sequence, operation) = store_with_operation(library.toolsets[0].tool.clone());
+    select_operation_toolset(&mut store, sequence, operation, &library, ball_6()).unwrap();
+    catalog
+        .edit(0, ToolLibraryEdit::RemoveToolSet(ball_6()), "pc-b", &info())
+        .unwrap();
+    let content = store.operation_content(sequence, operation).unwrap();
+    assert_eq!(
+        catalog.operation_tool_status(content),
+        OperationToolStatus::NotInLibrary
+    );
+    assert!(matches!(
+        align_operation_tool(&mut store, sequence, operation, &catalog),
+        Err(OperationToolError::ToolSetNotFound)
+    ));
+    register_operation_tool(
+        &mut store,
+        sequence,
+        operation,
+        &mut catalog,
+        0,
+        "R3 ボール 戻した".to_string(),
+        "pc-a",
+        &info(),
+    )
+    .unwrap();
+    let content = store.operation_content(sequence, operation).unwrap();
+    assert_eq!(
+        content.attributes.toolset.as_ref().unwrap().toolset,
+        ball_6()
+    );
+    assert_eq!(
+        catalog.operation_tool_status(content),
+        OperationToolStatus::SameAsLibrary
+    );
     let _ = fs::remove_dir_all(&dir);
 }

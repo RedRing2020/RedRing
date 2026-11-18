@@ -245,7 +245,7 @@ pub(super) fn writable(path: &Path) -> io::Result<()> {
 ///
 /// ほかの PC が書いている場合、書けない場合、ファイルを読めない場合（上書きしない）・書けない場合、操作の対象の
 /// ツールセットがない場合、操作の値が正しくない場合。
-pub fn edit_tool_library(
+pub(crate) fn edit_tool_library(
     path: &Path,
     edit: ToolLibraryEdit,
     owner: &str,

@@ -10,12 +10,14 @@
 //! - `TSET`: ツールセットの数 `u32` と、ツールセットごとに ID・名前（文字列）・工具（[`write_tool`] の並び）
 //!
 //! 複数の PC から共有するファイルへの書き込み（ロックのファイルと書く前の読み直し）は `shared`、使うファイルの
-//! 一覧（変わったファイルの読み直し・ID の重なり・読むだけの扱い）は `catalog` に置く。
+//! 一覧（変わったファイルの読み直し・ID の重なり・読むだけの扱い）は `catalog`、加工工程の工具とライブラリの比べ方・
+//! そろえる・選び替える・写しから登録する操作は `operation` に置く。
 //!
 //! 読み込みは信用できない入力として扱い、ライブラリの名前とツールセットの名前が空でないこと、ツールセットの ID が
 //! 重なっていないこと、工具の値が妥当であることを確かめる。
 
 mod catalog;
+mod operation;
 mod shared;
 #[cfg(test)]
 mod tests;
@@ -37,9 +39,13 @@ use crate::binary_section::{
 };
 use crate::machining_sequence::{ToolLibraryId, ToolSetEntry, ToolSetId};
 pub use catalog::{ToolLibraryCatalog, ToolLibraryCatalogEntry, ToolLibraryStatus};
+pub use operation::{
+    OperationToolError, OperationToolStatus, align_operation_tool, align_sequence_tools,
+    register_operation_tool, select_operation_toolset,
+};
 pub use shared::{
-    ToolLibraryEdit, ToolLibraryEditError, ToolLibraryLock, edit_tool_library,
-    remove_tool_library_lock, tool_library_lock,
+    ToolLibraryEdit, ToolLibraryEditError, ToolLibraryLock, remove_tool_library_lock,
+    tool_library_lock,
 };
 
 /// 読み込むツールライブラリのファイルの大きさの上限（バイト）
