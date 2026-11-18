@@ -9,9 +9,14 @@
 //!   ミリ秒 `u64`）
 //! - `TSET`: ツールセットの数 `u32` と、ツールセットごとに ID・名前（文字列）・工具（[`write_tool`] の並び）
 //!
+//! 複数の PC から共有するファイルへの書き込み（ロックのファイルと書く前の読み直し）は `shared`、使うファイルの
+//! 一覧（変わったファイルの読み直し・ID の重なり・読むだけの扱い）は `catalog` に置く。
+//!
 //! 読み込みは信用できない入力として扱い、ライブラリの名前とツールセットの名前が空でないこと、ツールセットの ID が
 //! 重なっていないこと、工具の値が妥当であることを確かめる。
 
+mod catalog;
+mod shared;
 #[cfg(test)]
 mod tests;
 
@@ -31,6 +36,11 @@ use crate::binary_section::{
     ByteReader, ByteWriter, FieldError, SECTION_REQUIRED, read_sections, write_section,
 };
 use crate::machining_sequence::{ToolLibraryId, ToolSetEntry, ToolSetId};
+pub use catalog::{ToolLibraryCatalog, ToolLibraryCatalogEntry, ToolLibraryStatus};
+pub use shared::{
+    ToolLibraryEdit, ToolLibraryEditError, ToolLibraryLock, edit_tool_library,
+    remove_tool_library_lock, tool_library_lock,
+};
 
 /// 読み込むツールライブラリのファイルの大きさの上限（バイト）
 const MAX_TOOL_LIBRARY_FILE_BYTES: u64 = 64 << 20;
@@ -369,7 +379,7 @@ pub(crate) fn read_tool_library<R: Read>(
 /// # Errors
 ///
 /// 書き込み・名前の変更の失敗、個数・長さが形式に収まらない場合。
-pub fn save_tool_library(
+pub(crate) fn save_tool_library(
     path: &Path,
     library: &ToolLibrary,
     info: &ToolLibrarySaveInfo,
@@ -387,7 +397,7 @@ pub fn save_tool_library(
 /// # Errors
 ///
 /// ファイルを読めない場合、大きさの上限を超える場合、`read_tool_library` の誤り。
-pub fn load_tool_library(
+pub(crate) fn load_tool_library(
     path: &Path,
 ) -> Result<(ToolLibrary, ToolLibrarySaveInfo), ToolLibraryFileError> {
     let file = fs::File::open(path)?;
