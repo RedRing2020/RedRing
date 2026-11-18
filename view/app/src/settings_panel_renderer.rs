@@ -51,6 +51,24 @@ pub struct UiFrameStates<'a, 'n> {
     pub tool_library: &'a mut ToolLibraryUiState,
 }
 
+/// 描かずに置き換える前のフレーム `previous` のテクスチャの更新に、新しいフレームの更新 `newer` を続けたもの
+///
+/// 描かなかったフレームの更新（文字のテクスチャを作る・広げる更新を含む）を捨てると、後の更新・描画がない・古い
+/// テクスチャを指すため、並んだ順に引き継ぐ（egui の `TexturesDelta::append`）。
+fn carried_textures_delta(
+    previous: Option<PendingSettingsPanelFrame>,
+    newer: TexturesDelta,
+) -> TexturesDelta {
+    match previous {
+        Some(previous) => {
+            let mut delta = previous.textures_delta;
+            delta.append(newer);
+            delta
+        }
+        None => newer,
+    }
+}
+
 impl SettingsPanelRenderer {
     pub(crate) fn new(window: &Window, device: &Device, format: TextureFormat) -> Self {
         let egui_context = Context::default();
@@ -161,7 +179,10 @@ impl SettingsPanelRenderer {
             .handle_platform_output(window, full_output.platform_output);
         self.pending_frame = Some(PendingSettingsPanelFrame {
             paint_jobs,
-            textures_delta: full_output.textures_delta,
+            textures_delta: carried_textures_delta(
+                self.pending_frame.take(),
+                full_output.textures_delta,
+            ),
             pixels_per_point,
         });
     }
@@ -175,12 +196,12 @@ impl SettingsPanelRenderer {
         viewport_width: u32,
         viewport_height: u32,
     ) {
+        // 画面の大きさが 0（最小化など）のときは描かない。フレームは捨てず、テクスチャの更新を次のフレームに引き継ぐ
         if viewport_width == 0 || viewport_height == 0 {
-            self.pending_frame = None;
             return;
         }
 
-        let Some(frame) = self.pending_frame.take() else {
+        let Some(mut frame) = self.pending_frame.take() else {
             return;
         };
 
@@ -233,6 +254,8 @@ impl SettingsPanelRenderer {
         for texture_id in &frame.textures_delta.free {
             self.egui_renderer.free_texture(texture_id);
         }
+        // 当て終えた更新を空にする（egui は、当てていない更新を捨てると知らせる）
+        frame.textures_delta.clear();
     }
 }
 
