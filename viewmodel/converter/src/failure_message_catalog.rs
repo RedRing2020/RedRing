@@ -110,6 +110,38 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "ファイルを読み書きする許可がありません",
     ),
     ("failure.file.invalid_data", "ファイルの内容が壊れています"),
+    (
+        "failure.file.already_exists",
+        "同じ名前のファイルがすでにあります",
+    ),
+    (
+        "failure.tool_library.locked",
+        "{owner} がこのライブラリに書いています。しばらく待ってから操作し直してください",
+    ),
+    (
+        "failure.tool_library.read_only",
+        "このライブラリに書く許可がないため、読むだけで使います",
+    ),
+    (
+        "failure.tool_library.unavailable",
+        "読めないか、同じライブラリがほかにあるため、このライブラリには書けません",
+    ),
+    (
+        "failure.tool_library.toolset_not_found",
+        "ツールセットがありません。ほかの PC で消された可能性があります",
+    ),
+    (
+        "failure.tool_library.empty_name",
+        "ライブラリの名前が空です",
+    ),
+    (
+        "failure.tool_library.empty_toolset_name",
+        "ツールセットの名前が空です",
+    ),
+    (
+        "failure.tool_library.invalid_tool",
+        "工具の値に誤りがあります",
+    ),
     ("failure.file.other", "ファイルを読み書きできません"),
     ("failure.model_file.too_large", "ファイルが大きすぎます"),
     (
@@ -239,6 +271,38 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
         "No permission to read or write the file",
     ),
     ("failure.file.invalid_data", "The file content is broken"),
+    (
+        "failure.file.already_exists",
+        "A file with the same name already exists",
+    ),
+    (
+        "failure.tool_library.locked",
+        "{owner} is writing to this library. Wait a moment and try again",
+    ),
+    (
+        "failure.tool_library.read_only",
+        "No permission to write to this library, so it is used read-only",
+    ),
+    (
+        "failure.tool_library.unavailable",
+        "This library cannot be written because it cannot be read or the same library is listed",
+    ),
+    (
+        "failure.tool_library.toolset_not_found",
+        "The tool set is not found. It may have been removed on another PC",
+    ),
+    (
+        "failure.tool_library.empty_name",
+        "The library name is empty",
+    ),
+    (
+        "failure.tool_library.empty_toolset_name",
+        "The tool set name is empty",
+    ),
+    (
+        "failure.tool_library.invalid_tool",
+        "The tool values are invalid",
+    ),
     ("failure.file.other", "Cannot read or write the file"),
     ("failure.model_file.too_large", "The file is too large"),
     (

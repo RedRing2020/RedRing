@@ -38,6 +38,11 @@ impl AppState {
         crate::fatal_error_dialog::set_fatal_error_locale(locale);
         self.refresh_snapshot_window_title();
         self.app_settings.set_locale(locale);
+        self.save_app_settings();
+    }
+
+    /// アプリの設定を保存する（保存のファイルがない・保存できないときは、知らせの行に出す）
+    pub(crate) fn save_app_settings(&mut self) {
         let Some(path) = &self.app_settings_path else {
             self.set_notice(Notice::SettingsNotSaved);
             return;

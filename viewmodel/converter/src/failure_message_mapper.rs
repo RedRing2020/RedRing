@@ -5,6 +5,7 @@
 use application::cam_simulation_workflow::CamSimulationWorkflowError;
 use application::product_shape::{ProductShapeError, StepImportError};
 use application::space_model_file::SpaceModelFileError;
+use application::tool_library::{ToolLibraryEditError, ToolLibraryFileError};
 use i18n_foundation::{UiMessage, UiMessageArg};
 
 use crate::cutting_simulation_session::CuttingSimulationSessionError;
@@ -165,11 +166,73 @@ pub fn model_file_failure_message(error: &SpaceModelFileError) -> UiMessage {
     }
 }
 
+/// ツールライブラリのファイルの読み書きの失敗 `error` の、画面に出す理由
+pub fn tool_library_file_failure_message(error: &ToolLibraryFileError) -> UiMessage {
+    use application::space_model_file::BinaryFormatError;
+    use application::space_model_file::FORMAT_VERSION_MAJOR_V1;
+    match error {
+        ToolLibraryFileError::Io(error) => file_failure_message(error.kind()),
+        ToolLibraryFileError::TooLarge => message("failure.model_file.too_large"),
+        // 新しい版のアプリで保存したファイル（知らない必須の区画・知っているより新しい版）
+        ToolLibraryFileError::UnknownRequiredSection(_) => message("failure.model_file.newer"),
+        ToolLibraryFileError::UnsupportedSectionVersion { version, .. } if *version > 1 => {
+            message("failure.model_file.newer")
+        }
+        ToolLibraryFileError::Format(BinaryFormatError::UnsupportedMinorVersion {
+            found_minor,
+            supported_minors,
+            ..
+        }) if supported_minors.iter().all(|minor| found_minor > minor) => {
+            message("failure.model_file.newer")
+        }
+        ToolLibraryFileError::Format(BinaryFormatError::UnsupportedMajorVersion {
+            found,
+            supported,
+        }) if found > supported => message("failure.model_file.newer"),
+        ToolLibraryFileError::Format(BinaryFormatError::ConverterRequired {
+            found_major, ..
+        }) if *found_major > FORMAT_VERSION_MAJOR_V1 => message("failure.model_file.newer"),
+        ToolLibraryFileError::InvalidSection {
+            field: "library.name",
+            ..
+        } => message("failure.tool_library.empty_name"),
+        ToolLibraryFileError::UnsupportedSectionVersion { .. }
+        | ToolLibraryFileError::Format(_)
+        | ToolLibraryFileError::MissingSection(_)
+        | ToolLibraryFileError::DuplicateSection(_)
+        | ToolLibraryFileError::InvalidSectionTable(_)
+        | ToolLibraryFileError::InvalidSection { .. } => message("failure.model_file.invalid"),
+    }
+}
+
+/// 共有のツールライブラリへの書き込みの失敗 `error` の、画面に出す理由
+pub fn tool_library_edit_failure_message(error: &ToolLibraryEditError) -> UiMessage {
+    match error {
+        ToolLibraryEditError::Locked(lock) => {
+            crate::tool_library_session::locked_message(&lock.owner)
+        }
+        ToolLibraryEditError::ReadOnly(_) => message("failure.tool_library.read_only"),
+        ToolLibraryEditError::File(error) => tool_library_file_failure_message(error),
+        ToolLibraryEditError::ToolSetNotFound(_) => {
+            message("failure.tool_library.toolset_not_found")
+        }
+        ToolLibraryEditError::InvalidEdit("library.name") => {
+            message("failure.tool_library.empty_name")
+        }
+        ToolLibraryEditError::InvalidEdit("toolset.name") => {
+            message("failure.tool_library.empty_toolset_name")
+        }
+        ToolLibraryEditError::InvalidEdit(_) => message("failure.tool_library.invalid_tool"),
+        ToolLibraryEditError::Unavailable => message("failure.tool_library.unavailable"),
+    }
+}
+
 /// ファイルの読み書きの失敗の種類 `kind` の、画面に出す理由（OS の文は OS の言語になるため、種類で決める）
 pub fn file_failure_message(kind: std::io::ErrorKind) -> UiMessage {
     match kind {
         std::io::ErrorKind::NotFound => message("failure.file.not_found"),
         std::io::ErrorKind::PermissionDenied => message("failure.file.permission_denied"),
+        std::io::ErrorKind::AlreadyExists => message("failure.file.already_exists"),
         std::io::ErrorKind::InvalidData | std::io::ErrorKind::UnexpectedEof => {
             message("failure.file.invalid_data")
         }

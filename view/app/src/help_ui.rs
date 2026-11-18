@@ -129,6 +129,8 @@ pub(crate) enum Notice {
     ModelSaved { file: String },
     /// モデルファイルに保存できない（ファイルの名前と理由）
     ModelSaveFailed { file: String, reason: UiMessage },
+    /// ツールライブラリに書けない・作れない（ファイルの名前と理由）
+    ToolLibraryFailed { file: String, reason: UiMessage },
 }
 
 impl Notice {
@@ -151,6 +153,7 @@ impl Notice {
             Self::ShapeImportFailed { .. }
             | Self::ModelOpenFailed { .. }
             | Self::ModelSaveFailed { .. }
+            | Self::ToolLibraryFailed { .. }
             | Self::JobManagerNotFound => NoticeLevel::Error,
             Self::NotImported
             | Self::NoToolSegments
@@ -272,6 +275,14 @@ impl Notice {
             Self::ModelSaveFailed { file, reason } => resolve_help_text(
                 locale,
                 "notice.model_save_failed",
+                &[
+                    ("file", file.clone()),
+                    ("reason", resolve_failure_message(locale, reason)),
+                ],
+            ),
+            Self::ToolLibraryFailed { file, reason } => resolve_help_text(
+                locale,
+                "notice.tool_library_failed",
                 &[
                     ("file", file.clone()),
                     ("reason", resolve_failure_message(locale, reason)),
@@ -614,6 +625,13 @@ mod tests {
                 Notice::JobManagerNotFound,
                 Notice::JobManagerStopped,
                 Notice::JobManagerAvailable,
+                Notice::ToolLibraryFailed {
+                    file: "mc1.rrtl".to_string(),
+                    reason: UiMessage {
+                        key: "failure.tool_library.read_only".to_string(),
+                        args: Vec::new(),
+                    },
+                },
             ];
             for notice in notices {
                 let text = notice.text(locale);

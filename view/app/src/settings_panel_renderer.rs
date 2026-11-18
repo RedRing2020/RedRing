@@ -2,6 +2,7 @@ use crate::help_ui::{HelpUiState, NoticeBarUiState};
 use crate::machining_conditions_ui::MachiningConditionsUiState;
 use crate::menu_bar_ui::MenuBarUiState;
 use crate::settings_panel_ui::SettingsPanelUiState;
+use crate::tool_library_ui::ToolLibraryUiState;
 use egui::{ClippedPrimitive, Context, Order, Rect, TexturesDelta, ViewportId};
 use egui_wgpu::{Renderer, RendererOptions, ScreenDescriptor};
 use egui_winit::State;
@@ -38,6 +39,16 @@ pub(crate) struct SettingsPanelRenderer {
     /// 下端の UI（工程リスト・ステータスバー）の高さ（論理座標。最後に描いた画面の値）
     bottom_inset: f32,
     pixels_per_point: f32,
+}
+
+/// 1 つのフレームで描く、メニューバー・知らせの行・パネル・ウィンドウの状態
+pub struct UiFrameStates<'a, 'n> {
+    pub menu: &'a mut MenuBarUiState,
+    pub notice: &'a mut NoticeBarUiState<'n>,
+    pub panel: &'a mut SettingsPanelUiState,
+    pub conditions: &'a mut MachiningConditionsUiState,
+    pub help: &'a mut HelpUiState,
+    pub tool_library: &'a mut ToolLibraryUiState,
 }
 
 impl SettingsPanelRenderer {
@@ -115,15 +126,15 @@ impl SettingsPanelRenderer {
 
     /// メニューバー・知らせの行と、設定パネル・加工条件・ヘルプのウィンドウを、同じ egui の文脈で描く（ウィンドウは
     /// メニューバーと知らせの行の間に置く）
-    pub(crate) fn prepare(
-        &mut self,
-        window: &Window,
-        menu: &mut MenuBarUiState,
-        notice: &mut NoticeBarUiState<'_>,
-        panel: &mut SettingsPanelUiState,
-        conditions: &mut MachiningConditionsUiState,
-        help: &mut HelpUiState,
-    ) {
+    pub(crate) fn prepare(&mut self, window: &Window, states: &mut UiFrameStates<'_, '_>) {
+        let UiFrameStates {
+            menu,
+            notice,
+            panel,
+            conditions,
+            help,
+            tool_library,
+        } = states;
         let raw_input = self.egui_state.take_egui_input(window);
         let mut area = Rect::NOTHING;
         let full_output = self.egui_context.run_ui(raw_input, |ui| {
@@ -134,6 +145,7 @@ impl SettingsPanelRenderer {
             area = ui.available_rect_before_wrap();
             panel.show(ui, area);
             conditions.show_windows(ui, area);
+            tool_library.show(ui, area);
             help.show(ui, area);
         });
         let pixels_per_point = full_output.pixels_per_point;

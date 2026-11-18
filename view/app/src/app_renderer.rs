@@ -2,13 +2,9 @@ use stage::{MeshStage, RenderStage};
 use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 use winit::{event::WindowEvent, window::Window};
 
-use crate::help_ui::{HelpUiState, NoticeBarUiState};
-use crate::machining_conditions_ui::MachiningConditionsUiState;
-use crate::menu_bar_ui::MenuBarUiState;
 use crate::selection_rect::SelectionRect;
 use crate::selection_rect_renderer::SelectionRectRenderer;
-use crate::settings_panel_renderer::SettingsPanelRenderer;
-use crate::settings_panel_ui::SettingsPanelUiState;
+use crate::settings_panel_renderer::{SettingsPanelRenderer, UiFrameStates};
 use crate::snapshot_overlay_renderer::{SnapshotOverlayRenderer, SnapshotOverlayStyle};
 
 pub struct RenderFrameContext<'a> {
@@ -66,17 +62,8 @@ impl AppRenderer {
         self.settings_panel_renderer.handle_mouse_motion(delta);
     }
 
-    pub fn prepare_ui_windows(
-        &mut self,
-        window: &Window,
-        menu: &mut MenuBarUiState,
-        notice: &mut NoticeBarUiState<'_>,
-        panel: &mut SettingsPanelUiState,
-        conditions: &mut MachiningConditionsUiState,
-        help: &mut HelpUiState,
-    ) {
-        self.settings_panel_renderer
-            .prepare(window, menu, notice, panel, conditions, help);
+    pub fn prepare_ui_windows(&mut self, window: &Window, states: &mut UiFrameStates<'_, '_>) {
+        self.settings_panel_renderer.prepare(window, states);
     }
 
     pub fn update_selection_rect_overlay(

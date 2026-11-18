@@ -117,6 +117,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "保存できません: {file}（{reason}）",
     ),
     (
+        "notice.tool_library_failed",
+        "ツールライブラリに書けません: {file}（{reason}）",
+    ),
+    (
         "notice.not_imported",
         "切削シミュレーションを取り込んでから操作してください",
     ),
@@ -288,6 +292,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("notice.model_open_failed", "Cannot open: {file} ({reason})"),
     ("notice.model_saved", "Saved: {file}"),
     ("notice.model_save_failed", "Cannot save: {file} ({reason})"),
+    (
+        "notice.tool_library_failed",
+        "Cannot write the tool library: {file} ({reason})",
+    ),
     ("notice.not_imported", "Import a cutting simulation first"),
     (
         "notice.no_tool_segments",

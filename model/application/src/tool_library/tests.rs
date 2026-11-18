@@ -890,3 +890,52 @@ fn removed_tool_sets_are_registered_again_with_the_same_id() {
     );
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn libraries_are_created_added_and_removed_from_the_catalog() {
+    let dir = test_dir("catalog-list");
+    let mut catalog = ToolLibraryCatalog::open(Vec::new());
+    let path = dir.join("mc1.rrtl");
+    assert_eq!(
+        catalog
+            .create(path.clone(), "MC 1 号機".to_string(), &info())
+            .unwrap(),
+        0
+    );
+    let created = catalog.entries()[0].library().unwrap();
+    assert_eq!(created.name, "MC 1 号機");
+    assert!(created.toolsets.is_empty());
+    assert_eq!(load_tool_library(&path).unwrap().0, *created);
+
+    // 同じ場所には作らない（ほかのライブラリを上書きしない）・空の名前では作らない
+    assert!(matches!(
+        catalog.create(path.clone(), "別".to_string(), &info()),
+        Err(ToolLibraryFileError::Io(error)) if error.kind() == std::io::ErrorKind::AlreadyExists
+    ));
+    assert!(matches!(
+        catalog.create(dir.join("x.rrtl"), String::new(), &info()),
+        Err(ToolLibraryFileError::InvalidSection {
+            field: "library.name",
+            ..
+        })
+    ));
+    assert!(!dir.join("x.rrtl").exists());
+
+    // 同じ場所は 1 回だけ持つ
+    let other = saved_library(&dir, "mc2.rrtl");
+    assert_eq!(catalog.add(other.clone()), 1);
+    assert_eq!(catalog.add(path.clone()), 0);
+    assert_eq!(catalog.paths(), [path.clone(), other.clone()]);
+    assert_eq!(
+        ToolLibraryCatalog::open([path.clone(), path.clone(), other.clone()]).paths(),
+        [path.clone(), other.clone()]
+    );
+
+    // 外してもファイルは消さない
+    catalog.remove(0);
+    assert_eq!(catalog.paths(), [other]);
+    assert!(path.exists());
+    catalog.remove(9);
+    assert_eq!(catalog.entries().len(), 1);
+    let _ = fs::remove_dir_all(&dir);
+}

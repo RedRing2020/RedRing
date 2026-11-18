@@ -85,6 +85,19 @@ pub struct ToolLibrary {
     ext_attributes: Vec<ExtAttribute>,
 }
 
+impl ToolLibrary {
+    /// 新しい ID で、名前 `name` の、ツールセットのないライブラリを作る
+    pub fn new(name: String) -> Self {
+        Self {
+            id: ToolLibraryId::new_random(),
+            name,
+            toolsets: Vec::new(),
+            preserved: Vec::new(),
+            ext_attributes: Vec::new(),
+        }
+    }
+}
+
 /// 保存したときの情報（区画 `LINF` の、ライブラリの ID・名前のほか）
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolLibrarySaveInfo {
