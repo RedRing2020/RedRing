@@ -670,6 +670,79 @@ fn revision(
     store.operation(sequence, operation).unwrap().revision()
 }
 
+/// 工程の中身 `content` の工具の、一覧 `catalog` のライブラリと比べた状態
+fn status_of(
+    catalog: &ToolLibraryCatalog,
+    content: &MachiningOperationContent,
+) -> OperationToolStatus {
+    catalog.operation_tool_status(
+        content.attributes.toolset.as_ref(),
+        &content.conditions.tool,
+    )
+}
+
+/// 工程の工具をツールセットに選び替えて、保管先に入れる
+fn select_in_store(
+    store: &mut MachiningSequenceStore,
+    sequence: MachiningSequenceId,
+    operation: MachiningOperationId,
+    library: &ToolLibrary,
+    toolset: ToolSetId,
+) -> Result<(), OperationToolError> {
+    let content = content_with_toolset(
+        store.operation_content(sequence, operation).unwrap(),
+        library,
+        toolset,
+    )?;
+    store
+        .set_operation_content(sequence, operation, content)
+        .unwrap();
+    Ok(())
+}
+
+/// 工程の工具をライブラリの値にそろえて、保管先に入れる
+fn align_in_store(
+    store: &mut MachiningSequenceStore,
+    sequence: MachiningSequenceId,
+    operation: MachiningOperationId,
+    catalog: &ToolLibraryCatalog,
+) -> Result<(), OperationToolError> {
+    let content = aligned_operation_content(
+        store.operation_content(sequence, operation).unwrap(),
+        catalog,
+    )?;
+    store
+        .set_operation_content(sequence, operation, content)
+        .unwrap();
+    Ok(())
+}
+
+/// 工程の工具の写しをライブラリに登録して、保管先に入れる
+#[allow(clippy::too_many_arguments)]
+fn register_in_store(
+    store: &mut MachiningSequenceStore,
+    sequence: MachiningSequenceId,
+    operation: MachiningOperationId,
+    catalog: &mut ToolLibraryCatalog,
+    library_index: usize,
+    name: String,
+    owner: &str,
+    info: &ToolLibrarySaveInfo,
+) -> Result<(), OperationToolError> {
+    let content = register_operation_tool(
+        store.operation_content(sequence, operation).unwrap(),
+        catalog,
+        library_index,
+        name,
+        owner,
+        info,
+    )?;
+    store
+        .set_operation_content(sequence, operation, content)
+        .unwrap();
+    Ok(())
+}
+
 /// 保存した `sample_library` だけの一覧
 fn sample_catalog(name: &str) -> (PathBuf, ToolLibraryCatalog) {
     let dir = test_dir(name);
@@ -696,7 +769,7 @@ fn the_tool_of_an_operation_is_compared_with_the_libraries() {
             angle_degrees: 0.0,
         },
     );
-    let status = |content: &MachiningOperationContent| catalog.operation_tool_status(content);
+    let status = |content: &MachiningOperationContent| status_of(&catalog, content);
     assert_eq!(status(&content), OperationToolStatus::NotFromLibrary);
 
     let reference = |library: u128, toolset: u128| ToolSetReference {
@@ -722,7 +795,7 @@ fn aligning_revises_the_operation_and_selecting_the_same_values_does_not() {
     let (mut store, sequence, operation) = store_with_operation(library.toolsets[0].tool.clone());
 
     // 同じ値のツールセットを選んでも、改訂は進まない（参照だけが替わる）
-    select_operation_toolset(&mut store, sequence, operation, &library, ball_6()).unwrap();
+    select_in_store(&mut store, sequence, operation, &library, ball_6()).unwrap();
     assert_eq!(revision(&store, sequence, operation), 1);
     let content = store.operation_content(sequence, operation).unwrap();
     assert_eq!(
@@ -734,7 +807,7 @@ fn aligning_revises_the_operation_and_selecting_the_same_values_does_not() {
         })
     );
     assert_eq!(
-        catalog.operation_tool_status(content),
+        status_of(&catalog, content),
         OperationToolStatus::SameAsLibrary
     );
 
@@ -745,17 +818,17 @@ fn aligning_revises_the_operation_and_selecting_the_same_values_does_not() {
         .set_operation_content(sequence, operation, changed)
         .unwrap();
     assert_eq!(revision(&store, sequence, operation), 2);
-    align_operation_tool(&mut store, sequence, operation, &catalog).unwrap();
+    align_in_store(&mut store, sequence, operation, &catalog).unwrap();
     assert_eq!(revision(&store, sequence, operation), 3);
     let content = store.operation_content(sequence, operation).unwrap();
     assert_eq!(content.conditions.tool, library.toolsets[0].tool);
 
     // 違う値のツールセットに選び替えると、改訂が進む
     let flat = ToolSetId::from_uuid(uuid(3));
-    select_operation_toolset(&mut store, sequence, operation, &library, flat).unwrap();
+    select_in_store(&mut store, sequence, operation, &library, flat).unwrap();
     assert_eq!(revision(&store, sequence, operation), 4);
     assert!(matches!(
-        select_operation_toolset(
+        select_in_store(
             &mut store,
             sequence,
             operation,
@@ -772,7 +845,7 @@ fn all_operations_of_a_sequence_are_aligned_at_once() {
     let (dir, catalog) = sample_catalog("operation-align-all");
     let library = catalog.entries()[0].library().unwrap().clone();
     let (mut store, sequence, first) = store_with_operation(library.toolsets[0].tool.clone());
-    select_operation_toolset(&mut store, sequence, first, &library, ball_6()).unwrap();
+    select_in_store(&mut store, sequence, first, &library, ball_6()).unwrap();
     let mut differs = store.operation_content(sequence, first).unwrap().clone();
     differs.conditions.tool = Tool::ball_end_mill("ball_endmill_6mm".to_string(), 6.0, 40.0);
     let second = store.add_operation(sequence, differs.clone()).unwrap();
@@ -805,7 +878,7 @@ fn operations_from_files_without_tool_sets_are_registered_and_become_the_same_as
     // 前の版のモデルファイルの工程（参照のない、R2 ボールの工程）
     let tool = Tool::ball_end_mill("ball_endmill_4mm".to_string(), 4.0, 20.0);
     let (mut store, sequence, operation) = store_with_operation(tool.clone());
-    register_operation_tool(
+    register_in_store(
         &mut store,
         sequence,
         operation,
@@ -820,7 +893,7 @@ fn operations_from_files_without_tool_sets_are_registered_and_become_the_same_as
     assert_eq!(revision(&store, sequence, operation), 1);
     let content = store.operation_content(sequence, operation).unwrap();
     assert_eq!(
-        catalog.operation_tool_status(content),
+        status_of(&catalog, content),
         OperationToolStatus::SameAsLibrary
     );
     let reference = content.attributes.toolset.clone().unwrap();
@@ -835,7 +908,7 @@ fn operations_from_files_without_tool_sets_are_registered_and_become_the_same_as
 
     // すでにライブラリにある工具は、写しで上書きしない
     assert!(matches!(
-        register_operation_tool(
+        register_in_store(
             &mut store,
             sequence,
             operation,
@@ -855,20 +928,20 @@ fn removed_tool_sets_are_registered_again_with_the_same_id() {
     let (dir, mut catalog) = sample_catalog("operation-register-again");
     let library = catalog.entries()[0].library().unwrap().clone();
     let (mut store, sequence, operation) = store_with_operation(library.toolsets[0].tool.clone());
-    select_operation_toolset(&mut store, sequence, operation, &library, ball_6()).unwrap();
+    select_in_store(&mut store, sequence, operation, &library, ball_6()).unwrap();
     catalog
         .edit(0, ToolLibraryEdit::RemoveToolSet(ball_6()), "pc-b", &info())
         .unwrap();
     let content = store.operation_content(sequence, operation).unwrap();
     assert_eq!(
-        catalog.operation_tool_status(content),
+        status_of(&catalog, content),
         OperationToolStatus::NotInLibrary
     );
     assert!(matches!(
-        align_operation_tool(&mut store, sequence, operation, &catalog),
+        align_in_store(&mut store, sequence, operation, &catalog),
         Err(OperationToolError::ToolSetNotFound)
     ));
-    register_operation_tool(
+    register_in_store(
         &mut store,
         sequence,
         operation,
@@ -885,7 +958,7 @@ fn removed_tool_sets_are_registered_again_with_the_same_id() {
         ball_6()
     );
     assert_eq!(
-        catalog.operation_tool_status(content),
+        status_of(&catalog, content),
         OperationToolStatus::SameAsLibrary
     );
     let _ = fs::remove_dir_all(&dir);

@@ -9,8 +9,8 @@ use super::catalog::ToolLibraryCatalog;
 use super::shared::{ToolLibraryEdit, ToolLibraryEditError};
 use super::{ToolLibrary, ToolLibrarySaveInfo};
 use crate::machining_sequence::{
-    MachiningOperationContent, MachiningOperationId, MachiningSequenceError, MachiningSequenceId,
-    MachiningSequenceStore, ToolLibraryId, ToolSetEntry, ToolSetId, ToolSetReference,
+    MachiningOperationContent, MachiningSequenceError, MachiningSequenceId, MachiningSequenceStore,
+    Tool, ToolLibraryId, ToolSetEntry, ToolSetId, ToolSetReference,
 };
 
 /// 加工工程の工具の、ツールライブラリと比べた状態（工程の計算の状態とは別。どの状態でも工程は計算できる）
@@ -85,12 +85,13 @@ impl ToolLibraryCatalog {
         Some((library, entry))
     }
 
-    /// 加工工程の中身 `content` の工具の、ライブラリと比べた状態
+    /// 加工工程の工具（選んだツールセットへの参照 `toolset` と工具の値の写し `tool`）の、ライブラリと比べた状態
     pub fn operation_tool_status(
         &self,
-        content: &MachiningOperationContent,
+        toolset: Option<&ToolSetReference>,
+        tool: &Tool<f64>,
     ) -> OperationToolStatus {
-        let Some(reference) = &content.attributes.toolset else {
+        let Some(reference) = toolset else {
             return OperationToolStatus::NotFromLibrary;
         };
         let Some((_, library)) = self.library(reference.library) else {
@@ -102,9 +103,7 @@ impl ToolLibraryCatalog {
             .find(|entry| entry.id == reference.toolset)
         {
             None => OperationToolStatus::NotInLibrary,
-            Some(entry) if entry.tool == content.conditions.tool => {
-                OperationToolStatus::SameAsLibrary
-            }
+            Some(entry) if entry.tool == *tool => OperationToolStatus::SameAsLibrary,
             Some(_) => OperationToolStatus::DiffersFromLibrary,
         }
     }
@@ -126,56 +125,42 @@ fn with_toolset(
     content
 }
 
-/// 加工手順 `sequence` の加工工程 `operation` の工具を、ライブラリ `library` のツールセット `toolset` に選び替える
-/// （工具の値が今と同じなら、改訂は進まない）
+/// 中身 `content` の工具を、ライブラリ `library` のツールセット `toolset` に選び替えた中身（工具の値が今と同じなら、
+/// 工程に入れても改訂は進まない）
 ///
 /// # Errors
 ///
-/// 保管していない加工手順・加工手順にない加工工程の場合、ライブラリにツールセットがない場合。
-pub fn select_operation_toolset(
-    sequences: &mut MachiningSequenceStore,
-    sequence: MachiningSequenceId,
-    operation: MachiningOperationId,
+/// ライブラリにツールセットがない場合。
+pub fn content_with_toolset(
+    content: &MachiningOperationContent,
     library: &ToolLibrary,
     toolset: ToolSetId,
-) -> Result<(), OperationToolError> {
+) -> Result<MachiningOperationContent, OperationToolError> {
     let entry = library
         .toolsets
         .iter()
         .find(|entry| entry.id == toolset)
         .ok_or(OperationToolError::ToolSetNotFound)?;
-    let content = with_toolset(
-        sequences.operation_content(sequence, operation)?,
-        library,
-        entry,
-    );
-    sequences.set_operation_content(sequence, operation, content)?;
-    Ok(())
+    Ok(with_toolset(content, library, entry))
 }
 
-/// 加工手順 `sequence` の加工工程 `operation` の工具を、参照しているツールセットの今の値と名前にそろえる（工具の値が
-/// 変われば、改訂が進む）
+/// 中身 `content` の工具を、参照しているツールセットの今の値と名前にそろえた中身（工具の値が変われば、工程に入れると
+/// 改訂が進む）
 ///
 /// # Errors
 ///
-/// 保管していない加工手順・加工手順にない加工工程の場合、参照しているツールセットが使えるライブラリにない場合
-/// （ライブラリから選んでいない工程を含む）。
-pub fn align_operation_tool(
-    sequences: &mut MachiningSequenceStore,
-    sequence: MachiningSequenceId,
-    operation: MachiningOperationId,
+/// 参照しているツールセットが使えるライブラリにない場合（ライブラリから選んでいない工程を含む）。
+pub fn aligned_operation_content(
+    content: &MachiningOperationContent,
     catalog: &ToolLibraryCatalog,
-) -> Result<(), OperationToolError> {
-    let content = sequences.operation_content(sequence, operation)?;
+) -> Result<MachiningOperationContent, OperationToolError> {
     let (library, entry) = content
         .attributes
         .toolset
         .as_ref()
         .and_then(|reference| catalog.toolset(reference))
         .ok_or(OperationToolError::ToolSetNotFound)?;
-    let content = with_toolset(content, library, entry);
-    sequences.set_operation_content(sequence, operation, content)?;
-    Ok(())
+    Ok(with_toolset(content, library, entry))
 }
 
 /// 加工手順 `sequence` のすべての加工工程のうち、参照しているツールセットが使えるライブラリにあるものを、その今の
@@ -192,41 +177,40 @@ pub fn align_sequence_tools(
     let mut changed = 0;
     for operation in sequences.operation_ids(sequence)? {
         let content = sequences.operation_content(sequence, operation)?;
-        if catalog.operation_tool_status(content) == OperationToolStatus::DiffersFromLibrary {
+        let Ok(aligned) = aligned_operation_content(content, catalog) else {
+            continue;
+        };
+        if aligned.conditions != content.conditions {
             changed += 1;
         }
-        match align_operation_tool(sequences, sequence, operation, catalog) {
-            Ok(()) | Err(OperationToolError::ToolSetNotFound) => {}
-            Err(error) => return Err(error),
-        }
+        sequences.set_operation_content(sequence, operation, aligned)?;
     }
     Ok(changed)
 }
 
-/// 加工手順 `sequence` の加工工程 `operation` の工具の写しを、一覧の `library_index` 番目のライブラリに名前 `name`
-/// で登録し、工程の参照をそのツールセットにする（工具の値は変わらないため、改訂は進まない）
+/// 中身 `content` の工具の写しを、一覧の `library_index` 番目のライブラリに名前 `name` で登録し、参照をそのツール
+/// セットにした中身を返す（工具の値は変わらないため、工程に入れても改訂は進まない）
 ///
-/// 工程がツールセットの参照を持てば同じツールセットの ID で、持たなければ新しい ID で登録する。ライブラリへは、
-/// 書き手 `owner`・保存したときの情報 `info` で書く（[`ToolLibraryCatalog::edit`]）。
+/// 参照を持てば同じツールセットの ID で、持たなければ新しい ID で登録する。ライブラリへは、書き手 `owner`・保存した
+/// ときの情報 `info` で書く（[`ToolLibraryCatalog::edit`]）。
 ///
 /// # Errors
 ///
-/// 保管していない加工手順・加工手順にない加工工程の場合、ライブラリに書けない場合（名前が空・工具の値が妥当で
-/// ない場合を含む）、工具のツールセットがすでに使えるライブラリにある場合（ライブラリの値を写しで上書きしない）。
-#[allow(clippy::too_many_arguments)]
+/// ライブラリに書けない場合（名前が空・工具の値が妥当でない場合を含む）、工具のツールセットがすでに使えるライブラリに
+/// ある場合（ライブラリの値を写しで上書きしない）。
 pub fn register_operation_tool(
-    sequences: &mut MachiningSequenceStore,
-    sequence: MachiningSequenceId,
-    operation: MachiningOperationId,
+    content: &MachiningOperationContent,
     catalog: &mut ToolLibraryCatalog,
     library_index: usize,
     name: String,
     owner: &str,
     info: &ToolLibrarySaveInfo,
-) -> Result<(), OperationToolError> {
-    let content = sequences.operation_content(sequence, operation)?;
+) -> Result<MachiningOperationContent, OperationToolError> {
     if matches!(
-        catalog.operation_tool_status(content),
+        catalog.operation_tool_status(
+            content.attributes.toolset.as_ref(),
+            &content.conditions.tool
+        ),
         OperationToolStatus::SameAsLibrary | OperationToolStatus::DiffersFromLibrary
     ) {
         return Err(OperationToolError::AlreadyInLibrary);
@@ -252,11 +236,5 @@ pub fn register_operation_tool(
         .get(library_index)
         .and_then(|entry| entry.library())
         .ok_or(OperationToolError::ToolSetNotFound)?;
-    let content = with_toolset(
-        sequences.operation_content(sequence, operation)?,
-        library,
-        &entry,
-    );
-    sequences.set_operation_content(sequence, operation, content)?;
-    Ok(())
+    Ok(with_toolset(content, library, &entry))
 }
