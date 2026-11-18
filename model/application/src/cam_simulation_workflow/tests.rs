@@ -216,6 +216,7 @@ fn operation_content() -> MachiningOperationContent {
         attributes: MachiningOperationAttributes {
             name: "仕上げ".to_string(),
             stage: MachiningStage::Finish,
+            toolset: None,
         },
         conditions: MachiningOperationConditions {
             spec: OperationSpec::Scanline(ScanlineParams {

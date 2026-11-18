@@ -15,7 +15,8 @@ pub use cam_core::{
 use cam_entity::{MachiningOperation, MachiningSequence};
 pub use cam_entity::{
     MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
-    MachiningOperationId, MachiningRevisionKey, MachiningSequenceId, MachiningStock,
+    MachiningOperationId, MachiningRevisionKey, MachiningSequenceId, MachiningStock, ToolLibraryId,
+    ToolSetId, ToolSetReference,
 };
 use geo_entity::FaceId;
 
@@ -130,6 +131,7 @@ pub fn scanline_finish_operation_content(
         attributes: MachiningOperationAttributes {
             name,
             stage: MachiningStage::Finish,
+            toolset: None,
         },
         conditions: MachiningOperationConditions {
             spec: OperationSpec::Scanline(scanline),

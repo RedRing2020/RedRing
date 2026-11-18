@@ -4,6 +4,8 @@ use std::num::NonZeroU32;
 use cam_core::{MachiningBoundary, MachiningStage, OperationSpec, ToleranceProfile, Tool};
 use uuid::Uuid;
 
+use crate::ToolSetReference;
+
 /// 加工工程の ID（全体で一意で、中身を変えても同じ工程を指す）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MachiningOperationId(Uuid);
@@ -66,6 +68,8 @@ pub struct MachiningOperationAttributes {
     pub name: String,
     /// 加工の段階
     pub stage: MachiningStage,
+    /// 工具を選んだツールライブラリの項目（ライブラリから選んでいない工程は `None`）
+    pub toolset: Option<ToolSetReference>,
 }
 
 /// 加工工程の計算の条件（計算の入力はこれだけから作る。変えると改訂の番号が増える）

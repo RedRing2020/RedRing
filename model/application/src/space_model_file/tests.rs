@@ -18,7 +18,7 @@ use super::*;
 use crate::machining_sequence::{
     MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
     MachiningOperationId, MachiningOperationRecord, MachiningRevisionKey, MachiningSequenceId,
-    MachiningSequenceRecord, MachiningStock,
+    MachiningSequenceRecord, MachiningStock, ToolLibraryId, ToolSetId, ToolSetReference,
 };
 use crate::product_shape::{ProductFaceGeometry, ProductFaceRecord};
 
@@ -111,6 +111,7 @@ fn content(name: &str) -> MachiningOperationContent {
         attributes: MachiningOperationAttributes {
             name: name.to_string(),
             stage: MachiningStage::SemiFinish,
+            toolset: None,
         },
         conditions: MachiningOperationConditions {
             spec: OperationSpec::Scanline(ScanlineParams {
@@ -137,6 +138,13 @@ fn sequence_records() -> Vec<MachiningSequenceRecord> {
     rough.conditions.boundary = None;
     rough.conditions.tool = Tool::flat_end_mill("EM10".to_string(), 10.0, 50.0);
     rough.conditions.tolerance_profile = ToleranceProfile::PressRough;
+    // 中の工程は、ツールライブラリから工具を選んだ工程とする
+    let mut semi_finish = content("中");
+    semi_finish.attributes.toolset = Some(ToolSetReference {
+        library: ToolLibraryId::from_uuid(uuid(15)),
+        toolset: ToolSetId::from_uuid(uuid(16)),
+        name: "R3 ボール".to_string(),
+    });
     vec![MachiningSequenceRecord {
         id: MachiningSequenceId::from_uuid(uuid(10)),
         name: "手順".to_string(),
@@ -162,7 +170,7 @@ fn sequence_records() -> Vec<MachiningSequenceRecord> {
             },
             MachiningOperationRecord {
                 id: MachiningOperationId::from_uuid(uuid(13)),
-                content: content("中"),
+                content: semi_finish,
                 revision: NonZeroU32::new(3).unwrap(),
                 revision_key: MachiningRevisionKey::from_uuid(uuid(14)),
                 conditions_set: true,
@@ -478,10 +486,8 @@ fn files_are_saved_without_leaving_a_partial_file_and_loaded_again() {
     let _ = fs::remove_dir_all(&dir);
 }
 
-/// 版 1 のモデルファイルのゴールデンのバイト列（`sample_model` と `info` を書いたもの。16 進数）
-///
-/// 書き方・読み方の片方だけを変えて形式が壊れないようにする。区画の中身を変えるときは、区画の版を上げて、この
-/// バイト列を前の版として読めることを確かめる。
+/// 区画がすべて版 1 のモデルファイルのゴールデンのバイト列（区画 `MSEQ` が版 1 のときに `sample_model` と `info` を
+/// 書いたもの。16 進数。中の工程のツールライブラリの項目は、版 1 では書かない）
 const GOLDEN_V1: &str = concat!(
     "52524d4600000300010100000000020400000000000003000000494e464f010001002100000000000000000000000000",
     "0000000000000000006405000000302e312e337b68e5cf8b010000464143450100010041020000000000000200000000",
@@ -507,11 +513,45 @@ const GOLDEN_V1: &str = concat!(
     "00000008400001000000000000f03f00000000000000400000000000000840000000000000104002",
 );
 
-fn golden() -> Vec<u8> {
-    (0..GOLDEN_V1.len())
+/// 区画 `MSEQ` が版 2 のモデルファイルのゴールデンのバイト列（`sample_model` と `info` を書いたもの。16 進数）
+///
+/// 書き方・読み方の片方だけを変えて形式が壊れないようにする。区画の中身を変えるときは、区画の版を上げて、この
+/// バイト列を前の版として読めることを確かめる。
+const GOLDEN_V2: &str = concat!(
+    "52524d4600000300010100000000340400000000000003000000494e464f010001002100000000000000000000000000",
+    "0000000000000000006405000000302e312e337b68e5cf8b010000464143450100010041020000000000000200000000",
+    "000000000000000000000000000001000000000000000000000000000000020103000000000000000000000000000000",
+    "000000000000000000000000000000000000f03f00000000000000000000000000000000000000000000000000000000",
+    "0000f03f000000000000e03f01000000000000000100000002000000cdcc4c3ecdcccc3e9a99193f0000803f02000000",
+    "4006000000e8a39ce58aa900010000005abe98000300000000008066400105000000e99da22031000100000009000000",
+    "e8a68be58887e3828a00f153650000000015cd5b0700f153650000000015cd5b07010000000f000000e58f96e3828ae8",
+    "bebce381bfe5858305000000612e73746c00000000000000000000000000000003000000000000000000000000000000",
+    "0402010000000100000002000000020000000400000000000000000000000000000000000000000000000000f03f0000",
+    "00000000f03f0400000000000000000000000000000000000000000000000000f03f000000000000f03f000000000000",
+    "00000000000000000000000000000000000000000000000000000000000000001440000000000000f03f000000000000",
+    "144000000000000000000000000000000040000000000000144000000000000014400000000000000840010000000000",
+    "00f03f000000000000e03f000000000000e83f000000000000f03f0000803f0000803f0000803f0000803f010000803f",
+    "0100000030010000000000000000000000f153650000000015cd5b0700f153650000000015cd5b07000000004d534551",
+    "020001009e01000000000000010000000000000000000000000000000000000a06000000e6898be9a086020000000000",
+    "000000000000000000000000000200000000000000000000000000000063000000000000f03f00000000000000400000",
+    "0000000008400000000000001040000000000000000000000000000014409a9999999999a93f02000000000000000000",
+    "0000000000000000000b010000000000000000000000000000000000000c03000000e88d92010001000000000000e03f",
+    "0000000000c09240020300000000008046400104000000454d3130000000000000244000000000000000000100000000",
+    "0000494000010000000000000000000000000000000d030000000000000000000000000000000000000e03000000e4b8",
+    "ad02010000000000000000000000000000000f000000000000000000000000000000100c000000523320e3839ce383bc",
+    "e383ab01000000000000e03f0000000000c0924002030000000000804640030400000042454d36000000000000184000",
+    "000000000008400001000000000000f03f00000000000000400000000000000840000000000000104002",
+);
+
+fn from_hex(hex: &str) -> Vec<u8> {
+    (0..hex.len())
         .step_by(2)
-        .map(|at| u8::from_str_radix(&GOLDEN_V1[at..at + 2], 16).unwrap())
+        .map(|at| u8::from_str_radix(&hex[at..at + 2], 16).unwrap())
         .collect()
+}
+
+fn golden() -> Vec<u8> {
+    from_hex(GOLDEN_V2)
 }
 
 #[test]
@@ -526,6 +566,35 @@ fn the_golden_bytes_are_read() {
     assert_eq!(saved, info());
     assert_same_faces(&model.shapes.records(), &face_records());
     assert_eq!(model.sequences.records(), sequence_records());
+}
+
+#[test]
+fn files_with_the_version_1_sequences_are_read_without_toolsets() {
+    let (model, saved) = read(&from_hex(GOLDEN_V1)).unwrap();
+    assert_eq!(saved, info());
+    let mut expected = sequence_records();
+    for operation in &mut expected[0].operations {
+        operation.content.attributes.toolset = None;
+    }
+    assert_eq!(model.sequences.records(), expected);
+    // 書き直すと、今の版（2）の区画になる
+    let rewritten = bytes(&model);
+    let at = rewritten
+        .windows(4)
+        .position(|kind| kind == b"MSEQ")
+        .unwrap();
+    assert_eq!(&rewritten[at + 4..at + 6], &2_u16.to_le_bytes());
+}
+
+#[test]
+fn sequences_of_a_newer_version_are_rejected() {
+    let mut newer = golden();
+    let at = newer.windows(4).position(|kind| kind == b"MSEQ").unwrap();
+    newer[at + 4..at + 6].copy_from_slice(&3_u16.to_le_bytes());
+    assert!(matches!(
+        read(&newer),
+        Err(SpaceModelFileError::UnsupportedSectionVersion { kind, version: 3 }) if kind == MSEQ
+    ));
 }
 
 #[test]
@@ -548,7 +617,7 @@ fn imported_toolpaths_round_trip_in_an_optional_section() {
     let flags_at = body_at - 8 - 2;
     assert_eq!(&written[flags_at - 6..flags_at - 2], b"CLDT");
     assert_eq!(&written[flags_at..flags_at + 2], &0_u16.to_le_bytes());
-    // CL を取り込んでいなければ、区画を書かない（版 1 のゴールデンのバイト列と同じ）
+    // CL を取り込んでいなければ、区画を書かない（ゴールデンのバイト列と同じ）
     assert_eq!(bytes(&sample_model()), golden());
 
     // 読めない CL は、開かない
