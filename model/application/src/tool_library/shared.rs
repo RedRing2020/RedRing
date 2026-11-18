@@ -16,8 +16,9 @@ use super::{
 };
 use crate::machining_sequence::{ToolSetEntry, ToolSetId};
 
-/// ロックのファイルがあるときに、作り直しを試す回数
-const LOCK_ATTEMPTS: u32 = 20;
+/// ロックのファイルがあるときに、作り直しを試す回数（合わせて約 3 秒。混んでいる共有フォルダでも、ほかの書き手が
+/// 1 回の書き込みを終えるのを待てるように）
+const LOCK_ATTEMPTS: u32 = 60;
 /// ロックのファイルの作り直しを試す間
 const LOCK_RETRY_WAIT: Duration = Duration::from_millis(50);
 /// ロックのファイルを古いとみなす時間（書いている PC が止まって残ったもの）
@@ -175,8 +176,13 @@ impl Drop for LockGuard {
 }
 
 /// ロックのファイルを作る（あれば、試し直してもなければ [`ToolLibraryEditError::Locked`]）
+///
+/// 書けることは呼ぶ前に確かめているため、作るときの「権限がない」も試し直す（Windows では、ほかの書き手が消した
+/// ばかりのロックのファイルを、ほかのプログラムが開いている間は作れない）。試し直しても権限がなければ、書けない
+/// ファイルとする。
 pub(super) fn acquire_lock(path: &Path, owner: &str) -> Result<LockGuard, ToolLibraryEditError> {
     let lock = lock_path(path);
+    let mut denied = None;
     for attempt in 0..LOCK_ATTEMPTS {
         match OpenOptions::new().write(true).create_new(true).open(&lock) {
             Ok(mut file) => {
@@ -187,16 +193,16 @@ pub(super) fn acquire_lock(path: &Path, owner: &str) -> Result<LockGuard, ToolLi
                 let _ = writeln!(file, "{owner}\n{}", now_ms());
                 return Ok(guard);
             }
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-                if attempt + 1 < LOCK_ATTEMPTS {
-                    std::thread::sleep(LOCK_RETRY_WAIT);
-                }
-            }
-            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
-                return Err(ToolLibraryEditError::ReadOnly(error));
-            }
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => denied = None,
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => denied = Some(error),
             Err(error) => return Err(ToolLibraryFileError::Io(error).into()),
         }
+        if attempt + 1 < LOCK_ATTEMPTS {
+            std::thread::sleep(LOCK_RETRY_WAIT);
+        }
+    }
+    if let Some(error) = denied {
+        return Err(ToolLibraryEditError::ReadOnly(error));
     }
     let lock = tool_library_lock(path).unwrap_or(ToolLibraryLock {
         owner: String::new(),
