@@ -142,6 +142,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "failure.tool_library.invalid_tool",
         "工具の値に誤りがあります",
     ),
+    (
+        "failure.tool_library.already_registered",
+        "この工具はすでにライブラリにあります",
+    ),
     ("failure.file.other", "ファイルを読み書きできません"),
     ("failure.model_file.too_large", "ファイルが大きすぎます"),
     (
@@ -302,6 +306,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.tool_library.invalid_tool",
         "The tool values are invalid",
+    ),
+    (
+        "failure.tool_library.already_registered",
+        "This tool is already in a library",
     ),
     ("failure.file.other", "Cannot read or write the file"),
     ("failure.model_file.too_large", "The file is too large"),

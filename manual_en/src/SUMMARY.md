@@ -4,4 +4,5 @@
 - [Getting Started](./getting_started.md)
 - [Screen and Controls](./screen_and_controls.md)
 - [Cutting Simulation](./cutting_simulation_demo.md)
+- [Tool Library](./tool_library.md)
 - [Known Issues and Troubleshooting](./known_issues.md)

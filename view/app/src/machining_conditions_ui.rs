@@ -23,6 +23,9 @@ use viewmodel::cutting_simulation_session::{
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
 use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
+use viewmodel::tool_library_session::{
+    OperationToolStatus, ToolSetId, ToolSetReference, ToolSetRow,
+};
 
 /// 計算条件の問題を出す欄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -262,6 +265,8 @@ fn operation_status_message(
 
 /// 工程リストの初めの高さ（論理座標）
 const LIST_DEFAULT_HEIGHT: f32 = 220.0;
+/// 工具の欄の、ツールセットの一覧の高さ（点）
+const TOOLSET_CHOICES_HEIGHT: f32 = 160.0;
 /// 条件の編集のダイアログの幅（論理座標）
 const DIALOG_WIDTH: f32 = 380.0;
 /// 条件の編集のダイアログを置く、範囲の左上からの間（論理座標）
@@ -272,7 +277,7 @@ const DIALOG_CHROME_HEIGHT: f32 = 140.0;
 const DIALOG_BODY_MIN_HEIGHT: f32 = 120.0;
 
 /// 工程の表の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
-const SELECTED_ROW_OPACITY: f32 = 0.45;
+pub(crate) const SELECTED_ROW_OPACITY: f32 = 0.45;
 
 /// 工程の表の列の見出しの文言のキー
 const COLUMN_KEYS: [&str; 6] = [
@@ -345,8 +350,20 @@ pub struct MachiningConditionsUiState {
     /// 適用するまで、工程・手順に入れない
     pub operation: MachiningOperationContent,
     pub stock: MachiningStock,
-    /// 工具長を指定するときの入力値（指定しない間も保つ）
-    pub tool_length_input: f64,
+    /// 工具の欄で選べる、使うライブラリ（一覧の順）
+    pub(crate) tool_libraries: Vec<ToolLibraryChoice>,
+    /// 編集している工程の工具の、ライブラリと比べた状態
+    pub(crate) tool_status: OperationToolStatus,
+    /// 編集している工程の工具を選んだライブラリの、一覧の番号（使えるライブラリにないときは `None`）
+    pub(crate) tool_reference_library: Option<usize>,
+    /// 工具の欄で選んでいるライブラリの、一覧の番号
+    pub(crate) tool_library: usize,
+    /// 工具の欄の、ツールセットの名前の絞り込み
+    pub(crate) tool_filter: String,
+    /// 工具の欄の操作
+    pub(crate) tool_command: Option<OperationToolCommand>,
+    /// 工程リスト: 手順のすべての工程の工具を、ライブラリの値にそろえる
+    pub(crate) align_tools_requested: bool,
     /// ツールパス生成のトレランス（mm）
     pub toolpath_tolerance: f64,
     /// 今の（適用した）加工工程・加工手順の条件の問題（投入前の確認の結果）
@@ -371,6 +388,29 @@ pub struct MachiningConditionsUiState {
     pub open_job_manager_requested: bool,
 }
 
+/// 工具の欄で選べるライブラリ
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ToolLibraryChoice {
+    /// 名前（読めたことのないライブラリは、ファイルの名前）
+    pub(crate) name: String,
+    /// 書けるか（写しから登録できるか）
+    pub(crate) editable: bool,
+    pub(crate) toolsets: Vec<ToolSetRow>,
+}
+
+/// 工具の欄の操作（ダイアログで編集している工程の中身を替える）
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum OperationToolCommand {
+    /// 一覧の番号のライブラリのツールセットを選ぶ
+    Select { library: usize, toolset: ToolSetId },
+    /// 参照しているツールセットの今の値にそろえる
+    Align,
+    /// 工具の写しを、一覧の番号のライブラリに名前で登録する
+    Register { library: usize, name: String },
+    /// ツールライブラリのウィンドウを開く
+    OpenToolLibrary,
+}
+
 /// 加工工程の一覧の 1 行
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct OperationRow {
@@ -379,6 +419,10 @@ pub(crate) struct OperationRow {
     pub(crate) stage: MachiningStage,
     pub(crate) spec: OperationSpec,
     pub(crate) tool: Tool<f64>,
+    /// 工具を選んだツールライブラリの項目
+    pub(crate) toolset: Option<ToolSetReference>,
+    /// 工具の、ライブラリと比べた状態
+    pub(crate) tool_status: OperationToolStatus,
     pub(crate) status: JobStatusLine,
     /// 空間モデルの CL が、今の条件の結果（取込済み）
     pub(crate) toolpath_current: bool,
@@ -581,7 +625,7 @@ fn next_action_of(
 }
 
 /// 欄の文字を、行の高さの中央にそろえて置き、欄の範囲を返す
-fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> Rect {
+pub(crate) fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> Rect {
     ui.horizontal_centered(|ui| ui.label(text)).response.rect
 }
 
@@ -782,6 +826,22 @@ impl MachiningConditionsUiState {
         )
     }
 
+    /// 工程の表の工具の列（名前または工具の値と、ライブラリと同じでないときの印）
+    fn operation_tool_cell(&self, row: &OperationRow) -> String {
+        let text = self.operation_tool_text(row.toolset.as_ref(), &row.tool);
+        let mark = match row.tool_status {
+            OperationToolStatus::SameAsLibrary => return text,
+            OperationToolStatus::DiffersFromLibrary => "conditions.tool.mark.differs",
+            OperationToolStatus::NotInLibrary => "conditions.tool.mark.not_in_library",
+            OperationToolStatus::LibraryNotFound => "conditions.tool.mark.library_not_found",
+            OperationToolStatus::NotFromLibrary => "conditions.tool.mark.not_from_library",
+        };
+        self.text_with_args(
+            "conditions.tool.with_mark",
+            &[("tool", text), ("mark", self.text(mark))],
+        )
+    }
+
     /// 工程リストを、画面の下のパネルに置く（出していなければ何もしない）
     pub fn show_list(&mut self, ui: &mut egui::Ui) {
         if !self.list_shown {
@@ -922,6 +982,20 @@ impl MachiningConditionsUiState {
                 if response.clicked() {
                     command = Some(moved);
                 }
+            }
+            ui.separator();
+            let differs = self
+                .operations
+                .iter()
+                .any(|row| row.tool_status == OperationToolStatus::DiffersFromLibrary);
+            if ui
+                .add_enabled(
+                    differs,
+                    egui::Button::new(self.text("conditions.tool.align_all")),
+                )
+                .clicked()
+            {
+                self.align_tools_requested = true;
             }
         });
         if command.is_some() {
@@ -1143,7 +1217,7 @@ impl MachiningConditionsUiState {
                         row.name.clone(),
                         self.text(stage_key(row.stage)),
                         self.text(spec_kind_key(&row.spec)),
-                        self.tool_text(&row.tool),
+                        self.operation_tool_cell(row),
                     ];
                     // 欄はすべて、行の高さの中央にそろえる。文字は押せない（画面の設定）ため、行のどこを押しても行を選べる
                     let mut area = Rect::NOTHING;
@@ -1404,56 +1478,157 @@ impl MachiningConditionsUiState {
             });
     }
 
+    /// 工具の状態 `status` の文言のキー
+    fn tool_status_key(status: OperationToolStatus) -> &'static str {
+        match status {
+            OperationToolStatus::SameAsLibrary => "conditions.tool.status.same",
+            OperationToolStatus::DiffersFromLibrary => "conditions.tool.status.differs",
+            OperationToolStatus::NotInLibrary => "conditions.tool.status.not_in_library",
+            OperationToolStatus::LibraryNotFound => "conditions.tool.status.library_not_found",
+            OperationToolStatus::NotFromLibrary => "conditions.tool.status.not_from_library",
+        }
+    }
+
+    /// 工程の工具の文言（ライブラリから選んだ工具はツールセットの名前、ほかは工具の種類と径）
+    fn operation_tool_text(&self, toolset: Option<&ToolSetReference>, tool: &Tool<f64>) -> String {
+        toolset.map_or_else(|| self.tool_text(tool), |toolset| toolset.name.clone())
+    }
+
+    /// ツールセットの行 `row` の、一覧に出す文言（名前・種類・径・工具長）
+    fn toolset_choice_text(&self, row: &ToolSetRow) -> String {
+        let kind = match row.kind {
+            Some(CuttingToolKind::FlatEndMill) => self.text("conditions.tool.flat"),
+            _ => self.text("conditions.tool.ball"),
+        };
+        let length = row.cutting_length.map_or_else(
+            || self.text("conditions.tool.length.unlimited"),
+            |length| length.to_string(),
+        );
+        self.text_with_args(
+            "conditions.tool.choice",
+            &[
+                ("name", row.name.clone()),
+                ("kind", kind),
+                ("diameter", row.diameter.to_string()),
+                ("length", length),
+            ],
+        )
+    }
+
     fn show_tool(&mut self, ui: &mut egui::Ui) {
-        let ball_label = self.text("conditions.tool.ball");
-        let flat_label = self.text("conditions.tool.flat");
-        let diameter_label = self.text("conditions.tool.diameter");
-        let specify_label = self.text("conditions.tool.specify_length");
         CollapsingHeader::new(self.text("conditions.header.tool"))
             .default_open(true)
             .show(ui, |ui| {
-                let tool = &self.operation.conditions.tool;
-                let shown_kind = CuttingToolKind::of(tool).unwrap_or_default();
-                let shown_diameter = tool.diameter();
-                let shown_specified = tool.cutting_length.is_some();
-                let shown_length = self.tool_length_input;
-                let mut kind = shown_kind;
-                let mut diameter = shown_diameter;
+                let toolset = self.operation.attributes.toolset.clone();
+                let current =
+                    self.operation_tool_text(toolset.as_ref(), &self.operation.conditions.tool);
                 ui.horizontal(|ui| {
-                    ui.radio_value(&mut kind, CuttingToolKind::BallEndMill, ball_label);
-                    ui.radio_value(&mut kind, CuttingToolKind::FlatEndMill, flat_label);
+                    ui.strong(current);
+                    let status = self.text(Self::tool_status_key(self.tool_status));
+                    let color = if self.tool_status == OperationToolStatus::SameAsLibrary {
+                        ui.visuals().text_color()
+                    } else {
+                        ui.visuals().warn_fg_color
+                    };
+                    ui.colored_label(color, status);
                 });
-                ui.horizontal(|ui| {
-                    ui.add(
-                        DragValue::new(&mut diameter)
-                            .range(0.1..=f64::MAX)
-                            .speed(0.1)
-                            .suffix(" mm"),
-                    );
-                    ui.label(diameter_label);
+                let library_editable = self
+                    .tool_libraries
+                    .get(self.tool_library)
+                    .is_some_and(|library| library.editable);
+                ui.horizontal(|ui| match self.tool_status {
+                    OperationToolStatus::SameAsLibrary => {}
+                    OperationToolStatus::DiffersFromLibrary => {
+                        if ui.button(self.text("conditions.tool.align")).clicked() {
+                            self.tool_command = Some(OperationToolCommand::Align);
+                        }
+                    }
+                    OperationToolStatus::NotInLibrary
+                    | OperationToolStatus::LibraryNotFound
+                    | OperationToolStatus::NotFromLibrary => {
+                        let name = toolset.as_ref().map_or_else(
+                            || self.tool_text(&self.operation.conditions.tool),
+                            |toolset| toolset.name.clone(),
+                        );
+                        let library = self.tool_library;
+                        if ui
+                            .add_enabled(
+                                library_editable,
+                                egui::Button::new(self.text("conditions.tool.register")),
+                            )
+                            .clicked()
+                        {
+                            self.tool_command =
+                                Some(OperationToolCommand::Register { library, name });
+                        }
+                    }
                 });
-                let mut specified = shown_specified;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut specified, specify_label);
-                    ui.add_enabled(
-                        specified,
-                        DragValue::new(&mut self.tool_length_input)
-                            .range(0.1..=f64::MAX)
-                            .speed(0.5)
-                            .suffix(" mm"),
-                    );
-                });
-                // 入力を変えたときだけ工具を作り直す（入力欄で表せない工具を、開いただけで書き換えない）
-                let length_changed = specified && self.tool_length_input != shown_length;
-                if kind != shown_kind
-                    || diameter != shown_diameter
-                    || specified != shown_specified
-                    || length_changed
+                if self.tool_libraries.is_empty() {
+                    ui.colored_label(Color32::GRAY, self.text("conditions.tool.no_libraries"));
+                } else {
+                    self.show_toolset_choices(ui, toolset.as_ref());
+                }
+                if ui
+                    .button(self.text("conditions.tool.open_library"))
+                    .clicked()
                 {
-                    self.operation.conditions.tool =
-                        kind.tool(diameter, specified.then_some(self.tool_length_input));
+                    self.tool_command = Some(OperationToolCommand::OpenToolLibrary);
                 }
                 self.show_issues(ui, ConditionField::Tool);
+            });
+    }
+
+    /// ライブラリを選び、そのツールセットを、名前で絞り込んだ一覧から選ぶ欄
+    fn show_toolset_choices(&mut self, ui: &mut egui::Ui, toolset: Option<&ToolSetReference>) {
+        if self.tool_library >= self.tool_libraries.len() {
+            self.tool_library = 0;
+        }
+        let names: Vec<String> = self
+            .tool_libraries
+            .iter()
+            .map(|library| library.name.clone())
+            .collect();
+        ui.horizontal(|ui| {
+            ui.label(self.text("conditions.tool.library"));
+            egui::ComboBox::from_id_salt("operation_tool_library")
+                .selected_text(names[self.tool_library].clone())
+                .show_ui(ui, |ui| {
+                    for (index, name) in names.iter().enumerate() {
+                        ui.selectable_value(&mut self.tool_library, index, name);
+                    }
+                });
+        });
+        ui.horizontal(|ui| {
+            ui.label(self.text("conditions.tool.filter"));
+            ui.text_edit_singleline(&mut self.tool_filter);
+        });
+        let filter = self.tool_filter.trim().to_lowercase();
+        let library = self.tool_library;
+        let chosen = toolset
+            .filter(|_| self.tool_reference_library == Some(library))
+            .map(|toolset| toolset.toolset);
+        let rows: Vec<(ToolSetId, String)> = self.tool_libraries[library]
+            .toolsets
+            .iter()
+            .filter(|row| filter.is_empty() || row.name.to_lowercase().contains(&filter))
+            .map(|row| (row.id, self.toolset_choice_text(row)))
+            .collect();
+        if rows.is_empty() {
+            ui.colored_label(Color32::GRAY, self.text("conditions.tool.no_toolsets"));
+            return;
+        }
+        ScrollArea::vertical()
+            .id_salt("operation_toolset_choices")
+            .max_height(TOOLSET_CHOICES_HEIGHT)
+            .show(ui, |ui| {
+                for (id, text) in rows {
+                    if ui.selectable_label(chosen == Some(id), text).clicked() {
+                        self.tool_command = Some(OperationToolCommand::Select {
+                            library,
+                            toolset: id,
+                        });
+                    }
+                }
             });
     }
 
@@ -1818,6 +1993,8 @@ mod tests {
             stage: item.stage,
             spec: item.spec,
             tool: item.tool.clone(),
+            toolset: None,
+            tool_status: viewmodel::tool_library_session::OperationToolStatus::NotFromLibrary,
             status,
             toolpath_current,
             setup: OperationSetup::Ready,

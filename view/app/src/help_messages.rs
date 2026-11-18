@@ -121,6 +121,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "ツールライブラリに書けません: {file}（{reason}）",
     ),
     (
+        "notice.tools_aligned",
+        "工具をライブラリにそろえました。計算し直しになる工程: {count}",
+    ),
+    (
         "notice.not_imported",
         "切削シミュレーションを取り込んでから操作してください",
     ),
@@ -295,6 +299,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "notice.tool_library_failed",
         "Cannot write the tool library: {file} ({reason})",
+    ),
+    (
+        "notice.tools_aligned",
+        "Tools matched to the libraries. Operations to recalculate: {count}",
     ),
     ("notice.not_imported", "Import a cutting simulation first"),
     (

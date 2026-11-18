@@ -262,3 +262,128 @@ fn tool_sets_with_the_same_name_are_told_apart_by_their_ids() {
     assert_eq!((rows[0].id, rows[0].diameter), (first, 6.0));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ---- 加工工程の工具とライブラリ ----
+
+use crate::space_model_document::{DefaultNames, SpaceModelDocument};
+
+fn document() -> SpaceModelDocument {
+    SpaceModelDocument::new(DefaultNames {
+        sequence: "手順",
+        operation: "スキャン加工",
+    })
+}
+
+fn status_of(
+    session: &ToolLibrarySession,
+    content: &MachiningOperationContent,
+) -> OperationToolStatus {
+    session.operation_tool_status(
+        content.attributes.toolset.as_ref(),
+        &content.conditions.tool,
+    )
+}
+
+#[test]
+fn operations_select_tool_sets_and_are_aligned_after_the_library_changes() {
+    let dir = test_dir("operation-tools");
+    let mut session = session(Vec::new());
+    session
+        .create_library(dir.join("mc1.rrtl"), "MC 1 号機")
+        .unwrap();
+    let r3 = session.add_toolset(0, &draft("R3 ボール", 6.0)).unwrap();
+
+    let mut document = document();
+    let content = document.operation_content().clone();
+    assert_eq!(
+        status_of(&session, &content),
+        OperationToolStatus::NotFromLibrary
+    );
+    let selected = session.content_with_toolset(&content, 0, r3).unwrap();
+    assert_eq!(
+        selected.attributes.toolset.as_ref().unwrap().name,
+        "R3 ボール"
+    );
+    assert_eq!(
+        session.library_index_of(selected.attributes.toolset.as_ref().unwrap()),
+        Some(0)
+    );
+    assert!(
+        session
+            .content_with_toolset(&content, 0, ToolSetId::new_random())
+            .is_none()
+    );
+    document.set_operation_content(selected);
+    assert_eq!(
+        status_of(&session, document.operation_content()),
+        OperationToolStatus::SameAsLibrary
+    );
+
+    // 新しい工程は、選んでいた工程の工具を引き継ぐ
+    document.add_operation("仕上げ".to_string());
+    assert_eq!(
+        document
+            .operation_content()
+            .attributes
+            .toolset
+            .as_ref()
+            .unwrap()
+            .toolset,
+        r3
+    );
+
+    // ライブラリを直すと「ライブラリと違う」になり、手順のすべての工程をそろえる
+    session
+        .update_toolset(0, r3, &draft("R4 ボール", 8.0))
+        .unwrap();
+    let rows = document.operations();
+    for row in &rows {
+        assert_eq!(
+            session.operation_tool_status(row.toolset.as_ref(), &row.tool),
+            OperationToolStatus::DiffersFromLibrary
+        );
+    }
+    assert_eq!(document.align_sequence_tools(&session), 2);
+    for row in document.operations() {
+        assert_eq!(row.tool.diameter(), 8.0);
+        assert_eq!(row.toolset.unwrap().name, "R4 ボール");
+    }
+    // もう一度そろえても、何も変わらない
+    assert_eq!(document.align_sequence_tools(&session), 0);
+
+    // 1 つの工程の中身だけをそろえる
+    let mut changed = document.operation_content().clone();
+    changed.conditions.tool = CuttingToolKind::BallEndMill.tool(6.0, Some(30.0));
+    let aligned = session.aligned_content(&changed).unwrap();
+    assert_eq!(aligned.conditions.tool.diameter(), 8.0);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn operation_tools_are_registered_in_a_library() {
+    let dir = test_dir("operation-register");
+    let mut session = session(Vec::new());
+    session
+        .create_library(dir.join("mc1.rrtl"), "MC 1 号機")
+        .unwrap();
+    let content = document().operation_content().clone();
+    let registered = session
+        .register_operation_tool(&content, 0, " ボール φ10 ")
+        .unwrap();
+    assert_eq!(
+        status_of(&session, &registered),
+        OperationToolStatus::SameAsLibrary
+    );
+    assert_eq!(registered.conditions, content.conditions);
+    assert_eq!(names(&session, 0), ["ボール φ10"]);
+
+    // すでにライブラリにある工具は、登録しない
+    assert_eq!(
+        session.register_operation_tool(&registered, 0, "もう一度"),
+        Err(ToolLibraryFailure::Failed(UiMessage {
+            key: "failure.tool_library.already_registered".to_string(),
+            args: Vec::new(),
+        }))
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

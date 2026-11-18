@@ -165,7 +165,9 @@ pub struct AppState {
     cutting_animation_colors: SnapshotShadedColorSettings,
 
     /// 工程の設定のダイアログの、工具長を指定するときの入力値（mm）
-    tool_length_input: f64,
+    /// 工程の設定の工具の欄で選んでいるライブラリ（一覧の番号）と、ツールセットの名前の絞り込み
+    operation_tool_library: usize,
+    operation_tool_filter: String,
 
     /// 加工手順を開いているか（開いている間だけ、CAM の操作・表示を出す。閉じたら CAM の表示を放す）
     machining_sequence_open: bool,
@@ -311,7 +313,8 @@ impl AppState {
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
             cutting_animation_colors: SnapshotShadedColorSettings::default(),
-            tool_length_input: 50.0,
+            operation_tool_library: 0,
+            operation_tool_filter: String::new(),
             machining_sequence_open: false,
             operation_list_shown: false,
             condition_draft: None,

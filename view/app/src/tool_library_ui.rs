@@ -3,6 +3,7 @@
 //! 左に使うライブラリの一覧、右に選んだライブラリのツールセットの表と、選んだツールセットの値の欄を出す。ファイルを
 //! 選ぶ画面・確かめの画面は描画を止めるため、操作はここでは行わず、要求として返す（`ToolLibraryAction`）。
 
+use crate::machining_conditions_ui::{SELECTED_ROW_OPACITY, centered_label};
 use crate::tool_library_messages::resolve_tool_library_text;
 use egui::{Color32, Context, DragValue, Grid, Id, Rect, ScrollArea, Window};
 use viewmodel::cutting_simulation_session::CuttingToolKind;
@@ -359,32 +360,79 @@ impl ToolLibraryUiState {
                 )
             })
             .collect();
+        // 選んだ行・乗った行は、工程リストと同じく行の全体に色を付ける。乗った行は前の描画のもの（行を描き終えるまで
+        // 分からないため）。見出しの行が 0 のため、ツールセットの行は 1 から
+        let hovered_id = ui.scope_id().with("tool_library_toolset_hovered");
+        let hovered_row = ui.data(|data| data.get_temp::<Option<usize>>(hovered_id).flatten());
+        let selected_row = self
+            .window
+            .selected_toolset
+            .and_then(|id| rows.iter().position(|(row, _)| *row == id))
+            .map(|at| at + 1);
+        let mut hovered_now = None;
+        let mut clicked = None;
+        let row_spacing = ui.spacing().item_spacing.y;
         ScrollArea::vertical()
             .id_salt("tool_library_toolsets")
             .max_height(TOOLSET_TABLE_HEIGHT)
             .show(ui, |ui| {
                 Grid::new("tool_library_toolset_table")
                     .num_columns(headers.len())
-                    .striped(true)
+                    .with_row_color(move |row, style| {
+                        if Some(row) == selected_row {
+                            Some(
+                                style
+                                    .visuals
+                                    .selection
+                                    .bg_fill
+                                    .gamma_multiply(SELECTED_ROW_OPACITY),
+                            )
+                        } else if row > 0 && Some(row) == hovered_row {
+                            Some(style.visuals.widgets.hovered.weak_bg_fill)
+                        } else if row % 2 == 1 {
+                            Some(style.visuals.faint_bg_color)
+                        } else {
+                            None
+                        }
+                    })
                     .show(ui, |ui| {
                         for header in &headers {
                             ui.strong(header);
                         }
                         ui.end_row();
-                        for (id, cells) in rows {
-                            let selected = self.window.selected_toolset == Some(id);
-                            let mut clicked = false;
+                        for (index, (id, cells)) in rows.into_iter().enumerate() {
+                            // 欄の文字は押せないため、行のすべての欄と行の間の半分を押せる範囲にする
+                            let mut area = Rect::NOTHING;
                             for cell in cells {
-                                clicked |= ui.selectable_label(selected, cell).clicked();
+                                area = area.union(centered_label(ui, cell));
+                            }
+                            let area = area.expand2(egui::vec2(0.0, row_spacing / 2.0));
+                            let response = ui.interact(
+                                area,
+                                ui.scope_id().with(("tool_library_toolset_row", id)),
+                                egui::Sense::click(),
+                            );
+                            if response.clicked() {
+                                clicked = Some(id);
+                            }
+                            if response.hovered() {
+                                hovered_now = Some(index + 1);
                             }
                             ui.end_row();
-                            if clicked && !selected {
-                                self.window.selected_toolset = Some(id);
-                                self.window.draft = None;
-                            }
                         }
                     });
             });
+        if hovered_now != hovered_row {
+            ui.data_mut(|data| data.insert_temp(hovered_id, hovered_now));
+            // 乗った行の色を、すぐに描き直す
+            ui.ctx().request_repaint();
+        }
+        if let Some(id) = clicked
+            && self.window.selected_toolset != Some(id)
+        {
+            self.window.selected_toolset = Some(id);
+            self.window.draft = None;
+        }
     }
 
     fn show_toolset_editor(&mut self, ui: &mut egui::Ui, row: &ToolSetRow, editable: bool) {

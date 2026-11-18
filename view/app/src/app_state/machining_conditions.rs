@@ -9,12 +9,14 @@ use super::AppState;
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
     ApplySubmission, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
-    OperationCommand, OperationRow, OperationSetup, submission_on_apply,
+    OperationCommand, OperationRow, OperationSetup, OperationToolCommand, ToolLibraryChoice,
+    submission_on_apply,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,
 };
 use viewmodel::message_catalog::UiLocale;
+use viewmodel::tool_library_session::{ToolLibraryFailure, file_label, locked_message};
 
 /// 計算の状態を読み直す間隔
 const JOB_STATUS_INTERVAL: Duration = Duration::from_secs(1);
@@ -27,8 +29,6 @@ pub(super) struct ConditionDraft {
     dialog: ConditionDialog,
     content: MachiningOperationContent,
     stock: MachiningStock,
-    /// 工具長を指定するときの入力値（キャンセルしたら、前の値に戻す）
-    tool_length_input: f64,
 }
 
 /// 編集している条件（工程の中身・手順の素材）と、その条件の問題
@@ -111,8 +111,18 @@ impl AppState {
             dialog,
             content: self.document.operation_content().clone(),
             stock: self.document.stock(),
-            tool_length_input: self.tool_length_input,
         });
+        // 工具の欄は、工程の工具を選んだライブラリを選んだ状態で開く
+        if let Some(index) = self
+            .document
+            .operation_content()
+            .attributes
+            .toolset
+            .as_ref()
+            .and_then(|toolset| self.tool_library.library_index_of(toolset))
+        {
+            self.operation_tool_library = index;
+        }
         tracing::info!("Condition dialog opened: {dialog:?}");
     }
 
@@ -137,7 +147,6 @@ impl AppState {
             return;
         };
         self.draft_issues = None;
-        self.tool_length_input = draft.tool_length_input;
         let mut submission = None;
         let mut revision_advanced = false;
         match draft.dialog {
@@ -476,17 +485,44 @@ impl AppState {
                 name: item.name,
                 stage: item.stage,
                 spec: item.spec,
+                tool_status: self
+                    .tool_library
+                    .operation_tool_status(item.toolset.as_ref(), &item.tool),
                 tool: item.tool,
+                toolset: item.toolset,
             })
             .collect();
         // ダイアログを開いている間は、編集している条件を出す（ダイアログの外では使わない）
-        let (operation, stock, tool_length_input) = match &self.condition_draft {
-            Some(draft) => (draft.content.clone(), draft.stock, draft.tool_length_input),
+        let (operation, stock) = match &self.condition_draft {
+            Some(draft) => (draft.content.clone(), draft.stock),
             None => (
                 self.document.operation_content().clone(),
                 self.document.stock(),
-                self.tool_length_input,
             ),
+        };
+        let tool_status = self.tool_library.operation_tool_status(
+            operation.attributes.toolset.as_ref(),
+            &operation.conditions.tool,
+        );
+        let tool_reference_library = operation
+            .attributes
+            .toolset
+            .as_ref()
+            .and_then(|toolset| self.tool_library.library_index_of(toolset));
+        // 工具の欄の選べるライブラリは、ダイアログを開いている間だけ作る
+        let tool_libraries = if self.condition_draft.is_some() {
+            self.tool_library
+                .libraries()
+                .into_iter()
+                .enumerate()
+                .map(|(index, row)| ToolLibraryChoice {
+                    name: row.name.clone().unwrap_or_else(|| file_label(&row.path)),
+                    editable: row.editable(),
+                    toolsets: self.tool_library.toolsets(index),
+                })
+                .collect()
+        } else {
+            Vec::new()
         };
         MachiningConditionsUiState {
             list_shown: self.operation_list_shown,
@@ -503,7 +539,13 @@ impl AppState {
             face_count: self.document.shapes().visible_face_count(),
             operation,
             stock,
-            tool_length_input,
+            tool_libraries,
+            tool_status,
+            tool_reference_library,
+            tool_library: self.operation_tool_library,
+            tool_filter: self.operation_tool_filter.clone(),
+            tool_command: None,
+            align_tools_requested: false,
             toolpath_tolerance: self.document.toolpath_tolerance(),
             issues: self.condition_issues.clone().unwrap_or_default(),
             dialog_issues,
@@ -527,12 +569,16 @@ impl AppState {
         self.operation_list_shown = state.list_shown;
         self.operation_settings_page = state.dialog_page;
         self.submit_on_apply = state.submit_on_apply;
+        self.operation_tool_library = state.tool_library;
+        self.operation_tool_filter = state.tool_filter;
         // ダイアログを開いている間は、編集した条件を受け取り、適用・キャンセルだけを行う（工程リストは押せないため、
         // ほかの操作は来ない）
         if let Some(draft) = &mut self.condition_draft {
             draft.content = state.operation;
             draft.stock = state.stock;
-            draft.tool_length_input = state.tool_length_input;
+            if let Some(command) = state.tool_command {
+                self.run_operation_tool_command(command);
+            }
             match state.dialog_result {
                 Some(DialogResult::Apply) => self.apply_condition_draft(),
                 Some(DialogResult::Cancel) => self.cancel_condition_dialog(),
@@ -574,6 +620,65 @@ impl AppState {
         if state.open_job_manager_requested {
             self.open_job_manager();
         }
+        if state.align_tools_requested {
+            self.align_sequence_tools();
+        }
+    }
+
+    /// 工程の設定の工具の欄の操作を、ダイアログで編集している工程の中身に当てる（適用するまで工程に入れない）
+    fn run_operation_tool_command(&mut self, command: OperationToolCommand) {
+        let Some(draft) = &mut self.condition_draft else {
+            return;
+        };
+        match command {
+            OperationToolCommand::Select { library, toolset } => {
+                if let Some(content) =
+                    self.tool_library
+                        .content_with_toolset(&draft.content, library, toolset)
+                {
+                    draft.content = content;
+                }
+            }
+            OperationToolCommand::Align => {
+                if let Some(content) = self.tool_library.aligned_content(&draft.content) {
+                    draft.content = content;
+                }
+            }
+            OperationToolCommand::Register { library, name } => {
+                match self
+                    .tool_library
+                    .register_operation_tool(&draft.content, library, &name)
+                {
+                    Ok(content) => draft.content = content,
+                    Err(failure) => {
+                        let reason = match failure {
+                            ToolLibraryFailure::Locked { owner, .. } => locked_message(&owner),
+                            ToolLibraryFailure::Failed(reason) => reason,
+                        };
+                        let file = self
+                            .tool_library
+                            .libraries()
+                            .get(library)
+                            .map(|row| file_label(&row.path))
+                            .unwrap_or_default();
+                        tracing::warn!(file = %file, reason = %reason.key, "Cannot register the tool in the library");
+                        self.set_notice(Notice::ToolLibraryFailed { file, reason });
+                    }
+                }
+            }
+            OperationToolCommand::OpenToolLibrary => self.open_tool_library_window(),
+        }
+    }
+
+    /// 工程リスト: 手順のすべての工程の工具を、ライブラリの値にそろえる
+    fn align_sequence_tools(&mut self) {
+        self.tool_library.refresh();
+        let changed = self.document.align_sequence_tools(&self.tool_library);
+        if changed > 0 {
+            self.invalidate_conditions();
+        }
+        tracing::info!(changed, "Operation tools aligned to the libraries");
+        self.set_notice(Notice::ToolsAligned { count: changed });
     }
 }
 

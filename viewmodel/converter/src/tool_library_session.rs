@@ -9,11 +9,14 @@ mod tests;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub use application::machining_sequence::ToolSetId;
-use application::machining_sequence::{Tool, ToolSetEntry};
+use application::machining_sequence::{MachiningOperationContent, Tool, ToolSetEntry};
+pub use application::machining_sequence::{ToolSetId, ToolSetReference};
+use application::tool_library::OperationToolError;
+pub use application::tool_library::OperationToolStatus;
 use application::tool_library::{
     ToolLibraryCatalog, ToolLibraryEdit, ToolLibraryEditError, ToolLibraryFileError,
-    ToolLibrarySaveInfo, ToolLibraryStatus, remove_tool_library_lock, tool_library_lock,
+    ToolLibrarySaveInfo, ToolLibraryStatus, aligned_operation_content, content_with_toolset,
+    register_operation_tool, remove_tool_library_lock, tool_library_lock,
 };
 use i18n_foundation::{UiMessage, UiMessageArg};
 
@@ -337,6 +340,80 @@ impl ToolLibrarySession {
         self.edit(index, ToolLibraryEdit::MoveToolSet { id, index: to })
     }
 
+    /// 使うライブラリの一覧（application の操作に渡す）
+    pub(crate) fn catalog(&self) -> &ToolLibraryCatalog {
+        &self.catalog
+    }
+
+    /// 工程の工具（選んだツールセットへの参照 `toolset` と工具の値の写し `tool`）の、ライブラリと比べた状態
+    pub fn operation_tool_status(
+        &self,
+        toolset: Option<&ToolSetReference>,
+        tool: &Tool<f64>,
+    ) -> OperationToolStatus {
+        self.catalog.operation_tool_status(toolset, tool)
+    }
+
+    /// 工程の参照 `toolset` のライブラリの一覧の番号（使えるライブラリにないときは `None`）
+    pub fn library_index_of(&self, toolset: &ToolSetReference) -> Option<usize> {
+        self.catalog
+            .library(toolset.library)
+            .map(|(index, _)| index)
+    }
+
+    /// 工程の中身 `content` の工具を、一覧の `index` 番目のライブラリのツールセット `toolset` に選び替えた中身
+    /// （ライブラリ・ツールセットがないときは `None`）
+    pub fn content_with_toolset(
+        &self,
+        content: &MachiningOperationContent,
+        index: usize,
+        toolset: ToolSetId,
+    ) -> Option<MachiningOperationContent> {
+        let library = self.catalog.entries().get(index)?.library()?;
+        content_with_toolset(content, library, toolset).ok()
+    }
+
+    /// 工程の中身 `content` の工具を、参照しているツールセットの今の値と名前にそろえた中身（ないときは `None`）
+    pub fn aligned_content(
+        &self,
+        content: &MachiningOperationContent,
+    ) -> Option<MachiningOperationContent> {
+        aligned_operation_content(content, &self.catalog).ok()
+    }
+
+    /// 工程の中身 `content` の工具の写しを、一覧の `index` 番目のライブラリに名前 `name` で登録し、参照をその
+    /// ツールセットにした中身を返す
+    ///
+    /// # Errors
+    ///
+    /// 書けない・ほかの PC が書いている・名前が空・すでにライブラリにある工具の場合。
+    pub fn register_operation_tool(
+        &mut self,
+        content: &MachiningOperationContent,
+        index: usize,
+        name: &str,
+    ) -> Result<MachiningOperationContent, ToolLibraryFailure> {
+        let info = self.save_info();
+        let owner = self.owner.clone();
+        register_operation_tool(
+            content,
+            &mut self.catalog,
+            index,
+            name.trim().to_string(),
+            &owner,
+            &info,
+        )
+        .map_err(|error| match error {
+            OperationToolError::Library(error) => ToolLibraryFailure::from_edit(&error),
+            OperationToolError::AlreadyInLibrary => {
+                ToolLibraryFailure::Failed(message("failure.tool_library.already_registered"))
+            }
+            OperationToolError::ToolSetNotFound | OperationToolError::Sequence(_) => {
+                ToolLibraryFailure::Failed(message("failure.tool_library.unavailable"))
+            }
+        })
+    }
+
     /// 一覧の `index` 番目のライブラリの、古いロックのファイルを消す（利用者に確かめてから呼ぶ）
     ///
     /// # Errors
@@ -357,6 +434,13 @@ impl ToolLibrarySession {
         }
         remove_tool_library_lock(&path)
             .map_err(|error| tool_library_file_failure_message(&ToolLibraryFileError::Io(error)))
+    }
+}
+
+fn message(key: &str) -> UiMessage {
+    UiMessage {
+        key: key.to_string(),
+        args: Vec::new(),
     }
 }
 

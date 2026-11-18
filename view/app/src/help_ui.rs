@@ -131,6 +131,8 @@ pub(crate) enum Notice {
     ModelSaveFailed { file: String, reason: UiMessage },
     /// ツールライブラリに書けない・作れない（ファイルの名前と理由）
     ToolLibraryFailed { file: String, reason: UiMessage },
+    /// 手順の工程の工具を、ライブラリの値にそろえた（工具の値が変わった工程の数）
+    ToolsAligned { count: usize },
 }
 
 impl Notice {
@@ -142,6 +144,7 @@ impl Notice {
             | Self::ModelOpened { .. }
             | Self::ModelSaved { .. }
             | Self::JobManagerNotRunning
+            | Self::ToolsAligned { .. }
             | Self::JobManagerAvailable => NoticeLevel::Info,
             Self::StepImported { skipped, .. } => {
                 if *skipped == 0 {
@@ -279,6 +282,11 @@ impl Notice {
                     ("file", file.clone()),
                     ("reason", resolve_failure_message(locale, reason)),
                 ],
+            ),
+            Self::ToolsAligned { count } => resolve_help_text(
+                locale,
+                "notice.tools_aligned",
+                &[("count", count.to_string())],
             ),
             Self::ToolLibraryFailed { file, reason } => resolve_help_text(
                 locale,
@@ -625,6 +633,7 @@ mod tests {
                 Notice::JobManagerNotFound,
                 Notice::JobManagerStopped,
                 Notice::JobManagerAvailable,
+                Notice::ToolsAligned { count: 2 },
                 Notice::ToolLibraryFailed {
                     file: "mc1.rrtl".to_string(),
                     reason: UiMessage {

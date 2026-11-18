@@ -40,8 +40,8 @@ use crate::binary_section::{
 use crate::machining_sequence::{ToolLibraryId, ToolSetEntry, ToolSetId};
 pub use catalog::{ToolLibraryCatalog, ToolLibraryCatalogEntry, ToolLibraryStatus};
 pub use operation::{
-    OperationToolError, OperationToolStatus, align_operation_tool, align_sequence_tools,
-    register_operation_tool, select_operation_toolset,
+    OperationToolError, OperationToolStatus, align_sequence_tools, aligned_operation_content,
+    content_with_toolset, register_operation_tool,
 };
 pub use shared::{
     ToolLibraryEdit, ToolLibraryEditError, ToolLibraryLock, remove_tool_library_lock,

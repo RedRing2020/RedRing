@@ -10,6 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use application::cam_simulation_workflow::{CamSimulationWorkflowResult, CamToolpathResult};
 pub use application::imported_toolpath::ImportedToolpathState;
 pub use application::machining_sequence::MachiningOperationId;
+use application::machining_sequence::ToolSetReference;
 use application::machining_sequence::{
     MachiningOperationContent, MachiningSequenceId, MachiningSequenceStore, MachiningStage,
     MachiningStock, OperationSpec, ScanlineCutDirection, ScanlineParams, ScanlineToolRange,
@@ -22,6 +23,7 @@ use application::product_shape::{
 use application::space_model_file::{
     SpaceModel, SpaceModelFileError, SpaceModelSaveInfo, load_space_model, save_space_model,
 };
+use application::tool_library::align_sequence_tools;
 
 use crate::cam_sim_visualization_converter::create_toolpath_wireframe_vertices;
 use crate::cutting_simulation_session::CuttingToolKind;
@@ -29,6 +31,7 @@ use crate::mesh_converter::WireframeVertex;
 use crate::product_shape_converter::{
     ProductShapeDisplaySettings, ProductShapeMesh, face_set_entity_to_mesh,
 };
+use crate::tool_library_session::ToolLibrarySession;
 use crate::toolpath_converter::ToolPathVisualizationSettings;
 
 /// 空間モデルに加工手順・加工工程がないときに作る、加工手順・加工工程の名前（画面の言語の名前を渡す）
@@ -69,6 +72,8 @@ pub struct OperationListItem {
     pub stage: MachiningStage,
     pub spec: OperationSpec,
     pub tool: Tool<f64>,
+    /// 工具を選んだツールライブラリの項目（ライブラリから選んでいない工程は `None`）
+    pub toolset: Option<ToolSetReference>,
     /// 計算の条件を設定したか（設定していない工程は計算しない）
     pub conditions_set: bool,
 }
@@ -271,6 +276,7 @@ impl SpaceModelDocument {
                     stage: content.attributes.stage,
                     spec: content.conditions.spec,
                     tool: content.conditions.tool.clone(),
+                    toolset: content.attributes.toolset.clone(),
                     conditions_set: self.conditions_set_of(id),
                 }
             })
@@ -303,10 +309,13 @@ impl SpaceModelDocument {
         held
     }
 
-    /// 編集の対象の加工工程のすぐ後に、名前が `name` の新しい加工工程（既定の工具・走査線の条件）を加え、編集の対象に
-    /// する
+    /// 編集の対象の加工工程のすぐ後に、名前が `name` の新しい加工工程（既定の走査線の条件）を加え、編集の対象に
+    /// する。工具は、編集の対象の加工工程の工具（選んだツールセットと値の写し）を引き継ぐ
     pub fn add_operation(&mut self, name: String) {
-        let content = initial_operation_content(name);
+        let mut content = initial_operation_content(name);
+        let selected = self.operation_content();
+        content.conditions.tool = selected.conditions.tool.clone();
+        content.attributes.toolset = selected.attributes.toolset.clone();
         self.insert_after_selected(content);
     }
 
@@ -594,6 +603,24 @@ impl SpaceModelDocument {
                 .remove_outdated(&self.model.sequences, self.sequence)
                 .expect("the document holds its machining sequence");
         }
+    }
+
+    /// 編集の対象の加工手順のすべての加工工程の工具を、参照しているツールセットの今の値と名前にそろえ、工具の値の
+    /// 変わった工程の数を返す（ツールセットのない工程・ライブラリにない工程はそのまま。中身が変われば、保存していない
+    /// 変更にし、今の条件の結果でなくなった CL を除く）
+    pub fn align_sequence_tools(&mut self, tools: &ToolLibrarySession) -> usize {
+        let before = self.model.sequences.records();
+        let changed =
+            align_sequence_tools(&mut self.model.sequences, self.sequence, tools.catalog())
+                .expect("the document holds its machining sequence");
+        if self.model.sequences.records() != before {
+            self.modified = true;
+            self.model
+                .toolpaths
+                .remove_outdated(&self.model.sequences, self.sequence)
+                .expect("the document holds its machining sequence");
+        }
+        changed
     }
 
     fn revision_key(&self) -> application::machining_sequence::MachiningRevisionKey {
