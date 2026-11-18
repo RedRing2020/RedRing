@@ -277,7 +277,7 @@ const DIALOG_CHROME_HEIGHT: f32 = 140.0;
 const DIALOG_BODY_MIN_HEIGHT: f32 = 120.0;
 
 /// 工程の表の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
-const SELECTED_ROW_OPACITY: f32 = 0.45;
+pub(crate) const SELECTED_ROW_OPACITY: f32 = 0.45;
 
 /// 工程の表の列の見出しの文言のキー
 const COLUMN_KEYS: [&str; 6] = [
@@ -625,7 +625,7 @@ fn next_action_of(
 }
 
 /// 欄の文字を、行の高さの中央にそろえて置き、欄の範囲を返す
-fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> Rect {
+pub(crate) fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> Rect {
     ui.horizontal_centered(|ui| ui.label(text)).response.rect
 }
 
