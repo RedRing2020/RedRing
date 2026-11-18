@@ -16,7 +16,7 @@ use cam_entity::{MachiningOperation, MachiningSequence};
 pub use cam_entity::{
     MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
     MachiningOperationId, MachiningRevisionKey, MachiningSequenceId, MachiningStock, ToolLibraryId,
-    ToolSetId, ToolSetReference,
+    ToolSetEntry, ToolSetId, ToolSetReference,
 };
 use geo_entity::FaceId;
 

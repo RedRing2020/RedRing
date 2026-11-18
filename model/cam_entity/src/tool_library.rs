@@ -1,3 +1,4 @@
+use cam_core::Tool;
 use uuid::Uuid;
 
 /// ツールライブラリの ID（全体で一意で、ファイルを移しても・名前を替えても同じライブラリを指す）
@@ -41,4 +42,15 @@ pub struct ToolSetReference {
     pub toolset: ToolSetId,
     /// 選んだとき（または最後にライブラリと比べたとき）のツールセットの名前（ライブラリが見つからないときに出す）
     pub name: String,
+}
+
+/// ツールライブラリのツールセットの項目
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolSetEntry {
+    /// ツールセットの ID
+    pub id: ToolSetId,
+    /// 利用者が付ける名前（空にしない。重なってもよい）
+    pub name: String,
+    /// 工具
+    pub tool: Tool<f64>,
 }

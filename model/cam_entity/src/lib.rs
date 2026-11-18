@@ -5,14 +5,14 @@
 
 mod machining_operation;
 mod machining_sequence;
-mod toolset_reference;
+mod tool_library;
 
 pub use machining_operation::{
     MachiningOperation, MachiningOperationAttributes, MachiningOperationConditions,
     MachiningOperationContent, MachiningOperationId, MachiningRevisionKey,
 };
 pub use machining_sequence::{MachiningSequence, MachiningSequenceId, MachiningStock};
-pub use toolset_reference::{ToolLibraryId, ToolSetId, ToolSetReference};
+pub use tool_library::{ToolLibraryId, ToolSetEntry, ToolSetId, ToolSetReference};
 
 #[cfg(test)]
 mod tests;

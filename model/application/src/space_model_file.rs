@@ -21,22 +21,19 @@ use cam_core::{ArtifactHeaderV1, ArtifactKind, ArtifactPayload, ExtAttribute, re
 pub use cam_core::{BinaryFormatError, FORMAT_VERSION_MAJOR_V1};
 use uuid::Uuid;
 
+use crate::binary_section::{ByteWriter, SECTION_REQUIRED, read_sections, write_section};
 use crate::imported_toolpath::{ImportedToolpathRestoreError, ImportedToolpathStore};
 use crate::machining_sequence::{
     MachiningOperationId, MachiningSequenceError, MachiningSequenceId,
     MachiningSequenceRestoreError, MachiningSequenceStore,
 };
 use crate::product_shape::{ProductShapeRestoreError, ProductShapeStore};
-use codec::{ByteReader, ByteWriter};
 
 /// 読み込むモデルファイルの大きさの上限（バイト）
 pub const MAX_SPACE_MODEL_FILE_BYTES: u64 = 2 << 30;
 
 /// 区画の数の上限
 const MAX_SECTIONS: usize = 64;
-
-/// 区画の印: 必須（読む側が知らなければ開かない）
-const SECTION_REQUIRED: u16 = 1;
 
 const INFO: [u8; 4] = *b"INFO";
 const FACE: [u8; 4] = *b"FACE";
@@ -276,14 +273,6 @@ pub(crate) fn write_space_model<W: Write>(
     Ok(())
 }
 
-fn write_section(out: &mut ByteWriter, kind: [u8; 4], version: u16, flags: u16, body: &[u8]) {
-    out.bytes(&kind);
-    out.u16(version);
-    out.u16(flags);
-    out.u64(body.len() as u64);
-    out.bytes(body);
-}
-
 /// モデルファイルの形式のバイト列から、空間モデルと保存したときの情報を読む
 ///
 /// # Errors
@@ -304,13 +293,8 @@ pub(crate) fn read_space_model<R: Read>(
         }
         .into());
     };
-    let mut cursor = ByteReader::new(&payload);
-    let invalid = SpaceModelFileError::InvalidSectionTable;
-    // 区画 1 つは、種類・版・印・長さだけで 16 バイト
-    let count = cursor.count(16).map_err(|_| invalid("sections"))?;
-    if count > MAX_SECTIONS {
-        return Err(invalid("sections"));
-    }
+    let sections =
+        read_sections(&payload, MAX_SECTIONS).map_err(SpaceModelFileError::InvalidSectionTable)?;
     let mut info = None;
     let mut faces = None;
     let mut shells = None;
@@ -319,24 +303,10 @@ pub(crate) fn read_space_model<R: Read>(
     let mut toolpaths = None;
     let mut not_set = None;
     let mut preserved = Vec::new();
-    for _ in 0..count {
-        let header = (|| {
-            Some((
-                cursor.array::<4>().ok()?,
-                cursor.u16().ok()?,
-                cursor.u16().ok()?,
-                cursor.u64().ok()?,
-            ))
-        })();
-        let Some((kind, version, flags, length)) = header else {
-            return Err(invalid("section header"));
-        };
-        let body = usize::try_from(length)
-            .ok()
-            .and_then(|length| cursor.take(length).ok())
-            .ok_or(invalid("section length"))?;
+    for section in sections {
+        let (kind, version, body) = (section.kind, section.version, section.body);
         // 必須でない区画は、読めない版なら知らない区画と同じに、そのまま書き戻す
-        let readable_optional = flags & SECTION_REQUIRED != 0 || version == section_version(kind);
+        let readable_optional = section.required() || version == section_version(kind);
         let slot = match kind {
             INFO => Some(&mut info),
             FACE => Some(&mut faces),
@@ -347,13 +317,13 @@ pub(crate) fn read_space_model<R: Read>(
             _ => None,
         };
         let Some(slot) = slot else {
-            if flags & SECTION_REQUIRED != 0 {
+            if section.required() {
                 return Err(SpaceModelFileError::UnknownRequiredSection(kind));
             }
             preserved.push(PreservedSection {
                 kind,
                 version,
-                flags,
+                flags: section.flags,
                 body: body.to_vec(),
             });
             continue;
@@ -370,7 +340,6 @@ pub(crate) fn read_space_model<R: Read>(
         }
         *slot = Some(body);
     }
-    cursor.finish().map_err(|_| invalid("trailing bytes"))?;
 
     let section_error = |kind| move |field| SpaceModelFileError::InvalidSection { kind, field };
     let (id, save_info) = codec::read_info(info.ok_or(SpaceModelFileError::MissingSection(INFO))?)

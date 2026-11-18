@@ -46,6 +46,9 @@ pub const CUTTING_SIMULATION_INPUT_MAGIC: [u8; 4] = *b"RRSI";
 /// 空間モデル（モデルファイル）の magic: `RRMF`
 pub const SPACE_MODEL_MAGIC: [u8; 4] = *b"RRMF";
 
+/// ツールライブラリのファイルの magic: `RRTL`
+pub const TOOL_LIBRARY_MAGIC: [u8; 4] = *b"RRTL";
+
 pub const FORMAT_VERSION_MAJOR_V1: u16 = 0;
 pub const FORMAT_VERSION_MINOR_V1: u16 = 3;
 
@@ -79,6 +82,8 @@ pub enum ArtifactKind {
     CuttingSimulationInput,
     /// 空間モデル（モデルファイル）
     SpaceModel,
+    /// ツールライブラリのファイル
+    ToolLibrary,
 }
 
 impl ArtifactKind {
@@ -90,6 +95,7 @@ impl ArtifactKind {
             Self::CamSolverInput => CAM_SOLVER_INPUT_MAGIC,
             Self::CuttingSimulationInput => CUTTING_SIMULATION_INPUT_MAGIC,
             Self::SpaceModel => SPACE_MODEL_MAGIC,
+            Self::ToolLibrary => TOOL_LIBRARY_MAGIC,
         }
     }
 
@@ -106,6 +112,8 @@ impl ArtifactKind {
             Some(Self::CuttingSimulationInput)
         } else if magic == SPACE_MODEL_MAGIC {
             Some(Self::SpaceModel)
+        } else if magic == TOOL_LIBRARY_MAGIC {
+            Some(Self::ToolLibrary)
         } else {
             None
         }
@@ -561,6 +569,8 @@ pub enum ArtifactPayload {
     CuttingSimulationInput(Vec<u8>),
     /// 本モジュールでは中身を解釈しないバイト列
     SpaceModel(Vec<u8>),
+    /// 本モジュールでは中身を解釈しないバイト列
+    ToolLibrary(Vec<u8>),
 }
 
 /// ヘッダ + ペイロードを一括読み込みするエントリーポイント。
@@ -599,6 +609,9 @@ pub fn read_artifact_v1<R: Read>(
         ArtifactKind::SpaceModel => {
             ArtifactPayload::SpaceModel(read_opaque_payload(reader, header.payload_len)?)
         }
+        ArtifactKind::ToolLibrary => {
+            ArtifactPayload::ToolLibrary(read_opaque_payload(reader, header.payload_len)?)
+        }
     };
     Ok((header, payload))
 }
@@ -631,7 +644,8 @@ pub fn read_toolpath_artifact_v1<R: Read>(
         | ArtifactPayload::CuttingSimulation(_)
         | ArtifactPayload::CamSolverInput(_)
         | ArtifactPayload::CuttingSimulationInput(_)
-        | ArtifactPayload::SpaceModel(_) => Err(BinaryFormatError::ArtifactKindMismatch {
+        | ArtifactPayload::SpaceModel(_)
+        | ArtifactPayload::ToolLibrary(_) => Err(BinaryFormatError::ArtifactKindMismatch {
             expected: ArtifactKind::ToolPath,
             found: header.kind,
         }),
@@ -648,7 +662,8 @@ pub fn read_interference_artifact_v1<R: Read>(
         | ArtifactPayload::CuttingSimulation(_)
         | ArtifactPayload::CamSolverInput(_)
         | ArtifactPayload::CuttingSimulationInput(_)
-        | ArtifactPayload::SpaceModel(_) => Err(BinaryFormatError::ArtifactKindMismatch {
+        | ArtifactPayload::SpaceModel(_)
+        | ArtifactPayload::ToolLibrary(_) => Err(BinaryFormatError::ArtifactKindMismatch {
             expected: ArtifactKind::Interference,
             found: header.kind,
         }),
