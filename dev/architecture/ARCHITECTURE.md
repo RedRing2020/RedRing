@@ -377,6 +377,6 @@ redring（view/app） → stage → render
 - [`FIXTURE_SEPARATION_DESIGN.md`](FIXTURE_SEPARATION_DESIGN.md) - Model fixtures の分離方針
 - [`BATCH_COMPUTE_PLATFORM_DESIGN.md`](BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Docker ヘッドレス + Kubernetes）
 - [`SPACE_MODEL_FILE_DESIGN.md`](SPACE_MODEL_FILE_DESIGN.md) - 空間モデル（モデルファイル `.rrm`）の内容・形式・ID の保ち方
-- [`TOOL_LIBRARY_DESIGN.md`](TOOL_LIBRARY_DESIGN.md) - 工作機械ごとのツールライブラリ（複数のクライアントの環境では共有フォルダで使う）と、加工工程の工具の持ち方
+- [`TOOL_LIBRARY_DESIGN.md`](TOOL_LIBRARY_DESIGN.md) - ツールライブラリ（工具の台帳。複数のクライアントの環境では共有フォルダで使う）と、加工工程の工具の持ち方、工作機械の T 番号の表
 - [`issue-412-artifact-api-naming-archive-note.md`](../archive/issues/issue-412-artifact-api-naming-archive-note.md) - artifact API 命名整理の判断記録
 - [`issue-832-architecture-history-archive-note.md`](../archive/issues/architecture/issue-832-architecture-history-archive-note.md) - 完了した移行計画と、解消した課題の記録
