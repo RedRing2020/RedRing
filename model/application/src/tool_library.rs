@@ -213,6 +213,20 @@ pub(crate) fn read_tool(cursor: &mut ByteReader<'_>) -> Result<Tool<f64>, FieldE
 }
 
 /// ツールライブラリに登録できる工具か（径・工具長が正の有限の値で、種類と角の半径が合う）
+/// 工具 `a` と `b` の値（種類・径・コーナー R・工具長）が同じか（長さは幾何の距離の許容差で比べる。工具の識別子は
+/// 比べない）
+pub fn same_tool_values(a: &Tool<f64>, b: &Tool<f64>) -> bool {
+    let close = |x: f64, y: f64| (x - y).abs() <= analysis::GEOMETRIC_DISTANCE_TOLERANCE;
+    a.tool_type == b.tool_type
+        && close(a.radius(), b.radius())
+        && close(a.corner_radius(), b.corner_radius())
+        && match (a.cutting_length, b.cutting_length) {
+            (None, None) => true,
+            (Some(x), Some(y)) => close(x, y),
+            _ => false,
+        }
+}
+
 fn valid_tool(tool: &Tool<f64>) -> bool {
     let positive = |value: f64| value.is_finite() && value > 0.0;
     positive(tool.radius())

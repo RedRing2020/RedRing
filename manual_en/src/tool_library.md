@@ -21,6 +21,7 @@ Register tools (tool sets) in a tool library and choose the tool of each operati
 2. To create a library, press "New…" and choose the folder and the file name. The file name becomes the library name. A library is not created over an existing file
 3. To use a library made by someone else (such as a file in a shared folder), press "Open…" and choose the file. It is only added to the list; the file is not copied
 4. To stop using a library, select it and press "Remove from list". It is removed from the list (the file is not deleted)
+5. To make another library from the current one, press "Duplicate as another library…" and choose the folder and the file name. All tool sets are copied, and the copy is a different library from the original (operations keep referring to the original library)
 
 The following marks may appear next to a library name. Select the library to see the reason in the window.
 
@@ -35,6 +36,13 @@ The following marks may appear next to a library name. Select the library to see
 - Press "Add" to add a tool set, enter the name, type, diameter, and tool length in the fields below the table, and press "Apply". If an entry is invalid, the reason is shown below the field and "Apply" cannot be pressed
 - "Duplicate" adds a copy of the selected tool set, "Delete" removes it, and "Up" and "Down" reorder the tool sets
 - Each press writes to the library file. Changes written to the same library on other PCs are read again before writing and kept
+- When you select a tool set, the number of operations in the open model that use it is shown, so you can check which operations are affected before deleting or changing it
+
+### Finding and sorting
+
+- Use the fields above the table to filter by part of the name, tool type, and diameter. The diameter filter shows only tool sets with the entered diameter
+- Click a column header to sort by that column (each click switches between ascending, descending, and the library order). Filtering and sorting only change the view, not the order in the library. "Up" and "Down" cannot be used while filtering or sorting. "Clear filter and sort" restores the view
+- When another tool set has the same tool values (type, diameter, corner R, tool length), a mark appears in the "Same values" column. "Same values only" shows only those, which helps to find tool sets registered twice
 
 ### When another PC is writing
 

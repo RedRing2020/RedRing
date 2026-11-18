@@ -11,8 +11,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use application::machining_sequence::{MachiningOperationContent, Tool, ToolSetEntry};
 pub use application::machining_sequence::{ToolSetId, ToolSetReference};
-use application::tool_library::OperationToolError;
 pub use application::tool_library::OperationToolStatus;
+use application::tool_library::{OperationToolError, same_tool_values};
 use application::tool_library::{
     ToolLibraryCatalog, ToolLibraryEdit, ToolLibraryEditError, ToolLibraryFileError,
     ToolLibrarySaveInfo, ToolLibraryStatus, aligned_operation_content, content_with_toolset,
@@ -24,6 +24,7 @@ use crate::cutting_simulation_session::CuttingToolKind;
 use crate::failure_message_mapper::{
     tool_library_edit_failure_message, tool_library_file_failure_message,
 };
+use crate::space_model_document::SpaceModelDocument;
 
 /// 一覧の 1 つのライブラリの状態
 #[derive(Debug, Clone, PartialEq)]
@@ -68,6 +69,80 @@ pub struct ToolSetRow {
     pub corner_radius: f64,
     /// 工具長（mm。長さに制限のない工具は `None`）
     pub cutting_length: Option<f64>,
+    /// 同じライブラリに、工具の値（種類・径・コーナー R・工具長）の同じツールセットがほかにもあるか
+    pub same_values: bool,
+}
+
+/// ツールセットの表の絞り込み（見せ方だけで、ライブラリの並びは変えない）
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ToolSetFilter {
+    /// 名前に含む文字（大文字・小文字を区別しない。空なら絞り込まない）
+    pub name: String,
+    /// 工具の種類（`None` なら絞り込まない）
+    pub kind: Option<CuttingToolKind>,
+    /// 径（mm。`None` なら絞り込まない。幾何の距離の許容差で比べる）
+    pub diameter: Option<f64>,
+    /// 同じ値のツールセットがほかにもあるものだけ
+    pub same_values_only: bool,
+}
+
+impl ToolSetFilter {
+    /// 絞り込んでいるか
+    pub fn is_active(&self) -> bool {
+        *self != Self::default()
+    }
+
+    fn matches(&self, row: &ToolSetRow) -> bool {
+        let name = self.name.trim().to_lowercase();
+        (name.is_empty() || row.name.to_lowercase().contains(&name))
+            && self.kind.is_none_or(|kind| row.kind == Some(kind))
+            && self.diameter.is_none_or(|diameter| {
+                (row.diameter - diameter).abs() <= analysis::GEOMETRIC_DISTANCE_TOLERANCE
+            })
+            && (!self.same_values_only || row.same_values)
+    }
+}
+
+/// ツールセットの表を並べ替える列
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolSetSortKey {
+    Name,
+    Kind,
+    Diameter,
+    CornerRadius,
+    /// 工具長（長さに制限のない工具は、どの長さよりも長いとする）
+    CuttingLength,
+}
+
+/// ツールセットの行 `rows`（ライブラリの並び）を、絞り込み `filter` で絞り、列 `sort` で並べ替える（`None` は
+/// ライブラリの並びのまま。`ascending` が偽なら逆の順。同じ値の行は、ライブラリの並びのまま）
+pub fn filtered_toolsets(
+    rows: Vec<ToolSetRow>,
+    filter: &ToolSetFilter,
+    sort: Option<(ToolSetSortKey, bool)>,
+) -> Vec<ToolSetRow> {
+    let mut rows: Vec<ToolSetRow> = rows.into_iter().filter(|row| filter.matches(row)).collect();
+    if let Some((key, ascending)) = sort {
+        let kind_order = |kind: Option<CuttingToolKind>| match kind {
+            Some(CuttingToolKind::BallEndMill) => 0,
+            Some(CuttingToolKind::FlatEndMill) => 1,
+            None => 2,
+        };
+        rows.sort_by(|a, b| {
+            let order = match key {
+                ToolSetSortKey::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+                ToolSetSortKey::Kind => kind_order(a.kind).cmp(&kind_order(b.kind)),
+                ToolSetSortKey::Diameter => a.diameter.total_cmp(&b.diameter),
+                ToolSetSortKey::CornerRadius => a.corner_radius.total_cmp(&b.corner_radius),
+                ToolSetSortKey::CuttingLength => a
+                    .cutting_length
+                    .unwrap_or(f64::INFINITY)
+                    .total_cmp(&b.cutting_length.unwrap_or(f64::INFINITY)),
+            };
+            if ascending { order } else { order.reverse() }
+        });
+    }
+    rows
 }
 
 /// 画面で編集するツールセットの値
@@ -241,8 +316,55 @@ impl ToolLibrarySession {
                 diameter: entry.tool.diameter(),
                 corner_radius: entry.tool.corner_radius(),
                 cutting_length: entry.tool.cutting_length,
+                same_values: library.toolsets.iter().any(|other| {
+                    other.id != entry.id && same_tool_values(&other.tool, &entry.tool)
+                }),
             })
             .collect()
+    }
+
+    /// 開いている文書 `document` の加工手順で、一覧の `index` 番目のライブラリのツールセット `toolset` を使う工程の数
+    pub fn toolset_usage(
+        &self,
+        index: usize,
+        toolset: ToolSetId,
+        document: &SpaceModelDocument,
+    ) -> usize {
+        let Some(library) = self
+            .catalog
+            .entries()
+            .get(index)
+            .and_then(|entry| entry.library())
+        else {
+            return 0;
+        };
+        document
+            .operations()
+            .iter()
+            .filter(|operation| {
+                operation.toolset.as_ref().is_some_and(|reference| {
+                    reference.library == library.id && reference.toolset == toolset
+                })
+            })
+            .count()
+    }
+
+    /// 一覧の `index` 番目のライブラリのツールセットを写した、名前 `name` の別のライブラリのファイルを `path` に作って
+    /// 一覧に足し、その番号を返す（ライブラリとツールセットの ID は作り直す）
+    ///
+    /// # Errors
+    ///
+    /// 使えないライブラリ・名前が空・ファイルがすでにある・書けない場合（理由）。
+    pub fn duplicate_library(
+        &mut self,
+        index: usize,
+        path: PathBuf,
+        name: &str,
+    ) -> Result<usize, UiMessage> {
+        let info = self.save_info();
+        self.catalog
+            .duplicate(index, path, name.trim().to_string(), &info)
+            .map_err(|error| tool_library_file_failure_message(&error))
     }
 
     /// 名前 `name` の新しいライブラリのファイルを `path` に作って一覧に足し、その番号を返す

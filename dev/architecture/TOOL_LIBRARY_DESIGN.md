@@ -97,7 +97,7 @@ v0.2.0（加工の管理。`RELEASE_VERSION_PLAN.md` 2.2）では、モデルフ
   4. ロックのファイルを消す
 - 書いている PC が止まってロックのファイルが残ったときは、ロックのファイルの時刻が古ければ（5 分。時刻の読めないロックも古いとみなす）、利用者に確かめてから消して書く
 - 読み直した内容は、画面のライブラリにも映す
-- 実装: 書き込みは `application::tool_library` の `edit_tool_library`（操作 `ToolLibraryEdit`・ロック `ToolLibraryLock`）、使うファイルの一覧は `ToolLibraryCatalog`（変わったファイルの読み直し・前に読めた内容・読むだけ・ID の重なり）。ロックは、書けるかを確かめてから作る（書けないファイルでロックを作らない）。ロックがあるときは 50 ミリ秒の間で 20 回まで試す
+- 実装: 書き込みは `application::tool_library` の `edit_tool_library`（操作 `ToolLibraryEdit`・ロック `ToolLibraryLock`）、使うファイルの一覧は `ToolLibraryCatalog`（変わったファイルの読み直し・前に読めた内容・読むだけ・ID の重なり）。ロックは、書けるかを確かめてから作る（書けないファイルでロックを作らない）。ロックがあるときは 50 ミリ秒の間で 60 回（約 3 秒）まで試す。ロックを作るときの「権限がない」も試し直す（Windows では、消したばかりのロックのファイルをほかのプログラムが開いている間は作れないため）。試し直しても権限がなければ、書けないファイルとする
 
 ### 4.5 工作機械の T 番号の表（v0.4.0 で足す）
 
@@ -173,7 +173,7 @@ v0.2.0（加工の管理。`RELEASE_VERSION_PLAN.md` 2.2）では、モデルフ
 - 開いているモデルに、選んだ項目を使う工程があれば、その数を出す（消す・直すときに、どの工程が「ライブラリと違う」「ライブラリにない」になるかが分かるように）
 - 新しく作るときは、場所を選ぶ画面で選んだファイルの名前（拡張子を除く）をライブラリの名前にする。すでにあるファイルには作らない（ほかのライブラリを上書きしない）
 - 書けない・ほかの PC が書いているときは、理由をウィンドウの下と画面の下の行に出す。古いロック（4.4）のときは、書いている PC と利用者を出して確かめ、消して書き直す
-- 実装: `viewmodel::tool_library_session`（一覧とツールセットの行・編集する値の誤り・操作と失敗の理由）、View の `tool_library_ui`（ウィンドウ）と `app_state::tool_library`（ファイルを選ぶ画面・確かめの画面・設定への保存）。ロックの書き手は、利用者と PC の名前（`platform_foundation::identity`）。絞り込み・並べ替え・別のライブラリとして複写・使う工程の数は #1404 で足す
+- 実装: `viewmodel::tool_library_session`（一覧とツールセットの行・編集する値の誤り・操作と失敗の理由）、View の `tool_library_ui`（ウィンドウ）と `app_state::tool_library`（ファイルを選ぶ画面・確かめの画面・設定への保存）。ロックの書き手は、利用者と PC の名前（`platform_foundation::identity`）。絞り込み・並べ替え・別のライブラリとして複写・使う工程の数・同じ値の印は #1404 で足した（`viewmodel::tool_library_session` の `ToolSetFilter`・`filtered_toolsets`・`toolset_usage`・`duplicate_library`。値の比べ方は `application::tool_library::same_tool_values`。幾何の距離の許容差で比べ、後でホルダーを足したら比べる項目に含める）
 
 ### 6.2 工程の設定の工具の欄
 

@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use super::shared::{ToolLibraryEdit, ToolLibraryEditError, edit_tool_library, writable};
+use crate::machining_sequence::{ToolSetEntry, ToolSetId};
+
 use super::{
     ToolLibrary, ToolLibraryFileError, ToolLibrarySaveInfo, load_tool_library, save_tool_library,
 };
@@ -175,7 +177,51 @@ impl ToolLibraryCatalog {
         name: String,
         info: &ToolLibrarySaveInfo,
     ) -> Result<usize, ToolLibraryFileError> {
-        if name.is_empty() {
+        self.save_new(path, &ToolLibrary::new(name), info)
+    }
+
+    /// 一覧の `index` 番目のライブラリ（読めないときは前に読めた内容）のツールセットを写した、名前 `name` の別の
+    /// ライブラリのファイルを `path` に作り（保存したときの情報 `info`）、一覧の最後に足して、その番号を返す
+    ///
+    /// ライブラリの ID とツールセットの ID は作り直す（写したライブラリを、元と同じライブラリとして扱わないため）。
+    ///
+    /// # Errors
+    ///
+    /// 一覧にない・使えないライブラリの場合（[`ToolLibraryFileError::Io`] の `NotFound`）、名前が空の場合、`path`
+    /// にすでにファイルがある場合、書けない場合。
+    pub fn duplicate(
+        &mut self,
+        index: usize,
+        path: PathBuf,
+        name: String,
+        info: &ToolLibrarySaveInfo,
+    ) -> Result<usize, ToolLibraryFileError> {
+        let source = self
+            .entries
+            .get(index)
+            .and_then(ToolLibraryCatalogEntry::library)
+            .ok_or_else(|| ToolLibraryFileError::Io(std::io::ErrorKind::NotFound.into()))?;
+        let mut library = ToolLibrary::new(name);
+        library.toolsets = source
+            .toolsets
+            .iter()
+            .map(|entry| ToolSetEntry {
+                id: ToolSetId::new_random(),
+                ..entry.clone()
+            })
+            .collect();
+        self.save_new(path, &library, info)
+    }
+
+    /// 新しいライブラリ `library` のファイルを `path` に書き、一覧の最後に足して、その番号を返す（名前が空・ファイルが
+    /// すでにあれば書かない）
+    fn save_new(
+        &mut self,
+        path: PathBuf,
+        library: &ToolLibrary,
+        info: &ToolLibrarySaveInfo,
+    ) -> Result<usize, ToolLibraryFileError> {
+        if library.name.is_empty() {
             return Err(ToolLibraryFileError::InvalidSection {
                 kind: super::LINF,
                 field: "library.name",
@@ -186,7 +232,7 @@ impl ToolLibraryCatalog {
                 std::io::ErrorKind::AlreadyExists.into(),
             ));
         }
-        save_tool_library(&path, &ToolLibrary::new(name), info)?;
+        save_tool_library(&path, library, info)?;
         Ok(self.add(path))
     }
 
