@@ -387,3 +387,187 @@ fn operation_tools_are_registered_in_a_library() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ---- 絞り込み・並べ替え・同じ値・使う工程の数・複写 ----
+
+fn row(name: &str, kind: CuttingToolKind, diameter: f64, length: Option<f64>) -> ToolSetRow {
+    ToolSetRow {
+        id: ToolSetId::new_random(),
+        name: name.to_string(),
+        kind: Some(kind),
+        diameter,
+        corner_radius: if kind == CuttingToolKind::BallEndMill {
+            diameter / 2.0
+        } else {
+            0.0
+        },
+        cutting_length: length,
+        same_values: false,
+    }
+}
+
+fn row_names(rows: &[ToolSetRow]) -> Vec<&str> {
+    rows.iter().map(|row| row.name.as_str()).collect()
+}
+
+#[test]
+fn tool_sets_with_the_same_values_are_marked() {
+    let dir = test_dir("same-values");
+    let mut session = session(Vec::new());
+    session
+        .create_library(dir.join("mc1.rrtl"), "MC 1 号機")
+        .unwrap();
+    session.add_toolset(0, &draft("R3 ボール A", 6.0)).unwrap();
+    session.add_toolset(0, &draft("R3 ボール B", 6.0)).unwrap();
+    session.add_toolset(0, &draft("R4 ボール", 8.0)).unwrap();
+    let marks: Vec<bool> = session
+        .toolsets(0)
+        .iter()
+        .map(|row| row.same_values)
+        .collect();
+    assert_eq!(marks, [true, true, false]);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn tool_sets_are_filtered_and_sorted_without_changing_the_library_order() {
+    let mut rows = vec![
+        row("R3 ボール", CuttingToolKind::BallEndMill, 6.0, Some(30.0)),
+        row("φ10 フラット", CuttingToolKind::FlatEndMill, 10.0, None),
+        row("r1 ボール", CuttingToolKind::BallEndMill, 2.0, Some(10.0)),
+        row("φ6 フラット", CuttingToolKind::FlatEndMill, 6.0, Some(20.0)),
+    ];
+    rows[0].same_values = true;
+    rows[2].same_values = true;
+    let all = ToolSetFilter::default();
+    assert!(!all.is_active());
+    assert_eq!(
+        row_names(&filtered_toolsets(rows.clone(), &all, None)),
+        ["R3 ボール", "φ10 フラット", "r1 ボール", "φ6 フラット"]
+    );
+
+    // 名前（大文字・小文字を区別しない）・種類・径・同じ値で絞る
+    let by_name = ToolSetFilter {
+        name: " R".to_string(),
+        ..Default::default()
+    };
+    assert!(by_name.is_active());
+    assert_eq!(
+        row_names(&filtered_toolsets(rows.clone(), &by_name, None)),
+        ["R3 ボール", "r1 ボール"]
+    );
+    let flat = ToolSetFilter {
+        kind: Some(CuttingToolKind::FlatEndMill),
+        ..Default::default()
+    };
+    assert_eq!(
+        row_names(&filtered_toolsets(rows.clone(), &flat, None)),
+        ["φ10 フラット", "φ6 フラット"]
+    );
+    let six = ToolSetFilter {
+        diameter: Some(6.0 + 1e-12),
+        ..Default::default()
+    };
+    assert_eq!(
+        row_names(&filtered_toolsets(rows.clone(), &six, None)),
+        ["R3 ボール", "φ6 フラット"]
+    );
+    let same = ToolSetFilter {
+        same_values_only: true,
+        ..Default::default()
+    };
+    assert_eq!(
+        row_names(&filtered_toolsets(rows.clone(), &same, None)),
+        ["R3 ボール", "r1 ボール"]
+    );
+
+    // 列で並べ替える（工具長の制限なしは最も長い。同じ値はライブラリの並び）
+    let sorted = |key, ascending| {
+        row_names(&filtered_toolsets(
+            rows.clone(),
+            &all,
+            Some((key, ascending)),
+        ))
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        sorted(ToolSetSortKey::Diameter, true),
+        ["r1 ボール", "R3 ボール", "φ6 フラット", "φ10 フラット"]
+    );
+    assert_eq!(
+        sorted(ToolSetSortKey::CuttingLength, false),
+        ["φ10 フラット", "R3 ボール", "φ6 フラット", "r1 ボール"]
+    );
+    assert_eq!(
+        sorted(ToolSetSortKey::Kind, true),
+        ["R3 ボール", "r1 ボール", "φ10 フラット", "φ6 フラット"]
+    );
+    assert_eq!(
+        sorted(ToolSetSortKey::Name, true),
+        ["r1 ボール", "R3 ボール", "φ10 フラット", "φ6 フラット"]
+    );
+    assert_eq!(
+        sorted(ToolSetSortKey::CornerRadius, true),
+        ["φ10 フラット", "φ6 フラット", "r1 ボール", "R3 ボール"]
+    );
+}
+
+#[test]
+fn operations_using_a_tool_set_are_counted() {
+    let dir = test_dir("usage");
+    let mut session = session(Vec::new());
+    session
+        .create_library(dir.join("mc1.rrtl"), "MC 1 号機")
+        .unwrap();
+    let r3 = session.add_toolset(0, &draft("R3 ボール", 6.0)).unwrap();
+    let r4 = session.add_toolset(0, &draft("R4 ボール", 8.0)).unwrap();
+    let mut document = document();
+    assert_eq!(session.toolset_usage(0, r3, &document), 0);
+    let content = session
+        .content_with_toolset(document.operation_content(), 0, r3)
+        .unwrap();
+    document.set_operation_content(content);
+    document.add_operation("仕上げ".to_string());
+    assert_eq!(session.toolset_usage(0, r3, &document), 2);
+    assert_eq!(session.toolset_usage(0, r4, &document), 0);
+    assert_eq!(session.toolset_usage(5, r3, &document), 0);
+
+    // 写したライブラリの同じ名前のツールセットは、別のツールセットとして数える
+    session
+        .duplicate_library(0, dir.join("mc2.rrtl"), "MC 2 号機")
+        .unwrap();
+    let copied = session.toolsets(1)[0].id;
+    assert_ne!(copied, r3);
+    assert_eq!(session.toolset_usage(1, copied, &document), 0);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn libraries_are_duplicated_as_other_libraries() {
+    let dir = test_dir("duplicate-library");
+    let mut session = session(Vec::new());
+    session
+        .create_library(dir.join("mc1.rrtl"), "MC 1 号機")
+        .unwrap();
+    session.add_toolset(0, &draft("R3 ボール", 6.0)).unwrap();
+    assert_eq!(
+        session
+            .duplicate_library(0, dir.join("mc2.rrtl"), " MC 2 号機 ")
+            .unwrap(),
+        1
+    );
+    let rows = session.libraries();
+    assert_eq!(rows[1].name.as_deref(), Some("MC 2 号機"));
+    assert!(rows[1].editable());
+    assert_eq!(names(&session, 1), ["R3 ボール"]);
+    assert_eq!(
+        session
+            .duplicate_library(0, dir.join("mc2.rrtl"), "別")
+            .unwrap_err()
+            .key,
+        "failure.file.already_exists"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

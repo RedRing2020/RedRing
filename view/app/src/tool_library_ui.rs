@@ -10,8 +10,8 @@ use viewmodel::cutting_simulation_session::CuttingToolKind;
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::tool_library_session::{
-    ToolLibraryRow, ToolLibraryState, ToolSetDraft, ToolSetDraftIssue, ToolSetId, ToolSetRow,
-    file_label,
+    ToolLibraryRow, ToolLibraryState, ToolSetDraft, ToolSetDraftIssue, ToolSetFilter, ToolSetId,
+    ToolSetRow, ToolSetSortKey, file_label, filtered_toolsets,
 };
 
 /// ウィンドウの幅（点）
@@ -30,6 +30,8 @@ pub enum ToolLibraryAction {
     CreateLibrary,
     /// ライブラリのファイルを一覧に足す（ファイルを選ぶ画面を出す）
     OpenLibraries,
+    /// 一覧の番号のライブラリを、別のライブラリとして複写する（場所を選ぶ画面を出す）
+    DuplicateLibrary(usize),
     /// 一覧の番号のライブラリを一覧から外す
     RemoveLibrary(usize),
     /// 一覧の番号のライブラリの名前を替える
@@ -66,6 +68,12 @@ pub struct ToolLibraryWindow {
     pub rename: Option<String>,
     /// 最後の操作の結果（画面に出す文言と、失敗か）
     pub result: Option<(String, bool)>,
+    /// ツールセットの表の絞り込み（見せ方だけで、ライブラリの並びは変えない）
+    pub filter: ToolSetFilter,
+    /// 径の絞り込みの入力値（絞り込まない間も保つ）
+    pub diameter_input: f64,
+    /// ツールセットの表の並べ替え（列と、昇順か。`None` はライブラリの並び）
+    pub sort: Option<(ToolSetSortKey, bool)>,
 }
 
 /// ウィンドウの 1 フレームの状態
@@ -74,8 +82,10 @@ pub struct ToolLibraryUiState {
     pub window: ToolLibraryWindow,
     /// 使うライブラリの一覧
     pub libraries: Vec<ToolLibraryRow>,
-    /// 選んだライブラリのツールセット
+    /// 選んだライブラリのツールセット（ライブラリの並び）
     pub toolsets: Vec<ToolSetRow>,
+    /// 開いているモデルで、選んだツールセットを使う工程の数
+    pub selected_usage: usize,
     /// 要求された操作
     pub requested: Option<ToolLibraryAction>,
 }
@@ -230,14 +240,30 @@ impl ToolLibraryUiState {
                 });
             }
         }
-        if ui
-            .button(self.text("tool_library.library.remove"))
-            .clicked()
-        {
-            self.requested = Some(ToolLibraryAction::RemoveLibrary(
-                self.window.selected_library,
-            ));
-        }
+        ui.horizontal(|ui| {
+            // 読めたことのある内容があれば、読むだけのライブラリも写せる
+            let readable =
+                !matches!(row.state, ToolLibraryState::Duplicate { .. }) && row.name.is_some();
+            if ui
+                .add_enabled(
+                    readable,
+                    egui::Button::new(self.text("tool_library.library.duplicate_as")),
+                )
+                .clicked()
+            {
+                self.requested = Some(ToolLibraryAction::DuplicateLibrary(
+                    self.window.selected_library,
+                ));
+            }
+            if ui
+                .button(self.text("tool_library.library.remove"))
+                .clicked()
+            {
+                self.requested = Some(ToolLibraryAction::RemoveLibrary(
+                    self.window.selected_library,
+                ));
+            }
+        });
     }
 
     fn kind_text(&self, kind: Option<CuttingToolKind>) -> String {
@@ -300,9 +326,12 @@ impl ToolLibraryUiState {
                     id: row.id,
                 });
             }
+            // 絞り込み・並べ替えの間は、表の並びとライブラリの並びが違うため、動かせない
+            let ordered = !self.window.filter.is_active() && self.window.sort.is_none();
             let at = selected.as_ref().map(|(at, _)| *at);
-            let can_up = has_selection && at.is_some_and(|at| at > 0);
-            let can_down = has_selection && at.is_some_and(|at| at + 1 < self.toolsets.len());
+            let can_up = ordered && has_selection && at.is_some_and(|at| at > 0);
+            let can_down =
+                ordered && has_selection && at.is_some_and(|at| at + 1 < self.toolsets.len());
             for (enabled, key, step) in [
                 (can_up, "tool_library.toolset.up", -1_isize),
                 (can_down, "tool_library.toolset.down", 1),
@@ -323,6 +352,7 @@ impl ToolLibraryUiState {
         if self.toolsets.is_empty() {
             ui.colored_label(Color32::GRAY, self.text("tool_library.toolset.none"));
         } else {
+            self.show_toolset_filter(ui);
             self.show_toolset_table(ui);
         }
         if let Some((_, row)) = selected {
@@ -331,18 +361,102 @@ impl ToolLibraryUiState {
         }
     }
 
+    /// ツールセットの表の絞り込みの欄（名前・種類・径・同じ値）
+    fn show_toolset_filter(&mut self, ui: &mut egui::Ui) {
+        let all = self.text("tool_library.filter.all_kinds");
+        let ball = self.text("tool_library.kind.ball");
+        let flat = self.text("tool_library.kind.flat");
+        ui.horizontal(|ui| {
+            ui.label(self.text("tool_library.filter.name"));
+            ui.add(egui::TextEdit::singleline(&mut self.window.filter.name).desired_width(120.0));
+            let kind_text = match self.window.filter.kind {
+                None => all.clone(),
+                Some(CuttingToolKind::BallEndMill) => ball.clone(),
+                Some(CuttingToolKind::FlatEndMill) => flat.clone(),
+            };
+            egui::ComboBox::from_id_salt("tool_library_kind_filter")
+                .selected_text(kind_text)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.window.filter.kind, None, all);
+                    ui.selectable_value(
+                        &mut self.window.filter.kind,
+                        Some(CuttingToolKind::BallEndMill),
+                        ball,
+                    );
+                    ui.selectable_value(
+                        &mut self.window.filter.kind,
+                        Some(CuttingToolKind::FlatEndMill),
+                        flat,
+                    );
+                });
+        });
+        ui.horizontal(|ui| {
+            let mut by_diameter = self.window.filter.diameter.is_some();
+            ui.checkbox(&mut by_diameter, self.text("tool_library.filter.diameter"));
+            if self.window.diameter_input <= 0.0 {
+                self.window.diameter_input = 6.0;
+            }
+            ui.add_enabled(
+                by_diameter,
+                DragValue::new(&mut self.window.diameter_input)
+                    .range(0.001..=MAX_LENGTH)
+                    .speed(0.1)
+                    .suffix(" mm"),
+            );
+            self.window.filter.diameter = by_diameter.then_some(self.window.diameter_input);
+            let same_values = self.text("tool_library.filter.same_values");
+            ui.checkbox(&mut self.window.filter.same_values_only, same_values);
+            if ui
+                .add_enabled(
+                    self.window.filter.is_active() || self.window.sort.is_some(),
+                    egui::Button::new(self.text("tool_library.filter.clear")),
+                )
+                .clicked()
+            {
+                self.window.filter = ToolSetFilter::default();
+                self.window.sort = None;
+            }
+        });
+    }
+
     fn show_toolset_table(&mut self, ui: &mut egui::Ui) {
-        let headers = [
-            "tool_library.column.name",
-            "tool_library.column.kind",
-            "tool_library.column.diameter",
-            "tool_library.column.corner_radius",
-            "tool_library.column.cutting_length",
-        ]
-        .map(|key| self.text(key));
+        let columns = [
+            ("tool_library.column.name", Some(ToolSetSortKey::Name)),
+            ("tool_library.column.kind", Some(ToolSetSortKey::Kind)),
+            (
+                "tool_library.column.diameter",
+                Some(ToolSetSortKey::Diameter),
+            ),
+            (
+                "tool_library.column.corner_radius",
+                Some(ToolSetSortKey::CornerRadius),
+            ),
+            (
+                "tool_library.column.cutting_length",
+                Some(ToolSetSortKey::CuttingLength),
+            ),
+            ("tool_library.column.same_values", None),
+        ];
+        let headers: Vec<(String, Option<ToolSetSortKey>)> = columns
+            .iter()
+            .map(|(key, sort)| {
+                let mut text = self.text(key);
+                if let Some((sorted, ascending)) = self.window.sort
+                    && Some(sorted) == *sort
+                {
+                    text.push_str(if ascending { " ▲" } else { " ▼" });
+                }
+                (text, *sort)
+            })
+            .collect();
         let unlimited = self.text("tool_library.length.unlimited");
-        let rows: Vec<(ToolSetId, [String; 5])> = self
-            .toolsets
+        let same_mark = self.text("tool_library.same_values.mark");
+        let shown = filtered_toolsets(self.toolsets.clone(), &self.window.filter, self.window.sort);
+        if shown.is_empty() {
+            ui.colored_label(Color32::GRAY, self.text("tool_library.toolset.no_match"));
+            return;
+        }
+        let rows: Vec<(ToolSetId, [String; 6])> = shown
             .iter()
             .map(|row| {
                 let length = row
@@ -356,6 +470,11 @@ impl ToolLibraryUiState {
                         format!("{} mm", row.diameter),
                         format!("{} mm", row.corner_radius),
                         length,
+                        if row.same_values {
+                            same_mark.clone()
+                        } else {
+                            String::new()
+                        },
                     ],
                 )
             })
@@ -396,8 +515,25 @@ impl ToolLibraryUiState {
                         }
                     })
                     .show(ui, |ui| {
-                        for header in &headers {
-                            ui.strong(header);
+                        for (header, sort) in &headers {
+                            let Some(key) = sort else {
+                                ui.strong(header);
+                                continue;
+                            };
+                            // 見出しを押すと、昇順・降順・ライブラリの並びの順に替える
+                            let clicked = ui
+                                .add(
+                                    egui::Label::new(egui::RichText::new(header).strong())
+                                        .sense(egui::Sense::click()),
+                                )
+                                .clicked();
+                            if clicked {
+                                self.window.sort = match self.window.sort {
+                                    Some((sorted, true)) if sorted == *key => Some((*key, false)),
+                                    Some((sorted, false)) if sorted == *key => None,
+                                    _ => Some((*key, true)),
+                                };
+                            }
                         }
                         ui.end_row();
                         for (index, (id, cells)) in rows.into_iter().enumerate() {
@@ -436,6 +572,10 @@ impl ToolLibraryUiState {
     }
 
     fn show_toolset_editor(&mut self, ui: &mut egui::Ui, row: &ToolSetRow, editable: bool) {
+        ui.label(self.text_with(
+            "tool_library.usage",
+            &[("count", self.selected_usage.to_string())],
+        ));
         let shown = ToolSetDraft::of(row);
         let mut draft = self.window.draft.clone().unwrap_or_else(|| shown.clone());
         ui.add_enabled_ui(editable, |ui| {

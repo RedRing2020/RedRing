@@ -1012,3 +1012,73 @@ fn libraries_are_created_added_and_removed_from_the_catalog() {
     assert_eq!(catalog.entries().len(), 1);
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn libraries_are_duplicated_with_new_ids() {
+    let dir = test_dir("catalog-duplicate");
+    let source = saved_library(&dir, "mc1.rrtl");
+    let mut catalog = ToolLibraryCatalog::open([source]);
+    let copy = dir.join("mc2.rrtl");
+    assert_eq!(
+        catalog
+            .duplicate(0, copy.clone(), "MC 2 号機".to_string(), &info())
+            .unwrap(),
+        1
+    );
+    let original = catalog.entries()[0].library().unwrap();
+    let duplicated = catalog.entries()[1].library().unwrap();
+    // 写したライブラリは、元と違うライブラリ・ツールセットとして一覧で使える
+    assert!(matches!(
+        catalog.entries()[1].status(),
+        ToolLibraryStatus::Available { writable: true }
+    ));
+    assert_ne!(duplicated.id, original.id);
+    assert_eq!(duplicated.name, "MC 2 号機");
+    assert_eq!(duplicated.toolsets.len(), original.toolsets.len());
+    for (copied, entry) in duplicated.toolsets.iter().zip(&original.toolsets) {
+        assert_ne!(copied.id, entry.id);
+        assert_eq!((&copied.name, &copied.tool), (&entry.name, &entry.tool));
+    }
+    assert_eq!(load_tool_library(&copy).unwrap().0, *duplicated);
+
+    // すでにあるファイルには写さない・一覧にないライブラリは写せない
+    assert!(matches!(
+        catalog.duplicate(0, copy, "別".to_string(), &info()),
+        Err(ToolLibraryFileError::Io(error)) if error.kind() == std::io::ErrorKind::AlreadyExists
+    ));
+    assert!(matches!(
+        catalog.duplicate(9, dir.join("x.rrtl"), "別".to_string(), &info()),
+        Err(ToolLibraryFileError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound
+    ));
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn tool_values_are_compared_within_the_distance_tolerance() {
+    let ball = Tool::ball_end_mill("a".to_string(), 6.0, 30.0);
+    // 識別子は比べない
+    assert!(same_tool_values(
+        &ball,
+        &Tool::ball_end_mill("b".to_string(), 6.0, 30.0)
+    ));
+    assert!(same_tool_values(
+        &ball,
+        &Tool::ball_end_mill("a".to_string(), 6.0 + 1e-12, 30.0)
+    ));
+    assert!(!same_tool_values(
+        &ball,
+        &Tool::ball_end_mill("a".to_string(), 6.001, 30.0)
+    ));
+    assert!(!same_tool_values(
+        &ball,
+        &Tool::ball_end_mill("a".to_string(), 6.0, 40.0)
+    ));
+    assert!(!same_tool_values(
+        &ball,
+        &Tool::flat_end_mill("a".to_string(), 6.0, 30.0)
+    ));
+    let mut unlimited = ball.clone();
+    unlimited.cutting_length = None;
+    assert!(!same_tool_values(&ball, &unlimited));
+    assert!(same_tool_values(&unlimited, &unlimited.clone()));
+}

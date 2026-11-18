@@ -65,8 +65,16 @@ impl AppState {
         } else {
             Vec::new()
         };
+        let selected_usage = window
+            .selected_toolset
+            .filter(|_| window.open)
+            .map_or(0, |id| {
+                self.tool_library
+                    .toolset_usage(window.selected_library, id, &self.document)
+            });
         ToolLibraryUiState {
             locale: self.ui_locale,
+            selected_usage,
             libraries: if window.open {
                 self.tool_library.libraries()
             } else {
@@ -94,6 +102,7 @@ impl AppState {
         let outcome = match action {
             ToolLibraryAction::CreateLibrary => self.create_tool_library(),
             ToolLibraryAction::OpenLibraries => self.add_tool_libraries(),
+            ToolLibraryAction::DuplicateLibrary(index) => self.duplicate_tool_library(index),
             ToolLibraryAction::RemoveLibrary(index) => {
                 self.tool_library.remove_library(index);
                 let window = &mut self.tool_library_window;
@@ -133,18 +142,9 @@ impl AppState {
 
     /// 場所を選んで、ファイルの名前を名前にした新しいライブラリを作り、一覧に足す
     fn create_tool_library(&mut self) -> Outcome {
-        let Some(path) = self.tool_library_dialog().save_file() else {
+        let Some((path, file, name)) = self.pick_new_tool_library_file() else {
             return Outcome::Nothing;
         };
-        let path = if path.extension().is_none() {
-            path.with_extension(TOOL_LIBRARY_EXTENSIONS[0])
-        } else {
-            path
-        };
-        let file = file_label(&path);
-        let name = path
-            .file_stem()
-            .map_or_else(|| file.clone(), |stem| stem.to_string_lossy().into_owned());
         match self.tool_library.create_library(path, &name) {
             Ok(index) => {
                 self.select_tool_library(index);
@@ -157,6 +157,41 @@ impl AppState {
             }
             Err(reason) => Outcome::Failed { file, reason },
         }
+    }
+
+    /// 場所を選んで、一覧の `index` 番目のライブラリを、ファイルの名前を名前にした別のライブラリとして複写し、一覧に
+    /// 足す
+    fn duplicate_tool_library(&mut self, index: usize) -> Outcome {
+        let Some((path, file, name)) = self.pick_new_tool_library_file() else {
+            return Outcome::Nothing;
+        };
+        match self.tool_library.duplicate_library(index, path, &name) {
+            Ok(index) => {
+                self.select_tool_library(index);
+                self.save_tool_library_list();
+                Outcome::Done(resolve_tool_library_text(
+                    self.ui_locale,
+                    "tool_library.result.created",
+                    &[("file", file)],
+                ))
+            }
+            Err(reason) => Outcome::Failed { file, reason },
+        }
+    }
+
+    /// 新しいライブラリのファイルの場所を選ぶ（選んだ場所・ファイルの名前・拡張子を除いた名前。選ばなければ `None`）
+    fn pick_new_tool_library_file(&self) -> Option<(PathBuf, String, String)> {
+        let path = self.tool_library_dialog().save_file()?;
+        let path = if path.extension().is_none() {
+            path.with_extension(TOOL_LIBRARY_EXTENSIONS[0])
+        } else {
+            path
+        };
+        let file = file_label(&path);
+        let name = path
+            .file_stem()
+            .map_or_else(|| file.clone(), |stem| stem.to_string_lossy().into_owned());
+        Some((path, file, name))
     }
 
     /// 選んだライブラリのファイルを一覧に足す
@@ -193,6 +228,7 @@ impl AppState {
             | ToolLibraryAction::MoveToolSet { library, .. } => *library,
             ToolLibraryAction::CreateLibrary
             | ToolLibraryAction::OpenLibraries
+            | ToolLibraryAction::DuplicateLibrary(_)
             | ToolLibraryAction::RemoveLibrary(_) => return Outcome::Nothing,
         };
         let file = self
@@ -261,6 +297,7 @@ impl AppState {
             }
             ToolLibraryAction::CreateLibrary
             | ToolLibraryAction::OpenLibraries
+            | ToolLibraryAction::DuplicateLibrary(_)
             | ToolLibraryAction::RemoveLibrary(_) => {}
         }
         Ok(())
