@@ -237,3 +237,28 @@ fn every_tool_library_failure_has_a_text_in_both_languages() {
 fn file_labels_are_the_file_names() {
     assert_eq!(file_label(Path::new("C:/tools/mc1.rrtl")), "mc1.rrtl");
 }
+
+#[test]
+fn tool_sets_with_the_same_name_are_told_apart_by_their_ids() {
+    let dir = test_dir("same-name");
+    let path = dir.join("mc1.rrtl");
+    let mut session = session(Vec::new());
+    session.create_library(path.clone(), "MC 1 号機").unwrap();
+    let first = session.add_toolset(0, &draft("R3 ボール", 6.0)).unwrap();
+    let second = session.add_toolset(0, &draft("R3 ボール", 6.0)).unwrap();
+    assert_ne!(first, second);
+
+    // 後の 1 本だけを替え・動かし・消しても、同じ名前の前の 1 本は変わらない
+    session
+        .update_toolset(0, second, &draft("R3 ボール", 8.0))
+        .unwrap();
+    session.move_toolset(0, second, 0).unwrap();
+    let rows = session.toolsets(0);
+    assert_eq!((rows[0].id, rows[0].diameter), (second, 8.0));
+    assert_eq!((rows[1].id, rows[1].diameter), (first, 6.0));
+    session.remove_toolset(0, second).unwrap();
+    let rows = self::session(vec![path]).toolsets(0);
+    assert_eq!(rows.len(), 1);
+    assert_eq!((rows[0].id, rows[0].diameter), (first, 6.0));
+    let _ = std::fs::remove_dir_all(&dir);
+}
