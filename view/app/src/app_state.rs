@@ -20,6 +20,7 @@ use viewmodel::cutting_simulation_session::{
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::space_model_document::MachiningOperationId;
 use viewmodel::space_model_document::SpaceModelDocument;
+use viewmodel::tool_library_session::ToolLibrarySession;
 use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
@@ -34,6 +35,8 @@ mod machining_conditions;
 mod menu_bar;
 // AppState のモデルファイルの操作と、保存していない変更の確かめ
 mod model_file;
+// AppState のツールライブラリのウィンドウ
+mod tool_library;
 
 mod help;
 // AppState のデバッグスナップショット状態
@@ -239,6 +242,13 @@ pub struct AppState {
     app_settings: AppSettings,
     app_settings_path: Option<PathBuf>,
 
+    /// 使うツールライブラリの一覧（アプリの設定に保存する）
+    tool_library: ToolLibrarySession,
+    /// ツールライブラリのウィンドウの状態
+    tool_library_window: crate::tool_library_ui::ToolLibraryWindow,
+    /// 要求されたツールライブラリの操作（描画の後に行う）
+    tool_library_action: Option<crate::tool_library_ui::ToolLibraryAction>,
+
     /// ヘルプの「操作の一覧」のウィンドウを開いているか
     help_controls_open: bool,
     /// ヘルプの「バージョンの情報」のウィンドウを開いているか
@@ -278,6 +288,8 @@ impl AppState {
         let viewing_operation_settings = ViewingOperationSettings::default();
 
         let first_notice = settings_notice.unwrap_or(Notice::Startup);
+        let tool_library =
+            tool_library::open_tool_libraries(app_settings.tool_libraries().to_vec());
         let mut app_state = Self {
             window,
             graphic,
@@ -327,6 +339,9 @@ impl AppState {
             ui_locale,
             app_settings,
             app_settings_path,
+            tool_library,
+            tool_library_window: crate::tool_library_ui::ToolLibraryWindow::default(),
+            tool_library_action: None,
             help_controls_open: false,
             help_about_open: false,
             notice: Notice::Startup,

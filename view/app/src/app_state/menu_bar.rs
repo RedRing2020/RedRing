@@ -41,6 +41,7 @@ impl AppState {
             Some(MachiningMenuItem::SequenceSettings) => {
                 self.open_condition_dialog(ConditionDialog::Sequence);
             }
+            Some(MachiningMenuItem::ToolLibrary) => self.open_tool_library_window(),
             None => {}
         }
         if let Some(locale) = state.locale_requested {
@@ -58,6 +59,7 @@ impl AppState {
     /// ため、描画の途中ではなく、イベントの処理が終わった後に呼ぶ）
     pub fn run_requested_menu_actions(&mut self) {
         self.run_file_actions();
+        self.run_tool_library_action();
         self.refresh_window_title();
     }
 }

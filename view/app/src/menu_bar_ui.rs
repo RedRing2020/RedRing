@@ -48,6 +48,7 @@ pub enum MachiningMenuItem {
     OperationList,
     OperationSettings,
     SequenceSettings,
+    ToolLibrary,
 }
 
 /// 「加工」の項目と、その文言のキー・キーの組み合わせ（`None` は区切り）
@@ -76,6 +77,12 @@ const MACHINING_MENU: &[Option<(MachiningMenuItem, &str, Option<&str>)>] = &[
     Some((
         MachiningMenuItem::SequenceSettings,
         "menu.machining.sequence_settings",
+        None,
+    )),
+    None,
+    Some((
+        MachiningMenuItem::ToolLibrary,
+        "menu.machining.tool_library",
         None,
     )),
 ];
@@ -135,10 +142,11 @@ impl MenuBarUiState {
                             ui.separator();
                             continue;
                         };
-                        // 開く操作は閉じている間だけ、ほかは開いている間だけ選べる
-                        let enabled = (*item == MachiningMenuItem::OpenSequence)
-                            != self.machining_sequence_open
-                            && !self.condition_dialog_open;
+                        // ツールライブラリはいつでも、開く操作は閉じている間だけ、ほかは開いている間だけ選べる
+                        let enabled = *item == MachiningMenuItem::ToolLibrary
+                            || (*item == MachiningMenuItem::OpenSequence)
+                                != self.machining_sequence_open
+                                && !self.condition_dialog_open;
                         let shown =
                             *item == MachiningMenuItem::OperationList && self.operation_list_shown;
                         let mut button = egui::Button::new(self.text(key)).selected(shown);

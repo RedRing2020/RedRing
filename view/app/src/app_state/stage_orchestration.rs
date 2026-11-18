@@ -2,6 +2,7 @@
 
 use super::AppState;
 use crate::help_ui::NoticeBarUiState;
+use crate::settings_panel_renderer::UiFrameStates;
 use stage::MeshStage;
 
 impl AppState {
@@ -43,6 +44,7 @@ impl AppState {
         let mut settings_panel_state = self.prepare_settings_panel_state();
         let mut machining_conditions_state = self.prepare_machining_conditions_state();
         let mut help_state = self.prepare_help_state();
+        let mut tool_library_state = self.prepare_tool_library_state();
         let mut notice_bar_state = NoticeBarUiState {
             locale: self.ui_locale,
             notice: &self.notice,
@@ -54,15 +56,19 @@ impl AppState {
         };
         self.renderer.prepare_ui_windows(
             &self.window,
-            &mut menu_bar_state,
-            &mut notice_bar_state,
-            &mut settings_panel_state,
-            &mut machining_conditions_state,
-            &mut help_state,
+            &mut UiFrameStates {
+                menu: &mut menu_bar_state,
+                notice: &mut notice_bar_state,
+                panel: &mut settings_panel_state,
+                conditions: &mut machining_conditions_state,
+                help: &mut help_state,
+                tool_library: &mut tool_library_state,
+            },
         );
         let log_opened = notice_bar_state.log_opened;
         self.apply_notice_bar_state(log_opened);
         self.apply_help_state(help_state);
+        self.apply_tool_library_state(tool_library_state);
         self.apply_settings_panel_state(settings_panel_state);
         self.apply_machining_conditions_state(machining_conditions_state);
         self.apply_menu_bar_state(menu_bar_state);

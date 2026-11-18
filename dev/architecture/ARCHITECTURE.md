@@ -115,7 +115,7 @@ foundation（analysis / logging_foundation / i18n_foundation / platform_foundati
 OS・コンテナなど、動かす環境によって違う処理は、`foundation/platform_foundation` に集め、環境に依らない API の薄いラッパーとして使う。業務のクレートは、環境ごとの違い（`#[cfg(windows)]` など）と、OS の API のクレート（windows-sys など）を持たない。
 
 - **置くもの**: 動かす環境によって違う処理を、環境に依らない API で見せるもの
-    - OS の違い: 子プロセスの扱い（親のプロセスが終わると一緒に止まる組・コンソールを出さない指定）、プロセスの間の口（名前付きパイプ・UNIX ドメインソケット）、ウィンドウを前に出す権利を渡す処理、利用者の表示の言語、フォルダがこの PC にあるか（ネットワークのドライブでないか）、サインインしたときに起動するプログラム
+    - OS の違い: 子プロセスの扱い（親のプロセスが終わると一緒に止まる組・コンソールを出さない指定）、プロセスの間の口（名前付きパイプ・UNIX ドメインソケット）、ウィンドウを前に出す権利を渡す処理、利用者の表示の言語、フォルダがこの PC にあるか（ネットワークのドライブでないか）、サインインしたときに起動するプログラム、この PC の名前とサインインしている利用者の名前（`identity`。共有のファイルを書いている PC・利用者を見分ける）
     - 動かす環境の違い: 利用者のフォルダの場所（`%LOCALAPPDATA%`・`$XDG_DATA_HOME` など）
     - ファイルの置き換えと名前の変更（`file`）: 一時のファイルに書き、ドライブまで書き込んでから、名前を変えて置き換える。Windows で名前の変更をほかのプログラムに一時的に断られたときの試し直し、Windows 以外でのフォルダの書き込みを、ここに閉じる。ファイルを置き換える書き込み（ジョブの保存先・ランナーの成果物と進み具合・設定・モデルファイル）と、ジョブの保存先のファイル・フォルダの名前の変更（投入・取り込み・削除・ランナーのログ）は、どれもこれを使う
 - **置かないもの**
@@ -377,6 +377,6 @@ redring（view/app） → stage → render
 - [`FIXTURE_SEPARATION_DESIGN.md`](FIXTURE_SEPARATION_DESIGN.md) - Model fixtures の分離方針
 - [`BATCH_COMPUTE_PLATFORM_DESIGN.md`](BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Docker ヘッドレス + Kubernetes）
 - [`SPACE_MODEL_FILE_DESIGN.md`](SPACE_MODEL_FILE_DESIGN.md) - 空間モデル（モデルファイル `.rrm`）の内容・形式・ID の保ち方
-- [`TOOL_LIBRARY_DESIGN.md`](TOOL_LIBRARY_DESIGN.md) - 工作機械ごとのツールライブラリ（複数のクライアントの環境では共有フォルダで使う）と、加工工程の工具の持ち方
+- [`TOOL_LIBRARY_DESIGN.md`](TOOL_LIBRARY_DESIGN.md) - ツールライブラリ（工具の台帳。複数のクライアントの環境では共有フォルダで使う）と、加工工程の工具の持ち方、工作機械の T 番号の表
 - [`issue-412-artifact-api-naming-archive-note.md`](../archive/issues/issue-412-artifact-api-naming-archive-note.md) - artifact API 命名整理の判断記録
 - [`issue-832-architecture-history-archive-note.md`](../archive/issues/architecture/issue-832-architecture-history-archive-note.md) - 完了した移行計画と、解消した課題の記録

@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use super::shared::{ToolLibraryEdit, ToolLibraryEditError, edit_tool_library, writable};
-use super::{ToolLibrary, ToolLibraryFileError, ToolLibrarySaveInfo, load_tool_library};
+use super::{
+    ToolLibrary, ToolLibraryFileError, ToolLibrarySaveInfo, load_tool_library, save_tool_library,
+};
 
 /// 読んだときのファイルの更新の時刻と大きさ（同じなら読み直さない）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +95,18 @@ impl ToolLibraryCatalogEntry {
     }
 }
 
+/// まだ読んでいない、一覧の 1 つのファイル
+fn unread_entry(path: PathBuf) -> ToolLibraryCatalogEntry {
+    ToolLibraryCatalogEntry {
+        path,
+        status: ToolLibraryStatus::Unreadable(ToolLibraryFileError::Io(
+            std::io::ErrorKind::NotFound.into(),
+        )),
+        library: None,
+        stamp: None,
+    }
+}
+
 /// 使うツールライブラリのファイルの一覧（一覧の順に持つ）
 #[derive(Debug, Default)]
 pub struct ToolLibraryCatalog {
@@ -100,21 +114,14 @@ pub struct ToolLibraryCatalog {
 }
 
 impl ToolLibraryCatalog {
-    /// ファイル `paths` の一覧を作って読む
+    /// ファイル `paths` の一覧を作って読む（同じ場所は 1 回だけ持つ）
     pub fn open(paths: impl IntoIterator<Item = PathBuf>) -> Self {
-        let mut catalog = Self {
-            entries: paths
-                .into_iter()
-                .map(|path| ToolLibraryCatalogEntry {
-                    path,
-                    status: ToolLibraryStatus::Unreadable(ToolLibraryFileError::Io(
-                        std::io::ErrorKind::NotFound.into(),
-                    )),
-                    library: None,
-                    stamp: None,
-                })
-                .collect(),
-        };
+        let mut catalog = Self::default();
+        for path in paths {
+            if !catalog.contains(&path) {
+                catalog.entries.push(unread_entry(path));
+            }
+        }
         catalog.refresh();
         catalog
     }
@@ -122,6 +129,65 @@ impl ToolLibraryCatalog {
     /// 一覧のファイル（一覧の順）
     pub fn entries(&self) -> &[ToolLibraryCatalogEntry] {
         &self.entries
+    }
+
+    /// 一覧のファイルの場所（一覧の順。アプリの設定に保存する）
+    pub fn paths(&self) -> Vec<PathBuf> {
+        self.entries
+            .iter()
+            .map(|entry| entry.path.clone())
+            .collect()
+    }
+
+    fn contains(&self, path: &Path) -> bool {
+        self.entries.iter().any(|entry| entry.path == path)
+    }
+
+    /// ファイル `path` を一覧の最後に足して読み、その番号を返す（同じ場所がすでにあれば、足さずにその番号を返す）
+    pub fn add(&mut self, path: PathBuf) -> usize {
+        if let Some(index) = self.entries.iter().position(|entry| entry.path == path) {
+            return index;
+        }
+        let mut entry = unread_entry(path);
+        entry.refresh();
+        self.entries.push(entry);
+        self.mark_duplicates();
+        self.entries.len() - 1
+    }
+
+    /// 一覧の `index` 番目のファイルを一覧から外す（ファイルは消さない。一覧にない番号は何もしない）
+    pub fn remove(&mut self, index: usize) {
+        if index < self.entries.len() {
+            self.entries.remove(index);
+            self.refresh();
+        }
+    }
+
+    /// 名前 `name` の、ツールセットのない新しいライブラリのファイルを `path` に作り（保存したときの情報 `info`）、
+    /// 一覧の最後に足して、その番号を返す
+    ///
+    /// # Errors
+    ///
+    /// 名前が空の場合、`path` にすでにファイルがある場合（ほかのライブラリを上書きしない）、書けない場合。
+    pub fn create(
+        &mut self,
+        path: PathBuf,
+        name: String,
+        info: &ToolLibrarySaveInfo,
+    ) -> Result<usize, ToolLibraryFileError> {
+        if name.is_empty() {
+            return Err(ToolLibraryFileError::InvalidSection {
+                kind: super::LINF,
+                field: "library.name",
+            });
+        }
+        if path.exists() {
+            return Err(ToolLibraryFileError::Io(
+                std::io::ErrorKind::AlreadyExists.into(),
+            ));
+        }
+        save_tool_library(&path, &ToolLibrary::new(name), info)?;
+        Ok(self.add(path))
     }
 
     /// 変わったファイルを読み直し、ライブラリの ID の重なりを確かめ直す

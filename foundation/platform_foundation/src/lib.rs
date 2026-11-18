@@ -5,6 +5,7 @@
 pub mod autostart;
 pub mod file;
 pub mod folder;
+pub mod identity;
 pub mod ipc;
 pub mod locale;
 pub mod process;

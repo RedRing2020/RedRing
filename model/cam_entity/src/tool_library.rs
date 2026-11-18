@@ -6,6 +6,11 @@ use uuid::Uuid;
 pub struct ToolLibraryId(Uuid);
 
 impl ToolLibraryId {
+    /// ランダムな ID を作る（新しくライブラリを作るときに使う）
+    pub fn new_random() -> Self {
+        Self(Uuid::new_v4())
+    }
+
     /// UUID から作る（保存した ID に戻すときに使う）
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self(uuid)

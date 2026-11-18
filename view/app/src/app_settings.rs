@@ -1,4 +1,4 @@
-//! アプリの設定（表示の言語）を、利用者ごとのフォルダの JSON のファイルに保存する。
+//! アプリの設定（表示の言語・使うツールライブラリのファイルの一覧）を、利用者ごとのフォルダの JSON のファイルに保存する。
 //!
 //! 置き場所は、Windows では `%APPDATA%\RedRing\settings.json`、ほかの OS では `$XDG_CONFIG_HOME/RedRing/settings.json`
 //! （ない場合は `~/.config/RedRing/settings.json`）。知らない項目は、書くときにそのまま残す（後の版の設定を消さない）。
@@ -23,6 +23,9 @@ pub(crate) struct AppSettings {
     /// 表示の言語（`ja`・`en`）
     #[serde(skip_serializing_if = "Option::is_none")]
     locale: Option<String>,
+    /// 使うツールライブラリのファイルの場所（一覧の順）
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tool_libraries: Vec<PathBuf>,
     /// この版の知らない項目（書くときにそのまま残す）
     #[serde(flatten)]
     other: serde_json::Map<String, serde_json::Value>,
@@ -43,6 +46,15 @@ impl AppSettings {
             UiLocale::En => "en",
         };
         self.locale = Some(code.to_string());
+    }
+
+    /// 使うツールライブラリのファイルの場所（一覧の順）
+    pub(crate) fn tool_libraries(&self) -> &[PathBuf] {
+        &self.tool_libraries
+    }
+
+    pub(crate) fn set_tool_libraries(&mut self, paths: Vec<PathBuf>) {
+        self.tool_libraries = paths;
     }
 }
 
@@ -113,6 +125,34 @@ mod tests {
         settings.set_locale(UiLocale::Ja);
         save_settings(&path, &settings).unwrap();
         assert_eq!(load_settings(&path).unwrap().locale(), UiLocale::Ja);
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn saved_tool_libraries_are_read_back_and_kept_with_unknown_fields() {
+        let path = temp_settings_path("tool_libraries");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"locale":"en","future":1}"#).unwrap();
+        let mut settings = load_settings(&path).unwrap();
+        assert!(settings.tool_libraries().is_empty());
+        let libraries = vec![
+            PathBuf::from("C:/tools/mc1.rrtl"),
+            PathBuf::from("//server/share/mc2.rrtl"),
+        ];
+        settings.set_tool_libraries(libraries.clone());
+        save_settings(&path, &settings).unwrap();
+        let read = load_settings(&path).unwrap();
+        assert_eq!(read.tool_libraries(), libraries);
+        assert_eq!(read.locale(), UiLocale::En);
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["future"], 1);
+        // 一覧が空なら、項目を書かない
+        settings.set_tool_libraries(Vec::new());
+        save_settings(&path, &settings).unwrap();
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert!(saved.get("tool_libraries").is_none());
         let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 
