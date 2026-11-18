@@ -7,7 +7,7 @@ use geo_entity::FaceId;
 use crate::{
     MachiningOperation, MachiningOperationAttributes, MachiningOperationConditions,
     MachiningOperationContent, MachiningOperationId, MachiningRevisionKey, MachiningSequence,
-    MachiningSequenceId, MachiningStock,
+    MachiningSequenceId, MachiningStock, ToolLibraryId, ToolSetId, ToolSetReference,
 };
 
 fn content() -> MachiningOperationContent {
@@ -15,6 +15,7 @@ fn content() -> MachiningOperationContent {
         attributes: MachiningOperationAttributes {
             name: "仕上げ".to_string(),
             stage: MachiningStage::Finish,
+            toolset: None,
         },
         conditions: MachiningOperationConditions {
             spec: OperationSpec::Scanline(ScanlineParams {
@@ -50,15 +51,23 @@ fn changing_the_content_increments_the_revision() {
     assert_eq!(operation.revision(), 1);
     assert_eq!(operation.revision_key(), first_key);
 
-    // 属性（名前・加工の段階）だけの変更では増えない（属性は計算に使わない）。属性は替わる
+    // 属性（名前・加工の段階・工具を選んだツールライブラリの項目）だけの変更では増えない（属性は計算に使わない）。
+    // 属性は替わる
+    let toolset = ToolSetReference {
+        library: ToolLibraryId::from_uuid(uuid::Uuid::from_u128(1)),
+        toolset: ToolSetId::from_uuid(uuid::Uuid::from_u128(2)),
+        name: "R5 ボール".to_string(),
+    };
     let mut renamed = content();
     renamed.attributes.name = "仕上げ 2".to_string();
     renamed.attributes.stage = MachiningStage::Rough;
+    renamed.attributes.toolset = Some(toolset.clone());
     operation.set_content(renamed);
     assert_eq!(operation.revision(), 1);
     assert_eq!(operation.revision_key(), first_key);
     assert_eq!(operation.content().attributes.name, "仕上げ 2");
     assert_eq!(operation.content().attributes.stage, MachiningStage::Rough);
+    assert_eq!(operation.content().attributes.toolset, Some(toolset));
 
     // 計算の条件を変えると増え、改訂の鍵を作り直す
     let mut changed = operation.content().clone();

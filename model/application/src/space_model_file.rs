@@ -48,8 +48,19 @@ const CLDT: [u8; 4] = *b"CLDT";
 /// 計算の条件を設定していない加工工程（必須でない区画。古い版のアプリは、すべての工程を設定したものとして読み、
 /// そのまま書き戻す）
 const NSET: [u8; 4] = *b"NSET";
-/// 本モジュールが読み書きする区画の版（これより新しい版の区画は、新しい版のアプリで保存したもの）
-pub const SECTION_VERSION: u16 = 1;
+/// 区画 `MSEQ` のほかの区画の版
+const SECTION_VERSION: u16 = 1;
+/// 区画 `MSEQ` の版（2: 加工工程の属性に、工具を選んだツールライブラリの項目を足した。1 も読む）
+const MSEQ_VERSION: u16 = 2;
+
+/// 本モジュールが区画の種類 `kind` を書く版（これより新しい版の区画は、新しい版のアプリで保存したもの）
+pub fn section_version(kind: [u8; 4]) -> u16 {
+    if kind == MSEQ {
+        MSEQ_VERSION
+    } else {
+        SECTION_VERSION
+    }
+}
 
 /// 空間モデルの ID（全体で一意で、保存・読み込みで変えない）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -246,7 +257,7 @@ pub(crate) fn write_space_model<W: Write>(
     // 書き戻す区画は、今の版で書いた区画と同じ種類（読めない版の CL と、その後で取り込んだ CL）でも、すべて残す
     payload.count(sections.len() + model.preserved.len(), "sections")?;
     for (kind, flags, body) in &sections {
-        write_section(&mut payload, *kind, SECTION_VERSION, *flags, body);
+        write_section(&mut payload, *kind, section_version(*kind), *flags, body);
     }
     for section in &model.preserved {
         write_section(
@@ -304,6 +315,7 @@ pub(crate) fn read_space_model<R: Read>(
     let mut faces = None;
     let mut shells = None;
     let mut sequences = None;
+    let mut sequences_version = MSEQ_VERSION;
     let mut toolpaths = None;
     let mut not_set = None;
     let mut preserved = Vec::new();
@@ -324,7 +336,7 @@ pub(crate) fn read_space_model<R: Read>(
             .and_then(|length| cursor.take(length).ok())
             .ok_or(invalid("section length"))?;
         // 必須でない区画は、読めない版なら知らない区画と同じに、そのまま書き戻す
-        let readable_optional = flags & SECTION_REQUIRED != 0 || version == SECTION_VERSION;
+        let readable_optional = flags & SECTION_REQUIRED != 0 || version == section_version(kind);
         let slot = match kind {
             INFO => Some(&mut info),
             FACE => Some(&mut faces),
@@ -349,8 +361,12 @@ pub(crate) fn read_space_model<R: Read>(
         if slot.is_some() {
             return Err(SpaceModelFileError::DuplicateSection(kind));
         }
-        if version != SECTION_VERSION {
+        // 区画 `MSEQ` は前の版も読む。ほかの区画は、今の版だけを読む
+        if version == 0 || version > section_version(kind) {
             return Err(SpaceModelFileError::UnsupportedSectionVersion { kind, version });
+        }
+        if kind == MSEQ {
+            sequences_version = version;
         }
         *slot = Some(body);
     }
@@ -365,9 +381,11 @@ pub(crate) fn read_space_model<R: Read>(
         Some(bytes) => codec::read_shells(bytes).map_err(section_error(SHEL))?,
         None => Vec::new(),
     };
-    let mut sequences =
-        codec::read_sequences(sequences.ok_or(SpaceModelFileError::MissingSection(MSEQ))?)
-            .map_err(section_error(MSEQ))?;
+    let mut sequences = codec::read_sequences(
+        sequences.ok_or(SpaceModelFileError::MissingSection(MSEQ))?,
+        sequences_version,
+    )
+    .map_err(section_error(MSEQ))?;
     // 計算の条件を設定していない工程（区画がなければ、すべて設定した工程。手順にない工程の ID は使わない）
     if let Some(bytes) = not_set {
         let not_set: std::collections::HashSet<MachiningOperationId> =

@@ -1,4 +1,4 @@
-//! モデルファイルの区画の中身のバイトの並び（版 1）
+//! モデルファイルの区画の中身のバイトの並び（`MSEQ` は版 2、ほかの区画は版 1）
 //!
 //! 数値はすべてリトルエンディアン。文字列は長さ `u32` と UTF-8 のバイト列、有無は `u8`（0: なし、1: あり）、
 //! ID と改訂の鍵は UUID の 16 バイト、時刻は UNIX 時刻の秒 `i64` とナノ秒 `u32` で表す。
@@ -30,6 +30,8 @@
 //!   - 素材: 余裕（−X・+X・−Y・+Y・底・上の `f64`×6）、精度 `f64`
 //!   - 加工工程の数 `u32` と、工程ごとに、加工工程の ID・改訂の番号 `u32`（1 以上）・改訂の鍵と中身
 //!     - 名前（文字列）、加工の段階 `u8`（1: 荒、2: 中、3: 仕上げ）
+//!     - 工具を選んだツールライブラリの項目（版 2 から）: 有無と、ツールライブラリの ID・ツールセットの ID・
+//!       ツールセットの名前（文字列）。版 1 の区画は、すべての工程を項目なしとして読む
 //!     - 加工の種類 `u8`（1: 走査線）と条件: ピックフィード・送り `f64`、工具の移動範囲 `u8`（1: 工具の半径だけ
 //!       広げる、2: 形状の範囲）、送り方 `u8`（1: ダウンカット、2: アップカット、3: ジグザグ）、走査線の角度 `f64`
 //!     - 工具: 種類 `u8`（1: フラット、2: ラジアス、3: ボール）、ID（文字列）、直径・角の半径 `f64`、工具長（有無と
@@ -73,7 +75,7 @@ use crate::imported_toolpath::ImportedToolpathRecord;
 use crate::machining_sequence::{
     MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
     MachiningOperationId, MachiningOperationRecord, MachiningRevisionKey, MachiningSequenceId,
-    MachiningSequenceRecord, MachiningStock,
+    MachiningSequenceRecord, MachiningStock, ToolLibraryId, ToolSetId, ToolSetReference,
 };
 use crate::product_shape::{
     Brep, ProductFaceGeometry, ProductFaceRecord, ProductShellRecord, ShellSource,
@@ -633,7 +635,11 @@ pub(super) fn write_sequences(
     Ok(out.into_bytes())
 }
 
-pub(super) fn read_sequences(bytes: &[u8]) -> Result<Vec<MachiningSequenceRecord>, FieldError> {
+/// 版 `version` の区画 `MSEQ` の中身 `bytes` を読む
+pub(super) fn read_sequences(
+    bytes: &[u8],
+    version: u16,
+) -> Result<Vec<MachiningSequenceRecord>, FieldError> {
     let mut cursor = ByteReader::new(bytes);
     // 手順 1 つは、ID・名前の長さ・加工の対象の数・素材・工程の数だけで 84 バイト以上
     let count = cursor.count(84).map_err(|_| "sequences")?;
@@ -668,7 +674,7 @@ pub(super) fn read_sequences(bytes: &[u8]) -> Result<Vec<MachiningSequenceRecord
             // 計算の条件を設定していない工程は、別の区画（`NSET`）で表す。なければ設定した工程
             operations.push(MachiningOperationRecord {
                 id: operation_id,
-                content: read_content(&mut cursor)?,
+                content: read_content(&mut cursor, version)?,
                 revision,
                 revision_key,
                 conditions_set: true,
@@ -690,10 +696,15 @@ fn write_content(
     out: &mut ByteWriter,
     content: &MachiningOperationContent,
 ) -> Result<(), SpaceModelFileError> {
-    // 保存の形は、属性と計算の条件に分ける前と同じ（名前・加工の段階・加工の種類と条件・工具・加工領域・精度の順）。
+    // 保存の形は、名前・加工の段階・ツールライブラリの項目・加工の種類と条件・工具・加工領域・精度の順。
     // 組の中まで分解し、項目を足したときに書き忘れをコンパイルで気づけるようにする
     let MachiningOperationContent {
-        attributes: MachiningOperationAttributes { name, stage },
+        attributes:
+            MachiningOperationAttributes {
+                name,
+                stage,
+                toolset,
+            },
         conditions:
             MachiningOperationConditions {
                 spec,
@@ -708,6 +719,19 @@ fn write_content(
         MachiningStage::SemiFinish => 2,
         MachiningStage::Finish => 3,
     });
+    match toolset {
+        None => out.u8(0),
+        Some(ToolSetReference {
+            library,
+            toolset,
+            name,
+        }) => {
+            out.u8(1);
+            out.uuid(library.as_uuid());
+            out.uuid(toolset.as_uuid());
+            out.string(name, "operation.toolset.name")?;
+        }
+    }
     let OperationSpec::Scanline(scanline) = spec;
     out.u8(1);
     out.f64(scanline.stepover);
@@ -758,13 +782,27 @@ fn write_content(
     Ok(())
 }
 
-fn read_content(cursor: &mut ByteReader<'_>) -> Result<MachiningOperationContent, FieldError> {
+/// 版 `version` の区画 `MSEQ` の、加工工程の中身を読む
+fn read_content(
+    cursor: &mut ByteReader<'_>,
+    version: u16,
+) -> Result<MachiningOperationContent, FieldError> {
     let name = cursor.string("operation.name")?;
     let stage = match cursor.u8()? {
         1 => MachiningStage::Rough,
         2 => MachiningStage::SemiFinish,
         3 => MachiningStage::Finish,
         _ => return Err("operation.stage"),
+    };
+    // 版 1 は、ツールライブラリの項目を持たない
+    let toolset = match if version >= 2 { cursor.u8()? } else { 0 } {
+        0 => None,
+        1 => Some(ToolSetReference {
+            library: ToolLibraryId::from_uuid(cursor.uuid()?),
+            toolset: ToolSetId::from_uuid(cursor.uuid()?),
+            name: cursor.string("operation.toolset.name")?,
+        }),
+        _ => return Err("operation.toolset"),
     };
     if cursor.u8()? != 1 {
         return Err("operation.kind");
@@ -813,7 +851,11 @@ fn read_content(cursor: &mut ByteReader<'_>) -> Result<MachiningOperationContent
         _ => return Err("operation.tolerance_profile"),
     };
     Ok(MachiningOperationContent {
-        attributes: MachiningOperationAttributes { name, stage },
+        attributes: MachiningOperationAttributes {
+            name,
+            stage,
+            toolset,
+        },
         conditions: MachiningOperationConditions {
             spec: OperationSpec::Scanline(ScanlineParams {
                 stepover,

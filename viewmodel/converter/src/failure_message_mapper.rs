@@ -127,15 +127,15 @@ pub fn product_shape_failure_message(error: &ProductShapeError) -> UiMessage {
 /// モデルファイルの読み書きの失敗 `error` の、画面に出す理由
 pub fn model_file_failure_message(error: &SpaceModelFileError) -> UiMessage {
     use application::space_model_file::{
-        BinaryFormatError, FORMAT_VERSION_MAJOR_V1, SECTION_VERSION,
+        BinaryFormatError, FORMAT_VERSION_MAJOR_V1, section_version,
     };
     match error {
         SpaceModelFileError::Io(error) => file_failure_message(error.kind()),
         SpaceModelFileError::TooLarge => message("failure.model_file.too_large"),
         // 新しい版のアプリで保存したファイル（知らない必須の区画・知っているより新しい版）
         SpaceModelFileError::UnknownRequiredSection(_) => message("failure.model_file.newer"),
-        SpaceModelFileError::UnsupportedSectionVersion { version, .. }
-            if *version > SECTION_VERSION =>
+        SpaceModelFileError::UnsupportedSectionVersion { kind, version }
+            if *version > section_version(*kind) =>
         {
             message("failure.model_file.newer")
         }
