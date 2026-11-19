@@ -433,3 +433,50 @@ pub(crate) fn cone_brep() -> Brep<f64> {
     assert!(brep.is_shell_closed(shell));
     brep
 }
+
+/// 試験の B-rep の、NURBS 曲面の山の高さを決める内側の制御点の z
+pub(crate) const BUMP_HEIGHT: f64 = 3.0;
+
+/// 試験の B-rep: 一辺 10 の正方形（z = 0）を底にし、上を 3 次の NURBS 曲面の山で閉じた立体。曲面は
+/// (10 u, 10 v, 9 h u (1 − u) v (1 − v))（h は `BUMP_HEIGHT`。外側の制御点の z が 0、内側の 4 点の z が h）で、
+/// 縁は z = 0 の直線になる（体積 25 h）
+pub(crate) fn bump_brep() -> Brep<f64> {
+    use geo_contracts::NurbsSurface3DConstructor;
+    let mut solid = Solid::new(&[
+        [0.0, 0.0, 0.0],
+        [10.0, 0.0, 0.0],
+        [10.0, 10.0, 0.0],
+        [0.0, 10.0, 0.0],
+    ]);
+    solid.plane_face(&[0, 3, 2, 1], Vec::new());
+    let control_points: Vec<Vec<_>> = (0..4)
+        .map(|i| {
+            (0..4)
+                .map(|j| {
+                    let inner = (1..3).contains(&i) && (1..3).contains(&j);
+                    geo_topology::Point3D::new(
+                        10.0 * i as f64 / 3.0,
+                        10.0 * j as f64 / 3.0,
+                        if inner { BUMP_HEIGHT } else { 0.0 },
+                    )
+                })
+                .collect()
+        })
+        .collect();
+    let knots = vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
+    let surface =
+        geo_topology::TopoNurbsSurface3D::new(3, 3, knots.clone(), knots, &control_points, None)
+            .unwrap();
+    let outer = vec![
+        solid.line(0, 1),
+        solid.line(1, 2),
+        solid.line(2, 3),
+        solid.line(3, 0),
+    ];
+    let face = solid
+        .brep
+        .add_face(geo_topology::SurfaceRef::Nurbs(surface), true, vec![outer])
+        .unwrap();
+    solid.faces.push(face);
+    solid.finish()
+}

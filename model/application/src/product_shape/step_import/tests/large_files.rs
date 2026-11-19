@@ -41,13 +41,18 @@ fn public_large_files_are_read_and_triangulated() {
         let (shells, report) =
             read_step(&bytes, &path).unwrap_or_else(|error| panic!("{path}: {error}"));
         let mut faces = 0;
-        let mut failed_faces = 0;
+        let mut failures: std::collections::BTreeMap<String, usize> = Default::default();
         for shell in &shells {
             let mesh = triangulate_brep(&shell.brep, CHORD_TOLERANCE);
             faces += mesh.faces.len();
-            failed_faces += mesh.faces.iter().filter(|face| face.is_err()).count();
+            for error in mesh.faces.iter().filter_map(|face| face.as_ref().err()) {
+                *failures.entry(error.to_string()).or_default() += 1;
+            }
         }
-        println!("{path}: {report:?}, faces {faces}, faces not triangulated {failed_faces}");
+        let failed_faces: usize = failures.values().sum();
+        println!(
+            "{path}: {report:?}, faces {faces}, faces not triangulated {failed_faces} {failures:?}"
+        );
         assert!(report.shells > 0, "{path}");
     }
 }
