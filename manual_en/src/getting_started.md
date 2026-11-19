@@ -17,7 +17,7 @@ Under conditions that make a large toolpath, such as a fine pick feed or a small
 - The estimate calculates part of the scan lines and scales it to the whole, so it is approximate
 - The confirmation threshold and the limit can be changed in the job manager's settings file (see the toolpath size threshold and limit under the job manager below)
 
-If the estimate is off and the toolpath gets too many points during the calculation, the toolpath generation still stops before using up the memory. The job manager shows "Stopped because the toolpath has too many points" as the reason of the failed job.
+If the estimate is off and the toolpath gets too many points during the calculation, the toolpath generation still stops before using up the memory. The job manager shows "Stopped because the toolpath has too many points" as the reason of the failed job. In the CAD/CAM app, selecting that operation also shows the same reason on the right side of the status bar, with a note to review the conditions such as the stepover.
 
 ## Start from the Package (Windows)
 

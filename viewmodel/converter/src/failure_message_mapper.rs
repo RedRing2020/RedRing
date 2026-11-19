@@ -2,7 +2,7 @@
 //!
 //! エラーの種類ごとにキーを決める。エラーの中の詳しい理由（英語の文）は画面に出さず、ログに残す。
 
-use application::cam_simulation_workflow::CamSimulationWorkflowError;
+use application::cam_simulation_workflow::{CamSimulationWorkflowError, JobFailureReason};
 use application::product_shape::{ProductShapeError, StepImportError};
 use application::space_model_file::SpaceModelFileError;
 use application::tool_library::{ToolLibraryEditError, ToolLibraryFileError};
@@ -97,6 +97,39 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
                 value: format_gb(estimate.memory_gb()),
             }],
         },
+    }
+}
+
+/// ジョブマネージャーの計算の失敗の理由の種類 `reason` の、画面に出す理由（ジョブマネージャーの画面と同じ意味の
+/// 言い方。種類が分からなければ、詳しくはログを確かめる文言）
+pub(crate) fn job_failure_message(reason: &JobFailureReason) -> UiMessage {
+    use JobFailureReason as R;
+    match *reason {
+        R::DependencyNotEarlier { job } => job_message("failure.job.dependency_not_earlier", job),
+        R::DependencyCannotRun { job } => job_message("failure.job.dependency_cannot_run", job),
+        R::DependencyNotFound { job } => job_message("failure.job.dependency_not_found", job),
+        R::DependencyFailed { job } => job_message("failure.job.dependency_failed", job),
+        R::DependencyCanceled { job } => job_message("failure.job.dependency_canceled", job),
+        R::RunnerNotStarted => message("failure.job.runner_not_started"),
+        R::RunnerWroteNoResult => message("failure.job.runner_wrote_no_result"),
+        R::RunnerInvalidArguments => message("failure.job.runner_invalid_arguments"),
+        R::RunnerCannotReadInput => message("failure.job.runner_cannot_read_input"),
+        R::InvalidInput => message("failure.job.invalid_input"),
+        R::CalculationFailed => message("failure.job.calculation_failed"),
+        R::RunnerCannotWriteResult => message("failure.job.runner_cannot_write_result"),
+        R::ToolpathTooLarge => message("failure.job.toolpath_too_large"),
+        R::RunnerExitCode { code } => UiMessage {
+            key: "failure.job.runner_exit_code".to_string(),
+            args: vec![UiMessageArg {
+                name: "code".to_string(),
+                value: code.to_string(),
+            }],
+        },
+        R::RunnerStopped => message("failure.job.runner_stopped"),
+        R::ManagerStopped => message("failure.job.manager_stopped"),
+        R::ManagerQuit => message("failure.job.manager_quit"),
+        // 英語の詳しい理由はログに残すため、ログを確かめる文言にする
+        R::Unknown => message("failure.job.unknown"),
     }
 }
 
@@ -256,6 +289,54 @@ mod tests {
                 "{message:?}: {text}"
             );
         }
+    }
+
+    #[test]
+    fn every_known_job_failure_reason_has_its_own_text() {
+        use JobFailureReason as R;
+        let reasons = [
+            R::DependencyNotEarlier { job: 1 },
+            R::DependencyCannotRun { job: 1 },
+            R::DependencyNotFound { job: 1 },
+            R::DependencyFailed { job: 1 },
+            R::DependencyCanceled { job: 1 },
+            R::RunnerNotStarted,
+            R::RunnerWroteNoResult,
+            R::RunnerInvalidArguments,
+            R::RunnerCannotReadInput,
+            R::InvalidInput,
+            R::CalculationFailed,
+            R::RunnerCannotWriteResult,
+            R::ToolpathTooLarge,
+            R::RunnerExitCode { code: 9 },
+            R::RunnerStopped,
+            R::ManagerStopped,
+            R::ManagerQuit,
+        ];
+        let mut keys: Vec<String> = reasons
+            .iter()
+            .map(|reason| {
+                let message = job_failure_message(reason);
+                assert_resolved(&message);
+                message.key
+            })
+            .collect();
+        keys.sort();
+        keys.dedup();
+        assert_eq!(keys.len(), reasons.len());
+        assert_eq!(
+            resolve_failure_message(
+                UiLocale::Ja,
+                &job_failure_message(&R::RunnerExitCode { code: 9 })
+            ),
+            "ランナーが終了の番号 9 で終わりました"
+        );
+        // 種類が分からない理由は、ログを確かめる文言にする
+        assert_resolved(&job_failure_message(&R::Unknown));
+        assert!(
+            resolve_failure_message(UiLocale::Ja, &job_failure_message(&R::Unknown))
+                .contains("ログ")
+        );
     }
 
     #[test]

@@ -536,6 +536,7 @@ fn simulation(
         }),
         status,
         toolpath_status: toolpath,
+        failure: None,
     }
 }
 
@@ -1313,6 +1314,7 @@ fn an_operation_is_interrupted_when_its_toolpath_or_simulation_job_is_interrupte
             source: source.clone(),
             status,
             toolpath_status,
+            failure: None,
         }],
     };
     let current = |_: &Option<CamJobSource>| true;
@@ -1409,4 +1411,80 @@ fn an_operation_in_one_connection_runs_only_after_connecting() {
         Err(CamSimulationWorkflowError::JobStore(_))
     ));
     assert!(!run);
+}
+
+#[test]
+fn the_failure_reason_of_an_operation_is_that_of_its_latest_failed_calculation() {
+    let operation_id = MachiningOperationId::from_uuid(uuid::Uuid::from_u128(1));
+    let source = Some(CamJobSource {
+        source_id: operation_id.to_string(),
+        revision: 1,
+        revision_key: Some("key".to_string()),
+    });
+    let too_large = JobFailure {
+        reason: JobFailureReason::ToolpathTooLarge,
+        message: "the toolpath is too large for the memory limit".to_string(),
+    };
+    let snapshot = |status, toolpath_status, pending: bool| JobStatusSnapshot {
+        pending: if pending {
+            vec![crate::job_client::PendingSubmission {
+                source: source.clone(),
+                rejected: false,
+            }]
+        } else {
+            Vec::new()
+        },
+        simulations: vec![SimulationJob {
+            job_id: 2,
+            submission_id: "submission".to_string(),
+            source: source.clone(),
+            status,
+            toolpath_status,
+            failure: Some(too_large.clone()),
+        }],
+    };
+    let current = |_: &Option<CamJobSource>| true;
+    // 失敗した計算と、失敗したツールパス生成を待っている計算は、その理由を出す
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Failed, CamJobStatus::Failed, false),
+            operation_id,
+            &current
+        ),
+        Some(too_large.clone())
+    );
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Queued, CamJobStatus::Failed, false),
+            operation_id,
+            &current
+        ),
+        Some(too_large.clone())
+    );
+    // 失敗の後に投入し直した（取り込みを待っている）・失敗していない計算は、理由を出さない
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Failed, CamJobStatus::Failed, true),
+            operation_id,
+            &current
+        ),
+        None
+    );
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Interrupted, CamJobStatus::Succeeded, false),
+            operation_id,
+            &current
+        ),
+        None
+    );
+    // ほかの改訂の計算は、理由を出さない
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Failed, CamJobStatus::Failed, false),
+            operation_id,
+            &|_: &Option<CamJobSource>| false
+        ),
+        None
+    );
 }

@@ -163,6 +163,8 @@ impl JobClient for InProcessJobClient {
                     source: status.job.spec.source.clone(),
                     status: status.job.status,
                     toolpath_status: toolpath.job.status,
+                    // 同じプロセスの中の計算は、失敗の理由の種類を持たない
+                    failure: None,
                 })
             })
             .collect()

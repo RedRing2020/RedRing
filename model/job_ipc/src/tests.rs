@@ -82,6 +82,7 @@ impl Handler for FakeHandler {
             source: None,
             has_input_toolpath: false,
             has_result: true,
+            failure: None,
         }])
     }
 
@@ -361,4 +362,55 @@ fn a_silent_job_manager_times_out() {
     assert!(started.elapsed() < Duration::from_secs(5));
     release.send(()).unwrap();
     server.join().unwrap();
+}
+
+#[test]
+fn job_failures_are_read_by_earlier_and_later_versions() {
+    let failed = JobSummary {
+        job_id: 2,
+        kind: JobKind::Cam,
+        status: JobStatus::Failed,
+        depends_on: Vec::new(),
+        submission_id: "submission-2".to_string(),
+        source: None,
+        has_input_toolpath: false,
+        has_result: false,
+        failure: Some(JobFailure {
+            reason: JobFailureReason::ToolpathTooLarge,
+            message: "the toolpath is too large for the memory limit".to_string(),
+        }),
+    };
+    let written = serde_json::to_string(&failed).unwrap();
+    assert!(written.contains(r#""reason":{"kind":"toolpath_too_large"}"#));
+    assert_eq!(
+        serde_json::from_str::<JobSummary>(&written).unwrap(),
+        failed
+    );
+
+    // 失敗の理由のないジョブは、項目を送らない（前の版のアプリが読む形と同じ）
+    let succeeded = JobSummary {
+        status: JobStatus::Succeeded,
+        failure: None,
+        ..failed.clone()
+    };
+    let written = serde_json::to_string(&succeeded).unwrap();
+    assert!(!written.contains("failure"));
+
+    // 前の版のジョブマネージャーは、失敗の理由を送らない
+    let earlier = r#"{"job_id":2,"kind":"cam","status":"failed","depends_on":[],
+        "submission_id":"submission-2","source":null,"has_input_toolpath":false,"has_result":false}"#;
+    assert_eq!(
+        serde_json::from_str::<JobSummary>(earlier).unwrap().failure,
+        None
+    );
+
+    // 後の版で足した理由の種類は、種類が分からない理由として読む
+    let later = r#"{"reason":{"kind":"added_later"},"message":"later reason"}"#;
+    assert_eq!(
+        serde_json::from_str::<JobFailure>(later).unwrap(),
+        JobFailure {
+            reason: JobFailureReason::Unknown,
+            message: "later reason".to_string(),
+        }
+    );
 }

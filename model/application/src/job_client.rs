@@ -19,7 +19,7 @@ use std::fmt;
 use cam_algorithms::CamSolverInput;
 use cam_sim::CuttingSimulationInput;
 use job_domain::{CamJobSource, CamJobStatus};
-use job_ipc::ToolpathLimits;
+use job_ipc::{JobFailure, ToolpathLimits};
 
 use crate::cam_simulation_workflow::{
     CamSimulationWorkflowError, CamSimulationWorkflowResult, CamToolpathResult,
@@ -79,6 +79,9 @@ pub(crate) struct SimulationJob {
     pub status: CamJobStatus,
     /// 入力にするツールパス生成のジョブの状態（CL を入力にするジョブは、正常に終わったものとする）
     pub toolpath_status: CamJobStatus,
+    /// 失敗の理由（入力にするツールパス生成が失敗したときは、その理由。切削シミュレーションの理由は、依存するジョブが
+    /// 失敗したことしか表さないため。理由を受け取れなかったときは `None`）
+    pub failure: Option<JobFailure>,
 }
 
 /// まだジョブになっていない投入（ジョブマネージャーの取り込みを待っている・取り込めなかった）

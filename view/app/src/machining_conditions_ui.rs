@@ -16,7 +16,7 @@ use egui::{
 };
 use viewmodel::cutting_simulation_session::{
     CamConditionError, CamConditionField, ConditionIssue, CuttingToolKind, ImportedConditions,
-    MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock,
+    MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock, OperationFailure,
     OperationJobStatus, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
     flat_surface_cusp_height,
 };
@@ -135,8 +135,21 @@ pub(crate) fn condition_issue_text(locale: UiLocale, issue: &ConditionIssue) -> 
 }
 
 /// 選んだ工程の今の条件の計算の状態 `status` の、言語 `locale` の文言
-pub(crate) fn job_status_text(locale: UiLocale, status: &JobStatusLine) -> String {
-    resolve_machining_conditions_text(locale, job_status_key(status), &[])
+pub(crate) fn job_status_text(
+    locale: UiLocale,
+    status: &JobStatusLine,
+    failure: Option<&OperationFailure>,
+) -> String {
+    match failure {
+        Some(failure) if *status == JobStatusLine::Status(OperationJobStatus::Failed) => {
+            resolve_machining_conditions_text(
+                locale,
+                "conditions.job.failed_with_reason",
+                &[("reason", resolve_failure_message(locale, &failure.reason))],
+            )
+        }
+        _ => resolve_machining_conditions_text(locale, job_status_key(status), &[]),
+    }
 }
 
 /// 空間モデルの CL の状態 `state` の、言語 `locale` の文言
@@ -499,19 +512,37 @@ fn calculation_blocked(status: &JobStatusLine, toolpath_current: bool) -> bool {
 }
 
 /// 選んだ工程の、計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` に応じた、次に
-/// できることの案内（画面の下の行の右に出す。案内のない状態は `None`）
+/// できることの案内（画面の下の行の右に出す。案内のない状態は `None`）。計算が失敗していれば、その理由 `failure`
+/// を出す
 pub(crate) fn navigation_text(
     locale: UiLocale,
     status: &JobStatusLine,
     toolpath_current: bool,
+    failure: Option<&OperationFailure>,
 ) -> Option<String> {
-    navigation_key(status, toolpath_current)
-        .map(|key| resolve_machining_conditions_text(locale, key, &[]))
+    let reason = failure
+        .map(|failure| ("reason", resolve_failure_message(locale, &failure.reason)))
+        .into_iter()
+        .collect::<Vec<_>>();
+    navigation_key(status, toolpath_current, failure)
+        .map(|key| resolve_machining_conditions_text(locale, key, &reason))
 }
 
 /// [`navigation_text`] の文言のキー
-fn navigation_key(status: &JobStatusLine, toolpath_current: bool) -> Option<&'static str> {
+fn navigation_key(
+    status: &JobStatusLine,
+    toolpath_current: bool,
+    failure: Option<&OperationFailure>,
+) -> Option<&'static str> {
     match status {
+        JobStatusLine::Status(OperationJobStatus::Failed) => Some(match failure {
+            Some(failure) if failure.review_conditions => {
+                "conditions.navigation.failed_review_conditions"
+            }
+            Some(_) => "conditions.navigation.failed",
+            // 前の版のジョブマネージャー・取り込めなかった投入は、理由を渡さない
+            None => "conditions.navigation.failed_without_reason",
+        }),
         JobStatusLine::Status(OperationJobStatus::Queued | OperationJobStatus::Running) => {
             Some("conditions.navigation.in_progress")
         }
@@ -1835,11 +1866,11 @@ impl MachiningConditionsUiState {
 mod tests {
     use super::{
         ApplySubmission, COLUMN_KEYS, ConditionField, JobStatusLine, MachiningStage,
-        OperationJobStatus, OperationRow, OperationSetup, OperationStatus, RowAction,
-        calculation_blocked, condition_error_message, condition_field, imported_toolpath_key,
-        job_status_key, navigation_key, navigation_text, next_action_of, operation_row_key,
-        operation_row_status_key, operation_status_text, row_status_color, stage_key,
-        submission_on_apply,
+        OperationFailure, OperationJobStatus, OperationRow, OperationSetup, OperationStatus,
+        RowAction, calculation_blocked, condition_error_message, condition_field,
+        imported_toolpath_key, job_status_key, job_status_text, navigation_key, navigation_text,
+        next_action_of, operation_row_key, operation_row_status_key, operation_status_text,
+        row_status_color, stage_key, submission_on_apply,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -2271,20 +2302,72 @@ mod tests {
             ),
             (JobStatusLine::ManagerNotRunning, false, None),
             (JobStatusLine::ManagerNotFound, true, None),
+            // 理由を受け取れなかった失敗は、ジョブマネージャーで確かめられることを出す
             (
                 JobStatusLine::Status(OperationJobStatus::Failed),
                 true,
-                None,
+                Some("conditions.navigation.failed_without_reason"),
             ),
         ];
         for (status, toolpath_current, key) in cases {
-            assert_eq!(navigation_key(&status, toolpath_current), key, "{status:?}");
+            assert_eq!(
+                navigation_key(&status, toolpath_current, None),
+                key,
+                "{status:?}"
+            );
             for locale in [UiLocale::Ja, UiLocale::En] {
-                let text = navigation_text(locale, &status, toolpath_current);
+                let text = navigation_text(locale, &status, toolpath_current, None);
                 assert_eq!(text.is_some(), key.is_some());
                 assert!(!text.unwrap_or_default().contains("__missing__"));
             }
         }
+    }
+
+    #[test]
+    fn the_navigation_and_the_status_tell_why_the_calculation_failed() {
+        let failed = JobStatusLine::Status(OperationJobStatus::Failed);
+        let too_large = OperationFailure {
+            reason: UiMessage {
+                key: "failure.job.toolpath_too_large".to_string(),
+                args: Vec::new(),
+            },
+            detail: "the toolpath is too large for the memory limit".to_string(),
+            review_conditions: true,
+        };
+        let invalid_input = OperationFailure {
+            reason: UiMessage {
+                key: "failure.job.invalid_input".to_string(),
+                args: Vec::new(),
+            },
+            detail: "the input is invalid".to_string(),
+            review_conditions: false,
+        };
+        assert_eq!(
+            navigation_text(UiLocale::Ja, &failed, false, Some(&too_large)).unwrap(),
+            "今の条件の計算が失敗しました: ツールパスの点が多すぎて、メモリの上限を超えるため、計算を止めました。\
+             ピックフィードなどの条件を見直してから計算してください"
+        );
+        assert_eq!(
+            navigation_text(UiLocale::En, &failed, false, Some(&invalid_input)).unwrap(),
+            "The calculation for the current conditions failed: The input is invalid"
+        );
+        assert_eq!(
+            job_status_text(UiLocale::Ja, &failed, Some(&invalid_input)),
+            "今の条件の計算: 計算失敗（入力が正しくありません）"
+        );
+        assert!(
+            job_status_text(UiLocale::En, &failed, Some(&too_large)).contains("too many points")
+        );
+        // 失敗でない状態には、理由を出さない
+        let succeeded = JobStatusLine::Status(OperationJobStatus::Succeeded);
+        assert_eq!(
+            navigation_key(&succeeded, false, Some(&too_large)),
+            Some("conditions.navigation.calculated")
+        );
+        assert_eq!(
+            job_status_text(UiLocale::Ja, &succeeded, Some(&too_large)),
+            job_status_text(UiLocale::Ja, &succeeded, None)
+        );
     }
 
     #[test]

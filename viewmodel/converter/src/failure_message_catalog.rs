@@ -156,6 +156,66 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
         "failure.model_file.invalid",
         "壊れているか、形式の違うファイルです",
     ),
+    (
+        "failure.job.dependency_not_earlier",
+        "依存するジョブ {job} が、前のジョブではありません",
+    ),
+    (
+        "failure.job.dependency_cannot_run",
+        "依存するジョブ {job} を計算できません",
+    ),
+    (
+        "failure.job.dependency_not_found",
+        "依存するジョブ {job} がありません",
+    ),
+    (
+        "failure.job.dependency_failed",
+        "依存するジョブ {job} が失敗しました",
+    ),
+    (
+        "failure.job.dependency_canceled",
+        "依存するジョブ {job} が取り消されました",
+    ),
+    ("failure.job.runner_not_started", "ランナーを起動できません"),
+    (
+        "failure.job.runner_wrote_no_result",
+        "ランナーが結果を書かずに終わりました",
+    ),
+    (
+        "failure.job.runner_invalid_arguments",
+        "ランナーの引数が正しくありません",
+    ),
+    (
+        "failure.job.runner_cannot_read_input",
+        "ランナーが入力を読めません",
+    ),
+    ("failure.job.invalid_input", "入力が正しくありません"),
+    ("failure.job.calculation_failed", "計算に失敗しました"),
+    (
+        "failure.job.runner_cannot_write_result",
+        "ランナーが結果を書けません",
+    ),
+    (
+        "failure.job.toolpath_too_large",
+        "ツールパスの点が多すぎて、メモリの上限を超えるため、計算を止めました",
+    ),
+    (
+        "failure.job.runner_exit_code",
+        "ランナーが終了の番号 {code} で終わりました",
+    ),
+    ("failure.job.runner_stopped", "ランナーが止められました"),
+    (
+        "failure.job.manager_stopped",
+        "計算中にジョブマネージャーが止まりました",
+    ),
+    (
+        "failure.job.manager_quit",
+        "ジョブマネージャーを終了しました",
+    ),
+    (
+        "failure.job.unknown",
+        "計算に失敗しました。詳しくはログを確かめてください",
+    ),
 ];
 
 const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
@@ -320,6 +380,63 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.model_file.invalid",
         "The file is broken or in another format",
+    ),
+    (
+        "failure.job.dependency_not_earlier",
+        "Dependency job {job} is not an earlier job",
+    ),
+    (
+        "failure.job.dependency_cannot_run",
+        "Dependency job {job} cannot be calculated",
+    ),
+    (
+        "failure.job.dependency_not_found",
+        "Dependency job {job} does not exist",
+    ),
+    (
+        "failure.job.dependency_failed",
+        "Dependency job {job} failed",
+    ),
+    (
+        "failure.job.dependency_canceled",
+        "Dependency job {job} was canceled",
+    ),
+    ("failure.job.runner_not_started", "Cannot start the runner"),
+    (
+        "failure.job.runner_wrote_no_result",
+        "The runner ended without writing a result",
+    ),
+    (
+        "failure.job.runner_invalid_arguments",
+        "The runner arguments are invalid",
+    ),
+    (
+        "failure.job.runner_cannot_read_input",
+        "The runner cannot read the input",
+    ),
+    ("failure.job.invalid_input", "The input is invalid"),
+    ("failure.job.calculation_failed", "The calculation failed"),
+    (
+        "failure.job.runner_cannot_write_result",
+        "The runner cannot write the result",
+    ),
+    (
+        "failure.job.toolpath_too_large",
+        "The calculation was stopped because the toolpath has too many points and exceeds the memory limit",
+    ),
+    (
+        "failure.job.runner_exit_code",
+        "The runner ended with exit code {code}",
+    ),
+    ("failure.job.runner_stopped", "The runner was stopped"),
+    (
+        "failure.job.manager_stopped",
+        "The job manager stopped during the calculation",
+    ),
+    ("failure.job.manager_quit", "The job manager was quit"),
+    (
+        "failure.job.unknown",
+        "The calculation failed. See the log for details",
     ),
 ];
 

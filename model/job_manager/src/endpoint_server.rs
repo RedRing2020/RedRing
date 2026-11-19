@@ -12,12 +12,13 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use job_ipc::{
-    Dependency, Endpoint, ErrorKind, FileContent, Handler, HandlerError, JobFile, JobKind,
-    JobSource, JobStatus, JobSummary, PendingSubmission, SubmitJob, ToolpathLimits,
+    Dependency, Endpoint, ErrorKind, FileContent, Handler, HandlerError, JobFailure,
+    JobFailureReason, JobFile, JobKind, JobSource, JobStatus, JobSummary, PendingSubmission,
+    SubmitJob, ToolpathLimits,
 };
 use job_runtime::store::{
-    DependencyRef, JobStore, StoreError, StoredJobKind, StoredJobSource, StoredJobStatus,
-    SubmissionRequest, SubmittedJob, new_submission_id, request_format_version,
+    DependencyRef, JobStore, StoreError, StoredJob, StoredJobError, StoredJobKind, StoredJobSource,
+    StoredJobStatus, SubmissionRequest, SubmittedJob, new_submission_id, request_format_version,
 };
 
 /// ほかのプロセスが口を開いているときに、開き直す間隔（保存先を替えて起動し直したときは、前のプロセスが口を閉じる
@@ -157,6 +158,48 @@ fn status_to_ipc(status: StoredJobStatus) -> JobStatus {
     }
 }
 
+/// 失敗のジョブ `job` の、失敗の理由（失敗でないジョブ・理由を記録していないジョブは `None`）
+fn failure_to_ipc(job: &StoredJob) -> Option<JobFailure> {
+    if job.status != StoredJobStatus::Failed {
+        return None;
+    }
+    let message = job
+        .last_error
+        .clone()
+        .or_else(|| job.error.as_ref().map(ToString::to_string))?;
+    let reason = match &job.error {
+        Some(error) => reason_to_ipc(error),
+        None => JobFailureReason::Unknown,
+    };
+    Some(JobFailure { reason, message })
+}
+
+fn reason_to_ipc(error: &StoredJobError) -> JobFailureReason {
+    use JobFailureReason as R;
+    use StoredJobError as E;
+    match *error {
+        E::DependencyNotEarlier { job } => R::DependencyNotEarlier { job },
+        E::DependencyCannotRun { job } => R::DependencyCannotRun { job },
+        E::DependencyNotFound { job } => R::DependencyNotFound { job },
+        E::DependencyFailed { job } => R::DependencyFailed { job },
+        E::DependencyCanceled { job } => R::DependencyCanceled { job },
+        E::RunnerNotStarted => R::RunnerNotStarted,
+        E::RunnerWroteNoResult => R::RunnerWroteNoResult,
+        E::RunnerInvalidArguments => R::RunnerInvalidArguments,
+        E::RunnerCannotReadInput => R::RunnerCannotReadInput,
+        E::InvalidInput => R::InvalidInput,
+        E::CalculationFailed => R::CalculationFailed,
+        E::RunnerCannotWriteResult => R::RunnerCannotWriteResult,
+        E::ToolpathTooLarge => R::ToolpathTooLarge,
+        E::RunnerExitCode { code } => R::RunnerExitCode { code },
+        E::RunnerStopped => R::RunnerStopped,
+        E::ManagerStopped => R::ManagerStopped,
+        E::ManagerQuit => R::ManagerQuit,
+        // 利用者が止めたジョブは中断になり、失敗にならない
+        E::StoppedByUser | E::Unknown => R::Unknown,
+    }
+}
+
 fn source_to_ipc(source: &StoredJobSource) -> JobSource {
     JobSource {
         source_id: source.source_id.clone(),
@@ -241,6 +284,7 @@ impl Handler for StoreHandler {
         Ok(jobs
             .into_iter()
             .map(|job| JobSummary {
+                failure: failure_to_ipc(&job),
                 job_id: job.job_id,
                 kind: kind_to_ipc(job.kind),
                 status: status_to_ipc(job.status),

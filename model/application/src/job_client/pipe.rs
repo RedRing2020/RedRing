@@ -757,23 +757,29 @@ fn simulation_jobs(jobs: &[JobSummary]) -> Vec<SimulationJob> {
     let by_id: HashMap<u64, &JobSummary> = jobs.iter().map(|job| (job.job_id, job)).collect();
     jobs.iter()
         .filter(|job| job.kind == JobKind::Sim)
-        .map(|job| SimulationJob {
-            job_id: job.job_id,
-            submission_id: job.submission_id.clone(),
-            source: job.source.as_ref().map(source),
-            status: status(job.status),
-            // CL を入力にするジョブ（依存するジョブを持たない）は、入力の CL があればツールパスができている（なければ
-            // 失敗として扱う）。一覧にないツールパス生成のジョブは、待ちとして扱う
-            toolpath_status: if job.depends_on.is_empty() {
-                if job.has_input_toolpath {
-                    CamJobStatus::Succeeded
+        .map(|job| {
+            let toolpath = toolpath_job(&by_id, job);
+            SimulationJob {
+                job_id: job.job_id,
+                submission_id: job.submission_id.clone(),
+                source: job.source.as_ref().map(source),
+                status: status(job.status),
+                // CL を入力にするジョブ（依存するジョブを持たない）は、入力の CL があればツールパスができている（なけ
+                // れば失敗として扱う）。一覧にないツールパス生成のジョブは、待ちとして扱う
+                toolpath_status: if job.depends_on.is_empty() {
+                    if job.has_input_toolpath {
+                        CamJobStatus::Succeeded
+                    } else {
+                        CamJobStatus::Failed
+                    }
                 } else {
-                    CamJobStatus::Failed
-                }
-            } else {
-                toolpath_job(&by_id, job)
-                    .map_or(CamJobStatus::Queued, |toolpath| status(toolpath.status))
-            },
+                    toolpath.map_or(CamJobStatus::Queued, |toolpath| status(toolpath.status))
+                },
+                failure: toolpath
+                    .filter(|toolpath| toolpath.status == JobStatus::Failed)
+                    .and_then(|toolpath| toolpath.failure.clone())
+                    .or_else(|| job.failure.clone()),
+            }
         })
         .collect()
 }

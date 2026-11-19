@@ -33,6 +33,8 @@ use geo_algorithms::TessellationLimits;
 use job_domain::{CamJobSource, CamJobStatus};
 /// ツールパスの大きさの、計算の前に確かめる目安と上限
 pub use job_ipc::ToolpathLimits;
+/// 計算の失敗の理由と、その種類
+pub use job_ipc::{JobFailure, JobFailureReason};
 
 use crate::imported_toolpath::ImportedToolpathStore;
 use crate::job_client::{
@@ -871,6 +873,29 @@ impl CamSimulationWorkflow {
             .collect())
     }
 
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂の計算が失敗していれば、その
+    /// 理由（失敗していない・理由を受け取れなかったときは `None`）
+    ///
+    /// [`Self::latest_revision_job_states`] と同じく、最後に読んだ状態から決め、読み終えるのを待たない（まだ読めて
+    /// いなければ `None`）。ジョブマネージャーは起動しない。
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順、または加工手順にない加工工程の場合、ジョブの状態を読めない場合（ジョブマネージャーが
+    /// 動いていない・見つからない場合を含む）。
+    pub fn latest_revision_failure(
+        &self,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_id: MachiningOperationId,
+    ) -> Result<Option<JobFailure>, CamSimulationWorkflowError> {
+        let current = current_revision(sequences, sequence_id, operation_id)?;
+        Ok(self
+            .jobs
+            .status_snapshot()?
+            .and_then(|snapshot| operation_failure(&snapshot, operation_id, &current)))
+    }
+
     /// ジョブマネージャーに 1 度だけつなぎ、`operation` の中のジョブマネージャーへの問い合わせを、すべてその接続で行う
     /// （動いていなければ起動して、口が開くのを待つ）。状態を今読んでから投入するような 1 回の操作で、つなぐのと起動を
     /// 待つのを 1 回にする。`operation` の中で問い合わせに失敗したら、つなぎ直さずに、後の問い合わせも誤りにする
@@ -989,18 +1014,7 @@ fn operation_state(
     {
         return OperationJobState::Status(OperationJobStatus::Queued);
     }
-    let source_id = operation_id.to_string();
-    let latest = snapshot
-        .simulations
-        .iter()
-        .filter(|job| {
-            job.source
-                .as_ref()
-                .is_some_and(|source| source.source_id == source_id)
-        })
-        .rev()
-        .find(|job| current(&job.source));
-    let Some(job) = latest else {
+    let Some(job) = latest_simulation(snapshot, operation_id, current) else {
         // 取り込めなかった投入は、失敗として出す
         let rejected = snapshot
             .pending
@@ -1027,6 +1041,41 @@ fn operation_state(
             _ => OperationJobStatus::Queued,
         },
     })
+}
+
+/// 計算の状態 `snapshot` の中の、加工工程 `operation_id` の今の改訂（`current` で見分ける）の計算が失敗していれば、
+/// その理由
+fn operation_failure(
+    snapshot: &JobStatusSnapshot,
+    operation_id: MachiningOperationId,
+    current: &impl Fn(&Option<CamJobSource>) -> bool,
+) -> Option<JobFailure> {
+    if operation_state(snapshot, operation_id, current)
+        != OperationJobState::Status(OperationJobStatus::Failed)
+    {
+        return None;
+    }
+    latest_simulation(snapshot, operation_id, current).and_then(|job| job.failure.clone())
+}
+
+/// 計算の状態 `snapshot` の中の、加工工程 `operation_id` の今の改訂（`current` で見分ける）で最後に投入した切削
+/// シミュレーションのジョブ
+fn latest_simulation<'a>(
+    snapshot: &'a JobStatusSnapshot,
+    operation_id: MachiningOperationId,
+    current: &impl Fn(&Option<CamJobSource>) -> bool,
+) -> Option<&'a SimulationJob> {
+    let source_id = operation_id.to_string();
+    snapshot
+        .simulations
+        .iter()
+        .filter(|job| {
+            job.source
+                .as_ref()
+                .is_some_and(|source| source.source_id == source_id)
+        })
+        .rev()
+        .find(|job| current(&job.source))
 }
 
 /// 切削シミュレーションのジョブ `simulations` のうち、加工工程 `operation_id` から投入したもの（順はそのまま）
