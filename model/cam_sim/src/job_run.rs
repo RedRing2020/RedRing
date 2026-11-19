@@ -100,7 +100,7 @@ pub fn run_cam_solver(
 /// [`run_cam_solver`] と同じくツールパスを生成し、計算の区切りごとに `checkpoints` に記録を書き足す。前の実行の記録が
 /// あれば、続きから計算する（記録を使えなければ、捨てて最初から計算する）
 ///
-/// 計算の進み具合（終えた数と全体の数）を `progress` に知らせる（`solve_toolpath_resumable` の走査ライン）。
+/// 計算の進み具合（終えた走査ラインの数と全体の走査ラインの数）を `progress` に知らせる。
 pub fn run_cam_solver_resumable(
     input: &CamSolverInput,
     memory_limit_bytes: u64,
