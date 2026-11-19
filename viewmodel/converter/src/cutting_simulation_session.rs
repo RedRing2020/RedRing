@@ -27,7 +27,7 @@ use application::cutting_simulation_playback::{
 use crate::cutting_animation::CuttingAnimation;
 use crate::failure_message_mapper::workflow_failure_message;
 use crate::inverse_offset_shape_converter::{InverseOffsetShapeMesh, inverse_offset_shape_meshes};
-use crate::space_model_document::{ImportedToolpathState, SpaceModelDocument};
+use crate::space_model_document::{ImportedToolpathState, OperationListItem, SpaceModelDocument};
 use application::product_shape::ProductShapeError;
 use i18n_foundation::UiMessage;
 
@@ -315,6 +315,47 @@ fn operation_label(
         .unwrap_or((0, String::new()))
 }
 
+/// 状態を読んでから投入までを 1 つの接続で済ませたか、投入の前にツールパスの大きさを確かめるか
+enum Submitting<T, K> {
+    Done(T),
+    /// 確かめる目安を超える工程（`K` は、確かめた後に投入する計算）。確かめている間は、ジョブマネージャーに
+    /// つないでおかない（利用者が答えるまでの間に、ジョブマネージャーが起動し直しても投入できるように）
+    Confirm(Vec<LargeToolpath>, K),
+}
+
+/// 加工手順の工程 `operations` を、計算 `kinds`（`None` は投入し直さない）で加工の順に `workflow` で投入する
+fn submit_kinds(
+    workflow: &mut CamSimulationWorkflow,
+    document: &SpaceModelDocument,
+    operations: &[OperationListItem],
+    kinds: Vec<Option<SubmissionKind>>,
+) -> Result<SequenceSubmission, SequenceSubmissionError> {
+    let mut submission = SequenceSubmission {
+        submitted: 0,
+        simulation_only: 0,
+        skipped: 0,
+    };
+    for (index, (item, kind)) in operations.iter().zip(kinds).enumerate() {
+        let Some(kind) = kind else {
+            submission.skipped += 1;
+            continue;
+        };
+        submit_kind(workflow, document, item.id, kind).map_err(|error| {
+            SequenceSubmissionError::Submit {
+                position: index + 1,
+                operation: item.name.clone(),
+                submitted: submission.submitted,
+                error: error.into(),
+            }
+        })?;
+        submission.submitted += 1;
+        if kind == SubmissionKind::SimulationOnly {
+            submission.simulation_only += 1;
+        }
+    }
+    Ok(submission)
+}
+
 /// 加工工程 `operation` から、計算 `kind` を `workflow` で投入する
 fn submit_kind(
     workflow: &mut CamSimulationWorkflow,
@@ -373,6 +414,13 @@ pub enum SequenceSubmissionError {
         submitted: usize,
         error: CuttingSimulationSessionError,
     },
+}
+
+/// ジョブマネージャーにつなげない・状態を読めない誤りは、状態を読めない誤りにする（どの工程も投入していない）
+impl From<CamSimulationWorkflowError> for SequenceSubmissionError {
+    fn from(value: CamSimulationWorkflowError) -> Self {
+        Self::StatusUnreadable(value.into())
+    }
 }
 
 impl std::fmt::Display for SequenceSubmissionError {
@@ -531,7 +579,8 @@ impl CuttingSimulationSession {
     /// 見積もり、確かめる目安を超えるなら `confirm` で確かめてから、ツールパス生成から投入する。
     ///
     /// 状態を読むのと投入は、ジョブマネージャーへの 1 つの接続で行う（動いていなければ起動して待つのは 1 回だけ）。
-    /// つなげない・状態を読めないときは、投入しない。
+    /// つなげない・状態を読めないときは、投入しない。大きさを確かめるときは、確かめている間は接続を閉じ、確かめた後に
+    /// つなぎ直して投入する。
     ///
     /// # Errors
     ///
@@ -548,26 +597,36 @@ impl CuttingSimulationSession {
         }
         let document = &*document;
         let (_, sequences, sequence, operation) = document.machining();
-        self.workflow.with_job_manager_connection(|workflow| {
+        let prepared = self.workflow.with_job_manager_connection(|workflow| {
             // 切削シミュレーションだけを投入するかは、状態を今読んでから決める（読まずに決めると、計算済みのジョブが
             // あっても重ねて投入する）
             let state = workflow
                 .latest_revision_job_states_now(sequences, sequence, &[operation])?
                 .remove(0);
             let Some(kind) = SubmissionKind::of(document.imported_toolpath_state(), state) else {
-                return Ok(SubmitOutcome::AlreadyCalculated);
+                return Ok(Submitting::Done(SubmitOutcome::AlreadyCalculated));
             };
             if kind == SubmissionKind::Full {
                 let (position, name) = operation_label(document, operation);
-                if let Some(large) = large_toolpath(document, operation, (position, &name))?
-                    && !confirm(&[large])
-                {
-                    return Ok(SubmitOutcome::Declined);
+                if let Some(large) = large_toolpath(document, operation, (position, &name))? {
+                    return Ok(Submitting::Confirm(vec![large], kind));
                 }
             }
             submit_kind(workflow, document, operation, kind)?;
+            Ok::<_, CuttingSimulationSessionError>(Submitting::Done(SubmitOutcome::Submitted(kind)))
+        })?;
+        let (large, kind) = match prepared {
+            Submitting::Done(outcome) => return Ok(outcome),
+            Submitting::Confirm(large, kind) => (large, kind),
+        };
+        if !confirm(&large) {
+            return Ok(SubmitOutcome::Declined);
+        }
+        // 確かめた後に、つなぎ直して投入する
+        self.workflow.with_job_manager_connection(|workflow| {
+            submit_kind(workflow, document, operation, kind)?;
             Ok(SubmitOutcome::Submitted(kind))
-        })?
+        })
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の空間モデルの CL を除き、ツールパス生成から投入し直す
@@ -625,8 +684,8 @@ impl CuttingSimulationSession {
                     false
                 }
             };
-            Ok::<_, CamSimulationWorkflowError>(RedoOutcome::Submitted { canceled })
-        })??;
+            Ok::<_, CuttingSimulationSessionError>(RedoOutcome::Submitted { canceled })
+        })?;
         if matches!(outcome, RedoOutcome::Submitted { .. }) {
             document.remove_toolpath();
         }
@@ -649,7 +708,7 @@ impl CuttingSimulationSession {
     ) -> Result<StopOutcome, CuttingSimulationSessionError> {
         let (_, sequences, sequence, operation) = document.machining();
         // 状態を読むのと止める頼みは、ジョブマネージャーへの 1 つの接続で行う
-        Ok(self.workflow.with_job_manager_connection(|workflow| {
+        self.workflow.with_job_manager_connection(|workflow| {
             let mut requested = 0;
             for attempt in 1..=STOP_ATTEMPTS {
                 // 受け取っていない投入を先に読む（後で読むと、間に受け取られたジョブを取り消さずに終える）
@@ -667,8 +726,8 @@ impl CuttingSimulationSession {
                     std::thread::sleep(STOP_RETRY_INTERVAL);
                 }
             }
-            Ok::<_, CamSimulationWorkflowError>(StopOutcome::NotYetAccepted)
-        })??)
+            Ok(StopOutcome::NotYetAccepted)
+        })
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての工程の、前の条件（今の改訂より前）で投入した
@@ -737,61 +796,53 @@ impl CuttingSimulationSession {
         // 状態を読むのと投入は、ジョブマネージャーへの 1 つの接続で行う（動いていなければ起動して待つのは 1 回だけ。
         // つなげなければ、状態を読めないとして、どの工程も投入しない）
         let document = &*document;
-        self.workflow
-            .with_job_manager_connection(|workflow| {
-                // 計算待ち・計算中・計算済みの工程を投入し直さないよう、状態を今読んでから決める
-                let states = workflow
-                    .latest_revision_job_states_now(sequences, sequence, &ids)
-                    .map_err(|error| SequenceSubmissionError::StatusUnreadable(error.into()))?;
-                let kinds: Vec<Option<SubmissionKind>> = operations
-                    .iter()
-                    .zip(states)
-                    .map(|(item, state)| {
-                        SubmissionKind::of(document.imported_toolpath_state_of(item.id), state)
-                    })
-                    .collect();
-                let mut large = Vec::new();
-                for (index, (item, kind)) in operations.iter().zip(&kinds).enumerate() {
-                    if *kind != Some(SubmissionKind::Full) {
-                        continue;
-                    }
-                    let found = large_toolpath(document, item.id, (index + 1, &item.name))
-                        .map_err(|error| SequenceSubmissionError::Conditions {
-                            position: index + 1,
-                            operation: item.name.clone(),
-                            error: error.into(),
-                        })?;
-                    large.extend(found);
+        let prepared = self.workflow.with_job_manager_connection(|workflow| {
+            // 計算待ち・計算中・計算済みの工程を投入し直さないよう、状態を今読んでから決める
+            let states = workflow.latest_revision_job_states_now(sequences, sequence, &ids)?;
+            let kinds: Vec<Option<SubmissionKind>> = operations
+                .iter()
+                .zip(states)
+                .map(|(item, state)| {
+                    SubmissionKind::of(document.imported_toolpath_state_of(item.id), state)
+                })
+                .collect();
+            let mut large = Vec::new();
+            for (index, (item, kind)) in operations.iter().zip(&kinds).enumerate() {
+                if *kind != Some(SubmissionKind::Full) {
+                    continue;
                 }
-                if !large.is_empty() && !confirm(&large) {
+                let found = large_toolpath(document, item.id, (index + 1, &item.name)).map_err(
+                    |error| SequenceSubmissionError::Conditions {
+                        position: index + 1,
+                        operation: item.name.clone(),
+                        error: error.into(),
+                    },
+                )?;
+                large.extend(found);
+            }
+            if !large.is_empty() {
+                return Ok::<_, SequenceSubmissionError>(Submitting::Confirm(large, kinds));
+            }
+            Ok(Submitting::Done(submit_kinds(
+                workflow,
+                document,
+                &operations,
+                kinds,
+            )?))
+        })?;
+        let submission = match prepared {
+            Submitting::Done(submission) => submission,
+            Submitting::Confirm(large, kinds) => {
+                if !confirm(&large) {
                     return Ok(SequenceOutcome::Declined);
                 }
-                let mut submission = SequenceSubmission {
-                    submitted: 0,
-                    simulation_only: 0,
-                    skipped: 0,
-                };
-                for (index, (item, kind)) in operations.iter().zip(kinds).enumerate() {
-                    let Some(kind) = kind else {
-                        submission.skipped += 1;
-                        continue;
-                    };
-                    submit_kind(workflow, document, item.id, kind).map_err(|error| {
-                        SequenceSubmissionError::Submit {
-                            position: index + 1,
-                            operation: item.name.clone(),
-                            submitted: submission.submitted,
-                            error: error.into(),
-                        }
-                    })?;
-                    submission.submitted += 1;
-                    if kind == SubmissionKind::SimulationOnly {
-                        submission.simulation_only += 1;
-                    }
-                }
-                Ok(SequenceOutcome::Submitted(submission))
-            })
-            .map_err(|error| SequenceSubmissionError::StatusUnreadable(error.into()))?
+                // 確かめた後に、つなぎ直して投入する
+                self.workflow.with_job_manager_connection(|workflow| {
+                    submit_kinds(workflow, document, &operations, kinds)
+                })?
+            }
+        };
+        Ok(SequenceOutcome::Submitted(submission))
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての加工工程の今の改訂の計算の状態（加工の順。
@@ -1015,6 +1066,29 @@ pub(crate) mod tests {
         assert_eq!(
             session.submit(&mut document, |_| true).unwrap(),
             SubmitOutcome::Submitted(SubmissionKind::Full)
+        );
+    }
+
+    #[test]
+    fn a_large_sequence_is_submitted_after_it_is_confirmed() {
+        // 確かめている間は、ジョブマネージャーにつないでおかず、確かめた後に投入する
+        let (mut session, mut document) = coarse_session();
+        small_tool(&mut document, LARGE_STEPOVER);
+        let mut asked = 0;
+        assert!(matches!(
+            session
+                .submit_sequence(&mut document, |_| {
+                    asked += 1;
+                    true
+                })
+                .unwrap(),
+            SequenceOutcome::Submitted(SequenceSubmission { submitted: 1, .. })
+        ));
+        assert_eq!(asked, 1);
+        // 投入した工程は、投入し直さない
+        assert_eq!(
+            session.submit(&mut document, |_| true).unwrap(),
+            SubmitOutcome::AlreadyCalculated
         );
     }
 

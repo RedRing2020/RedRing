@@ -863,15 +863,15 @@ impl CamSimulationWorkflow {
     /// # Errors
     ///
     /// ジョブマネージャーが見つからない・起動できない・口が開くのを待つ間に開かない・版が違う場合（`operation` を
-    /// 行わない）。
-    pub fn with_job_manager_connection<T>(
+    /// 行わない）と、`operation` の誤り。
+    pub fn with_job_manager_connection<T, E: From<CamSimulationWorkflowError>>(
         &mut self,
-        operation: impl FnOnce(&mut Self) -> T,
-    ) -> Result<T, CamSimulationWorkflowError> {
+        operation: impl FnOnce(&mut Self) -> Result<T, E>,
+    ) -> Result<T, E> {
         self.jobs.hold_connection()?;
         let result = operation(self);
         self.jobs.release_connection();
-        Ok(result)
+        result
     }
 
     /// [`Self::latest_revision_job_states`] と同じく、加工工程の今の改訂の計算の状態を、ジョブマネージャーに今問い

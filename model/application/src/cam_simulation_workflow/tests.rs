@@ -1352,7 +1352,10 @@ fn toolpaths_are_calculated_for_the_faces_of_a_shell() {
 fn an_operation_in_one_connection_runs_only_after_connecting() {
     // つなげれば、操作を行ってその結果を返す
     let mut workflow = CamSimulationWorkflow::in_process();
-    assert_eq!(workflow.with_job_manager_connection(|_| 7), Ok(7));
+    assert_eq!(
+        workflow.with_job_manager_connection(|_| Ok::<_, CamSimulationWorkflowError>(7)),
+        Ok(7)
+    );
 
     // 起動できない（実行できないファイルの）ジョブマネージャーには、つなげないため、操作を行わない（投入まで進んで、
     // もう一度起動を試みない）。口は試験だけの名前
@@ -1370,7 +1373,10 @@ fn an_operation_in_one_connection_runs_only_after_connecting() {
         jobs: Box::new(crate::job_client::PipeJobClient::new(Ok(endpoint), manager)),
     };
     let mut run = false;
-    let result = workflow.with_job_manager_connection(|_| run = true);
+    let result = workflow.with_job_manager_connection(|_| {
+        run = true;
+        Ok::<_, CamSimulationWorkflowError>(())
+    });
     let _ = std::fs::remove_dir_all(&folder);
     assert!(matches!(
         result,
