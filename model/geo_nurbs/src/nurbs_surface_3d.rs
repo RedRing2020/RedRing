@@ -161,6 +161,60 @@ impl<T: Scalar> NurbsSurface3D<T> {
             to_vector(derivatives[0][1]),
         )
     }
+
+    /// 点 `point` に近い曲面の上の点の `(u, v)`（`start` から、ガウス・ニュートン法で詰める局所的な最近点）
+    ///
+    /// 1 回に動く量を曲面の上の長さにした値が `tolerance` 以下になるか、`NEWTON_MAX_ITER` 回で止める。
+    /// `(u, v)` は定義域に収める。偏導関数が平行な点（極・1 点に縮退した辺）では、0 でない偏導関数の向き
+    /// だけを動かす。`start` が有限の値でなければ `None`。
+    ///
+    /// 曲面に近い点を、近い `start` から詰めることを前提にする（離れた `start` からは、曲面の別の部分の
+    /// 近い点に落ちることがある）。
+    pub fn parameter_for_point_from(
+        &self,
+        point: Point3D<T>,
+        start: (T, T),
+        tolerance: T,
+    ) -> Option<(T, T)> {
+        if !(start.0.is_finite() && start.1.is_finite()) {
+            return None;
+        }
+        let ((u_start, u_end), (v_start, v_end)) = self.parameter_domain();
+        let clamp = |u: T, v: T| (u.max(u_start).min(u_end), v.max(v_start).min(v_end));
+        let (mut u, mut v) = clamp(start.0, start.1);
+        let parallel = default_parallel_cross_error_tolerance::<T>();
+        for _ in 0..crate::constants::NEWTON_MAX_ITER {
+            let (on_surface, partial_u, partial_v) = self.point_and_partials(u, v);
+            let offset = point - on_surface;
+            let (uu, uv, vv) = (
+                partial_u.dot(partial_u),
+                partial_u.dot(partial_v),
+                partial_v.dot(partial_v),
+            );
+            let (along_u, along_v) = (partial_u.dot(offset), partial_v.dot(offset));
+            let cross = partial_u.cross(partial_v).length();
+            let (du, dv) = if cross > parallel * partial_u.length() * partial_v.length() {
+                let determinant = uu * vv - uv * uv;
+                (
+                    (vv * along_u - uv * along_v) / determinant,
+                    (uu * along_v - uv * along_u) / determinant,
+                )
+            } else if uu >= vv && uu > T::ZERO {
+                (along_u / uu, T::ZERO)
+            } else if vv > T::ZERO {
+                (T::ZERO, along_v / vv)
+            } else {
+                break;
+            };
+            let (next_u, next_v) = clamp(u + du, v + dv);
+            let moved = (partial_u * (next_u - u) + partial_v * (next_v - v)).length();
+            (u, v) = (next_u, next_v);
+            if moved <= tolerance {
+                break;
+            }
+        }
+        Some((u, v))
+    }
 }
 
 fn to_vector<T: Scalar>([x, y, z]: [T; 3]) -> Vector3D<T> {

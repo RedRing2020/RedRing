@@ -166,8 +166,6 @@ pub enum TopologyError {
     InvalidEdgeRange,
     /// 双曲線を許容誤差の中で近似できない
     ApproximationFailed,
-    /// NURBS 曲面の上の面（パラメータ曲線の当てはめができるまで外す）
-    NurbsSurface,
     /// 曲面のない面で、ループの載る平面を決められない
     NoLoopPlane,
     /// 同じ面を、逆の向きで 2 回使う
@@ -617,8 +615,8 @@ impl<'a> ItemBuilder<'a> {
         self
     }
 
-    /// シェル `shells` の読む面（向きの旗をたどった元の面。外す面、NURBS 曲面の面と、曲面を型にできなかった
-    /// 面は、`face` と同じく除く。1 つの面だけを読むときは、その面）と、面のループが稜線を使う回数と初めに使う面
+    /// シェル `shells` の読む面（向きの旗をたどった元の面。外す面と、曲面を型にできなかった面は、`face` と
+    /// 同じく除く。1 つの面だけを読むときは、その面）と、面のループが稜線を使う回数と初めに使う面
     /// （ファイルの稜線から）と、外す面を含むすべての面の稜線（立体の大きさを測るため）。面の数・ループの稜線の
     /// 数・多角形のループの点の座標が上限を超えれば、止める理由を残す
     fn collect_faces(&mut self, shells: &[u64]) -> (Vec<PreparedFace>, EdgeUses, BTreeSet<u64>) {
@@ -662,10 +660,8 @@ impl<'a> ItemBuilder<'a> {
             }
             let surface = match surface {
                 Some(surface) => match self.geometries.surfaces.get(surface) {
-                    Some(typed) if !matches!(typed.surface, SurfaceRef::Nurbs(_)) => {
-                        Some(typed.surface.clone())
-                    }
-                    _ => continue,
+                    Some(typed) => Some(typed.surface.clone()),
+                    None => continue,
                 },
                 None => None,
             };
@@ -1028,6 +1024,10 @@ impl<'a> ItemBuilder<'a> {
 
     /// 面 `face` の稜線の許容誤差を、面の曲面からのずれに合わせて広げる（上限を超える稜線があれば、どの
     /// 稜線も広げず、面を外す理由を残す）
+    ///
+    /// 解析的な曲面では、曲面の近い点までのずれで広げた後、その許容誤差でパラメータ曲線のずれ（正確な形に
+    /// ならない組では、当てはめのずれ）を測り、超えればさらに広げる。NURBS 曲面では、当てはめたパラメータ曲線と
+    /// 稜線の曲線のずれだけで測る（設計 6.1）。
     fn fit_edges_to_surface(&mut self, face: &PreparedFace) {
         let Some(surface) = &face.surface else {
             return;
@@ -1041,13 +1041,21 @@ impl<'a> ItemBuilder<'a> {
             let Some(Ok(shape)) = self.shapes.get(&edge) else {
                 continue;
             };
+            let (mut deviation, mut tolerance) =
+                match ParameterCurve::surface_deviation(surface, &shape.curve, shape.range) {
+                    Some(deviation) => (deviation, (deviation * self.factor).max(shape.tolerance)),
+                    None => (0.0, shape.tolerance),
+                };
             // パラメータ曲線を作れない組は、面を足すときに理由を残す
-            let Some(deviation) =
-                ParameterCurve::surface_deviation(surface, &shape.curve, shape.range)
+            let Some(curve_deviation) =
+                ParameterCurve::deviation(surface, &shape.curve, shape.range, tolerance)
             else {
                 continue;
             };
-            let tolerance = deviation * self.factor;
+            if curve_deviation > tolerance {
+                deviation = curve_deviation;
+                tolerance = curve_deviation * self.factor;
+            }
             if tolerance > self.limit {
                 self.face_failures.insert(
                     face.id,
@@ -1282,19 +1290,13 @@ impl<'a> ItemBuilder<'a> {
             return Err(Failure::new(id, TopologyError::MissingReference));
         };
         let (bounds, surface, same_sense) = (bounds.clone(), *surface, *same_sense);
-        // NURBS 曲面の面は、稜線を作る前に外す
         let typed = match surface {
-            Some(surface) => {
-                let typed = self
-                    .geometries
+            Some(surface) => Some(
+                self.geometries
                     .surfaces
                     .get(&surface)
-                    .ok_or(Failure::new(surface, TopologyError::MissingGeometry))?;
-                if matches!(typed.surface, SurfaceRef::Nurbs(_)) {
-                    return Err(Failure::new(surface, TopologyError::NurbsSurface));
-                }
-                Some(typed)
-            }
+                    .ok_or(Failure::new(surface, TopologyError::MissingGeometry))?,
+            ),
             None => None,
         };
         if let Some(&failure) = self.face_failures.get(&id) {

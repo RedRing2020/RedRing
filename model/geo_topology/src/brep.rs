@@ -212,6 +212,9 @@ pub enum BrepError {
     EmptyLoop,
     /// 稜線を、面の曲面の上のパラメータ曲線で表せない
     NoParameterCurve,
+    /// NURBS 曲面の上で、ループの隣り合うパラメータ曲線が (u, v) でつながらない（閉じた NURBS 曲面の
+    /// 継ぎ目をまたぐループなど）
+    ParameterCurveGap,
     /// 表の全体の許容誤差が正の有限の値でない、または頂点・稜線の許容誤差が有限の値でない
     InvalidTolerance,
     /// 表にない面
@@ -237,6 +240,7 @@ impl std::fmt::Display for BrepError {
             Self::InvalidParameterRange => "invalid parameter range",
             Self::EmptyLoop => "empty loop",
             Self::NoParameterCurve => "no parameter curve",
+            Self::ParameterCurveGap => "parameter curves do not join in (u, v)",
             Self::InvalidTolerance => "invalid tolerance",
             Self::UnknownFace => "unknown face",
             Self::UnknownShell => "unknown shell",
@@ -385,7 +389,8 @@ impl<T: Scalar> Brep<T> {
     ///
     /// # Errors
     ///
-    /// 稜線が表にない、稜線の使用のないループがある、または稜線をパラメータ曲線で表せないとき。
+    /// 稜線が表にない、稜線の使用のないループがある、稜線をパラメータ曲線で表せない、または NURBS 曲面の
+    /// 上でループのパラメータ曲線が (u, v) でつながらないとき。
     pub fn add_face(
         &mut self,
         surface: SurfaceRef<T>,
@@ -450,7 +455,7 @@ impl<T: Scalar> Brep<T> {
         for &edge_use in uses {
             let edge = self.edge(edge_use.edge);
             let curve =
-                ParameterCurve::exact(surface, &edge.curve, edge.parameter_range, edge.tolerance)
+                ParameterCurve::new(surface, &edge.curve, edge.parameter_range, edge.tolerance)
                     .ok_or(BrepError::NoParameterCurve)?;
             let (t_start, t_end) = use_parameters(edge, edge_use);
             let start = curve.point_at(t_start).ok_or(BrepError::NoParameterCurve)?;
@@ -489,7 +494,48 @@ impl<T: Scalar> Brep<T> {
             ));
             curves.push(curve);
         }
+        if matches!(surface, SurfaceRef::Nurbs(_)) {
+            self.check_parameter_curve_joints(surface, uses, &curves)?;
+        }
         Ok(curves)
+    }
+
+    /// NURBS 曲面の上で、ループの隣り合うパラメータ曲線が (u, v) でつながるか確かめる（周期を持たない
+    /// NURBS 曲面では、閉じた曲面の継ぎ目で (u, v) が切れるため）
+    ///
+    /// つなぎ目の (u, v) の差の中ほどの点を曲面の上で評価し、つなぎ目の頂点から、頂点と前の使用の稜線の
+    /// 許容誤差の和より離れていれば、つながらないとする（閉じた NURBS 曲面の継ぎ目では、両側の (u, v) が
+    /// 曲面の反対の端にあり、中ほどの点が頂点から離れる。1 点に縮退した辺では、中ほどの点も頂点に重なる）。
+    fn check_parameter_curve_joints(
+        &self,
+        surface: &SurfaceRef<T>,
+        uses: &[EdgeUse],
+        curves: &[ParameterCurve<T>],
+    ) -> Result<(), BrepError> {
+        for (position, (&edge_use, curve)) in uses.iter().zip(curves).enumerate() {
+            let next = (position + 1) % uses.len();
+            let end = curve
+                .point_at(use_parameters(self.edge(edge_use.edge), edge_use).1)
+                .ok_or(BrepError::NoParameterCurve)?;
+            let start = curves[next]
+                .point_at(use_parameters(self.edge(uses[next].edge), uses[next]).0)
+                .ok_or(BrepError::NoParameterCurve)?;
+            let middle = Point2D::new(
+                (end.x() + start.x()) / T::from_f64(2.0),
+                (end.y() + start.y()) / T::from_f64(2.0),
+            );
+            let vertex = self.vertex(self.use_end(edge_use));
+            let joined = surface
+                .point_at_uv(middle.x(), middle.y())
+                .is_some_and(|point| {
+                    point.distance_to(vertex.point)
+                        <= vertex.tolerance + self.edge(edge_use.edge).tolerance
+                });
+            if !joined {
+                return Err(BrepError::ParameterCurveGap);
+            }
+        }
+        Ok(())
     }
 
     /// 番号は、この表から得たもの（表から得ていない番号では、パニックする）

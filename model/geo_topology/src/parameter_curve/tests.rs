@@ -240,7 +240,7 @@ fn a_nurbs_surface_has_no_exact_parameter_curve() {
     )
     .unwrap();
 
-    // NURBS 曲面の上のパラメータ曲線は、当てはめで作る（別の Issue）
+    // NURBS 曲面の上のパラメータ曲線は、当てはめで作る
     assert!(
         ParameterCurve::exact(&surface, &CurveRef::Line(line), (0.0, 1.0), TOLERANCE).is_none()
     );
