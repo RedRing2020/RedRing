@@ -29,11 +29,12 @@ impl AppRendererFactory {
         window: &Window,
         device: &Device,
         config: &SurfaceConfiguration,
+        ui_format: wgpu::TextureFormat,
     ) -> AppRenderer {
         let stage = Box::new(MeshStage::new(device, config.format));
         let selection_rect_renderer = SelectionRectRenderer::new(device, config.format);
         let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
-        let settings_panel_renderer = SettingsPanelRenderer::new(window, device, config.format);
+        let settings_panel_renderer = SettingsPanelRenderer::new(window, device, ui_format);
         AppRenderer {
             stage,
             selection_rect_renderer,
@@ -130,6 +131,7 @@ impl AppRenderer {
         context: &RenderFrameContext<'_>,
         encoder: &mut CommandEncoder,
         view: &TextureView,
+        ui_view: &TextureView,
         depth_view: &TextureView,
     ) {
         // 各ステージが depth を利用できるよう render_with_depth を呼ぶ
@@ -140,7 +142,7 @@ impl AppRenderer {
             context.device,
             context.queue,
             encoder,
-            view,
+            ui_view,
             context.viewport_width,
             context.viewport_height,
         );

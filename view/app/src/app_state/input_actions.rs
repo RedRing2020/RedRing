@@ -94,7 +94,7 @@ impl AppState {
                 "e" => {
                     self.camera.emergency_camera_escape();
                     self.update_camera_uniforms();
-                    tracing::warn!("Emergency camera escape (e key)");
+                    tracing::info!("Emergency camera escape (e key)");
                 }
                 "h" => {
                     self.toggle_help_controls();
