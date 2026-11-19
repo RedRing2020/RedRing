@@ -1,5 +1,9 @@
 use super::*;
 
+mod broken_files;
+mod conformance;
+mod large_files;
+
 /// エンティティの番号の印 `#` は `%` で書き、ここで直す（ソースコードの検査で、別の番号と見分けられないため）
 fn step(data: &str) -> Vec<u8> {
     format!(
