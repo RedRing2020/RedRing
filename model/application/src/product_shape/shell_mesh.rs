@@ -25,7 +25,7 @@ use geo_topology::{Brep, CurveRef, EdgeIndex, FaceIndex, SurfaceRef, VertexIndex
 /// 1 本の稜線から作る点の数の上限
 const MAX_EDGE_POINTS: usize = 100_000;
 /// 1 つの面の頂点の数の上限
-const MAX_FACE_POINTS: usize = 1_000_000;
+const MAX_FACE_POINTS: usize = 2_000_000;
 /// 面の内側に点を足す繰り返しの回数の上限
 const MAX_REFINEMENT_PASSES: usize = 64;
 /// (u, v) の多角形が交わるとき、稜線を分け直す回数の上限（1 回ごとに、その稜線の許容弦誤差を半分にする）

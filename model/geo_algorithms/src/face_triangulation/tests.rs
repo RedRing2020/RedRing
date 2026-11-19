@@ -532,9 +532,11 @@ fn too_many_points_are_refused() {
         max_points: 100,
         ..settings(0.01)
     };
-    let region = FaceRegion::new(&[], &sphere, &settings).unwrap();
+    // 切れ目と極の線の点だけで上限を超えれば、範囲を作るところで断る
     assert_eq!(
-        region.triangulate(&sphere, &settings).unwrap_err(),
+        FaceRegion::new(&[], &sphere, &settings)
+            .and_then(|region| region.triangulate(&sphere, &settings))
+            .unwrap_err(),
         FaceTriangulationError::TooManyPoints
     );
 }
@@ -727,4 +729,45 @@ fn a_cone_frustum_with_a_small_top_circle_is_triangulated() {
         );
         triangulate(&[lower, upper], &cone, tolerance);
     }
+}
+
+#[test]
+fn a_whole_sphere_and_a_whole_torus_meet_machining_tolerances_with_the_grid_alone() {
+    // 工程の精度（0.001 と、細かい仕上げの 0.0001）で、内側に点を足さずに格子だけで許容弦誤差を守る。0.0001 は、
+    // 大きさを 1/10 にした曲面で同じ細かさを確かめる（許容弦誤差と半径の比が同じなら、点の数も同じ）
+    let grid_only = |tolerance: f64| FaceTriangulationSettings {
+        max_passes: 0,
+        ..settings(tolerance)
+    };
+    for (scale, tolerance) in [(1.0, 0.001), (0.1, 0.0001)] {
+        let sphere = Sphere {
+            radius: 10.0 * scale,
+        };
+        let torus = Torus {
+            major: 20.0 * scale,
+            minor: 5.0 * scale,
+        };
+        let settings = grid_only(tolerance);
+        let result = FaceRegion::new(&[], &sphere, &settings)
+            .unwrap()
+            .triangulate(&sphere, &settings)
+            .unwrap();
+        check(&[], &result, &sphere, tolerance);
+        let result = FaceRegion::new(&[], &torus, &settings)
+            .unwrap()
+            .triangulate(&torus, &settings)
+            .unwrap();
+        check(&[], &result, &torus, tolerance);
+    }
+}
+
+#[test]
+fn a_torus_with_a_hole_converges_at_a_machining_tolerance() {
+    // 穴のまわりの、格子の点を置かない所に足す点が、隣の三角形の細分化を呼び続けない
+    let torus = Torus {
+        major: 2.0,
+        minor: 0.5,
+    };
+    let holes = vec![rectangle(0, (1.0, 1.0), (1.2, 1.5), 50, true)];
+    triangulate(&holes, &torus, 0.0001);
 }
