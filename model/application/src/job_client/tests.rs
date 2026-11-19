@@ -159,7 +159,8 @@ impl Launcher for InProcessLauncher {
         } else {
             let input = read_cutting_simulation_input_v1(&mut input.as_slice()).unwrap();
             let toolpath = fs::read(spec.toolpath.as_ref().unwrap())?;
-            let run = run_cutting_simulation(&input, &mut toolpath.as_slice()).unwrap();
+            let run =
+                run_cutting_simulation(&input, &mut toolpath.as_slice(), &mut |_, _| {}).unwrap();
             ("cutting_simulation.bin", run.artifact)
         };
         fs::write(spec.output.join(name), artifact)?;

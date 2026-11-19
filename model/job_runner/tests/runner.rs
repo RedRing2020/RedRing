@@ -364,8 +364,13 @@ fn a_cam_job_continues_from_the_records_of_the_previous_run() {
     let input = dir.path("input.bin");
     write_cam_input(&input, &cam_input());
     let mut recorded = Recorded::default();
-    let full =
-        run_cam_solver_resumable(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES, &mut recorded).unwrap();
+    let full = run_cam_solver_resumable(
+        &cam_input(),
+        TOOLPATH_MEMORY_LIMIT_BYTES,
+        &mut recorded,
+        &mut |_, _| {},
+    )
+    .unwrap();
     assert!(recorded.0.len() >= 2);
     let resume = dir.path("resume").join("toolpath.resume");
     fs::create_dir_all(resume.parent().unwrap()).unwrap();
@@ -424,9 +429,13 @@ fn a_cam_job_killed_part_way_again_and_again_continues_to_the_same_toolpath() {
         params.stepover = stepover;
         let mut recorded = Recorded::default();
         let started = Instant::now();
-        let full =
-            run_cam_solver_resumable(&solver_input, TOOLPATH_MEMORY_LIMIT_BYTES, &mut recorded)
-                .unwrap();
+        let full = run_cam_solver_resumable(
+            &solver_input,
+            TOOLPATH_MEMORY_LIMIT_BYTES,
+            &mut recorded,
+            &mut |_, _| {},
+        )
+        .unwrap();
         if started.elapsed() >= Duration::from_millis(400) || stepover <= 0.01 {
             break (full, recorded.0.len() as u64);
         }

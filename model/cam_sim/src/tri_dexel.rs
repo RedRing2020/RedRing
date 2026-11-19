@@ -599,6 +599,17 @@ impl TriDexelModel {
     ///
     /// `spacing` が正の有限値でない場合。`keyframe_applied` が昇順でないか、掃引体の数を超える場合。
     pub fn from_stock_model(model: &StockModel, spacing: f64, keyframe_applied: &[usize]) -> Self {
+        Self::from_stock_model_reporting(model, spacing, keyframe_applied, &mut |_, _| {})
+    }
+
+    /// [`Self::from_stock_model`] と同じくトリデクセルを作り、掃引体を差し引く前に、`progress` に差し引いた掃引体の
+    /// 数と、差し引く掃引体の数（最後のキーフレームの時点まで）を知らせる
+    pub(crate) fn from_stock_model_reporting(
+        model: &StockModel,
+        spacing: f64,
+        keyframe_applied: &[usize],
+        progress: &mut dyn FnMut(usize, usize),
+    ) -> Self {
         assert!(
             spacing.is_finite() && spacing > 0.0,
             "dexel spacing must be finite and positive"
@@ -618,10 +629,12 @@ impl TriDexelModel {
         let mut keyframe_changes = DexelChanges::default();
         let mut scratch = Scratch::default();
         record_keyframe_changes(&mut grids, keyframe_applied, 0, &mut keyframe_changes);
+        let total = keyframe_applied.last().copied().unwrap_or(0);
         for (index, primitive) in primitives.iter().enumerate() {
             if keyframe_changes.keyframe_count() == keyframe_applied.len() {
                 break;
             }
+            progress(index, total);
             let [x_grid, y_grid, z_grid] = &mut grids;
             x_grid.subtract(primitive, &mut scratch);
             y_grid.subtract(primitive, &mut scratch);

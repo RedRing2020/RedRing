@@ -166,7 +166,11 @@ impl CamJobExecutorAdapter {
             );
         };
 
-        match run_cutting_simulation(&input, &mut std::io::Cursor::new(input_artifact_bytes)) {
+        match run_cutting_simulation(
+            &input,
+            &mut std::io::Cursor::new(input_artifact_bytes),
+            &mut |_, _| {},
+        ) {
             Ok(run) => JobExecutionResult {
                 status: JobStatus::Succeeded,
                 result_ref: Some(build_result_ref("sim", job.id.0, "ok")),

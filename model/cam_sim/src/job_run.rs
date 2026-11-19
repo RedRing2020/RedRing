@@ -99,16 +99,19 @@ pub fn run_cam_solver(
 
 /// [`run_cam_solver`] と同じくツールパスを生成し、計算の区切りごとに `checkpoints` に記録を書き足す。前の実行の記録が
 /// あれば、続きから計算する（記録を使えなければ、捨てて最初から計算する）
+///
+/// 計算の進み具合（終えた走査ラインの数と全体の走査ラインの数）を `progress` に知らせる。
 pub fn run_cam_solver_resumable(
     input: &CamSolverInput,
     memory_limit_bytes: u64,
     checkpoints: &mut dyn Checkpoints,
+    progress: &mut dyn FnMut(usize, usize),
 ) -> Result<Vec<u8>, JobRunFailure> {
     let point_limit = toolpath_point_limit(memory_limit_bytes);
     toolpath_artifact(
         input,
         (point_limit, memory_limit_bytes),
-        solve_toolpath_resumable(input, point_limit, checkpoints),
+        solve_toolpath_resumable(input, point_limit, checkpoints, progress),
     )
 }
 
@@ -141,9 +144,13 @@ fn toolpath_artifact(
 ///
 /// 実行の前に、ツールパスと入力の組み合わせを確かめる（Preflight）。最後の時点の素材を製品形状と比べ、削り込み・削り
 /// 残しを成果物に含める。
+///
+/// 計算の進み具合（終えた数と全体の数）を `progress` に知らせる（素材から差し引いた工具の掃引体。ツールパスを読む
+/// 間・製品形状と比べる間・成果物を書く間は知らせない）。
 pub fn run_cutting_simulation<R: Read>(
     input: &CuttingSimulationInput,
     toolpath_artifact: &mut R,
+    progress: &mut dyn FnMut(usize, usize),
 ) -> Result<CuttingSimulationRun, JobRunFailure> {
     let (toolpath_header, toolpath) =
         read_toolpath_artifact_v1(toolpath_artifact).map_err(|error| {
@@ -166,7 +173,7 @@ pub fn run_cutting_simulation<R: Read>(
 
     let mut simulator = CuttingSimulator::new(input.stock, input.snapshot_interval.clone());
     simulator
-        .simulate(&toolpath, &input.tool, input.precision)
+        .simulate_reporting(&toolpath, &input.tool, input.precision, progress)
         .map_err(|error| {
             JobRunFailure::new(
                 "sim-failure",

@@ -39,6 +39,9 @@ use resume::{ScanState, encode_passes};
 /// `checkpoints` があれば、走査ラインを区切りとして、パスを足した走査ラインごとに記録を書き足す。前の実行の記録があれば、
 /// そのパスを読み戻し、続きの走査ラインから計算する（記録を使えなければ、捨てて最初から計算する）。
 ///
+/// 各走査ラインを計算する前に、`progress` に終えた走査ラインの数と全体の走査ラインの数を知らせる（続きから計算する
+/// ときは、読み戻した走査ラインを終えた数に含める）。
+///
 /// # Errors
 ///
 /// トレランスが正の有限値でない場合と、どの走査ラインでも工具が形状に接しない場合と、点の数が `point_limit` を
@@ -48,9 +51,9 @@ pub(crate) fn generate_scanline_toolpath(
     tool_id: &str,
     params: &ScanlineParams,
     (region, frame): (&ScanRegion, ScanFrame),
-    tolerance: f64,
-    point_limit: usize,
+    (tolerance, point_limit): (f64, usize),
     mut checkpoints: Option<&mut dyn Checkpoints>,
+    progress: &mut dyn FnMut(usize, usize),
 ) -> Result<ToolPath<f64>, CamSolverError> {
     if !(tolerance.is_finite() && tolerance > 0.0) {
         return Err(CamSolverError::InvalidInput(
@@ -76,6 +79,7 @@ pub(crate) fn generate_scanline_toolpath(
     // 範囲を通る走査線の番号（ジグザグの送る向きを決める）
     let mut line = start.line;
     for (index, &y) in ys.iter().enumerate().skip(start.next) {
+        progress(index, ys.len());
         let Some((x_min, x_max)) = region.x_range_at(y) else {
             continue;
         };
