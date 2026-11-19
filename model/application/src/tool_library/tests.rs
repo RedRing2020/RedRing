@@ -404,15 +404,24 @@ fn concurrent_writers_do_not_lose_each_other_edits() {
         .map(|writer| {
             let path = path.clone();
             std::thread::spawn(move || {
+                // 混んでいると、ほかの書き手に先を越され続けてロックを待ちきれないことがある（順番は守らない）。
+                // そのときは、利用者が操作をやり直すのと同じく書き直す。確かめるのは、どの書き込みも失われないこと
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
                 for step in 0..5_u128 {
                     let id = 100 + writer * 10 + step;
-                    shared::edit_tool_library(
-                        &path,
-                        ToolLibraryEdit::AddToolSet(entry(id, &format!("{writer}-{step}"))),
-                        &format!("pc-{writer}"),
-                        &info(),
-                    )
-                    .unwrap();
+                    loop {
+                        match shared::edit_tool_library(
+                            &path,
+                            ToolLibraryEdit::AddToolSet(entry(id, &format!("{writer}-{step}"))),
+                            &format!("pc-{writer}"),
+                            &info(),
+                        ) {
+                            Ok(_) => break,
+                            Err(ToolLibraryEditError::Locked(_))
+                                if std::time::Instant::now() < deadline => {}
+                            Err(error) => panic!("writer {writer} step {step}: {error:?}"),
+                        }
+                    }
                 }
             })
         })
