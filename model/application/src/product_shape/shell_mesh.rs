@@ -17,8 +17,8 @@ use geo_algorithms::{
     Point3D, TriangulationSurface, Vector3D, chord_angle_step,
 };
 use geo_contracts::{
-    ConicalSurface3DProperties, CylindricalSurface3DProperties, SphericalSurface3DProperties,
-    TorusSurface3DProperties,
+    ConicalSurface3DProperties, CylindricalSurface3DProperties, NurbsSurface3DProperties,
+    SphericalSurface3DProperties, TorusSurface3DProperties,
 };
 use geo_topology::{Brep, CurveRef, EdgeIndex, FaceIndex, SurfaceRef, VertexIndex};
 
@@ -38,8 +38,6 @@ pub enum ShellFaceError {
     Edge(CurveDiscretizationError),
     /// パラメータ曲線を評価できない
     ParameterCurve,
-    /// まだ三角形にできない曲面（NURBS 曲面）
-    UnsupportedSurface,
     /// 稜線を分け直しても、(u, v) の多角形の辺が交わる
     Crossing,
     /// 切れ目を入れた範囲を作れない、または三角形に分けられない
@@ -53,7 +51,6 @@ impl fmt::Display for ShellFaceError {
         match self {
             Self::Edge(error) => write!(f, "an edge of the face cannot be divided: {error}"),
             Self::ParameterCurve => f.write_str("a parameter curve cannot be evaluated"),
-            Self::UnsupportedSurface => f.write_str("the surface cannot be triangulated yet"),
             Self::Crossing => f.write_str("the loops of the face cross"),
             Self::Triangulation(error) => write!(f, "the face cannot be triangulated: {error}"),
             Self::Placement => f.write_str("the placement cannot be applied to the triangles"),
@@ -246,9 +243,6 @@ fn prepare_face<'a>(
     settings: &FaceTriangulationSettings,
 ) -> Result<Prepared<'a>, ShellFaceError> {
     let surface = brep.face(face).surface();
-    if matches!(surface, SurfaceRef::Nurbs(_)) {
-        return Err(ShellFaceError::UnsupportedSurface);
-    }
     let mut loops = Vec::with_capacity(brep.face(face).loops().len());
     for &loop_index in brep.face(face).loops() {
         let face_loop = brep.face_loop(loop_index);
@@ -417,6 +411,112 @@ struct FaceSurface<'a> {
     poles: (Option<f64>, Option<f64>),
     /// 円錐の面の中の半径の絶対値の最大（頂点の先の、半径が負の側も含む）
     cone_radius: f64,
+    /// NURBS 曲面の面の中で測った、u・v の向きの長さと曲がり
+    nurbs: Option<NurbsMeasure>,
+}
+
+/// NURBS 曲面の面の (u, v) の範囲に格子で点を取って測った、u・v の向きの長さと曲がり（設計書 6.3）
+struct NurbsMeasure {
+    /// 面の (u, v) の範囲の幅
+    spans: (f64, f64),
+    /// u・v の向きの、パラメータあたりの曲面の上の長さの平均（三角形分割の座標の倍率）
+    speeds: (f64, f64),
+    /// u・v の向きの、測った点ごとの曲がり（曲がっていない点は除く）
+    bends: (Vec<Bend>, Vec<Bend>),
+}
+
+/// NURBS 曲面の面の中で測った 1 点の、u か v の向きの曲がり
+struct Bend {
+    /// 曲がりの半径
+    radius: f64,
+    /// パラメータあたりの曲面の上の長さ
+    speed: f64,
+}
+
+/// NURBS 曲面の面の長さと曲がりを測る格子の、u・v の向きの区間の数
+const NURBS_MEASURE_SEGMENTS: usize = 16;
+
+impl NurbsMeasure {
+    /// 面の (u, v) の範囲 `low`〜`high` に格子で点を取って測る（測れなければ `None`）
+    fn new(surface: &SurfaceRef<f64>, low: (f64, f64), high: (f64, f64)) -> Option<Self> {
+        let spans = (high.0 - low.0, high.1 - low.1);
+        if !(spans.0 > 0.0 && spans.1 > 0.0 && spans.0.is_finite() && spans.1.is_finite()) {
+            return None;
+        }
+        let count = NURBS_MEASURE_SEGMENTS;
+        let steps = (spans.0 / count as f64, spans.1 / count as f64);
+        let mut grid = Vec::with_capacity((count + 1) * (count + 1));
+        for i in 0..=count {
+            for j in 0..=count {
+                let uv = (low.0 + steps.0 * i as f64, low.1 + steps.1 * j as f64);
+                grid.push(surface.point_at_uv(uv.0, uv.1));
+            }
+        }
+        let at = |i: usize, j: usize| grid[i * (count + 1) + j];
+        // u の向き（`along_u`）と v の向きに 3 点ずつ取り、差で 1 階と 2 階の微分を見積もる
+        let measure = |along_u: bool| {
+            let step = if along_u { steps.0 } else { steps.1 };
+            let point = |line: usize, position: usize| {
+                if along_u {
+                    at(position, line)
+                } else {
+                    at(line, position)
+                }
+            };
+            let (mut length, mut samples, mut bends) = (0.0, 0usize, Vec::new());
+            for line in 0..=count {
+                for position in 1..count {
+                    let (Some(before), Some(middle), Some(after)) = (
+                        point(line, position - 1),
+                        point(line, position),
+                        point(line, position + 1),
+                    ) else {
+                        continue;
+                    };
+                    let first = Vector3D::from_points(before, after) * (0.5 / step);
+                    let second = (Vector3D::from_points(middle, after)
+                        - Vector3D::from_points(before, middle))
+                        * (1.0 / (step * step));
+                    let speed = first.length();
+                    length += speed;
+                    samples += 1;
+                    // 曲がりの半径は |S'|³ / |S' × S''|（曲がっていない点・速さが 0 の点は値が有限にならない）
+                    let radius = speed.powi(3) / first.cross(second).length();
+                    if radius.is_finite() && speed > 0.0 {
+                        bends.push(Bend { radius, speed });
+                    }
+                }
+            }
+            (samples > 0).then(|| (length / samples as f64, bends))
+        };
+        let (speed_u, bends_u) = measure(true)?;
+        let (speed_v, bends_v) = measure(false)?;
+        (speed_u > 0.0 && speed_v > 0.0).then_some(Self {
+            spans,
+            speeds: (speed_u, speed_v),
+            bends: (bends_u, bends_v),
+        })
+    }
+
+    /// 許容弦誤差と角度の上限から決まる u・v の刻み（測った点ごとの角の刻みを、パラメータの幅にした最小。曲がらな
+    /// ければ範囲の幅）
+    fn steps(&self, chord_tolerance: f64, max_angle: Angle<f64>) -> (f64, f64) {
+        let step = |bends: &[Bend], span: f64| {
+            bends
+                .iter()
+                .map(|bend| {
+                    chord_angle_step(bend.radius, chord_tolerance, max_angle) * bend.radius
+                        / bend.speed
+                })
+                // 半径が許容弦誤差に比べて大きすぎて角の刻みが 0 になる点は、曲がっていない点とみなす
+                .filter(|step| step.is_finite() && *step > 0.0)
+                .fold(span, f64::min)
+        };
+        (
+            step(&self.bends.0, self.spans.0),
+            step(&self.bends.1, self.spans.1),
+        )
+    }
 }
 
 impl<'a> FaceSurface<'a> {
@@ -448,10 +548,27 @@ impl<'a> FaceSurface<'a> {
             }
             _ => 0.0,
         };
+        let nurbs = match surface {
+            SurfaceRef::Nurbs(nurbs) if loops.is_empty() => {
+                let ((u_min, u_max), (v_min, v_max)) = nurbs.parameter_domain();
+                NurbsMeasure::new(surface, (u_min, v_min), (u_max, v_max))
+            }
+            SurfaceRef::Nurbs(_) => {
+                let (u_low, u_high) = loops
+                    .iter()
+                    .flatten()
+                    .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), point| {
+                        (low.min(point.uv.x()), high.max(point.uv.x()))
+                    });
+                NurbsMeasure::new(surface, (u_low, low), (u_high, high))
+            }
+            _ => None,
+        };
         Self {
             surface,
             poles,
             cone_radius,
+            nurbs,
         }
     }
 }
@@ -476,7 +593,11 @@ impl TriangulationSurface for FaceSurface<'_> {
     fn steps(&self, chord_tolerance: f64, max_angle: Angle<f64>) -> (Option<f64>, Option<f64>) {
         let step = |radius: f64| Some(chord_angle_step(radius, chord_tolerance, max_angle));
         match self.surface {
-            SurfaceRef::Plane(_) | SurfaceRef::Nurbs(_) => (None, None),
+            SurfaceRef::Plane(_) => (None, None),
+            SurfaceRef::Nurbs(_) => self.nurbs.as_ref().map_or((None, None), |nurbs| {
+                let (u, v) = nurbs.steps(chord_tolerance, max_angle);
+                (Some(u), Some(v))
+            }),
             SurfaceRef::Cylinder(cylinder) => (step(cylinder.radius()), None),
             SurfaceRef::Cone(_) => (step(self.cone_radius), None),
             SurfaceRef::Sphere(sphere) => (step(sphere.radius()), step(sphere.radius())),
@@ -489,7 +610,8 @@ impl TriangulationSurface for FaceSurface<'_> {
 
     fn scale(&self) -> (f64, f64) {
         match self.surface {
-            SurfaceRef::Plane(_) | SurfaceRef::Nurbs(_) => (1.0, 1.0),
+            SurfaceRef::Plane(_) => (1.0, 1.0),
+            SurfaceRef::Nurbs(_) => self.nurbs.as_ref().map_or((1.0, 1.0), |nurbs| nurbs.speeds),
             SurfaceRef::Cylinder(cylinder) => (cylinder.radius(), 1.0),
             SurfaceRef::Cone(cone) => {
                 (self.cone_radius, 1.0 / cone.semi_angle().to_radians().cos())

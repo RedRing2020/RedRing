@@ -3,8 +3,8 @@ use std::f64::consts::PI;
 
 use super::*;
 use crate::product_shape::test_fixtures::{
-    cone_brep, cube_brep, cylinder_brep, plate_with_hole_brep, seamed_sphere_brep, sphere_brep,
-    torus_brep,
+    BUMP_HEIGHT, bump_brep, cone_brep, cube_brep, cylinder_brep, plate_with_hole_brep,
+    seamed_sphere_brep, sphere_brep, torus_brep,
 };
 
 /// B-rep の三角形が閉じていて（どの辺も、2 つの三角形が逆向きに使う）、外を向き（頂点の法線と三角形の法線が同じ
@@ -134,4 +134,46 @@ fn sphere_and_torus_shells_meet_the_machining_tolerance() {
 #[ignore = "許容弦誤差 0.0001 で、トーラスの面が 122 万点ほどになる（確かめも含めて、リリースのビルドで 15 秒ほど）。cargo test --release -- --ignored で確かめる"]
 fn sphere_and_torus_shells_meet_the_finest_machining_tolerance() {
     assert_sphere_and_torus(0.0001);
+}
+
+/// 試験の B-rep の NURBS 曲面の山 (10 u, 10 v, 9 h u (1 − u) v (1 − v)) への、点 `point` からの最短距離（底の平面
+/// z = 0 の点は 0）
+fn bump_distance(point: Point3D<f64>) -> f64 {
+    if point.z() == 0.0 {
+        return 0.0;
+    }
+    let scale = 9.0 * BUMP_HEIGHT;
+    let height = |u: f64, v: f64| scale * u * (1.0 - u) * v * (1.0 - v);
+    // 曲面の上の点と点 `point` の差が、u・v の向きの接線に垂直になる (u, v) を、ガウス・ニュートン法で求める
+    let (mut u, mut v) = (point.x() / 10.0, point.y() / 10.0);
+    for _ in 0..32 {
+        let difference = [
+            10.0 * u - point.x(),
+            10.0 * v - point.y(),
+            height(u, v) - point.z(),
+        ];
+        let tangent_u = [10.0, 0.0, scale * (1.0 - 2.0 * u) * v * (1.0 - v)];
+        let tangent_v = [0.0, 10.0, scale * u * (1.0 - u) * (1.0 - 2.0 * v)];
+        let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        let (a, b, c) = (
+            dot(tangent_u, tangent_u),
+            dot(tangent_u, tangent_v),
+            dot(tangent_v, tangent_v),
+        );
+        let (p, q) = (-dot(difference, tangent_u), -dot(difference, tangent_v));
+        let determinant = a * c - b * b;
+        // 曲面の範囲の外（式を延ばした曲面）に出ないよう、範囲に収める
+        u = (u + (c * p - b * q) / determinant).clamp(0.0, 1.0);
+        v = (v + (a * q - b * p) / determinant).clamp(0.0, 1.0);
+    }
+    point.distance_to(Point3D::new(10.0 * u, 10.0 * v, height(u, v)))
+}
+
+#[test]
+fn nurbs_surface_face_meets_the_chord_tolerance() {
+    for chord_tolerance in [0.05, 0.001] {
+        let mesh = triangulate_brep(&bump_brep(), chord_tolerance);
+        assert_closed(&mesh, 25.0 * BUMP_HEIGHT);
+        assert_within_tolerance(&mesh, bump_distance, chord_tolerance);
+    }
 }
