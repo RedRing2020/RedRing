@@ -1,9 +1,10 @@
 //! 稜線の使用が持つパラメータ曲線（面の曲面のパラメータ (u, v) の上の曲線）
 //!
 //! パラメータ曲線は、稜線の母曲線と同じパラメータ `t` で (u, v) を返す（曲面の上で評価した点が、稜線の
-//! 母曲線の点と許容誤差の中で合う）。周期的な曲面の上では、周期で折り返さず、つながった値で持つ
-//! （設計: BREP_AND_STEP_IMPORT_DESIGN.md 5.5）。
+//! 母曲線の点と許容誤差の中で合う）。周期的な曲面の上では、周期で折り返さず、つながった値で持つ。正確な形に
+//! ならない組と NURBS 曲面の上では、NURBS 曲線を当てはめる（設計: BREP_AND_STEP_IMPORT_DESIGN.md 5.5）。
 
+mod fitting;
 #[cfg(test)]
 mod tests;
 
@@ -51,37 +52,81 @@ impl<T: Scalar> ParameterCurve<T> {
         }
     }
 
+    /// 曲面 `surface` の上で、母曲線 `curve` の区間 `range` を、ずれ `tolerance` の中で表すパラメータ曲線
+    ///
+    /// 正確な形（`exact`）が `tolerance` の中に収まればその形、収まらなければ当てはめた NURBS 曲線にする。
+    /// 当てはめたずれが `tolerance` を超えれば `None`。
+    pub(crate) fn new(
+        surface: &SurfaceRef<T>,
+        curve: &CurveRef<T>,
+        range: (T, T),
+        tolerance: T,
+    ) -> Option<Self> {
+        Self::exact(surface, curve, range, tolerance).or_else(|| {
+            fitting::fit(surface, curve, range, tolerance)
+                .and_then(|(fitted, deviation)| (deviation <= tolerance).then_some(fitted))
+        })
+    }
+
+    /// 曲面 `surface` の上で、母曲線 `curve` の区間 `range` を表すパラメータ曲線（正確な形が `tolerance` の
+    /// 中に収まればその形、収まらなければ `tolerance` を目安に当てはめた NURBS 曲線）の、曲面の上で評価した
+    /// 点と母曲線の点のずれの最大（パラメータ曲線を作れなければ `None`）
+    ///
+    /// 当てはめたずれは `tolerance` を超えることがある。ずれの 1 倍以上に広げた許容誤差で `new` を呼べば、
+    /// パラメータ曲線を作れる。NURBS 曲面の上では、曲面への最も近い点までの距離ではなく、このずれで稜線の
+    /// 曲面からのずれを測る（最も近い点の探索は、曲面の離れた部分に落ちて、ないずれを返すことがあるため）。
+    pub fn deviation(
+        surface: &SurfaceRef<T>,
+        curve: &CurveRef<T>,
+        range: (T, T),
+        tolerance: T,
+    ) -> Option<T> {
+        match Self::exact_candidate(surface, curve, range) {
+            Some((_, deviation)) if deviation <= tolerance => Some(deviation),
+            _ => fitting::fit(surface, curve, range, tolerance).map(|(_, deviation)| deviation),
+        }
+    }
+
     /// 曲面 `surface` の上で、母曲線 `curve` の区間 `range` を正確に表すパラメータ曲線
     ///
     /// 平面の上の直線・円・楕円・平面の中の NURBS 曲線と、円柱・円錐・球・トーラスの上で (u, v) の直線に
     /// なる曲線（母線・軸に垂直な円・経線・緯線）を作る。作った曲線を曲面の上で評価した点が、区間の中の点で
-    /// 母曲線から `tolerance` より離れれば `None`（正確な形にならない組。当てはめは別に行う）。
+    /// 母曲線から `tolerance` より離れれば `None`（正確な形にならない組）。
     pub(crate) fn exact(
         surface: &SurfaceRef<T>,
         curve: &CurveRef<T>,
         range: (T, T),
         tolerance: T,
     ) -> Option<Self> {
+        Self::exact_candidate(surface, curve, range)
+            .and_then(|(candidate, deviation)| (deviation <= tolerance).then_some(candidate))
+    }
+
+    /// 正確な形の候補と、区間を分けた点で測ったずれの最大（候補を作れない・評価できない・ずれが有限の値で
+    /// なければ `None`）
+    fn exact_candidate(
+        surface: &SurfaceRef<T>,
+        curve: &CurveRef<T>,
+        range: (T, T),
+    ) -> Option<(Self, T)> {
         let candidate = match surface {
             SurfaceRef::Plane(plane) => Self::on_plane(plane, curve)?,
             SurfaceRef::Nurbs(_) => return None,
             _ => Self::line_in_uv(surface, curve, range)?,
         };
-        (0..=SAMPLE_SEGMENTS)
-            .all(|index| {
-                let t = sample(range, index);
-                candidate
-                    .point_at(t)
-                    .and_then(|uv| surface.point_at_uv(uv.x(), uv.y()))
-                    .is_some_and(|point| {
-                        point.distance_to(curve.point_at_parameter(t)) <= tolerance
-                    })
-            })
-            .then_some(candidate)
+        let deviation = (0..=SAMPLE_SEGMENTS).try_fold(T::ZERO, |deviation, index| {
+            let t = sample(range, index);
+            let uv = candidate.point_at(t)?;
+            let point = surface.point_at_uv(uv.x(), uv.y())?;
+            // 有限の値でない距離（評価できない候補）は、候補にしない
+            let distance = point.distance_to(curve.point_at_parameter(t));
+            distance.is_finite().then(|| deviation.max(distance))
+        })?;
+        Some((candidate, deviation))
     }
 
     /// 母曲線 `curve` の区間 `range` の、解析的な曲面 `surface` からのずれの最大（区間を分けた点から、曲面の
-    /// 上の近い点までの距離で測る。NURBS 曲面では `None`）
+    /// 上の近い点までの距離で測る。NURBS 曲面では `None`。NURBS 曲面の上のずれは `deviation` で測る）
     ///
     /// 平面・円柱・球・トーラスでは最も近い点までの距離、円錐では軸の方向の高さが同じ点までの距離（最も
     /// 近い点までの距離を、半頂角の余弦で割った値。平たい円錐では大きくなる）になる。円錐でも、

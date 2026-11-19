@@ -6,8 +6,8 @@ use crate::{
 use geo_contracts::{
     Angle, Circle3DConstructor, Circle3DEvaluation, ConicalSurface3DConstructor,
     CylindricalSurface3DConstructor, InfiniteLine3DConstructor, NurbsCurve3DConstructor,
-    Plane3DConstructor, SphericalSurface3DConstructor, TorusSurface3DConstructor,
-    TorusSurface3DEvaluation,
+    NurbsSurface3DConstructor, Plane3DConstructor, SphericalSurface3DConstructor,
+    TorusSurface3DConstructor, TorusSurface3DEvaluation,
 };
 use geo_core::Direction3D;
 use std::f64::consts::{FRAC_PI_4, PI, TAU};
@@ -1352,5 +1352,162 @@ fn broken_records_are_refused() {
     assert_eq!(
         Brep::from_records(broken).err(),
         Some(BrepError::InvalidTolerance)
+    );
+}
+
+/// xy の 3 次の B-spline `profile`（ノット `knots`）を、z の方向に 0〜1 押し出した NURBS 曲面と、z = 0・1 の
+/// 断面の曲線
+fn extruded(
+    profile: &[Point3D<f64>],
+    knots: &[f64],
+) -> (
+    SurfaceRef<f64>,
+    TopoNurbsCurve3D<f64>,
+    TopoNurbsCurve3D<f64>,
+) {
+    let lifted = |z: f64| -> Vec<Point3D<f64>> {
+        profile
+            .iter()
+            .map(|point| Point3D::new(point.x(), point.y(), z))
+            .collect()
+    };
+    let control_points: Vec<Vec<Point3D<f64>>> = profile
+        .iter()
+        .map(|point| vec![*point, Point3D::new(point.x(), point.y(), 1.0)])
+        .collect();
+    let surface = <crate::TopoNurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
+        3,
+        1,
+        knots.to_vec(),
+        vec![0.0, 0.0, 1.0, 1.0],
+        &control_points,
+        None,
+    )
+    .unwrap();
+    let section = |z: f64| {
+        <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            3,
+            knots.to_vec(),
+            &lifted(z),
+            None,
+        )
+        .unwrap()
+    };
+    (SurfaceRef::Nurbs(surface), section(0.0), section(1.0))
+}
+
+#[test]
+fn a_face_on_a_nurbs_surface_has_fitted_parameter_curves() {
+    let profile = [
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 2.0, 0.0),
+        Point3D::new(3.0, -1.0, 0.0),
+        Point3D::new(4.0, 1.0, 0.0),
+    ];
+    let (surface, bottom, top) = extruded(&profile, &[0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]);
+    let mut brep = Brep::new(tolerances()).unwrap();
+    let corners: Vec<VertexIndex> = [
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(4.0, 1.0, 0.0),
+        Point3D::new(4.0, 1.0, 1.0),
+        Point3D::new(0.0, 0.0, 1.0),
+    ]
+    .into_iter()
+    .map(|point| brep.add_vertex(point, TOLERANCE).unwrap())
+    .collect();
+    let bottom = brep
+        .add_edge(
+            corners[0],
+            corners[1],
+            CurveRef::Nurbs(bottom),
+            (0.0, 1.0),
+            TOLERANCE,
+        )
+        .unwrap();
+    let right = line_edge(&mut brep, corners[1], corners[2]);
+    let top = brep
+        .add_edge(
+            corners[3],
+            corners[2],
+            CurveRef::Nurbs(top),
+            (0.0, 1.0),
+            TOLERANCE,
+        )
+        .unwrap();
+    let left = line_edge(&mut brep, corners[3], corners[0]);
+
+    // (u, v) で (0, 0) → (1, 0) → (1, 1) → (0, 1) と回る、反時計回りのループ
+    let face = brep
+        .add_face(
+            surface,
+            true,
+            vec![vec![
+                forward(bottom),
+                forward(right),
+                backward(top),
+                forward(left),
+            ]],
+        )
+        .unwrap();
+    assert!(brep.is_face_oriented(face));
+    let face_loop = brep.face_loop(brep.face(face).loops()[0]);
+    for (&edge_use, curve) in face_loop.uses().iter().zip(face_loop.parameter_curves()) {
+        let edge = brep.edge(edge_use.edge);
+        let (t0, t1) = edge.parameter_range();
+        for fraction in [0.0, 0.31, 0.5, 0.77, 1.0] {
+            let t = t0 + (t1 - t0) * fraction;
+            let uv = curve.point_at(t).unwrap();
+            let on_surface = brep
+                .face(face)
+                .surface()
+                .point_at_uv(uv.x(), uv.y())
+                .unwrap();
+            assert!(on_surface.distance_to(edge.curve().point_at_parameter(t)) <= TOLERANCE);
+        }
+    }
+}
+
+#[test]
+fn a_loop_across_the_seam_of_a_closed_nurbs_surface_is_refused() {
+    // 両端の制御点が重なる、閉じた断面
+    let profile = [
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(1.0, 1.0, 0.0),
+        Point3D::new(-1.0, 1.0, 0.0),
+        Point3D::new(-1.0, -1.0, 0.0),
+        Point3D::new(1.0, -1.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+    ];
+    let knots = [0.0, 0.0, 0.0, 0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0, 1.0, 1.0, 1.0];
+    let (surface, bottom, top) = extruded(&profile, &knots);
+    let mut brep = Brep::new(tolerances()).unwrap();
+    let lower = brep
+        .add_vertex(Point3D::new(1.0, 0.0, 0.0), TOLERANCE)
+        .unwrap();
+    let upper = brep
+        .add_vertex(Point3D::new(1.0, 0.0, 1.0), TOLERANCE)
+        .unwrap();
+    let bottom = brep
+        .add_edge(lower, lower, CurveRef::Nurbs(bottom), (0.0, 1.0), TOLERANCE)
+        .unwrap();
+    let top = brep
+        .add_edge(upper, upper, CurveRef::Nurbs(top), (0.0, 1.0), TOLERANCE)
+        .unwrap();
+    let seam = line_edge(&mut brep, lower, upper);
+
+    // 継ぎ目の稜線は、(u, v) の片側の端にしか写らないので、ループが (u, v) でつながらない
+    assert_eq!(
+        brep.add_face(
+            surface,
+            true,
+            vec![vec![
+                forward(bottom),
+                forward(seam),
+                backward(top),
+                backward(seam)
+            ]],
+        )
+        .err(),
+        Some(BrepError::ParameterCurveGap)
     );
 }

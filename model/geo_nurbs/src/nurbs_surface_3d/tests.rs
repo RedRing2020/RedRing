@@ -316,3 +316,65 @@ fn test_surface_adaptive_params_plane() {
     assert!((grid.v_params.first().unwrap() - v_min).abs() < TOLERANCE_F64);
     assert!((grid.v_params.last().unwrap() - v_max).abs() < TOLERANCE_F64);
 }
+
+#[test]
+fn a_point_on_the_surface_is_found_from_a_nearby_start() {
+    let surface = quarter_cylinder();
+    let (u, v) = (0.37, 0.62);
+    let point = surface.point_at_uv(u, v).unwrap();
+    let found = surface
+        .parameter_for_point_from(point, (0.5, 0.5), 1.0e-12)
+        .unwrap();
+    assert!(
+        surface
+            .point_at_uv(found.0, found.1)
+            .unwrap()
+            .distance_to(point)
+            < 1.0e-10
+    );
+    assert!(
+        (found.0 - u).abs() < 1.0e-8 && (found.1 - v).abs() < 1.0e-8,
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_point_beyond_the_domain_is_found_on_the_border() {
+    // 平面の外の点は、定義域の端の近い点になる
+    let surface = unit_square();
+    let found = surface
+        .parameter_for_point_from(Point3D::new(1.5, 0.25, 0.3), (0.5, 0.5), 1.0e-12)
+        .unwrap();
+    assert!(
+        (found.0 - 1.0).abs() < 1.0e-12 && (found.1 - 0.25).abs() < 1.0e-12,
+        "{found:?}"
+    );
+    assert!(
+        surface
+            .parameter_for_point_from(Point3D::new(0.5, 0.5, 0.0), (f64::NAN, 0.5), 1.0e-12)
+            .is_none()
+    );
+}
+
+#[test]
+fn a_point_near_a_degenerate_edge_is_found() {
+    // 極（1 点に縮退した辺）の近くでも、0 でない偏導関数の向きに動いて点を見つける
+    let surface = sphere_octant();
+    let ((u_start, u_end), (v_start, v_end)) = surface.parameter_domain();
+    let point = surface
+        .point_at_uv(
+            u_start + (u_end - u_start) * 0.4,
+            v_start + (v_end - v_start) * 0.97,
+        )
+        .unwrap();
+    for start in [(u_start, v_end), (u_end, v_end), (u_start, v_start)] {
+        let found = surface
+            .parameter_for_point_from(point, start, 1.0e-12)
+            .unwrap();
+        let distance = surface
+            .point_at_uv(found.0, found.1)
+            .unwrap()
+            .distance_to(point);
+        assert!(distance < 1.0e-9, "from {start:?}: {distance}");
+    }
+}

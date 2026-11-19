@@ -607,33 +607,9 @@ fn a_faceted_brep_shares_poly_loop_edges_by_point() {
 #[test]
 fn faces_that_cannot_be_built_are_skipped_with_the_reason() {
     let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
-    // 上の面の曲面を、NURBS 曲面にする
-    let control_points: Vec<Vec<u64>> = (0..2)
-        .map(|row| {
-            (0..2)
-                .map(|column| cube.builder.point([column as f64, row as f64, 1.0]))
-                .collect()
-        })
-        .collect();
-    let nurbs = cube
-        .builder
-        .geometry(Geometry::BSplineSurface(crate::record::BSplineSurface {
-            u_degree: 1,
-            v_degree: 1,
-            control_points,
-            u_closed: Some(false),
-            v_closed: Some(false),
-            u_multiplicities: vec![2, 2],
-            v_multiplicities: vec![2, 2],
-            u_knots: vec![0.0, 1.0],
-            v_knots: vec![0.0, 1.0],
-            weights: None,
-        }));
+    // 上の面の曲面を、NURBS 曲面にする（パラメータ曲線を当てはめて読む）
     let top = cube.faces[1];
-    let Some(Topology::Face { surface, .. }) = cube.builder.records.topology.get_mut(&top) else {
-        panic!("a face");
-    };
-    *surface = Some(nurbs);
+    set_face_bilinear(&mut cube.builder, top, 1.0);
     // 稜線 2 → 1 を、開いた直線の上の閉じた稜線にする
     let edge = cube.edges[&(2, 1)];
     let Some(Topology::Edge { end, start, .. }) = cube.builder.records.topology.get_mut(&edge)
@@ -645,7 +621,8 @@ fn faces_that_cannot_be_built_are_skipped_with_the_reason() {
     let topologies = cube.builder.build();
     let built = &topologies.items[0];
     // 外した面のあるシェルは開いたまま作り、立体も作る（外した面の扱いは、後の段で決める）
-    assert_eq!(built.faces.len(), 3);
+    assert_eq!(built.faces.len(), 4);
+    assert!(built.faces.contains_key(&top));
     let shell = match cube.builder.records.topology.get(&cube.item) {
         Some(Topology::Solid { outer, .. }) => *outer,
         _ => panic!("a solid"),
@@ -660,7 +637,6 @@ fn faces_that_cannot_be_built_are_skipped_with_the_reason() {
         skipped,
         vec![
             (cube.faces[0], edge, TopologyError::ClosedOnOpenCurve),
-            (top, nurbs, TopologyError::NurbsSurface),
             (cube.faces[3], edge, TopologyError::ClosedOnOpenCurve),
         ]
     );
@@ -890,6 +866,34 @@ fn set_face_plane(builder: &mut Builder, face: u64, origin: [f64; 3], normal: [f
     *surface = Some(plane);
 }
 
+/// 面 `face` の曲面を、高さ `height` の xy の [0, 1] × [0, 1] の、1 次の NURBS 曲面にする（u は x、v は y の
+/// 向きで、曲面の法線は z の正の向き）
+fn set_face_bilinear(builder: &mut Builder, face: u64, height: f64) {
+    let control_points: Vec<Vec<u64>> = (0..2)
+        .map(|x| {
+            (0..2)
+                .map(|y| builder.point([x as f64, y as f64, height]))
+                .collect()
+        })
+        .collect();
+    let nurbs = builder.geometry(Geometry::BSplineSurface(crate::record::BSplineSurface {
+        u_degree: 1,
+        v_degree: 1,
+        control_points,
+        u_closed: Some(false),
+        v_closed: Some(false),
+        u_multiplicities: vec![2, 2],
+        v_multiplicities: vec![2, 2],
+        u_knots: vec![0.0, 1.0],
+        v_knots: vec![0.0, 1.0],
+        weights: None,
+    }));
+    let Some(Topology::Face { surface, .. }) = builder.records.topology.get_mut(&face) else {
+        panic!("a face");
+    };
+    *surface = Some(nurbs);
+}
+
 /// 立方体の上の面の稜線（ファイルの番号の順）
 fn cube_top_edges(cube: &Polyhedron) -> Vec<u64> {
     let mut edges: Vec<u64> = [(4, 5), (5, 6), (6, 7), (7, 4)]
@@ -922,6 +926,45 @@ fn edges_off_their_face_surface_are_widened() {
         })
         .collect();
     assert_eq!(widened, cube_top_edges(&cube));
+}
+
+#[test]
+fn edges_off_their_nurbs_surface_are_widened_by_the_fitted_deviation() {
+    // 上の面を、稜線から 2e-4 だけ上げた NURBS 曲面にする（当てはめたパラメータ曲線と稜線のずれで測る）
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let top = cube.faces[1];
+    set_face_bilinear(&mut cube.builder, top, 1.0002);
+
+    let topologies = cube.builder.build();
+    let built = assert_closed_solid(&topologies, 6);
+    let widened: Vec<u64> = built
+        .corrections
+        .iter()
+        .map(|correction| match *correction {
+            Correction::EdgeToleranceWidened { edge, tolerance } => {
+                // ずれの 1.5 倍
+                assert!((tolerance - 3.0e-4).abs() < 1.0e-9, "{tolerance}");
+                edge
+            }
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(widened, cube_top_edges(&cube));
+
+    // 上限を超えるずれの NURBS 曲面の面は、ずれを理由に外す
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    let top = cube.faces[1];
+    set_face_bilinear(&mut cube.builder, top, 1.01);
+    let topologies = cube.builder.build();
+    assert_eq!(topologies.items[0].faces.len(), 5);
+    let [skipped] = topologies.skipped.as_slice() else {
+        panic!("{:?}", topologies.skipped);
+    };
+    assert_eq!(skipped.id, top);
+    let TopologyError::ToleranceExceeded { deviation } = skipped.reason else {
+        panic!("{:?}", skipped.reason);
+    };
+    assert!((deviation - 0.01).abs() < 1.0e-9, "{deviation}");
 }
 
 #[test]
