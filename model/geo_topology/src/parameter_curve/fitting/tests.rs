@@ -214,3 +214,28 @@ fn a_curve_off_the_surface_is_fitted_with_its_deviation() {
     assert!(ParameterCurve::new(&surface, &circle, (0.0, TAU), 1.0e-6).is_none());
     assert!(ParameterCurve::new(&surface, &circle, (0.0, TAU), deviation * 1.5).is_some());
 }
+
+#[test]
+fn a_curve_near_the_border_stays_in_the_domain() {
+    // 定義域の端（x = 0）に 1e-4 まで近づいて戻る曲線（2 次の NURBS 曲線）
+    let surface = SurfaceRef::Nurbs(uneven_planar_surface());
+    let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+        2,
+        vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        &[
+            Point3D::new(1.0, 0.5, 0.0),
+            Point3D::new(-0.9998, 2.0, 0.0),
+            Point3D::new(1.0, 3.5, 0.0),
+        ],
+        None,
+    )
+    .unwrap();
+    let fitted = assert_fitted_within(&surface, &CurveRef::Nurbs(curve), (0.0, 1.0), 1.0e-6);
+    let ParameterCurve::Nurbs(fitted) = fitted else {
+        panic!("a fitted NURBS curve");
+    };
+    for index in 0..fitted.control_point_count() {
+        let point = fitted.control_point(index).unwrap();
+        assert!(point.x() >= 0.0 && point.y() >= 0.0, "{point:?}");
+    }
+}

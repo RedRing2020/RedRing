@@ -147,6 +147,19 @@ impl<T: Scalar> Mapper<'_, T> {
         Some(Point2D::new(u, unwrap(v, previous.y(), v_period)))
     }
 
+    /// NURBS 曲面では、(u, v) を定義域に収めた値（Bezier は制御点の凸包の中にあるので、中の制御点を収めれば、
+    /// 定義域の端の近くを通る稜線でも、Bezier が定義域の外に出ない）。解析的な曲面では、そのまま
+    fn inside(&self, uv: Point2D<T>) -> Point2D<T> {
+        let SurfaceRef::Nurbs(surface) = self.surface else {
+            return uv;
+        };
+        let ((u_start, u_end), (v_start, v_end)) = surface.parameter_domain();
+        Point2D::new(
+            uv.x().max(u_start).min(u_end),
+            uv.y().max(v_start).min(v_end),
+        )
+    }
+
     /// (u, v) を曲面の上で評価した点と、母曲線のパラメータ `t` の点の距離（曲面の点がなければ無限大）
     fn deviation(&self, t: T, uv: Point2D<T>) -> T {
         let on_curve = self.curve.point_at_parameter(t);
@@ -176,8 +189,8 @@ impl<T: Scalar> Mapper<'_, T> {
         };
         let control = [
             first,
-            inner(first, third, two_thirds, last),
-            inner(last, two_thirds, third, first),
+            self.inside(inner(first, third, two_thirds, last)),
+            self.inside(inner(last, two_thirds, third, first)),
             last,
         ];
         let mut residual = T::ZERO;

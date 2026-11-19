@@ -102,7 +102,8 @@ impl<T: Scalar> ParameterCurve<T> {
             .and_then(|(candidate, deviation)| (deviation <= tolerance).then_some(candidate))
     }
 
-    /// 正確な形の候補と、区間を分けた点で測ったずれの最大（候補を作れない・評価できなければ `None`）
+    /// 正確な形の候補と、区間を分けた点で測ったずれの最大（候補を作れない・評価できない・ずれが有限の値で
+    /// なければ `None`）
     fn exact_candidate(
         surface: &SurfaceRef<T>,
         curve: &CurveRef<T>,
@@ -117,7 +118,9 @@ impl<T: Scalar> ParameterCurve<T> {
             let t = sample(range, index);
             let uv = candidate.point_at(t)?;
             let point = surface.point_at_uv(uv.x(), uv.y())?;
-            Some(deviation.max(point.distance_to(curve.point_at_parameter(t))))
+            // 有限の値でない距離（評価できない候補）は、候補にしない
+            let distance = point.distance_to(curve.point_at_parameter(t));
+            distance.is_finite().then(|| deviation.max(distance))
         })?;
         Some((candidate, deviation))
     }
