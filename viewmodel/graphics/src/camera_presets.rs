@@ -187,7 +187,7 @@ pub(crate) fn emergency_camera_escape(
     *zoom = 1.0;
     *rotation = Quaternionf::identity();
 
-    tracing::warn!(
+    tracing::debug!(
         "Emergency camera escape (distance: {:.1}, front view)",
         *distance
     );
