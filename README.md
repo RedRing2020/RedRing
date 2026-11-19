@@ -6,6 +6,8 @@ A research platform for CAD/CAM development built with Rust + wgpu.
 
 v0.1.0 is a preview: import an STL, compute a 3-axis scanline toolpath, and check it with a cutting simulation. NC output is not available yet, so the toolpaths cannot be used for real machining.
 
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/n-takatsu/RedRing?utm_source=oss&utm_medium=github&utm_campaign=n-takatsu%2FRedRing&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 **Documentation Languages:**
 
 | Document                 | Language                 | Access Method                                                 |
