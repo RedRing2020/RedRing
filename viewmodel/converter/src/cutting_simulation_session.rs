@@ -6,7 +6,8 @@
 
 use crate::space_model_document::MachiningOperationId;
 use application::cam_simulation_workflow::{
-    Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError, ToolpathLimits, ToolpathSize,
+    Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError, JobFailureReason, ToolpathLimits,
+    ToolpathSize,
 };
 pub use application::cam_simulation_workflow::{
     CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
@@ -25,7 +26,7 @@ use application::cutting_simulation_playback::{
 };
 
 use crate::cutting_animation::CuttingAnimation;
-use crate::failure_message_mapper::workflow_failure_message;
+use crate::failure_message_mapper::{job_failure_message, workflow_failure_message};
 use crate::inverse_offset_shape_converter::{InverseOffsetShapeMesh, inverse_offset_shape_meshes};
 use crate::space_model_document::{ImportedToolpathState, OperationListItem, SpaceModelDocument};
 use application::product_shape::ProductShapeError;
@@ -241,6 +242,17 @@ pub enum SequenceOutcome {
     Submitted(SequenceSubmission),
     /// ツールパスが大きくなることを確かめて、どの工程も計算しないことにした
     Declined,
+}
+
+/// 選んだ工程の今の条件の計算が失敗した理由
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JobFailure {
+    /// 画面に出す理由
+    pub reason: UiMessage,
+    /// 英語の詳しい理由（ログに残す）
+    pub detail: String,
+    /// 計算の条件を見直すと計算できる（ツールパスの点が多すぎて止めた）
+    pub review_conditions: bool,
 }
 
 /// 確かめる目安を超える大きさのツールパスになる工程
@@ -875,6 +887,29 @@ impl CuttingSimulationSession {
             .workflow
             .latest_revision_job_states(sequences, sequence, &operations)?;
         Ok(operations.into_iter().zip(states).collect())
+    }
+
+    /// 表示中の製品形状のすべての面を加工の対象として、選んだ加工工程の今の改訂の計算が失敗していれば、その理由
+    /// （[`Self::job_states`] と同じく、最後に読んだ状態から決め、読み終えるのを待たない。失敗していない・理由を
+    /// 受け取れなかったときは `None`）
+    ///
+    /// # Errors
+    ///
+    /// ジョブの状態を読めない場合。
+    pub fn job_failure(
+        &mut self,
+        document: &mut SpaceModelDocument,
+    ) -> Result<Option<JobFailure>, CuttingSimulationSessionError> {
+        document.target_visible_faces();
+        let (_, sequences, sequence, operation) = document.machining();
+        let failure = self
+            .workflow
+            .latest_revision_failure(sequences, sequence, operation)?;
+        Ok(failure.map(|failure| JobFailure {
+            reason: job_failure_message(&failure.reason),
+            review_conditions: failure.reason == JobFailureReason::ToolpathTooLarge,
+            detail: failure.message,
+        }))
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の今の改訂で正常に終わったツールパス生成のうち、最も

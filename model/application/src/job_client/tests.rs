@@ -16,10 +16,10 @@ use cam_sim::{
 use geo_algorithms::{
     Aabb3D, Point3D, TessellationLimits, TriangleMesh3D, TriangleMesh3DConstructor,
 };
-use job_ipc::{Endpoint, ToolpathLimits};
+use job_ipc::{Endpoint, JobFailure, JobFailureReason, ToolpathLimits};
 use job_manager::{JobManagerService, LaunchSpec, Launcher, RunningJob, start_endpoint_server};
 use job_runtime::store::{
-    DependencyRef, JobStore, StoredJobKind, StoredJobStatus, SubmissionRequest,
+    DependencyRef, JobStore, StoredJobError, StoredJobKind, StoredJobStatus, SubmissionRequest,
 };
 
 use crate::cam_simulation_workflow::CamSimulationWorkflowError;
@@ -413,6 +413,82 @@ fn interrupted_jobs_are_read_through_the_endpoint_and_can_be_resumed() {
     client.resume(&[1]).unwrap();
     // 計算中のジョブを止める頼みも、口で届く
     client.stop(&[1]).unwrap();
+}
+
+#[test]
+fn failure_reasons_are_read_through_the_endpoint() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    client.submit(submission()).unwrap();
+    manager.tick(1);
+    drop(manager);
+    let lock = store.lock().unwrap();
+    let (mut jobs, _) = store.load_jobs().unwrap();
+    let mut write = |status, error: Option<StoredJobError>, last_error: Option<&str>| {
+        jobs[0].status = StoredJobStatus::Failed;
+        jobs[0].error = Some(StoredJobError::ToolpathTooLarge);
+        jobs[0].last_error = Some("the toolpath is too large for the memory limit".to_string());
+        jobs[1].status = status;
+        jobs[1].error = error;
+        jobs[1].last_error = last_error.map(str::to_string);
+        store.write_job(&lock, &jobs[0]).unwrap();
+        store.write_job(&lock, &jobs[1]).unwrap();
+    };
+    let too_large = Some(JobFailure {
+        reason: JobFailureReason::ToolpathTooLarge,
+        message: "the toolpath is too large for the memory limit".to_string(),
+    });
+
+    // ツールパス生成が失敗したら、切削シミュレーションの理由（依存するジョブの失敗）ではなく、その理由を出す
+    write(
+        StoredJobStatus::Failed,
+        Some(StoredJobError::DependencyFailed { job: 1 }),
+        Some("dependency job 1 failed"),
+    );
+    let simulations = client.simulation_jobs().unwrap();
+    assert_eq!(simulations[0].status, CamJobStatus::Failed);
+    assert_eq!(simulations[0].failure, too_large);
+    // 切削シミュレーションがまだ失敗にされていなくても、ツールパス生成の理由を出す
+    write(StoredJobStatus::Queued, None, None);
+    assert_eq!(client.simulation_jobs().unwrap()[0].failure, too_large);
+
+    // ツールパス生成が正常に終わり、切削シミュレーションが失敗したら、切削シミュレーションの理由を出す
+    jobs[0].status = StoredJobStatus::Succeeded;
+    jobs[0].error = None;
+    jobs[0].last_error = None;
+    jobs[1].status = StoredJobStatus::Failed;
+    jobs[1].error = Some(StoredJobError::CalculationFailed);
+    jobs[1].last_error = Some("the calculation failed: no stock".to_string());
+    store.write_job(&lock, &jobs[0]).unwrap();
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(
+        client.simulation_jobs().unwrap()[0].failure,
+        Some(JobFailure {
+            reason: JobFailureReason::CalculationFailed,
+            message: "the calculation failed: no stock".to_string(),
+        })
+    );
+    // 理由の種類を持たない記録（前の版）は、英語の理由だけを渡す。英語の理由もなければ渡さない
+    jobs[1].error = None;
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(
+        client.simulation_jobs().unwrap()[0].failure,
+        Some(JobFailure {
+            reason: JobFailureReason::Unknown,
+            message: "the calculation failed: no stock".to_string(),
+        })
+    );
+    jobs[1].last_error = None;
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(client.simulation_jobs().unwrap()[0].failure, None);
+    // 失敗でないジョブは、理由を渡さない（中断の理由は、計算を続けられるため失敗の理由にしない）
+    jobs[1].status = StoredJobStatus::Interrupted;
+    jobs[1].error = Some(StoredJobError::StoppedByUser);
+    jobs[1].last_error = Some("the calculation was stopped".to_string());
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(client.simulation_jobs().unwrap()[0].failure, None);
 }
 
 #[test]

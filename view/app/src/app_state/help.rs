@@ -105,7 +105,14 @@ impl AppState {
         };
         let toolpath = self.document.imported_toolpath_state();
         let mut details = vec![
-            (job_level, job_status_text(locale, job_status)),
+            (
+                job_level,
+                job_status_text(
+                    locale,
+                    job_status,
+                    self.cutting_simulation_job_failure.as_ref(),
+                ),
+            ),
             (NoticeLevel::Info, imported_toolpath_text(locale, toolpath)),
         ];
         details.extend(
@@ -137,6 +144,7 @@ impl AppState {
             self.ui_locale,
             &self.cutting_simulation_job_status,
             self.document.imported_toolpath_state() == ImportedToolpathState::Current,
+            self.cutting_simulation_job_failure.as_ref(),
         )
     }
 

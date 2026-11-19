@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use viewmodel::cutting_simulation_session::{OperationJobState, OperationJobStatus};
+use viewmodel::cutting_simulation_session::{JobFailure, OperationJobState, OperationJobStatus};
 use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
 
 use super::AppState;
@@ -304,7 +304,30 @@ impl AppState {
         };
         self.notify_job_manager_availability();
         let status = self.operation_job_status(self.document.selected_operation());
+        // 状態を読めないときは、上で出している（理由だけを出さない）
+        let failure = if status == JobStatusLine::Status(OperationJobStatus::Failed) {
+            self.cutting_simulation
+                .job_failure(&mut self.document)
+                .unwrap_or_default()
+        } else {
+            None
+        };
         self.cutting_simulation_job_status = status;
+        self.set_job_failure(failure);
+    }
+
+    /// 選んだ工程の計算が失敗した理由を `failure` にする（変わったときに、英語の詳しい理由をログに残す）
+    fn set_job_failure(&mut self, failure: Option<JobFailure>) {
+        if failure == self.cutting_simulation_job_failure {
+            return;
+        }
+        if let Some(failure) = &failure {
+            tracing::info!(
+                "The calculation of the selected operation failed: {}",
+                failure.detail
+            );
+        }
+        self.cutting_simulation_job_failure = failure;
     }
 
     /// ジョブマネージャーが動いていない・見つからないことを、変わったときに 1 度だけ画面の下の行に出す（動いていない
@@ -366,6 +389,7 @@ impl AppState {
     pub(crate) fn forget_selected_operation_state(&mut self) {
         self.invalidate_conditions();
         self.cutting_simulation_job_status = JobStatusLine::Reading;
+        self.cutting_simulation_job_failure = None;
     }
 
     /// 加工工程の一覧の操作 `command` を行う

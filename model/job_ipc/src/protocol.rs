@@ -160,6 +160,60 @@ pub struct JobSummary {
     pub has_input_toolpath: bool,
     /// 成果物がある
     pub has_result: bool,
+    /// 失敗の理由（失敗のジョブだけ。前の版のジョブマネージャーは送らない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<JobFailure>,
+}
+
+/// ジョブの失敗の理由
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JobFailure {
+    pub reason: JobFailureReason,
+    /// 英語の詳しい理由（ログに残すため）
+    pub message: String,
+}
+
+/// ジョブの失敗の理由の種類（画面の言語の文言にするため）
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum JobFailureReason {
+    /// 依存するジョブが、前のジョブでない
+    DependencyNotEarlier { job: u64 },
+    /// 依存するジョブが、実行できない
+    DependencyCannotRun { job: u64 },
+    /// 依存するジョブがない
+    DependencyNotFound { job: u64 },
+    /// 依存するジョブが失敗した
+    DependencyFailed { job: u64 },
+    /// 依存するジョブが取り消された
+    DependencyCanceled { job: u64 },
+    /// ランナーを起動できない
+    RunnerNotStarted,
+    /// ランナーが成果物を書かずに終わった
+    RunnerWroteNoResult,
+    /// ランナーの引数が正しくない
+    RunnerInvalidArguments,
+    /// ランナーが入力を読めない
+    RunnerCannotReadInput,
+    /// 入力が正しくない
+    InvalidInput,
+    /// 計算に失敗した
+    CalculationFailed,
+    /// ランナーが成果物を書けない
+    RunnerCannotWriteResult,
+    /// ツールパスの点が多すぎて、メモリの上限を超えるため、計算を止めた
+    ToolpathTooLarge,
+    /// ランナーが、ほかの終了の番号で終わった
+    RunnerExitCode { code: i32 },
+    /// ランナーが止められた
+    RunnerStopped,
+    /// 計算中にジョブマネージャーが止まった
+    ManagerStopped,
+    /// ジョブマネージャーを終了した
+    ManagerQuit,
+    /// 種類が分からない（記録が種類を持たない・読む側が知らない種類。英語の詳しい理由だけがある）
+    #[serde(other)]
+    Unknown,
 }
 
 /// まだジョブになっていない投入

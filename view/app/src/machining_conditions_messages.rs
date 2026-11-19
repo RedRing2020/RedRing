@@ -155,6 +155,18 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "今の条件の計算は済んでいます。結果を取り込めます",
     ),
     (
+        "conditions.navigation.failed",
+        "今の条件の計算が失敗しました: {reason}",
+    ),
+    (
+        "conditions.navigation.failed_review_conditions",
+        "今の条件の計算が失敗しました: {reason}。ピックフィードなどの条件を見直してから計算してください",
+    ),
+    (
+        "conditions.navigation.failed_without_reason",
+        "今の条件の計算が失敗しました。理由はジョブマネージャーで確かめられます",
+    ),
+    (
         "conditions.navigation.interrupted",
         "今の条件の計算は、途中で止まりました。計算を続けられます",
     ),
@@ -326,6 +338,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "今の条件の計算: 計算完了（取り込んで表示します）",
     ),
     ("conditions.job.failed", "今の条件の計算: 計算失敗"),
+    (
+        "conditions.job.failed_with_reason",
+        "今の条件の計算: 計算失敗（{reason}）",
+    ),
     (
         "conditions.job.canceled",
         "今の条件の計算: 取り消されました",
@@ -620,6 +636,18 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "The calculation for the current conditions is done. You can import the result",
     ),
     (
+        "conditions.navigation.failed",
+        "The calculation for the current conditions failed: {reason}",
+    ),
+    (
+        "conditions.navigation.failed_review_conditions",
+        "The calculation for the current conditions failed: {reason}. Review the conditions such as the stepover before calculating again",
+    ),
+    (
+        "conditions.navigation.failed_without_reason",
+        "The calculation for the current conditions failed. You can check the reason in the job manager",
+    ),
+    (
         "conditions.navigation.interrupted",
         "The calculation for the current conditions stopped partway. You can continue the calculation",
     ),
@@ -796,6 +824,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.job.failed",
         "Calculation for the current conditions: calculation failed",
+    ),
+    (
+        "conditions.job.failed_with_reason",
+        "Calculation for the current conditions: calculation failed ({reason})",
     ),
     (
         "conditions.job.canceled",

@@ -758,6 +758,10 @@ fn simulation_jobs(jobs: &[JobSummary]) -> Vec<SimulationJob> {
     jobs.iter()
         .filter(|job| job.kind == JobKind::Sim)
         .map(|job| SimulationJob {
+            failure: toolpath_job(&by_id, job)
+                .filter(|toolpath| toolpath.status == JobStatus::Failed)
+                .and_then(|toolpath| toolpath.failure.clone())
+                .or_else(|| job.failure.clone()),
             job_id: job.job_id,
             submission_id: job.submission_id.clone(),
             source: job.source.as_ref().map(source),
