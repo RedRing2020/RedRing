@@ -856,8 +856,27 @@ impl CamSimulationWorkflow {
             .collect())
     }
 
+    /// ジョブマネージャーに 1 度だけつなぎ、`operation` の中のジョブマネージャーへの問い合わせを、すべてその接続で行う
+    /// （動いていなければ起動して、口が開くのを待つ）。状態を今読んでから投入するような 1 回の操作で、つなぐのと起動を
+    /// 待つのを 1 回にする。`operation` の中で問い合わせに失敗したら、つなぎ直さずに、後の問い合わせも誤りにする
+    ///
+    /// # Errors
+    ///
+    /// ジョブマネージャーが見つからない・起動できない・口が開くのを待つ間に開かない・版が違う場合（`operation` を
+    /// 行わない）。
+    pub fn with_job_manager_connection<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> Result<T, CamSimulationWorkflowError> {
+        self.jobs.hold_connection()?;
+        let result = operation(self);
+        self.jobs.release_connection();
+        Ok(result)
+    }
+
     /// [`Self::latest_revision_job_states`] と同じく、加工工程の今の改訂の計算の状態を、ジョブマネージャーに今問い
-    /// 合わせて返す（動いていなければ起動して、口が開くのを待つ。画面を止める）
+    /// 合わせて返す（動いていなければ起動して、口が開くのを待つ。画面を止める。
+    /// [`Self::with_job_manager_connection`] の中では、その接続で読む）
     ///
     /// # Errors
     ///

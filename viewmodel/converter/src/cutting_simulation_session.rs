@@ -315,6 +315,34 @@ fn operation_label(
         .unwrap_or((0, String::new()))
 }
 
+/// 加工工程 `operation` から、計算 `kind` を `workflow` で投入する
+fn submit_kind(
+    workflow: &mut CamSimulationWorkflow,
+    document: &SpaceModelDocument,
+    operation: MachiningOperationId,
+    kind: SubmissionKind,
+) -> Result<(), CamSimulationWorkflowError> {
+    let (shapes, sequences, sequence, _) = document.machining();
+    match kind {
+        SubmissionKind::Full => {
+            workflow.submit_operation(shapes, sequences, sequence, operation)?;
+        }
+        SubmissionKind::SimulationOnly => {
+            workflow.submit_imported_toolpath(
+                shapes,
+                sequences,
+                document.toolpaths(),
+                sequence,
+                operation,
+            )?;
+        }
+        SubmissionKind::Resume => {
+            workflow.resume_latest_revision_jobs(sequences, sequence, operation)?;
+        }
+    }
+    Ok(())
+}
+
 /// 手順の全体の投入の結果
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SequenceSubmission {
@@ -502,10 +530,13 @@ impl CuttingSimulationSession {
     /// CL があれば、その CL を入力にして切削シミュレーションだけを投入する。どちらでもなければ、ツールパスの大きさを
     /// 見積もり、確かめる目安を超えるなら `confirm` で確かめてから、ツールパス生成から投入する。
     ///
+    /// 状態を読むのと投入は、ジョブマネージャーへの 1 つの接続で行う（動いていなければ起動して待つのは 1 回だけ）。
+    /// つなげない・状態を読めないときは、投入しない。
+    ///
     /// # Errors
     ///
-    /// 表示中の製品形状がない場合・計算条件に誤りがある場合・見積もったツールパスがメモリの上限を超える場合を
-    /// 含む、投入の失敗。
+    /// 表示中の製品形状がない場合・計算条件に誤りがある場合・見積もったツールパスがメモリの上限を超える場合・
+    /// ジョブマネージャーにつなげない・状態を読めない場合を含む、投入の失敗。
     pub fn submit(
         &mut self,
         document: &mut SpaceModelDocument,
@@ -515,37 +546,28 @@ impl CuttingSimulationSession {
         if !document.conditions_set_of(document.selected_operation()) {
             return Err(CuttingSimulationSessionError::ConditionsNotSet);
         }
+        let document = &*document;
         let (_, sequences, sequence, operation) = document.machining();
-        // 切削シミュレーションだけを投入するかは、状態を今読んでから決める（ジョブマネージャーが動いていなければ起動
-        // する。読まずに決めると、計算済みのジョブがあっても重ねて投入する）。見つからなければ投入できない。ほかの理由で
-        // 読めなくても、投入はつなぎ直して行うため、まだ読めていないときと同じに決める
-        let state =
-            match self
-                .workflow
-                .latest_revision_job_states_now(sequences, sequence, &[operation])
-            {
-                Ok(mut states) => states.remove(0),
-                Err(CamSimulationWorkflowError::JobManagerNotFound) => {
-                    return Err(CamSimulationWorkflowError::JobManagerNotFound.into());
-                }
-                Err(error) => {
-                    tracing::warn!("Cannot read the job status before submitting: {error}");
-                    OperationJobState::NotRead
-                }
+        self.workflow.with_job_manager_connection(|workflow| {
+            // 切削シミュレーションだけを投入するかは、状態を今読んでから決める（読まずに決めると、計算済みのジョブが
+            // あっても重ねて投入する）
+            let state = workflow
+                .latest_revision_job_states_now(sequences, sequence, &[operation])?
+                .remove(0);
+            let Some(kind) = SubmissionKind::of(document.imported_toolpath_state(), state) else {
+                return Ok(SubmitOutcome::AlreadyCalculated);
             };
-        let Some(kind) = SubmissionKind::of(document.imported_toolpath_state(), state) else {
-            return Ok(SubmitOutcome::AlreadyCalculated);
-        };
-        if kind == SubmissionKind::Full {
-            let (position, name) = operation_label(document, operation);
-            if let Some(large) = large_toolpath(document, operation, (position, &name))?
-                && !confirm(&[large])
-            {
-                return Ok(SubmitOutcome::Declined);
+            if kind == SubmissionKind::Full {
+                let (position, name) = operation_label(document, operation);
+                if let Some(large) = large_toolpath(document, operation, (position, &name))?
+                    && !confirm(&[large])
+                {
+                    return Ok(SubmitOutcome::Declined);
+                }
             }
-        }
-        self.submit_kind(document, operation, kind)?;
-        Ok(SubmitOutcome::Submitted(kind))
+            submit_kind(workflow, document, operation, kind)?;
+            Ok(SubmitOutcome::Submitted(kind))
+        })?
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工工程の空間モデルの CL を除き、ツールパス生成から投入し直す
@@ -559,7 +581,7 @@ impl CuttingSimulationSession {
     /// # Errors
     ///
     /// 表示中の製品形状がない場合・計算条件に誤りがある場合・見積もったツールパスがメモリの上限を超える場合を
-    /// 含む、投入の失敗。
+    /// 含む、投入の失敗（ジョブマネージャーにつなげない・状態を読めないときは、投入しない）。
     pub fn redo(
         &mut self,
         document: &mut SpaceModelDocument,
@@ -578,42 +600,37 @@ impl CuttingSimulationSession {
             return Ok(RedoOutcome::Declined);
         }
         let (shapes, sequences, sequence, operation) = document.machining();
-        // 計算待ちかは、状態を今読んで決める（ボタンは最後に読んだ状態で決めるため）。見つからなければ投入できない。
-        // ほかの理由で読めなくても、投入はつなぎ直して行う
-        match self
-            .workflow
-            .latest_revision_job_states_now(sequences, sequence, &[operation])
-        {
-            Ok(states) if states[0] == OperationJobState::Status(OperationJobStatus::Queued) => {
+        // 状態を読むのと投入・取り消しは、ジョブマネージャーへの 1 つの接続で行う
+        let outcome = self.workflow.with_job_manager_connection(|workflow| {
+            // 計算待ちかは、状態を今読んで決める（ボタンは最後に読んだ状態で決めるため）
+            let states =
+                workflow.latest_revision_job_states_now(sequences, sequence, &[operation])?;
+            if states[0] == OperationJobState::Status(OperationJobStatus::Queued) {
                 return Ok(RedoOutcome::Waiting);
             }
-            Ok(_) => {}
-            Err(CamSimulationWorkflowError::JobManagerNotFound) => {
-                return Err(CamSimulationWorkflowError::JobManagerNotFound.into());
-            }
-            Err(error) => {
-                tracing::warn!("Cannot read the job status before recalculating: {error}");
-            }
+            let submission = workflow.submit_operation(shapes, sequences, sequence, operation)?;
+            // 取り消すのは投入できてから（先に取り消すと、投入できなかったときに今の計算を失うため）。頼めなくても、
+            // 投入は済んでいる（前の計算が残り、重ねて計算するだけ）
+            let canceled = match workflow.cancel_latest_revision_jobs(
+                sequences,
+                sequence,
+                operation,
+                Some(&submission.submission_id),
+            ) {
+                Ok(count) => count > 0,
+                Err(error) => {
+                    tracing::warn!(
+                        "Cannot cancel the earlier calculation when recalculating: {error}"
+                    );
+                    false
+                }
+            };
+            Ok::<_, CamSimulationWorkflowError>(RedoOutcome::Submitted { canceled })
+        })??;
+        if matches!(outcome, RedoOutcome::Submitted { .. }) {
+            document.remove_toolpath();
         }
-        let submission = self
-            .workflow
-            .submit_operation(shapes, sequences, sequence, operation)?;
-        // 取り消すのは投入できてから（先に取り消すと、投入できなかったときに今の計算を失うため）。頼めなくても、
-        // 投入は済んでいる（前の計算が残り、重ねて計算するだけ）
-        let canceled = match self.workflow.cancel_latest_revision_jobs(
-            sequences,
-            sequence,
-            operation,
-            Some(&submission.submission_id),
-        ) {
-            Ok(count) => count > 0,
-            Err(error) => {
-                tracing::warn!("Cannot cancel the earlier calculation when recalculating: {error}");
-                false
-            }
-        };
-        document.remove_toolpath();
-        Ok(RedoOutcome::Submitted { canceled })
+        Ok(outcome)
     }
 
     /// 選んだ加工工程の今の条件の計算を止めるよう頼む（止め終えるのを待たない。ジョブマネージャーが動いていなければ
@@ -631,27 +648,27 @@ impl CuttingSimulationSession {
         document: &SpaceModelDocument,
     ) -> Result<StopOutcome, CuttingSimulationSessionError> {
         let (_, sequences, sequence, operation) = document.machining();
-        let mut requested = 0;
-        for attempt in 1..=STOP_ATTEMPTS {
-            // 受け取っていない投入を先に読む（後で読むと、間に受け取られたジョブを取り消さずに終える）
-            let pending = self
-                .workflow
-                .latest_revision_has_pending_now(sequences, sequence, operation)?;
-            requested += self
-                .workflow
-                .stop_latest_revision_jobs(sequences, sequence, operation)?;
-            if !pending {
-                return Ok(if requested > 0 {
-                    StopOutcome::Stopped
-                } else {
-                    StopOutcome::NothingToStop
-                });
+        // 状態を読むのと止める頼みは、ジョブマネージャーへの 1 つの接続で行う
+        Ok(self.workflow.with_job_manager_connection(|workflow| {
+            let mut requested = 0;
+            for attempt in 1..=STOP_ATTEMPTS {
+                // 受け取っていない投入を先に読む（後で読むと、間に受け取られたジョブを取り消さずに終える）
+                let pending =
+                    workflow.latest_revision_has_pending_now(sequences, sequence, operation)?;
+                requested += workflow.stop_latest_revision_jobs(sequences, sequence, operation)?;
+                if !pending {
+                    return Ok(if requested > 0 {
+                        StopOutcome::Stopped
+                    } else {
+                        StopOutcome::NothingToStop
+                    });
+                }
+                if attempt < STOP_ATTEMPTS {
+                    std::thread::sleep(STOP_RETRY_INTERVAL);
+                }
             }
-            if attempt < STOP_ATTEMPTS {
-                std::thread::sleep(STOP_RETRY_INTERVAL);
-            }
-        }
-        Ok(StopOutcome::NotYetAccepted)
+            Ok::<_, CamSimulationWorkflowError>(StopOutcome::NotYetAccepted)
+        })??)
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての工程の、前の条件（今の改訂より前）で投入した
@@ -675,36 +692,6 @@ impl CuttingSimulationSession {
         Ok(self
             .workflow
             .cancel_superseded_jobs(sequences, sequence, &operations)?)
-    }
-
-    /// 加工工程 `operation` から、計算 `kind` を投入する
-    fn submit_kind(
-        &mut self,
-        document: &SpaceModelDocument,
-        operation: MachiningOperationId,
-        kind: SubmissionKind,
-    ) -> Result<(), CamSimulationWorkflowError> {
-        let (shapes, sequences, sequence, _) = document.machining();
-        match kind {
-            SubmissionKind::Full => {
-                self.workflow
-                    .submit_operation(shapes, sequences, sequence, operation)?;
-            }
-            SubmissionKind::SimulationOnly => {
-                self.workflow.submit_imported_toolpath(
-                    shapes,
-                    sequences,
-                    document.toolpaths(),
-                    sequence,
-                    operation,
-                )?;
-            }
-            SubmissionKind::Resume => {
-                self.workflow
-                    .resume_latest_revision_jobs(sequences, sequence, operation)?;
-            }
-        }
-        Ok(())
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての加工工程を加工の順に投入する（実行しない）
@@ -747,61 +734,64 @@ impl CuttingSimulationSession {
                 CuttingSimulationSessionError::ConditionsNotSet,
             ));
         }
-        // 計算待ち・計算中・計算済みの工程を投入し直さないよう、状態を今読んでから決める（ジョブマネージャーが動いて
-        // いなければ起動する）
-        let states = self
-            .workflow
-            .latest_revision_job_states_now(sequences, sequence, &ids)
-            .map_err(|error| SequenceSubmissionError::StatusUnreadable(error.into()))?;
-        let kinds: Vec<Option<SubmissionKind>> = operations
-            .iter()
-            .zip(states)
-            .map(|(item, state)| {
-                SubmissionKind::of(document.imported_toolpath_state_of(item.id), state)
-            })
-            .collect();
-        let mut large = Vec::new();
-        for (index, (item, kind)) in operations.iter().zip(&kinds).enumerate() {
-            if *kind != Some(SubmissionKind::Full) {
-                continue;
-            }
-            let found =
-                large_toolpath(document, item.id, (index + 1, &item.name)).map_err(|error| {
-                    SequenceSubmissionError::Conditions {
-                        position: index + 1,
-                        operation: item.name.clone(),
-                        error: error.into(),
+        // 状態を読むのと投入は、ジョブマネージャーへの 1 つの接続で行う（動いていなければ起動して待つのは 1 回だけ。
+        // つなげなければ、状態を読めないとして、どの工程も投入しない）
+        let document = &*document;
+        self.workflow
+            .with_job_manager_connection(|workflow| {
+                // 計算待ち・計算中・計算済みの工程を投入し直さないよう、状態を今読んでから決める
+                let states = workflow
+                    .latest_revision_job_states_now(sequences, sequence, &ids)
+                    .map_err(|error| SequenceSubmissionError::StatusUnreadable(error.into()))?;
+                let kinds: Vec<Option<SubmissionKind>> = operations
+                    .iter()
+                    .zip(states)
+                    .map(|(item, state)| {
+                        SubmissionKind::of(document.imported_toolpath_state_of(item.id), state)
+                    })
+                    .collect();
+                let mut large = Vec::new();
+                for (index, (item, kind)) in operations.iter().zip(&kinds).enumerate() {
+                    if *kind != Some(SubmissionKind::Full) {
+                        continue;
                     }
-                })?;
-            large.extend(found);
-        }
-        if !large.is_empty() && !confirm(&large) {
-            return Ok(SequenceOutcome::Declined);
-        }
-        let mut submission = SequenceSubmission {
-            submitted: 0,
-            simulation_only: 0,
-            skipped: 0,
-        };
-        for (index, (item, kind)) in operations.iter().zip(kinds).enumerate() {
-            let Some(kind) = kind else {
-                submission.skipped += 1;
-                continue;
-            };
-            self.submit_kind(document, item.id, kind).map_err(|error| {
-                SequenceSubmissionError::Submit {
-                    position: index + 1,
-                    operation: item.name.clone(),
-                    submitted: submission.submitted,
-                    error: error.into(),
+                    let found = large_toolpath(document, item.id, (index + 1, &item.name))
+                        .map_err(|error| SequenceSubmissionError::Conditions {
+                            position: index + 1,
+                            operation: item.name.clone(),
+                            error: error.into(),
+                        })?;
+                    large.extend(found);
                 }
-            })?;
-            submission.submitted += 1;
-            if kind == SubmissionKind::SimulationOnly {
-                submission.simulation_only += 1;
-            }
-        }
-        Ok(SequenceOutcome::Submitted(submission))
+                if !large.is_empty() && !confirm(&large) {
+                    return Ok(SequenceOutcome::Declined);
+                }
+                let mut submission = SequenceSubmission {
+                    submitted: 0,
+                    simulation_only: 0,
+                    skipped: 0,
+                };
+                for (index, (item, kind)) in operations.iter().zip(kinds).enumerate() {
+                    let Some(kind) = kind else {
+                        submission.skipped += 1;
+                        continue;
+                    };
+                    submit_kind(workflow, document, item.id, kind).map_err(|error| {
+                        SequenceSubmissionError::Submit {
+                            position: index + 1,
+                            operation: item.name.clone(),
+                            submitted: submission.submitted,
+                            error: error.into(),
+                        }
+                    })?;
+                    submission.submitted += 1;
+                    if kind == SubmissionKind::SimulationOnly {
+                        submission.simulation_only += 1;
+                    }
+                }
+                Ok(SequenceOutcome::Submitted(submission))
+            })
+            .map_err(|error| SequenceSubmissionError::StatusUnreadable(error.into()))?
     }
 
     /// 表示中の製品形状のすべての面を加工の対象として、加工手順のすべての加工工程の今の改訂の計算の状態（加工の順。

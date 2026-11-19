@@ -560,3 +560,220 @@ fn the_status_is_read_without_waiting_and_shows_a_submission_at_once() {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
 }
+
+/// 受けた要求を記録する口の受け手の、接続ごとの処理（ジョブを持たずに答える。`jobs_fail` のときは、ジョブの一覧を
+/// 読めないと答える）
+struct RecordingHandler {
+    /// 何番目に受けた接続か（1 から）
+    connection: usize,
+    requests: std::sync::Arc<std::sync::Mutex<Vec<(usize, &'static str)>>>,
+    jobs_fail: bool,
+}
+
+impl RecordingHandler {
+    fn record(&self, request: &'static str) {
+        self.requests
+            .lock()
+            .unwrap()
+            .push((self.connection, request));
+    }
+}
+
+impl job_ipc::Handler for RecordingHandler {
+    fn submit(
+        &mut self,
+        _jobs: Vec<job_ipc::SubmitJob>,
+        _inputs: Vec<(String, Vec<u8>)>,
+    ) -> Result<String, job_ipc::HandlerError> {
+        self.record("submit");
+        Ok(format!("submission-{}", self.connection))
+    }
+
+    fn jobs(&mut self) -> Result<Vec<job_ipc::JobSummary>, job_ipc::HandlerError> {
+        self.record("jobs");
+        if self.jobs_fail {
+            Err(job_ipc::HandlerError::new(
+                job_ipc::ErrorKind::StoreUnavailable,
+                "the store cannot be read",
+            ))
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn pending_submissions(
+        &mut self,
+    ) -> Result<Vec<job_ipc::PendingSubmission>, job_ipc::HandlerError> {
+        self.record("pending_submissions");
+        Ok(Vec::new())
+    }
+
+    fn read_job_file(
+        &mut self,
+        _job_id: u64,
+        _file: job_ipc::JobFile,
+    ) -> Result<job_ipc::FileContent, job_ipc::HandlerError> {
+        self.record("read_job_file");
+        Err(job_ipc::HandlerError::new(
+            job_ipc::ErrorKind::JobNotFound,
+            "no jobs",
+        ))
+    }
+
+    fn open_window(&mut self) -> Result<(), job_ipc::HandlerError> {
+        self.record("open_window");
+        Ok(())
+    }
+
+    fn record_imported(&mut self, _simulation_job_id: u64) -> Result<(), job_ipc::HandlerError> {
+        self.record("record_imported");
+        Ok(())
+    }
+
+    fn cancel(&mut self, _job_ids: Vec<u64>) -> Result<(), job_ipc::HandlerError> {
+        self.record("cancel");
+        Ok(())
+    }
+
+    fn resume(&mut self, _job_ids: Vec<u64>) -> Result<(), job_ipc::HandlerError> {
+        self.record("resume");
+        Ok(())
+    }
+
+    fn stop(&mut self, _job_ids: Vec<u64>) -> Result<(), job_ipc::HandlerError> {
+        self.record("stop");
+        Ok(())
+    }
+}
+
+/// 受けた要求（受けた接続の番号と、要求の名前。受けた順）
+#[derive(Clone)]
+struct RequestLog(std::sync::Arc<std::sync::Mutex<Vec<(usize, &'static str)>>>);
+
+impl RequestLog {
+    /// 投入 `submission_id`（接続の番号を持つ）を受けた接続の要求（受けた順）
+    fn on_connection_of(&self, submission_id: &str) -> Vec<&'static str> {
+        let connection: usize = submission_id
+            .strip_prefix("submission-")
+            .unwrap()
+            .parse()
+            .unwrap();
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(at, _)| *at == connection)
+            .map(|(_, request)| *request)
+            .collect()
+    }
+
+    /// 投入を受けた数
+    fn submissions(&self) -> usize {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, request)| *request == "submit")
+            .count()
+    }
+
+    /// 要求を受けた接続の数
+    fn connections(&self) -> usize {
+        let mut connections: Vec<usize> =
+            self.0.lock().unwrap().iter().map(|(at, _)| *at).collect();
+        connections.sort_unstable();
+        connections.dedup();
+        connections.len()
+    }
+}
+
+impl TempRoot {
+    /// 受けた要求を記録する口の受け手を動かし、ジョブマネージャーの実行ファイルがある（中身は使わない）クライアントを
+    /// 返す
+    fn recording_client(&self, jobs_fail: bool) -> (PipeJobClient, RequestLog) {
+        let log = RequestLog(std::sync::Arc::default());
+        let mut listener = self.endpoint.listen().unwrap();
+        let requests = std::sync::Arc::clone(&log.0);
+        std::thread::spawn(move || {
+            let mut connection_number = 0;
+            while let Ok(mut connection) = listener.accept() {
+                connection_number += 1;
+                let mut handler = RecordingHandler {
+                    connection: connection_number,
+                    requests: std::sync::Arc::clone(&requests),
+                    jobs_fail,
+                };
+                std::thread::spawn(move || {
+                    let _ = job_ipc::serve(&mut connection, &mut handler, "0.0.0");
+                });
+            }
+        });
+        let manager = self.path.join("redring-job-manager");
+        fs::write(&manager, b"").unwrap();
+        (PipeJobClient::new(Ok(self.endpoint.clone()), manager), log)
+    }
+}
+
+#[test]
+fn reading_the_status_and_submitting_in_one_operation_use_one_connection() {
+    let root = TempRoot::new();
+    let (mut client, log) = root.recording_client(false);
+    client.hold_connection().unwrap();
+    client.read_status_now().unwrap();
+    client.toolpath_jobs().unwrap();
+    let submission_id = client.submit(submission()).unwrap();
+    client.release_connection();
+    // 状態を読んだ接続で投入する（投入の後に、別のスレッドが状態を読み直す接続は、別に数える）
+    assert_eq!(
+        log.on_connection_of(&submission_id),
+        ["pending_submissions", "jobs", "jobs", "submit"]
+    );
+
+    // つないでおかなければ、問い合わせごとにつなぐ
+    client.read_status_now().unwrap();
+    let submission_id = client.submit(submission()).unwrap();
+    assert_eq!(log.on_connection_of(&submission_id), ["submit"]);
+    assert_eq!(log.submissions(), 2);
+}
+
+#[test]
+fn after_a_failed_request_in_one_operation_the_later_requests_fail_without_reconnecting() {
+    let root = TempRoot::new();
+    let (mut client, log) = root.recording_client(true);
+    client.hold_connection().unwrap();
+    assert!(matches!(
+        client.read_status_now(),
+        Err(CamSimulationWorkflowError::JobStore(_))
+    ));
+    // 失敗した接続では投入せず、つなぎ直しもしない
+    assert!(matches!(
+        client.submit(submission()),
+        Err(CamSimulationWorkflowError::JobStore(_))
+    ));
+    client.release_connection();
+    assert_eq!(log.connections(), 1);
+    assert_eq!(log.submissions(), 0);
+}
+
+#[test]
+fn holding_a_connection_when_the_job_manager_cannot_start_fails() {
+    // 実行できないファイルのため、起動に失敗する（口が開くのを待たない）
+    let root = TempRoot::new();
+    let manager = root.path.join("redring-job-manager.exe");
+    fs::write(&manager, b"not a program").unwrap();
+    let mut client = PipeJobClient::new(Ok(root.endpoint.clone()), manager);
+    assert!(matches!(
+        client.hold_connection(),
+        Err(CamSimulationWorkflowError::JobStore(_))
+    ));
+}
+
+#[test]
+fn holding_a_connection_without_the_job_manager_installed_reports_it_is_not_found() {
+    let root = TempRoot::new();
+    let mut client = root.client_without_manager();
+    assert_eq!(
+        client.hold_connection().unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotFound
+    );
+}

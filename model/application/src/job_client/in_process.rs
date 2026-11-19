@@ -196,6 +196,13 @@ impl JobClient for InProcessJobClient {
         Ok(true)
     }
 
+    fn hold_connection(&mut self) -> Result<(), CamSimulationWorkflowError> {
+        // 同じプロセスの中で実行するため、つなぐ口を持たない
+        Ok(())
+    }
+
+    fn release_connection(&mut self) {}
+
     fn toolpath_result(
         &self,
         toolpath_job_id: u64,
