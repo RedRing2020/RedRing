@@ -9,7 +9,8 @@ pub struct Graphic {
     pub queue: Queue,
     pub surface: Surface<'static>,
     pub config: SurfaceConfiguration,
-    pub surface_texture: Option<SurfaceTexture>,
+    /// 前のフレームで画面のテクスチャを得たときの問題（ログを毎フレーム書かないため）
+    surface_problem: Option<SurfaceProblem>,
     pub depth_texture: Texture,
     pub depth_view: TextureView,
     /// GPU のデバイスが失われたか（失われた後はバッファを作れない）
@@ -149,7 +150,7 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         queue,
         surface,
         config,
-        surface_texture: None,
+        surface_problem: None,
         depth_texture,
         depth_view,
         device_lost,
@@ -163,44 +164,97 @@ impl Graphic {
     }
 
     pub fn render(&mut self, renderer: &mut AppRenderer) {
-        match self.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(frame) => {
-                let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
-                    dimension: Some(wgpu::TextureViewDimension::D2),
-                    ..Default::default()
-                });
-
-                let mut encoder =
-                    self.device
-                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                            label: Some("Render Encoder"),
-                        });
-
-                // 深度ビューを渡してレンダリング
-                let depth_view = &self.depth_view;
-                let render_context = RenderFrameContext {
-                    device: &self.device,
-                    queue: &self.queue,
-                    viewport_width: self.config.width,
-                    viewport_height: self.config.height,
-                };
-                renderer.render_with_depth(&render_context, &mut encoder, &view, depth_view);
-                self.queue.submit(std::iter::once(encoder.finish()));
-                self.queue.present(frame);
-                self.surface_texture = None;
+        let (frame, reconfigure) = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(frame) => (Some(frame), false),
+            // 描けるが画面と合わない: 描いて出したうえで、設定し直す
+            wgpu::CurrentSurfaceTexture::Suboptimal(frame) => (Some(frame), true),
+            // 最小化・ほかのウィンドウに隠れた・待ちきれなかった: このフレームを飛ばす
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+                (None, false)
             }
-            e => {
-                eprintln!("Failed to acquire surface texture: {:?}", e);
+            // 画面が変わった・失われた: 今の大きさで設定し直し、次のフレームで描く
+            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
+                (None, true)
+            }
+            wgpu::CurrentSurfaceTexture::Validation => (None, false),
+        };
+        let problem = match &frame {
+            Some(_) if !reconfigure => None,
+            _ => Some(SurfaceProblem::from_reconfigure(
+                reconfigure,
+                frame.is_some(),
+            )),
+        };
+        self.report_surface_problem(problem);
+        if let Some(frame) = frame {
+            self.draw(renderer, frame);
+        }
+        if reconfigure {
+            self.surface.configure(&self.device, &self.config);
+        }
+    }
+
+    /// 画面のテクスチャ `frame` に描いて出す
+    fn draw(&mut self, renderer: &mut AppRenderer, frame: SurfaceTexture) {
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
+            dimension: Some(wgpu::TextureViewDimension::D2),
+            ..Default::default()
+        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+        // 深度ビューを渡してレンダリング
+        let render_context = RenderFrameContext {
+            device: &self.device,
+            queue: &self.queue,
+            viewport_width: self.config.width,
+            viewport_height: self.config.height,
+        };
+        renderer.render_with_depth(&render_context, &mut encoder, &view, &self.depth_view);
+        self.queue.submit(std::iter::once(encoder.finish()));
+        self.queue.present(frame);
+    }
+
+    /// 画面のテクスチャを得たときの問題 `problem` を、前のフレームと変わったときだけログに書く（毎フレーム書かない）
+    fn report_surface_problem(&mut self, problem: Option<SurfaceProblem>) {
+        if problem == self.surface_problem {
+            return;
+        }
+        match problem {
+            None => tracing::debug!("The window surface is available again"),
+            Some(SurfaceProblem::Skipped) => {
+                tracing::debug!("Skipping frames while the window surface is not available");
+            }
+            Some(SurfaceProblem::Reconfigured) => {
+                tracing::info!("The window surface changed; reconfiguring it");
+            }
+            Some(SurfaceProblem::Suboptimal) => {
+                tracing::debug!("The window surface is suboptimal; reconfiguring it");
             }
         }
+        self.surface_problem = problem;
     }
 }
 
-impl Drop for Graphic {
-    fn drop(&mut self) {
-        println!("Dropping Graphic");
-        if let Some(_frame) = self.surface_texture.take() {
-            println!("⚠️ Warning: SurfaceTexture dropped without present()");
+/// 画面のテクスチャを得たときの問題（同じ問題をフレームごとにログに書かないため、前のフレームの問題を持つ）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SurfaceProblem {
+    /// 得られず、このフレームを飛ばした（最小化・隠れた・待ちきれなかった・検証の誤り）
+    Skipped,
+    /// 画面が変わった・失われたため、描かずに設定し直した
+    Reconfigured,
+    /// 描けたが画面と合わないため、描いた後に設定し直した
+    Suboptimal,
+}
+
+impl SurfaceProblem {
+    fn from_reconfigure(reconfigure: bool, drawn: bool) -> Self {
+        match (reconfigure, drawn) {
+            (true, true) => Self::Suboptimal,
+            (true, false) => Self::Reconfigured,
+            (false, _) => Self::Skipped,
         }
     }
 }
