@@ -25,13 +25,14 @@ use cam_core::{CoordinateFrame, LengthUnit, StockMargins};
 use cam_entity::{MachiningOperation, MachiningSequence};
 use cam_sim::{
     CuttingSimulationInput, CuttingSimulationInputError, SnapshotInterval,
-    TOOLPATH_MEMORY_LIMIT_BYTES, cutting_simulation_input_errors, stock_around_product,
-    toolpath_memory_bytes,
+    cutting_simulation_input_errors, stock_around_product, toolpath_memory_bytes,
 };
 /// 軸に平行な直方体の型（素材の形に使う）
 pub use geo_algorithms::Aabb3D;
 use geo_algorithms::TessellationLimits;
 use job_domain::{CamJobSource, CamJobStatus};
+/// ツールパスの大きさの、計算の前に確かめる目安と上限
+pub use job_ipc::ToolpathLimits;
 
 use crate::imported_toolpath::ImportedToolpathStore;
 use crate::job_client::{
@@ -466,8 +467,19 @@ impl CamSimulationWorkflow {
         results
     }
 
+    /// ツールパスの大きさの、計算の前に確かめる目安と上限（ジョブマネージャーが、起動のときに設定から決めたもの。
+    /// 動いていなければ起動して問い合わせる）
+    ///
+    /// # Errors
+    ///
+    /// ジョブマネージャーに問い合わせられない場合。
+    pub fn toolpath_limits(&self) -> Result<ToolpathLimits, CamSimulationWorkflowError> {
+        self.jobs.toolpath_limits()
+    }
+
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` のツールパスの大きさを、計算を始める前に
-    /// 見積もり、確かめずに計算してよいか・確かめてから計算するかを返す
+    /// 見積もり、確かめる目安と上限 `limits`（[`Self::toolpath_limits`]）で、確かめずに計算してよいか・確かめてから
+    /// 計算するかを返す
     ///
     /// 見積もれないときは、確かめずに計算してよいとする（計算すれば、計算の失敗として理由が分かる）。
     ///
@@ -479,6 +491,7 @@ impl CamSimulationWorkflow {
         sequences: &MachiningSequenceStore,
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
+        limits: ToolpathLimits,
     ) -> Result<ToolpathSize, CamSimulationWorkflowError> {
         let (request, _) = resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
         let started = std::time::Instant::now();
@@ -487,10 +500,12 @@ impl CamSimulationWorkflow {
                 tracing::info!(
                     points,
                     memory_bytes = toolpath_memory_bytes(points),
+                    confirm_bytes = limits.confirm_bytes,
+                    limit_bytes = limits.limit_bytes,
                     elapsed_ms = started.elapsed().as_millis() as u64,
                     "Estimated the toolpath size before the calculation"
                 );
-                toolpath_size(points)
+                toolpath_size(points, limits)
             }
             Err(error) => {
                 tracing::warn!(
@@ -1103,9 +1118,6 @@ fn current_revision(
     })
 }
 
-/// ツールパス生成のメモリの見積もりが、計算の前に確かめる目安（バイト。2 GB）
-const TOOLPATH_CONFIRM_BYTES: u64 = 2_000_000_000;
-
 /// 計算を始める前に見積もったツールパスの大きさ（桁が合う程度）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ToolpathEstimate {
@@ -1113,6 +1125,8 @@ pub struct ToolpathEstimate {
     pub points: u64,
     /// 生成に使うメモリ（バイト）
     pub memory_bytes: u64,
+    /// ツールパス生成に使ってよいメモリの上限（バイト）
+    pub limit_bytes: u64,
 }
 
 impl ToolpathEstimate {
@@ -1124,7 +1138,7 @@ impl ToolpathEstimate {
     /// 生成に使うメモリが、メモリの上限に近いか（上限の 8 割以上。見積もりの幅のため、計算しても途中で上限を
     /// 超えて止まることがある）
     pub fn is_near_limit(&self) -> bool {
-        self.memory_bytes >= TOOLPATH_MEMORY_LIMIT_BYTES / 10 * 8
+        self.memory_bytes >= self.limit_bytes / 10 * 8
     }
 }
 
@@ -1137,19 +1151,23 @@ pub enum ToolpathSize {
     Large(ToolpathEstimate),
 }
 
-/// 点 `points` 個のツールパスの計算の始め方
+/// 点 `points` 個のツールパスの、確かめる目安とメモリの上限 `limits` での計算の始め方
 ///
 /// # Errors
 ///
 /// メモリの見積もりがツールパス生成のメモリの上限を超える場合。
-fn toolpath_size(points: u64) -> Result<ToolpathSize, CamSimulationWorkflowError> {
+fn toolpath_size(
+    points: u64,
+    limits: ToolpathLimits,
+) -> Result<ToolpathSize, CamSimulationWorkflowError> {
     let estimate = ToolpathEstimate {
         points,
         memory_bytes: toolpath_memory_bytes(points),
+        limit_bytes: limits.limit_bytes,
     };
-    if estimate.memory_bytes > TOOLPATH_MEMORY_LIMIT_BYTES {
+    if estimate.memory_bytes > limits.limit_bytes {
         Err(CamSimulationWorkflowError::ToolpathTooLarge(estimate))
-    } else if estimate.memory_bytes >= TOOLPATH_CONFIRM_BYTES {
+    } else if estimate.memory_bytes >= limits.confirm_bytes {
         Ok(ToolpathSize::Large(estimate))
     } else {
         Ok(ToolpathSize::Normal)

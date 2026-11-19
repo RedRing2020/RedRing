@@ -15,7 +15,10 @@ use job_runtime::{
     RefValidationError,
 };
 
-use crate::job_run::{classify_artifact_read_error, run_cam_solver, run_cutting_simulation};
+use crate::job_run::{
+    TOOLPATH_MEMORY_LIMIT_BYTES, classify_artifact_read_error, run_cam_solver,
+    run_cutting_simulation,
+};
 use crate::simulation_input::{CuttingSimulationInputProvider, validate_sim_input_ref};
 use crate::solver_input::{CamSolverInputProvider, validate_cam_input_ref};
 
@@ -81,7 +84,7 @@ impl CamJobExecutorAdapter {
             return self.run_cam_process_without_solver_input(job);
         };
 
-        match run_cam_solver(&input) {
+        match run_cam_solver(&input, TOOLPATH_MEMORY_LIMIT_BYTES) {
             Ok(bytes) => cam_process_success(job, bytes),
             Err(failure) => failed_result(job, "cam", failure.code, failure.message),
         }

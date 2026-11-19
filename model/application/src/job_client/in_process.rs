@@ -4,9 +4,10 @@ use std::sync::Arc;
 
 use cam_sim::{
     CamJobExecutorAdapter, CamSolverInputProvider, CuttingSimulationInputProvider,
-    InMemoryCamSolverInputStore, InMemoryCuttingSimulationInputStore,
+    InMemoryCamSolverInputStore, InMemoryCuttingSimulationInputStore, TOOLPATH_MEMORY_LIMIT_BYTES,
 };
 use job_domain::{CamJobStatus, CamJobType};
+use job_ipc::ToolpathLimits;
 use job_runtime::JobManager;
 
 use super::orchestrator::{
@@ -19,6 +20,9 @@ use super::{
 use crate::cam_simulation_workflow::{
     CamSimulationWorkflowError, CamSimulationWorkflowResult, CamToolpathResult,
 };
+
+/// 同じプロセスの中で実行するときの、ツールパス生成のメモリの見積もりを計算の前に確かめる目安（バイト。2 GB）
+const TOOLPATH_CONFIRM_BYTES: u64 = 2_000_000_000;
 
 /// 同じプロセスの中のジョブマネージャーで実行するクライアント
 #[derive(Debug)]
@@ -190,6 +194,13 @@ impl JobClient for InProcessJobClient {
     fn stop(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
         // 同じプロセスの中で実行するため、中断を持たない。止める頼みは取り消しにする
         self.cancel(job_ids)
+    }
+
+    fn toolpath_limits(&self) -> Result<ToolpathLimits, CamSimulationWorkflowError> {
+        Ok(ToolpathLimits {
+            confirm_bytes: TOOLPATH_CONFIRM_BYTES,
+            limit_bytes: TOOLPATH_MEMORY_LIMIT_BYTES,
+        })
     }
 
     fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError> {

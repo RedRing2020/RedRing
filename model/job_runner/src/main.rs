@@ -1,8 +1,8 @@
 //! ジョブ 1 つの計算だけを行うランナー（設計: JOB_MANAGER_STORAGE_DESIGN.md 3 章）
 //!
 //! ```text
-//! redring-batch-runner --job-type cam --input <入力> --output <フォルダ> --logs <フォルダ> [--resume <ファイル>]
-//!                      [--progress <ファイル>]
+//! redring-batch-runner --job-type cam --input <入力> --output <フォルダ> --logs <フォルダ> --memory-limit <バイト>
+//!                      [--resume <ファイル>] [--progress <ファイル>]
 //! redring-batch-runner --job-type sim --input <入力> --toolpath <ツールパスの成果物> --output <フォルダ> --logs <フォルダ>
 //!                      [--progress <ファイル>]
 //! ```
@@ -10,6 +10,8 @@
 //! 入力のファイルを読み、計算し、成果物（cam: `toolpath.bin`、sim: `cutting_simulation.bin`）を出力のフォルダに、
 //! ログ（`runner.log`）をログのフォルダに書く。ファイルは一時の名前（`*.tmp`）で書き終えてから名前を変える。
 //! 成否は終了の番号で返す（[`ExitCode`] の値）。
+//!
+//! ツールパス生成は、点の数が `--memory-limit`（ツールパス生成に使ってよいメモリのバイトの数）に収まる数を超えたら止める。
 //!
 //! ツールパス生成は、`--resume` のファイルに計算の区切りごとの記録を書き足し、記録があれば続きから計算する。成功・失敗で
 //! 終わったら、そのファイルを消す（途中で止められたときだけ残る）。

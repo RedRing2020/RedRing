@@ -36,6 +36,8 @@ pub enum Request {
     /// 計算中のジョブを止めて、中断にする（途中の結果を残す。計算中でないジョブ・ないジョブは何もしない。止め終える
     /// のを待たない）
     Stop { job_ids: Vec<u64> },
+    /// ツールパスの大きさの、計算の前に確かめる目安と上限
+    ToolpathLimits,
 }
 
 /// 応答
@@ -62,11 +64,23 @@ pub enum Response {
         size: u64,
     },
     Ok,
+    ToolpathLimits {
+        limits: ToolpathLimits,
+    },
     /// 誤り（種類と、英語の詳しい理由）
     Error {
         kind: ErrorKind,
         message: String,
     },
+}
+
+/// ツールパスの大きさ（生成に使うメモリの見積もり）の、計算の前に確かめる目安と上限（バイト）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolpathLimits {
+    /// これ以上なら、確かめてから計算する
+    pub confirm_bytes: u64,
+    /// これを超えるなら計算しない（ランナーも、これを超えると止まる）
+    pub limit_bytes: u64,
 }
 
 /// 投入の入力の名前と大きさ

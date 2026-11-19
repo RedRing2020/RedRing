@@ -139,9 +139,15 @@ fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
             let input = read_cam_solver_input_v1(&mut input.as_slice()).map_err(|error| {
                 Failure::new(ExitCode::InputInvalid, format!("invalid input: {error}"))
             })?;
+            let memory_limit = args.memory_limit.ok_or_else(|| {
+                Failure::new(
+                    ExitCode::Usage,
+                    "--memory-limit is required for cam".to_string(),
+                )
+            })?;
             let artifact = match &args.resume {
-                Some(path) => solve_resumable(path, input_checksum, &input, log),
-                None => run_cam_solver(&input),
+                Some(path) => solve_resumable(path, input_checksum, (&input, memory_limit), log),
+                None => run_cam_solver(&input, memory_limit),
             }
             .map_err(job_failure)?;
             (artifact, TOOLPATH_FILE)
@@ -186,14 +192,15 @@ fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
     Ok(path)
 }
 
-/// 途中の結果のファイル `path` に区切りごとの記録を書き足しながら、ツールパスを生成する（記録があれば続きから計算する）
+/// 途中の結果のファイル `path` に区切りごとの記録を書き足しながら、入力とメモリの上限（バイト）`(input,
+/// memory_limit)` でツールパスを生成する（記録があれば続きから計算する）
 ///
 /// ファイルを使えない（ランナーの実行ファイルを読めない・ファイルを開けない）ときは、記録せずに最初から計算する。
 /// 途中の結果の扱いは、ランナーのログに書く（画面には出さない）。
 fn solve_resumable(
     path: &Path,
     input_checksum: u64,
-    input: &cam_sim::CamSolverInput,
+    (input, memory_limit): (&cam_sim::CamSolverInput, u64),
     log: &mut RunnerLog,
 ) -> Result<Vec<u8>, JobRunFailure> {
     let runner_checksum = match std::env::current_exe().and_then(|runner| file_checksum(&runner)) {
@@ -202,7 +209,7 @@ fn solve_resumable(
             log.line(&format!(
                 "resume: cannot read the runner: {error}; computing without recording"
             ));
-            return run_cam_solver(input);
+            return run_cam_solver(input, memory_limit);
         }
     };
     let mut resume = match ResumeFile::open(path, runner_checksum, input_checksum) {
@@ -221,7 +228,7 @@ fn solve_resumable(
                     path.display()
                 ));
             }
-            return run_cam_solver(input);
+            return run_cam_solver(input, memory_limit);
         }
     };
     let mut write_notes = |resume: &mut ResumeFile| {
@@ -230,7 +237,7 @@ fn solve_resumable(
         }
     };
     write_notes(&mut resume);
-    let solved = run_cam_solver_resumable(input, &mut resume);
+    let solved = run_cam_solver_resumable(input, memory_limit, &mut resume);
     write_notes(&mut resume);
     solved
 }

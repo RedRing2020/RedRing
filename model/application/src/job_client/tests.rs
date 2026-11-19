@@ -10,19 +10,25 @@ use cam_core::{
     ScanlineToolRange, Tool,
 };
 use cam_sim::{
-    SnapshotInterval, read_cam_solver_input_v1, read_cutting_simulation_input_v1, run_cam_solver,
-    run_cutting_simulation,
+    SnapshotInterval, TOOLPATH_MEMORY_LIMIT_BYTES, read_cam_solver_input_v1,
+    read_cutting_simulation_input_v1, run_cam_solver, run_cutting_simulation,
 };
 use geo_algorithms::{
     Aabb3D, Point3D, TessellationLimits, TriangleMesh3D, TriangleMesh3DConstructor,
 };
-use job_ipc::Endpoint;
+use job_ipc::{Endpoint, ToolpathLimits};
 use job_manager::{JobManagerService, LaunchSpec, Launcher, RunningJob, start_endpoint_server};
 use job_runtime::store::{
     DependencyRef, JobStore, StoredJobKind, StoredJobStatus, SubmissionRequest,
 };
 
 use crate::cam_simulation_workflow::CamSimulationWorkflowError;
+
+/// 試験の口の受け手が返す、ツールパスの大きさの目安と上限
+const TEST_TOOLPATH_LIMITS: ToolpathLimits = ToolpathLimits {
+    confirm_bytes: 1_500_000_000,
+    limit_bytes: 6_000_000_000,
+};
 
 /// 試験ごとの保存先・口・ジョブマネージャーの実行ファイル（利用者の実際の保存先と口に触れない。試験の終わりに消す）
 struct TempRoot {
@@ -59,6 +65,7 @@ impl TempRoot {
             std::sync::Arc::new(|| true),
             std::sync::Arc::new(|_| true),
             "0.0.0",
+            TEST_TOOLPATH_LIMITS,
         );
         // 受け手のスレッドが口を開くまで待つ（開く前につなぐと、ジョブマネージャーを起動しようとするため）
         drop(
@@ -145,7 +152,10 @@ impl Launcher for InProcessLauncher {
         fs::create_dir_all(&spec.output)?;
         let (name, artifact) = if spec.job_type == "cam" {
             let input = read_cam_solver_input_v1(&mut input.as_slice()).unwrap();
-            ("toolpath.bin", run_cam_solver(&input).unwrap())
+            (
+                "toolpath.bin",
+                run_cam_solver(&input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap(),
+            )
         } else {
             let input = read_cutting_simulation_input_v1(&mut input.as_slice()).unwrap();
             let toolpath = fs::read(spec.toolpath.as_ref().unwrap())?;
@@ -301,7 +311,7 @@ fn jobs_run_by_the_job_manager_are_read_and_imported_from_the_store() {
     assert_eq!(imported.simulation_input.precision, 0.5);
     assert_eq!(
         imported.toolpath_artifact,
-        run_cam_solver(&submission().solver_input).unwrap()
+        run_cam_solver(&submission().solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
     );
     assert!(
         cam_sim::read_cutting_simulation_artifact_v1(&mut imported.simulation_artifact.as_slice())
@@ -413,13 +423,20 @@ fn the_job_manager_window_is_opened_through_the_endpoint() {
 }
 
 #[test]
+fn the_toolpath_limits_are_read_from_the_job_manager() {
+    let root = TempRoot::new();
+    let client = root.client();
+    assert_eq!(client.toolpath_limits().unwrap(), TEST_TOOLPATH_LIMITS);
+}
+
+#[test]
 fn simulations_of_a_toolpath_file_run_without_a_cam_job_and_are_imported() {
     let root = TempRoot::new();
     let mut client = root.client();
     let store = JobStore::open(root.store_root()).unwrap();
     let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
     let base = submission();
-    let toolpath = run_cam_solver(&base.solver_input).unwrap();
+    let toolpath = run_cam_solver(&base.solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap();
     let submission_id = client
         .submit_simulation(SimulationSubmission {
             simulation_input: base.simulation_input,
@@ -519,7 +536,7 @@ fn simulations_are_put_under_an_existing_cam_job() {
     assert!(imported.solver_input.is_some());
     assert_eq!(
         imported.toolpath_artifact,
-        run_cam_solver(&base.solver_input).unwrap()
+        run_cam_solver(&base.solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
     );
 }
 
@@ -643,6 +660,11 @@ impl job_ipc::Handler for RecordingHandler {
     fn stop(&mut self, _job_ids: Vec<u64>) -> Result<(), job_ipc::HandlerError> {
         self.record("stop");
         Ok(())
+    }
+
+    fn toolpath_limits(&mut self) -> Result<ToolpathLimits, job_ipc::HandlerError> {
+        self.record("toolpath_limits");
+        Ok(TEST_TOOLPATH_LIMITS)
     }
 }
 

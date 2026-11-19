@@ -5,7 +5,7 @@ mod common;
 use std::fs;
 use std::time::{Duration, Instant};
 
-use cam_sim::{read_cutting_simulation_artifact_v1, run_cam_solver};
+use cam_sim::{TOOLPATH_MEMORY_LIMIT_BYTES, read_cutting_simulation_artifact_v1, run_cam_solver};
 use common::{WorkDir, cam_input, write_cam_input, write_sim_input};
 use job_manager::{JobManagerService, ProcessLauncher};
 use job_runtime::store::{
@@ -33,7 +33,10 @@ fn submitted(
 fn submitted_cam_and_sim_jobs_run_with_the_real_runner() {
     let dir = WorkDir::new();
     let store = JobStore::open(dir.path("store")).unwrap();
-    let launcher = ProcessLauncher::new(env!("CARGO_BIN_EXE_redring-batch-runner").into());
+    let launcher = ProcessLauncher::new(
+        env!("CARGO_BIN_EXE_redring-batch-runner").into(),
+        TOOLPATH_MEMORY_LIMIT_BYTES,
+    );
     let (mut service, _) = JobManagerService::start(store.clone(), launcher, 0).unwrap();
 
     // 投入（書き終えてから名前を変える）
@@ -78,7 +81,10 @@ fn submitted_cam_and_sim_jobs_run_with_the_real_runner() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(toolpath, run_cam_solver(&cam_input()).unwrap());
+    assert_eq!(
+        toolpath,
+        run_cam_solver(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
+    );
     let simulation = fs::read(store.result_file(2, StoredJobKind::Sim)).unwrap();
     assert!(read_cutting_simulation_artifact_v1(&mut simulation.as_slice()).is_ok());
     assert!(store.log_file(2).is_file());
@@ -93,7 +99,10 @@ fn submitted_cam_and_sim_jobs_run_with_the_real_runner() {
 fn a_sim_job_runs_from_a_toolpath_file_with_the_real_runner() {
     let dir = WorkDir::new();
     let store = JobStore::open(dir.path("store")).unwrap();
-    let launcher = ProcessLauncher::new(env!("CARGO_BIN_EXE_redring-batch-runner").into());
+    let launcher = ProcessLauncher::new(
+        env!("CARGO_BIN_EXE_redring-batch-runner").into(),
+        TOOLPATH_MEMORY_LIMIT_BYTES,
+    );
     let (mut service, _) = JobManagerService::start(store.clone(), launcher, 0).unwrap();
 
     // 空間モデルに取り込んだ CL の代わりに、ツールパス生成の結果を CL のファイルにする
@@ -102,7 +111,7 @@ fn a_sim_job_runs_from_a_toolpath_file_with_the_real_runner() {
     write_sim_input(&writing.join("sim.bin"));
     fs::write(
         writing.join("toolpath.bin"),
-        run_cam_solver(&cam_input()).unwrap(),
+        run_cam_solver(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES).unwrap(),
     )
     .unwrap();
     let request = SubmissionRequest {

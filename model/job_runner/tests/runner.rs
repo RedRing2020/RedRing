@@ -2,6 +2,7 @@
 
 mod common;
 
+use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
@@ -10,8 +11,8 @@ use std::time::{Duration, Instant};
 
 use cam_core::{OperationSpec, Tool, read_toolpath_artifact_v1};
 use cam_sim::{
-    Checkpoints, SavedRecord, read_cutting_simulation_artifact_v1, run_cam_solver,
-    run_cam_solver_resumable,
+    Checkpoints, SavedRecord, TOOLPATH_MEMORY_LIMIT_BYTES, read_cutting_simulation_artifact_v1,
+    run_cam_solver, run_cam_solver_resumable,
 };
 use common::{WorkDir, cam_input, write_cam_input, write_sim_input};
 
@@ -33,6 +34,18 @@ fn run(args: &[&std::ffi::OsStr]) -> i32 {
 }
 
 fn run_job(dir: &WorkDir, job_type: &str, input: &Path, toolpath: Option<&Path>) -> i32 {
+    run_job_with_limit(dir, job_type, input, toolpath, TOOLPATH_MEMORY_LIMIT_BYTES)
+}
+
+/// ツールパス生成ではメモリの上限 `memory_limit`（バイト）を渡して、ランナーを起動する
+fn run_job_with_limit(
+    dir: &WorkDir,
+    job_type: &str,
+    input: &Path,
+    toolpath: Option<&Path>,
+    memory_limit: u64,
+) -> i32 {
+    let memory_limit = memory_limit.to_string();
     let (output, logs, progress) = (
         dir.path("output"),
         dir.path("logs"),
@@ -53,6 +66,9 @@ fn run_job(dir: &WorkDir, job_type: &str, input: &Path, toolpath: Option<&Path>)
     if let Some(toolpath) = toolpath {
         args.extend(["--toolpath".as_ref(), toolpath.as_os_str()]);
     }
+    if job_type == "cam" {
+        args.extend([OsStr::new("--memory-limit"), OsStr::new(&memory_limit)]);
+    }
     run(&args)
 }
 
@@ -64,6 +80,7 @@ fn run_cam_job_with_resume(dir: &WorkDir, input: &Path, resume: &Path) -> i32 {
 /// 途中の結果のファイル `resume` を渡す、ツールパス生成のランナーのコマンド
 fn cam_job_with_resume(dir: &WorkDir, input: &Path, resume: &Path) -> Command {
     let (output, logs) = (dir.path("output"), dir.path("logs"));
+    let memory_limit = TOOLPATH_MEMORY_LIMIT_BYTES.to_string();
     runner(&[
         "--job-type".as_ref(),
         "cam".as_ref(),
@@ -75,6 +92,8 @@ fn cam_job_with_resume(dir: &WorkDir, input: &Path, resume: &Path) -> Command {
         logs.as_os_str(),
         "--resume".as_ref(),
         resume.as_os_str(),
+        "--memory-limit".as_ref(),
+        memory_limit.as_ref(),
     ])
 }
 
@@ -229,7 +248,10 @@ fn cam_job_writes_the_same_toolpath_as_the_in_process_calculation() {
     assert_eq!(run_job(&dir, "cam", &input, None), 0, "{}", log_text(&dir));
 
     let artifact = fs::read(dir.path("output").join("toolpath.bin")).unwrap();
-    assert_eq!(artifact, run_cam_solver(&cam_input()).unwrap());
+    assert_eq!(
+        artifact,
+        run_cam_solver(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
+    );
     let (_, toolpath) = read_toolpath_artifact_v1(&mut artifact.as_slice()).unwrap();
     assert!(toolpath.level_count() > 0);
     assert!(log_text(&dir).contains("succeeded"));
@@ -243,7 +265,11 @@ fn cam_job_writes_the_same_toolpath_as_the_in_process_calculation() {
 fn sim_job_simulates_the_toolpath_of_the_parent_job() {
     let dir = WorkDir::new();
     let toolpath = dir.path("toolpath.bin");
-    fs::write(&toolpath, run_cam_solver(&cam_input()).unwrap()).unwrap();
+    fs::write(
+        &toolpath,
+        run_cam_solver(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES).unwrap(),
+    )
+    .unwrap();
     let input = dir.path("sim_input.bin");
     write_sim_input(&input);
 
@@ -293,6 +319,14 @@ fn failures_are_returned_as_exit_codes_with_the_reason_in_the_log() {
     assert!(log_text(&dir).contains("code=invalid_input"));
     assert!(!dir.path("output").join("toolpath.bin").exists());
 
+    // ツールパスの点の数が、引数で渡したメモリの上限を超える（点 1 つあたり 250 バイトのため、1000 バイトは 4 点）
+    let dir = WorkDir::new();
+    let input = dir.path("input.bin");
+    write_cam_input(&input, &cam_input());
+    assert_eq!(run_job_with_limit(&dir, "cam", &input, None, 1000), 7);
+    assert!(log_text(&dir).contains("for the memory limit of 1000 bytes"));
+    assert!(!dir.path("output").join("toolpath.bin").exists());
+
     // 親のツールパスの成果物が壊れている
     let dir = WorkDir::new();
     let input = dir.path("sim_input.bin");
@@ -317,7 +351,10 @@ fn a_cam_job_with_a_resume_file_records_while_calculating_and_removes_it_at_the_
         log_text(&dir)
     );
     let artifact = fs::read(dir.path("output").join("toolpath.bin")).unwrap();
-    assert_eq!(artifact, run_cam_solver(&cam_input()).unwrap());
+    assert_eq!(
+        artifact,
+        run_cam_solver(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
+    );
     assert!(!resume.exists());
 }
 
@@ -327,7 +364,8 @@ fn a_cam_job_continues_from_the_records_of_the_previous_run() {
     let input = dir.path("input.bin");
     write_cam_input(&input, &cam_input());
     let mut recorded = Recorded::default();
-    let full = run_cam_solver_resumable(&cam_input(), &mut recorded).unwrap();
+    let full =
+        run_cam_solver_resumable(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES, &mut recorded).unwrap();
     assert!(recorded.0.len() >= 2);
     let resume = dir.path("resume").join("toolpath.resume");
     fs::create_dir_all(resume.parent().unwrap()).unwrap();
@@ -386,7 +424,9 @@ fn a_cam_job_killed_part_way_again_and_again_continues_to_the_same_toolpath() {
         params.stepover = stepover;
         let mut recorded = Recorded::default();
         let started = Instant::now();
-        let full = run_cam_solver_resumable(&solver_input, &mut recorded).unwrap();
+        let full =
+            run_cam_solver_resumable(&solver_input, TOOLPATH_MEMORY_LIMIT_BYTES, &mut recorded)
+                .unwrap();
         if started.elapsed() >= Duration::from_millis(400) || stepover <= 0.01 {
             break (full, recorded.0.len() as u64);
         }

@@ -24,7 +24,7 @@ use cam_sim::{
 use job_domain::{CamJobSource, CamJobStatus};
 use job_ipc::{
     Client, ClientError, Connection, Dependency, Endpoint, ErrorKind, JobFile, JobKind, JobSource,
-    JobStatus, JobSummary, SubmitJob,
+    JobStatus, JobSummary, SubmitJob, ToolpathLimits,
 };
 
 use super::{JobClient, JobStatusSnapshot, JobSubmission, PendingSubmission, SimulationJob};
@@ -583,6 +583,10 @@ impl JobClient for PipeJobClient {
         // 中断にしたことが一覧に出るように、読み直しを頼む（待たない）
         self.request_status();
         Ok(())
+    }
+
+    fn toolpath_limits(&self) -> Result<ToolpathLimits, CamSimulationWorkflowError> {
+        self.request(|client| client.toolpath_limits().map_err(client_error))
     }
 
     fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError> {

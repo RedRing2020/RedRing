@@ -132,6 +132,13 @@ impl Handler for FakeHandler {
         self.stopped.lock().unwrap().extend(job_ids);
         Ok(())
     }
+
+    fn toolpath_limits(&mut self) -> Result<ToolpathLimits, HandlerError> {
+        Ok(ToolpathLimits {
+            confirm_bytes: 1_000_000_000,
+            limit_bytes: 4_000_000_000,
+        })
+    }
 }
 
 #[test]
@@ -295,6 +302,13 @@ fn requests_go_through_the_endpoint() {
     client.cancel(vec![3, 2]).unwrap();
     client.resume(vec![4]).unwrap();
     client.stop(vec![5]).unwrap();
+    assert_eq!(
+        client.toolpath_limits().unwrap(),
+        ToolpathLimits {
+            confirm_bytes: 1_000_000_000,
+            limit_bytes: 4_000_000_000,
+        }
+    );
     assert!(matches!(
         client.record_imported(9),
         Err(ClientError::Remote {

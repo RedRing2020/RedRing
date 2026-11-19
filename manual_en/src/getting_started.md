@@ -10,6 +10,15 @@ Start the RedRing preview either from the Windows package (zip) or by building i
 
 A finer stock precision (for example 0.01 mm) needs more memory and GPU load. Try the default precision (0.05 mm) first.
 
+Under conditions that make a large toolpath, such as a fine pick feed or a small tool, pressing "Calculate", "Recalculate" or "Calculate all operations" in the operation list (including "Calculate when applied") estimates the memory the toolpath generation will use before the calculation starts.
+
+- When an operation reaches the confirmation threshold (2 GB by default), the estimate of each such operation is shown and you are asked whether to calculate. Operations near the limit (80 % of the limit or more) are noted as possibly stopping partway. Choosing "Cancel" calculates nothing (with "Calculate all operations", no operation is calculated)
+- An operation over the memory limit of the calculation (by default, the smaller of half the PC's physical memory and 8 GB) is not calculated. The estimated size is shown in the status bar. Review conditions such as the pick feed
+- The estimate calculates part of the scan lines and scales it to the whole, so it is approximate
+- The confirmation threshold and the limit can be changed in the job manager's settings file (see the toolpath size threshold and limit under the job manager below)
+
+If the estimate is off and the toolpath gets too many points during the calculation, the toolpath generation still stops before using up the memory. The job manager shows "Stopped because the toolpath has too many points" as the reason of the failed job.
+
 ## Start from the Package (Windows)
 
 1. Download `redring-<version>-windows-x86_64.zip` and `SHA256SUMS.txt` from the [GitHub releases](https://github.com/RedRing2020/RedRing/releases)
@@ -78,6 +87,12 @@ Toolpath generation and the cutting simulation are calculated by the job manager
     - Old jobs: finished jobs submitted before the number of days you enter (30 at first; a toolpath generation whose result is used by a cutting simulation submitted later is kept. Interrupted jobs are not included, because their calculation can be continued)
     - Submissions that could not be taken in: submissions the job manager could not take in, for example because of a different app version
 - The language of the job manager screens is selected separately from the app ("Language" at the top right of the window, or "Language" in the system tray menu). It changes at once, and the same language is used at the next start. Until you select one, it follows the Windows display language (Japanese for Japanese, English otherwise). The selected language is saved in a per-user settings file (`%APPDATA%\RedRing\job_manager.json` on Windows)
+- Toolpath size threshold and limit: the threshold for confirming the toolpath size before a calculation and the memory limit of the calculation can be written as items of the settings file (`%APPDATA%\RedRing\job_manager.json` on Windows), in GB (a billion bytes). They are not set on a screen
+  - `toolpath_confirm_gb`: the confirmation threshold. 2 by default
+  - `toolpath_limit_gb`: the limit. By default, the smaller of half the PC's physical memory and 8 (so that a PC with little memory does not drag down other apps or Windows). The toolpath generation also stops when it goes over this limit during the calculation. A value larger than the physical memory is not recommended, because it can drag down other apps or Windows
+  - Example: `{"toolpath_confirm_gb": 4, "toolpath_limit_gb": 16}`. If the file has other items (`language`, `store`), keep them and add the items
+  - The job manager reads them when it starts. After changing them, quit the job manager with "Quit" in the system tray menu and start it again (calculating in the app starts it)
+  - When an item is missing or its value is not valid (not a number, 0 or less, a threshold larger than the limit, and so on), the default is used and the reason is written to the job manager log (`%LOCALAPPDATA%\RedRing\logs\job_manager.log`). The threshold and limit in use are also written to the log at startup
 - The job manager keeps calculating after you close the app. When you close the job manager window, it stays in the system tray and keeps calculating. To stop it, use "Quit" in the system tray menu (opening a machining sequence in the app does not start the job manager; it starts when you calculate, import, or press "Open job manager". If you quit the job manager while jobs are waiting, the calculation stops until you do one of those operations)
 - Job records and results are kept in the job store. At first, it is `%LOCALAPPDATA%\RedRing\jobs` on Windows. The job manager log is `%LOCALAPPDATA%\RedRing\logs\job_manager.log` on Windows (the same place even if you change the job store). Hover over "Job store: …" at the top of the window to see its location
 - You can change the job store with "Change job store…" at the top right of the window (not while jobs are waiting or calculating)
