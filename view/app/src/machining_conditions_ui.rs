@@ -426,7 +426,7 @@ pub(crate) enum OperationToolCommand {
 
 /// 工具の欄の検索の文字 `query` を名前に含むツールセット（大文字・小文字を区別しない。文字が空なら、一覧を出さない
 /// ため `None`）
-fn searched_toolsets(toolsets: Vec<ToolSetRow>, query: &str) -> Option<Vec<ToolSetRow>> {
+fn searched_toolsets(toolsets: &[ToolSetRow], query: &str) -> Option<Vec<ToolSetRow>> {
     let name = query.trim();
     if name.is_empty() {
         return None;
@@ -435,7 +435,7 @@ fn searched_toolsets(toolsets: Vec<ToolSetRow>, query: &str) -> Option<Vec<ToolS
         name: name.to_string(),
         ..ToolSetFilter::default()
     };
-    Some(filtered_toolsets(toolsets, &filter, None))
+    Some(filtered_toolsets(toolsets.to_vec(), &filter, None))
 }
 
 /// 加工工程の一覧の 1 行
@@ -1654,7 +1654,7 @@ impl MachiningConditionsUiState {
             ui.colored_label(Color32::GRAY, self.text("conditions.tool.no_toolsets"));
             return;
         }
-        let Some(found) = searched_toolsets(toolsets.clone(), &self.tool_filter) else {
+        let Some(found) = searched_toolsets(toolsets, &self.tool_filter) else {
             return;
         };
         if found.is_empty() {
@@ -2531,11 +2531,11 @@ mod tests {
     #[test]
     fn toolsets_are_listed_only_while_searching() {
         let toolsets = vec![toolset("Ball6 long"), toolset("flat10"), toolset("ball6")];
-        assert_eq!(searched_toolsets(toolsets.clone(), ""), None);
-        assert_eq!(searched_toolsets(toolsets.clone(), "  "), None);
-        let found = searched_toolsets(toolsets.clone(), " BALL6 ").expect("searching");
+        assert_eq!(searched_toolsets(&toolsets, ""), None);
+        assert_eq!(searched_toolsets(&toolsets, "  "), None);
+        let found = searched_toolsets(&toolsets, " BALL6 ").expect("searching");
         let names: Vec<&str> = found.iter().map(|row| row.name.as_str()).collect();
         assert_eq!(names, ["Ball6 long", "ball6"]);
-        assert_eq!(searched_toolsets(toolsets, "end"), Some(Vec::new()));
+        assert_eq!(searched_toolsets(&toolsets, "end"), Some(Vec::new()));
     }
 }

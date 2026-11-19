@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
 use viewmodel::tool_library_session::{
-    ToolLibraryFailure, ToolLibrarySession, ToolLibraryState, ToolSetId, ToolSetReference,
-    file_label, locked_message,
+    ToolLibraryFailure, ToolLibrarySession, ToolLibraryState, ToolSetFilter, ToolSetId,
+    ToolSetReference, file_label, locked_message,
 };
 
 /// ツールライブラリのファイルの拡張子
@@ -65,12 +65,19 @@ impl AppState {
     /// 工具を選んだツールセット `toolset` があれば、そのライブラリのそのツールセットを選んだ状態で開く）
     pub(super) fn open_tool_library_for_operation(&mut self, toolset: Option<ToolSetReference>) {
         self.open_tool_library_window();
-        self.tool_library_window.picking = true;
+        let window = &mut self.tool_library_window;
+        window.picking = true;
+        window.selected_toolset = None;
+        window.draft = None;
         if let Some(toolset) = toolset
             && let Some(index) = self.tool_library.library_index_of(&toolset)
         {
             self.select_tool_library(index);
-            self.tool_library_window.selected_toolset = Some(toolset.toolset);
+            // 選んだツールセットが表に出るよう、絞り込み・並べ替えを戻す
+            let window = &mut self.tool_library_window;
+            window.selected_toolset = Some(toolset.toolset);
+            window.filter = ToolSetFilter::default();
+            window.sort = None;
         }
     }
 
@@ -235,9 +242,25 @@ impl AppState {
     }
 
     /// 一覧の番号 `library` のライブラリのツールセット `id` を、工程の設定のダイアログで編集している工程の工具にし、
-    /// ウィンドウを閉じる（ダイアログを閉じた後は何もしない）
+    /// ウィンドウを閉じる（ダイアログを閉じた後は何もしない。ツールセットが見つからなければ、理由を出して開いたままに
+    /// する）
     fn use_toolset_for_operation(&mut self, library: usize, id: ToolSetId) {
         if self.condition_draft.is_none() {
+            return;
+        }
+        if !self
+            .tool_library
+            .toolsets(library)
+            .iter()
+            .any(|row| row.id == id)
+        {
+            tracing::warn!(
+                library,
+                "The tool set to use for the operation is not found"
+            );
+            let text =
+                resolve_tool_library_text(self.ui_locale, "tool_library.pick.not_found", &[]);
+            self.tool_library_window.result = Some((text, true));
             return;
         }
         self.run_operation_tool_command(OperationToolCommand::Select {

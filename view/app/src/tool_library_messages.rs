@@ -36,7 +36,11 @@ const TOOL_LIBRARY_TEMPLATE_JA: &[(&str, &str)] = &[
     ("tool_library.pick.use", "この工具を使う"),
     (
         "tool_library.pick.hint",
-        "選んだツールセットを、工程の設定で編集している工程の工具にします",
+        "選んだツールセットを、編集している工程の工具にします",
+    ),
+    (
+        "tool_library.pick.not_found",
+        "選んだツールセットが見つかりません",
     ),
     ("tool_library.toolset.add", "追加"),
     ("tool_library.toolset.duplicate", "複写"),
@@ -126,6 +130,10 @@ const TOOL_LIBRARY_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "tool_library.pick.hint",
         "Makes the selected tool set the tool of the operation being edited",
+    ),
+    (
+        "tool_library.pick.not_found",
+        "The selected tool set is not found",
     ),
     ("tool_library.toolset.add", "Add"),
     ("tool_library.toolset.duplicate", "Duplicate"),

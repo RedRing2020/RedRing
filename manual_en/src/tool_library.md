@@ -54,7 +54,7 @@ The following marks may appear next to a library name. Select the library to see
 1. Select an operation in the operation list and open the operation settings dialog
 2. Under "Tool" on the "Machining conditions" page, choose a tool set in one of the following ways
    - Search by name: choose a library and enter part of a name in "Search". A list of tool sets whose names match appears; choose one (no list is shown while "Search" is empty)
-   - Find it in the library window: press "Choose from the library…" to open the library window (it opens with the operation's current tool set selected in its library). Find the tool set by filtering by type and diameter or by sorting ([Finding and sorting](#finding-and-sorting)), then select its row and press "Use this tool", or double-click the row. The window closes and the tool set is put in the tool section
+   - Find it in the library window: press "Choose from the library…" to open the library window (it opens with the operation's current tool set selected in its library, clearing the filter and sort so that the tool set is shown). Find the tool set by filtering by type and diameter or by sorting ([Finding and sorting](#finding-and-sorting)), then select its row and press "Use this tool", or double-click the row. The window closes and the tool set is put in the tool section
 3. Press "Apply" to make it the tool of the operation. Choosing a tool set with the same tool values as now does not require recalculation
 
 There are no fields to enter tool values directly. To add or change tools, open the library window with "Choose from the library…" or with Machining > Tool library… on the menu bar. A new operation takes over the tool of the selected operation.
