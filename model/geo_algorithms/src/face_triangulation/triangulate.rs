@@ -208,12 +208,27 @@ impl Mesh {
                     low.1 + (high.1 - low.1) * j as f64 / count_v as f64,
                 );
                 let position = Point2::new(uv.x() * self.scale.0, uv.y() * self.scale.1);
-                let PositionInTriangulation::OnFace(face) = self.cdt.locate(position) else {
+                // 点が三角形の辺の上にあれば（格子の点は、境界の点と同じ u・v の線に並ぶので、境界の点を結ぶ辺の上に
+                // よく載る）、その辺の両側の三角形のうち、範囲の内側のほうで見る。制約の辺の上の点は置かない
+                let face = match self.cdt.locate(position) {
+                    PositionInTriangulation::OnFace(face) => Some(face),
+                    PositionInTriangulation::OnEdge(edge) => {
+                        let edge = self.cdt.directed_edge(edge);
+                        if edge.as_undirected().is_constraint_edge() {
+                            None
+                        } else {
+                            [edge.face(), edge.rev().face()]
+                                .into_iter()
+                                .filter_map(|face| face.as_inner())
+                                .map(|face| face.fix())
+                                .find(|face| inside.contains(face))
+                        }
+                    }
+                    _ => None,
+                };
+                let Some(face) = face.filter(|face| inside.contains(face)) else {
                     continue;
                 };
-                if !inside.contains(&face) {
-                    continue;
-                }
                 // 点を含む三角形と、その隣の三角形の頂点・制約の辺との距離を見る（境界の辺の上の細い三角形の隣に
                 // 入った点も、境界の辺から離す）
                 let face = self.cdt.face(face);

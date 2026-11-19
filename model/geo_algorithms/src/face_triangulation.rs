@@ -18,6 +18,8 @@ mod tests;
 
 pub use region::FaceRegion;
 
+use analysis::consts::tessellation::GRID_DIAGONAL_TO_STEP_RATIO;
+
 use crate::{Angle, Point2D, Point3D, Vector3D};
 
 /// 三角形に分ける面が載る曲面
@@ -71,7 +73,11 @@ impl FaceTriangulationSettings {
     }
 }
 
-/// 曲面の u・v の刻み（刻みのある方向は、正の有限の値でなければ、曲面の値が正しくないとする）
+/// 格子と切れ目・極の線に置く点の、u・v の間隔（刻みのある方向は、正の有限の値でなければ、曲面の値が正しくない
+/// とする）
+///
+/// 間隔は、曲面の刻みに `GRID_DIAGONAL_TO_STEP_RATIO / √2` を掛けた値とする。刻みのままでは、マスの対角線と、
+/// 切れ目の辺に接する三角形の内側の離れが許容弦誤差を超え、細分化で点を 1 つずつ足し続けるため
 fn checked_steps(
     surface: &impl TriangulationSurface,
     settings: &FaceTriangulationSettings,
@@ -79,7 +85,11 @@ fn checked_steps(
     let steps = surface.steps(settings.chord_tolerance, settings.max_angle);
     let valid = |step: Option<f64>| step.is_none_or(|step| step.is_finite() && step > 0.0);
     if valid(steps.0) && valid(steps.1) {
-        Ok(steps)
+        let ratio = GRID_DIAGONAL_TO_STEP_RATIO * std::f64::consts::FRAC_1_SQRT_2;
+        Ok((
+            steps.0.map(|step| step * ratio),
+            steps.1.map(|step| step * ratio),
+        ))
     } else {
         Err(FaceTriangulationError::Evaluation)
     }

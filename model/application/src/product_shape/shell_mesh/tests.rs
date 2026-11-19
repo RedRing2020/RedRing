@@ -74,3 +74,64 @@ fn closed_shells_are_triangulated_without_gaps() {
         assert_closed(&mesh, volume);
     }
 }
+
+/// 三角形ごとに頂点・辺・内側の 28 点（重心座標が (i, j, k) / 6 の点）をとり、曲面への最短距離 `distance` が
+/// 許容弦誤差以下であることを確かめる
+fn assert_within_tolerance(
+    mesh: &ShellMesh,
+    distance: impl Fn(Point3D<f64>) -> f64,
+    chord_tolerance: f64,
+) {
+    for face in &mesh.faces {
+        let face = face.as_ref().unwrap();
+        for triangle in &face.triangles {
+            let [a, b, c] = triangle.map(|corner| mesh.points[face.vertices[corner]]);
+            for i in 0..=6 {
+                for j in 0..=6 - i {
+                    let (s, t) = (i as f64 / 6.0, j as f64 / 6.0);
+                    let sample = Point3D::new(
+                        a.x() * (1.0 - s - t) + b.x() * s + c.x() * t,
+                        a.y() * (1.0 - s - t) + b.y() * s + c.y() * t,
+                        a.z() * (1.0 - s - t) + b.z() * s + c.z() * t,
+                    );
+                    let deviation = distance(sample);
+                    assert!(
+                        deviation <= chord_tolerance * (1.0 + 1.0e-9),
+                        "{deviation} in {triangle:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// 試験の B-rep の球（半径 10）とトーラス（中心の円の半径 20・管の半径 5）を、許容弦誤差 `chord_tolerance` で
+/// 三角形に分け、閉じていて、三角形の内側でも許容弦誤差を守ることを確かめる
+fn assert_sphere_and_torus(chord_tolerance: f64) {
+    let origin = Point3D::new(0.0, 0.0, 0.0);
+    let sphere = triangulate_brep(&sphere_brep(), chord_tolerance);
+    assert_closed(&sphere, 4.0 / 3.0 * PI * 1000.0);
+    assert_within_tolerance(
+        &sphere,
+        |point| (point.distance_to(origin) - 10.0).abs(),
+        chord_tolerance,
+    );
+    let torus = triangulate_brep(&torus_brep(), chord_tolerance);
+    assert_closed(&torus, 2.0 * PI * PI * 20.0 * 25.0);
+    assert_within_tolerance(
+        &torus,
+        |point| ((point.x().hypot(point.y()) - 20.0).hypot(point.z()) - 5.0).abs(),
+        chord_tolerance,
+    );
+}
+
+#[test]
+fn sphere_and_torus_shells_meet_the_machining_tolerance() {
+    assert_sphere_and_torus(0.001);
+}
+
+#[test]
+#[ignore = "許容弦誤差 0.0001 で、トーラスの面が 122 万点ほどになる（確かめも含めて、リリースのビルドで 15 秒ほど）。cargo test --release -- --ignored で確かめる"]
+fn sphere_and_torus_shells_meet_the_finest_machining_tolerance() {
+    assert_sphere_and_torus(0.0001);
+}
