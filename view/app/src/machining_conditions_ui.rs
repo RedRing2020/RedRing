@@ -16,7 +16,7 @@ use egui::{
 };
 use viewmodel::cutting_simulation_session::{
     CamConditionError, CamConditionField, ConditionIssue, CuttingToolKind, ImportedConditions,
-    JobFailure, MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock,
+    MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock, OperationFailure,
     OperationJobStatus, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
     flat_surface_cusp_height,
 };
@@ -138,7 +138,7 @@ pub(crate) fn condition_issue_text(locale: UiLocale, issue: &ConditionIssue) -> 
 pub(crate) fn job_status_text(
     locale: UiLocale,
     status: &JobStatusLine,
-    failure: Option<&JobFailure>,
+    failure: Option<&OperationFailure>,
 ) -> String {
     match failure {
         Some(failure) if *status == JobStatusLine::Status(OperationJobStatus::Failed) => {
@@ -518,7 +518,7 @@ pub(crate) fn navigation_text(
     locale: UiLocale,
     status: &JobStatusLine,
     toolpath_current: bool,
-    failure: Option<&JobFailure>,
+    failure: Option<&OperationFailure>,
 ) -> Option<String> {
     let reason = failure
         .map(|failure| ("reason", resolve_failure_message(locale, &failure.reason)))
@@ -532,7 +532,7 @@ pub(crate) fn navigation_text(
 fn navigation_key(
     status: &JobStatusLine,
     toolpath_current: bool,
-    failure: Option<&JobFailure>,
+    failure: Option<&OperationFailure>,
 ) -> Option<&'static str> {
     match status {
         JobStatusLine::Status(OperationJobStatus::Failed) => Some(match failure {
@@ -1865,12 +1865,12 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        ApplySubmission, COLUMN_KEYS, ConditionField, JobFailure, JobStatusLine, MachiningStage,
-        OperationJobStatus, OperationRow, OperationSetup, OperationStatus, RowAction,
-        calculation_blocked, condition_error_message, condition_field, imported_toolpath_key,
-        job_status_key, job_status_text, navigation_key, navigation_text, next_action_of,
-        operation_row_key, operation_row_status_key, operation_status_text, row_status_color,
-        stage_key, submission_on_apply,
+        ApplySubmission, COLUMN_KEYS, ConditionField, JobStatusLine, MachiningStage,
+        OperationFailure, OperationJobStatus, OperationRow, OperationSetup, OperationStatus,
+        RowAction, calculation_blocked, condition_error_message, condition_field,
+        imported_toolpath_key, job_status_key, job_status_text, navigation_key, navigation_text,
+        next_action_of, operation_row_key, operation_row_status_key, operation_status_text,
+        row_status_color, stage_key, submission_on_apply,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -2326,7 +2326,7 @@ mod tests {
     #[test]
     fn the_navigation_and_the_status_tell_why_the_calculation_failed() {
         let failed = JobStatusLine::Status(OperationJobStatus::Failed);
-        let too_large = JobFailure {
+        let too_large = OperationFailure {
             reason: UiMessage {
                 key: "failure.job.toolpath_too_large".to_string(),
                 args: Vec::new(),
@@ -2334,7 +2334,7 @@ mod tests {
             detail: "the toolpath is too large for the memory limit".to_string(),
             review_conditions: true,
         };
-        let invalid_input = JobFailure {
+        let invalid_input = OperationFailure {
             reason: UiMessage {
                 key: "failure.job.invalid_input".to_string(),
                 args: Vec::new(),

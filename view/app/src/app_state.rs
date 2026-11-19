@@ -15,7 +15,7 @@ use std::sync::Arc;
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
 use viewmodel::cutting_animation::CuttingAnimation;
 use viewmodel::cutting_simulation_session::{
-    ConditionIssue, CuttingSimulationSession, ImportedConditions, JobFailure,
+    ConditionIssue, CuttingSimulationSession, ImportedConditions, OperationFailure,
 };
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::space_model_document::MachiningOperationId;
@@ -198,7 +198,7 @@ pub struct AppState {
     /// 加工工程の今の改訂の計算の状態と、読んだ時刻（ジョブの保存先は一定の間隔で読む）
     cutting_simulation_job_status: JobStatusLine,
     /// 選んだ工程の今の改訂の計算が失敗した理由（失敗していない・理由を受け取れなかったときは `None`）
-    cutting_simulation_job_failure: Option<JobFailure>,
+    cutting_simulation_job_failure: Option<OperationFailure>,
     job_status_read_at: Option<std::time::Instant>,
     /// ジョブマネージャーが動いていない・見つからないことを、最後に画面の下の行に出した状態（`None` は、出していない・
     /// 動いている）

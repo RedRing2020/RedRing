@@ -2,7 +2,9 @@
 
 use std::time::{Duration, Instant};
 
-use viewmodel::cutting_simulation_session::{JobFailure, OperationJobState, OperationJobStatus};
+use viewmodel::cutting_simulation_session::{
+    OperationFailure, OperationJobState, OperationJobStatus,
+};
 use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
 
 use super::AppState;
@@ -317,7 +319,7 @@ impl AppState {
     }
 
     /// 選んだ工程の計算が失敗した理由を `failure` にする（変わったときに、英語の詳しい理由をログに残す）
-    fn set_job_failure(&mut self, failure: Option<JobFailure>) {
+    fn set_job_failure(&mut self, failure: Option<OperationFailure>) {
         if failure == self.cutting_simulation_job_failure {
             return;
         }

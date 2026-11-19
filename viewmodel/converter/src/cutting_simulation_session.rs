@@ -246,7 +246,7 @@ pub enum SequenceOutcome {
 
 /// 選んだ工程の今の条件の計算が失敗した理由
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct JobFailure {
+pub struct OperationFailure {
     /// 画面に出す理由
     pub reason: UiMessage,
     /// 英語の詳しい理由（ログに残す）
@@ -899,13 +899,13 @@ impl CuttingSimulationSession {
     pub fn job_failure(
         &mut self,
         document: &mut SpaceModelDocument,
-    ) -> Result<Option<JobFailure>, CuttingSimulationSessionError> {
+    ) -> Result<Option<OperationFailure>, CuttingSimulationSessionError> {
         document.target_visible_faces();
         let (_, sequences, sequence, operation) = document.machining();
         let failure = self
             .workflow
             .latest_revision_failure(sequences, sequence, operation)?;
-        Ok(failure.map(|failure| JobFailure {
+        Ok(failure.map(|failure| OperationFailure {
             reason: job_failure_message(&failure.reason),
             review_conditions: failure.reason == JobFailureReason::ToolpathTooLarge,
             detail: failure.message,
