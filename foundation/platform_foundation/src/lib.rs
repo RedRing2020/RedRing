@@ -9,6 +9,8 @@ pub mod identity;
 pub mod ipc;
 pub mod locale;
 pub mod process;
+#[cfg(windows)]
+mod security;
 
 /// 終わりが 0 の UTF-16 の文字列（Windows の API に渡す）
 #[cfg(windows)]

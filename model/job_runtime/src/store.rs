@@ -186,9 +186,13 @@ impl JobStore {
         )
     }
 
-    /// 保存先 `root` を開く（受付・ジョブのフォルダがなければ作る）
+    /// 保存先 `root` を開く（保存先のフォルダがなければ、利用者だけが読み書きできるフォルダとして作る。受付・ジョブの
+    /// フォルダがなければ作る）
+    ///
+    /// すでにあるフォルダの権利は確かめない（`platform_foundation::folder::check_private_folder` で確かめる）。
     pub fn open(root: impl Into<PathBuf>) -> Result<Self, StoreError> {
         let store = Self { root: root.into() };
+        platform_foundation::folder::create_private_folder(&store.root)?;
         fs::create_dir_all(store.root.join(INBOX_DIR))?;
         fs::create_dir_all(store.root.join(JOBS_DIR))?;
         Ok(store)
