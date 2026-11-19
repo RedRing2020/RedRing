@@ -14,7 +14,7 @@ B-rep の面（曲面の上で、ループで囲んだ範囲だけを使う面�
 
 - 位相の持ち方（面・ループ・シェル・立体、稜線の使用、パラメータ曲線、向き、周期的な面）は `BREP_AND_STEP_IMPORT_DESIGN.md`（#1324）で決め、STEP から B-rep を作るところまで作った。シェルのエンティティ（`application::product_shape`。B-rep の表・配置・面の ID）とモデルファイルの区画 `SHEL` も作った（#1352）
 - シェルのエンティティを表示と CAM の入力に使えるようにした（#1378・#1379）。`PRODUCT_SHAPE_ENTITY_DESIGN.md` の段階 2（境界で頂点のそろう三角形、シェルのエンティティの表示・CAM の入力）に当たる
-- 今の曲面の三角形への分割（`geo_algorithms::surface_discretization::tessellate_surfaces`）は、トリムしていない NURBS 曲面だけを扱う。(u, v) の格子を許容弦誤差で細かくし、マスを 2 つの三角形に分ける。許容弦誤差の扱いは #1322・#1323 で直している
+- 今の曲面の三角形への分割（`geo_algorithms::surface_discretization::tessellate_surfaces`）は、トリムしていない NURBS 曲面だけを扱う。(u, v) の格子を許容弦誤差で細かくし、マスを 2 つの三角形に分ける。三角形の内側でも許容弦誤差を守ることは、#1322 で試験に置き、初めの格子にノットの区間を次数の数に分けた点を加え、端の辺も確かめるように直した（`NURBS_ADAPTIVE_TESSELLATION_DESIGN.md` 3.2.3）。許容弦誤差を超えたマスだけを分けることは #1323 で直す
 - 曲線の分割は、円弧の折れ線（`geo_algorithms::curve_discretization`）だけがある
 - 依存の決まりでは、`geo_algorithms` は `geo_topology` に依存してよいが、設計書 5.6 で、`geo_algorithms`（とそれに依存する `geo_io`）を位相に依存させないと決めた。`geo_topology` は `geo_algorithms` に依存できない
 

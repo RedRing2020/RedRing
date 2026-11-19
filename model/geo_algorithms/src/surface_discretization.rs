@@ -1,15 +1,22 @@
 //! NURBS 曲面集合の三角形への離散化
 //!
-//! 適応パラメータ分割で初期グリッドを作り、各セルの中心・辺中点で弦誤差を検証する。
+//! 適応パラメータ分割の点と、ノットの区間を次数の数に分けた点で初期グリッドを作り、
+//! 各セルの中心・辺中点で弦誤差を検証する。
 //! 許容弦誤差を満たさないセルはパラメータ区間を二分して再検証し、
 //! 反復上限内に収束しなければ失敗を返す。
 //!
 //! 各セルは短い方の対角線で 2 三角形に分割する。三角形の形状品質（アスペクト比）は制御しない。
 //! 頂点法線は曲面の法線とし、法線が定まらない点（退化した点）では、その頂点を含む三角形の法線の平均とする。
 
+#[cfg(test)]
+mod tests;
+
 use std::fmt;
 
-use geo_contracts::{NurbsSurface3DEvaluation, TriangleMesh3DConstructor, TriangleMeshError};
+use geo_contracts::{
+    NurbsSurface3DEvaluation, NurbsSurface3DProperties, TriangleMesh3DConstructor,
+    TriangleMeshError,
+};
 
 use crate::{
     AdaptiveTessellationSettings, NurbsSurface3D, NurbsSurfaceAdaptiveTessellation, Point3D,
@@ -175,8 +182,15 @@ fn converge_param_grid_counted(
         min_param_span: 0.0,
     };
     let grid = surface.adaptive_params_surface(&settings);
-    let mut u_params = grid.u_params;
-    let mut v_params = grid.v_params;
+    let ((u_min, u_max), (v_min, v_max)) = surface.parameter_domain();
+    let mut u_params = merge_params(
+        grid.u_params,
+        span_division_params(surface.u_knots(), surface.u_degree(), u_min, u_max),
+    );
+    let mut v_params = merge_params(
+        grid.v_params,
+        span_division_params(surface.v_knots(), surface.v_degree(), v_min, v_max),
+    );
 
     let mut refinements = 0;
     loop {
@@ -233,8 +247,17 @@ fn find_cells_over_tolerance(
             let p01 = evaluate(surface, u0, v1);
             let p11 = evaluate(surface, u1, v1);
 
-            let u_edge_error = distance(evaluate(surface, um, v0), midpoint(p00, p10));
-            let v_edge_error = distance(evaluate(surface, u0, vm), midpoint(p00, p01));
+            // 各マスは u・v の小さい側の辺を確かめ、大きい側の端の辺は端のマスで確かめる
+            let mut u_edge_error = distance(evaluate(surface, um, v0), midpoint(p00, p10));
+            if j == v_params.len() - 2 {
+                u_edge_error =
+                    u_edge_error.max(distance(evaluate(surface, um, v1), midpoint(p01, p11)));
+            }
+            let mut v_edge_error = distance(evaluate(surface, u0, vm), midpoint(p00, p01));
+            if i == u_params.len() - 2 {
+                v_edge_error =
+                    v_edge_error.max(distance(evaluate(surface, u1, vm), midpoint(p10, p11)));
+            }
             // セル中心は三角形分割に用いる（短い方の）対角線上で比較する
             let diagonal_midpoint = if uses_main_diagonal(p00, p10, p01, p11) {
                 midpoint(p00, p11)
@@ -258,6 +281,34 @@ fn find_cells_over_tolerance(
         return (Vec::new(), Vec::new());
     }
     (u_split, v_split)
+}
+
+/// ノットの区間（定義域の中で幅のあるもの）を、それぞれ次数の数の等しい幅に分ける点
+///
+/// 次数の高い曲面は、2 分割を重ねた格子の点だけで確かめると、それらの点で平らに見える波を見落とす。
+/// 区間を次数の数に分けた点を最初の格子に加え、確かめる点を波の節からずらす。
+fn span_division_params(knots: &[f64], degree: usize, start: f64, end: f64) -> Vec<f64> {
+    let divisions = degree.max(1);
+    let mut params = Vec::new();
+    for pair in knots.windows(2) {
+        let (a, b) = (pair[0].max(start), pair[1].min(end));
+        if a >= b {
+            continue;
+        }
+        for k in 0..divisions {
+            params.push(a + (b - a) * k as f64 / divisions as f64);
+        }
+    }
+    params.push(end);
+    params
+}
+
+/// 2 つの昇順のパラメータ列を合わせ、昇順で重複のない列にする
+fn merge_params(mut params: Vec<f64>, extra: Vec<f64>) -> Vec<f64> {
+    params.extend(extra);
+    params.sort_by(f64::total_cmp);
+    params.dedup();
+    params
 }
 
 fn insert_midpoints(params: &[f64], split: &[bool]) -> Vec<f64> {
@@ -308,124 +359,4 @@ fn distance_squared(a: Point3D<f64>, b: Point3D<f64>) -> f64 {
     let dy = a.y() - b.y();
     let dz = a.z() - b.z();
     dx * dx + dy * dy + dz * dz
-}
-
-#[cfg(test)]
-mod tests {
-    use geo_contracts::NurbsSurface3DConstructor;
-
-    use super::*;
-
-    const CHORD_TOLERANCE: f64 = 0.001;
-
-    fn dome() -> NurbsSurface3D<f64> {
-        let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        NurbsSurface3D::new(
-            2,
-            2,
-            knots.clone(),
-            knots,
-            &[
-                vec![
-                    Point3D::new(0.0, 0.0, 80.0),
-                    Point3D::new(0.0, 20.0, 80.0),
-                    Point3D::new(0.0, 40.0, 80.0),
-                ],
-                vec![
-                    Point3D::new(20.0, 0.0, 80.0),
-                    Point3D::new(20.0, 20.0, 100.0),
-                    Point3D::new(20.0, 40.0, 80.0),
-                ],
-                vec![
-                    Point3D::new(40.0, 0.0, 80.0),
-                    Point3D::new(40.0, 20.0, 80.0),
-                    Point3D::new(40.0, 40.0, 80.0),
-                ],
-            ],
-            None,
-        )
-        .unwrap()
-    }
-
-    /// 初期分割を浅くし、収束に再分割が必要な条件にする
-    fn limits(max_refinement_iterations: u32) -> TessellationLimits {
-        TessellationLimits {
-            max_subdivisions: 1,
-            max_refinement_iterations,
-            max_vertices_per_surface: 1_000_000,
-        }
-    }
-
-    /// 制限なしで収束に必要な再分割回数
-    fn required_refinements() -> u32 {
-        let required = (0..64)
-            .find(|&max| converge_param_grid_counted(&dome(), CHORD_TOLERANCE, limits(max)).is_ok())
-            .expect("dome should converge within 64 refinements");
-        assert!(required >= 2, "test needs a case requiring refinement");
-        required
-    }
-
-    #[test]
-    fn converges_when_limit_equals_required_refinements() {
-        let required = required_refinements();
-        assert!(converge_param_grid_counted(&dome(), CHORD_TOLERANCE, limits(required)).is_ok());
-    }
-
-    #[test]
-    fn fails_without_exceeding_limit_when_one_short() {
-        let required = required_refinements();
-        let failure = converge_param_grid_counted(&dome(), CHORD_TOLERANCE, limits(required - 1))
-            .unwrap_err();
-        // 上限回数ちょうどで打ち切り、上限を超える再分割は行わない
-        assert_eq!(failure.refinements, required - 1);
-    }
-
-    #[test]
-    fn zero_limit_verifies_initial_grid_only() {
-        let failure = converge_param_grid_counted(&dome(), CHORD_TOLERANCE, limits(0)).unwrap_err();
-        assert_eq!(failure.refinements, 0);
-    }
-
-    #[test]
-    fn tessellate_surfaces_reports_convergence_failure_at_boundary() {
-        let required = required_refinements();
-        assert!(tessellate_surfaces(&[dome()], CHORD_TOLERANCE, limits(required)).is_ok());
-        assert!(matches!(
-            tessellate_surfaces(&[dome()], CHORD_TOLERANCE, limits(required - 1)).unwrap_err(),
-            SurfaceTessellationError::ConvergenceFailure {
-                surface_index: 0,
-                ..
-            }
-        ));
-    }
-
-    #[test]
-    fn vertex_normals_are_the_surface_normals() {
-        use geo_contracts::TriangleMesh3DProperties;
-
-        let surface = dome();
-        let mesh = tessellate_surfaces(
-            std::slice::from_ref(&surface),
-            0.1,
-            TessellationLimits::default(),
-        )
-        .unwrap();
-        let normals = mesh
-            .normals()
-            .expect("tessellated meshes have vertex normals");
-        assert_eq!(normals.len(), mesh.vertex_count());
-        for normal in normals {
-            assert!((normal.length() - 1.0).abs() < 1e-9);
-        }
-        // 三角形の向き（頂点の並び）と頂点法線の向きがそろう
-        for &[a, b, c] in mesh.indices() {
-            let vertices = mesh.vertices();
-            let face = Vector3D::from_points(vertices[a], vertices[b])
-                .cross(Vector3D::from_points(vertices[a], vertices[c]));
-            assert!(face.dot(normals[a]) > 0.0);
-        }
-        // ドームの頂上（u = v = 0.5）の法線は +Z か -Z
-        let top = surface.normal_at(0.5, 0.5).unwrap().to_vector();
-        assert!(top.x().abs() < 1e-9 && top.y().abs() < 1e-9);
-    }
 }
