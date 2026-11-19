@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use job_ipc::ToolpathLimits;
 use job_manager::{AppJobRequest, JobManagerService, ManagerEvent, ProcessLauncher};
 use job_runtime::store::{JobStore, StoreError};
 
@@ -137,18 +138,23 @@ const OLD_LOG_FILE_NAME: &str = "manager.log";
 /// 仕事は続ける）。ログは、保存先を排他に開けた後に新しく書き始める（前の回のログは、番号付きの名前で数回分を残す。
 /// 同じ保存先で後から起動したジョブマネージャーが、動いている方のログをずらさないように。保存先が違えばずらすが、
 /// ずらしたログも残る）。ログを開けなければ、ログを書かずに続ける。
+///
+/// ツールパス生成のランナーには、ツールパスの大きさの上限 `toolpath_limits` を渡す。上限を決めたときのログの行
+/// `toolpath_notes`（英語）は、ログを書き始めたときに書く。
 pub(crate) fn start_service(
     store: JobStore,
     runner: PathBuf,
     log_dir: Option<PathBuf>,
     event_sender: Sender<ManagerEvent>,
+    (toolpath_limits, toolpath_notes): (ToolpathLimits, Vec<String>),
 ) -> Result<(JoinHandle<()>, ServiceChannel), StoreError> {
     let (started_tx, started_rx) = mpsc::channel();
     let (command_tx, command_rx) = mpsc::channel();
     let (reply_tx, reply_rx) = mpsc::channel();
     let handle = std::thread::spawn(move || {
+        let launcher = ProcessLauncher::new(runner, toolpath_limits.limit_bytes);
         let (mut service, events) =
-            match JobManagerService::start(store.clone(), ProcessLauncher::new(runner), now_ms()) {
+            match JobManagerService::start(store.clone(), launcher, now_ms()) {
                 Ok(started) => started,
                 Err(error) => {
                     let _ = started_tx.send(Err(error));
@@ -166,6 +172,9 @@ pub(crate) fn start_service(
             }
         };
         write(format!("started store={}", store.root().display()));
+        for note in toolpath_notes {
+            write(note);
+        }
         for event in events {
             write(describe(&event));
             let _ = event_sender.send(event);

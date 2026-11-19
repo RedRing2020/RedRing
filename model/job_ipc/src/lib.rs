@@ -15,6 +15,6 @@ mod session;
 pub use endpoint::{Connection, Endpoint, Listener};
 pub use protocol::{
     Dependency, ErrorKind, InputHeader, JobFile, JobKind, JobSource, JobStatus, JobSummary,
-    PROTOCOL_VERSION, PendingSubmission, Request, Response, SubmitJob,
+    PROTOCOL_VERSION, PendingSubmission, Request, Response, SubmitJob, ToolpathLimits,
 };
 pub use session::{Client, ClientError, FileContent, Handler, HandlerError, serve};

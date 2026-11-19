@@ -43,7 +43,7 @@ pub(crate) fn set(key: &str, value: Value) -> std::io::Result<()> {
 /// # Errors
 ///
 /// 読めない・大きさの上限を超える・JSON のオブジェクトでない場合。
-fn read_settings(path: &Path) -> std::io::Result<Option<Map<String, Value>>> {
+pub(crate) fn read_settings(path: &Path) -> std::io::Result<Option<Map<String, Value>>> {
     let file = match std::fs::File::open(path) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -78,7 +78,7 @@ fn write_settings(path: &Path, settings: &Map<String, Value>) -> std::io::Result
 }
 
 /// ジョブマネージャーの設定のファイル（Windows では `%APPDATA%\RedRing\job_manager.json`）
-fn settings_file_path() -> Option<PathBuf> {
+pub(crate) fn settings_file_path() -> Option<PathBuf> {
     Some(
         platform_foundation::folder::user_config_folder()?
             .join(APP_FOLDER_NAME)

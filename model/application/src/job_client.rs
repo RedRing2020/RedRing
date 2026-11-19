@@ -19,6 +19,7 @@ use std::fmt;
 use cam_algorithms::CamSolverInput;
 use cam_sim::CuttingSimulationInput;
 use job_domain::{CamJobSource, CamJobStatus};
+use job_ipc::ToolpathLimits;
 
 use crate::cam_simulation_workflow::{
     CamSimulationWorkflowError, CamSimulationWorkflowResult, CamToolpathResult,
@@ -152,6 +153,9 @@ pub(crate) trait JobClient: fmt::Debug {
 
     /// 計算中のジョブ `job_ids` を止めて中断にするよう頼む（途中の結果を残す。止め終えるのを待たない）
     fn stop(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError>;
+
+    /// ツールパスの大きさ（生成に使うメモリの見積もり）の、計算の前に確かめる目安と上限
+    fn toolpath_limits(&self) -> Result<ToolpathLimits, CamSimulationWorkflowError>;
 
     /// ジョブマネージャーが動いているか（起動しない。同じプロセスの中で実行する実装は、いつも動いている。動いていない・
     /// 見つからないときは偽、ほかの理由でつなげないときは誤り）

@@ -6,7 +6,7 @@
 
 use crate::space_model_document::MachiningOperationId;
 use application::cam_simulation_workflow::{
-    Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError, ToolpathSize,
+    Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError, ToolpathLimits, ToolpathSize,
 };
 pub use application::cam_simulation_workflow::{
     CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
@@ -276,7 +276,7 @@ impl SubmissionKind {
 }
 
 /// 工程 `operation`（加工の順の番号 `position`（1 から）・名前 `name`）のツールパスの大きさを、計算を始める前に
-/// 見積もる（確かめる目安を超えるなら、その工程と見積もり）
+/// 見積もる（確かめる目安と上限 `limits` で、確かめる目安を超えるなら、その工程と見積もり）
 ///
 /// # Errors
 ///
@@ -285,10 +285,11 @@ fn large_toolpath(
     document: &SpaceModelDocument,
     operation: MachiningOperationId,
     (position, name): (usize, &str),
+    limits: ToolpathLimits,
 ) -> Result<Option<LargeToolpath>, CamSimulationWorkflowError> {
     let (shapes, sequences, sequence, _) = document.machining();
     let ToolpathSize::Large(estimate) =
-        CamSimulationWorkflow::check_toolpath_size(shapes, sequences, sequence, operation)?
+        CamSimulationWorkflow::check_toolpath_size(shapes, sequences, sequence, operation, limits)?
     else {
         return Ok(None);
     };
@@ -608,7 +609,9 @@ impl CuttingSimulationSession {
             };
             if kind == SubmissionKind::Full {
                 let (position, name) = operation_label(document, operation);
-                if let Some(large) = large_toolpath(document, operation, (position, &name))? {
+                let limits = workflow.toolpath_limits()?;
+                if let Some(large) = large_toolpath(document, operation, (position, &name), limits)?
+                {
                     return Ok(Submitting::Confirm(vec![large], kind));
                 }
             }
@@ -653,7 +656,8 @@ impl CuttingSimulationSession {
         // 大きさは、状態を読む前に確かめる（確かめている間に状態が変わっても、読んだ状態ですぐに投入するため）
         let operation = document.selected_operation();
         let (position, name) = operation_label(document, operation);
-        if let Some(large) = large_toolpath(document, operation, (position, &name))?
+        let limits = self.workflow.toolpath_limits()?;
+        if let Some(large) = large_toolpath(document, operation, (position, &name), limits)?
             && !confirm(&[large])
         {
             return Ok(RedoOutcome::Declined);
@@ -807,17 +811,22 @@ impl CuttingSimulationSession {
                 })
                 .collect();
             let mut large = Vec::new();
+            // 確かめる目安と上限は、ツールパス生成から投入する工程があるときに 1 回だけ問い合わせる
+            let mut limits = None;
             for (index, (item, kind)) in operations.iter().zip(&kinds).enumerate() {
                 if *kind != Some(SubmissionKind::Full) {
                     continue;
                 }
-                let found = large_toolpath(document, item.id, (index + 1, &item.name)).map_err(
-                    |error| SequenceSubmissionError::Conditions {
+                let limits = match limits {
+                    Some(limits) => limits,
+                    None => *limits.insert(workflow.toolpath_limits()?),
+                };
+                let found = large_toolpath(document, item.id, (index + 1, &item.name), limits)
+                    .map_err(|error| SequenceSubmissionError::Conditions {
                         position: index + 1,
                         operation: item.name.clone(),
                         error: error.into(),
-                    },
-                )?;
+                    })?;
                 large.extend(found);
             }
             if !large.is_empty() {

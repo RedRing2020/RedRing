@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 
 use job_ipc::{
     Dependency, Endpoint, ErrorKind, FileContent, Handler, HandlerError, JobFile, JobKind,
-    JobSource, JobStatus, JobSummary, PendingSubmission, SubmitJob,
+    JobSource, JobStatus, JobSummary, PendingSubmission, SubmitJob, ToolpathLimits,
 };
 use job_runtime::store::{
     DependencyRef, JobStore, StoreError, StoredJobKind, StoredJobSource, StoredJobStatus,
@@ -46,13 +46,15 @@ pub enum AppJobRequest {
 pub type RequestJobs = Arc<dyn Fn(AppJobRequest) -> bool + Send + Sync>;
 
 /// 口 `endpoint` を開き、保存先 `store` の要求を受けるスレッドを始める（ほかのプロセスが口を開いている間は、閉じる
-/// まで開き直す）。ウィンドウを開く要求は `open_window` で行い、版を確かめたときに `manager_version` を返す
+/// まで開き直す）。ウィンドウを開く要求は `open_window` で行い、版を確かめたときに `manager_version` を、ツールパスの
+/// 大きさの目安と上限を問われたときに `toolpath_limits` を返す
 pub fn start_endpoint_server(
     endpoint: Endpoint,
     store: JobStore,
     open_window: OpenWindow,
     request_jobs: RequestJobs,
     manager_version: &'static str,
+    toolpath_limits: ToolpathLimits,
 ) -> JoinHandle<()> {
     std::thread::spawn(move || {
         let mut logged_at: Option<Instant> = None;
@@ -79,6 +81,7 @@ pub fn start_endpoint_server(
                         store: store.clone(),
                         open_window: Arc::clone(&open_window),
                         request_jobs: Arc::clone(&request_jobs),
+                        toolpath_limits,
                     };
                     std::thread::spawn(move || {
                         if let Err(error) =
@@ -102,6 +105,7 @@ struct StoreHandler {
     store: JobStore,
     open_window: OpenWindow,
     request_jobs: RequestJobs,
+    toolpath_limits: ToolpathLimits,
 }
 
 impl StoreHandler {
@@ -313,6 +317,10 @@ impl Handler for StoreHandler {
         self.ask(AppJobRequest::Stop(job_ids))
     }
 
+    fn toolpath_limits(&mut self) -> Result<ToolpathLimits, HandlerError> {
+        Ok(self.toolpath_limits)
+    }
+
     fn record_imported(&mut self, simulation_job_id: u64) -> Result<(), HandlerError> {
         let (jobs, _) = self
             .store
@@ -404,8 +412,20 @@ mod tests {
                 true
             }),
             "0.0.0",
+            ToolpathLimits {
+                confirm_bytes: 1_000_000_000,
+                limit_bytes: 3_000_000_000,
+            },
         );
         let mut client = Client::new(endpoint.connect(Duration::from_secs(5)).unwrap()).unwrap();
+        // ツールパスの大きさの目安と上限は、起動のときに決めた値を返す
+        assert_eq!(
+            client.toolpath_limits().unwrap(),
+            ToolpathLimits {
+                confirm_bytes: 1_000_000_000,
+                limit_bytes: 3_000_000_000,
+            }
+        );
         let source = JobSource {
             source_id: "op-1".to_string(),
             revision: 1,
@@ -442,7 +462,7 @@ mod tests {
         // ジョブマネージャーが取り込むと、ジョブとその入力を読める
         let (mut service, _) = crate::JobManagerService::start(
             store,
-            crate::ProcessLauncher::new(root.join("no-runner")),
+            crate::ProcessLauncher::new(root.join("no-runner"), 8_000_000_000),
             1,
         )
         .unwrap();

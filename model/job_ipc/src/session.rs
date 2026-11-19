@@ -11,7 +11,7 @@ use crate::frame::{
 };
 use crate::protocol::{
     ErrorKind, InputHeader, JobFile, JobSummary, PROTOCOL_VERSION, PendingSubmission, Request,
-    Response, SubmitJob,
+    Response, SubmitJob, ToolpathLimits,
 };
 
 /// 1 つの投入の入力の数の上限
@@ -71,6 +71,9 @@ pub trait Handler {
 
     /// 計算中のジョブ `job_ids` を止めて中断にするよう頼む（止め終えるのを待たない）
     fn stop(&mut self, job_ids: Vec<u64>) -> Result<(), HandlerError>;
+
+    /// ツールパスの大きさの、計算の前に確かめる目安と上限
+    fn toolpath_limits(&mut self) -> Result<ToolpathLimits, HandlerError>;
 }
 
 fn error_response(kind: ErrorKind, message: impl Into<String>) -> Response {
@@ -195,6 +198,11 @@ pub fn serve(
             Request::Cancel { job_ids } => reply(handler.cancel(job_ids).map(|()| Response::Ok)),
             Request::Resume { job_ids } => reply(handler.resume(job_ids).map(|()| Response::Ok)),
             Request::Stop { job_ids } => reply(handler.stop(job_ids).map(|()| Response::Ok)),
+            Request::ToolpathLimits => reply(
+                handler
+                    .toolpath_limits()
+                    .map(|limits| Response::ToolpathLimits { limits }),
+            ),
         };
         write_json(connection, &response)?;
         connection.flush()?;
@@ -416,6 +424,18 @@ impl<C: Read + Write> Client<C> {
     pub fn stop(&mut self, job_ids: Vec<u64>) -> Result<(), ClientError> {
         match self.call(&Request::Stop { job_ids })? {
             Response::Ok => Ok(()),
+            _ => Err(ClientError::UnexpectedResponse),
+        }
+    }
+
+    /// ツールパスの大きさの、計算の前に確かめる目安と上限
+    ///
+    /// # Errors
+    ///
+    /// 読み書きできない・ジョブマネージャーが誤りを返した場合。
+    pub fn toolpath_limits(&mut self) -> Result<ToolpathLimits, ClientError> {
+        match self.call(&Request::ToolpathLimits)? {
+            Response::ToolpathLimits { limits } => Ok(limits),
             _ => Err(ClientError::UnexpectedResponse),
         }
     }

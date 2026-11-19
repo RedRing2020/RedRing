@@ -382,47 +382,73 @@ fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
 
 #[test]
 fn toolpath_sizes_are_split_by_the_confirmation_and_the_memory_limit() {
+    let limits = ToolpathLimits {
+        confirm_bytes: 2_000_000_000,
+        limit_bytes: 8_000_000_000,
+    };
+    let size = |points| toolpath_size(points, limits);
     // 点 1 つあたり 250 バイトで、2 GB は 800 万点、8 GB は 3200 万点
-    assert_eq!(toolpath_size(7_999_999).unwrap(), ToolpathSize::Normal);
+    assert_eq!(size(7_999_999).unwrap(), ToolpathSize::Normal);
     let large = ToolpathEstimate {
         points: 8_000_000,
         memory_bytes: 2_000_000_000,
+        limit_bytes: 8_000_000_000,
     };
-    assert_eq!(
-        toolpath_size(8_000_000).unwrap(),
-        ToolpathSize::Large(large)
-    );
+    assert_eq!(size(8_000_000).unwrap(), ToolpathSize::Large(large));
     assert!(!large.is_near_limit());
-    assert!(matches!(
-        toolpath_size(32_000_000).unwrap(),
-        ToolpathSize::Large(_)
-    ));
+    assert!(matches!(size(32_000_000).unwrap(), ToolpathSize::Large(_)));
     // 上限の 8 割（6.4 GB。2560 万点）からは、上限に近い
     let near = |points| ToolpathEstimate {
         points,
         memory_bytes: points * 250,
+        limit_bytes: 8_000_000_000,
     };
     assert!(!near(25_599_999).is_near_limit());
     assert!(near(25_600_000).is_near_limit());
     assert_eq!(
-        toolpath_size(32_000_001).unwrap_err(),
+        size(32_000_001).unwrap_err(),
         CamSimulationWorkflowError::ToolpathTooLarge(ToolpathEstimate {
             points: 32_000_001,
             memory_bytes: 8_000_000_250,
+            limit_bytes: 8_000_000_000,
         })
     );
+
+    // 目安と上限を替えると、分け方も替わる（1 GB は 400 万点、4 GB は 1600 万点。上限の 8 割は 3.2 GB）
+    let limits = ToolpathLimits {
+        confirm_bytes: 1_000_000_000,
+        limit_bytes: 4_000_000_000,
+    };
+    let size = |points| toolpath_size(points, limits);
+    assert_eq!(size(3_999_999).unwrap(), ToolpathSize::Normal);
+    let Ok(ToolpathSize::Large(large)) = size(4_000_000) else {
+        panic!("4 million points need a confirmation");
+    };
+    assert!(!large.is_near_limit());
+    let Ok(ToolpathSize::Large(near)) = size(12_800_000) else {
+        panic!("12.8 million points need a confirmation");
+    };
+    assert!(near.is_near_limit());
+    assert!(matches!(
+        size(16_000_001),
+        Err(CamSimulationWorkflowError::ToolpathTooLarge(_))
+    ));
 }
 
 #[test]
 fn the_toolpath_size_of_an_operation_is_checked_before_the_calculation() {
     let (shapes, face) = pyramid_shape();
     let mut machining = Machining::new(vec![face]);
+    let limits = CamSimulationWorkflow::in_process()
+        .toolpath_limits()
+        .unwrap();
     let check = |machining: &Machining| {
         CamSimulationWorkflow::check_toolpath_size(
             &shapes,
             &machining.store,
             machining.sequence,
             machining.operation,
+            limits,
         )
     };
     assert_eq!(check(&machining).unwrap(), ToolpathSize::Normal);

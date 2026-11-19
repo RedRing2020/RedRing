@@ -24,7 +24,7 @@ use crate::{CuttingSimulationInput, CuttingSimulator};
 /// 数えてから確保する）を作る間は線分とバイト列を持つ。多い側に余裕を足して 250 バイトとする。
 const TOOLPATH_BYTES_PER_POINT: u64 = 250;
 
-/// ツールパス生成に使ってよいメモリの上限（バイト。8 GB。点の数に直し、超えたら止める）
+/// 同じプロセスの中でジョブを実行するときの、ツールパス生成に使ってよいメモリの上限（バイト。8 GB）
 pub const TOOLPATH_MEMORY_LIMIT_BYTES: u64 = 8_000_000_000;
 
 /// 点 `points` 個のツールパスの生成に使うメモリの見積もり（バイト）
@@ -83,37 +83,46 @@ pub struct CuttingSimulationRun {
     pub snapshot_count: usize,
 }
 
-/// ツールパスを生成し、ツールパスの成果物のバイト列（`ArtifactKind::ToolPath`）を返す（点の数がメモリの上限を
-/// 超えるなら、使い切る前に止める）
-pub fn run_cam_solver(input: &CamSolverInput) -> Result<Vec<u8>, JobRunFailure> {
-    let point_limit = toolpath_point_limit(TOOLPATH_MEMORY_LIMIT_BYTES);
-    toolpath_artifact(input, point_limit, solve_toolpath(input, point_limit))
+/// ツールパスを生成し、ツールパスの成果物のバイト列（`ArtifactKind::ToolPath`）を返す（点の数がメモリの上限
+/// `memory_limit_bytes`（バイト）を超えるなら、使い切る前に止める）
+pub fn run_cam_solver(
+    input: &CamSolverInput,
+    memory_limit_bytes: u64,
+) -> Result<Vec<u8>, JobRunFailure> {
+    let point_limit = toolpath_point_limit(memory_limit_bytes);
+    toolpath_artifact(
+        input,
+        (point_limit, memory_limit_bytes),
+        solve_toolpath(input, point_limit),
+    )
 }
 
 /// [`run_cam_solver`] と同じくツールパスを生成し、計算の区切りごとに `checkpoints` に記録を書き足す。前の実行の記録が
 /// あれば、続きから計算する（記録を使えなければ、捨てて最初から計算する）
 pub fn run_cam_solver_resumable(
     input: &CamSolverInput,
+    memory_limit_bytes: u64,
     checkpoints: &mut dyn Checkpoints,
 ) -> Result<Vec<u8>, JobRunFailure> {
-    let point_limit = toolpath_point_limit(TOOLPATH_MEMORY_LIMIT_BYTES);
+    let point_limit = toolpath_point_limit(memory_limit_bytes);
     toolpath_artifact(
         input,
-        point_limit,
+        (point_limit, memory_limit_bytes),
         solve_toolpath_resumable(input, point_limit, checkpoints),
     )
 }
 
-/// 点の数の上限 `point_limit` で生成した `solved` を、ツールパスの成果物のバイト列にする
+/// 点の数の上限 `point_limit`（メモリの上限 `memory_limit_bytes` から決めたもの）で生成した `solved` を、ツールパスの
+/// 成果物のバイト列にする
 fn toolpath_artifact(
     input: &CamSolverInput,
-    point_limit: usize,
+    (point_limit, memory_limit_bytes): (usize, u64),
     solved: Result<ToolPath<f64>, CamSolverError>,
 ) -> Result<Vec<u8>, JobRunFailure> {
     let toolpath = solved.map_err(|error| {
         let limit = match error {
             CamSolverError::TooManyPoints => format!(
-                " (point limit {point_limit} for the memory limit of {TOOLPATH_MEMORY_LIMIT_BYTES} bytes)"
+                " (point limit {point_limit} for the memory limit of {memory_limit_bytes} bytes)"
             ),
             _ => String::new(),
         };

@@ -8,6 +8,7 @@ pub mod folder;
 pub mod identity;
 pub mod ipc;
 pub mod locale;
+pub mod memory;
 pub mod process;
 #[cfg(windows)]
 mod security;

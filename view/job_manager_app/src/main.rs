@@ -29,6 +29,7 @@ mod rows;
 mod service;
 mod settings;
 mod store_change;
+mod toolpath_limits;
 #[cfg(windows)]
 mod tray;
 mod window;
@@ -112,8 +113,18 @@ fn main() -> ExitCode {
     // 保存先を替えても同じ場所）
     let log_dir = platform_foundation::folder::user_data_folder()
         .map(|folder| folder.join(settings::APP_FOLDER_NAME).join("logs"));
-    let (service, channel) = match service::start_service(store.clone(), runner, log_dir, event_tx)
-    {
+    // ツールパスの大きさの目安と上限は、起動のときに設定から決める（書き替えたら、起動し直すと使う）
+    let (toolpath_limits, toolpath_notes) = toolpath_limits::read(
+        settings::settings_file_path().as_deref(),
+        platform_foundation::memory::physical_memory_bytes(),
+    );
+    let (service, channel) = match service::start_service(
+        store.clone(),
+        runner,
+        log_dir,
+        event_tx,
+        (toolpath_limits, toolpath_notes),
+    ) {
         Ok(started) => started,
         Err(StoreError::AlreadyLocked) => {
             #[cfg(windows)]
@@ -138,7 +149,7 @@ fn main() -> ExitCode {
         };
         // ウィンドウを開く要求は、トレイの見えないウィンドウに頼むため、トレイを置いてから口を開く
         if configured_store {
-            start_endpoint(&store, &channel);
+            start_endpoint(&store, &channel, toolpath_limits);
         }
         // 吹き出しは別のスレッドで出す（記録を読む・エクスプローラーを待つ間も、ジョブの管理を止めない）
         let notified_store = store.clone();
@@ -159,7 +170,7 @@ fn main() -> ExitCode {
         let _ = (given_store, event_rx);
         let opener = WindowOpener::new();
         if configured_store {
-            start_endpoint(&store, &channel, &opener);
+            start_endpoint(&store, &channel, toolpath_limits, &opener);
         }
         if !background {
             opener.show(&store, &channel);
@@ -257,11 +268,12 @@ impl WindowOpener {
     }
 }
 
-/// この利用者の、ジョブマネージャーに問い合わせる口を開き、保存先 `store` の要求を受ける（開けなくても、ジョブの
-/// 管理は続ける）
+/// この利用者の、ジョブマネージャーに問い合わせる口を開き、保存先 `store` の要求を受ける（ツールパスの大きさの目安と
+/// 上限を問われたら `toolpath_limits` を返す。開けなくても、ジョブの管理は続ける）
 fn start_endpoint(
     store: &JobStore,
     channel: &ServiceChannel,
+    toolpath_limits: job_ipc::ToolpathLimits,
     #[cfg(not(windows))] opener: &WindowOpener,
 ) {
     let endpoint = match job_ipc::Endpoint::for_current_user() {
@@ -292,6 +304,7 @@ fn start_endpoint(
         open_window,
         request_jobs,
         env!("CARGO_PKG_VERSION"),
+        toolpath_limits,
     );
 }
 

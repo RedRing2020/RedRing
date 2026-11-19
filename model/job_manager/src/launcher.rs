@@ -72,21 +72,27 @@ pub trait Launcher {
 
 /// ランナーの実行ファイルを、シェルを通さずに起動する
 ///
+/// ツールパス生成のランナーには、[`LaunchSpec::args`] に足して、ツールパス生成に使ってよいメモリの上限を渡す
+/// （`--memory-limit`。ジョブマネージャーの起動のときに決める）。
+///
 /// ランナーは、このプロセスが終わる（異常終了を含む）と一緒に止まる組に入れる（`ChildGroup`。組を持たない OS では
 /// 入れない）。このランチャーを捨てたときも、組のランナーは止まる。組を作れない・組に入れられないときは、組に入れずに
 /// 動かし、その理由を `RunningJob::ungrouped_reason` で返す（組を使えない環境でも計算できるように）。
 #[derive(Debug)]
 pub struct ProcessLauncher {
     runner: PathBuf,
+    /// ツールパス生成に使ってよいメモリの上限（バイト）
+    toolpath_memory_limit: u64,
     /// 最初に起動するときに作る（作れなければ、組に入れずに起動し、次の起動で作り直す）
     group: OnceCell<ChildGroup>,
 }
 
 impl ProcessLauncher {
-    /// 実行ファイル `runner` を起動するランチャー
-    pub fn new(runner: PathBuf) -> Self {
+    /// 実行ファイル `runner` を、ツールパス生成ではメモリの上限 `toolpath_memory_limit`（バイト）で起動するランチャー
+    pub fn new(runner: PathBuf, toolpath_memory_limit: u64) -> Self {
         Self {
             runner,
+            toolpath_memory_limit,
             group: OnceCell::new(),
         }
     }
@@ -112,8 +118,14 @@ impl Launcher for ProcessLauncher {
             .and_then(|()| File::create(&spec.stderr))
             .map_or_else(|_| Stdio::null(), Stdio::from);
         let mut command = Command::new(&self.runner);
+        command.args(spec.args());
+        if spec.job_type == "cam" {
+            command.args([
+                "--memory-limit".to_string(),
+                self.toolpath_memory_limit.to_string(),
+            ]);
+        }
         command
-            .args(spec.args())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(stderr);

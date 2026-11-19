@@ -4,8 +4,8 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 pub(crate) const USAGE: &str = "usage: redring-batch-runner --job-type <cam|sim> --input <file> \
---output <dir> --logs <dir> [--toolpath <file> (sim only, required)] [--resume <file> (cam only)] \
-[--progress <file>]";
+--output <dir> --logs <dir> [--memory-limit <bytes> (cam only, required)] \
+[--toolpath <file> (sim only, required)] [--resume <file> (cam only)] [--progress <file>]";
 
 /// ジョブの種類
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +28,8 @@ pub(crate) struct RunnerArgs {
     pub progress: Option<PathBuf>,
     /// ツールパス生成の途中の結果のファイル（区切りごとの記録。あれば続きから計算する）
     pub resume: Option<PathBuf>,
+    /// ツールパス生成に使ってよいメモリの上限（バイト。ツールパス生成だけ）
+    pub memory_limit: Option<u64>,
 }
 
 impl RunnerArgs {
@@ -40,6 +42,7 @@ impl RunnerArgs {
         let mut logs = None;
         let mut progress = None;
         let mut resume = None;
+        let mut memory_limit = None;
         let mut args = args.into_iter();
         while let Some(name) = args.next() {
             let slot = match name.to_str() {
@@ -50,6 +53,7 @@ impl RunnerArgs {
                 Some("--logs") => &mut logs,
                 Some("--progress") => &mut progress,
                 Some("--resume") => &mut resume,
+                Some("--memory-limit") => &mut memory_limit,
                 _ => return Err(format!("unknown argument: {}", name.to_string_lossy())),
             };
             let value = args
@@ -79,6 +83,18 @@ impl RunnerArgs {
         if job_kind == JobKind::Sim && resume.is_some() {
             return Err("--resume is only for cam".to_string());
         }
+        let memory_limit = match (job_kind, memory_limit) {
+            (JobKind::Cam, None) => return Err("--memory-limit is required for cam".to_string()),
+            (JobKind::Sim, Some(_)) => return Err("--memory-limit is only for cam".to_string()),
+            (_, None) => None,
+            (_, Some(value)) => Some(
+                value
+                    .to_str()
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .filter(|&bytes| bytes > 0)
+                    .ok_or("--memory-limit must be a positive number of bytes")?,
+            ),
+        };
         Ok(Self {
             job_kind,
             input: required(input, "--input")?,
@@ -87,6 +103,7 @@ impl RunnerArgs {
             logs: required(logs, "--logs")?,
             progress: progress.map(PathBuf::from),
             resume: resume.map(PathBuf::from),
+            memory_limit,
         })
     }
 }
@@ -110,9 +127,12 @@ mod tests {
             "logs",
             "--input",
             "in.bin",
+            "--memory-limit",
+            "4000000000",
         ])
         .unwrap();
         assert_eq!(cam.job_kind, JobKind::Cam);
+        assert_eq!(cam.memory_limit, Some(4_000_000_000));
         assert_eq!(cam.input, PathBuf::from("in.bin"));
         assert_eq!(cam.toolpath, None);
         assert_eq!(cam.progress, None);
@@ -136,11 +156,13 @@ mod tests {
         assert_eq!(sim.job_kind, JobKind::Sim);
         assert_eq!(sim.toolpath, Some(PathBuf::from("tp.bin")));
         assert_eq!(sim.progress, Some(PathBuf::from("progress.json")));
+        assert_eq!(sim.memory_limit, None);
     }
 
     #[test]
     fn rejects_missing_unknown_repeated_and_misplaced_arguments() {
         let base = ["--input", "in", "--output", "out", "--logs", "logs"];
+        let cam = ["--job-type", "cam", "--memory-limit", "1000"];
         let with = |extra: &[&'static str]| {
             let mut args = base.to_vec();
             args.extend_from_slice(extra);
@@ -149,16 +171,32 @@ mod tests {
         assert!(with(&[]).is_err());
         assert!(with(&["--job-type", "nc"]).is_err());
         assert!(with(&["--job-type", "sim"]).is_err());
-        assert!(with(&["--job-type", "cam", "--toolpath", "tp"]).is_err());
+        assert!(with(&[&cam[..], &["--toolpath", "tp"]].concat()).is_err());
         assert!(with(&["--job-type", "sim", "--toolpath", "tp", "--resume", "r"]).is_err());
         assert_eq!(
-            with(&["--job-type", "cam", "--resume", "r"])
+            with(&[&cam[..], &["--resume", "r"]].concat())
                 .unwrap()
                 .resume,
             Some(PathBuf::from("r"))
         );
-        assert!(with(&["--job-type", "cam", "--input", "again"]).is_err());
-        assert!(with(&["--job-type", "cam", "--verbose"]).is_err());
+        assert!(with(&[&cam[..], &["--input", "again"]].concat()).is_err());
+        assert!(with(&[&cam[..], &["--verbose"]].concat()).is_err());
+        // メモリの上限は、ツールパス生成に要り、正の数のバイトに限る
+        assert!(with(&["--job-type", "cam"]).is_err());
+        for bad in ["0", "-1", "2.5", "abc"] {
+            assert!(with(&["--job-type", "cam", "--memory-limit", bad]).is_err());
+        }
+        assert!(
+            with(&[
+                "--job-type",
+                "sim",
+                "--toolpath",
+                "tp",
+                "--memory-limit",
+                "1000"
+            ])
+            .is_err()
+        );
         assert!(with(&["--job-type"]).is_err());
         assert!(parse(&["--job-type", "cam", "--input", "in", "--output", "out"]).is_err());
     }
