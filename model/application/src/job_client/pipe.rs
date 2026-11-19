@@ -2,12 +2,13 @@
 //!
 //! 保存先のパスを知らずに、投入・状態の読み取り・成果物の取り込みを、口の要求で行う。口につなげなければ、このアプリと
 //! 同じフォルダのジョブマネージャーを起動して、口が開くのを待つ。接続は操作ごとにつなぎ直し（ジョブマネージャーを
-//! 起動し直した・保存先を替えた後も、そのまま使える）、読み書きには時間の上限を設ける。
+//! 起動し直した・保存先を替えた後も、そのまま使える）、読み書きには時間の上限を設ける。状態を今読んでから投入する
+//! ような、いくつもの問い合わせからなる操作は、つないでおいた 1 つの接続で行う。
 //!
 //! 計算の状態は、別のスレッドで 1 つの接続で読み、呼ぶ側には最後に読んだ状態を返す（画面を止めないように。ジョブ
 //! マネージャーの起動を待つのも、そのスレッド）。投入できたら、取り込みを待つ投入として状態にすぐに出す。
 
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -63,6 +64,15 @@ pub(crate) struct PipeJobClient {
     status: Arc<Mutex<StatusState>>,
     /// 状態を読むスレッドへの頼み（初めて頼むときに、スレッドを始める）
     status_requests: OnceCell<Sender<Work>>,
+    /// 1 回の操作の間つないでおく接続（つないでいなければ `None`。問い合わせごとにつなぐ）
+    held: RefCell<Option<HeldConnection>>,
+}
+
+/// 1 回の操作の間つないでおく接続
+enum HeldConnection {
+    Open(Client<Connection>),
+    /// 問い合わせに失敗した（途中で失敗した接続は、読み書きがずれているかもしれないため使わない。つなぎ直さない）
+    Failed,
 }
 
 impl std::fmt::Debug for PipeJobClient {
@@ -145,11 +155,34 @@ impl PipeJobClient {
             }),
             status: Arc::new(Mutex::new(StatusState::default())),
             status_requests: OnceCell::new(),
+            held: RefCell::new(None),
+        }
+    }
+
+    /// 口につないで `request` を行う（つないでおいた接続があれば、それを使う。なければつなぎ、ジョブマネージャーが
+    /// 動いていなければ起動して待つ）
+    fn request<T>(
+        &self,
+        request: impl FnOnce(&mut Client<Connection>) -> Result<T, CamSimulationWorkflowError>,
+    ) -> Result<T, CamSimulationWorkflowError> {
+        let mut held = self.held.borrow_mut();
+        match held.as_mut() {
+            None => request(&mut self.connector.connect()?),
+            Some(HeldConnection::Open(client)) => {
+                let result = request(client);
+                if result.is_err() {
+                    *held = Some(HeldConnection::Failed);
+                }
+                result
+            }
+            Some(HeldConnection::Failed) => Err(store_error(
+                "a request to the job manager failed earlier in this operation",
+            )),
         }
     }
 
     fn jobs(&self) -> Result<Vec<JobSummary>, CamSimulationWorkflowError> {
-        self.connector.connect()?.jobs().map_err(client_error)
+        self.request(|client| client.jobs().map_err(client_error))
     }
 
     /// ジョブの列を投入する（投入できたら、取り込みを待つ投入として、計算の状態にすぐに出す）
@@ -159,11 +192,8 @@ impl PipeJobClient {
         inputs: &[(&str, &[u8])],
     ) -> Result<String, CamSimulationWorkflowError> {
         let submitted_source = jobs.first().and_then(|job| job.source.as_ref()).map(source);
-        let submission_id = self
-            .connector
-            .connect()?
-            .submit(jobs, inputs)
-            .map_err(client_error)?;
+        let submission_id =
+            self.request(|client| client.submit(jobs, inputs).map_err(client_error))?;
         {
             let mut state = lock(&self.status);
             state.generation += 1;
@@ -237,7 +267,9 @@ fn read_status_loop(connector: &Connector, status: &Mutex<StatusState>, requests
             }
             let generation = lock(status).generation;
             // 状態を読むだけでは、ジョブマネージャーを起動しない（動いていなければ、そのことを返す）
-            let read = read_status(connector, false);
+            let read = connector
+                .connect_running()
+                .and_then(|mut client| read_status(&mut client));
             let mut state = lock(status);
             if state.generation == generation {
                 state.latest = Some((read, Instant::now()));
@@ -264,17 +296,11 @@ fn record_imported(connector: &Connector, simulation_job_id: u64) {
     }
 }
 
-/// 1 つの接続で、取り込みを待つ投入とジョブの一覧を読む（この順に読む。間に取り込まれた投入は、ジョブの一覧に出る）。
-/// `start` のときは、ジョブマネージャーが動いていなければ起動して待つ。そうでなければ、動いていないことを返す
+/// 1 つの接続 `client` で、取り込みを待つ投入とジョブの一覧を読む（この順に読む。間に取り込まれた投入は、ジョブの
+/// 一覧に出る）
 fn read_status(
-    connector: &Connector,
-    start: bool,
+    client: &mut Client<Connection>,
 ) -> Result<JobStatusSnapshot, CamSimulationWorkflowError> {
-    let mut client = if start {
-        connector.connect()?
-    } else {
-        connector.connect_running()?
-    };
     let pending = client.pending_submissions().map_err(client_error)?;
     let jobs = client.jobs().map_err(client_error)?;
     Ok(JobStatusSnapshot {
@@ -539,30 +565,21 @@ impl JobClient for PipeJobClient {
     }
 
     fn cancel(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
-        self.connector
-            .connect()?
-            .cancel(job_ids.to_vec())
-            .map_err(client_error)?;
+        self.request(|client| client.cancel(job_ids.to_vec()).map_err(client_error))?;
         // 取り消しが一覧に出るように、読み直しを頼む（待たない）
         self.request_status();
         Ok(())
     }
 
     fn resume(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
-        self.connector
-            .connect()?
-            .resume(job_ids.to_vec())
-            .map_err(client_error)?;
+        self.request(|client| client.resume(job_ids.to_vec()).map_err(client_error))?;
         // 計算待ちに戻したことが一覧に出るように、読み直しを頼む（待たない）
         self.request_status();
         Ok(())
     }
 
     fn stop(&mut self, job_ids: &[u64]) -> Result<(), CamSimulationWorkflowError> {
-        self.connector
-            .connect()?
-            .stop(job_ids.to_vec())
-            .map_err(client_error)?;
+        self.request(|client| client.stop(job_ids.to_vec()).map_err(client_error))?;
         // 中断にしたことが一覧に出るように、読み直しを頼む（待たない）
         self.request_status();
         Ok(())
@@ -579,6 +596,18 @@ impl JobClient for PipeJobClient {
         }
     }
 
+    fn hold_connection(&mut self) -> Result<(), CamSimulationWorkflowError> {
+        // 前の接続を閉じてからつなぐ（つなげなければ、つないでいないままにする）
+        *self.held.get_mut() = None;
+        let client = self.connector.connect()?;
+        *self.held.get_mut() = Some(HeldConnection::Open(client));
+        Ok(())
+    }
+
+    fn release_connection(&mut self) {
+        *self.held.get_mut() = None;
+    }
+
     fn record_imported(&self, simulation_job_id: u64) -> Result<(), CamSimulationWorkflowError> {
         // 状態を読むスレッドで伝える（画面を止めない。伝えられなかったことは、ログに書く）
         self.send(Work::RecordImported(simulation_job_id));
@@ -586,7 +615,7 @@ impl JobClient for PipeJobClient {
     }
 
     fn read_status_now(&mut self) -> Result<JobStatusSnapshot, CamSimulationWorkflowError> {
-        let snapshot = read_status(&self.connector, true)?;
+        let snapshot = self.request(read_status)?;
         // 読めた状態を、最後に読んだ状態にもする（読み終えるのを待たずに返す側も、同じ状態を返すように。読めなかった
         // ときは、前に読めた状態を残す）
         let mut state = lock(&self.status);
@@ -619,31 +648,32 @@ impl JobClient for PipeJobClient {
         &self,
         toolpath_job_id: u64,
     ) -> Result<CamToolpathResult, CamSimulationWorkflowError> {
-        let mut client = self.connector.connect()?;
-        let jobs = client.jobs().map_err(client_error)?;
-        let toolpath = jobs
-            .iter()
-            .find(|job| {
-                job.job_id == toolpath_job_id
-                    && job.kind == JobKind::Cam
-                    && job.status == JobStatus::Succeeded
+        self.request(|client| {
+            let jobs = client.jobs().map_err(client_error)?;
+            let toolpath = jobs
+                .iter()
+                .find(|job| {
+                    job.job_id == toolpath_job_id
+                        && job.kind == JobKind::Cam
+                        && job.status == JobStatus::Succeeded
+                })
+                .ok_or(CamSimulationWorkflowError::NotSucceededToolpath(
+                    toolpath_job_id,
+                ))?;
+            // ないジョブ・ないファイルは、成果物がない誤りにする（ほかの誤りは、そのまま返す）
+            let artifact = client
+                .read_job_file(toolpath_job_id, JobFile::Result)
+                .map_err(|error| match error {
+                    ClientError::Remote {
+                        kind: ErrorKind::JobNotFound | ErrorKind::FileNotFound,
+                        ..
+                    } => CamSimulationWorkflowError::MissingArtifact(toolpath_job_id),
+                    error => client_error(error),
+                })?;
+            Ok(CamToolpathResult {
+                artifact,
+                source: toolpath.source.as_ref().map(source),
             })
-            .ok_or(CamSimulationWorkflowError::NotSucceededToolpath(
-                toolpath_job_id,
-            ))?;
-        // ないジョブ・ないファイルは、成果物がない誤りにする（ほかの誤りは、そのまま返す）
-        let artifact = client
-            .read_job_file(toolpath_job_id, JobFile::Result)
-            .map_err(|error| match error {
-                ClientError::Remote {
-                    kind: ErrorKind::JobNotFound | ErrorKind::FileNotFound,
-                    ..
-                } => CamSimulationWorkflowError::MissingArtifact(toolpath_job_id),
-                error => client_error(error),
-            })?;
-        Ok(CamToolpathResult {
-            artifact,
-            source: toolpath.source.as_ref().map(source),
         })
     }
 
@@ -651,66 +681,69 @@ impl JobClient for PipeJobClient {
         &self,
         simulation_job_id: u64,
     ) -> Result<CamSimulationWorkflowResult, CamSimulationWorkflowError> {
-        let mut client = self.connector.connect()?;
-        let jobs = client.jobs().map_err(client_error)?;
-        let by_id: HashMap<u64, &JobSummary> = jobs.iter().map(|job| (job.job_id, job)).collect();
-        let not_succeeded =
-            || CamSimulationWorkflowError::NotSucceededSimulation(simulation_job_id);
-        let simulation = by_id
-            .get(&simulation_job_id)
-            .filter(|job| job.kind == JobKind::Sim && job.status == JobStatus::Succeeded)
-            .ok_or_else(not_succeeded)?;
-        // CL を入力にするジョブ（依存するジョブを持たない）は、ツールパス生成の入力を持たない
-        let toolpath = if simulation.depends_on.is_empty() {
-            None
-        } else {
-            Some(
-                toolpath_job(&by_id, simulation)
-                    .filter(|job| job.status == JobStatus::Succeeded)
-                    .ok_or_else(not_succeeded)?,
-            )
-        };
-        let missing_input = || CamSimulationWorkflowError::MissingInput(simulation_job_id);
-        let missing_artifact = || CamSimulationWorkflowError::MissingArtifact(simulation_job_id);
-        // ないジョブ・ないファイルは、入力・成果物がない誤りにする（ほかの誤りは、そのまま返す）
-        let mut read = |job_id: u64,
-                        file: JobFile,
-                        missing: &dyn Fn() -> CamSimulationWorkflowError|
-         -> Result<Vec<u8>, CamSimulationWorkflowError> {
-            client
-                .read_job_file(job_id, file)
-                .map_err(|error| match error {
-                    ClientError::Remote {
-                        kind: ErrorKind::JobNotFound | ErrorKind::FileNotFound,
-                        ..
-                    } => missing(),
-                    error => client_error(error),
-                })
-        };
-        let solver_input = match toolpath {
-            Some(toolpath) => Some(
-                read_cam_solver_input_v1(
-                    &mut read(toolpath.job_id, JobFile::Input, &missing_input)?.as_slice(),
+        self.request(|client| {
+            let jobs = client.jobs().map_err(client_error)?;
+            let by_id: HashMap<u64, &JobSummary> =
+                jobs.iter().map(|job| (job.job_id, job)).collect();
+            let not_succeeded =
+                || CamSimulationWorkflowError::NotSucceededSimulation(simulation_job_id);
+            let simulation = by_id
+                .get(&simulation_job_id)
+                .filter(|job| job.kind == JobKind::Sim && job.status == JobStatus::Succeeded)
+                .ok_or_else(not_succeeded)?;
+            // CL を入力にするジョブ（依存するジョブを持たない）は、ツールパス生成の入力を持たない
+            let toolpath = if simulation.depends_on.is_empty() {
+                None
+            } else {
+                Some(
+                    toolpath_job(&by_id, simulation)
+                        .filter(|job| job.status == JobStatus::Succeeded)
+                        .ok_or_else(not_succeeded)?,
                 )
-                .map_err(|_| missing_input())?,
-            ),
-            None => None,
-        };
-        let simulation_input = read_cutting_simulation_input_v1(
-            &mut read(simulation_job_id, JobFile::Input, &missing_input)?.as_slice(),
-        )
-        .map_err(|_| missing_input())?;
-        let toolpath_artifact = match toolpath {
-            Some(toolpath) => read(toolpath.job_id, JobFile::Result, &missing_artifact)?,
-            None => read(simulation_job_id, JobFile::InputToolpath, &missing_input)?,
-        };
-        let simulation_artifact = read(simulation_job_id, JobFile::Result, &missing_artifact)?;
-        Ok(CamSimulationWorkflowResult {
-            toolpath_artifact,
-            simulation_artifact,
-            solver_input,
-            simulation_input,
-            source: simulation.source.as_ref().map(source),
+            };
+            let missing_input = || CamSimulationWorkflowError::MissingInput(simulation_job_id);
+            let missing_artifact =
+                || CamSimulationWorkflowError::MissingArtifact(simulation_job_id);
+            // ないジョブ・ないファイルは、入力・成果物がない誤りにする（ほかの誤りは、そのまま返す）
+            let mut read = |job_id: u64,
+                            file: JobFile,
+                            missing: &dyn Fn() -> CamSimulationWorkflowError|
+             -> Result<Vec<u8>, CamSimulationWorkflowError> {
+                client
+                    .read_job_file(job_id, file)
+                    .map_err(|error| match error {
+                        ClientError::Remote {
+                            kind: ErrorKind::JobNotFound | ErrorKind::FileNotFound,
+                            ..
+                        } => missing(),
+                        error => client_error(error),
+                    })
+            };
+            let solver_input = match toolpath {
+                Some(toolpath) => Some(
+                    read_cam_solver_input_v1(
+                        &mut read(toolpath.job_id, JobFile::Input, &missing_input)?.as_slice(),
+                    )
+                    .map_err(|_| missing_input())?,
+                ),
+                None => None,
+            };
+            let simulation_input = read_cutting_simulation_input_v1(
+                &mut read(simulation_job_id, JobFile::Input, &missing_input)?.as_slice(),
+            )
+            .map_err(|_| missing_input())?;
+            let toolpath_artifact = match toolpath {
+                Some(toolpath) => read(toolpath.job_id, JobFile::Result, &missing_artifact)?,
+                None => read(simulation_job_id, JobFile::InputToolpath, &missing_input)?,
+            };
+            let simulation_artifact = read(simulation_job_id, JobFile::Result, &missing_artifact)?;
+            Ok(CamSimulationWorkflowResult {
+                toolpath_artifact,
+                simulation_artifact,
+                solver_input,
+                simulation_input,
+                source: simulation.source.as_ref().map(source),
+            })
         })
     }
 }

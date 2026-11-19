@@ -156,4 +156,12 @@ pub(crate) trait JobClient: fmt::Debug {
     /// ジョブマネージャーが動いているか（起動しない。同じプロセスの中で実行する実装は、いつも動いている。動いていない・
     /// 見つからないときは偽、ほかの理由でつなげないときは誤り）
     fn manager_running(&self) -> Result<bool, CamSimulationWorkflowError>;
+
+    /// ジョブマネージャーにつなぎ、[`Self::release_connection`] までの問い合わせを、その接続で行う（動いていなければ
+    /// 起動して、口が開くのを待つ。1 回の操作で、つなぐのと起動を待つのを 1 回にする）。間の問い合わせに失敗したら、
+    /// つなぎ直さずに、後の問い合わせも誤りにする
+    fn hold_connection(&mut self) -> Result<(), CamSimulationWorkflowError>;
+
+    /// [`Self::hold_connection`] でつないだ接続を閉じる（後の問い合わせは、問い合わせごとにつなぐ）
+    fn release_connection(&mut self);
 }

@@ -1347,3 +1347,40 @@ fn toolpaths_are_calculated_for_the_faces_of_a_shell() {
         read_toolpath_artifact_v1(&mut result.toolpath_artifact.as_slice()).unwrap();
     assert!(toolpath.total_cutting_length() > 0.0);
 }
+
+#[test]
+fn an_operation_in_one_connection_runs_only_after_connecting() {
+    // つなげれば、操作を行ってその結果を返す
+    let mut workflow = CamSimulationWorkflow::in_process();
+    assert_eq!(
+        workflow.with_job_manager_connection(|_| Ok::<_, CamSimulationWorkflowError>(7)),
+        Ok(7)
+    );
+
+    // 起動できない（実行できないファイルの）ジョブマネージャーには、つなげないため、操作を行わない（投入まで進んで、
+    // もう一度起動を試みない）。口は試験だけの名前
+    let folder = std::env::temp_dir().join(format!(
+        "redring-workflow-connection-test-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&folder).unwrap();
+    let manager = folder.join("redring-job-manager.exe");
+    std::fs::write(&manager, b"not a program").unwrap();
+    let endpoint =
+        job_ipc::Endpoint::with_name(&format!("workflow-connection-test-{}", std::process::id()))
+            .unwrap();
+    let mut workflow = CamSimulationWorkflow {
+        jobs: Box::new(crate::job_client::PipeJobClient::new(Ok(endpoint), manager)),
+    };
+    let mut run = false;
+    let result = workflow.with_job_manager_connection(|_| {
+        run = true;
+        Ok::<_, CamSimulationWorkflowError>(())
+    });
+    let _ = std::fs::remove_dir_all(&folder);
+    assert!(matches!(
+        result,
+        Err(CamSimulationWorkflowError::JobStore(_))
+    ));
+    assert!(!run);
+}
