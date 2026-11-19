@@ -95,6 +95,17 @@ fn main() -> ExitCode {
         Ok(store) => store,
         Err(error) => return fail("startup.failed", &[("reason", error.to_string())], 3),
     };
+    // 保存先は、利用者だけが読み書きできるこの PC のフォルダだけを使う（既定の保存先は、直して使う）
+    if let Err(failure) =
+        store_change::check_opened_store(&root, JobStore::default_root().as_deref())
+    {
+        let reason = messages::text(
+            locale::current(),
+            messages::change_failure_key(failure),
+            &[],
+        );
+        return fail("startup.store_not_private", &[("reason", reason)], 3);
+    }
     // 出来事は、受け取り始めるまで溜めておく（ジョブが終わったときの吹き出しに使う）
     let (event_tx, event_rx) = std::sync::mpsc::channel();
     // ログは、利用者ごとのデータのフォルダの下の `RedRing` の下の `logs` に書く（既定の保存先と同じフォルダの下。

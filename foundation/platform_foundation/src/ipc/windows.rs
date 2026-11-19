@@ -13,18 +13,15 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
+use crate::security::{SecurityDescriptor, UserSid};
 use windows_sys::Win32::Foundation::{
-    CloseHandle, ERROR_ACCESS_DENIED, ERROR_BROKEN_PIPE, ERROR_INSUFFICIENT_BUFFER,
-    ERROR_IO_PENDING, ERROR_NO_DATA, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, ERROR_SUCCESS,
-    GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree, WAIT_OBJECT_0,
+    CloseHandle, ERROR_ACCESS_DENIED, ERROR_BROKEN_PIPE, ERROR_IO_PENDING, ERROR_NO_DATA,
+    ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, ERROR_SUCCESS, GetLastError, HANDLE,
+    INVALID_HANDLE_VALUE, WAIT_OBJECT_0,
 };
-use windows_sys::Win32::Security::Authorization::{
-    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo,
-    SDDL_REVISION_1, SE_KERNEL_OBJECT,
-};
+use windows_sys::Win32::Security::Authorization::{GetSecurityInfo, SE_KERNEL_OBJECT};
 use windows_sys::Win32::Security::{
-    EqualSid, GetTokenInformation, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
-    SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER, TokenUser,
+    EqualSid, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_FLAG_OVERLAPPED, PIPE_ACCESS_DUPLEX, ReadFile,
@@ -35,9 +32,7 @@ use windows_sys::Win32::System::Pipes::{
     ConnectNamedPipe, CreateNamedPipeW, GetNamedPipeServerProcessId, PIPE_READMODE_BYTE,
     PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_WAIT,
 };
-use windows_sys::Win32::System::Threading::{
-    CreateEventW, GetCurrentProcess, INFINITE, OpenProcessToken, WaitForSingleObject,
-};
+use windows_sys::Win32::System::Threading::{CreateEventW, INFINITE, WaitForSingleObject};
 use windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 /// パイプの名前の始まり
@@ -245,85 +240,6 @@ impl Address {
     }
 }
 
-/// この利用者の SID
-struct UserSid {
-    /// `TOKEN_USER` を入れた領域（SID を指すため、比べ終えるまで持つ）
-    token_user: Vec<u64>,
-    text: String,
-}
-
-impl UserSid {
-    fn current() -> io::Result<Self> {
-        let mut token: HANDLE = std::ptr::null_mut();
-        // SAFETY: 自分のプロセスの擬似ハンドルから、問い合わせだけのトークンを開く
-        if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
-            return Err(io::Error::last_os_error());
-        }
-        let result = Self::from_token(token);
-        // SAFETY: 開いたトークンを閉じる
-        unsafe { CloseHandle(token) };
-        result
-    }
-
-    fn from_token(token: HANDLE) -> io::Result<Self> {
-        let mut length = 0u32;
-        // SAFETY: 大きさだけを問い合わせる
-        let sized =
-            unsafe { GetTokenInformation(token, TokenUser, std::ptr::null_mut(), 0, &mut length) };
-        // SAFETY: 直前の呼び出しの誤りを読む
-        if sized == 0 && unsafe { GetLastError() } != ERROR_INSUFFICIENT_BUFFER {
-            return Err(io::Error::last_os_error());
-        }
-        let mut token_user = vec![0u64; (length as usize).div_ceil(8)];
-        // SAFETY: `token_user` は `length` バイト以上あり、8 バイトにそろっている
-        if unsafe {
-            GetTokenInformation(
-                token,
-                TokenUser,
-                token_user.as_mut_ptr().cast(),
-                length,
-                &mut length,
-            )
-        } == 0
-        {
-            return Err(io::Error::last_os_error());
-        }
-        let mut sid = Self {
-            token_user,
-            text: String::new(),
-        };
-        let mut text: *mut u16 = std::ptr::null_mut();
-        // SAFETY: SID は `token_user` の中にある。書いた文字列は、読み終えてから放す
-        unsafe {
-            if ConvertSidToStringSidW(sid.sid(), &mut text) == 0 {
-                return Err(io::Error::last_os_error());
-            }
-            let length = (0..).take_while(|&i| *text.add(i) != 0).count();
-            sid.text = String::from_utf16_lossy(std::slice::from_raw_parts(text, length));
-            LocalFree(text.cast());
-        }
-        Ok(sid)
-    }
-
-    fn sid(&self) -> PSID {
-        // SAFETY: `token_user` には、`GetTokenInformation` が書いた `TOKEN_USER` がある
-        unsafe { (*self.token_user.as_ptr().cast::<TOKEN_USER>()).User.Sid }
-    }
-}
-
-/// `LocalFree` で放す、セキュリティ記述子
-struct SecurityDescriptor(PSECURITY_DESCRIPTOR);
-
-// SAFETY: 作った後は読むだけで、どのスレッドからでも使える
-unsafe impl Send for SecurityDescriptor {}
-
-impl Drop for SecurityDescriptor {
-    fn drop(&mut self) {
-        // SAFETY: `ConvertStringSecurityDescriptorToSecurityDescriptorW` が作ったものを放す
-        unsafe { LocalFree(self.0) };
-    }
-}
-
 /// 開いたパイプ（次の接続を待つインスタンスを持つ）
 ///
 /// パイプのインスタンスの数の上限は、同時につなげる数より 1 つ多くする。同時につなげる数だけつないでいても、次の
@@ -352,24 +268,11 @@ impl Listener {
     pub(super) fn bind(address: &Address, max_connections: usize) -> io::Result<Self> {
         let sid = UserSid::current()?;
         // 持ち主をこの利用者にし、この利用者だけにすべての権利を渡す（親の権利を引き継がない）
-        let text = crate::wide(&format!("O:{0}D:P(A;;GA;;;{0})", sid.text));
-        let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
-        // SAFETY: `text` は終わりが 0 の UTF-16 の文字列
-        if unsafe {
-            ConvertStringSecurityDescriptorToSecurityDescriptorW(
-                text.as_ptr(),
-                SDDL_REVISION_1,
-                &mut descriptor,
-                std::ptr::null_mut(),
-            )
-        } == 0
-        {
-            return Err(io::Error::last_os_error());
-        }
+        let security = SecurityDescriptor::from_sddl(&format!("O:{0}D:P(A;;GA;;;{0})", sid.text))?;
         let mut listener = Self {
             name: address.wide(),
             max_connections,
-            security: SecurityDescriptor(descriptor),
+            security,
             next: None,
             slots: Arc::new(AtomicUsize::new(0)),
         };
@@ -387,7 +290,7 @@ impl Listener {
     fn create_instance(&self, first: bool) -> io::Result<File> {
         let attributes = SECURITY_ATTRIBUTES {
             nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-            lpSecurityDescriptor: self.security.0,
+            lpSecurityDescriptor: self.security.as_ptr(),
             bInheritHandle: 0,
         };
         let first_flag = if first {
@@ -533,7 +436,7 @@ fn owned_by_current_user(file: &File) -> io::Result<bool> {
     if status != ERROR_SUCCESS {
         return Err(io::Error::from_raw_os_error(status as i32));
     }
-    let descriptor = SecurityDescriptor(descriptor);
+    let descriptor = SecurityDescriptor::from_raw(descriptor);
     // SAFETY: どちらの SID も、持ち主の領域が生きている間に比べる
     let same = unsafe { EqualSid(owner, sid.sid()) } != 0;
     drop(descriptor);

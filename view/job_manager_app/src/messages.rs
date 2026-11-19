@@ -133,6 +133,14 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
         "フォルダを読み書きできません",
     ),
     (
+        "change_failure.no_permissions",
+        "利用者ごとの権限を付けられないドライブのフォルダです",
+    ),
+    (
+        "change_failure.open_to_others",
+        "ほかの利用者も読み書きできるフォルダです",
+    ),
+    (
         "change_failure.name_conflict",
         "中のフォルダの名前が保存先と重なるため、使えません",
     ),
@@ -253,6 +261,10 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     (
         "startup.failed",
         "ジョブマネージャーを起動できません（{reason}）",
+    ),
+    (
+        "startup.store_not_private",
+        "ジョブの保存先のフォルダを使えないため、起動できません（{reason}）",
     ),
 ];
 
@@ -385,6 +397,14 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
     ),
     ("change_failure.not_local", "The folder is not on this PC"),
     (
+        "change_failure.no_permissions",
+        "The folder is on a drive that cannot hold per-user permissions",
+    ),
+    (
+        "change_failure.open_to_others",
+        "Other users can read or write the folder",
+    ),
+    (
         "change_failure.inaccessible",
         "Cannot read or write the folder",
     ),
@@ -507,6 +527,10 @@ const JOB_MANAGER_TEMPLATE_EN: &[(&str, &str)] = &[
         "The job manager is already running",
     ),
     ("startup.failed", "Cannot start the job manager ({reason})"),
+    (
+        "startup.store_not_private",
+        "Cannot start because the job store folder cannot be used ({reason})",
+    ),
 ];
 
 /// 言語 `language` の文言の表
@@ -589,22 +613,31 @@ pub(crate) fn job_error_text(language: Language, error: &StoredJobError) -> Opti
 
 /// 保存先を替えられない理由 `failure` の、言語 `language` の文言
 pub(crate) fn change_failure_text(language: Language, failure: ChangeFailure) -> String {
-    let reason = match failure {
+    // 設定は保存したため、替えられなかったとは書かない
+    if failure == ChangeFailure::RestartFailed {
+        return text(language, "store.change_restart_failed", &[]);
+    }
+    text(
+        language,
+        "store.change_failed",
+        &[("reason", text(language, change_failure_key(failure), &[]))],
+    )
+}
+
+/// 保存先を替えられない理由・保存先のフォルダを使えない理由 `failure` の文言のキー
+pub(crate) fn change_failure_key(failure: ChangeFailure) -> &'static str {
+    match failure {
         ChangeFailure::Same => "change_failure.same",
         ChangeFailure::Nested => "change_failure.nested",
         ChangeFailure::NotLocal => "change_failure.not_local",
+        ChangeFailure::NoPermissions => "change_failure.no_permissions",
+        ChangeFailure::OpenToOthers => "change_failure.open_to_others",
         ChangeFailure::Inaccessible => "change_failure.inaccessible",
         ChangeFailure::NameConflict => "change_failure.name_conflict",
         ChangeFailure::Busy => "change_failure.busy",
         ChangeFailure::SettingNotSaved => "change_failure.setting_not_saved",
-        // 設定は保存したため、替えられなかったとは書かない
-        ChangeFailure::RestartFailed => return text(language, "store.change_restart_failed", &[]),
-    };
-    text(
-        language,
-        "store.change_failed",
-        &[("reason", text(language, reason, &[]))],
-    )
+        ChangeFailure::RestartFailed => "store.change_restart_failed",
+    }
 }
 
 /// 保存先の誤りの種類 `failure` の文言のキー
@@ -707,18 +740,31 @@ mod tests {
                 ChangeFailure::Same,
                 ChangeFailure::Nested,
                 ChangeFailure::NotLocal,
+                ChangeFailure::NoPermissions,
+                ChangeFailure::OpenToOthers,
                 ChangeFailure::Inaccessible,
                 ChangeFailure::NameConflict,
                 ChangeFailure::Busy,
                 ChangeFailure::SettingNotSaved,
                 ChangeFailure::RestartFailed,
             ] {
-                let text = change_failure_text(language, failure);
+                let message = change_failure_text(language, failure);
                 assert!(
-                    !text.contains("__missing__") && !text.contains('{'),
-                    "{failure:?}: {text}"
+                    !message.contains("__missing__") && !message.contains('{'),
+                    "{failure:?}: {message}"
                 );
+                let reason = text(language, change_failure_key(failure), &[]);
+                assert!(!reason.contains("__missing__"), "{failure:?}");
             }
+            let message = text(
+                language,
+                "startup.store_not_private",
+                &[(
+                    "reason",
+                    text(language, "change_failure.open_to_others", &[]),
+                )],
+            );
+            assert!(!message.contains("__missing__") && !message.contains('{'));
         }
     }
 }
