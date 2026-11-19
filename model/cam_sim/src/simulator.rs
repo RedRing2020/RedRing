@@ -170,6 +170,18 @@ impl CuttingSimulator {
         tool: &Tool<f64>,
         precision: f64,
     ) -> Result<(), SimulationError> {
+        self.simulate_reporting(toolpath, tool, precision, &mut |_, _| {})
+    }
+
+    /// [`Self::simulate`] と同じくシミュレーションし、掃引体をトリデクセルから差し引く前に、`progress` に差し引いた
+    /// 掃引体の数と、差し引く掃引体の数を知らせる（掃引体を作る間・記録の時点を決める間は知らせない）
+    pub(crate) fn simulate_reporting(
+        &mut self,
+        toolpath: &ToolPath<f64>,
+        tool: &Tool<f64>,
+        precision: f64,
+        progress: &mut dyn FnMut(usize, usize),
+    ) -> Result<(), SimulationError> {
         let segments =
             collect_toolpath_line_segments(toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM);
         if segments.is_empty() {
@@ -191,7 +203,8 @@ impl CuttingSimulator {
             .iter()
             .map(|&snapshot| self.snapshot_applied[snapshot])
             .collect();
-        let dexels = TriDexelModel::from_stock_model(&model, spacing, &keyframe_applied);
+        let dexels =
+            TriDexelModel::from_stock_model_reporting(&model, spacing, &keyframe_applied, progress);
         for (snapshot, &applied) in self.snapshots.iter_mut().zip(&self.snapshot_applied) {
             snapshot.remaining_volume = dexels.remaining_volume_at(applied);
         }

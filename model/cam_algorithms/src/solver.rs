@@ -246,11 +246,14 @@ pub fn solve_toolpath(
     input: &CamSolverInput,
     point_limit: usize,
 ) -> Result<ToolPath<f64>, CamSolverError> {
-    solve(input, point_limit, None)
+    solve(input, point_limit, None, &mut |_, _| {})
 }
 
 /// [`solve_toolpath`] と同じく ToolPath を生成し、計算の区切りごとに `checkpoints` に記録を書き足す。前の実行の記録が
 /// あれば、続きから計算する（記録を使えなければ、捨てて最初から計算する）
+///
+/// 走査ラインを計算する前に、`progress` に終えた走査ラインの数と全体の走査ラインの数を知らせる（続きから計算する
+/// ときは、読み戻した走査ラインを終えた数に含める。工具と形状の準備と、走査ラインを経路にまとめる間は知らせない）。
 ///
 /// 続きから計算した ToolPath は、最初から計算した ToolPath と同じになる。工具と形状の準備は、続けるときも作り直す。
 ///
@@ -261,15 +264,18 @@ pub fn solve_toolpath_resumable(
     input: &CamSolverInput,
     point_limit: usize,
     checkpoints: &mut dyn Checkpoints,
+    progress: &mut dyn FnMut(usize, usize),
 ) -> Result<ToolPath<f64>, CamSolverError> {
-    solve(input, point_limit, Some(checkpoints))
+    solve(input, point_limit, Some(checkpoints), progress)
 }
 
-/// ToolPath を生成する（`checkpoints` があれば、区切りごとに記録を書き足し、前の実行の記録から続ける）
+/// ToolPath を生成する（`checkpoints` があれば、区切りごとに記録を書き足し、前の実行の記録から続ける。走査ラインの
+/// 進み具合を `progress` に知らせる）
 fn solve(
     input: &CamSolverInput,
     point_limit: usize,
     checkpoints: Option<&mut dyn Checkpoints>,
+    progress: &mut dyn FnMut(usize, usize),
 ) -> Result<ToolPath<f64>, CamSolverError> {
     let OperationSpec::Scanline(params) = input.operation;
     let frame = ScanFrame::from_degrees(params.angle_degrees);
@@ -288,9 +294,9 @@ fn solve(
         &input.tool.id,
         &params,
         (&region, frame),
-        input.chord_tolerance,
-        point_limit,
+        (input.chord_tolerance, point_limit),
         checkpoints,
+        progress,
     )
 }
 

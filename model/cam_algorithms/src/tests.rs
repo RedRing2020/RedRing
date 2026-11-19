@@ -1253,9 +1253,9 @@ fn scanline_toolpaths_require_a_positive_finite_tolerance() {
                 &crate::scan_frame::ScanRegion::rectangle(min, max),
                 crate::scan_frame::ScanFrame::from_degrees(0.0),
             ),
-            tolerance,
-            usize::MAX,
+            (tolerance, usize::MAX),
             None,
+            &mut |_, _| {},
         );
         assert!(
             matches!(result, Err(CamSolverError::InvalidInput(_))),
@@ -1549,7 +1549,9 @@ fn resume_from(
         saved: saved.iter().cloned().collect(),
         ..MemoryCheckpoints::default()
     };
-    let toolpath = crate::solve_toolpath_resumable(input, usize::MAX, &mut checkpoints).unwrap();
+    let toolpath =
+        crate::solve_toolpath_resumable(input, usize::MAX, &mut checkpoints, &mut |_, _| {})
+            .unwrap();
     (toolpath, checkpoints)
 }
 
@@ -1557,7 +1559,8 @@ fn resume_from(
 fn resuming_from_any_scanline_gives_the_same_toolpath_as_from_the_start() {
     let input = zigzag_dome_input();
     let mut first = MemoryCheckpoints::default();
-    let full = crate::solve_toolpath_resumable(&input, usize::MAX, &mut first).unwrap();
+    let full =
+        crate::solve_toolpath_resumable(&input, usize::MAX, &mut first, &mut |_, _| {}).unwrap();
     assert_eq!(full, solve_toolpath(&input, usize::MAX).unwrap());
     let records = first.recorded;
     assert!(records.len() >= 3, "{}", records.len());
@@ -1575,7 +1578,8 @@ fn resuming_from_any_scanline_gives_the_same_toolpath_as_from_the_start() {
 fn unusable_scanline_records_are_discarded_and_computed_from_the_start() {
     let input = zigzag_dome_input();
     let mut first = MemoryCheckpoints::default();
-    let full = crate::solve_toolpath_resumable(&input, usize::MAX, &mut first).unwrap();
+    let full =
+        crate::solve_toolpath_resumable(&input, usize::MAX, &mut first, &mut |_, _| {}).unwrap();
     let records = first.recorded;
 
     let mut short_paths = records[..2].to_vec();
@@ -1597,7 +1601,7 @@ fn unusable_scanline_records_are_discarded_and_computed_from_the_start() {
 fn scanline_records_over_the_point_limit_are_discarded_before_reading_the_points() {
     let input = zigzag_dome_input();
     let mut first = MemoryCheckpoints::default();
-    crate::solve_toolpath_resumable(&input, usize::MAX, &mut first).unwrap();
+    crate::solve_toolpath_resumable(&input, usize::MAX, &mut first, &mut |_, _| {}).unwrap();
     // 2 つ目の記録までの点の数（状態の最後の数）より 1 少ない上限
     let state = &first.recorded[1].state;
     let points = u64::from_le_bytes(state[state.len() - 8..].try_into().unwrap()) as usize;
@@ -1605,9 +1609,38 @@ fn scanline_records_over_the_point_limit_are_discarded_before_reading_the_points
         saved: first.recorded[..2].iter().cloned().collect(),
         ..MemoryCheckpoints::default()
     };
-    let _ = crate::solve_toolpath_resumable(&input, points - 1, &mut checkpoints);
+    let _ = crate::solve_toolpath_resumable(&input, points - 1, &mut checkpoints, &mut |_, _| {});
     assert_eq!(
         checkpoints.discarded.as_deref(),
         Some("the paths of the scanline records exceed the point limit")
     );
+}
+
+#[test]
+fn scanline_progress_counts_the_scanlines_before_computing_each_one() {
+    let input = zigzag_dome_input();
+    let mut reports = Vec::new();
+    let mut first = MemoryCheckpoints::default();
+    crate::solve_toolpath_resumable(&input, usize::MAX, &mut first, &mut |done, total| {
+        reports.push((done, total))
+    })
+    .unwrap();
+    let total = reports[0].1;
+    // 走査ラインごとに 1 つずつ進み、最後の走査ラインの前で終わる（経路にまとめる間は知らせない）
+    let expected: Vec<_> = (0..total).map(|done| (done, total)).collect();
+    assert_eq!(reports, expected);
+
+    // 続きから計算するときは、読み戻した走査ラインの次から知らせる
+    let saved = &first.recorded[..1];
+    let mut checkpoints = MemoryCheckpoints {
+        saved: saved.iter().cloned().collect(),
+        ..MemoryCheckpoints::default()
+    };
+    let mut resumed = Vec::new();
+    crate::solve_toolpath_resumable(&input, usize::MAX, &mut checkpoints, &mut |done, total| {
+        resumed.push((done, total))
+    })
+    .unwrap();
+    assert!(resumed[0].0 > 0, "{resumed:?}");
+    assert_eq!(resumed, expected[resumed[0].0..]);
 }
