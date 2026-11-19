@@ -76,6 +76,10 @@ const CUTTING_SIMULATION_FILE: &str = "cutting_simulation.bin";
 
 /// 投入の要求・ジョブの記録のファイルの大きさの上限
 const MAX_JSON_BYTES: u64 = 64 * 1024;
+/// 進み具合のファイルの大きさの上限
+const MAX_PROGRESS_BYTES: u64 = 1024;
+/// 進み具合の残りの目安の上限（秒。1 年。超えるものは、目安にならないため読まない）
+const MAX_REMAINING_SECONDS: u64 = 366 * 24 * 60 * 60;
 /// 1 つの投入のジョブの数の上限
 const MAX_JOBS_PER_SUBMISSION: usize = 64;
 /// 入力のファイルの大きさの上限
@@ -86,6 +90,15 @@ const MAX_NAME_LEN: usize = 64;
 const MAX_LABEL_LEN: usize = 256;
 /// 受付のフォルダの書きかけの投入を、書く側が落ちて残ったものとみなすまでの時間
 const STALE_SUBMISSION_AGE: Duration = Duration::from_secs(60 * 60);
+
+/// 計算中のジョブの進み具合（ランナーが計算の途中に書く。設計: JOB_MANAGER_STORAGE_DESIGN.md 3.1）
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StoredProgress {
+    /// 割合（0〜1）
+    pub fraction: f32,
+    /// 残りの目安の秒数（ランナーがまだ見積もれないときは `None`）
+    pub remaining_seconds: Option<u64>,
+}
 
 /// 保存先の誤り
 #[derive(Debug)]
@@ -757,6 +770,27 @@ impl JobStore {
     pub fn imported_job(&self, job_id: u64) -> Option<u64> {
         let bytes = read_limited(&self.job_dir(job_id).join(IMPORTED_FILE), 32).ok()?;
         String::from_utf8(bytes).ok()?.trim().parse().ok()
+    }
+
+    /// ジョブ `job_id` の、ランナーが書いた進み具合（ファイルがない・読めない・形や値の範囲が正しくないときは
+    /// `None`。残りの目安だけが範囲を外れるときは、残りの目安を `None` にする）
+    pub fn read_progress(&self, job_id: u64) -> Option<StoredProgress> {
+        /// 進み具合のファイルの形（状態 `state` は読まない。ジョブの状態は記録が決める）
+        #[derive(serde::Deserialize)]
+        struct ProgressFile {
+            fraction: f64,
+            remaining_seconds: Option<u64>,
+        }
+        let bytes = read_limited(&self.progress_file(job_id), MAX_PROGRESS_BYTES).ok()?;
+        let file: ProgressFile = serde_json::from_slice(&bytes).ok()?;
+        (0.0..=1.0)
+            .contains(&file.fraction)
+            .then(|| StoredProgress {
+                fraction: file.fraction as f32,
+                remaining_seconds: file
+                    .remaining_seconds
+                    .filter(|&seconds| seconds <= MAX_REMAINING_SECONDS),
+            })
     }
 
     /// 種類 `kind` のジョブの成果物のファイル

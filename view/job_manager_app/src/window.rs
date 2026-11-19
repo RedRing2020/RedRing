@@ -3,7 +3,7 @@
 //! ジョブの記録は保存先から一定の間隔で読み直す。記録を書くのはサービスのスレッドだけのため、操作はサービスに渡し、
 //! 結果が返ったら記録を読み直す。
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -14,10 +14,10 @@ use eframe::egui::{self, CentralPanel, Color32, Grid, Id, Modal, Panel, RichText
 use job_manager::{
     DeletePlan, delete_plan, idle_jobs, imported_sources, old_jobs, superseded_jobs,
 };
-use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus};
+use job_runtime::store::{JobStore, StoredJob, StoredJobKind, StoredJobStatus, StoredProgress};
 
 use crate::messages::{change_failure_text, job_error_text, store_failure_key, text};
-use crate::rows::{JobRow, elapsed_ms, format_elapsed, format_size, job_rows};
+use crate::rows::{JobRow, elapsed_ms, format_elapsed, format_size, job_rows, progress_percent};
 use crate::service::{JobCommand, ServiceChannel, StoreFailure, now_ms};
 use crate::store_change::{self, ChangeFailure, FolderContents};
 
@@ -34,6 +34,9 @@ const MAX_OLD_DAYS: u32 = 3650;
 const DAY_MS: u64 = 24 * 60 * 60 * 1000;
 /// ログのタブに出す、ログの末尾の大きさ
 const LOG_TAIL_BYTES: u64 = 64 * 1024;
+
+/// ジョブの一覧の状態の欄の、進み具合のバーの幅
+const PROGRESS_BAR_WIDTH: f32 = 100.0;
 
 /// ジョブの一覧の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
 const SELECTED_ROW_OPACITY: f32 = 0.45;
@@ -117,6 +120,8 @@ pub(crate) struct JobManagerWindow {
     /// 選んだ言語を保存できなかった理由
     language_error: Option<String>,
     jobs: Vec<StoredJob>,
+    /// 計算中のジョブの、ランナーが書いた進み具合（ジョブの記録を読み直すたびに読み直す）
+    progress: HashMap<u64, StoredProgress>,
     /// 一覧の行（ジョブの記録・絞り込みが変わったときに並べ直す）
     rows: Vec<JobRow>,
     unreadable_jobs: usize,
@@ -160,6 +165,7 @@ impl JobManagerWindow {
             title_language: locale::current(),
             language_error: None,
             jobs: Vec::new(),
+            progress: HashMap::new(),
             rows: Vec::new(),
             unreadable_jobs: 0,
             store_error: None,
@@ -251,6 +257,12 @@ impl JobManagerWindow {
             match self.store.load_jobs() {
                 Ok((jobs, unreadable)) => {
                     self.jobs = jobs;
+                    self.progress = self
+                        .jobs
+                        .iter()
+                        .filter(|job| job.status == StoredJobStatus::Running)
+                        .filter_map(|job| Some((job.job_id, self.store.read_progress(job.job_id)?)))
+                        .collect();
                     self.jobs_version += 1;
                     self.unreadable_jobs = unreadable.len();
                     self.store_error = None;
@@ -986,11 +998,8 @@ impl JobManagerWindow {
                                 RichText::new(self.status_text(job.status))
                                     .color(status_color(job.status)),
                             );
-                            // 進み具合の割合はまだないため、計算中は動いていることだけを出す
                             if job.status == StoredJobStatus::Running {
-                                // 印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）
-                                let size = ui.text_style_height(&egui::TextStyle::Body);
-                                ui.add(egui::Spinner::new().size(size));
+                                self.show_progress(ui, self.progress.get(&job.job_id));
                             }
                         });
                         cells.push(status.response.rect);
@@ -1034,6 +1043,40 @@ impl JobManagerWindow {
             ui.ctx().request_repaint();
         }
         self.rows = rows;
+    }
+
+    /// 計算中の行の状態の欄に、進み具合 `progress` を出す（割合を書いたバーと残りの目安。残りの目安がまだないときは、
+    /// バーの上に回る印を出す。進み具合を読めないときは、回る印だけを出す）
+    ///
+    /// バー・印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）。
+    fn show_progress(&self, ui: &mut egui::Ui, progress: Option<&StoredProgress>) {
+        let size = ui.text_style_height(&egui::TextStyle::Body);
+        let Some(progress) = progress else {
+            ui.add(egui::Spinner::new().size(size));
+            return;
+        };
+        let bar = ui.add(
+            egui::ProgressBar::new(progress.fraction)
+                .desired_width(PROGRESS_BAR_WIDTH)
+                .desired_height(size)
+                .text(format!("{}%", progress_percent(progress.fraction))),
+        );
+        match progress.remaining_seconds {
+            Some(seconds) => {
+                ui.label(self.text_with(
+                    "status.remaining",
+                    &[("time", format_elapsed(seconds.saturating_mul(1000)))],
+                ));
+            }
+            None => {
+                // 割合の文字と重ならないように、バーの右の端に置く
+                let spinner = egui::Rect::from_min_size(
+                    egui::pos2(bar.rect.right() - size, bar.rect.top()),
+                    egui::vec2(size, size),
+                );
+                ui.put(spinner, egui::Spinner::new().size(size));
+            }
+        }
     }
 
     fn source_text(&self, job: &StoredJob) -> String {
