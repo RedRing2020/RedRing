@@ -9,6 +9,9 @@ pub struct Graphic {
     pub queue: Queue,
     pub surface: Surface<'static>,
     pub config: SurfaceConfiguration,
+    /// 画面の部品（egui）を描く形式（画面の形式から sRGB を除いた見え方。GPU が画面の見え方を足せないときは、画面の
+    /// 形式のまま）
+    pub ui_format: wgpu::TextureFormat,
     /// 前のフレームで画面のテクスチャを得たときの問題（ログを毎フレーム書かないため）
     surface_problem: Option<SurfaceProblem>,
     pub depth_texture: Texture,
@@ -34,6 +37,16 @@ fn surface_format(
         .find(|format| format.is_srgb())
         .or_else(|| formats.first().copied())?;
     Some((format, alpha_modes.first().copied()?))
+}
+
+/// 画面の形式 `format` に対して、画面の部品（egui）を描く形式（画面に見え方を足せる `view_formats_supported` なら
+/// sRGB を除いた形式、足せなければ画面の形式）
+fn ui_format(format: wgpu::TextureFormat, view_formats_supported: bool) -> wgpu::TextureFormat {
+    if view_formats_supported {
+        format.remove_srgb_suffix()
+    } else {
+        format
+    }
 }
 
 /// 描画の仕組み `backends` で、ウィンドウ `window` に描ける GPU と、描く形式を探す（見つからなければ `None`）
@@ -146,6 +159,15 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         panic!("wgpu error: {error}");
     }));
 
+    // 画面の部品（egui）は sRGB でない形式を前提にするため、同じ画面の sRGB でない見え方に描く（3D の表示は sRGB の
+    // 形式のまま）。GPU が画面に見え方を足せないときは、画面の形式のまま描く
+    let ui_format = ui_format(
+        format,
+        adapter
+            .get_downlevel_capabilities()
+            .flags
+            .contains(wgpu::DownlevelFlags::SURFACE_VIEW_FORMATS),
+    );
     let config = SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format,
@@ -153,7 +175,11 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         height: window.inner_size().height,
         present_mode: wgpu::PresentMode::Fifo,
         alpha_mode,
-        view_formats: vec![],
+        view_formats: if ui_format == format {
+            Vec::new()
+        } else {
+            vec![ui_format]
+        },
         desired_maximum_frame_latency: 2,
         // sRGB の形式では sRGB に出す（今までと同じ）
         color_space: wgpu::SurfaceColorSpace::Auto,
@@ -182,6 +208,7 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         queue,
         surface,
         config,
+        ui_format,
         surface_problem: None,
         depth_texture,
         depth_view,
@@ -232,6 +259,14 @@ impl Graphic {
             dimension: Some(wgpu::TextureViewDimension::D2),
             ..Default::default()
         });
+        // 画面の部品は、sRGB でない見え方に描く（画面の形式と同じなら、同じ見え方）
+        let ui_view = (self.ui_format != self.config.format).then(|| {
+            frame.texture.create_view(&wgpu::TextureViewDescriptor {
+                format: Some(self.ui_format),
+                dimension: Some(wgpu::TextureViewDimension::D2),
+                ..Default::default()
+            })
+        });
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -244,7 +279,13 @@ impl Graphic {
             viewport_width: self.config.width,
             viewport_height: self.config.height,
         };
-        renderer.render_with_depth(&render_context, &mut encoder, &view, &self.depth_view);
+        renderer.render_with_depth(
+            &render_context,
+            &mut encoder,
+            &view,
+            ui_view.as_ref().unwrap_or(&view),
+            &self.depth_view,
+        );
         self.queue.submit(std::iter::once(encoder.finish()));
         self.queue.present(frame);
     }
@@ -308,6 +349,22 @@ mod tests {
         assert_eq!(
             surface_format(&[TextureFormat::Rgba16Float], &[CompositeAlphaMode::Auto]),
             Some((TextureFormat::Rgba16Float, CompositeAlphaMode::Auto))
+        );
+    }
+
+    #[test]
+    fn the_ui_is_drawn_without_srgb_when_the_surface_allows_another_view() {
+        assert_eq!(
+            ui_format(TextureFormat::Bgra8UnormSrgb, true),
+            TextureFormat::Bgra8Unorm
+        );
+        assert_eq!(
+            ui_format(TextureFormat::Bgra8UnormSrgb, false),
+            TextureFormat::Bgra8UnormSrgb
+        );
+        assert_eq!(
+            ui_format(TextureFormat::Rgba16Float, true),
+            TextureFormat::Rgba16Float
         );
     }
 

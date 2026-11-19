@@ -286,7 +286,12 @@ impl AppState {
         let ui_locale = app_settings.locale();
         crate::fatal_error_dialog::set_fatal_error_locale(ui_locale);
         let graphic = init_graphic(window.clone());
-        let renderer = AppRendererFactory::create_empty(&window, &graphic.device, &graphic.config);
+        let renderer = AppRendererFactory::create_empty(
+            &window,
+            &graphic.device,
+            &graphic.config,
+            graphic.ui_format,
+        );
         let viewing_operation_settings = ViewingOperationSettings::default();
 
         let first_notice = settings_notice.unwrap_or(Notice::Startup);
