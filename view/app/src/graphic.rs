@@ -17,11 +17,37 @@ pub struct Graphic {
     device_lost: Arc<AtomicBool>,
 }
 
-/// 描画の仕組み `backends` で、ウィンドウ `window` に描ける GPU を探す（見つからなければ `None`）
+/// ウィンドウに描く形式と透過の扱い
+type SurfaceFormat = (wgpu::TextureFormat, wgpu::CompositeAlphaMode);
+
+/// 画面が受け付ける形式 `formats` と透過の扱い `alpha_modes` から、描く形式（sRGB の形式があればそれ、なければ最初の
+/// 形式）と透過の扱い（最初のもの）を選ぶ（どちらかの一覧が空なら `None`）
+///
+/// wgpu は、HDR の色空間でしか使えない形式を一覧から除くため、OS が HDR のときに、ドライバによっては一覧が空になる。
+fn surface_format(
+    formats: &[wgpu::TextureFormat],
+    alpha_modes: &[wgpu::CompositeAlphaMode],
+) -> Option<SurfaceFormat> {
+    let format = formats
+        .iter()
+        .copied()
+        .find(|format| format.is_srgb())
+        .or_else(|| formats.first().copied())?;
+    Some((format, alpha_modes.first().copied()?))
+}
+
+/// 描画の仕組み `backends` で、ウィンドウ `window` に描ける GPU と、描く形式を探す（見つからなければ `None`）
+///
+/// GPU が見つかっても、ウィンドウに描ける形式がなければ使わない（ほかの描画の仕組みを試せるように）。
 fn find_adapter(
     window: &Arc<Window>,
     backends: wgpu::Backends,
-) -> Option<(wgpu::Instance, Surface<'static>, wgpu::Adapter)> {
+) -> Option<(
+    wgpu::Instance,
+    Surface<'static>,
+    wgpu::Adapter,
+    SurfaceFormat,
+)> {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends,
         ..wgpu::InstanceDescriptor::new_without_display_handle()
@@ -34,7 +60,19 @@ fn find_adapter(
         ..Default::default()
     }))
     .ok()?;
-    Some((instance, surface, adapter))
+    let caps = surface.get_capabilities(&adapter);
+    let Some(format) = surface_format(&caps.formats, &caps.alpha_modes) else {
+        let info = adapter.get_info();
+        tracing::warn!(
+            formats = caps.formats.len(),
+            alpha_modes = caps.alpha_modes.len(),
+            "The GPU adapter {} ({:?}) offers no surface format to draw to the window",
+            info.name,
+            info.backend
+        );
+        return None;
+    };
+    Some((instance, surface, adapter, format))
 }
 
 pub fn init_graphic(window: Arc<Window>) -> Graphic {
@@ -45,13 +83,15 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
     let found = match requested {
         Some(backends) => find_adapter(&window, backends),
         None => find_adapter(&window, wgpu::Backends::PRIMARY).or_else(|| {
-            tracing::warn!("No Vulkan, DX12 or Metal GPU adapter was found; trying OpenGL");
+            tracing::warn!(
+                "No Vulkan, DX12 or Metal GPU adapter that can draw to the window was found; trying OpenGL"
+            );
             find_adapter(&window, wgpu::Backends::GL)
         }),
     };
-    let (_instance, surface, adapter) = found.unwrap_or_else(|| {
+    let (_instance, surface, adapter, (format, alpha_mode)) = found.unwrap_or_else(|| {
         panic!(
-            "No GPU adapter was found for the window (backends: {}; set WGPU_BACKEND to choose another)",
+            "No GPU adapter that can draw to the window was found (backends: {}; set WGPU_BACKEND to choose another)",
             requested.map_or("Vulkan, DX12, Metal, then OpenGL".to_string(), |backends| {
                 format!("{backends:?}")
             })
@@ -106,21 +146,13 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         panic!("wgpu error: {error}");
     }));
 
-    let caps = surface.get_capabilities(&adapter);
-    let format = caps
-        .formats
-        .iter()
-        .copied()
-        .find(|f| f.is_srgb())
-        .unwrap_or(caps.formats[0]);
-
     let config = SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format,
         width: window.inner_size().width,
         height: window.inner_size().height,
         present_mode: wgpu::PresentMode::Fifo,
-        alpha_mode: caps.alpha_modes[0],
+        alpha_mode,
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
         // sRGB の形式では sRGB に出す（今までと同じ）
@@ -256,5 +288,33 @@ impl SurfaceProblem {
             (true, false) => Self::Reconfigured,
             (false, _) => Self::Skipped,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wgpu::{CompositeAlphaMode, TextureFormat};
+
+    #[test]
+    fn the_srgb_format_is_chosen_when_offered() {
+        assert_eq!(
+            surface_format(
+                &[TextureFormat::Bgra8Unorm, TextureFormat::Bgra8UnormSrgb],
+                &[CompositeAlphaMode::Opaque, CompositeAlphaMode::Auto],
+            ),
+            Some((TextureFormat::Bgra8UnormSrgb, CompositeAlphaMode::Opaque))
+        );
+        assert_eq!(
+            surface_format(&[TextureFormat::Rgba16Float], &[CompositeAlphaMode::Auto]),
+            Some((TextureFormat::Rgba16Float, CompositeAlphaMode::Auto))
+        );
+    }
+
+    #[test]
+    fn nothing_is_chosen_when_a_list_is_empty() {
+        // OS が HDR のときに、ドライバによっては形式の一覧が空になる
+        assert_eq!(surface_format(&[], &[CompositeAlphaMode::Opaque]), None);
+        assert_eq!(surface_format(&[TextureFormat::Bgra8UnormSrgb], &[]), None);
     }
 }
