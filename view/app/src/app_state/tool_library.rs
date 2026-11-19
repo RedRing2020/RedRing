@@ -2,13 +2,15 @@
 
 use super::AppState;
 use crate::help_ui::Notice;
+use crate::machining_conditions_ui::OperationToolCommand;
 use crate::tool_library_messages::resolve_tool_library_text;
 use crate::tool_library_ui::{ToolLibraryAction, ToolLibraryUiState};
 use std::path::PathBuf;
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
 use viewmodel::tool_library_session::{
-    ToolLibraryFailure, ToolLibrarySession, ToolLibraryState, file_label, locked_message,
+    ToolLibraryFailure, ToolLibrarySession, ToolLibraryState, ToolSetId, ToolSetReference,
+    file_label, locked_message,
 };
 
 /// ツールライブラリのファイルの拡張子
@@ -52,14 +54,30 @@ impl AppState {
     pub(crate) fn open_tool_library_window(&mut self) {
         self.tool_library.refresh();
         self.tool_library_window.open = true;
+        self.tool_library_window.picking = false;
         let count = self.tool_library.libraries().len();
         if self.tool_library_window.selected_library >= count {
             self.tool_library_window.selected_library = count.saturating_sub(1);
         }
     }
 
+    /// 工程の設定のダイアログの「ライブラリから選ぶ…」: 編集している工程の工具を選ぶために、ウィンドウを開く（工程の
+    /// 工具を選んだツールセット `toolset` があれば、そのライブラリのそのツールセットを選んだ状態で開く）
+    pub(super) fn open_tool_library_for_operation(&mut self, toolset: Option<ToolSetReference>) {
+        self.open_tool_library_window();
+        self.tool_library_window.picking = true;
+        if let Some(toolset) = toolset
+            && let Some(index) = self.tool_library.library_index_of(&toolset)
+        {
+            self.select_tool_library(index);
+            self.tool_library_window.selected_toolset = Some(toolset.toolset);
+        }
+    }
+
     pub(crate) fn prepare_tool_library_state(&self) -> ToolLibraryUiState {
-        let window = self.tool_library_window.clone();
+        let mut window = self.tool_library_window.clone();
+        // 工程の工具を選ぶのは、工程の設定のダイアログを開いている間だけ
+        window.picking &= self.condition_draft.is_some();
         let toolsets = if window.open {
             self.tool_library.toolsets(window.selected_library)
         } else {
@@ -88,6 +106,8 @@ impl AppState {
 
     pub(crate) fn apply_tool_library_state(&mut self, state: ToolLibraryUiState) {
         self.tool_library_window = state.window;
+        // 閉じたウィンドウは、次に開くまで工程の工具を選ばない
+        self.tool_library_window.picking &= self.tool_library_window.open;
         if state.requested.is_some() {
             self.tool_library_action = state.requested;
         }
@@ -111,6 +131,10 @@ impl AppState {
                 window.draft = None;
                 window.rename = None;
                 self.save_tool_library_list();
+                Outcome::Nothing
+            }
+            ToolLibraryAction::UseForOperation { library, id } => {
+                self.use_toolset_for_operation(library, id);
                 Outcome::Nothing
             }
             edit => self.edit_tool_library(edit),
@@ -210,6 +234,22 @@ impl AppState {
         Outcome::Nothing
     }
 
+    /// 一覧の番号 `library` のライブラリのツールセット `id` を、工程の設定のダイアログで編集している工程の工具にし、
+    /// ウィンドウを閉じる（ダイアログを閉じた後は何もしない）
+    fn use_toolset_for_operation(&mut self, library: usize, id: ToolSetId) {
+        if self.condition_draft.is_none() {
+            return;
+        }
+        self.run_operation_tool_command(OperationToolCommand::Select {
+            library,
+            toolset: id,
+        });
+        // ダイアログの工具の欄も、選んだライブラリにする
+        self.operation_tool_library = library;
+        self.tool_library_window.open = false;
+        self.tool_library_window.picking = false;
+    }
+
     fn select_tool_library(&mut self, index: usize) {
         let window = &mut self.tool_library_window;
         window.selected_library = index;
@@ -226,7 +266,8 @@ impl AppState {
             | ToolLibraryAction::UpdateToolSet { library, .. }
             | ToolLibraryAction::RemoveToolSet { library, .. }
             | ToolLibraryAction::MoveToolSet { library, .. } => *library,
-            ToolLibraryAction::CreateLibrary
+            ToolLibraryAction::UseForOperation { .. }
+            | ToolLibraryAction::CreateLibrary
             | ToolLibraryAction::OpenLibraries
             | ToolLibraryAction::DuplicateLibrary(_)
             | ToolLibraryAction::RemoveLibrary(_) => return Outcome::Nothing,
@@ -295,7 +336,8 @@ impl AppState {
             ToolLibraryAction::MoveToolSet { library, id, to } => {
                 session.move_toolset(*library, *id, *to)?;
             }
-            ToolLibraryAction::CreateLibrary
+            ToolLibraryAction::UseForOperation { .. }
+            | ToolLibraryAction::CreateLibrary
             | ToolLibraryAction::OpenLibraries
             | ToolLibraryAction::DuplicateLibrary(_)
             | ToolLibraryAction::RemoveLibrary(_) => {}

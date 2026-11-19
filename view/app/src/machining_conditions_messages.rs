@@ -70,7 +70,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.tool.ball", "ボールエンドミル"),
     ("conditions.tool.flat", "フラットエンドミル"),
     ("conditions.tool.library", "ライブラリ"),
-    ("conditions.tool.filter", "絞り込み"),
+    ("conditions.tool.search", "検索"),
     (
         "conditions.tool.choice",
         "{name}　{kind} φ{diameter} 工具長 {length}",
@@ -81,7 +81,11 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "使うツールライブラリがありません",
     ),
     ("conditions.tool.no_toolsets", "ツールセットがありません"),
-    ("conditions.tool.open_library", "ツールライブラリ…"),
+    (
+        "conditions.tool.no_match",
+        "名前の合うツールセットがありません",
+    ),
+    ("conditions.tool.pick_from_library", "ライブラリから選ぶ…"),
     ("conditions.tool.align", "ライブラリの値にそろえる"),
     ("conditions.tool.register", "ライブラリに登録する"),
     ("conditions.tool.align_all", "工具をライブラリにそろえる"),
@@ -539,7 +543,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     ("conditions.tool.ball", "Ball end mill"),
     ("conditions.tool.flat", "Flat end mill"),
     ("conditions.tool.library", "Library"),
-    ("conditions.tool.filter", "Filter"),
+    ("conditions.tool.search", "Search"),
     (
         "conditions.tool.choice",
         "{name}  {kind} D{diameter} length {length}",
@@ -550,7 +554,11 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "There are no tool libraries",
     ),
     ("conditions.tool.no_toolsets", "There are no tool sets"),
-    ("conditions.tool.open_library", "Tool library…"),
+    ("conditions.tool.no_match", "No tool sets match the name"),
+    (
+        "conditions.tool.pick_from_library",
+        "Choose from the library…",
+    ),
     ("conditions.tool.align", "Match the library"),
     ("conditions.tool.register", "Add to the library"),
     ("conditions.tool.align_all", "Match tools to the libraries"),
