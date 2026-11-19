@@ -162,8 +162,9 @@ fn bump_distance(point: Point3D<f64>) -> f64 {
         );
         let (p, q) = (-dot(difference, tangent_u), -dot(difference, tangent_v));
         let determinant = a * c - b * b;
-        u += (c * p - b * q) / determinant;
-        v += (a * q - b * p) / determinant;
+        // 曲面の範囲の外（式を延ばした曲面）に出ないよう、範囲に収める
+        u = (u + (c * p - b * q) / determinant).clamp(0.0, 1.0);
+        v = (v + (a * q - b * p) / determinant).clamp(0.0, 1.0);
     }
     point.distance_to(Point3D::new(10.0 * u, 10.0 * v, height(u, v)))
 }

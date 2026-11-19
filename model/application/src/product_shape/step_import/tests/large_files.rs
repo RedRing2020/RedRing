@@ -54,5 +54,6 @@ fn public_large_files_are_read_and_triangulated() {
             "{path}: {report:?}, faces {faces}, faces not triangulated {failed_faces} {failures:?}"
         );
         assert!(report.shells > 0, "{path}");
+        assert_eq!(failed_faces, 0, "{path}: {failures:?}");
     }
 }
