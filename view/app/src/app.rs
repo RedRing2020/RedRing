@@ -159,7 +159,11 @@ impl ApplicationHandler for App {
                 return;
             }
             state.tick_snapshot_playback(std::time::Instant::now());
-            state.window.request_redraw();
+            // 最小化している間は描かない（画面のテクスチャを得られず、描き直しを頼み続けると CPU を使い続けるため）。
+            // 元に戻すと、OS が描き直しを頼む
+            if state.window.is_minimized() != Some(true) {
+                state.window.request_redraw();
+            }
         }
     }
 }
