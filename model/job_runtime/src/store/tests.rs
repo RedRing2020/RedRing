@@ -973,6 +973,20 @@ fn progress_is_read_as_untrusted_input() {
         None
     );
     assert_eq!(read("not json"), None);
+    // 古い残りの目安は読まない（割合は読む）
+    fs::write(
+        store.progress_file(1),
+        r#"{"state":"running","fraction":0.9,"remaining_seconds":3}"#,
+    )
+    .unwrap();
+    let later = std::time::SystemTime::now() + Duration::from_secs(60);
+    assert_eq!(
+        store.read_progress_at(1, later),
+        Some(StoredProgress {
+            fraction: 0.9,
+            remaining_seconds: None,
+        })
+    );
     let padded = format!(
         r#"{{"state":"running","fraction":0.5{}}}"#,
         " ".repeat(2048)
