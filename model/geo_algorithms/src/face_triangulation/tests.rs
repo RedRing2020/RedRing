@@ -636,6 +636,81 @@ fn a_coarse_boundary_does_not_keep_adding_points() {
     region.triangulate(&cylinder, &settings).unwrap();
 }
 
+#[test]
+fn triangles_tilted_by_a_boundary_chord_do_not_keep_adding_points() {
+    // 斜めの平面で切った 4 分の 1 の円柱の面（下の境界は、平面との交わりの楕円を許容弦誤差で分けた点。上の境界は円）。
+    // 下の境界の弦は 3 次元で曲面から離れるので、弦のそばの点と弦でできる三角形は傾く。点を足しても傾きは直らない
+    // （足した点は弦により近い三角形を作る）ので、その傾きでは点を足し続けない
+    let cylinder = Cylinder { radius: 3.048 };
+    let cases: [(f64, &[(f64, f64)]); 2] = [
+        (
+            0.05,
+            &[
+                (5.497939, -1.457706),
+                (5.531306, -1.446156),
+                (5.832058, -1.270045),
+                (6.132809, -1.177851),
+                (6.433561, -1.177851),
+                (6.734313, -1.270045),
+                (7.035065, -1.447644),
+                (7.068431, -1.456217),
+            ],
+        ),
+        (
+            0.02,
+            &[
+                (5.497939, -1.457706),
+                (5.531306, -1.446156),
+                (5.746129, -1.312359),
+                (5.960951, -1.219591),
+                (6.175774, -1.172116),
+                (6.390597, -1.172116),
+                (6.605419, -1.219591),
+                (6.820242, -1.312359),
+                (7.035065, -1.447644),
+                (7.068431, -1.456217),
+            ],
+        ),
+    ];
+    for (tolerance, bottom) in cases {
+        let count = circle_points(cylinder.radius, tolerance).div_ceil(4);
+        let top = line((7.068431, 115.860515), (5.497939, 115.860515), count)
+            .chain([(5.497939, 115.860515)]);
+        let loops = vec![ring(0, bottom.iter().copied().chain(top))];
+        let settings = settings(tolerance);
+        let region = FaceRegion::new(&loops, &cylinder, &settings).unwrap();
+        assert!(region.crossing_edges(&cylinder).is_empty());
+        let result = region.triangulate(&cylinder, &settings).unwrap();
+        assert!(result.added.len() < 2_000, "{}", result.added.len());
+        // 傾きで分けない三角形も、内側で許容弦誤差を守る（境界の弦の離れは許容弦誤差より小さい）
+        let point = |vertex: FaceVertex| match vertex {
+            FaceVertex::Boundary(index) => {
+                let uv = loops[0][index].uv;
+                cylinder.point_at(uv.x(), uv.y()).unwrap()
+            }
+            FaceVertex::Added(index) => result.added[index].point,
+        };
+        for triangle in &result.triangles {
+            let [a, b, c] = triangle.map(point);
+            for i in 0..=6 {
+                for j in 0..=6 - i {
+                    let (s, t) = (i as f64 / 6.0, j as f64 / 6.0);
+                    let sample = Point3D::new(
+                        a.x() * (1.0 - s - t) + b.x() * s + c.x() * t,
+                        a.y() * (1.0 - s - t) + b.y() * s + c.y() * t,
+                        a.z() * (1.0 - s - t) + b.z() * s + c.z() * t,
+                    );
+                    let distance = cylinder.distance(sample);
+                    assert!(
+                        distance <= tolerance * (1.0 + 1.0e-9),
+                        "{distance} in {triangle:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// 頂点が原点にある円錐（v の位置の半径は v × 0.5。刻みは面の中の最も大きい半径 `max_radius` で決める）
 struct Cone {
     max_radius: f64,

@@ -14,7 +14,8 @@
 //!
 //! 制約の辺（境界・切れ目・極の線）は分けない。制約の辺の中点の離れが許容弦誤差を超える三角形では、その離れを上限
 //! とする（分けられない辺に接する三角形のほかの辺と内側は、どこに点を足してもその辺の離れの程度より小さくできない
-//! ので、点を足し続けないため）。
+//! ので、点を足し続けないため）。同じ理由で、制約の辺の離れだけで法線のなす角が上限を超えうる三角形は、法線の角
+//! では分けない（`forced_by_constraint`）。
 
 use std::collections::{HashMap, HashSet};
 
@@ -261,6 +262,7 @@ impl Mesh {
         chord_tolerance: f64,
     ) -> Result<Vec<Point2D<f64>>, FaceTriangulationError> {
         let min_cosine = MAX_TRIANGLE_NORMAL_ANGLE_DEGREES.to_radians().cos();
+        let max_sine = MAX_TRIANGLE_NORMAL_ANGLE_DEGREES.to_radians().sin();
         let mut points = Vec::new();
         let mut seen = HashSet::new();
         for face in inside_faces(&self.cdt) {
@@ -300,6 +302,7 @@ impl Mesh {
             let mut allowed = chord_tolerance;
             // 辺の中点の離れ（角の番号の組 (0, 1)・(1, 2)・(2, 0) の順）と、制約でない辺のうち離れの最も大きい辺の中点
             let mut deviations = [Vector3D::new(0.0, 0.0, 0.0); 3];
+            let mut constrained = [false; 3];
             let mut worst_edge: Option<(f64, Point2D<f64>)> = None;
             for corner in 0..3 {
                 let (from, to) = (handles[corner], handles[(corner + 1) % 3]);
@@ -320,6 +323,7 @@ impl Mesh {
                     .any(|&(key, constraint)| key == edge && constraint);
                 let length = deviation.length();
                 deviations[corner] = deviation;
+                constrained[corner] = constraint;
                 if constraint {
                     allowed = allowed.max(length);
                     continue;
@@ -328,12 +332,9 @@ impl Mesh {
                     worst_edge = Some((length, middle));
                 }
             }
-            let tilted = tilted(
-                surface,
-                centroid,
-                corners.map(|corner| corner.point),
-                min_cosine,
-            );
+            let corner_points = corners.map(|corner| corner.point);
+            let tilted = tilted(surface, centroid, corner_points, min_cosine)
+                && !forced_by_constraint(corner_points, &deviations, constrained, max_sine);
             let deviated = centroid_deviation.max(quadratic_maximum(&deviations)) > allowed;
             if !tilted && !deviated {
                 self.accepted.insert(key);
@@ -354,6 +355,37 @@ impl Mesh {
 /// 2 つの頂点が同じ点の三角形（極でつぶれる三角形。結果から除く）か
 fn collapsed([a, b, c]: [FaceVertex; 3]) -> bool {
     a == b || b == c || c == a
+}
+
+/// 三角形 `points` の傾きが、制約の辺の離れだけで法線のなす角の上限を超えうるか（辺 (0, 1)・(1, 2)・(2, 0) の離れ
+/// `deviations` と、制約の辺か `constrained`。`max_sine` は角の上限の正弦）
+///
+/// 制約の辺は、曲面から `|d|` 離れたまま分けられない。向かいの頂点（曲面の上）が、その辺から曲面に沿って `s` の所に
+/// あれば、三角形は曲面に対して最大で `atan(|d| / s)` 傾く。頂点から辺までの 3 次元の距離 `h` は `√(s² + d²)` なので、
+/// `h sin(上限) ≤ |d|`（`s tan(上限) ≤ |d|` と同じ）なら、その傾きは辺の離れが決めるもので、三角形の中に点を足しても
+/// 直らない（足した点は辺のそばに入り、辺により近い三角形を作る）。`|d|` は辺の中点の離れ（辺の上の離れの最大）なので、
+/// 頂点が辺の端の近くにある細い三角形も含むが、その三角形も辺に接していて、離れ（許容弦誤差）の判定はそのまま受ける。
+fn forced_by_constraint(
+    points: [Point3D<f64>; 3],
+    deviations: &[Vector3D<f64>; 3],
+    constrained: [bool; 3],
+    max_sine: f64,
+) -> bool {
+    (0..3).any(|edge| {
+        let deviation = deviations[edge].length();
+        if !constrained[edge] || deviation <= 0.0 {
+            return false;
+        }
+        let (start, end, opposite) = (points[edge], points[(edge + 1) % 3], points[(edge + 2) % 3]);
+        let along = Vector3D::from_points(start, end);
+        let length = along.length();
+        if !(length.is_finite() && length > 0.0) {
+            return false;
+        }
+        // 3 次元でつぶれた三角形（高さが 0）は、法線が決まらないので、ほかの傾いた三角形と同じく分ける
+        let height = along.cross(Vector3D::from_points(start, opposite)).length() / length;
+        height > 0.0 && height * max_sine <= deviation
+    })
 }
 
 /// 三角形 `points` の法線と、(u, v) の重心 `centroid` での曲面の法線のなす角の余弦が `min_cosine` より小さいか
