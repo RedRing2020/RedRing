@@ -2,6 +2,8 @@
 
 **🇺🇸 [English README is here](README.md)**
 
+[![Release](https://img.shields.io/github/v/release/RedRing2020/RedRing?include_prereleases&label=release)](https://github.com/RedRing2020/RedRing/releases)
+[![Rust](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FRedRing2020%2FRedRing%2Fdevelop%2Frust-toolchain.toml&query=%24.toolchain.channel&label=rust&logo=rust&color=orange)](rust-toolchain.toml)
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/RedRing2020/RedRing?utm_source=oss&utm_medium=github&utm_campaign=RedRing2020%2FRedRing&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 RedRing は、Rust・wgpu・egui で作るスタンドアロンの CAD/CAM のアプリです。研究のプロジェクトとして開発しています。
