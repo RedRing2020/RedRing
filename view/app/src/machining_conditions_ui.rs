@@ -289,9 +289,7 @@ const DIALOG_CHROME_HEIGHT: f32 = 140.0;
 /// 条件の編集のダイアログの、スクロールする中身の最小の高さ（論理座標）
 const DIALOG_BODY_MIN_HEIGHT: f32 = 120.0;
 
-/// 工程の表の名前の欄の、名前を編集する入力欄の最小の幅（論理座標）
-const NAME_EDIT_WIDTH: f32 = 160.0;
-/// 名前を編集する入力欄の、名前の幅に足す余り（入力欄の枠の内側の余白と、打ち足す文字の分。論理座標）
+/// 工程の表の名前の欄の、名前を編集する入力欄の、名前の幅に足す余り（入力欄の枠の内側の余白と、打ち足す文字の分。論理座標）
 const NAME_EDIT_SPARE_WIDTH: f32 = 24.0;
 
 /// 工程の表の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
@@ -687,10 +685,11 @@ fn next_action_of(
 }
 
 /// 工程の表の名前の欄の入力欄を、行の高さの中央にそろえて置き、欄の範囲と、名前の確定・取り消しを返す。入力欄は、
-/// 名前の全体が入る幅にし、置いたときに名前のすべてを選んで編集を始める。入力欄を離れたら確定する（取り消すのは、Esc で離れたときだけ）
+/// 名前の列の幅（名前の全体が入らなければ、名前に合わせて広げる）にし、置いたときに名前のすべてを選んで編集を始める。入力欄を離れたら確定する（取り消すのは、Esc で離れたときだけ）
 fn name_edit_cell(ui: &mut egui::Ui, name: &mut String) -> (Rect, Option<DialogResult>) {
     let id = Id::unique("operation_name_edit");
-    // 入力欄は、名前の全体が入る幅にする（表の列の幅は前の描画の幅のため、列の幅に抑えると、長い名前の頭が隠れる）
+    // 入力欄は、名前の列の幅にし、名前の全体が入らなければ名前に合わせて広げる（表の列の幅は前の描画の幅のため、列の
+    // 幅に抑えると、長い名前の頭が隠れる）
     let name_width = egui::WidgetText::from(name.as_str())
         .into_galley(
             ui,
@@ -700,7 +699,7 @@ fn name_edit_cell(ui: &mut egui::Ui, name: &mut String) -> (Rect, Option<DialogR
         )
         .size()
         .x;
-    let width = (name_width + NAME_EDIT_SPARE_WIDTH).max(NAME_EDIT_WIDTH);
+    let width = (name_width + NAME_EDIT_SPARE_WIDTH).max(ui.available_width());
     let response = ui
         .horizontal_centered(|ui| {
             ui.add(
@@ -2703,5 +2702,21 @@ mod tests {
         });
         output.textures_delta.clear();
         assert!(rect.expect("the field is shown").width() > name_width);
+    }
+
+    #[test]
+    fn the_name_field_keeps_the_column_width_for_a_short_name() {
+        let ctx = egui::Context::default();
+        let mut name = "a".to_string();
+        let mut rect = None;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            // 名前が列に収まるときは、列の幅のまま（表の幅を変えない）
+            ui.allocate_ui(egui::vec2(200.0, 40.0), |ui| {
+                rect = Some(name_edit_cell(ui, &mut name).0);
+            });
+        });
+        output.textures_delta.clear();
+        let width = rect.expect("the field is shown").width();
+        assert!((width - 200.0).abs() < 1.0, "{width}");
     }
 }
