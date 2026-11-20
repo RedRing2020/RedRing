@@ -64,6 +64,7 @@ Toolpath generation and the cutting simulation are calculated by the job manager
 
 - The app starts the job manager the first time you press "Calculate" (without a window). The app screen does not stop during calculations
 - Starting `redring-job-manager.exe` opens the job list window, where you can check job states, failure reasons, and logs. When a job manager is already running, its window is opened
+  - For a job being calculated, the status column shows a bar with the percentage of the progress and an estimate of the time left ("1:35 left"; "1:02:05 left" for an hour or more). The percentage counts the finished scanlines for a toolpath generation, and the tool moves already cut from the stock for a cutting simulation. It does not advance while the calculation is being prepared at the beginning or finished at the end. The estimate cannot be made for a while after the calculation starts (until the progress advances by 1% or more and for 4 seconds or more) or while the calculation is being finished, so a spinning mark is shown at the right end of the bar instead. The estimate is based on the speed so far, so it may change during the calculation
 - While the job manager runs, a red ring icon is shown in the system tray. Left-click the icon to open the window. The right-click menu has these items
   - "Open window"
   - "Start when Windows starts": when checked, the job manager starts without a window when you sign in to Windows

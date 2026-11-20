@@ -87,6 +87,16 @@ pub(crate) fn format_elapsed(ms: u64) -> String {
     }
 }
 
+/// 進み具合の割合 `fraction`（0〜1）の百分率（切り捨て。1 より小さい割合は、100 と出さない）
+///
+/// 0.29 のような割合は、浮動小数点では少し小さい値（0.28999…）になるため、浮動小数点の誤差の分（数 ulp）だけ大きく
+/// してから切り捨てる（28 と出さないように）。
+pub(crate) fn progress_percent(fraction: f32) -> u32 {
+    let fraction = fraction.clamp(0.0, 1.0);
+    let percent = (fraction * 100.0 * (1.0 + 4.0 * f32::EPSILON)).floor() as u32;
+    if fraction < 1.0 { percent.min(99) } else { 100 }
+}
+
 /// 大きさを B・KB・MB・GB で書く
 pub(crate) fn format_size(bytes: u64) -> String {
     const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
@@ -179,6 +189,26 @@ mod tests {
         assert_eq!(format_elapsed(3_725_000), "1:02:05");
         assert_eq!(format_size(512), "512 B");
         assert_eq!(format_size(3 * 1024 * 1024 / 2), "1.5 MB");
+    }
+
+    #[test]
+    fn progress_is_shown_as_a_truncated_percentage() {
+        assert_eq!(progress_percent(0.0), 0);
+        assert_eq!(progress_percent(0.421), 42);
+        // 0.29 は浮動小数点では 0.28999… になるが、29 と出す
+        assert_eq!(progress_percent(0.29), 29);
+        // 境の少し下は切り上げない
+        assert_eq!(progress_percent(0.4299), 42);
+        assert_eq!(progress_percent(0.999), 99);
+        assert_eq!(progress_percent(0.9999), 99);
+        assert_eq!(progress_percent(1.0_f32.next_down()), 99);
+        assert_eq!(progress_percent(1.0), 100);
+        // ランナーが書く千分の一の割合（文字から読んで f32 にしたもの）は、すべて切り捨てた百分率になる
+        for permille in 0..=1000_u32 {
+            let text = format!("{:.3}", f64::from(permille) / 1000.0);
+            let fraction = text.parse::<f64>().unwrap() as f32;
+            assert_eq!(progress_percent(fraction), permille / 10, "{text}");
+        }
     }
 
     #[test]

@@ -930,3 +930,69 @@ fn imported_marks_are_kept_apart_from_the_job_record() {
     store.mark_imported(1, 5).unwrap();
     assert_eq!(store.imported_job(1), Some(5));
 }
+
+#[test]
+fn progress_is_read_as_untrusted_input() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    assert_eq!(store.read_progress(1), None);
+    fs::create_dir_all(store.job_dir(1)).unwrap();
+    let read = |json: &str| {
+        fs::write(store.progress_file(1), json).unwrap();
+        store.read_progress(1)
+    };
+    assert_eq!(
+        read(r#"{"state":"running","fraction":0.421,"remaining_seconds":95}"#),
+        Some(StoredProgress {
+            fraction: 0.421,
+            remaining_seconds: Some(95),
+        })
+    );
+    // 残りの目安を書く前（前の版のランナーも同じ形）
+    assert_eq!(
+        read(r#"{"state":"running","fraction":0.000}"#),
+        Some(StoredProgress {
+            fraction: 0.0,
+            remaining_seconds: None,
+        })
+    );
+    // 残りの目安だけが範囲を外れるときは、割合だけを読む
+    assert_eq!(
+        read(r#"{"state":"running","fraction":0.5,"remaining_seconds":99999999999}"#),
+        Some(StoredProgress {
+            fraction: 0.5,
+            remaining_seconds: None,
+        })
+    );
+    // 1 より小さい割合は、f32 に丸めても 1 にしない
+    let below_one = read(r#"{"state":"running","fraction":0.99999999}"#).unwrap();
+    assert!(below_one.fraction < 1.0);
+    // 割合が範囲を外れる・形が正しくない・大きすぎるファイルは読まない
+    assert_eq!(read(r#"{"state":"running","fraction":1.5}"#), None);
+    assert_eq!(read(r#"{"state":"running","fraction":-0.1}"#), None);
+    assert_eq!(read(r#"{"state":"running","fraction":"half"}"#), None);
+    assert_eq!(
+        read(r#"{"state":"running","fraction":0.5,"remaining_seconds":-1}"#),
+        None
+    );
+    assert_eq!(read("not json"), None);
+    // 古い残りの目安は読まない（割合は読む）
+    fs::write(
+        store.progress_file(1),
+        r#"{"state":"running","fraction":0.9,"remaining_seconds":3}"#,
+    )
+    .unwrap();
+    let later = std::time::SystemTime::now() + Duration::from_secs(60);
+    assert_eq!(
+        store.read_progress_at(1, later),
+        Some(StoredProgress {
+            fraction: 0.9,
+            remaining_seconds: None,
+        })
+    );
+    let padded = format!(
+        r#"{{"state":"running","fraction":0.5{}}}"#,
+        " ".repeat(2048)
+    );
+    assert_eq!(read(&padded), None);
+}
