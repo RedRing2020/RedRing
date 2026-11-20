@@ -267,7 +267,13 @@ impl JobManagerWindow {
                     self.unreadable_jobs = unreadable.len();
                     self.store_error = None;
                 }
-                Err(error) => self.store_error = Some(StoreFailure::of(&error)),
+                Err(error) => {
+                    self.store_error = Some(StoreFailure::of(&error));
+                    // 読み直せない間は、前に読んだ残りの目安が古くなるため出さない（割合は残す）
+                    for progress in self.progress.values_mut() {
+                        progress.remaining_seconds = None;
+                    }
+                }
             }
             self.update_rows();
             self.selected_files = None;

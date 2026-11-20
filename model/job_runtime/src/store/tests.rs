@@ -964,6 +964,9 @@ fn progress_is_read_as_untrusted_input() {
             remaining_seconds: None,
         })
     );
+    // 1 より小さい割合は、f32 に丸めても 1 にしない
+    let below_one = read(r#"{"state":"running","fraction":0.99999999}"#).unwrap();
+    assert!(below_one.fraction < 1.0);
     // 割合が範囲を外れる・形が正しくない・大きすぎるファイルは読まない
     assert_eq!(read(r#"{"state":"running","fraction":1.5}"#), None);
     assert_eq!(read(r#"{"state":"running","fraction":-0.1}"#), None);

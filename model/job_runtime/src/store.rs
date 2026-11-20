@@ -802,7 +802,12 @@ impl JobStore {
         (0.0..=1.0)
             .contains(&file.fraction)
             .then(|| StoredProgress {
-                fraction: file.fraction as f32,
+                // 1 より小さい割合は、f32 に丸めても 1 にしない（終わる前に終わったと見えないように）
+                fraction: if file.fraction < 1.0 {
+                    (file.fraction as f32).min(1.0_f32.next_down())
+                } else {
+                    1.0
+                },
                 remaining_seconds: file
                     .remaining_seconds
                     .filter(|&seconds| !stale && seconds <= MAX_REMAINING_SECONDS),
