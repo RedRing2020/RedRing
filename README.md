@@ -17,7 +17,7 @@ Planned releases:
 - v0.4.0: connecting moves and NC output
 - v0.5.0: picking faces to set the machining area and coordinates
 
-See [CHANGELOG.md](CHANGELOG.md) for the changes and the [known issues](manual_en/src/known_issues.md) for the current limits.
+See [CHANGELOG.md](CHANGELOG.md) for the changes and the [known issues](https://redring2020.github.io/RedRing/en/known_issues.html) for the current limits.
 
 ## Quick Start
 
@@ -28,15 +28,16 @@ To build from source, install [rustup](https://rustup.rs/) and Git, then:
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
+git checkout v0.1.3
 cargo build --release
 cargo run --release -p redring
 ```
 
-`cargo build --release` also builds the job manager and the runner, which compute toolpaths and cutting simulations. See [Getting Started](manual_en/src/getting_started.md) for requirements, checking the package and the job manager.
+`cargo build --release` also builds the job manager and the runner, which compute toolpaths and cutting simulations. See [Getting Started](https://redring2020.github.io/RedRing/en/getting_started.html) for requirements, checking the package and the job manager.
 
 ## Documentation
 
-- [User manual](https://redring2020.github.io/RedRing/en/) ([Japanese](https://redring2020.github.io/RedRing/)): getting started, [screen and controls](manual_en/src/screen_and_controls.md), [cutting simulation](manual_en/src/cutting_simulation_demo.md)
+- [User manual](https://redring2020.github.io/RedRing/en/) ([Japanese](https://redring2020.github.io/RedRing/)) for the latest release: getting started, [screen and controls](https://redring2020.github.io/RedRing/en/screen_and_controls.html), [cutting simulation](https://redring2020.github.io/RedRing/en/cutting_simulation_demo.html). The manual for the version in development is in [manual_en/src/](manual_en/src/)
 - [Contributing](CONTRIBUTING.md): development setup, checks before a push, pull requests
 - [Design documents](dev/architecture/) (Japanese): [architecture](dev/architecture/ARCHITECTURE.md) and the design of each part
 - [Issues](https://github.com/RedRing2020/RedRing/issues): bug reports, feature requests and progress

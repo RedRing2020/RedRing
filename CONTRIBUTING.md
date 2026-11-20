@@ -8,7 +8,7 @@ Bug reports, feature requests and pull requests are welcome. Please check the [I
 
 - Rust: install [rustup](https://rustup.rs/). rustup uses the version set in `rust-toolchain.toml` when you build
 - Git
-- Windows: Visual Studio Build Tools (or Visual Studio Community)
+- Windows: Visual Studio Build Tools (or Visual Studio Community) with the "Desktop development with C++" workload, and [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) (`pwsh`) for the scripts
 - macOS: Xcode Command Line Tools (`xcode-select --install`)
 - Linux: `sudo apt install build-essential pkg-config libx11-dev`, and a Vulkan driver
 

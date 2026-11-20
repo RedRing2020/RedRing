@@ -8,7 +8,7 @@
 
 - Rust: [rustup](https://rustup.rs/) を入れます。ビルドするときに、rustup が `rust-toolchain.toml` で決めた版を使います
 - Git
-- Windows: Visual Studio Build Tools（または Visual Studio Community）
+- Windows: 「C++ によるデスクトップ開発」のワークロードを入れた Visual Studio Build Tools（または Visual Studio Community）と、スクリプトを動かす [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows)（`pwsh`）
 - macOS: Xcode Command Line Tools（`xcode-select --install`）
 - Linux: `sudo apt install build-essential pkg-config libx11-dev` と Vulkan のドライバー
 
