@@ -62,23 +62,43 @@ impl AppState {
     }
 
     /// 工程の設定のダイアログの「ライブラリから選ぶ…」: 編集している工程の工具を選ぶために、ウィンドウを開く（工程の
-    /// 工具を選んだツールセット `toolset` があれば、そのライブラリのそのツールセットを選んだ状態で開く）
+    /// 工具を選んだツールセット `toolset` が使うライブラリにあれば、そのライブラリのそのツールセットを選んだ状態で
+    /// 開く。ライブラリかツールセットが見つからなければ、選ばずに開いて理由を出す）
     pub(super) fn open_tool_library_for_operation(&mut self, toolset: Option<ToolSetReference>) {
         self.open_tool_library_window();
         let window = &mut self.tool_library_window;
         window.picking = true;
         window.selected_toolset = None;
         window.draft = None;
-        if let Some(toolset) = toolset
-            && let Some(index) = self.tool_library.library_index_of(&toolset)
-        {
-            self.select_tool_library(index);
-            // 選んだツールセットが表に出るよう、絞り込み・並べ替えを戻す
-            let window = &mut self.tool_library_window;
-            window.selected_toolset = Some(toolset.toolset);
-            window.filter = ToolSetFilter::default();
-            window.sort = None;
-        }
+        window.result = None;
+        let Some(toolset) = toolset else {
+            return;
+        };
+        let index = self
+            .tool_library
+            .library_index_of(&toolset)
+            .filter(|&index| {
+                self.tool_library
+                    .toolsets(index)
+                    .iter()
+                    .any(|row| row.id == toolset.toolset)
+            });
+        let Some(index) = index else {
+            tracing::info!("The operation's tool set is not in the tool libraries in use");
+            let text = resolve_tool_library_text(
+                self.ui_locale,
+                "tool_library.pick.current_not_found",
+                &[],
+            );
+            self.tool_library_window.result = Some((text, true));
+            return;
+        };
+        self.select_tool_library(index);
+        // 選んだツールセットが表に出るよう、絞り込み・並べ替えを戻す
+        let window = &mut self.tool_library_window;
+        window.selected_toolset = Some(toolset.toolset);
+        window.filter = ToolSetFilter::default();
+        window.sort = None;
     }
 
     pub(crate) fn prepare_tool_library_state(&self) -> ToolLibraryUiState {

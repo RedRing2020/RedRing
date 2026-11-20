@@ -42,6 +42,10 @@ const TOOL_LIBRARY_TEMPLATE_JA: &[(&str, &str)] = &[
         "tool_library.pick.not_found",
         "選んだツールセットが見つかりません",
     ),
+    (
+        "tool_library.pick.current_not_found",
+        "工程の工具のツールセットは、使うライブラリにありません",
+    ),
     ("tool_library.toolset.add", "追加"),
     ("tool_library.toolset.duplicate", "複写"),
     ("tool_library.toolset.remove", "削除"),
@@ -134,6 +138,10 @@ const TOOL_LIBRARY_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "tool_library.pick.not_found",
         "The selected tool set is not found",
+    ),
+    (
+        "tool_library.pick.current_not_found",
+        "The tool set of the operation is not in the libraries in use",
     ),
     ("tool_library.toolset.add", "Add"),
     ("tool_library.toolset.duplicate", "Duplicate"),
