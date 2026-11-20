@@ -19,7 +19,7 @@ RedRing は、Rust・wgpu・egui で作るスタンドアロンの CAD/CAM の�
 
 変更は [CHANGELOG.md](CHANGELOG.md) を、今の制約は [既知の制約](https://redring2020.github.io/RedRing/known_issues.html) を見てください。
 
-## すぐ動かす
+## 起動方法
 
 Windows では、[GitHub のリリース](https://github.com/RedRing2020/RedRing/releases) から配布物を取ってきて、`redring.exe` を起動します。
 
