@@ -302,6 +302,9 @@ const COLUMN_MIN_WIDTH: f32 = 32.0;
 /// 工程の表の、名前の列の位置（`COLUMN_KEYS` の中の位置）
 const NAME_COLUMN: usize = 1;
 
+/// 工程の表の、表の状態を見分ける名前（列の幅などを、ほかの表と分けて保つ）
+const OPERATION_TABLE_SALT: &str = "operation_table";
+
 /// 工程の表の列の数
 const COLUMN_COUNT: usize = 6;
 
@@ -744,20 +747,20 @@ pub(crate) fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText
     ui.horizontal_centered(|ui| ui.label(text)).response.rect
 }
 
-/// 表の欄の背景を、色 `color` で塗る（欄の間のすき間も含めて、行の全体がつながって見えるように）。色がなければ何もしない
-fn fill_row_background(ui: &mut egui::Ui, color: Option<Color32>) {
-    if let Some(color) = color {
-        let rect = ui.max_rect().expand2(ui.spacing().item_spacing / 2.0);
-        ui.painter()
-            .rect_filled(rect, egui::CornerRadius::ZERO, color);
-    }
-}
-
 /// 工程の表の行の高さ（名前を編集しても行の高さが変わらないように、名前の入力欄が入る高さにする。論理座標）
 fn operation_row_height(ui: &egui::Ui) -> f32 {
     let text_edit =
         ui.text_style_height(&egui::TextStyle::Body) + 2.0 * ui.spacing().button_padding.y;
     ui.spacing().interact_size.y.max(text_edit)
+}
+
+/// 工程の表の、`column` 番目の列の右の境目（ドラッグで幅を変える所）の識別子。表が境目に付ける識別子と同じ作り方に
+/// する（表の状態の識別子に、境目の名前と列の位置を足す）
+fn column_border_id(ui: &egui::Ui, column: usize) -> Id {
+    ui.scope_id()
+        .with(egui::IdSalt::new(OPERATION_TABLE_SALT))
+        .with("resize_column")
+        .with(column)
 }
 
 /// 工程の表の列のうち、中身を省かずに出す幅 `needed` が、前の描画の幅 `previous` より広がった列（中身に合わせた
@@ -1392,14 +1395,22 @@ impl MachiningConditionsUiState {
         let needed_id = ui.scope_id().with("operation_table_needed_widths");
         let previous = ui.data(|data| data.get_temp::<[f32; COLUMN_COUNT]>(needed_id));
         ui.data_mut(|data| data.insert_temp(needed_id, needed));
-        let refit = columns_to_refit(previous, needed);
+        let mut refit = columns_to_refit(previous, needed);
+        // 列の境目のダブルクリックで、中身に合わせた幅にする（名前を付けた表では、表が境目のダブルクリックを読み落とす
+        // ため、ここで読む）
+        for (column, refit) in refit.iter_mut().enumerate() {
+            *refit |= ui
+                .ctx()
+                .read_response(column_border_id(ui, column))
+                .is_some_and(|response| response.double_clicked());
+        }
         if refit.contains(&true) {
             // 合わせ直す描画では、その列の中身を描かないため、すぐに描き直す
             ui.ctx().request_repaint();
         }
         let editing_any = name_edit.is_some();
         let mut table = TableBuilder::new(ui)
-            .id_salt("operation_table")
+            .id_salt(OPERATION_TABLE_SALT)
             .striped(false)
             .resizable(true)
             .auto_shrink([false, false]);
@@ -1439,19 +1450,15 @@ impl MachiningConditionsUiState {
                     } else {
                         None
                     };
+                    // 行の背景は、欄を描く前に場所を取り、行を描いた後で行の全体（欄・行の間の半分を含む）を塗る（欄の中で
+                    // 塗ると、欄の外が切り取られて、欄の間に塗らない所が残る）
+                    let background_shape = body.ui_mut().painter().add(egui::Shape::Noop);
                     let mut row_rect = Rect::NOTHING;
                     let mut status_rect = Rect::NOTHING;
                     body.row(row_height, |mut table_row| {
-                        // 欄はすべて、行の高さの中央にそろえる。欄の背景は、行の全体がつながるように塗る
-                        let mut cell = |add: &mut dyn FnMut(&mut egui::Ui)| {
-                            table_row
-                                .col(|ui| {
-                                    fill_row_background(ui, background);
-                                    add(ui);
-                                })
-                                .1
-                                .rect
-                        };
+                        // 欄はすべて、行の高さの中央にそろえる
+                        let mut cell =
+                            |add: &mut dyn FnMut(&mut egui::Ui)| table_row.col(|ui| add(ui)).1.rect;
                         row_rect = cell(&mut |ui| {
                             centered_label(ui, order.as_str());
                         });
@@ -1489,13 +1496,20 @@ impl MachiningConditionsUiState {
                         });
                         row_rect = row_rect.union(status_rect);
                     });
+                    let row_area = row_rect.expand2(row_spacing / 2.0);
+                    if let Some(color) = background {
+                        body.ui_mut().painter().set(
+                            background_shape,
+                            egui::Shape::rect_filled(row_area, egui::CornerRadius::ZERO, color),
+                        );
+                    }
                     if editing_row {
                         continue;
                     }
                     // 行のすべての欄と、欄・行の間の半分を、押せる範囲にする（欄の上に重ねて、行のどこを押しても選べる）
                     let ui = body.ui_mut();
                     let response = ui.interact(
-                        row_rect.expand2(row_spacing / 2.0),
+                        row_area,
                         ui.scope_id().with(("operation_row", row.id)),
                         egui::Sense::click(),
                     );
@@ -2098,12 +2112,12 @@ impl MachiningConditionsUiState {
 mod tests {
     use super::{
         ApplySubmission, COLUMN_COUNT, COLUMN_KEYS, ConditionField, DialogResult, JobStatusLine,
-        MachiningStage, OperationFailure, OperationJobStatus, OperationRow, OperationSetup,
-        OperationStatus, RowAction, calculation_blocked, columns_to_refit, condition_error_message,
-        condition_field, imported_toolpath_key, job_status_key, job_status_text, name_edit_cell,
-        navigation_key, navigation_text, next_action_of, operation_row_height, operation_row_key,
-        operation_row_status_key, operation_status_text, row_status_color, searched_toolsets,
-        stage_key, submission_on_apply,
+        MachiningStage, OPERATION_TABLE_SALT, OperationFailure, OperationJobStatus, OperationRow,
+        OperationSetup, OperationStatus, RowAction, calculation_blocked, column_border_id,
+        columns_to_refit, condition_error_message, condition_field, imported_toolpath_key,
+        job_status_key, job_status_text, name_edit_cell, navigation_key, navigation_text,
+        next_action_of, operation_row_height, operation_row_key, operation_row_status_key,
+        operation_status_text, row_status_color, searched_toolsets, stage_key, submission_on_apply,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -2880,5 +2894,42 @@ mod tests {
         output.textures_delta.clear();
         let height = rect.expect("the field is shown").height();
         assert!(height <= row_height + 0.5, "{height} > {row_height}");
+    }
+
+    #[test]
+    fn the_column_border_id_is_the_one_the_table_uses() {
+        let ctx = egui::Context::default();
+        let mut border = None;
+        // 初めの描画は、表が幅を決めるための描画のため、2 回描く
+        for _ in 0..2 {
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                border = Some(column_border_id(ui, 0));
+                egui_extras::TableBuilder::new(ui)
+                    .id_salt(OPERATION_TABLE_SALT)
+                    .resizable(true)
+                    .columns(egui_extras::Column::auto().resizable(true), 2)
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.label("a");
+                        });
+                        header.col(|ui| {
+                            ui.label("b");
+                        });
+                    })
+                    .body(|mut body| {
+                        body.row(20.0, |mut row| {
+                            row.col(|ui| {
+                                ui.label("x");
+                            });
+                            row.col(|ui| {
+                                ui.label("y");
+                            });
+                        });
+                    });
+            });
+            output.textures_delta.clear();
+        }
+        let border = border.expect("the table is shown");
+        assert!(ctx.read_response(border).is_some());
     }
 }
