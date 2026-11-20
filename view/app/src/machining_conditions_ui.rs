@@ -323,10 +323,12 @@ pub(crate) enum DialogResult {
     Cancel,
 }
 
-/// 工程の表の名前の欄で、名前を編集している工程と、編集している名前（確定するまで、工程に入れない）
+/// 工程の表の名前の欄で、名前を編集している工程と、編集している名前（確定するまで、工程に入れない）。編集を始めるごとに
+/// 替わる番号で入力欄を分け、前の編集の入力欄の状態（文字の位置・元に戻す履歴）を引き継がない
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct OperationNameEdit {
     pub(crate) operation: MachiningOperationId,
+    pub(crate) session: u64,
     pub(crate) name: String,
 }
 
@@ -685,9 +687,22 @@ fn next_action_of(
 }
 
 /// 工程の表の名前の欄の入力欄を、行の高さの中央にそろえて置き、欄の範囲と、名前の確定・取り消しを返す。入力欄は、
-/// 名前の列の幅（名前の全体が入らなければ、名前に合わせて広げる）にし、置いたときに名前のすべてを選んで編集を始める。入力欄を離れたら確定する（取り消すのは、Esc で離れたときだけ）
-fn name_edit_cell(ui: &mut egui::Ui, name: &mut String) -> (Rect, Option<DialogResult>) {
-    let id = Id::unique("operation_name_edit");
+/// 名前の列の幅（名前の全体が入らなければ、名前に合わせて広げる）にし、編集 `session` で初めて置くときに、名前のすべてを
+/// 選んで編集を始める（その描画で打った文字から受ける）。入力欄を離れたら確定する（取り消すのは、Esc で離れたときだけ）
+fn name_edit_cell(
+    ui: &mut egui::Ui,
+    session: u64,
+    name: &mut String,
+) -> (Rect, Option<DialogResult>) {
+    let id = Id::unique("operation_name_edit").with(session);
+    if egui::text_edit::TextEditState::load(ui.ctx(), id).is_none() {
+        ui.memory_mut(|memory| memory.request_focus(id));
+        let mut state = egui::text_edit::TextEditState::default();
+        state
+            .cursor
+            .set_char_range(Some(egui::text::CCursorRange::select_all_str(name)));
+        state.store(ui.ctx(), id);
+    }
     // 入力欄は、名前の列の幅にし、名前の全体が入らなければ名前に合わせて広げる（表の列の幅は前の描画の幅のため、列の
     // 幅に抑えると、長い名前の頭が隠れる）
     let name_width = egui::WidgetText::from(name.as_str())
@@ -709,23 +724,13 @@ fn name_edit_cell(ui: &mut egui::Ui, name: &mut String) -> (Rect, Option<DialogR
             )
         })
         .inner;
-    let result = if response.lost_focus() {
-        Some(if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+    let result = response.lost_focus().then(|| {
+        if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
             DialogResult::Cancel
         } else {
             DialogResult::Apply
-        })
-    } else {
-        if !response.has_focus() {
-            response.request_focus();
-            let mut state = egui::text_edit::TextEditState::load(ui.ctx(), id).unwrap_or_default();
-            state
-                .cursor
-                .set_char_range(Some(egui::text::CCursorRange::select_all_str(name)));
-            state.store(ui.ctx(), id);
         }
-        None
-    };
+    });
     (response.rect, result)
 }
 
@@ -1327,7 +1332,7 @@ impl MachiningConditionsUiState {
                     let mut area = centered_label(ui, (index + 1).to_string());
                     area = area.union(match editing {
                         Some(edit) => {
-                            let (rect, result) = name_edit_cell(ui, &mut edit.name);
+                            let (rect, result) = name_edit_cell(ui, edit.session, &mut edit.name);
                             if result.is_some() {
                                 name_edit_result = result;
                             }
@@ -2624,6 +2629,7 @@ mod tests {
     /// 名前の欄の入力欄を、`events` を受けた 1 コマで描き、名前の確定・取り消しを返す
     fn name_edit_frame(
         ctx: &egui::Context,
+        session: u64,
         name: &mut String,
         events: Vec<egui::Event>,
     ) -> Option<DialogResult> {
@@ -2632,7 +2638,7 @@ mod tests {
             events,
             ..Default::default()
         };
-        let mut output = ctx.run_ui(input, |ui| result = name_edit_cell(ui, name).1);
+        let mut output = ctx.run_ui(input, |ui| result = name_edit_cell(ui, session, name).1);
         // 画面に描かないため、文字の絵の更新は捨てる
         output.textures_delta.clear();
         result
@@ -2670,13 +2676,26 @@ mod tests {
         ] {
             let ctx = egui::Context::default();
             let mut name = "荒取り".to_string();
-            // 置いたときに編集を始め、名前のすべてを選ぶ（打った文字で置き換わる）
-            assert_eq!(name_edit_frame(&ctx, &mut name, Vec::new()), None);
+            // 初めて置いた描画で、名前のすべてを選んで編集を始める（その描画で打った文字で置き換わる）
             let typed = vec![egui::Event::Text("仕上げ".to_string())];
-            assert_eq!(name_edit_frame(&ctx, &mut name, typed), None);
+            assert_eq!(name_edit_frame(&ctx, 1, &mut name, typed), None);
             assert_eq!(name, "仕上げ");
-            assert_eq!(name_edit_frame(&ctx, &mut name, events), Some(expected));
+            assert_eq!(name_edit_frame(&ctx, 1, &mut name, events), Some(expected));
         }
+    }
+
+    #[test]
+    fn a_new_name_edit_starts_afresh() {
+        let ctx = egui::Context::default();
+        let mut name = "荒取り".to_string();
+        let typed = vec![egui::Event::Text("仕上げ".to_string())];
+        assert_eq!(name_edit_frame(&ctx, 1, &mut name, typed), None);
+        assert_eq!(name, "仕上げ");
+        // 次の編集は、前の編集の文字の位置を引き継がず、名前のすべてを選んで始める
+        let mut name = "中仕上げ".to_string();
+        let typed = vec![egui::Event::Text("隅".to_string())];
+        assert_eq!(name_edit_frame(&ctx, 2, &mut name, typed), None);
+        assert_eq!(name, "隅");
     }
 
     #[test]
@@ -2697,7 +2716,7 @@ mod tests {
                 .x;
             // 表の列のように、名前より狭い所に置いても、名前の全体が入る幅にする
             ui.allocate_ui(egui::vec2(60.0, 40.0), |ui| {
-                rect = Some(name_edit_cell(ui, &mut name).0);
+                rect = Some(name_edit_cell(ui, 1, &mut name).0);
             });
         });
         output.textures_delta.clear();
@@ -2712,7 +2731,7 @@ mod tests {
         let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
             // 名前が列に収まるときは、列の幅のまま（表の幅を変えない）
             ui.allocate_ui(egui::vec2(200.0, 40.0), |ui| {
-                rect = Some(name_edit_cell(ui, &mut name).0);
+                rect = Some(name_edit_cell(ui, 1, &mut name).0);
             });
         });
         output.textures_delta.clear();

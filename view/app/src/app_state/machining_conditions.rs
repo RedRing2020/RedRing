@@ -155,8 +155,10 @@ impl AppState {
             return;
         }
         self.operation_name_confirm_requested = false;
+        self.operation_name_edit_sessions += 1;
         self.operation_name_edit = Some(OperationNameEdit {
             operation: self.document.selected_operation(),
+            session: self.operation_name_edit_sessions,
             name: self.document.operation_content().attributes.name.clone(),
         });
         tracing::info!("Operation name editing started");
@@ -650,6 +652,7 @@ impl AppState {
         // ときは、その操作の前に確定する）。編集をやめた後の名前（選んだ工程が替わった・文書を替えた）は受け取らない
         if let (Some(edit), Some(shown)) = (&mut self.operation_name_edit, state.name_edit)
             && edit.operation == shown.operation
+            && edit.session == shown.session
         {
             edit.name = shown.name;
         }
