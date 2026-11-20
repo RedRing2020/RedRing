@@ -91,6 +91,10 @@ impl AppState {
             tracing::debug!("The machining sequence is not open; the operation list is not shown");
             return;
         }
+        // 隠すときは、工程の表で編集している名前を確定する（入力欄を描かなくなり、編集を終えられなくなるため）
+        if self.operation_list_shown {
+            self.confirm_operation_name_edit();
+        }
         self.operation_list_shown = !self.operation_list_shown;
         tracing::info!(
             "Operation list {}",
@@ -150,6 +154,7 @@ impl AppState {
             tracing::debug!("The operation name is not edited");
             return;
         }
+        self.operation_name_confirm_requested = false;
         self.operation_name_edit = Some(OperationNameEdit {
             operation: self.document.selected_operation(),
             name: self.document.operation_content().attributes.name.clone(),
@@ -647,6 +652,10 @@ impl AppState {
             && edit.operation == shown.operation
         {
             edit.name = shown.name;
+        }
+        // ファイルの操作を待たせているときは、受け取った名前で確定する（待っているファイルの操作は、この後に行う）
+        if std::mem::take(&mut self.operation_name_confirm_requested) {
+            self.confirm_operation_name_edit();
         }
         match state.name_edit_result {
             Some(DialogResult::Apply) => self.confirm_operation_name_edit(),

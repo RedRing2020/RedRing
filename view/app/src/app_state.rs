@@ -179,6 +179,9 @@ pub struct AppState {
     draft_issues: Option<machining_conditions::DraftIssues>,
     /// 工程の表の名前の欄で編集している名前（確定するまで工程に入れない。選んだ工程が替わったら捨てる）
     operation_name_edit: Option<OperationNameEdit>,
+    /// 名前の欄で編集している名前を、次の画面の描画で受け取ってから確定する（ファイルの操作の前。まだ受け取っていない
+    /// 打った文字も入れるため）
+    operation_name_confirm_requested: bool,
     /// 工程の設定のダイアログで出している頁（次に開いたときも同じ頁を出す）
     operation_settings_page: OperationSettingsPage,
     /// 工程の設定を適用すると同時に投入する
@@ -329,6 +332,7 @@ impl AppState {
             condition_draft: None,
             draft_issues: None,
             operation_name_edit: None,
+            operation_name_confirm_requested: false,
             operation_settings_page: OperationSettingsPage::default(),
             submit_on_apply: false,
             condition_issues: None,

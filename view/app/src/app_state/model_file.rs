@@ -64,8 +64,11 @@ impl AppState {
     /// モデルファイルの操作 `action` を要求する（イベントの処理が終わった後に、要求の順に行う。同じ操作がまだ残って
     /// いれば、重ねない）
     pub(crate) fn request_file_action(&mut self, action: FileAction) {
-        // 工程の表で編集している名前は、確定してから行う（保存する文書に入れるため）
-        self.confirm_operation_name_edit();
+        // 工程の表で編集している名前は、確定してから行う（保存する文書に入れるため）。確定は、まだ入力欄が受け取って
+        // いない打った文字を入れるよう、次の画面の描画で行う
+        if self.is_operation_name_editing() {
+            self.operation_name_confirm_requested = true;
+        }
         if !self.file_actions.contains(&action) {
             self.file_actions.push(action);
         }
@@ -88,6 +91,14 @@ impl AppState {
 
     /// 要求されたモデルファイルの操作を、要求の順に行う
     pub(super) fn run_file_actions(&mut self) {
+        // 編集している名前を確定するまで、ファイルの操作を待たせる（最小化して描かない間は、待たずに今の名前で確定する）
+        if self.operation_name_confirm_requested && self.is_operation_name_editing() {
+            if self.window.is_minimized() != Some(true) {
+                return;
+            }
+            self.operation_name_confirm_requested = false;
+            self.confirm_operation_name_edit();
+        }
         for action in std::mem::take(&mut self.file_actions) {
             if self.exit_confirmed {
                 break;
