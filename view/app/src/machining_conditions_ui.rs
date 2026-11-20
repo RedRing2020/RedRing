@@ -14,6 +14,7 @@ use egui::{
     CollapsingHeader, Color32, Context, DragValue, Id, Panel, Rect, RichText, ScrollArea, Stroke,
     Window,
 };
+use egui_extras::{Column, TableBuilder};
 use viewmodel::cutting_simulation_session::{
     CamConditionError, CamConditionField, ConditionIssue, CuttingToolKind, ImportedConditions,
     MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock, OperationFailure,
@@ -294,6 +295,12 @@ const NAME_EDIT_SPARE_WIDTH: f32 = 24.0;
 
 /// 工程の表の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
 pub(crate) const SELECTED_ROW_OPACITY: f32 = 0.45;
+
+/// 工程の表の列の、ドラッグで狭められる最小の幅（論理座標）
+const COLUMN_MIN_WIDTH: f32 = 32.0;
+
+/// 工程の表の、名前の列の位置（`COLUMN_KEYS` の中の位置）
+const NAME_COLUMN: usize = 1;
 
 /// 工程の表の列の見出しの文言のキー
 const COLUMN_KEYS: [&str; 6] = [
@@ -688,8 +695,8 @@ fn next_action_of(
 /// 名前の列の幅（名前の全体が入らなければ、名前に合わせて広げる）にし、置いたときに名前のすべてを選んで編集を始める。入力欄を離れたら確定する（取り消すのは、Esc で離れたときだけ）
 fn name_edit_cell(ui: &mut egui::Ui, name: &mut String) -> (Rect, Option<DialogResult>) {
     let id = Id::unique("operation_name_edit");
-    // 入力欄は、名前の列の幅にし、名前の全体が入らなければ名前に合わせて広げる（表の列の幅は前の描画の幅のため、列の
-    // 幅に抑えると、長い名前の頭が隠れる）
+    // 入力欄は、名前の列の幅にし、名前の全体が入らなければ名前に合わせて広げる（名前の列は、入力欄に合わせて広がる。
+    // 列の幅に抑えると、長い名前の頭が隠れる）
     let name_width = egui::WidgetText::from(name.as_str())
         .into_galley(
             ui,
@@ -732,6 +739,15 @@ fn name_edit_cell(ui: &mut egui::Ui, name: &mut String) -> (Rect, Option<DialogR
 /// 欄の文字を、行の高さの中央にそろえて置き、欄の範囲を返す
 pub(crate) fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> Rect {
     ui.horizontal_centered(|ui| ui.label(text)).response.rect
+}
+
+/// 表の欄の背景を、色 `color` で塗る（欄の間のすき間も含めて、行の全体がつながって見えるように）。色がなければ何もしない
+fn fill_row_background(ui: &mut egui::Ui, color: Option<Color32>) {
+    if let Some(color) = color {
+        let rect = ui.max_rect().expand2(ui.spacing().item_spacing / 2.0);
+        ui.painter()
+            .rect_filled(rect, egui::CornerRadius::ZERO, color);
+    }
 }
 
 /// 加工の段階 `stage` の文言のキー
@@ -963,7 +979,8 @@ impl MachiningConditionsUiState {
                     self.show_list_toolbar(ui);
                     self.show_job_commands(ui);
                     ui.separator();
-                    ScrollArea::vertical()
+                    // 縦のスクロールは表が持つ（見出しを残して工程の行だけを送る）。列を広げて入らなければ横に送る
+                    ScrollArea::horizontal()
                         .auto_shrink([false, false])
                         .show(ui, |ui| self.show_operation_table(ui));
                 });
@@ -1279,102 +1296,129 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 工程の表（1 行が 1 工程。上から加工の順。ジョブマネージャーの一覧と同じ見た目）。行のどこを押しても選び、
-    /// ダブルクリックで工程の設定のダイアログを開き、右クリックで行の操作のメニューを出す。選んだ行・マウスが乗った
-    /// 行は、行の全体に色を付ける。名前を編集している行は、名前の欄を入力欄にし、行を押す操作を受けない（入力欄の
-    /// 中を押して、文字の位置を選べるように）
+    /// 工程の表（1 行が 1 工程。上から加工の順。ジョブマネージャーの一覧と同じ見た目）。見出しの列の境目をドラッグ
+    /// して、列の幅を変えられる（幅は起動中だけ保つ）。行のどこを押しても選び、ダブルクリックで工程の設定のダイアログ
+    /// を開き、右クリックで行の操作のメニューを出す。選んだ行・マウスが乗った行は、行の全体に色を付ける。名前を編集
+    /// している行は、名前の欄を入力欄にし、行を押す操作を受けない（入力欄の中を押して、文字の位置を選べるように）
     fn show_operation_table(&mut self, ui: &mut egui::Ui) {
         let mut select = None;
         let mut action = None;
         let mut name_edit = self.name_edit.take();
         let mut name_edit_result = None;
-        // 乗った行は、前の描画のもの（行を描き終えるまで分からないため）。見出しの行が 0 のため、工程の行は 1 から
+        // 乗った行は、前の描画のもの（行を描き終えるまで分からないため）
         let hovered_id = ui.scope_id().with("operation_table_hovered");
         let hovered_row = ui.data(|data| data.get_temp::<Option<usize>>(hovered_id).flatten());
-        let selected_row = self.selected_position().map(|at| at + 1);
         let mut hovered_now = None;
-        let row_spacing = ui.spacing().item_spacing.y;
-        egui::Grid::new("operation_table")
-            .num_columns(COLUMN_KEYS.len())
-            .with_row_color(move |row, style| {
-                if Some(row) == selected_row {
-                    // 選んだ行は、選択の色を薄めて、文字との差を抑える
-                    Some(
-                        style
-                            .visuals
-                            .selection
-                            .bg_fill
-                            .gamma_multiply(SELECTED_ROW_OPACITY),
-                    )
-                } else if row > 0 && Some(row) == hovered_row {
-                    Some(style.visuals.widgets.hovered.weak_bg_fill)
-                } else if row % 2 == 1 {
-                    Some(style.visuals.faint_bg_color)
-                } else {
-                    None
+        let selected_color = ui
+            .visuals()
+            .selection
+            .bg_fill
+            .gamma_multiply(SELECTED_ROW_OPACITY);
+        let hovered_color = ui.visuals().widgets.hovered.weak_bg_fill;
+        let striped_color = ui.visuals().faint_bg_color;
+        // 行の高さは、名前の入力欄が入る高さ（名前を編集しても、行の高さが変わらないように）
+        let row_height = ui
+            .spacing()
+            .interact_size
+            .y
+            .max(ui.text_style_height(&egui::TextStyle::Body));
+        let editing_any = name_edit.is_some();
+        let mut table = TableBuilder::new(ui)
+            .id_salt("operation_table")
+            .striped(false)
+            .resizable(true)
+            .sense(egui::Sense::click())
+            .auto_shrink([false, false]);
+        for index in 0..COLUMN_KEYS.len() {
+            // 文字が入らない列は、末尾を省いて出す。名前を編集している間の名前の列は、省かずに入力欄に合わせて広げる
+            let clip = !(editing_any && index == NAME_COLUMN);
+            table = table.column(
+                Column::auto()
+                    .at_least(COLUMN_MIN_WIDTH)
+                    .resizable(true)
+                    .clip(clip),
+            );
+        }
+        table
+            .header(row_height, |mut header| {
+                for key in COLUMN_KEYS {
+                    header.col(|ui| {
+                        centered_label(ui, RichText::new(self.text(key)).strong());
+                    });
                 }
             })
-            .show(ui, |ui| {
-                for key in COLUMN_KEYS {
-                    ui.label(RichText::new(self.text(key)).strong());
-                }
-                ui.end_row();
+            .body(|mut body| {
                 for (index, row) in self.operations.iter().enumerate() {
-                    let selected = row.id == self.selected_operation;
-                    let editing = name_edit.as_mut().filter(|edit| edit.operation == row.id);
-                    let editing_row = editing.is_some();
-                    // 欄はすべて、行の高さの中央にそろえる。文字は押せない（画面の設定）ため、行のどこを押しても行を選べる
-                    let mut area = centered_label(ui, (index + 1).to_string());
-                    area = area.union(match editing {
-                        Some(edit) => {
-                            let (rect, result) = name_edit_cell(ui, &mut edit.name);
-                            if result.is_some() {
-                                name_edit_result = result;
-                            }
-                            rect
-                        }
-                        None => centered_label(ui, row.name.clone()),
-                    });
-                    for text in [
-                        self.text(stage_key(row.stage)),
-                        self.text(spec_kind_key(&row.spec)),
-                        self.operation_tool_cell(row),
-                    ] {
-                        area = area.union(centered_label(ui, text));
-                    }
-                    let status_key = operation_row_key(row);
-                    let status = ui.horizontal_centered(|ui| {
-                        let text = RichText::new(self.text(status_key));
-                        ui.label(match row_status_color(status_key) {
-                            Some(color) => text.color(color),
-                            None => text,
-                        });
-                        // 進み具合の割合はまだないため、計算中は動いていることだけを出す
-                        if row.status == JobStatusLine::Status(OperationJobStatus::Running) {
-                            // 印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）
-                            let size = ui.text_style_height(&egui::TextStyle::Body);
-                            ui.add(egui::Spinner::new().size(size));
-                        }
-                    });
-                    if !editing_row {
-                        // 行のすべての欄と、行の間の半分を、押せる範囲にする
-                        let area = area
-                            .union(status.response.rect)
-                            .expand2(egui::vec2(0.0, row_spacing / 2.0));
-                        let response = ui.interact(
-                            area,
-                            ui.scope_id().with(("operation_row", row.id)),
-                            egui::Sense::click(),
-                        );
-                        // 条件エラーの行は、状態の欄に乗せると、その理由を出す（工程を選ばなくても理由が分かるように）
-                        let response = match &row.setup {
-                            OperationSetup::ConditionError(issues)
-                                if ui.rect_contains_pointer(status.response.rect) =>
-                            {
-                                response.on_hover_text_at_pointer(self.reasons_text(issues))
-                            }
-                            _ => response,
+                    body.row(row_height, |mut table_row| {
+                        let selected = row.id == self.selected_operation;
+                        let editing = name_edit.as_mut().filter(|edit| edit.operation == row.id);
+                        let editing_row = editing.is_some();
+                        let background = if selected {
+                            // 選んだ行は、選択の色を薄めて、文字との差を抑える
+                            Some(selected_color)
+                        } else if Some(index) == hovered_row {
+                            Some(hovered_color)
+                        } else if index % 2 == 0 {
+                            Some(striped_color)
+                        } else {
+                            None
                         };
+                        // 乗った行の色は自分で付ける（表の既定の色にしない）
+                        table_row.set_hovered(false);
+                        // 欄はすべて、行の高さの中央にそろえる
+                        table_row.col(|ui| {
+                            fill_row_background(ui, background);
+                            centered_label(ui, (index + 1).to_string());
+                        });
+                        table_row.col(|ui| {
+                            fill_row_background(ui, background);
+                            match editing {
+                                Some(edit) => {
+                                    if let (_, Some(result)) = name_edit_cell(ui, &mut edit.name) {
+                                        name_edit_result = Some(result);
+                                    }
+                                }
+                                None => {
+                                    centered_label(ui, row.name.clone());
+                                }
+                            }
+                        });
+                        for text in [
+                            self.text(stage_key(row.stage)),
+                            self.text(spec_kind_key(&row.spec)),
+                            self.operation_tool_cell(row),
+                        ] {
+                            table_row.col(|ui| {
+                                fill_row_background(ui, background);
+                                centered_label(ui, text);
+                            });
+                        }
+                        let status_key = operation_row_key(row);
+                        let (_, status) = table_row.col(|ui| {
+                            fill_row_background(ui, background);
+                            ui.horizontal_centered(|ui| {
+                                let text = RichText::new(self.text(status_key));
+                                ui.label(match row_status_color(status_key) {
+                                    Some(color) => text.color(color),
+                                    None => text,
+                                });
+                                // 進み具合の割合はまだないため、計算中は動いていることだけを出す
+                                if row.status == JobStatusLine::Status(OperationJobStatus::Running)
+                                {
+                                    // 印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）
+                                    let size = ui.text_style_height(&egui::TextStyle::Body);
+                                    ui.add(egui::Spinner::new().size(size));
+                                }
+                            });
+                        });
+                        // 条件エラーの行は、状態の欄に乗せると、その理由を出す（工程を選ばなくても理由が分かるように）
+                        if let OperationSetup::ConditionError(issues) = &row.setup {
+                            status.on_hover_text_at_pointer(self.reasons_text(issues));
+                        }
+                        if editing_row {
+                            return;
+                        }
+                        let response = table_row.response();
                         // 右クリックも、その行を選んでからメニューを出す（メニューの操作は、選んだ工程に対して行う）
                         if !selected && (response.clicked() || response.secondary_clicked()) {
                             select = Some(row.id);
@@ -1383,7 +1427,7 @@ impl MachiningConditionsUiState {
                             action = Some(RowAction::OpenSettings);
                         }
                         if response.hovered() {
-                            hovered_now = Some(index + 1);
+                            hovered_now = Some(index);
                         }
                         response.context_menu(|ui| {
                             if let Some(chosen) = self.row_menu(ui, index) {
@@ -1391,8 +1435,7 @@ impl MachiningConditionsUiState {
                                 ui.close();
                             }
                         });
-                    }
-                    ui.end_row();
+                    });
                 }
             });
         self.name_edit = name_edit;

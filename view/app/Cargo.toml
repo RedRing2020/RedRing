@@ -26,6 +26,7 @@ bytemuck = { version = "1.24", features = ["derive"] }
 # 0.37 から標準のフォントが既定で入らないため、英字のフォントと、記号（▲・▼・→ など）のフォントを入れる（日本語は OS の
 # フォントを足す）
 egui = { version = "0.37.0", features = ["monochrome_emoji_fonts"] }
+egui_extras = { version = "0.37.0", default-features = false }
 egui-wgpu = "0.37.0"
 egui-winit = "0.37.0"
 fontdb = "0.24"
