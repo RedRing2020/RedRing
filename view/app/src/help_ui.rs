@@ -33,6 +33,7 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
         "help.header.cutting",
         &[
             ("Shift+M", "help.cutting.conditions"),
+            ("F2", "help.cutting.rename"),
             ("Shift+L", "help.cutting.import"),
             ("k / j", "help.cutting.step"),
             (". / ,", "help.cutting.endpoint"),

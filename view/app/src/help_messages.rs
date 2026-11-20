@@ -14,7 +14,7 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("help.window.title", "操作の一覧"),
     (
         "help.note.text_input",
-        "設定パネル・設定のダイアログの入力欄を編集している間は、打った文字はキー操作になりません（Esc での終了を除く）。設定のダイアログを開いている間は、見る操作のキーだけを受けます。",
+        "設定パネル・設定のダイアログの入力欄を編集している間は、打った文字はキー操作になりません（Esc での終了を除く）。工程の名前を編集している間の Esc は、編集の取り消しです。設定のダイアログを開いている間は、見る操作のキーだけを受けます。",
     ),
     ("help.header.camera", "カメラ"),
     ("help.header.cutting", "切削シミュレーション"),
@@ -38,6 +38,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     (
         "help.cutting.conditions",
         "加工手順を開いている間、工程リストの表示・非表示（「計算」で計算）",
+    ),
+    (
+        "help.cutting.rename",
+        "工程リストを出している間、選んだ工程の名前の変更",
     ),
     (
         "help.cutting.import",
@@ -188,7 +192,7 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("help.window.title", "Controls"),
     (
         "help.note.text_input",
-        "While editing a field in the settings panel or a settings dialog, typed characters are not used as keys (except Esc to quit). While a settings dialog is open, only the viewing keys are used.",
+        "While editing a field in the settings panel or a settings dialog, typed characters are not used as keys (except Esc to quit). While editing an operation name, Esc cancels the edit. While a settings dialog is open, only the viewing keys are used.",
     ),
     ("help.header.camera", "Camera"),
     ("help.header.cutting", "Cutting simulation"),
@@ -215,6 +219,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "help.cutting.conditions",
         "While a machining sequence is open, show or hide the operation list (calculate with \"Calculate\")",
+    ),
+    (
+        "help.cutting.rename",
+        "While the operation list is shown, rename the selected operation",
     ),
     (
         "help.cutting.import",

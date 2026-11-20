@@ -83,8 +83,9 @@ impl ApplicationHandler for App {
                 WindowEvent::RedrawRequested => state.render(),
                 WindowEvent::KeyboardInput { event, .. } => {
                     let pressed = event.state == ElementState::Pressed;
-                    // Esc でダイアログを閉じたときにアプリを終えないよう、キーを処理する前に確かめる
-                    let dialog_open = state.is_condition_dialog_open();
+                    // Esc でダイアログを閉じた・名前の編集を取り消したときにアプリを終えないよう、キーを処理する前に確かめる
+                    let esc_taken =
+                        state.is_condition_dialog_open() || state.is_operation_name_editing();
                     state.handle_keyboard_input(
                         &event.logical_key,
                         &event.key_without_modifiers(),
@@ -92,10 +93,11 @@ impl ApplicationHandler for App {
                     );
 
                     // Esc はアプリを終える（保存していない変更を確かめてから。押し続けの繰り返しは除く）。条件の編集の
-                    // ダイアログを開いている間は、ダイアログを閉じるだけにする
+                    // ダイアログを開いている間は、ダイアログを閉じるだけにし、工程の名前を編集している間は、編集を取り消す
+                    // だけにする
                     if pressed
                         && !event.repeat
-                        && !dialog_open
+                        && !esc_taken
                         && matches!(event.logical_key, Key::Named(NamedKey::Escape))
                     {
                         state.request_exit();

@@ -41,7 +41,7 @@ The screen text can be Japanese or English, selected with "View" → "Language" 
 | Controls | `F1`, `h`, or "Help" → "Controls" | The list of key and mouse controls (the same as "Key Bindings" below) |
 | Settings | `Shift+S` | Display settings. The tabs are "Display" (frame step distance, cutting animation colors, gouge coloring), "Tool" (tool wireframe divisions, toolpath display), and "Debug" (debug views) |
 
-While editing a field in the settings panel or a settings dialog, typed characters are not used as keys (except `Esc` to quit).
+While editing a field in the settings panel or a settings dialog, typed characters are not used as keys (except `Esc` to quit). While editing an operation name in the operation table of the operation list, `Esc` cancels the edit (it does not quit).
 
 ## Camera
 
@@ -66,6 +66,7 @@ The same as the "Controls" window opened with the `F1` or `h` key.
 | | `f` | Front view |
 | | `e` | Emergency escape (bring back a camera inside a shape) |
 | Cutting simulation | `Shift+M` | While a machining sequence is open, show or hide the operation list (calculate with "Calculate") |
+| | `F2` | While the operation list is shown, rename the selected operation |
 | | `Shift+L` | While a machining sequence is open, import the latest cutting simulation calculated with the current conditions |
 | | `k` / `j` | Step forward / back by the frame step distance |
 | | `.` / `,` | Move the tool to the next / previous segment endpoint |

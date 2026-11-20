@@ -18,6 +18,17 @@ impl AppState {
             return;
         }
 
+        // 工程の表で名前を編集している間の Esc は、ほかの操作にしない。取り消すのは名前の欄の入力欄が受けたときだけ
+        // にする（日本語の変換を Esc でやめたときは、入力欄は受けず、編集を続ける）
+        if self.is_operation_name_editing()
+            && matches!(
+                key,
+                winit::keyboard::Key::Named(winit::keyboard::NamedKey::Escape)
+            )
+        {
+            return;
+        }
+
         // 条件の編集のダイアログを開いている間は、Esc でダイアログをキャンセルする（入力欄の編集中は、入力欄を離れる
         // だけにする）
         if self.is_condition_dialog_open()
@@ -57,6 +68,14 @@ impl AppState {
         }
 
         if self.renderer.is_settings_using_keyboard() {
+            return;
+        }
+
+        if matches!(
+            key,
+            winit::keyboard::Key::Named(winit::keyboard::NamedKey::F2)
+        ) {
+            self.start_operation_name_edit();
             return;
         }
 

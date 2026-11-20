@@ -64,6 +64,8 @@ impl AppState {
     /// モデルファイルの操作 `action` を要求する（イベントの処理が終わった後に、要求の順に行う。同じ操作がまだ残って
     /// いれば、重ねない）
     pub(crate) fn request_file_action(&mut self, action: FileAction) {
+        // 工程の表で編集している名前は、確定してから行う（保存する文書に入れるため）
+        self.confirm_operation_name_edit();
         if !self.file_actions.contains(&action) {
             self.file_actions.push(action);
         }
