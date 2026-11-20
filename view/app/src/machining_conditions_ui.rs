@@ -24,7 +24,7 @@ use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
 use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
 use viewmodel::tool_library_session::{
-    OperationToolStatus, ToolSetId, ToolSetReference, ToolSetRow,
+    OperationToolStatus, ToolSetFilter, ToolSetId, ToolSetReference, ToolSetRow, filtered_toolsets,
 };
 
 /// 計算条件の問題を出す欄
@@ -371,7 +371,7 @@ pub struct MachiningConditionsUiState {
     pub(crate) tool_reference_library: Option<usize>,
     /// 工具の欄で選んでいるライブラリの、一覧の番号
     pub(crate) tool_library: usize,
-    /// 工具の欄の、ツールセットの名前の絞り込み
+    /// 工具の欄の、ツールセットの名前の検索の文字
     pub(crate) tool_filter: String,
     /// 工具の欄の操作
     pub(crate) tool_command: Option<OperationToolCommand>,
@@ -420,8 +420,22 @@ pub(crate) enum OperationToolCommand {
     Align,
     /// 工具の写しを、一覧の番号のライブラリに名前で登録する
     Register { library: usize, name: String },
-    /// ツールライブラリのウィンドウを開く
-    OpenToolLibrary,
+    /// ツールライブラリのウィンドウを、工程の工具にするツールセットを選ぶために開く
+    PickFromToolLibrary,
+}
+
+/// 工具の欄の検索の文字 `query` を名前に含むツールセット（大文字・小文字を区別しない。文字が空なら、一覧を出さない
+/// ため `None`）
+fn searched_toolsets(toolsets: &[ToolSetRow], query: &str) -> Option<Vec<ToolSetRow>> {
+    let name = query.trim();
+    if name.is_empty() {
+        return None;
+    }
+    let filter = ToolSetFilter {
+        name: name.to_string(),
+        ..ToolSetFilter::default()
+    };
+    Some(filtered_toolsets(toolsets.to_vec(), &filter, None))
 }
 
 /// 加工工程の一覧の 1 行
@@ -1600,16 +1614,17 @@ impl MachiningConditionsUiState {
                     self.show_toolset_choices(ui, toolset.as_ref());
                 }
                 if ui
-                    .button(self.text("conditions.tool.open_library"))
+                    .button(self.text("conditions.tool.pick_from_library"))
                     .clicked()
                 {
-                    self.tool_command = Some(OperationToolCommand::OpenToolLibrary);
+                    self.tool_command = Some(OperationToolCommand::PickFromToolLibrary);
                 }
                 self.show_issues(ui, ConditionField::Tool);
             });
     }
 
-    /// ライブラリを選び、そのツールセットを、名前で絞り込んだ一覧から選ぶ欄
+    /// ライブラリを選び、そのツールセットを、名前で検索した一覧から選ぶ欄（検索の文字を入れていない間は、一覧を
+    /// 出さない）
     fn show_toolset_choices(&mut self, ui: &mut egui::Ui, toolset: Option<&ToolSetReference>) {
         if self.tool_library >= self.tool_libraries.len() {
             self.tool_library = 0;
@@ -1630,24 +1645,29 @@ impl MachiningConditionsUiState {
                 });
         });
         ui.horizontal(|ui| {
-            ui.label(self.text("conditions.tool.filter"));
+            ui.label(self.text("conditions.tool.search"));
             ui.text_edit_singleline(&mut self.tool_filter);
         });
-        let filter = self.tool_filter.trim().to_lowercase();
         let library = self.tool_library;
-        let chosen = toolset
-            .filter(|_| self.tool_reference_library == Some(library))
-            .map(|toolset| toolset.toolset);
-        let rows: Vec<(ToolSetId, String)> = self.tool_libraries[library]
-            .toolsets
-            .iter()
-            .filter(|row| filter.is_empty() || row.name.to_lowercase().contains(&filter))
-            .map(|row| (row.id, self.toolset_choice_text(row)))
-            .collect();
-        if rows.is_empty() {
+        let toolsets = &self.tool_libraries[library].toolsets;
+        if toolsets.is_empty() {
             ui.colored_label(Color32::GRAY, self.text("conditions.tool.no_toolsets"));
             return;
         }
+        let Some(found) = searched_toolsets(toolsets, &self.tool_filter) else {
+            return;
+        };
+        if found.is_empty() {
+            ui.colored_label(Color32::GRAY, self.text("conditions.tool.no_match"));
+            return;
+        }
+        let chosen = toolset
+            .filter(|_| self.tool_reference_library == Some(library))
+            .map(|toolset| toolset.toolset);
+        let rows: Vec<(ToolSetId, String)> = found
+            .iter()
+            .map(|row| (row.id, self.toolset_choice_text(row)))
+            .collect();
         ScrollArea::vertical()
             .id_salt("operation_toolset_choices")
             .max_height(TOOLSET_CHOICES_HEIGHT)
@@ -1870,11 +1890,12 @@ mod tests {
         RowAction, calculation_blocked, condition_error_message, condition_field,
         imported_toolpath_key, job_status_key, job_status_text, navigation_key, navigation_text,
         next_action_of, operation_row_key, operation_row_status_key, operation_status_text,
-        row_status_color, stage_key, submission_on_apply,
+        row_status_color, searched_toolsets, stage_key, submission_on_apply,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
     use viewmodel::message_catalog::{UiLocale, UiMessage};
+    use viewmodel::tool_library_session::{ToolSetId, ToolSetRow};
 
     fn failure(key: &str) -> UiMessage {
         UiMessage {
@@ -2493,5 +2514,28 @@ mod tests {
             condition_field(&ConditionIssue::Other(failure("failure.orchestration"))),
             ConditionField::Submission
         );
+    }
+
+    fn toolset(name: &str) -> ToolSetRow {
+        ToolSetRow {
+            id: ToolSetId::new_random(),
+            name: name.to_string(),
+            kind: None,
+            diameter: 6.0,
+            corner_radius: 3.0,
+            cutting_length: None,
+            same_values: false,
+        }
+    }
+
+    #[test]
+    fn toolsets_are_listed_only_while_searching() {
+        let toolsets = vec![toolset("Ball6 long"), toolset("flat10"), toolset("ball6")];
+        assert_eq!(searched_toolsets(&toolsets, ""), None);
+        assert_eq!(searched_toolsets(&toolsets, "  "), None);
+        let found = searched_toolsets(&toolsets, " BALL6 ").expect("searching");
+        let names: Vec<&str> = found.iter().map(|row| row.name.as_str()).collect();
+        assert_eq!(names, ["Ball6 long", "ball6"]);
+        assert_eq!(searched_toolsets(&toolsets, "end"), Some(Vec::new()));
     }
 }

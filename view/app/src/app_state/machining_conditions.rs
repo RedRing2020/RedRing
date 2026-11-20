@@ -652,7 +652,7 @@ impl AppState {
     }
 
     /// 工程の設定の工具の欄の操作を、ダイアログで編集している工程の中身に当てる（適用するまで工程に入れない）
-    fn run_operation_tool_command(&mut self, command: OperationToolCommand) {
+    pub(super) fn run_operation_tool_command(&mut self, command: OperationToolCommand) {
         let Some(draft) = &mut self.condition_draft else {
             return;
         };
@@ -692,7 +692,10 @@ impl AppState {
                     }
                 }
             }
-            OperationToolCommand::OpenToolLibrary => self.open_tool_library_window(),
+            OperationToolCommand::PickFromToolLibrary => {
+                let toolset = draft.content.attributes.toolset.clone();
+                self.open_tool_library_for_operation(toolset);
+            }
         }
     }
 

@@ -52,6 +52,8 @@ pub enum ToolLibraryAction {
         id: ToolSetId,
         to: usize,
     },
+    /// ツールセットを、工程の設定のダイアログで編集している工程の工具にする
+    UseForOperation { library: usize, id: ToolSetId },
 }
 
 /// ウィンドウの、フレームをまたいで持つ状態
@@ -74,6 +76,21 @@ pub struct ToolLibraryWindow {
     pub diameter_input: f64,
     /// ツールセットの表の並べ替え（列と、昇順か。`None` はライブラリの並び）
     pub sort: Option<(ToolSetSortKey, bool)>,
+    /// 工程の設定のダイアログで編集している工程の工具を選ぶために開いているか（選んだツールセットを、その工程の
+    /// 工具にする操作を出す）
+    pub picking: bool,
+}
+
+impl ToolLibraryWindow {
+    /// 選んだツールセットを、編集している工程の工具にする要求（工程の工具を選ぶために開いていて、ツールセットを
+    /// 選んでいるときだけ）
+    fn use_for_operation(&self) -> Option<ToolLibraryAction> {
+        let id = self.selected_toolset.filter(|_| self.picking)?;
+        Some(ToolLibraryAction::UseForOperation {
+            library: self.selected_library,
+            id,
+        })
+    }
 }
 
 /// ウィンドウの 1 フレームの状態
@@ -276,6 +293,9 @@ impl ToolLibraryUiState {
 
     fn show_toolsets(&mut self, ui: &mut egui::Ui) {
         ui.strong(self.text("tool_library.toolsets"));
+        if self.window.picking {
+            self.show_pick_for_operation(ui);
+        }
         let library = self.window.selected_library;
         let editable = self.editable();
         let selected = self.toolset().map(|(at, row)| (at, row.clone()));
@@ -359,6 +379,23 @@ impl ToolLibraryUiState {
             ui.separator();
             self.show_toolset_editor(ui, &row, editable);
         }
+    }
+
+    /// 工程の工具を選ぶために開いている間の、選んだツールセットを工程の工具にする欄
+    fn show_pick_for_operation(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            let request = self.window.use_for_operation();
+            if ui
+                .add_enabled(
+                    request.is_some(),
+                    egui::Button::new(self.text("tool_library.pick.use")),
+                )
+                .clicked()
+            {
+                self.requested = request;
+            }
+            ui.label(self.text("tool_library.pick.hint"));
+        });
     }
 
     /// ツールセットの表の絞り込みの欄（名前・種類・径・同じ値）
@@ -490,6 +527,7 @@ impl ToolLibraryUiState {
             .map(|at| at + 1);
         let mut hovered_now = None;
         let mut clicked = None;
+        let mut double_clicked = false;
         let row_spacing = ui.spacing().item_spacing.y;
         ScrollArea::vertical()
             .id_salt("tool_library_toolsets")
@@ -551,6 +589,10 @@ impl ToolLibraryUiState {
                             if response.clicked() {
                                 clicked = Some(id);
                             }
+                            if response.double_clicked() {
+                                clicked = Some(id);
+                                double_clicked = true;
+                            }
                             if response.hovered() {
                                 hovered_now = Some(index + 1);
                             }
@@ -568,6 +610,10 @@ impl ToolLibraryUiState {
         {
             self.window.selected_toolset = Some(id);
             self.window.draft = None;
+        }
+        // 工程の工具を選ぶために開いている間は、行のダブルクリックで、その行を工程の工具にする
+        if double_clicked && let Some(request) = self.window.use_for_operation() {
+            self.requested = Some(request);
         }
     }
 
@@ -656,5 +702,31 @@ impl ToolLibraryUiState {
             }
         });
         self.window.draft = (draft != shown).then_some(draft);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ToolLibraryAction, ToolLibraryWindow};
+    use viewmodel::tool_library_session::ToolSetId;
+
+    #[test]
+    fn selected_toolset_is_used_for_the_operation_only_while_picking() {
+        let id = ToolSetId::new_random();
+        let mut window = ToolLibraryWindow {
+            open: true,
+            selected_library: 2,
+            ..ToolLibraryWindow::default()
+        };
+        assert_eq!(window.use_for_operation(), None);
+        window.picking = true;
+        assert_eq!(window.use_for_operation(), None);
+        window.selected_toolset = Some(id);
+        assert_eq!(
+            window.use_for_operation(),
+            Some(ToolLibraryAction::UseForOperation { library: 2, id })
+        );
+        window.picking = false;
+        assert_eq!(window.use_for_operation(), None);
     }
 }
