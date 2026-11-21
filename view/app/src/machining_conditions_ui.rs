@@ -1422,7 +1422,9 @@ impl MachiningConditionsUiState {
             .id_salt(OPERATION_TABLE_SALT)
             .striped(false)
             .resizable(true)
-            .auto_shrink([false, false]);
+            .auto_shrink([false, false])
+            // 工程の行の所に最小の高さを持たせない（工程リストを境目のドラッグで低くしたとき、ドラッグした所まで縮むように）
+            .min_scrolled_height(0.0);
         for (index, refit) in refit.into_iter().enumerate() {
             // 文字が入らない列は、末尾を省いて出す。名前を編集している間の名前の列は、省かずに入力欄に合わせて広げる
             let clip = !(editing_any && index == NAME_COLUMN);
