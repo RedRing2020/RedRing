@@ -46,8 +46,8 @@
 pwsh scripts/build_release.ps1
 ```
 
-- `release.yml` と同じ対象と RUSTFLAGS（`+crt-static`）でビルドする。cargo は変わった部分だけを作り直す。実行ファイルは `target/release` にできる
-- ビルドが成功したら、`target/release/build` のうち、このビルドで使わなかった成果物（クレートとハッシュごとのフォルダ）を消す
+- `release.yml` と同じ対象と RUSTFLAGS（`+crt-static`）でビルドする。RUSTFLAGS より先に使われる `CARGO_ENCODED_RUSTFLAGS` は、ビルドの間だけ外す。cargo は変わった部分だけを作り直す。実行ファイルは `target/release` にできる
+- ビルドが成功したら、`target/release/build` のうち、このビルドで使わなかった成果物（クレートとハッシュごとのフォルダ）を消す。ビルドの対象の環境を設定（`CARGO_BUILD_TARGET` など）で決めているときは、`target/<対象>/release/build` も同じく消す
 - cargo は、RUSTFLAGS・Rust の版・依存の版・ビルドする対象の組み合わせが変わると、成果物をもう一組作り、前の組を消さない。そのままビルドを繰り返すと、`target/release` が 1 組あたり 1 GB ほどずつ増える
 - `cargo check --release` など、ほかの release のビルドの成果物も消すため、次に回すときは作り直しになる
 - ほかの cargo が release でビルドしている最中には動かさない
