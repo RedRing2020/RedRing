@@ -1465,9 +1465,16 @@ impl MachiningConditionsUiState {
                     let mut row_rect = Rect::NOTHING;
                     let mut status_rect = Rect::NOTHING;
                     body.row(row_height, |mut table_row| {
-                        // 欄はすべて、行の高さの中央にそろえる
-                        let mut cell =
-                            |add: &mut dyn FnMut(&mut egui::Ui)| table_row.col(|ui| add(ui)).1.rect;
+                        // 欄はすべて、行の高さの中央にそろえる。欄の範囲は、欄に取った範囲にする（表が返す欄の応答の範囲は、
+                        // 欄の中身の高さで行の高さより広がり、背景・押せる範囲が次の行や表の下にはみ出すため）
+                        let mut cell = |add: &mut dyn FnMut(&mut egui::Ui)| {
+                            let mut rect = Rect::NOTHING;
+                            table_row.col(|ui| {
+                                rect = ui.max_rect();
+                                add(ui);
+                            });
+                            rect
+                        };
                         row_rect = cell(&mut |ui| {
                             centered_label(ui, order.as_str());
                         });
