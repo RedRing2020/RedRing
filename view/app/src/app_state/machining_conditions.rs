@@ -155,8 +155,10 @@ impl AppState {
             return;
         }
         self.operation_name_confirm_requested = false;
+        self.operation_name_edit_sessions += 1;
         self.operation_name_edit = Some(OperationNameEdit {
             operation: self.document.selected_operation(),
+            session: self.operation_name_edit_sessions,
             name: self.document.operation_content().attributes.name.clone(),
         });
         tracing::info!("Operation name editing started");
@@ -650,14 +652,12 @@ impl AppState {
         // ときは、その操作の前に確定する）。編集をやめた後の名前（選んだ工程が替わった・文書を替えた）は受け取らない
         if let (Some(edit), Some(shown)) = (&mut self.operation_name_edit, state.name_edit)
             && edit.operation == shown.operation
+            && edit.session == shown.session
         {
             edit.name = shown.name;
         }
-        // ファイルの操作を待たせているときは、受け取った名前で確定する（待っているファイルの操作は、この後に行う）
-        if std::mem::take(&mut self.operation_name_confirm_requested) {
-            self.confirm_operation_name_edit();
-        }
-        match state.name_edit_result {
+        let confirm_requested = std::mem::take(&mut self.operation_name_confirm_requested);
+        match name_edit_decision(state.name_edit_result, confirm_requested) {
             Some(DialogResult::Apply) => self.confirm_operation_name_edit(),
             Some(DialogResult::Cancel) => self.cancel_operation_name_edit(),
             None => {}
@@ -811,4 +811,47 @@ fn copied_operation_name(locale: UiLocale, name: &str) -> String {
         "conditions.operations.copy_name",
         &[("name", name.to_string())],
     )
+}
+
+/// 名前の欄の確定・取り消し `result` と、ファイルの操作を待たせているか `confirm_requested` から、編集した名前を確定するか
+/// 取り消すかを決める。ファイルの操作を待たせているときは、受け取った名前で確定する（待っているファイルの操作は、この後に
+/// 行う）。ただし、名前の欄で取り消したとき（Esc の後にファイルの操作をした）は、取り消す
+fn name_edit_decision(
+    result: Option<DialogResult>,
+    confirm_requested: bool,
+) -> Option<DialogResult> {
+    match result {
+        Some(DialogResult::Cancel) => Some(DialogResult::Cancel),
+        _ if confirm_requested => Some(DialogResult::Apply),
+        result => result,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_canceled_name_is_not_confirmed_by_a_waiting_file_action() {
+        // Esc の後に保存したときは、取り消してから保存する（取り消した名前を保存しない）
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Cancel), true),
+            Some(DialogResult::Cancel)
+        );
+        // 名前の欄を離れていなくても、ファイルの操作を待たせていれば確定する
+        assert_eq!(name_edit_decision(None, true), Some(DialogResult::Apply));
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Apply), true),
+            Some(DialogResult::Apply)
+        );
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Apply), false),
+            Some(DialogResult::Apply)
+        );
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Cancel), false),
+            Some(DialogResult::Cancel)
+        );
+        assert_eq!(name_edit_decision(None, false), None);
+    }
 }
