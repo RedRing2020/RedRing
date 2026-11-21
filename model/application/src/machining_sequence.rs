@@ -483,6 +483,18 @@ impl MachiningSequenceStore {
         Ok(self.sequence(sequence)?.stock())
     }
 
+    /// 加工手順 `sequence` の加工の対象（製品形状の面の ID の集合）
+    ///
+    /// # Errors
+    ///
+    /// 保管していない加工手順の場合。
+    pub fn target_faces(
+        &self,
+        sequence: MachiningSequenceId,
+    ) -> Result<&[FaceId], MachiningSequenceError> {
+        Ok(self.sequence(sequence)?.target_faces())
+    }
+
     /// 加工手順 `sequence` の加工工程 `operation` のツールパス生成のトレランス（mm。工程の精度プロファイルから決まる）
     ///
     /// # Errors

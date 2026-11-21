@@ -22,7 +22,7 @@ fn part_color(kind: InverseOffsetPartKind) -> [f32; 4] {
 }
 
 impl AppState {
-    /// デバッグ用: 表示中の製品形状と計算条件の工具で作った逆オフセット形状の要素を、役割ごとの色で表示する
+    /// デバッグ用: 加工の対象の面と計算条件の工具で作った逆オフセット形状の要素を、役割ごとの色で表示する
     ///
     /// カメラは動かさず、通常の表示と同じ向き・拡大で見比べられるようにする。取り込んだ切削シミュレーションのツールパスの
     /// 線を重ね（工具の先端が逆オフセット形状の上面を通るかを確かめる）、表示・非表示は通常の表示と同じに切り替える。
@@ -30,7 +30,7 @@ impl AppState {
     pub fn load_debug_inverse_offset_shape(&mut self) {
         let meshes = match self
             .cutting_simulation
-            .inverse_offset_shape_meshes(&mut self.document, ANGLE_STEP_DEGREES.to_radians())
+            .inverse_offset_shape_meshes(&self.document, ANGLE_STEP_DEGREES.to_radians())
         {
             Ok(meshes) => meshes,
             Err(error) => {

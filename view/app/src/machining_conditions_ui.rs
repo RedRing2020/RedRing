@@ -392,7 +392,7 @@ pub struct MachiningConditionsUiState {
     pub(crate) name_edit_result: Option<DialogResult>,
     /// 選んだ工程の名前を、工程の表の名前の欄で編集し始める
     pub(crate) name_edit_requested: bool,
-    /// 表示中の製品形状の面の数
+    /// 加工手順の加工の対象の面の数（面の表示・非表示によらない）
     pub face_count: usize,
     /// ダイアログで編集している、選んだ加工工程の中身（名前・工具・走査線の条件）と加工手順の素材（余裕・精度）。
     /// 適用するまで、工程・手順に入れない

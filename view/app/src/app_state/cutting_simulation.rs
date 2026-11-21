@@ -108,13 +108,13 @@ fn stock_class_color(colors: &SnapshotShadedColorSettings, class: DeviationClass
 }
 
 impl AppState {
-    /// 表示中の製品形状で、選んだ加工工程を投入する（実行しない。今の条件の計算が計算待ち・計算中・計算済みなら
+    /// 加工手順の加工の対象で、選んだ加工工程を投入する（実行しない。今の条件の計算が計算待ち・計算中・計算済みなら
     /// 投入しない。今の条件の CL があれば、切削シミュレーションだけ）
     ///
     /// 投入できたかを返す。
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
         let (window, locale) = (&self.window, self.ui_locale);
-        let kind = match self.cutting_simulation.submit(&mut self.document, |large| {
+        let kind = match self.cutting_simulation.submit(&self.document, |large| {
             confirm_large_toolpaths(window, locale, large)
         }) {
             Ok(SubmitOutcome::Submitted(kind)) => Ok(kind),
@@ -152,7 +152,7 @@ impl AppState {
         self.finish_submission(result, "the machining operation")
     }
 
-    /// 表示中の製品形状で、選んだ加工工程の空間モデルの CL を消して、ツールパス生成から投入し直す（実行しない）。
+    /// 加工手順の加工の対象で、選んだ加工工程の空間モデルの CL を消して、ツールパス生成から投入し直す（実行しない）。
     /// その工程の切削アニメーションを出していれば閉じる（消した CL の結果を出し続けないように）
     ///
     /// 投入できたかを返す。
@@ -194,7 +194,7 @@ impl AppState {
         let (window, locale) = (&self.window, self.ui_locale);
         match self
             .cutting_simulation
-            .submit_sequence(&mut self.document, |large| {
+            .submit_sequence(&self.document, |large| {
                 confirm_large_toolpaths(window, locale, large)
             }) {
             Ok(SequenceOutcome::Declined) => {
@@ -296,7 +296,7 @@ impl AppState {
     pub(crate) fn cancel_superseded_jobs(&mut self) {
         match self
             .cutting_simulation
-            .cancel_superseded_jobs(&mut self.document)
+            .cancel_superseded_jobs(&self.document)
         {
             Ok(0) => {}
             Ok(count) => {

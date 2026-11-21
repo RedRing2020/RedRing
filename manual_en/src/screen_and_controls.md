@@ -93,7 +93,7 @@ The same as the "Controls" window opened with the `F1` or `h` key.
 
 The debug views of a line segment, circle, arc, triangle, and the inverse offset shape are shown with the buttons on the Debug tab of the settings panel (`Shift+S`), not with keys. "Back to the normal view" on the Debug tab returns to the product shape and cutting animation shown before the debug view (the same frame and the same camera direction). While a debug view is shown, stepping and playback of the cutting animation are not available. The inverse offset shape view is drawn without changing the camera direction or zoom (a camera moved in that view is kept after going back to the normal view), and the toolpath lines of the imported cutting simulation are drawn over it (so you can check that the tool tip follows the top of the inverse offset shape). Show or hide the lines with the `v` key, as in the normal view. If the tool of the imported result differs from the tool of the current conditions (type or radius), the lines do not match the inverse offset shape, and the status bar tells you so.
 
-"Show" under "Inverse Offset Shape" on the Debug tab builds the same inverse offset shape as toolpath generation from the visible product shape and the tool of the conditions, and shows its elements in colors by role (the product shape is not shown; nothing is shown if the conditions have an error).
+"Show" under "Inverse Offset Shape" on the Debug tab builds the same inverse offset shape as toolpath generation from the target faces and the tool of the conditions, and shows its elements in colors by role (the product shape is not shown; nothing is shown if the conditions have an error).
 
 | Color | Element |
 |---|---|

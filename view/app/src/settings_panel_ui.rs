@@ -31,7 +31,7 @@ pub enum DebugSceneAction {
     Circle,
     Arc,
     Triangle,
-    /// 表示中の製品形状と計算条件の工具で、逆オフセット形状の要素を表示する
+    /// 加工の対象の面と計算条件の工具で、逆オフセット形状の要素を表示する
     InverseOffsetShape,
 }
 

@@ -274,7 +274,7 @@ impl AppState {
             let (content, stock) = (draft.content.clone(), draft.stock);
             let issues = self
                 .cutting_simulation
-                .check_draft(&mut self.document, &content, stock);
+                .check_draft(&self.document, &content, stock);
             self.draft_issues = Some(DraftIssues {
                 content,
                 stock,
@@ -290,7 +290,7 @@ impl AppState {
     /// 計算条件を確かめ直す必要がある場合（条件・製品形状が変わった後）に確かめる
     fn refresh_condition_issues(&mut self) {
         if self.condition_issues.is_none() {
-            self.condition_issues = Some(self.cutting_simulation.check(&mut self.document));
+            self.condition_issues = Some(self.cutting_simulation.check(&self.document));
         }
     }
 
@@ -327,7 +327,7 @@ impl AppState {
             OperationJobState::Status(status) => JobStatusLine::Status(status),
         };
         // 一覧に出すため、手順のすべての工程の状態を読む（最後に読んだ状態から決めるため、工程の数だけ待つことはない）
-        self.operation_job_statuses = match self.cutting_simulation.job_states(&mut self.document) {
+        self.operation_job_statuses = match self.cutting_simulation.job_states(&self.document) {
             Ok(states) => states
                 .into_iter()
                 .map(|(operation, state)| (operation, line(state)))
@@ -356,7 +356,7 @@ impl AppState {
         // 状態を読めないときは、上で出している（理由だけを出さない）
         let failure = if status == JobStatusLine::Status(OperationJobStatus::Failed) {
             self.cutting_simulation
-                .job_failure(&mut self.document)
+                .job_failure(&self.document)
                 .unwrap_or_default()
         } else {
             None
@@ -532,7 +532,7 @@ impl AppState {
         if self.operation_list_shown && self.operation_condition_errors.is_none() {
             self.operation_condition_errors = Some(
                 self.cutting_simulation
-                    .operation_condition_issues(&mut self.document)
+                    .operation_condition_issues(&self.document)
                     .into_iter()
                     .collect(),
             );
@@ -613,7 +613,7 @@ impl AppState {
             name_edit: self.operation_name_edit.clone(),
             name_edit_result: None,
             name_edit_requested: false,
-            face_count: self.document.shapes().visible_face_count(),
+            face_count: self.document.target_face_count(),
             operation,
             stock,
             tool_libraries,
