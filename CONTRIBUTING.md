@@ -20,7 +20,7 @@ cargo run -p redring     # needs a GUI environment
 cargo test --workspace
 ```
 
-Build with `--release` when you try toolpaths and cutting simulations; the debug build computes them many times slower.
+Build with `--release` when you try toolpaths and cutting simulations; the debug build computes them many times slower. On Windows, `pwsh scripts/build_release.ps1` also works: it builds with the same settings as the release packages and removes old build outputs that are no longer used, so `target` does not keep growing (`dev/RELEASE_DISTRIBUTION_OPERATION.md`).
 
 If no GPU adapter is found, choose the backend with the environment variable `WGPU_BACKEND` (for example `vulkan` or `dx12`).
 
