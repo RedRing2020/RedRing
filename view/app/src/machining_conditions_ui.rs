@@ -15,6 +15,8 @@ use egui::{
     Window,
 };
 use egui_extras::{Column, TableBuilder};
+use std::collections::HashMap;
+use std::hash::Hash;
 use viewmodel::cutting_simulation_session::{
     CamConditionError, CamConditionField, ConditionIssue, CuttingToolKind, ImportedConditions,
     MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock, OperationFailure,
@@ -796,7 +798,7 @@ fn spinner_reserve(ui: &egui::Ui) -> f32 {
 /// 含む）の文字 `current` が、前の描画の列の幅 `shown` に入らない列を合わせ直す（広がっても入る列・広がっていない
 /// 列は、ドラッグで決めた幅のままにする）。前の描画がなければ、どの列も合わせ直さない（初めての描画は、表が中身に
 /// 合わせるため）
-fn columns_to_refit<Key: PartialEq>(
+fn columns_to_refit<Key: Eq + Hash>(
     previous: Option<&TableTextWidths<Key>>,
     current: &TableTextWidths<Key>,
     shown: Option<[f32; COLUMN_COUNT]>,
@@ -807,15 +809,17 @@ fn columns_to_refit<Key: PartialEq>(
         return [false; COLUMN_COUNT];
     };
     let grown = |now: f32, before: f32| now >= before + MIN_GROWTH;
+    // 前の描画の欄の幅を、工程で引けるようにまとめておく（欄ごとに前の描画の行を探さないように）
+    let previous_rows: HashMap<&Key, &[f32; COLUMN_COUNT]> = previous
+        .rows
+        .iter()
+        .map(|(id, widths)| (id, widths))
+        .collect();
     std::array::from_fn(|column| {
         let header = grown(current.headers[column], previous.headers[column])
             .then_some(current.headers[column]);
         let cells = current.rows.iter().filter_map(|(id, widths)| {
-            let before = previous
-                .rows
-                .iter()
-                .find(|(previous_id, _)| previous_id == id)
-                .map(|(_, widths)| widths[column]);
+            let before = previous_rows.get(id).map(|widths| widths[column]);
             // 足した工程の欄は、広がった欄とみなす
             before
                 .is_none_or(|before| grown(widths[column], before))
@@ -1547,8 +1551,10 @@ impl MachiningConditionsUiState {
                             }
                             None => {
                                 // 名前を編集している間は、名前の列は省かないため、ほかの行の名前は列の幅で省く（ほかの
-                                // 行の長い名前で、列が広がらないように）
-                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+                                // 行の長い名前で、列が広がらないように）。中身に合わせる幅を測る描画では省かない
+                                if editing_any && !ui.is_sizing_pass() {
+                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+                                }
                                 centered_label(ui, name.as_str());
                             }
                         }));
