@@ -67,7 +67,8 @@ impl AppState {
             return;
         }
 
-        if self.renderer.is_settings_using_keyboard() {
+        // 工程の名前の編集を始めた後は、名前の欄の入力欄を描く前に打った文字も、キー操作にしない
+        if self.renderer.is_settings_using_keyboard() || self.is_operation_name_editing() {
             return;
         }
 

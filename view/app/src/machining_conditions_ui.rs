@@ -695,7 +695,8 @@ fn name_edit_cell(
     name: &mut String,
 ) -> (Rect, Option<DialogResult>) {
     let id = Id::unique("operation_name_edit").with(session);
-    if egui::text_edit::TextEditState::load(ui.ctx(), id).is_none() {
+    let first_frame = egui::text_edit::TextEditState::load(ui.ctx(), id).is_none();
+    if first_frame {
         ui.memory_mut(|memory| memory.request_focus(id));
         let mut state = egui::text_edit::TextEditState::default();
         state
@@ -724,12 +725,15 @@ fn name_edit_cell(
             )
         })
         .inner;
-    let result = response.lost_focus().then(|| {
-        if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
-            DialogResult::Cancel
-        } else {
-            DialogResult::Apply
-        }
+    // 初めて置いた描画で離れたとき（Enter・入力欄の外を押した）は、前の描画で文字を受けていないため、離れたとは知らされ
+    // ない。文字を受ける欄でなくなったことで確かめる。その描画の Esc は、入力欄を離れさせないため、Esc を受けたことで
+    // 確かめる（日本語の変換をやめた Esc は、ここまで届かない）
+    let escape = ui.input(|input| input.key_pressed(egui::Key::Escape));
+    let left = response.lost_focus() || (first_frame && (escape || !response.has_focus()));
+    let result = left.then_some(if escape {
+        DialogResult::Cancel
+    } else {
+        DialogResult::Apply
     });
     (response.rect, result)
 }
@@ -2680,7 +2684,20 @@ mod tests {
             let typed = vec![egui::Event::Text("仕上げ".to_string())];
             assert_eq!(name_edit_frame(&ctx, 1, &mut name, typed), None);
             assert_eq!(name, "仕上げ");
-            assert_eq!(name_edit_frame(&ctx, 1, &mut name, events), Some(expected));
+            assert_eq!(
+                name_edit_frame(&ctx, 1, &mut name, events.clone()),
+                Some(expected)
+            );
+            // 初めて置いた描画で、文字を打ってから離れても、確定・取り消しを返す
+            let ctx = egui::Context::default();
+            let mut name = "荒取り".to_string();
+            let mut typed_and_left = vec![egui::Event::Text("仕上げ".to_string())];
+            typed_and_left.extend(events);
+            assert_eq!(
+                name_edit_frame(&ctx, 1, &mut name, typed_and_left),
+                Some(expected)
+            );
+            assert_eq!(name, "仕上げ");
         }
     }
 
