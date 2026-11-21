@@ -3,7 +3,7 @@ use crate::app_settings::AppSettings;
 use crate::entity_manager::EntityManager;
 use crate::graphic::{Graphic, init_graphic};
 use crate::help_ui::Notice;
-use crate::machining_conditions_ui::{JobStatusLine, OperationSettingsPage};
+use crate::machining_conditions_ui::{JobStatusLine, OperationNameEdit, OperationSettingsPage};
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
@@ -177,6 +177,13 @@ pub struct AppState {
     condition_draft: Option<machining_conditions::ConditionDraft>,
     /// 編集している条件と、その条件の問題（条件が変わったら確かめ直す）
     draft_issues: Option<machining_conditions::DraftIssues>,
+    /// 工程の表の名前の欄で編集している名前（確定するまで工程に入れない。選んだ工程が替わったら捨てる）
+    operation_name_edit: Option<OperationNameEdit>,
+    /// 名前の欄で編集を始めた回数（編集ごとに入力欄を分ける）
+    operation_name_edit_sessions: u64,
+    /// 名前の欄で編集している名前を、次の画面の描画で受け取ってから確定する（ファイルの操作の前。まだ受け取っていない
+    /// 打った文字も入れるため）
+    operation_name_confirm_requested: bool,
     /// 工程の設定のダイアログで出している頁（次に開いたときも同じ頁を出す）
     operation_settings_page: OperationSettingsPage,
     /// 工程の設定を適用すると同時に投入する
@@ -326,6 +333,9 @@ impl AppState {
             operation_list_shown: false,
             condition_draft: None,
             draft_issues: None,
+            operation_name_edit: None,
+            operation_name_edit_sessions: 0,
+            operation_name_confirm_requested: false,
             operation_settings_page: OperationSettingsPage::default(),
             submit_on_apply: false,
             condition_issues: None,

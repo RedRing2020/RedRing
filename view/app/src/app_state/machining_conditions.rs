@@ -11,8 +11,8 @@ use super::AppState;
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
     ApplySubmission, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
-    OperationCommand, OperationRow, OperationSetup, OperationToolCommand, ToolLibraryChoice,
-    submission_on_apply,
+    OperationCommand, OperationNameEdit, OperationRow, OperationSetup, OperationToolCommand,
+    ToolLibraryChoice, submission_on_apply,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,
@@ -91,6 +91,10 @@ impl AppState {
             tracing::debug!("The machining sequence is not open; the operation list is not shown");
             return;
         }
+        // 隠すときは、工程の表で編集している名前を確定する（入力欄を描かなくなり、編集を終えられなくなるため）
+        if self.operation_list_shown {
+            self.confirm_operation_name_edit();
+        }
         self.operation_list_shown = !self.operation_list_shown;
         tracing::info!(
             "Operation list {}",
@@ -109,6 +113,8 @@ impl AppState {
             tracing::debug!("The condition dialog is not opened");
             return;
         }
+        // 工程の表で編集している名前は、確定してからダイアログに出す
+        self.confirm_operation_name_edit();
         self.condition_draft = Some(ConditionDraft {
             dialog,
             content: self.document.operation_content().clone(),
@@ -138,6 +144,47 @@ impl AppState {
         if self.condition_draft.take().is_some() {
             self.draft_issues = None;
             tracing::info!("Condition dialog canceled");
+        }
+    }
+
+    /// 工程リストを出している間に、選んだ工程の名前を、工程の表の名前の欄で編集し始める（条件の編集のダイアログを
+    /// 開いている間は何もしない）
+    pub(crate) fn start_operation_name_edit(&mut self) {
+        if !self.operation_list_shown || self.is_condition_dialog_open() {
+            tracing::debug!("The operation name is not edited");
+            return;
+        }
+        self.operation_name_confirm_requested = false;
+        self.operation_name_edit_sessions += 1;
+        self.operation_name_edit = Some(OperationNameEdit {
+            operation: self.document.selected_operation(),
+            session: self.operation_name_edit_sessions,
+            name: self.document.operation_content().attributes.name.clone(),
+        });
+        tracing::info!("Operation name editing started");
+    }
+
+    /// 工程の表の名前の欄で、名前を編集しているか
+    pub(crate) fn is_operation_name_editing(&self) -> bool {
+        self.operation_name_edit.is_some()
+    }
+
+    /// 工程の表の名前の欄で編集した名前を、選んだ工程に入れて編集を終える（工程の設定のダイアログで適用したときと
+    /// 同じく、前後の空白を除き、空なら替えない。名前は計算に使わないため、工程の改訂は進めず、計算の状態は変わらない）
+    pub(crate) fn confirm_operation_name_edit(&mut self) {
+        let Some(edit) = self.operation_name_edit.take() else {
+            return;
+        };
+        if edit.operation == self.document.selected_operation() {
+            self.document.rename_selected_operation(&edit.name);
+            tracing::info!("Operation name editing confirmed");
+        }
+    }
+
+    /// 工程の表の名前の欄で編集した名前を捨てて、編集を終える
+    pub(crate) fn cancel_operation_name_edit(&mut self) {
+        if self.operation_name_edit.take().is_some() {
+            tracing::info!("Operation name editing canceled");
         }
     }
 
@@ -389,6 +436,7 @@ impl AppState {
 
     /// 選んだ加工工程が替わった後（文書を替えたときを含む）に、前の工程について持っていた画面の状態を捨てる
     pub(crate) fn forget_selected_operation_state(&mut self) {
+        self.operation_name_edit = None;
         self.invalidate_conditions();
         self.cutting_simulation_job_status = JobStatusLine::Reading;
         self.cutting_simulation_job_failure = None;
@@ -562,6 +610,9 @@ impl AppState {
             operations,
             selected_operation: selected,
             operation_command: None,
+            name_edit: self.operation_name_edit.clone(),
+            name_edit_result: None,
+            name_edit_requested: false,
             face_count: self.document.shapes().visible_face_count(),
             operation,
             stock,
@@ -597,6 +648,20 @@ impl AppState {
         self.submit_on_apply = state.submit_on_apply;
         self.operation_tool_library = state.tool_library;
         self.operation_tool_filter = state.tool_filter;
+        // 名前の欄で編集した名前は、ほかの操作より先に受け取り、確定・取り消す（ほかの行・ボタンを押して入力欄を離れた
+        // ときは、その操作の前に確定する）。編集をやめた後の名前（選んだ工程が替わった・文書を替えた）は受け取らない
+        if let (Some(edit), Some(shown)) = (&mut self.operation_name_edit, state.name_edit)
+            && edit.operation == shown.operation
+            && edit.session == shown.session
+        {
+            edit.name = shown.name;
+        }
+        let confirm_requested = std::mem::take(&mut self.operation_name_confirm_requested);
+        match name_edit_decision(state.name_edit_result, confirm_requested) {
+            Some(DialogResult::Apply) => self.confirm_operation_name_edit(),
+            Some(DialogResult::Cancel) => self.cancel_operation_name_edit(),
+            None => {}
+        }
         // ダイアログを開いている間は、編集した条件を受け取り、適用・キャンセルだけを行う（工程リストは押せないため、
         // ほかの操作は来ない）
         if let Some(draft) = &mut self.condition_draft {
@@ -620,6 +685,9 @@ impl AppState {
         }
         if let Some(dialog) = state.open_dialog_requested {
             self.open_condition_dialog(dialog);
+        }
+        if state.name_edit_requested {
+            self.start_operation_name_edit();
         }
         if command.is_some() {
             return;
@@ -743,4 +811,47 @@ fn copied_operation_name(locale: UiLocale, name: &str) -> String {
         "conditions.operations.copy_name",
         &[("name", name.to_string())],
     )
+}
+
+/// 名前の欄の確定・取り消し `result` と、ファイルの操作を待たせているか `confirm_requested` から、編集した名前を確定するか
+/// 取り消すかを決める。ファイルの操作を待たせているときは、受け取った名前で確定する（待っているファイルの操作は、この後に
+/// 行う）。ただし、名前の欄で取り消したとき（Esc の後にファイルの操作をした）は、取り消す
+fn name_edit_decision(
+    result: Option<DialogResult>,
+    confirm_requested: bool,
+) -> Option<DialogResult> {
+    match result {
+        Some(DialogResult::Cancel) => Some(DialogResult::Cancel),
+        _ if confirm_requested => Some(DialogResult::Apply),
+        result => result,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_canceled_name_is_not_confirmed_by_a_waiting_file_action() {
+        // Esc の後に保存したときは、取り消してから保存する（取り消した名前を保存しない）
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Cancel), true),
+            Some(DialogResult::Cancel)
+        );
+        // 名前の欄を離れていなくても、ファイルの操作を待たせていれば確定する
+        assert_eq!(name_edit_decision(None, true), Some(DialogResult::Apply));
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Apply), true),
+            Some(DialogResult::Apply)
+        );
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Apply), false),
+            Some(DialogResult::Apply)
+        );
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Cancel), false),
+            Some(DialogResult::Cancel)
+        );
+        assert_eq!(name_edit_decision(None, false), None);
+    }
 }

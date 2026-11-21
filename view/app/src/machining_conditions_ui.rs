@@ -289,6 +289,9 @@ const DIALOG_CHROME_HEIGHT: f32 = 140.0;
 /// 条件の編集のダイアログの、スクロールする中身の最小の高さ（論理座標）
 const DIALOG_BODY_MIN_HEIGHT: f32 = 120.0;
 
+/// 工程の表の名前の欄の、名前を編集する入力欄の、名前の幅に足す余り（入力欄の枠の内側の余白と、打ち足す文字の分。論理座標）
+const NAME_EDIT_SPARE_WIDTH: f32 = 24.0;
+
 /// 工程の表の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
 pub(crate) const SELECTED_ROW_OPACITY: f32 = 0.45;
 
@@ -318,6 +321,15 @@ pub(crate) enum DialogResult {
     Apply,
     /// 編集した条件を捨てる
     Cancel,
+}
+
+/// 工程の表の名前の欄で、名前を編集している工程と、編集している名前（確定するまで、工程に入れない）。編集を始めるごとに
+/// 替わる番号で入力欄を分け、前の編集の入力欄の状態（文字の位置・元に戻す履歴）を引き継がない
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct OperationNameEdit {
+    pub(crate) operation: MachiningOperationId,
+    pub(crate) session: u64,
+    pub(crate) name: String,
 }
 
 /// 範囲 `area` に置くダイアログの、スクロールする中身の最大の高さ（題・ボタンの行を範囲に収める）
@@ -357,6 +369,11 @@ pub struct MachiningConditionsUiState {
     pub(crate) selected_operation: MachiningOperationId,
     /// 加工工程の一覧の操作
     pub(crate) operation_command: Option<OperationCommand>,
+    /// 工程の表の名前の欄で編集している名前（編集していなければ `None`）と、その確定・取り消し
+    pub(crate) name_edit: Option<OperationNameEdit>,
+    pub(crate) name_edit_result: Option<DialogResult>,
+    /// 選んだ工程の名前を、工程の表の名前の欄で編集し始める
+    pub(crate) name_edit_requested: bool,
     /// 表示中の製品形状の面の数
     pub face_count: usize,
     /// ダイアログで編集している、選んだ加工工程の中身（名前・工具・走査線の条件）と加工手順の素材（余裕・精度）。
@@ -669,6 +686,58 @@ fn next_action_of(
     }
 }
 
+/// 工程の表の名前の欄の入力欄を、行の高さの中央にそろえて置き、欄の範囲と、名前の確定・取り消しを返す。入力欄は、
+/// 名前の列の幅（名前の全体が入らなければ、名前に合わせて広げる）にし、編集 `session` で初めて置くときに、名前のすべてを
+/// 選んで編集を始める（その描画で打った文字から受ける）。入力欄を離れたら確定する（取り消すのは、Esc で離れたときだけ）
+fn name_edit_cell(
+    ui: &mut egui::Ui,
+    session: u64,
+    name: &mut String,
+) -> (Rect, Option<DialogResult>) {
+    let id = Id::unique("operation_name_edit").with(session);
+    let first_frame = egui::text_edit::TextEditState::load(ui.ctx(), id).is_none();
+    if first_frame {
+        ui.memory_mut(|memory| memory.request_focus(id));
+        let mut state = egui::text_edit::TextEditState::default();
+        state
+            .cursor
+            .set_char_range(Some(egui::text::CCursorRange::select_all_str(name)));
+        state.store(ui.ctx(), id);
+    }
+    // 入力欄は、名前の列の幅にし、名前の全体が入らなければ名前に合わせて広げる（表の列の幅は前の描画の幅のため、列の
+    // 幅に抑えると、長い名前の頭が隠れる）
+    let name_width = egui::WidgetText::from(name.as_str())
+        .into_galley(
+            ui,
+            Some(egui::TextWrapMode::Extend),
+            f32::INFINITY,
+            egui::TextStyle::Body,
+        )
+        .size()
+        .x;
+    let width = (name_width + NAME_EDIT_SPARE_WIDTH).max(ui.available_width());
+    let response = ui
+        .horizontal_centered(|ui| {
+            ui.add(
+                egui::TextEdit::singleline(name)
+                    .id(id)
+                    .min_size(egui::vec2(width, 0.0)),
+            )
+        })
+        .inner;
+    // 初めて置いた描画で離れたとき（Enter・入力欄の外を押した）は、前の描画で文字を受けていないため、離れたとは知らされ
+    // ない。文字を受ける欄でなくなったことで確かめる。その描画の Esc は、入力欄を離れさせないため、Esc を受けたことで
+    // 確かめる（日本語の変換をやめた Esc は、ここまで届かない）
+    let escape = ui.input(|input| input.key_pressed(egui::Key::Escape));
+    let left = response.lost_focus() || (first_frame && (escape || !response.has_focus()));
+    let result = left.then_some(if escape {
+        DialogResult::Cancel
+    } else {
+        DialogResult::Apply
+    });
+    (response.rect, result)
+}
+
 /// 欄の文字を、行の高さの中央にそろえて置き、欄の範囲を返す
 pub(crate) fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> Rect {
     ui.horizontal_centered(|ui| ui.label(text)).response.rect
@@ -694,6 +763,7 @@ fn spec_kind_key(spec: &OperationSpec) -> &'static str {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum RowAction {
     OpenSettings,
+    Rename,
     Submit,
     Redo,
     Stop,
@@ -1167,7 +1237,7 @@ impl MachiningConditionsUiState {
             RowAction::ImportToolpath => position
                 .and_then(|at| self.operations.get(at))
                 .is_none_or(|row| !row.toolpath_current),
-            RowAction::OpenSettings | RowAction::Import => true,
+            RowAction::OpenSettings | RowAction::Rename | RowAction::Import => true,
         }
     }
 
@@ -1220,10 +1290,13 @@ impl MachiningConditionsUiState {
 
     /// 工程の表（1 行が 1 工程。上から加工の順。ジョブマネージャーの一覧と同じ見た目）。行のどこを押しても選び、
     /// ダブルクリックで工程の設定のダイアログを開き、右クリックで行の操作のメニューを出す。選んだ行・マウスが乗った
-    /// 行は、行の全体に色を付ける
+    /// 行は、行の全体に色を付ける。名前を編集している行は、名前の欄を入力欄にし、行を押す操作を受けない（入力欄の
+    /// 中を押して、文字の位置を選べるように）
     fn show_operation_table(&mut self, ui: &mut egui::Ui) {
         let mut select = None;
         let mut action = None;
+        let mut name_edit = self.name_edit.take();
+        let mut name_edit_result = None;
         // 乗った行は、前の描画のもの（行を描き終えるまで分からないため）。見出しの行が 0 のため、工程の行は 1 から
         let hovered_id = ui.scope_id().with("operation_table_hovered");
         let hovered_row = ui.data(|data| data.get_temp::<Option<usize>>(hovered_id).flatten());
@@ -1257,16 +1330,25 @@ impl MachiningConditionsUiState {
                 ui.end_row();
                 for (index, row) in self.operations.iter().enumerate() {
                     let selected = row.id == self.selected_operation;
-                    let texts = [
-                        (index + 1).to_string(),
-                        row.name.clone(),
+                    let editing = name_edit.as_mut().filter(|edit| edit.operation == row.id);
+                    let editing_row = editing.is_some();
+                    // 欄はすべて、行の高さの中央にそろえる。文字は押せない（画面の設定）ため、行のどこを押しても行を選べる
+                    let mut area = centered_label(ui, (index + 1).to_string());
+                    area = area.union(match editing {
+                        Some(edit) => {
+                            let (rect, result) = name_edit_cell(ui, edit.session, &mut edit.name);
+                            if result.is_some() {
+                                name_edit_result = result;
+                            }
+                            rect
+                        }
+                        None => centered_label(ui, row.name.clone()),
+                    });
+                    for text in [
                         self.text(stage_key(row.stage)),
                         self.text(spec_kind_key(&row.spec)),
                         self.operation_tool_cell(row),
-                    ];
-                    // 欄はすべて、行の高さの中央にそろえる。文字は押せない（画面の設定）ため、行のどこを押しても行を選べる
-                    let mut area = Rect::NOTHING;
-                    for text in texts {
+                    ] {
                         area = area.union(centered_label(ui, text));
                     }
                     let status_key = operation_row_key(row);
@@ -1283,43 +1365,49 @@ impl MachiningConditionsUiState {
                             ui.add(egui::Spinner::new().size(size));
                         }
                     });
-                    // 行のすべての欄と、行の間の半分を、押せる範囲にする
-                    let area = area
-                        .union(status.response.rect)
-                        .expand2(egui::vec2(0.0, row_spacing / 2.0));
-                    let response = ui.interact(
-                        area,
-                        ui.scope_id().with(("operation_row", row.id)),
-                        egui::Sense::click(),
-                    );
-                    // 条件エラーの行は、状態の欄に乗せると、その理由を出す（工程を選ばなくても理由が分かるように）
-                    let response = match &row.setup {
-                        OperationSetup::ConditionError(issues)
-                            if ui.rect_contains_pointer(status.response.rect) =>
-                        {
-                            response.on_hover_text_at_pointer(self.reasons_text(issues))
+                    if !editing_row {
+                        // 行のすべての欄と、行の間の半分を、押せる範囲にする
+                        let area = area
+                            .union(status.response.rect)
+                            .expand2(egui::vec2(0.0, row_spacing / 2.0));
+                        let response = ui.interact(
+                            area,
+                            ui.scope_id().with(("operation_row", row.id)),
+                            egui::Sense::click(),
+                        );
+                        // 条件エラーの行は、状態の欄に乗せると、その理由を出す（工程を選ばなくても理由が分かるように）
+                        let response = match &row.setup {
+                            OperationSetup::ConditionError(issues)
+                                if ui.rect_contains_pointer(status.response.rect) =>
+                            {
+                                response.on_hover_text_at_pointer(self.reasons_text(issues))
+                            }
+                            _ => response,
+                        };
+                        // 右クリックも、その行を選んでからメニューを出す（メニューの操作は、選んだ工程に対して行う）
+                        if !selected && (response.clicked() || response.secondary_clicked()) {
+                            select = Some(row.id);
                         }
-                        _ => response,
-                    };
-                    // 右クリックも、その行を選んでからメニューを出す（メニューの操作は、選んだ工程に対して行う）
-                    if !selected && (response.clicked() || response.secondary_clicked()) {
-                        select = Some(row.id);
-                    }
-                    if response.double_clicked() {
-                        action = Some(RowAction::OpenSettings);
-                    }
-                    if response.hovered() {
-                        hovered_now = Some(index + 1);
-                    }
-                    response.context_menu(|ui| {
-                        if let Some(chosen) = self.row_menu(ui, index) {
-                            action = Some(chosen);
-                            ui.close();
+                        if response.double_clicked() {
+                            action = Some(RowAction::OpenSettings);
                         }
-                    });
+                        if response.hovered() {
+                            hovered_now = Some(index + 1);
+                        }
+                        response.context_menu(|ui| {
+                            if let Some(chosen) = self.row_menu(ui, index) {
+                                action = Some(chosen);
+                                ui.close();
+                            }
+                        });
+                    }
                     ui.end_row();
                 }
             });
+        self.name_edit = name_edit;
+        if name_edit_result.is_some() {
+            self.name_edit_result = name_edit_result;
+        }
         if hovered_now != hovered_row {
             ui.data_mut(|data| data.insert_temp(hovered_id, hovered_now));
             // 乗った行の色を、すぐに描き直す
@@ -1332,6 +1420,7 @@ impl MachiningConditionsUiState {
             Some(RowAction::OpenSettings) => {
                 self.open_dialog_requested = Some(ConditionDialog::Operation);
             }
+            Some(RowAction::Rename) => self.name_edit_requested = true,
             Some(RowAction::Submit) => self.submit_requested = true,
             Some(RowAction::Redo) => self.redo_requested = true,
             Some(RowAction::Stop) => self.stop_requested = true,
@@ -1368,6 +1457,7 @@ impl MachiningConditionsUiState {
                 RowAction::OpenSettings,
                 "conditions.list.operation_settings",
             ),
+            (RowAction::Rename, "conditions.list.rename"),
             self.calculate_or_stop(Some(index)),
             (RowAction::Redo, "conditions.redo"),
             (RowAction::ImportToolpath, "conditions.import_toolpath"),
@@ -1885,12 +1975,12 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        ApplySubmission, COLUMN_KEYS, ConditionField, JobStatusLine, MachiningStage,
+        ApplySubmission, COLUMN_KEYS, ConditionField, DialogResult, JobStatusLine, MachiningStage,
         OperationFailure, OperationJobStatus, OperationRow, OperationSetup, OperationStatus,
         RowAction, calculation_blocked, condition_error_message, condition_field,
-        imported_toolpath_key, job_status_key, job_status_text, navigation_key, navigation_text,
-        next_action_of, operation_row_key, operation_row_status_key, operation_status_text,
-        row_status_color, searched_toolsets, stage_key, submission_on_apply,
+        imported_toolpath_key, job_status_key, job_status_text, name_edit_cell, navigation_key,
+        navigation_text, next_action_of, operation_row_key, operation_row_status_key,
+        operation_status_text, row_status_color, searched_toolsets, stage_key, submission_on_apply,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -2004,6 +2094,7 @@ mod tests {
                 "conditions.list.sequence",
                 "conditions.list.sequence_settings",
                 "conditions.list.operation_settings",
+                "conditions.list.rename",
                 "conditions.list.tool",
                 "conditions.kind.scanline",
                 "conditions.page.machining",
@@ -2537,5 +2628,131 @@ mod tests {
         let names: Vec<&str> = found.iter().map(|row| row.name.as_str()).collect();
         assert_eq!(names, ["Ball6 long", "ball6"]);
         assert_eq!(searched_toolsets(&toolsets, "end"), Some(Vec::new()));
+    }
+
+    /// 名前の欄の入力欄を、`events` を受けた 1 コマで描き、名前の確定・取り消しを返す
+    fn name_edit_frame(
+        ctx: &egui::Context,
+        session: u64,
+        name: &mut String,
+        events: Vec<egui::Event>,
+    ) -> Option<DialogResult> {
+        let mut result = None;
+        let input = egui::RawInput {
+            events,
+            ..Default::default()
+        };
+        let mut output = ctx.run_ui(input, |ui| result = name_edit_cell(ui, session, name).1);
+        // 画面に描かないため、文字の絵の更新は捨てる
+        output.textures_delta.clear();
+        result
+    }
+
+    #[test]
+    fn the_name_cell_confirms_on_enter_or_leaving_and_cancels_on_escape() {
+        let key = |key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let away = egui::pos2(600.0, 600.0);
+        let click_away = vec![
+            egui::Event::PointerMoved(away),
+            egui::Event::PointerButton {
+                pos: away,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+            },
+            egui::Event::PointerButton {
+                pos: away,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            },
+        ];
+        for (events, expected) in [
+            (vec![key(egui::Key::Enter)], DialogResult::Apply),
+            (vec![key(egui::Key::Escape)], DialogResult::Cancel),
+            (click_away, DialogResult::Apply),
+        ] {
+            let ctx = egui::Context::default();
+            let mut name = "荒取り".to_string();
+            // 初めて置いた描画で、名前のすべてを選んで編集を始める（その描画で打った文字で置き換わる）
+            let typed = vec![egui::Event::Text("仕上げ".to_string())];
+            assert_eq!(name_edit_frame(&ctx, 1, &mut name, typed), None);
+            assert_eq!(name, "仕上げ");
+            assert_eq!(
+                name_edit_frame(&ctx, 1, &mut name, events.clone()),
+                Some(expected)
+            );
+            // 初めて置いた描画で、文字を打ってから離れても、確定・取り消しを返す
+            let ctx = egui::Context::default();
+            let mut name = "荒取り".to_string();
+            let mut typed_and_left = vec![egui::Event::Text("仕上げ".to_string())];
+            typed_and_left.extend(events);
+            assert_eq!(
+                name_edit_frame(&ctx, 1, &mut name, typed_and_left),
+                Some(expected)
+            );
+            assert_eq!(name, "仕上げ");
+        }
+    }
+
+    #[test]
+    fn a_new_name_edit_starts_afresh() {
+        let ctx = egui::Context::default();
+        let mut name = "荒取り".to_string();
+        let typed = vec![egui::Event::Text("仕上げ".to_string())];
+        assert_eq!(name_edit_frame(&ctx, 1, &mut name, typed), None);
+        assert_eq!(name, "仕上げ");
+        // 次の編集は、前の編集の文字の位置を引き継がず、名前のすべてを選んで始める
+        let mut name = "中仕上げ".to_string();
+        let typed = vec![egui::Event::Text("隅".to_string())];
+        assert_eq!(name_edit_frame(&ctx, 2, &mut name, typed), None);
+        assert_eq!(name, "隅");
+    }
+
+    #[test]
+    fn the_name_field_is_wide_enough_for_the_whole_name() {
+        let ctx = egui::Context::default();
+        let mut name = "a".repeat(80);
+        let mut rect = None;
+        let mut name_width = 0.0;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            name_width = ui
+                .painter()
+                .layout_no_wrap(
+                    name.clone(),
+                    egui::TextStyle::Body.resolve(ui.style()),
+                    egui::Color32::WHITE,
+                )
+                .size()
+                .x;
+            // 表の列のように、名前より狭い所に置いても、名前の全体が入る幅にする
+            ui.allocate_ui(egui::vec2(60.0, 40.0), |ui| {
+                rect = Some(name_edit_cell(ui, 1, &mut name).0);
+            });
+        });
+        output.textures_delta.clear();
+        assert!(rect.expect("the field is shown").width() > name_width);
+    }
+
+    #[test]
+    fn the_name_field_keeps_the_column_width_for_a_short_name() {
+        let ctx = egui::Context::default();
+        let mut name = "a".to_string();
+        let mut rect = None;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            // 名前が列に収まるときは、列の幅のまま（表の幅を変えない）
+            ui.allocate_ui(egui::vec2(200.0, 40.0), |ui| {
+                rect = Some(name_edit_cell(ui, 1, &mut name).0);
+            });
+        });
+        output.textures_delta.clear();
+        let width = rect.expect("the field is shown").width();
+        assert!((width - 200.0).abs() < 1.0, "{width}");
     }
 }
