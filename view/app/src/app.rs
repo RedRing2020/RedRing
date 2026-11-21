@@ -153,7 +153,7 @@ impl ApplicationHandler for App {
             return;
         }
         if let Some(state) = &mut self.state {
-            // ファイルを開く画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に開く
+            // 確かめの画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に開く
             state.run_requested_menu_actions();
             if state.exit_confirmed() {
                 self.should_exit = true;

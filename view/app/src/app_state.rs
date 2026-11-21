@@ -31,6 +31,8 @@ mod app_lifecycle;
 mod cutting_simulation;
 // AppState の加工手順の画面（工程リストと条件の編集のダイアログ。計算条件の入力と投入）
 mod machining_conditions;
+// AppState のファイルを選ぶ画面
+mod file_dialog;
 // AppState のメニューバーの項目
 mod menu_bar;
 // AppState のモデルファイルの操作と、保存していない変更の確かめ
@@ -228,6 +230,8 @@ pub struct AppState {
 
     /// 要求されたモデルファイルの操作（イベントの処理が終わった後に行う）
     file_actions: Vec<model_file::FileAction>,
+    /// 開いているファイルを選ぶ画面（閉じたら、選んだ結果を受け取る）
+    file_dialog: Option<file_dialog::PendingFileDialog>,
     /// アプリを終えてよいことが決まった（保存していない変更を確かめた後）
     exit_confirmed: bool,
     /// 今のウィンドウのタイトル（文書のタイトルを出しているときだけ。出し直すときは空にする）
@@ -353,6 +357,7 @@ impl AppState {
             drawn_toolpath_state: None,
             job_status_read_at: None,
             file_actions: Vec::new(),
+            file_dialog: None,
             exit_confirmed: false,
             window_title: String::new(),
             toolpath_lines_visible: true,

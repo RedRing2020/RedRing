@@ -1,11 +1,13 @@
 //! AppState のモデルファイルの操作（新規・開く・保存・名前を付けて保存・読み込み・終了）と、保存していない変更の
 //! 確かめを扱うモジュール。
 //!
-//! ファイルを選ぶ画面・確かめの画面は描画を止めるため、操作は要求として積み、イベントの処理が終わった後に行う。
+//! 確かめの画面は描画を止めるため、操作は要求として積み、イベントの処理が終わった後に行う。ファイルを選ぶ画面は
+//! 別のスレッドで開き、閉じるまで残りの操作を待たせる。
 
 use std::path::{Path, PathBuf};
 
 use super::AppState;
+use super::file_dialog::{FileDialogPurpose, one_file};
 use crate::help_ui::Notice;
 use crate::menu_bar_messages::resolve_menu_bar_text;
 use viewmodel::space_model_document::SpaceModelDocument;
@@ -89,8 +91,11 @@ impl AppState {
         self.exit_confirmed
     }
 
-    /// 要求されたモデルファイルの操作を、要求の順に行う
+    /// 要求されたモデルファイルの操作を、要求の順に行う（ファイルを選ぶ画面を開いたら、閉じるまで残りを待たせる）
     pub(super) fn run_file_actions(&mut self) {
+        if self.file_dialog_open() {
+            return;
+        }
         // 編集している名前を確定するまで、ファイルの操作を待たせる（最小化して描かない間は、待たずに今の名前で確定する）
         if self.operation_name_confirm_requested && self.is_operation_name_editing() {
             if self.window.is_minimized() != Some(true) {
@@ -99,10 +104,8 @@ impl AppState {
             self.operation_name_confirm_requested = false;
             self.confirm_operation_name_edit();
         }
-        for action in std::mem::take(&mut self.file_actions) {
-            if self.exit_confirmed {
-                break;
-            }
+        while !self.file_actions.is_empty() && !self.exit_confirmed && !self.file_dialog_open() {
+            let action = self.file_actions.remove(0);
             self.run_file_action(action);
         }
     }
@@ -110,7 +113,7 @@ impl AppState {
     fn run_file_action(&mut self, action: FileAction) {
         match action {
             FileAction::New => {
-                if self.confirm_discard() {
+                if self.confirm_discard(&FileAction::New) {
                     let document = super::machining_conditions::with_default_names(
                         self.ui_locale,
                         SpaceModelDocument::new,
@@ -120,40 +123,39 @@ impl AppState {
                 }
             }
             FileAction::Open => {
-                if self.confirm_discard()
-                    && let Some(path) = self.model_file_dialog().pick_file()
-                {
-                    self.open_model_file(&path);
+                if self.confirm_discard(&FileAction::Open) {
+                    let picking = self.model_file_dialog().pick_file();
+                    self.open_file_dialog(FileDialogPurpose::OpenModel, one_file(picking));
                 }
             }
             FileAction::OpenPath(path) => {
-                if self.confirm_discard() {
+                if self.confirm_discard(&FileAction::OpenPath(path.clone())) {
                     self.open_model_file(&path);
                 }
             }
             FileAction::Save => {
-                self.save_document();
+                self.save_document(None);
             }
-            FileAction::SaveAs => {
-                self.save_document_as();
-            }
+            FileAction::SaveAs => self.save_document_as(None),
             FileAction::Load => self.load_shape_file(),
             FileAction::LoadPath(path) => self.import_product_shape(&path),
             FileAction::Exit => {
-                if self.confirm_discard() {
+                if self.confirm_discard(&FileAction::Exit) {
                     self.exit_confirmed = true;
                 }
             }
         }
     }
 
-    /// 保存していない変更があれば、保存するかを確かめる。続けてよければ `true`（保存した・保存しない・変更がない）
-    fn confirm_discard(&mut self) -> bool {
+    /// 保存していない変更があれば、保存するかを確かめる。続けてよければ `true`（保存した・保存しない・変更がない）。
+    /// まだ名前のない文書を保存するときは、名前を付けて保存する画面を開いて `false` を返し、保存できたら操作 `then`
+    /// をし直す
+    fn confirm_discard(&mut self, then: &FileAction) -> bool {
         if !self.document.is_modified() {
             return true;
         }
         match self.ask_discard() {
-            DiscardAnswer::Save => self.save_document(),
+            DiscardAnswer::Save => self.save_document(Some(then.clone())),
             DiscardAnswer::DontSave => true,
             DiscardAnswer::Cancel => false,
         }
@@ -188,16 +190,20 @@ impl AppState {
         }
     }
 
-    /// 開いたファイルに保存する（まだなければ、名前を付けて保存）。保存したら `true`
-    fn save_document(&mut self) -> bool {
+    /// 開いたファイルに保存する。保存したら `true`。まだなければ、名前を付けて保存する画面を開いて `false` を返す
+    /// （保存できたら、続けて操作 `then` を行う）
+    fn save_document(&mut self, then: Option<FileAction>) -> bool {
         match self.document.path().map(Path::to_path_buf) {
             Some(path) => self.save_document_to(&path),
-            None => self.save_document_as(),
+            None => {
+                self.save_document_as(then);
+                false
+            }
         }
     }
 
-    /// ファイルを選んで保存する。保存したら `true`（選ばなかった・保存できなかったときは `false`）
-    fn save_document_as(&mut self) -> bool {
+    /// 名前を付けて保存する画面を開く（保存できたら、続けて操作 `then` を行う）
+    fn save_document_as(&mut self, then: Option<FileAction>) {
         let mut dialog = self.model_file_dialog();
         dialog = match self.document.path() {
             Some(path) => match path.file_name() {
@@ -209,10 +215,13 @@ impl AppState {
                 resolve_menu_bar_text(self.ui_locale, "file.untitled")
             )),
         };
-        match dialog.save_file() {
-            Some(path) => self.save_document_to(&with_model_file_extension(path)),
-            None => false,
-        }
+        let picking = dialog.save_file();
+        self.open_file_dialog(FileDialogPurpose::SaveModelAs { then }, one_file(picking));
+    }
+
+    /// 名前を付けて保存する画面で選んだ `path` に保存する（モデルファイルの拡張子がなければ足す）。保存したら `true`
+    pub(super) fn save_document_to_new_file(&mut self, path: PathBuf) -> bool {
+        self.save_document_to(&with_model_file_extension(path))
     }
 
     fn save_document_to(&mut self, path: &Path) -> bool {
@@ -234,7 +243,7 @@ impl AppState {
         }
     }
 
-    fn open_model_file(&mut self, path: &Path) {
+    pub(super) fn open_model_file(&mut self, path: &Path) {
         let file = file_name(path);
         let opened = super::machining_conditions::with_default_names(self.ui_locale, |names| {
             SpaceModelDocument::open(path, names)
@@ -265,33 +274,36 @@ impl AppState {
     }
 
     /// モデルファイルを選ぶ画面（開く・保存）
-    fn model_file_dialog(&self) -> rfd::FileDialog {
-        let mut dialog = rfd::FileDialog::new().set_parent(&*self.window).add_filter(
-            resolve_menu_bar_text(self.ui_locale, "file.model_file"),
-            MODEL_FILE_EXTENSIONS,
-        );
+    fn model_file_dialog(&self) -> rfd::AsyncFileDialog {
+        let mut dialog = rfd::AsyncFileDialog::new()
+            .set_parent(&*self.window)
+            .add_filter(
+                resolve_menu_bar_text(self.ui_locale, "file.model_file"),
+                MODEL_FILE_EXTENSIONS,
+            );
         if let Some(folder) = self.document.path().and_then(Path::parent) {
             dialog = dialog.set_directory(folder);
         }
         dialog
     }
 
-    /// ファイルを開く画面で選んだ形状ファイルを、ドラッグ＆ドロップと同じ経路で読み込む（選ばなかった場合は何もしない）
+    /// 形状ファイルを選ぶ画面を開く（選んだファイルは、ドラッグ＆ドロップと同じ経路で読み込む）
     fn load_shape_file(&mut self) {
         let supported: Vec<&str> = SHAPE_FILE_FORMATS
             .iter()
             .flat_map(|(_, extensions)| extensions.iter().copied())
             .collect();
-        let mut dialog = rfd::FileDialog::new().set_parent(&*self.window).add_filter(
-            resolve_menu_bar_text(self.ui_locale, "menu.file.load.supported"),
-            &supported,
-        );
+        let mut dialog = rfd::AsyncFileDialog::new()
+            .set_parent(&*self.window)
+            .add_filter(
+                resolve_menu_bar_text(self.ui_locale, "menu.file.load.supported"),
+                &supported,
+            );
         for (name, extensions) in SHAPE_FILE_FORMATS {
             dialog = dialog.add_filter(*name, extensions);
         }
-        if let Some(path) = dialog.pick_file() {
-            self.import_product_shape(&path);
-        }
+        let picking = dialog.pick_file();
+        self.open_file_dialog(FileDialogPurpose::LoadShape, one_file(picking));
     }
 
     /// ウィンドウのタイトルの先頭（モデルファイルの名前と、保存していない変更の印）
