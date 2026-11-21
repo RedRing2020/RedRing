@@ -302,6 +302,9 @@ const COLUMN_MIN_WIDTH: f32 = 32.0;
 /// 工程の表の、名前の列の位置（`COLUMN_KEYS` の中の位置）
 const NAME_COLUMN: usize = 1;
 
+/// 工程の表の、状態の列の位置（`COLUMN_KEYS` の中の位置）
+const STATUS_COLUMN: usize = 5;
+
 /// 工程の表の、表の状態を見分ける名前（列の幅などを、ほかの表と分けて保つ）
 const OPERATION_TABLE_SALT: &str = "operation_table";
 
@@ -738,6 +741,10 @@ fn name_edit_cell(
             )
         })
         .inner;
+    if first_frame {
+        // 表を横に送って名前の列が見えないときも、打った文字が見えるように、入力欄を見える所に送る
+        response.scroll_to_me(None);
+    }
     // 初めて置いた描画で離れたとき（Enter・入力欄の外を押した）は、前の描画で文字を受けていないため、離れたとは知らされ
     // ない。文字を受ける欄でなくなったことで確かめる。その描画の Esc は、入力欄を離れさせないため、Esc を受けたことで
     // 確かめる（日本語の変換をやめた Esc は、ここまで届かない）
@@ -772,16 +779,52 @@ fn column_border_id(ui: &egui::Ui, column: usize) -> Id {
         .with(column)
 }
 
-/// 工程の表の列のうち、中身を省かずに出す幅 `needed` が、前の描画の幅 `previous` より広がった列（中身に合わせた
-/// 幅にし直す列）。前の描画がなければ、どの列も合わせ直さない（初めての描画は、表が中身に合わせるため）
-fn columns_to_refit(
-    previous: Option<[f32; COLUMN_COUNT]>,
-    needed: [f32; COLUMN_COUNT],
+/// 工程の表の見出しと欄の文字を、省かずに出す幅（論理座標）
+#[derive(Debug, Clone, PartialEq)]
+struct TableTextWidths<Key = MachiningOperationId> {
+    headers: [f32; COLUMN_COUNT],
+    /// 工程ごとの、欄の幅（加工の順。工程は `Key` で見分ける）
+    rows: Vec<(Key, [f32; COLUMN_COUNT])>,
+}
+
+/// 状態の欄の、計算中の印とその前の間の幅（論理座標）
+fn spinner_reserve(ui: &egui::Ui) -> f32 {
+    ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.x
+}
+
+/// 工程の表の列のうち、中身に合わせた幅にし直す列。前の描画 `previous` より広がった欄（見出し・足した工程の欄も
+/// 含む）の文字 `current` が、前の描画の列の幅 `shown` に入らない列を合わせ直す（広がっても入る列・広がっていない
+/// 列は、ドラッグで決めた幅のままにする）。前の描画がなければ、どの列も合わせ直さない（初めての描画は、表が中身に
+/// 合わせるため）
+fn columns_to_refit<Key: PartialEq>(
+    previous: Option<&TableTextWidths<Key>>,
+    current: &TableTextWidths<Key>,
+    shown: Option<[f32; COLUMN_COUNT]>,
 ) -> [bool; COLUMN_COUNT] {
-    // 1 論理座標に満たない広がりは、文字の幅の丸めの違いとみなし、合わせ直さない
+    // 1 論理座標に満たない広がりは、文字の幅の丸めの違いとみなし、広がったとしない
     const MIN_GROWTH: f32 = 1.0;
+    let (Some(previous), Some(shown)) = (previous, shown) else {
+        return [false; COLUMN_COUNT];
+    };
+    let grown = |now: f32, before: f32| now >= before + MIN_GROWTH;
     std::array::from_fn(|column| {
-        previous.is_some_and(|previous| needed[column] >= previous[column] + MIN_GROWTH)
+        let header = grown(current.headers[column], previous.headers[column])
+            .then_some(current.headers[column]);
+        let cells = current.rows.iter().filter_map(|(id, widths)| {
+            let before = previous
+                .rows
+                .iter()
+                .find(|(previous_id, _)| previous_id == id)
+                .map(|(_, widths)| widths[column]);
+            // 足した工程の欄は、広がった欄とみなす
+            before
+                .is_none_or(|before| grown(widths[column], before))
+                .then_some(widths[column])
+        });
+        header
+            .into_iter()
+            .chain(cells)
+            .any(|width| width > shown[column])
     })
 }
 
@@ -1331,14 +1374,14 @@ impl MachiningConditionsUiState {
         }
     }
 
-    /// 工程の表の列ごとの、見出し `headers` と欄の文字 `cells` を省かずに出す幅（計算中の行の状態の欄は、回る印の分を
-    /// 足す。論理座標）
-    fn needed_column_widths(
+    /// 工程の表の見出し `headers` と欄の文字 `cells` を、省かずに出す幅（計算中の行の状態の欄は、回る印の分を足す。
+    /// 論理座標）
+    fn table_text_widths(
         &self,
         ui: &egui::Ui,
         headers: &[String; COLUMN_COUNT],
         cells: &[[String; COLUMN_COUNT]],
-    ) -> [f32; COLUMN_COUNT] {
+    ) -> TableTextWidths {
         let font = egui::TextStyle::Body.resolve(ui.style());
         let width = |text: &str| {
             ui.painter()
@@ -1346,19 +1389,27 @@ impl MachiningConditionsUiState {
                 .size()
                 .x
         };
-        let spinner = ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.x;
-        std::array::from_fn(|column| {
-            let header = width(&headers[column]);
-            cells
+        let spinner = spinner_reserve(ui);
+        TableTextWidths {
+            headers: std::array::from_fn(|column| width(&headers[column])),
+            rows: cells
                 .iter()
                 .zip(&self.operations)
                 .map(|(row, operation)| {
-                    let running = column == COLUMN_COUNT - 1
-                        && operation.status == JobStatusLine::Status(OperationJobStatus::Running);
-                    width(&row[column]) + if running { spinner } else { 0.0 }
+                    let running =
+                        operation.status == JobStatusLine::Status(OperationJobStatus::Running);
+                    let widths = std::array::from_fn(|column| {
+                        let reserve = if running && column == STATUS_COLUMN {
+                            spinner
+                        } else {
+                            0.0
+                        };
+                        width(&row[column]) + reserve
+                    });
+                    (operation.id, widths)
                 })
-                .fold(header, f32::max)
-        })
+                .collect(),
+        }
     }
 
     /// 工程の表（1 行が 1 工程。上から加工の順。ジョブマネージャーの一覧と同じ見た目）。見出しの列の境目をドラッグ
@@ -1399,12 +1450,16 @@ impl MachiningConditionsUiState {
                 ]
             })
             .collect();
-        // 中身が前の描画より広がった列は、中身に合わせた幅にし直す（ドラッグで決めた幅のままだと、増えた文字が省かれる）
-        let needed = self.needed_column_widths(ui, &headers, &cells);
-        let needed_id = ui.scope_id().with("operation_table_needed_widths");
-        let previous = ui.data(|data| data.get_temp::<[f32; COLUMN_COUNT]>(needed_id));
-        ui.data_mut(|data| data.insert_temp(needed_id, needed));
-        let mut refit = columns_to_refit(previous, needed);
+        // 前の描画より広がった欄が、今の列の幅に入らなければ、その列を中身に合わせた幅にし直す（ドラッグで決めた幅の
+        // ままだと、増えた文字が省かれる）
+        let text_widths = self.table_text_widths(ui, &headers, &cells);
+        let text_widths_id = ui.scope_id().with("operation_table_text_widths");
+        let shown_widths_id = ui.scope_id().with("operation_table_shown_widths");
+        let previous = ui.data(|data| data.get_temp::<TableTextWidths>(text_widths_id));
+        let shown = ui.data(|data| data.get_temp::<[f32; COLUMN_COUNT]>(shown_widths_id));
+        let mut refit = columns_to_refit(previous.as_ref(), &text_widths, shown);
+        ui.data_mut(|data| data.insert_temp(text_widths_id, text_widths));
+        let mut shown_now = [0.0; COLUMN_COUNT];
         // 列の境目のダブルクリックで、中身に合わせた幅にする（名前を付けた表では、表が境目のダブルクリックを読み落とす
         // ため、ここで読む）
         for (column, refit) in refit.iter_mut().enumerate() {
@@ -1438,8 +1493,10 @@ impl MachiningConditionsUiState {
         }
         table
             .header(row_height, |mut header| {
-                for text in headers {
+                for (text, shown) in headers.into_iter().zip(&mut shown_now) {
                     header.col(|ui| {
+                        // 列の幅（見出しの欄に取った幅）を、次の描画で中身が入るかを確かめるために覚える
+                        *shown = ui.max_rect().width();
                         centered_label(ui, RichText::new(text).strong());
                     });
                 }
@@ -1489,6 +1546,9 @@ impl MachiningConditionsUiState {
                                 }
                             }
                             None => {
+                                // 名前を編集している間は、名前の列は省かないため、ほかの行の名前は列の幅で省く（ほかの
+                                // 行の長い名前で、列が広がらないように）
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
                                 centered_label(ui, name.as_str());
                             }
                         }));
@@ -1501,13 +1561,23 @@ impl MachiningConditionsUiState {
                         status_rect = cell(&mut |ui| {
                             ui.horizontal_centered(|ui| {
                                 let text = RichText::new(status_text.as_str());
-                                ui.label(match row_status_color(status_key) {
+                                let text = match row_status_color(status_key) {
                                     Some(color) => text.color(color),
                                     None => text,
-                                });
+                                };
+                                let running = row.status
+                                    == JobStatusLine::Status(OperationJobStatus::Running);
+                                // 計算中の印の分を先に取っておき、文字は残りの幅で省く（列を狭めても、印が隠れないように）
+                                let reserve = if running { spinner_reserve(ui) } else { 0.0 };
+                                let label_width = (ui.available_width() - reserve).max(0.0);
+                                ui.allocate_ui(
+                                    egui::vec2(label_width, ui.available_height()),
+                                    |ui| {
+                                        ui.label(text);
+                                    },
+                                );
                                 // 進み具合の割合はまだないため、計算中は動いていることだけを出す
-                                if row.status == JobStatusLine::Status(OperationJobStatus::Running)
-                                {
+                                if running {
                                     // 印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）
                                     let size = ui.text_style_height(&egui::TextStyle::Body);
                                     ui.add(egui::Spinner::new().size(size));
@@ -1560,6 +1630,7 @@ impl MachiningConditionsUiState {
                     });
                 }
             });
+        ui.data_mut(|data| data.insert_temp(shown_widths_id, shown_now));
         self.name_edit = name_edit;
         if name_edit_result.is_some() {
             self.name_edit_result = name_edit_result;
@@ -2133,11 +2204,12 @@ mod tests {
     use super::{
         ApplySubmission, COLUMN_COUNT, COLUMN_KEYS, ConditionField, DialogResult, JobStatusLine,
         MachiningStage, OPERATION_TABLE_SALT, OperationFailure, OperationJobStatus, OperationRow,
-        OperationSetup, OperationStatus, RowAction, calculation_blocked, column_border_id,
-        columns_to_refit, condition_error_message, condition_field, imported_toolpath_key,
-        job_status_key, job_status_text, name_edit_cell, navigation_key, navigation_text,
-        next_action_of, operation_row_height, operation_row_key, operation_row_status_key,
-        operation_status_text, row_status_color, searched_toolsets, stage_key, submission_on_apply,
+        OperationSetup, OperationStatus, RowAction, TableTextWidths, calculation_blocked,
+        column_border_id, columns_to_refit, condition_error_message, condition_field,
+        imported_toolpath_key, job_status_key, job_status_text, name_edit_cell, navigation_key,
+        navigation_text, next_action_of, operation_row_height, operation_row_key,
+        operation_row_status_key, operation_status_text, row_status_color, searched_toolsets,
+        stage_key, submission_on_apply,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
@@ -2914,15 +2986,40 @@ mod tests {
     }
 
     #[test]
-    fn only_columns_whose_contents_grew_are_fitted_again() {
-        let previous = [20.0, 80.0, 40.0, 40.0, 60.0, 50.0];
+    fn only_columns_whose_grown_contents_do_not_fit_are_fitted_again() {
+        let (first, second) = (1, 2);
+        let previous = TableTextWidths {
+            headers: [20.0, 30.0, 40.0, 40.0, 60.0, 50.0],
+            rows: vec![
+                (first, [10.0, 40.0, 30.0, 40.0, 60.0, 50.0]),
+                (second, [10.0, 200.0, 30.0, 40.0, 60.0, 50.0]),
+            ],
+        };
+        let shown = [30.0, 80.0, 40.0, 40.0, 60.0, 50.0];
         // 初めての描画は、表が中身に合わせるため、合わせ直さない
-        assert_eq!(columns_to_refit(None, previous), [false; COLUMN_COUNT]);
-        // 広がった列だけを合わせ直し、狭まった列・丸めの違いの列は、ドラッグで決めた幅のままにする
-        let needed = [20.0, 120.0, 30.0, 40.4, 60.0, 70.0];
         assert_eq!(
-            columns_to_refit(Some(previous), needed),
+            columns_to_refit(None, &previous, Some(shown)),
+            [false; COLUMN_COUNT]
+        );
+        // 名前: 列の最大は変わらないが、広がった名前が列に入らない。段階: 広がったが列に入る。種類: 丸めの違い。
+        // 状態: 見出しが広がって列に入らない
+        let current = TableTextWidths {
+            headers: [20.0, 30.0, 40.0, 40.0, 60.0, 70.0],
+            rows: vec![
+                (first, [10.0, 120.0, 38.0, 40.4, 60.0, 50.0]),
+                (second, [10.0, 200.0, 30.0, 40.0, 60.0, 50.0]),
+            ],
+        };
+        assert_eq!(
+            columns_to_refit(Some(&previous), &current, Some(shown)),
             [false, true, false, false, false, true]
+        );
+        // 足した工程の欄が列に入らなければ、合わせ直す
+        let mut added = previous.clone();
+        added.rows.push((3, [10.0, 40.0, 30.0, 40.0, 90.0, 50.0]));
+        assert_eq!(
+            columns_to_refit(Some(&previous), &added, Some(shown)),
+            [false, false, false, false, true, false]
         );
     }
 
