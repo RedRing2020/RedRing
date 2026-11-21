@@ -20,7 +20,7 @@ cargo run -p redring     # GUI の環境が要る
 cargo test --workspace
 ```
 
-ツールパスと切削シミュレーションを試すときは `--release` を付けてビルドします。付けないと、計算に何倍も時間がかかります。
+ツールパスと切削シミュレーションを試すときは `--release` を付けてビルドします。付けないと、計算に何倍も時間がかかります。Windows では `pwsh scripts/build_release.ps1` でも作れます。配布物と同じ設定でビルドし、使わなくなった古い成果物を `target` から消すので、繰り返しても `target` が増え続けません（`dev/RELEASE_DISTRIBUTION_OPERATION.md`）。
 
 GPU が見つからないときは、環境変数 `WGPU_BACKEND`（例えば `vulkan`・`dx12`）で描画の仕組みを選びます。
 
