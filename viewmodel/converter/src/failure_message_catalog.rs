@@ -55,6 +55,10 @@ const FAILURE_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("failure.conditions_not_set", "工程の条件を設定していません"),
     (
+        "failure.earlier_conditions_not_set",
+        "前の工程の条件を設定していません。切削シミュレーションは前の工程の後の素材から削るため、前の工程から計算します",
+    ),
+    (
         "failure.toolpath_too_large",
         "ツールパスが約 {gb} GB になり、計算に使えるメモリの上限を超えます",
     ),
@@ -272,6 +276,10 @@ const FAILURE_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "failure.conditions_not_set",
         "The conditions of the operation are not set",
+    ),
+    (
+        "failure.earlier_conditions_not_set",
+        "The conditions of an earlier operation are not set. The cutting simulation cuts the stock left by the earlier operations, so they are calculated first",
     ),
     (
         "failure.toolpath_too_large",

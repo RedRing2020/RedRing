@@ -284,6 +284,7 @@ fn invalid_submissions_are_rejected_with_the_reason() {
                     source_id: "op-1".to_string(),
                     revision: 1,
                     revision_key: Some("k".repeat(MAX_LABEL_LEN + 1)),
+                    segment_key: None,
                 }),
                 ..job(StoredJobKind::Cam, "cam.bin", vec![])
             }]),

@@ -83,9 +83,9 @@ CAD/CAM のアプリが、ジョブの保存先のファイルを直接読み書
 
 | 要求 | 応答 | `JobClient` の操作 |
 |---|---|---|
-| `submit`（ジョブの列: 種類・入力のファイルの名前・依存・優先順位・投入元・入力の CL のファイルの名前・始まりの素材（前の区間の切削シミュレーションのジョブ）。続けて入力の中身） | `submitted`（投入の ID） | `submit`・`submit_simulation` |
+| `submit`（ジョブの列: 種類・入力のファイルの名前・依存・優先順位・投入元（区間の前提の鍵を含む）・入力の CL のファイルの名前・始まりの素材（前の区間の切削シミュレーションのジョブ）。続けて入力の中身） | `submitted`（投入の ID） | `submit`（加工の順の区間の列を 1 つの投入で置く） |
 | `jobs` | `jobs`（ジョブの番号・種類・状態・依存するジョブ・投入の ID・投入元・入力の CL を持つか・成果物があるか・失敗の理由） | `toolpath_jobs`・`simulation_jobs` |
-| `pending_submissions` | `pending_submissions`（投入元・取り込めなかったか） | `pending_submissions` |
+| `pending_submissions` | `pending_submissions`（すべてのジョブの投入元（ジョブの順）・取り込めなかったか。口の版 3 で、最初のジョブの投入元から替えた） | `pending_submissions` |
 | `read_job_file`（ジョブの番号・ファイル: 入力・入力の CL・成果物） | `job_file`（大きさ。続けて中身） | `import` |
 | `open_window` | `ok` | `open_manager_window` |
 | `record_imported`（切削シミュレーションのジョブの番号） | `ok` | `record_imported`（#1191） |
