@@ -77,11 +77,12 @@ pub struct DeletePlan {
 /// ジョブの記録 `jobs` のうち、選んだジョブ `selected` を消すときに消すジョブ
 ///
 /// 選んだジョブは、その成果物を使う後のジョブ（依存関係をたどったすべて）とあわせて消す（後のジョブだけが残っても、
-/// 計算も取り込みもできないため）。ただし、終わりの素材を始まりの素材にする後の区間の切削シミュレーションは消さない
-/// （その結果は、前の区間がなくても取り込める）。選んだジョブか後のジョブ（後の区間を含む）のどれかが計算待ち・
-/// 計算中なら、どれも消さない。ただし、
-/// 中断のジョブと、それを待つ計算待ちのジョブ（中断のジョブを計算で続けるまで実行されない）は、終わったジョブと
-/// 同じに消す。ないジョブは数えない。後のジョブだけを選んだときは、前のジョブを残す。
+/// 計算も取り込みもできないため）。ただし、終わりの素材を始まりの素材にする後の区間の切削シミュレーションのうち、
+/// 正常に終わったものは消さない（その結果は、前の区間がなくても取り込める。終わっていないもの・失敗したものは、
+/// 始まりの素材がなければ計算で続けられず、やり直せないため一緒に消す）。選んだジョブか後のジョブ（後の区間を
+/// 含む）のどれかが計算待ち・計算中なら、どれも消さない。ただし、中断のジョブと、それを待つ計算待ちのジョブ
+/// （中断のジョブを計算で続けるまで実行されない）は、終わったジョブと同じに消す。ないジョブは数えない。後のジョブ
+/// だけを選んだときは、前のジョブを残す。
 pub fn delete_plan(jobs: &[StoredJob], selected: &[u64]) -> DeletePlan {
     let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
     let idle = idle_jobs(jobs);
@@ -722,15 +723,15 @@ fn later_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> 
 }
 
 /// ジョブ `start` と、その成果物を入力にする後のジョブ（依存関係を後の向きにたどる。終わりの素材を始まりの素材に
-/// する後の区間の切削シミュレーションへはたどらない。小さい順）
+/// する後の区間の切削シミュレーションへは、正常に終わったものにはたどらない。小さい順）
 fn users_of_results(jobs: &[StoredJob], start: u64) -> BTreeSet<u64> {
     let mut found = BTreeSet::from([start]);
     let mut pending = vec![start];
     while let Some(id) = pending.pop() {
         for job in jobs {
-            if job.depends_on.contains(&id)
-                && job.start_stock != Some(id)
-                && found.insert(job.job_id)
+            let completed_later_segment =
+                job.start_stock == Some(id) && job.status == StoredJobStatus::Succeeded;
+            if job.depends_on.contains(&id) && !completed_later_segment && found.insert(job.job_id)
             {
                 pending.push(job.job_id);
             }

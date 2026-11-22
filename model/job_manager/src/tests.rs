@@ -232,6 +232,15 @@ fn a_sim_job_of_a_later_segment_starts_from_the_end_stock_of_the_previous_segmen
     // 後の区間が計算待ちの間は、前の区間を消さない
     jobs[3].status = StoredJobStatus::Queued;
     assert_eq!(delete_plan(&jobs, &[1]).kept, BTreeSet::from([1]));
+    // 中断・失敗・取り消しの後の区間は、始まりの素材がなければ続けられないため、前の区間と一緒に消す
+    for status in [
+        StoredJobStatus::Interrupted,
+        StoredJobStatus::Failed,
+        StoredJobStatus::Canceled,
+    ] {
+        jobs[3].status = status;
+        assert_eq!(delete_plan(&jobs, &[1]).deleted, BTreeSet::from([1, 2, 4]));
+    }
 }
 
 #[test]

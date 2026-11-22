@@ -346,6 +346,10 @@ fn a_sim_job_writes_the_end_stock_and_the_next_one_starts_from_it() {
     );
     assert!(log_text(&dir).contains("cannot read the stock"));
     assert!(!dir.path("output").join("stock.bin").exists());
+    // 格子が違うときに消すことを確かめるため、先に成果物と終わりの素材を作り直す
+    assert_eq!(run_sim_from_stock(&dir, &input, &toolpath, &stock), 0);
+    assert!(dir.path("output").join("cutting_simulation.bin").is_file());
+    assert!(dir.path("output").join("stock.bin").is_file());
     let other_grid = CuttingSimulationInput {
         grid_tool_radius: sim_input().grid_tool_radius / 2.0,
         ..sim_input()
@@ -356,6 +360,7 @@ fn a_sim_job_writes_the_end_stock_and_the_next_one_starts_from_it() {
     assert_eq!(run_sim_from_stock(&dir, &input, &toolpath, &stock), 4);
     assert!(log_text(&dir).contains("code=start-stock-mismatch"));
     assert!(!dir.path("output").join("cutting_simulation.bin").exists());
+    assert!(!dir.path("output").join("stock.bin").exists());
 }
 
 #[test]
