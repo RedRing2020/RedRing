@@ -73,8 +73,6 @@ fn only_edits_that_change_the_conditions_are_changes() {
     let mut document = SpaceModelDocument::new(NAMES);
     document.set_operation_content(document.operation_content().clone());
     document.set_stock(document.stock());
-    // 表示中の製品形状がなく、加工の対象は空のまま
-    document.target_visible_faces();
     assert!(!document.is_modified());
 
     let mut content = document.operation_content().clone();
@@ -105,14 +103,16 @@ fn edited_conditions_are_held_by_the_operation_and_the_sequence() {
     assert_eq!(document.stock(), stock);
 }
 
-#[test]
-fn opened_documents_target_the_visible_faces_without_a_change() {
-    let path = temporary_file("rrm");
+/// 製品形状（四角錐の面単体 2 つ。1 つ目は隠す）と、隠した 1 つ目の面だけを加工の対象にした加工手順を保存した
+/// モデルファイル（加工の対象は、表示中の面と重ならない）
+fn model_file_targeting_the_first_face(path: &Path) {
     let mut shapes = ProductShapeStore::new();
+    let first = shapes.add_face(ProductFaceGeometry::Mesh(pyramid()));
     shapes.add_face(ProductFaceGeometry::Mesh(pyramid()));
+    shapes.set_visible(first.entity_id, false).unwrap();
     let mut sequences = MachiningSequenceStore::new();
-    // 加工の対象を合わせていない加工手順
-    let sequence = sequences.create_sequence("手順".to_string(), Vec::new(), initial_stock());
+    let sequence =
+        sequences.create_sequence("手順".to_string(), vec![first.face_id], initial_stock());
     sequences
         .add_operation(
             sequence,
@@ -123,18 +123,73 @@ fn opened_documents_target_the_visible_faces_without_a_change() {
         program_version: "0.1.0".to_string(),
         saved_at_ms: 0,
     };
-    save_space_model(&path, &SpaceModel::new(shapes, sequences), &info).unwrap();
+    save_space_model(path, &SpaceModel::new(shapes, sequences), &info).unwrap();
+}
 
-    let mut document = SpaceModelDocument::open(&path, NAMES).unwrap();
+#[test]
+fn opened_documents_keep_the_saved_target_faces_without_a_change() {
+    let path = temporary_file("rrm");
+    model_file_targeting_the_first_face(&path);
+    let (saved, _) = load_space_model(&path).unwrap();
+
+    // 加工の対象は、保存したまま（隠した面を含み、表示中の面を含まない。表示中の面に合わせない）。工程の改訂も
+    // 変わらない
+    let document = SpaceModelDocument::open(&path, NAMES).unwrap();
+    std::fs::remove_file(&path).unwrap();
     assert!(!document.is_modified());
+    assert_eq!(document.target_face_count(), 1);
     let (shapes, sequences, _, _) = document.machining();
-    assert_eq!(
+    assert_ne!(
         sequences.records()[0].target_faces,
         shapes.visible_face_ids()
     );
-    document.target_visible_faces();
-    assert!(!document.is_modified());
+    assert_eq!(sequences.records(), saved.sequences.records());
+}
+
+#[test]
+fn hiding_target_faces_keeps_the_target_and_the_revisions() {
+    let mut document = document_with_pyramid();
+    let path = temporary_file("rrm");
+    document.save_as(&path, "0.1.0").unwrap();
     std::fs::remove_file(&path).unwrap();
+    let (_, sequences, _, _) = document.machining();
+    let records = sequences.records();
+
+    // 加工の対象の面を隠しても、加工の対象・工程の改訂は変わらず、保存していない変更にもならない
+    document.hide_face_entity(0);
+    assert!(document.shapes().visible_face_ids().is_empty());
+    assert_eq!(document.target_face_count(), 1);
+    let (_, sequences, _, _) = document.machining();
+    assert_eq!(sequences.records(), records);
+    assert!(!document.is_modified());
+}
+
+#[test]
+fn imported_faces_are_added_to_the_target_even_when_other_faces_are_hidden() {
+    let path = temporary_file("rrm");
+    model_file_targeting_the_first_face(&path);
+    let mut document = SpaceModelDocument::open(&path, NAMES).unwrap();
+    std::fs::remove_file(&path).unwrap();
+    let keys: Vec<_> = document
+        .operations()
+        .iter()
+        .map(|item| document.revision_key_of(item.id).unwrap())
+        .collect();
+
+    // 取り込んだ面だけを加える（加工の対象にしていない表示中の面は加えず、隠した加工の対象の面は残す）
+    let stl = temporary_file("stl");
+    geo_io::stl::save_stl(&pyramid(), &stl).unwrap();
+    document.import_stl(&stl).unwrap();
+    std::fs::remove_file(&stl).unwrap();
+    assert!(document.is_modified());
+    assert_eq!(document.target_face_count(), 2);
+    let (shapes, sequences, _, _) = document.machining();
+    let added = shapes.entities()[2].face_ids();
+    assert!(sequences.records()[0].target_faces.ends_with(&added));
+    // 加工の対象が変わり、手順のすべての工程の改訂が進む
+    for (item, key) in document.operations().iter().zip(keys) {
+        assert_ne!(document.revision_key_of(item.id).unwrap(), key);
+    }
 }
 
 #[test]
@@ -144,7 +199,6 @@ fn saved_documents_are_opened_with_the_same_contents_and_no_changes() {
     let mut content = document.operation_content().clone();
     content.attributes.name = "保存した工程".to_string();
     document.set_operation_content(content.clone());
-    document.target_visible_faces();
 
     document.save_as(&path, "0.1.0").unwrap();
     assert!(!document.is_modified());
@@ -159,9 +213,6 @@ fn saved_documents_are_opened_with_the_same_contents_and_no_changes() {
     assert_eq!((sequence, operation), (saved_sequence, saved_operation));
     assert_eq!(sequences.records(), saved_sequences.records());
     assert_eq!(shapes.visible_face_ids(), saved_shapes.visible_face_ids());
-    // 開いたときの表示中の面は、保存した加工の対象と同じため、確かめても変更にならない
-    opened.target_visible_faces();
-    assert!(!opened.is_modified());
 
     // 変えてから保存し直すと、変更なしに戻る
     opened.set_stock(MachiningStock {
@@ -186,6 +237,8 @@ fn model_files_without_machining_sequences_get_one_operation() {
     let path = temporary_file("rrm");
     let mut shapes = ProductShapeStore::new();
     shapes.add_face(ProductFaceGeometry::Mesh(pyramid()));
+    let hidden = shapes.add_face(ProductFaceGeometry::Mesh(pyramid()));
+    shapes.set_visible(hidden.entity_id, false).unwrap();
     let model = SpaceModel::new(shapes, MachiningSequenceStore::new());
     let info = SpaceModelSaveInfo {
         program_version: "0.1.0".to_string(),
@@ -198,7 +251,10 @@ fn model_files_without_machining_sequences_get_one_operation() {
         document.operation_content(),
         &initial_operation_content(NAMES.operation.to_string())
     );
-    assert_eq!(document.shapes().entities().len(), 1);
+    assert_eq!(document.shapes().entities().len(), 2);
+    // 作った加工手順の加工の対象は、隠した面も含む、すべての面
+    assert_eq!(document.target_face_count(), 2);
+    assert!(!document.is_modified());
     std::fs::remove_file(&path).unwrap();
 }
 

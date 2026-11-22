@@ -4,6 +4,7 @@
 //! モデルを扱うときは、この文書を複数持つ）。加工手順は 1 つを、加工工程はそのうち選んだ 1 つを編集の対象とする。
 //! 加工工程は、加えて・複写して・消して・並べ替えられる（手順には、いつも 1 つ以上の工程がある）。
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -17,8 +18,8 @@ use application::machining_sequence::{
     StockMargins, Tool, scanline_finish_operation_content,
 };
 use application::product_shape::{
-    EntityDisplayProperties, FaceSetEntity3DProperties, ProductShapeError, ProductShapeStore,
-    StepImportReport,
+    EntityDisplayProperties, FaceSetEntity3DProperties, ProductFaceEntity, ProductShapeError,
+    ProductShapeStore, StepImportReport,
 };
 use application::space_model_file::{
     SpaceModel, SpaceModelFileError, SpaceModelSaveInfo, load_space_model, save_space_model,
@@ -116,11 +117,12 @@ impl SpaceModelDocument {
     }
 
     fn from_model(mut model: SpaceModel, path: Option<PathBuf>, names: DefaultNames<'_>) -> Self {
+        // 作る加工手順の加工の対象は、製品形状のすべての面にする
         let sequence = match model.sequences.sequence_ids().first() {
             Some(&sequence) => sequence,
             None => model.sequences.create_sequence(
                 names.sequence.to_string(),
-                Vec::new(),
+                all_face_ids(&model.shapes),
                 initial_stock(),
             ),
         };
@@ -147,11 +149,8 @@ impl SpaceModelDocument {
             modified: false,
             display: ProductShapeDisplaySettings::default(),
         };
-        // 加工の対象は表示中の面にするため、開いたときに合わせる（作った加工手順・前に合わせていない加工の対象。
-        // 利用者が変えたものではないため、保存していない変更にしない）
-        document.target_visible_faces();
-        // 前の版で残した、前の条件の CL を除く（すべての加工手順。加工の対象を合わせた後に除く。利用者が変えたもの
-        // ではないため、保存していない変更にしない）
+        // 前の版で残した、前の条件の CL を除く（すべての加工手順。利用者が変えたものではないため、保存していない変更に
+        // しない）
         for sequence in document.model.sequences.sequence_ids() {
             document
                 .model
@@ -202,26 +201,51 @@ impl SpaceModelDocument {
         &self.model.shapes
     }
 
-    /// STL ファイルを製品形状として取り込み、今の空間モデルに加える
+    /// STL ファイルを製品形状として取り込み、今の空間モデルに加え、その面を編集の対象の加工手順の加工の対象に加える
     ///
     /// # Errors
     ///
     /// STL の読み込みの失敗。
     pub fn import_stl(&mut self, path: &Path) -> Result<(), ProductShapeError> {
-        self.model.shapes.import_stl(path)?;
-        self.modified = true;
-        Ok(())
+        self.import_shapes(|shapes| shapes.import_stl(path).map(|_| ()))
     }
 
-    /// STEP ファイルを製品形状として取り込み（アセンブリの出現ごとのシェル）、今の空間モデルに加える
+    /// STEP ファイルを製品形状として取り込み（アセンブリの出現ごとのシェル）、今の空間モデルに加え、その面を編集の
+    /// 対象の加工手順の加工の対象に加える
     ///
     /// # Errors
     ///
     /// STEP の読み込みの失敗（何も加えない）。
     pub fn import_step(&mut self, path: &Path) -> Result<StepImportReport, ProductShapeError> {
-        let report = self.model.shapes.import_step(path)?;
+        self.import_shapes(|shapes| shapes.import_step(path))
+    }
+
+    /// 製品形状を `import` で取り込み、加わった面を編集の対象の加工手順の加工の対象に加える（加工の対象が変われば、
+    /// 工程の改訂の番号が増える）。取り込めたら、保存していない変更にする
+    fn import_shapes<T>(
+        &mut self,
+        import: impl FnOnce(&mut ProductShapeStore) -> Result<T, ProductShapeError>,
+    ) -> Result<T, ProductShapeError> {
+        let before: HashSet<_> = all_face_ids(&self.model.shapes).into_iter().collect();
+        let imported = import(&mut self.model.shapes)?;
         self.modified = true;
-        Ok(report)
+        let mut targets = self
+            .model
+            .sequences
+            .target_faces(self.sequence)
+            .expect("the document holds its machining sequence")
+            .to_vec();
+        targets.extend(
+            all_face_ids(&self.model.shapes)
+                .into_iter()
+                .filter(|face| !before.contains(face)),
+        );
+        self.edit_sequences(|sequences, sequence, _| {
+            sequences
+                .set_target_faces(sequence, targets)
+                .expect("the document holds its machining sequence");
+        });
+        Ok(imported)
     }
 
     /// 表示中のエンティティ（面単体の後にシェル）の描画用のメッシュ（表示用の三角形を作れないエンティティは除き、
@@ -492,15 +516,13 @@ impl SpaceModelDocument {
             .expect("the document holds its machining operation")
     }
 
-    /// 加工の対象を、表示中の製品形状のすべての面にする（面の集合が変わった場合は、工程の改訂の番号が増え、保存して
-    /// いない変更になる）
-    pub(crate) fn target_visible_faces(&mut self) {
-        let faces = self.model.shapes.visible_face_ids();
-        self.edit_sequences(|sequences, sequence, _| {
-            sequences
-                .set_target_faces(sequence, faces)
-                .expect("the document holds its machining sequence");
-        });
+    /// 編集の対象の加工手順の加工の対象の面の数（面の表示・非表示によらない）
+    pub fn target_face_count(&self) -> usize {
+        self.model
+            .sequences
+            .target_faces(self.sequence)
+            .expect("the document holds its machining sequence")
+            .len()
     }
 
     /// 加工工程 `operation` に取り込んだ CL が、今の条件の結果か（手順にない工程は、取り込んでいないとする）
@@ -623,12 +645,34 @@ impl SpaceModelDocument {
         changed
     }
 
+    /// 面単体のエンティティのうち `index` 番目を隠す
+    #[cfg(test)]
+    pub(crate) fn hide_face_entity(&mut self, index: usize) {
+        let entity = self.model.shapes.entities()[index].id();
+        self.model
+            .shapes
+            .set_visible(entity, false)
+            .expect("the entity is held");
+    }
+
     fn revision_key(&self) -> application::machining_sequence::MachiningRevisionKey {
         self.model
             .sequences
             .operation_revision_key(self.sequence, self.operation)
             .expect("the document holds its machining operation")
     }
+}
+
+/// 製品形状のすべての面の ID（面単体、続けてシェルの面。表示・非表示によらない）
+fn all_face_ids(
+    shapes: &ProductShapeStore,
+) -> Vec<<ProductFaceEntity as FaceSetEntity3DProperties<f64>>::FaceId> {
+    let singles = shapes
+        .entities()
+        .iter()
+        .flat_map(|entity| entity.face_ids());
+    let shells = shapes.shells().iter().flat_map(|shell| shell.face_ids());
+    singles.chain(shells).collect()
 }
 
 #[cfg(test)]

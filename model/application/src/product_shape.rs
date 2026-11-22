@@ -761,22 +761,6 @@ impl ProductShapeStore {
         singles.chain(shells).collect()
     }
 
-    /// 表示中のすべてのエンティティの面の数（[`Self::visible_face_ids`] の数）
-    pub fn visible_face_count(&self) -> usize {
-        let singles = self
-            .entities
-            .iter()
-            .filter(|entity| entity.display().visible)
-            .count();
-        let shells: usize = self
-            .shells
-            .iter()
-            .filter(|shell| shell.0.display().visible)
-            .map(|shell| shell.shell().face_ids.len())
-            .sum();
-        singles + shells
-    }
-
     /// すべての面の ID が指す面
     fn face_locations(&self) -> HashMap<FaceId, FaceLocation> {
         let singles = self
