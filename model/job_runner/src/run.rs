@@ -210,8 +210,8 @@ fn compute(
                         ),
                     )
                 })?;
-            let run =
-                run_cutting_simulation(&input, &mut toolpath, progress).map_err(job_failure)?;
+            let run = run_cutting_simulation(&input, &mut toolpath, None, progress)
+                .map_err(job_failure)?;
             log.line(&format!("snapshots={}", run.snapshot_count));
             (run.artifact, CUTTING_SIMULATION_FILE)
         }

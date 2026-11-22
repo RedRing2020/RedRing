@@ -91,6 +91,7 @@ pub fn sim_input() -> CuttingSimulationInput {
         stock: Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(60.0, 60.0, 10.0)),
         tool: tool(),
         precision: 0.5,
+        grid_tool_radius: tool().radius(),
         snapshot_interval: SnapshotInterval::ByToolAndGrid,
         product: pyramid(),
         tolerance: 0.01,

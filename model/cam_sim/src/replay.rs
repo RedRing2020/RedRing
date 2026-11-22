@@ -18,7 +18,7 @@ use crate::simulation_artifact::{
     CuttingSimulationArtifact, DexelGridStates, DexelState, dexel_count,
 };
 use crate::stock_model::{StockModel, SweptToolPrimitive};
-use crate::tri_dexel::{DexelGrid, PreviousIntervals, Scratch, initial_normals};
+use crate::tri_dexel::{DexelGrid, PreviousIntervals, Scratch, apply_start_stock, initial_normals};
 
 /// 同じデクセルの前の変化がないことを表す番号
 const NO_PREVIOUS_CHANGE: u32 = u32::MAX;
@@ -104,8 +104,10 @@ impl CuttingSimulationReplay {
             })
             .collect();
 
+        let mut grids = artifact.grids.each_ref().map(DexelGrid::from_layout);
+        apply_start_stock(&mut grids, &artifact.start_stock);
         let mut replay = Self {
-            grids: artifact.grids.each_ref().map(DexelGrid::from_layout),
+            grids,
             since_base: artifact.grids.map(|grid| vec![false; dexel_count(&grid)]),
             artifact,
             model,
@@ -277,7 +279,7 @@ impl CuttingSimulationReplay {
         dexels.extend(between.map(|number| changes.dexel(number)));
         for &(grid, index) in &dexels {
             self.since_base[grid as usize][index as usize] = false;
-            // デクセルの、`keyframe` 以前の最も新しい変化（なければ初期の区間）
+            // デクセルの、`keyframe` 以前の最も新しい変化（なければ初期の状態。始まりの素材の区間か、素材の範囲）
             let mut number = self.last_change[grid as usize][index as usize];
             while number != NO_PREVIOUS_CHANGE
                 && keyframe.is_none_or(|keyframe| changes.keyframe_of(number as usize) > keyframe)
@@ -286,12 +288,17 @@ impl CuttingSimulationReplay {
             }
             let grid_state = &mut self.grids[grid as usize];
             if number == NO_PREVIOUS_CHANGE {
-                let initial = self.artifact.grids[grid as usize].initial;
-                grid_state.set(
-                    index as usize,
-                    &[initial],
-                    &[initial_normals(grid as usize)],
-                );
+                match self.artifact.start_stock.get(grid, index) {
+                    Some(start) => grid_state.set(index as usize, start.intervals, start.normals),
+                    None => {
+                        let initial = self.artifact.grids[grid as usize].initial;
+                        grid_state.set(
+                            index as usize,
+                            &[initial],
+                            &[initial_normals(grid as usize)],
+                        );
+                    }
+                }
             } else {
                 let state = changes.state_of(number as usize);
                 grid_state.set(index as usize, state.intervals, state.normals);

@@ -12,7 +12,7 @@ mod tests;
 use geo_algorithms::{Aabb3D, Point3D};
 
 use crate::dexel_normal::DexelNormal;
-use crate::simulation_artifact::{DexelChanges, DexelGridLayout};
+use crate::simulation_artifact::{DexelChanges, DexelGridLayout, StockDexels};
 use crate::stock_model::{StockModel, SweptToolPrimitive};
 use ray_interval::{AxisLine, ToolInterval, swept_primitive_intervals};
 
@@ -31,6 +31,34 @@ pub(crate) fn dexel_line_count(stock: &Aabb3D<f64>, spacing: f64) -> usize {
     y.saturating_mul(z)
         .saturating_add(x.saturating_mul(z))
         .saturating_add(x.saturating_mul(y))
+}
+
+/// 素材 `stock` を間隔 `spacing` 以下にする、3 方向（X・Y・Z の順）の格子の配置
+pub(crate) fn grid_layouts(stock: &Aabb3D<f64>, spacing: f64) -> [DexelGridLayout; 3] {
+    let min = coordinates(stock.min());
+    let max = coordinates(stock.max());
+    [0, 1, 2].map(|axis| {
+        let plane_axes = plane_axes(axis);
+        let mut origin = [0.0; 2];
+        let mut pitch = [0.0; 2];
+        let mut count = [0; 2];
+        for (index, &plane_axis) in plane_axes.iter().enumerate() {
+            let extent = max[plane_axis] - min[plane_axis];
+            // 間隔が `spacing` 以下になる最小の本数で、各セルの中心に線を置く
+            let lines = lines_along(extent, spacing);
+            pitch[index] = extent / lines as f64;
+            origin[index] = min[plane_axis] + 0.5 * pitch[index];
+            count[index] =
+                u32::try_from(lines).expect("dexel line count is bounded by the line limit");
+        }
+        DexelGridLayout {
+            axis: axis as u8,
+            origin,
+            pitch,
+            count,
+            initial: (min[axis], max[axis]),
+        }
+    })
 }
 
 /// 長さ `extent` を間隔 `spacing` 以下に分ける最小の線の本数
@@ -114,22 +142,10 @@ pub(crate) struct DexelGrid {
 }
 
 impl DexelGrid {
-    fn new(stock: &Aabb3D<f64>, axis: usize, spacing: f64) -> Self {
-        let min = coordinates(stock.min());
-        let max = coordinates(stock.max());
-        let plane_axes = plane_axes(axis);
-        let mut origin = [0.0; 2];
-        let mut pitch = [0.0; 2];
-        let mut count = [0; 2];
-        for (index, &plane_axis) in plane_axes.iter().enumerate() {
-            let extent = max[plane_axis] - min[plane_axis];
-            // 間隔が `spacing` 以下になる最小の本数で、各セルの中心に線を置く
-            let lines = lines_along(extent, spacing);
-            pitch[index] = extent / lines as f64;
-            origin[index] = min[plane_axis] + 0.5 * pitch[index];
-            count[index] = lines;
-        }
-        Self::with_layout(axis, origin, pitch, count, (min[axis], max[axis]))
+    /// 素材 `stock` を間隔 `spacing` 以下にする、向き `axis` の初期の状態の格子
+    #[cfg(test)]
+    pub(crate) fn new(stock: &Aabb3D<f64>, axis: usize, spacing: f64) -> Self {
+        Self::from_layout(&grid_layouts(stock, spacing)[axis])
     }
 
     /// 成果物の格子の配置 `layout` の、初期の状態の格子
@@ -576,6 +592,31 @@ impl DexelGrid {
         let (low, high) = self.initial;
         (high - low) * self.slots.len() as f64
     }
+
+    /// 素材の範囲（初期の区間）から変わったデクセルの今の区間を、`dexels` に加える（格子の番号は `grid`）
+    fn push_changed_from_initial(&self, grid: u8, dexels: &mut StockDexels) {
+        for index in 0..self.slots.len() {
+            let current = self.current(index);
+            if current != [self.initial] {
+                dexels.push(
+                    grid,
+                    u32::try_from(index).expect("dexel count is bounded by the line limit"),
+                    current,
+                    self.current_normals(index),
+                );
+            }
+        }
+    }
+}
+
+/// 格子 `grids` を、素材の範囲から始まりの素材 `start` に変える（変化としては記録しない）
+pub(crate) fn apply_start_stock(grids: &mut [DexelGrid; 3], start: &StockDexels) {
+    for state in start.iter() {
+        grids[usize::from(state.grid)].set(state.index as usize, state.intervals, state.normals);
+    }
+    for grid in grids {
+        grid.take_changed();
+    }
 }
 
 /// トリデクセル
@@ -599,14 +640,24 @@ impl TriDexelModel {
     ///
     /// `spacing` が正の有限値でない場合。`keyframe_applied` が昇順でないか、掃引体の数を超える場合。
     pub fn from_stock_model(model: &StockModel, spacing: f64, keyframe_applied: &[usize]) -> Self {
-        Self::from_stock_model_reporting(model, spacing, keyframe_applied, &mut |_, _| {})
+        Self::from_stock_model_reporting(
+            model,
+            spacing,
+            &StockDexels::default(),
+            keyframe_applied,
+            &mut |_, _| {},
+        )
     }
 
     /// [`Self::from_stock_model`] と同じくトリデクセルを作り、掃引体を差し引く前に、`progress` に差し引いた掃引体の
     /// 数と、差し引く掃引体の数（最後のキーフレームの時点まで）を知らせる
+    ///
+    /// 素材の範囲を始まりの素材 `start`（素材の範囲から変わったデクセル。格子は正本の素材と `spacing` から決まる
+    /// もの）に変えてから差し引く。
     pub(crate) fn from_stock_model_reporting(
         model: &StockModel,
         spacing: f64,
+        start: &StockDexels,
         keyframe_applied: &[usize],
         progress: &mut dyn FnMut(usize, usize),
     ) -> Self {
@@ -619,11 +670,18 @@ impl TriDexelModel {
             keyframe_applied.is_sorted() && keyframe_applied.last() <= Some(&primitives.len()),
             "keyframe times must be sorted and within the primitives"
         );
-        let stock = model.stock();
-        let mut grids = [0, 1, 2].map(|axis| DexelGrid::new(&stock, axis, spacing));
+        let mut grids =
+            grid_layouts(&model.stock(), spacing).map(|layout| DexelGrid::from_layout(&layout));
+        apply_start_stock(&mut grids, start);
         // 残りの体積は、Z の向きのデクセルの区間の長さの和 × 格子のセルの面積。除去した長さを時系列に足し込む
         let cell_area = grids[2].pitch[0] * grids[2].pitch[1];
-        let mut length = grids[2].initial_length();
+        let (low, high) = grids[2].initial;
+        let mut length = grids[2].initial_length()
+            - start
+                .iter()
+                .filter(|state| state.grid == 2)
+                .map(|state| (high - low) - total_length(state.intervals))
+                .sum::<f64>();
         let mut remaining_volumes = Vec::with_capacity(primitives.len() + 1);
         remaining_volumes.push(length * cell_area);
         let mut keyframe_changes = DexelChanges::default();
@@ -697,6 +755,15 @@ impl TriDexelModel {
             }),
             initial: grid.initial,
         })
+    }
+
+    /// 最後のキーフレームの時点の、素材の範囲から変わったデクセルの区間
+    pub(crate) fn stock_dexels(&self) -> StockDexels {
+        let mut dexels = StockDexels::default();
+        for (grid, state) in self.grids.iter().enumerate() {
+            state.push_changed_from_initial(grid as u8, &mut dexels);
+        }
+        dexels
     }
 
     /// キーフレームごとの、前のキーフレームからのデクセルの変化（`keyframe_applied` と同じ並び）

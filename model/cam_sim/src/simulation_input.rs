@@ -28,6 +28,9 @@ pub struct CuttingSimulationInput {
     pub tool: Tool<f64>,
     /// 素材の形状の許容誤差
     pub precision: f64,
+    /// トリデクセルの格子を決める工具の半径（格子の間隔は、これと精度から決める。加工手順のすべての区間で同じ格子に
+    /// するため、手順の中で切削シミュレーションをする工程の工具のうち、最も小さい半径とする）
+    pub grid_tool_radius: f64,
     /// スナップショットの記録の間隔
     pub snapshot_interval: SnapshotInterval,
     /// 加工の対象の製品形状（ツールパス生成の入力と同じ。最後の時点の素材と比べ、削り込み・削り残しを求める）

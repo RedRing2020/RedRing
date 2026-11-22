@@ -9,7 +9,8 @@
 //! `u64`）、加工範囲（有無と長方形の `f64`×4）、形状。単位・座標系はヘッダに持つ。
 //!
 //! 切削シミュレーションの入力の中身: 素材の直方体（最小・最大の点の `f64`×6）、工具、素材の精度 `f64`、スナップショットの
-//! 記録の間隔（種類 `u8` と値）、ツールパス生成のトレランス `f64`、製品形状。
+//! 記録の間隔（種類 `u8` と値）、ツールパス生成のトレランス `f64`、製品形状、格子を決める工具の半径 `f64`。格子を決める
+//! 工具の半径は後から末尾に足したもので、ない入力（前の版で書いたもの）は工具の半径とする。
 //!
 //! 工具: 種類 `u8`（1: フラット、2: ラジアス、3: ボール）、ID（文字列）、直径・角の半径 `f64`、工具長（有無と `f64`）。
 //! 形状: 種類 `u8`（1: 三角形メッシュ、2: NURBS 曲面の集まり）。三角形メッシュは `geo_io::binary_geometry` の三角形メッシュ
@@ -189,6 +190,7 @@ pub fn write_cutting_simulation_input_v1<W: Write>(
     }
     write_f64(&mut payload, input.tolerance);
     write_geometry(&mut payload, &input.product)?;
+    write_f64(&mut payload, input.grid_tool_radius);
 
     let header = ArtifactHeaderV1::new(ArtifactKind::CuttingSimulationInput, payload.len() as u64);
     header.write_to(writer)?;
@@ -223,11 +225,17 @@ pub fn read_cutting_simulation_input_v1<R: Read>(
     };
     let tolerance = read_f64(&mut cursor)?;
     let product = read_geometry(&mut cursor)?;
+    let grid_tool_radius = if cursor.is_empty() {
+        tool.radius()
+    } else {
+        read_f64(&mut cursor)?
+    };
     ensure_consumed(cursor)?;
     Ok(CuttingSimulationInput {
         stock,
         tool,
         precision,
+        grid_tool_radius,
         snapshot_interval,
         product,
         tolerance,

@@ -386,6 +386,7 @@ mod tests {
                     stock: Aabb3D::new(Point3D::new(-5.0, -5.0, -5.0), Point3D::new(5.0, 5.0, 1.0)),
                     tool: Tool::flat_end_mill("nc-post-src".to_string(), 2.0, 10.0),
                     precision: 0.5,
+                    grid_tool_radius: 1.0,
                     snapshot_interval: SnapshotInterval::default(),
                     // 素材の中の、高さ 0 の正方形
                     product: SolverGeometry::TriangleMesh(
@@ -590,6 +591,7 @@ mod tests {
                     ),
                     tool: tool.clone(),
                     precision: 6.25,
+                    grid_tool_radius: tool.radius(),
                     snapshot_interval: SnapshotInterval::default(),
                     product: SolverGeometry::TriangleMesh(pyramid.clone()),
                     tolerance: 0.01,

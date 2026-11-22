@@ -123,6 +123,7 @@ fn assert_cam_to_simulation_succeeds(tool: Tool<f64>) {
                 ),
                 tool: tool.clone(),
                 precision: 6.25,
+                grid_tool_radius: tool.radius(),
                 snapshot_interval: SnapshotInterval::default(),
                 product: SolverGeometry::TriangleMesh(pyramid_mesh()),
                 tolerance: 0.01,

@@ -50,17 +50,21 @@ pub enum CuttingSimulationInputError {
     Tool,
     /// 精度が正の有限値でない
     Precision,
+    /// 格子を決める工具の半径が正の有限値でない
+    GridToolRadius,
     /// 記録の間隔が不正
     SnapshotInterval,
     /// 精度から決めた格子の線の本数が上限を超える（線の本数と、上限に収まる最も細かい精度）
     TooManyDexelLines { lines: usize, finest_precision: f64 },
 }
 
-/// 切削シミュレーションの入力のうち、素材 `stock`・工具 `tool`・精度 `precision`・記録の間隔 `snapshot_interval` の
-/// 誤りをすべて返す（製品形状は見ない。線の本数は、素材・工具・精度が正しい場合だけ判定する）
+/// 切削シミュレーションの入力のうち、素材 `stock`・工具 `tool`・格子を決める工具の半径 `grid_tool_radius`・精度
+/// `precision`・記録の間隔 `snapshot_interval` の誤りをすべて返す（製品形状は見ない。線の本数は、素材・工具・格子を
+/// 決める工具の半径・精度が正しい場合だけ判定する）
 pub fn cutting_simulation_input_errors(
     stock: &Aabb3D<f64>,
     tool: &Tool<f64>,
+    grid_tool_radius: f64,
     precision: f64,
     snapshot_interval: &SnapshotInterval,
 ) -> Vec<CuttingSimulationInputError> {
@@ -79,6 +83,9 @@ pub fn cutting_simulation_input_errors(
     {
         errors.push(CuttingSimulationInputError::Tool);
     }
+    if !positive(grid_tool_radius) {
+        errors.push(CuttingSimulationInputError::GridToolRadius);
+    }
     if !positive(precision) {
         errors.push(CuttingSimulationInputError::Precision);
     }
@@ -87,11 +94,11 @@ pub fn cutting_simulation_input_errors(
         errors.push(CuttingSimulationInputError::SnapshotInterval);
     }
     if values_are_valid {
-        let lines = dexel_line_count(stock, dexel_spacing(tool.radius(), precision));
+        let lines = dexel_line_count(stock, dexel_spacing(grid_tool_radius, precision));
         if lines > MAX_DEXEL_LINES {
             errors.push(CuttingSimulationInputError::TooManyDexelLines {
                 lines,
-                finest_precision: finest_precision(stock, tool.radius(), precision),
+                finest_precision: finest_precision(stock, grid_tool_radius, precision),
             });
         }
     }
@@ -106,6 +113,7 @@ pub(crate) fn preflight_cutting_simulation(
     let input_errors = cutting_simulation_input_errors(
         &input.stock,
         &input.tool,
+        input.grid_tool_radius,
         input.precision,
         &input.snapshot_interval,
     );
@@ -225,6 +233,9 @@ impl Display for CuttingSimulationInputError {
             Self::Stock => write!(f, "stock must be a finite, non-empty box"),
             Self::Tool => write!(f, "tool parameters are invalid"),
             Self::Precision => write!(f, "precision must be finite and greater than zero"),
+            Self::GridToolRadius => {
+                write!(f, "grid tool radius must be finite and greater than zero")
+            }
             Self::SnapshotInterval => write!(f, "snapshot interval is invalid"),
             Self::TooManyDexelLines {
                 lines,
@@ -274,6 +285,7 @@ mod tests {
             stock: Aabb3D::new(Point3D::new(0.0, 0.0, -4.0), Point3D::new(16.0, 8.0, 0.0)),
             tool: Tool::flat_end_mill("EM2".to_string(), 2.0, 10.0),
             precision,
+            grid_tool_radius: 1.0,
             snapshot_interval: SnapshotInterval::default(),
             product: SolverGeometry::TriangleMesh(
                 TriangleMesh3D::new(
@@ -364,6 +376,7 @@ mod tests {
     fn input_errors_are_all_reported_without_the_toolpath() {
         let malformed = CuttingSimulationInput {
             tool: Tool::flat_end_mill("EM2".to_string(), 2.0, 0.0),
+            grid_tool_radius: f64::NAN,
             snapshot_interval: SnapshotInterval::ByDistance {
                 interval_mm: f64::NAN,
                 include_segment_endpoints: true,
@@ -374,6 +387,7 @@ mod tests {
             cutting_simulation_input_errors(
                 &input.stock,
                 &input.tool,
+                input.grid_tool_radius,
                 input.precision,
                 &input.snapshot_interval,
             )
@@ -382,6 +396,7 @@ mod tests {
             errors(&malformed),
             vec![
                 CuttingSimulationInputError::Tool,
+                CuttingSimulationInputError::GridToolRadius,
                 CuttingSimulationInputError::Precision,
                 CuttingSimulationInputError::SnapshotInterval,
             ]
@@ -391,6 +406,15 @@ mod tests {
             [CuttingSimulationInputError::TooManyDexelLines { .. }]
         ));
         assert_eq!(errors(&input(0.01)), vec![]);
+        // 線の本数は、工程の工具ではなく、格子を決める工具の半径から決まる
+        let finer_grid = CuttingSimulationInput {
+            grid_tool_radius: 1.0e-4,
+            ..input(0.01)
+        };
+        assert!(matches!(
+            errors(&finer_grid)[..],
+            [CuttingSimulationInputError::TooManyDexelLines { .. }]
+        ));
     }
 
     #[test]

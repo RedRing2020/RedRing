@@ -6,7 +6,7 @@ use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, Too
 use geo_algorithms::{Aabb3D, Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 
 use super::*;
-use crate::simulation_artifact::CuttingSimulationArtifact;
+use crate::simulation_artifact::{CuttingSimulationArtifact, StockDexels};
 use crate::stock_model::StockModel;
 use crate::tri_dexel::TriDexelModel;
 use crate::{SimulationSnapshotExport, collect_toolpath_line_segments};
@@ -78,6 +78,7 @@ fn artifact_with_tool(
         grids: dexels.layouts(),
         keyframe_changes: dexels.keyframe_changes().clone(),
         product_deviations: None,
+        start_stock: StockDexels::default(),
     };
     (artifact, model)
 }

@@ -15,7 +15,9 @@ use cam_core::{
 use geo_algorithms::TessellationLimits;
 
 use crate::preflight::{PreflightFailure, preflight_cutting_simulation};
-use crate::simulation_artifact::write_cutting_simulation_artifact_v1;
+use crate::simulation_artifact::{StockDexels, write_cutting_simulation_artifact_v1};
+use crate::stock_file::{StockState, read_stock_state_v1, write_stock_state_v1};
+use crate::tri_dexel::{dexel_spacing, grid_layouts};
 use crate::{CuttingSimulationInput, CuttingSimulator};
 
 /// ツールパス生成の点 1 つあたりに使うメモリの見積もり（バイト）
@@ -60,6 +62,7 @@ impl JobRunFailure {
                 | "kind-mismatch"
                 | "version-mismatch"
                 | "artifact-read-failed"
+                | "start-stock-mismatch"
         )
     }
 
@@ -81,6 +84,8 @@ pub struct CuttingSimulationRun {
     pub artifact: Vec<u8>,
     /// 記録したスナップショットの数
     pub snapshot_count: usize,
+    /// 最後の時点の素材の、素材のファイルのバイト列（`ArtifactKind::Stock`。次の区間の始まりの素材にする）
+    pub stock: Vec<u8>,
 }
 
 /// ツールパスを生成し、ツールパスの成果物のバイト列（`ArtifactKind::ToolPath`）を返す（点の数がメモリの上限
@@ -145,11 +150,16 @@ fn toolpath_artifact(
 /// 実行の前に、ツールパスと入力の組み合わせを確かめる（Preflight）。最後の時点の素材を製品形状と比べ、削り込み・削り
 /// 残しを成果物に含める。
 ///
+/// 始まりの素材 `start_stock`（前の区間の終わりの素材のファイル）があれば、素材の範囲の代わりにそれから削る。その
+/// 格子は、入力の素材・格子を決める工具の半径・精度から決まる格子と同じでなければならない。最後の時点の素材を、
+/// 素材のファイルのバイト列として返す。
+///
 /// 計算の進み具合（終えた数と全体の数）を `progress` に知らせる（素材から差し引いた工具の掃引体。ツールパスを読む
 /// 間・製品形状と比べる間・成果物を書く間は知らせない）。
 pub fn run_cutting_simulation<R: Read>(
     input: &CuttingSimulationInput,
     toolpath_artifact: &mut R,
+    start_stock: Option<&mut dyn Read>,
     progress: &mut dyn FnMut(usize, usize),
 ) -> Result<CuttingSimulationRun, JobRunFailure> {
     let (toolpath_header, toolpath) =
@@ -171,9 +181,15 @@ pub fn run_cutting_simulation<R: Read>(
         return Err(JobRunFailure::new(code, failure.to_string()));
     }
 
+    let spacing = dexel_spacing(input.grid_tool_radius, input.precision);
+    let start = match start_stock {
+        Some(reader) => read_start_stock(reader, &grid_layouts(&input.stock, spacing))?,
+        None => StockDexels::default(),
+    };
+
     let mut simulator = CuttingSimulator::new(input.stock, input.snapshot_interval.clone());
     simulator
-        .simulate_reporting(&toolpath, &input.tool, input.precision, progress)
+        .simulate_reporting(&toolpath, &input.tool, spacing, start, progress)
         .map_err(|error| {
             JobRunFailure::new(
                 "sim-failure",
@@ -198,13 +214,24 @@ pub fn run_cutting_simulation<R: Read>(
     simulator.compare_with_product(&surface, input.tolerance);
 
     let mut artifact = Vec::new();
+    let mut stock = Vec::new();
     simulator
         .artifact()
+        .zip(simulator.end_stock())
         .ok_or(BinaryFormatError::InvalidPayload("simulation result"))
-        .and_then(|result| {
+        .and_then(|(result, dexels)| {
             write_cutting_simulation_artifact_v1(
                 &mut artifact,
                 &result,
+                toolpath_header.unit,
+                toolpath_header.frame,
+            )?;
+            write_stock_state_v1(
+                &mut stock,
+                &StockState {
+                    grids: result.grids,
+                    dexels,
+                },
                 toolpath_header.unit,
                 toolpath_header.frame,
             )
@@ -218,7 +245,29 @@ pub fn run_cutting_simulation<R: Read>(
     Ok(CuttingSimulationRun {
         artifact,
         snapshot_count: simulator.snapshots().len(),
+        stock,
     })
+}
+
+/// 始まりの素材のファイルを読み、格子が `grids`（入力から決まる格子）と同じことを確かめる
+fn read_start_stock(
+    reader: &mut dyn Read,
+    grids: &[crate::DexelGridLayout; 3],
+) -> Result<StockDexels, JobRunFailure> {
+    let (_, state) = read_stock_state_v1(&mut { reader }).map_err(|error| {
+        JobRunFailure::new(
+            classify_artifact_read_error(&error),
+            format!("failed to read the start stock: {}", error),
+        )
+    })?;
+    if state.grids != *grids {
+        return Err(JobRunFailure::new(
+            "start-stock-mismatch",
+            "the start stock grid does not match the stock, the grid tool radius and the precision"
+                .to_string(),
+        ));
+    }
+    Ok(state.dexels)
 }
 
 fn encode_toolpath_artifact(
