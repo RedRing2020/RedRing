@@ -11,8 +11,8 @@ use super::AppState;
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
     ApplySubmission, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
-    OperationCommand, OperationNameEdit, OperationRow, OperationSetup, OperationToolCommand,
-    ToolLibraryChoice, conditions_checking, submission_on_apply,
+    OperationCommand, OperationNameEdit, OperationRow, OperationSetup, OperationStatus,
+    OperationToolCommand, ToolLibraryChoice, conditions_checking, submission_on_apply,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,
@@ -496,7 +496,12 @@ impl AppState {
     /// 条件・製品形状が変わった後に、計算条件と計算の状態を確かめ直す（見積もっている間に頼まれた計算は、前の条件の
     /// ため頼み直さない）
     pub(crate) fn invalidate_conditions(&mut self) {
-        self.pending_submission = None;
+        // 見積もっている間に頼まれた計算をやめたら、見積もり終えたら計算を始めるという知らせを置き換える
+        if self.pending_submission.take().is_some()
+            && matches!(self.notice, Notice::Operation(OperationStatus::Estimating))
+        {
+            self.set_operation_status(OperationStatus::EstimateAbandoned);
+        }
         self.condition_issues = None;
         self.operation_condition_errors = None;
         self.draft_issues = None;

@@ -533,12 +533,20 @@ impl CuttingSimulationSession {
         self.estimations.clear();
     }
 
-    /// 計算を始める前のツールパスの大きさを、別のスレッドで見積もっているか（見積もり終えたら、`Estimating` を
-    /// 返した計算をもう一度頼む）
-    pub fn estimating(&self) -> bool {
-        self.estimations
-            .values()
-            .any(|(_, estimation)| !estimation.is_finished())
+    /// 工程 `operations` の今の改訂の、計算を始める前のツールパスの大きさを、別のスレッドで見積もっているか（見積もり
+    /// 終えたら、`Estimating` を返した計算をもう一度頼む。前の改訂・ほかの工程の見積もりは見ない）
+    pub fn estimating(
+        &self,
+        document: &SpaceModelDocument,
+        operations: &[MachiningOperationId],
+    ) -> bool {
+        operations.iter().any(|operation| {
+            matches!(
+                self.estimations.get(operation),
+                Some((key, estimation))
+                    if Some(*key) == document.revision_key_of(*operation) && !estimation.is_finished()
+            )
+        })
     }
 
     /// 加工手順の工程のうち、計算の条件に誤りがある工程と、その問題（加工の順。問題は、工程を選んで [`Self::check`] で
@@ -1083,10 +1091,15 @@ pub(crate) mod tests {
     use crate::space_model_document::ImportedToolpathState;
     use crate::space_model_document::tests::{NAMES, document_with_pyramid};
 
-    /// 見積もり終えるのを待つ
-    fn wait_for_estimates(session: &CuttingSimulationSession) {
+    /// 文書 `document` のすべての工程の見積もりを、見積もり終えるまで待つ
+    fn wait_for_estimates(session: &CuttingSimulationSession, document: &SpaceModelDocument) {
+        let operations: Vec<MachiningOperationId> = document
+            .operations()
+            .into_iter()
+            .map(|item| item.id)
+            .collect();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
-        while session.estimating() {
+        while session.estimating(document, &operations) {
             assert!(
                 std::time::Instant::now() < deadline,
                 "the size is estimated"
@@ -1109,7 +1122,7 @@ pub(crate) mod tests {
             if outcome != SubmitOutcome::Estimating {
                 return Ok(outcome);
             }
-            wait_for_estimates(session);
+            wait_for_estimates(session, document);
         }
     }
 
@@ -1127,7 +1140,7 @@ pub(crate) mod tests {
             if outcome != RedoOutcome::Estimating {
                 return Ok(outcome);
             }
-            wait_for_estimates(session);
+            wait_for_estimates(session, document);
         }
     }
 
@@ -1145,7 +1158,7 @@ pub(crate) mod tests {
             if outcome != SequenceOutcome::Estimating {
                 return Ok(outcome);
             }
-            wait_for_estimates(session);
+            wait_for_estimates(session, document);
         }
     }
 
@@ -1252,7 +1265,7 @@ pub(crate) mod tests {
         let first = session.submit(&document, |_| true).unwrap();
         if first == SubmitOutcome::Estimating {
             assert_eq!(session.run_queued_jobs().unwrap(), 0);
-            wait_for_estimates(&session);
+            wait_for_estimates(&session, &document);
             // 見積もり終えたら、今の改訂の見積もりを使って投入する
             assert_eq!(
                 session.submit(&document, |_| true).unwrap(),
@@ -1261,7 +1274,16 @@ pub(crate) mod tests {
         } else {
             assert_eq!(first, SubmitOutcome::Submitted(SubmissionKind::Full));
         }
-        assert!(!session.estimating());
+        assert!(!session.estimating(&document, &[document.selected_operation()]));
+        // 前の改訂の見積もりは、見積もっている間でも待たない（条件を変えた工程は、今の改訂を見積もり直す）
+        let (mut session, mut document) = coarse_session();
+        let operation = document.selected_operation();
+        session.submit(&document, |_| true).unwrap();
+        document.set_operation_content(with_scanline(
+            document.operation_content().clone(),
+            |scanline| scanline.stepover = 5.0,
+        ));
+        assert!(!session.estimating(&document, &[operation]));
         // 別の文書に替えると、見積もりを捨てる
         session.forget_condition_checks();
         assert!(session.estimations.is_empty());

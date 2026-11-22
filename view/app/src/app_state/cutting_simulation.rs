@@ -135,14 +135,34 @@ impl AppState {
         }
     }
 
-    /// ツールパスの大きさを見積もり終えたら、見積もっている間に頼まれた計算をもう一度頼む
+    /// ツールパスの大きさを見積もり終えたら、見積もっている間に頼まれた計算をもう一度頼む（条件の編集のダイアログを
+    /// 開いている間は頼まない。キャンセルしたら頼み、条件を変えて適用したら頼まない）
     pub(crate) fn resume_pending_submission(&mut self) {
-        if self.cutting_simulation.estimating() {
-            return;
-        }
-        let Some(submission) = self.pending_submission.take() else {
+        let Some(submission) = self.pending_submission else {
             return;
         };
+        if self.is_condition_dialog_open() {
+            return;
+        }
+        // 頼まれた計算の工程の、今の改訂の見積もりだけを待つ（やめた工程・前の条件の見積もりは待たない）
+        let operations: Vec<_> = match submission {
+            PendingSubmission::Operation | PendingSubmission::Redo => {
+                vec![self.document.selected_operation()]
+            }
+            PendingSubmission::Sequence => self
+                .document
+                .operations()
+                .into_iter()
+                .map(|item| item.id)
+                .collect(),
+        };
+        if self
+            .cutting_simulation
+            .estimating(&self.document, &operations)
+        {
+            return;
+        }
+        self.pending_submission = None;
         let submitted = match submission {
             PendingSubmission::Operation => self.submit_cutting_simulation(),
             PendingSubmission::Redo => self.redo_cutting_simulation(),
