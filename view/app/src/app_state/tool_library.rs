@@ -1,6 +1,7 @@
 //! AppState のツールライブラリのウィンドウ（使うライブラリの一覧の保存と、ライブラリ・ツールセットの操作）
 
 use super::AppState;
+use super::file_dialog::{FileDialogPurpose, many_files, one_file};
 use crate::help_ui::Notice;
 use crate::machining_conditions_ui::OperationToolCommand;
 use crate::tool_library_messages::resolve_tool_library_text;
@@ -140,16 +141,29 @@ impl AppState {
         }
     }
 
-    /// 要求されたツールライブラリの操作を行う（ファイルを選ぶ画面・確かめの画面は描画を止めるため、描画の途中では
-    /// なく、イベントの処理が終わった後に呼ぶ）
+    /// 要求されたツールライブラリの操作を行う（確かめの画面は描画を止めるため、描画の途中ではなく、イベントの処理が
+    /// 終わった後に呼ぶ。ファイルを選ぶ画面を開いている間は、閉じるまで待たせる）
     pub(super) fn run_tool_library_action(&mut self) {
+        if self.file_dialog_open() {
+            return;
+        }
         let Some(action) = self.tool_library_action.take() else {
             return;
         };
         let outcome = match action {
-            ToolLibraryAction::CreateLibrary => self.create_tool_library(),
-            ToolLibraryAction::OpenLibraries => self.add_tool_libraries(),
-            ToolLibraryAction::DuplicateLibrary(index) => self.duplicate_tool_library(index),
+            ToolLibraryAction::CreateLibrary => {
+                self.pick_new_tool_library_file(None);
+                Outcome::Nothing
+            }
+            ToolLibraryAction::OpenLibraries => {
+                let picking = self.tool_library_dialog().pick_files();
+                self.open_file_dialog(FileDialogPurpose::OpenToolLibraries, many_files(picking));
+                Outcome::Nothing
+            }
+            ToolLibraryAction::DuplicateLibrary(index) => {
+                self.pick_new_tool_library_file(Some(index));
+                Outcome::Nothing
+            }
             ToolLibraryAction::RemoveLibrary(index) => {
                 self.tool_library.remove_library(index);
                 let window = &mut self.tool_library_window;
@@ -166,6 +180,11 @@ impl AppState {
             }
             edit => self.edit_tool_library(edit),
         };
+        self.report_tool_library_outcome(outcome);
+    }
+
+    /// ツールライブラリの操作の結果 `outcome` を、ウィンドウと画面の下の行に出す
+    fn report_tool_library_outcome(&mut self, outcome: Outcome) {
         let locale = self.ui_locale;
         match outcome {
             Outcome::Done(text) => self.tool_library_window.result = Some((text, false)),
@@ -184,55 +203,28 @@ impl AppState {
     }
 
     /// ライブラリのファイルを選ぶ画面
-    fn tool_library_dialog(&self) -> rfd::FileDialog {
-        rfd::FileDialog::new().set_parent(&*self.window).add_filter(
-            resolve_tool_library_text(self.ui_locale, "tool_library.file_type", &[]),
-            TOOL_LIBRARY_EXTENSIONS,
-        )
+    fn tool_library_dialog(&self) -> rfd::AsyncFileDialog {
+        rfd::AsyncFileDialog::new()
+            .set_parent(&*self.window)
+            .add_filter(
+                resolve_tool_library_text(self.ui_locale, "tool_library.file_type", &[]),
+                TOOL_LIBRARY_EXTENSIONS,
+            )
     }
 
-    /// 場所を選んで、ファイルの名前を名前にした新しいライブラリを作り、一覧に足す
-    fn create_tool_library(&mut self) -> Outcome {
-        let Some((path, file, name)) = self.pick_new_tool_library_file() else {
-            return Outcome::Nothing;
-        };
-        match self.tool_library.create_library(path, &name) {
-            Ok(index) => {
-                self.select_tool_library(index);
-                self.save_tool_library_list();
-                Outcome::Done(resolve_tool_library_text(
-                    self.ui_locale,
-                    "tool_library.result.created",
-                    &[("file", file)],
-                ))
-            }
-            Err(reason) => Outcome::Failed { file, reason },
-        }
+    /// 新しいライブラリのファイルの場所を選ぶ画面を開く（`source` があれば、選んだ場所にその番号のライブラリを
+    /// 複写する）
+    fn pick_new_tool_library_file(&mut self, source: Option<usize>) {
+        let picking = self.tool_library_dialog().save_file();
+        self.open_file_dialog(
+            FileDialogPurpose::NewToolLibrary { source },
+            one_file(picking),
+        );
     }
 
-    /// 場所を選んで、一覧の `index` 番目のライブラリを、ファイルの名前を名前にした別のライブラリとして複写し、一覧に
-    /// 足す
-    fn duplicate_tool_library(&mut self, index: usize) -> Outcome {
-        let Some((path, file, name)) = self.pick_new_tool_library_file() else {
-            return Outcome::Nothing;
-        };
-        match self.tool_library.duplicate_library(index, path, &name) {
-            Ok(index) => {
-                self.select_tool_library(index);
-                self.save_tool_library_list();
-                Outcome::Done(resolve_tool_library_text(
-                    self.ui_locale,
-                    "tool_library.result.created",
-                    &[("file", file)],
-                ))
-            }
-            Err(reason) => Outcome::Failed { file, reason },
-        }
-    }
-
-    /// 新しいライブラリのファイルの場所を選ぶ（選んだ場所・ファイルの名前・拡張子を除いた名前。選ばなければ `None`）
-    fn pick_new_tool_library_file(&self) -> Option<(PathBuf, String, String)> {
-        let path = self.tool_library_dialog().save_file()?;
+    /// 選んだ場所 `path` に、ファイルの名前を名前にした新しいライブラリを作り（`source` があれば、その番号の
+    /// ライブラリを別のライブラリとして複写し）、一覧に足す
+    pub(super) fn create_tool_library_file(&mut self, path: PathBuf, source: Option<usize>) {
         let path = if path.extension().is_none() {
             path.with_extension(TOOL_LIBRARY_EXTENSIONS[0])
         } else {
@@ -242,14 +234,27 @@ impl AppState {
         let name = path
             .file_stem()
             .map_or_else(|| file.clone(), |stem| stem.to_string_lossy().into_owned());
-        Some((path, file, name))
+        let created = match source {
+            Some(index) => self.tool_library.duplicate_library(index, path, &name),
+            None => self.tool_library.create_library(path, &name),
+        };
+        let outcome = match created {
+            Ok(index) => {
+                self.select_tool_library(index);
+                self.save_tool_library_list();
+                Outcome::Done(resolve_tool_library_text(
+                    self.ui_locale,
+                    "tool_library.result.created",
+                    &[("file", file)],
+                ))
+            }
+            Err(reason) => Outcome::Failed { file, reason },
+        };
+        self.report_tool_library_outcome(outcome);
     }
 
-    /// 選んだライブラリのファイルを一覧に足す
-    fn add_tool_libraries(&mut self) -> Outcome {
-        let Some(paths) = self.tool_library_dialog().pick_files() else {
-            return Outcome::Nothing;
-        };
+    /// 選んだライブラリのファイル `paths` を一覧に足す
+    pub(super) fn add_tool_library_files(&mut self, paths: Vec<PathBuf>) {
         let mut last = None;
         for path in paths {
             last = Some(self.tool_library.add_library(path));
@@ -258,7 +263,6 @@ impl AppState {
             self.select_tool_library(index);
             self.save_tool_library_list();
         }
-        Outcome::Nothing
     }
 
     /// 一覧の番号 `library` のライブラリのツールセット `id` を、工程の設定のダイアログで編集している工程の工具にし、

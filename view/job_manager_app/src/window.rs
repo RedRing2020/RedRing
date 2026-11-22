@@ -4,9 +4,12 @@
 //! 結果が返ったら記録を読み直す。
 
 use std::collections::{BTreeSet, HashMap};
+use std::future::Future;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::mpsc;
+use std::task::{Context, Poll, Waker};
 use std::time::{Duration, Instant};
 
 use crate::locale::{self, Language};
@@ -149,6 +152,8 @@ pub(crate) struct JobManagerWindow {
     /// ジョブの記録を読み込んだ回（読み込むたびに増やす）
     jobs_version: u64,
     store_change: Option<StoreChange>,
+    /// 開いている保存先のフォルダを選ぶ画面（閉じたら、選んだフォルダを受け取る）
+    store_folder_dialog: Option<Pin<Box<dyn Future<Output = Option<rfd::FileHandle>>>>>,
     /// 保存先を替えられなかった理由
     store_change_error: Option<ChangeFailure>,
     /// 前の描画でマウスが乗っていた一覧の行（見出しの行が 0）
@@ -185,6 +190,7 @@ impl JobManagerWindow {
             bulk_delete: None,
             jobs_version: 0,
             store_change: None,
+            store_folder_dialog: None,
             store_change_error: None,
             hovered_row: None,
             hide_on_close,
@@ -721,18 +727,34 @@ impl JobManagerWindow {
         }
     }
 
-    /// 保存先のフォルダを選び、替えられるフォルダなら確かめの画面を出す
+    /// 保存先のフォルダを選ぶ画面を開く（画面の描画の中で閉じるまで待つと、フォルダの中身を並べる処理が止まる
+    /// ため、別のスレッドで開き、選んだフォルダは後の描画で受け取る）
     fn choose_store(&mut self) {
         self.store_change_error = None;
         if store_change::is_busy(&self.store) {
             self.store_change_error = Some(ChangeFailure::Busy);
             return;
         }
-        let mut dialog = rfd::FileDialog::new().set_title(self.text("store.choose"));
+        let mut dialog = rfd::AsyncFileDialog::new().set_title(self.text("store.choose"));
         if let Some(parent) = self.store.root().parent() {
             dialog = dialog.set_directory(parent);
         }
-        let Some(folder) = dialog.pick_folder() else {
+        self.store_folder_dialog = Some(Box::pin(dialog.pick_folder()));
+        // 画面は、初めて結果を問い合わせたときに開く
+        self.receive_store_folder();
+    }
+
+    /// 保存先のフォルダを選ぶ画面が閉じていれば、選んだフォルダが替えられるフォルダなら確かめの画面を出す
+    fn receive_store_folder(&mut self) {
+        let Some(dialog) = self.store_folder_dialog.as_mut() else {
+            return;
+        };
+        let mut context = Context::from_waker(Waker::noop());
+        let Poll::Ready(picked) = dialog.as_mut().poll(&mut context) else {
+            return;
+        };
+        self.store_folder_dialog = None;
+        let Some(folder) = picked.map(|folder| folder.path().to_path_buf()) else {
             return;
         };
         match store_change::check_folder(self.store.root(), &folder) {
@@ -863,7 +885,8 @@ impl JobManagerWindow {
                 // 確かめる。保存先のフォルダがない（外したドライブなど）ときは替えられる。中断のジョブと、それを待つ
                 // ジョブは、利用者が操作するまで計算しないため替えられる）
                 let idle = idle_jobs(&self.jobs);
-                let busy = self.service.outstanding() > 0
+                let busy = self.store_folder_dialog.is_some()
+                    || self.service.outstanding() > 0
                     || self.jobs.iter().any(|job| !idle.contains(&job.job_id))
                     || self
                         .store_error
@@ -1203,6 +1226,7 @@ impl eframe::App for JobManagerWindow {
         self.refresh();
         self.show_delete_confirmation(ui.ctx());
         self.show_bulk_delete(ui.ctx());
+        self.receive_store_folder();
         self.show_store_change(ui.ctx());
         Panel::top("header").show(ui, |ui| self.show_header(ui));
         Panel::left("filter")
@@ -1215,12 +1239,13 @@ impl eframe::App for JobManagerWindow {
             .show(ui, |ui| self.show_details(ui));
         CentralPanel::default().show(ui, |ui| self.show_jobs(ui));
         // 記録・経過時間を、操作がなくても読み直して描き直す（操作の結果を待つ間は、結果が返ったらすぐ出す）
-        ui.ctx()
-            .request_repaint_after(if self.service.outstanding() > 0 {
+        ui.ctx().request_repaint_after(
+            if self.service.outstanding() > 0 || self.store_folder_dialog.is_some() {
                 REPLY_INTERVAL
             } else {
                 JOBS_INTERVAL
-            });
+            },
+        );
     }
 }
 

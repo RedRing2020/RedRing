@@ -55,9 +55,10 @@ impl AppState {
         }
     }
 
-    /// 選ばれたメニューの項目・要求されたモデルファイルの操作を行う（ファイルを選ぶ画面・確かめの画面は描画を止める
-    /// ため、描画の途中ではなく、イベントの処理が終わった後に呼ぶ）
+    /// ファイルを選ぶ画面が閉じていれば選んだ結果を受け取り、選ばれたメニューの項目・要求されたモデルファイルの操作を
+    /// 行う（確かめの画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に呼ぶ）
     pub fn run_requested_menu_actions(&mut self) {
+        self.receive_file_dialog_result();
         self.run_file_actions();
         self.run_tool_library_action();
         self.refresh_window_title();
