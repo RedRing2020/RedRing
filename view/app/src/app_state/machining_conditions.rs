@@ -493,8 +493,10 @@ impl AppState {
         }
     }
 
-    /// 条件・製品形状が変わった後に、計算条件と計算の状態を確かめ直す
+    /// 条件・製品形状が変わった後に、計算条件と計算の状態を確かめ直す（見積もっている間に頼まれた計算は、前の条件の
+    /// ため頼み直さない）
     pub(crate) fn invalidate_conditions(&mut self) {
+        self.pending_submission = None;
         self.condition_issues = None;
         self.operation_condition_errors = None;
         self.draft_issues = None;
@@ -502,6 +504,7 @@ impl AppState {
     }
 
     pub(crate) fn prepare_machining_conditions_state(&mut self) -> MachiningConditionsUiState {
+        self.resume_pending_submission();
         // 計算の条件・素材・加工の対象を変えて、切削アニメーションの工程の CL を除いたら（前の条件の結果のため）、
         // アニメーションを閉じる
         if self.cutting_animation.is_some()

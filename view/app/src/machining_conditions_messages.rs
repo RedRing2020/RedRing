@@ -251,6 +251,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "ツールパスが大きくなるため、計算を始めていません",
     ),
     (
+        "conditions.status.estimating",
+        "ツールパスの大きさを見積もっています（見積もり終えたら計算を始めます）",
+    ),
+    (
         "conditions.confirm.large_toolpath",
         "ツールパスの生成に多くのメモリを使う工程があります。計算に長い時間がかかり、ほかのアプリが遅くなることがあります。計算しますか？\n\n{operations}",
     ),
@@ -737,6 +741,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.status.large_toolpath_declined",
         "The calculation was not started because the toolpath would be large",
+    ),
+    (
+        "conditions.status.estimating",
+        "Estimating the toolpath size (the calculation starts when it is done)",
     ),
     (
         "conditions.confirm.large_toolpath",

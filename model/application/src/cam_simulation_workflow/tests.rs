@@ -442,14 +442,25 @@ fn the_toolpath_size_of_an_operation_is_checked_before_the_calculation() {
     let limits = CamSimulationWorkflow::in_process()
         .toolpath_limits()
         .unwrap();
+    // 別のスレッドで見積もり、見積もり終えるのを待つ
     let check = |machining: &Machining| {
-        CamSimulationWorkflow::check_toolpath_size(
+        let estimation = CamSimulationWorkflow::estimate_toolpath_size(
             &shapes,
             &machining.store,
             machining.sequence,
             machining.operation,
-            limits,
-        )
+        )?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+        loop {
+            if let Some(size) = estimation.size(limits) {
+                return size;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the size is estimated"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
     };
     assert_eq!(check(&machining).unwrap(), ToolpathSize::Normal);
     // 工具が小さく、ピックフィードがとても小さいと、確かめる目安・メモリの上限を超える

@@ -188,6 +188,7 @@ impl Notice {
                 | OperationStatus::Resumed
                 | OperationStatus::Redone { .. }
                 | OperationStatus::LargeToolpathDeclined
+                | OperationStatus::Estimating
                 | OperationStatus::Stopped
                 | OperationStatus::EarlierConditionsCanceled
                 | OperationStatus::SequenceSubmitted { .. }

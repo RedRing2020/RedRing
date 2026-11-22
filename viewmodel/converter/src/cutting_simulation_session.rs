@@ -7,7 +7,7 @@
 use crate::space_model_document::MachiningOperationId;
 use application::cam_simulation_workflow::{
     Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError, JobFailureReason, ToolpathLimits,
-    ToolpathSize,
+    ToolpathSize, ToolpathSizeEstimation,
 };
 pub use application::cam_simulation_workflow::{
     CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
@@ -224,6 +224,8 @@ pub enum RedoOutcome {
     Submitted { canceled: bool },
     /// ツールパスが大きくなることを確かめて、計算しないことにした
     Declined,
+    /// ツールパスの大きさを別のスレッドで見積もっているため、まだ投入していない（見積もり終えたら、もう一度頼む）
+    Estimating,
 }
 
 /// 計算の結果
@@ -235,6 +237,8 @@ pub enum SubmitOutcome {
     AlreadyCalculated,
     /// ツールパスが大きくなることを確かめて、計算しないことにした
     Declined,
+    /// ツールパスの大きさを別のスレッドで見積もっているため、まだ投入していない（見積もり終えたら、もう一度頼む）
+    Estimating,
 }
 
 /// 全工程の計算の結果
@@ -244,6 +248,9 @@ pub enum SequenceOutcome {
     Submitted(SequenceSubmission),
     /// ツールパスが大きくなることを確かめて、どの工程も計算しないことにした
     Declined,
+    /// ツールパスの大きさを別のスレッドで見積もっているため、まだどの工程も投入していない（見積もり終えたら、
+    /// もう一度頼む）
+    Estimating,
 }
 
 /// 選んだ工程の今の条件の計算が失敗した理由
@@ -289,30 +296,52 @@ impl SubmissionKind {
     }
 }
 
+/// 工程ごとの、見積もった改訂の鍵と、ツールパスの大きさの見積もり
+type ToolpathEstimations =
+    HashMap<MachiningOperationId, (MachiningRevisionKey, ToolpathSizeEstimation)>;
+
 /// 工程 `operation`（加工の順の番号 `position`（1 から）・名前 `name`）のツールパスの大きさを、計算を始める前に
 /// 見積もる（確かめる目安と上限 `limits` で、確かめる目安を超えるなら、その工程と見積もり）
+///
+/// 見積もりは別のスレッドで行い、工程の改訂ごとに `estimations` に覚える。見積もっている間は `None` を返す（今の
+/// 改訂の見積もりがなければ、見積もり始める）。
 ///
 /// # Errors
 ///
 /// 投入前の確認の誤り、見積もったツールパスがメモリの上限を超える場合。
 fn large_toolpath(
+    estimations: &mut ToolpathEstimations,
     document: &SpaceModelDocument,
     operation: MachiningOperationId,
     (position, name): (usize, &str),
     limits: ToolpathLimits,
-) -> Result<Option<LargeToolpath>, CamSimulationWorkflowError> {
-    let (shapes, sequences, sequence, _) = document.machining();
-    let ToolpathSize::Large(estimate) =
-        CamSimulationWorkflow::check_toolpath_size(shapes, sequences, sequence, operation, limits)?
-    else {
+) -> Result<Option<Option<LargeToolpath>>, CamSimulationWorkflowError> {
+    let key = document.revision_key_of(operation);
+    let current = matches!(estimations.get(&operation), Some((cached, _)) if Some(*cached) == key);
+    if !current {
+        let (shapes, sequences, sequence, _) = document.machining();
+        let estimation =
+            CamSimulationWorkflow::estimate_toolpath_size(shapes, sequences, sequence, operation)?;
+        // 改訂の鍵がない工程は、見積もりを始める前の確かめで誤りになる
+        if let Some(key) = key {
+            estimations.insert(operation, (key, estimation));
+        }
+    }
+    let Some((_, estimation)) = estimations.get(&operation) else {
         return Ok(None);
     };
-    Ok(Some(LargeToolpath {
+    let Some(size) = estimation.size(limits) else {
+        return Ok(None);
+    };
+    let ToolpathSize::Large(estimate) = size? else {
+        return Ok(Some(None));
+    };
+    Ok(Some(Some(LargeToolpath {
         position,
         operation: name.to_string(),
         memory_gb: estimate.memory_gb(),
         near_limit: estimate.is_near_limit(),
-    }))
+    })))
 }
 
 /// 選んだ加工工程 `operation` の、加工の順の番号（1 から）と名前
@@ -466,6 +495,8 @@ pub struct CuttingSimulationSession {
     workflow: CamSimulationWorkflow,
     /// 工程ごとに、確かめた改訂の鍵と、その改訂の計算条件の問題（誤りがなければ空）
     condition_issues: HashMap<MachiningOperationId, (MachiningRevisionKey, Vec<ConditionIssue>)>,
+    /// 工程ごとの、ツールパスの大きさの見積もり（計算を始める前に、別のスレッドで見積もる）
+    estimations: ToolpathEstimations,
 }
 
 impl CuttingSimulationSession {
@@ -475,6 +506,7 @@ impl CuttingSimulationSession {
         Self {
             workflow: CamSimulationWorkflow::in_process(),
             condition_issues: HashMap::new(),
+            estimations: HashMap::new(),
         }
     }
 
@@ -498,6 +530,15 @@ impl CuttingSimulationSession {
     /// 工程ごとに覚えた、計算の条件の確かめの結果を捨てる（別の文書では、同じ工程の ID・改訂の鍵でも形状が違いうる）
     pub fn forget_condition_checks(&mut self) {
         self.condition_issues.clear();
+        self.estimations.clear();
+    }
+
+    /// 計算を始める前のツールパスの大きさを、別のスレッドで見積もっているか（見積もり終えたら、`Estimating` を
+    /// 返した計算をもう一度頼む）
+    pub fn estimating(&self) -> bool {
+        self.estimations
+            .values()
+            .any(|(_, estimation)| !estimation.is_finished())
     }
 
     /// 加工手順の工程のうち、計算の条件に誤りがある工程と、その問題（加工の順。問題は、工程を選んで [`Self::check`] で
@@ -604,7 +645,8 @@ impl CuttingSimulationSession {
     ///
     /// 今の改訂の計算が計算待ち・計算中・正常に終わっていれば、重ねて投入しない。そうでなく、空間モデルに今の条件の
     /// CL があれば、その CL を入力にして切削シミュレーションだけを投入する。どちらでもなければ、ツールパスの大きさを
-    /// 見積もり、確かめる目安を超えるなら `confirm` で確かめてから、ツールパス生成から投入する。
+    /// 見積もり、確かめる目安を超えるなら `confirm` で確かめてから、ツールパス生成から投入する。見積もりは別のスレッドで
+    /// 行い、見積もっている間は `SubmitOutcome::Estimating` を返す（見積もり終えたら、もう一度頼む）。
     ///
     /// 状態を読むのと投入は、ジョブマネージャーへの 1 つの接続で行う（動いていなければ起動して待つのは 1 回だけ）。
     /// つなげない・状態を読めないときは、投入しない。大きさを確かめるときは、確かめている間は接続を閉じ、確かめた後に
@@ -623,6 +665,7 @@ impl CuttingSimulationSession {
             return Err(CuttingSimulationSessionError::ConditionsNotSet);
         }
         let (_, sequences, sequence, operation) = document.machining();
+        let estimations = &mut self.estimations;
         let prepared = self.workflow.with_job_manager_connection(|workflow| {
             // 切削シミュレーションだけを投入するかは、状態を今読んでから決める（読まずに決めると、計算済みのジョブが
             // あっても重ねて投入する）
@@ -635,9 +678,10 @@ impl CuttingSimulationSession {
             if kind == SubmissionKind::Full {
                 let (position, name) = operation_label(document, operation);
                 let limits = workflow.toolpath_limits()?;
-                if let Some(large) = large_toolpath(document, operation, (position, &name), limits)?
-                {
-                    return Ok(Submitting::Confirm(vec![large], kind));
+                match large_toolpath(estimations, document, operation, (position, &name), limits)? {
+                    None => return Ok(Submitting::Done(SubmitOutcome::Estimating)),
+                    Some(Some(large)) => return Ok(Submitting::Confirm(vec![large], kind)),
+                    Some(None) => {}
                 }
             }
             submit_kind(workflow, document, operation, kind)?;
@@ -662,7 +706,8 @@ impl CuttingSimulationSession {
     ///
     /// 今の条件の計算が計算待ちなら、投入せずに `RedoOutcome::Waiting` を返す（計算待ちの計算は、まだ始まって
     /// いない。ジョブマネージャーがまだ受け取っていない投入も計算待ちのため、取り消せない投入に重ねない）。
-    /// ツールパスの大きさを見積もり、確かめる目安を超えるなら `confirm` で確かめてから投入する。
+    /// ツールパスの大きさを見積もり、確かめる目安を超えるなら `confirm` で確かめてから投入する（見積もりは別のスレッドで
+    /// 行い、見積もっている間は `RedoOutcome::Estimating` を返す）。
     ///
     /// # Errors
     ///
@@ -680,7 +725,17 @@ impl CuttingSimulationSession {
         let operation = document.selected_operation();
         let (position, name) = operation_label(document, operation);
         let limits = self.workflow.toolpath_limits()?;
-        if let Some(large) = large_toolpath(document, operation, (position, &name), limits)?
+        let Some(large) = large_toolpath(
+            &mut self.estimations,
+            document,
+            operation,
+            (position, &name),
+            limits,
+        )?
+        else {
+            return Ok(RedoOutcome::Estimating);
+        };
+        if let Some(large) = large
             && !confirm(&[large])
         {
             return Ok(RedoOutcome::Declined);
@@ -784,7 +839,8 @@ impl CuttingSimulationSession {
     /// 終わった工程は、投入し直さない（同じ計算を重ねないように）。計算の状態をまだ読めていない・読めないときは、
     /// 投入し直さない工程を決められないため、どの工程も投入しない。投入する工程の計算は、工程の投入（`Self::submit`）
     /// と同じく決める。ツールパス生成から投入する工程のツールパスの大きさを見積もり、確かめる目安を超える工程が
-    /// あれば、まとめて `confirm` で 1 回だけ確かめてから投入する。
+    /// あれば、まとめて `confirm` で 1 回だけ確かめてから投入する。見積もりは別のスレッドで 1 工程ずつ行い、見積もって
+    /// いる間は `SequenceOutcome::Estimating` を返す（見積もり終えたら、もう一度頼む）。
     ///
     /// # Errors
     ///
@@ -819,6 +875,7 @@ impl CuttingSimulationSession {
         }
         // 状態を読むのと投入は、ジョブマネージャーへの 1 つの接続で行う（動いていなければ起動して待つのは 1 回だけ。
         // つなげなければ、状態を読めないとして、どの工程も投入しない）
+        let estimations = &mut self.estimations;
         let prepared = self.workflow.with_job_manager_connection(|workflow| {
             // 計算待ち・計算中・計算済みの工程を投入し直さないよう、状態を今読んでから決める
             let states = workflow.latest_revision_job_states_now(sequences, sequence, &ids)?;
@@ -840,26 +897,36 @@ impl CuttingSimulationSession {
                     Some(limits) => limits,
                     None => *limits.insert(workflow.toolpath_limits()?),
                 };
-                let found = large_toolpath(document, item.id, (index + 1, &item.name), limits)
-                    .map_err(|error| SequenceSubmissionError::Conditions {
-                        position: index + 1,
-                        operation: item.name.clone(),
-                        error: error.into(),
-                    })?;
+                // 見積もりは 1 つずつ行う（大きな形状の見積もりを、同時にいくつも行わない）
+                let found = large_toolpath(
+                    estimations,
+                    document,
+                    item.id,
+                    (index + 1, &item.name),
+                    limits,
+                )
+                .map_err(|error| SequenceSubmissionError::Conditions {
+                    position: index + 1,
+                    operation: item.name.clone(),
+                    error: error.into(),
+                })?;
+                let Some(found) = found else {
+                    return Ok(Submitting::Done(SequenceOutcome::Estimating));
+                };
                 large.extend(found);
             }
             if !large.is_empty() {
                 return Ok::<_, SequenceSubmissionError>(Submitting::Confirm(large, kinds));
             }
-            Ok(Submitting::Done(submit_kinds(
+            Ok(Submitting::Done(SequenceOutcome::Submitted(submit_kinds(
                 workflow,
                 document,
                 &operations,
                 kinds,
-            )?))
+            )?)))
         })?;
         let submission = match prepared {
-            Submitting::Done(submission) => submission,
+            Submitting::Done(outcome) => return Ok(outcome),
             Submitting::Confirm(large, kinds) => {
                 if !confirm(&large) {
                     return Ok(SequenceOutcome::Declined);
@@ -1016,6 +1083,72 @@ pub(crate) mod tests {
     use crate::space_model_document::ImportedToolpathState;
     use crate::space_model_document::tests::{NAMES, document_with_pyramid};
 
+    /// 見積もり終えるのを待つ
+    fn wait_for_estimates(session: &CuttingSimulationSession) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+        while session.estimating() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the size is estimated"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    /// [`CuttingSimulationSession::submit`] を、ツールパスの大きさを見積もり終えるまで頼み直す（画面と同じ）
+    fn submit(
+        session: &mut CuttingSimulationSession,
+        document: &SpaceModelDocument,
+        confirm: impl FnOnce(&[LargeToolpath]) -> bool,
+    ) -> Result<SubmitOutcome, CuttingSimulationSessionError> {
+        let mut confirm = Some(confirm);
+        loop {
+            let outcome = session.submit(document, |large| {
+                (confirm.take().expect("asked only once"))(large)
+            })?;
+            if outcome != SubmitOutcome::Estimating {
+                return Ok(outcome);
+            }
+            wait_for_estimates(session);
+        }
+    }
+
+    /// [`CuttingSimulationSession::redo`] を、ツールパスの大きさを見積もり終えるまで頼み直す（画面と同じ）
+    fn redo(
+        session: &mut CuttingSimulationSession,
+        document: &mut SpaceModelDocument,
+        confirm: impl FnOnce(&[LargeToolpath]) -> bool,
+    ) -> Result<RedoOutcome, CuttingSimulationSessionError> {
+        let mut confirm = Some(confirm);
+        loop {
+            let outcome = session.redo(document, |large| {
+                (confirm.take().expect("asked only once"))(large)
+            })?;
+            if outcome != RedoOutcome::Estimating {
+                return Ok(outcome);
+            }
+            wait_for_estimates(session);
+        }
+    }
+
+    /// [`CuttingSimulationSession::submit_sequence`] を、ツールパスの大きさを見積もり終えるまで頼み直す（画面と同じ）
+    fn submit_sequence(
+        session: &mut CuttingSimulationSession,
+        document: &SpaceModelDocument,
+        confirm: impl FnOnce(&[LargeToolpath]) -> bool,
+    ) -> Result<SequenceOutcome, SequenceSubmissionError> {
+        let mut confirm = Some(confirm);
+        loop {
+            let outcome = session.submit_sequence(document, |large| {
+                (confirm.take().expect("asked only once"))(large)
+            })?;
+            if outcome != SequenceOutcome::Estimating {
+                return Ok(outcome);
+            }
+            wait_for_estimates(session);
+        }
+    }
+
     /// 走査線の条件 `content` を `edit` で変えた中身
     fn with_scanline(
         content: MachiningOperationContent,
@@ -1053,7 +1186,7 @@ pub(crate) mod tests {
             content.conditions.tool.cutting_length = length;
             document.set_operation_content(content);
         }
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         session.run_queued_jobs().unwrap();
         session.import_latest(&mut document).unwrap().animation
     }
@@ -1078,40 +1211,60 @@ pub(crate) mod tests {
         small_tool(&mut document, LARGE_STEPOVER);
         let mut asked = Vec::new();
         assert_eq!(
-            session
-                .submit(&document, |large| {
-                    asked.extend_from_slice(large);
-                    false
-                })
-                .unwrap(),
+            submit(&mut session, &document, |large| {
+                asked.extend_from_slice(large);
+                false
+            })
+            .unwrap(),
             SubmitOutcome::Declined
         );
         assert_eq!(asked.len(), 1);
         assert_eq!(asked[0].position, 1);
         assert_eq!(session.run_queued_jobs().unwrap(), 0);
         assert_eq!(
-            session.redo(&mut document, |_| false).unwrap(),
+            redo(&mut session, &mut document, |_| false).unwrap(),
             RedoOutcome::Declined
         );
         assert_eq!(session.run_queued_jobs().unwrap(), 0);
         // 全工程の計算は、大きくなる工程をまとめて 1 回だけ確かめる
         let mut asked = 0;
         assert_eq!(
-            session
-                .submit_sequence(&document, |_| {
-                    asked += 1;
-                    false
-                })
-                .unwrap(),
+            submit_sequence(&mut session, &document, |_| {
+                asked += 1;
+                false
+            })
+            .unwrap(),
             SequenceOutcome::Declined
         );
         assert_eq!(asked, 1);
         assert_eq!(session.run_queued_jobs().unwrap(), 0);
         // 確かめて続けると、投入する（計算はしない。大きいため）
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::Submitted(SubmissionKind::Full)
         );
+    }
+
+    #[test]
+    fn the_calculation_waits_for_the_toolpath_size_estimated_on_another_thread() {
+        let (mut session, document) = coarse_session();
+        // 見積もっている間は投入しない（見積もりが先に終われば、そのまま投入する）
+        let first = session.submit(&document, |_| true).unwrap();
+        if first == SubmitOutcome::Estimating {
+            assert_eq!(session.run_queued_jobs().unwrap(), 0);
+            wait_for_estimates(&session);
+            // 見積もり終えたら、今の改訂の見積もりを使って投入する
+            assert_eq!(
+                session.submit(&document, |_| true).unwrap(),
+                SubmitOutcome::Submitted(SubmissionKind::Full)
+            );
+        } else {
+            assert_eq!(first, SubmitOutcome::Submitted(SubmissionKind::Full));
+        }
+        assert!(!session.estimating());
+        // 別の文書に替えると、見積もりを捨てる
+        session.forget_condition_checks();
+        assert!(session.estimations.is_empty());
     }
 
     #[test]
@@ -1121,18 +1274,17 @@ pub(crate) mod tests {
         small_tool(&mut document, LARGE_STEPOVER);
         let mut asked = 0;
         assert!(matches!(
-            session
-                .submit_sequence(&document, |_| {
-                    asked += 1;
-                    true
-                })
-                .unwrap(),
+            submit_sequence(&mut session, &document, |_| {
+                asked += 1;
+                true
+            })
+            .unwrap(),
             SequenceOutcome::Submitted(SequenceSubmission { submitted: 1, .. })
         ));
         assert_eq!(asked, 1);
         // 投入した工程は、投入し直さない
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::AlreadyCalculated
         );
     }
@@ -1149,13 +1301,13 @@ pub(crate) mod tests {
                 )
             )
         };
-        let error = session.submit(&document, |_| true).unwrap_err();
+        let error = submit(&mut session, &document, |_| true).unwrap_err();
         assert!(too_large(&error));
         assert!(too_large(
-            &session.redo(&mut document, |_| true).unwrap_err()
+            &redo(&mut session, &mut document, |_| true).unwrap_err()
         ));
         assert!(matches!(
-            session.submit_sequence(&document, |_| true),
+            submit_sequence(&mut session, &document, |_| true),
             Err(SequenceSubmissionError::Conditions { position: 1, ref error, .. })
                 if too_large(error)
         ));
@@ -1189,7 +1341,7 @@ pub(crate) mod tests {
         wrong.conditions.spec = OperationSpec::Scanline(scanline);
         document.set_operation_content(wrong);
         assert!(matches!(
-            session.submit_sequence(&document, |_| true),
+            submit_sequence(&mut session, &document, |_| true),
             Err(SequenceSubmissionError::Conditions { position: 2, ref operation, .. })
                 if operation == "仕上げ"
         ));
@@ -1202,7 +1354,7 @@ pub(crate) mod tests {
         fixed.conditions.spec = OperationSpec::Scanline(scanline);
         document.set_operation_content(fixed);
         assert_eq!(
-            session.submit_sequence(&document, |_| true).unwrap(),
+            submit_sequence(&mut session, &document, |_| true).unwrap(),
             SequenceOutcome::Submitted(SequenceSubmission {
                 submitted: 2,
                 simulation_only: 0,
@@ -1211,7 +1363,7 @@ pub(crate) mod tests {
         );
         // 計算待ち・計算済みの工程は、投入し直さない
         assert_eq!(
-            session.submit_sequence(&document, |_| true).unwrap(),
+            submit_sequence(&mut session, &document, |_| true).unwrap(),
             SequenceOutcome::Submitted(SequenceSubmission {
                 submitted: 0,
                 simulation_only: 0,
@@ -1220,7 +1372,7 @@ pub(crate) mod tests {
         );
         assert_eq!(session.run_queued_jobs().unwrap(), 4);
         assert_eq!(
-            session.submit_sequence(&document, |_| true).unwrap(),
+            submit_sequence(&mut session, &document, |_| true).unwrap(),
             SequenceOutcome::Submitted(SequenceSubmission {
                 submitted: 0,
                 simulation_only: 0,
@@ -1271,12 +1423,12 @@ pub(crate) mod tests {
     fn only_the_toolpath_is_imported_and_redoing_removes_it_and_submits_again() {
         let (mut session, mut document) = coarse_session();
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::Submitted(SubmissionKind::Full)
         );
         // 計算待ちの間は、重ねて投入しない
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::AlreadyCalculated
         );
         // 計算が終わるまでは、CL を取り込めない
@@ -1294,13 +1446,13 @@ pub(crate) mod tests {
         assert!(document.is_modified());
         // 今の改訂の計算が正常に終わっているため、投入しない
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::AlreadyCalculated
         );
 
         // やり直しは、CL を除いてツールパス生成から投入する（計算待ち・計算中のジョブはない）
         assert_eq!(
-            session.redo(&mut document, |_| true).unwrap(),
+            redo(&mut session, &mut document, |_| true).unwrap(),
             RedoOutcome::Submitted { canceled: false }
         );
         assert_eq!(
@@ -1318,13 +1470,13 @@ pub(crate) mod tests {
             document.imported_toolpath_state(),
             ImportedToolpathState::None
         );
-        assert!(session.redo(&mut document, |_| true).is_err());
+        assert!(redo(&mut session, &mut document, |_| true).is_err());
     }
 
     #[test]
     fn changing_only_the_attributes_keeps_the_imported_toolpath_current() {
         let (mut session, mut document) = coarse_session();
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         session.run_queued_jobs().unwrap();
         session.import_toolpath(&mut document).unwrap();
 
@@ -1338,7 +1490,7 @@ pub(crate) mod tests {
             ImportedToolpathState::Current
         );
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::AlreadyCalculated
         );
 
@@ -1366,7 +1518,7 @@ pub(crate) mod tests {
         coarse(&mut document);
         let first = document.operations()[0].id;
         assert!(document.select_operation(first));
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         session.run_queued_jobs().unwrap();
         session.import_toolpath(&mut document).unwrap();
         let path = temporary_model_file("hidden");
@@ -1389,7 +1541,7 @@ pub(crate) mod tests {
         session.job_states(&document).unwrap();
         assert_eq!(session.cancel_superseded_jobs(&document).unwrap(), 0);
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::AlreadyCalculated
         );
         assert_eq!(keys(&document), before);
@@ -1438,7 +1590,7 @@ pub(crate) mod tests {
         use application::space_model_file::{load_space_model, save_space_model};
 
         let (mut session, mut document) = coarse_session();
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         session.run_queued_jobs().unwrap();
         session.import_toolpath(&mut document).unwrap();
         let path = temporary_model_file("outdated");
@@ -1474,7 +1626,7 @@ pub(crate) mod tests {
     fn stopping_cancels_the_waiting_calculation_of_the_current_conditions() {
         let (mut session, document) = coarse_session();
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::Submitted(SubmissionKind::Full)
         );
         assert_eq!(session.stop(&document).unwrap(), StopOutcome::Stopped);
@@ -1492,7 +1644,7 @@ pub(crate) mod tests {
     fn changing_the_conditions_cancels_the_waiting_calculation_of_the_earlier_conditions() {
         let (mut session, mut document) = coarse_session();
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::Submitted(SubmissionKind::Full)
         );
         // 今の条件のジョブは取り消さない
@@ -1503,7 +1655,7 @@ pub(crate) mod tests {
             |scanline| scanline.stepover *= 0.5,
         ));
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::Submitted(SubmissionKind::Full)
         );
         assert_eq!(session.cancel_superseded_jobs(&document).unwrap(), 2);
@@ -1520,18 +1672,18 @@ pub(crate) mod tests {
     fn recalculating_while_waiting_submits_nothing() {
         let (mut session, mut document) = coarse_session();
         assert_eq!(
-            session.submit(&document, |_| true).unwrap(),
+            submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::Submitted(SubmissionKind::Full)
         );
         // 計算待ちの計算は、まだ始まっていないため、再計算しない（重ねて投入しない）
         assert_eq!(
-            session.redo(&mut document, |_| true).unwrap(),
+            redo(&mut session, &mut document, |_| true).unwrap(),
             RedoOutcome::Waiting
         );
         assert_eq!(session.run_queued_jobs().unwrap(), 2);
         // 計算が終わった後の再計算は、取り消すジョブがない
         assert_eq!(
-            session.redo(&mut document, |_| true).unwrap(),
+            redo(&mut session, &mut document, |_| true).unwrap(),
             RedoOutcome::Submitted { canceled: false }
         );
     }
@@ -1540,7 +1692,7 @@ pub(crate) mod tests {
     fn submitted_product_shapes_are_imported_as_a_cutting_animation_after_running() {
         let (mut session, mut document) = coarse_session();
         assert_eq!(session.check(&document), vec![]);
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         // 実行するまでは取り込めない
         assert!(matches!(
             session.import_latest(&mut document),
@@ -1567,7 +1719,7 @@ pub(crate) mod tests {
     #[test]
     fn results_of_previous_conditions_are_not_imported_until_submitted_again() {
         let (mut session, mut document) = coarse_session();
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         session.run_queued_jobs().unwrap();
         assert_eq!(session.import_latest(&mut document).unwrap().job_id, 2);
 
@@ -1585,7 +1737,7 @@ pub(crate) mod tests {
             Err(CuttingSimulationSessionError::NoSucceededSimulation)
         ));
 
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         session.run_queued_jobs().unwrap();
         let imported = session.import_latest(&mut document).unwrap();
         assert_eq!(imported.job_id, 4);
@@ -1608,7 +1760,7 @@ pub(crate) mod tests {
     #[test]
     fn results_of_other_target_faces_are_not_imported() {
         let (mut session, mut document) = coarse_session();
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         session.run_queued_jobs().unwrap();
         // 製品形状を加えると、加工の対象が変わり、前の対象の結果は取り込まない
         let more = document_with_pyramid();
@@ -1645,7 +1797,7 @@ pub(crate) mod tests {
             },
             precision: 0.2,
         });
-        session.submit(&document, |_| true).unwrap();
+        submit(&mut session, &document, |_| true).unwrap();
         session.run_queued_jobs().unwrap();
 
         let imported = session.import_latest(&mut document).unwrap().conditions;
@@ -1693,7 +1845,7 @@ pub(crate) mod tests {
                 }),
             ]
         );
-        assert!(session.submit(&document, |_| true).is_err());
+        assert!(submit(&mut session, &document, |_| true).is_err());
         assert_eq!(session.run_queued_jobs().unwrap(), 0);
     }
 
@@ -1729,11 +1881,11 @@ pub(crate) mod tests {
         assert!(!document.conditions_set_of(document.selected_operation()));
         assert_eq!(session.check(&document), vec![ConditionIssue::NotSet]);
         assert!(matches!(
-            session.submit(&document, |_| true),
+            submit(&mut session, &document, |_| true),
             Err(CuttingSimulationSessionError::ConditionsNotSet)
         ));
         assert!(matches!(
-            session.redo(&mut document, |_| true),
+            redo(&mut session, &mut document, |_| true),
             Err(CuttingSimulationSessionError::ConditionsNotSet)
         ));
         // 全工程の計算は、設定していない工程があれば、どの工程も投入しない
@@ -1741,7 +1893,7 @@ pub(crate) mod tests {
         document.add_operation("追加".to_string());
         assert!(!document.conditions_set_of(document.selected_operation()));
         assert!(matches!(
-            session.submit_sequence(&document, |_| true),
+            submit_sequence(&mut session, &document, |_| true),
             Err(SequenceSubmissionError::Conditions {
                 position: 2,
                 error: CuttingSimulationSessionError::ConditionsNotSet,
@@ -1854,7 +2006,7 @@ pub(crate) mod tests {
             session.operation_condition_issues(&document),
             vec![(document.selected_operation(), session.check(&document))]
         );
-        let error = session.submit(&document, |_| true).unwrap_err();
+        let error = submit(&mut session, &document, |_| true).unwrap_err();
         assert!(matches!(
             error,
             CuttingSimulationSessionError::Workflow(CamSimulationWorkflowError::ProductShape(
