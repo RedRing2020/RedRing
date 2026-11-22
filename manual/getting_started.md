@@ -32,13 +32,13 @@ RedRing のプレビュー版は、Windows 用の配布物（zip）を使うか�
 取ってくる途中で壊れていないことは、zip の SHA-256 が `SHA256SUMS.txt` の値と同じであることで確かめます。PowerShell で次を実行し、`True` と出れば同じです（`<値>` には `SHA256SUMS.txt` の zip の行の値を入れます）。
 
 ```powershell
-(Get-FileHash .\redring-v0.1.3-windows-x86_64.zip -Algorithm SHA256).Hash -eq '<値>'
+(Get-FileHash .\redring-v0.2.0-windows-x86_64.zip -Algorithm SHA256).Hash -eq '<値>'
 ```
 
 zip が置き換えられていないこと（RedRing のリポジトリの CI で、リリースのタグからビルドしたものであること）は、[GitHub CLI](https://cli.github.com/) で確かめます。リリースの資産ごと置き換えられた場合はチェックサムも置き換えられるため、こちらで確かめるのが確実です。
 
 ```powershell
-gh attestation verify .\redring-v0.1.3-windows-x86_64.zip --repo RedRing2020/RedRing
+gh attestation verify .\redring-v0.2.0-windows-x86_64.zip --repo RedRing2020/RedRing
 ```
 
 リリースには、使っている依存のクレートの一覧（SBOM。CycloneDX の形式の `.cdx.json`）も添えています。
@@ -48,7 +48,7 @@ gh attestation verify .\redring-v0.1.3-windows-x86_64.zip --repo RedRing2020/Red
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
-git checkout v0.1.3
+git checkout v0.2.0
 cargo build --release
 cargo run --release -p redring
 ```
