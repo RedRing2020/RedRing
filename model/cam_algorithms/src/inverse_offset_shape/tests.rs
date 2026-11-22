@@ -431,6 +431,36 @@ fn steep_faces_do_not_extend_beyond_the_triangle() {
     assert!(tip.is_some_and(|z| z <= 100.0), "{tip:?}");
 }
 
+#[test]
+fn points_between_steep_faces_have_a_height() {
+    // ほぼ鉛直な壁の、辺を共有する 2 つの三角形。フラットでは、ずらした 2 つの面の間を辺の要素が埋めるが、面の中の
+    // 許容誤差は XY で浮動小数点の 1 つ分より小さく、x = 181.1999674829452 の 1 点だけ、どの要素も高さを決めない
+    // 隙間があった（走査線の二分がその点を見つけ、CL を壁の下まで下ろした）
+    let mesh = TriangleMesh3D::new(
+        vec![
+            Point3D::new(201.1999, 29.67064, -198.048),
+            Point3D::new(201.2, 24.23155, -197.4132),
+            Point3D::new(201.1999, 25.02326, -202.734),
+            Point3D::new(201.2, 29.2256, -192.7062),
+        ],
+        vec![[0, 1, 2], [1, 0, 3]],
+    )
+    .unwrap();
+    let inverse = InverseOffsetShape::new(&mesh, CutterShape::Flat { radius: 20.0 }).unwrap();
+    let mut x = 181.1999674829452_f64;
+    for _ in 0..20 {
+        x = x.next_down();
+    }
+    for _ in 0..41 {
+        let tip = inverse.tip_height_at(x, 26.0);
+        assert!(
+            tip.is_some_and(|z| (z + 197.6196355).abs() < 1e-6),
+            "{x}: {tip:?}"
+        );
+        x = x.next_up();
+    }
+}
+
 /// フラットの工具先端の高さを、すべての三角形の、(x, y) を中心とする半径 `radius` の円の内側の部分の最も高い点から
 /// 総当たりで求める（逆オフセット形状を使わない）
 ///
