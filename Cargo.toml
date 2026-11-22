@@ -3,6 +3,7 @@ members = [
   "foundation/analysis",  # Foundation層：数値解析クレート（ドメイン非依存基盤）
   "foundation/i18n_foundation", # Foundation層：ローカライズ共通基盤
   "foundation/logging_foundation", # Foundation層：ログ初期化・レート制御基盤
+  "foundation/platform_foundation", # Foundation層：動かす環境（OS など）の違いの吸収
   "model/geo_contracts",  # Model層：幾何形状契約（trait定義）
   "model/geo_commons",    # Model層：geo_* で共通する幾何計算の関数
   "model/geo_core",       # Model層：幾何計算基盤
@@ -11,6 +12,7 @@ members = [
   "model/geo_algorithms", # Model層：幾何アルゴリズムクレート
   "model/geo_nurbs",      # Model層：NURBS曲線・曲面クレート（高レベルアルゴリズム）
   "model/geo_io",         # Model層：ファイルI/Oクレート
+  "model/geo_step",       # Model層：STEP のデータ交換（構文・中間データ・位相を作る）
   "model/geo_entity",     # Model層：エンティティ基盤クレート（Phase 4.0）
   "model/cam_core",       # Model層：CAM基盤クレート（工具経路・工具定義）
   "model/cam_entity",     # Model層：CAMエンティティクレート（geo_entityアドオン）
@@ -18,12 +20,16 @@ members = [
   "model/cam_sim",        # Model層：CAMシミュレーション実行クレート
   "model/job_runtime", # Model層：共通ジョブマネージャー基盤（CAD/CAM/CAE非依存）
   "model/job_domain", # Model層：ジョブ投入ポリシー/ユースケース抽象化
+  "model/job_runner", # Model層：ジョブ 1 つの計算だけを行うランナーの実行ファイル
+  "model/job_manager", # Model層：ジョブを管理してランナーを起動するジョブマネージャーの実行ファイル
+  "model/job_ipc", # Model層：ジョブマネージャーに問い合わせる口（要求・応答・名前付きパイプ）
   "model/application", # Application層：orchestration受け皿（PoC段階は単一クレート）
   "viewmodel/converter",  # ViewModel層：データ変換・架け橋
   "viewmodel/graphics",   # ViewModel層：グラフィックス制御（カメラ等）
   "view/render",          # View層：GPU描画基盤
   "view/stage",           # View層：レンダリングステージ管理
   "view/app",             # View層：メインアプリケーション
+  "view/job_manager_app", # View層：ジョブマネージャーの画面と実行ファイル
 ]
 resolver = "2"
 
@@ -38,6 +44,8 @@ categories = ["graphics", "mathematics", "science"]
 [workspace.dependencies]
 pollster = "1.0.1"
 tracing = "0.1.41"
+# 時刻（時間帯の表は、使う crate だけが機能で足す）
+jiff = { version = "1", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 [workspace.lints.clippy]

@@ -1,0 +1,888 @@
+//! ジョブマネージャー（設計: JOB_MANAGER_STORAGE_DESIGN.md 3・4・5 章）
+//!
+//! ジョブの保存先を排他に開き、受付のフォルダの投入を取り込み、依存関係と優先順位の順にジョブごとのランナーを
+//! 起動し、終わり方でジョブの状態を更新する。ジョブの記録を書くのは、保存先のロックを持つ本サービスだけとする。
+
+#[cfg(test)]
+mod tests;
+
+mod endpoint_server;
+mod launcher;
+
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::path::Path;
+
+use job_runtime::RefFactory;
+use job_runtime::store::{
+    IntakeOutcome, JobStore, JobStoreLock, StoreError, StoredJob, StoredJobError, StoredJobKind,
+    StoredJobStatus, plan_schedule,
+};
+
+pub use endpoint_server::{AppJobRequest, OpenWindow, RequestJobs, start_endpoint_server};
+pub use launcher::{LaunchSpec, Launcher, ProcessLauncher, RunningJob};
+
+/// 同時に実行するジョブの数
+const MAX_RUNNING_JOBS: usize = 1;
+/// 失敗の理由に添えるログの末尾を読む大きさ
+const MAX_LOG_TAIL_BYTES: u64 = 64 * 1024;
+/// 失敗の理由に添えるログの行の長さの上限（文字の数。記録が大きくなりすぎないように）
+const MAX_LOG_LINE_CHARS: usize = 1024;
+
+/// ジョブマネージャーの出来事（ログに書く）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ManagerEvent {
+    Intake(IntakeOutcome),
+    /// 記録を読めないジョブ（読めないと分かったときに 1 回だけ）
+    UnreadableJob {
+        job_id: u64,
+        reason: String,
+    },
+    /// ジョブマネージャーが止まったときに実行中だったため、中断にした
+    Interrupted {
+        job_id: u64,
+    },
+    Started {
+        job_id: u64,
+    },
+    /// 起動したランナーを、ジョブマネージャーが止まると一緒に止まる組に入れられなかった（ジョブマネージャーが
+    /// 異常終了しても、ランナーは止まらずに動き続ける）
+    Ungrouped {
+        job_id: u64,
+        reason: String,
+    },
+    /// ランナーが終わった（終わったときの状態と、失敗の理由）
+    Finished {
+        job_id: u64,
+        status: StoredJobStatus,
+        error: Option<String>,
+    },
+    /// 依存するジョブが実行できないため、失敗にした
+    Blocked {
+        job_id: u64,
+        reason: String,
+    },
+    /// 保存先を読み書きできなかった（次の回にやり直す）
+    Error(String),
+}
+
+/// 消すジョブの決め方の結果
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DeletePlan {
+    /// 消すジョブ（選んだジョブと、その成果物を使う後のジョブ）
+    pub deleted: BTreeSet<u64>,
+    /// 消さない、選んだジョブ（それか、その成果物を使う後のジョブが、計算待ち（中断のジョブを待つものを除く）・計算中）
+    pub kept: BTreeSet<u64>,
+}
+
+/// ジョブの記録 `jobs` のうち、選んだジョブ `selected` を消すときに消すジョブ
+///
+/// 選んだジョブは、その成果物を使う後のジョブ（依存関係をたどったすべて）とあわせて消す（後のジョブだけが残っても、
+/// 計算も取り込みもできないため）。ただし、終わりの素材を始まりの素材にする後の区間の切削シミュレーションのうち、
+/// 正常に終わったものは消さない（その結果は、前の区間がなくても取り込める。終わっていないもの・失敗したものは、
+/// 始まりの素材がなければ計算で続けられず、やり直せないため一緒に消す）。選んだジョブか後のジョブ（後の区間を
+/// 含む）のどれかが計算待ち・計算中なら、どれも消さない。ただし、中断のジョブと、それを待つ計算待ちのジョブ
+/// （中断のジョブを計算で続けるまで実行されない）は、終わったジョブと同じに消す。ないジョブは数えない。後のジョブ
+/// だけを選んだときは、前のジョブを残す。
+pub fn delete_plan(jobs: &[StoredJob], selected: &[u64]) -> DeletePlan {
+    let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
+    let idle = idle_jobs(jobs);
+    let deletable = |id: &u64| idle.contains(id);
+    let mut plan = DeletePlan::default();
+    for &job_id in selected {
+        if !by_id.contains_key(&job_id) {
+            continue;
+        }
+        if later_jobs(jobs, job_id, |_| true).iter().all(deletable) {
+            plan.deleted.extend(users_of_results(jobs, job_id));
+        } else {
+            plan.kept.insert(job_id);
+        }
+    }
+    plan
+}
+
+/// ジョブの記録 `jobs` のうち、ランナーが動いておらず、利用者が操作するまで計算しないジョブ（終わったジョブ・中断の
+/// ジョブと、中断のジョブを待つ（計算待ちのジョブを通して待つものを含む）計算待ちのジョブ）
+pub fn idle_jobs(jobs: &[StoredJob]) -> HashSet<u64> {
+    let status: HashMap<u64, StoredJobStatus> =
+        jobs.iter().map(|job| (job.job_id, job.status)).collect();
+    let queued = |id: &u64| status.get(id) == Some(&StoredJobStatus::Queued);
+    let mut idle: HashSet<u64> = HashSet::new();
+    for job in jobs {
+        if job.status.is_terminal() {
+            idle.insert(job.job_id);
+        } else if job.status == StoredJobStatus::Interrupted {
+            idle.extend(later_jobs(jobs, job.job_id, queued));
+        }
+    }
+    idle
+}
+
+/// ジョブの記録 `jobs` のうち、前の改訂の結果のジョブ（番号の順）
+///
+/// 投入元の ID ごとに、最も後に正常に終わったジョブ（番号の最も大きいジョブ）の改訂の鍵を今の改訂とみなし、それより
+/// 前に投入した、ほかの改訂の鍵（鍵を持たない前の版の記録を含む）のジョブを前の改訂とする。後から投入して、まだ
+/// 終わっていない・失敗したジョブでは決めない（前の結果を、新しい結果ができる前に消さないように）。改訂の番号は、
+/// 複製したモデルファイル・保存せずに捨てた変更で重なるため使わない。投入元を持たないジョブは数えない。
+pub fn superseded_jobs(jobs: &[StoredJob]) -> Vec<u64> {
+    let mut latest: HashMap<&str, (u64, Option<&str>)> = HashMap::new();
+    for job in jobs
+        .iter()
+        .filter(|job| job.status == StoredJobStatus::Succeeded)
+    {
+        if let Some(source) = &job.source {
+            let candidate = (job.job_id, source.revision_key.as_deref());
+            latest
+                .entry(source.source_id.as_str())
+                .and_modify(|current| {
+                    if candidate.0 > current.0 {
+                        *current = candidate;
+                    }
+                })
+                .or_insert(candidate);
+        }
+    }
+    jobs.iter()
+        .filter(|job| {
+            job.source.as_ref().is_some_and(|source| {
+                latest
+                    .get(source.source_id.as_str())
+                    .is_some_and(|&(latest_id, latest_key)| {
+                        let key = source.revision_key.as_deref();
+                        job.job_id < latest_id && (key.is_none() || key != latest_key)
+                    })
+            })
+        })
+        .map(|job| job.job_id)
+        .collect()
+}
+
+/// ジョブの記録 `jobs` のうち、成果物（CL）を投入した側が取り込んだ、終わったツールパス生成のジョブ（番号の順）
+///
+/// `imported_job` は、ジョブの取り込んだ印（取り込んだ切削シミュレーションのジョブの番号）。取り込んだ後に、同じ
+/// ツールパス生成の下に別の切削シミュレーションを置いていれば数えない（消すと、まだ取り込んでいない結果も一緒に消える
+/// ため）。
+pub fn imported_sources(jobs: &[StoredJob], imported_job: impl Fn(u64) -> Option<u64>) -> Vec<u64> {
+    jobs.iter()
+        .filter(|job| job.kind == StoredJobKind::Cam && job.status.is_terminal())
+        .filter(|job| {
+            imported_job(job.job_id).is_some_and(|imported| {
+                jobs.iter()
+                    .filter(|other| other.depends_on.contains(&job.job_id))
+                    .all(|other| other.job_id == imported)
+            })
+        })
+        .map(|job| job.job_id)
+        .collect()
+}
+
+/// ジョブの記録 `jobs` のうち、時刻 `before_ms`（UNIX 時刻のミリ秒）より前に投入した、終わったジョブ（番号の順）
+///
+/// その成果物を使う後のジョブ（消すときに、あわせて消える。[`delete_plan`]）も、すべてその時刻より前に投入したものに
+/// 限る（古いツールパス生成の下に、後から計算した切削シミュレーションを消さないように）。
+pub fn old_jobs(jobs: &[StoredJob], before_ms: u64) -> Vec<u64> {
+    let created: HashMap<u64, u64> = jobs
+        .iter()
+        .map(|job| (job.job_id, job.created_at_ms))
+        .collect();
+    jobs.iter()
+        .filter(|job| job.status.is_terminal() && job.created_at_ms < before_ms)
+        .filter(|job| {
+            users_of_results(jobs, job.job_id)
+                .iter()
+                .all(|id| created[id] < before_ms)
+        })
+        .map(|job| job.job_id)
+        .collect()
+}
+
+/// ジョブマネージャーのサービス
+pub struct JobManagerService<L: Launcher> {
+    // フィールドは並びの順に捨てる。ランナー（ランチャーの組）を、保存先の排他より先に捨てる（ランナーを止めて
+    // から排他を外し、次のジョブマネージャーのランナーと重ならないように）
+    launcher: L,
+    running: HashMap<u64, Box<dyn RunningJob>>,
+    store: JobStore,
+    lock: JobStoreLock,
+    /// 読めないと知らせたジョブ・見送ったと知らせた投入（同じ出来事を毎回書かないため）
+    reported_unreadable: HashSet<u64>,
+    reported_postponed: HashSet<String>,
+}
+
+impl<L: Launcher> JobManagerService<L> {
+    /// 保存先を排他に開き、書きかけのものを片付け、前に実行中だったジョブを中断にして始める
+    ///
+    /// ほかのジョブマネージャーが保存先を開いていれば `StoreError::AlreadyLocked`。
+    pub fn start(
+        store: JobStore,
+        launcher: L,
+        now_ms: u64,
+    ) -> Result<(Self, Vec<ManagerEvent>), StoreError> {
+        let lock = store.lock()?;
+        store.remove_temporary_files(&lock)?;
+        let service = Self {
+            store,
+            lock,
+            launcher,
+            running: HashMap::new(),
+            reported_unreadable: HashSet::new(),
+            reported_postponed: HashSet::new(),
+        };
+        let mut events = Vec::new();
+        let (jobs, _) = service.store.load_jobs()?;
+        for mut job in jobs {
+            if job.status == StoredJobStatus::Running {
+                // ランナーは別のプロセスのため、止まったジョブマネージャーからは引き継げない。止まった時刻は記録され
+                // ないため、途中の結果を最後に書いた時刻までを計算の時間に数える
+                let saved_until = service
+                    .store
+                    .resume_saved_at_ms(job.job_id)
+                    .map(|saved| saved.min(now_ms));
+                interrupt(
+                    &mut job,
+                    StoredJobError::ManagerStopped,
+                    saved_until,
+                    now_ms,
+                );
+                service.store.write_job(&service.lock, &job)?;
+                events.push(ManagerEvent::Interrupted { job_id: job.job_id });
+            }
+        }
+        Ok((service, events))
+    }
+
+    /// 1 回分の仕事をする: 投入の取り込み、終わったランナーの記録、実行できないジョブの失敗、次のジョブの起動
+    ///
+    /// 保存先を読み書きできない誤りは `ManagerEvent::Error` にし、できるところまで続ける。
+    pub fn tick(&mut self, now_ms: u64) -> Vec<ManagerEvent> {
+        let mut events = Vec::new();
+        match self.store.intake(&self.lock, now_ms) {
+            Ok(outcomes) => {
+                for outcome in outcomes {
+                    if let IntakeOutcome::Postponed { submission_id, .. } = &outcome
+                        && !self.reported_postponed.insert(submission_id.clone())
+                    {
+                        continue;
+                    }
+                    events.push(ManagerEvent::Intake(outcome));
+                }
+            }
+            Err(error) => events.push(ManagerEvent::Error(error.to_string())),
+        }
+        let (mut jobs, unreadable) = match self.store.load_jobs() {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                events.push(ManagerEvent::Error(error.to_string()));
+                return events;
+            }
+        };
+        for job in &unreadable {
+            if self.reported_unreadable.insert(job.job_id) {
+                events.push(ManagerEvent::UnreadableJob {
+                    job_id: job.job_id,
+                    reason: job.reason.clone(),
+                });
+            }
+        }
+        let unreadable: Vec<u64> = unreadable.iter().map(|job| job.job_id).collect();
+        if let Err(error) = self.collect_finished(&mut jobs, now_ms, &mut events) {
+            events.push(ManagerEvent::Error(error.to_string()));
+        }
+        if let Err(error) = self.schedule(&mut jobs, &unreadable, now_ms, &mut events) {
+            events.push(ManagerEvent::Error(error.to_string()));
+        }
+        events
+    }
+
+    /// ジョブを取り消す。実行中ならランナーを止める。取り消したら `true`（終わったジョブ・ないジョブは `false`）
+    pub fn cancel(&mut self, job_id: u64, now_ms: u64) -> Result<bool, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        let Some(mut job) = jobs.into_iter().find(|job| job.job_id == job_id) else {
+            return Ok(false);
+        };
+        if job.status.is_terminal() {
+            return Ok(false);
+        }
+        match self.running.get_mut(&job_id) {
+            Some(running) => {
+                running.stop()?;
+            }
+            // 計算を始めていないジョブ（前の計算の時刻が残るジョブを含む）は、計算の時間を持たない
+            None => job.started_at_ms = None,
+        }
+        job.status = StoredJobStatus::Canceled;
+        // 止まった理由（中断のジョブの理由など）を残さない（取り消しの理由に見えないように）
+        job.last_error = None;
+        job.error = None;
+        job.updated_at_ms = now_ms;
+        // 書けなければ、止めたランナーを残し、次の回に「止められた」失敗として記録する
+        self.store.write_job(&self.lock, &job)?;
+        self.running.remove(&job_id);
+        // 取り消したジョブは続けられないため、途中の結果を消す。消せなくても取り消しは済んでいる（再計算するときに
+        // 消し直す）
+        let _ = self.store.remove_resume(&self.lock, job_id);
+        Ok(true)
+    }
+
+    /// 実行中のランナーをすべて止め、そのジョブを中断にする（ジョブマネージャーを終了するときに）。止める前に終わって
+    /// いたランナーのジョブは、中断にせず、ふだん終わりを読んだときと同じに、その終わり方（成功・失敗）を記録する。
+    /// 記録した終わりと、誤りの出来事を返す
+    ///
+    /// 記録を読み書きできなくても・止められないランナーがあっても、ほかのランナーは止める。書けなかった記録は実行中の
+    /// まま残り、次に起動したときに中断になる。
+    pub fn stop_running(&mut self, now_ms: u64) -> Vec<ManagerEvent> {
+        let mut events = Vec::new();
+        let jobs = match self.store.load_jobs() {
+            Ok((jobs, _)) => jobs,
+            Err(error) => {
+                events.push(ManagerEvent::Error(error.to_string()));
+                Vec::new()
+            }
+        };
+        let mut running: Vec<_> = std::mem::take(&mut self.running).into_iter().collect();
+        running.sort_unstable_by_key(|(job_id, _)| *job_id);
+        for (job_id, mut runner) in running {
+            let finished = runner.stop().unwrap_or_else(|error| {
+                events.push(ManagerEvent::Error(format!(
+                    "cannot stop the runner of job {job_id}: {error}"
+                )));
+                None
+            });
+            let Some(mut job) = jobs.iter().find(|job| job.job_id == job_id).cloned() else {
+                continue;
+            };
+            match self.record_stopped(&mut job, finished, StoredJobError::ManagerQuit, now_ms) {
+                Ok(event) => events.extend(event),
+                Err(error) => events.push(ManagerEvent::Error(error.to_string())),
+            }
+        }
+        events
+    }
+
+    /// 計算中のジョブのランナーを止め、中断にする（ほかの計算中のジョブは止めない）。途中の結果（ツールパス生成の
+    /// 記録）は残し、後から続きを計算できる。途中の結果を持たないジョブ（切削シミュレーション）は、続けるときに
+    /// 最初から計算する。計算中でないジョブ・ないジョブは、何もしない
+    ///
+    /// 止める前にランナーが終わっていれば、中断にせず、ふだん終わりを読んだときと同じに終わり方（成功・失敗）を
+    /// 記録し、その終わりの出来事を返す（止めた・何もしないときは `None`）。記録を書けなければ、止めたランナーを
+    /// 残し、次の回に、ランナーの終わり方から失敗として記録する。
+    pub fn stop(&mut self, job_id: u64, now_ms: u64) -> Result<Option<ManagerEvent>, StoreError> {
+        if !self.running.contains_key(&job_id) {
+            return Ok(None);
+        }
+        let (jobs, _) = self.store.load_jobs()?;
+        let Some(mut job) = jobs
+            .into_iter()
+            .find(|job| job.job_id == job_id && job.status == StoredJobStatus::Running)
+        else {
+            return Ok(None);
+        };
+        let Some(running) = self.running.get_mut(&job_id) else {
+            return Ok(None);
+        };
+        let finished = running.stop()?;
+        let event =
+            self.record_stopped(&mut job, finished, StoredJobError::StoppedByUser, now_ms)?;
+        self.running.remove(&job_id);
+        Ok(event)
+    }
+
+    /// 止めたランナーのジョブ `job` を記録する。止める前に終わっていれば（`finished` が終了の番号）その終わり方を
+    /// 記録して終わりの出来事を返し、止めたなら理由 `reason` で中断にする（途中の結果があれば、止めた時刻までの
+    /// 計算の時間を足す）
+    fn record_stopped(
+        &self,
+        job: &mut StoredJob,
+        finished: Option<Option<i32>>,
+        reason: StoredJobError,
+        now_ms: u64,
+    ) -> Result<Option<ManagerEvent>, StoreError> {
+        if let Some(code) = finished {
+            return self.record_finished(job, code, now_ms).map(Some);
+        }
+        let saved_until = self.store.has_resume(job.job_id).then_some(now_ms);
+        interrupt(job, reason, saved_until, now_ms);
+        self.store.write_job(&self.lock, job)?;
+        Ok(None)
+    }
+
+    /// 失敗・取り消し・中断のジョブを、最初から計算するように計算待ちに戻す。戻したジョブの番号（小さい順。戻せ
+    /// なければ空）
+    ///
+    /// そのジョブと依存関係でつながる、失敗・取り消し・中断のジョブもあわせて戻す（前のジョブが終わったままでは
+    /// 計算できず、後のジョブは前のジョブの失敗で失敗になっているため）。戻したジョブの前の計算の成果物・ログ・
+    /// 途中の結果は消す。計算した回数は数え続ける。
+    pub fn retry(&mut self, job_id: u64, now_ms: u64) -> Result<Vec<u64>, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
+        let retryable = |id: &u64| {
+            by_id.get(id).is_some_and(|job| {
+                matches!(
+                    job.status,
+                    StoredJobStatus::Failed
+                        | StoredJobStatus::Canceled
+                        | StoredJobStatus::Interrupted
+                )
+            })
+        };
+        if !retryable(&job_id) {
+            return Ok(Vec::new());
+        }
+        let targets = connected_jobs(&jobs, job_id, retryable);
+        self.requeue(&by_id, &targets, Resume::Remove, now_ms)?;
+        Ok(targets.into_iter().collect())
+    }
+
+    /// 中断のジョブを、計算待ちに戻す。戻したジョブの番号（小さい順。中断でなければ空）
+    ///
+    /// そのジョブが待つ（依存関係で前の）中断のジョブもあわせて戻す（前のジョブが中断のままでは計算できないため）。
+    /// 前の計算のログ・進み具合は消し、途中の結果は残す（ツールパス生成は、途中の結果から続けて計算する）。計算した
+    /// 回数は数え続ける。
+    pub fn resume(&mut self, job_id: u64, now_ms: u64) -> Result<Vec<u64>, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
+        let interrupted = |id: &u64| {
+            by_id
+                .get(id)
+                .is_some_and(|job| job.status == StoredJobStatus::Interrupted)
+        };
+        if !interrupted(&job_id) {
+            return Ok(Vec::new());
+        }
+        let targets = earlier_jobs(&jobs, job_id, interrupted);
+        self.requeue(&by_id, &targets, Resume::Keep, now_ms)?;
+        Ok(targets.into_iter().collect())
+    }
+
+    /// ジョブ `targets` を、計算待ちに戻す（前の計算のファイルを先にすべて消す。途中の結果は `resume` で残すかを
+    /// 決める。消せないファイルがあれば、記録を変えずに誤りにする）
+    fn requeue(
+        &mut self,
+        by_id: &HashMap<u64, &StoredJob>,
+        targets: &BTreeSet<u64>,
+        resume: Resume,
+        now_ms: u64,
+    ) -> Result<(), StoreError> {
+        for &id in targets {
+            self.store.remove_job_outputs(&self.lock, id)?;
+            if resume == Resume::Remove {
+                self.store.remove_resume(&self.lock, id)?;
+            }
+        }
+        // 前のジョブ（番号の小さいジョブ）から戻す
+        for &id in targets {
+            let mut job = by_id[&id].clone();
+            job.status = StoredJobStatus::Queued;
+            job.started_at_ms = None;
+            if resume == Resume::Remove {
+                job.elapsed_before_ms = 0;
+            }
+            job.result_ref = None;
+            job.log_ref = None;
+            job.last_error = None;
+            job.error = None;
+            job.updated_at_ms = now_ms;
+            self.store.write_job(&self.lock, &job)?;
+        }
+        Ok(())
+    }
+
+    /// 選んだジョブ `job_ids` を、その成果物を使う後のジョブとあわせて消す（決め方は [`delete_plan`]）。消した
+    /// ジョブと、消さなかった選んだジョブを返す
+    ///
+    /// 後のジョブ（番号の大きいジョブ。依存するジョブは前のジョブに限る）から消す（途中で消せなくなっても、成果物を
+    /// 使う後のジョブだけが残らないように）。
+    pub fn delete(&mut self, job_ids: &[u64]) -> Result<DeletePlan, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        let plan = delete_plan(&jobs, job_ids);
+        for &job_id in plan.deleted.iter().rev() {
+            self.store.delete_job(&self.lock, job_id)?;
+        }
+        Ok(plan)
+    }
+
+    /// 取り込めなかった投入 `submission_ids` を消す（もうないものは数えない）
+    pub fn remove_rejected(&mut self, submission_ids: &[String]) -> Result<(), StoreError> {
+        for submission_id in submission_ids {
+            self.store
+                .remove_rejected_submission(&self.lock, submission_id)?;
+        }
+        Ok(())
+    }
+
+    /// 計算待ちのジョブの優先順位を `delta` だけ変える。変えたら `true`（計算待ちでないジョブは `false`）
+    ///
+    /// そのジョブを待つ、計算待ちの後のジョブも同じだけ変える（待っているジョブの優先順位は、実行の順を決めるときに
+    /// 前のジョブへ伝わるため、前のジョブだけを下げても順が変わらない。5.5）。
+    pub fn change_priority(
+        &mut self,
+        job_id: u64,
+        delta: i32,
+        now_ms: u64,
+    ) -> Result<bool, StoreError> {
+        let (jobs, _) = self.store.load_jobs()?;
+        let queued = |id: &u64| {
+            jobs.iter()
+                .any(|job| job.job_id == *id && job.status == StoredJobStatus::Queued)
+        };
+        if !queued(&job_id) {
+            return Ok(false);
+        }
+        let targets = later_jobs(&jobs, job_id, queued);
+        for mut job in jobs
+            .iter()
+            .filter(|job| targets.contains(&job.job_id))
+            .cloned()
+        {
+            job.priority = job.priority.saturating_add(delta);
+            job.updated_at_ms = now_ms;
+            self.store.write_job(&self.lock, &job)?;
+        }
+        Ok(true)
+    }
+
+    fn collect_finished(
+        &mut self,
+        jobs: &mut [StoredJob],
+        now_ms: u64,
+        events: &mut Vec<ManagerEvent>,
+    ) -> Result<(), StoreError> {
+        let mut finished = Vec::new();
+        for (&job_id, running) in &mut self.running {
+            if let Some(code) = running.try_finish()? {
+                finished.push((job_id, code));
+            }
+        }
+        finished.sort_unstable();
+        for (job_id, code) in finished {
+            let Some(job) = jobs.iter_mut().find(|job| job.job_id == job_id) else {
+                self.running.remove(&job_id);
+                continue;
+            };
+            // 書けなければ、終わったランナーを残し、次の回に記録し直す
+            events.push(self.record_finished(job, code, now_ms)?);
+            self.running.remove(&job_id);
+        }
+        Ok(())
+    }
+
+    /// 終わったランナーのジョブ `job` に、終了の番号 `code` から終わり方（成果物があれば成功、なければ失敗）を記録し、
+    /// 終わりの出来事を返す
+    fn record_finished(
+        &self,
+        job: &mut StoredJob,
+        code: Option<i32>,
+        now_ms: u64,
+    ) -> Result<ManagerEvent, StoreError> {
+        let (job_id, domain) = (job.job_id, domain(job.kind));
+        if code == Some(0) && self.store.result_file(job_id, job.kind).is_file() {
+            job.status = StoredJobStatus::Succeeded;
+            job.result_ref = RefFactory::result(domain, job_id, &["ok"]).ok();
+            job.log_ref = RefFactory::log(domain, job_id, &["ok"]).ok();
+            job.last_error = None;
+            job.error = None;
+            job.updated_at_ms = now_ms;
+        } else {
+            let (error, log_line) = runner_failure(code, &self.store, job_id);
+            fail(job, error, log_line, now_ms);
+            job.log_ref = RefFactory::log(domain, job_id, &["failed"]).ok();
+        }
+        self.store.write_job(&self.lock, job)?;
+        Ok(ManagerEvent::Finished {
+            job_id,
+            status: job.status,
+            error: job.last_error.clone(),
+        })
+    }
+
+    fn schedule(
+        &mut self,
+        jobs: &mut [StoredJob],
+        unreadable: &[u64],
+        now_ms: u64,
+        events: &mut Vec<ManagerEvent>,
+    ) -> Result<(), StoreError> {
+        loop {
+            let plan = plan_schedule(jobs, unreadable);
+            for (job_id, reason) in plan.blocked {
+                if let Some(job) = jobs.iter_mut().find(|job| job.job_id == job_id) {
+                    fail(job, reason.clone(), None, now_ms);
+                    self.store.write_job(&self.lock, job)?;
+                    events.push(ManagerEvent::Blocked {
+                        job_id,
+                        reason: reason.to_string(),
+                    });
+                }
+            }
+            let Some(next) = plan.next.filter(|_| self.running.len() < MAX_RUNNING_JOBS) else {
+                return Ok(());
+            };
+            let Some(index) = jobs.iter().position(|job| job.job_id == next) else {
+                return Ok(());
+            };
+            let spec = self.launch_spec(jobs, &jobs[index]);
+            let job = &mut jobs[index];
+            job.attempts += 1;
+            job.updated_at_ms = now_ms;
+            job.started_at_ms = Some(now_ms);
+            match self.launcher.launch(&spec) {
+                Ok(mut running) => {
+                    job.status = StoredJobStatus::Running;
+                    if let Err(error) = self.store.write_job(&self.lock, job) {
+                        // 記録できないランナーは、二重に起動しないように止める
+                        let _ = running.stop();
+                        job.status = StoredJobStatus::Queued;
+                        return Err(error);
+                    }
+                    let ungrouped = running.ungrouped_reason().map(str::to_string);
+                    self.running.insert(next, running);
+                    events.push(ManagerEvent::Started { job_id: next });
+                    if let Some(reason) = ungrouped {
+                        events.push(ManagerEvent::Ungrouped {
+                            job_id: next,
+                            reason,
+                        });
+                    }
+                }
+                Err(error) => {
+                    fail(
+                        job,
+                        StoredJobError::RunnerNotStarted,
+                        Some(error.to_string()),
+                        now_ms,
+                    );
+                    self.store.write_job(&self.lock, job)?;
+                    events.push(ManagerEvent::Finished {
+                        job_id: next,
+                        status: job.status,
+                        error: job.last_error.clone(),
+                    });
+                }
+            }
+        }
+    }
+
+    /// ジョブ `job` のランナーの引数（パスは保存先のジョブのフォルダの決まった名前だけ）
+    fn launch_spec(&self, jobs: &[StoredJob], job: &StoredJob) -> LaunchSpec {
+        // 切削シミュレーションは、依存するツールパス生成のジョブ（投入の検証で 1 つに限る）の成果物を読む。ツール
+        // パス生成のジョブに依存しないもの（投入の検証で、CL のファイルを持つものに限る）は、ジョブの入力のフォルダの
+        // CL を読む。始まりの素材を持つものは、前の区間の切削シミュレーションのジョブの終わりの素材から削る
+        let toolpath = (job.kind == StoredJobKind::Sim).then(|| {
+            job.depends_on
+                .iter()
+                .find(|&&id| {
+                    jobs.iter()
+                        .any(|other| other.job_id == id && other.kind == StoredJobKind::Cam)
+                })
+                .map_or_else(
+                    || self.store.input_toolpath_file(job.job_id),
+                    |&id| self.store.result_file(id, StoredJobKind::Cam),
+                )
+        });
+        let stock = job
+            .start_stock
+            .filter(|_| job.kind == StoredJobKind::Sim)
+            .map(|id| self.store.stock_file(id));
+        LaunchSpec {
+            job_type: domain(job.kind),
+            input: self.store.input_file(job.job_id),
+            toolpath,
+            stock,
+            output: self.store.output_dir(job.job_id),
+            logs: self.store.logs_dir(job.job_id),
+            progress: self.store.progress_file(job.job_id),
+            stderr: self.store.stderr_file(job.job_id),
+            // ツールパス生成だけが途中の結果を持つ（切削シミュレーションは、続けるときも最初から計算する）
+            resume: (job.kind == StoredJobKind::Cam).then(|| self.store.resume_file(job.job_id)),
+        }
+    }
+}
+
+/// 計算待ちに戻すときの、途中の結果の扱い
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Resume {
+    /// 残す（続きから計算する）
+    Keep,
+    /// 消す（最初から計算する）
+    Remove,
+}
+
+/// ジョブ `start` と、その成果物を使う後のジョブ（依存関係を後の向きにたどる。`member` を満たすジョブだけを
+/// たどる。小さい順）
+fn later_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> BTreeSet<u64> {
+    let mut found = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(id) = pending.pop() {
+        for job in jobs {
+            if job.depends_on.contains(&id) && member(&job.job_id) && found.insert(job.job_id) {
+                pending.push(job.job_id);
+            }
+        }
+    }
+    found
+}
+
+/// ジョブ `start` と、その成果物を入力にする後のジョブ（依存関係を後の向きにたどる。終わりの素材を始まりの素材に
+/// する後の区間の切削シミュレーションへは、正常に終わったものにはたどらない。小さい順）
+fn users_of_results(jobs: &[StoredJob], start: u64) -> BTreeSet<u64> {
+    let mut found = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(id) = pending.pop() {
+        for job in jobs {
+            let completed_later_segment =
+                job.start_stock == Some(id) && job.status == StoredJobStatus::Succeeded;
+            if job.depends_on.contains(&id) && !completed_later_segment && found.insert(job.job_id)
+            {
+                pending.push(job.job_id);
+            }
+        }
+    }
+    found
+}
+
+/// ジョブ `start` と、それが待つ前のジョブ（依存関係を前の向きにたどる。`member` を満たすジョブだけをたどる。
+/// 小さい順）
+fn earlier_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> BTreeSet<u64> {
+    let mut found = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(id) = pending.pop() {
+        let Some(job) = jobs.iter().find(|job| job.job_id == id) else {
+            continue;
+        };
+        for &dependency in &job.depends_on {
+            if member(&dependency) && found.insert(dependency) {
+                pending.push(dependency);
+            }
+        }
+    }
+    found
+}
+
+/// ジョブ `start` と、依存関係（前のジョブ・後のジョブのどちら向きも）でつながる、`member` を満たすジョブ（小さい順）
+fn connected_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> BTreeSet<u64> {
+    let mut found = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(id) = pending.pop() {
+        let neighbors = jobs.iter().filter_map(|job| {
+            if job.job_id == id {
+                Some(job.depends_on.clone())
+            } else if job.depends_on.contains(&id) {
+                Some(vec![job.job_id])
+            } else {
+                None
+            }
+        });
+        for neighbor in neighbors.flatten() {
+            if member(&neighbor) && found.insert(neighbor) {
+                pending.push(neighbor);
+            }
+        }
+    }
+    found
+}
+
+fn domain(kind: StoredJobKind) -> &'static str {
+    match kind {
+        StoredJobKind::Cam => "cam",
+        StoredJobKind::Sim => "sim",
+    }
+}
+
+/// ジョブ `job` を、理由の種類 `error`（`detail` は英語の文に添える詳しい理由）で失敗にする
+fn fail(job: &mut StoredJob, error: StoredJobError, detail: Option<String>, now_ms: u64) {
+    job.status = StoredJobStatus::Failed;
+    job.last_error = Some(match detail {
+        Some(detail) => format!("{error}: {detail}"),
+        None => error.to_string(),
+    });
+    job.error = Some(error);
+    job.updated_at_ms = now_ms;
+}
+
+/// ジョブ `job` を、止まった理由の種類 `error` で中断にする。途中の結果があれば、その時刻 `saved_until_ms` までの
+/// 計算の時間を、中断する前までの時間に足す（続きから計算するため）
+fn interrupt(job: &mut StoredJob, error: StoredJobError, saved_until_ms: Option<u64>, now_ms: u64) {
+    job.status = StoredJobStatus::Interrupted;
+    job.last_error = Some(error.to_string());
+    job.error = Some(error);
+    if let (Some(started), Some(saved_until)) = (job.started_at_ms, saved_until_ms) {
+        job.elapsed_before_ms = job
+            .elapsed_before_ms
+            .saturating_add(saved_until.saturating_sub(started));
+    }
+    // 止まっていた間を計算の時間に数えないように、始めた時刻を消す
+    job.started_at_ms = None;
+    job.updated_at_ms = now_ms;
+}
+
+/// ランナーの失敗の理由（終了の番号の意味と、ログか標準エラー出力の最後の行）
+///
+/// ランナーが決めた終了の番号では、ランナーがログに書いた理由を先に見る。ほかの終了の番号・番号のない終わり方
+/// （メモリを確保できずに止まった・panic など）では、ランナーはログに理由を書けないため、標準エラー出力を先に見る
+fn runner_failure(
+    code: Option<i32>,
+    store: &JobStore,
+    job_id: u64,
+) -> (StoredJobError, Option<String>) {
+    let error = match code {
+        Some(0) => StoredJobError::RunnerWroteNoResult,
+        Some(2) => StoredJobError::RunnerInvalidArguments,
+        Some(3) => StoredJobError::RunnerCannotReadInput,
+        Some(4) => StoredJobError::InvalidInput,
+        Some(5) => StoredJobError::CalculationFailed,
+        Some(6) => StoredJobError::RunnerCannotWriteResult,
+        Some(7) => StoredJobError::ToolpathTooLarge,
+        Some(code) => StoredJobError::RunnerExitCode { code },
+        None => StoredJobError::RunnerStopped,
+    };
+    let log = store.log_file(job_id);
+    let mut partial = log.clone().into_os_string();
+    partial.push(".tmp");
+    let from_log = || last_log_line(&log).or_else(|| last_log_line(Path::new(&partial)));
+    let from_stderr = || stderr_reason(&store.stderr_file(job_id));
+    let detail = if matches!(
+        error,
+        StoredJobError::RunnerExitCode { .. } | StoredJobError::RunnerStopped
+    ) {
+        from_stderr().or_else(from_log)
+    } else {
+        from_log().or_else(from_stderr)
+    };
+    (error, detail)
+}
+
+/// ログの最後の空でない行（末尾の `MAX_LOG_TAIL_BYTES` バイトから。`MAX_LOG_LINE_CHARS` 文字まで）
+fn last_log_line(path: &Path) -> Option<String> {
+    let lines = tail_lines(path)?;
+    lines.into_iter().next_back()
+}
+
+/// 標準エラー出力の理由の行。panic なら、`panicked at` の次の行（panic の文。後に続く `note:` の行やバックトレース
+/// を理由にしない）。そうでなければ、最後の空でない行
+fn stderr_reason(path: &Path) -> Option<String> {
+    let lines = tail_lines(path)?;
+    let panic_message = lines
+        .iter()
+        .rposition(|line| line.contains("panicked at"))
+        .and_then(|index| lines.get(index + 1));
+    panic_message.or(lines.last()).cloned()
+}
+
+/// ファイルの末尾（`MAX_LOG_TAIL_BYTES` バイト）の空でない行（前後の空白を除き、`MAX_LOG_LINE_CHARS` 文字まで）
+fn tail_lines(path: &Path) -> Option<Vec<String>> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut file = std::fs::File::open(path).ok()?;
+    let length = file.metadata().ok()?.len();
+    file.seek(SeekFrom::Start(length.saturating_sub(MAX_LOG_TAIL_BYTES)))
+        .ok()?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).ok()?;
+    Some(
+        String::from_utf8_lossy(&bytes)
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(|line| line.chars().take(MAX_LOG_LINE_CHARS).collect())
+            .collect(),
+    )
+}

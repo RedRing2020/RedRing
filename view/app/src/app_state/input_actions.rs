@@ -1,17 +1,63 @@
 //! AppState のキーボード入力ハンドリングを扱うモジュール。
 
 use super::AppState;
+use super::model_file::FileAction;
+use winit::keyboard::Key;
 
 impl AppState {
-    /// キーボード入力を処理
-    pub fn handle_keyboard_input(&mut self, key: &winit::keyboard::Key, pressed: bool) {
+    /// キーボード入力を処理（`key` は文字としてのキー、`key_without_modifiers` は Ctrl・Shift などを除いたキー）
+    pub fn handle_keyboard_input(
+        &mut self,
+        key: &winit::keyboard::Key,
+        key_without_modifiers: &Key,
+        pressed: bool,
+    ) {
         self.mouse_input.update_key(key, pressed);
 
         if !pressed {
             return;
         }
 
-        // 設定パネル・加工条件のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
+        // 工程の表で名前を編集している間の Esc は、ほかの操作にしない。取り消すのは名前の欄の入力欄が受けたときだけ
+        // にする（日本語の変換を Esc でやめたときは、入力欄は受けず、編集を続ける）
+        if self.is_operation_name_editing()
+            && matches!(
+                key,
+                winit::keyboard::Key::Named(winit::keyboard::NamedKey::Escape)
+            )
+        {
+            return;
+        }
+
+        // 条件の編集のダイアログを開いている間は、Esc でダイアログをキャンセルする（入力欄の編集中は、入力欄を離れる
+        // だけにする）
+        if self.is_condition_dialog_open()
+            && matches!(
+                key,
+                winit::keyboard::Key::Named(winit::keyboard::NamedKey::Escape)
+            )
+        {
+            if !self.renderer.is_settings_using_keyboard() {
+                self.cancel_condition_dialog();
+            }
+            return;
+        }
+
+        // Ctrl とのファイルの操作の組み合わせは、ほかのキー操作にしない（Ctrl+Shift+S で Shift+S の操作を動かさない）。
+        // 入力欄の編集中も受ける（Ctrl との組み合わせは文字を打たない）。AltGr（Ctrl+Alt）は文字を打つため除く。条件の
+        // 編集のダイアログを開いている間は、文書を替える・保存する操作をしない（編集している条件と食い違うため）
+        if self.mouse_input.is_ctrl_pressed()
+            && !self.mouse_input.is_alt_pressed()
+            && let Some(action) =
+                file_shortcut(key_without_modifiers, self.mouse_input.is_shift_pressed())
+        {
+            if !self.is_condition_dialog_open() {
+                self.request_file_action(action);
+            }
+            return;
+        }
+
+        // 設定パネル・設定のウィンドウの入力欄の編集中は、打った文字をキー操作にしない
         // F1 は文字を打たないため、入力欄の編集中も受ける
         if matches!(
             key,
@@ -21,7 +67,16 @@ impl AppState {
             return;
         }
 
-        if self.renderer.is_settings_using_keyboard() {
+        // 工程の名前の編集を始めた後は、名前の欄の入力欄を描く前に打った文字も、キー操作にしない
+        if self.renderer.is_settings_using_keyboard() || self.is_operation_name_editing() {
+            return;
+        }
+
+        if matches!(
+            key,
+            winit::keyboard::Key::Named(winit::keyboard::NamedKey::F2)
+        ) {
+            self.start_operation_name_edit();
             return;
         }
 
@@ -36,13 +91,10 @@ impl AppState {
         if let winit::keyboard::Key::Character(ch) = key {
             match ch.as_str() {
                 "M" => {
-                    self.toggle_machining_conditions();
-                }
-                "R" => {
-                    self.run_cutting_simulation_jobs();
+                    self.toggle_operation_list();
                 }
                 "L" => {
-                    self.import_cutting_simulation();
+                    self.toggle_cutting_simulation();
                 }
                 "r" => {
                     self.camera.reset();
@@ -62,7 +114,7 @@ impl AppState {
                 "e" => {
                     self.camera.emergency_camera_escape();
                     self.update_camera_uniforms();
-                    tracing::warn!("Emergency camera escape (e key)");
+                    tracing::info!("Emergency camera escape (e key)");
                 }
                 "h" => {
                     self.toggle_help_controls();
@@ -103,5 +155,41 @@ impl AppState {
                 _ => {}
             }
         }
+    }
+
+    /// アプリを終える操作（ウィンドウを閉じる・Esc）を、保存していない変更を確かめてから行う
+    pub fn request_exit(&mut self) {
+        self.request_file_action(FileAction::Exit);
+    }
+}
+
+/// Ctrl と、修飾を除いたキー `key`（Shift を押しているかが `shift`）の、ファイルの操作（キーの配列に合わせ、打つ文字で
+/// 見分ける）
+fn file_shortcut(key: &Key, shift: bool) -> Option<FileAction> {
+    let Key::Character(text) = key else {
+        return None;
+    };
+    match (text.to_ascii_lowercase().as_str(), shift) {
+        ("n", false) => Some(FileAction::New),
+        ("o", false) => Some(FileAction::Open),
+        ("s", false) => Some(FileAction::Save),
+        ("s", true) => Some(FileAction::SaveAs),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_shortcuts_are_told_apart_by_shift() {
+        let key = |text: &str| Key::Character(text.into());
+        assert_eq!(file_shortcut(&key("s"), false), Some(FileAction::Save));
+        assert_eq!(file_shortcut(&key("S"), true), Some(FileAction::SaveAs));
+        assert_eq!(file_shortcut(&key("n"), false), Some(FileAction::New));
+        assert_eq!(file_shortcut(&key("o"), false), Some(FileAction::Open));
+        assert_eq!(file_shortcut(&key("n"), true), None);
+        assert_eq!(file_shortcut(&key("m"), false), None);
     }
 }

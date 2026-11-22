@@ -1,7 +1,10 @@
 use std::fmt;
+use std::num::NonZeroU32;
 
 use cam_core::{MachiningBoundary, MachiningStage, OperationSpec, ToleranceProfile, Tool};
 use uuid::Uuid;
+
+use crate::ToolSetReference;
 
 /// 加工工程の ID（全体で一意で、中身を変えても同じ工程を指す）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -12,6 +15,15 @@ impl MachiningOperationId {
     fn new_random() -> Self {
         Self(Uuid::new_v4())
     }
+
+    /// UUID から作る（保存した工程の ID に戻すときに使う）
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
 }
 
 impl fmt::Display for MachiningOperationId {
@@ -20,13 +32,49 @@ impl fmt::Display for MachiningOperationId {
     }
 }
 
-/// 加工工程の中身（変えると改訂の番号が増える）
+/// 加工工程の改訂の鍵（改訂の番号を増やすたびに作り直す、全体で一意な値）
+///
+/// 改訂の番号は、保存した工程を複製したときや、保存せずに捨てた変更でも、同じ工程の ID で同じ番号になりうる。
+/// 改訂の鍵は、同じ鍵なら同じ中身から計算したことを表す。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MachiningRevisionKey(Uuid);
+
+impl MachiningRevisionKey {
+    /// ランダムな鍵を作る
+    fn new_random() -> Self {
+        Self(Uuid::new_v4())
+    }
+
+    /// UUID から作る（保存した改訂の鍵に戻すときに使う）
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl fmt::Display for MachiningRevisionKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// 加工工程の属性（計算に使わない。変えても改訂の番号は増えない）
 #[derive(Debug, Clone, PartialEq)]
-pub struct MachiningOperationContent {
+pub struct MachiningOperationAttributes {
     /// 利用者が付ける名前
     pub name: String,
     /// 加工の段階
     pub stage: MachiningStage,
+    /// 工具を選んだツールライブラリの項目（ライブラリから選んでいない工程は `None`）
+    pub toolset: Option<ToolSetReference>,
+}
+
+/// 加工工程の計算の条件（計算の入力はこれだけから作る。変えると改訂の番号が増える）
+#[derive(Debug, Clone, PartialEq)]
+pub struct MachiningOperationConditions {
     /// 加工の種類と、その条件（送りを含む）
     pub spec: OperationSpec,
     /// 工具
@@ -37,6 +85,15 @@ pub struct MachiningOperationContent {
     pub tolerance_profile: ToleranceProfile,
 }
 
+/// 加工工程の中身（属性と計算の条件）
+#[derive(Debug, Clone, PartialEq)]
+pub struct MachiningOperationContent {
+    /// 属性（変えても改訂の番号は増えない）
+    pub attributes: MachiningOperationAttributes,
+    /// 計算の条件（変えると改訂の番号が増える）
+    pub conditions: MachiningOperationConditions,
+}
+
 /// 加工工程
 ///
 /// ID が全体で一意であるように、複写（`Clone`）はしない。工程を複写する場合は、中身から新しい工程を作る。
@@ -45,15 +102,37 @@ pub struct MachiningOperation {
     id: MachiningOperationId,
     content: MachiningOperationContent,
     revision: u32,
+    revision_key: MachiningRevisionKey,
+    /// 計算の条件を設定したか（利用者が条件を一度でも適用したか）
+    conditions_set: bool,
 }
 
 impl MachiningOperation {
-    /// 新しい ID と、最初の改訂の番号（1）で作る
+    /// 新しい ID と、最初の改訂の番号（1）・新しい改訂の鍵で作る（計算の条件はまだ設定していない）
     pub fn new(content: MachiningOperationContent) -> Self {
         Self {
             id: MachiningOperationId::new_random(),
             content,
             revision: 1,
+            revision_key: MachiningRevisionKey::new_random(),
+            conditions_set: false,
+        }
+    }
+
+    /// 保存した ID・中身・改訂の番号・改訂の鍵・計算の条件を設定したかから作る
+    pub fn restore(
+        id: MachiningOperationId,
+        content: MachiningOperationContent,
+        revision: NonZeroU32,
+        revision_key: MachiningRevisionKey,
+        conditions_set: bool,
+    ) -> Self {
+        Self {
+            id,
+            content,
+            revision: revision.get(),
+            revision_key,
+            conditions_set,
         }
     }
 
@@ -70,16 +149,35 @@ impl MachiningOperation {
         self.revision
     }
 
-    /// 中身を `content` に替える。今の中身と違えば、改訂の番号を増やす
+    /// 改訂の鍵（改訂の番号を増やすたびに作り直す）
+    pub fn revision_key(&self) -> MachiningRevisionKey {
+        self.revision_key
+    }
+
+    /// 計算の条件を設定したか（設定していない工程は計算しない。作った工程の既定の条件のまま計算しないため）
+    pub fn conditions_set(&self) -> bool {
+        self.conditions_set
+    }
+
+    /// 計算の条件を設定したことにする（改訂は進めない）。設定していなかったら `true`
+    pub fn mark_conditions_set(&mut self) -> bool {
+        !std::mem::replace(&mut self.conditions_set, true)
+    }
+
+    /// 中身を `content` に替える。計算の条件が今と違えば、改訂の番号を増やす
+    ///
+    /// 属性だけを替えたときは改訂しない（計算の結果を、今の改訂の結果のまま使う）。
     pub fn set_content(&mut self, content: MachiningOperationContent) {
-        if content != self.content {
-            self.content = content;
+        let conditions_changed = content.conditions != self.content.conditions;
+        self.content = content;
+        if conditions_changed {
             self.revise();
         }
     }
 
-    /// 改訂の番号を増やす
+    /// 改訂の番号を増やし、改訂の鍵を作り直す（番号は上限で止める。見分けは改訂の鍵で行う）
     pub(crate) fn revise(&mut self) {
-        self.revision += 1;
+        self.revision = self.revision.saturating_add(1);
+        self.revision_key = MachiningRevisionKey::new_random();
     }
 }

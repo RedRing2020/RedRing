@@ -11,7 +11,10 @@ use geo_algorithms::{Point3D, TriangleMesh3D, TriangleMesh3DConstructor};
 use geo_entity::FaceId;
 
 use super::*;
-use crate::machining_sequence::{MachiningOperationContent, MachiningStock};
+use crate::machining_sequence::{
+    MachiningOperationAttributes, MachiningOperationConditions, MachiningOperationContent,
+    MachiningStock,
+};
 use crate::product_shape::ProductShapeError;
 
 /// 確かめた入力を、投入元なしで投入する（加工工程を通さない投入。ジョブの実行と取り込みを確かめる）
@@ -23,14 +26,45 @@ fn submit(
     if !errors.is_empty() {
         return Err(CamSimulationWorkflowError::Conditions(errors));
     }
-    workflow.enqueue(request, None)
+    enqueue(workflow, request, None)
 }
 
-/// 取り込める（正常終了した）切削シミュレーションのジョブ（ID の昇順）
-fn succeeded_simulations(workflow: &CamSimulationWorkflow) -> Vec<CamJobRecord> {
+/// 確かめた入力を、投入元を `source` として、素材の範囲から削る区間 1 つで投入する
+fn enqueue(
+    workflow: &mut CamSimulationWorkflow,
+    request: CamSimulationWorkflowRequest,
+    source: Option<CamJobSource>,
+) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
+    let simulation_input = simulation_input(&request);
+    let submission_id = workflow.jobs.submit(vec![SegmentSubmission {
+        toolpath: SegmentToolpath::Solve(Box::new(request.solver_input)),
+        simulation_input,
+        start_stock: None,
+        source,
+    }])?;
+    Ok(CamSimulationSubmission { submission_id })
+}
+
+/// 取り込める（正常終了した）切削シミュレーションのジョブ（番号の順）
+fn succeeded_simulations(workflow: &CamSimulationWorkflow) -> Vec<SimulationJob> {
     workflow
-        .orchestrator
-        .list_succeeded_jobs(CamJobType::CuttingSimulation)
+        .jobs
+        .simulation_jobs()
+        .unwrap()
+        .into_iter()
+        .filter(|job| job.status == CamJobStatus::Succeeded)
+        .collect()
+}
+
+/// 投入の ID `submission_id` の切削シミュレーションのジョブ
+fn submitted(workflow: &CamSimulationWorkflow, submission_id: &str) -> SimulationJob {
+    workflow
+        .jobs
+        .simulation_jobs()
+        .unwrap()
+        .into_iter()
+        .find(|job| job.submission_id == submission_id)
+        .unwrap()
 }
 
 /// 底面 z = 80・頂点 z = 90 の四角錐を、直径 6 のボールエンドミルで粗い走査線で加工する入力
@@ -69,21 +103,26 @@ fn request(precision: f64) -> CamSimulationWorkflowRequest {
             Point3D::new(70.0, 70.0, 92.0),
         ),
         precision,
+        grid_tool_radius: 3.0,
         snapshot_interval: SnapshotInterval::default(),
     }
 }
 
 #[test]
 fn submitting_only_enqueues_the_jobs_without_waiting_for_the_computation() {
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let started = Instant::now();
     let submission = submit(&mut workflow, request(0.01)).unwrap();
     let submitting = started.elapsed();
     // 投入しただけでは実行されず、取り込めない
     assert!(succeeded_simulations(&workflow).is_empty());
     assert_eq!(
-        workflow.import(submission.simulation_job_id).unwrap_err(),
-        CamSimulationWorkflowError::NotSucceededSimulation(submission.simulation_job_id)
+        workflow
+            .import(submitted(&workflow, &submission.submission_id).job_id)
+            .unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededSimulation(
+            submitted(&workflow, &submission.submission_id).job_id
+        )
     );
 
     let started = Instant::now();
@@ -97,24 +136,26 @@ fn submitting_only_enqueues_the_jobs_without_waiting_for_the_computation() {
 
 #[test]
 fn succeeded_simulations_are_imported_with_their_toolpaths() {
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let submissions: Vec<CamSimulationSubmission> = (0..2)
         .map(|_| submit(&mut workflow, request(0.01)).unwrap())
         .collect();
     assert_eq!(workflow.run_queued_jobs().unwrap(), 4);
     let succeeded: Vec<u64> = succeeded_simulations(&workflow)
         .iter()
-        .map(|job| job.id)
+        .map(|job| job.job_id)
         .collect();
     assert_eq!(
         succeeded,
         submissions
             .iter()
-            .map(|submission| submission.simulation_job_id)
+            .map(|submission| submitted(&workflow, &submission.submission_id).job_id)
             .collect::<Vec<_>>()
     );
     for submission in submissions {
-        let result = workflow.import(submission.simulation_job_id).unwrap();
+        let result = workflow
+            .import(submitted(&workflow, &submission.submission_id).job_id)
+            .unwrap();
         let (_, toolpath) =
             read_toolpath_artifact_v1(&mut result.toolpath_artifact.as_slice()).unwrap();
         assert_eq!(toolpath.tool_id, "BEM6");
@@ -133,7 +174,7 @@ fn succeeded_simulations_are_imported_with_their_toolpaths() {
 fn failed_jobs_are_not_imported() {
     use cam_core::{MachiningBoundary, RectangleBoundary};
 
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     // 工具が形状に接触しない加工範囲では、ツールパス生成が失敗し、子の切削シミュレーションは実行されずに失敗する
     let mut outside = request(0.01);
     outside.solver_input.boundary = Some(MachiningBoundary::Rectangle(RectangleBoundary {
@@ -146,23 +187,34 @@ fn failed_jobs_are_not_imported() {
 
     let simulations: Vec<u64> = succeeded_simulations(&workflow)
         .iter()
-        .map(|job| job.id)
+        .map(|job| job.job_id)
         .collect();
-    assert_eq!(simulations, vec![succeeded.simulation_job_id]);
     assert_eq!(
-        workflow.import(failed.simulation_job_id).unwrap_err(),
-        CamSimulationWorkflowError::NotSucceededSimulation(failed.simulation_job_id)
+        simulations,
+        vec![submitted(&workflow, &succeeded.submission_id).job_id]
     );
-    // ツールパス生成のジョブは切削シミュレーションとしては取り込めない
     assert_eq!(
-        workflow.import(succeeded.toolpath_job_id).unwrap_err(),
-        CamSimulationWorkflowError::NotSucceededSimulation(succeeded.toolpath_job_id)
+        workflow
+            .import(submitted(&workflow, &failed.submission_id).job_id)
+            .unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededSimulation(
+            submitted(&workflow, &failed.submission_id).job_id
+        )
+    );
+    // ツールパス生成のジョブ（切削シミュレーションの 1 つ前の番号）は切削シミュレーションとしては取り込めない
+    assert_eq!(
+        workflow
+            .import(submitted(&workflow, &succeeded.submission_id).job_id - 1)
+            .unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededSimulation(
+            submitted(&workflow, &succeeded.submission_id).job_id - 1
+        )
     );
 }
 
 #[test]
 fn precision_finer_than_the_toolpath_tolerance_is_not_submitted() {
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     assert_eq!(
         submit(&mut workflow, request(0.005)).unwrap_err(),
         CamSimulationWorkflowError::Conditions(vec![
@@ -178,18 +230,23 @@ fn precision_finer_than_the_toolpath_tolerance_is_not_submitted() {
 /// 加工工程の中身（四角錐を、直径 6 のボールエンドミルで粗い走査線で仕上げる）
 fn operation_content() -> MachiningOperationContent {
     MachiningOperationContent {
-        name: "仕上げ".to_string(),
-        stage: MachiningStage::Finish,
-        spec: OperationSpec::Scanline(ScanlineParams {
-            stepover: 6.0,
-            feed_rate: 1200.0,
-            tool_range: cam_core::ScanlineToolRange::default(),
-            cut_direction: cam_core::ScanlineCutDirection::default(),
-            angle_degrees: 0.0,
-        }),
-        tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
-        boundary: None,
-        tolerance_profile: ToleranceProfile::PressRough,
+        attributes: MachiningOperationAttributes {
+            name: "仕上げ".to_string(),
+            stage: MachiningStage::Finish,
+            toolset: None,
+        },
+        conditions: MachiningOperationConditions {
+            spec: OperationSpec::Scanline(ScanlineParams {
+                stepover: 6.0,
+                feed_rate: 1200.0,
+                tool_range: cam_core::ScanlineToolRange::default(),
+                cut_direction: cam_core::ScanlineCutDirection::default(),
+                angle_degrees: 0.0,
+            }),
+            tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+            boundary: None,
+            tolerance_profile: ToleranceProfile::PressRough,
+        },
     }
 }
 
@@ -237,10 +294,20 @@ impl Machining {
         workflow: &mut CamSimulationWorkflow,
         shapes: &ProductShapeStore,
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        workflow.submit_operation(shapes, &self.store, self.sequence, self.operation)
+        workflow.submit_operations(
+            shapes,
+            &self.store,
+            &crate::imported_toolpath::ImportedToolpathStore::new(),
+            self.sequence,
+            &[(self.operation, SegmentToolpathSource::Solve)],
+        )
     }
 
-    fn latest(&self, workflow: &CamSimulationWorkflow) -> Option<CamJobRecord> {
+    fn operation_simulations(&self, workflow: &CamSimulationWorkflow) -> Vec<SimulationJob> {
+        workflow.operation_simulations(self.operation).unwrap()
+    }
+
+    fn latest(&self, workflow: &CamSimulationWorkflow) -> Option<u64> {
         workflow
             .latest_revision_simulation(&self.store, self.sequence, self.operation)
             .unwrap()
@@ -251,6 +318,27 @@ impl Machining {
             .operation(self.sequence, self.operation)
             .unwrap()
             .revision()
+    }
+
+    fn revision_key(&self) -> String {
+        self.store
+            .operation(self.sequence, self.operation)
+            .unwrap()
+            .revision_key()
+            .to_string()
+    }
+
+    fn status(&self, workflow: &CamSimulationWorkflow) -> Option<OperationJobStatus> {
+        // 同じプロセスの中で実行するワークフローは、状態を読み終えてから返す
+        match workflow
+            .latest_revision_job_states(&self.store, self.sequence, &[self.operation])
+            .unwrap()
+            .remove(0)
+        {
+            OperationJobState::NotRead => panic!("the status must be read at once"),
+            OperationJobState::NotSubmitted => None,
+            OperationJobState::Status(status) => Some(status),
+        }
     }
 
     fn set_stock(&mut self, stock: MachiningStock) {
@@ -282,21 +370,21 @@ fn initial_volume(result: &CamSimulationWorkflowResult) -> f64 {
 fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
     let (shapes, face) = pyramid_shape();
     let machining = Machining::new(vec![face]);
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let submission = machining.submit(&mut workflow, &shapes).unwrap();
     assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
 
-    let result = workflow.import(submission.simulation_job_id).unwrap();
-    let content = operation_content();
-    assert_eq!(result.solver_input.tool, content.tool);
-    assert_eq!(result.solver_input.operation, content.spec);
-    assert_eq!(
-        result.solver_input.operation_id,
-        machining.operation.to_string()
-    );
+    let result = workflow
+        .import(submitted(&workflow, &submission.submission_id).job_id)
+        .unwrap();
+    let conditions = operation_content().conditions;
+    let solver_input = result.solver_input.as_ref().unwrap();
+    assert_eq!(solver_input.tool, conditions.tool);
+    assert_eq!(solver_input.operation, conditions.spec);
+    assert_eq!(solver_input.operation_id, machining.operation.to_string());
     // 精度プロファイル press_rough のトレランス
-    assert_eq!(result.solver_input.chord_tolerance, 0.001);
-    assert_eq!(result.simulation_input.tool, content.tool);
+    assert_eq!(solver_input.chord_tolerance, 0.001);
+    assert_eq!(result.simulation_input.tool, conditions.tool);
     assert_eq!(result.simulation_input.precision, stock().precision);
     assert_eq!(
         result.simulation_input.stock,
@@ -316,10 +404,262 @@ fn operations_are_submitted_and_imported_with_the_submitted_inputs() {
 }
 
 #[test]
+fn toolpath_sizes_are_split_by_the_confirmation_and_the_memory_limit() {
+    let limits = ToolpathLimits {
+        confirm_bytes: 2_000_000_000,
+        limit_bytes: 8_000_000_000,
+    };
+    let size = |points| toolpath_size(points, limits);
+    // 点 1 つあたり 250 バイトで、2 GB は 800 万点、8 GB は 3200 万点
+    assert_eq!(size(7_999_999).unwrap(), ToolpathSize::Normal);
+    let large = ToolpathEstimate {
+        points: 8_000_000,
+        memory_bytes: 2_000_000_000,
+        limit_bytes: 8_000_000_000,
+    };
+    assert_eq!(size(8_000_000).unwrap(), ToolpathSize::Large(large));
+    assert!(!large.is_near_limit());
+    assert!(matches!(size(32_000_000).unwrap(), ToolpathSize::Large(_)));
+    // 上限の 8 割（6.4 GB。2560 万点）からは、上限に近い
+    let near = |points| ToolpathEstimate {
+        points,
+        memory_bytes: points * 250,
+        limit_bytes: 8_000_000_000,
+    };
+    assert!(!near(25_599_999).is_near_limit());
+    assert!(near(25_600_000).is_near_limit());
+    assert_eq!(
+        size(32_000_001).unwrap_err(),
+        CamSimulationWorkflowError::ToolpathTooLarge(ToolpathEstimate {
+            points: 32_000_001,
+            memory_bytes: 8_000_000_250,
+            limit_bytes: 8_000_000_000,
+        })
+    );
+
+    // 目安と上限を替えると、分け方も替わる（1 GB は 400 万点、4 GB は 1600 万点。上限の 8 割は 3.2 GB）
+    let limits = ToolpathLimits {
+        confirm_bytes: 1_000_000_000,
+        limit_bytes: 4_000_000_000,
+    };
+    let size = |points| toolpath_size(points, limits);
+    assert_eq!(size(3_999_999).unwrap(), ToolpathSize::Normal);
+    let Ok(ToolpathSize::Large(large)) = size(4_000_000) else {
+        panic!("4 million points need a confirmation");
+    };
+    assert!(!large.is_near_limit());
+    let Ok(ToolpathSize::Large(near)) = size(12_800_000) else {
+        panic!("12.8 million points need a confirmation");
+    };
+    assert!(near.is_near_limit());
+    assert!(matches!(
+        size(16_000_001),
+        Err(CamSimulationWorkflowError::ToolpathTooLarge(_))
+    ));
+}
+
+#[test]
+fn the_toolpath_size_of_an_operation_is_checked_before_the_calculation() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let limits = CamSimulationWorkflow::in_process()
+        .toolpath_limits()
+        .unwrap();
+    // 別のスレッドで見積もり、見積もり終えるのを待つ
+    let check = |machining: &Machining| {
+        let estimation = CamSimulationWorkflow::estimate_toolpath_size(
+            &shapes,
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+        )?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+        loop {
+            if let Some(size) = estimation.size(limits) {
+                return size;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the size is estimated"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    };
+    assert_eq!(check(&machining).unwrap(), ToolpathSize::Normal);
+    // 工具が小さく、ピックフィードがとても小さいと、確かめる目安・メモリの上限を超える
+    let mut check_with_stepover = |stepover: f64| {
+        let mut content = operation_content();
+        content.conditions.tool = Tool::ball_end_mill("BEM0.1".to_string(), 0.1, 30.0);
+        let OperationSpec::Scanline(params) = &mut content.conditions.spec;
+        params.stepover = stepover;
+        machining
+            .store
+            .set_operation_content(machining.sequence, machining.operation, content)
+            .unwrap();
+        check(&machining)
+    };
+    // 約 1600 万点（約 4 GB）
+    assert!(matches!(
+        check_with_stepover(0.002),
+        Ok(ToolpathSize::Large(_))
+    ));
+    // 約 6500 万点（約 16 GB）
+    assert!(matches!(
+        check_with_stepover(0.0005),
+        Err(CamSimulationWorkflowError::ToolpathTooLarge(_))
+    ));
+}
+
+#[test]
+fn the_current_revision_jobs_except_a_submission_are_canceled() {
+    let (shapes, face) = pyramid_shape();
+    let machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    // 工程から投入していないジョブは、取り消さない
+    submit(&mut workflow, request(0.01)).unwrap();
+    machining.submit(&mut workflow, &shapes).unwrap();
+    let kept = machining.submit(&mut workflow, &shapes).unwrap();
+    // 前の投入のツールパス生成と切削シミュレーションだけを取り消す
+    let canceled = workflow
+        .cancel_latest_revision_jobs(
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+            Some(&kept.submission_id),
+        )
+        .unwrap();
+    assert_eq!(canceled, 2);
+    assert_eq!(workflow.run_queued_jobs().unwrap(), 4);
+    let statuses: Vec<CamJobStatus> = machining
+        .operation_simulations(&workflow)
+        .iter()
+        .map(|job| job.status)
+        .collect();
+    assert_eq!(
+        statuses,
+        vec![CamJobStatus::Canceled, CamJobStatus::Succeeded]
+    );
+    // 終わったジョブは取り消さない
+    assert_eq!(
+        workflow
+            .cancel_latest_revision_jobs(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                None,
+            )
+            .unwrap(),
+        0
+    );
+}
+
+/// 止め方を決める試験の切削シミュレーション（投入元 `current` が今の改訂）
+fn simulation(
+    job_id: u64,
+    current: bool,
+    status: CamJobStatus,
+    toolpath: CamJobStatus,
+) -> SimulationJob {
+    SimulationJob {
+        job_id,
+        submission_id: format!("s{job_id}"),
+        source: current.then(|| CamJobSource {
+            source_id: "op".to_string(),
+            revision: 1,
+            revision_key: None,
+            segment_key: None,
+        }),
+        status,
+        toolpath_status: toolpath,
+        start_stock: None,
+        failure: None,
+    }
+}
+
+/// 止め方を決める試験のツールパス生成（投入元 `current` が今の改訂）
+fn toolpath(job_id: u64, current: bool, status: CamJobStatus) -> ToolpathJob {
+    ToolpathJob {
+        job_id,
+        submission_id: format!("s{job_id}"),
+        source: current.then(|| CamJobSource {
+            source_id: "op".to_string(),
+            revision: 1,
+            revision_key: None,
+            segment_key: None,
+        }),
+        status,
+        simulated: true,
+    }
+}
+
+#[test]
+fn stopping_interrupts_running_jobs_and_keeps_the_simulations_waiting_for_them() {
+    use CamJobStatus::{Interrupted, Queued, Running, Succeeded};
+    let current = |source: &Option<CamJobSource>| source.is_some();
+    // 計算中のツールパス生成は止め、それを待つ切削シミュレーションは待たせる。関係のない計算待ちは取り消す
+    let plan = stop_plan(
+        &[
+            simulation(2, true, Queued, Running),
+            simulation(4, true, Queued, Queued),
+            simulation(6, false, Queued, Running),
+        ],
+        &[
+            toolpath(1, true, Running),
+            toolpath(3, true, Queued),
+            toolpath(5, false, Running),
+        ],
+        current,
+    );
+    assert_eq!(plan.stop, vec![1]);
+    assert_eq!(plan.cancel, vec![4, 3]);
+    // 止めた直後にもう一度止めても、中断のツールパス生成を待つ切削シミュレーションは取り消さない
+    let plan = stop_plan(
+        &[simulation(2, true, Queued, Interrupted)],
+        &[toolpath(1, true, Interrupted)],
+        current,
+    );
+    assert_eq!(plan, StopPlan::default());
+    // 計算中の切削シミュレーションも止める
+    let plan = stop_plan(
+        &[simulation(2, true, Running, Succeeded)],
+        &[toolpath(1, true, Succeeded)],
+        current,
+    );
+    assert_eq!(plan.stop, vec![2]);
+    assert!(plan.cancel.is_empty());
+}
+
+#[test]
+fn stopping_without_a_running_job_cancels_the_waiting_jobs_of_the_current_revision() {
+    let (shapes, face) = pyramid_shape();
+    let machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    // 工程から投入していないジョブは、止めない
+    submit(&mut workflow, request(0.01)).unwrap();
+    machining.submit(&mut workflow, &shapes).unwrap();
+    let stop = |workflow: &mut CamSimulationWorkflow| {
+        workflow
+            .stop_latest_revision_jobs(&machining.store, machining.sequence, machining.operation)
+            .unwrap()
+    };
+    // 計算中のジョブがないため、まだ始まっていない計算待ちのツールパス生成と切削シミュレーションを取り消す
+    assert_eq!(stop(&mut workflow), 2);
+    assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
+    let statuses: Vec<CamJobStatus> = machining
+        .operation_simulations(&workflow)
+        .iter()
+        .map(|job| job.status)
+        .collect();
+    assert_eq!(statuses, vec![CamJobStatus::Canceled]);
+    // 終わったジョブは止めない
+    assert_eq!(stop(&mut workflow), 0);
+}
+
+#[test]
 fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
     let (shapes, face) = pyramid_shape();
     let machining = Machining::new(vec![face]);
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     // 工程から投入していないジョブは、工程から引かない
     let unrelated = submit(&mut workflow, request(0.01)).unwrap();
     let submission = machining.submit(&mut workflow, &shapes).unwrap();
@@ -327,42 +667,62 @@ fn jobs_submitted_from_an_operation_have_its_id_and_revision() {
     let expected = CamJobSource {
         source_id: machining.operation.to_string(),
         revision: 1,
+        revision_key: Some(machining.revision_key()),
+        segment_key: None,
     };
-    for job_id in [submission.toolpath_job_id, submission.simulation_job_id] {
-        let job = workflow
-            .orchestrator
-            .query_result(JobWorkflowResultQuery { job_id })
-            .unwrap()
-            .job;
-        assert_eq!(job.spec.source, Some(expected.clone()));
-    }
+    // 切削シミュレーションのジョブだけが、区間の前提の鍵を持つ
+    let simulation_source = submitted(&workflow, &submission.submission_id)
+        .source
+        .unwrap();
+    assert!(simulation_source.segment_key.is_some());
+    assert_eq!(
+        CamJobSource {
+            segment_key: None,
+            ..simulation_source
+        },
+        expected
+    );
+    let toolpath_sources: Vec<_> = workflow
+        .jobs
+        .toolpath_jobs()
+        .unwrap()
+        .into_iter()
+        .filter_map(|job| job.source)
+        .collect();
+    assert_eq!(toolpath_sources, vec![expected]);
     // 実行するまでは、取り込める結果がない
     assert!(
         workflow
             .operation_simulations(machining.operation)
-            .is_empty()
+            .unwrap()
+            .iter()
+            .all(|job| job.status == CamJobStatus::Queued)
     );
     assert_eq!(machining.latest(&workflow), None);
     workflow.run_queued_jobs().unwrap();
     let simulations: Vec<u64> = workflow
         .operation_simulations(machining.operation)
+        .unwrap()
         .iter()
-        .map(|job| job.id)
+        .map(|job| job.job_id)
         .collect();
-    assert_eq!(simulations, vec![submission.simulation_job_id]);
-    assert!(!simulations.contains(&unrelated.simulation_job_id));
+    assert_eq!(
+        simulations,
+        vec![submitted(&workflow, &submission.submission_id).job_id]
+    );
+    assert!(!simulations.contains(&submitted(&workflow, &unrelated.submission_id).job_id));
 }
 
 #[test]
 fn the_latest_revision_is_imported_and_the_previous_revisions_are_kept() {
     let (shapes, face) = pyramid_shape();
     let mut machining = Machining::new(vec![face]);
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let first = machining.submit(&mut workflow, &shapes).unwrap();
     workflow.run_queued_jobs().unwrap();
     assert_eq!(
-        machining.latest(&workflow).map(|job| job.id),
-        Some(first.simulation_job_id)
+        machining.latest(&workflow),
+        Some(submitted(&workflow, &first.submission_id).job_id)
     );
 
     // 素材の上の余裕を変えると、工程の改訂の番号が増え、前の改訂の結果は今の改訂の結果ではなくなる
@@ -375,26 +735,85 @@ fn the_latest_revision_is_imported_and_the_previous_revisions_are_kept() {
     let second = machining.submit(&mut workflow, &shapes).unwrap();
     workflow.run_queued_jobs().unwrap();
     let latest = machining.latest(&workflow).unwrap();
-    assert_eq!(latest.id, second.simulation_job_id);
-    assert_eq!(latest.spec.source.unwrap().revision, 2);
+    assert_eq!(latest, submitted(&workflow, &second.submission_id).job_id);
+    assert_eq!(
+        submitted(&workflow, &second.submission_id)
+            .source
+            .unwrap()
+            .revision,
+        2
+    );
     // 新しい改訂の結果は、上に 10 を足した素材から削る
-    let initial = initial_volume(&workflow.import(latest.id).unwrap());
+    let initial = initial_volume(&workflow.import(latest).unwrap());
     let expected = 50.0 * 50.0 * 20.0;
     assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
 
     // 前の改訂の結果も引けて、取り込める
     let simulations: Vec<u64> = workflow
         .operation_simulations(machining.operation)
+        .unwrap()
         .iter()
-        .map(|job| job.id)
+        .map(|job| job.job_id)
         .collect();
     assert_eq!(
         simulations,
-        vec![first.simulation_job_id, second.simulation_job_id]
+        vec![
+            submitted(&workflow, &first.submission_id).job_id,
+            submitted(&workflow, &second.submission_id).job_id
+        ]
     );
-    let initial = initial_volume(&workflow.import(first.simulation_job_id).unwrap());
+    let initial = initial_volume(
+        &workflow
+            .import(submitted(&workflow, &first.submission_id).job_id)
+            .unwrap(),
+    );
     let expected = 50.0 * 50.0 * 15.0;
     assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
+}
+
+#[test]
+fn jobs_with_the_same_revision_but_another_revision_key_are_not_the_current_revision() {
+    let (shapes, face) = pyramid_shape();
+    let machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let request = || {
+        resolve_operation_request(
+            &shapes,
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+        )
+        .unwrap()
+        .0
+    };
+    // 複製した工程・保存せずに捨てた変更から投入したジョブ（同じ工程の ID・同じ改訂の番号で、鍵が違う）と、
+    // 前の版の記録（鍵がない）
+    for revision_key in [Some("another-key".to_string()), None] {
+        let source = CamJobSource {
+            source_id: machining.operation.to_string(),
+            revision: machining.revision(),
+            revision_key,
+            segment_key: None,
+        };
+        enqueue(&mut workflow, request(), Some(source)).unwrap();
+    }
+    assert_eq!(machining.status(&workflow), None);
+    workflow.run_queued_jobs().unwrap();
+    assert_eq!(machining.operation_simulations(&workflow).len(), 2);
+    assert_eq!(machining.latest(&workflow), None);
+    assert_eq!(machining.status(&workflow), None);
+
+    // 今の鍵で投入したジョブだけが、今の改訂のジョブになる
+    let current = machining.submit(&mut workflow, &shapes).unwrap();
+    workflow.run_queued_jobs().unwrap();
+    assert_eq!(
+        machining.latest(&workflow),
+        Some(submitted(&workflow, &current.submission_id).job_id)
+    );
+    assert_eq!(
+        machining.status(&workflow),
+        Some(OperationJobStatus::Succeeded)
+    );
 }
 
 #[test]
@@ -454,7 +873,7 @@ fn inverse_offset_shapes_are_split_into_display_parts() {
 #[test]
 fn operations_that_cannot_be_machined_are_not_submitted() {
     let (shapes, face) = pyramid_shape();
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let empty = Machining::new(Vec::new());
     assert_eq!(
         empty.submit(&mut workflow, &shapes).unwrap_err(),
@@ -471,7 +890,13 @@ fn operations_that_cannot_be_machined_are_not_submitted() {
     let other = Machining::new(vec![face]);
     assert_eq!(
         workflow
-            .submit_operation(&shapes, &other.store, other.sequence, empty.operation)
+            .submit_operations(
+                &shapes,
+                &other.store,
+                &crate::imported_toolpath::ImportedToolpathStore::new(),
+                other.sequence,
+                &[(empty.operation, SegmentToolpathSource::Solve)],
+            )
             .unwrap_err(),
         CamSimulationWorkflowError::Sequence(MachiningSequenceError::UnknownOperation(
             empty.operation
@@ -479,13 +904,126 @@ fn operations_that_cannot_be_machined_are_not_submitted() {
     );
     assert_eq!(
         workflow
-            .submit_operation(&shapes, &other.store, empty.sequence, empty.operation)
+            .submit_operations(
+                &shapes,
+                &other.store,
+                &crate::imported_toolpath::ImportedToolpathStore::new(),
+                empty.sequence,
+                &[(empty.operation, SegmentToolpathSource::Solve)],
+            )
             .unwrap_err(),
         CamSimulationWorkflowError::Sequence(MachiningSequenceError::UnknownSequence(
             empty.sequence
         ))
     );
     assert_eq!(workflow.run_queued_jobs().unwrap(), 0);
+}
+
+#[test]
+fn operations_checked_together_have_the_same_results_as_one_by_one() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    // ピックフィードが工具径 6 を超える工程と、正しい工程を足す
+    let OperationSpec::Scanline(mut scanline) = operation_content().conditions.spec;
+    scanline.stepover = 7.0;
+    let invalid = machining
+        .store
+        .add_operation(
+            machining.sequence,
+            MachiningOperationContent {
+                conditions: MachiningOperationConditions {
+                    spec: OperationSpec::Scanline(scanline),
+                    ..operation_content().conditions
+                },
+                ..operation_content()
+            },
+        )
+        .unwrap();
+    let valid = machining
+        .store
+        .add_operation(machining.sequence, operation_content())
+        .unwrap();
+    // 加工手順にない工程も混ぜる
+    let unknown = Machining::new(vec![face]).operation;
+    let ids = [machining.operation, invalid, unknown, valid];
+    let together = CamSimulationWorkflow::check_operations(
+        &shapes,
+        &machining.store,
+        machining.sequence,
+        &ids,
+    );
+    let one_by_one: Vec<_> = ids
+        .iter()
+        .map(|&id| {
+            CamSimulationWorkflow::check_operation(
+                &shapes,
+                &machining.store,
+                machining.sequence,
+                id,
+            )
+        })
+        .collect();
+    assert_eq!(together, one_by_one);
+    assert!(together[0].is_ok() && together[3].is_ok());
+    assert!(matches!(
+        together[1],
+        Err(CamSimulationWorkflowError::Conditions(_))
+    ));
+    assert!(matches!(
+        together[2],
+        Err(CamSimulationWorkflowError::Sequence(
+            MachiningSequenceError::UnknownOperation(_)
+        ))
+    ));
+}
+
+#[test]
+fn operations_checked_together_share_the_errors_of_the_target_shape() {
+    let (shapes, _) = pyramid_shape();
+    let empty = Machining::new(Vec::new());
+    let ids = [empty.operation, empty.operation];
+    assert_eq!(
+        CamSimulationWorkflow::check_operations(&shapes, &empty.store, empty.sequence, &ids),
+        vec![
+            Err(CamSimulationWorkflowError::ProductShape(
+                ProductShapeError::NoFaces
+            ));
+            2
+        ]
+    );
+    // 保管していない加工手順
+    let other = Machining::new(Vec::new());
+    assert_eq!(
+        CamSimulationWorkflow::check_operations(&shapes, &empty.store, other.sequence, &ids),
+        vec![
+            Err(CamSimulationWorkflowError::Sequence(
+                MachiningSequenceError::UnknownSequence(other.sequence)
+            ));
+            2
+        ]
+    );
+    assert!(
+        CamSimulationWorkflow::check_operations(&shapes, &empty.store, empty.sequence, &[])
+            .is_empty()
+    );
+    // 形状を作れないときも、手順にない工程は、1 つずつ確かめたときと同じく手順にない工程の誤り
+    let unknown = other.operation;
+    let ids = [empty.operation, unknown];
+    let together =
+        CamSimulationWorkflow::check_operations(&shapes, &empty.store, empty.sequence, &ids);
+    let one_by_one: Vec<_> = ids
+        .iter()
+        .map(|&id| {
+            CamSimulationWorkflow::check_operation(&shapes, &empty.store, empty.sequence, id)
+        })
+        .collect();
+    assert_eq!(together, one_by_one);
+    assert_eq!(
+        together[1],
+        Err(CamSimulationWorkflowError::Sequence(
+            MachiningSequenceError::UnknownOperation(unknown)
+        ))
+    );
 }
 
 #[test]
@@ -499,12 +1037,16 @@ fn stock_without_xy_margins_has_the_xy_size_of_the_product_shape() {
         },
         ..stock()
     });
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let submission = machining.submit(&mut workflow, &shapes).unwrap();
     assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
 
     // 素材は四角錐（20〜60, 20〜60, 80〜90）を囲む箱の XY の範囲のまま、上に 5 を足したもの
-    let initial = initial_volume(&workflow.import(submission.simulation_job_id).unwrap());
+    let initial = initial_volume(
+        &workflow
+            .import(submitted(&workflow, &submission.submission_id).job_id)
+            .unwrap(),
+    );
     let expected = 40.0 * 40.0 * 15.0;
     assert!((initial - expected).abs() < 1e-6 * expected, "{initial}");
 }
@@ -516,7 +1058,7 @@ fn negative_stock_margins_are_not_submitted() {
     let mut negative = stock();
     negative.margins.minus_x = -1.0;
     machining.set_stock(negative);
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     assert_eq!(
         machining.submit(&mut workflow, &shapes).unwrap_err(),
         CamSimulationWorkflowError::Conditions(vec![CamConditionError::InvalidStockMargins(
@@ -535,7 +1077,7 @@ fn all_condition_errors_are_reported_before_submitting() {
     // press_rough のトレランス 0.001 より細かい精度
     invalid.precision = 0.0005;
     machining.set_stock(invalid);
-    let OperationSpec::Scanline(mut scanline) = operation_content().spec;
+    let OperationSpec::Scanline(mut scanline) = operation_content().conditions.spec;
     // ピックフィードが工具径 6 を超える
     scanline.stepover = 7.0;
     machining
@@ -544,9 +1086,12 @@ fn all_condition_errors_are_reported_before_submitting() {
             machining.sequence,
             machining.operation,
             MachiningOperationContent {
-                spec: OperationSpec::Scanline(scanline),
-                // 工具長が 0
-                tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 0.0),
+                conditions: MachiningOperationConditions {
+                    spec: OperationSpec::Scanline(scanline),
+                    // 工具長が 0
+                    tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 0.0),
+                    ..operation_content().conditions
+                },
                 ..operation_content()
             },
         )
@@ -582,7 +1127,7 @@ fn all_condition_errors_are_reported_before_submitting() {
     );
 
     // 投入も同じ誤りで拒み、キューに入れない
-    let mut workflow = CamSimulationWorkflow::new();
+    let mut workflow = CamSimulationWorkflow::in_process();
     let Err(CamSimulationWorkflowError::Conditions(rejected)) =
         machining.submit(&mut workflow, &shapes)
     else {
@@ -613,4 +1158,615 @@ fn precision_beyond_the_line_limit_is_reported_with_the_finest_precision() {
     wide.precision = finest_precision;
     machining.set_stock(wide);
     assert_eq!(machining.check(&shapes), Ok(()));
+}
+
+#[test]
+fn the_status_of_the_latest_revision_follows_its_jobs() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let status =
+        |machining: &Machining, workflow: &CamSimulationWorkflow| machining.status(workflow);
+    assert_eq!(status(&machining, &workflow), None);
+    machining.submit(&mut workflow, &shapes).unwrap();
+    assert_eq!(
+        status(&machining, &workflow),
+        Some(OperationJobStatus::Queued)
+    );
+    workflow.run_queued_jobs().unwrap();
+    assert_eq!(
+        status(&machining, &workflow),
+        Some(OperationJobStatus::Succeeded)
+    );
+    // 条件を変えると、今の改訂の計算はまだない
+    let mut changed = stock();
+    changed.margins.top = 10.0;
+    machining.set_stock(changed);
+    assert_eq!(status(&machining, &workflow), None);
+}
+
+#[test]
+fn the_toolpath_of_an_imported_result_is_copied_into_the_space_model() {
+    use crate::imported_toolpath::{ImportedToolpathState, ImportedToolpathStore};
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let submission = machining.submit(&mut workflow, &shapes).unwrap();
+    workflow.run_queued_jobs().unwrap();
+    let result = workflow
+        .import(submitted(&workflow, &submission.submission_id).job_id)
+        .unwrap();
+
+    let mut toolpaths = ImportedToolpathStore::new();
+    let state = |toolpaths: &ImportedToolpathStore, machining: &Machining| {
+        toolpaths
+            .state(&machining.store, machining.sequence, machining.operation)
+            .unwrap()
+    };
+    assert!(
+        toolpaths
+            .import(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                &result
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        state(&toolpaths, &machining),
+        ImportedToolpathState::Current
+    );
+    let record = toolpaths.records()[0].clone();
+    assert_eq!(record.artifact, result.toolpath_artifact);
+    assert_eq!(
+        record.revision_key,
+        machining
+            .store
+            .operation_revision_key(machining.sequence, machining.operation)
+            .unwrap()
+    );
+    // 同じ結果を取り込み直しても変わらない
+    assert!(
+        !toolpaths
+            .import(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                &result
+            )
+            .unwrap()
+    );
+
+    // 条件を変えると、前の条件の結果になり、今の条件の結果としては使わない
+    let mut changed = stock();
+    changed.margins.top = 10.0;
+    machining.set_stock(changed);
+    assert_eq!(state(&toolpaths, &machining), ImportedToolpathState::None);
+    // 前の条件の結果は、今の条件の結果として取り込まない
+    assert!(
+        !toolpaths
+            .import(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                &result
+            )
+            .unwrap()
+    );
+    assert_eq!(state(&toolpaths, &machining), ImportedToolpathState::None);
+}
+
+#[test]
+fn the_toolpath_of_the_current_conditions_is_imported_without_the_simulation() {
+    use crate::imported_toolpath::{ImportedToolpathState, ImportedToolpathStore};
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let latest = |workflow: &CamSimulationWorkflow, machining: &Machining| {
+        workflow
+            .latest_revision_toolpath(&machining.store, machining.sequence, machining.operation)
+            .unwrap()
+    };
+    machining.submit(&mut workflow, &shapes).unwrap();
+    // 計算が終わるまでは、取り込めるツールパス生成はない
+    assert_eq!(latest(&workflow, &machining), None);
+    workflow.run_queued_jobs().unwrap();
+    let job = latest(&workflow, &machining).unwrap();
+    let result = workflow.toolpath_result(job).unwrap();
+    assert!(read_toolpath_artifact_v1(&mut result.artifact.as_slice()).is_ok());
+
+    let mut toolpaths = ImportedToolpathStore::new();
+    assert!(
+        toolpaths
+            .import_toolpath(
+                &machining.store,
+                machining.sequence,
+                machining.operation,
+                &result
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        toolpaths
+            .state(&machining.store, machining.sequence, machining.operation)
+            .unwrap(),
+        ImportedToolpathState::Current
+    );
+    // 切削シミュレーションのジョブの番号は、ツールパス生成の結果として読まない
+    let simulation = workflow
+        .latest_revision_simulation(&machining.store, machining.sequence, machining.operation)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        workflow.toolpath_result(simulation).unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededToolpath(simulation)
+    );
+
+    // 条件を変えると、今の条件のツールパス生成はない
+    let mut changed = stock();
+    changed.margins.top = 10.0;
+    machining.set_stock(changed);
+    assert_eq!(latest(&workflow, &machining), None);
+}
+
+#[test]
+fn only_the_imported_toolpath_of_the_current_conditions_is_submitted() {
+    use crate::imported_toolpath::ImportedToolpathStore;
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let submit = |workflow: &mut CamSimulationWorkflow,
+                  machining: &Machining,
+                  toolpaths: &ImportedToolpathStore| {
+        workflow.submit_operations(
+            &shapes,
+            &machining.store,
+            toolpaths,
+            machining.sequence,
+            &[(machining.operation, SegmentToolpathSource::Imported)],
+        )
+    };
+    // CL を取り込んでいない
+    let mut toolpaths = ImportedToolpathStore::new();
+    assert_eq!(
+        submit(&mut workflow, &machining, &toolpaths).unwrap_err(),
+        CamSimulationWorkflowError::NoCurrentImportedToolpath
+    );
+
+    let submission = machining.submit(&mut workflow, &shapes).unwrap();
+    workflow.run_queued_jobs().unwrap();
+    let result = workflow
+        .import(submitted(&workflow, &submission.submission_id).job_id)
+        .unwrap();
+    toolpaths
+        .import(
+            &machining.store,
+            machining.sequence,
+            machining.operation,
+            &result,
+        )
+        .unwrap();
+    // 今の条件で正常に終わったツールパス生成のジョブの下に置く（同じプロセスの中の実行は、CL を入力にする切削
+    // シミュレーションを扱わない。ツールパス生成のジョブの下に置く投入と、CL を入力にする投入は、job_client の試験で
+    // 確かめる）
+    let again = submit(&mut workflow, &machining, &toolpaths).unwrap();
+    workflow.run_queued_jobs().unwrap();
+    assert_eq!(
+        submitted(&workflow, &again.submission_id).status,
+        CamJobStatus::Succeeded
+    );
+
+    // 条件を変えると、前の条件の CL は投入しない
+    let mut changed = stock();
+    changed.margins.top = 10.0;
+    machining.set_stock(changed);
+    assert_eq!(
+        submit(&mut workflow, &machining, &toolpaths).unwrap_err(),
+        CamSimulationWorkflowError::NoCurrentImportedToolpath
+    );
+}
+
+#[test]
+fn an_operation_is_interrupted_when_its_toolpath_or_simulation_job_is_interrupted() {
+    let operation_id = MachiningOperationId::from_uuid(uuid::Uuid::from_u128(1));
+    let source = Some(CamJobSource {
+        source_id: operation_id.to_string(),
+        revision: 1,
+        revision_key: Some("key".to_string()),
+        segment_key: None,
+    });
+    let snapshot = |status, toolpath_status| JobStatusSnapshot {
+        pending: Vec::new(),
+        simulations: vec![SimulationJob {
+            job_id: 2,
+            submission_id: "submission".to_string(),
+            source: source.clone(),
+            status,
+            toolpath_status,
+            start_stock: None,
+            failure: None,
+        }],
+    };
+    let current = |_: &Option<CamJobSource>| true;
+    // 切削シミュレーションは、中断のツールパス生成を待っている
+    assert_eq!(
+        operation_state(
+            &snapshot(CamJobStatus::Queued, CamJobStatus::Interrupted),
+            operation_id,
+            &current
+        ),
+        OperationJobState::Status(OperationJobStatus::Interrupted)
+    );
+    assert_eq!(
+        operation_state(
+            &snapshot(CamJobStatus::Interrupted, CamJobStatus::Succeeded),
+            operation_id,
+            &current
+        ),
+        OperationJobState::Status(OperationJobStatus::Interrupted)
+    );
+    // 中断は、重ねて投入しない状態ではない（計算で続ける）
+    assert!(!OperationJobStatus::Interrupted.is_waiting_or_done());
+}
+
+#[test]
+fn toolpaths_are_calculated_for_the_faces_of_a_shell() {
+    use crate::product_shape::SimilarityTransform3D;
+    use geo_algorithms::Vector3D;
+
+    // 一辺 10 の立方体のシェルを、x・y に 20、z に 80 動かして置く（上の面は z = 90）
+    let mut shapes = ProductShapeStore::new();
+    shapes
+        .add_shell(
+            std::sync::Arc::new(crate::product_shape::test_fixtures::cube_brep()),
+            SimilarityTransform3D::translation(Vector3D::new(20.0, 20.0, 80.0)),
+            None,
+        )
+        .unwrap();
+    let machining = Machining::new(shapes.visible_face_ids());
+    assert_eq!(machining.check(&shapes), Ok(()));
+    // 工程の工具（半径 3 のボール）で、上の面の中ほどの工具先端は上の面の高さ
+    let shape = CamSimulationWorkflow::inverse_offset_shape(
+        &shapes,
+        &machining.store,
+        machining.sequence,
+        machining.operation,
+    )
+    .unwrap();
+    assert!((shape.tip_height_at(25.0, 25.0).unwrap() - 90.0).abs() < 1e-9);
+
+    let mut workflow = CamSimulationWorkflow::in_process();
+    let submission = machining.submit(&mut workflow, &shapes).unwrap();
+    assert_eq!(workflow.run_queued_jobs().unwrap(), 2);
+    let result = workflow
+        .import(submitted(&workflow, &submission.submission_id).job_id)
+        .unwrap();
+    let (_, toolpath) =
+        read_toolpath_artifact_v1(&mut result.toolpath_artifact.as_slice()).unwrap();
+    assert!(toolpath.total_cutting_length() > 0.0);
+}
+
+#[test]
+fn operations_with_other_chord_tolerances_cut_the_same_stock_of_a_curved_shell() {
+    use crate::product_shape::SimilarityTransform3D;
+    use geo_algorithms::Vector3D;
+
+    // 円柱のシェルを、荒（許容弦誤差 0.001）と仕上げ（0.0001）で削る（円柱の側面を三角形に分けた形状の囲む箱は、
+    // 許容弦誤差で変わる）
+    let mut shapes = ProductShapeStore::new();
+    shapes
+        .add_shell(
+            std::sync::Arc::new(crate::product_shape::test_fixtures::cylinder_brep()),
+            SimilarityTransform3D::translation(Vector3D::new(20.0, 20.0, 80.0)),
+            None,
+        )
+        .unwrap();
+    let mut machining = Machining::new(shapes.visible_face_ids());
+    let mut finish = operation_content();
+    finish.conditions.tolerance_profile = ToleranceProfile::MoldFinish;
+    machining
+        .store
+        .set_operation_content(machining.sequence, machining.operation, finish)
+        .unwrap();
+    let rough = machining.insert_rough();
+    let request = |operation| {
+        resolve_operation_request(&shapes, &machining.store, machining.sequence, operation)
+            .unwrap()
+            .0
+    };
+    let (rough, finish) = (request(rough), request(machining.operation));
+    assert_ne!(
+        rough.solver_input.chord_tolerance,
+        finish.solver_input.chord_tolerance
+    );
+    // 素材（格子の範囲）は、手順の最初の工程の許容弦誤差で分けた形状から決め、手順のすべての工程で同じ（後の工程が、
+    // 前の工程の終わりの素材から削れるように）
+    assert_eq!(rough.stock, finish.stock);
+}
+
+#[test]
+fn an_operation_in_one_connection_runs_only_after_connecting() {
+    // つなげれば、操作を行ってその結果を返す
+    let mut workflow = CamSimulationWorkflow::in_process();
+    assert_eq!(
+        workflow.with_job_manager_connection(|_| Ok::<_, CamSimulationWorkflowError>(7)),
+        Ok(7)
+    );
+
+    // 起動できない（実行できないファイルの）ジョブマネージャーには、つなげないため、操作を行わない（投入まで進んで、
+    // もう一度起動を試みない）。口は試験だけの名前
+    let folder = std::env::temp_dir().join(format!(
+        "redring-workflow-connection-test-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&folder).unwrap();
+    let manager = folder.join("redring-job-manager.exe");
+    std::fs::write(&manager, b"not a program").unwrap();
+    let endpoint =
+        job_ipc::Endpoint::with_name(&format!("workflow-connection-test-{}", std::process::id()))
+            .unwrap();
+    let mut workflow = CamSimulationWorkflow {
+        jobs: Box::new(crate::job_client::PipeJobClient::new(Ok(endpoint), manager)),
+    };
+    let mut run = false;
+    let result = workflow.with_job_manager_connection(|_| {
+        run = true;
+        Ok::<_, CamSimulationWorkflowError>(())
+    });
+    let _ = std::fs::remove_dir_all(&folder);
+    assert!(matches!(
+        result,
+        Err(CamSimulationWorkflowError::JobStore(_))
+    ));
+    assert!(!run);
+}
+
+#[test]
+fn the_failure_reason_of_an_operation_is_that_of_its_latest_failed_calculation() {
+    let operation_id = MachiningOperationId::from_uuid(uuid::Uuid::from_u128(1));
+    let source = Some(CamJobSource {
+        source_id: operation_id.to_string(),
+        revision: 1,
+        revision_key: Some("key".to_string()),
+        segment_key: None,
+    });
+    let too_large = JobFailure {
+        reason: JobFailureReason::ToolpathTooLarge,
+        message: "the toolpath is too large for the memory limit".to_string(),
+    };
+    let snapshot = |status, toolpath_status, pending: bool| JobStatusSnapshot {
+        pending: if pending {
+            vec![crate::job_client::PendingSubmission {
+                sources: source.clone().into_iter().collect(),
+                rejected: false,
+            }]
+        } else {
+            Vec::new()
+        },
+        simulations: vec![SimulationJob {
+            job_id: 2,
+            submission_id: "submission".to_string(),
+            source: source.clone(),
+            status,
+            toolpath_status,
+            start_stock: None,
+            failure: Some(too_large.clone()),
+        }],
+    };
+    let current = |_: &Option<CamJobSource>| true;
+    // 失敗した計算と、失敗したツールパス生成を待っている計算は、その理由を出す
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Failed, CamJobStatus::Failed, false),
+            operation_id,
+            &current
+        ),
+        Some(too_large.clone())
+    );
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Queued, CamJobStatus::Failed, false),
+            operation_id,
+            &current
+        ),
+        Some(too_large.clone())
+    );
+    // 失敗の後に投入し直した（取り込みを待っている）・失敗していない計算は、理由を出さない
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Failed, CamJobStatus::Failed, true),
+            operation_id,
+            &current
+        ),
+        None
+    );
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Interrupted, CamJobStatus::Succeeded, false),
+            operation_id,
+            &current
+        ),
+        None
+    );
+    // ほかの改訂の計算は、理由を出さない
+    assert_eq!(
+        operation_failure(
+            &snapshot(CamJobStatus::Failed, CamJobStatus::Failed, false),
+            operation_id,
+            &|_: &Option<CamJobSource>| false
+        ),
+        None
+    );
+}
+
+/// 荒の工程の中身（直径 10 のフラットエンドミルで、粗い走査線で削る）
+fn rough_content() -> MachiningOperationContent {
+    let mut content = operation_content();
+    content.attributes.name = "荒".to_string();
+    content.attributes.stage = MachiningStage::Rough;
+    content.conditions.tool = Tool::flat_end_mill("FEM10".to_string(), 10.0, 30.0);
+    content
+}
+
+impl Machining {
+    /// 荒の工程を仕上げの工程の前に入れ、2 つの工程の計算の条件を設定したことにする（荒の工程の ID を返す）
+    fn insert_rough(&mut self) -> MachiningOperationId {
+        let rough = self
+            .store
+            .insert_operation(self.sequence, 0, rough_content())
+            .unwrap();
+        for operation in [rough, self.operation] {
+            self.store
+                .mark_operation_conditions_set(self.sequence, operation)
+                .unwrap();
+        }
+        rough
+    }
+
+    fn latest_of(
+        &self,
+        workflow: &CamSimulationWorkflow,
+        operation: MachiningOperationId,
+    ) -> Option<u64> {
+        workflow
+            .latest_revision_simulation(&self.store, self.sequence, operation)
+            .unwrap()
+    }
+}
+
+/// 切削シミュレーションの成果物の、最初と最後の時点の素材の体積
+fn volumes(result: &CamSimulationWorkflowResult) -> (f64, f64) {
+    let (_, simulation) =
+        cam_sim::read_cutting_simulation_artifact_v1(&mut result.simulation_artifact.as_slice())
+            .unwrap();
+    (
+        simulation.snapshots[0].remaining_volume_mm3,
+        simulation.snapshots.last().unwrap().remaining_volume_mm3,
+    )
+}
+
+#[test]
+fn a_later_operation_is_simulated_from_the_end_stock_of_the_earlier_one() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let rough = machining.insert_rough();
+    let mut workflow = CamSimulationWorkflow::in_process();
+    // 仕上げだけを計算しても、今の結果のない荒の区間から置く
+    machining.submit(&mut workflow, &shapes).unwrap();
+    assert_eq!(workflow.jobs.simulation_jobs().unwrap().len(), 2);
+    workflow.run_queued_jobs().unwrap();
+    let rough_result = workflow
+        .import(machining.latest_of(&workflow, rough).unwrap())
+        .unwrap();
+    let finish_result = workflow
+        .import(machining.latest(&workflow).unwrap())
+        .unwrap();
+    let (rough_start, rough_end) = volumes(&rough_result);
+    let (finish_start, finish_end) = volumes(&finish_result);
+    assert!(rough_end < rough_start);
+    assert!((finish_start - rough_end).abs() <= 1e-9 * rough_end);
+    assert!(finish_end <= finish_start);
+    // 格子は、2 つの工程の工具のうち小さいほうの半径で決める
+    for result in [&rough_result, &finish_result] {
+        assert_eq!(result.simulation_input.grid_tool_radius, 3.0);
+    }
+
+    // 荒の区間に今の結果があれば、仕上げの区間だけを置き、荒の区間の終わりの素材から削る
+    machining.submit(&mut workflow, &shapes).unwrap();
+    assert_eq!(workflow.jobs.simulation_jobs().unwrap().len(), 3);
+    workflow.run_queued_jobs().unwrap();
+    let again = workflow
+        .import(machining.latest(&workflow).unwrap())
+        .unwrap();
+    assert_eq!(volumes(&again), (finish_start, finish_end));
+}
+
+#[test]
+fn changing_or_reordering_an_earlier_operation_makes_the_later_simulations_stale() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let rough = machining.insert_rough();
+    let mut workflow = CamSimulationWorkflow::in_process();
+    machining.submit(&mut workflow, &shapes).unwrap();
+    workflow.run_queued_jobs().unwrap();
+    assert!(machining.latest(&workflow).is_some());
+
+    // 荒の工程を変えると、仕上げの切削シミュレーションは今の結果でなくなる（仕上げの CL は今の結果のまま）
+    let mut changed = rough_content();
+    changed.conditions.tool = Tool::flat_end_mill("FEM8".to_string(), 8.0, 30.0);
+    machining
+        .store
+        .set_operation_content(machining.sequence, rough, changed)
+        .unwrap();
+    assert_eq!(machining.latest(&workflow), None);
+    assert_eq!(machining.status(&workflow), None);
+    assert!(
+        workflow
+            .latest_revision_toolpath(&machining.store, machining.sequence, machining.operation)
+            .unwrap()
+            .is_some()
+    );
+    // 今の条件の CL があれば使う
+    workflow
+        .submit_operations(
+            &shapes,
+            &machining.store,
+            &crate::imported_toolpath::ImportedToolpathStore::new(),
+            machining.sequence,
+            &[(machining.operation, SegmentToolpathSource::Current)],
+        )
+        .unwrap();
+    workflow.run_queued_jobs().unwrap();
+    assert!(machining.latest(&workflow).is_some());
+    assert!(machining.latest_of(&workflow, rough).is_some());
+
+    // 並べ替えると、どちらの区間も今の結果でなくなる
+    machining
+        .store
+        .move_operation(machining.sequence, machining.operation, 0)
+        .unwrap();
+    assert_eq!(machining.latest(&workflow), None);
+    assert_eq!(machining.latest_of(&workflow, rough), None);
+}
+
+#[test]
+fn a_toolpath_job_without_a_simulation_is_reused_first_and_then_one_with_a_simulation() {
+    let jobs = [
+        toolpath(1, true, CamJobStatus::Succeeded),
+        toolpath(2, true, CamJobStatus::Succeeded),
+        toolpath(3, false, CamJobStatus::Succeeded),
+        toolpath(4, true, CamJobStatus::Failed),
+    ];
+    let current = |source: &Option<CamJobSource>| source.is_some();
+    let with_simulation = |simulated: &[bool]| {
+        let mut jobs = jobs.clone();
+        for (job, &simulated) in jobs.iter_mut().zip(simulated) {
+            job.simulated = simulated;
+        }
+        reusable_toolpath_job(&jobs, current)
+    };
+    // 今の条件で正常に終わったジョブのうち、切削シミュレーションを置いていないものを先に、なければ最も新しいもの
+    assert_eq!(with_simulation(&[false, true, false, false]), Some(1));
+    assert_eq!(with_simulation(&[true, true, false, false]), Some(2));
+    assert_eq!(reusable_toolpath_job(&jobs[2..], current), None);
+}
+
+#[test]
+fn cancelling_an_operation_keeps_the_simulation_that_a_later_segment_waits_for() {
+    let (shapes, face) = pyramid_shape();
+    let mut machining = Machining::new(vec![face]);
+    let rough = machining.insert_rough();
+    let mut workflow = CamSimulationWorkflow::in_process();
+    // 仕上げの区間は、荒の区間の切削シミュレーションを待つ
+    machining.submit(&mut workflow, &shapes).unwrap();
+    let cancel = |workflow: &mut CamSimulationWorkflow, operation| {
+        workflow
+            .cancel_latest_revision_jobs(&machining.store, machining.sequence, operation, None)
+            .unwrap()
+    };
+    assert_eq!(cancel(&mut workflow, rough), 0);
+    // 待つ区間がなければ、切削シミュレーションとツールパス生成を取り消す
+    assert_eq!(cancel(&mut workflow, machining.operation), 2);
+    assert_eq!(cancel(&mut workflow, rough), 2);
 }

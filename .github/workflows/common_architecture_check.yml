@@ -26,11 +26,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # 依存関係のチェックは cargo metadata でワークスペースのクレートと依存を取得する
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: stable
+      # 依存関係のチェックは cargo metadata でワークスペースのクレートと依存を取得する。Rust の版と部品は、
+      # リポジトリの rust-toolchain.toml で決める（ここでは、その版を入れる）
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust
 
       - name: Run Architecture Dependency Check
         shell: pwsh

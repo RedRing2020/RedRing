@@ -5,9 +5,8 @@
 //! 通常の表示と見比べる表示（逆オフセット形状）は、ツールパスの線を重ね、カメラを通常の表示と共有する（その表示の間に
 //! 動かしたカメラは、戻した後も使う）。
 
-use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
-use crate::app::APP_TITLE;
+use super::debug_snapshot_state::SnapshotPlaybackMode;
 use stage::{MeshStage, RenderStage};
 use viewmodel_graphics::Camera;
 
@@ -54,7 +53,8 @@ impl AppState {
             stage: None,
             comparison: false,
         });
-        self.window.set_title(APP_TITLE);
+        self.window_title.clear();
+        self.refresh_window_title();
     }
 
     /// デバッグ表示のステージ `stage` を描く。通常の表示のステージは取っておき、前のデバッグ表示のステージは捨てる
@@ -115,8 +115,9 @@ impl AppState {
             self.camera = camera;
         }
         self.update_camera_uniforms();
+        // 画面の下の行を起動の案内に戻すだけで、新しいメッセージとして一覧には足さない
         if self.notice == crate::help_ui::Notice::DebugViewShown {
-            self.set_notice(crate::help_ui::Notice::Startup);
+            self.notice = crate::help_ui::Notice::Startup;
         }
         self.refresh_snapshot_window_title();
     }

@@ -3,9 +3,9 @@
 use super::*;
 use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, Bounded, InfiniteLine3DConstructor, LineSegment3DConstructor,
-    LineSegment3DContainment, LineSegment3DDistance, LineSegment3DEvaluation,
-    LineSegment3DProjection, LineSegment3DProperties, LineSegment3DSupportLine,
+    Bounded, InfiniteLine3DConstructor, LineSegment3DConstructor, LineSegment3DContainment,
+    LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
+    LineSegment3DProperties, LineSegment3DSupportLine, default_distance_tolerance,
 };
 
 use analysis::test_constants::TOLERANCE_F64;

@@ -1,9 +1,17 @@
 //! AppState のヘルプ（操作の一覧・バージョンの情報）と、画面の下の知らせの行を扱うモジュール。
 
 use super::AppState;
-use crate::help_ui::{HelpUiState, Notice};
-use crate::machining_conditions_ui::OperationStatus;
+use crate::help_ui::{HelpUiState, Notice, NoticeLevel, next_unread, push_notice_history};
+use crate::machining_conditions_ui::{
+    JobStatusLine, OperationStatus, condition_issue_text, imported_toolpath_text, job_status_text,
+    navigation_text,
+};
+use viewmodel::cutting_simulation_session::OperationJobStatus;
 use viewmodel::message_catalog::UiLocale;
+use viewmodel::space_model_document::ImportedToolpathState;
+
+/// 最近のメッセージの一覧に残す数
+const NOTICE_HISTORY_LIMIT: usize = 50;
 
 impl AppState {
     /// 「操作の一覧」のウィンドウを開閉する（F1・h キー）
@@ -30,6 +38,11 @@ impl AppState {
         crate::fatal_error_dialog::set_fatal_error_locale(locale);
         self.refresh_snapshot_window_title();
         self.app_settings.set_locale(locale);
+        self.save_app_settings();
+    }
+
+    /// アプリの設定を保存する（保存のファイルがない・保存できないときは、知らせの行に出す）
+    pub(crate) fn save_app_settings(&mut self) {
         let Some(path) = &self.app_settings_path else {
             self.set_notice(Notice::SettingsNotSaved);
             return;
@@ -42,15 +55,104 @@ impl AppState {
         }
     }
 
-    /// 画面の下の知らせの行に、知らせ `notice` を出す（前の知らせに替える）
+    /// 画面の下の行に、メッセージ `notice` を出し（前のメッセージに替える）、最近のメッセージの一覧に足す。注意・失敗は、一覧を
+    /// 開くまで 📋 に印を付ける
     pub(crate) fn set_notice(&mut self, notice: Notice) {
+        self.unread_notice = next_unread(self.unread_notice, notice.level());
+        push_notice_history(&mut self.notice_history, &notice, NOTICE_HISTORY_LIMIT);
         self.notice = notice;
     }
 
-    /// 投入・実行・取り込みの結果 `status` を、加工条件のウィンドウの結果の行と知らせの行に出す
+    /// 線・形状を GPU に置けなかった（`result` が誤り）ときは、表示できないこと `notice` を画面の下の行に出す（置け
+    /// なかったものは描かない）
+    pub(crate) fn report_not_drawn(
+        &mut self,
+        result: Result<(), render::gpu_buffer::GpuDataError>,
+        notice: Notice,
+    ) {
+        if let Err(error) = result {
+            tracing::warn!("{error}");
+            // 続けて置けないとき（素材の面を受け取るたびに置き直す）に、表示できないことのメッセージを重ねない（面と
+            // 線が両方置けないときに、交互に出し続けない）
+            if !matches!(self.notice, Notice::LinesNotDrawn | Notice::ShapesNotDrawn) {
+                self.set_notice(notice);
+            }
+        }
+    }
+
+    /// 投入・実行・取り込みの結果 `status` を、画面の下の行に出す
     pub(crate) fn set_operation_status(&mut self, status: OperationStatus) {
-        self.notice = Notice::Operation(status.clone());
-        self.cutting_simulation_status = Some(status);
+        self.set_notice(Notice::Operation(status));
+    }
+
+    /// メッセージの一覧に出す、選んだ工程の状態（今の条件の計算の状態・空間モデルの CL の状態・今の条件の誤り）。加工手順を
+    /// 開いていなければ空
+    pub(crate) fn notice_details(&self) -> Vec<(NoticeLevel, String)> {
+        if !self.machining_sequence_open {
+            return Vec::new();
+        }
+        let locale = self.ui_locale;
+        let job_status = &self.cutting_simulation_job_status;
+        // 失敗・読めない計算は失敗の色で出す
+        let job_level = match job_status {
+            JobStatusLine::Status(OperationJobStatus::Failed)
+            | JobStatusLine::Unreadable
+            | JobStatusLine::ManagerNotFound => NoticeLevel::Error,
+            JobStatusLine::Status(
+                OperationJobStatus::Canceled | OperationJobStatus::Interrupted,
+            ) => NoticeLevel::Warning,
+            _ => NoticeLevel::Info,
+        };
+        let toolpath = self.document.imported_toolpath_state();
+        let mut details = vec![
+            (
+                job_level,
+                job_status_text(
+                    locale,
+                    job_status,
+                    self.cutting_simulation_job_failure.as_ref(),
+                ),
+            ),
+            (NoticeLevel::Info, imported_toolpath_text(locale, toolpath)),
+        ];
+        details.extend(
+            self.condition_issues
+                .iter()
+                .flatten()
+                .map(|issue| (NoticeLevel::Error, condition_issue_text(locale, issue))),
+        );
+        details
+    }
+
+    /// 画面の下の行の右に出す、選んだ工程で次にできることの案内（加工手順を開いていなければ出さない）
+    pub(crate) fn navigation_text(&self) -> Option<String> {
+        if !self.machining_sequence_open {
+            return None;
+        }
+        // 条件を設定していない・誤りがある工程は計算できないため、計算の状態の案内を出さない（理由は確かめの一覧に出す）
+        let blocked = !self
+            .document
+            .conditions_set_of(self.document.selected_operation())
+            || self
+                .condition_issues
+                .as_ref()
+                .is_some_and(|issues| !issues.is_empty());
+        if blocked {
+            return None;
+        }
+        navigation_text(
+            self.ui_locale,
+            &self.cutting_simulation_job_status,
+            self.document.imported_toolpath_state() == ImportedToolpathState::Current,
+            self.cutting_simulation_job_failure.as_ref(),
+        )
+    }
+
+    /// メッセージの一覧を開いたら、まだ開いていないメッセージの印を消す
+    pub(crate) fn apply_notice_bar_state(&mut self, log_opened: bool) {
+        if log_opened {
+            self.unread_notice = None;
+        }
     }
 
     pub(crate) fn prepare_help_state(&self) -> HelpUiState {

@@ -9,10 +9,10 @@ mod transform;
 
 use crate::{InfiniteLine2D, Point2D};
 use geo_contracts::{
-    default_distance_tolerance, InfiniteLine2DConstructor, InfiniteLine2DEvaluation,
-    LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DDistance,
-    LineSegment2DEvaluation, LineSegment2DProjection, LineSegment2DProperties, PrimitiveKind,
-    PrimitiveMetadata, Scalar,
+    InfiniteLine2DConstructor, InfiniteLine2DEvaluation, LineSegment2DConstructor,
+    LineSegment2DContainment, LineSegment2DDistance, LineSegment2DEvaluation,
+    LineSegment2DProjection, LineSegment2DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
+    default_distance_tolerance,
 };
 
 /// 2次元平面の線分。

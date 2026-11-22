@@ -1,0 +1,455 @@
+//! 入力のファイルを読み、計算し、成果物・ログ・進み具合を書く
+
+use std::fs::{self, File};
+use std::io::{BufReader, Write};
+use std::path::{Path, PathBuf};
+use std::time::Instant;
+
+use cam_sim::{
+    Checkpoints, JobRunFailure, SavedRecord, read_cam_solver_input_v1,
+    read_cutting_simulation_input_v1, run_cam_solver_resumable, run_cutting_simulation,
+};
+
+use crate::ExitCode;
+use crate::args::{JobKind, RunnerArgs};
+use crate::progress::{ProgressReporter, progress_json};
+use crate::resume::{ResumeFile, checksum, file_checksum};
+
+/// ツールパス生成の成果物のファイルの名前
+const TOOLPATH_FILE: &str = "toolpath.bin";
+/// 切削シミュレーションの成果物のファイルの名前
+const CUTTING_SIMULATION_FILE: &str = "cutting_simulation.bin";
+/// 切削シミュレーションの終わりの素材のファイルの名前
+const STOCK_FILE: &str = "stock.bin";
+/// ツールパスを読むときのバッファーの大きさ（大きなファイルで、読み込みの呼び出しの回数を減らす）
+const TOOLPATH_READ_BUFFER_BYTES: usize = 1 << 20;
+/// ログのファイルの名前（書いている間は `runner.log.tmp`）
+const LOG_FILE: &str = "runner.log";
+
+/// ジョブ 1 つを実行し、終了の番号を返す
+pub(crate) fn run(args: &RunnerArgs) -> ExitCode {
+    let mut log = match RunnerLog::create(&args.logs) {
+        Ok(log) => log,
+        Err(error) => {
+            eprintln!("cannot write the log in {}: {error}", args.logs.display());
+            return ExitCode::OutputUnwritable;
+        }
+    };
+    log.line(&format!(
+        "start job_type={} input={}",
+        match args.job_kind {
+            JobKind::Cam => "cam",
+            JobKind::Sim => "sim",
+        },
+        args.input.display()
+    ));
+    let started = Instant::now();
+
+    let code = match write_progress(args, "running", 0.0).and_then(|()| execute(args, &mut log)) {
+        Ok(output) => {
+            log.line(&format!(
+                "succeeded output={} seconds={:.3}",
+                output.display(),
+                started.elapsed().as_secs_f64()
+            ));
+            ExitCode::Succeeded
+        }
+        Err(failure) => {
+            log.line(&format!(
+                "failed exit_code={} {}",
+                failure.code as u8, failure.message
+            ));
+            failure.code
+        }
+    };
+    // 途中の結果は、終わったら要らない（成功なら成果物ができ、失敗なら次は最初から計算するため。消せなくても、終わり
+    // 方は変えない）
+    if let Some(resume) = &args.resume
+        && let Err(error) = fs::remove_file(resume)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        log.line(&format!(
+            "resume: cannot remove {}: {error}",
+            resume.display()
+        ));
+    }
+    let state = if code == ExitCode::Succeeded {
+        "succeeded"
+    } else {
+        "failed"
+    };
+    let code = match write_progress(args, state, 1.0) {
+        Ok(()) => code,
+        Err(failure) => {
+            log.line(&failure.message);
+            // 計算の失敗のほうを返す（進み具合を書けないことより、失敗の理由が大事なため）
+            if code == ExitCode::Succeeded {
+                failure.code
+            } else {
+                code
+            }
+        }
+    };
+    match log.finish() {
+        Ok(()) => code,
+        Err(error) => {
+            eprintln!("cannot finish the log: {error}");
+            if code == ExitCode::Succeeded {
+                ExitCode::OutputUnwritable
+            } else {
+                code
+            }
+        }
+    }
+}
+
+/// 実行の失敗（終了の番号と理由）
+struct Failure {
+    code: ExitCode,
+    message: String,
+}
+
+impl Failure {
+    fn new(code: ExitCode, message: String) -> Self {
+        Self { code, message }
+    }
+}
+
+/// 計算の失敗を、入力の中身の誤り・入力を読めない・メモリの上限を超える・計算の失敗で終了の番号に分ける
+fn job_failure(failure: JobRunFailure) -> Failure {
+    let code = if failure.is_invalid_input() {
+        ExitCode::InputInvalid
+    } else if failure.is_unreadable_input() {
+        ExitCode::InputUnreadable
+    } else if failure.is_too_large() {
+        ExitCode::TooLarge
+    } else {
+        ExitCode::JobFailed
+    };
+    Failure::new(code, format!("code={} {}", failure.code, failure.message))
+}
+
+/// 入力を読んで計算し、成果物を書く。成果物のパスを返す
+fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
+    // 前の実行の成果物が残っていると、失敗した実行の成果物に見えるため、計算の前に消す
+    for name in [TOOLPATH_FILE, CUTTING_SIMULATION_FILE, STOCK_FILE] {
+        remove_if_exists(&args.output.join(name))?;
+    }
+    let input = read_file(&args.input, "input")?;
+    let mut progress = ProgressReporter::new(
+        args.progress.as_deref(),
+        Instant::now(),
+        write_progress_file,
+    );
+    let computed = compute(args, &input, log, &mut |done, total| {
+        progress.report(done, total, Instant::now());
+    });
+    // 途中の進み具合を書けなくても、計算は続ける（終わりの進み具合を書けなければ、そこで失敗にする）
+    if let Some(error) = progress.take_error() {
+        log.line(&error);
+    }
+    let computed = computed?;
+    fs::create_dir_all(&args.output).map_err(|error| {
+        Failure::new(
+            ExitCode::OutputUnwritable,
+            format!("cannot write in {}: {error}", args.output.display()),
+        )
+    })?;
+    // 終わりの素材を成果物より先に書く（成果物があれば、終わりの素材もあるように）
+    if let Some(stock) = &computed.stock {
+        write_output(&args.output.join(STOCK_FILE), stock)?;
+    }
+    let path = args.output.join(computed.file_name);
+    write_output(&path, &computed.artifact)?;
+    Ok(path)
+}
+
+/// 計算の結果
+struct Computed {
+    /// 成果物のバイト列
+    artifact: Vec<u8>,
+    /// 成果物のファイルの名前
+    file_name: &'static str,
+    /// 切削シミュレーションの終わりの素材のファイルのバイト列
+    stock: Option<Vec<u8>>,
+}
+
+fn write_output(path: &Path, bytes: &[u8]) -> Result<(), Failure> {
+    write_atomically(path, bytes).map_err(|error| {
+        Failure::new(
+            ExitCode::OutputUnwritable,
+            format!("cannot write {}: {error}", path.display()),
+        )
+    })
+}
+
+/// 入力の中身 `input` から計算し、成果物と、切削シミュレーションの終わりの素材を返す（計算の進み具合を `progress`
+/// に知らせる）
+fn compute(
+    args: &RunnerArgs,
+    input: &[u8],
+    log: &mut RunnerLog,
+    progress: &mut dyn FnMut(usize, usize),
+) -> Result<Computed, Failure> {
+    Ok(match args.job_kind {
+        JobKind::Cam => {
+            let input_checksum = checksum(input);
+            let input = read_cam_solver_input_v1(&mut &input[..]).map_err(|error| {
+                Failure::new(ExitCode::InputInvalid, format!("invalid input: {error}"))
+            })?;
+            let memory_limit = args.memory_limit.ok_or_else(|| {
+                Failure::new(
+                    ExitCode::Usage,
+                    "--memory-limit is required for cam".to_string(),
+                )
+            })?;
+            let artifact = match &args.resume {
+                Some(path) => {
+                    solve_resumable(path, input_checksum, (&input, memory_limit), log, progress)
+                }
+                None => run_cam_solver_resumable(&input, memory_limit, &mut NoRecords, progress),
+            }
+            .map_err(job_failure)?;
+            Computed {
+                artifact,
+                file_name: TOOLPATH_FILE,
+                stock: None,
+            }
+        }
+        JobKind::Sim => {
+            let toolpath_path = args.toolpath.as_deref().ok_or_else(|| {
+                Failure::new(
+                    ExitCode::Usage,
+                    "--toolpath is required for sim".to_string(),
+                )
+            })?;
+            let input = read_cutting_simulation_input_v1(&mut &input[..]).map_err(|error| {
+                Failure::new(ExitCode::InputInvalid, format!("invalid input: {error}"))
+            })?;
+            // ツールパスは大きくなることがあるため、丸ごと読まずに、ファイルから読みながら組み立てる
+            let mut toolpath = File::open(toolpath_path)
+                .map(|file| BufReader::with_capacity(TOOLPATH_READ_BUFFER_BYTES, file))
+                .map_err(|error| {
+                    Failure::new(
+                        ExitCode::InputUnreadable,
+                        format!(
+                            "cannot read the toolpath {}: {error}",
+                            toolpath_path.display()
+                        ),
+                    )
+                })?;
+            let mut start_stock = match &args.stock {
+                Some(path) => Some(BufReader::new(File::open(path).map_err(|error| {
+                    Failure::new(
+                        ExitCode::InputUnreadable,
+                        format!("cannot read the stock {}: {error}", path.display()),
+                    )
+                })?)),
+                None => None,
+            };
+            let run = run_cutting_simulation(
+                &input,
+                &mut toolpath,
+                start_stock
+                    .as_mut()
+                    .map(|stock| stock as &mut dyn std::io::Read),
+                progress,
+            )
+            .map_err(job_failure)?;
+            log.line(&format!(
+                "snapshots={} start_stock={}",
+                run.snapshot_count,
+                args.stock.is_some()
+            ));
+            Computed {
+                artifact: run.artifact,
+                file_name: CUTTING_SIMULATION_FILE,
+                stock: Some(run.stock),
+            }
+        }
+    })
+}
+
+/// 記録を読み書きしない区切りの記録（途中の結果のファイルを使わずに計算するとき）
+struct NoRecords;
+
+impl Checkpoints for NoRecords {
+    fn next_saved(&mut self) -> Option<SavedRecord> {
+        None
+    }
+
+    fn discard(&mut self, _reason: &str) {}
+
+    fn record(&mut self, _state: &[u8], _result: &[u8]) {}
+}
+
+/// 途中の結果のファイル `path` に区切りごとの記録を書き足しながら、入力とメモリの上限（バイト）`(input,
+/// memory_limit)` でツールパスを生成する（記録があれば続きから計算する）
+///
+/// ファイルを使えない（ランナーの実行ファイルを読めない・ファイルを開けない）ときは、記録せずに最初から計算する。
+/// 途中の結果の扱いは、ランナーのログに書く（画面には出さない）。計算の進み具合を `progress` に知らせる。
+fn solve_resumable(
+    path: &Path,
+    input_checksum: u64,
+    (input, memory_limit): (&cam_sim::CamSolverInput, u64),
+    log: &mut RunnerLog,
+    progress: &mut dyn FnMut(usize, usize),
+) -> Result<Vec<u8>, JobRunFailure> {
+    let runner_checksum = match std::env::current_exe().and_then(|runner| file_checksum(&runner)) {
+        Ok(checksum) => checksum,
+        Err(error) => {
+            log.line(&format!(
+                "resume: cannot read the runner: {error}; computing without recording"
+            ));
+            return run_cam_solver_resumable(input, memory_limit, &mut NoRecords, progress);
+        }
+    };
+    let mut resume = match ResumeFile::open(path, runner_checksum, input_checksum) {
+        Ok(resume) => resume,
+        Err(error) => {
+            log.line(&format!(
+                "resume: cannot use {}: {error}; computing without recording",
+                path.display()
+            ));
+            // 次の実行でも使えないままにならないように、消す
+            if let Err(error) = fs::remove_file(path)
+                && error.kind() != std::io::ErrorKind::NotFound
+            {
+                log.line(&format!(
+                    "resume: cannot remove {}: {error}",
+                    path.display()
+                ));
+            }
+            return run_cam_solver_resumable(input, memory_limit, &mut NoRecords, progress);
+        }
+    };
+    let mut write_notes = |resume: &mut ResumeFile| {
+        for note in resume.take_notes() {
+            log.line(&note);
+        }
+    };
+    write_notes(&mut resume);
+    let solved = run_cam_solver_resumable(input, memory_limit, &mut resume, progress);
+    write_notes(&mut resume);
+    solved
+}
+
+fn remove_if_exists(path: &Path) -> Result<(), Failure> {
+    match fs::remove_file(path) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(Failure::new(
+            ExitCode::OutputUnwritable,
+            format!("cannot remove {}: {error}", path.display()),
+        )),
+        _ => Ok(()),
+    }
+}
+
+fn read_file(path: &Path, what: &str) -> Result<Vec<u8>, Failure> {
+    fs::read(path).map_err(|error| {
+        Failure::new(
+            ExitCode::InputUnreadable,
+            format!("cannot read the {what} {}: {error}", path.display()),
+        )
+    })
+}
+
+/// 始まり・終わりの進み具合（状態と割合）を、指定された場合だけ書く
+fn write_progress(args: &RunnerArgs, state: &str, fraction: f64) -> Result<(), Failure> {
+    let Some(path) = &args.progress else {
+        return Ok(());
+    };
+    write_progress_file(path, &progress_json(state, fraction, None)).map_err(|error| {
+        Failure::new(
+            ExitCode::OutputUnwritable,
+            format!("cannot write the progress {}: {error}", path.display()),
+        )
+    })
+}
+
+/// 進み具合のファイル `path` に `json` を書く（フォルダがなければ作る）
+fn write_progress_file(path: &Path, json: &str) -> std::io::Result<()> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty());
+    parent
+        .map_or(Ok(()), fs::create_dir_all)
+        .and_then(|()| write_atomically(path, json.as_bytes()))
+}
+
+/// 一時の名前（`<名前>.tmp`）で書き、ドライブまで書き込んでから、正しい名前に変えて置き換える（読む側が書きかけを
+/// 読まないように）
+fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    platform_foundation::file::replace_file(path, &temporary_path(path), |file| {
+        file.write_all(bytes)
+    })
+}
+
+fn temporary_path(path: &Path) -> PathBuf {
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(".tmp");
+    path.with_file_name(name)
+}
+
+/// ログ。書いている間は一時の名前で、終わったら正しい名前に変える（ランナーが落ちた場合も、一時の名前のログは残る）
+struct RunnerLog {
+    file: File,
+    temporary: PathBuf,
+    path: PathBuf,
+    /// 書けなかった行の最初の誤り
+    write_error: Option<std::io::Error>,
+}
+
+impl RunnerLog {
+    fn create(dir: &Path) -> std::io::Result<Self> {
+        fs::create_dir_all(dir)?;
+        let path = dir.join(LOG_FILE);
+        let temporary = temporary_path(&path);
+        let file = File::create(&temporary)?;
+        Ok(Self {
+            file,
+            temporary,
+            path,
+            write_error: None,
+        })
+    }
+
+    /// 1 行書く。書けなくても計算は続ける（終わりの `finish` で誤りを返す）
+    fn line(&mut self, text: &str) {
+        if let Err(error) = writeln!(self.file, "{text}") {
+            self.write_error.get_or_insert(error);
+        }
+    }
+
+    fn finish(mut self) -> std::io::Result<()> {
+        if let Some(error) = self.write_error.take() {
+            return Err(error);
+        }
+        self.file.flush()?;
+        self.file.sync_all()?;
+        drop(self.file);
+        platform_foundation::file::rename(&self.temporary, &self.path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failures_are_split_into_exit_codes_by_their_codes() {
+        let code_of = |code: &'static str| {
+            job_failure(JobRunFailure {
+                code,
+                message: String::new(),
+            })
+            .code
+        };
+        assert_eq!(code_of("invalid_input"), ExitCode::InputInvalid);
+        assert_eq!(code_of("artifact-io-failed"), ExitCode::InputUnreadable);
+        assert_eq!(
+            code_of(cam_algorithms::CamSolverError::TooManyPoints.code()),
+            ExitCode::TooLarge
+        );
+        assert_eq!(code_of("no_solution"), ExitCode::JobFailed);
+    }
+}

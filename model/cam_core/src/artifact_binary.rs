@@ -37,6 +37,21 @@ pub const INTERFERENCE_MAGIC: [u8; 4] = *b"RRIN";
 /// cutting simulation artifact magic: `RRCS`
 pub const CUTTING_SIMULATION_MAGIC: [u8; 4] = *b"RRCS";
 
+/// ツールパス生成のジョブの入力の magic: `RRCI`
+pub const CAM_SOLVER_INPUT_MAGIC: [u8; 4] = *b"RRCI";
+
+/// 切削シミュレーションのジョブの入力の magic: `RRSI`
+pub const CUTTING_SIMULATION_INPUT_MAGIC: [u8; 4] = *b"RRSI";
+
+/// 空間モデル（モデルファイル）の magic: `RRMF`
+pub const SPACE_MODEL_MAGIC: [u8; 4] = *b"RRMF";
+
+/// ツールライブラリのファイルの magic: `RRTL`
+pub const TOOL_LIBRARY_MAGIC: [u8; 4] = *b"RRTL";
+
+/// 素材のファイル（切削シミュレーションの区間の終わりの素材）の magic: `RRST`
+pub const STOCK_MAGIC: [u8; 4] = *b"RRST";
+
 pub const FORMAT_VERSION_MAJOR_V1: u16 = 0;
 pub const FORMAT_VERSION_MINOR_V1: u16 = 3;
 
@@ -64,6 +79,16 @@ pub enum ArtifactKind {
     ToolPath,
     Interference,
     CuttingSimulation,
+    /// ツールパス生成のジョブの入力
+    CamSolverInput,
+    /// 切削シミュレーションのジョブの入力
+    CuttingSimulationInput,
+    /// 空間モデル（モデルファイル）
+    SpaceModel,
+    /// ツールライブラリのファイル
+    ToolLibrary,
+    /// 素材のファイル
+    Stock,
 }
 
 impl ArtifactKind {
@@ -72,6 +97,11 @@ impl ArtifactKind {
             Self::ToolPath => TOOLPATH_MAGIC,
             Self::Interference => INTERFERENCE_MAGIC,
             Self::CuttingSimulation => CUTTING_SIMULATION_MAGIC,
+            Self::CamSolverInput => CAM_SOLVER_INPUT_MAGIC,
+            Self::CuttingSimulationInput => CUTTING_SIMULATION_INPUT_MAGIC,
+            Self::SpaceModel => SPACE_MODEL_MAGIC,
+            Self::ToolLibrary => TOOL_LIBRARY_MAGIC,
+            Self::Stock => STOCK_MAGIC,
         }
     }
 
@@ -82,6 +112,16 @@ impl ArtifactKind {
             Some(Self::Interference)
         } else if magic == CUTTING_SIMULATION_MAGIC {
             Some(Self::CuttingSimulation)
+        } else if magic == CAM_SOLVER_INPUT_MAGIC {
+            Some(Self::CamSolverInput)
+        } else if magic == CUTTING_SIMULATION_INPUT_MAGIC {
+            Some(Self::CuttingSimulationInput)
+        } else if magic == SPACE_MODEL_MAGIC {
+            Some(Self::SpaceModel)
+        } else if magic == TOOL_LIBRARY_MAGIC {
+            Some(Self::ToolLibrary)
+        } else if magic == STOCK_MAGIC {
+            Some(Self::Stock)
         } else {
             None
         }
@@ -531,6 +571,16 @@ pub enum ArtifactPayload {
     Interference(InterferencePayload),
     /// 本モジュールでは中身を解釈しないバイト列
     CuttingSimulation(Vec<u8>),
+    /// 本モジュールでは中身を解釈しないバイト列
+    CamSolverInput(Vec<u8>),
+    /// 本モジュールでは中身を解釈しないバイト列
+    CuttingSimulationInput(Vec<u8>),
+    /// 本モジュールでは中身を解釈しないバイト列
+    SpaceModel(Vec<u8>),
+    /// 本モジュールでは中身を解釈しないバイト列
+    ToolLibrary(Vec<u8>),
+    /// 本モジュールでは中身を解釈しないバイト列
+    Stock(Vec<u8>),
 }
 
 /// ヘッダ + ペイロードを一括読み込みするエントリーポイント。
@@ -558,20 +608,43 @@ pub fn read_artifact_v1<R: Read>(
             ArtifactPayload::Interference(interference)
         }
         ArtifactKind::CuttingSimulation => {
-            let length = usize::try_from(header.payload_len)
-                .map_err(|_| BinaryFormatError::LengthOverflow("payload_len"))?;
-            // 長さはファイルに書かれた値のため、読んだバイトの数に応じて確保する
-            let mut payload = Vec::with_capacity(length.min(MAX_PREALLOCATED_BYTES));
-            reader.take(header.payload_len).read_to_end(&mut payload)?;
-            if payload.len() != length {
-                return Err(BinaryFormatError::Io(std::io::Error::from(
-                    std::io::ErrorKind::UnexpectedEof,
-                )));
-            }
-            ArtifactPayload::CuttingSimulation(payload)
+            ArtifactPayload::CuttingSimulation(read_opaque_payload(reader, header.payload_len)?)
+        }
+        ArtifactKind::CamSolverInput => {
+            ArtifactPayload::CamSolverInput(read_opaque_payload(reader, header.payload_len)?)
+        }
+        ArtifactKind::CuttingSimulationInput => ArtifactPayload::CuttingSimulationInput(
+            read_opaque_payload(reader, header.payload_len)?,
+        ),
+        ArtifactKind::SpaceModel => {
+            ArtifactPayload::SpaceModel(read_opaque_payload(reader, header.payload_len)?)
+        }
+        ArtifactKind::ToolLibrary => {
+            ArtifactPayload::ToolLibrary(read_opaque_payload(reader, header.payload_len)?)
+        }
+        ArtifactKind::Stock => {
+            ArtifactPayload::Stock(read_opaque_payload(reader, header.payload_len)?)
         }
     };
     Ok((header, payload))
+}
+
+/// 中身を解釈しない本体（`payload_len` バイト）を読む
+fn read_opaque_payload<R: Read>(
+    reader: &mut R,
+    payload_len: u64,
+) -> Result<Vec<u8>, BinaryFormatError> {
+    let length = usize::try_from(payload_len)
+        .map_err(|_| BinaryFormatError::LengthOverflow("payload_len"))?;
+    // 長さはファイルに書かれた値のため、読んだバイトの数に応じて確保する
+    let mut payload = Vec::with_capacity(length.min(MAX_PREALLOCATED_BYTES));
+    reader.take(payload_len).read_to_end(&mut payload)?;
+    if payload.len() != length {
+        return Err(BinaryFormatError::Io(std::io::Error::from(
+            std::io::ErrorKind::UnexpectedEof,
+        )));
+    }
+    Ok(payload)
 }
 
 pub fn read_toolpath_artifact_v1<R: Read>(
@@ -580,12 +653,16 @@ pub fn read_toolpath_artifact_v1<R: Read>(
     let (header, payload) = read_artifact_v1(reader)?;
     match payload {
         ArtifactPayload::ToolPath(toolpath) => Ok((header, toolpath)),
-        ArtifactPayload::Interference(_) | ArtifactPayload::CuttingSimulation(_) => {
-            Err(BinaryFormatError::ArtifactKindMismatch {
-                expected: ArtifactKind::ToolPath,
-                found: header.kind,
-            })
-        }
+        ArtifactPayload::Interference(_)
+        | ArtifactPayload::CuttingSimulation(_)
+        | ArtifactPayload::CamSolverInput(_)
+        | ArtifactPayload::CuttingSimulationInput(_)
+        | ArtifactPayload::SpaceModel(_)
+        | ArtifactPayload::ToolLibrary(_)
+        | ArtifactPayload::Stock(_) => Err(BinaryFormatError::ArtifactKindMismatch {
+            expected: ArtifactKind::ToolPath,
+            found: header.kind,
+        }),
     }
 }
 
@@ -595,12 +672,16 @@ pub fn read_interference_artifact_v1<R: Read>(
     let (header, payload) = read_artifact_v1(reader)?;
     match payload {
         ArtifactPayload::Interference(interference) => Ok((header, interference)),
-        ArtifactPayload::ToolPath(_) | ArtifactPayload::CuttingSimulation(_) => {
-            Err(BinaryFormatError::ArtifactKindMismatch {
-                expected: ArtifactKind::Interference,
-                found: header.kind,
-            })
-        }
+        ArtifactPayload::ToolPath(_)
+        | ArtifactPayload::CuttingSimulation(_)
+        | ArtifactPayload::CamSolverInput(_)
+        | ArtifactPayload::CuttingSimulationInput(_)
+        | ArtifactPayload::SpaceModel(_)
+        | ArtifactPayload::ToolLibrary(_)
+        | ArtifactPayload::Stock(_) => Err(BinaryFormatError::ArtifactKindMismatch {
+            expected: ArtifactKind::Interference,
+            found: header.kind,
+        }),
     }
 }
 

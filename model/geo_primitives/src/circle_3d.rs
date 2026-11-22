@@ -9,10 +9,10 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
     Circle3DConstructor, Circle3DContainment, Circle3DDistance, Circle3DEvaluation,
     Circle3DProjection, Circle3DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata,
-    Scalar, TolerantEq,
+    Scalar, TolerantEq, default_angle_tolerance, default_distance_tolerance,
+    default_kernel_numerical_zero_tolerance,
 };
 
 /// 3次元空間の円
@@ -93,6 +93,15 @@ impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
             ref_direction: Self::compute_default_ref_direction(axis),
             radius,
         })
+    }
+
+    fn from_frame(
+        center: Point3D<T>,
+        axis: Direction3D<T>,
+        ref_direction: Direction3D<T>,
+        radius: T,
+    ) -> Option<Self> {
+        Self::new_with_ref_direction(center, axis, ref_direction, radius)
     }
 
     fn new_xy_plane(center: Point3D<T>, radius: T) -> Option<Self> {

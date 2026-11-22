@@ -1,14 +1,20 @@
 //! ヘルプ（操作の一覧・バージョンの情報）と、画面の下のステータスバーの文言（日本語・英語）
 
 use viewmodel::message_catalog::{
-    resolve_message, TableMessageCatalog, UiLocale, UiMessage, UiMessageArg,
+    TableMessageCatalog, UiLocale, UiMessage, UiMessageArg, resolve_message,
 };
 
 const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
+    (
+        "notice.log.hint",
+        "最近のメッセージと、選んだ工程の状態を見る",
+    ),
+    ("notice.log.state", "選んだ工程の状態"),
+    ("notice.log.history", "最近のメッセージ（新しい順）"),
     ("help.window.title", "操作の一覧"),
     (
         "help.note.text_input",
-        "設定パネル・加工条件のウィンドウの入力欄を編集している間は、打った文字はキー操作になりません（Esc での終了を除く）。",
+        "設定パネル・設定のダイアログの入力欄を編集している間は、打った文字はキー操作になりません（Esc での終了を除く）。工程の名前を編集している間の Esc は、編集の取り消しです。設定のダイアログを開いている間は、見る操作のキーだけを受けます。",
     ),
     ("help.header.camera", "カメラ"),
     ("help.header.cutting", "切削シミュレーション"),
@@ -16,9 +22,12 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("help.header.app", "アプリ"),
     ("help.input.ctrl_left_drag", "Ctrl + 左ドラッグ"),
     ("help.input.ctrl_middle_drag", "Ctrl + 中ドラッグ"),
-    ("help.input.ctrl_right_drag", "Ctrl + 右ドラッグ / Ctrl + ホイール"),
+    (
+        "help.input.ctrl_right_drag",
+        "Ctrl + 右ドラッグ / Ctrl + ホイール",
+    ),
     ("help.input.progress_drag", "進捗バーを左ドラッグ"),
-    ("help.input.drop", "STL をドロップ"),
+    ("help.input.drop", "ファイルをドロップ"),
     ("help.camera.rotate", "回転"),
     ("help.camera.pan", "パン"),
     ("help.camera.zoom", "ズーム"),
@@ -26,36 +35,115 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
     ("help.camera.standard", "標準 CAD 視点"),
     ("help.camera.front", "正面視点"),
     ("help.camera.escape", "緊急脱出（めり込んだカメラを戻す）"),
-    ("help.cutting.conditions", "加工条件のウィンドウの表示・非表示（「投入」で投入）"),
-    ("help.cutting.run", "キューにあるジョブを実行"),
-    ("help.cutting.import", "今の条件で計算した最も新しい結果を取り込み"),
+    (
+        "help.cutting.conditions",
+        "加工手順を開いている間、工程リストの表示・非表示（「計算」で計算）",
+    ),
+    (
+        "help.cutting.rename",
+        "工程リストを出している間、選んだ工程の名前の変更",
+    ),
+    (
+        "help.cutting.import",
+        "加工手順を開いている間、今の条件で計算した最も新しい結果の表示・非表示",
+    ),
     ("help.cutting.step", "コマ送りの移動量だけ進む / 戻る"),
     ("help.cutting.endpoint", "工具を次 / 前の区間の端点へ移す"),
     ("help.cutting.play", "自動再生 / 一時停止"),
     ("help.cutting.stop", "自動再生を停止して先頭へ"),
     ("help.cutting.speed", "再生速度を 2 倍 / 半分"),
     ("help.cutting.scrub", "左上の進捗バーで、任意の時点へ移す"),
-    ("help.display.wireframe", "ソリッド表示 / ワイヤーフレーム表示"),
+    (
+        "help.display.wireframe",
+        "ソリッド表示 / ワイヤーフレーム表示",
+    ),
     ("help.display.toolpath", "ツールパスの線の表示・非表示"),
     ("help.display.tool", "工具の線の表示・非表示"),
     ("help.app.settings", "設定パネルの表示・非表示"),
     ("help.app.help", "この一覧の表示・非表示"),
-    ("help.app.load", "形状を読み込む（「ファイル」→「読み込み…」と同じ）"),
+    ("help.app.new", "新しい空間モデル"),
+    ("help.app.open", "モデルファイルを開く"),
+    ("help.app.save", "保存"),
+    ("help.app.save_as", "名前を付けて保存"),
+    (
+        "help.app.drop",
+        "モデルファイルは開き、STL は形状を読み込む",
+    ),
     ("help.app.quit", "終了"),
     ("about.window.title", "バージョンの情報"),
     ("about.version", "RedRing {version}（プレビュー）"),
     ("about.log_file", "ログのファイル: {path}"),
-    ("about.no_log_file", "ログのファイルを作れなかったため、ログはコンソールにだけ出しています"),
+    (
+        "about.no_log_file",
+        "ログのファイルを作れなかったため、ログはコンソールにだけ出しています",
+    ),
     ("about.manual", "マニュアル"),
     ("about.manual.url", "https://redring2020.github.io/RedRing/"),
-    ("notice.startup", "F1 キー、または「ヘルプ」→「操作の一覧」で、操作を確かめられます"),
+    (
+        "notice.startup",
+        "F1 キー、または「ヘルプ」→「操作の一覧」で、操作を確かめられます",
+    ),
     ("notice.shape_imported", "形状を読み込みました: {file}"),
-    ("notice.shape_import_failed", "形状を読み込めません: {file}（{reason}）"),
+    (
+        "notice.step_imported",
+        "STEP ファイルを読み込みました: {file}（形状 {shapes} 個）",
+    ),
+    (
+        "notice.step_imported_with_skipped",
+        "STEP ファイルを読み込みました: {file}（形状 {shapes} 個。読めなかった・配置できなかった要素 {skipped} 個。理由はログを確認してください）",
+    ),
+    (
+        "notice.shape_import_failed",
+        "形状を読み込めません: {file}（{reason}）",
+    ),
+    ("notice.model_created", "新しい空間モデルにしました"),
+    (
+        "notice.job_manager_not_running",
+        "ジョブマネージャーが動いていないため、計算の状態が分かりません。計算開始すると起動します",
+    ),
+    (
+        "notice.job_manager_available",
+        "ジョブマネージャーにつながりました",
+    ),
+    (
+        "notice.job_manager_not_found",
+        "ジョブマネージャーが見つからないため、計算と状態の確認ができません",
+    ),
+    (
+        "notice.job_manager_stopped",
+        "ジョブマネージャーが停止中のため計算されていません",
+    ),
+    ("notice.model_opened", "開きました: {file}"),
+    ("notice.model_open_failed", "開けません: {file}（{reason}）"),
+    ("notice.model_saved", "保存しました: {file}"),
+    (
+        "notice.model_save_failed",
+        "保存できません: {file}（{reason}）",
+    ),
+    (
+        "notice.tool_library_failed",
+        "ツールライブラリに書けません: {file}（{reason}）",
+    ),
+    (
+        "notice.tools_aligned",
+        "工具をライブラリにそろえました。計算し直しになる工程: {count}",
+    ),
     (
         "notice.not_imported",
         "切削シミュレーションを取り込んでから操作してください",
     ),
-    ("notice.no_tool_segments", "ツールパスに区間がないため、工具を区間の端点へ移せません"),
+    (
+        "notice.no_tool_segments",
+        "ツールパスに区間がないため、工具を区間の端点へ移せません",
+    ),
+    (
+        "notice.lines_not_drawn",
+        "線が多すぎて GPU のメモリが足りないため、表示できません",
+    ),
+    (
+        "notice.shapes_not_drawn",
+        "形状が大きすぎて GPU のメモリが足りないため、表示できない形状があります",
+    ),
     (
         "notice.apply_without_animation",
         "切削アニメーションの表示中ではないため、設定を反映できません",
@@ -76,7 +164,10 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "notice.settings_not_saved",
         "設定のファイルを使えないため、選んだ設定は次の起動に残りません",
     ),
-    ("notice.settings_save_failed", "アプリの設定を保存できません（{reason}）"),
+    (
+        "notice.settings_save_failed",
+        "アプリの設定を保存できません（{reason}）",
+    ),
     ("fatal.panic.title", "RedRing の異常終了"),
     (
         "fatal.panic.body",
@@ -88,17 +179,20 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "画面の描画に使う GPU の装置が使えなくなったため、RedRing を終了します。{detail}\n\n{log_file}",
     ),
     ("fatal.log_file", "ログのファイル: {path}"),
-    (
-        "fatal.no_log_file",
-        "ログのファイルは作れませんでした",
-    ),
+    ("fatal.no_log_file", "ログのファイルは作れませんでした"),
 ];
 
 const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
+    (
+        "notice.log.hint",
+        "Show recent messages and the state of the selected operation",
+    ),
+    ("notice.log.state", "State of the selected operation"),
+    ("notice.log.history", "Recent messages (newest first)"),
     ("help.window.title", "Controls"),
     (
         "help.note.text_input",
-        "While editing a field in the settings panel or the machining conditions window, typed characters are not used as keys (except Esc to quit).",
+        "While editing a field in the settings panel or a settings dialog, typed characters are not used as keys (except Esc to quit). While editing an operation name, Esc cancels the edit. While a settings dialog is open, only the viewing keys are used.",
     ),
     ("help.header.camera", "Camera"),
     ("help.header.cutting", "Cutting simulation"),
@@ -106,51 +200,130 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
     ("help.header.app", "Application"),
     ("help.input.ctrl_left_drag", "Ctrl + left drag"),
     ("help.input.ctrl_middle_drag", "Ctrl + middle drag"),
-    ("help.input.ctrl_right_drag", "Ctrl + right drag / Ctrl + wheel"),
+    (
+        "help.input.ctrl_right_drag",
+        "Ctrl + right drag / Ctrl + wheel",
+    ),
     ("help.input.progress_drag", "Drag the progress bar"),
-    ("help.input.drop", "Drop an STL file"),
+    ("help.input.drop", "Drop a file"),
     ("help.camera.rotate", "Rotate"),
     ("help.camera.pan", "Pan"),
     ("help.camera.zoom", "Zoom"),
     ("help.camera.reset", "Reset the camera (fit to the shapes)"),
     ("help.camera.standard", "Standard CAD view"),
     ("help.camera.front", "Front view"),
-    ("help.camera.escape", "Emergency escape (bring back a camera inside a shape)"),
+    (
+        "help.camera.escape",
+        "Emergency escape (bring back a camera inside a shape)",
+    ),
     (
         "help.cutting.conditions",
-        "Show or hide the machining conditions window (submit with \"Submit\")",
+        "While a machining sequence is open, show or hide the operation list (calculate with \"Calculate\")",
     ),
-    ("help.cutting.run", "Run the queued jobs"),
-    ("help.cutting.import", "Import the latest result of the current conditions"),
-    ("help.cutting.step", "Step forward / back by the step distance"),
-    ("help.cutting.endpoint", "Move the tool to the next / previous segment endpoint"),
+    (
+        "help.cutting.rename",
+        "While the operation list is shown, rename the selected operation",
+    ),
+    (
+        "help.cutting.import",
+        "While a machining sequence is open, show or hide the latest result of the current conditions",
+    ),
+    (
+        "help.cutting.step",
+        "Step forward / back by the step distance",
+    ),
+    (
+        "help.cutting.endpoint",
+        "Move the tool to the next / previous segment endpoint",
+    ),
     ("help.cutting.play", "Play / pause"),
     ("help.cutting.stop", "Stop playback and go to the start"),
     ("help.cutting.speed", "Double / halve the playback speed"),
-    ("help.cutting.scrub", "Move to any time with the progress bar at the top left"),
+    (
+        "help.cutting.scrub",
+        "Move to any time with the progress bar at the top left",
+    ),
     ("help.display.wireframe", "Solid / wireframe"),
     ("help.display.toolpath", "Show or hide the toolpath lines"),
     ("help.display.tool", "Show or hide the tool lines"),
     ("help.app.settings", "Show or hide the settings panel"),
     ("help.app.help", "Show or hide this list"),
-    ("help.app.load", "Load the shape (same as File → Load…)"),
+    ("help.app.new", "New space model"),
+    ("help.app.open", "Open a model file"),
+    ("help.app.save", "Save"),
+    ("help.app.save_as", "Save as"),
+    ("help.app.drop", "Open a model file, or load an STL shape"),
     ("help.app.quit", "Quit"),
     ("about.window.title", "About"),
     ("about.version", "RedRing {version} (preview)"),
     ("about.log_file", "Log file: {path}"),
-    ("about.no_log_file", "The log file could not be created, so the log goes only to the console"),
-    ("about.manual", "Manual"),
-    ("about.manual.url", "https://redring2020.github.io/RedRing/en/"),
-    ("notice.startup", "Press F1 or choose Help → Controls to see the controls"),
-    ("notice.shape_imported", "Loaded the shape: {file}"),
-    ("notice.shape_import_failed", "Cannot load the shape: {file} ({reason})"),
     (
-        "notice.not_imported",
-        "Import a cutting simulation first",
+        "about.no_log_file",
+        "The log file could not be created, so the log goes only to the console",
     ),
+    ("about.manual", "Manual"),
+    (
+        "about.manual.url",
+        "https://redring2020.github.io/RedRing/en/",
+    ),
+    (
+        "notice.startup",
+        "Press F1 or choose Help → Controls to see the controls",
+    ),
+    ("notice.shape_imported", "Loaded the shape: {file}"),
+    (
+        "notice.step_imported",
+        "Loaded the STEP file: {file} ({shapes} shapes)",
+    ),
+    (
+        "notice.step_imported_with_skipped",
+        "Loaded the STEP file: {file} ({shapes} shapes, {skipped} elements not loaded or not placed; see the log for the reasons)",
+    ),
+    (
+        "notice.shape_import_failed",
+        "Cannot load the shape: {file} ({reason})",
+    ),
+    ("notice.model_created", "Started a new space model"),
+    (
+        "notice.job_manager_not_running",
+        "The calculation status is unknown because the job manager is not running. It starts when you start a calculation",
+    ),
+    (
+        "notice.job_manager_available",
+        "Connected to the job manager",
+    ),
+    (
+        "notice.job_manager_not_found",
+        "Cannot calculate or check the calculation status because the job manager is not found",
+    ),
+    (
+        "notice.job_manager_stopped",
+        "Calculations are not running because the job manager is stopped",
+    ),
+    ("notice.model_opened", "Opened: {file}"),
+    ("notice.model_open_failed", "Cannot open: {file} ({reason})"),
+    ("notice.model_saved", "Saved: {file}"),
+    ("notice.model_save_failed", "Cannot save: {file} ({reason})"),
+    (
+        "notice.tool_library_failed",
+        "Cannot write the tool library: {file} ({reason})",
+    ),
+    (
+        "notice.tools_aligned",
+        "Tools matched to the libraries. Operations to recalculate: {count}",
+    ),
+    ("notice.not_imported", "Import a cutting simulation first"),
     (
         "notice.no_tool_segments",
         "The toolpath has no segments to move the tool to",
+    ),
+    (
+        "notice.lines_not_drawn",
+        "The lines cannot be shown because there are too many for the GPU memory",
+    ),
+    (
+        "notice.shapes_not_drawn",
+        "Some shapes cannot be shown because they are too large for the GPU memory",
     ),
     (
         "notice.apply_without_animation",
@@ -172,7 +345,10 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
         "notice.settings_not_saved",
         "The settings file cannot be used, so the choice is not kept for the next start",
     ),
-    ("notice.settings_save_failed", "Cannot save the settings ({reason})"),
+    (
+        "notice.settings_save_failed",
+        "Cannot save the settings ({reason})",
+    ),
     ("fatal.panic.title", "RedRing stopped"),
     (
         "fatal.panic.body",
@@ -184,10 +360,7 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
         "RedRing stops because the GPU device used for drawing is no longer available.{detail}\n\n{log_file}",
     ),
     ("fatal.log_file", "Log file: {path}"),
-    (
-        "fatal.no_log_file",
-        "The log file could not be created",
-    ),
+    ("fatal.no_log_file", "The log file could not be created"),
 ];
 
 pub const HELP_MESSAGE_CATALOG: TableMessageCatalog = TableMessageCatalog::new(

@@ -2,8 +2,8 @@
 //!
 //! 幾何形状間の距離計算アルゴリズムを提供します。
 
-use analysis::linalg::vector::Vector3;
 use analysis::Scalar;
+use analysis::linalg::vector::Vector3;
 
 /// 楕円の最近点を求める二分法の反復回数の上限
 ///
@@ -34,11 +34,7 @@ pub fn ellipse_2d_closest_point<T: Scalar>(
     semi_minor: T,
 ) -> (T, T) {
     let restore_sign = |value: T, reference: T| {
-        if reference < T::ZERO {
-            -value
-        } else {
-            value
-        }
+        if reference < T::ZERO { -value } else { value }
     };
 
     if semi_major >= semi_minor {

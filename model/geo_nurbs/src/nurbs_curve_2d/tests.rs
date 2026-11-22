@@ -1,11 +1,12 @@
 //! `NurbsCurve2D` のテスト
 
-use crate::knot::clamped_knot_vector;
 use crate::NurbsCurve2D;
+use crate::knot::clamped_knot_vector;
 use analysis::test_constants::TOLERANCE_F64;
 use geo_contracts::{
-    default_distance_tolerance, Bounded, NurbsCurve2DConstructor, NurbsCurve2DDerived,
-    NurbsCurve2DEvaluation, NurbsCurve2DProperties, NurbsError, PrimitiveKind, PrimitiveMetadata,
+    Bounded, NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
+    NurbsCurve2DProperties, NurbsError, PrimitiveKind, PrimitiveMetadata,
+    default_distance_tolerance,
 };
 use geo_core::{Point2D, Vector2D};
 use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2};

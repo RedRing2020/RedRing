@@ -16,6 +16,15 @@ impl MachiningSequenceId {
     fn new_random() -> Self {
         Self(Uuid::new_v4())
     }
+
+    /// UUID から作る（保存した手順の ID に戻すときに使う）
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
 }
 
 impl fmt::Display for MachiningSequenceId {
@@ -59,6 +68,23 @@ impl MachiningSequence {
         }
     }
 
+    /// 保存した ID・名前・加工の対象・素材・加工工程から作る（加工の対象の同じ面は 1 回だけ持つ）
+    pub fn restore(
+        id: MachiningSequenceId,
+        name: String,
+        target_faces: Vec<FaceId>,
+        stock: MachiningStock,
+        operations: Vec<MachiningOperation>,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            target_faces: unique_faces(target_faces),
+            stock,
+            operations,
+        }
+    }
+
     pub fn id(&self) -> MachiningSequenceId {
         self.id
     }
@@ -91,6 +117,40 @@ impl MachiningSequence {
     /// 加工工程を最後に加える
     pub fn push_operation(&mut self, operation: MachiningOperation) {
         self.operations.push(operation);
+    }
+
+    /// 加工工程を、加工の順の位置 `index` に挿む（工程の数より大きければ最後に加える）
+    pub fn insert_operation(&mut self, index: usize, operation: MachiningOperation) {
+        let index = index.min(self.operations.len());
+        self.operations.insert(index, operation);
+    }
+
+    /// ID が `id` の加工工程を除く。工程がなければ `false`
+    pub fn remove_operation(&mut self, id: MachiningOperationId) -> bool {
+        let Some(index) = self.position(id) else {
+            return false;
+        };
+        self.operations.remove(index);
+        true
+    }
+
+    /// ID が `id` の加工工程を、加工の順の位置 `index` に移す（工程の数以上なら最後へ）。工程の改訂の番号は
+    /// 変えない（工程の中身は変わらないため）。工程がなければ `false`
+    pub fn move_operation(&mut self, id: MachiningOperationId, index: usize) -> bool {
+        let Some(from) = self.position(id) else {
+            return false;
+        };
+        let operation = self.operations.remove(from);
+        let index = index.min(self.operations.len());
+        self.operations.insert(index, operation);
+        true
+    }
+
+    /// ID が `id` の加工工程の、加工の順の位置
+    pub fn position(&self, id: MachiningOperationId) -> Option<usize> {
+        self.operations
+            .iter()
+            .position(|operation| operation.id() == id)
     }
 
     /// 加工の対象を `target_faces` に替える。面の集合として今と違えば、すべての加工工程の改訂の番号を増やす

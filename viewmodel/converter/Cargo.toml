@@ -2,7 +2,7 @@
 name = "viewmodel"
 publish = false
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 description = "Data conversion layer for MVVM architecture - Model to View transformation"
 
@@ -16,6 +16,7 @@ thiserror = "2.0"
 
 # 試験の入力の形（メッシュ・STL など）を作るために使う
 [dev-dependencies]
+application = { path = "../../model/application", features = ["test-fixtures"] }
 geo_algorithms = { path = "../../model/geo_algorithms" }
 geo_contracts = { path = "../../model/geo_contracts" }
 geo_io = { path = "../../model/geo_io" }

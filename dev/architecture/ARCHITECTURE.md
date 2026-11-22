@@ -1,6 +1,6 @@
 # RedRing アーキテクチャ構成
 
-**最終更新日**: 2026年10月12日
+**最終更新日**: 2026年11月14日
 
 RedRing のレイヤー構成、クレートの責務と依存の規則を定義する。クレートの依存の検査は `scripts/check_architecture_dependencies.ps1` と、そのルール `scripts/_arch_rules_data.ps1` で行う。
 
@@ -8,7 +8,7 @@ RedRing のレイヤー構成、クレートの責務と依存の規則を定義
 
 | ディレクトリ | レイヤー | 役割 |
 | --- | --- | --- |
-| `foundation/` | 基盤 | ドメインに依存しない数値計算・ログ・ローカライズ |
+| `foundation/` | 基盤 | ドメインに依存しない数値計算・ログ・ローカライズ・動かす環境（OS など）の違いの吸収 |
 | `model/` | モデル | 幾何（`geo_*`）・CAM（`cam_*`）・ジョブ（`job_*`）・ユースケースの orchestration（`application`） |
 | `viewmodel/` | ビューモデル | モデルのデータを描画用のデータに変換する |
 | `view/` | ビュー | GPU 描画・ステージ・アプリケーション |
@@ -23,11 +23,17 @@ model
   application → geo_algorithms → geo_primitives / geo_nurbs → geo_contracts → geo_core
   application → geo_topology → geo_primitives / geo_nurbs
   application → geo_entity / geo_io（製品形状の取り込み）
+  application → geo_step → geo_topology / geo_algorithms（STEP の読み込み）
   geo_primitives → geo_commons
   geo_entity / geo_io → geo_primitives
+  geo_io → geo_algorithms（形状のバイト列の読み書き）
+  cam_sim → geo_io（ジョブの入力の形状の読み書き）
   cam_sim / application → job_domain → job_runtime
+  job_runner → cam_sim（ジョブ 1 つを計算するランナーの実行ファイル）
+  job_manager → job_runtime（ジョブを管理してランナーを起動するジョブマネージャーのサービス）
+  job_manager_app → job_manager / job_runtime（ジョブマネージャーの画面と実行ファイル。View の層から Model の層への依存の例外。ログの書き方は logging_foundation を使う）
   ↓
-foundation（analysis / logging_foundation / i18n_foundation）
+foundation（analysis / logging_foundation / i18n_foundation / platform_foundation）
 ```
 
 各クレートに許可された依存の正本は `scripts/_arch_rules_data.ps1` とする。
@@ -36,23 +42,28 @@ foundation（analysis / logging_foundation / i18n_foundation）
 
 - **`foundation/analysis`**: 線形代数などの純粋な数値解析・抽象型・許容誤差
 - **`foundation/logging_foundation`** / **`foundation/i18n_foundation`**: ログの初期化・レート制御 / ローカライズのメッセージカタログ
+- **`foundation/platform_foundation`**: 動かす環境（OS・コンテナなど）によって違う処理の、環境に依らない API の薄いラッパー（子プロセスの扱い・ファイルの置き換え・プロセスの間の口・利用者のフォルダの場所など）。ドメインの知識と画面の部品を持たない（動かす環境に依存するコードの方針）
 - **`geo_contracts`**: 幾何の trait定義の正本（抽象化）。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義し、`geo_core` の値型で型付けし、その値型を再エクスポートする。形状の具体型と実装を持たない
 - **`geo_commons`**: `analysis` のみに依存する、形状の型に依存しない共通の数値計算（楕円・楕円体の最近点と距離等）
 - **`geo_core`**: 最下位の幾何の値型（点・ベクトル・方向・相似変換・AABB・点の分類）と、許容誤差の既定値・変換のエラー。`analysis` のみに依存し、trait定義を持たず、操作は固有メソッドで提供する
 - **`geo_primitives`**: 解析形状の実装。`geo_contracts` の trait定義を実装し、必要に応じて `geo_commons` の計算へ委譲する
 - **`geo_nurbs`**: NURBS 曲線・曲面の実装。`geo_contracts` の trait定義を実装し、`geo_core` の型を使う
-- **`geo_topology`**: 位相構造（エッジ・ワイヤ・複合曲線等）
+- **`geo_topology`**: 位相構造（頂点・稜線・ループ・面の B-rep の表と、稜線の母曲線・面の曲面・パラメータ曲線、複合曲線等。`BREP_AND_STEP_IMPORT_DESIGN.md` 5 章）
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を使う、形状をまたぐ演算（距離・交差・衝突・テセレーション）
 - **`geo_entity`**: 業務に依らない CAD のエンティティ基盤（識別子・属性・関係）。業務（CAM 等）の属性・表示の定義は持たない
-- **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）
+- **`geo_io`**: ファイル I/O（STL / OBJ / PLY 等）と、形状（三角形メッシュ・NURBS 曲面）のバイト列の読み書き（ジョブの入力・モデルファイルで共有する）
+- **`geo_step`**: STEP（ISO 10303-21）のデータ交換。構文（バイト列からエンティティの表）・中間データ・位相を作る段を持つ。ファイルを開かず、バイト列を受ける。位相に依存するため `geo_io` と分ける（`BREP_AND_STEP_IMPORT_DESIGN.md` 4 章）
 - **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小の機械制約 / 加工の条件と素材の余裕の値）
 - **`cam_algorithms`**: CAM 固有のアルゴリズム（経路生成、順序最適化、干渉回避、機械制約の検証）
 - **`cam_sim`**: CAM 特化の実行・ユースケース（ToolPath の実行、除去量の更新、結果のキャッシュ）
 - **`cam_entity`**: CAM 向けの表示・属性の統合（CAM の業務の属性は、ここで定義する）
 - **`job_runtime`** / **`job_domain`**: CAD / CAM / CAE に依存しない実行制御 / ジョブ投入のポリシー
+- **`job_runner`**: ジョブ 1 つの計算だけを行うランナーの実行ファイル（`redring-batch-runner`）。引数・入力と成果物のファイル・ログ・進み具合・終了の番号だけを持つ（`JOB_MANAGER_STORAGE_DESIGN.md` 3 章）
+- **`job_manager`**: ジョブマネージャーのサービス。ジョブの保存先を排他に開き、投入の取り込み・実行の順・ランナーの起動と終わりの判断・取り消しを行う。保存先から答える、問い合わせる口の受け手も持つ。CAD/CAM に依らない（`JOB_MANAGER_STORAGE_DESIGN.md` 3.2、`JOB_IPC_DESIGN.md`）
+- **`job_ipc`**: ジョブマネージャーに問い合わせる口。口の名前、枠、要求と応答の型、要求を送る側と受ける側を持つ（利用者ごとの口の開き方・つなぎ方は `platform_foundation` の `ipc`）。ジョブの保存先の形式と分けるため、`platform_foundation` のほかには、ワークスペースの他のクレートに依存しない（`JOB_IPC_DESIGN.md`）
 - **`application`**: テセレーション・シミュレーション・ジョブ投入などのユースケースの orchestration（`APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`）
 - **`viewmodel/*`**: モデルのデータの描画用への変換（`converter`）、カメラ等のグラフィックス制御（`graphics`）
-- **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）
+- **`view/*`**: GPU 描画基盤（`render`）、レンダリングステージ（`stage`）、メインアプリケーション（`app`）、ジョブマネージャーの画面と実行ファイル（`job_manager_app`。`redring-job-manager`。CAD/CAM の ViewModel を通さず、`job_manager`・`job_runtime` に直接依存する。`CAM_OPERATION_UI_DESIGN.md` 3.7）
 
 ### レイヤー設計の重要ポイント
 
@@ -98,6 +109,43 @@ foundation（analysis / logging_foundation / i18n_foundation）
 - **依存方針**:
     - `job_runtime` は `geo_*` / `cam_*` / View系へ依存しない
     - `cam_*` / 将来のCAE側は `job_runtime` をアダプタ経由で利用する
+
+### 動かす環境に依存するコードの方針（2026年11月）
+
+OS・コンテナなど、動かす環境によって違う処理は、`foundation/platform_foundation` に集め、環境に依らない API の薄いラッパーとして使う。業務のクレートは、環境ごとの違い（`#[cfg(windows)]` など）と、OS の API のクレート（windows-sys など）を持たない。
+
+- **置くもの**: 動かす環境によって違う処理を、環境に依らない API で見せるもの
+    - OS の違い: 子プロセスの扱い（親のプロセスが終わると一緒に止まる組・コンソールを出さない指定）、プロセスの間の口（名前付きパイプ・UNIX ドメインソケット）、ウィンドウを前に出す権利を渡す処理、利用者の表示の言語、利用者だけが読み書きできるこの PC のフォルダ（作る・確かめる・直す。ネットワークのドライブでないか・権限）、サインインしたときに起動するプログラム、この PC の名前とサインインしている利用者の名前（`identity`。共有のファイルを書いている PC・利用者を見分ける）
+    - 動かす環境の違い: 利用者のフォルダの場所（`%LOCALAPPDATA%`・`$XDG_DATA_HOME` など）
+    - ファイルの置き換えと名前の変更（`file`）: 一時のファイルに書き、ドライブまで書き込んでから、名前を変えて置き換える。Windows で名前の変更をほかのプログラムに一時的に断られたときの試し直し、Windows 以外でのフォルダの書き込みを、ここに閉じる。ファイルを置き換える書き込み（ジョブの保存先・ランナーの成果物と進み具合・設定・モデルファイル）と、ジョブの保存先のファイル・フォルダの名前の変更（投入・取り込み・削除・ランナーのログ）は、どれもこれを使う
+- **置かないもの**
+    - ドメインの知識（ジョブ・ランナー・CAM など）。API は OS の言葉（プロセス・口・フォルダ）だけで作る。たとえば、ランナーの引数・ジョブのフォルダを知るランナーの起動（`job_manager` の `ProcessLauncher`）は業務のクレートに残し、その中の OS に依存する所だけを `platform_foundation` で呼ぶ
+    - 画面の部品（タスクトレイ・ウィンドウ・吹き出し）。View の層に残す
+    - 環境に依らない処理
+- **API の形**
+    - 環境ごとの違いは、クレートの中（環境ごとのファイル）に閉じる。使う側に `#[cfg]` を書かせない
+    - 対応しない環境では、何もしない形（その仕組みがないときの今の動き）にするか、使えないことをエラーで返す。どちらにするかは、その API ごとに決めて、ドキュメントコメントに書く
+    - 役割ごとにモジュールを分ける（`process`・`ipc` など）。呼ぶ所ができたときに足し、使う所のないモジュール・API を置かない（`GEO_API_ADDITION_RULES.md` と同じ考え）
+- **依存**
+    - `platform_foundation` は、ワークスペースの他のクレートに依存しない
+    - foundation の他のクレート（`analysis` など）は、`platform_foundation` に依存しない（純粋な計算に環境への依存を入れないため）
+    - Model・Application・View のクレートは、要るものだけが依存する（`scripts/_arch_rules_data.ps1` で、依存してよいクレートを決める）
+    - OS の API のクレート（windows-sys など）を使ってよいのは、`platform_foundation` と、画面の部品の OS への依存を持つ View の実行ファイル（`job_manager_app`）だけとする
+    - 外のクレート（windows-sys など）の決まりは、今の依存チェック（`scripts/check_architecture_dependencies.ps1`）では検査しない（ワークスペースの中のクレートの依存だけを見るため）。検査に足すまでは人が守る。検査に足すことは、後の課題とする
+- **試験**
+    - 環境に依存する実装の試験は、`platform_foundation` の中で行う（環境ごとに、CI の Ubuntu と Windows で確かめる）
+    - 業務のクレートの試験は、今ある境目の trait（`job_manager` の `Launcher` など）で差し替える。`platform_foundation` を差し替えるための trait は作らない
+- **移す順**（今の環境に依存するコードと、移す先）
+
+| 順 | 今の場所 | 中身 | 扱い |
+|---|---|---|---|
+| 1 | `job_manager` の `launcher.rs`、`application` の `job_client/pipe.rs` | コンソールを出さない指定（`#[cfg(windows)]`。ランナーとジョブマネージャーを起動するとき） | `platform_foundation` の `process` に移し、2 か所で同じ API を使う。ランナーをジョブオブジェクトに入れる処理と一緒に入れる（`JOB_MANAGER_STORAGE_DESIGN.md` 3.3） |
+| 2 | `job_ipc` の `endpoint/windows.rs`・`unix.rs` | 名前付きパイプ・UNIX ドメインソケット、ウィンドウを前に出す権利を渡す（`allow_server_foreground`）（windows-sys） | `platform_foundation` の `ipc` に移す。枠・要求と応答の型は `job_ipc` に残す |
+| 3 | `job_runtime` の `store.rs`、`app` の `app_settings.rs`、`job_manager_app` の `settings.rs` | 利用者のフォルダの場所 | `platform_foundation` の `folder` に移し、3 か所で共有する（データのフォルダ・設定のフォルダ。その下の `RedRing` のフォルダの名前は、使う側が付ける） |
+| 4 | `job_manager_app` の `main.rs`・`tray.rs`・`locale.rs`・`store_change.rs` | タスクトレイ（ウィンドウを前に出す権利を渡す処理を含む）・レジストリ・ロケールなど（windows-sys） | タスクトレイ・吹き出し・ウィンドウなどの画面の部品は残す。画面の部品でないもの（OS の表示の言語、ネットワークのドライブの判定、サインインしたときに起動するプログラムのレジストリ）は、`platform_foundation` の `locale`・`folder`・`autostart` に移す（起動するコマンドの組み立てと、保存先の指定を外すなどの判断は `job_manager_app` に残す） |
+
+- 1 は、`JOB_MANAGER_STORAGE_DESIGN.md` 3.3 の段階 3（ランナーを残さない）で行った（`platform_foundation` の `process`）。3 は、`platform_foundation` の `folder` で行った（ジョブマネージャーのログのフォルダも、ここから求める）。2 は、`platform_foundation` の `ipc` で行った（口の名前は、`job_ipc` が渡す）。4 は、`platform_foundation` の `locale`・`folder`（今は `check_private_folder`）・`autostart` で行った（`job_manager_app` で windows-sys を使うのは、タスクトレイだけになった）。表の今の場所は、移す前の場所
+- クレートを作る変更で、ワークスペースの `members`・`scripts/_arch_rules_data.ps1`・この文書の層の図を更新する（依存チェック運用）
 
 ## 📏 運用ルール
 
@@ -328,5 +376,7 @@ redring（view/app） → stage → render
 - [`TRANSFORM_TRAIT_DESIGN.md`](TRANSFORM_TRAIT_DESIGN.md) - 変換の trait定義
 - [`FIXTURE_SEPARATION_DESIGN.md`](FIXTURE_SEPARATION_DESIGN.md) - Model fixtures の分離方針
 - [`BATCH_COMPUTE_PLATFORM_DESIGN.md`](BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Docker ヘッドレス + Kubernetes）
+- [`SPACE_MODEL_FILE_DESIGN.md`](SPACE_MODEL_FILE_DESIGN.md) - 空間モデル（モデルファイル `.rrm`）の内容・形式・ID の保ち方
+- [`TOOL_LIBRARY_DESIGN.md`](TOOL_LIBRARY_DESIGN.md) - ツールライブラリ（工具の台帳。複数のクライアントの環境では共有フォルダで使う）と、加工工程の工具の持ち方、工作機械の T 番号の表
 - [`issue-412-artifact-api-naming-archive-note.md`](../archive/issues/issue-412-artifact-api-naming-archive-note.md) - artifact API 命名整理の判断記録
 - [`issue-832-architecture-history-archive-note.md`](../archive/issues/architecture/issue-832-architecture-history-archive-note.md) - 完了した移行計画と、解消した課題の記録

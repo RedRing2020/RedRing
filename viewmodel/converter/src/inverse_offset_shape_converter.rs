@@ -71,12 +71,16 @@ mod tests {
         };
         assert_eq!(mesh.kind, InverseOffsetPartKind::UpperSide);
         assert_eq!(mesh.indices, (0..6).collect::<Vec<u32>>());
-        assert!(mesh.vertices[..3]
-            .iter()
-            .all(|vertex| vertex.normal == [0.0, 0.0, 1.0]));
-        assert!(mesh.vertices[3..]
-            .iter()
-            .all(|vertex| vertex.normal == [0.0, 0.0, -1.0]));
+        assert!(
+            mesh.vertices[..3]
+                .iter()
+                .all(|vertex| vertex.normal == [0.0, 0.0, 1.0])
+        );
+        assert!(
+            mesh.vertices[3..]
+                .iter()
+                .all(|vertex| vertex.normal == [0.0, 0.0, -1.0])
+        );
         assert_eq!(mesh.vertices[1].position, [1.0, 0.0, 1.0]);
     }
 
@@ -87,9 +91,11 @@ mod tests {
             kind: InverseOffsetPartKind::UpperSide,
             triangles: vec![line],
         }]);
-        assert!(meshes[0]
-            .vertices
-            .iter()
-            .all(|vertex| vertex.normal == [0.0, 0.0, 1.0]));
+        assert!(
+            meshes[0]
+                .vertices
+                .iter()
+                .all(|vertex| vertex.normal == [0.0, 0.0, 1.0])
+        );
     }
 }

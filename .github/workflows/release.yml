@@ -39,11 +39,9 @@ jobs:
           ref: refs/tags/${{ env.TAG }}
           persist-credentials: false
 
-      # 同じタグから同じ配布物ができるように、コンパイラの版を固定する（上げるときは手で直す）
+      # 同じタグから同じ配布物ができるように、コンパイラの版を rust-toolchain.toml で固定する（ここでは、その版を入れる）
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: 1.99.0
+        uses: ./.github/actions/setup-rust
 
       - name: Check the version
         run: |
@@ -58,23 +56,28 @@ jobs:
       - name: Build
         env:
           RUSTFLAGS: -C target-feature=+crt-static
-        run: cargo build --release --locked -p redring
+        run: cargo build --release --locked -p redring -p job_manager_app -p job_runner
 
       - name: Generate the SBOM
         run: |
           cargo install cargo-cyclonedx --locked --version 0.5.10
           cargo cyclonedx --manifest-path view/app/Cargo.toml -f json --spec-version 1.5 `
             --target x86_64-pc-windows-msvc --override-filename redring-sbom -qq
+          cargo cyclonedx --manifest-path view/job_manager_app/Cargo.toml -f json --spec-version 1.5 `
+            --target x86_64-pc-windows-msvc --override-filename redring-sbom -qq
 
       - name: Package
         run: |
           $name = "redring-$env:TAG-windows-x86_64"
           New-Item -ItemType Directory -Force dist/$name | Out-Null
-          Copy-Item target/release/redring.exe, LICENSE, LICENSE-MIT, LICENSE-APACHE, README.md, README.jp.md dist/$name
+          # アプリは、同じフォルダのジョブマネージャーを、ジョブマネージャーは同じフォルダのランナーを起動する
+          Copy-Item target/release/redring.exe, target/release/redring-job-manager.exe, `
+            target/release/redring-batch-runner.exe, LICENSE, LICENSE-MIT, LICENSE-APACHE, README.md, README.jp.md dist/$name
           Compress-Archive -Path dist/$name -DestinationPath dist/$name.zip
           Copy-Item view/app/redring-sbom.json "dist/$name.cdx.json"
+          Copy-Item view/job_manager_app/redring-sbom.json "dist/$name-job-manager.cdx.json"
           # sha256sum -c でも確かめられるように、小文字の 16 進数と LF の改行で書く
-          $lines = Get-ChildItem "dist/$name.zip", "dist/$name.cdx.json" | ForEach-Object {
+          $lines = Get-ChildItem "dist/$name.zip", "dist/$name.cdx.json", "dist/$name-job-manager.cdx.json" | ForEach-Object {
             "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
           }
           [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", (($lines -join "`n") + "`n"))

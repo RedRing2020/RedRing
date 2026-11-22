@@ -6,7 +6,7 @@ use application::toolpath::{LineSegment3D, LineSegment3DProperties, Point3D, Too
 use std::f64::consts::TAU;
 
 use crate::mesh_converter::WireframeVertex;
-use crate::toolpath_converter::{toolpath_to_vertices, ToolPathVisualizationSettings};
+use crate::toolpath_converter::{ToolPathVisualizationSettings, toolpath_to_vertices};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ToolWireframeVisualizationSettings {

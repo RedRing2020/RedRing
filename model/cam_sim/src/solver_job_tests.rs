@@ -123,6 +123,7 @@ fn assert_cam_to_simulation_succeeds(tool: Tool<f64>) {
                 ),
                 tool: tool.clone(),
                 precision: 6.25,
+                grid_tool_radius: tool.radius(),
                 snapshot_interval: SnapshotInterval::default(),
                 product: SolverGeometry::TriangleMesh(pyramid_mesh()),
                 tolerance: 0.01,
@@ -328,7 +329,7 @@ fn material_left_above_flat_face(
     let mut input = scanline_input(SolverGeometry::TriangleMesh(flat), tool.clone());
     let OperationSpec::Scanline(params) = &mut input.operation;
     params.tool_range = tool_range;
-    let toolpath = cam_algorithms::solve_toolpath(&input).unwrap();
+    let toolpath = cam_algorithms::solve_toolpath(&input, usize::MAX).unwrap();
 
     // 素材の底は z = -2（平坦面より上の `stock_top` の厚さを削る）
     let stock = Aabb3D::new(

@@ -13,18 +13,23 @@ fn stock() -> MachiningStock {
 
 fn content(stepover: f64) -> MachiningOperationContent {
     MachiningOperationContent {
-        name: "仕上げ".to_string(),
-        stage: MachiningStage::Finish,
-        spec: OperationSpec::Scanline(ScanlineParams {
-            stepover,
-            feed_rate: 1200.0,
-            tool_range: cam_core::ScanlineToolRange::default(),
-            cut_direction: cam_core::ScanlineCutDirection::default(),
-            angle_degrees: 0.0,
-        }),
-        tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
-        boundary: None,
-        tolerance_profile: ToleranceProfile::PressRough,
+        attributes: MachiningOperationAttributes {
+            name: "仕上げ".to_string(),
+            stage: MachiningStage::Finish,
+            toolset: None,
+        },
+        conditions: MachiningOperationConditions {
+            spec: OperationSpec::Scanline(ScanlineParams {
+                stepover,
+                feed_rate: 1200.0,
+                tool_range: cam_core::ScanlineToolRange::default(),
+                cut_direction: cam_core::ScanlineCutDirection::default(),
+                angle_degrees: 0.0,
+            }),
+            tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+            boundary: None,
+            tolerance_profile: ToleranceProfile::PressRough,
+        },
     }
 }
 
@@ -114,7 +119,7 @@ fn unknown_sequences_and_operations_are_reported() {
 #[test]
 fn scanline_operations_are_made_with_the_default_tolerance_profile() {
     let tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
-    let OperationSpec::Scanline(scanline) = content(2.0).spec;
+    let OperationSpec::Scanline(scanline) = content(2.0).conditions.spec;
     let made = scanline_finish_operation_content("仕上げ".to_string(), tool, scanline);
     assert_eq!(made, content(2.0));
 
@@ -140,9 +145,9 @@ fn the_held_content_and_stock_are_read_back() {
 #[test]
 fn cusp_heights_on_flat_surfaces_follow_the_tool_and_the_stepover() {
     let with = |tool: Tool<f64>, stepover: f64| {
-        flat_surface_cusp_height(&MachiningOperationContent {
+        flat_surface_cusp_height(&MachiningOperationConditions {
             tool,
-            ..content(stepover)
+            ..content(stepover).conditions
         })
     };
     let ball = || Tool::ball_end_mill("BEM10".to_string(), 10.0, 30.0);
@@ -158,4 +163,126 @@ fn cusp_heights_on_flat_surfaces_follow_the_tool_and_the_stepover() {
     assert_eq!(with(flat(), 10.5), None);
     let radius = Tool::radius_end_mill("REM10R1".to_string(), 10.0, 1.0, 30.0);
     assert_eq!(with(radius, 2.0), None);
+}
+
+/// 加工工程 2 つ（2 つ目は改訂 2）を持つ加工手順と、もう 1 つの加工手順を持つ保管先
+fn store_with_two_sequences() -> MachiningSequenceStore {
+    let mut store = MachiningSequenceStore::new();
+    let first = store.create_sequence(
+        "手順 1".to_string(),
+        vec![FaceId::new_random(), FaceId::new_random()],
+        stock(),
+    );
+    store.add_operation(first, content(1.0)).unwrap();
+    let second = store.add_operation(first, content(1.0)).unwrap();
+    store
+        .set_operation_content(first, second, content(2.0))
+        .unwrap();
+    let other = store.create_sequence("手順 2".to_string(), Vec::new(), stock());
+    store.add_operation(other, content(0.5)).unwrap();
+    store
+}
+
+#[test]
+fn records_are_restored_with_the_same_ids_revisions_and_contents() {
+    let records = store_with_two_sequences().records();
+    assert_eq!(records[0].operations[1].revision.get(), 2);
+
+    let restored = MachiningSequenceStore::from_records(records.clone()).unwrap();
+    assert_eq!(restored.records(), records);
+
+    // 戻した工程を変えると、続きの改訂の番号と新しい改訂の鍵になる
+    let mut restored = restored;
+    let sequence = records[0].id;
+    let operation = records[0].operations[1].id;
+    restored
+        .set_operation_content(sequence, operation, content(3.0))
+        .unwrap();
+    let changed = restored.operation(sequence, operation).unwrap();
+    assert_eq!(changed.revision(), 3);
+    assert_ne!(
+        changed.revision_key(),
+        records[0].operations[1].revision_key
+    );
+}
+
+#[test]
+fn records_that_break_the_rules_are_not_restored() {
+    let records = store_with_two_sequences().records();
+    let restore = |records: Vec<MachiningSequenceRecord>| {
+        MachiningSequenceStore::from_records(records).unwrap_err()
+    };
+
+    let mut duplicate_sequence = records.clone();
+    duplicate_sequence[1].id = records[0].id;
+    assert_eq!(
+        restore(duplicate_sequence),
+        MachiningSequenceRestoreError::DuplicateSequence(records[0].id)
+    );
+
+    // ほかの加工手順の工程とも重ならない
+    let mut duplicate_operation = records.clone();
+    duplicate_operation[1].operations[0].id = records[0].operations[0].id;
+    assert_eq!(
+        restore(duplicate_operation),
+        MachiningSequenceRestoreError::DuplicateOperation(records[0].operations[0].id)
+    );
+
+    let mut duplicate_face = records.clone();
+    let face = records[0].target_faces[0];
+    duplicate_face[0].target_faces.push(face);
+    assert_eq!(
+        restore(duplicate_face),
+        MachiningSequenceRestoreError::DuplicateTargetFace {
+            sequence: records[0].id,
+            face,
+        }
+    );
+}
+
+#[test]
+fn operations_are_inserted_duplicated_moved_and_removed() {
+    let mut store = MachiningSequenceStore::new();
+    let sequence = store.create_sequence("手順".to_string(), Vec::new(), stock());
+    let rough = store.add_operation(sequence, content(4.0)).unwrap();
+    let finish = store.add_operation(sequence, content(1.0)).unwrap();
+    // 位置に挿む（工程の数より大きい位置は最後）
+    let middle = store.insert_operation(sequence, 1, content(2.0)).unwrap();
+    let last = store.insert_operation(sequence, 99, content(0.5)).unwrap();
+    assert_eq!(
+        store.operation_ids(sequence).unwrap(),
+        vec![rough, middle, finish, last]
+    );
+    // 同じ中身で挿んでも、新しい工程（改訂の番号は 1、改訂の鍵は別）
+    store
+        .set_operation_content(sequence, rough, content(5.0))
+        .unwrap();
+    let copy = store.insert_operation(sequence, 1, content(5.0)).unwrap();
+    assert_eq!(store.operation_position(sequence, copy).unwrap(), 1);
+    assert_eq!(revision(&store, sequence, copy), 1);
+    assert_ne!(
+        store.operation_revision_key(sequence, copy).unwrap(),
+        store.operation_revision_key(sequence, rough).unwrap()
+    );
+    // 並べ替えは、改訂の番号・改訂の鍵を変えない
+    let key = store.operation_revision_key(sequence, finish).unwrap();
+    store.move_operation(sequence, finish, 0).unwrap();
+    assert_eq!(store.operation_position(sequence, finish).unwrap(), 0);
+    assert_eq!(store.operation_revision_key(sequence, finish).unwrap(), key);
+    store.move_operation(sequence, finish, 99).unwrap();
+    assert_eq!(store.operation_ids(sequence).unwrap().last(), Some(&finish));
+    // 除く
+    store.remove_operation(sequence, middle).unwrap();
+    assert_eq!(
+        store.operation_ids(sequence).unwrap(),
+        vec![rough, copy, last, finish]
+    );
+    assert_eq!(
+        store.remove_operation(sequence, middle),
+        Err(MachiningSequenceError::UnknownOperation(middle))
+    );
+    assert_eq!(
+        store.move_operation(sequence, middle, 0),
+        Err(MachiningSequenceError::UnknownOperation(middle))
+    );
 }

@@ -9,6 +9,10 @@ updates:
       day: "monday"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
+    # PR の題名を chore(deps): … にする（題名の形は dev/GIT_PR_WORKFLOW_OPERATION.md）
+    commit-message:
+      prefix: "chore"
+      include: "scope"
     # 互換のある更新（マイナー・パッチ）は 1 つの PR にまとめ、PR とレビューの数を抑える
     groups:
       cargo-minor-and-patch:
@@ -24,6 +28,9 @@ updates:
       day: "monday"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
     groups:
       github-actions:
         patterns:

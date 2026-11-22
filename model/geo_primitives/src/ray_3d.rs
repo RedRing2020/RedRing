@@ -9,9 +9,9 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, ParallelRelation, PrimitiveKind, PrimitiveMetadata,
-    Ray3DConstructor, Ray3DContainment, Ray3DDistance, Ray3DEvaluation, Ray3DProjection,
-    Ray3DProperties, Scalar, TolerantEq,
+    ParallelRelation, PrimitiveKind, PrimitiveMetadata, Ray3DConstructor, Ray3DContainment,
+    Ray3DDistance, Ray3DEvaluation, Ray3DProjection, Ray3DProperties, Scalar, TolerantEq,
+    default_distance_tolerance,
 };
 
 /// 3次元半無限直線

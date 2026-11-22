@@ -9,9 +9,9 @@ mod transform;
 
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, default_kernel_numerical_zero_tolerance, ParallelRelation,
-    PrimitiveKind, PrimitiveMetadata, Ray2DConstructor, Ray2DContainment, Ray2DDistance,
-    Ray2DEvaluation, Ray2DProjection, Ray2DProperties, Scalar,
+    ParallelRelation, PrimitiveKind, PrimitiveMetadata, Ray2DConstructor, Ray2DContainment,
+    Ray2DDistance, Ray2DEvaluation, Ray2DProjection, Ray2DProperties, Scalar,
+    default_distance_tolerance, default_kernel_numerical_zero_tolerance,
 };
 
 /// 2次元半無限直線

@@ -43,7 +43,7 @@ mod tests {
     use crate::{EllipseArc2D, Point2D};
     use analysis::test_constants::TOLERANCE_F64;
     use geo_contracts::{
-        default_distance_tolerance, Angle, Bounded, EllipseArc2DConstructor, EllipseArc2DEvaluation,
+        Angle, Bounded, EllipseArc2DConstructor, EllipseArc2DEvaluation, default_distance_tolerance,
     };
 
     #[test]

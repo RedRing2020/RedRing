@@ -5,12 +5,17 @@
 
 pub extern crate geo_primitives as primitives;
 
+mod binary_section;
 pub mod cam_simulation_workflow;
 pub mod cutting_simulation_playback;
 pub mod feature_orchestration;
 pub mod geometry_orchestration;
+pub mod imported_toolpath;
+mod job_client;
 pub mod job_orchestration;
 pub mod machining_sequence;
 pub mod product_shape;
+pub mod space_model_file;
+pub mod tool_library;
 pub mod toolpath;
 pub mod topology_orchestration;

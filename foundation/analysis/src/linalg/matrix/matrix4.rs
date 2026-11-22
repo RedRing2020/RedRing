@@ -1213,10 +1213,22 @@ impl<T: Scalar> Matrix4x4<T> {
     pub fn debug_string(&self) -> String {
         format!(
             "Matrix4x4:\n[{:8.3} {:8.3} {:8.3} {:8.3}]\n[{:8.3} {:8.3} {:8.3} {:8.3}]\n[{:8.3} {:8.3} {:8.3} {:8.3}]\n[{:8.3} {:8.3} {:8.3} {:8.3}]",
-            self.data[0][0].to_f64(), self.data[0][1].to_f64(), self.data[0][2].to_f64(), self.data[0][3].to_f64(),
-            self.data[1][0].to_f64(), self.data[1][1].to_f64(), self.data[1][2].to_f64(), self.data[1][3].to_f64(),
-            self.data[2][0].to_f64(), self.data[2][1].to_f64(), self.data[2][2].to_f64(), self.data[2][3].to_f64(),
-            self.data[3][0].to_f64(), self.data[3][1].to_f64(), self.data[3][2].to_f64(), self.data[3][3].to_f64(),
+            self.data[0][0].to_f64(),
+            self.data[0][1].to_f64(),
+            self.data[0][2].to_f64(),
+            self.data[0][3].to_f64(),
+            self.data[1][0].to_f64(),
+            self.data[1][1].to_f64(),
+            self.data[1][2].to_f64(),
+            self.data[1][3].to_f64(),
+            self.data[2][0].to_f64(),
+            self.data[2][1].to_f64(),
+            self.data[2][2].to_f64(),
+            self.data[2][3].to_f64(),
+            self.data[3][0].to_f64(),
+            self.data[3][1].to_f64(),
+            self.data[3][2].to_f64(),
+            self.data[3][3].to_f64(),
         )
     }
 
@@ -1231,9 +1243,15 @@ impl<T: Scalar> Matrix4x4<T> {
 
         format!(
             "3D Affine Transformation:\nTranslation: ({:.3}, {:.3}, {:.3})\nScale: ({:.3}, {:.3}, {:.3})\nEuler Angles: ({:.3}°, {:.3}°, {:.3}°)\nIs Rigid: {}\nDeterminant: {:.6}",
-            translation.x().to_f64(), translation.y().to_f64(), translation.z().to_f64(),
-            scale.x().to_f64(), scale.y().to_f64(), scale.z().to_f64(),
-            euler_x.to_f64().to_degrees(), euler_y.to_f64().to_degrees(), euler_z.to_f64().to_degrees(),
+            translation.x().to_f64(),
+            translation.y().to_f64(),
+            translation.z().to_f64(),
+            scale.x().to_f64(),
+            scale.y().to_f64(),
+            scale.z().to_f64(),
+            euler_x.to_f64().to_degrees(),
+            euler_y.to_f64().to_degrees(),
+            euler_z.to_f64().to_degrees(),
             self.is_rigid_3d(),
             self.determinant().to_f64()
         )

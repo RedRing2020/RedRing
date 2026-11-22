@@ -134,6 +134,7 @@ stage=warn,viewmodel_graphics=warn,viewmodel_converter=warn,render=warn,cam_core
 
 考え方:
 - ユーザー操作起点は `redring=info` で維持
+- 計算の前の確かめ（ツールパスの大きさの見積もりと、かかった時間）は `application=info` で残す（#1234。操作 1 回に 1 行）
 - フレーム密度が高い層は `warn` をデフォルト
 
 ### 方針D（設計検討）: Foundation配下ログ制御クレート

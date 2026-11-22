@@ -42,7 +42,7 @@ pub fn create_render_2d_resources(
         device,
         &shader,
         format,
-        &[Vertex2D::desc()],
+        &[Some(Vertex2D::desc())],
         "Render 2D",
     );
 

@@ -326,14 +326,18 @@ mod tests {
         assert!(exact_turn.to_degrees().abs() < TOLERANCE_F64);
 
         // 有限でない角度でも終了し、NaN を返す
-        assert!(Angle::from_radians(f64::INFINITY)
-            .normalize()
-            .to_radians()
-            .is_nan());
-        assert!(Angle::from_radians(f64::NAN)
-            .normalize()
-            .to_radians()
-            .is_nan());
+        assert!(
+            Angle::from_radians(f64::INFINITY)
+                .normalize()
+                .to_radians()
+                .is_nan()
+        );
+        assert!(
+            Angle::from_radians(f64::NAN)
+                .normalize()
+                .to_radians()
+                .is_nan()
+        );
     }
 
     #[test]

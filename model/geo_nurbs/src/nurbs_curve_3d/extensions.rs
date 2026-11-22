@@ -1,10 +1,10 @@
 //! `NurbsCurve3D` の適応分割
 
-use crate::adaptive_tessellation::{
-    adaptive_params_axis, AdaptiveParamList, AdaptiveTessellationSettings,
-    NurbsCurveAdaptiveTessellation,
-};
 use crate::NurbsCurve3D;
+use crate::adaptive_tessellation::{
+    AdaptiveParamList, AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation,
+    adaptive_params_axis,
+};
 use geo_contracts::{NurbsCurve3DProperties, Scalar};
 use geo_core::Point3D;
 

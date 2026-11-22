@@ -4,8 +4,8 @@
 //! 参照点と法線ベクトルで構成される無限平面
 
 use crate::{
-    linalg::{point3::Point3, vector::Vector3},
     Scalar,
+    linalg::{point3::Point3, vector::Vector3},
 };
 
 /// 3次元平面（無限平面）

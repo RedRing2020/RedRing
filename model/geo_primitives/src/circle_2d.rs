@@ -9,9 +9,9 @@ mod transform;
 
 use crate::{Direction2D, Point2D};
 use geo_contracts::{
-    default_distance_tolerance, default_kernel_numerical_zero_tolerance, Circle2DConstructor,
-    Circle2DContainment, Circle2DDistance, Circle2DEvaluation, Circle2DProjection,
-    Circle2DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar,
+    Circle2DConstructor, Circle2DContainment, Circle2DDistance, Circle2DEvaluation,
+    Circle2DProjection, Circle2DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata,
+    Scalar, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
 };
 
 /// 2次元円

@@ -7,10 +7,10 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, Angle, AngularRelation, InfiniteLine3DConstructor,
-    InfiniteLine3DContainment, InfiniteLine3DDistance, InfiniteLine3DEvaluation,
-    InfiniteLine3DProjection, InfiniteLine3DProperties, ParallelRelation, PerpendicularRelation,
-    PrimitiveKind, PrimitiveMetadata, Scalar,
+    Angle, AngularRelation, InfiniteLine3DConstructor, InfiniteLine3DContainment,
+    InfiniteLine3DDistance, InfiniteLine3DEvaluation, InfiniteLine3DProjection,
+    InfiniteLine3DProperties, ParallelRelation, PerpendicularRelation, PrimitiveKind,
+    PrimitiveMetadata, Scalar, default_distance_tolerance,
 };
 
 /// 3次元空間の無限直線（Core実装）
@@ -31,7 +31,8 @@ impl<T: Scalar> PrimitiveMetadata for InfiniteLine3D<T> {
 
 impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
     fn new(point: Point3D<T>, direction: Vector3D<T>) -> Option<Self> {
-        Direction3D::from_vector(direction).map(|direction| Self { point, direction })
+        // 単位ベクトルなら正規化し直さない（作り直しても、方向の値が変わらない）
+        Direction3D::from_unit_vector(direction).map(|direction| Self { point, direction })
     }
 
     fn from_two_points(p1: Point3D<T>, p2: Point3D<T>) -> Option<Self> {

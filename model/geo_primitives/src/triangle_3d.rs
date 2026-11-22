@@ -7,9 +7,9 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
-    PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq, Triangle3DBoundaryAccess,
-    Triangle3DConstructor, Triangle3DContainment, Triangle3DDerived, Triangle3DDistance,
+    PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
+    Triangle3DBoundaryAccess, Triangle3DConstructor, Triangle3DContainment, Triangle3DDerived,
+    Triangle3DDistance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
 };
 
 /// 3次元三角形

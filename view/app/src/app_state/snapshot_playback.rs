@@ -1,7 +1,7 @@
 //! AppState のSnapshot再生・スクラブ制御を扱うモジュール。
 
-use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
+use super::debug_snapshot_state::SnapshotPlaybackMode;
 use crate::selection_rect::SelectionRect;
 use crate::snapshot_overlay_renderer::snapshot_track_rect;
 use crate::window_title_messages::resolve_window_title_text;
@@ -420,12 +420,12 @@ impl AppState {
         }
 
         if reached_end {
-            if let Some(series) = &self.debug_snapshot.series {
-                if !series.frames.is_empty() {
-                    self.debug_snapshot.cursor = series.frames.len() - 1;
-                    self.debug_snapshot.frame_update_required = true;
-                    self.sync_snapshot_visual_frame();
-                }
+            if let Some(series) = &self.debug_snapshot.series
+                && !series.frames.is_empty()
+            {
+                self.debug_snapshot.cursor = series.frames.len() - 1;
+                self.debug_snapshot.frame_update_required = true;
+                self.sync_snapshot_visual_frame();
             }
             self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Paused;
             self.debug_snapshot.last_playback_tick = None;
@@ -494,7 +494,7 @@ impl AppState {
         self.refresh_snapshot_window_title();
     }
 
-    pub(super) fn refresh_snapshot_window_title(&self) {
+    pub(super) fn refresh_snapshot_window_title(&mut self) {
         if self.debug_view_shown() {
             return;
         }
@@ -559,7 +559,9 @@ impl AppState {
                 speed_factor,
             ),
         };
-        self.window.set_title(&title);
+        // 先頭に、文書のタイトル（ファイルの名前と保存していない変更の印）を出す
+        self.window
+            .set_title(&format!("{} - {title}", self.document_title()));
     }
 
     pub(super) fn snapshot_progress_ratio(&self) -> Option<f32> {

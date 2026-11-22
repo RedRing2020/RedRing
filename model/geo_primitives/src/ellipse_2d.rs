@@ -9,9 +9,9 @@ mod transform;
 
 use crate::{Angle, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDistance,
-    Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties, PointClassification,
-    PrimitiveKind, PrimitiveMetadata, Scalar,
+    Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDistance, Ellipse2DEvaluation,
+    Ellipse2DProjection, Ellipse2DProperties, PointClassification, PrimitiveKind,
+    PrimitiveMetadata, Scalar, default_distance_tolerance,
 };
 
 /// 2次元楕円

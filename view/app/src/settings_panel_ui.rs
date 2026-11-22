@@ -31,7 +31,7 @@ pub enum DebugSceneAction {
     Circle,
     Arc,
     Triangle,
-    /// 表示中の製品形状と計算条件の工具で、逆オフセット形状の要素を表示する
+    /// 加工の対象の面と計算条件の工具で、逆オフセット形状の要素を表示する
     InverseOffsetShape,
 }
 
@@ -547,9 +547,9 @@ impl SettingsPanelUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_curve_discretization_preset, set_curve_discretization_max_angle_deg,
-        set_curve_discretization_max_divisions, set_curve_discretization_min_divisions,
-        CurveDiscretizationPreset,
+        CurveDiscretizationPreset, apply_curve_discretization_preset,
+        set_curve_discretization_max_angle_deg, set_curve_discretization_max_divisions,
+        set_curve_discretization_min_divisions,
     };
     use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
 

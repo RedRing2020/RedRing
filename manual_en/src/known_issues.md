@@ -1,22 +1,27 @@
 # Known Issues and Troubleshooting
 
-## Known Issues (v0.1.3 preview)
+## Known Issues (v0.2.0 preview)
 
 Machining:
 
-- There is no NC output. The toolpath is for checking with the cutting simulation and cannot be used for actual machining (NC output is planned for v0.3.0)
+- There is no NC output. The toolpath is for checking with the cutting simulation and cannot be used for actual machining (NC output is planned for v0.4.0)
 - There are no air cuts or linking moves (approach and retract) between passes. In the cutting simulation, the tool jumps from the end of a pass to the start of the next pass and does not cut in between
 - Gaps and holes narrower than the tool radius are bridged by one pass across both sides, which passes over the gap at the cutting feed (the walls of the gap are not gouged). Small features that the tool touches along a scanline for less than the tool radius, in places where the tool does not touch the shape, may be missed and left uncut
 - For NURBS shapes, the sum of the triangulation error and the toolpath error can be up to twice the toolpath tolerance (STL stays within the tolerance)
+- For STEP shapes, strongly curved faces such as spheres and tori may not be triangulated within the toolpath tolerance, and the toolpath may not be calculated
 - The toolpath tolerance (0.001 mm) cannot be changed
 - Only ball end mills and flat end mills are available. Even when a tool length is specified, a path that touches the shape above the tool length is not reported as an error (the stock above the tool length is just left)
 
 Management:
 
-- There is one machining plan and one machining process, and the conditions in the Machining Conditions window are the conditions of that process. There is no screen to list or add processes and no tool registration (tool library) yet (planned for v0.2.0)
-- Jobs run in the same process, and the screen stops until the run ends
-- The machining target is all visible product shapes (selecting faces is a later feature)
-- There is no screen yet to choose what to submit, run, or import, and only the latest result of the current conditions can be imported
+- There is one machining sequence
+- The cutting simulation cuts from the stock left by the previous operation. The toolpath calculation does not consider what the previous operation has cut and calculates from the sequence stock (using the stock left by the previous operation comes in a later version)
+- The cutting animation plays only the segment of the selected operation (playing the whole sequence through comes in a later version)
+- When operations are calculated, operations skipped because they already have a current result are not shown on the screen
+- The job manager calculates one job at a time. When you calculate again after changing the conditions while a job is waiting or running, the previous job is cancelled and a new job is submitted, so the job list in the job manager grows
+- The screen stops while a STEP file is being loaded (loading in the background is planned for v0.3.0)
+- Loading a product shape adds its faces to the machining target. Opening a model file keeps the saved target (adding or removing faces by selecting them is a later feature)
+- There is no screen yet to choose which job to import, and only the latest result of the current conditions can be imported
 
 Distribution:
 
@@ -35,12 +40,13 @@ Display:
 
 | Symptom | What to check |
 |---|---|
-| "Import" does not import | After changing the conditions or the visible product shape, nothing can be imported until you submit again. Check the line with the result of the last operation in the Machining Conditions window and the log (`logs/redring.log`) |
-| "Submit" cannot be pressed | A condition error is shown in red below the field to fix. Fix it to enable the button |
-| The screen stops during a run | Jobs run in the same process. Wait until the run ends (to be solved by the job manager) |
-| Drawing stops while the open-file dialog is open | It resumes when the dialog is closed |
-| Rotating the stock stops drawing or the screen disappears | With a fine stock precision (for example 0.01 mm), the GPU load becomes high and the GPU device can be lost. The app then shows an error message and ends. Submit again with a coarser precision |
+| "Import CL" or "Show cutting simulation" does not import | After changing the conditions or the target (loading a product shape changes the target), nothing can be imported until you calculate again. Check the list opened with 📋 in the status bar and the log (`logs/redring.log`) |
+| "Calculate" cannot be pressed | A condition error is shown in red below the field to fix. Fix it to enable the button |
+| "Calculate" says that the job manager is not installed | Check that `redring-job-manager` and `redring-batch-runner` are in the same folder as the app. When built from source, build with `cargo build --release` |
+| The calculation stays "waiting" | Check the job manager log (`%LOCALAPPDATA%\RedRing\logs\job_manager.log`) |
+| The calculation "failed" | The reason is in the job log (`%LOCALAPPDATA%\RedRing\jobs\<job number>\logs\runner.log`) |
+| Rotating the stock stops drawing or the screen disappears | With a fine stock precision (for example 0.01 mm), the GPU load becomes high and the GPU device can be lost. The app then shows an error message and ends. Calculate again with a coarser precision |
 | The camera is inside a shape | Press the `e` key (emergency escape) or the `r` key (reset) |
-| Keys do not work | While editing a field in the settings panel or the Machining Conditions window, typed characters are not used as keys. Click outside the field |
+| Keys do not work | While editing a field in the settings panel or a settings dialog, typed characters are not used as keys. While the operation settings or sequence settings dialog is open, `Shift+M`, `Shift+L`, and the file keys are not accepted. Click outside the field |
 
-When you report a problem, open [GitHub Issues](https://github.com/RedRing2020/RedRing/issues) and attach the steps and the log file (`logs/redring.log`).
+When you report a problem, open [GitHub Issues](https://github.com/RedRing2020/RedRing/issues) and attach the steps and the log file (`logs/redring.log`; if you started the app again after it stopped, `logs/redring.1.log` of the run that stopped).

@@ -162,7 +162,7 @@
 
 - [GEOMETRY_SHAPE_SEMANTICS_DESIGN.md](./GEOMETRY_SHAPE_SEMANTICS_DESIGN.md) では bounded curve family の trim-local parameter を `0..=1` で扱う既存方針がある
 - 一方で trimmed NURBS は mother curve native parameter を失いたくないため、local parameter を主語彙へ昇格させるべきではない
-- `geo_topology::Edge::point_at()` も `0..=1` の local parameter を使うため、geometry 側に同じ convenience があると接続上は扱いやすい
+- 当時の `geo_topology::Edge::point_at()` も `0..=1` の local parameter を使っていたため、geometry 側に同じ convenience があると接続上は扱いやすいとした（`Edge` は #1344 で B-rep の表 `Brep` に置き換え、稜線は母曲線の native parameter の区間だけを持つ）
 
 ## 向き概念の分離
 
@@ -437,7 +437,7 @@ pub trait TrimmedNurbsCurve3DConstructor<T: Scalar>: TrimmedNurbsCurve3DBasis<T>
 
 - `geometry_direction` / `ParametricDirection` を導入した以上、向き表現は `trim_range` の順序反転ではなく明示的な direction で持つ方が責務が分かれる
 - constructor が黙って reordering / clamp を行うと、native parameter semantics を破壊しやすい
-- 既存 [model/geo_topology/src/topology_core.rs](../../model/geo_topology/src/topology_core.rs#L152) でも `parameter_range.0 >= parameter_range.1` は reject しており、trim 区間の正当性を明示的に扱う流れと整合する
+- 既存の `Brep::add_edge`（[model/geo_topology/src/brep.rs](../../model/geo_topology/src/brep.rs)）でも `parameter_range.0 >= parameter_range.1` は reject しており、trim 区間の正当性を明示的に扱う流れと整合する
 
 ### 初手で追加しないもの
 

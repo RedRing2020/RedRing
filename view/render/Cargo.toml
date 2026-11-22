@@ -2,12 +2,12 @@
 name = "render"
 publish = false
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 
 [dependencies]
 winit = "0.30.13"
-wgpu = "29.0.1"
+wgpu = "30.0.0"
 tracing = "0.1"
 bytemuck = "1.23.2"
 pollster.workspace = true

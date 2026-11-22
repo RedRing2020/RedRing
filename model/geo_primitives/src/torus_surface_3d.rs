@@ -66,9 +66,7 @@ impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
         }
 
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let x_axis = Direction3D::from_vector(
-            ref_direction.as_vector() - axis.as_vector() * ref_direction.dot(axis),
-        )?;
+        let x_axis = ref_direction.orthogonal_to(axis)?;
 
         Some(Self {
             origin: center,

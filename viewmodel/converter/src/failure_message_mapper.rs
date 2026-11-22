@@ -2,8 +2,10 @@
 //!
 //! エラーの種類ごとにキーを決める。エラーの中の詳しい理由（英語の文）は画面に出さず、ログに残す。
 
-use application::cam_simulation_workflow::CamSimulationWorkflowError;
-use application::product_shape::ProductShapeError;
+use application::cam_simulation_workflow::{CamSimulationWorkflowError, JobFailureReason};
+use application::product_shape::{ProductShapeError, StepImportError};
+use application::space_model_file::SpaceModelFileError;
+use application::tool_library::{ToolLibraryEditError, ToolLibraryFileError};
 use i18n_foundation::{UiMessage, UiMessageArg};
 
 use crate::cutting_simulation_session::CuttingSimulationSessionError;
@@ -26,12 +28,28 @@ fn job_message(key: &str, job: u64) -> UiMessage {
     }
 }
 
+/// メモリの大きさ `gb`（GB）の、画面に出す数（10 未満は小数 1 桁、それ以上は整数）
+pub fn format_gb(gb: f64) -> String {
+    if gb < 10.0 {
+        format!("{gb:.1}")
+    } else {
+        format!("{gb:.0}")
+    }
+}
+
 /// 投入・実行・取り込みの失敗 `error` の、画面に出す理由
 pub fn cutting_simulation_failure_message(error: &CuttingSimulationSessionError) -> UiMessage {
     match error {
         CuttingSimulationSessionError::Workflow(error) => workflow_failure_message(error),
         CuttingSimulationSessionError::NoSucceededSimulation => {
             message("failure.no_succeeded_simulation")
+        }
+        CuttingSimulationSessionError::NoSucceededToolpath => {
+            message("failure.no_succeeded_toolpath")
+        }
+        CuttingSimulationSessionError::ConditionsNotSet => message("failure.conditions_not_set"),
+        CuttingSimulationSessionError::EarlierConditionsNotSet => {
+            message("failure.earlier_conditions_not_set")
         }
         CuttingSimulationSessionError::Playback(error) => match error {
             CuttingSimulationPlaybackError::Artifact(_) => message("failure.animation.artifact"),
@@ -48,6 +66,9 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
         CamSimulationWorkflowError::NotSucceededSimulation(job) => {
             job_message("failure.not_succeeded_simulation", *job)
         }
+        CamSimulationWorkflowError::NotSucceededToolpath(job) => {
+            job_message("failure.not_succeeded_toolpath", *job)
+        }
         CamSimulationWorkflowError::MissingArtifact(job) => {
             job_message("failure.missing_artifact", *job)
         }
@@ -63,6 +84,55 @@ pub(crate) fn workflow_failure_message(error: &CamSimulationWorkflowError) -> Ui
         CamSimulationWorkflowError::InverseOffsetDisplay(_) => {
             message("failure.inverse_offset_display")
         }
+        CamSimulationWorkflowError::JobManagerNotFound => message("failure.job_manager_not_found"),
+        CamSimulationWorkflowError::JobManagerOutdated => message("failure.job_manager_outdated"),
+        CamSimulationWorkflowError::JobManagerNotRunning => {
+            message("failure.job_manager_not_running")
+        }
+        CamSimulationWorkflowError::JobStore(_) => message("failure.job_store"),
+        CamSimulationWorkflowError::NoCurrentImportedToolpath => {
+            message("failure.no_current_imported_toolpath")
+        }
+        CamSimulationWorkflowError::ToolpathTooLarge(estimate) => UiMessage {
+            key: "failure.toolpath_too_large".to_string(),
+            args: vec![UiMessageArg {
+                name: "gb".to_string(),
+                value: format_gb(estimate.memory_gb()),
+            }],
+        },
+    }
+}
+
+/// ジョブマネージャーの計算の失敗の理由の種類 `reason` の、画面に出す理由（ジョブマネージャーの画面と同じ意味の
+/// 言い方。種類が分からなければ、詳しくはログを確かめる文言）
+pub(crate) fn job_failure_message(reason: &JobFailureReason) -> UiMessage {
+    use JobFailureReason as R;
+    match *reason {
+        R::DependencyNotEarlier { job } => job_message("failure.job.dependency_not_earlier", job),
+        R::DependencyCannotRun { job } => job_message("failure.job.dependency_cannot_run", job),
+        R::DependencyNotFound { job } => job_message("failure.job.dependency_not_found", job),
+        R::DependencyFailed { job } => job_message("failure.job.dependency_failed", job),
+        R::DependencyCanceled { job } => job_message("failure.job.dependency_canceled", job),
+        R::RunnerNotStarted => message("failure.job.runner_not_started"),
+        R::RunnerWroteNoResult => message("failure.job.runner_wrote_no_result"),
+        R::RunnerInvalidArguments => message("failure.job.runner_invalid_arguments"),
+        R::RunnerCannotReadInput => message("failure.job.runner_cannot_read_input"),
+        R::InvalidInput => message("failure.job.invalid_input"),
+        R::CalculationFailed => message("failure.job.calculation_failed"),
+        R::RunnerCannotWriteResult => message("failure.job.runner_cannot_write_result"),
+        R::ToolpathTooLarge => message("failure.job.toolpath_too_large"),
+        R::RunnerExitCode { code } => UiMessage {
+            key: "failure.job.runner_exit_code".to_string(),
+            args: vec![UiMessageArg {
+                name: "code".to_string(),
+                value: code.to_string(),
+            }],
+        },
+        R::RunnerStopped => message("failure.job.runner_stopped"),
+        R::ManagerStopped => message("failure.job.manager_stopped"),
+        R::ManagerQuit => message("failure.job.manager_quit"),
+        // 英語の詳しい理由はログに残すため、ログを確かめる文言にする
+        R::Unknown => message("failure.job.unknown"),
     }
 }
 
@@ -75,8 +145,121 @@ pub fn product_shape_failure_message(error: &ProductShapeError) -> UiMessage {
             message("failure.shape.unknown")
         }
         ProductShapeError::MixedFaceKinds => message("failure.shape.mixed_faces"),
-        ProductShapeError::Tessellation(_) => message("failure.shape.tessellation"),
+        ProductShapeError::Tessellation(_) | ProductShapeError::ShellFace(_) => {
+            message("failure.shape.tessellation")
+        }
         ProductShapeError::NoFaces => message("failure.shape.no_faces"),
+        ProductShapeError::SourceFaceCountMismatch => message("failure.shape.source_faces"),
+        ProductShapeError::StepFile { kind, .. } => file_failure_message(*kind),
+        ProductShapeError::Step(StepImportError::Syntax(_)) => message("failure.shape.step_syntax"),
+        ProductShapeError::Step(StepImportError::TooLarge | StepImportError::Limit(_)) => {
+            message("failure.shape.step_limit")
+        }
+        ProductShapeError::Step(StepImportError::NoShapes) => {
+            message("failure.shape.step_no_shapes")
+        }
+    }
+}
+
+/// モデルファイルの読み書きの失敗 `error` の、画面に出す理由
+pub fn model_file_failure_message(error: &SpaceModelFileError) -> UiMessage {
+    use application::space_model_file::{
+        BinaryFormatError, FORMAT_VERSION_MAJOR_V1, section_version,
+    };
+    match error {
+        SpaceModelFileError::Io(error) => file_failure_message(error.kind()),
+        SpaceModelFileError::TooLarge => message("failure.model_file.too_large"),
+        // 新しい版のアプリで保存したファイル（知らない必須の区画・知っているより新しい版）
+        SpaceModelFileError::UnknownRequiredSection(_) => message("failure.model_file.newer"),
+        SpaceModelFileError::UnsupportedSectionVersion { kind, version }
+            if *version > section_version(*kind) =>
+        {
+            message("failure.model_file.newer")
+        }
+        SpaceModelFileError::Format(BinaryFormatError::UnsupportedMinorVersion {
+            found_minor,
+            supported_minors,
+            ..
+        }) if supported_minors.iter().all(|minor| found_minor > minor) => {
+            message("failure.model_file.newer")
+        }
+        SpaceModelFileError::Format(BinaryFormatError::UnsupportedMajorVersion {
+            found,
+            supported,
+        }) if found > supported => message("failure.model_file.newer"),
+        SpaceModelFileError::Format(BinaryFormatError::ConverterRequired {
+            found_major, ..
+        }) if *found_major > FORMAT_VERSION_MAJOR_V1 => message("failure.model_file.newer"),
+        SpaceModelFileError::UnsupportedSectionVersion { .. }
+        | SpaceModelFileError::Format(_)
+        | SpaceModelFileError::MissingSection(_)
+        | SpaceModelFileError::DuplicateSection(_)
+        | SpaceModelFileError::InvalidSectionTable(_)
+        | SpaceModelFileError::InvalidSection { .. }
+        | SpaceModelFileError::ProductShape(_)
+        | SpaceModelFileError::MachiningSequence(_)
+        | SpaceModelFileError::ImportedToolpath(_) => message("failure.model_file.invalid"),
+    }
+}
+
+/// ツールライブラリのファイルの読み書きの失敗 `error` の、画面に出す理由
+pub fn tool_library_file_failure_message(error: &ToolLibraryFileError) -> UiMessage {
+    use application::space_model_file::BinaryFormatError;
+    use application::space_model_file::FORMAT_VERSION_MAJOR_V1;
+    match error {
+        ToolLibraryFileError::Io(error) => file_failure_message(error.kind()),
+        ToolLibraryFileError::TooLarge => message("failure.model_file.too_large"),
+        // 新しい版のアプリで保存したファイル（知らない必須の区画・知っているより新しい版）
+        ToolLibraryFileError::UnknownRequiredSection(_) => message("failure.model_file.newer"),
+        ToolLibraryFileError::UnsupportedSectionVersion { version, .. } if *version > 1 => {
+            message("failure.model_file.newer")
+        }
+        ToolLibraryFileError::Format(BinaryFormatError::UnsupportedMinorVersion {
+            found_minor,
+            supported_minors,
+            ..
+        }) if supported_minors.iter().all(|minor| found_minor > minor) => {
+            message("failure.model_file.newer")
+        }
+        ToolLibraryFileError::Format(BinaryFormatError::UnsupportedMajorVersion {
+            found,
+            supported,
+        }) if found > supported => message("failure.model_file.newer"),
+        ToolLibraryFileError::Format(BinaryFormatError::ConverterRequired {
+            found_major, ..
+        }) if *found_major > FORMAT_VERSION_MAJOR_V1 => message("failure.model_file.newer"),
+        ToolLibraryFileError::InvalidSection {
+            field: "library.name",
+            ..
+        } => message("failure.tool_library.empty_name"),
+        ToolLibraryFileError::UnsupportedSectionVersion { .. }
+        | ToolLibraryFileError::Format(_)
+        | ToolLibraryFileError::MissingSection(_)
+        | ToolLibraryFileError::DuplicateSection(_)
+        | ToolLibraryFileError::InvalidSectionTable(_)
+        | ToolLibraryFileError::InvalidSection { .. } => message("failure.model_file.invalid"),
+    }
+}
+
+/// 共有のツールライブラリへの書き込みの失敗 `error` の、画面に出す理由
+pub fn tool_library_edit_failure_message(error: &ToolLibraryEditError) -> UiMessage {
+    match error {
+        ToolLibraryEditError::Locked(lock) => {
+            crate::tool_library_session::locked_message(&lock.owner)
+        }
+        ToolLibraryEditError::ReadOnly(_) => message("failure.tool_library.read_only"),
+        ToolLibraryEditError::File(error) => tool_library_file_failure_message(error),
+        ToolLibraryEditError::ToolSetNotFound(_) => {
+            message("failure.tool_library.toolset_not_found")
+        }
+        ToolLibraryEditError::InvalidEdit("library.name") => {
+            message("failure.tool_library.empty_name")
+        }
+        ToolLibraryEditError::InvalidEdit("toolset.name") => {
+            message("failure.tool_library.empty_toolset_name")
+        }
+        ToolLibraryEditError::InvalidEdit(_) => message("failure.tool_library.invalid_tool"),
+        ToolLibraryEditError::Unavailable => message("failure.tool_library.unavailable"),
     }
 }
 
@@ -85,6 +268,7 @@ pub fn file_failure_message(kind: std::io::ErrorKind) -> UiMessage {
     match kind {
         std::io::ErrorKind::NotFound => message("failure.file.not_found"),
         std::io::ErrorKind::PermissionDenied => message("failure.file.permission_denied"),
+        std::io::ErrorKind::AlreadyExists => message("failure.file.already_exists"),
         std::io::ErrorKind::InvalidData | std::io::ErrorKind::UnexpectedEof => {
             message("failure.file.invalid_data")
         }
@@ -111,15 +295,115 @@ mod tests {
     }
 
     #[test]
+    fn every_known_job_failure_reason_has_its_own_text() {
+        use JobFailureReason as R;
+        let reasons = [
+            R::DependencyNotEarlier { job: 1 },
+            R::DependencyCannotRun { job: 1 },
+            R::DependencyNotFound { job: 1 },
+            R::DependencyFailed { job: 1 },
+            R::DependencyCanceled { job: 1 },
+            R::RunnerNotStarted,
+            R::RunnerWroteNoResult,
+            R::RunnerInvalidArguments,
+            R::RunnerCannotReadInput,
+            R::InvalidInput,
+            R::CalculationFailed,
+            R::RunnerCannotWriteResult,
+            R::ToolpathTooLarge,
+            R::RunnerExitCode { code: 9 },
+            R::RunnerStopped,
+            R::ManagerStopped,
+            R::ManagerQuit,
+        ];
+        let mut keys: Vec<String> = reasons
+            .iter()
+            .map(|reason| {
+                let message = job_failure_message(reason);
+                assert_resolved(&message);
+                message.key
+            })
+            .collect();
+        keys.sort();
+        keys.dedup();
+        assert_eq!(keys.len(), reasons.len());
+        assert_eq!(
+            resolve_failure_message(
+                UiLocale::Ja,
+                &job_failure_message(&R::RunnerExitCode { code: 9 })
+            ),
+            "ランナーが終了の番号 9 で終わりました"
+        );
+        // 種類が分からない理由は、ログを確かめる文言にする
+        assert_resolved(&job_failure_message(&R::Unknown));
+        assert!(
+            resolve_failure_message(UiLocale::Ja, &job_failure_message(&R::Unknown))
+                .contains("ログ")
+        );
+    }
+
+    #[test]
+    fn every_model_file_failure_has_its_own_text() {
+        use application::space_model_file::BinaryFormatError;
+        let errors = [
+            SpaceModelFileError::Io(std::io::ErrorKind::NotFound.into()),
+            SpaceModelFileError::TooLarge,
+            SpaceModelFileError::UnknownRequiredSection(*b"FEAT"),
+            SpaceModelFileError::Format(BinaryFormatError::UnknownMagic(*b"XXXX")),
+            SpaceModelFileError::InvalidSectionTable("sections"),
+            SpaceModelFileError::UnsupportedSectionVersion {
+                kind: *b"FACE",
+                version: 2,
+            },
+            // 知っている版より古い・壊れた版は、新しい版とは言わない
+            SpaceModelFileError::UnsupportedSectionVersion {
+                kind: *b"FACE",
+                version: 0,
+            },
+            SpaceModelFileError::Format(BinaryFormatError::ConverterRequired {
+                found_major: 1,
+                found_minor: 0,
+            }),
+        ];
+        let keys: Vec<String> = errors
+            .iter()
+            .map(|error| {
+                let message = model_file_failure_message(error);
+                assert_resolved(&message);
+                message.key
+            })
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                "failure.file.not_found",
+                "failure.model_file.too_large",
+                "failure.model_file.newer",
+                "failure.model_file.invalid",
+                "failure.model_file.invalid",
+                "failure.model_file.newer",
+                "failure.model_file.invalid",
+                "failure.model_file.newer",
+            ]
+        );
+    }
+
+    #[test]
     fn every_workflow_failure_has_its_own_text() {
         let errors = [
             CamSimulationWorkflowError::InputRegistration("reason".to_string()),
             CamSimulationWorkflowError::NotSucceededSimulation(3),
+            CamSimulationWorkflowError::NotSucceededToolpath(3),
             CamSimulationWorkflowError::MissingArtifact(3),
             CamSimulationWorkflowError::MissingInput(3),
             CamSimulationWorkflowError::EmptyProductShape,
             CamSimulationWorkflowError::Conditions(Vec::new()),
             CamSimulationWorkflowError::ProductShape(ProductShapeError::NoFaces),
+            CamSimulationWorkflowError::JobManagerNotFound,
+            CamSimulationWorkflowError::JobManagerNotRunning,
+            CamSimulationWorkflowError::JobManagerOutdated,
+            CamSimulationWorkflowError::JobStore("reason".to_string()),
+            CamSimulationWorkflowError::NoCurrentImportedToolpath,
         ];
         for error in &errors {
             assert_resolved(&workflow_failure_message(error));
@@ -132,6 +416,9 @@ mod tests {
     fn every_session_and_shape_failure_has_its_own_text() {
         assert_resolved(&cutting_simulation_failure_message(
             &CuttingSimulationSessionError::NoSucceededSimulation,
+        ));
+        assert_resolved(&cutting_simulation_failure_message(
+            &CuttingSimulationSessionError::NoSucceededToolpath,
         ));
         assert_resolved(&cutting_simulation_failure_message(
             &CuttingSimulationSessionError::Playback(CuttingSimulationPlaybackError::NoSnapshot),

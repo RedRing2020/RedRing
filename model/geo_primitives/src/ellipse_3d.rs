@@ -9,9 +9,9 @@ mod transform;
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, Ellipse3DConstructor,
-    Ellipse3DContainment, Ellipse3DDistance, Ellipse3DEvaluation, Ellipse3DProjection,
-    Ellipse3DProperties, PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar,
+    Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDistance, Ellipse3DEvaluation,
+    Ellipse3DProjection, Ellipse3DProperties, PointClassification, PrimitiveKind,
+    PrimitiveMetadata, Scalar, default_angle_tolerance, default_distance_tolerance,
 };
 
 /// 3次元楕円

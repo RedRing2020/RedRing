@@ -74,7 +74,7 @@ pub fn create_basic_triangle_pipeline(
     device: &Device,
     shader: &ShaderModule,
     format: TextureFormat,
-    vertex_layouts: &[wgpu::VertexBufferLayout<'_>],
+    vertex_layouts: &[Option<wgpu::VertexBufferLayout<'_>>],
     label_prefix: &str,
 ) -> RenderPipeline {
     let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {

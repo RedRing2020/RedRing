@@ -2,444 +2,48 @@
 
 **🇯🇵 [日本語版 README はこちら](README.jp.md)**
 
-A research platform for CAD/CAM development built with Rust + wgpu.
+[![Version](https://img.shields.io/github/v/release/RedRing2020/RedRing?include_prereleases&label=release&color=blue)](https://github.com/RedRing2020/RedRing/releases)
+[![Rust](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FRedRing2020%2FRedRing%2Fdevelop%2Frust-toolchain.toml&query=%24.toolchain.channel&label=rust&logo=rust&color=orange)](rust-toolchain.toml)
+![Implementation](https://img.shields.io/badge/WordPress_Tools-41_Available-green)
+![License](https://img.shields.io/badge/License-MIT%2FApache--2.0-green)
 
-v0.1.0 is a preview: import an STL, compute a 3-axis scanline toolpath, and check it with a cutting simulation. NC output is not available yet, so the toolpaths cannot be used for real machining.
+RedRing is a standalone CAD/CAM application built with Rust, wgpu and egui, developed as a research project.
 
-**Documentation Languages:**
+## Status
 
-| Document                 | Language                 | Access Method                                                 |
-| ------------------------ | ------------------------ | ------------------------------------------------------------- |
-| **Online Documentation** | 🇺🇸 English               | **[📖 GitHub Pages](https://redring2020.github.io/RedRing/en/)** |
-| **Online Documentation** | 🇯🇵 Japanese              | **[📖 GitHub Pages](https://redring2020.github.io/RedRing/)**    |
-| Geometry Abstraction     | 🇺🇸 English (placeholder) | `model/GEOMETRY_README.md`                                    |
-| Geometry Abstraction     | 🇯🇵 Japanese (detailed)   | `model/GEOMETRY_README.ja.md`                                 |
+The latest release, v0.2.0, is a preview: import an STL or STEP shape, set up machining operations with tools from a tool library, compute 3-axis scanline toolpaths with a ball or flat end mill in the job manager, and check them with a cutting simulation that cuts from the stock left by the previous operation. Save everything in a model file. NC output is not available yet, so the toolpaths cannot be used for real machining.
 
----
+Planned releases:
 
-## 🔍 Overview
+- v0.3.0 (in development): long operations in the background, with progress and cancel
+- v0.4.0: connecting moves and NC output
+- v0.5.0: picking faces to set the machining area and coordinates
 
-RedRing is a research project aiming to create a standalone CAD/CAM development environment using Rust + wgpu.
-NURBS and primitive geometric elements are being introduced incrementally.
-The CAM toolpath generation (scanline machining) and the cutting simulation are available as a preview (see [Cutting Simulation](manual_en/src/cutting_simulation_demo.md)).
+See [CHANGELOG.md](CHANGELOG.md) for the changes and the [known issues](https://redring2020.github.io/RedRing/en/known_issues.html) for the current limits.
 
-### 🌟 Key Features
+## Quick Start
 
-- **Type Safety with Rust**: Memory safety and performance optimization
-- **GPU Rendering**: High-performance 3D graphics using wgpu
-- **Modular Design**: Extensible architecture with clear separation of concerns
-- **Internationalization**: Multi-language documentation support
-- **Research-Oriented**: Open-source exploration of CAD/CAM technologies
+On Windows, download the package from [GitHub Releases](https://github.com/RedRing2020/RedRing/releases) and start `redring.exe`.
 
----
-
-## 🚧 Current Development Status
-
-### ✅ Implemented Features
-
-- 🎨 **Rendering Infrastructure** (wgpu/winit) - GPU rendering pipeline
-- 📐 **Foundation Geometry Library** - Points, lines, planes, vector operations
-- 🏗️ **Foundation Pattern** - Unified geometric primitive interface
-- 📊 **NURBS System** - Complete NURBS curves and surfaces implementation
-- 🔧 **Test Framework** - Comprehensive test suite (23/23 tests passing)
-- 📖 **Documentation** - Beautiful technical documentation with mdbook
-- 🔪 **CAM Toolpath Generation (preview)** - 3-axis scanline machining with ball / flat end mills (inverse offset method, toolpath tolerance guaranteed)
-- ⚡ **Cutting Simulation (preview)** - Tri-dexel stock, cutting animation over the product shape
-
-### 🔄 In Development
-
-- 🎯 Extended geometric algorithms
-- 🎮 Interactive user interface
-- 💾 CAD file format support (STEP/IGES)
-
-### 📅 Future Plans
-
-- 🗂️ Machining management (operations, jobs, tool library) - v0.2.0
-- 🧾 Connecting moves and NC output - v0.3.0
-- 🌐 WebAssembly support
-- 🖱️ SpaceMouse integration
-
-For implementation progress and design decisions, please check our Issue tracker:
-👉 [View Issues](https://github.com/RedRing2020/RedRing/issues)
-
-Development structure and responsibility separation designs are managed via GitHub Projects:
-👉 [View Projects](https://github.com/RedRing2020/RedRing/projects)
-
-> **Note:** README is only updated when stable features are implemented. For detailed progress, please check Issues/Projects.
-
----
-
-## 📚 Documentation Guide
-
-| Document                                                           | Target Audience                | Content                                                      |
-| ------------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------ |
-| `README.md`                                                        | General Users & New Developers | Project Overview & Build Instructions                        |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | Developers                     | Workspace Structure & Migration Status & Test Strategy       |
-| [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | Maintainers                    | Issue Label Rules & Release/Phase Operation                  |
-| [`dev/architecture/`](dev/architecture/)                           | Contributors                   | Design Documents (the source of truth for design)            |
-| [User Manual](https://redring2020.github.io/RedRing/en/)           | Users                          | Getting Started & Controls & Cutting Simulation              |
-| [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | Geometry Library Developers    | Detailed Geometry Abstraction Specifications                 |
-| [`.github/ai_quick_reference.md`](.github/ai_quick_reference.md)   | 🤖 AI Developers               | Session Recovery & Development Continuity Support            |
-| [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)     | Developers                     | Feature Requests & Bug Reports & Progress Management         |
-| [GitHub Projects](https://github.com/RedRing2020/RedRing/projects) | Developers                     | Development Roadmap & Task Management                        |
-
----
-
-## 🛠️ Technology Stack
-
-### Core Technologies
-
-- **Rust** (latest stable recommended) - Systems programming language
-- **wgpu** - Cross-platform GPU API
-- **winit** - Window management and event handling
-
-### Numerical Computing & Geometry
-
-- **approx** - Floating-point comparison
-- **Custom NURBS** - In-house NURBS engine implementation
-
-### Development & Testing
-
-- **cargo** - Rust package manager
-- **mdbook** - Documentation generation
-- **GitHub Actions** - CI/CD pipeline
-
-### Future Support
-
-- **WebAssembly** - Browser execution environment
-- **STEP/IGES** - CAD file formats
-- **OpenCASCADE** - Advanced geometry kernel (under consideration)
-
----
-
-## 📋 Design Principles
-
-RedRing is built on the following principles:
-
-### 🔒 Type Safety
-
-- Memory safety through Rust's ownership system
-- Abstraction via generics and traits
-- Compile-time error detection for quality assurance
-
-### 🏗️ Separation of Concerns
-
-- **Foundation**: Basic functionality and numerical analysis
-- **Model**: Geometric data layer and algorithms
-- **View**: Application and rendering layer
-- **ViewModel**: View transformation logic
-
-### 🚀 Future Extensibility
-
-- Modular crate architecture
-- Plugin-capable design
-- Incremental feature addition support
-
-For design documents (architecture, error handling guidelines, and trait design patterns), see:
-
-📖 **[Design Documents](dev/architecture/)** - Developer Guide
-
----
-
-## 🚀 Build Instructions
-
-### Prerequisites
-
-#### Basic Requirements
-
-- **Rust** (latest stable recommended) - Install from [official site](https://www.rust-lang.org/)
-- **cargo** (included with Rust)
-- **git** - For repository cloning
-
-#### Platform-Specific Requirements
-
-**Windows:**
-
-- Visual Studio Build Tools or Visual Studio Community
-- Windows 10/11 (DirectX 12 support)
-
-**macOS:**
-
-- Xcode Command Line Tools: `xcode-select --install`
-- macOS 10.15+ (Metal support)
-
-**Linux:**
-
-- Required packages: `sudo apt install build-essential pkg-config libx11-dev`
-- Vulkan drivers (OpenGL drivers if Vulkan is not available)
-
-### Build Steps
-
-#### 1. Clone Repository
+To build from source, install [rustup](https://rustup.rs/) and Git, then:
 
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
-```
-
-#### 2. **Setup Git Pre-commit Hook** (Recommended)
-
-Prevent format issues by automatically checking code before commits:
-
-```bash
-# Windows (PowerShell)
-pwsh scripts/setup_hooks.ps1
-
-# macOS/Linux
-cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
-
-After this step, `git commit` will automatically check formatting. If errors are found, the commit will be rejected and you'll need to run `cargo fmt --all` and retry.
-
-#### 3. Verify Dependencies
-
-```bash
-# Check Rust version
-rustc --version
-
-# Check build tools
-cargo --version
-```
-
-#### 4. Build Project
-
-```bash
-# Debug build (fast compilation)
-cargo build
-
-# Release build (optimized)
+git checkout v0.2.0
 cargo build --release
+cargo run --release -p redring
 ```
 
-#### 5. Run Application
+`cargo build --release` also builds the job manager and the runner, which compute toolpaths and cutting simulations. See [Getting Started](https://redring2020.github.io/RedRing/en/getting_started.html) for requirements, checking the package and the job manager.
 
-```bash
-# Requires GUI environment (X11/Wayland/Windows/macOS)
-cargo run
+## Documentation
 
-# Run tests
-cargo test --workspace
-```
+- [User manual](https://redring2020.github.io/RedRing/en/) ([Japanese](https://redring2020.github.io/RedRing/)) for the latest release: getting started, [screen and controls](https://redring2020.github.io/RedRing/en/screen_and_controls.html), [cutting simulation](https://redring2020.github.io/RedRing/en/cutting_simulation_demo.html). The manual for the version in development is in [manual_en/src/](manual_en/src/)
+- [Contributing](CONTRIBUTING.md): development setup, checks before a push, pull requests
+- [Design documents](dev/architecture/) (Japanese): [architecture](dev/architecture/ARCHITECTURE.md) and the design of each part
+- [Issues](https://github.com/RedRing2020/RedRing/issues): bug reports, feature requests and progress
 
-### Optional: Comprehensive Pre-push Check (Recommended)
+## License
 
-Before pushing changes, optionally run the full quality check to catch any issues early:
-
-```bash
-# Windows (PowerShell)
-pwsh scripts/check_all_before_push.ps1
-
-# macOS/Linux (coming soon)
-# bash scripts/check_all_before_push.sh
-```
-
-This runs:
-1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
-2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — Lint check
-3. `cargo test --workspace` — Full test suite
-
-#### 6. Generate Documentation (Optional)
-
-> Note: `cargo run -h` shows Cargo help. The key bindings below are available **after launching the app**.
-
-#### Frequently Used
-
-| Key | Action |
-| --- | ------ |
-| `h` | Show in-app help in logs |
-| `r` | Reset camera |
-| `t` | Return to standard CAD view |
-| `w` | Toggle display mode (Wire/Solid in CAM view) |
-
-#### Cutting Simulation
-
-| Key | Action |
-| --- | ------ |
-| `Shift+B` / `Shift+F` | Submit a cutting simulation for the displayed product shape (ball / flat end mill) |
-| `Shift+R` | Run the queued jobs |
-| `Shift+L` | Import the latest cutting simulation |
-| `k` / `j` | Step forward / backward by the frame step distance |
-| `.` / `,` | Move the tool to the next / previous segment endpoint |
-| `Space` | Toggle autoplay / pause |
-| `Shift+J` | Stop autoplay and return to the first frame |
-| `+` / `-` | Adjust playback speed (current multiplier is shown in the title) |
-| `v` / `Shift+V` | Toggle toolpath lines / tool lines |
-| `Shift+S` | Toggle settings panel |
-| `Esc` | Quit |
-
-Debug views (shapes and the inverse offset shape) are in the Debug tab of the settings panel. See `manual_en/src/screen_and_controls.md` for the full key list.
-
-#### Mouse Controls
-
-- `Ctrl + Left Drag`: Rotate
-- `Ctrl + Middle Drag`: Pan
-- `Ctrl + Right Drag`: Zoom
-
-#### 5. Generate Documentation (Optional)
-
-```bash
-# Requires mdbook: cargo install mdbook
-mdbook build            # Japanese manual: manual/ -> target/book/
-mdbook build manual_en  # English manual: manual_en/src/ -> target/book_en/
-mdbook serve manual_en  # Serve the English manual locally for preview
-```
-
-### Troubleshooting
-
-#### GPU Driver Issues
-
-```bash
-# If wgpu cannot detect GPU
-export WGPU_BACKEND=vulkan  # Linux
-# or
-export WGPU_BACKEND=dx12    # Windows
-```
-
-#### Build Errors
-
-```bash
-# Update dependencies
-cargo update
-
-# Clean build
-cargo clean && cargo build
-```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions to the RedRing project!
-
-### How to Contribute
-
-1. **Check Issues**: Review existing issues on [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)
-2. **Fork**: Fork the repository and create a working branch
-3. **Implement**: Add features or fix bugs
-4. **Test**: Ensure `cargo test --workspace` passes
-5. **Pull Request**: Create a pull request with clear description
-
-### Development Guidelines
-
-- **Code Style**: Use `cargo fmt` for automatic formatting
-- **Linting**: Run `cargo clippy` for quality checks
-- **Documentation**: Add rustdoc comments for public APIs
-- **Testing**: Include tests for new features
-
-### Pre-commit Format Checking
-
-**⚠️ IMPORTANT: Before pushing changes, you MUST run the format check**
-
-This project enforces code quality through CI checks. **Committing format issues will cause CI failure and waste time.**
-
-#### Option 1: Quick Check (Recommended)
-
-Run this before every push:
-
-```bash
-# Windows (PowerShell)
-pwsh scripts/check_all_before_push.ps1
-
-# macOS/Linux
-bash scripts/check_all_before_push.sh  # (will be added in future)
-```
-
-This runs:
-1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
-2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — Lint check
-3. `cargo test --workspace` — Full test suite
-
-If any check fails, the script stops immediately with error details.
-
-#### Option 2: Individual Commands
-
-If you prefer running checks separately:
-
-```bash
-# Check formatting (does not modify files)
-pwsh scripts/check_fmt.ps1
-
-# Auto-format all files
-cargo fmt --all
-
-# Run lints
-cargo clippy --all-targets --all-features --workspace -- -D warnings
-
-# Run tests
-cargo test --workspace
-```
-
-#### Option 3: Automatic Pre-commit Hook (Optional)
-
-Set up a git pre-commit hook to prevent committing unformatted code:
-
-**On Windows (PowerShell):**
-```powershell
-pwsh scripts/setup_hooks.ps1
-```
-
-**On macOS/Linux:**
-```bash
-cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
-
-After setup, `git commit` will automatically check formatting before creating a commit.
-
-#### ⚠️ If you forget to check locally
-
-The CI (`feature_ci.yml`) will reject your PR with:
-```
-✗ Check formatting — FAILED
-cargo fmt --all -- --check
-```
-
-**Solution**: Run the check script locally, commit the changes, and push again.
-
-### Community
-
-- 🐛 **Bug Reports**: Report via [Issues](https://github.com/RedRing2020/RedRing/issues)
-- 💡 **Feature Requests**: Discuss in [Discussions](https://github.com/RedRing2020/RedRing/discussions)
-- 📖 **Documentation Improvements**: Submit via pull requests
-
----
-
-## 📜 License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-## Dual License
-
-RedRing is available under a dual license:
-
-- **[MIT License](LICENSE-MIT)** - Simple, permissive license
-- **[Apache License 2.0](LICENSE-APACHE)** - Includes patent grant protection
-
-You may choose either license. See [LICENSE](LICENSE) for details.
-
-This dual licensing follows the standard practice of the Rust ecosystem and provides maximum compatibility for both academic and commercial use.
-
----
-
-## 🙏 Acknowledgments
-
-We thank all contributors who have helped develop RedRing.
-
-This project also benefits from the following open-source projects:
-
-- [Rust Programming Language](https://www.rust-lang.org/)
-- [wgpu](https://wgpu.rs/) - WebGPU implementation
-- [winit](https://github.com/rust-windowing/winit) - Window handling
-
----
-
-## 🔗 Links
-
-- 📧 **Contact**: [Issues](https://github.com/RedRing2020/RedRing/issues) or [Discussions](https://github.com/RedRing2020/RedRing/discussions)
-- 🌐 **Website**: [GitHub Pages](https://redring2020.github.io/RedRing/en/)
-- 🐙 **GitHub**: [RedRing2020/RedRing](https://github.com/RedRing2020/RedRing)
-
----
+RedRing is dual-licensed under the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option. See [LICENSE](LICENSE).

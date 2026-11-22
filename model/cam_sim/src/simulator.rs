@@ -8,7 +8,7 @@ use cam_core::{Tool, ToolPath};
 use crate::constants::{KEYFRAME_INTERVAL_MM, SNAPSHOT_GRID_SPACING_MULTIPLE};
 use crate::error::SimulationError;
 use crate::product_deviation::{ProductDeviations, compare_with_product};
-use crate::simulation_artifact::CuttingSimulationArtifact;
+use crate::simulation_artifact::{CuttingSimulationArtifact, StockDexels};
 use crate::stock_model::StockModel;
 use crate::tri_dexel::{TriDexelModel, dexel_spacing};
 
@@ -95,6 +95,8 @@ pub struct CuttingSimulator {
     pub(crate) dexels: Option<TriDexelModel>,
     /// 最後に実行した結果の、最後の時点の素材と製品形状の比較
     product_deviations: Option<ProductDeviations>,
+    /// 最後に実行した結果の、始まりの素材の素材の範囲から変わったデクセル
+    start_stock: StockDexels,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -114,6 +116,7 @@ impl CuttingSimulator {
             keyframe_snapshots: Vec::new(),
             dexels: None,
             product_deviations: None,
+            start_stock: StockDexels::default(),
         }
     }
 
@@ -145,7 +148,13 @@ impl CuttingSimulator {
             keyframe_snapshots: self.keyframe_snapshots.clone(),
             keyframe_changes: dexels.keyframe_changes().clone(),
             product_deviations: self.product_deviations.clone(),
+            start_stock: self.start_stock.clone(),
         })
+    }
+
+    /// 最後に実行した結果の、最後の時点の素材の範囲から変わったデクセル（実行していない場合は `None`）
+    pub(crate) fn end_stock(&self) -> Option<StockDexels> {
+        Some(self.dexels.as_ref()?.stock_dexels())
     }
 
     /// 最後に実行した結果の最後の時点の素材を、製品形状 `surface` と比べ、成果物に加える（判定の許容値は
@@ -170,13 +179,34 @@ impl CuttingSimulator {
         tool: &Tool<f64>,
         precision: f64,
     ) -> Result<(), SimulationError> {
+        self.simulate_reporting(
+            toolpath,
+            tool,
+            dexel_spacing(tool.radius(), precision),
+            StockDexels::default(),
+            &mut |_, _| {},
+        )
+    }
+
+    /// [`Self::simulate`] と同じくシミュレーションし、掃引体をトリデクセルから差し引く前に、`progress` に差し引いた
+    /// 掃引体の数と、差し引く掃引体の数を知らせる（掃引体を作る間・記録の時点を決める間は知らせない）
+    ///
+    /// 格子の間隔は `spacing` 以下とし、素材の範囲を始まりの素材 `start`（素材の範囲から変わったデクセル。格子は
+    /// 素材と `spacing` から決まるもの）に変えてから差し引く。
+    pub(crate) fn simulate_reporting(
+        &mut self,
+        toolpath: &ToolPath<f64>,
+        tool: &Tool<f64>,
+        spacing: f64,
+        start: StockDexels,
+        progress: &mut dyn FnMut(usize, usize),
+    ) -> Result<(), SimulationError> {
         let segments =
             collect_toolpath_line_segments(toolpath, DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM);
         if segments.is_empty() {
             return Err(SimulationError::EmptyToolpath);
         }
         let model = StockModel::from_segments(self.stock, &segments, tool)?;
-        let spacing = dexel_spacing(tool.radius(), precision);
         let config = self.calculate_snapshot_config(
             segments
                 .iter()
@@ -191,12 +221,19 @@ impl CuttingSimulator {
             .iter()
             .map(|&snapshot| self.snapshot_applied[snapshot])
             .collect();
-        let dexels = TriDexelModel::from_stock_model(&model, spacing, &keyframe_applied);
+        let dexels = TriDexelModel::from_stock_model_reporting(
+            &model,
+            spacing,
+            &start,
+            &keyframe_applied,
+            progress,
+        );
         for (snapshot, &applied) in self.snapshots.iter_mut().zip(&self.snapshot_applied) {
             snapshot.remaining_volume = dexels.remaining_volume_at(applied);
         }
         self.dexels = Some(dexels);
         self.product_deviations = None;
+        self.start_stock = start;
         Ok(())
     }
 }

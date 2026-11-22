@@ -6,7 +6,7 @@ use crate::{AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation};
 use analysis::test_constants::{
     FINITE_DIFFERENCE_STEP_F64, FINITE_DIFFERENCE_TOLERANCE_F64, TOLERANCE_F64,
 };
-use geo_contracts::{default_distance_tolerance, Bounded, PrimitiveKind, PrimitiveMetadata};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, default_distance_tolerance};
 
 /// 制御点 (0, 0, 0), (1, 1, 1), (2, 0, 0) の 2 次 Bézier 曲線
 fn bezier() -> NurbsCurve3D<f64> {

@@ -1,0 +1,1031 @@
+use super::*;
+
+use std::fs;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use cam_algorithms::SolverGeometry;
+use cam_core::{
+    CoordinateFrame, LengthUnit, OperationSpec, ScanlineCutDirection, ScanlineParams,
+    ScanlineToolRange, Tool,
+};
+use cam_sim::{
+    SnapshotInterval, TOOLPATH_MEMORY_LIMIT_BYTES, read_cam_solver_input_v1,
+    read_cutting_simulation_input_v1, run_cam_solver, run_cutting_simulation,
+};
+use geo_algorithms::{
+    Aabb3D, Point3D, TessellationLimits, TriangleMesh3D, TriangleMesh3DConstructor,
+};
+use job_ipc::{Endpoint, JobFailure, JobFailureReason, ToolpathLimits};
+use job_manager::{JobManagerService, LaunchSpec, Launcher, RunningJob, start_endpoint_server};
+use job_runtime::store::{
+    DependencyRef, JobStore, START_STOCK_FORMAT_VERSION, StoredJobError, StoredJobKind,
+    StoredJobStatus, SubmissionRequest,
+};
+
+use crate::cam_simulation_workflow::CamSimulationWorkflowError;
+
+/// 試験の口の受け手が返す、ツールパスの大きさの目安と上限
+const TEST_TOOLPATH_LIMITS: ToolpathLimits = ToolpathLimits {
+    confirm_bytes: 1_500_000_000,
+    limit_bytes: 6_000_000_000,
+};
+
+/// 試験ごとの保存先・口・ジョブマネージャーの実行ファイル（利用者の実際の保存先と口に触れない。試験の終わりに消す）
+struct TempRoot {
+    path: PathBuf,
+    endpoint: Endpoint,
+}
+
+impl TempRoot {
+    fn new() -> Self {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let name = format!(
+            "job-client-test-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        );
+        let path = std::env::temp_dir().join(format!("redring-{name}"));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).unwrap();
+        Self {
+            path,
+            endpoint: Endpoint::with_name(&name).unwrap(),
+        }
+    }
+
+    fn store_root(&self) -> PathBuf {
+        self.path.join("store")
+    }
+
+    /// 保存先から答える口の受け手を動かし、ジョブマネージャーの実行ファイルがある（中身は使わない）クライアントを返す
+    fn client(&self) -> PipeJobClient {
+        start_endpoint_server(
+            self.endpoint.clone(),
+            JobStore::open(self.store_root()).unwrap(),
+            std::sync::Arc::new(|| true),
+            std::sync::Arc::new(|_| true),
+            "0.0.0",
+            TEST_TOOLPATH_LIMITS,
+        );
+        // 受け手のスレッドが口を開くまで待つ（開く前につなぐと、ジョブマネージャーを起動しようとするため）
+        drop(
+            self.endpoint
+                .connect(std::time::Duration::from_secs(5))
+                .unwrap(),
+        );
+        let manager = self.path.join("redring-job-manager");
+        fs::write(&manager, b"").unwrap();
+        PipeJobClient::new(Ok(self.endpoint.clone()), manager)
+    }
+
+    /// 口の受け手がなく、ジョブマネージャーもインストールされていないクライアント
+    fn client_without_manager(&self) -> PipeJobClient {
+        PipeJobClient::new(Ok(self.endpoint.clone()), self.path.join("missing"))
+    }
+}
+
+impl Drop for TempRoot {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+/// 投入する区間の、ツールパス生成と切削シミュレーションの入力と投入元
+struct Base {
+    solver_input: CamSolverInput,
+    simulation_input: CuttingSimulationInput,
+    source: Option<CamJobSource>,
+}
+
+/// 四角錐を直径 6 のボールエンドミルで粗く加工する投入（ツールパス生成から計算する区間 1 つ）
+fn submission() -> Vec<SegmentSubmission> {
+    let base = base();
+    vec![SegmentSubmission {
+        toolpath: SegmentToolpath::Solve(Box::new(base.solver_input)),
+        simulation_input: base.simulation_input,
+        start_stock: None,
+        source: base.source,
+    }]
+}
+
+/// 四角錐を直径 6 のボールエンドミルで粗く加工する入力
+fn base() -> Base {
+    let pyramid = SolverGeometry::TriangleMesh(
+        TriangleMesh3D::new(
+            vec![
+                Point3D::new(20.0, 20.0, 80.0),
+                Point3D::new(60.0, 20.0, 80.0),
+                Point3D::new(60.0, 60.0, 80.0),
+                Point3D::new(20.0, 60.0, 80.0),
+                Point3D::new(40.0, 40.0, 90.0),
+            ],
+            vec![[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]],
+        )
+        .unwrap(),
+    );
+    let tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
+    Base {
+        solver_input: CamSolverInput {
+            operation_id: "op-1".to_string(),
+            tool: tool.clone(),
+            geometry: pyramid.clone(),
+            operation: OperationSpec::Scanline(ScanlineParams {
+                stepover: 6.0,
+                feed_rate: 1200.0,
+                tool_range: ScanlineToolRange::default(),
+                cut_direction: ScanlineCutDirection::default(),
+                angle_degrees: 0.0,
+            }),
+            units: LengthUnit::Millimeter,
+            coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
+            chord_tolerance: 0.01,
+            tessellation_limits: TessellationLimits::default(),
+            boundary: None,
+        },
+        simulation_input: CuttingSimulationInput {
+            stock: Aabb3D::new(
+                Point3D::new(15.0, 15.0, 80.0),
+                Point3D::new(65.0, 65.0, 95.0),
+            ),
+            tool,
+            precision: 0.5,
+            grid_tool_radius: 3.0,
+            snapshot_interval: SnapshotInterval::default(),
+            product: pyramid,
+            tolerance: 0.01,
+        },
+        source: Some(CamJobSource {
+            source_id: "operation-1".to_string(),
+            revision: 3,
+            revision_key: Some("key-3".to_string()),
+            segment_key: None,
+        }),
+    }
+}
+
+/// ランナーの代わりに、同じプロセスの中で計算してファイルを書くランチャー
+struct InProcessLauncher;
+
+impl Launcher for InProcessLauncher {
+    fn launch(&self, spec: &LaunchSpec) -> std::io::Result<Box<dyn RunningJob>> {
+        let input = fs::read(&spec.input)?;
+        fs::create_dir_all(&spec.output)?;
+        let (name, artifact) = if spec.job_type == "cam" {
+            let input = read_cam_solver_input_v1(&mut input.as_slice()).unwrap();
+            (
+                "toolpath.bin",
+                run_cam_solver(&input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap(),
+            )
+        } else {
+            let input = read_cutting_simulation_input_v1(&mut input.as_slice()).unwrap();
+            let toolpath = fs::read(spec.toolpath.as_ref().unwrap())?;
+            let stock = spec.stock.as_ref().map(fs::read).transpose()?;
+            let mut stock = stock.as_deref();
+            let run = run_cutting_simulation(
+                &input,
+                &mut toolpath.as_slice(),
+                stock.as_mut().map(|stock| stock as &mut dyn std::io::Read),
+                &mut |_, _| {},
+            )
+            .unwrap();
+            fs::write(spec.output.join("stock.bin"), run.stock)?;
+            ("cutting_simulation.bin", run.artifact)
+        };
+        fs::write(spec.output.join(name), artifact)?;
+        Ok(Box::new(Finished))
+    }
+}
+
+struct Finished;
+
+impl RunningJob for Finished {
+    fn try_finish(&mut self) -> std::io::Result<Option<Option<i32>>> {
+        Ok(Some(Some(0)))
+    }
+
+    fn stop(&mut self) -> std::io::Result<Option<Option<i32>>> {
+        Ok(Some(Some(0)))
+    }
+}
+
+#[test]
+fn submitting_without_the_job_manager_installed_fails_without_a_submission() {
+    let root = TempRoot::new();
+    let mut client = root.client_without_manager();
+    assert_eq!(
+        client.submit(submission()).unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotFound
+    );
+    let inbox = root.store_root().join("inbox");
+    assert!(!inbox.exists() || fs::read_dir(&inbox).unwrap().next().is_none());
+}
+
+/// 別のスレッドが計算の状態を読み終えるまで待ち、読んだ結果を返す
+fn read_status_in_background(
+    client: &PipeJobClient,
+) -> Result<super::JobStatusSnapshot, CamSimulationWorkflowError> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        match client.status_snapshot() {
+            Ok(None) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Ok(None) => panic!("the status was not read in time"),
+            Ok(Some(snapshot)) => return Ok(snapshot),
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+#[test]
+fn reading_the_status_does_not_start_the_job_manager() {
+    // 実行ファイルはあるが動いていない（口が開いていない）ときは、起動せずに、動いていないと答える（起動しようとすると、
+    // 実行できないファイルのため、起動の失敗になる）
+    let root = TempRoot::new();
+    let manager = root.path.join("redring-job-manager.exe");
+    fs::write(&manager, b"not a program").unwrap();
+    let client = PipeJobClient::new(Ok(root.endpoint.clone()), manager);
+    assert_eq!(
+        read_status_in_background(&client).unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotRunning
+    );
+}
+
+#[test]
+fn reading_the_status_without_the_job_manager_installed_reports_it_is_not_found() {
+    // 見つからないときは、投入していないとはみなさず、見つからないと答える
+    let root = TempRoot::new();
+    let client = root.client_without_manager();
+    assert_eq!(
+        read_status_in_background(&client).unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotFound
+    );
+}
+
+#[test]
+fn opening_the_job_manager_window_without_the_job_manager_installed_fails() {
+    let root = TempRoot::new();
+    let mut client = root.client_without_manager();
+    assert_eq!(
+        client.open_manager_window().unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotFound
+    );
+}
+
+#[test]
+fn a_submission_is_placed_in_the_inbox_with_both_inputs() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let submission_id = client.submit(submission()).unwrap();
+    let dir = root.store_root().join("inbox").join(&submission_id);
+    let request: SubmissionRequest =
+        serde_json::from_slice(&fs::read(dir.join("request.json")).unwrap()).unwrap();
+    assert_eq!(request.jobs.len(), 2);
+    assert_eq!(request.jobs[0].kind, StoredJobKind::Cam);
+    assert_eq!(request.jobs[1].kind, StoredJobKind::Sim);
+    assert_eq!(
+        request.jobs[1].depends_on,
+        vec![DependencyRef::Submitted(0)]
+    );
+    assert_eq!(
+        request.jobs[1]
+            .source
+            .as_ref()
+            .map(|source| (source.revision, source.revision_key.as_deref())),
+        Some((3, Some("key-3")))
+    );
+    let cam = fs::read(dir.join(&request.jobs[0].input_file)).unwrap();
+    assert_eq!(
+        read_cam_solver_input_v1(&mut cam.as_slice())
+            .unwrap()
+            .operation_id,
+        "op-1"
+    );
+    let sim = fs::read(dir.join(&request.jobs[1].input_file)).unwrap();
+    assert!(read_cutting_simulation_input_v1(&mut sim.as_slice()).is_ok());
+    assert!(client.simulation_jobs().unwrap().is_empty());
+    // ジョブマネージャーが取り込むまでは、まだジョブになっていない投入として読める（別のスレッドが読み直しても同じ）
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    let pending = client.status_snapshot().unwrap().unwrap().pending;
+    assert_eq!(pending.len(), 1);
+    assert!(!pending[0].rejected);
+    assert_eq!(
+        pending[0]
+            .sources
+            .first()
+            .map(|source| (source.revision, source.revision_key.as_deref())),
+        Some((3, Some("key-3")))
+    );
+}
+
+#[test]
+fn jobs_run_by_the_job_manager_are_read_and_imported_from_the_store() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    let submission_id = client.submit(submission()).unwrap();
+
+    for now in 1..=4 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].submission_id, submission_id);
+    assert_eq!(jobs[0].status, CamJobStatus::Succeeded);
+    assert_eq!(jobs[0].source.as_ref().unwrap().source_id, "operation-1");
+
+    let imported = client.import(jobs[0].job_id).unwrap();
+    assert_eq!(imported.solver_input.unwrap().operation_id, "op-1");
+    assert_eq!(imported.simulation_input.precision, 0.5);
+    assert_eq!(
+        imported.toolpath_artifact,
+        run_cam_solver(&base().solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
+    );
+    assert!(
+        cam_sim::read_cutting_simulation_artifact_v1(&mut imported.simulation_artifact.as_slice())
+            .is_ok()
+    );
+    // 取り込んだと伝えると、別のスレッドで伝え、CL の元のツールパス生成のジョブに印が付く
+    assert_eq!(store.imported_job(1), None);
+    client.record_imported(jobs[0].job_id).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while store.imported_job(1).is_none() {
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert_eq!(store.imported_job(1), Some(jobs[0].job_id));
+    // ツールパス生成のジョブ（投入の 1 つ目）は、切削シミュレーションとしては取り込めない
+    assert_eq!(
+        client.import(1).unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededSimulation(1)
+    );
+    // ツールパス生成の成果物（CL）だけを読める。切削シミュレーションのジョブは、ツールパス生成として読まない
+    let toolpath = client.toolpath_result(1).unwrap();
+    assert_eq!(toolpath.artifact, imported.toolpath_artifact);
+    assert_eq!(toolpath.source.unwrap().source_id, "operation-1");
+    assert_eq!(
+        client.toolpath_result(jobs[0].job_id).unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededToolpath(jobs[0].job_id)
+    );
+    // 成果物のファイルがなければ、成果物がない誤り
+    fs::remove_file(store.result_file(1, StoredJobKind::Cam)).unwrap();
+    assert_eq!(
+        client.toolpath_result(1).unwrap_err(),
+        CamSimulationWorkflowError::MissingArtifact(1)
+    );
+}
+
+#[test]
+fn broken_or_tampered_records_do_not_break_reading_or_importing() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    client.submit(submission()).unwrap();
+    for now in 1..=4 {
+        manager.tick(now);
+    }
+    drop(manager);
+
+    // 切削シミュレーションの記録の成果物の参照を、ほかのジョブの成果物に書き換えても、自分の成果物を読む
+    let lock = store.lock().unwrap();
+    let (mut jobs, _) = store.load_jobs().unwrap();
+    jobs[1].result_ref = Some("result://cam/1/ok".to_string());
+    store.write_job(&lock, &jobs[1]).unwrap();
+    let imported = client.import(2).unwrap();
+    assert!(
+        cam_sim::read_cutting_simulation_artifact_v1(&mut imported.simulation_artifact.as_slice())
+            .is_ok()
+    );
+    // 成果物のファイルがなければ、成果物がない誤り
+    fs::remove_file(store.result_file(2, StoredJobKind::Sim)).unwrap();
+    assert_eq!(
+        client.import(2).unwrap_err(),
+        CamSimulationWorkflowError::MissingArtifact(2)
+    );
+
+    // 壊れた記録は読み飛ばす
+    fs::write(store.job_dir(2).join("job.json"), "{ broken").unwrap();
+    assert!(client.simulation_jobs().unwrap().is_empty());
+    assert_eq!(
+        client.import(2).unwrap_err(),
+        CamSimulationWorkflowError::NotSucceededSimulation(2)
+    );
+    assert_eq!(jobs[0].status, StoredJobStatus::Succeeded);
+}
+
+#[test]
+fn interrupted_jobs_are_read_through_the_endpoint_and_can_be_resumed() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    client.submit(submission()).unwrap();
+    manager.tick(1);
+    drop(manager);
+
+    // ツールパス生成が中断し、切削シミュレーションが待っている
+    let lock = store.lock().unwrap();
+    let (mut jobs, _) = store.load_jobs().unwrap();
+    jobs[0].status = StoredJobStatus::Interrupted;
+    jobs[1].status = StoredJobStatus::Queued;
+    store.write_job(&lock, &jobs[0]).unwrap();
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(
+        client.toolpath_jobs().unwrap()[0].status,
+        CamJobStatus::Interrupted
+    );
+    let simulations = client.simulation_jobs().unwrap();
+    assert_eq!(simulations[0].status, CamJobStatus::Queued);
+    assert_eq!(simulations[0].toolpath_status, CamJobStatus::Interrupted);
+    client.resume(&[1]).unwrap();
+    // 計算中のジョブを止める頼みも、口で届く
+    client.stop(&[1]).unwrap();
+}
+
+#[test]
+fn failure_reasons_are_read_through_the_endpoint() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    client.submit(submission()).unwrap();
+    manager.tick(1);
+    drop(manager);
+    let lock = store.lock().unwrap();
+    let (mut jobs, _) = store.load_jobs().unwrap();
+    let mut write = |status, error: Option<StoredJobError>, last_error: Option<&str>| {
+        jobs[0].status = StoredJobStatus::Failed;
+        jobs[0].error = Some(StoredJobError::ToolpathTooLarge);
+        jobs[0].last_error = Some("the toolpath is too large for the memory limit".to_string());
+        jobs[1].status = status;
+        jobs[1].error = error;
+        jobs[1].last_error = last_error.map(str::to_string);
+        store.write_job(&lock, &jobs[0]).unwrap();
+        store.write_job(&lock, &jobs[1]).unwrap();
+    };
+    let too_large = Some(JobFailure {
+        reason: JobFailureReason::ToolpathTooLarge,
+        message: "the toolpath is too large for the memory limit".to_string(),
+    });
+
+    // ツールパス生成が失敗したら、切削シミュレーションの理由（依存するジョブの失敗）ではなく、その理由を出す
+    write(
+        StoredJobStatus::Failed,
+        Some(StoredJobError::DependencyFailed { job: 1 }),
+        Some("dependency job 1 failed"),
+    );
+    let simulations = client.simulation_jobs().unwrap();
+    assert_eq!(simulations[0].status, CamJobStatus::Failed);
+    assert_eq!(simulations[0].failure, too_large);
+    // 切削シミュレーションがまだ失敗にされていなくても、ツールパス生成の理由を出す
+    write(StoredJobStatus::Queued, None, None);
+    assert_eq!(client.simulation_jobs().unwrap()[0].failure, too_large);
+
+    // ツールパス生成が正常に終わり、切削シミュレーションが失敗したら、切削シミュレーションの理由を出す
+    jobs[0].status = StoredJobStatus::Succeeded;
+    jobs[0].error = None;
+    jobs[0].last_error = None;
+    jobs[1].status = StoredJobStatus::Failed;
+    jobs[1].error = Some(StoredJobError::CalculationFailed);
+    jobs[1].last_error = Some("the calculation failed: no stock".to_string());
+    store.write_job(&lock, &jobs[0]).unwrap();
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(
+        client.simulation_jobs().unwrap()[0].failure,
+        Some(JobFailure {
+            reason: JobFailureReason::CalculationFailed,
+            message: "the calculation failed: no stock".to_string(),
+        })
+    );
+    // 理由の種類を持たない記録（前の版）は、英語の理由だけを渡す。英語の理由もなければ渡さない
+    jobs[1].error = None;
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(
+        client.simulation_jobs().unwrap()[0].failure,
+        Some(JobFailure {
+            reason: JobFailureReason::Unknown,
+            message: "the calculation failed: no stock".to_string(),
+        })
+    );
+    jobs[1].last_error = None;
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(client.simulation_jobs().unwrap()[0].failure, None);
+    // 失敗でないジョブは、理由を渡さない（中断の理由は、計算を続けられるため失敗の理由にしない）
+    jobs[1].status = StoredJobStatus::Interrupted;
+    jobs[1].error = Some(StoredJobError::StoppedByUser);
+    jobs[1].last_error = Some("the calculation was stopped".to_string());
+    store.write_job(&lock, &jobs[1]).unwrap();
+    assert_eq!(client.simulation_jobs().unwrap()[0].failure, None);
+}
+
+#[test]
+fn the_job_manager_window_is_opened_through_the_endpoint() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    client.open_manager_window().unwrap();
+}
+
+#[test]
+fn the_toolpath_limits_are_read_from_the_job_manager() {
+    let root = TempRoot::new();
+    let client = root.client();
+    assert_eq!(client.toolpath_limits().unwrap(), TEST_TOOLPATH_LIMITS);
+}
+
+#[test]
+fn simulations_of_a_toolpath_file_run_without_a_cam_job_and_are_imported() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    let base = base();
+    let toolpath = run_cam_solver(&base.solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap();
+    let submission_id = client
+        .submit(vec![SegmentSubmission {
+            toolpath: SegmentToolpath::Artifact(toolpath.clone()),
+            simulation_input: base.simulation_input,
+            start_stock: None,
+            source: base.source,
+        }])
+        .unwrap();
+    // CL のファイルを持つ投入は、CL のファイルを持てる版の要求で書く
+    let request: SubmissionRequest = serde_json::from_slice(
+        &fs::read(
+            root.store_root()
+                .join("inbox")
+                .join(&submission_id)
+                .join("request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(request.jobs.len(), 1);
+    assert!(request.jobs[0].depends_on.is_empty());
+    assert_eq!(
+        request.format_version,
+        job_runtime::store::TOOLPATH_FILE_FORMAT_VERSION
+    );
+
+    for now in 1..=3 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].status, CamJobStatus::Succeeded);
+    assert_eq!(jobs[0].toolpath_status, CamJobStatus::Succeeded);
+
+    let imported = client.import(jobs[0].job_id).unwrap();
+    assert!(imported.solver_input.is_none());
+    assert_eq!(imported.toolpath_artifact, toolpath);
+    assert!(
+        cam_sim::read_cutting_simulation_artifact_v1(&mut imported.simulation_artifact.as_slice())
+            .is_ok()
+    );
+}
+
+#[test]
+fn simulations_are_put_under_an_existing_cam_job() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    client.submit(submission()).unwrap();
+    for now in 1..=4 {
+        manager.tick(now);
+    }
+    let cam = client.toolpath_jobs().unwrap();
+    assert_eq!(cam.len(), 1);
+    assert_eq!(cam[0].status, CamJobStatus::Succeeded);
+    assert_eq!(cam[0].source.as_ref().unwrap().source_id, "operation-1");
+    assert!(cam[0].simulated);
+    // 切削シミュレーションを消すと、ツールパス生成のジョブは切削シミュレーションを持たない
+    let simulation = client.simulation_jobs().unwrap()[0].job_id;
+    assert_eq!(
+        manager.delete(&[simulation]).unwrap().deleted,
+        std::collections::BTreeSet::from([simulation])
+    );
+    assert!(!client.toolpath_jobs().unwrap()[0].simulated);
+
+    let base = base();
+    let submission_id = client
+        .submit(vec![SegmentSubmission {
+            toolpath: SegmentToolpath::Job(cam[0].job_id),
+            simulation_input: base.simulation_input,
+            start_stock: None,
+            source: base.source,
+        }])
+        .unwrap();
+    let request: SubmissionRequest = serde_json::from_slice(
+        &fs::read(
+            root.store_root()
+                .join("inbox")
+                .join(&submission_id)
+                .join("request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        request.jobs[0].depends_on,
+        vec![DependencyRef::Existing(cam[0].job_id)]
+    );
+    assert_eq!(request.jobs[0].toolpath_file, None);
+
+    for now in 5..=7 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].status, CamJobStatus::Succeeded);
+    let imported = client.import(jobs[0].job_id).unwrap();
+    assert!(imported.solver_input.is_some());
+    assert_eq!(
+        imported.toolpath_artifact,
+        run_cam_solver(&base.solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
+    );
+}
+
+#[test]
+fn the_status_is_read_without_waiting_and_shows_a_submission_at_once() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    // 投入するとすぐ、取り込みを待つ投入として状態に出る（別のスレッドが読み終えるのを待たない）
+    client.submit(submission()).unwrap();
+    let snapshot = client.status_snapshot().unwrap().unwrap();
+    assert_eq!(snapshot.pending.len(), 1);
+    assert_eq!(
+        snapshot.pending[0]
+            .sources
+            .first()
+            .and_then(|source| source.revision_key.as_deref()),
+        Some("key-3")
+    );
+
+    // ジョブマネージャーが計算すると、別のスレッドが読み直した状態になる
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store, InProcessLauncher, 0).unwrap();
+    for now in 1..=4 {
+        manager.tick(now);
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let snapshot = client.status_snapshot().unwrap().unwrap();
+        if snapshot.pending.is_empty()
+            && snapshot
+                .simulations
+                .iter()
+                .any(|job| job.status == CamJobStatus::Succeeded)
+        {
+            break;
+        }
+        assert!(std::time::Instant::now() < deadline, "{snapshot:?}");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+/// 受けた要求を記録する口の受け手の、接続ごとの処理（ジョブを持たずに答える。`jobs_fail` のときは、ジョブの一覧を
+/// 読めないと答える）
+struct RecordingHandler {
+    /// 何番目に受けた接続か（1 から）
+    connection: usize,
+    requests: std::sync::Arc<std::sync::Mutex<Vec<(usize, &'static str)>>>,
+    jobs_fail: bool,
+}
+
+impl RecordingHandler {
+    fn record(&self, request: &'static str) {
+        self.requests
+            .lock()
+            .unwrap()
+            .push((self.connection, request));
+    }
+}
+
+impl job_ipc::Handler for RecordingHandler {
+    fn submit(
+        &mut self,
+        _jobs: Vec<job_ipc::SubmitJob>,
+        _inputs: Vec<(String, Vec<u8>)>,
+    ) -> Result<String, job_ipc::HandlerError> {
+        self.record("submit");
+        Ok(format!("submission-{}", self.connection))
+    }
+
+    fn jobs(&mut self) -> Result<Vec<job_ipc::JobSummary>, job_ipc::HandlerError> {
+        self.record("jobs");
+        if self.jobs_fail {
+            Err(job_ipc::HandlerError::new(
+                job_ipc::ErrorKind::StoreUnavailable,
+                "the store cannot be read",
+            ))
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn pending_submissions(
+        &mut self,
+    ) -> Result<Vec<job_ipc::PendingSubmission>, job_ipc::HandlerError> {
+        self.record("pending_submissions");
+        Ok(Vec::new())
+    }
+
+    fn read_job_file(
+        &mut self,
+        _job_id: u64,
+        _file: job_ipc::JobFile,
+    ) -> Result<job_ipc::FileContent, job_ipc::HandlerError> {
+        self.record("read_job_file");
+        Err(job_ipc::HandlerError::new(
+            job_ipc::ErrorKind::JobNotFound,
+            "no jobs",
+        ))
+    }
+
+    fn open_window(&mut self) -> Result<(), job_ipc::HandlerError> {
+        self.record("open_window");
+        Ok(())
+    }
+
+    fn record_imported(&mut self, _simulation_job_id: u64) -> Result<(), job_ipc::HandlerError> {
+        self.record("record_imported");
+        Ok(())
+    }
+
+    fn cancel(&mut self, _job_ids: Vec<u64>) -> Result<(), job_ipc::HandlerError> {
+        self.record("cancel");
+        Ok(())
+    }
+
+    fn resume(&mut self, _job_ids: Vec<u64>) -> Result<(), job_ipc::HandlerError> {
+        self.record("resume");
+        Ok(())
+    }
+
+    fn stop(&mut self, _job_ids: Vec<u64>) -> Result<(), job_ipc::HandlerError> {
+        self.record("stop");
+        Ok(())
+    }
+
+    fn toolpath_limits(&mut self) -> Result<ToolpathLimits, job_ipc::HandlerError> {
+        self.record("toolpath_limits");
+        Ok(TEST_TOOLPATH_LIMITS)
+    }
+}
+
+/// 受けた要求（受けた接続の番号と、要求の名前。受けた順）
+#[derive(Clone)]
+struct RequestLog(std::sync::Arc<std::sync::Mutex<Vec<(usize, &'static str)>>>);
+
+impl RequestLog {
+    /// 投入 `submission_id`（接続の番号を持つ）を受けた接続の要求（受けた順）
+    fn on_connection_of(&self, submission_id: &str) -> Vec<&'static str> {
+        let connection: usize = submission_id
+            .strip_prefix("submission-")
+            .unwrap()
+            .parse()
+            .unwrap();
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(at, _)| *at == connection)
+            .map(|(_, request)| *request)
+            .collect()
+    }
+
+    /// 投入を受けた数
+    fn submissions(&self) -> usize {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, request)| *request == "submit")
+            .count()
+    }
+
+    /// 要求を受けた接続の数
+    fn connections(&self) -> usize {
+        let mut connections: Vec<usize> =
+            self.0.lock().unwrap().iter().map(|(at, _)| *at).collect();
+        connections.sort_unstable();
+        connections.dedup();
+        connections.len()
+    }
+}
+
+impl TempRoot {
+    /// 受けた要求を記録する口の受け手を動かし、ジョブマネージャーの実行ファイルがある（中身は使わない）クライアントを
+    /// 返す
+    fn recording_client(&self, jobs_fail: bool) -> (PipeJobClient, RequestLog) {
+        let log = RequestLog(std::sync::Arc::default());
+        let mut listener = self.endpoint.listen().unwrap();
+        let requests = std::sync::Arc::clone(&log.0);
+        std::thread::spawn(move || {
+            let mut connection_number = 0;
+            while let Ok(mut connection) = listener.accept() {
+                connection_number += 1;
+                let mut handler = RecordingHandler {
+                    connection: connection_number,
+                    requests: std::sync::Arc::clone(&requests),
+                    jobs_fail,
+                };
+                std::thread::spawn(move || {
+                    let _ = job_ipc::serve(&mut connection, &mut handler, "0.0.0");
+                });
+            }
+        });
+        let manager = self.path.join("redring-job-manager");
+        fs::write(&manager, b"").unwrap();
+        (PipeJobClient::new(Ok(self.endpoint.clone()), manager), log)
+    }
+}
+
+#[test]
+fn reading_the_status_and_submitting_in_one_operation_use_one_connection() {
+    let root = TempRoot::new();
+    let (mut client, log) = root.recording_client(false);
+    client.hold_connection().unwrap();
+    client.read_status_now().unwrap();
+    client.toolpath_jobs().unwrap();
+    let submission_id = client.submit(submission()).unwrap();
+    client.release_connection();
+    // 状態を読んだ接続で投入する（投入の後に、別のスレッドが状態を読み直す接続は、別に数える）
+    assert_eq!(
+        log.on_connection_of(&submission_id),
+        ["pending_submissions", "jobs", "jobs", "submit"]
+    );
+
+    // つないでおかなければ、問い合わせごとにつなぐ
+    client.read_status_now().unwrap();
+    let submission_id = client.submit(submission()).unwrap();
+    assert_eq!(log.on_connection_of(&submission_id), ["submit"]);
+    assert_eq!(log.submissions(), 2);
+}
+
+#[test]
+fn after_a_failed_request_in_one_operation_the_later_requests_fail_without_reconnecting() {
+    let root = TempRoot::new();
+    let (mut client, log) = root.recording_client(true);
+    client.hold_connection().unwrap();
+    assert!(matches!(
+        client.read_status_now(),
+        Err(CamSimulationWorkflowError::JobStore(_))
+    ));
+    // 失敗した接続では投入せず、つなぎ直しもしない
+    assert!(matches!(
+        client.submit(submission()),
+        Err(CamSimulationWorkflowError::JobStore(_))
+    ));
+    client.release_connection();
+    assert_eq!(log.connections(), 1);
+    assert_eq!(log.submissions(), 0);
+}
+
+#[test]
+fn holding_a_connection_when_the_job_manager_cannot_start_fails() {
+    // 実行できないファイルのため、起動に失敗する（口が開くのを待たない）
+    let root = TempRoot::new();
+    let manager = root.path.join("redring-job-manager.exe");
+    fs::write(&manager, b"not a program").unwrap();
+    let mut client = PipeJobClient::new(Ok(root.endpoint.clone()), manager);
+    assert!(matches!(
+        client.hold_connection(),
+        Err(CamSimulationWorkflowError::JobStore(_))
+    ));
+}
+
+#[test]
+fn holding_a_connection_without_the_job_manager_installed_reports_it_is_not_found() {
+    let root = TempRoot::new();
+    let mut client = root.client_without_manager();
+    assert_eq!(
+        client.hold_connection().unwrap_err(),
+        CamSimulationWorkflowError::JobManagerNotFound
+    );
+}
+
+#[test]
+fn segments_are_submitted_together_and_later_ones_start_from_the_end_stock_of_earlier_ones() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    let segment_source = |key: &str| {
+        base().source.map(|source| CamJobSource {
+            segment_key: Some(key.to_string()),
+            ..source
+        })
+    };
+    let mut segments = submission();
+    segments[0].source = segment_source("segment-1");
+    segments.push(SegmentSubmission {
+        start_stock: Some(StartStock::Submitted(0)),
+        source: segment_source("segment-2"),
+        ..submission().remove(0)
+    });
+    let submission_id = client.submit(segments).unwrap();
+
+    // 後の区間の切削シミュレーションは、その CAM の計算と、前の区間の切削シミュレーションに依存する
+    let request: SubmissionRequest = serde_json::from_slice(
+        &fs::read(
+            root.store_root()
+                .join("inbox")
+                .join(&submission_id)
+                .join("request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(request.format_version, START_STOCK_FORMAT_VERSION);
+    let kinds: Vec<StoredJobKind> = request.jobs.iter().map(|job| job.kind).collect();
+    assert_eq!(
+        kinds,
+        [
+            StoredJobKind::Cam,
+            StoredJobKind::Sim,
+            StoredJobKind::Cam,
+            StoredJobKind::Sim
+        ]
+    );
+    assert_eq!(
+        request.jobs[3].depends_on,
+        vec![DependencyRef::Submitted(2), DependencyRef::Submitted(1)]
+    );
+    assert_eq!(
+        request.jobs[3].start_stock,
+        Some(DependencyRef::Submitted(1))
+    );
+    // ツールパス生成のジョブは、区間の前提の鍵を持たない
+    let segment_keys: Vec<Option<&str>> = request
+        .jobs
+        .iter()
+        .map(|job| job.source.as_ref().unwrap().segment_key.as_deref())
+        .collect();
+    assert_eq!(
+        segment_keys,
+        [None, Some("segment-1"), None, Some("segment-2")]
+    );
+    // まだジョブになっていない投入は、すべてのジョブの投入元を持つ
+    assert_eq!(
+        client.status_snapshot().unwrap().unwrap().pending[0]
+            .sources
+            .len(),
+        4
+    );
+
+    for now in 1..=8 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 2);
+    let volumes = |job_id| {
+        let imported = client.import(job_id).unwrap();
+        let (_, simulation) = cam_sim::read_cutting_simulation_artifact_v1(
+            &mut imported.simulation_artifact.as_slice(),
+        )
+        .unwrap();
+        (
+            simulation.snapshots[0].remaining_volume_mm3,
+            simulation.snapshots.last().unwrap().remaining_volume_mm3,
+        )
+    };
+    let (first_start, first_end) = volumes(jobs[0].job_id);
+    let (second_start, _) = volumes(jobs[1].job_id);
+    // 前の区間は素材を削り、後の区間はその終わりの素材から始まる
+    assert!(first_end < first_start);
+    assert!((second_start - first_end).abs() <= 1e-9 * first_end);
+}
+
+#[test]
+fn a_segment_of_a_toolpath_file_starts_from_the_end_stock_of_the_earlier_one_and_is_imported() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    let base = base();
+    let toolpath = run_cam_solver(&base.solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap();
+    let mut segments = submission();
+    segments.push(SegmentSubmission {
+        toolpath: SegmentToolpath::Artifact(toolpath.clone()),
+        simulation_input: base.simulation_input,
+        start_stock: Some(StartStock::Submitted(0)),
+        source: base.source,
+    });
+    client.submit(segments).unwrap();
+    for now in 1..=8 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 2);
+    assert_eq!(jobs[1].status, CamJobStatus::Succeeded);
+    assert_eq!(jobs[1].start_stock, Some(jobs[0].job_id));
+
+    // 始まりの素材に依存していても、CL のファイルを入力にした切削シミュレーションとして取り込む
+    let imported = client.import(jobs[1].job_id).unwrap();
+    assert!(imported.solver_input.is_none());
+    assert_eq!(imported.toolpath_artifact, toolpath);
+}

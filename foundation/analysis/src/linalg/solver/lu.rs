@@ -157,8 +157,8 @@ impl<T: Scalar> LUSolver<T> {
     pub fn determinant(&self, lu_decomp: &LUDecomposition<T>) -> T {
         let mut det = T::from_f64(lu_decomp.determinant_sign as f64);
 
-        for i in 0..lu_decomp.lu_matrix.len() {
-            det *= lu_decomp.lu_matrix[i][i];
+        for (i, row) in lu_decomp.lu_matrix.iter().enumerate() {
+            det *= row[i];
         }
 
         det

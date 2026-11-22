@@ -1,0 +1,53 @@
+name: Issue Labels
+
+# Issue のラベルの決まり（dev/ISSUE_LABEL_OPERATION.md）。作ったときにリリース・優先度の既定を付け、週に 1 回、
+# 開いている Issue を確かめる（決まりに沿っていない Issue があれば失敗にする）
+on:
+  issues:
+    types: [opened]
+  # 月曜 9:00 JST
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-labels-${{ github.event.issue.number || 'all' }}
+
+jobs:
+  labels:
+    name: Issue labels
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # 動かすスクリプトだけを取り出す
+      - name: Checkout the script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/check_issue_labels.ps1
+          sparse-checkout-cone-mode: false
+
+      - name: Add the default labels to the new issue
+        if: github.event_name == 'issues'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        # 作った直後に別の操作で付けるラベルと重ならないように、少し待ってから読む
+        run: |
+          Start-Sleep -Seconds 60
+          ./scripts/check_issue_labels.ps1 -Fix -Issue $env:ISSUE_NUMBER
+
+      - name: Check the open issues
+        if: github.event_name != 'issues'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: ./scripts/check_issue_labels.ps1 -Fix

@@ -1,4 +1,5 @@
 pub mod device;
+pub mod gpu_buffer;
 pub mod line;
 pub mod mesh;
 pub mod mesh_convert;

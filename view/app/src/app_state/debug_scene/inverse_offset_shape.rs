@@ -22,7 +22,7 @@ fn part_color(kind: InverseOffsetPartKind) -> [f32; 4] {
 }
 
 impl AppState {
-    /// デバッグ用: 表示中の製品形状と計算条件の工具で作った逆オフセット形状の要素を、役割ごとの色で表示する
+    /// デバッグ用: 加工の対象の面と計算条件の工具で作った逆オフセット形状の要素を、役割ごとの色で表示する
     ///
     /// カメラは動かさず、通常の表示と同じ向き・拡大で見比べられるようにする。取り込んだ切削シミュレーションのツールパスの
     /// 線を重ね（工具の先端が逆オフセット形状の上面を通るかを確かめる）、表示・非表示は通常の表示と同じに切り替える。
@@ -30,7 +30,7 @@ impl AppState {
     pub fn load_debug_inverse_offset_shape(&mut self) {
         let meshes = match self
             .cutting_simulation
-            .inverse_offset_shape_meshes(&self.product_shapes, ANGLE_STEP_DEGREES.to_radians())
+            .inverse_offset_shape_meshes(&self.document, ANGLE_STEP_DEGREES.to_radians())
         {
             Ok(meshes) => meshes,
             Err(error) => {
@@ -44,7 +44,11 @@ impl AppState {
             .collect();
         tracing::info!(
             "Inverse offset shape: tool={:?}, step={} deg, triangles {}",
-            self.cutting_simulation.operation_content().tool.tool_type(),
+            self.document
+                .operation_content()
+                .conditions
+                .tool
+                .tool_type(),
             ANGLE_STEP_DEGREES,
             counts.join(" ")
         );
@@ -64,24 +68,30 @@ impl AppState {
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        mesh_stage.set_mesh_list(&self.graphic.device, items);
-        if let Some(animation) = &self.cutting_animation {
-            mesh_stage.set_overlay_toolpath_line_data(
+        let meshes = mesh_stage.set_mesh_list(&self.graphic.device, items);
+        self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
+        let lines = match &self.cutting_animation {
+            Some(animation) => mesh_stage.set_overlay_toolpath_line_data(
                 &self.graphic.device,
-                self.toolpath_lines(animation),
-            );
-        }
+                &self.toolpath_lines(animation),
+            ),
+            None => Ok(()),
+        };
+        self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
         // ほかのデバッグ表示から切り替えても、通常の表示と同じカメラで描く
         self.enter_debug_view();
         self.use_main_view_camera();
         self.show_debug_stage(mesh_stage, true);
         // 取り込んだ結果の工具と今の計算条件の工具が違うと、ツールパスの線は逆オフセット形状に乗らない
-        let tool = &self.cutting_simulation.operation_content().tool;
-        let imported_tool_differs = self.imported_conditions.as_ref().is_some_and(|conditions| {
-            conditions.tool.is_ball_end_mill() != tool.is_ball_end_mill()
-                || conditions.tool.radius() != tool.radius()
-        });
+        let tool = &self.document.operation_content().conditions.tool;
+        // 取り込んだ工程を選んでいるときだけ比べる（ほかの工程の工具と比べても意味がない）
+        let imported_selected = self.imported_operation == Some(self.document.selected_operation());
+        let imported_tool_differs = imported_selected
+            && self.imported_conditions.as_ref().is_some_and(|conditions| {
+                conditions.tool.is_ball_end_mill() != tool.is_ball_end_mill()
+                    || conditions.tool.radius() != tool.radius()
+            });
         if imported_tool_differs {
             self.set_notice(crate::help_ui::Notice::InverseOffsetToolDiffers);
         }

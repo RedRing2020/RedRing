@@ -1,0 +1,13 @@
+# Rust の版と部品は、リポジトリの rust-toolchain.toml で決める（ここでは、その版を入れる）
+name: Set up Rust
+description: Install the Rust toolchain and components listed in rust-toolchain.toml
+
+runs:
+  using: composite
+  steps:
+    # bash で動かし、rustup が失敗したらこの手順で止める（Windows のランナーでも同じ）
+    - name: Install the toolchain of rust-toolchain.toml
+      shell: bash
+      run: |
+        rustup toolchain install
+        rustc --version

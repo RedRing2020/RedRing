@@ -4,8 +4,9 @@
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, Vector3D};
 use geo_contracts::{
-    default_parallel_cross_error_tolerance, InfiniteLine3DConstructor, InfiniteLine3DProperties,
-    LineSegment3DDistance, LineSegment3DSupportLine, Ray3DDistance, Ray3DProperties, Scalar,
+    InfiniteLine3DConstructor, InfiniteLine3DProperties, LineSegment3DDistance,
+    LineSegment3DSupportLine, Ray3DDistance, Ray3DProperties, Scalar,
+    default_parallel_cross_error_tolerance,
 };
 
 /// 分母が有効（非ゼロ・非極小）かチェック

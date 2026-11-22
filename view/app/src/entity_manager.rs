@@ -58,10 +58,10 @@ impl EntityManager {
             return false;
         }
 
-        if let Some(prev_id) = self.selected {
-            if let Some(prev) = self.geometric.get_mut(&prev_id) {
-                prev.selected = false;
-            }
+        if let Some(prev_id) = self.selected
+            && let Some(prev) = self.geometric.get_mut(&prev_id)
+        {
+            prev.selected = false;
         }
 
         if let Some(current) = self.geometric.get_mut(&id) {
@@ -74,10 +74,10 @@ impl EntityManager {
     }
 
     pub fn clear_selection(&mut self) {
-        if let Some(prev_id) = self.selected {
-            if let Some(prev) = self.geometric.get_mut(&prev_id) {
-                prev.selected = false;
-            }
+        if let Some(prev_id) = self.selected
+            && let Some(prev) = self.geometric.get_mut(&prev_id)
+        {
+            prev.selected = false;
         }
         self.selected = None;
         self.dirty = true;
@@ -147,15 +147,19 @@ mod tests {
         assert!(manager.select(id));
         assert_eq!(manager.selected(), Some(id));
         // 線の色は、頂点の値ではなく図形の色（既定は白）
-        assert!(manager
-            .line_list_vertices()
-            .iter()
-            .all(|vertex| vertex.normal == [1.0, 1.0, 1.0]));
+        assert!(
+            manager
+                .line_list_vertices()
+                .iter()
+                .all(|vertex| vertex.normal == [1.0, 1.0, 1.0])
+        );
         assert!(manager.set_color(id, [1.0, 0.0, 0.0, 1.0]));
-        assert!(manager
-            .line_list_vertices()
-            .iter()
-            .all(|vertex| vertex.normal == [1.0, 0.0, 0.0]));
+        assert!(
+            manager
+                .line_list_vertices()
+                .iter()
+                .all(|vertex| vertex.normal == [1.0, 0.0, 0.0])
+        );
         assert!(manager.remove(id));
         assert_eq!(manager.selected(), None);
     }

@@ -1,8 +1,8 @@
 [package]
 name = "redring"
 publish = false
-version = "0.1.3"
-edition = "2021"
+version = "0.2.0"
+edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -11,24 +11,26 @@ categories.workspace = true
 
 [dependencies]
 winit = "0.30.13"
-wgpu = "29.0.1"
-smol_str = "0.3.2"
+wgpu = "30.0.0"
 pollster.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tracing-appender = "0.2"
 viewmodel = { path = "../../viewmodel/converter" }
 viewmodel-graphics = { path = "../../viewmodel/graphics" }
 render = { path = "../render" }
 stage = { path = "../stage" }
 analysis = { path = "../../foundation/analysis" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
+platform_foundation = { path = "../../foundation/platform_foundation" }
 bytemuck = { version = "1.24", features = ["derive"] }
-egui = "0.34.1"
-egui-wgpu = "0.34.1"
-egui-winit = "0.34.1"
-fontdb = "0.23"
-rfd = "0.17.2"
+# 0.37 から標準のフォントが既定で入らないため、英字のフォントと、記号（▲・▼・→ など）のフォントを入れる（日本語は OS の
+# フォントを足す）
+egui = { version = "0.37.0", features = ["monochrome_emoji_fonts"] }
+egui_extras = { version = "0.37.0", default-features = false }
+egui-wgpu = "0.37.0"
+egui-winit = "0.37.0"
+fontdb = "0.24"
+rfd = "0.18.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.149"
 

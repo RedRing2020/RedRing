@@ -1,17 +1,19 @@
 //! AppState のメニューバーの項目を扱うモジュール。
 
 use super::AppState;
-use crate::menu_bar_messages::resolve_menu_bar_text;
-use crate::menu_bar_ui::MenuBarUiState;
-
-/// 読み込める形状ファイルの形式（ファイルを開く画面の種類の名前と拡張子。大文字・小文字を区別する OS のため両方）
-const SHAPE_FILE_FORMATS: &[(&str, &[&str])] = &[("STL", &["stl", "STL"])];
+use super::model_file::FileAction;
+use crate::machining_conditions_ui::ConditionDialog;
+use crate::menu_bar_ui::{FileMenuItem, MachiningMenuItem, MenuBarUiState};
 
 impl AppState {
     pub(crate) fn prepare_menu_bar_state(&self) -> MenuBarUiState {
         MenuBarUiState {
             locale: self.ui_locale,
-            load_requested: false,
+            machining_sequence_open: self.machining_sequence_open,
+            operation_list_shown: self.operation_list_shown,
+            condition_dialog_open: self.is_condition_dialog_open(),
+            file_requested: None,
+            machining_requested: None,
             locale_requested: None,
             controls_requested: false,
             about_requested: false,
@@ -19,8 +21,28 @@ impl AppState {
     }
 
     pub(crate) fn apply_menu_bar_state(&mut self, state: MenuBarUiState) {
-        if state.load_requested {
-            self.shape_file_load_requested = true;
+        if let Some(item) = state.file_requested {
+            self.request_file_action(match item {
+                FileMenuItem::New => FileAction::New,
+                FileMenuItem::Open => FileAction::Open,
+                FileMenuItem::Save => FileAction::Save,
+                FileMenuItem::SaveAs => FileAction::SaveAs,
+                FileMenuItem::Load => FileAction::Load,
+                FileMenuItem::Exit => FileAction::Exit,
+            });
+        }
+        match state.machining_requested {
+            Some(MachiningMenuItem::OpenSequence) => self.open_machining_sequence(),
+            Some(MachiningMenuItem::CloseSequence) => self.close_machining_sequence(),
+            Some(MachiningMenuItem::OperationList) => self.toggle_operation_list(),
+            Some(MachiningMenuItem::OperationSettings) => {
+                self.open_condition_dialog(ConditionDialog::Operation);
+            }
+            Some(MachiningMenuItem::SequenceSettings) => {
+                self.open_condition_dialog(ConditionDialog::Sequence);
+            }
+            Some(MachiningMenuItem::ToolLibrary) => self.open_tool_library_window(),
+            None => {}
         }
         if let Some(locale) = state.locale_requested {
             self.set_ui_locale(locale);
@@ -33,30 +55,12 @@ impl AppState {
         }
     }
 
-    /// 選ばれたメニューの項目を行う（描画の途中ではなく、イベントの処理が終わった後に呼ぶ）
+    /// ファイルを選ぶ画面が閉じていれば選んだ結果を受け取り、選ばれたメニューの項目・要求されたモデルファイルの操作を
+    /// 行う（確かめの画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に呼ぶ）
     pub fn run_requested_menu_actions(&mut self) {
-        if std::mem::take(&mut self.shape_file_load_requested) {
-            self.load_shape_file();
-        }
-    }
-
-    /// ファイルを開く画面で選んだ形状ファイルを、ドラッグ＆ドロップと同じ経路で読み込む（選ばなかった場合は何もしない）
-    ///
-    /// 画面を開いている間は、アプリの描画が止まる。
-    fn load_shape_file(&mut self) {
-        let supported: Vec<&str> = SHAPE_FILE_FORMATS
-            .iter()
-            .flat_map(|(_, extensions)| extensions.iter().copied())
-            .collect();
-        let mut dialog = rfd::FileDialog::new().set_parent(&*self.window).add_filter(
-            resolve_menu_bar_text(self.ui_locale, "menu.file.load.supported"),
-            &supported,
-        );
-        for (name, extensions) in SHAPE_FILE_FORMATS {
-            dialog = dialog.add_filter(*name, extensions);
-        }
-        if let Some(path) = dialog.pick_file() {
-            self.import_product_shape(&path);
-        }
+        self.receive_file_dialog_result();
+        self.run_file_actions();
+        self.run_tool_library_action();
+        self.refresh_window_title();
     }
 }

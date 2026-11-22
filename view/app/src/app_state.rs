@@ -1,9 +1,9 @@
 use crate::app_renderer::{AppRenderer, AppRendererFactory};
 use crate::app_settings::AppSettings;
 use crate::entity_manager::EntityManager;
-use crate::graphic::{init_graphic, Graphic};
+use crate::graphic::{Graphic, init_graphic};
 use crate::help_ui::Notice;
-use crate::machining_conditions_ui::OperationStatus;
+use crate::machining_conditions_ui::{JobStatusLine, OperationNameEdit, OperationSettingsPage};
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
@@ -15,10 +15,12 @@ use std::sync::Arc;
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
 use viewmodel::cutting_animation::CuttingAnimation;
 use viewmodel::cutting_simulation_session::{
-    ConditionIssue, CuttingSimulationSession, ImportedConditions,
+    ConditionIssue, CuttingSimulationSession, ImportedConditions, OperationFailure,
 };
 use viewmodel::message_catalog::UiLocale;
-use viewmodel::product_shape_converter::ProductShapeScene;
+use viewmodel::space_model_document::MachiningOperationId;
+use viewmodel::space_model_document::SpaceModelDocument;
+use viewmodel::tool_library_session::ToolLibrarySession;
 use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
@@ -27,10 +29,16 @@ use winit::window::Window;
 mod app_lifecycle;
 // AppState の切削シミュレーションの投入・実行・取り込みと切削アニメーションの描画
 mod cutting_simulation;
-// AppState の加工条件のウィンドウ（計算条件の入力と投入）
+// AppState の加工手順の画面（工程リストと条件の編集のダイアログ。計算条件の入力と投入）
 mod machining_conditions;
+// AppState のファイルを選ぶ画面
+mod file_dialog;
 // AppState のメニューバーの項目
 mod menu_bar;
+// AppState のモデルファイルの操作と、保存していない変更の確かめ
+mod model_file;
+// AppState のツールライブラリのウィンドウ
+mod tool_library;
 
 mod help;
 // AppState のデバッグスナップショット状態
@@ -146,8 +154,8 @@ pub struct AppState {
     /// ToolPath表示設定
     toolpath_visualization_settings: ToolPathVisualizationSettings,
 
-    /// 取り込んだ製品形状
-    product_shapes: ProductShapeScene,
+    /// 空間モデルの文書（製品形状・加工手順・開いたファイル・保存していない変更）
+    document: SpaceModelDocument,
 
     /// 切削シミュレーションの投入・実行・取り込み
     cutting_simulation: CuttingSimulationSession,
@@ -158,26 +166,76 @@ pub struct AppState {
     /// 切削アニメーションを描いている色（取り込みと「設定を反映」で、設定の色にする）
     cutting_animation_colors: SnapshotShadedColorSettings,
 
-    /// 加工条件のウィンドウの、工具長を指定するときの入力値（mm）
-    tool_length_input: f64,
+    /// 工程の設定のダイアログの、工具長を指定するときの入力値（mm）
+    /// 工程の設定の工具の欄で選んでいるライブラリ（一覧の番号）と、ツールセットの名前の絞り込み
+    operation_tool_library: usize,
+    operation_tool_filter: String,
 
-    /// 加工条件のウィンドウの表示状態
-    machining_conditions_open: bool,
+    /// 加工手順を開いているか（開いている間だけ、CAM の操作・表示を出す。閉じたら CAM の表示を放す）
+    machining_sequence_open: bool,
+    /// 工程リストを出しているか（加工手順を開いている間だけ出せる）
+    operation_list_shown: bool,
+    /// 開いている条件の編集のダイアログと、編集している条件（加工手順を開いている間だけ開ける）
+    condition_draft: Option<machining_conditions::ConditionDraft>,
+    /// 編集している条件と、その条件の問題（条件が変わったら確かめ直す）
+    draft_issues: Option<machining_conditions::DraftIssues>,
+    /// 工程の表の名前の欄で編集している名前（確定するまで工程に入れない。選んだ工程が替わったら捨てる）
+    operation_name_edit: Option<OperationNameEdit>,
+    /// 名前の欄で編集を始めた回数（編集ごとに入力欄を分ける）
+    operation_name_edit_sessions: u64,
+    /// 名前の欄で編集している名前を、次の画面の描画で受け取ってから確定する（ファイルの操作の前。まだ受け取っていない
+    /// 打った文字も入れるため）
+    operation_name_confirm_requested: bool,
+    /// 工程の設定のダイアログで出している頁（次に開いたときも同じ頁を出す）
+    operation_settings_page: OperationSettingsPage,
+    /// 工程の設定を適用すると同時に投入する
+    submit_on_apply: bool,
 
     /// 次に投入する計算条件の問題（`None` は、条件・製品形状が変わって確かめ直す必要がある）
     condition_issues: Option<Vec<ConditionIssue>>,
+    /// ツールパスの大きさを見積もっている間に頼まれた計算（見積もり終えたら、もう一度頼む）
+    pending_submission: Option<cutting_simulation::PendingSubmission>,
+    /// 加工手順の工程のうち、計算の条件に誤りがある工程と、その問題（確かめていなければ `None`）
+    operation_condition_errors: Option<
+        std::collections::HashMap<
+            viewmodel::space_model_document::MachiningOperationId,
+            Vec<ConditionIssue>,
+        >,
+    >,
 
     /// 取り込んだ切削シミュレーションの計算に使った条件
     imported_conditions: Option<ImportedConditions>,
 
-    /// 加工条件のウィンドウの「投入」で、投入した後に続けて実行するか
-    run_after_submit: bool,
+    /// 加工工程の今の改訂の計算の状態と、読んだ時刻（ジョブの保存先は一定の間隔で読む）
+    cutting_simulation_job_status: JobStatusLine,
+    /// 選んだ工程の今の改訂の計算が失敗した理由（失敗していない・理由を受け取れなかったときは `None`）
+    cutting_simulation_job_failure: Option<OperationFailure>,
+    job_status_read_at: Option<std::time::Instant>,
+    /// ジョブマネージャーが動いていない・見つからないことを、最後に画面の下の行に出した状態（`None` は、出していない・
+    /// 動いている）
+    job_manager_unavailable: Option<JobStatusLine>,
+    /// 最後に読めた状態に、計算待ち・計算中の工程があったか
+    jobs_pending: bool,
+    /// 加工手順のすべての加工工程の、今の改訂の計算の状態（加工の順）
+    operation_job_statuses: Vec<(MachiningOperationId, JobStatusLine)>,
+    /// 取り込んだ切削シミュレーションの加工工程（取り込んだ条件は、その工程を選んでいるときだけ出す）
+    imported_operation: Option<MachiningOperationId>,
+    /// 描いている CL の線の工程と、そのときの CL の状態・加工手順を開いていたか（条件を変えて状態が変わったら
+    /// 線の色を描き直し、加工手順を開いた・閉じたら線を出す・消す）
+    drawn_toolpath_state: Option<(
+        MachiningOperationId,
+        viewmodel::space_model_document::ImportedToolpathState,
+        bool,
+    )>,
 
-    /// メニューバーの「ファイル」→「読み込み…」が選ばれ、まだファイルを開く画面を開いていない
-    shape_file_load_requested: bool,
-
-    /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
-    cutting_simulation_status: Option<OperationStatus>,
+    /// 要求されたモデルファイルの操作（イベントの処理が終わった後に行う）
+    file_actions: Vec<model_file::FileAction>,
+    /// 開いているファイルを選ぶ画面（閉じたら、選んだ結果を受け取る）
+    file_dialog: Option<file_dialog::PendingFileDialog>,
+    /// アプリを終えてよいことが決まった（保存していない変更を確かめた後）
+    exit_confirmed: bool,
+    /// 今のウィンドウのタイトル（文書のタイトルを出しているときだけ。出し直すときは空にする）
+    window_title: String,
 
     /// 切削アニメーションのツールパスの線を描くか
     toolpath_lines_visible: bool,
@@ -201,12 +259,22 @@ pub struct AppState {
     app_settings: AppSettings,
     app_settings_path: Option<PathBuf>,
 
+    /// 使うツールライブラリの一覧（アプリの設定に保存する）
+    tool_library: ToolLibrarySession,
+    /// ツールライブラリのウィンドウの状態
+    tool_library_window: crate::tool_library_ui::ToolLibraryWindow,
+    /// 要求されたツールライブラリの操作（描画の後に行う）
+    tool_library_action: Option<crate::tool_library_ui::ToolLibraryAction>,
+
     /// ヘルプの「操作の一覧」のウィンドウを開いているか
     help_controls_open: bool,
     /// ヘルプの「バージョンの情報」のウィンドウを開いているか
     help_about_open: bool,
     /// 画面の下の知らせの行に出している、最後の知らせ
     notice: Notice,
+    /// 最近のメッセージ（新しい順。数に上限がある）と、まだ一覧を開いていない注意・失敗のうち最も重いもの
+    notice_history: std::collections::VecDeque<Notice>,
+    unread_notice: Option<crate::help_ui::NoticeLevel>,
 
     /// デバッグ用: シミュレーションスナップショット状態
     debug_snapshot: DebugSnapshotState,
@@ -233,9 +301,17 @@ impl AppState {
         let ui_locale = app_settings.locale();
         crate::fatal_error_dialog::set_fatal_error_locale(ui_locale);
         let graphic = init_graphic(window.clone());
-        let renderer = AppRendererFactory::create_empty(&window, &graphic.device, &graphic.config);
+        let renderer = AppRendererFactory::create_empty(
+            &window,
+            &graphic.device,
+            &graphic.config,
+            graphic.ui_format,
+        );
         let viewing_operation_settings = ViewingOperationSettings::default();
 
+        let first_notice = settings_notice.unwrap_or(Notice::Startup);
+        let tool_library =
+            tool_library::open_tool_libraries(app_settings.tool_libraries().to_vec());
         let mut app_state = Self {
             window,
             graphic,
@@ -253,17 +329,37 @@ impl AppState {
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
             tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings::default(),
             toolpath_visualization_settings: ToolPathVisualizationSettings::default(),
-            product_shapes: ProductShapeScene::default(),
+            document: machining_conditions::with_default_names(ui_locale, SpaceModelDocument::new),
             cutting_simulation: CuttingSimulationSession::default(),
             cutting_animation: None,
             cutting_animation_colors: SnapshotShadedColorSettings::default(),
-            tool_length_input: 50.0,
-            machining_conditions_open: false,
+            operation_tool_library: 0,
+            operation_tool_filter: String::new(),
+            machining_sequence_open: false,
+            operation_list_shown: false,
+            condition_draft: None,
+            draft_issues: None,
+            operation_name_edit: None,
+            operation_name_edit_sessions: 0,
+            operation_name_confirm_requested: false,
+            operation_settings_page: OperationSettingsPage::default(),
+            submit_on_apply: false,
             condition_issues: None,
+            pending_submission: None,
+            operation_condition_errors: None,
             imported_conditions: None,
-            run_after_submit: true,
-            shape_file_load_requested: false,
-            cutting_simulation_status: None,
+            cutting_simulation_job_status: JobStatusLine::NotSubmitted,
+            cutting_simulation_job_failure: None,
+            operation_job_statuses: Vec::new(),
+            job_manager_unavailable: None,
+            jobs_pending: false,
+            imported_operation: None,
+            drawn_toolpath_state: None,
+            job_status_read_at: None,
+            file_actions: Vec::new(),
+            file_dialog: None,
+            exit_confirmed: false,
+            window_title: String::new(),
             toolpath_lines_visible: true,
             tool_lines_visible: true,
             cutting_animation_job_id: None,
@@ -272,9 +368,14 @@ impl AppState {
             ui_locale,
             app_settings,
             app_settings_path,
+            tool_library,
+            tool_library_window: crate::tool_library_ui::ToolLibraryWindow::default(),
+            tool_library_action: None,
             help_controls_open: false,
             help_about_open: false,
-            notice: settings_notice.unwrap_or(Notice::Startup),
+            notice: Notice::Startup,
+            notice_history: std::collections::VecDeque::new(),
+            unread_notice: None,
             debug_snapshot: DebugSnapshotState::default(),
             main_view: None,
             snapshot_scrub_active: false,
@@ -286,6 +387,8 @@ impl AppState {
         };
 
         app_state.apply_viewing_operation_settings();
+        // 最初のメッセージ（起動の案内・設定を読めなかったこと）も、最近のメッセージの一覧に入れる
+        app_state.set_notice(first_notice);
         app_state
     }
 }

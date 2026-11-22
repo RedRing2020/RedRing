@@ -1,8 +1,8 @@
 use super::{
-    newton_inverse_generic, newton_solve_generic, newton_solve_multivariate,
-    newton_solve_multivariate_bounded, newton_solve_multivariate_bounded_with_solver,
-    newton_solve_multivariate_with_solver, newton_solve_with_numeric_derivative_bounded_generic,
-    MultivariateNewtonBounds, MultivariateNewtonOptions,
+    MultivariateNewtonBounds, MultivariateNewtonOptions, newton_inverse_generic,
+    newton_solve_generic, newton_solve_multivariate, newton_solve_multivariate_bounded,
+    newton_solve_multivariate_bounded_with_solver, newton_solve_multivariate_with_solver,
+    newton_solve_with_numeric_derivative_bounded_generic,
 };
 use crate::consts::test_constants::{
     INTEGRATION_TOLERANCE_STRICT, SOLVER_TOLERANCE_F32, TOLERANCE_F64,
@@ -432,8 +432,8 @@ fn test_newton_solve_multivariate_bounded_uses_separate_step_tolerance() {
 }
 
 #[test]
-fn test_newton_solve_multivariate_bounded_default_solver_tolerance_is_independent_from_residual_tol(
-) {
+fn test_newton_solve_multivariate_bounded_default_solver_tolerance_is_independent_from_residual_tol()
+ {
     let system = |point: &Vector<f64>| {
         let residual = Vector::new(vec![1e-5_f64 * point[0] - 1e-3_f64]);
         let jacobian = DynamicMatrix::from_rows(vec![vec![1e-5_f64]]).unwrap();

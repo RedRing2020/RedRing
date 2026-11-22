@@ -594,3 +594,19 @@ fn subtracting_frames_in_bands_matches_subtracting_in_order() {
         }
     }
 }
+
+#[test]
+fn progress_counts_the_primitives_up_to_the_last_keyframe() {
+    let (model, _, _) = sample_model();
+    assert_eq!(model.primitives().len(), 3);
+    let mut reports = Vec::new();
+    TriDexelModel::from_stock_model_reporting(
+        &model,
+        0.5,
+        &StockDexels::default(),
+        &[1, 2],
+        &mut |done, total| reports.push((done, total)),
+    );
+    // 最後のキーフレームの時点より後の掃引体は差し引かないため、数えない
+    assert_eq!(reports, vec![(0, 2), (1, 2)]);
+}

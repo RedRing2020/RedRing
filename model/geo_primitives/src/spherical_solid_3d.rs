@@ -9,9 +9,9 @@ mod transform;
 
 use crate::{Direction3D, Point3D};
 use geo_contracts::{
-    default_distance_tolerance, PointClassification, Scalar, SphericalSolid3DConstructor,
-    SphericalSolid3DContainment, SphericalSolid3DDistance, SphericalSolid3DProjection,
-    SphericalSolid3DProperties,
+    PointClassification, Scalar, SphericalSolid3DConstructor, SphericalSolid3DContainment,
+    SphericalSolid3DDistance, SphericalSolid3DProjection, SphericalSolid3DProperties,
+    default_distance_tolerance,
 };
 
 /// STEP 準拠の 3 次元球ソリッド

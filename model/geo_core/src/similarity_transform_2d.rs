@@ -6,11 +6,11 @@
 #[cfg(test)]
 mod tests;
 
-use crate::{
-    default_kernel_numerical_zero_tolerance, default_orthogonality_dot_error_tolerance,
-    TransformError,
-};
 use crate::{Direction2D, Point2D, Vector2D};
+use crate::{
+    TransformError, default_kernel_numerical_zero_tolerance,
+    default_orthogonality_dot_error_tolerance,
+};
 use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::matrix::Matrix3x3;
 use analysis::linalg::vector::Vector2;

@@ -51,18 +51,21 @@ impl AppState {
         })
     }
 
+    /// カメラを、形 `fit` の全体が見えるように合わせる。拡大縮小率はウィンドウの全体の高さで決まるため、見える範囲
+    /// （メニューバーと工程リスト・ステータスバーの間の帯）の高さの割合だけ表示の範囲を上下に広げ、帯に収める（左右は
+    /// 広げない。縦長のウィンドウで、幅が基準になったときに小さく出さないように）
     pub(in crate::app_state) fn apply_camera_fit(&mut self, fit: CameraFit) {
+        let (_, band_height) = self.view_band();
+        let screen_height = (self.graphic.config.height as f32).max(1.0);
+        let half_width = fit.half_extent_xy;
+        let half_height = fit.half_extent_xy * screen_height / band_height;
         self.camera.target = Vec3f::new(fit.center_x, fit.center_y, fit.center_z);
         self.camera.distance = (fit.size_z * 6.0 + fit.half_extent_xy).max(80.0);
         self.camera.zoom = 1.0;
         self.camera.rotation = Quaternionf::identity();
         self.camera
             .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
-        self.camera.set_orthographic_bounds(
-            -fit.half_extent_xy,
-            fit.half_extent_xy,
-            -fit.half_extent_xy,
-            fit.half_extent_xy,
-        );
+        self.camera
+            .set_orthographic_bounds(-half_width, half_width, -half_height, half_height);
     }
 }

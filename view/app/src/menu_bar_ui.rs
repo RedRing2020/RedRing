@@ -13,12 +13,94 @@ fn keep_items_on_one_line(ui: &mut Ui) {
     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 }
 
+/// 「ファイル」の項目
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileMenuItem {
+    New,
+    Open,
+    Save,
+    SaveAs,
+    Load,
+    Exit,
+}
+
+/// 「ファイル」の項目と、その文言のキー・キーの組み合わせ（`None` は区切り）
+const FILE_MENU: &[Option<(FileMenuItem, &str, Option<&str>)>] = &[
+    Some((FileMenuItem::New, "menu.file.new", Some("Ctrl+N"))),
+    Some((FileMenuItem::Open, "menu.file.open", Some("Ctrl+O"))),
+    Some((FileMenuItem::Save, "menu.file.save", Some("Ctrl+S"))),
+    Some((
+        FileMenuItem::SaveAs,
+        "menu.file.save_as",
+        Some("Ctrl+Shift+S"),
+    )),
+    None,
+    Some((FileMenuItem::Load, "menu.file.load", None)),
+    None,
+    Some((FileMenuItem::Exit, "menu.file.exit", None)),
+];
+
+/// 「加工」の項目
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MachiningMenuItem {
+    OpenSequence,
+    CloseSequence,
+    OperationList,
+    OperationSettings,
+    SequenceSettings,
+    ToolLibrary,
+}
+
+/// 「加工」の項目と、その文言のキー・キーの組み合わせ（`None` は区切り）
+const MACHINING_MENU: &[Option<(MachiningMenuItem, &str, Option<&str>)>] = &[
+    Some((
+        MachiningMenuItem::OpenSequence,
+        "menu.machining.open_sequence",
+        None,
+    )),
+    Some((
+        MachiningMenuItem::CloseSequence,
+        "menu.machining.close_sequence",
+        None,
+    )),
+    None,
+    Some((
+        MachiningMenuItem::OperationList,
+        "menu.machining.operation_list",
+        Some("Shift+M"),
+    )),
+    Some((
+        MachiningMenuItem::OperationSettings,
+        "menu.machining.operation_settings",
+        None,
+    )),
+    Some((
+        MachiningMenuItem::SequenceSettings,
+        "menu.machining.sequence_settings",
+        None,
+    )),
+    None,
+    Some((
+        MachiningMenuItem::ToolLibrary,
+        "menu.machining.tool_library",
+        None,
+    )),
+];
+
 /// メニューバーの表示の言語と、選ばれた項目
 #[derive(Debug, Clone, Copy)]
 pub struct MenuBarUiState {
     pub locale: UiLocale,
-    /// 「ファイル」→「読み込み…」が選ばれた
-    pub load_requested: bool,
+    /// 加工手順を開いているか（「加工」の項目を選べるかを決める）
+    pub machining_sequence_open: bool,
+    /// 工程リストを出しているか（「加工」→「工程リスト」の選んだ印）
+    pub operation_list_shown: bool,
+    /// 条件の編集のダイアログを開いているか（開いている間は、文書・工程を替える項目を選べない）
+    pub condition_dialog_open: bool,
+    /// 「ファイル」で選ばれた項目
+    pub file_requested: Option<FileMenuItem>,
+    /// 「加工」で選ばれた項目
+    pub machining_requested: Option<MachiningMenuItem>,
     /// 「表示」→「言語」で選ばれた言語
     pub locale_requested: Option<UiLocale>,
     /// 「ヘルプ」→「操作の一覧」が選ばれた
@@ -33,12 +115,47 @@ impl MenuBarUiState {
     }
 
     pub fn show(&mut self, ui: &mut Ui) {
-        Panel::top("menu_bar").show_inside(ui, |ui| {
+        Panel::top("menu_bar").show(ui, |ui| {
             MenuBar::new().ui(ui, |ui| {
                 ui.menu_button(self.text("menu.file"), |ui| {
                     keep_items_on_one_line(ui);
-                    if ui.button(self.text("menu.file.load")).clicked() {
-                        self.load_requested = true;
+                    for entry in FILE_MENU {
+                        let Some((item, key, shortcut)) = entry else {
+                            ui.separator();
+                            continue;
+                        };
+                        let mut button = egui::Button::new(self.text(key));
+                        if let Some(shortcut) = shortcut {
+                            button = button.shortcut_text(*shortcut);
+                        }
+                        // 終了のほかは、条件の編集のダイアログを開いている間は選べない
+                        let enabled = *item == FileMenuItem::Exit || !self.condition_dialog_open;
+                        if ui.add_enabled(enabled, button).clicked() {
+                            self.file_requested = Some(*item);
+                        }
+                    }
+                });
+                ui.menu_button(self.text("menu.machining"), |ui| {
+                    keep_items_on_one_line(ui);
+                    for entry in MACHINING_MENU {
+                        let Some((item, key, shortcut)) = entry else {
+                            ui.separator();
+                            continue;
+                        };
+                        // ツールライブラリはいつでも、開く操作は閉じている間だけ、ほかは開いている間だけ選べる
+                        let enabled = *item == MachiningMenuItem::ToolLibrary
+                            || (*item == MachiningMenuItem::OpenSequence)
+                                != self.machining_sequence_open
+                                && !self.condition_dialog_open;
+                        let shown =
+                            *item == MachiningMenuItem::OperationList && self.operation_list_shown;
+                        let mut button = egui::Button::new(self.text(key)).selected(shown);
+                        if let Some(shortcut) = shortcut {
+                            button = button.shortcut_text(*shortcut);
+                        }
+                        if ui.add_enabled(enabled, button).clicked() {
+                            self.machining_requested = Some(*item);
+                        }
                     }
                 });
                 ui.menu_button(self.text("menu.view"), |ui| {
@@ -63,5 +180,31 @@ impl MenuBarUiState {
                 });
             });
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FILE_MENU, MACHINING_MENU};
+    use crate::menu_bar_messages::resolve_menu_bar_text;
+    use viewmodel::message_catalog::UiLocale;
+
+    #[test]
+    fn every_menu_item_has_a_text_in_both_languages() {
+        let keys = FILE_MENU
+            .iter()
+            .flatten()
+            .map(|(_, key, _)| *key)
+            .chain(MACHINING_MENU.iter().flatten().map(|(_, key, _)| *key))
+            .chain(["menu.file", "menu.machining", "menu.view", "menu.help"]);
+        for key in keys {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                assert_ne!(
+                    resolve_menu_bar_text(locale, key),
+                    "__missing__",
+                    "{key} ({locale:?})"
+                );
+            }
+        }
     }
 }

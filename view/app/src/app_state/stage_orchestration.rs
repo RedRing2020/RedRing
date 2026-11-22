@@ -2,6 +2,7 @@
 
 use super::AppState;
 use crate::help_ui::NoticeBarUiState;
+use crate::settings_panel_renderer::UiFrameStates;
 use stage::MeshStage;
 
 impl AppState {
@@ -20,7 +21,8 @@ impl AppState {
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        mesh_stage.set_line_data(&self.graphic.device, vertices);
+        let lines = mesh_stage.set_line_data(&self.graphic.device, &vertices);
+        self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
 
         // エンティティの線は、デバッグ用の表示として描く（通常の表示は取っておく）
         self.show_debug_stage(mesh_stage, false);
@@ -42,18 +44,31 @@ impl AppState {
         let mut settings_panel_state = self.prepare_settings_panel_state();
         let mut machining_conditions_state = self.prepare_machining_conditions_state();
         let mut help_state = self.prepare_help_state();
+        let mut tool_library_state = self.prepare_tool_library_state();
+        let mut notice_bar_state = NoticeBarUiState {
+            locale: self.ui_locale,
+            notice: &self.notice,
+            history: &self.notice_history,
+            unread: self.unread_notice,
+            details: self.notice_details(),
+            log_opened: false,
+            navigation: self.navigation_text(),
+        };
         self.renderer.prepare_ui_windows(
             &self.window,
-            &mut menu_bar_state,
-            NoticeBarUiState {
-                locale: self.ui_locale,
-                notice: &self.notice,
+            &mut UiFrameStates {
+                menu: &mut menu_bar_state,
+                notice: &mut notice_bar_state,
+                panel: &mut settings_panel_state,
+                conditions: &mut machining_conditions_state,
+                help: &mut help_state,
+                tool_library: &mut tool_library_state,
             },
-            &mut settings_panel_state,
-            &mut machining_conditions_state,
-            &mut help_state,
         );
+        let log_opened = notice_bar_state.log_opened;
+        self.apply_notice_bar_state(log_opened);
         self.apply_help_state(help_state);
+        self.apply_tool_library_state(tool_library_state);
         self.apply_settings_panel_state(settings_panel_state);
         self.apply_machining_conditions_state(machining_conditions_state);
         self.apply_menu_bar_state(menu_bar_state);
@@ -76,11 +91,28 @@ impl AppState {
         self.graphic.render(&mut self.renderer);
     }
 
-    /// カメラのユニフォームを更新
+    /// 3D の表示に使う帯の上端と高さ（物理ピクセル。メニューバーの下から、工程リスト・ステータスバーの上まで。帯は
+    /// 1 ピクセル以上の高さにする）
+    pub(super) fn view_band(&self) -> (f32, f32) {
+        let screen_height = (self.graphic.config.height as f32).max(1.0);
+        let top = self.renderer.top_inset().clamp(0.0, screen_height - 1.0);
+        let bottom = (screen_height - self.renderer.bottom_inset()).clamp(top + 1.0, screen_height);
+        (top, bottom - top)
+    }
+
+    /// カメラのユニフォームを更新（見る中心を、メニューバーと工程リスト・ステータスバーの間の帯の中心にする。拡大
+    /// 縮小率はウィンドウの全体で決め、工程リストの高さを変えても変えない）
     pub fn update_camera_uniforms(&mut self) {
         let view_matrix = self.camera.view_matrix();
-        let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
-        let projection_matrix = self.camera.projection_matrix(aspect);
+        let (band_top, band_height) = self.view_band();
+        let screen_height = (self.graphic.config.height as f32).max(1.0);
+        let aspect = self.graphic.config.width as f32 / screen_height;
+        let projection_matrix = viewmodel_graphics::center_in_band(
+            self.camera.projection_matrix(aspect),
+            screen_height,
+            band_top,
+            band_height,
+        );
 
         tracing::debug!(
             "Camera updated: mode={:?}, aspect={:.3}, target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds={:?}",

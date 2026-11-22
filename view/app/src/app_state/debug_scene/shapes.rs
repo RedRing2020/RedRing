@@ -1,8 +1,8 @@
 //! AppState のデバッグ用の形状（線分・円・円弧・三角形のエンティティ）の表示を扱うモジュール。
 
 use super::super::AppState;
-use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
 use render::vertex_3d::MeshVertex;
+use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
 use stage::MeshStage;
 use viewmodel::feature_command_converter::{
     create_debug_arc_vertices, create_debug_circle_vertices, create_debug_line_vertices,
@@ -25,7 +25,8 @@ impl AppState {
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
+        let meshes = mesh_stage.set_mesh_data(&self.graphic.device, &vertices, &indices);
+        self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
         self.show_debug_stage(mesh_stage, false);
     }
 

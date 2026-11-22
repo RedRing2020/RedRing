@@ -289,6 +289,7 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 
 - `CamProcess -> CuttingSimulation` は許可
 - `NcImport -> CuttingSimulation` は将来許可予定（`NcImport` 未実装のため現時点では未適用）
+- 空間モデルに取り込んだ CL を入力とする `CuttingSimulation`（親なし）は、ジョブマネージャーの保存先の投入でだけ許可する。投入の要求の切削シミュレーションに CL のファイルを持たせ、ツールパス生成のジョブに依存しない（`JOB_MANAGER_STORAGE_DESIGN.md` 5.2・6 章。#1080）。同じプロセスの中の実行（試験用の `job_orchestration`）は、親なしを今までどおり拒む
 - `CuttingSimulation` の親が上記以外になる投入は拒否
 - `CuttingSimulation` 自身を親にする投入は拒否（末尾制約）
 

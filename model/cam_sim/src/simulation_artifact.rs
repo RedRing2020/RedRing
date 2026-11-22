@@ -16,6 +16,9 @@
 //!    `u32`・区間ごとの始まり・終わりの座標（`f64`×2）と法線（量子化した値 `u16`×2 を 2 つ）
 //! 5. 製品形状との比較（追加の情報。ない場合もある）: 判定の許容値 `f64` と、3 方向（X・Y・Z の順）ごとの、最後の
 //!    時点の区間の端点の数 `u64` と各端点の製品形状までの符号つきの距離（`f32`。削っていない端点は NaN）
+//! 6. 始まりの素材（前の区間の終わりの素材から始めた場合だけ書く）: キーフレーム 1 つと同じ形で、素材の範囲（初期の
+//!    区間）から変わったデクセルの区間（格子の番号・デクセルの番号の昇順）。初期の状態は、素材の範囲にこの節を
+//!    当てたものとする
 
 #[cfg(test)]
 mod tests;
@@ -29,6 +32,7 @@ use cam_core::{
 };
 
 use crate::SimulationSnapshotExport;
+use crate::binary_codec::{read_f64, read_u8, read_u16, read_u32, read_u64, write_count};
 use crate::constants::MAX_DEXEL_LINES;
 use crate::dexel_normal::DexelNormal;
 use crate::product_deviation::ProductDeviations;
@@ -43,6 +47,7 @@ const SECTION_GRIDS: u16 = 2;
 const SECTION_KEYFRAME_INDEX: u16 = 3;
 const SECTION_KEYFRAMES: u16 = 4;
 const SECTION_PRODUCT_DEVIATIONS: u16 = 5;
+const SECTION_START_STOCK: u16 = 6;
 
 /// 1 方向のデクセルの格子の配置
 ///
@@ -172,6 +177,53 @@ impl DexelChanges {
     }
 }
 
+/// 素材の範囲（格子の初期の区間）から変わったデクセルの区間（格子の番号・デクセルの番号の昇順。変わっていない
+/// デクセルは持たない）
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct StockDexels {
+    changes: DexelChanges,
+}
+
+impl StockDexels {
+    /// デクセルの区間と法線を加える（格子の番号・デクセルの番号の昇順に加える）
+    pub(crate) fn push(
+        &mut self,
+        grid: u8,
+        index: u32,
+        intervals: &[(f64, f64)],
+        normals: &[[DexelNormal; 2]],
+    ) {
+        debug_assert!(
+            self.changes
+                .changes
+                .last()
+                .is_none_or(|last| (last.grid, last.index) < (grid, index)),
+            "stock dexels must be pushed in ascending order"
+        );
+        self.changes.push(grid, index, intervals, normals);
+    }
+
+    /// 変わったデクセルの数
+    pub(crate) fn len(&self) -> usize {
+        self.changes.len()
+    }
+
+    /// 変わったデクセルの区間（格子の番号・デクセルの番号の昇順）
+    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = DexelState<'_>> {
+        self.changes.states(0..self.changes.len())
+    }
+
+    /// 格子 `grid` のデクセル `index` の区間（素材の範囲から変わっていなければ `None`）
+    pub(crate) fn get(&self, grid: u8, index: u32) -> Option<DexelState<'_>> {
+        let number = self
+            .changes
+            .changes
+            .binary_search_by_key(&(grid, index), |change| (change.grid, change.index))
+            .ok()?;
+        Some(self.changes.state_of(number))
+    }
+}
+
 /// 区間の配列の中の位置
 fn slot(position: usize) -> u32 {
     u32::try_from(position).expect("dexel change intervals fit in u32 positions")
@@ -191,6 +243,8 @@ pub struct CuttingSimulationArtifact {
     pub keyframe_changes: DexelChanges,
     /// 最後の時点の素材と製品形状の比較（製品形状と比べていない場合は `None`）
     pub product_deviations: Option<ProductDeviations>,
+    /// 始まりの素材の、素材の範囲から変わったデクセル（素材の範囲から始めた場合は空）
+    pub start_stock: StockDexels,
 }
 
 impl CuttingSimulationArtifact {
@@ -212,16 +266,16 @@ impl CuttingSimulationArtifact {
                 vec![vec![initial_normals(axis)]; dexel_count(&self.grids[axis])]
             }),
         };
-        for keyframe in 0..=keyframe {
-            for change in self.keyframe_changes.keyframe(keyframe) {
-                let (grid, index) = (change.grid as usize, change.index as usize);
-                let intervals = &mut states.intervals[grid][index];
-                intervals.clear();
-                intervals.extend_from_slice(change.intervals);
-                let normals = &mut states.normals[grid][index];
-                normals.clear();
-                normals.extend_from_slice(change.normals);
-            }
+        let start = self.start_stock.iter();
+        let changes = (0..=keyframe).flat_map(|keyframe| self.keyframe_changes.keyframe(keyframe));
+        for change in start.chain(changes) {
+            let (grid, index) = (change.grid as usize, change.index as usize);
+            let intervals = &mut states.intervals[grid][index];
+            intervals.clear();
+            intervals.extend_from_slice(change.intervals);
+            let normals = &mut states.normals[grid][index];
+            normals.clear();
+            normals.extend_from_slice(change.normals);
         }
         states
     }
@@ -247,7 +301,7 @@ pub(crate) fn dexel_count(grid: &DexelGridLayout) -> usize {
 }
 
 /// 節を書き出す
-fn write_section(payload: &mut Vec<u8>, kind: u16, content: &[u8]) {
+pub(crate) fn write_section(payload: &mut Vec<u8>, kind: u16, content: &[u8]) {
     payload.extend_from_slice(&kind.to_le_bytes());
     payload.extend_from_slice(&(content.len() as u64).to_le_bytes());
     payload.extend_from_slice(content);
@@ -288,38 +342,14 @@ pub fn write_cutting_simulation_artifact_v1<W: Write>(
         write_count(&mut snapshots, applied, "snapshot_applied")?;
     }
 
-    let mut grids = Vec::new();
-    for grid in &artifact.grids {
-        grids.push(grid.axis);
-        for value in [grid.origin[0], grid.origin[1], grid.pitch[0], grid.pitch[1]] {
-            grids.extend_from_slice(&value.to_le_bytes());
-        }
-        for count in grid.count {
-            grids.extend_from_slice(&count.to_le_bytes());
-        }
-        grids.extend_from_slice(&grid.initial.0.to_le_bytes());
-        grids.extend_from_slice(&grid.initial.1.to_le_bytes());
-    }
+    let grids = grids_bytes(&artifact.grids);
 
     let mut keyframes = Vec::new();
     let mut index = Vec::new();
     write_count(&mut index, artifact.keyframe_snapshots.len(), "keyframes")?;
     for (keyframe, &snapshot) in artifact.keyframe_snapshots.iter().enumerate() {
         let start = keyframes.len();
-        let states = artifact.keyframe_changes.keyframe(keyframe);
-        write_count(&mut keyframes, states.len(), "changes")?;
-        for change in states {
-            keyframes.push(change.grid);
-            keyframes.extend_from_slice(&change.index.to_le_bytes());
-            write_count(&mut keyframes, change.intervals.len(), "intervals")?;
-            for (&(low, high), normals) in change.intervals.iter().zip(change.normals) {
-                keyframes.extend_from_slice(&low.to_le_bytes());
-                keyframes.extend_from_slice(&high.to_le_bytes());
-                for value in normals.iter().flat_map(|normal| normal.0) {
-                    keyframes.extend_from_slice(&value.to_le_bytes());
-                }
-            }
-        }
+        write_dexel_states(&mut keyframes, artifact.keyframe_changes.keyframe(keyframe))?;
         write_count(&mut index, snapshot, "keyframe_snapshot")?;
         index.extend_from_slice(&(start as u64).to_le_bytes());
         index.extend_from_slice(&((keyframes.len() - start) as u64).to_le_bytes());
@@ -339,6 +369,11 @@ pub fn write_cutting_simulation_artifact_v1<W: Write>(
             }
         }
         write_section(&mut payload, SECTION_PRODUCT_DEVIATIONS, &content);
+    }
+    if artifact.start_stock.len() > 0 {
+        let mut content = Vec::new();
+        write_dexel_states(&mut content, artifact.start_stock.iter())?;
+        write_section(&mut payload, SECTION_START_STOCK, &content);
     }
 
     let mut header = ArtifactHeaderV1::new(ArtifactKind::CuttingSimulation, payload.len() as u64);
@@ -372,32 +407,24 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
         });
     }
 
-    let mut sections: [Option<&[u8]>; 5] = [None; 5];
-    let mut cursor = bytes.as_slice();
-    while !cursor.is_empty() {
-        let kind = read_u16(&mut cursor)?;
-        let length = usize::try_from(read_u64(&mut cursor)?)
-            .ok()
-            .filter(|&length| length <= cursor.len())
-            .ok_or(BinaryFormatError::InvalidPayload("section.length"))?;
-        let (content, rest) = cursor.split_at(length);
-        cursor = rest;
-        // 知らない種類の節は読み飛ばす
-        if let Some(slot) = (SECTION_SNAPSHOTS..=SECTION_PRODUCT_DEVIATIONS)
-            .position(|known| known == kind)
-            .map(|position| &mut sections[position])
-            && slot.replace(content).is_some()
-        {
-            return Err(BinaryFormatError::InvalidPayload("section.duplicate"));
-        }
-    }
     let [
         Some(snapshots),
         Some(grids),
         Some(index),
         Some(keyframes),
         deviations,
-    ] = sections
+        start_stock,
+    ] = read_sections(
+        &bytes,
+        [
+            SECTION_SNAPSHOTS,
+            SECTION_GRIDS,
+            SECTION_KEYFRAME_INDEX,
+            SECTION_KEYFRAMES,
+            SECTION_PRODUCT_DEVIATIONS,
+            SECTION_START_STOCK,
+        ],
+    )?
     else {
         return Err(BinaryFormatError::InvalidPayload("section.missing"));
     };
@@ -406,6 +433,10 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
     let grids = read_grids(grids)?;
     let (keyframe_snapshots, keyframe_changes) =
         read_keyframes(index, keyframes, &grids, snapshots.len())?;
+    let start_stock = match start_stock {
+        Some(content) => read_stock_dexels(content, &grids)?,
+        None => StockDexels::default(),
+    };
     let mut artifact = CuttingSimulationArtifact {
         snapshots,
         snapshot_applied,
@@ -413,6 +444,7 @@ pub fn read_cutting_simulation_artifact_v1<R: Read>(
         keyframe_snapshots,
         keyframe_changes,
         product_deviations: None,
+        start_stock,
     };
     if let Some(deviations) = deviations {
         artifact.product_deviations = Some(read_product_deviations(deviations, &artifact)?);
@@ -499,7 +531,144 @@ fn read_snapshots(
     Ok((snapshots, applied))
 }
 
-fn read_grids(mut reader: &[u8]) -> Result<[DexelGridLayout; 3], BinaryFormatError> {
+/// 節の列 `bytes` から、種類 `kinds` の節の中身を、`kinds` と同じ並びで返す（知らない種類の節は読み飛ばす）
+///
+/// # Errors
+///
+/// 節の長さが残りのバイトを超える場合、同じ種類の節が 2 つある場合。
+pub(crate) fn read_sections<const N: usize>(
+    bytes: &[u8],
+    kinds: [u16; N],
+) -> Result<[Option<&[u8]>; N], BinaryFormatError> {
+    let mut sections: [Option<&[u8]>; N] = [None; N];
+    let mut cursor = bytes;
+    while !cursor.is_empty() {
+        let kind = read_u16(&mut cursor)?;
+        let length = usize::try_from(read_u64(&mut cursor)?)
+            .ok()
+            .filter(|&length| length <= cursor.len())
+            .ok_or(BinaryFormatError::InvalidPayload("section.length"))?;
+        let (content, rest) = cursor.split_at(length);
+        cursor = rest;
+        if let Some(slot) = kinds
+            .iter()
+            .position(|&known| known == kind)
+            .map(|position| &mut sections[position])
+            && slot.replace(content).is_some()
+        {
+            return Err(BinaryFormatError::InvalidPayload("section.duplicate"));
+        }
+    }
+    Ok(sections)
+}
+
+/// 格子の節の中身（3 方向の格子の配置）
+pub(crate) fn grids_bytes(grids: &[DexelGridLayout; 3]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    for grid in grids {
+        bytes.push(grid.axis);
+        for value in [grid.origin[0], grid.origin[1], grid.pitch[0], grid.pitch[1]] {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+        for count in grid.count {
+            bytes.extend_from_slice(&count.to_le_bytes());
+        }
+        bytes.extend_from_slice(&grid.initial.0.to_le_bytes());
+        bytes.extend_from_slice(&grid.initial.1.to_le_bytes());
+    }
+    bytes
+}
+
+/// デクセルの区間の列 `states` を、変化の数 `u32` と各変化（格子の番号・デクセルの番号・区間の数・区間と法線）で書く
+pub(crate) fn write_dexel_states<'a>(
+    content: &mut Vec<u8>,
+    states: impl ExactSizeIterator<Item = DexelState<'a>>,
+) -> Result<(), BinaryFormatError> {
+    write_count(content, states.len(), "changes")?;
+    for change in states {
+        content.push(change.grid);
+        content.extend_from_slice(&change.index.to_le_bytes());
+        write_count(content, change.intervals.len(), "intervals")?;
+        for (&(low, high), normals) in change.intervals.iter().zip(change.normals) {
+            content.extend_from_slice(&low.to_le_bytes());
+            content.extend_from_slice(&high.to_le_bytes());
+            for value in normals.iter().flat_map(|normal| normal.0) {
+                content.extend_from_slice(&value.to_le_bytes());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// [`write_dexel_states`] の形の中身 `reader` を読み、デクセルの区間を `push` に渡す（格子 `grids` の範囲を確かめる。
+/// 中身を読み終えたことも確かめる）
+fn read_dexel_states(
+    reader: &mut &[u8],
+    grids: &[DexelGridLayout; 3],
+    mut push: impl FnMut(u8, u32, &[(f64, f64)], &[[DexelNormal; 2]]) -> Result<(), BinaryFormatError>,
+) -> Result<(), BinaryFormatError> {
+    let mut intervals = Vec::new();
+    let mut normals = Vec::new();
+    let change_count = read_u32(reader)? as usize;
+    for _ in 0..change_count {
+        let grid = read_u8(reader)?;
+        let index = read_u32(reader)?;
+        let layout = grids
+            .get(usize::from(grid))
+            .ok_or(BinaryFormatError::InvalidPayload("change.grid"))?;
+        if u64::from(index) >= u64::from(layout.count[0]) * u64::from(layout.count[1]) {
+            return Err(BinaryFormatError::InvalidPayload("change.index"));
+        }
+        let interval_count = read_u32(reader)? as usize;
+        intervals.clear();
+        normals.clear();
+        for _ in 0..interval_count {
+            intervals.push((read_f64(reader)?, read_f64(reader)?));
+            let mut normal = || -> Result<DexelNormal, BinaryFormatError> {
+                Ok(DexelNormal([read_u16(reader)?, read_u16(reader)?]))
+            };
+            normals.push([normal()?, normal()?]);
+        }
+        push(grid, index, &intervals, &normals)?;
+    }
+    if !reader.is_empty() {
+        return Err(BinaryFormatError::InvalidPayload("changes.trailing"));
+    }
+    Ok(())
+}
+
+/// 素材の範囲から変わったデクセルの区間の中身を読む（格子の番号・デクセルの番号の昇順で、重ならないことと、各デクセルの
+/// 区間が有限の値で、昇順に離れて並び、素材の範囲（格子の初期の区間）に収まることを確かめる。始まりの素材として、
+/// そのまま差し引きに使うため）
+pub(crate) fn read_stock_dexels(
+    mut content: &[u8],
+    grids: &[DexelGridLayout; 3],
+) -> Result<StockDexels, BinaryFormatError> {
+    let mut dexels = StockDexels::default();
+    let mut last: Option<(u8, u32)> = None;
+    read_dexel_states(&mut content, grids, |grid, index, intervals, normals| {
+        if last.is_some_and(|last| last >= (grid, index)) {
+            return Err(BinaryFormatError::InvalidPayload("stock.order"));
+        }
+        last = Some((grid, index));
+        let (low, high) = grids[usize::from(grid)].initial;
+        let mut previous_end = low;
+        for &(start, end) in intervals {
+            if !(start.is_finite() && end.is_finite() && previous_end <= start && start < end) {
+                return Err(BinaryFormatError::InvalidPayload("stock.intervals"));
+            }
+            previous_end = end;
+        }
+        if previous_end > high {
+            return Err(BinaryFormatError::InvalidPayload("stock.intervals"));
+        }
+        dexels.push(grid, index, intervals, normals);
+        Ok(())
+    })?;
+    Ok(dexels)
+}
+
+pub(crate) fn read_grids(mut reader: &[u8]) -> Result<[DexelGridLayout; 3], BinaryFormatError> {
     let reader = &mut reader;
     let mut grids = [DexelGridLayout {
         axis: 0,
@@ -555,8 +724,6 @@ fn read_keyframes(
     let count = read_u32(index)? as usize;
     let mut keyframe_snapshots = Vec::with_capacity(count.min(index.len()));
     let mut changes = DexelChanges::default();
-    let mut intervals = Vec::new();
-    let mut normals = Vec::new();
     for _ in 0..count {
         let snapshot = read_u32(index)? as usize;
         let start = usize::try_from(read_u64(index)?).ok();
@@ -574,32 +741,14 @@ fn read_keyframes(
         }
         keyframe_snapshots.push(snapshot);
 
-        let reader = &mut &content[..];
-        let change_count = read_u32(reader)? as usize;
-        for _ in 0..change_count {
-            let grid = read_u8(reader)?;
-            let index = read_u32(reader)?;
-            let layout = grids
-                .get(usize::from(grid))
-                .ok_or(BinaryFormatError::InvalidPayload("change.grid"))?;
-            if u64::from(index) >= u64::from(layout.count[0]) * u64::from(layout.count[1]) {
-                return Err(BinaryFormatError::InvalidPayload("change.index"));
-            }
-            let interval_count = read_u32(reader)? as usize;
-            intervals.clear();
-            normals.clear();
-            for _ in 0..interval_count {
-                intervals.push((read_f64(reader)?, read_f64(reader)?));
-                let mut normal = || -> Result<DexelNormal, BinaryFormatError> {
-                    Ok(DexelNormal([read_u16(reader)?, read_u16(reader)?]))
-                };
-                normals.push([normal()?, normal()?]);
-            }
-            changes.push(grid, index, &intervals, &normals);
-        }
-        if !reader.is_empty() {
-            return Err(BinaryFormatError::InvalidPayload("keyframe.trailing"));
-        }
+        read_dexel_states(
+            &mut &content[..],
+            grids,
+            |grid, index, intervals, normals| {
+                changes.push(grid, index, intervals, normals);
+                Ok(())
+            },
+        )?;
         changes.end_keyframe();
     }
     if !index.is_empty() {
@@ -609,44 +758,4 @@ fn read_keyframes(
         return Err(BinaryFormatError::InvalidPayload("keyframe.last"));
     }
     Ok((keyframe_snapshots, changes))
-}
-
-fn write_count(
-    payload: &mut Vec<u8>,
-    count: usize,
-    field: &'static str,
-) -> Result<(), BinaryFormatError> {
-    let count = u32::try_from(count).map_err(|_| BinaryFormatError::LengthOverflow(field))?;
-    payload.extend_from_slice(&count.to_le_bytes());
-    Ok(())
-}
-
-fn read_u8(reader: &mut &[u8]) -> Result<u8, BinaryFormatError> {
-    let mut bytes = [0_u8; 1];
-    reader.read_exact(&mut bytes)?;
-    Ok(bytes[0])
-}
-
-fn read_u16(reader: &mut &[u8]) -> Result<u16, BinaryFormatError> {
-    let mut bytes = [0_u8; 2];
-    reader.read_exact(&mut bytes)?;
-    Ok(u16::from_le_bytes(bytes))
-}
-
-fn read_u32(reader: &mut &[u8]) -> Result<u32, BinaryFormatError> {
-    let mut bytes = [0_u8; 4];
-    reader.read_exact(&mut bytes)?;
-    Ok(u32::from_le_bytes(bytes))
-}
-
-fn read_u64(reader: &mut &[u8]) -> Result<u64, BinaryFormatError> {
-    let mut bytes = [0_u8; 8];
-    reader.read_exact(&mut bytes)?;
-    Ok(u64::from_le_bytes(bytes))
-}
-
-fn read_f64(reader: &mut &[u8]) -> Result<f64, BinaryFormatError> {
-    let mut bytes = [0_u8; 8];
-    reader.read_exact(&mut bytes)?;
-    Ok(f64::from_le_bytes(bytes))
 }

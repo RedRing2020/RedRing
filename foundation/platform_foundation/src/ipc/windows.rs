@@ -1,0 +1,444 @@
+//! 名前付きパイプの口
+//!
+//! パイプの名前は、口の名前と利用者の SID から決める（`\\.\pipe\<まとまり>.<名前>.<SID>`）。接続できるのを
+//! その利用者だけにし（持ち主もその利用者にする）、ネットワークからの接続を拒む。最初のインスタンスは
+//! `FILE_FLAG_FIRST_PIPE_INSTANCE` で作る（ほかのプロセスが先に作っていれば開かない）。つなぐ側は、パイプの持ち主が
+//! 自分であることを確かめる。つなぐ側の接続は非同期の読み書き（overlapped）で開き、読み書きに時間の上限を設けられる。
+
+use std::fs::File;
+use std::io::{self, Read, Write};
+use std::os::windows::fs::OpenOptionsExt;
+use std::os::windows::io::{AsRawHandle, FromRawHandle};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
+
+use crate::security::{SecurityDescriptor, UserSid};
+use windows_sys::Win32::Foundation::{
+    CloseHandle, ERROR_ACCESS_DENIED, ERROR_BROKEN_PIPE, ERROR_IO_PENDING, ERROR_NO_DATA,
+    ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, ERROR_SUCCESS, GetLastError, HANDLE,
+    INVALID_HANDLE_VALUE, WAIT_OBJECT_0,
+};
+use windows_sys::Win32::Security::Authorization::{GetSecurityInfo, SE_KERNEL_OBJECT};
+use windows_sys::Win32::Security::{
+    EqualSid, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES,
+};
+use windows_sys::Win32::Storage::FileSystem::{
+    FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_FLAG_OVERLAPPED, PIPE_ACCESS_DUPLEX, ReadFile,
+    SECURITY_IDENTIFICATION, SECURITY_SQOS_PRESENT, WriteFile,
+};
+use windows_sys::Win32::System::IO::{CancelIoEx, GetOverlappedResult, OVERLAPPED};
+use windows_sys::Win32::System::Pipes::{
+    ConnectNamedPipe, CreateNamedPipeW, GetNamedPipeServerProcessId, PIPE_READMODE_BYTE,
+    PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_WAIT,
+};
+use windows_sys::Win32::System::Threading::{CreateEventW, INFINITE, WaitForSingleObject};
+use windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
+
+/// パイプの名前の始まり
+const PIPE_PREFIX: &str = r"\\.\pipe\";
+/// パイプの送り・受けの大きさ
+const PIPE_BUFFER_BYTES: u32 = 64 * 1024;
+/// 同時につないでいる数が上限のときに、空くのを待つ間隔
+const BUSY_INTERVAL: Duration = Duration::from_millis(50);
+
+/// 同時につないでいる数
+type Slots = Arc<AtomicUsize>;
+
+/// 受けた接続の、同時につないでいる数の 1 つ分（放したら減らす）
+#[derive(Debug)]
+struct Slot(Slots);
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// パイプの接続（つなぐ側は、非同期の読み書きで時間の上限を設けられる。受けた側は、閉じたら同時につないでいる数を
+/// 減らす）
+#[derive(Debug)]
+pub(super) struct Stream {
+    file: File,
+    /// つなぐ側の、非同期の読み書き（受ける側は `None` で、同期に読み書きする）
+    overlapped: Option<OverlappedIo>,
+    /// 受けた側の、同時につないでいる数の 1 つ分（つなぐ側は `None`）。`file` より後に置き、パイプのハンドルを
+    /// 閉じてから減らす（減らした数を見て作るインスタンスが、閉じる前のハンドルの分で上限に当たらないように）
+    _slot: Option<Slot>,
+}
+
+/// 非同期の読み書きの、終わりを知らせるイベントと、時間の上限
+#[derive(Debug)]
+struct OverlappedIo {
+    event: Event,
+    timeout: Option<Duration>,
+}
+
+/// 閉じるイベントのハンドル
+struct Event(HANDLE);
+
+// SAFETY: イベントのハンドルは、どのスレッドからでも使える
+unsafe impl Send for Event {}
+// SAFETY: イベントのハンドルは、複数のスレッドから同時に使ってよい
+unsafe impl Sync for Event {}
+
+impl std::fmt::Debug for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Event")
+    }
+}
+
+impl Drop for Event {
+    fn drop(&mut self) {
+        // SAFETY: 作ったイベントを閉じる
+        unsafe { CloseHandle(self.0) };
+    }
+}
+
+impl OverlappedIo {
+    fn new() -> io::Result<Self> {
+        // SAFETY: 手で戻す（manual reset）、名前のないイベントを作る
+        let event = unsafe { CreateEventW(std::ptr::null(), 1, 0, std::ptr::null()) };
+        if event.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(Self {
+            event: Event(event),
+            timeout: None,
+        })
+    }
+
+    /// `file` で、`buffer`（`length` バイト）を読む・書く。時間の上限を超えたら取り消して `TimedOut`。読むときに
+    /// 相手が閉じていれば 0
+    fn transfer(
+        &self,
+        file: &File,
+        buffer: *mut u8,
+        length: usize,
+        read: bool,
+    ) -> io::Result<usize> {
+        let handle = file.as_raw_handle();
+        let length = length.min(u32::MAX as usize) as u32;
+        // SAFETY: すべての項目が 0 で正しい値になる C の構造体
+        let mut overlapped: OVERLAPPED = unsafe { std::mem::zeroed() };
+        overlapped.hEvent = self.event.0;
+        // SAFETY: バッファと OVERLAPPED は、読み書きが終わる（または取り消して終わりを待つ）まで生きている
+        let started = unsafe {
+            if read {
+                ReadFile(
+                    handle,
+                    buffer,
+                    length,
+                    std::ptr::null_mut(),
+                    &mut overlapped,
+                )
+            } else {
+                WriteFile(
+                    handle,
+                    buffer,
+                    length,
+                    std::ptr::null_mut(),
+                    &mut overlapped,
+                )
+            }
+        };
+        if started == 0 {
+            // SAFETY: 直前の呼び出しの誤りを読む
+            let error = unsafe { GetLastError() };
+            if error != ERROR_IO_PENDING {
+                return Self::finish_error(error, read);
+            }
+        }
+        let milliseconds = self.timeout.map_or(INFINITE, |timeout| {
+            timeout.as_millis().min(u128::from(INFINITE - 1)) as u32
+        });
+        let mut transferred = 0u32;
+        // SAFETY: 始めた読み書きのイベントを待つ
+        if unsafe { WaitForSingleObject(self.event.0, milliseconds) } != WAIT_OBJECT_0 {
+            // 時間の上限を超えた・待てなかったときは、始めた読み書きを取り消し、終わるまで待つ（バッファと OVERLAPPED
+            // を放す前に）
+            // SAFETY: 始めた読み書きのハンドルと OVERLAPPED
+            unsafe {
+                CancelIoEx(handle, &overlapped);
+                GetOverlappedResult(handle, &overlapped, &mut transferred, 1);
+            }
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "the other side did not answer in time",
+            ));
+        }
+        // SAFETY: 終わった読み書きの結果を読む
+        if unsafe { GetOverlappedResult(handle, &overlapped, &mut transferred, 0) } == 0 {
+            // SAFETY: 直前の呼び出しの誤りを読む
+            return Self::finish_error(unsafe { GetLastError() }, read);
+        }
+        Ok(transferred as usize)
+    }
+
+    fn finish_error(error: u32, read: bool) -> io::Result<usize> {
+        if read && error == ERROR_BROKEN_PIPE {
+            Ok(0)
+        } else {
+            Err(io::Error::from_raw_os_error(error as i32))
+        }
+    }
+}
+
+impl Stream {
+    pub(super) fn set_io_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+        match self.overlapped.as_mut() {
+            Some(io) => {
+                io.timeout = timeout;
+                Ok(())
+            }
+            None => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "only a connecting side can set a timeout",
+            )),
+        }
+    }
+}
+
+impl Read for Stream {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        match &self.overlapped {
+            Some(io) => io.transfer(&self.file, buffer.as_mut_ptr(), buffer.len(), true),
+            None => self.file.read(buffer),
+        }
+    }
+}
+
+impl Write for Stream {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        match &self.overlapped {
+            // 書くときはバッファを読むだけ
+            Some(io) => io.transfer(&self.file, buffer.as_ptr().cast_mut(), buffer.len(), false),
+            None => self.file.write(buffer),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
+}
+
+/// パイプの名前
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Address(String);
+
+impl Address {
+    /// まとまり `group` の、名前 `name` の、この利用者のパイプ
+    pub(super) fn for_current_user(group: &str, name: &str) -> io::Result<Self> {
+        Ok(Self(format!(
+            "{PIPE_PREFIX}{group}.{name}.{}",
+            UserSid::current()?.text
+        )))
+    }
+
+    fn wide(&self) -> Vec<u16> {
+        crate::wide(&self.0)
+    }
+}
+
+/// 開いたパイプ（次の接続を待つインスタンスを持つ）
+///
+/// パイプのインスタンスの数の上限は、同時につなげる数より 1 つ多くする。同時につなげる数だけつないでいても、次の
+/// 接続を待つインスタンスを持ち続け、パイプの名前を、インスタンスのない間にほかのプロセスに取られないようにする。
+/// 同時につなげる数だけつないでいる間は、次の接続を待つインスタンスにつないだ側を、空くまで待たせる（それより後に
+/// つなぐ側は、インスタンスが空いていない（`ResourceBusy`）として、つなぎ直す）。
+pub(super) struct Listener {
+    name: Vec<u16>,
+    /// 同時につなげる数の上限
+    max_connections: usize,
+    security: SecurityDescriptor,
+    /// 次の接続を待つインスタンス（最初のインスタンス。受けたら、次の接続を待つインスタンスをすぐに作る）
+    next: Option<File>,
+    slots: Slots,
+}
+
+impl std::fmt::Debug for Listener {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Listener")
+            .field("name", &String::from_utf16_lossy(&self.name))
+            .finish_non_exhaustive()
+    }
+}
+
+impl Listener {
+    pub(super) fn bind(address: &Address, max_connections: usize) -> io::Result<Self> {
+        let sid = UserSid::current()?;
+        // 持ち主をこの利用者にし、この利用者だけにすべての権利を渡す（親の権利を引き継がない）
+        let security = SecurityDescriptor::from_sddl(&format!("O:{0}D:P(A;;GA;;;{0})", sid.text))?;
+        let mut listener = Self {
+            name: address.wide(),
+            max_connections,
+            security,
+            next: None,
+            slots: Arc::new(AtomicUsize::new(0)),
+        };
+        listener.next = Some(listener.create_instance(true).map_err(|error| {
+            // 最初のインスタンスを作れないのは、ほかのプロセスが同じ名前のパイプを開いているとき
+            if error.raw_os_error() == Some(ERROR_ACCESS_DENIED as i32) {
+                io::Error::new(io::ErrorKind::AddrInUse, "the endpoint is already open")
+            } else {
+                error
+            }
+        })?);
+        Ok(listener)
+    }
+
+    fn create_instance(&self, first: bool) -> io::Result<File> {
+        let attributes = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: self.security.as_ptr(),
+            bInheritHandle: 0,
+        };
+        let first_flag = if first {
+            FILE_FLAG_FIRST_PIPE_INSTANCE
+        } else {
+            0
+        };
+        // 次の接続を待つインスタンスの分だけ多くする（範囲は、呼ぶ側（`Endpoint::listen`）で確かめている）
+        let max_instances = (self.max_connections + 1) as u32;
+        // SAFETY: 名前は終わりが 0 の UTF-16 の文字列。属性はこの関数の中で生きている
+        let handle = unsafe {
+            CreateNamedPipeW(
+                self.name.as_ptr(),
+                PIPE_ACCESS_DUPLEX | first_flag,
+                PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
+                max_instances,
+                PIPE_BUFFER_BYTES,
+                PIPE_BUFFER_BYTES,
+                0,
+                &attributes,
+            )
+        };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: 作ったハンドルを、閉じる役目ごと渡す
+        Ok(unsafe { File::from_raw_handle(handle) })
+    }
+
+    /// 次の接続を待つインスタンス（なければ作る。インスタンスの数が上限のときは、空くまで待つ）
+    fn waiting_instance(&mut self) -> io::Result<File> {
+        if let Some(instance) = self.next.take() {
+            return Ok(instance);
+        }
+        loop {
+            match self.create_instance(false) {
+                Ok(instance) => return Ok(instance),
+                Err(error) if error.raw_os_error() == Some(ERROR_PIPE_BUSY as i32) => {
+                    std::thread::sleep(BUSY_INTERVAL);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
+    /// 接続を待って受ける。受けたら、次の接続を待つインスタンスをすぐに作る（パイプの名前を、インスタンスのない
+    /// 間にほかのプロセスに取られないように）。同時につないでいる数が上限のときは、空くまで待ってから受ける
+    pub(super) fn accept(&mut self) -> io::Result<Stream> {
+        loop {
+            let instance = self.waiting_instance()?;
+            // 空くまで、次の接続を待つインスタンスを持ったまま待つ（受けた後も、インスタンスの数が上限に収まるように）
+            while self.slots.load(Ordering::SeqCst) >= self.max_connections {
+                std::thread::sleep(BUSY_INTERVAL);
+            }
+            // SAFETY: 自分で作ったパイプのインスタンスで、接続を待つ（同期）
+            let connected =
+                unsafe { ConnectNamedPipe(instance.as_raw_handle(), std::ptr::null_mut()) } != 0;
+            // SAFETY: 直前の呼び出しの誤りを読む
+            let error = if connected {
+                0
+            } else {
+                unsafe { GetLastError() }
+            };
+            // 待ち始める前につながっていたときも、接続を受けたとする。つないでいる数は上限より少ないため、次の接続を
+            // 待つインスタンスの分の空きがある（つないでいる数は、ハンドルを閉じてから減らす）
+            if connected || error == ERROR_PIPE_CONNECTED {
+                // 次の接続を待つインスタンスを作れてから数を増やす（作れずに戻るときに、増やした数が残らないように）
+                self.next = Some(self.create_instance(false)?);
+                self.slots.fetch_add(1, Ordering::SeqCst);
+                return Ok(Stream {
+                    file: instance,
+                    overlapped: None,
+                    _slot: Some(Slot(Arc::clone(&self.slots))),
+                });
+            }
+            // つないですぐに切った接続は、新しいインスタンスを作ってから捨て、待ち直す
+            let replacement = self.create_instance(false)?;
+            drop(instance);
+            self.next = Some(replacement);
+            if error != ERROR_NO_DATA {
+                return Err(io::Error::from_raw_os_error(error as i32));
+            }
+        }
+    }
+}
+
+pub(super) fn connect(address: &Address) -> io::Result<Stream> {
+    // パイプの側に、こちらの身元を確かめる以上の権利（なりすまし）を渡さない。時間の上限を設けられるよう、非同期の
+    // 読み書きで開く
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .security_qos_flags(SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION)
+        .custom_flags(FILE_FLAG_OVERLAPPED)
+        .open(&address.0)
+        .map_err(|error| {
+            if error.raw_os_error() == Some(ERROR_PIPE_BUSY as i32) {
+                io::Error::new(io::ErrorKind::ResourceBusy, error)
+            } else {
+                error
+            }
+        })?;
+    if !owned_by_current_user(&file)? {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "the endpoint is owned by another user",
+        ));
+    }
+    Ok(Stream {
+        file,
+        overlapped: Some(OverlappedIo::new()?),
+        _slot: None,
+    })
+}
+
+pub(super) fn allow_server_foreground(stream: &Stream) {
+    let mut process_id = 0u32;
+    // SAFETY: つないだパイプのハンドルから、パイプを開いたプロセスの番号を読む
+    if unsafe { GetNamedPipeServerProcessId(stream.file.as_raw_handle(), &mut process_id) } != 0 {
+        // SAFETY: 番号を渡すだけ（渡せなくても、ウィンドウは開く）
+        unsafe { AllowSetForegroundWindow(process_id) };
+    }
+}
+
+/// つないだパイプの持ち主が、この利用者か
+fn owned_by_current_user(file: &File) -> io::Result<bool> {
+    let sid = UserSid::current()?;
+    let mut owner: PSID = std::ptr::null_mut();
+    let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+    // SAFETY: つないだパイプのハンドルの、持ち主だけを読む。読んだ記述子は、比べ終えてから放す
+    let status = unsafe {
+        GetSecurityInfo(
+            file.as_raw_handle(),
+            SE_KERNEL_OBJECT,
+            OWNER_SECURITY_INFORMATION,
+            &mut owner,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut descriptor,
+        )
+    };
+    if status != ERROR_SUCCESS {
+        return Err(io::Error::from_raw_os_error(status as i32));
+    }
+    let descriptor = SecurityDescriptor::from_raw(descriptor);
+    // SAFETY: どちらの SID も、持ち主の領域が生きている間に比べる
+    let same = unsafe { EqualSid(owner, sid.sid()) } != 0;
+    drop(descriptor);
+    Ok(same)
+}

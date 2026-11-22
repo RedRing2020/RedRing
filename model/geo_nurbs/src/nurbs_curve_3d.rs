@@ -9,11 +9,11 @@ mod extensions;
 mod tests;
 mod transform;
 
-use crate::curve_evaluation::{validate_curve, CurveDefinition};
+use crate::curve_evaluation::{CurveDefinition, validate_curve};
 use crate::{KnotVector, Scalar, WeightStorage};
 use geo_contracts::{
-    default_distance_tolerance, NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DDistance,
-    NurbsCurve3DEvaluation, NurbsCurve3DProperties, NurbsError,
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DDistance, NurbsCurve3DEvaluation,
+    NurbsCurve3DProperties, NurbsError, default_distance_tolerance,
 };
 use geo_core::{Point3D, Vector3D};
 

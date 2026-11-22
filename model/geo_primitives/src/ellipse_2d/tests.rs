@@ -2,9 +2,8 @@
 
 use crate::{Angle, Ellipse2D, Point2D};
 use geo_contracts::{
-    default_distance_tolerance, Bounded, Ellipse2DConstructor, Ellipse2DContainment,
-    Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties,
-    PointClassification,
+    Bounded, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDistance, Ellipse2DEvaluation,
+    Ellipse2DProjection, Ellipse2DProperties, PointClassification, default_distance_tolerance,
 };
 
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};

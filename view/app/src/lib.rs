@@ -20,4 +20,6 @@ pub(crate) mod settings_panel_messages;
 pub(crate) mod settings_panel_renderer;
 pub(crate) mod settings_panel_ui;
 pub mod snapshot_overlay_renderer;
+pub(crate) mod tool_library_messages;
+pub(crate) mod tool_library_ui;
 pub(crate) mod window_title_messages;

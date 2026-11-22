@@ -34,6 +34,10 @@ pub mod numerical {
 
     /// 正規化済みベクトルの内積を 0 とみなす数値誤差閾値（f32）
     pub const ORTHOGONALITY_DOT_ERROR_TOLERANCE_F32: f32 = 1e-6;
+
+    /// 正規化・直交化の丸めの範囲とみなす値の、計算機イプシロンに対する倍率（単位ベクトルの長さの 2 乗と 1 の差、
+    /// 直交する単位ベクトルの内積）
+    pub const ROUNDING_EPSILON_FACTOR: f64 = 8.0;
 }
 
 /// 特殊数学定数
@@ -131,6 +135,34 @@ pub mod precision {
     pub const ANGLE_180: f64 = PI;
     pub const ANGLE_270: f64 = 3.0 * PI_2;
     pub const ANGLE_360: f64 = TAU;
+}
+
+/// 形状を三角形・折れ線に分けるときの既定値
+pub mod tessellation {
+    /// 曲線を点に分けるときの、隣り合う弦のなす角の上限（度）。許容弦誤差が大きいときに、小さな円が多角形に
+    /// 見えすぎないようにする
+    pub const MAX_CHORD_ANGLE_DEGREES: f64 = 20.0;
+
+    /// (u, v) の点が極（u によらず 1 点になる v の線）の上にあるとみなす、v の差の上限
+    pub const POLE_PARAMETER_TOLERANCE: f64 = 1.0e-9;
+
+    /// 曲面を分けた三角形の法線と、重心での曲面の法線のなす角の上限（度）。曲面に垂直に立つ三角形を見つける。極の
+    /// 近くでは、許容弦誤差を守る細長い三角形でも 30 度ほど傾くので、それより大きくする
+    pub const MAX_TRIANGLE_NORMAL_ANGLE_DEGREES: f64 = 60.0;
+
+    /// 曲面の内側に置く格子のマスの対角線の、許容弦誤差から決まる刻みに対する比。マスを分けた三角形の離れを
+    /// 許容弦誤差の 0.9 倍ほどにし、細分化で点を足さずに済ませる（1 だと離れが許容弦誤差の 2 倍になり、ほぼすべての
+    /// マスに点を足す）
+    pub const GRID_DIAGONAL_TO_STEP_RATIO: f64 = 0.95;
+}
+
+/// 形状の読み込みで、要素（頂点・稜線）の許容誤差を広げるときの既定値
+pub mod import_tolerance {
+    /// 要素の許容誤差の上限の、読み込む立体の大きさ（外形の箱の対角の長さ）に対する比
+    pub const ELEMENT_TOLERANCE_LIMIT_RATIO: f64 = 1e-3;
+
+    /// 要素の許容誤差を広げるときに、測ったずれに掛ける倍率
+    pub const DEVIATION_FACTOR: f64 = 1.5;
 }
 
 /// 後方互換性のための precision エイリアス
@@ -233,7 +265,7 @@ pub mod test_constants {
 
 #[cfg(test)]
 mod tests {
-    use super::{special, GeometricTolerance};
+    use super::{GeometricTolerance, special};
     use crate::consts::test_constants::{
         SOLVER_TOLERANCE_F32, SOLVER_TOLERANCE_F64, TOLERANCE_F32, TOLERANCE_F64,
     };

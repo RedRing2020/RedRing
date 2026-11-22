@@ -1,5 +1,5 @@
 use viewmodel::message_catalog::{
-    resolve_message, TableMessageCatalog, UiLocale, UiMessage, UiMessageArg,
+    TableMessageCatalog, UiLocale, UiMessage, UiMessageArg, resolve_message,
 };
 
 const SETTINGS_PANEL_TEMPLATE_JA: &[(&str, &str)] = &[
@@ -19,16 +19,28 @@ const SETTINGS_PANEL_TEMPLATE_JA: &[(&str, &str)] = &[
     ("settings.debug.circle", "円"),
     ("settings.debug.arc", "円弧"),
     ("settings.debug.triangle", "三角形"),
-    ("settings.debug.header.inverse_offset_shape", "逆オフセット形状"),
-    ("settings.debug.inverse_offset_shape", "表示（製品形状と計算条件の工具）"),
-    ("settings.current_animation", "表示中の切削シミュレーション: ジョブ {label}"),
+    (
+        "settings.debug.header.inverse_offset_shape",
+        "逆オフセット形状",
+    ),
+    (
+        "settings.debug.inverse_offset_shape",
+        "表示（製品形状と計算条件の工具）",
+    ),
+    (
+        "settings.current_animation",
+        "表示中の切削シミュレーション: ジョブ {label}",
+    ),
     ("settings.apply", "設定を反映"),
     (
         "settings.no_active_animation",
         "切削シミュレーションが取り込まれていません。変更は次の取り込みから反映されます。",
     ),
     ("settings.header.frame_step", "コマ送り（k / j キー）"),
-    ("settings.frame_step.distance", "コマ送りの移動量（経路に沿った距離）"),
+    (
+        "settings.frame_step.distance",
+        "コマ送りの移動量（経路に沿った距離）",
+    ),
     ("settings.frame_step.reset", "初期値に戻す（{distance} mm）"),
     (
         "settings.frame_step.reset_on_import",
@@ -44,7 +56,10 @@ const SETTINGS_PANEL_TEMPLATE_JA: &[(&str, &str)] = &[
         "zoom_drag={zoom_drag}, zoom_wheel={zoom_wheel}, pixel_to_line={pixel_to_line}",
     ),
     ("settings.header.snapshot_overlay", "Snapshot Overlay 設定"),
-    ("settings.snapshot_overlay.block_count", "block_count={count}"),
+    (
+        "settings.snapshot_overlay.block_count",
+        "block_count={count}",
+    ),
     (
         "settings.snapshot_overlay.track",
         "track=({r}, {g}, {b}, {a})",
@@ -68,7 +83,10 @@ const SETTINGS_PANEL_TEMPLATE_JA: &[(&str, &str)] = &[
     ("settings.snapshot_shading.within", "トレランスの中"),
     ("settings.snapshot_shading.uncut", "削り残し"),
     ("settings.header.tool_wireframe", "Tool Wireframe 設定"),
-    ("settings.tool.manual_apply", "このタブの設定は手動で反映します"),
+    (
+        "settings.tool.manual_apply",
+        "このタブの設定は手動で反映します",
+    ),
     ("settings.tool.flat_circle_divisions", "flat 円周分割"),
     ("settings.tool.ball_circle_divisions", "ball 円周分割"),
     ("settings.tool.ball_latitudes", "ball 半球緯線分割"),
@@ -109,17 +127,32 @@ const SETTINGS_PANEL_TEMPLATE_EN: &[(&str, &str)] = &[
     ("settings.debug.circle", "Circle"),
     ("settings.debug.arc", "Arc"),
     ("settings.debug.triangle", "Triangle"),
-    ("settings.debug.header.inverse_offset_shape", "Inverse Offset Shape"),
-    ("settings.debug.inverse_offset_shape", "Show (product shape and the tool of the conditions)"),
-    ("settings.current_animation", "Displayed cutting simulation: job {label}"),
+    (
+        "settings.debug.header.inverse_offset_shape",
+        "Inverse Offset Shape",
+    ),
+    (
+        "settings.debug.inverse_offset_shape",
+        "Show (product shape and the tool of the conditions)",
+    ),
+    (
+        "settings.current_animation",
+        "Displayed cutting simulation: job {label}",
+    ),
     ("settings.apply", "Apply Settings"),
     (
         "settings.no_active_animation",
         "No cutting simulation is imported. Changes will be applied the next time one is imported.",
     ),
     ("settings.header.frame_step", "Frame Step (k / j keys)"),
-    ("settings.frame_step.distance", "Frame step distance (along the path)"),
-    ("settings.frame_step.reset", "Reset to the initial value ({distance} mm)"),
+    (
+        "settings.frame_step.distance",
+        "Frame step distance (along the path)",
+    ),
+    (
+        "settings.frame_step.reset",
+        "Reset to the initial value ({distance} mm)",
+    ),
     (
         "settings.frame_step.reset_on_import",
         "Reset to 1/100 of the toolpath length on each import. Moves at least one frame.",
@@ -134,7 +167,10 @@ const SETTINGS_PANEL_TEMPLATE_EN: &[(&str, &str)] = &[
         "zoom_drag={zoom_drag}, zoom_wheel={zoom_wheel}, pixel_to_line={pixel_to_line}",
     ),
     ("settings.header.snapshot_overlay", "Snapshot Overlay"),
-    ("settings.snapshot_overlay.block_count", "block_count={count}"),
+    (
+        "settings.snapshot_overlay.block_count",
+        "block_count={count}",
+    ),
     (
         "settings.snapshot_overlay.track",
         "track=({r}, {g}, {b}, {a})",
@@ -143,7 +179,10 @@ const SETTINGS_PANEL_TEMPLATE_EN: &[(&str, &str)] = &[
         "settings.snapshot_overlay.done",
         "done=({r}, {g}, {b}, {a})",
     ),
-    ("settings.header.snapshot_shading", "Cutting Animation Colors"),
+    (
+        "settings.header.snapshot_shading",
+        "Cutting Animation Colors",
+    ),
     (
         "settings.snapshot_shading.apply",
         "Applied to the display with \"Apply Settings\".",
@@ -158,16 +197,34 @@ const SETTINGS_PANEL_TEMPLATE_EN: &[(&str, &str)] = &[
     ("settings.snapshot_shading.within", "within tolerance"),
     ("settings.snapshot_shading.uncut", "uncut"),
     ("settings.header.tool_wireframe", "Tool Wireframe"),
-    ("settings.tool.manual_apply", "Changes on this tab are applied manually."),
-    ("settings.tool.flat_circle_divisions", "flat circle divisions"),
-    ("settings.tool.ball_circle_divisions", "ball circle divisions"),
-    ("settings.tool.ball_latitudes", "ball hemisphere latitude divisions"),
-    ("settings.tool.ball_meridians", "ball hemisphere meridian count"),
+    (
+        "settings.tool.manual_apply",
+        "Changes on this tab are applied manually.",
+    ),
+    (
+        "settings.tool.flat_circle_divisions",
+        "flat circle divisions",
+    ),
+    (
+        "settings.tool.ball_circle_divisions",
+        "ball circle divisions",
+    ),
+    (
+        "settings.tool.ball_latitudes",
+        "ball hemisphere latitude divisions",
+    ),
+    (
+        "settings.tool.ball_meridians",
+        "ball hemisphere meridian count",
+    ),
     (
         "settings.header.toolpath_discretization",
         "ToolPath Discretization",
     ),
-    ("settings.toolpath.display_only", "For display wireframe only"),
+    (
+        "settings.toolpath.display_only",
+        "For display wireframe only",
+    ),
     ("settings.toolpath.preset", "Preset"),
     ("settings.toolpath.preset.performance", "Light"),
     ("settings.toolpath.preset.balanced", "Balanced"),

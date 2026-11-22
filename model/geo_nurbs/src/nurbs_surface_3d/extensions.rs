@@ -4,8 +4,8 @@ use crate::{NurbsSurface3D, Scalar};
 use geo_contracts::NurbsSurface3DProperties;
 
 use crate::adaptive_tessellation::{
-    adaptive_params_axis, AdaptiveParamGrid, AdaptiveTessellationSettings,
-    NurbsSurfaceAdaptiveTessellation,
+    AdaptiveParamGrid, AdaptiveTessellationSettings, NurbsSurfaceAdaptiveTessellation,
+    adaptive_params_axis,
 };
 
 impl<T: Scalar> NurbsSurface3D<T> {

@@ -10,10 +10,10 @@ mod transform;
 use crate::{Ellipse2D, Point2D};
 use analysis::AngleRange;
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, Angle, Ellipse2DConstructor,
-    Ellipse2DEvaluation, Ellipse2DProperties, EllipseArc2DConstructor, EllipseArc2DContainment,
-    EllipseArc2DDerived, EllipseArc2DDistance, EllipseArc2DEndpoint, EllipseArc2DEvaluation,
-    EllipseArc2DProperties, EllipseArc2DTrimRange, PrimitiveKind, PrimitiveMetadata, Scalar,
+    Angle, Ellipse2DConstructor, Ellipse2DEvaluation, Ellipse2DProperties, EllipseArc2DConstructor,
+    EllipseArc2DContainment, EllipseArc2DDerived, EllipseArc2DDistance, EllipseArc2DEndpoint,
+    EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange, PrimitiveKind,
+    PrimitiveMetadata, Scalar, default_angle_tolerance, default_distance_tolerance,
 };
 
 /// 2次元楕円弧

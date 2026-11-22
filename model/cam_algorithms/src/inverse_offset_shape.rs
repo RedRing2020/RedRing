@@ -417,8 +417,8 @@ impl InverseOffsetShape {
         )
         .expect("the vertical direction is not zero");
         match self.elements[element] {
-            Element::Face(face) => face_height(&self.faces[face], &ray),
-            Element::UpperSide(face) => face_height(&self.upper_sides[face], &ray),
+            Element::Face(face) => face_height(&self.faces[face], x, y, &ray),
+            Element::UpperSide(face) => face_height(&self.upper_sides[face], x, y, &ray),
             Element::Vertex(vertex) => self.vertex_height(vertex, x, y, &ray),
             Element::Edge(edge) => self.edge_height(edge, x, y, &ray),
         }
@@ -507,8 +507,32 @@ impl InverseOffsetShape {
     }
 }
 
-fn face_height(face: &Triangle3D<f64>, ray: &Ray3D<f64>) -> Option<f64> {
-    highest(face.intersection(ray, tolerance()), |_| true)
+/// 面の要素と、(x, y) の鉛直線 `ray` の交点の高さ
+///
+/// 交点の判定の許容誤差は面の中の距離のため、急な面では XY で浮動小数点の 1 つ分より小さくなり、隣り合う要素との
+/// 境目に、どの要素も高さを決めない隙間ができうる（走査線は要素の境目を浮動小数点の精度まで二分するため、その隙間に
+/// 点を置き、低い要素の高さまで下ろす）。そのため、鉛直線が面から外れても、XY で面の縁から許容誤差までなら、縁の
+/// 最も近い点の高さとする（工具の半径が許容誤差だけ大きい場合と同じで、削り込む側にはずれない）
+fn face_height(face: &Triangle3D<f64>, x: f64, y: f64, ray: &Ray3D<f64>) -> Option<f64> {
+    highest(face.intersection(ray, tolerance()), |_| true).or_else(|| {
+        let corners =
+            [face.vertex_a(), face.vertex_b(), face.vertex_c()].map(|p| [p.x(), p.y(), p.z()]);
+        (0..3)
+            .filter_map(|k| {
+                let (start, end) = (corners[k], corners[(k + 1) % 3]);
+                let along = sub(end, start);
+                let length_squared = along[0] * along[0] + along[1] * along[1];
+                if length_squared == 0.0 {
+                    return None;
+                }
+                let t = (((x - start[0]) * along[0] + (y - start[1]) * along[1]) / length_squared)
+                    .clamp(0.0, 1.0);
+                let near = (x - (start[0] + t * along[0])).hypot(y - (start[1] + t * along[1]))
+                    <= tolerance();
+                near.then(|| start[2] + t * along[2])
+            })
+            .reduce(f64::max)
+    })
 }
 
 /// 三角形 `corners` を、単位法線 `normal` の向きに工具の形でずらした三角形（ボールは法線の向きに半径、フラットは
@@ -533,7 +557,7 @@ fn offset_triangle(
     Triangle3D::new(a, b, c)
 }
 
-/// 面の要素を索引に入れる
+/// 面の要素を索引に入れる（XY の範囲は、`face_height` が高さを返す、面の縁から許容誤差までを含める）
 fn push_face(
     face: &Triangle3D<f64>,
     element: Element,
@@ -542,7 +566,7 @@ fn push_face(
     z_ranges: &mut Vec<ZRange>,
 ) {
     let corners = [face.vertex_a(), face.vertex_b(), face.vertex_c()];
-    bounds.push(xy_bounds(&corners.map(|p| [p.x(), p.y()]), 0.0));
+    bounds.push(xy_bounds(&corners.map(|p| [p.x(), p.y()]), tolerance()));
     elements.push(element);
     let heights = corners.map(|p| p.z());
     z_ranges.push(ZRange {

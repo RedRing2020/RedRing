@@ -6,10 +6,16 @@ mod extensions;
 #[cfg(test)]
 mod tests;
 
-use crate::default_angle_tolerance;
 use crate::Vector3D;
+use crate::default_angle_tolerance;
 use analysis::abstract_types::Scalar;
+use analysis::consts::numerical::ROUNDING_EPSILON_FACTOR;
 use std::ops::{Deref, DerefMut, Mul, Neg};
+
+/// 正規化・直交化の丸めの範囲
+fn rounding<T: Scalar>() -> T {
+    T::EPSILON * T::from_f64(ROUNDING_EPSILON_FACTOR)
+}
 
 /// 3次元方向ベクトル（正規化済み）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -43,6 +49,31 @@ impl<T: Scalar> Direction3D<T> {
             let normalized = vector.normalize();
             Some(Self { vector: normalized })
         }
+    }
+
+    /// 単位ベクトルとして保存した値から方向を作成（長さの 2 乗と 1 の差が正規化の丸めの範囲なら、正規化し直さずに
+    /// そのまま使う。保存と読み込みを繰り返しても、値が変わらない。それ以外は `from_vector` と同じ）
+    pub fn from_unit_vector(vector: Vector3D<T>) -> Option<Self> {
+        if (vector.length_squared() - T::ONE).abs() <= rounding::<T>() {
+            Some(Self { vector })
+        } else {
+            Self::from_vector(vector)
+        }
+    }
+
+    /// 軸 `axis` に直交するように、軸の成分を除いて正規化した方向（グラム・シュミット正規直交化。軸と平行で、
+    /// 除いた残りが丸めの範囲に収まるなら `None`）。丸めの範囲で直交していれば、そのまま返す（作り直しても、値が
+    /// 変わらない）
+    pub fn orthogonal_to(self, axis: Self) -> Option<Self> {
+        let along = self.vector.dot(axis.vector);
+        if along.abs() <= rounding::<T>() {
+            return Some(self);
+        }
+        let rest = self.vector - axis.vector * along;
+        if rest.length() <= rounding::<T>() {
+            return None;
+        }
+        Self::from_vector(rest)
     }
 
     /// X、Y、Z成分から方向を作成

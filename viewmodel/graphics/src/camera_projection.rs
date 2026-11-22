@@ -22,7 +22,9 @@ pub(crate) fn projection_matrix(
             let near = (distance * 0.01).max(0.001);
             let far = (distance * 100.0).min(1000.0);
 
-            tracing::info!("Using the perspective projection; the orthographic projection is usually recommended for CAM views");
+            tracing::info!(
+                "Using the perspective projection; the orthographic projection is usually recommended for CAM views"
+            );
 
             Matrix4x4::perspective_rh_01(45.0 * PI / 180.0, aspect, near, far).to_column_major()
         }
@@ -36,19 +38,31 @@ pub(crate) fn projection_matrix(
                     let actual_width = logical_height * aspect;
                     let expand = (actual_width - logical_width) * 0.5;
                     tracing::debug!(
-                            "CAD display mode (landscape): logical range ({}, {}, {}, {}) -> shown range ({:.1}, {:.1}, {:.1}, {:.1})",
-                            bl, br, bb, bt,
-                            bl - expand, br + expand, bb, bt
-                        );
+                        "CAD display mode (landscape): logical range ({}, {}, {}, {}) -> shown range ({:.1}, {:.1}, {:.1}, {:.1})",
+                        bl,
+                        br,
+                        bb,
+                        bt,
+                        bl - expand,
+                        br + expand,
+                        bb,
+                        bt
+                    );
                     (bl - expand, br + expand, bb, bt)
                 } else {
                     let actual_height = logical_width / aspect;
                     let expand = (actual_height - logical_height) * 0.5;
                     tracing::debug!(
-                            "CAD display mode (portrait): logical range ({}, {}, {}, {}) -> shown range ({:.1}, {:.1}, {:.1}, {:.1})",
-                            bl, br, bb, bt,
-                            bl, br, bb - expand, bt + expand
-                        );
+                        "CAD display mode (portrait): logical range ({}, {}, {}, {}) -> shown range ({:.1}, {:.1}, {:.1}, {:.1})",
+                        bl,
+                        br,
+                        bb,
+                        bt,
+                        bl,
+                        br,
+                        bb - expand,
+                        bt + expand
+                    );
                     (bl, br, bb - expand, bt + expand)
                 }
             } else {

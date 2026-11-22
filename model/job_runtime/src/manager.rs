@@ -768,6 +768,8 @@ mod tests {
         let source = JobSource {
             source_id: "operation-1".to_string(),
             revision: 3,
+            revision_key: Some("key-1".to_string()),
+            segment_key: None,
         };
         let id = manager.submit(JobSpec {
             source: Some(source.clone()),

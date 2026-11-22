@@ -5,6 +5,7 @@
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use render::{
+    gpu_buffer::GpuDataError,
     line::LineResources,
     mesh::MeshResources,
     mesh_list::{MeshListItem, MeshListResources},
@@ -38,7 +39,6 @@ pub enum RenderMode {
 pub struct MeshStage {
     mesh_resources: MeshResources,
     line_resources: Option<LineResources>,
-    overlay_line_resources: Option<LineResources>,
     overlay_toolpath_line_resources: Option<LineResources>,
     overlay_tool_line_resources: Option<LineResources>,
     /// 重畳するツールパス線分を描くか
@@ -59,7 +59,6 @@ impl MeshStage {
         Self {
             mesh_resources,
             line_resources: None,
-            overlay_line_resources: None,
             overlay_toolpath_line_resources: None,
             overlay_tool_line_resources: None,
             overlay_toolpath_visible: true,
@@ -76,66 +75,74 @@ impl MeshStage {
     }
 
     /// メッシュデータを設定（ソリッド/ワイヤーフレーム用）
-    pub fn set_mesh_data(&mut self, device: &Device, vertices: Vec<MeshVertex>, indices: Vec<u32>) {
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで、メッシュを置けない場合（メッシュは描かない）。
+    pub fn set_mesh_data(
+        &mut self,
+        device: &Device,
+        vertices: &[MeshVertex],
+        indices: &[u32],
+    ) -> Result<(), GpuDataError> {
         tracing::debug!(
             "Set mesh data: {} vertices, {} indices",
             vertices.len(),
             indices.len()
         );
-
-        self.mesh_resources
-            .update_mesh_data(device, &vertices, &indices);
         self.render_mode = RenderMode::Solid;
+        self.mesh_resources
+            .update_mesh_data(device, vertices, indices)
     }
 
     /// 線分データを設定（Lines用）
-    pub fn set_line_data(&mut self, device: &Device, vertices: Vec<MeshVertex>) {
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りず、線分を置けない場合（線分は描かない）。
+    pub fn set_line_data(
+        &mut self,
+        device: &Device,
+        vertices: &[MeshVertex],
+    ) -> Result<(), GpuDataError> {
         tracing::debug!("Set line data: {} vertices", vertices.len());
-
-        // LineResourcesが未初期化の場合は作成
-        if self.line_resources.is_none() {
-            self.line_resources = Some(LineResources::new(device, self.format));
-        }
-
-        // 線分データを更新
-        if let Some(line_res) = &mut self.line_resources {
-            line_res.update_line_data(device, &vertices);
-        }
-
         self.render_mode = RenderMode::Lines;
-    }
-
-    /// ソリッド表示に重畳する線分データを設定
-    pub fn set_overlay_line_data(&mut self, device: &Device, vertices: Vec<MeshVertex>) {
-        if self.overlay_line_resources.is_none() {
-            self.overlay_line_resources = Some(LineResources::new(device, self.format));
-        }
-
-        if let Some(line_res) = &mut self.overlay_line_resources {
-            line_res.update_line_data(device, &vertices);
-        }
+        let format = self.format;
+        self.line_resources
+            .get_or_insert_with(|| LineResources::new(device, format))
+            .update_line_data(device, vertices)
     }
 
     /// ソリッド表示に重畳するツールパス線分データを設定
-    pub fn set_overlay_toolpath_line_data(&mut self, device: &Device, vertices: Vec<MeshVertex>) {
-        if self.overlay_toolpath_line_resources.is_none() {
-            self.overlay_toolpath_line_resources = Some(LineResources::new(device, self.format));
-        }
-
-        if let Some(line_res) = &mut self.overlay_toolpath_line_resources {
-            line_res.update_line_data(device, &vertices);
-        }
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りず、線分を置けない場合（線分は描かない）。
+    pub fn set_overlay_toolpath_line_data(
+        &mut self,
+        device: &Device,
+        vertices: &[MeshVertex],
+    ) -> Result<(), GpuDataError> {
+        let format = self.format;
+        self.overlay_toolpath_line_resources
+            .get_or_insert_with(|| LineResources::new(device, format))
+            .update_line_data(device, vertices)
     }
 
     /// ソリッド表示に重畳する工具線分データを設定
-    pub fn set_overlay_tool_line_data(&mut self, device: &Device, vertices: Vec<MeshVertex>) {
-        if self.overlay_tool_line_resources.is_none() {
-            self.overlay_tool_line_resources = Some(LineResources::new(device, self.format));
-        }
-
-        if let Some(line_res) = &mut self.overlay_tool_line_resources {
-            line_res.update_line_data(device, &vertices);
-        }
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りず、線分を置けない場合（線分は描かない）。
+    pub fn set_overlay_tool_line_data(
+        &mut self,
+        device: &Device,
+        vertices: &[MeshVertex],
+    ) -> Result<(), GpuDataError> {
+        let format = self.format;
+        self.overlay_tool_line_resources
+            .get_or_insert_with(|| LineResources::new(device, format))
+            .update_line_data(device, vertices)
     }
 
     /// 重畳するツールパス線分を描くか（線分データは保つ）
@@ -149,13 +156,30 @@ impl MeshStage {
     }
 
     /// ソリッド表示に重ねて描く、色の異なる複数のメッシュを設定（キーとメッシュの組。すべて置き換える）
-    pub fn set_mesh_list(&mut self, device: &Device, items: Vec<(u64, MeshListItem)>) {
-        self.mesh_list(device).set_meshes(device, items);
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで、置けないメッシュがある場合（そのメッシュは描かない）。
+    pub fn set_mesh_list(
+        &mut self,
+        device: &Device,
+        items: Vec<(u64, MeshListItem)>,
+    ) -> Result<(), GpuDataError> {
+        self.mesh_list(device).set_meshes(device, items)
     }
 
     /// 重ねて描くメッシュのうち、キー `key` のメッシュを差し替える（三角形がなければ削除する）
-    pub fn set_mesh_list_item(&mut self, device: &Device, key: u64, item: MeshListItem) {
-        self.mesh_list(device).set_mesh(device, key, item);
+    ///
+    /// # Errors
+    ///
+    /// GPU のメモリが足りないなどで、メッシュを置けない場合（前のメッシュも描かない）。
+    pub fn set_mesh_list_item(
+        &mut self,
+        device: &Device,
+        key: u64,
+        item: MeshListItem,
+    ) -> Result<(), GpuDataError> {
+        self.mesh_list(device).set_mesh(device, key, item)
     }
 
     /// 重ねて描くメッシュのうち、キーが `keys` の範囲のメッシュの色を変える（メッシュは作り直さない）
@@ -180,7 +204,6 @@ impl MeshStage {
 
     /// ソリッド表示への線分重畳を無効化
     pub fn clear_overlay_line_data(&mut self) {
-        self.overlay_line_resources = None;
         self.overlay_toolpath_line_resources = None;
         self.overlay_tool_line_resources = None;
     }
@@ -201,10 +224,6 @@ impl MeshStage {
 
         // 線分リソースのカメラも更新
         if let Some(line_res) = &mut self.line_resources {
-            line_res.update_camera(queue, view_matrix, proj_matrix);
-        }
-
-        if let Some(line_res) = &mut self.overlay_line_resources {
             line_res.update_camera(queue, view_matrix, proj_matrix);
         }
 
@@ -273,9 +292,6 @@ impl RenderStage for MeshStage {
             RenderMode::Solid | RenderMode::Wireframe => {
                 self.mesh_resources.render(&mut render_pass);
 
-                if let Some(line_res) = &self.overlay_line_resources {
-                    line_res.render(&mut render_pass);
-                }
                 if let Some(line_res) = self.visible_overlay_toolpath_lines() {
                     line_res.render(&mut render_pass);
                 }
@@ -333,8 +349,8 @@ impl RenderStage for MeshStage {
             if let Some(line_res) = &self.line_resources {
                 if should_trace {
                     tracing::trace!(
-                        "Drawing lines (no depth): vertex_count={}",
-                        line_res.vertex_count
+                        "Drawing lines (no depth): {} vertex buffers",
+                        line_res.vertex_buffers.len()
                     );
                 }
                 line_res.render(&mut line_pass);
@@ -384,7 +400,10 @@ impl RenderStage for MeshStage {
             RenderMode::Lines => {
                 if let Some(line_res) = &self.line_resources {
                     if should_trace {
-                        tracing::trace!("Drawing lines: vertex_count={}", line_res.vertex_count);
+                        tracing::trace!(
+                            "Drawing lines: {} vertex buffers",
+                            line_res.vertex_buffers.len()
+                        );
                     }
                     line_res.render(&mut render_pass);
                 } else {
@@ -394,8 +413,7 @@ impl RenderStage for MeshStage {
         }
 
         if matches!(self.render_mode, RenderMode::Solid | RenderMode::Wireframe)
-            && (self.overlay_line_resources.is_some()
-                || self.overlay_toolpath_line_resources.is_some()
+            && (self.overlay_toolpath_line_resources.is_some()
                 || self.overlay_tool_line_resources.is_some())
         {
             drop(render_pass);
@@ -416,9 +434,6 @@ impl RenderStage for MeshStage {
                 multiview_mask: None,
             });
 
-            if let Some(line_res) = &self.overlay_line_resources {
-                line_res.render(&mut overlay_pass);
-            }
             if let Some(line_res) = self.visible_overlay_toolpath_lines() {
                 line_res.render(&mut overlay_pass);
             }

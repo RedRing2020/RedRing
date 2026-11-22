@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use winit::keyboard::{Key, NamedKey};
+use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 use winit::{
     application::ApplicationHandler,
     event::{DeviceEvent, ElementState, WindowEvent},
@@ -61,7 +62,7 @@ impl ApplicationHandler for App {
         self.state = Some(state);
         tracing::info!("=== RedRing is ready ===");
         tracing::info!(
-            "Cutting simulation: open the machining conditions window with Shift+M and submit with Submit"
+            "Cutting simulation: open the machining sequence with Machining > Open machining sequence and submit from the operation list"
         );
         tracing::info!("Open the controls list with F1 / h or Help > Controls");
     }
@@ -76,30 +77,42 @@ impl ApplicationHandler for App {
             state.handle_settings_window_event(&event);
             let settings_ui_consumed = state.ui_wants_pointer();
             match event {
-                WindowEvent::CloseRequested => {
-                    self.should_exit = true;
-                    event_loop.exit();
-                }
+                // 保存していない変更を確かめてから終える（確かめはイベントの処理が終わった後）
+                WindowEvent::CloseRequested => state.request_exit(),
                 WindowEvent::Resized(size) => state.resize(size),
                 WindowEvent::RedrawRequested => state.render(),
                 WindowEvent::KeyboardInput { event, .. } => {
                     let pressed = event.state == ElementState::Pressed;
-                    state.handle_keyboard_input(&event.logical_key, pressed);
+                    // Esc でダイアログを閉じた・名前の編集を取り消したときにアプリを終えないよう、キーを処理する前に確かめる
+                    let esc_taken =
+                        state.is_condition_dialog_open() || state.is_operation_name_editing();
+                    state.handle_keyboard_input(
+                        &event.logical_key,
+                        &event.key_without_modifiers(),
+                        pressed,
+                    );
 
-                    // ESCキーのみここで処理（アプリ終了）
-                    if pressed && matches!(event.logical_key, Key::Named(NamedKey::Escape)) {
-                        self.should_exit = true;
-                        event_loop.exit();
+                    // Esc はアプリを終える（保存していない変更を確かめてから。押し続けの繰り返しは除く）。条件の編集の
+                    // ダイアログを開いている間は、ダイアログを閉じるだけにし、工程の名前を編集している間は、編集を取り消す
+                    // だけにする
+                    if pressed
+                        && !event.repeat
+                        && !esc_taken
+                        && matches!(event.logical_key, Key::Named(NamedKey::Escape))
+                    {
+                        state.request_exit();
                     }
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
                     state.mouse_input.update_modifiers(modifiers.state());
                 }
+                // 離したことは、画面の部品の上でも必ず受ける（3D の表示で始めた回転・パンを、続いたままにしない。押した
+                // ことを受けなかったボタンを離しても、操作を終えるだけで害はない）
                 WindowEvent::MouseInput {
                     button,
                     state: button_state,
                     ..
-                } if !settings_ui_consumed => {
+                } if !settings_ui_consumed || button_state == ElementState::Released => {
                     state.handle_mouse_button(button, button_state);
                 }
                 WindowEvent::CursorMoved { position, .. } if !settings_ui_consumed => {
@@ -108,7 +121,11 @@ impl ApplicationHandler for App {
                 WindowEvent::MouseWheel { delta, .. } if !settings_ui_consumed => {
                     state.handle_mouse_wheel(delta);
                 }
-                WindowEvent::DroppedFile(path) => state.import_product_shape(&path),
+                // 条件の編集のダイアログを開いている間は、ファイルを受けない（編集している条件を黙って捨てないように）
+                WindowEvent::DroppedFile(path) if state.is_condition_dialog_open() => {
+                    tracing::info!(path = %path.display(), "File drop ignored while a dialog is open");
+                }
+                WindowEvent::DroppedFile(path) => state.drop_file(path),
                 _ => {}
             }
         }
@@ -136,10 +153,19 @@ impl ApplicationHandler for App {
             return;
         }
         if let Some(state) = &mut self.state {
-            // ファイルを開く画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に開く
+            // 確かめの画面は描画を止めるため、描画の途中ではなく、イベントの処理が終わった後に開く
             state.run_requested_menu_actions();
+            if state.exit_confirmed() {
+                self.should_exit = true;
+                event_loop.exit();
+                return;
+            }
             state.tick_snapshot_playback(std::time::Instant::now());
-            state.window.request_redraw();
+            // 最小化している間は描かない（画面のテクスチャを得られず、描き直しを頼み続けると CPU を使い続けるため）。
+            // 元に戻すと、OS が描き直しを頼む
+            if state.window.is_minimized() != Some(true) {
+                state.window.request_redraw();
+            }
         }
     }
 }

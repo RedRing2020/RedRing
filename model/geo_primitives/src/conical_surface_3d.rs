@@ -21,8 +21,8 @@ mod transform;
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, Angle, ConicalSurface3DConstructor, ConicalSurface3DDistance,
-    ConicalSurface3DEvaluation, ConicalSurface3DProperties, Scalar,
+    Angle, ConicalSurface3DConstructor, ConicalSurface3DDistance, ConicalSurface3DEvaluation,
+    ConicalSurface3DProperties, Scalar, default_distance_tolerance,
 };
 
 /// 3次元円錐サーフェス（STEP準拠のCore実装）
@@ -117,9 +117,7 @@ impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
         }
 
         // 参照方向の軸成分を除去して正規化（グラム・シュミット正規直交化）
-        let ref_direction = Direction3D::from_vector(
-            ref_direction.as_vector() - axis.as_vector() * ref_direction.dot(axis),
-        )?;
+        let ref_direction = ref_direction.orthogonal_to(axis)?;
 
         Some(Self {
             center,

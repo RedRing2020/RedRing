@@ -1,8 +1,14 @@
 //! ヘルプ（操作の一覧・バージョンの情報）のウィンドウと、画面の下の知らせの行
 
 use crate::help_messages::resolve_help_text;
-use crate::machining_conditions_ui::{operation_status_text, OperationStatus};
-use egui::{Align2, Color32, Context, Grid, Panel, Rect, Ui, Window};
+use crate::machining_conditions_ui::{OperationStatus, operation_status_text};
+use crate::settings_panel_renderer::SYMBOL_FONT_FAMILY;
+use egui::containers::menu::{MenuButton, MenuConfig};
+use egui::{
+    Align, Align2, Color32, Context, Grid, Label, Layout, Panel, PopupCloseBehavior, Rect,
+    RichText, ScrollArea, Ui, Window,
+};
+use std::collections::VecDeque;
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
 
@@ -27,7 +33,7 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
         "help.header.cutting",
         &[
             ("Shift+M", "help.cutting.conditions"),
-            ("Shift+R", "help.cutting.run"),
+            ("F2", "help.cutting.rename"),
             ("Shift+L", "help.cutting.import"),
             ("k / j", "help.cutting.step"),
             (". / ,", "help.cutting.endpoint"),
@@ -48,16 +54,20 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
     (
         "help.header.app",
         &[
+            ("Ctrl+N", "help.app.new"),
+            ("Ctrl+O", "help.app.open"),
+            ("Ctrl+S", "help.app.save"),
+            ("Ctrl+Shift+S", "help.app.save_as"),
+            ("help.input.drop", "help.app.drop"),
             ("Shift+S", "help.app.settings"),
             ("F1 / h", "help.app.help"),
-            ("help.input.drop", "help.app.load"),
             ("Esc", "help.app.quit"),
         ],
     ),
 ];
 
 /// 知らせの重さ
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum NoticeLevel {
     Info,
     Warning,
@@ -73,10 +83,21 @@ pub(crate) enum Notice {
     ShapeImported { file: String },
     /// 形状を読み込めない（ファイルの名前と理由）
     ShapeImportFailed { file: String, reason: UiMessage },
+    /// STEP ファイルを読み込んだ（ファイルの名前・加えた形状の数・読めなかった・配置できなかった要素の数。理由は
+    /// ログに出す）
+    StepImported {
+        file: String,
+        shapes: usize,
+        skipped: usize,
+    },
     /// 切削シミュレーションを取り込む前に、再生の操作をした
     NotImported,
     /// ツールパスに区間がないため、工具を区間の端点へ移せない
     NoToolSegments,
+    /// 線（CL・工具など）が多すぎて GPU のメモリが足りないため、表示できない
+    LinesNotDrawn,
+    /// 形状（製品形状・素材の面など）が大きすぎて GPU のメモリが足りないため、表示できない
+    ShapesNotDrawn,
     /// 切削アニメーションの表示中ではないため、設定を反映できない
     ApplyWithoutAnimation,
     /// デバッグ表示の間は、切削アニメーションのコマを動かさない
@@ -89,31 +110,91 @@ pub(crate) enum Notice {
     SettingsNotSaved,
     /// アプリの設定を保存できない（理由）
     SettingsSaveFailed { reason: UiMessage },
-    /// 投入・実行・取り込みの結果（加工条件のウィンドウの結果の行と同じ文言）
+    /// 投入・実行・取り込みの結果（工程リストの結果の行と同じ文言）
     Operation(OperationStatus),
+    /// 空の空間モデルにした
+    ModelCreated,
+    /// モデルファイルを開いた（ファイルの名前）
+    ModelOpened { file: String },
+    /// モデルファイルを開けない（ファイルの名前と理由）
+    ModelOpenFailed { file: String, reason: UiMessage },
+    /// ジョブマネージャーが動いていないため、計算の状態が分からない（計算開始すると起動する）
+    JobManagerNotRunning,
+    /// ジョブマネージャーが見つからないため、計算の投入と状態の確認ができない
+    JobManagerNotFound,
+    /// 計算待ち・計算中のジョブがあるのに、ジョブマネージャーが停止中のため計算されていない
+    JobManagerStopped,
+    /// 動いていなかったジョブマネージャーにつながり、計算の状態を読めた
+    JobManagerAvailable,
+    /// モデルファイルに保存した（ファイルの名前）
+    ModelSaved { file: String },
+    /// モデルファイルに保存できない（ファイルの名前と理由）
+    ModelSaveFailed { file: String, reason: UiMessage },
+    /// ツールライブラリに書けない・作れない（ファイルの名前と理由）
+    ToolLibraryFailed { file: String, reason: UiMessage },
+    /// 手順の工程の工具を、ライブラリの値にそろえた（工具の値が変わった工程の数）
+    ToolsAligned { count: usize },
 }
 
 impl Notice {
     pub(crate) fn level(&self) -> NoticeLevel {
         match self {
-            Self::Startup | Self::ShapeImported { .. } => NoticeLevel::Info,
-            Self::ShapeImportFailed { .. } => NoticeLevel::Error,
+            Self::Startup
+            | Self::ShapeImported { .. }
+            | Self::ModelCreated
+            | Self::ModelOpened { .. }
+            | Self::ModelSaved { .. }
+            | Self::JobManagerNotRunning
+            | Self::ToolsAligned { .. }
+            | Self::JobManagerAvailable => NoticeLevel::Info,
+            Self::StepImported { skipped, .. } => {
+                if *skipped == 0 {
+                    NoticeLevel::Info
+                } else {
+                    NoticeLevel::Warning
+                }
+            }
+            Self::ShapeImportFailed { .. }
+            | Self::ModelOpenFailed { .. }
+            | Self::ModelSaveFailed { .. }
+            | Self::ToolLibraryFailed { .. }
+            | Self::JobManagerNotFound => NoticeLevel::Error,
             Self::NotImported
             | Self::NoToolSegments
+            | Self::LinesNotDrawn
+            | Self::ShapesNotDrawn
             | Self::ApplyWithoutAnimation
             | Self::DebugViewShown
             | Self::InverseOffsetToolDiffers
             | Self::SettingsLoadFailed { .. }
             | Self::SettingsNotSaved
-            | Self::SettingsSaveFailed { .. } => NoticeLevel::Warning,
+            | Self::SettingsSaveFailed { .. }
+            | Self::JobManagerStopped => NoticeLevel::Warning,
             Self::Operation(status) => match status {
                 OperationStatus::SubmitFailed(_)
-                | OperationStatus::RunFailed(_)
-                | OperationStatus::ImportFailed(_) => NoticeLevel::Error,
-                OperationStatus::NothingToImport => NoticeLevel::Warning,
-                OperationStatus::Submitted
-                | OperationStatus::Ran { .. }
-                | OperationStatus::Imported { .. } => NoticeLevel::Info,
+                | OperationStatus::SequenceSubmitFailed { .. }
+                | OperationStatus::ImportFailed(_)
+                | OperationStatus::JobManagerFailed(_)
+                | OperationStatus::SequenceStatusUnreadable(_)
+                | OperationStatus::StopFailed(_) => NoticeLevel::Error,
+                OperationStatus::NothingToImport
+                | OperationStatus::NoToolpathToImport
+                | OperationStatus::AlreadyCalculated
+                | OperationStatus::AlreadyImported
+                | OperationStatus::RecalculationWaiting
+                | OperationStatus::StopNotYetAccepted
+                | OperationStatus::NothingToStop => NoticeLevel::Warning,
+                OperationStatus::Submitted { .. }
+                | OperationStatus::Resumed
+                | OperationStatus::Redone { .. }
+                | OperationStatus::LargeToolpathDeclined
+                | OperationStatus::Estimating
+                | OperationStatus::EstimateAbandoned
+                | OperationStatus::Stopped
+                | OperationStatus::EarlierConditionsCanceled
+                | OperationStatus::SequenceSubmitted { .. }
+                | OperationStatus::Imported { .. }
+                | OperationStatus::ToolpathImported { .. } => NoticeLevel::Info,
             },
         }
     }
@@ -123,6 +204,23 @@ impl Notice {
             Self::Startup => resolve_help_text(locale, "notice.startup", &[]),
             Self::ShapeImported { file } => {
                 resolve_help_text(locale, "notice.shape_imported", &[("file", file.clone())])
+            }
+            Self::StepImported {
+                file,
+                shapes,
+                skipped,
+            } => {
+                let args = [
+                    ("file", file.clone()),
+                    ("shapes", shapes.to_string()),
+                    ("skipped", skipped.to_string()),
+                ];
+                let key = if *skipped == 0 {
+                    "notice.step_imported"
+                } else {
+                    "notice.step_imported_with_skipped"
+                };
+                resolve_help_text(locale, key, &args)
             }
             Self::ShapeImportFailed { file, reason } => resolve_help_text(
                 locale,
@@ -134,6 +232,8 @@ impl Notice {
             ),
             Self::NotImported => resolve_help_text(locale, "notice.not_imported", &[]),
             Self::NoToolSegments => resolve_help_text(locale, "notice.no_tool_segments", &[]),
+            Self::LinesNotDrawn => resolve_help_text(locale, "notice.lines_not_drawn", &[]),
+            Self::ShapesNotDrawn => resolve_help_text(locale, "notice.shapes_not_drawn", &[]),
             Self::ApplyWithoutAnimation => {
                 resolve_help_text(locale, "notice.apply_without_animation", &[])
             }
@@ -153,30 +253,171 @@ impl Notice {
                 &[("reason", resolve_failure_message(locale, reason))],
             ),
             Self::Operation(status) => operation_status_text(locale, status),
+            Self::ModelCreated => resolve_help_text(locale, "notice.model_created", &[]),
+            Self::JobManagerNotRunning => {
+                resolve_help_text(locale, "notice.job_manager_not_running", &[])
+            }
+            Self::JobManagerNotFound => {
+                resolve_help_text(locale, "notice.job_manager_not_found", &[])
+            }
+            Self::JobManagerStopped => resolve_help_text(locale, "notice.job_manager_stopped", &[]),
+            Self::JobManagerAvailable => {
+                resolve_help_text(locale, "notice.job_manager_available", &[])
+            }
+            Self::ModelOpened { file } => {
+                resolve_help_text(locale, "notice.model_opened", &[("file", file.clone())])
+            }
+            Self::ModelSaved { file } => {
+                resolve_help_text(locale, "notice.model_saved", &[("file", file.clone())])
+            }
+            Self::ModelOpenFailed { file, reason } => resolve_help_text(
+                locale,
+                "notice.model_open_failed",
+                &[
+                    ("file", file.clone()),
+                    ("reason", resolve_failure_message(locale, reason)),
+                ],
+            ),
+            Self::ModelSaveFailed { file, reason } => resolve_help_text(
+                locale,
+                "notice.model_save_failed",
+                &[
+                    ("file", file.clone()),
+                    ("reason", resolve_failure_message(locale, reason)),
+                ],
+            ),
+            Self::ToolsAligned { count } => resolve_help_text(
+                locale,
+                "notice.tools_aligned",
+                &[("count", count.to_string())],
+            ),
+            Self::ToolLibraryFailed { file, reason } => resolve_help_text(
+                locale,
+                "notice.tool_library_failed",
+                &[
+                    ("file", file.clone()),
+                    ("reason", resolve_failure_message(locale, reason)),
+                ],
+            ),
         }
     }
 }
 
-/// 画面の下の知らせの行（最後の知らせを 1 行で出す）
-#[derive(Debug, Clone, Copy)]
+/// 画面の下の行（最後のメッセージを 1 行で出し、📋 から最近のメッセージと選んだ工程の状態の一覧を開く）
+#[derive(Debug, Clone)]
 pub struct NoticeBarUiState<'a> {
     pub locale: UiLocale,
     pub(crate) notice: &'a Notice,
+    /// 最近のメッセージ（新しい順）
+    pub(crate) history: &'a VecDeque<Notice>,
+    /// まだ一覧を開いていない、注意・失敗のメッセージのうち最も重いもの（`None` はない）
+    pub(crate) unread: Option<NoticeLevel>,
+    /// 一覧に出す、選んだ工程の状態の行（重さと文言。加工手順を開いていなければ空）
+    pub(crate) details: Vec<(NoticeLevel, String)>,
+    /// 一覧を開いた（まだ開いていないメッセージの印を消す）
+    pub(crate) log_opened: bool,
+    /// 右に出す、次にできることの案内（選んだ工程の状態に応じて。`None` は出さない）
+    pub(crate) navigation: Option<String>,
+}
+
+/// 重さ `level` の文字の色（普段の文字は `None`）
+fn level_color(ui: &Ui, level: NoticeLevel) -> Option<Color32> {
+    match level {
+        NoticeLevel::Info => None,
+        NoticeLevel::Warning => Some(ui.visuals().warn_fg_color),
+        NoticeLevel::Error => Some(ui.visuals().error_fg_color),
+    }
+}
+
+/// 重さ `level` の色を付けた文字 `text`
+fn level_text(ui: &Ui, level: NoticeLevel, text: String) -> RichText {
+    match level_color(ui, level) {
+        Some(color) => RichText::new(text).color(color),
+        None => RichText::new(text),
+    }
 }
 
 impl NoticeBarUiState<'_> {
-    pub fn show(&self, ui: &mut Ui) {
-        let notice = self.notice;
-        Panel::bottom("notice_bar").show_inside(ui, |ui| {
-            let text = notice.text(self.locale);
-            match notice.level() {
-                NoticeLevel::Info => ui.label(text),
-                NoticeLevel::Warning => ui.colored_label(ui.visuals().warn_fg_color, text),
-                NoticeLevel::Error => ui.colored_label(ui.visuals().error_fg_color, text),
-            };
+    /// 画面の下の行に、一覧を開く 📋 と、最後のメッセージを 1 行で出す（長い文は切り詰める。全文は一覧で見る）
+    pub fn show(&mut self, ui: &mut Ui) {
+        Panel::bottom("notice_bar").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                // まだ開いていない注意・失敗があれば、その重さの色にする（記号のフォントは単色のため、色を付けられる）
+                let icon = match self.unread {
+                    Some(level) => level_text(ui, level, "📋".to_string()),
+                    None => RichText::new("📋"),
+                }
+                .family(egui::FontFamily::Name(SYMBOL_FONT_FAMILY.into()));
+                // 一覧の中の文字を選ぶ・スクロールするときに閉じないよう、外を押したときだけ閉じる
+                let config =
+                    MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside);
+                let (response, log) = MenuButton::new(icon)
+                    .config(config)
+                    .ui(ui, |ui| self.show_log(ui));
+                if log.is_some() {
+                    self.log_opened = true;
+                }
+                response.on_hover_text(resolve_help_text(self.locale, "notice.log.hint", &[]));
+                let text = level_text(ui, self.notice.level(), self.notice.text(self.locale));
+                // 案内を右に寄せて先に置き、メッセージは残りの幅で切り詰める
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if let Some(navigation) = &self.navigation {
+                        ui.label(navigation);
+                        ui.separator();
+                    }
+                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        ui.add(Label::new(text).truncate());
+                    });
+                });
+            });
         });
     }
+
+    /// 一覧（選んだ工程の状態と、最近のメッセージ。メッセージの文は写せるように選べる）
+    fn show_log(&self, ui: &mut Ui) {
+        ui.set_max_width(LOG_WIDTH);
+        ScrollArea::vertical()
+            .max_height(LOG_MAX_HEIGHT)
+            .show(ui, |ui| {
+                if !self.details.is_empty() {
+                    ui.strong(resolve_help_text(self.locale, "notice.log.state", &[]));
+                    for (level, text) in &self.details {
+                        ui.label(level_text(ui, *level, text.clone()));
+                    }
+                    ui.separator();
+                }
+                ui.strong(resolve_help_text(self.locale, "notice.log.history", &[]));
+                for notice in self.history {
+                    let text = level_text(ui, notice.level(), notice.text(self.locale));
+                    ui.add(Label::new(text).wrap().selectable(true));
+                }
+            });
+    }
 }
+
+/// 最近のメッセージの一覧 `history`（新しい順）に、メッセージ `notice` を足す（上限 `limit` を超えた古いものは
+/// 捨てる）。同じメッセージが続くときは足さない（キーを押し続けたときに、一覧が同じメッセージで埋まらないように）
+pub(crate) fn push_notice_history(history: &mut VecDeque<Notice>, notice: &Notice, limit: usize) {
+    if history.front() == Some(notice) {
+        return;
+    }
+    history.push_front(notice.clone());
+    history.truncate(limit);
+}
+
+/// まだ一覧を開いていないメッセージのうち最も重いもの `unread` に、重さ `level` のメッセージを加えた結果（注意・
+/// 失敗だけを数える）
+pub(crate) fn next_unread(unread: Option<NoticeLevel>, level: NoticeLevel) -> Option<NoticeLevel> {
+    if level > NoticeLevel::Info {
+        unread.max(Some(level))
+    } else {
+        unread
+    }
+}
+
+/// メッセージの一覧の幅・最も高い高さ（論理座標）
+const LOG_WIDTH: f32 = 520.0;
+const LOG_MAX_HEIGHT: f32 = 360.0;
 
 /// ヘルプのウィンドウ（操作の一覧・バージョンの情報）の開閉と中身
 #[derive(Debug, Clone)]
@@ -280,7 +521,8 @@ impl HelpUiState {
             .open(&mut open)
             .show(ctx, |ui| {
                 ui.heading(version);
-                ui.label(log_file);
+                // ログのファイルの場所は、写せるように選べる（ほかの文字は選べない）
+                ui.add(Label::new(log_file).selectable(true));
                 ui.hyperlink_to(manual, &manual_url);
             });
         self.about_open = open;
@@ -290,6 +532,47 @@ impl HelpUiState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_notice_log_has_texts_and_errors_are_heavier_than_warnings() {
+        for locale in [UiLocale::Ja, UiLocale::En] {
+            for key in ["notice.log.hint", "notice.log.state", "notice.log.history"] {
+                assert!(
+                    !resolve_help_text(locale, key, &[]).contains("__missing__"),
+                    "{key}"
+                );
+            }
+        }
+        // 📋 の印は、まだ開いていない注意・失敗のうち最も重いものの色にする（情報は印にしない）
+        assert_eq!(next_unread(None, NoticeLevel::Info), None);
+        assert_eq!(
+            next_unread(None, NoticeLevel::Warning),
+            Some(NoticeLevel::Warning)
+        );
+        assert_eq!(
+            next_unread(Some(NoticeLevel::Warning), NoticeLevel::Error),
+            Some(NoticeLevel::Error)
+        );
+        assert_eq!(
+            next_unread(Some(NoticeLevel::Error), NoticeLevel::Warning),
+            Some(NoticeLevel::Error)
+        );
+        assert_eq!(
+            next_unread(Some(NoticeLevel::Error), NoticeLevel::Info),
+            Some(NoticeLevel::Error)
+        );
+    }
+
+    #[test]
+    fn the_history_keeps_the_newest_messages_without_repeating_the_same_one() {
+        let mut history = VecDeque::new();
+        push_notice_history(&mut history, &Notice::NotImported, 2);
+        push_notice_history(&mut history, &Notice::NotImported, 2);
+        assert_eq!(history, [Notice::NotImported]);
+        push_notice_history(&mut history, &Notice::ModelCreated, 2);
+        push_notice_history(&mut history, &Notice::SettingsNotSaved, 2);
+        assert_eq!(history, [Notice::SettingsNotSaved, Notice::ModelCreated]);
+    }
 
     #[test]
     fn every_help_row_and_notice_has_a_text() {
@@ -309,6 +592,16 @@ mod tests {
                 Notice::Startup,
                 Notice::ShapeImported {
                     file: "a.stl".to_string(),
+                },
+                Notice::StepImported {
+                    file: "a.step".to_string(),
+                    shapes: 2,
+                    skipped: 0,
+                },
+                Notice::StepImported {
+                    file: "a.step".to_string(),
+                    shapes: 2,
+                    skipped: 1,
                 },
                 Notice::ShapeImportFailed {
                     file: "a.stl".to_string(),
@@ -335,10 +628,22 @@ mod tests {
                         args: Vec::new(),
                     },
                 },
-                Notice::Operation(OperationStatus::RunFailed(UiMessage {
-                    key: "failure.orchestration".to_string(),
+                Notice::Operation(OperationStatus::SubmitFailed(UiMessage {
+                    key: "failure.job_manager_not_found".to_string(),
                     args: Vec::new(),
                 })),
+                Notice::JobManagerNotRunning,
+                Notice::JobManagerNotFound,
+                Notice::JobManagerStopped,
+                Notice::JobManagerAvailable,
+                Notice::ToolsAligned { count: 2 },
+                Notice::ToolLibraryFailed {
+                    file: "mc1.rrtl".to_string(),
+                    reason: UiMessage {
+                        key: "failure.tool_library.read_only".to_string(),
+                        args: Vec::new(),
+                    },
+                },
             ];
             for notice in notices {
                 let text = notice.text(locale);
@@ -376,9 +681,13 @@ mod tests {
             NoticeLevel::Warning
         );
         assert_eq!(
-            Notice::Operation(OperationStatus::Submitted).level(),
+            Notice::Operation(OperationStatus::Submitted {
+                simulation_only: true
+            })
+            .level(),
             NoticeLevel::Info
         );
         assert_eq!(Notice::NotImported.level(), NoticeLevel::Warning);
+        assert_eq!(Notice::JobManagerStopped.level(), NoticeLevel::Warning);
     }
 }

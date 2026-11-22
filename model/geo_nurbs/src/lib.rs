@@ -31,8 +31,8 @@ pub use adaptive_tessellation::{
     NurbsCurveAdaptiveTessellation, NurbsSurfaceAdaptiveTessellation,
 };
 pub use knot::{
-    clamped_knot_vector, find_knot_span, get_parameter_domain, open_knot_vector,
-    uniform_knot_vector, validate_knot_vector, KnotVector,
+    KnotVector, clamped_knot_vector, find_knot_span, get_parameter_domain, open_knot_vector,
+    uniform_knot_vector, validate_knot_vector,
 };
 pub use nurbs_curve_2d::NurbsCurve2D;
 pub use nurbs_curve_3d::NurbsCurve3D;

@@ -3,7 +3,7 @@
 //! 数学的な2次元点（位置）を表す型
 //! Vector2との相互変換とトレイト共通化を提供
 
-use crate::{linalg::vector::Vector2, Scalar};
+use crate::{Scalar, linalg::vector::Vector2};
 use std::ops::Index;
 
 /// 2次元点

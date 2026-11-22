@@ -1,18 +1,34 @@
-//! 加工条件のウィンドウ（切削シミュレーションの計算条件の入力と投入）
+//! 加工手順の画面（切削シミュレーションの計算条件の入力と投入）
 //!
-//! 表示の設定（設定パネル）とは分けて、加工手順 1 つの加工工程 1 つの条件（工程の中身と手順の素材）と、表示中の結果の
-//! 計算に使った条件を扱う。
+//! 表示の設定（設定パネル）とは分けて、次の 3 つを扱う。
+//! - 工程リスト（画面の下のパネル）: 加工手順 1 つの加工工程の表（選ぶ・加える・複写する・消す・並べ替える）と、
+//!   計算の操作・その結果・選んだ工程の計算の状態
+//! - 工程の設定のダイアログ: 選んだ工程の条件（工程の中身）と、表示中の結果の計算に使った条件
+//! - 手順の設定のダイアログ: 手順の名前と素材
+//!
+//! 条件は、ダイアログで編集し、「適用」するまで工程・手順に入れない（触っただけで再計算待ちにしない）。ダイアログを
+//! 開いている間は、見る操作（カメラ・切削アニメーション・表示の設定）だけを受け、工程リストは押せない。
 
 use crate::machining_conditions_messages::resolve_machining_conditions_text;
-use crate::settings_panel_renderer::window_body_max_height;
-use egui::{Align2, CollapsingHeader, Context, DragValue, Rect, ScrollArea, Window};
+use egui::{
+    CollapsingHeader, Color32, Context, DragValue, Id, Panel, Rect, RichText, ScrollArea, Stroke,
+    Window,
+};
+use egui_extras::{Column, TableBuilder};
+use std::collections::HashMap;
+use std::hash::Hash;
 use viewmodel::cutting_simulation_session::{
-    flat_surface_cusp_height, CamConditionError, CamConditionField, ConditionIssue,
-    CuttingToolKind, ImportedConditions, MachiningOperationContent, MachiningStock, OperationSpec,
-    ScanlineCutDirection, ScanlineToolRange, StockMargins,
+    CamConditionError, CamConditionField, ConditionIssue, CuttingToolKind, ImportedConditions,
+    MachiningBoundary, MachiningOperationContent, MachiningStage, MachiningStock, OperationFailure,
+    OperationJobStatus, OperationSpec, ScanlineCutDirection, ScanlineToolRange, StockMargins, Tool,
+    flat_surface_cusp_height,
 };
 use viewmodel::failure_message_catalog::resolve_failure_message;
 use viewmodel::message_catalog::{UiLocale, UiMessage};
+use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
+use viewmodel::tool_library_session::{
+    OperationToolStatus, ToolSetFilter, ToolSetId, ToolSetReference, ToolSetRow, filtered_toolsets,
+};
 
 /// 計算条件の問題を出す欄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,7 +44,8 @@ pub(crate) enum ConditionField {
 /// 問題 `issue` を出す欄
 pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
     match issue {
-        ConditionIssue::NoProductShape => ConditionField::Target,
+        ConditionIssue::NotSet => ConditionField::Submission,
+        ConditionIssue::NoProductShape | ConditionIssue::Checking => ConditionField::Target,
         ConditionIssue::Condition(error) => match error.field() {
             CamConditionField::Tool => ConditionField::Tool,
             CamConditionField::Machining => ConditionField::Machining,
@@ -40,27 +57,119 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
     }
 }
 
+/// 問題 `issues` が、加工の対象の形状を作っている間の確かめ中か（作り終えたら確かめ直す）
+pub(crate) fn conditions_checking(issues: &[ConditionIssue]) -> bool {
+    issues.contains(&ConditionIssue::Checking)
+}
+
 /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum OperationStatus {
-    Submitted,
+    /// 投入した（今の条件の CL から、切削シミュレーションだけを投入したか）
+    Submitted { simulation_only: bool },
+    /// 今の条件の中断した計算を、計算待ちに戻すよう頼んだ
+    Resumed,
+    /// 空間モデルの CL を消して、ツールパス生成から投入し直した（今の条件の計算待ち・計算中のジョブを取り消すよう
+    /// 頼んだか）
+    Redone { canceled: bool },
+    /// 今の条件の計算が計算待ち・計算中・計算済みのため、投入しない
+    AlreadyCalculated,
+    /// 計算の状態は分からないが、今の条件の CL を取り込み済みのため、投入しない
+    AlreadyImported,
+    /// 今の条件の計算が計算待ちのため、再計算しない（計算が始まってから再計算できる）
+    RecalculationWaiting,
+    /// ツールパスが大きくなることを確かめて、計算しないことにした
+    LargeToolpathDeclined,
+    /// ツールパスの大きさを見積もっている（見積もり終えたら、頼まれた計算を始める）
+    Estimating,
+    /// 見積もっている間に工程・条件が変わったため、頼まれた計算を始めない
+    EstimateAbandoned,
+    /// 今の条件の計算待ち・計算中の計算を止めている（取り消すよう頼んだ。止まるのは待たない）
+    Stopped,
+    /// 前の条件の、計算待ち・計算中の計算を取り消した（取り消すよう頼んだ。止まるのは待たない）
+    EarlierConditionsCanceled,
+    /// 今の条件の計算に、待ってもジョブマネージャーが受け取らない投入があり、すべては止めていない
+    StopNotYetAccepted,
+    /// 今の条件の計算は、計算待ち・計算中でないため、止めていない
+    NothingToStop,
+    /// 計算を止められない（画面に出す理由）
+    StopFailed(UiMessage),
     /// 投入できない（画面に出す理由）
     SubmitFailed(UiMessage),
-    /// 実行したジョブの数と、かかった秒数
-    Ran {
-        executed: usize,
-        seconds: f64,
+    /// 手順の全体を投入した（投入した工程・そのうち切削シミュレーションだけを投入した工程・投入し直さなかった工程の数）
+    SequenceSubmitted {
+        submitted: usize,
+        simulation_only: usize,
+        skipped: usize,
     },
-    /// 実行できない（画面に出す理由）
-    RunFailed(UiMessage),
+    /// 手順の全体のうち、工程を投入できない（工程の加工の順の番号・名前、その前に投入した工程の数、画面に出す理由）
+    SequenceSubmitFailed {
+        position: usize,
+        operation: String,
+        submitted: usize,
+        reason: UiMessage,
+    },
+    /// 計算の状態を読めないため、手順の全体を投入しない（画面に出す理由）
+    SequenceStatusUnreadable(UiMessage),
     /// 取り込んだ切削シミュレーションのジョブの番号
-    Imported {
-        job: u64,
-    },
+    Imported { job: u64 },
     /// 取り込める（正常終了した）切削シミュレーションがない
     NothingToImport,
+    /// CL を取り込んだツールパス生成のジョブの番号
+    ToolpathImported { job: u64 },
+    /// 取り込める（正常終了した）ツールパス生成がない
+    NoToolpathToImport,
     /// 取り込めない（画面に出す理由）
     ImportFailed(UiMessage),
+    /// ジョブマネージャーを開けない（画面に出す理由）
+    JobManagerFailed(UiMessage),
+}
+
+/// 計算条件の問題 `issue` の、言語 `locale` の文言
+pub(crate) fn condition_issue_text(locale: UiLocale, issue: &ConditionIssue) -> String {
+    match issue {
+        ConditionIssue::NotSet => {
+            resolve_machining_conditions_text(locale, "conditions.issue.not_set", &[])
+        }
+        ConditionIssue::NoProductShape => {
+            resolve_machining_conditions_text(locale, "conditions.issue.no_product_shape", &[])
+        }
+        ConditionIssue::Condition(error) => {
+            let (key, args) = condition_error_message(error);
+            resolve_machining_conditions_text(locale, key, &args)
+        }
+        ConditionIssue::Other(message) => resolve_machining_conditions_text(
+            locale,
+            "conditions.issue.other",
+            &[("reason", resolve_failure_message(locale, message))],
+        ),
+        ConditionIssue::Checking => {
+            resolve_machining_conditions_text(locale, "conditions.issue.checking", &[])
+        }
+    }
+}
+
+/// 選んだ工程の今の条件の計算の状態 `status` の、言語 `locale` の文言
+pub(crate) fn job_status_text(
+    locale: UiLocale,
+    status: &JobStatusLine,
+    failure: Option<&OperationFailure>,
+) -> String {
+    match failure {
+        Some(failure) if *status == JobStatusLine::Status(OperationJobStatus::Failed) => {
+            resolve_machining_conditions_text(
+                locale,
+                "conditions.job.failed_with_reason",
+                &[("reason", resolve_failure_message(locale, &failure.reason))],
+            )
+        }
+        _ => resolve_machining_conditions_text(locale, job_status_key(status), &[]),
+    }
+}
+
+/// 空間モデルの CL の状態 `state` の、言語 `locale` の文言
+pub(crate) fn imported_toolpath_text(locale: UiLocale, state: ImportedToolpathState) -> String {
+    resolve_machining_conditions_text(locale, imported_toolpath_key(state), &[])
 }
 
 /// 結果 `status` の、言語 `locale` の文言
@@ -76,52 +185,780 @@ fn operation_status_message(
 ) -> (&'static str, Vec<(&'static str, String)>) {
     let reason = |message: &UiMessage| vec![("reason", resolve_failure_message(locale, message))];
     match status {
-        OperationStatus::Submitted => ("conditions.status.submitted", vec![]),
+        OperationStatus::Submitted {
+            simulation_only: false,
+        } => ("conditions.status.submitted", vec![]),
+        OperationStatus::Submitted {
+            simulation_only: true,
+        } => ("conditions.status.submitted_simulation", vec![]),
+        OperationStatus::Resumed => ("conditions.status.resumed", vec![]),
+        OperationStatus::Redone { canceled: false } => ("conditions.status.redone", vec![]),
+        OperationStatus::Redone { canceled: true } => ("conditions.status.redone_canceled", vec![]),
         OperationStatus::SubmitFailed(message) => {
             ("conditions.status.submit_failed", reason(message))
         }
-        OperationStatus::Ran { executed, seconds } => (
-            "conditions.status.ran",
+        OperationStatus::SequenceSubmitted { submitted: 0, .. } => {
+            ("conditions.status.sequence_nothing_to_submit", vec![])
+        }
+        OperationStatus::SequenceSubmitted {
+            submitted,
+            simulation_only: 0,
+            skipped: 0,
+        } => (
+            "conditions.status.sequence_submitted_all",
+            vec![("submitted", submitted.to_string())],
+        ),
+        OperationStatus::SequenceSubmitted {
+            submitted,
+            simulation_only: 0,
+            skipped,
+        } => (
+            "conditions.status.sequence_submitted",
             vec![
-                ("executed", executed.to_string()),
-                ("seconds", format!("{seconds:.1}")),
+                ("submitted", submitted.to_string()),
+                ("skipped", skipped.to_string()),
             ],
         ),
-        OperationStatus::RunFailed(message) => ("conditions.status.run_failed", reason(message)),
+        OperationStatus::SequenceSubmitted {
+            submitted,
+            simulation_only,
+            skipped: 0,
+        } => (
+            "conditions.status.sequence_submitted_simulation_all",
+            vec![
+                ("submitted", submitted.to_string()),
+                ("simulation_only", simulation_only.to_string()),
+            ],
+        ),
+        OperationStatus::SequenceSubmitted {
+            submitted,
+            simulation_only,
+            skipped,
+        } => (
+            "conditions.status.sequence_submitted_simulation",
+            vec![
+                ("submitted", submitted.to_string()),
+                ("simulation_only", simulation_only.to_string()),
+                ("skipped", skipped.to_string()),
+            ],
+        ),
+        OperationStatus::SequenceSubmitFailed {
+            position,
+            operation,
+            submitted,
+            reason: message,
+        } => {
+            let mut args = reason(message);
+            args.push(("position", position.to_string()));
+            args.push(("operation", operation.clone()));
+            args.push(("submitted", submitted.to_string()));
+            ("conditions.status.sequence_submit_failed", args)
+        }
+        OperationStatus::SequenceStatusUnreadable(message) => (
+            "conditions.status.sequence_status_unreadable",
+            reason(message),
+        ),
         OperationStatus::Imported { job } => {
             ("conditions.status.imported", vec![("job", job.to_string())])
         }
         OperationStatus::NothingToImport => ("conditions.status.nothing_to_import", vec![]),
+        OperationStatus::AlreadyCalculated => ("conditions.status.already_calculated", vec![]),
+        OperationStatus::AlreadyImported => ("conditions.status.already_imported", vec![]),
+        OperationStatus::LargeToolpathDeclined => {
+            ("conditions.status.large_toolpath_declined", vec![])
+        }
+        OperationStatus::Estimating => ("conditions.status.estimating", vec![]),
+        OperationStatus::EstimateAbandoned => ("conditions.status.estimate_abandoned", vec![]),
+        OperationStatus::RecalculationWaiting => {
+            ("conditions.status.recalculation_waiting", vec![])
+        }
+        OperationStatus::Stopped => ("conditions.status.stopped", vec![]),
+        OperationStatus::EarlierConditionsCanceled => {
+            ("conditions.status.earlier_conditions_canceled", vec![])
+        }
+        OperationStatus::StopNotYetAccepted => ("conditions.status.stop_not_accepted", vec![]),
+        OperationStatus::NothingToStop => ("conditions.status.nothing_to_stop", vec![]),
+        OperationStatus::StopFailed(message) => ("conditions.status.stop_failed", reason(message)),
+        OperationStatus::ToolpathImported { job } => (
+            "conditions.status.toolpath_imported",
+            vec![("job", job.to_string())],
+        ),
+        OperationStatus::NoToolpathToImport => ("conditions.status.no_toolpath_to_import", vec![]),
         OperationStatus::ImportFailed(message) => {
             ("conditions.status.import_failed", reason(message))
+        }
+        OperationStatus::JobManagerFailed(message) => {
+            ("conditions.status.job_manager_failed", reason(message))
         }
     }
 }
 
+/// 工程リストの初めの高さ（論理座標）
+const LIST_DEFAULT_HEIGHT: f32 = 220.0;
+/// 工具の欄の、ツールセットの一覧の高さ（点）
+const TOOLSET_CHOICES_HEIGHT: f32 = 160.0;
+/// 条件の編集のダイアログの幅（論理座標）
+const DIALOG_WIDTH: f32 = 380.0;
+/// 条件の編集のダイアログを置く、範囲の左上からの間（論理座標）
+const DIALOG_MARGIN: f32 = 16.0;
+/// 条件の編集のダイアログの、スクロールする中身のほかの高さ（題・頁の切り替え・区切り・ボタンの行。論理座標）
+const DIALOG_CHROME_HEIGHT: f32 = 140.0;
+/// 条件の編集のダイアログの、スクロールする中身の最小の高さ（論理座標）
+const DIALOG_BODY_MIN_HEIGHT: f32 = 120.0;
+
+/// 工程の表の名前の欄の、名前を編集する入力欄の、名前の幅に足す余り（入力欄の枠の内側の余白と、打ち足す文字の分。論理座標）
+const NAME_EDIT_SPARE_WIDTH: f32 = 24.0;
+
+/// 工程の表の選んだ行の、選択の色の濃さ（1 は選択の色のまま）
+pub(crate) const SELECTED_ROW_OPACITY: f32 = 0.45;
+
+/// 工程の表の列の、ドラッグで狭められる最小の幅（論理座標）
+const COLUMN_MIN_WIDTH: f32 = 32.0;
+
+/// 工程の表の、名前の列の位置（`COLUMN_KEYS` の中の位置）
+const NAME_COLUMN: usize = 1;
+
+/// 工程の表の、状態の列の位置（`COLUMN_KEYS` の中の位置）
+const STATUS_COLUMN: usize = 5;
+
+/// 工程の表の、表の状態を見分ける名前（列の幅などを、ほかの表と分けて保つ）
+const OPERATION_TABLE_SALT: &str = "operation_table";
+
+/// 工程の表の列の数
+const COLUMN_COUNT: usize = 6;
+
+/// 工程の表の列の見出しの文言のキー
+const COLUMN_KEYS: [&str; COLUMN_COUNT] = [
+    "conditions.list.column.order",
+    "conditions.list.column.name",
+    "conditions.list.column.stage",
+    "conditions.list.column.kind",
+    "conditions.list.column.tool",
+    "conditions.list.column.status",
+];
+
+/// 条件の編集のダイアログ（適用するまで、工程・手順の条件を変えない）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ConditionDialog {
+    /// 選んだ工程の設定
+    Operation,
+    /// 手順の設定（素材）
+    Sequence,
+}
+
+/// 条件の編集のダイアログで選んだ操作
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DialogResult {
+    /// 編集した条件を工程・手順に入れる
+    Apply,
+    /// 編集した条件を捨てる
+    Cancel,
+}
+
+/// 工程の表の名前の欄で、名前を編集している工程と、編集している名前（確定するまで、工程に入れない）。編集を始めるごとに
+/// 替わる番号で入力欄を分け、前の編集の入力欄の状態（文字の位置・元に戻す履歴）を引き継がない
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct OperationNameEdit {
+    pub(crate) operation: MachiningOperationId,
+    pub(crate) session: u64,
+    pub(crate) name: String,
+}
+
+/// 範囲 `area` に置くダイアログの、スクロールする中身の最大の高さ（題・ボタンの行を範囲に収める）
+fn dialog_body_max_height(area: Rect) -> f32 {
+    (area.height() - DIALOG_CHROME_HEIGHT).max(DIALOG_BODY_MIN_HEIGHT)
+}
+
+/// 工程の設定のダイアログの頁
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum OperationSettingsPage {
+    /// 加工条件（名前・加工の段階・工具・加工の種類と条件）
+    #[default]
+    Machining,
+    /// 加工領域・加工対象
+    Region,
+}
+
 #[derive(Debug, Clone)]
 pub struct MachiningConditionsUiState {
-    pub open: bool,
+    /// 工程リストを出しているか
+    pub(crate) list_shown: bool,
+    /// 開いている条件の編集のダイアログ（`None` は開いていない）と、工程の設定の出している頁
+    pub(crate) dialog: Option<ConditionDialog>,
+    pub(crate) dialog_page: OperationSettingsPage,
+    /// 開くように頼んだダイアログ（工程リストのボタン・行のダブルクリック・右クリックのメニュー）
+    pub(crate) open_dialog_requested: Option<ConditionDialog>,
+    /// ダイアログで選んだ操作
+    pub(crate) dialog_result: Option<DialogResult>,
+    /// 工程の設定を適用すると同時に、選んだ工程を投入する
+    pub(crate) submit_on_apply: bool,
     pub locale: UiLocale,
-    /// 表示中の製品形状の面の数
+    /// 加工手順の名前
+    pub(crate) sequence_name: String,
+    /// 加工手順の加工工程の一覧（加工の順）
+    pub(crate) operations: Vec<OperationRow>,
+    /// 選んだ加工工程
+    pub(crate) selected_operation: MachiningOperationId,
+    /// 加工工程の一覧の操作
+    pub(crate) operation_command: Option<OperationCommand>,
+    /// 工程の表の名前の欄で編集している名前（編集していなければ `None`）と、その確定・取り消し
+    pub(crate) name_edit: Option<OperationNameEdit>,
+    pub(crate) name_edit_result: Option<DialogResult>,
+    /// 選んだ工程の名前を、工程の表の名前の欄で編集し始める
+    pub(crate) name_edit_requested: bool,
+    /// 加工手順の加工の対象の面の数（面の表示・非表示によらない）
     pub face_count: usize,
-    /// 加工工程の中身（工具・走査線の条件）
+    /// ダイアログで編集している、選んだ加工工程の中身（名前・工具・走査線の条件）と加工手順の素材（余裕・精度）。
+    /// 適用するまで、工程・手順に入れない
     pub operation: MachiningOperationContent,
-    /// 加工手順の素材（素材の余裕・精度）
     pub stock: MachiningStock,
-    /// 工具長を指定するときの入力値（指定しない間も保つ）
-    pub tool_length_input: f64,
+    /// 工具の欄で選べる、使うライブラリ（一覧の順）
+    pub(crate) tool_libraries: Vec<ToolLibraryChoice>,
+    /// 編集している工程の工具の、ライブラリと比べた状態
+    pub(crate) tool_status: OperationToolStatus,
+    /// 編集している工程の工具を選んだライブラリの、一覧の番号（使えるライブラリにないときは `None`）
+    pub(crate) tool_reference_library: Option<usize>,
+    /// 工具の欄で選んでいるライブラリの、一覧の番号
+    pub(crate) tool_library: usize,
+    /// 工具の欄の、ツールセットの名前の検索の文字
+    pub(crate) tool_filter: String,
+    /// 工具の欄の操作
+    pub(crate) tool_command: Option<OperationToolCommand>,
+    /// 工程リスト: 手順のすべての工程の工具を、ライブラリの値にそろえる
+    pub(crate) align_tools_requested: bool,
     /// ツールパス生成のトレランス（mm）
     pub toolpath_tolerance: f64,
-    /// 加工工程・加工手順の条件の問題（投入前の確認の結果）
+    /// 今の（適用した）加工工程・加工手順の条件の問題（投入前の確認の結果）
     pub issues: Vec<ConditionIssue>,
+    /// ダイアログで編集している条件の問題
+    pub(crate) dialog_issues: Vec<ConditionIssue>,
     /// 表示中の結果のジョブの番号と、計算に使った条件
     pub imported: Option<(u64, ImportedConditions)>,
-    /// 「投入」で、投入した後に続けて実行するか
-    pub run_after_submit: bool,
-    /// 最後の操作の結果
-    pub(crate) status: Option<OperationStatus>,
     pub submit_requested: bool,
-    pub import_requested: bool,
+    /// 選んだ工程の空間モデルの CL を消して、ツールパス生成から投入し直す
+    pub(crate) redo_requested: bool,
+    /// 選んだ工程の今の条件の、計算待ち・計算中の計算を止める
+    pub(crate) stop_requested: bool,
+    /// 手順の全体を投入する
+    pub(crate) submit_sequence_requested: bool,
+    /// 選んだ工程の、ツールパス生成の結果（CL）だけを取り込む
+    pub(crate) import_toolpath_requested: bool,
+    /// 選んだ工程の切削シミュレーションの表示を切り替える（出していれば閉じ、出していなければ取り込んで出す）
+    pub(crate) toggle_simulation_requested: bool,
+    /// 選んだ工程の切削アニメーションを出しているか（「切削シミュレーション表示」の選んだ印）
+    pub(crate) simulation_shown: bool,
+    pub open_job_manager_requested: bool,
+}
+
+/// 工具の欄で選べるライブラリ
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ToolLibraryChoice {
+    /// 名前（読めたことのないライブラリは、ファイルの名前）
+    pub(crate) name: String,
+    /// 書けるか（写しから登録できるか）
+    pub(crate) editable: bool,
+    pub(crate) toolsets: Vec<ToolSetRow>,
+}
+
+/// 工具の欄の操作（ダイアログで編集している工程の中身を替える）
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum OperationToolCommand {
+    /// 一覧の番号のライブラリのツールセットを選ぶ
+    Select { library: usize, toolset: ToolSetId },
+    /// 参照しているツールセットの今の値にそろえる
+    Align,
+    /// 工具の写しを、一覧の番号のライブラリに名前で登録する
+    Register { library: usize, name: String },
+    /// ツールライブラリのウィンドウを、工程の工具にするツールセットを選ぶために開く
+    PickFromToolLibrary,
+}
+
+/// 工具の欄の検索の文字 `query` を名前に含むツールセット（大文字・小文字を区別しない。文字が空なら、一覧を出さない
+/// ため `None`）
+fn searched_toolsets(toolsets: &[ToolSetRow], query: &str) -> Option<Vec<ToolSetRow>> {
+    let name = query.trim();
+    if name.is_empty() {
+        return None;
+    }
+    let filter = ToolSetFilter {
+        name: name.to_string(),
+        ..ToolSetFilter::default()
+    };
+    Some(filtered_toolsets(toolsets.to_vec(), &filter, None))
+}
+
+/// 加工工程の一覧の 1 行
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct OperationRow {
+    pub(crate) id: MachiningOperationId,
+    pub(crate) name: String,
+    pub(crate) stage: MachiningStage,
+    pub(crate) spec: OperationSpec,
+    pub(crate) tool: Tool<f64>,
+    /// 工具を選んだツールライブラリの項目
+    pub(crate) toolset: Option<ToolSetReference>,
+    /// 工具の、ライブラリと比べた状態
+    pub(crate) tool_status: OperationToolStatus,
+    pub(crate) status: JobStatusLine,
+    /// 空間モデルの CL が、今の条件の結果（取込済み）
+    pub(crate) toolpath_current: bool,
+    /// 計算の条件を設定したか・条件に誤りがあるか
+    pub(crate) setup: OperationSetup,
+}
+
+/// 工程の計算の条件の状態（計算できるか）
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum OperationSetup {
+    /// 計算の条件を、まだ設定していない（条件を一度も適用していない。計算できない）
+    NotSet,
+    /// 計算の条件に誤りがある（計算できない。工程を選んで確かめたときと同じ問題）
+    ConditionError(Vec<ConditionIssue>),
+    /// 計算の条件を設定し、誤りがない（計算できる）
+    Ready,
+}
+
+/// 押せないボタン `response` に乗せたときに、押せない理由 `reasons` を出す（理由がないとき、計算の状態のせいで
+/// 押せないときは、空の吹き出しを出さないように付けない）
+fn with_disabled_reasons(response: egui::Response, reasons: &str) -> egui::Response {
+    if reasons.is_empty() {
+        response
+    } else {
+        response.on_disabled_hover_text(reasons)
+    }
+}
+
+/// 「適用と同時に計算する」で適用したときに、選んだ工程を計算するか
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum ApplySubmission {
+    /// 計算する
+    Submit,
+    /// 計算しない（画面に出す理由）
+    Skip(OperationStatus),
+}
+
+/// 「適用と同時に計算する」で適用したときに、計算の条件が変わったか `conditions_changed`・最後に読んだ計算の状態
+/// `status`・空間モデルの CL が今の条件の結果か `toolpath_current` から、選んだ工程を計算するか
+///
+/// 計算の条件が変わったときは、最後に読んだ状態は前の条件のものなので、比べずに計算する。変わらないときは、計算の
+/// ボタンが押せる状態のときだけ計算する（取込済みの工程の属性だけを替えたときに、ジョブマネージャーを起動しない）。
+pub(crate) fn submission_on_apply(
+    conditions_changed: bool,
+    status: &JobStatusLine,
+    toolpath_current: bool,
+) -> ApplySubmission {
+    if conditions_changed || !calculation_blocked(status, toolpath_current) {
+        return ApplySubmission::Submit;
+    }
+    match status {
+        JobStatusLine::Status(_) => ApplySubmission::Skip(OperationStatus::AlreadyCalculated),
+        // ジョブマネージャーが動いていない・見つからないため状態は分からないが、今の条件の CL がある
+        JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => {
+            ApplySubmission::Skip(OperationStatus::AlreadyImported)
+        }
+        // 今は計算のボタンを止めない状態（止めるようにするときは、計算しない理由の文言を足す）
+        JobStatusLine::NotSubmitted | JobStatusLine::Unreadable | JobStatusLine::Reading => {
+            ApplySubmission::Submit
+        }
+    }
+}
+
+/// 計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から、計算を押せないか（今の条件の
+/// 計算が計算待ち・計算中・計算済みのとき。重ねて投入しないように。ジョブマネージャーが動いていない・見つからない
+/// ときは、今の条件の CL があれば取込済みとして出すため、計算済みと同じに扱う。動けば状態を読み直し、未計算と分かれば
+/// 切削シミュレーションだけを計算できる）
+fn calculation_blocked(status: &JobStatusLine, toolpath_current: bool) -> bool {
+    match status {
+        JobStatusLine::Status(status) => status.is_waiting_or_done(),
+        JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => toolpath_current,
+        _ => false,
+    }
+}
+
+/// 選んだ工程の、計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` に応じた、次に
+/// できることの案内（画面の下の行の右に出す。案内のない状態は `None`）。計算が失敗していれば、その理由 `failure`
+/// を出す
+pub(crate) fn navigation_text(
+    locale: UiLocale,
+    status: &JobStatusLine,
+    toolpath_current: bool,
+    failure: Option<&OperationFailure>,
+) -> Option<String> {
+    let reason = failure
+        .map(|failure| ("reason", resolve_failure_message(locale, &failure.reason)))
+        .into_iter()
+        .collect::<Vec<_>>();
+    navigation_key(status, toolpath_current, failure)
+        .map(|key| resolve_machining_conditions_text(locale, key, &reason))
+}
+
+/// [`navigation_text`] の文言のキー
+fn navigation_key(
+    status: &JobStatusLine,
+    toolpath_current: bool,
+    failure: Option<&OperationFailure>,
+) -> Option<&'static str> {
+    match status {
+        JobStatusLine::Status(OperationJobStatus::Failed) => Some(match failure {
+            Some(failure) if failure.review_conditions => {
+                "conditions.navigation.failed_review_conditions"
+            }
+            Some(_) => "conditions.navigation.failed",
+            // 前の版のジョブマネージャー・取り込めなかった投入は、理由を渡さない
+            None => "conditions.navigation.failed_without_reason",
+        }),
+        JobStatusLine::Status(OperationJobStatus::Queued | OperationJobStatus::Running) => {
+            Some("conditions.navigation.in_progress")
+        }
+        JobStatusLine::Status(OperationJobStatus::Succeeded) if toolpath_current => {
+            Some("conditions.navigation.imported_with_simulation")
+        }
+        JobStatusLine::Status(OperationJobStatus::Succeeded) => {
+            Some("conditions.navigation.calculated")
+        }
+        JobStatusLine::Status(OperationJobStatus::Interrupted) => {
+            Some("conditions.navigation.interrupted")
+        }
+        // ジョブマネージャーの結果を消した後・別の PC で開いたとき（CL から切削シミュレーションだけを計算する）
+        JobStatusLine::NotSubmitted if toolpath_current => {
+            Some("conditions.navigation.imported_toolpath_only")
+        }
+        // 取込済みと出し、計算を押せない（状態を読むだけでは、ジョブマネージャーを起動しない）
+        JobStatusLine::ManagerNotRunning if toolpath_current => {
+            Some("conditions.navigation.imported_manager_not_running")
+        }
+        _ => None,
+    }
+}
+
+/// 加工工程の一覧の行に出す状態の文言のキー（計算済み・未計算（ジョブマネージャーの結果を消したとき）・状態不明
+/// （ジョブマネージャーが動いていない・見つからない）の工程は、空間モデルの CL が今の条件の結果なら取込済み。CL が正本
+/// のため、ジョブの側を見なくてよい。計算待ち・計算中・失敗などは、そのまま出す）
+fn operation_row_key(row: &OperationRow) -> &'static str {
+    // 計算できない工程は、計算の状態より先に、計算できない理由を出す
+    match row.setup {
+        OperationSetup::NotSet => return "conditions.operations.status.not_set",
+        OperationSetup::ConditionError(ref issues) if conditions_checking(issues) => {
+            return "conditions.operations.status.checking";
+        }
+        OperationSetup::ConditionError(_) => {
+            return "conditions.operations.status.condition_error";
+        }
+        OperationSetup::Ready => {}
+    }
+    let finished_or_gone = matches!(
+        row.status,
+        JobStatusLine::Status(OperationJobStatus::Succeeded)
+            | JobStatusLine::NotSubmitted
+            | JobStatusLine::ManagerNotRunning
+            | JobStatusLine::ManagerNotFound
+    );
+    if row.toolpath_current && finished_or_gone {
+        "conditions.operations.status.imported"
+    } else {
+        operation_row_status_key(&row.status)
+    }
+}
+
+/// 加工工程の一覧の操作
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum OperationCommand {
+    /// 工程を選ぶ
+    Select(MachiningOperationId),
+    /// 選んだ工程のすぐ後に、新しい工程を加える
+    Add,
+    /// 選んだ工程を複写して、すぐ後に加える
+    Duplicate,
+    /// 選んだ工程を消す
+    Remove,
+    /// 選んだ工程を、加工の順で動かす（負は前へ）
+    Move(isize),
+}
+
+/// 工程の表の状態の欄の、状態の文言のキー `key` ごとの色（ジョブマネージャーの一覧と同じ色。色を付けない状態は
+/// `None`）
+fn row_status_color(key: &str) -> Option<Color32> {
+    match key {
+        "conditions.operations.status.queued" => Some(Color32::GRAY),
+        "conditions.operations.status.running" => Some(Color32::from_rgb(80, 160, 255)),
+        "conditions.operations.status.succeeded" | "conditions.operations.status.imported" => {
+            Some(Color32::from_rgb(80, 200, 120))
+        }
+        "conditions.operations.status.failed"
+        | "conditions.operations.status.unreadable"
+        | "conditions.operations.status.condition_error" => Some(Color32::from_rgb(230, 90, 90)),
+        "conditions.operations.status.canceled" => Some(Color32::from_rgb(200, 160, 60)),
+        "conditions.operations.status.interrupted" => Some(Color32::from_rgb(170, 130, 230)),
+        _ => None,
+    }
+}
+
+/// 計算の条件の状態 `setup`・計算の状態 `status` と、空間モデルの CL が今の条件の結果か `toolpath_current` から決める、
+/// 次に押す操作（目立たせる。条件を設定していない工程は工程の設定を開き、条件に誤りがある工程はない（素材・形状の
+/// 誤りもあり、工程の設定で直せるとは限らないため。理由は確かめの一覧に出す）。未計算・計算失敗・取り消し・中断は
+/// 計算（取込済みで切削シミュレーションの結果がない工程も、切削シミュレーションだけを計算するため計算。画面の下の案内と
+/// 同じ）、計算済みで取り込んでいなければ CL 取込。計算待ち・計算中・計算済みで取込済み、状態が分からない工程はない）
+fn next_action_of(
+    setup: &OperationSetup,
+    status: &JobStatusLine,
+    toolpath_current: bool,
+) -> Option<RowAction> {
+    match setup {
+        OperationSetup::NotSet => return Some(RowAction::OpenSettings),
+        OperationSetup::ConditionError(_) => return None,
+        OperationSetup::Ready => {}
+    }
+    match status {
+        JobStatusLine::NotSubmitted => Some(RowAction::Submit),
+        JobStatusLine::Status(
+            OperationJobStatus::Failed
+            | OperationJobStatus::Canceled
+            | OperationJobStatus::Interrupted,
+        ) => Some(RowAction::Submit),
+        JobStatusLine::Status(OperationJobStatus::Succeeded) if !toolpath_current => {
+            Some(RowAction::ImportToolpath)
+        }
+        _ => None,
+    }
+}
+
+/// 工程の表の名前の欄の入力欄を、行の高さの中央にそろえて置き、欄の範囲と、名前の確定・取り消しを返す。入力欄は、
+/// 名前の列の幅（名前の全体が入らなければ、名前に合わせて広げる）にし、編集 `session` で初めて置くときに、名前のすべてを
+/// 選んで編集を始める（その描画で打った文字から受ける）。入力欄を離れたら確定する（取り消すのは、Esc で離れたときだけ）
+fn name_edit_cell(
+    ui: &mut egui::Ui,
+    session: u64,
+    name: &mut String,
+) -> (Rect, Option<DialogResult>) {
+    let id = Id::unique("operation_name_edit").with(session);
+    let first_frame = egui::text_edit::TextEditState::load(ui.ctx(), id).is_none();
+    if first_frame {
+        ui.memory_mut(|memory| memory.request_focus(id));
+        let mut state = egui::text_edit::TextEditState::default();
+        state
+            .cursor
+            .set_char_range(Some(egui::text::CCursorRange::select_all_str(name)));
+        state.store(ui.ctx(), id);
+    }
+    // 入力欄は、名前の列の幅にし、名前の全体が入らなければ名前に合わせて広げる（名前の列は、入力欄に合わせて広がる。
+    // 列の幅に抑えると、長い名前の頭が隠れる）
+    let name_width = egui::WidgetText::from(name.as_str())
+        .into_galley(
+            ui,
+            Some(egui::TextWrapMode::Extend),
+            f32::INFINITY,
+            egui::TextStyle::Body,
+        )
+        .size()
+        .x;
+    let width = (name_width + NAME_EDIT_SPARE_WIDTH).max(ui.available_width());
+    let response = ui
+        .horizontal_centered(|ui| {
+            ui.add(
+                egui::TextEdit::singleline(name)
+                    .id(id)
+                    .min_size(egui::vec2(width, 0.0)),
+            )
+        })
+        .inner;
+    if first_frame {
+        // 表を横に送って名前の列が見えないときも、打った文字が見えるように、入力欄を見える所に送る
+        response.scroll_to_me(None);
+    }
+    // 初めて置いた描画で離れたとき（Enter・入力欄の外を押した）は、前の描画で文字を受けていないため、離れたとは知らされ
+    // ない。文字を受ける欄でなくなったことで確かめる。その描画の Esc は、入力欄を離れさせないため、Esc を受けたことで
+    // 確かめる（日本語の変換をやめた Esc は、ここまで届かない）
+    let escape = ui.input(|input| input.key_pressed(egui::Key::Escape));
+    let left = response.lost_focus() || (first_frame && (escape || !response.has_focus()));
+    let result = left.then_some(if escape {
+        DialogResult::Cancel
+    } else {
+        DialogResult::Apply
+    });
+    (response.rect, result)
+}
+
+/// 欄の文字を、行の高さの中央にそろえて置き、欄の範囲を返す
+pub(crate) fn centered_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> Rect {
+    ui.horizontal_centered(|ui| ui.label(text)).response.rect
+}
+
+/// 工程の表の行の高さ（名前を編集しても行の高さが変わらないように、名前の入力欄が入る高さにする。論理座標）
+fn operation_row_height(ui: &egui::Ui) -> f32 {
+    let text_edit =
+        ui.text_style_height(&egui::TextStyle::Body) + 2.0 * ui.spacing().button_padding.y;
+    ui.spacing().interact_size.y.max(text_edit)
+}
+
+/// 工程の表の、`column` 番目の列の右の境目（ドラッグで幅を変える所）の識別子。表が境目に付ける識別子と同じ作り方に
+/// する（表の状態の識別子に、境目の名前と列の位置を足す）
+fn column_border_id(ui: &egui::Ui, column: usize) -> Id {
+    ui.scope_id()
+        .with(egui::IdSalt::new(OPERATION_TABLE_SALT))
+        .with("resize_column")
+        .with(column)
+}
+
+/// 工程の表の見出しと欄の文字を、省かずに出す幅（論理座標）
+#[derive(Debug, Clone, PartialEq)]
+struct TableTextWidths<Key = MachiningOperationId> {
+    headers: [f32; COLUMN_COUNT],
+    /// 工程ごとの、欄の幅（加工の順。工程は `Key` で見分ける）
+    rows: Vec<(Key, [f32; COLUMN_COUNT])>,
+}
+
+/// 状態の欄の、計算中の印とその前の間の幅（論理座標）
+fn spinner_reserve(ui: &egui::Ui) -> f32 {
+    ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.x
+}
+
+/// 工程の表の列のうち、中身に合わせた幅にし直す列。前の描画 `previous` より広がった欄（見出し・足した工程の欄も
+/// 含む）の文字 `current` が、前の描画の列の幅 `shown` に入らない列を合わせ直す（広がっても入る列・広がっていない
+/// 列は、ドラッグで決めた幅のままにする）。前の描画がなければ、どの列も合わせ直さない（初めての描画は、表が中身に
+/// 合わせるため）
+fn columns_to_refit<Key: Eq + Hash>(
+    previous: Option<&TableTextWidths<Key>>,
+    current: &TableTextWidths<Key>,
+    shown: Option<[f32; COLUMN_COUNT]>,
+) -> [bool; COLUMN_COUNT] {
+    // 1 論理座標に満たない広がりは、文字の幅の丸めの違いとみなし、広がったとしない
+    const MIN_GROWTH: f32 = 1.0;
+    let (Some(previous), Some(shown)) = (previous, shown) else {
+        return [false; COLUMN_COUNT];
+    };
+    let grown = |now: f32, before: f32| now >= before + MIN_GROWTH;
+    // 前の描画の欄の幅を、工程で引けるようにまとめておく（欄ごとに前の描画の行を探さないように）
+    let previous_rows: HashMap<&Key, &[f32; COLUMN_COUNT]> = previous
+        .rows
+        .iter()
+        .map(|(id, widths)| (id, widths))
+        .collect();
+    std::array::from_fn(|column| {
+        let header = grown(current.headers[column], previous.headers[column])
+            .then_some(current.headers[column]);
+        let cells = current.rows.iter().filter_map(|(id, widths)| {
+            let before = previous_rows.get(id).map(|widths| widths[column]);
+            // 足した工程の欄は、広がった欄とみなす
+            before
+                .is_none_or(|before| grown(widths[column], before))
+                .then_some(widths[column])
+        });
+        header
+            .into_iter()
+            .chain(cells)
+            .any(|width| width > shown[column])
+    })
+}
+
+/// 加工の段階 `stage` の文言のキー
+fn stage_key(stage: MachiningStage) -> &'static str {
+    match stage {
+        MachiningStage::Rough => "conditions.stage.rough",
+        MachiningStage::SemiFinish => "conditions.stage.semi_finish",
+        MachiningStage::Finish => "conditions.stage.finish",
+    }
+}
+
+/// 加工の種類 `spec` の文言のキー
+fn spec_kind_key(spec: &OperationSpec) -> &'static str {
+    match spec {
+        OperationSpec::Scanline(_) => "conditions.kind.scanline",
+    }
+}
+
+/// 工程の表の行の操作（右クリックのメニュー）
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RowAction {
+    OpenSettings,
+    Rename,
+    Submit,
+    Redo,
+    Stop,
+    ImportToolpath,
+    Import,
+    Command(OperationCommand),
+}
+
+/// 加工工程の一覧に出す、工程の計算の状態の短い文言のキー
+fn operation_row_status_key(status: &JobStatusLine) -> &'static str {
+    match status {
+        JobStatusLine::NotSubmitted => "conditions.operations.status.none",
+        JobStatusLine::Unreadable => "conditions.operations.status.unreadable",
+        JobStatusLine::Reading => "conditions.operations.status.reading",
+        JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => {
+            "conditions.operations.status.unknown"
+        }
+        JobStatusLine::Status(OperationJobStatus::Queued) => "conditions.operations.status.queued",
+        JobStatusLine::Status(OperationJobStatus::Running) => {
+            "conditions.operations.status.running"
+        }
+        JobStatusLine::Status(OperationJobStatus::Succeeded) => {
+            "conditions.operations.status.succeeded"
+        }
+        JobStatusLine::Status(OperationJobStatus::Failed) => "conditions.operations.status.failed",
+        JobStatusLine::Status(OperationJobStatus::Canceled) => {
+            "conditions.operations.status.canceled"
+        }
+        JobStatusLine::Status(OperationJobStatus::Interrupted) => {
+            "conditions.operations.status.interrupted"
+        }
+    }
+}
+
+/// 工程リストに出す、今の条件の計算の状態
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum JobStatusLine {
+    /// 今の条件で投入していない
+    NotSubmitted,
+    Status(OperationJobStatus),
+    /// ジョブマネージャーから状態を読めない
+    Unreadable,
+    /// 状態をまだ読めていない（読み終えるのを待たないため、初めて読む前）
+    Reading,
+    /// ジョブマネージャーが動いていないため、状態が分からない（読むときは起動しない）
+    ManagerNotRunning,
+    /// ジョブマネージャーが見つからないため、状態が分からない
+    ManagerNotFound,
+}
+
+impl JobStatusLine {
+    /// 投入し直すか条件を変えるまで変わらない状態か（ジョブマネージャーが動いていない・見つからない間は、外から
+    /// 起動したときにすぐ気づけるよう、短い間隔で読み直す。つなげるかを確かめるだけで軽い）
+    pub(crate) fn is_final(&self) -> bool {
+        matches!(
+            self,
+            Self::Status(
+                OperationJobStatus::Succeeded
+                    | OperationJobStatus::Failed
+                    | OperationJobStatus::Canceled
+                    | OperationJobStatus::Interrupted
+            )
+        )
+    }
+}
+
+/// 空間モデルに取り込んだ CL の状態 `state` の文言のキー
+fn imported_toolpath_key(state: ImportedToolpathState) -> &'static str {
+    match state {
+        ImportedToolpathState::None => "conditions.toolpath.none",
+        ImportedToolpathState::Current => "conditions.toolpath.current",
+    }
+}
+
+/// 計算の状態 `status` の文言のキー
+fn job_status_key(status: &JobStatusLine) -> &'static str {
+    match status {
+        JobStatusLine::NotSubmitted => "conditions.job.none",
+        JobStatusLine::Unreadable => "conditions.job.unreadable",
+        JobStatusLine::Reading => "conditions.job.reading",
+        JobStatusLine::ManagerNotRunning => "conditions.job.manager_not_running",
+        JobStatusLine::ManagerNotFound => "conditions.job.manager_not_found",
+        JobStatusLine::Status(OperationJobStatus::Queued) => "conditions.job.queued",
+        JobStatusLine::Status(OperationJobStatus::Running) => "conditions.job.running",
+        JobStatusLine::Status(OperationJobStatus::Succeeded) => "conditions.job.succeeded",
+        JobStatusLine::Status(OperationJobStatus::Failed) => "conditions.job.failed",
+        JobStatusLine::Status(OperationJobStatus::Canceled) => "conditions.job.canceled",
+        JobStatusLine::Status(OperationJobStatus::Interrupted) => "conditions.job.interrupted",
+    }
 }
 
 /// 送り方 `direction` の文言のキー
@@ -183,78 +1020,829 @@ impl MachiningConditionsUiState {
     }
 
     fn issue_text(&self, issue: &ConditionIssue) -> String {
-        match issue {
-            ConditionIssue::NoProductShape => self.text("conditions.issue.no_product_shape"),
-            ConditionIssue::Condition(error) => {
-                let (key, args) = condition_error_message(error);
-                self.text_with_args(key, &args)
-            }
-            ConditionIssue::Other(message) => self.text_with_args(
-                "conditions.issue.other",
-                &[("reason", resolve_failure_message(self.locale, message))],
-            ),
-        }
+        condition_issue_text(self.locale, issue)
     }
 
-    /// 欄 `field` の問題を出す
+    /// ダイアログで編集している条件の、欄 `field` の問題を出す
     fn show_issues(&self, ui: &mut egui::Ui, field: ConditionField) {
         for issue in self
-            .issues
+            .dialog_issues
             .iter()
             .filter(|issue| condition_field(issue) == field)
         {
-            ui.colored_label(ui.visuals().error_fg_color, self.issue_text(issue));
+            // 確かめ中は誤りではないため、誤りの色にしない
+            let color = if *issue == ConditionIssue::Checking {
+                ui.visuals().weak_text_color()
+            } else {
+                ui.visuals().error_fg_color
+            };
+            ui.colored_label(color, self.issue_text(issue));
         }
     }
 
-    /// ウィンドウを、範囲 `area`（メニューバーの下）の左上に置く
-    pub fn show(&mut self, ctx: &Context, area: Rect) {
-        if !self.open {
+    /// 工具 `tool` の短い文言（種類と径）
+    fn tool_text(&self, tool: &Tool<f64>) -> String {
+        let kind = if tool.is_ball_end_mill() {
+            self.text("conditions.tool.ball")
+        } else {
+            self.text("conditions.tool.flat")
+        };
+        self.text_with_args(
+            "conditions.list.tool",
+            &[("kind", kind), ("diameter", tool.diameter().to_string())],
+        )
+    }
+
+    /// 工程の表の工具の列（名前または工具の値と、ライブラリと同じでないときの印）
+    fn operation_tool_cell(&self, row: &OperationRow) -> String {
+        let text = self.operation_tool_text(row.toolset.as_ref(), &row.tool);
+        let mark = match row.tool_status {
+            OperationToolStatus::SameAsLibrary => return text,
+            OperationToolStatus::DiffersFromLibrary => "conditions.tool.mark.differs",
+            OperationToolStatus::NotInLibrary => "conditions.tool.mark.not_in_library",
+            OperationToolStatus::LibraryNotFound => "conditions.tool.mark.library_not_found",
+            OperationToolStatus::NotFromLibrary => "conditions.tool.mark.not_from_library",
+        };
+        self.text_with_args(
+            "conditions.tool.with_mark",
+            &[("tool", text), ("mark", self.text(mark))],
+        )
+    }
+
+    /// 工程リストを、画面の下のパネルに置く（出していなければ何もしない）
+    pub fn show_list(&mut self, ui: &mut egui::Ui) {
+        if !self.list_shown {
             return;
         }
-
-        let mut open = self.open;
-        Window::new(self.text("conditions.window.title"))
-            .anchor(Align2::LEFT_TOP, [16.0, 16.0])
-            .constrain_to(area)
-            .default_width(360.0)
+        // 条件の編集のダイアログを開いている間は、押せない（選んだ工程が替わると、編集している工程と食い違うため）
+        let enabled = self.dialog.is_none();
+        Panel::bottom("operation_list")
             .resizable(true)
+            .default_size(LIST_DEFAULT_HEIGHT)
+            .show(ui, |ui| {
+                ui.add_enabled_ui(enabled, |ui| {
+                    self.show_list_toolbar(ui);
+                    self.show_job_commands(ui);
+                    ui.separator();
+                    // 縦のスクロールは表が持つ（見出しを残して工程の行だけを送る）。列を広げて入らなければ横に送る
+                    ScrollArea::horizontal()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| self.show_operation_table(ui));
+                });
+            });
+    }
+
+    /// 開いている条件の編集のダイアログを、範囲 `area`（メニューバーと工程リストの間）の左上に出す（タイトルの行で
+    /// 動かせる）。中身は範囲に収まる高さでスクロールする
+    pub fn show_windows(&mut self, ctx: &Context, area: Rect) {
+        let Some(dialog) = self.dialog else {
+            return;
+        };
+        let title = match dialog {
+            ConditionDialog::Operation => self.text_with_args(
+                "conditions.operation_settings.title",
+                &[("name", self.operation.attributes.name.clone())],
+            ),
+            ConditionDialog::Sequence => self.text("conditions.sequence_settings.title"),
+        };
+        let mut open = true;
+        Window::new(title)
+            // 題に工程の名前を出すため、ID は題から決めない（工程・ダイアログを替えても、同じ場所に出す）
+            .id(Id::unique("condition_dialog"))
+            .default_pos(area.left_top() + egui::vec2(DIALOG_MARGIN, DIALOG_MARGIN))
+            .constrain_to(area)
+            .collapsible(false)
+            .resizable(false)
             .open(&mut open)
             .show(ctx, |ui| {
-                // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
-                ScrollArea::vertical()
-                    .max_height(window_body_max_height(ui, area))
-                    .show(ui, |ui| {
-                        ui.label(self.text("conditions.intro"));
-                        ui.separator();
-                        self.show_target(ui);
+                ui.set_width(DIALOG_WIDTH);
+                match dialog {
+                    ConditionDialog::Operation => self.show_operation_dialog(ui, area),
+                    ConditionDialog::Sequence => self.show_sequence_dialog(ui, area),
+                }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    // 適用と同時に投入するときは、誤りのある条件を適用しない（投入できないため）
+                    let can_apply = dialog == ConditionDialog::Sequence
+                        || !self.submit_on_apply
+                        || self.dialog_issues.is_empty();
+                    if ui
+                        .add_enabled(
+                            can_apply,
+                            egui::Button::new(self.text("conditions.dialog.apply")),
+                        )
+                        .clicked()
+                    {
+                        self.dialog_result = Some(DialogResult::Apply);
+                    }
+                    if ui.button(self.text("conditions.dialog.cancel")).clicked() {
+                        self.dialog_result = Some(DialogResult::Cancel);
+                    }
+                    if dialog == ConditionDialog::Operation {
+                        let label = self.text("conditions.dialog.submit_on_apply");
+                        ui.checkbox(&mut self.submit_on_apply, label);
+                    }
+                });
+            });
+        // 閉じるボタンは、適用しない（Esc は、キー操作の側でキャンセルにする）
+        if !open && self.dialog_result.is_none() {
+            self.dialog_result = Some(DialogResult::Cancel);
+        }
+    }
+
+    /// 手順の名前と、設定のダイアログを開くボタンと、工程の一覧の操作（加える・複写・消す・並べ替え）
+    fn show_list_toolbar(&mut self, ui: &mut egui::Ui) {
+        let mut command = None;
+        ui.horizontal_wrapped(|ui| {
+            ui.strong(self.text_with_args(
+                "conditions.list.sequence",
+                &[("name", self.sequence_name.clone())],
+            ));
+            if ui
+                .button(self.text("conditions.list.sequence_settings"))
+                .clicked()
+            {
+                self.open_dialog_requested = Some(ConditionDialog::Sequence);
+            }
+            let operation_settings = ui.button(self.text("conditions.list.operation_settings"));
+            // 選んだ工程の条件を設定していないときは、次に押すボタンとして目立たせる（計算の操作と同じ）
+            if self.next_action(self.selected_position()) == Some(RowAction::OpenSettings) {
+                ui.painter().rect_stroke(
+                    operation_settings.rect,
+                    ui.visuals().widgets.inactive.corner_radius,
+                    Stroke::new(2.0, ui.visuals().selection.stroke.color),
+                    egui::StrokeKind::Inside,
+                );
+            }
+            if operation_settings.clicked() {
+                self.open_dialog_requested = Some(ConditionDialog::Operation);
+            }
+            ui.separator();
+            if ui.button(self.text("conditions.operations.add")).clicked() {
+                command = Some(OperationCommand::Add);
+            }
+            if ui
+                .button(self.text("conditions.operations.duplicate"))
+                .clicked()
+            {
+                command = Some(OperationCommand::Duplicate);
+            }
+            if ui
+                .add_enabled(
+                    self.command_enabled(&OperationCommand::Remove, self.selected_position()),
+                    egui::Button::new(self.text("conditions.operations.remove")),
+                )
+                .clicked()
+            {
+                command = Some(OperationCommand::Remove);
+            }
+            for (offset, label, key) in [
+                (-1, "▲", "conditions.operations.move_up"),
+                (1, "▼", "conditions.operations.move_down"),
+            ] {
+                let moved = OperationCommand::Move(offset);
+                let response = ui
+                    .add_enabled(
+                        self.command_enabled(&moved, self.selected_position()),
+                        egui::Button::new(label),
+                    )
+                    .on_hover_text(self.text(key));
+                if response.clicked() {
+                    command = Some(moved);
+                }
+            }
+            ui.separator();
+            let differs = self
+                .operations
+                .iter()
+                .any(|row| row.tool_status == OperationToolStatus::DiffersFromLibrary);
+            if ui
+                .add_enabled(
+                    differs,
+                    egui::Button::new(self.text("conditions.tool.align_all")),
+                )
+                .clicked()
+            {
+                self.align_tools_requested = true;
+            }
+        });
+        if command.is_some() {
+            self.operation_command = command;
+        }
+    }
+
+    /// 選んだ工程・手順の全体の計算の操作（計算と停止・やり直し・手順の全体を投入・CL 取込・切削シミュレーション表示・
+    /// ジョブマネージャーを開く）。結果と状態は、行の数で工程リストの高さを変えないよう、ステータスバーに出す
+    fn show_job_commands(&mut self, ui: &mut egui::Ui) {
+        // 計算・再計算を押せない理由（計算の状態の案内・条件の誤り）は、押せないボタンに乗せたときに出す
+        let reasons = self.issue_reasons();
+        // 選んだ工程の状態で次に押すボタンは、枠を選択の色で太くして目立たせる（表示している間の「切削シミュレーション
+        // 表示」は地の色が変わるため、見分けられる）。枠はボタンを置いた後に上から描く（ボタンの枠の太さを変えると、
+        // ボタンが大きくなり、ボタンの行と工程の表が動くため）
+        let next = self.next_action(self.selected_position());
+        let emphasis = Stroke::new(2.0, ui.visuals().selection.stroke.color);
+        let emphasize = |ui: &egui::Ui, response: &egui::Response, action: &RowAction| {
+            if next.as_ref() == Some(action) {
+                ui.painter().rect_stroke(
+                    response.rect,
+                    ui.visuals().widgets.inactive.corner_radius,
+                    emphasis,
+                    egui::StrokeKind::Inside,
+                );
+            }
+        };
+        ui.horizontal_wrapped(|ui| {
+            // 計算と停止は、選んだ工程の計算の状態で替わる 1 つのボタンにする
+            let position = self.selected_position();
+            let (action, key) = self.calculate_or_stop(position);
+            let mut calculate = ui
+                .add_enabled(
+                    self.action_enabled(&action, position),
+                    egui::Button::new(self.text(key)),
+                )
+                .on_hover_text(self.text(&format!("{key}.hint")));
+            if action == RowAction::Submit {
+                calculate = with_disabled_reasons(calculate, &reasons);
+            }
+            emphasize(ui, &calculate, &action);
+            if calculate.clicked() {
+                match action {
+                    RowAction::Stop => self.stop_requested = true,
+                    _ => self.submit_requested = true,
+                }
+            }
+            let redo = with_disabled_reasons(
+                ui.add_enabled(
+                    self.action_enabled(&RowAction::Redo, self.selected_position()),
+                    egui::Button::new(self.text("conditions.redo")),
+                )
+                .on_hover_text(self.text("conditions.redo.hint")),
+                &reasons,
+            );
+            if redo.clicked() {
+                self.redo_requested = true;
+            }
+            // 手順の全体は、すべての工程を確かめてから投入する（誤りは、工程の名前とともに出す）。確かめ中の工程が
+            // あれば、形状を作り終えるまで押せない（押すと、作り終えるまで画面が止まるため）
+            let checking = self.operations.iter().any(|row| {
+                matches!(&row.setup, OperationSetup::ConditionError(issues) if conditions_checking(issues))
+            });
+            if ui
+                .add_enabled(
+                    !checking,
+                    egui::Button::new(self.text("conditions.submit_sequence")),
+                )
+                .clicked()
+            {
+                self.submit_sequence_requested = true;
+            }
+            let import_toolpath = ui
+                .add_enabled(
+                    self.action_enabled(&RowAction::ImportToolpath, self.selected_position()),
+                    egui::Button::new(self.text("conditions.import_toolpath")),
+                )
+                .on_hover_text(self.text("conditions.import_toolpath.hint"));
+            emphasize(ui, &import_toolpath, &RowAction::ImportToolpath);
+            if import_toolpath.clicked() {
+                self.import_toolpath_requested = true;
+            }
+            let simulation = ui
+                .add(
+                    egui::Button::new(self.text("conditions.import"))
+                        .selected(self.simulation_shown),
+                )
+                .on_hover_text(self.text("conditions.import.hint"));
+            if simulation.clicked() {
+                self.toggle_simulation_requested = true;
+            }
+            if ui
+                .button(self.text("conditions.open_job_manager"))
+                .clicked()
+            {
+                self.open_job_manager_requested = true;
+            }
+        });
+    }
+
+    /// 加工の順の `position` 番目の工程に対して行う操作 `action` を、今押せるか（ボタンと右クリックのメニューで同じ
+    /// 決め方にする）
+    fn action_enabled(&self, action: &RowAction, position: Option<usize>) -> bool {
+        match action {
+            RowAction::Submit => {
+                self.issues.is_empty()
+                    && position
+                        .and_then(|at| self.operations.get(at))
+                        .is_none_or(|row| !calculation_blocked(&row.status, row.toolpath_current))
+            }
+            // 計算待ちの計算は、まだ始まっていない（ジョブマネージャーがまだ受け取っていない、取り消せない投入も
+            // 計算待ち）。計算が始まってから再計算できる
+            RowAction::Redo => {
+                self.issues.is_empty()
+                    && position
+                        .and_then(|at| self.operations.get(at))
+                        .is_none_or(|row| {
+                            row.status != JobStatusLine::Status(OperationJobStatus::Queued)
+                        })
+            }
+            RowAction::Command(command) => self.command_enabled(command, position),
+            // 止められるのは、今の条件の計算が計算待ち・計算中のときだけ
+            RowAction::Stop => position
+                .and_then(|at| self.operations.get(at))
+                .is_some_and(|row| {
+                    matches!(
+                        row.status,
+                        JobStatusLine::Status(
+                            OperationJobStatus::Queued | OperationJobStatus::Running
+                        )
+                    )
+                }),
+            // 空間モデルの CL が今の条件の結果（取込済み）なら、取り込み直しても同じ CL のため押せない
+            RowAction::ImportToolpath => position
+                .and_then(|at| self.operations.get(at))
+                .is_none_or(|row| !row.toolpath_current),
+            RowAction::OpenSettings | RowAction::Rename | RowAction::Import => true,
+        }
+    }
+
+    /// 今の条件の誤りの文（1 つ 1 行）
+    fn issue_reasons(&self) -> String {
+        self.reasons_text(&self.issues)
+    }
+
+    /// 問題 `issues` の文（1 つ 1 行）
+    fn reasons_text(&self, issues: &[ConditionIssue]) -> String {
+        issues
+            .iter()
+            .map(|issue| self.issue_text(issue))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// 加工の順の `position` 番目の工程の状態で、次に押す操作（押せないとき・ダイアログを開いていて工程リストを押せない
+    /// ときは、目立たせない）
+    fn next_action(&self, position: Option<usize>) -> Option<RowAction> {
+        if self.dialog.is_some() {
+            return None;
+        }
+        let row = position.and_then(|at| self.operations.get(at))?;
+        next_action_of(&row.setup, &row.status, row.toolpath_current)
+            .filter(|action| self.action_enabled(action, position))
+    }
+
+    /// 選んだ工程の、加工の順の位置
+    fn selected_position(&self) -> Option<usize> {
+        self.operations
+            .iter()
+            .position(|row| row.id == self.selected_operation)
+    }
+
+    /// 加工の順の `position` 番目の工程に対して行う一覧の操作 `command` を、今押せるか（消すのは工程が 2 つ以上、
+    /// 動かすのは端を越えないとき）
+    fn command_enabled(&self, command: &OperationCommand, position: Option<usize>) -> bool {
+        let count = self.operations.len();
+        match command {
+            OperationCommand::Remove => count > 1,
+            OperationCommand::Move(offset) => position
+                .and_then(|at| at.checked_add_signed(*offset))
+                .is_some_and(|to| to < count),
+            OperationCommand::Select(_) | OperationCommand::Add | OperationCommand::Duplicate => {
+                true
+            }
+        }
+    }
+
+    /// 工程の表の見出し `headers` と欄の文字 `cells` を、省かずに出す幅（計算中の行の状態の欄は、回る印の分を足す。
+    /// 論理座標）
+    fn table_text_widths(
+        &self,
+        ui: &egui::Ui,
+        headers: &[String; COLUMN_COUNT],
+        cells: &[[String; COLUMN_COUNT]],
+    ) -> TableTextWidths {
+        let font = egui::TextStyle::Body.resolve(ui.style());
+        let width = |text: &str| {
+            ui.painter()
+                .layout_no_wrap(text.to_string(), font.clone(), Color32::PLACEHOLDER)
+                .size()
+                .x
+        };
+        let spinner = spinner_reserve(ui);
+        TableTextWidths {
+            headers: std::array::from_fn(|column| width(&headers[column])),
+            rows: cells
+                .iter()
+                .zip(&self.operations)
+                .map(|(row, operation)| {
+                    let running =
+                        operation.status == JobStatusLine::Status(OperationJobStatus::Running);
+                    let widths = std::array::from_fn(|column| {
+                        let reserve = if running && column == STATUS_COLUMN {
+                            spinner
+                        } else {
+                            0.0
+                        };
+                        width(&row[column]) + reserve
+                    });
+                    (operation.id, widths)
+                })
+                .collect(),
+        }
+    }
+
+    /// 工程の表（1 行が 1 工程。上から加工の順。ジョブマネージャーの一覧と同じ見た目）。見出しの列の境目をドラッグ
+    /// して、列の幅を変えられる（幅は起動中だけ保つ）。行のどこを押しても選び、ダブルクリックで工程の設定のダイアログ
+    /// を開き、右クリックで行の操作のメニューを出す。選んだ行・マウスが乗った行は、行の全体に色を付ける。名前を編集
+    /// している行は、名前の欄を入力欄にし、行を押す操作を受けない（入力欄の中を押して、文字の位置を選べるように）
+    fn show_operation_table(&mut self, ui: &mut egui::Ui) {
+        let mut select = None;
+        let mut action = None;
+        let mut name_edit = self.name_edit.take();
+        let mut name_edit_result = None;
+        // 乗った行は、前の描画のもの（行を描き終えるまで分からないため）
+        let hovered_id = ui.scope_id().with("operation_table_hovered");
+        let hovered_row = ui.data(|data| data.get_temp::<Option<usize>>(hovered_id).flatten());
+        let mut hovered_now = None;
+        let selected_color = ui
+            .visuals()
+            .selection
+            .bg_fill
+            .gamma_multiply(SELECTED_ROW_OPACITY);
+        let hovered_color = ui.visuals().widgets.hovered.weak_bg_fill;
+        let striped_color = ui.visuals().faint_bg_color;
+        let row_height = operation_row_height(ui);
+        let row_spacing = ui.spacing().item_spacing;
+        let headers = COLUMN_KEYS.map(|key| self.text(key));
+        let cells: Vec<[String; COLUMN_COUNT]> = self
+            .operations
+            .iter()
+            .enumerate()
+            .map(|(index, row)| {
+                [
+                    (index + 1).to_string(),
+                    row.name.clone(),
+                    self.text(stage_key(row.stage)),
+                    self.text(spec_kind_key(&row.spec)),
+                    self.operation_tool_cell(row),
+                    self.text(operation_row_key(row)),
+                ]
+            })
+            .collect();
+        // 前の描画より広がった欄が、今の列の幅に入らなければ、その列を中身に合わせた幅にし直す（ドラッグで決めた幅の
+        // ままだと、増えた文字が省かれる）
+        let text_widths = self.table_text_widths(ui, &headers, &cells);
+        let text_widths_id = ui.scope_id().with("operation_table_text_widths");
+        let shown_widths_id = ui.scope_id().with("operation_table_shown_widths");
+        let previous = ui.data(|data| data.get_temp::<TableTextWidths>(text_widths_id));
+        let shown = ui.data(|data| data.get_temp::<[f32; COLUMN_COUNT]>(shown_widths_id));
+        let mut refit = columns_to_refit(previous.as_ref(), &text_widths, shown);
+        ui.data_mut(|data| data.insert_temp(text_widths_id, text_widths));
+        let mut shown_now = [0.0; COLUMN_COUNT];
+        // 列の境目のダブルクリックで、中身に合わせた幅にする（名前を付けた表では、表が境目のダブルクリックを読み落とす
+        // ため、ここで読む）
+        for (column, refit) in refit.iter_mut().enumerate() {
+            *refit |= ui
+                .ctx()
+                .read_response(column_border_id(ui, column))
+                .is_some_and(|response| response.double_clicked());
+        }
+        if refit.contains(&true) {
+            // 合わせ直す描画では、その列の中身を描かないため、すぐに描き直す
+            ui.ctx().request_repaint();
+        }
+        let editing_any = name_edit.is_some();
+        let mut table = TableBuilder::new(ui)
+            .id_salt(OPERATION_TABLE_SALT)
+            .striped(false)
+            .resizable(true)
+            .auto_shrink([false, false])
+            // 工程の行の所に最小の高さを持たせない（工程リストを境目のドラッグで低くしたとき、ドラッグした所まで縮むように）
+            .min_scrolled_height(0.0);
+        for (index, refit) in refit.into_iter().enumerate() {
+            // 文字が入らない列は、末尾を省いて出す。名前を編集している間の名前の列は、省かずに入力欄に合わせて広げる
+            let clip = !(editing_any && index == NAME_COLUMN);
+            table = table.column(
+                Column::auto()
+                    .at_least(COLUMN_MIN_WIDTH)
+                    .resizable(true)
+                    .clip(clip)
+                    .auto_size_this_frame(refit),
+            );
+        }
+        table
+            .header(row_height, |mut header| {
+                for (text, shown) in headers.into_iter().zip(&mut shown_now) {
+                    header.col(|ui| {
+                        // 列の幅（見出しの欄に取った幅）を、次の描画で中身が入るかを確かめるために覚える
+                        *shown = ui.max_rect().width();
+                        centered_label(ui, RichText::new(text).strong());
+                    });
+                }
+            })
+            .body(|mut body| {
+                for ((index, row), [order, name, stage, kind, tool, status_text]) in
+                    self.operations.iter().enumerate().zip(cells)
+                {
+                    let selected = row.id == self.selected_operation;
+                    let mut editing = name_edit.as_mut().filter(|edit| edit.operation == row.id);
+                    let editing_row = editing.is_some();
+                    let background = if selected {
+                        // 選んだ行は、選択の色を薄めて、文字との差を抑える
+                        Some(selected_color)
+                    } else if Some(index) == hovered_row {
+                        Some(hovered_color)
+                    } else if index % 2 == 0 {
+                        Some(striped_color)
+                    } else {
+                        None
+                    };
+                    // 行の背景は、欄を描く前に場所を取り、行を描いた後で行の全体（欄・行の間の半分を含む）を塗る（欄の中で
+                    // 塗ると、欄の外が切り取られて、欄の間に塗らない所が残る）
+                    let background_shape = body.ui_mut().painter().add(egui::Shape::Noop);
+                    let mut row_rect = Rect::NOTHING;
+                    let mut status_rect = Rect::NOTHING;
+                    body.row(row_height, |mut table_row| {
+                        // 欄はすべて、行の高さの中央にそろえる。欄の範囲は、欄に取った範囲にする（表が返す欄の応答の範囲は、
+                        // 欄の中身の高さで行の高さより広がり、背景・押せる範囲が次の行や表の下にはみ出すため）
+                        let mut cell = |add: &mut dyn FnMut(&mut egui::Ui)| {
+                            let mut rect = Rect::NOTHING;
+                            table_row.col(|ui| {
+                                rect = ui.max_rect();
+                                add(ui);
+                            });
+                            rect
+                        };
+                        row_rect = cell(&mut |ui| {
+                            centered_label(ui, order.as_str());
+                        });
+                        row_rect = row_rect.union(cell(&mut |ui| match editing.as_mut() {
+                            Some(edit) => {
+                                if let (_, Some(result)) =
+                                    name_edit_cell(ui, edit.session, &mut edit.name)
+                                {
+                                    name_edit_result = Some(result);
+                                }
+                            }
+                            None => {
+                                // 名前を編集している間は、名前の列は省かないため、ほかの行の名前は列の幅で省く（ほかの
+                                // 行の長い名前で、列が広がらないように）。中身に合わせる幅を測る描画では省かない
+                                if editing_any && !ui.is_sizing_pass() {
+                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+                                }
+                                centered_label(ui, name.as_str());
+                            }
+                        }));
+                        for text in [&stage, &kind, &tool] {
+                            row_rect = row_rect.union(cell(&mut |ui| {
+                                centered_label(ui, text.as_str());
+                            }));
+                        }
+                        let status_key = operation_row_key(row);
+                        status_rect = cell(&mut |ui| {
+                            ui.horizontal_centered(|ui| {
+                                let text = RichText::new(status_text.as_str());
+                                let text = match row_status_color(status_key) {
+                                    Some(color) => text.color(color),
+                                    None => text,
+                                };
+                                let running = row.status
+                                    == JobStatusLine::Status(OperationJobStatus::Running);
+                                // 計算中の印の分を先に取っておき、文字は残りの幅で省く（列を狭めても、印が隠れないように）
+                                let reserve = if running { spinner_reserve(ui) } else { 0.0 };
+                                let label_width = (ui.available_width() - reserve).max(0.0);
+                                ui.allocate_ui(
+                                    egui::vec2(label_width, ui.available_height()),
+                                    |ui| {
+                                        ui.label(text);
+                                    },
+                                );
+                                // 進み具合の割合はまだないため、計算中は動いていることだけを出す
+                                if running {
+                                    // 印は文字の高さにする（計算が始まる・終わるたびに、行の高さが変わらないように）
+                                    let size = ui.text_style_height(&egui::TextStyle::Body);
+                                    ui.add(egui::Spinner::new().size(size));
+                                }
+                            });
+                        });
+                        row_rect = row_rect.union(status_rect);
+                    });
+                    let row_area = row_rect.expand2(row_spacing / 2.0);
+                    if let Some(color) = background {
+                        body.ui_mut().painter().set(
+                            background_shape,
+                            egui::Shape::rect_filled(row_area, egui::CornerRadius::ZERO, color),
+                        );
+                    }
+                    if editing_row {
+                        continue;
+                    }
+                    // 行のすべての欄と、欄・行の間の半分を、押せる範囲にする（欄の上に重ねて、行のどこを押しても選べる）
+                    let ui = body.ui_mut();
+                    let response = ui.interact(
+                        row_area,
+                        ui.scope_id().with(("operation_row", row.id)),
+                        egui::Sense::click(),
+                    );
+                    // 条件エラーの行は、状態の欄に乗せると、その理由を出す（工程を選ばなくても理由が分かるように）
+                    let response = match &row.setup {
+                        OperationSetup::ConditionError(issues)
+                            if ui.rect_contains_pointer(status_rect) =>
+                        {
+                            response.on_hover_text_at_pointer(self.reasons_text(issues))
+                        }
+                        _ => response,
+                    };
+                    // 右クリックも、その行を選んでからメニューを出す（メニューの操作は、選んだ工程に対して行う）
+                    if !selected && (response.clicked() || response.secondary_clicked()) {
+                        select = Some(row.id);
+                    }
+                    if response.double_clicked() {
+                        action = Some(RowAction::OpenSettings);
+                    }
+                    if response.hovered() {
+                        hovered_now = Some(index);
+                    }
+                    response.context_menu(|ui| {
+                        if let Some(chosen) = self.row_menu(ui, index) {
+                            action = Some(chosen);
+                            ui.close();
+                        }
+                    });
+                }
+            });
+        ui.data_mut(|data| data.insert_temp(shown_widths_id, shown_now));
+        self.name_edit = name_edit;
+        if name_edit_result.is_some() {
+            self.name_edit_result = name_edit_result;
+        }
+        if hovered_now != hovered_row {
+            ui.data_mut(|data| data.insert_temp(hovered_id, hovered_now));
+            // 乗った行の色を、すぐに描き直す
+            ui.ctx().request_repaint();
+        }
+        if let Some(id) = select {
+            self.operation_command = Some(OperationCommand::Select(id));
+        }
+        match action {
+            Some(RowAction::OpenSettings) => {
+                self.open_dialog_requested = Some(ConditionDialog::Operation);
+            }
+            Some(RowAction::Rename) => self.name_edit_requested = true,
+            Some(RowAction::Submit) => self.submit_requested = true,
+            Some(RowAction::Redo) => self.redo_requested = true,
+            Some(RowAction::Stop) => self.stop_requested = true,
+            Some(RowAction::ImportToolpath) => self.import_toolpath_requested = true,
+            Some(RowAction::Import) => self.toggle_simulation_requested = true,
+            Some(RowAction::Command(command)) => self.operation_command = Some(command),
+            None => {}
+        }
+    }
+
+    /// 工程リストの `position` 番目の工程の、計算と停止のボタンの操作と文言のキー（今の条件の計算が計算待ち・計算中
+    /// なら停止、中断なら計算再開、ほかは計算。工程を選んでいなければ計算）
+    fn calculate_or_stop(&self, position: Option<usize>) -> (RowAction, &'static str) {
+        if self.action_enabled(&RowAction::Stop, position) {
+            return (RowAction::Stop, "conditions.stop");
+        }
+        let interrupted = position
+            .and_then(|at| self.operations.get(at))
+            .is_some_and(|row| {
+                row.status == JobStatusLine::Status(OperationJobStatus::Interrupted)
+            });
+        if interrupted {
+            (RowAction::Submit, "conditions.resume")
+        } else {
+            (RowAction::Submit, "conditions.submit")
+        }
+    }
+
+    /// 加工の順の `index` 番目の行の右クリックのメニュー（その行を選んでから行う）。選んだ操作を返す。押せるかは、
+    /// 右クリックした行で決める（行を選ぶ操作を受け取る前のフレームでも、その行の状態で出す）
+    fn row_menu(&self, ui: &mut egui::Ui, index: usize) -> Option<RowAction> {
+        let items = [
+            (
+                RowAction::OpenSettings,
+                "conditions.list.operation_settings",
+            ),
+            (RowAction::Rename, "conditions.list.rename"),
+            self.calculate_or_stop(Some(index)),
+            (RowAction::Redo, "conditions.redo"),
+            (RowAction::ImportToolpath, "conditions.import_toolpath"),
+            (RowAction::Import, "conditions.import"),
+            (
+                RowAction::Command(OperationCommand::Add),
+                "conditions.operations.add",
+            ),
+            (
+                RowAction::Command(OperationCommand::Duplicate),
+                "conditions.operations.duplicate",
+            ),
+            (
+                RowAction::Command(OperationCommand::Remove),
+                "conditions.operations.remove",
+            ),
+            (
+                RowAction::Command(OperationCommand::Move(-1)),
+                "conditions.operations.move_up",
+            ),
+            (
+                RowAction::Command(OperationCommand::Move(1)),
+                "conditions.operations.move_down",
+            ),
+        ];
+        let mut chosen = None;
+        for (action, key) in items {
+            let enabled = self.action_enabled(&action, Some(index));
+            // 工程の設定・計算・一覧の操作の間に区切りを入れる
+            if matches!(
+                action,
+                RowAction::Submit | RowAction::Stop | RowAction::Command(OperationCommand::Add)
+            ) {
+                ui.separator();
+            }
+            if ui
+                .add_enabled(enabled, egui::Button::new(self.text(key)))
+                .clicked()
+            {
+                chosen = Some(action);
+            }
+        }
+        chosen
+    }
+
+    /// 工程の設定のダイアログの中身（頁: 加工条件・加工領域と加工対象）
+    fn show_operation_dialog(&mut self, ui: &mut egui::Ui, area: Rect) {
+        let machining_label = self.text("conditions.page.machining");
+        let region_label = self.text("conditions.page.region");
+        ui.horizontal(|ui| {
+            ui.selectable_value(
+                &mut self.dialog_page,
+                OperationSettingsPage::Machining,
+                machining_label,
+            );
+            ui.selectable_value(
+                &mut self.dialog_page,
+                OperationSettingsPage::Region,
+                region_label,
+            );
+        });
+        ui.separator();
+        // すべての分類を開いても下まで見られるよう、中身は範囲 `area` に収まる高さでスクロールする
+        ScrollArea::vertical()
+            .max_height(dialog_body_max_height(area))
+            .show(ui, |ui| {
+                match self.dialog_page {
+                    OperationSettingsPage::Machining => {
+                        self.show_operation_common(ui);
                         self.show_tool(ui);
                         self.show_machining(ui);
-                        self.show_stock(ui);
-                        ui.separator();
-                        let run_after_submit_label = self.text("conditions.run_after_submit");
-                        ui.checkbox(&mut self.run_after_submit, run_after_submit_label);
-                        ui.horizontal(|ui| {
-                            let submit = ui.add_enabled(
-                                self.issues.is_empty(),
-                                egui::Button::new(self.text("conditions.submit")),
-                            );
-                            if submit.clicked() {
-                                self.submit_requested = true;
-                            }
-                            if ui.button(self.text("conditions.import")).clicked() {
-                                self.import_requested = true;
-                            }
-                        });
-                        self.show_issues(ui, ConditionField::Submission);
-                        if let Some(status) = &self.status {
-                            ui.label(operation_status_text(self.locale, status));
-                        }
-                        ui.separator();
-                        self.show_imported(ui);
-                    });
+                    }
+                    OperationSettingsPage::Region => {
+                        self.show_target(ui);
+                        self.show_region(ui);
+                    }
+                }
+                self.show_imported(ui);
             });
-        self.open = open;
+    }
+
+    /// 手順の設定のダイアログの中身（手順の名前と素材）
+    fn show_sequence_dialog(&mut self, ui: &mut egui::Ui, area: Rect) {
+        ui.label(self.text_with_args(
+            "conditions.sequence.name",
+            &[("name", self.sequence_name.clone())],
+        ));
+        ui.label(self.text("conditions.sequence.note"));
+        ui.separator();
+        ScrollArea::vertical()
+            .max_height(dialog_body_max_height(area))
+            .show(ui, |ui| self.show_stock(ui));
+    }
+
+    /// 工程の名前・加工の段階・加工の種類
+    fn show_operation_common(&mut self, ui: &mut egui::Ui) {
+        let stage_labels = [
+            MachiningStage::Rough,
+            MachiningStage::SemiFinish,
+            MachiningStage::Finish,
+        ]
+        .map(|stage| (stage, self.text(stage_key(stage))));
+        ui.horizontal(|ui| {
+            ui.label(self.text("conditions.operations.name"));
+            ui.text_edit_singleline(&mut self.operation.attributes.name);
+        });
+        ui.horizontal(|ui| {
+            ui.label(self.text("conditions.operation.stage"));
+            for (stage, label) in stage_labels {
+                ui.radio_value(&mut self.operation.attributes.stage, stage, label);
+            }
+        });
+        ui.label(self.text_with_args(
+            "conditions.operation.kind",
+            &[(
+                "kind",
+                self.text(spec_kind_key(&self.operation.conditions.spec)),
+            )],
+        ));
     }
 
     fn show_target(&mut self, ui: &mut egui::Ui) {
@@ -265,60 +1853,189 @@ impl MachiningConditionsUiState {
                     "conditions.target.faces",
                     &[("count", self.face_count.to_string())],
                 ));
+                ui.label(self.text("conditions.target.shared"));
                 self.show_issues(ui, ConditionField::Target);
             });
     }
 
+    /// 加工領域（今は出すだけ。指定は後で足す）
+    fn show_region(&mut self, ui: &mut egui::Ui) {
+        CollapsingHeader::new(self.text("conditions.header.region"))
+            .default_open(true)
+            .show(ui, |ui| {
+                let text = match &self.operation.conditions.boundary {
+                    None => self.text("conditions.region.target"),
+                    Some(MachiningBoundary::Rectangle(rectangle)) => self.text_with_args(
+                        "conditions.region.rectangle",
+                        &[
+                            ("min_x", rectangle.rect_min[0].to_string()),
+                            ("max_x", rectangle.rect_max[0].to_string()),
+                            ("min_y", rectangle.rect_min[1].to_string()),
+                            ("max_y", rectangle.rect_max[1].to_string()),
+                        ],
+                    ),
+                };
+                ui.label(text);
+            });
+    }
+
+    /// 工具の状態 `status` の文言のキー
+    fn tool_status_key(status: OperationToolStatus) -> &'static str {
+        match status {
+            OperationToolStatus::SameAsLibrary => "conditions.tool.status.same",
+            OperationToolStatus::DiffersFromLibrary => "conditions.tool.status.differs",
+            OperationToolStatus::NotInLibrary => "conditions.tool.status.not_in_library",
+            OperationToolStatus::LibraryNotFound => "conditions.tool.status.library_not_found",
+            OperationToolStatus::NotFromLibrary => "conditions.tool.status.not_from_library",
+        }
+    }
+
+    /// 工程の工具の文言（ライブラリから選んだ工具はツールセットの名前、ほかは工具の種類と径）
+    fn operation_tool_text(&self, toolset: Option<&ToolSetReference>, tool: &Tool<f64>) -> String {
+        toolset.map_or_else(|| self.tool_text(tool), |toolset| toolset.name.clone())
+    }
+
+    /// ツールセットの行 `row` の、一覧に出す文言（名前・種類・径・工具長）
+    fn toolset_choice_text(&self, row: &ToolSetRow) -> String {
+        let kind = match row.kind {
+            Some(CuttingToolKind::FlatEndMill) => self.text("conditions.tool.flat"),
+            _ => self.text("conditions.tool.ball"),
+        };
+        let length = row.cutting_length.map_or_else(
+            || self.text("conditions.tool.length.unlimited"),
+            |length| length.to_string(),
+        );
+        self.text_with_args(
+            "conditions.tool.choice",
+            &[
+                ("name", row.name.clone()),
+                ("kind", kind),
+                ("diameter", row.diameter.to_string()),
+                ("length", length),
+            ],
+        )
+    }
+
     fn show_tool(&mut self, ui: &mut egui::Ui) {
-        let ball_label = self.text("conditions.tool.ball");
-        let flat_label = self.text("conditions.tool.flat");
-        let diameter_label = self.text("conditions.tool.diameter");
-        let specify_label = self.text("conditions.tool.specify_length");
         CollapsingHeader::new(self.text("conditions.header.tool"))
             .default_open(true)
             .show(ui, |ui| {
-                let tool = &self.operation.tool;
-                let shown_kind = CuttingToolKind::of(tool).unwrap_or_default();
-                let shown_diameter = tool.diameter();
-                let shown_specified = tool.cutting_length.is_some();
-                let shown_length = self.tool_length_input;
-                let mut kind = shown_kind;
-                let mut diameter = shown_diameter;
+                let toolset = self.operation.attributes.toolset.clone();
+                let current =
+                    self.operation_tool_text(toolset.as_ref(), &self.operation.conditions.tool);
                 ui.horizontal(|ui| {
-                    ui.radio_value(&mut kind, CuttingToolKind::BallEndMill, ball_label);
-                    ui.radio_value(&mut kind, CuttingToolKind::FlatEndMill, flat_label);
+                    ui.strong(current);
+                    let status = self.text(Self::tool_status_key(self.tool_status));
+                    let color = if self.tool_status == OperationToolStatus::SameAsLibrary {
+                        ui.visuals().text_color()
+                    } else {
+                        ui.visuals().warn_fg_color
+                    };
+                    ui.colored_label(color, status);
                 });
-                ui.horizontal(|ui| {
-                    ui.add(
-                        DragValue::new(&mut diameter)
-                            .range(0.1..=f64::MAX)
-                            .speed(0.1)
-                            .suffix(" mm"),
-                    );
-                    ui.label(diameter_label);
+                let library_editable = self
+                    .tool_libraries
+                    .get(self.tool_library)
+                    .is_some_and(|library| library.editable);
+                ui.horizontal(|ui| match self.tool_status {
+                    OperationToolStatus::SameAsLibrary => {}
+                    OperationToolStatus::DiffersFromLibrary => {
+                        if ui.button(self.text("conditions.tool.align")).clicked() {
+                            self.tool_command = Some(OperationToolCommand::Align);
+                        }
+                    }
+                    OperationToolStatus::NotInLibrary
+                    | OperationToolStatus::LibraryNotFound
+                    | OperationToolStatus::NotFromLibrary => {
+                        let name = toolset.as_ref().map_or_else(
+                            || self.tool_text(&self.operation.conditions.tool),
+                            |toolset| toolset.name.clone(),
+                        );
+                        let library = self.tool_library;
+                        if ui
+                            .add_enabled(
+                                library_editable,
+                                egui::Button::new(self.text("conditions.tool.register")),
+                            )
+                            .clicked()
+                        {
+                            self.tool_command =
+                                Some(OperationToolCommand::Register { library, name });
+                        }
+                    }
                 });
-                let mut specified = shown_specified;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut specified, specify_label);
-                    ui.add_enabled(
-                        specified,
-                        DragValue::new(&mut self.tool_length_input)
-                            .range(0.1..=f64::MAX)
-                            .speed(0.5)
-                            .suffix(" mm"),
-                    );
-                });
-                // 入力を変えたときだけ工具を作り直す（入力欄で表せない工具を、開いただけで書き換えない）
-                let length_changed = specified && self.tool_length_input != shown_length;
-                if kind != shown_kind
-                    || diameter != shown_diameter
-                    || specified != shown_specified
-                    || length_changed
+                if self.tool_libraries.is_empty() {
+                    ui.colored_label(Color32::GRAY, self.text("conditions.tool.no_libraries"));
+                } else {
+                    self.show_toolset_choices(ui, toolset.as_ref());
+                }
+                if ui
+                    .button(self.text("conditions.tool.pick_from_library"))
+                    .clicked()
                 {
-                    self.operation.tool =
-                        kind.tool(diameter, specified.then_some(self.tool_length_input));
+                    self.tool_command = Some(OperationToolCommand::PickFromToolLibrary);
                 }
                 self.show_issues(ui, ConditionField::Tool);
+            });
+    }
+
+    /// ライブラリを選び、そのツールセットを、名前で検索した一覧から選ぶ欄（検索の文字を入れていない間は、一覧を
+    /// 出さない）
+    fn show_toolset_choices(&mut self, ui: &mut egui::Ui, toolset: Option<&ToolSetReference>) {
+        if self.tool_library >= self.tool_libraries.len() {
+            self.tool_library = 0;
+        }
+        let names: Vec<String> = self
+            .tool_libraries
+            .iter()
+            .map(|library| library.name.clone())
+            .collect();
+        ui.horizontal(|ui| {
+            ui.label(self.text("conditions.tool.library"));
+            egui::ComboBox::from_id_salt("operation_tool_library")
+                .selected_text(names[self.tool_library].clone())
+                .show_ui(ui, |ui| {
+                    for (index, name) in names.iter().enumerate() {
+                        ui.selectable_value(&mut self.tool_library, index, name);
+                    }
+                });
+        });
+        ui.horizontal(|ui| {
+            ui.label(self.text("conditions.tool.search"));
+            ui.text_edit_singleline(&mut self.tool_filter);
+        });
+        let library = self.tool_library;
+        let toolsets = &self.tool_libraries[library].toolsets;
+        if toolsets.is_empty() {
+            ui.colored_label(Color32::GRAY, self.text("conditions.tool.no_toolsets"));
+            return;
+        }
+        let Some(found) = searched_toolsets(toolsets, &self.tool_filter) else {
+            return;
+        };
+        if found.is_empty() {
+            ui.colored_label(Color32::GRAY, self.text("conditions.tool.no_match"));
+            return;
+        }
+        let chosen = toolset
+            .filter(|_| self.tool_reference_library == Some(library))
+            .map(|toolset| toolset.toolset);
+        let rows: Vec<(ToolSetId, String)> = found
+            .iter()
+            .map(|row| (row.id, self.toolset_choice_text(row)))
+            .collect();
+        ScrollArea::vertical()
+            .id_salt("operation_toolset_choices")
+            .max_height(TOOLSET_CHOICES_HEIGHT)
+            .show(ui, |ui| {
+                for (id, text) in rows {
+                    if ui.selectable_label(chosen == Some(id), text).clicked() {
+                        self.tool_command = Some(OperationToolCommand::Select {
+                            library,
+                            toolset: id,
+                        });
+                    }
+                }
             });
     }
 
@@ -340,16 +2057,17 @@ impl MachiningConditionsUiState {
             "conditions.machining.tolerance",
             &[("tolerance", self.toolpath_tolerance.to_string())],
         );
-        let cusp_height_label = flat_surface_cusp_height(&self.operation).map(|height| {
-            self.text_with_args(
-                "conditions.machining.cusp_height",
-                &[("height", format!("{height:.4}"))],
-            )
-        });
+        let cusp_height_label =
+            flat_surface_cusp_height(&self.operation.conditions).map(|height| {
+                self.text_with_args(
+                    "conditions.machining.cusp_height",
+                    &[("height", format!("{height:.4}"))],
+                )
+            });
         CollapsingHeader::new(self.text("conditions.header.machining"))
             .default_open(true)
             .show(ui, |ui| {
-                let OperationSpec::Scanline(scanline) = &mut self.operation.spec;
+                let OperationSpec::Scanline(scanline) = &mut self.operation.conditions.spec;
                 for (value, label, suffix, speed) in [
                     (&mut scanline.stepover, stepover_label, " mm", 0.1),
                     (&mut scanline.feed_rate, feed_rate_label, " mm/min", 10.0),
@@ -454,14 +2172,15 @@ impl MachiningConditionsUiState {
             });
     }
 
+    /// 表示中の結果の計算に使った条件（選んだ工程の切削アニメーションを出しているときだけ）
     fn show_imported(&mut self, ui: &mut egui::Ui) {
+        let Some((job, conditions)) = &self.imported else {
+            return;
+        };
+        ui.separator();
         CollapsingHeader::new(self.text("conditions.header.imported"))
             .default_open(true)
             .show(ui, |ui| {
-                let Some((job, conditions)) = &self.imported else {
-                    ui.label(self.text("conditions.imported.none"));
-                    return;
-                };
                 let tool = &conditions.tool;
                 let kind = if tool.is_ball_end_mill() {
                     self.text("conditions.tool.ball")
@@ -522,12 +2241,19 @@ impl MachiningConditionsUiState {
 #[cfg(test)]
 mod tests {
     use super::{
-        condition_error_message, condition_field, operation_status_text, ConditionField,
-        OperationStatus,
+        ApplySubmission, COLUMN_COUNT, COLUMN_KEYS, ConditionField, DialogResult, JobStatusLine,
+        MachiningStage, OPERATION_TABLE_SALT, OperationFailure, OperationJobStatus, OperationRow,
+        OperationSetup, OperationStatus, RowAction, TableTextWidths, calculation_blocked,
+        column_border_id, columns_to_refit, condition_error_message, condition_field,
+        imported_toolpath_key, job_status_key, job_status_text, name_edit_cell, navigation_key,
+        navigation_text, next_action_of, operation_row_height, operation_row_key,
+        operation_row_status_key, operation_status_text, row_status_color, searched_toolsets,
+        stage_key, submission_on_apply,
     };
     use crate::machining_conditions_messages::resolve_machining_conditions_text;
     use viewmodel::cutting_simulation_session::{CamConditionError, ConditionIssue, StockMargins};
     use viewmodel::message_catalog::{UiLocale, UiMessage};
+    use viewmodel::tool_library_session::{ToolSetId, ToolSetRow};
 
     fn failure(key: &str) -> UiMessage {
         UiMessage {
@@ -541,27 +2267,76 @@ mod tests {
         let status = OperationStatus::SubmitFailed(failure("failure.orchestration"));
         assert_eq!(
             operation_status_text(UiLocale::Ja, &status),
-            "投入できません（ジョブを投入・実行できません）"
+            "計算を始められません（計算のジョブを扱えません）"
         );
         assert_eq!(
             operation_status_text(UiLocale::En, &status),
-            "Cannot submit (Cannot submit or run the job)"
+            "Cannot start the calculation (Cannot handle the calculation job)"
         );
     }
 
     #[test]
     fn every_operation_status_has_a_message() {
         for status in [
-            OperationStatus::Submitted,
-            OperationStatus::SubmitFailed(failure("failure.orchestration")),
-            OperationStatus::Ran {
-                executed: 2,
-                seconds: 1.25,
+            OperationStatus::Submitted {
+                simulation_only: false,
             },
-            OperationStatus::RunFailed(failure("failure.orchestration")),
+            OperationStatus::Submitted {
+                simulation_only: true,
+            },
+            OperationStatus::Resumed,
+            OperationStatus::Redone { canceled: false },
+            OperationStatus::Redone { canceled: true },
+            OperationStatus::SubmitFailed(failure("failure.orchestration")),
+            OperationStatus::SequenceSubmitted {
+                submitted: 2,
+                simulation_only: 0,
+                skipped: 1,
+            },
+            OperationStatus::SequenceSubmitted {
+                submitted: 0,
+                simulation_only: 0,
+                skipped: 2,
+            },
+            OperationStatus::SequenceSubmitted {
+                submitted: 2,
+                simulation_only: 0,
+                skipped: 0,
+            },
+            OperationStatus::SequenceSubmitted {
+                submitted: 2,
+                simulation_only: 1,
+                skipped: 0,
+            },
+            OperationStatus::SequenceSubmitted {
+                submitted: 2,
+                simulation_only: 1,
+                skipped: 1,
+            },
+            OperationStatus::SequenceSubmitFailed {
+                position: 2,
+                operation: "仕上げ".to_string(),
+                submitted: 1,
+                reason: failure("failure.conditions"),
+            },
+            OperationStatus::SequenceStatusUnreadable(failure("failure.job_manager_not_found")),
             OperationStatus::Imported { job: 2 },
             OperationStatus::NothingToImport,
+            OperationStatus::AlreadyCalculated,
+            OperationStatus::AlreadyImported,
+            OperationStatus::RecalculationWaiting,
+            OperationStatus::LargeToolpathDeclined,
+            OperationStatus::Estimating,
+            OperationStatus::EstimateAbandoned,
+            OperationStatus::Stopped,
+            OperationStatus::EarlierConditionsCanceled,
+            OperationStatus::StopNotYetAccepted,
+            OperationStatus::NothingToStop,
+            OperationStatus::StopFailed(failure("failure.job_manager_not_found")),
+            OperationStatus::ToolpathImported { job: 1 },
+            OperationStatus::NoToolpathToImport,
             OperationStatus::ImportFailed(failure("failure.animation.replay")),
+            OperationStatus::JobManagerFailed(failure("failure.job_manager_not_found")),
         ] {
             for locale in [UiLocale::Ja, UiLocale::En] {
                 let text = operation_status_text(locale, &status);
@@ -571,14 +2346,472 @@ mod tests {
                 );
             }
         }
-        let ran = OperationStatus::Ran {
-            executed: 2,
-            seconds: 1.25,
+    }
+
+    #[test]
+    fn every_list_and_settings_text_exists_in_both_languages() {
+        let keys = COLUMN_KEYS
+            .into_iter()
+            .chain(
+                [
+                    MachiningStage::Rough,
+                    MachiningStage::SemiFinish,
+                    MachiningStage::Finish,
+                ]
+                .map(stage_key),
+            )
+            .chain([
+                "conditions.list.sequence",
+                "conditions.list.sequence_settings",
+                "conditions.list.operation_settings",
+                "conditions.list.rename",
+                "conditions.list.tool",
+                "conditions.kind.scanline",
+                "conditions.page.machining",
+                "conditions.page.region",
+                "conditions.operation_settings.title",
+                "conditions.sequence_settings.title",
+                "conditions.operation.stage",
+                "conditions.operation.kind",
+                "conditions.target.shared",
+                "conditions.header.region",
+                "conditions.region.target",
+                "conditions.region.rectangle",
+                "conditions.sequence.name",
+                "conditions.sequence.note",
+                "conditions.dialog.apply",
+                "conditions.dialog.cancel",
+                "conditions.dialog.submit_on_apply",
+            ]);
+        for key in keys {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text = resolve_machining_conditions_text(locale, key, &[]);
+                assert!(!text.contains("__missing__"), "{key} ({locale:?})");
+            }
+        }
+    }
+
+    #[test]
+    fn rows_whose_cl_is_current_are_shown_as_imported_unless_pending() {
+        let names = viewmodel::space_model_document::DefaultNames {
+            sequence: "加工手順",
+            operation: "スキャン加工",
+        };
+        let item = viewmodel::space_model_document::SpaceModelDocument::new(names)
+            .operations()
+            .remove(0);
+        let row = |status, toolpath_current| OperationRow {
+            id: item.id,
+            name: item.name.clone(),
+            stage: item.stage,
+            spec: item.spec,
+            tool: item.tool.clone(),
+            toolset: None,
+            tool_status: viewmodel::tool_library_session::OperationToolStatus::NotFromLibrary,
+            status,
+            toolpath_current,
+            setup: OperationSetup::Ready,
+        };
+        // 計算できない工程は、計算の状態・取込済みより先に、その理由を出す
+        for (setup, key) in [
+            (
+                OperationSetup::NotSet,
+                "conditions.operations.status.not_set",
+            ),
+            (
+                OperationSetup::ConditionError(vec![ConditionIssue::NoProductShape]),
+                "conditions.operations.status.condition_error",
+            ),
+            // 加工の対象の形状を作っている間は、誤りではなく確かめ中
+            (
+                OperationSetup::ConditionError(vec![ConditionIssue::Checking]),
+                "conditions.operations.status.checking",
+            ),
+        ] {
+            let mut imported = row(JobStatusLine::Status(OperationJobStatus::Succeeded), true);
+            imported.setup = setup;
+            assert_eq!(operation_row_key(&imported), key);
+        }
+        let succeeded = JobStatusLine::Status(OperationJobStatus::Succeeded);
+        let queued = JobStatusLine::Status(OperationJobStatus::Queued);
+        assert_eq!(
+            operation_row_key(&row(succeeded.clone(), true)),
+            "conditions.operations.status.imported"
+        );
+        // ジョブマネージャーの結果を消しても、空間モデルの CL が今の条件の結果なら取込済み
+        assert_eq!(
+            operation_row_key(&row(JobStatusLine::NotSubmitted, true)),
+            "conditions.operations.status.imported"
+        );
+        assert_eq!(
+            operation_row_key(&row(succeeded, false)),
+            "conditions.operations.status.succeeded"
+        );
+        // ジョブマネージャーが動いていない・見つからないときは、CL が今の条件の結果なら取込済み、そうでなければ状態不明
+        for unavailable in [
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+        ] {
+            assert_eq!(
+                operation_row_key(&row(unavailable.clone(), true)),
+                "conditions.operations.status.imported"
+            );
+            assert_eq!(
+                operation_row_key(&row(unavailable, false)),
+                "conditions.operations.status.unknown"
+            );
+        }
+        // 計算し直している間・失敗したときは、計算の状態を出す
+        assert_eq!(
+            operation_row_key(&row(queued, true)),
+            "conditions.operations.status.queued"
+        );
+        assert_eq!(
+            operation_row_key(&row(
+                JobStatusLine::Status(OperationJobStatus::Failed),
+                true
+            )),
+            "conditions.operations.status.failed"
+        );
+    }
+
+    #[test]
+    fn calculation_is_blocked_only_while_waiting_calculating_or_calculated() {
+        use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
+        for status in [Queued, Running, Succeeded] {
+            for toolpath_current in [false, true] {
+                assert!(calculation_blocked(
+                    &JobStatusLine::Status(status),
+                    toolpath_current
+                ));
+            }
+        }
+        // ジョブマネージャーが動いていない・見つからないときは、取込済みと出す工程（今の条件の CL がある）だけ押せない
+        for status in [
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+        ] {
+            assert!(calculation_blocked(&status, true), "{status:?}");
+            assert!(!calculation_blocked(&status, false), "{status:?}");
+        }
+        // 計算失敗・取り消しは計算し直せる。未計算（CL だけの工程は切削シミュレーションだけ）と、状態が分からない・
+        // まだ読めていないときは、押したときに読み直して決める
+        for status in [
+            JobStatusLine::Status(Failed),
+            JobStatusLine::Status(Canceled),
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+        ] {
+            for toolpath_current in [false, true] {
+                assert!(
+                    !calculation_blocked(&status, toolpath_current),
+                    "{status:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn applying_submits_unless_unchanged_conditions_are_already_calculated_or_imported() {
+        use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
+        let statuses = [
+            JobStatusLine::Status(Queued),
+            JobStatusLine::Status(Running),
+            JobStatusLine::Status(Succeeded),
+            JobStatusLine::Status(Failed),
+            JobStatusLine::Status(Canceled),
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+        ];
+        // 計算の条件が変わったときは、最後に読んだ状態によらず計算する
+        for status in &statuses {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(true, status, toolpath_current),
+                    ApplySubmission::Submit,
+                    "{status:?}"
+                );
+            }
+        }
+        // 変わらないときは、計算待ち・計算中・計算済みなら計算しない
+        for status in [Queued, Running, Succeeded] {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(false, &JobStatusLine::Status(status), toolpath_current),
+                    ApplySubmission::Skip(OperationStatus::AlreadyCalculated)
+                );
+            }
+        }
+        // ジョブマネージャーが動いていない・見つからないときは、取込済みの工程を計算しない（起動しない）
+        for status in [
+            JobStatusLine::ManagerNotRunning,
+            JobStatusLine::ManagerNotFound,
+        ] {
+            assert_eq!(
+                submission_on_apply(false, &status, true),
+                ApplySubmission::Skip(OperationStatus::AlreadyImported),
+                "{status:?}"
+            );
+            assert_eq!(
+                submission_on_apply(false, &status, false),
+                ApplySubmission::Submit,
+                "{status:?}"
+            );
+        }
+        // 未計算・計算失敗・取り消しと、状態が分からない・まだ読めていないときは計算する（計算するときに読み直す）
+        for status in [
+            JobStatusLine::Status(Failed),
+            JobStatusLine::Status(Canceled),
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+        ] {
+            for toolpath_current in [false, true] {
+                assert_eq!(
+                    submission_on_apply(false, &status, toolpath_current),
+                    ApplySubmission::Submit,
+                    "{status:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_next_button_follows_the_status_of_the_selected_operation() {
+        use OperationJobStatus::{Canceled, Failed, Queued, Running, Succeeded};
+        let cases = [
+            (JobStatusLine::NotSubmitted, false, Some(RowAction::Submit)),
+            (
+                JobStatusLine::Status(Failed),
+                false,
+                Some(RowAction::Submit),
+            ),
+            (JobStatusLine::Status(Failed), true, Some(RowAction::Submit)),
+            (
+                JobStatusLine::Status(Canceled),
+                false,
+                Some(RowAction::Submit),
+            ),
+            (
+                JobStatusLine::Status(Succeeded),
+                false,
+                Some(RowAction::ImportToolpath),
+            ),
+            // 計算待ち・計算中・計算済みで取込済み・状態が分からないときは、目立たせない
+            (JobStatusLine::Status(Queued), false, None),
+            (JobStatusLine::Status(Running), false, None),
+            (JobStatusLine::Status(Succeeded), true, None),
+            // 取込済みで切削シミュレーションの結果がない工程は、切削シミュレーションだけを計算する
+            (JobStatusLine::NotSubmitted, true, Some(RowAction::Submit)),
+            (JobStatusLine::ManagerNotRunning, false, None),
+            (JobStatusLine::Reading, false, None),
+        ];
+        for (status, toolpath_current, action) in cases {
+            assert_eq!(
+                next_action_of(&OperationSetup::Ready, &status, toolpath_current),
+                action,
+                "{status:?} {toolpath_current}"
+            );
+        }
+        // 条件を設定していない工程は、計算の状態によらず工程の設定を開く。誤りがある工程は目立たせない
+        assert_eq!(
+            next_action_of(&OperationSetup::NotSet, &JobStatusLine::NotSubmitted, false),
+            Some(RowAction::OpenSettings)
+        );
+        assert_eq!(
+            next_action_of(
+                &OperationSetup::ConditionError(vec![ConditionIssue::NoProductShape]),
+                &JobStatusLine::NotSubmitted,
+                false
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn row_statuses_are_colored_like_the_job_manager() {
+        for key in [
+            "conditions.operations.status.queued",
+            "conditions.operations.status.running",
+            "conditions.operations.status.succeeded",
+            "conditions.operations.status.imported",
+            "conditions.operations.status.failed",
+            "conditions.operations.status.canceled",
+            "conditions.operations.status.unreadable",
+            "conditions.operations.status.condition_error",
+        ] {
+            assert!(row_status_color(key).is_some(), "{key}");
+        }
+        // 未計算・未設定・状態不明・読んでいる間は、色を付けない
+        for key in [
+            "conditions.operations.status.none",
+            "conditions.operations.status.not_set",
+            "conditions.operations.status.unknown",
+            "conditions.operations.status.reading",
+        ] {
+            assert!(row_status_color(key).is_none(), "{key}");
+        }
+    }
+
+    #[test]
+    fn the_navigation_tells_what_can_be_done_next_for_the_selected_operation() {
+        let succeeded = JobStatusLine::Status(OperationJobStatus::Succeeded);
+        let cases = [
+            (
+                JobStatusLine::Status(OperationJobStatus::Running),
+                false,
+                Some("conditions.navigation.in_progress"),
+            ),
+            (
+                succeeded.clone(),
+                false,
+                Some("conditions.navigation.calculated"),
+            ),
+            (
+                succeeded,
+                true,
+                Some("conditions.navigation.imported_with_simulation"),
+            ),
+            (
+                JobStatusLine::NotSubmitted,
+                true,
+                Some("conditions.navigation.imported_toolpath_only"),
+            ),
+            (JobStatusLine::NotSubmitted, false, None),
+            (
+                JobStatusLine::ManagerNotRunning,
+                true,
+                Some("conditions.navigation.imported_manager_not_running"),
+            ),
+            (JobStatusLine::ManagerNotRunning, false, None),
+            (JobStatusLine::ManagerNotFound, true, None),
+            // 理由を受け取れなかった失敗は、ジョブマネージャーで確かめられることを出す
+            (
+                JobStatusLine::Status(OperationJobStatus::Failed),
+                true,
+                Some("conditions.navigation.failed_without_reason"),
+            ),
+        ];
+        for (status, toolpath_current, key) in cases {
+            assert_eq!(
+                navigation_key(&status, toolpath_current, None),
+                key,
+                "{status:?}"
+            );
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text = navigation_text(locale, &status, toolpath_current, None);
+                assert_eq!(text.is_some(), key.is_some());
+                assert!(!text.unwrap_or_default().contains("__missing__"));
+            }
+        }
+    }
+
+    #[test]
+    fn the_navigation_and_the_status_tell_why_the_calculation_failed() {
+        let failed = JobStatusLine::Status(OperationJobStatus::Failed);
+        let too_large = OperationFailure {
+            reason: UiMessage {
+                key: "failure.job.toolpath_too_large".to_string(),
+                args: Vec::new(),
+            },
+            detail: "the toolpath is too large for the memory limit".to_string(),
+            review_conditions: true,
+        };
+        let invalid_input = OperationFailure {
+            reason: UiMessage {
+                key: "failure.job.invalid_input".to_string(),
+                args: Vec::new(),
+            },
+            detail: "the input is invalid".to_string(),
+            review_conditions: false,
         };
         assert_eq!(
-            operation_status_text(UiLocale::Ja, &ran),
-            "実行しました（2 件・1.2 秒）。「取り込み」で結果を表示します"
+            navigation_text(UiLocale::Ja, &failed, false, Some(&too_large)).unwrap(),
+            "今の条件の計算が失敗しました: ツールパスの点が多すぎて、メモリの上限を超えるため、計算を止めました。\
+             ピックフィードなどの条件を見直してから計算してください"
         );
+        assert_eq!(
+            navigation_text(UiLocale::En, &failed, false, Some(&invalid_input)).unwrap(),
+            "The calculation for the current conditions failed: The input is invalid"
+        );
+        assert_eq!(
+            job_status_text(UiLocale::Ja, &failed, Some(&invalid_input)),
+            "今の条件の計算: 計算失敗（入力が正しくありません）"
+        );
+        assert!(
+            job_status_text(UiLocale::En, &failed, Some(&too_large)).contains("too many points")
+        );
+        // 失敗でない状態には、理由を出さない
+        let succeeded = JobStatusLine::Status(OperationJobStatus::Succeeded);
+        assert_eq!(
+            navigation_key(&succeeded, false, Some(&too_large)),
+            Some("conditions.navigation.calculated")
+        );
+        assert_eq!(
+            job_status_text(UiLocale::Ja, &succeeded, Some(&too_large)),
+            job_status_text(UiLocale::Ja, &succeeded, None)
+        );
+    }
+
+    #[test]
+    fn every_operation_row_status_has_a_message_in_both_languages() {
+        let statuses = [
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+            JobStatusLine::Status(OperationJobStatus::Queued),
+            JobStatusLine::Status(OperationJobStatus::Running),
+            JobStatusLine::Status(OperationJobStatus::Succeeded),
+            JobStatusLine::Status(OperationJobStatus::Failed),
+            JobStatusLine::Status(OperationJobStatus::Canceled),
+        ];
+        for locale in [UiLocale::Ja, UiLocale::En] {
+            for status in &statuses {
+                let key = operation_row_status_key(status);
+                assert_ne!(resolve_machining_conditions_text(locale, key, &[]), key);
+            }
+            let imported = "conditions.operations.status.imported";
+            assert_ne!(
+                resolve_machining_conditions_text(locale, imported, &[]),
+                imported
+            );
+        }
+    }
+
+    #[test]
+    fn every_job_status_has_a_message() {
+        let statuses = [
+            JobStatusLine::NotSubmitted,
+            JobStatusLine::Unreadable,
+            JobStatusLine::Reading,
+            JobStatusLine::Status(OperationJobStatus::Queued),
+            JobStatusLine::Status(OperationJobStatus::Running),
+            JobStatusLine::Status(OperationJobStatus::Succeeded),
+            JobStatusLine::Status(OperationJobStatus::Failed),
+            JobStatusLine::Status(OperationJobStatus::Canceled),
+        ];
+        for status in statuses {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text = resolve_machining_conditions_text(locale, job_status_key(&status), &[]);
+                assert!(!text.contains("__missing__"), "{status:?}: {text}");
+            }
+        }
+    }
+
+    #[test]
+    fn every_imported_toolpath_state_has_a_message() {
+        use viewmodel::space_model_document::ImportedToolpathState;
+        for state in [ImportedToolpathState::None, ImportedToolpathState::Current] {
+            for locale in [UiLocale::Ja, UiLocale::En] {
+                let text =
+                    resolve_machining_conditions_text(locale, imported_toolpath_key(state), &[]);
+                assert!(!text.contains("__missing__"), "{state:?}: {text}");
+            }
+        }
     }
 
     /// 計算条件の誤りの種類を 1 つずつ
@@ -647,5 +2880,246 @@ mod tests {
             condition_field(&ConditionIssue::Other(failure("failure.orchestration"))),
             ConditionField::Submission
         );
+    }
+
+    fn toolset(name: &str) -> ToolSetRow {
+        ToolSetRow {
+            id: ToolSetId::new_random(),
+            name: name.to_string(),
+            kind: None,
+            diameter: 6.0,
+            corner_radius: 3.0,
+            cutting_length: None,
+            same_values: false,
+        }
+    }
+
+    #[test]
+    fn toolsets_are_listed_only_while_searching() {
+        let toolsets = vec![toolset("Ball6 long"), toolset("flat10"), toolset("ball6")];
+        assert_eq!(searched_toolsets(&toolsets, ""), None);
+        assert_eq!(searched_toolsets(&toolsets, "  "), None);
+        let found = searched_toolsets(&toolsets, " BALL6 ").expect("searching");
+        let names: Vec<&str> = found.iter().map(|row| row.name.as_str()).collect();
+        assert_eq!(names, ["Ball6 long", "ball6"]);
+        assert_eq!(searched_toolsets(&toolsets, "end"), Some(Vec::new()));
+    }
+
+    /// 名前の欄の入力欄を、`events` を受けた 1 コマで描き、名前の確定・取り消しを返す
+    fn name_edit_frame(
+        ctx: &egui::Context,
+        session: u64,
+        name: &mut String,
+        events: Vec<egui::Event>,
+    ) -> Option<DialogResult> {
+        let mut result = None;
+        let input = egui::RawInput {
+            events,
+            ..Default::default()
+        };
+        let mut output = ctx.run_ui(input, |ui| result = name_edit_cell(ui, session, name).1);
+        // 画面に描かないため、文字の絵の更新は捨てる
+        output.textures_delta.clear();
+        result
+    }
+
+    #[test]
+    fn the_name_cell_confirms_on_enter_or_leaving_and_cancels_on_escape() {
+        let key = |key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let away = egui::pos2(600.0, 600.0);
+        let click_away = vec![
+            egui::Event::PointerMoved(away),
+            egui::Event::PointerButton {
+                pos: away,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+            },
+            egui::Event::PointerButton {
+                pos: away,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            },
+        ];
+        for (events, expected) in [
+            (vec![key(egui::Key::Enter)], DialogResult::Apply),
+            (vec![key(egui::Key::Escape)], DialogResult::Cancel),
+            (click_away, DialogResult::Apply),
+        ] {
+            let ctx = egui::Context::default();
+            let mut name = "荒取り".to_string();
+            // 初めて置いた描画で、名前のすべてを選んで編集を始める（その描画で打った文字で置き換わる）
+            let typed = vec![egui::Event::Text("仕上げ".to_string())];
+            assert_eq!(name_edit_frame(&ctx, 1, &mut name, typed), None);
+            assert_eq!(name, "仕上げ");
+            assert_eq!(
+                name_edit_frame(&ctx, 1, &mut name, events.clone()),
+                Some(expected)
+            );
+            // 初めて置いた描画で、文字を打ってから離れても、確定・取り消しを返す
+            let ctx = egui::Context::default();
+            let mut name = "荒取り".to_string();
+            let mut typed_and_left = vec![egui::Event::Text("仕上げ".to_string())];
+            typed_and_left.extend(events);
+            assert_eq!(
+                name_edit_frame(&ctx, 1, &mut name, typed_and_left),
+                Some(expected)
+            );
+            assert_eq!(name, "仕上げ");
+        }
+    }
+
+    #[test]
+    fn a_new_name_edit_starts_afresh() {
+        let ctx = egui::Context::default();
+        let mut name = "荒取り".to_string();
+        let typed = vec![egui::Event::Text("仕上げ".to_string())];
+        assert_eq!(name_edit_frame(&ctx, 1, &mut name, typed), None);
+        assert_eq!(name, "仕上げ");
+        // 次の編集は、前の編集の文字の位置を引き継がず、名前のすべてを選んで始める
+        let mut name = "中仕上げ".to_string();
+        let typed = vec![egui::Event::Text("隅".to_string())];
+        assert_eq!(name_edit_frame(&ctx, 2, &mut name, typed), None);
+        assert_eq!(name, "隅");
+    }
+
+    #[test]
+    fn the_name_field_is_wide_enough_for_the_whole_name() {
+        let ctx = egui::Context::default();
+        let mut name = "a".repeat(80);
+        let mut rect = None;
+        let mut name_width = 0.0;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            name_width = ui
+                .painter()
+                .layout_no_wrap(
+                    name.clone(),
+                    egui::TextStyle::Body.resolve(ui.style()),
+                    egui::Color32::WHITE,
+                )
+                .size()
+                .x;
+            // 表の列のように、名前より狭い所に置いても、名前の全体が入る幅にする
+            ui.allocate_ui(egui::vec2(60.0, 40.0), |ui| {
+                rect = Some(name_edit_cell(ui, 1, &mut name).0);
+            });
+        });
+        output.textures_delta.clear();
+        assert!(rect.expect("the field is shown").width() > name_width);
+    }
+
+    #[test]
+    fn the_name_field_keeps_the_column_width_for_a_short_name() {
+        let ctx = egui::Context::default();
+        let mut name = "a".to_string();
+        let mut rect = None;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            // 名前が列に収まるときは、列の幅のまま（表の幅を変えない）
+            ui.allocate_ui(egui::vec2(200.0, 40.0), |ui| {
+                rect = Some(name_edit_cell(ui, 1, &mut name).0);
+            });
+        });
+        output.textures_delta.clear();
+        let width = rect.expect("the field is shown").width();
+        assert!((width - 200.0).abs() < 1.0, "{width}");
+    }
+
+    #[test]
+    fn only_columns_whose_grown_contents_do_not_fit_are_fitted_again() {
+        let (first, second) = (1, 2);
+        let previous = TableTextWidths {
+            headers: [20.0, 30.0, 40.0, 40.0, 60.0, 50.0],
+            rows: vec![
+                (first, [10.0, 40.0, 30.0, 40.0, 60.0, 50.0]),
+                (second, [10.0, 200.0, 30.0, 40.0, 60.0, 50.0]),
+            ],
+        };
+        let shown = [30.0, 80.0, 40.0, 40.0, 60.0, 50.0];
+        // 初めての描画は、表が中身に合わせるため、合わせ直さない
+        assert_eq!(
+            columns_to_refit(None, &previous, Some(shown)),
+            [false; COLUMN_COUNT]
+        );
+        // 名前: 列の最大は変わらないが、広がった名前が列に入らない。段階: 広がったが列に入る。種類: 丸めの違い。
+        // 状態: 見出しが広がって列に入らない
+        let current = TableTextWidths {
+            headers: [20.0, 30.0, 40.0, 40.0, 60.0, 70.0],
+            rows: vec![
+                (first, [10.0, 120.0, 38.0, 40.4, 60.0, 50.0]),
+                (second, [10.0, 200.0, 30.0, 40.0, 60.0, 50.0]),
+            ],
+        };
+        assert_eq!(
+            columns_to_refit(Some(&previous), &current, Some(shown)),
+            [false, true, false, false, false, true]
+        );
+        // 足した工程の欄が列に入らなければ、合わせ直す
+        let mut added = previous.clone();
+        added.rows.push((3, [10.0, 40.0, 30.0, 40.0, 90.0, 50.0]));
+        assert_eq!(
+            columns_to_refit(Some(&previous), &added, Some(shown)),
+            [false, false, false, false, true, false]
+        );
+    }
+
+    #[test]
+    fn the_row_is_tall_enough_for_the_name_field() {
+        let ctx = egui::Context::default();
+        let mut name = "荒取り".to_string();
+        let mut row_height = 0.0;
+        let mut rect = None;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            row_height = operation_row_height(ui);
+            ui.allocate_ui(egui::vec2(200.0, row_height), |ui| {
+                rect = Some(name_edit_cell(ui, 1, &mut name).0);
+            });
+        });
+        output.textures_delta.clear();
+        let height = rect.expect("the field is shown").height();
+        assert!(height <= row_height + 0.5, "{height} > {row_height}");
+    }
+
+    #[test]
+    fn the_column_border_id_is_the_one_the_table_uses() {
+        let ctx = egui::Context::default();
+        let mut border = None;
+        // 初めの描画は、表が幅を決めるための描画のため、2 回描く
+        for _ in 0..2 {
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                border = Some(column_border_id(ui, 0));
+                egui_extras::TableBuilder::new(ui)
+                    .id_salt(OPERATION_TABLE_SALT)
+                    .resizable(true)
+                    .columns(egui_extras::Column::auto().resizable(true), 2)
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.label("a");
+                        });
+                        header.col(|ui| {
+                            ui.label("b");
+                        });
+                    })
+                    .body(|mut body| {
+                        body.row(20.0, |mut row| {
+                            row.col(|ui| {
+                                ui.label("x");
+                            });
+                            row.col(|ui| {
+                                ui.label("y");
+                            });
+                        });
+                    });
+            });
+            output.textures_delta.clear();
+        }
+        let border = border.expect("the table is shown");
+        assert!(ctx.read_response(border).is_some());
     }
 }

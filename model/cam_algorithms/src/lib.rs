@@ -7,6 +7,7 @@
 //! 工具種別ごとの要素オフセット（ボールエンドミル: 頂点→球、辺→円筒、面→工具半径オフセット面、
 //! フラットエンドミル: 頂点→円板、辺→円板掃引、面→底面円周接触）の上側包絡から工具位置（CL）を求める。
 
+pub mod checkpoint;
 pub mod cl_grid;
 pub mod inverse_offset;
 pub mod inverse_offset_shape;
@@ -17,6 +18,7 @@ pub mod scanline;
 pub mod solver;
 pub mod tessellation;
 
+pub use checkpoint::{Checkpoints, SavedRecord};
 pub use cl_grid::{ClGrid, MAX_CL_GRID_SAMPLES, sample_cl_grid};
 pub use inverse_offset::CutterShape;
 pub use inverse_offset_shape::{InverseOffsetPart, InverseOffsetPartKind, InverseOffsetShape};
@@ -27,7 +29,7 @@ pub use process_template::{
 pub use product_surface::ProductSurface;
 pub use solver::{
     CamSolverError, CamSolverInput, GeometryKind, ScanlineInputError, SolverGeometry,
-    build_inverse_offset_shape, solve_toolpath,
+    build_inverse_offset_shape, estimate_toolpath_points, solve_toolpath, solve_toolpath_resumable,
 };
 pub use tessellation::triangle_aspect_ratio;
 

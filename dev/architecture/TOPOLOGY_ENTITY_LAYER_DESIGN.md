@@ -13,6 +13,8 @@
 
 本書は、個別 shape の意味論や実装計画そのものを定義する文書ではない。
 
+> 注: 本書の `Edge`・`Wire`・`TopoId`・`shared_tolerance`・`WireValidationReport` は、#1344 で B-rep の表（`Brep`）に置き換えた（頂点を番号で共有するため、頂点どうしの離れを測る `shared_tolerance` は持たない）。今の形は `BREP_AND_STEP_IMPORT_DESIGN.md` 5 章を正本とする。#1345 で、稜線を母曲線（無限の直線・円・楕円・NURBS 曲線）と区間で持つ形にし、線分の拘束の端点と理想の端点を区別しなくなったため、本書の稜線の許容誤差の内訳（δ_ideal・δ_eval・δ_bind）は使わない（稜線の端の点と頂点の離れを、距離の許容誤差 1 つで確かめる）。
+
 ## 正本の役割分担
 
 - shape 意味論の正本: `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md`

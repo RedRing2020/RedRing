@@ -14,6 +14,15 @@ impl FaceId {
     pub fn new_random() -> Self {
         Self(Uuid::new_v4())
     }
+
+    /// UUID から作る（保存した面の ID に戻すときに使う）
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
 }
 
 impl fmt::Display for FaceId {

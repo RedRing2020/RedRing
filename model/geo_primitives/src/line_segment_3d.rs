@@ -9,10 +9,10 @@ mod transform;
 
 use crate::{InfiniteLine3D, Point3D};
 use geo_contracts::{
-    default_distance_tolerance, InfiniteLine3DConstructor, InfiniteLine3DEvaluation,
-    LineSegment3DConstructor, LineSegment3DContainment, LineSegment3DDistance,
-    LineSegment3DEvaluation, LineSegment3DProjection, LineSegment3DProperties,
-    LineSegment3DSupportLine, PrimitiveKind, PrimitiveMetadata, Scalar,
+    InfiniteLine3DConstructor, InfiniteLine3DEvaluation, LineSegment3DConstructor,
+    LineSegment3DContainment, LineSegment3DDistance, LineSegment3DEvaluation,
+    LineSegment3DProjection, LineSegment3DProperties, LineSegment3DSupportLine, PrimitiveKind,
+    PrimitiveMetadata, Scalar, default_distance_tolerance,
 };
 
 /// 3次元空間の線分。

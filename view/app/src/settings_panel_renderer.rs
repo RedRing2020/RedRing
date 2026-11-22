@@ -2,6 +2,7 @@ use crate::help_ui::{HelpUiState, NoticeBarUiState};
 use crate::machining_conditions_ui::MachiningConditionsUiState;
 use crate::menu_bar_ui::MenuBarUiState;
 use crate::settings_panel_ui::SettingsPanelUiState;
+use crate::tool_library_ui::ToolLibraryUiState;
 use egui::{ClippedPrimitive, Context, Order, Rect, TexturesDelta, ViewportId};
 use egui_wgpu::{Renderer, RendererOptions, ScreenDescriptor};
 use egui_winit::State;
@@ -35,13 +36,45 @@ pub(crate) struct SettingsPanelRenderer {
     menu_bar_bottom: f32,
     /// 画面の下の知らせの行の上端（論理座標。最後に描いた画面の値）
     notice_bar_top: f32,
+    /// 下端の UI（工程リスト・ステータスバー）の高さ（論理座標。最後に描いた画面の値）
+    bottom_inset: f32,
     pixels_per_point: f32,
+}
+
+/// 1 つのフレームで描く、メニューバー・知らせの行・パネル・ウィンドウの状態
+pub struct UiFrameStates<'a, 'n> {
+    pub menu: &'a mut MenuBarUiState,
+    pub notice: &'a mut NoticeBarUiState<'n>,
+    pub panel: &'a mut SettingsPanelUiState,
+    pub conditions: &'a mut MachiningConditionsUiState,
+    pub help: &'a mut HelpUiState,
+    pub tool_library: &'a mut ToolLibraryUiState,
+}
+
+/// 描かずに置き換える前のフレーム `previous` のテクスチャの更新に、新しいフレームの更新 `newer` を続けたもの
+///
+/// 描かなかったフレームの更新（文字のテクスチャを作る・広げる更新を含む）を捨てると、後の更新・描画がない・古い
+/// テクスチャを指すため、並んだ順に引き継ぐ（egui の `TexturesDelta::append`）。
+fn carried_textures_delta(
+    previous: Option<PendingSettingsPanelFrame>,
+    newer: TexturesDelta,
+) -> TexturesDelta {
+    match previous {
+        Some(previous) => {
+            let mut delta = previous.textures_delta;
+            delta.append(newer);
+            delta
+        }
+        None => newer,
+    }
 }
 
 impl SettingsPanelRenderer {
     pub(crate) fn new(window: &Window, device: &Device, format: TextureFormat) -> Self {
         let egui_context = Context::default();
         install_cjk_system_font(&egui_context);
+        // 画面の文字は選べないようにする（押したときに選んだまま残らないように）。写したい文字は、個別に選べるようにする
+        egui_context.all_styles_mut(|style| style.interaction.selectable_labels = false);
 
         let egui_state = State::new(
             egui_context.clone(),
@@ -60,6 +93,7 @@ impl SettingsPanelRenderer {
             pending_frame: None,
             menu_bar_bottom: 0.0,
             notice_bar_top: f32::INFINITY,
+            bottom_inset: 0.0,
             pixels_per_point: 1.0,
         }
     }
@@ -102,30 +136,40 @@ impl SettingsPanelRenderer {
         self.menu_bar_bottom * self.pixels_per_point
     }
 
+    /// 工程リスト・ステータスバーなど下端の UI の高さ（物理ピクセル。最後に描いた画面の値。画面の大きさを変えた
+    /// 直後も、下端からの高さは同じため、そのまま使える）
+    pub(crate) fn bottom_inset(&self) -> f32 {
+        self.bottom_inset * self.pixels_per_point
+    }
+
     /// メニューバー・知らせの行と、設定パネル・加工条件・ヘルプのウィンドウを、同じ egui の文脈で描く（ウィンドウは
     /// メニューバーと知らせの行の間に置く）
-    pub(crate) fn prepare(
-        &mut self,
-        window: &Window,
-        menu: &mut MenuBarUiState,
-        notice: &NoticeBarUiState<'_>,
-        panel: &mut SettingsPanelUiState,
-        conditions: &mut MachiningConditionsUiState,
-        help: &mut HelpUiState,
-    ) {
+    pub(crate) fn prepare(&mut self, window: &Window, states: &mut UiFrameStates<'_, '_>) {
+        let UiFrameStates {
+            menu,
+            notice,
+            panel,
+            conditions,
+            help,
+            tool_library,
+        } = states;
         let raw_input = self.egui_state.take_egui_input(window);
         let mut area = Rect::NOTHING;
         let full_output = self.egui_context.run_ui(raw_input, |ui| {
             menu.show(ui);
             notice.show(ui);
+            // 工程リストは、画面の下のステータスバーの上のパネルとし、ウィンドウはその上に置く
+            conditions.show_list(ui);
             area = ui.available_rect_before_wrap();
             panel.show(ui, area);
-            conditions.show(ui, area);
+            conditions.show_windows(ui, area);
+            tool_library.show(ui, area);
             help.show(ui, area);
         });
         let pixels_per_point = full_output.pixels_per_point;
         self.menu_bar_bottom = area.top();
         self.notice_bar_top = area.bottom();
+        self.bottom_inset = (self.egui_context.content_rect().bottom() - area.bottom()).max(0.0);
         self.pixels_per_point = pixels_per_point;
         let paint_jobs = self
             .egui_context
@@ -135,7 +179,10 @@ impl SettingsPanelRenderer {
             .handle_platform_output(window, full_output.platform_output);
         self.pending_frame = Some(PendingSettingsPanelFrame {
             paint_jobs,
-            textures_delta: full_output.textures_delta,
+            textures_delta: carried_textures_delta(
+                self.pending_frame.take(),
+                full_output.textures_delta,
+            ),
             pixels_per_point,
         });
     }
@@ -149,18 +196,21 @@ impl SettingsPanelRenderer {
         viewport_width: u32,
         viewport_height: u32,
     ) {
+        // 画面の大きさが 0（最小化など）のときは描かない。フレームは捨てず、テクスチャの更新を次のフレームに引き継ぐ
         if viewport_width == 0 || viewport_height == 0 {
-            self.pending_frame = None;
             return;
         }
 
-        let Some(frame) = self.pending_frame.take() else {
+        let Some(mut frame) = self.pending_frame.take() else {
             return;
         };
 
-        for (texture_id, image_delta) in &frame.textures_delta.set {
-            self.egui_renderer
-                .update_texture(device, queue, *texture_id, image_delta);
+        // 同じテクスチャの更新は、並んだ順に当てる
+        for (texture_id, image_deltas) in &frame.textures_delta.set {
+            for image_delta in image_deltas {
+                self.egui_renderer
+                    .update_texture(device, queue, *texture_id, image_delta);
+            }
         }
 
         let screen_descriptor = ScreenDescriptor {
@@ -204,17 +254,36 @@ impl SettingsPanelRenderer {
         for texture_id in &frame.textures_delta.free {
             self.egui_renderer.free_texture(texture_id);
         }
+        // 当て終えた更新を空にする（egui は、当てていない更新を捨てると知らせる）
+        frame.textures_delta.clear();
     }
 }
 
+/// 日本語のフォントの文字を下げる量（文字の大きさに対する割合）
+const CJK_Y_OFFSET_FACTOR: f32 = 0.25;
+
+/// 記号（📋 など）を、決めた形で描くためのフォントの集まりの名前
+pub(crate) const SYMBOL_FONT_FAMILY: &str = "symbols";
+
 fn install_cjk_system_font(ctx: &Context) {
     let mut fonts = egui::FontDefinitions::default();
+    // 記号は、この集まりで描く。NotoEmoji の 📋 は斜めに傾けた絵で、小さく描くと札に見えるため、まっすぐな形の
+    // emoji-icon-font を先に使う
+    fonts.families.insert(
+        egui::FontFamily::Name(SYMBOL_FONT_FAMILY.into()),
+        vec!["emoji-icon-font".to_owned(), "NotoEmoji-Regular".to_owned()],
+    );
 
     if let Some(font_bytes) = load_system_cjk_font_bytes() {
         let font_name = "system_cjk".to_owned();
+        // 日本語のフォントは、行の高さに比べて文字が上に寄って描かれるため、少し下げて行の中央にそろえる
+        let tweak = egui::FontTweak {
+            y_offset_factor: CJK_Y_OFFSET_FACTOR,
+            ..Default::default()
+        };
         fonts.font_data.insert(
             font_name.clone(),
-            egui::FontData::from_owned(font_bytes).into(),
+            egui::FontData::from_owned(font_bytes).tweak(tweak).into(),
         );
 
         if let Some(family) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
@@ -254,10 +323,10 @@ fn load_system_cjk_font_bytes() -> Option<Vec<u8>> {
             ..Query::default()
         };
 
-        if let Some(face_id) = db.query(&query) {
-            if let Some(bytes) = db.with_face_data(face_id, |data, _index| data.to_vec()) {
-                return Some(bytes);
-            }
+        if let Some(face_id) = db.query(&query)
+            && let Some(bytes) = db.with_face_data(face_id, |data, _index| data.to_vec())
+        {
+            return Some(bytes);
         }
     }
 

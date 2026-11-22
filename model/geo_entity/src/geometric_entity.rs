@@ -46,6 +46,25 @@ impl<T: Scalar, G> GeometricEntity<T, G> {
         }
     }
 
+    /// 保存した ID・形状・表示の属性・属性・メタデータから作る（選択していない状態で作る）
+    pub fn restore(
+        id: EntityId,
+        geometry: G,
+        display: DisplayAttributes,
+        attributes: Attributes,
+        metadata: Metadata,
+    ) -> Self {
+        Self {
+            id,
+            geometry,
+            display,
+            attributes,
+            metadata,
+            selected: false,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     pub fn id(&self) -> EntityId {
         self.id
     }

@@ -1,11 +1,6 @@
-//! 製品形状のエンティティの描画用の変換と、取り込んだ製品形状の保持
+//! 製品形状のエンティティの描画用の変換
 
-use std::path::Path;
-
-use application::product_shape::{
-    EntityDisplayProperties, FaceSetEntity3DProperties, ProductShapeError, ProductShapeStore,
-    TriangleMesh3DProperties,
-};
+use application::product_shape::{FaceSetEntity3DProperties, TriangleMesh3DProperties};
 
 use crate::mesh_converter::VertexData;
 
@@ -33,11 +28,12 @@ pub struct ProductShapeMesh {
     pub color: [f32; 4],
 }
 
-/// 面を持つエンティティを、すべての面をつなげた描画用のメッシュにする
+/// 面を持つエンティティを、すべての面をつなげた描画用のメッシュにする（表示用の三角形を作れない面は除く。面ごとの
+/// 理由は、三角形を作る Model 側が一度だけ警告に出す）
 ///
 /// # Errors
 ///
-/// 面の表示用の三角形を作れない場合。
+/// どの面の表示用の三角形も作れない場合（初めの面の理由）。
 pub fn face_set_entity_to_mesh<E>(
     entity: &E,
     chord_tolerance: f64,
@@ -47,8 +43,17 @@ where
 {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
+    let mut first_error = None;
+    let mut displayed = false;
     for face_id in entity.face_ids() {
-        let mesh = entity.face_display_mesh(face_id, chord_tolerance)?;
+        let mesh = match entity.face_display_mesh(face_id, chord_tolerance) {
+            Ok(mesh) => mesh,
+            Err(error) => {
+                first_error.get_or_insert(error);
+                continue;
+            }
+        };
+        displayed = true;
         let offset = vertices.len() as u32;
         let normals = mesh.normals();
         vertices.extend(mesh.vertices().iter().enumerate().map(|(index, point)| {
@@ -67,6 +72,9 @@ where
                 .flat_map(|triangle| triangle.map(|index| offset + index as u32)),
         );
     }
+    if let (false, Some(error)) = (displayed, first_error) {
+        return Err(error);
+    }
     Ok(ProductShapeMesh {
         vertices,
         indices,
@@ -74,55 +82,11 @@ where
     })
 }
 
-/// 取り込んだ製品形状と、その表示
-#[derive(Debug, Default)]
-pub struct ProductShapeScene {
-    store: ProductShapeStore,
-    settings: ProductShapeDisplaySettings,
-}
-
-impl ProductShapeScene {
-    pub fn new(settings: ProductShapeDisplaySettings) -> Self {
-        Self {
-            store: ProductShapeStore::new(),
-            settings,
-        }
-    }
-
-    /// 保持している製品形状
-    pub fn store(&self) -> &ProductShapeStore {
-        &self.store
-    }
-
-    /// STL ファイルを製品形状として取り込む
-    ///
-    /// # Errors
-    ///
-    /// STL の読み込みの失敗。
-    pub fn import_stl(&mut self, path: &Path) -> Result<(), ProductShapeError> {
-        self.store.import_stl(path).map(|_| ())
-    }
-
-    /// 表示中のエンティティの描画用のメッシュ（表示用の三角形を作れないエンティティは除き、警告を出す）
-    pub fn visible_meshes(&self) -> Vec<ProductShapeMesh> {
-        self.store
-            .entities()
-            .iter()
-            .filter(|entity| entity.entity_visible())
-            .filter_map(|entity| {
-                face_set_entity_to_mesh(entity, self.settings.chord_tolerance)
-                    .inspect_err(|error| {
-                        tracing::warn!(entity_id = %entity.id(), "product shape is not displayed: {error}");
-                    })
-                    .ok()
-            })
-            .collect()
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use application::product_shape::ProductFaceGeometry;
+    use application::product_shape::{
+        EntityDisplayProperties, ProductFaceGeometry, ProductShapeStore,
+    };
     use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
     use geo_contracts::{NurbsSurface3DConstructor, TriangleMesh3DConstructor};
 
@@ -183,35 +147,68 @@ mod tests {
 
         let surface = face_set_entity_to_mesh(surface_entity, 0.05).unwrap();
         assert!(surface.indices.len() > 6);
-        assert!(surface
-            .indices
-            .iter()
-            .all(|&index| (index as usize) < surface.vertices.len()));
-        for mesh in [&mesh, &surface] {
-            assert!(mesh
-                .vertices
+        assert!(
+            surface
+                .indices
                 .iter()
-                .all(|vertex| unit_length(vertex.normal)));
+                .all(|&index| (index as usize) < surface.vertices.len())
+        );
+        for mesh in [&mesh, &surface] {
+            assert!(
+                mesh.vertices
+                    .iter()
+                    .all(|vertex| unit_length(vertex.normal))
+            );
+        }
+    }
+    /// 面ごとに、表示用の三角形を作れるか（`true`）を決めたエンティティ
+    struct Faces(Vec<bool>);
+
+    impl geo_contracts::EntityIdentity for Faces {
+        type Id = u32;
+
+        fn entity_id(&self) -> u32 {
+            0
+        }
+    }
+
+    impl EntityDisplayProperties for Faces {
+        fn entity_visible(&self) -> bool {
+            true
+        }
+
+        fn entity_color(&self) -> [f32; 4] {
+            [1.0; 4]
+        }
+    }
+
+    impl FaceSetEntity3DProperties<f64> for Faces {
+        type FaceId = usize;
+        type DisplayMesh = TriangleMesh3D<f64>;
+        type DisplayMeshError = String;
+
+        fn face_ids(&self) -> Vec<usize> {
+            (0..self.0.len()).collect()
+        }
+
+        fn face_display_mesh(&self, face_id: usize, _: f64) -> Result<TriangleMesh3D<f64>, String> {
+            if self.0[face_id] {
+                Ok(pyramid())
+            } else {
+                Err(format!("face {face_id}"))
+            }
         }
     }
 
     #[test]
-    fn imported_stl_is_displayed_until_it_is_hidden() {
-        let path = std::env::temp_dir().join(format!(
-            "redring_product_shape_scene_{}.stl",
-            std::process::id()
-        ));
-        geo_io::stl::save_stl(&pyramid(), &path).unwrap();
-        let mut scene = ProductShapeScene::default();
-        scene.import_stl(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
-
-        let meshes = scene.visible_meshes();
-        assert_eq!(meshes.len(), 1);
-        assert_eq!(meshes[0].indices.len(), 12);
-
-        let entity_id = scene.store.entities()[0].id();
-        scene.store.set_visible(entity_id, false).unwrap();
-        assert!(scene.visible_meshes().is_empty());
+    fn faces_without_triangles_are_left_out() {
+        // 作れない面だけを除く
+        let mesh = face_set_entity_to_mesh(&Faces(vec![false, true, false]), 0.05).unwrap();
+        assert_eq!(mesh.indices.len(), 12);
+        // どの面も作れなければ、初めの面の理由
+        assert_eq!(
+            face_set_entity_to_mesh(&Faces(vec![false, false]), 0.05).unwrap_err(),
+            "face 0"
+        );
     }
 }

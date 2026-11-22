@@ -2,10 +2,10 @@
 //!
 //! アプリケーション起動時のログ設定を管理します。
 //! - コンソールとファイルの両方に出力
-//! - 起動ごとにログファイルを新規作成（古いログは自動削除）
+//! - 起動ごとにログファイルを新規作成（前の回までのログは、番号付きの名前で数回分を残す）
 //! - モジュール別のログレベルフィルタリング
 
-use logging_foundation::{init_logging as init_with_foundation, LoggingInitConfig};
+use logging_foundation::{LoggingInitConfig, init_logging as init_with_foundation};
 use std::sync::OnceLock;
 
 /// ログディレクトリのパス
@@ -16,11 +16,12 @@ const LOG_FILE_NAME: &str = "redring.log";
 
 /// デフォルトのログフィルタ設定
 ///
-/// wgpu/Vulkan関連は警告のみ、フレーム高頻度層はwarnで抑制。
+/// wgpu/Vulkan関連は警告のみ、フレーム高頻度層はwarnで抑制。計算の前の確かめ（ツールパスの大きさの見積もりと
+/// かかった時間）は `application=info` で残す。
 /// 必要時は RUST_LOG で明示的に詳細化する。
 const DEFAULT_LOG_FILTER: &str = "warn,\
     wgpu=warn,wgpu_hal=warn,wgpu_core=warn,naga=warn,\
-    redring=info,stage=warn,viewmodel_graphics=warn,viewmodel=warn,render=warn,cam_core=info";
+    redring=info,application=info,stage=warn,viewmodel_graphics=warn,viewmodel=warn,render=warn,cam_core=info";
 
 /// 初期化のときに開いたログのファイルの絶対パス（作れずコンソールだけのときは設定しない）
 static LOG_FILE_PATH: OnceLock<String> = OnceLock::new();
@@ -33,7 +34,7 @@ pub fn log_file_path() -> Option<&'static str> {
 /// ログシステムを初期化
 ///
 /// コンソールとファイルの両方に出力するログシステムを設定します。
-/// 既存のログファイルは自動的に削除され、新規ログファイルが作成されます。
+/// 前の回のログは番号付きの名前にずらして残し（`redring.1.log` など）、新規ログファイルを作成します。
 ///
 /// # エラー処理
 ///

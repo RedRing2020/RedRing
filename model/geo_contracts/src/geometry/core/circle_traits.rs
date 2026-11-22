@@ -22,6 +22,17 @@ pub trait Circle3DConstructor<T: Scalar> {
     where
         Self: Sized;
 
+    /// 中心・平面の法線・角度 0 の方向・半径から作成する（半径が正でない、または角度 0 の方向が法線に直交
+    /// しない場合は `None`）
+    fn from_frame(
+        center: Point3D<T>,
+        axis: Direction3D<T>,
+        ref_direction: Direction3D<T>,
+        radius: T,
+    ) -> Option<Self>
+    where
+        Self: Sized;
+
     /// XY 平面上の円を作成する（法線は Z 軸正方向）
     fn new_xy_plane(center: Point3D<T>, radius: T) -> Option<Self>
     where

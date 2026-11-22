@@ -1,0 +1,214 @@
+//! ジョブマネージャーのサービスから、ランナーの実行ファイルを起動して、投入したジョブを最後まで実行する
+
+mod common;
+
+use std::fs;
+use std::time::{Duration, Instant};
+
+use cam_sim::{TOOLPATH_MEMORY_LIMIT_BYTES, read_cutting_simulation_artifact_v1, run_cam_solver};
+use common::{WorkDir, cam_input, write_cam_input, write_sim_input};
+use job_manager::{JobManagerService, ProcessLauncher};
+use job_runtime::store::{
+    DependencyRef, JobStore, STORE_FORMAT_VERSION, StoredJob, StoredJobKind, StoredJobStatus,
+    SubmissionRequest, SubmittedJob, request_format_version,
+};
+
+fn submitted(
+    kind: StoredJobKind,
+    input_file: &str,
+    depends_on: Vec<DependencyRef>,
+) -> SubmittedJob {
+    SubmittedJob {
+        kind,
+        input_file: input_file.to_string(),
+        depends_on,
+        priority: 0,
+        group_id: None,
+        source: None,
+        toolpath_file: None,
+        start_stock: None,
+    }
+}
+
+/// 投入 `jobs`（入力は `write_inputs` で書く）を書き終えてから名前を変えて投入し、`count` 個のジョブが終わるまでサービスを動かす
+fn run_submission(
+    store: &JobStore,
+    jobs: Vec<SubmittedJob>,
+    write_inputs: impl FnOnce(&std::path::Path),
+    count: usize,
+) -> Vec<StoredJob> {
+    let launcher = ProcessLauncher::new(
+        env!("CARGO_BIN_EXE_redring-batch-runner").into(),
+        TOOLPATH_MEMORY_LIMIT_BYTES,
+    );
+    let (mut service, _) = JobManagerService::start(store.clone(), launcher, 0).unwrap();
+    let writing = store.root().join("inbox").join("s1.tmp");
+    fs::create_dir_all(&writing).unwrap();
+    write_inputs(&writing);
+    let request = SubmissionRequest {
+        format_version: request_format_version(&jobs),
+        jobs,
+    };
+    fs::write(
+        writing.join("request.json"),
+        serde_json::to_vec(&request).unwrap(),
+    )
+    .unwrap();
+    fs::rename(&writing, store.root().join("inbox").join("s1")).unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(120);
+    loop {
+        service.tick(0);
+        let (jobs, _) = store.load_jobs().unwrap();
+        if jobs.len() == count && jobs.iter().all(|job| job.status.is_terminal()) {
+            break jobs;
+        }
+        assert!(Instant::now() < deadline, "jobs did not finish: {jobs:?}");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+#[test]
+fn a_later_segment_runs_from_the_end_stock_of_the_previous_segment_with_the_real_runner() {
+    let dir = WorkDir::new();
+    let store = JobStore::open(dir.path("store")).unwrap();
+    let jobs = vec![
+        submitted(StoredJobKind::Cam, "cam.bin", vec![]),
+        submitted(
+            StoredJobKind::Sim,
+            "sim1.bin",
+            vec![DependencyRef::Submitted(0)],
+        ),
+        // 同じ経路を、前の区間の終わりの素材から削る
+        SubmittedJob {
+            start_stock: Some(DependencyRef::Submitted(1)),
+            ..submitted(
+                StoredJobKind::Sim,
+                "sim2.bin",
+                vec![DependencyRef::Submitted(0), DependencyRef::Submitted(1)],
+            )
+        },
+    ];
+    let jobs = run_submission(
+        &store,
+        jobs,
+        |dir| {
+            write_cam_input(&dir.join("cam.bin"), &cam_input());
+            write_sim_input(&dir.join("sim1.bin"));
+            write_sim_input(&dir.join("sim2.bin"));
+        },
+        3,
+    );
+    for job in &jobs {
+        assert_eq!(job.status, StoredJobStatus::Succeeded, "{job:?}");
+    }
+    let volumes = |job_id| {
+        let bytes = fs::read(store.result_file(job_id, StoredJobKind::Sim)).unwrap();
+        let (_, simulation) = read_cutting_simulation_artifact_v1(&mut bytes.as_slice()).unwrap();
+        let first = simulation.snapshots[0].remaining_volume_mm3;
+        let last = simulation.snapshots.last().unwrap().remaining_volume_mm3;
+        (first, last)
+    };
+    let (full, end) = volumes(2);
+    let (start, _) = volumes(3);
+    assert!(end < full);
+    assert!((start - end).abs() <= 1e-9 * end);
+    assert!(store.stock_file(3).is_file());
+}
+
+#[test]
+fn submitted_cam_and_sim_jobs_run_with_the_real_runner() {
+    let dir = WorkDir::new();
+    let store = JobStore::open(dir.path("store")).unwrap();
+    let jobs = run_submission(
+        &store,
+        vec![
+            submitted(StoredJobKind::Cam, "cam.bin", vec![]),
+            submitted(
+                StoredJobKind::Sim,
+                "sim.bin",
+                vec![DependencyRef::Submitted(0)],
+            ),
+        ],
+        |dir| {
+            write_cam_input(&dir.join("cam.bin"), &cam_input());
+            write_sim_input(&dir.join("sim.bin"));
+        },
+        2,
+    );
+    for job in &jobs {
+        assert_eq!(job.status, StoredJobStatus::Succeeded, "{job:?}");
+    }
+    let toolpath = fs::read(
+        store
+            .file_for_ref(jobs[0].result_ref.as_deref().unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        toolpath,
+        run_cam_solver(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
+    );
+    let simulation = fs::read(store.result_file(2, StoredJobKind::Sim)).unwrap();
+    assert!(read_cutting_simulation_artifact_v1(&mut simulation.as_slice()).is_ok());
+    assert!(store.log_file(2).is_file());
+    assert!(
+        fs::read_to_string(store.progress_file(2))
+            .unwrap()
+            .contains("succeeded")
+    );
+}
+
+#[test]
+fn a_sim_job_runs_from_a_toolpath_file_with_the_real_runner() {
+    let dir = WorkDir::new();
+    let store = JobStore::open(dir.path("store")).unwrap();
+    let launcher = ProcessLauncher::new(
+        env!("CARGO_BIN_EXE_redring-batch-runner").into(),
+        TOOLPATH_MEMORY_LIMIT_BYTES,
+    );
+    let (mut service, _) = JobManagerService::start(store.clone(), launcher, 0).unwrap();
+
+    // 空間モデルに取り込んだ CL の代わりに、ツールパス生成の結果を CL のファイルにする
+    let writing = store.root().join("inbox").join("s1.tmp");
+    fs::create_dir_all(&writing).unwrap();
+    write_sim_input(&writing.join("sim.bin"));
+    fs::write(
+        writing.join("toolpath.bin"),
+        run_cam_solver(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES).unwrap(),
+    )
+    .unwrap();
+    let request = SubmissionRequest {
+        format_version: STORE_FORMAT_VERSION,
+        jobs: vec![SubmittedJob {
+            toolpath_file: Some("toolpath.bin".to_string()),
+            start_stock: None,
+            ..submitted(StoredJobKind::Sim, "sim.bin", vec![])
+        }],
+    };
+    fs::write(
+        writing.join("request.json"),
+        serde_json::to_vec(&request).unwrap(),
+    )
+    .unwrap();
+    fs::rename(&writing, store.root().join("inbox").join("s1")).unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(120);
+    let job = loop {
+        service.tick(0);
+        let (jobs, _) = store.load_jobs().unwrap();
+        if let [job] = &jobs[..]
+            && job.status.is_terminal()
+        {
+            break job.clone();
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the job did not finish: {jobs:?}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    assert_eq!(job.status, StoredJobStatus::Succeeded, "{job:?}");
+    let simulation = fs::read(store.result_file(1, StoredJobKind::Sim)).unwrap();
+    assert!(read_cutting_simulation_artifact_v1(&mut simulation.as_slice()).is_ok());
+}

@@ -1,14 +1,104 @@
-//! AppState の加工条件のウィンドウ（計算条件の入力と投入）を扱うモジュール。
+//! AppState の加工手順の画面（工程リストと条件の編集のダイアログ。計算条件の入力と投入）を扱うモジュール。
+
+use std::time::{Duration, Instant};
+
+use viewmodel::cutting_simulation_session::{
+    OperationFailure, OperationJobState, OperationJobStatus,
+};
+use viewmodel::space_model_document::{ImportedToolpathState, MachiningOperationId};
 
 use super::AppState;
-use crate::machining_conditions_ui::MachiningConditionsUiState;
+use crate::help_ui::Notice;
+use crate::machining_conditions_ui::{
+    ApplySubmission, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
+    OperationCommand, OperationNameEdit, OperationRow, OperationSetup, OperationStatus,
+    OperationToolCommand, ToolLibraryChoice, conditions_checking, submission_on_apply,
+};
+use viewmodel::cutting_simulation_session::{
+    ConditionIssue, MachiningOperationContent, MachiningStock,
+};
+use viewmodel::message_catalog::UiLocale;
+use viewmodel::tool_library_session::{ToolLibraryFailure, file_label, locked_message};
+
+/// 計算の状態を読み直す間隔
+const JOB_STATUS_INTERVAL: Duration = Duration::from_secs(1);
+/// 終わった計算の状態を読み直す間隔（ジョブマネージャーでやり直す・消すと変わる）
+const FINISHED_JOB_STATUS_INTERVAL: Duration = Duration::from_secs(5);
+
+/// 条件の編集のダイアログで編集している条件（適用するまで、工程・手順に入れない）
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct ConditionDraft {
+    dialog: ConditionDialog,
+    content: MachiningOperationContent,
+    stock: MachiningStock,
+}
+
+/// 編集している条件（工程の中身・手順の素材）と、その条件の問題
+#[derive(Debug, Clone)]
+pub(super) struct DraftIssues {
+    content: MachiningOperationContent,
+    stock: MachiningStock,
+    issues: Vec<ConditionIssue>,
+}
 
 impl AppState {
-    pub fn toggle_machining_conditions(&mut self) {
-        self.machining_conditions_open = !self.machining_conditions_open;
+    /// 加工手順を開き、工程リストを出す（開いている場合は何もしない）
+    ///
+    /// 開いている間は、選んだ加工工程の CL の線を出し、工程リストで計算の状態を読む。
+    pub(crate) fn open_machining_sequence(&mut self) {
+        if self.machining_sequence_open {
+            return;
+        }
+        // 開く前に読んだ状態は使わず、読み直す
+        self.forget_machining_sequence_state();
+        self.machining_sequence_open = true;
+        self.operation_list_shown = true;
+        tracing::info!("Machining sequence opened");
+    }
+
+    /// 加工手順を閉じ、CAM の画面（工程リスト・条件の編集のダイアログ）・表示（CL の線・切削アニメーション）と、計算の状態を
+    /// 放す（閉じている場合は何もしない）
+    ///
+    /// 計算中のジョブは、ジョブマネージャーが続ける。
+    pub(crate) fn close_machining_sequence(&mut self) {
+        if !self.machining_sequence_open {
+            return;
+        }
+        self.forget_machining_sequence_state();
+        if self.cutting_animation.is_some() {
+            self.close_cutting_animation();
+        } else {
+            self.refresh_operation_toolpath_lines();
+        }
+        tracing::info!("Machining sequence closed");
+    }
+
+    /// 加工手順を閉じた状態にし（工程リストも閉じ、編集している条件は適用せずに捨てる）、それらに出す状態（計算の
+    /// 状態・条件の確かめ・結果の行）を捨てる（CAM の表示は放さない。表示を放すのは、呼び出す側で製品形状を描き直す
+    /// とき）
+    pub(super) fn forget_machining_sequence_state(&mut self) {
+        self.machining_sequence_open = false;
+        self.operation_list_shown = false;
+        self.condition_draft = None;
+        self.draft_issues = None;
+        self.forget_selected_operation_state();
+        self.operation_job_statuses.clear();
+    }
+
+    /// 加工手順を開いている間に、工程リストを出す・隠す（開いていなければ何もしない）
+    pub fn toggle_operation_list(&mut self) {
+        if !self.machining_sequence_open || self.is_condition_dialog_open() {
+            tracing::debug!("The machining sequence is not open; the operation list is not shown");
+            return;
+        }
+        // 隠すときは、工程の表で編集している名前を確定する（入力欄を描かなくなり、編集を終えられなくなるため）
+        if self.operation_list_shown {
+            self.confirm_operation_name_edit();
+        }
+        self.operation_list_shown = !self.operation_list_shown;
         tracing::info!(
-            "Machining conditions window {} (Shift+M)",
-            if self.machining_conditions_open {
+            "Operation list {}",
+            if self.operation_list_shown {
                 "shown"
             } else {
                 "hidden"
@@ -16,54 +106,774 @@ impl AppState {
         );
     }
 
-    /// 計算条件を確かめ直す必要がある場合（条件・製品形状が変わった後）に確かめる
-    fn refresh_condition_issues(&mut self) {
-        if self.condition_issues.is_none() {
-            self.condition_issues = Some(self.cutting_simulation.check(&self.product_shapes));
+    /// 加工手順を開いている間に、条件の編集のダイアログ `dialog` を、今の工程・手順の条件で開く（開いていない・ほかの
+    /// ダイアログを開いている間は何もしない）
+    pub(crate) fn open_condition_dialog(&mut self, dialog: ConditionDialog) {
+        if !self.machining_sequence_open || self.condition_draft.is_some() {
+            tracing::debug!("The condition dialog is not opened");
+            return;
+        }
+        // 工程の表で編集している名前は、確定してからダイアログに出す
+        self.confirm_operation_name_edit();
+        self.condition_draft = Some(ConditionDraft {
+            dialog,
+            content: self.document.operation_content().clone(),
+            stock: self.document.stock(),
+        });
+        // 工具の欄は、工程の工具を選んだライブラリを選んだ状態で開く
+        if let Some(index) = self
+            .document
+            .operation_content()
+            .attributes
+            .toolset
+            .as_ref()
+            .and_then(|toolset| self.tool_library.library_index_of(toolset))
+        {
+            self.operation_tool_library = index;
+        }
+        tracing::info!("Condition dialog opened: {dialog:?}");
+    }
+
+    /// 条件の編集のダイアログを開いているか（開いている間は、見る操作のほか、工程・文書を替える操作を受けない）
+    pub(crate) fn is_condition_dialog_open(&self) -> bool {
+        self.condition_draft.is_some()
+    }
+
+    /// 条件の編集のダイアログを、編集した条件を捨てて閉じる
+    pub(crate) fn cancel_condition_dialog(&mut self) {
+        if self.condition_draft.take().is_some() {
+            self.draft_issues = None;
+            tracing::info!("Condition dialog canceled");
         }
     }
 
+    /// 工程リストを出している間に、選んだ工程の名前を、工程の表の名前の欄で編集し始める（条件の編集のダイアログを
+    /// 開いている間は何もしない）
+    pub(crate) fn start_operation_name_edit(&mut self) {
+        if !self.operation_list_shown || self.is_condition_dialog_open() {
+            tracing::debug!("The operation name is not edited");
+            return;
+        }
+        self.operation_name_confirm_requested = false;
+        self.operation_name_edit_sessions += 1;
+        self.operation_name_edit = Some(OperationNameEdit {
+            operation: self.document.selected_operation(),
+            session: self.operation_name_edit_sessions,
+            name: self.document.operation_content().attributes.name.clone(),
+        });
+        tracing::info!("Operation name editing started");
+    }
+
+    /// 工程の表の名前の欄で、名前を編集しているか
+    pub(crate) fn is_operation_name_editing(&self) -> bool {
+        self.operation_name_edit.is_some()
+    }
+
+    /// 工程の表の名前の欄で編集した名前を、選んだ工程に入れて編集を終える（工程の設定のダイアログで適用したときと
+    /// 同じく、前後の空白を除き、空なら替えない。名前は計算に使わないため、工程の改訂は進めず、計算の状態は変わらない）
+    pub(crate) fn confirm_operation_name_edit(&mut self) {
+        let Some(edit) = self.operation_name_edit.take() else {
+            return;
+        };
+        if edit.operation == self.document.selected_operation() {
+            self.document.rename_selected_operation(&edit.name);
+            tracing::info!("Operation name editing confirmed");
+        }
+    }
+
+    /// 工程の表の名前の欄で編集した名前を捨てて、編集を終える
+    pub(crate) fn cancel_operation_name_edit(&mut self) {
+        if self.operation_name_edit.take().is_some() {
+            tracing::info!("Operation name editing canceled");
+        }
+    }
+
+    /// 編集した条件を工程・手順に入れて、ダイアログを閉じる（今と同じなら、工程の改訂を進めない）。工程の設定で「適用と
+    /// 同時に投入する」を選んでいれば、選んだ工程を投入する（計算の条件が変わっていなければ、計算のボタンが押せる状態の
+    /// ときだけ。取込済みの工程の属性だけを替えたときに、ジョブマネージャーを起動しないように）
+    fn apply_condition_draft(&mut self) {
+        let Some(draft) = self.condition_draft.take() else {
+            return;
+        };
+        self.draft_issues = None;
+        let mut submission = None;
+        let mut revision_advanced = false;
+        match draft.dialog {
+            ConditionDialog::Operation => {
+                // 名前は、前後の空白を除き、空なら替えない。属性（名前・加工の段階）は計算に使わないため、属性だけを
+                // 替えても工程の改訂は進めず、条件の確かめ・計算の状態も読み直さない
+                let mut content = draft.content;
+                let name = std::mem::replace(
+                    &mut content.attributes.name,
+                    self.document.operation_content().attributes.name.clone(),
+                );
+                let current = self.document.operation_content();
+                let conditions_changed = content.conditions != current.conditions;
+                if content != *current {
+                    self.document.set_operation_content(content);
+                    if conditions_changed {
+                        self.invalidate_conditions();
+                        revision_advanced = true;
+                    }
+                }
+                self.document.rename_selected_operation(&name);
+                // 条件を適用したので、計算の条件を設定したことにする（条件を変えなくても）
+                if self.document.mark_conditions_set() {
+                    self.invalidate_conditions();
+                }
+                if self.submit_on_apply {
+                    let operation = self.document.selected_operation();
+                    let toolpath_current =
+                        self.document.imported_toolpath_state() == ImportedToolpathState::Current;
+                    submission = Some(submission_on_apply(
+                        conditions_changed,
+                        &self.operation_job_status(operation),
+                        toolpath_current,
+                    ));
+                }
+            }
+            ConditionDialog::Sequence => {
+                if draft.stock != self.document.stock() {
+                    self.document.set_stock(draft.stock);
+                    self.invalidate_conditions();
+                    revision_advanced = true;
+                }
+            }
+        }
+        tracing::info!("Conditions applied: {:?}", draft.dialog);
+        // 工程の改訂が進んだら、前の条件の計算は使わないため取り消す（続けて投入するときも、投入する前に取り消す。
+        // 投入しなかった・できなかったときも取り消し、その理由を最後に出すように）
+        if revision_advanced {
+            self.cancel_superseded_jobs();
+        }
+        match submission {
+            Some(ApplySubmission::Submit) => {
+                if self.submit_cutting_simulation() {
+                    // 投入した計算の状態を、すぐに読み直す
+                    self.job_status_read_at = None;
+                }
+            }
+            Some(ApplySubmission::Skip(status)) => {
+                // 計算しなかったことと、その理由を出す
+                tracing::info!("The applied operation is not submitted: {status:?}");
+                self.set_operation_status(status);
+            }
+            None => {}
+        }
+    }
+
+    /// 編集している条件の問題（計算の条件・素材が変わったとき、加工の対象の形状を作っている間の確かめ中のときだけ
+    /// 確かめ直す。属性は計算に使わない）
+    fn draft_issues(&mut self) -> Vec<ConditionIssue> {
+        let Some(draft) = &self.condition_draft else {
+            return Vec::new();
+        };
+        let current = self.draft_issues.as_ref().is_some_and(|cached| {
+            cached.content.conditions == draft.content.conditions
+                && cached.stock == draft.stock
+                && !conditions_checking(&cached.issues)
+        });
+        if !current {
+            let (content, stock) = (draft.content.clone(), draft.stock);
+            let issues = self
+                .cutting_simulation
+                .check_draft(&self.document, &content, stock);
+            self.draft_issues = Some(DraftIssues {
+                content,
+                stock,
+                issues,
+            });
+        }
+        self.draft_issues
+            .as_ref()
+            .map(|cached| cached.issues.clone())
+            .unwrap_or_default()
+    }
+
+    /// 計算条件を確かめ直す必要がある場合（条件・製品形状が変わった後、加工の対象の形状を作っている間の確かめ中）に
+    /// 確かめる
+    fn refresh_condition_issues(&mut self) {
+        if self
+            .condition_issues
+            .as_ref()
+            .is_none_or(|issues| conditions_checking(issues))
+        {
+            self.condition_issues = Some(self.cutting_simulation.check(&self.document));
+        }
+    }
+
+    /// 工程リストを出している間、加工工程の今の改訂の計算の状態を、一定の間隔で読み直す
+    ///
+    /// 終わった状態（正常・失敗・取り消し）は、ジョブマネージャーでやり直す・消すまで変わらないため、間隔を長くして
+    /// 読み直す。読むだけでは、ジョブマネージャーを起動しない（動いていなければ、状態不明にする。計算待ちのジョブを
+    /// 残して止まったときは、次にジョブマネージャーを使う操作をするまで計算が止まる）。状態は別のスレッドで読むため、
+    /// ここでは最後に読んだ状態を出す（画面を止めない）。
+    fn refresh_job_status(&mut self) {
+        // 間隔は、一覧のどれかの工程の状態で決める。まだ読めていない間は、描くたびに確かめる（読むのは別のスレッドで、
+        // ここでは待たない）
+        let statuses = || {
+            std::iter::once(&self.cutting_simulation_job_status)
+                .chain(self.operation_job_statuses.iter().map(|(_, status)| status))
+        };
+        let interval = if statuses().any(|status| *status == JobStatusLine::Reading) {
+            Duration::ZERO
+        } else if statuses().all(JobStatusLine::is_final) {
+            FINISHED_JOB_STATUS_INTERVAL
+        } else {
+            JOB_STATUS_INTERVAL
+        };
+        let due = self
+            .job_status_read_at
+            .is_none_or(|read_at| read_at.elapsed() >= interval);
+        if !due {
+            return;
+        }
+        self.job_status_read_at = Some(Instant::now());
+        let line = |state: OperationJobState| match state {
+            OperationJobState::NotRead => JobStatusLine::Reading,
+            OperationJobState::NotSubmitted => JobStatusLine::NotSubmitted,
+            OperationJobState::Status(status) => JobStatusLine::Status(status),
+        };
+        // 一覧に出すため、手順のすべての工程の状態を読む（最後に読んだ状態から決めるため、工程の数だけ待つことはない）
+        self.operation_job_statuses = match self.cutting_simulation.job_states(&self.document) {
+            Ok(states) => states
+                .into_iter()
+                .map(|(operation, state)| (operation, line(state)))
+                .collect(),
+            Err(error) => {
+                // ジョブマネージャーが動いていない・見つからないときは、状態が分からない（読むときは起動しない）
+                let line = if error.is_job_manager_not_running() {
+                    JobStatusLine::ManagerNotRunning
+                } else if error.is_job_manager_not_found() {
+                    JobStatusLine::ManagerNotFound
+                } else {
+                    if self.cutting_simulation_job_status != JobStatusLine::Unreadable {
+                        tracing::warn!("Cannot read the job status: {error}");
+                    }
+                    JobStatusLine::Unreadable
+                };
+                self.document
+                    .operations()
+                    .into_iter()
+                    .map(|item| (item.id, line.clone()))
+                    .collect()
+            }
+        };
+        self.notify_job_manager_availability();
+        let status = self.operation_job_status(self.document.selected_operation());
+        // 状態を読めないときは、上で出している（理由だけを出さない）
+        let failure = if status == JobStatusLine::Status(OperationJobStatus::Failed) {
+            self.cutting_simulation
+                .job_failure(&self.document)
+                .unwrap_or_default()
+        } else {
+            None
+        };
+        self.cutting_simulation_job_status = status;
+        self.set_job_failure(failure);
+    }
+
+    /// 選んだ工程の計算が失敗した理由を `failure` にする（変わったときに、英語の詳しい理由をログに残す）
+    fn set_job_failure(&mut self, failure: Option<OperationFailure>) {
+        if failure == self.cutting_simulation_job_failure {
+            return;
+        }
+        if let Some(failure) = &failure {
+            tracing::info!(
+                "The calculation of the selected operation failed: {}",
+                failure.detail
+            );
+        }
+        self.cutting_simulation_job_failure = failure;
+    }
+
+    /// ジョブマネージャーが動いていない・見つからないことを、変わったときに 1 度だけ画面の下の行に出す（動いていない
+    /// のは情報、見つからないのは失敗。最後に読めた状態に計算待ち・計算中の工程があれば、計算されていないことを注意
+    /// として出す）。状態を読めた（ジョブマネージャーが動いている）ら、次に変わったときにまた出す。そのとき、画面の下の
+    /// 行がまだ動いていない・見つからないことを出していれば、つながったことに替える（古いメッセージを出し続けない
+    /// ように）。読めない・読んでいる間は、どちらとも決めない（同じメッセージを出し直さないように）
+    fn notify_job_manager_availability(&mut self) {
+        let Some(first) = self.operation_job_statuses.first().map(|(_, s)| s.clone()) else {
+            return;
+        };
+        let unavailable = match first {
+            JobStatusLine::ManagerNotRunning | JobStatusLine::ManagerNotFound => Some(first),
+            JobStatusLine::NotSubmitted | JobStatusLine::Status(_) => {
+                self.jobs_pending = self.operation_job_statuses.iter().any(|(_, status)| {
+                    matches!(
+                        status,
+                        JobStatusLine::Status(
+                            OperationJobStatus::Queued | OperationJobStatus::Running
+                        )
+                    )
+                });
+                None
+            }
+            JobStatusLine::Unreadable | JobStatusLine::Reading => return,
+        };
+        if unavailable == self.job_manager_unavailable {
+            return;
+        }
+        match &unavailable {
+            Some(JobStatusLine::ManagerNotRunning) if self.jobs_pending => {
+                self.set_notice(Notice::JobManagerStopped);
+            }
+            Some(JobStatusLine::ManagerNotRunning) => self.set_notice(Notice::JobManagerNotRunning),
+            Some(JobStatusLine::ManagerNotFound) => self.set_notice(Notice::JobManagerNotFound),
+            None if matches!(
+                self.notice,
+                Notice::JobManagerNotRunning
+                    | Notice::JobManagerNotFound
+                    | Notice::JobManagerStopped
+            ) =>
+            {
+                self.set_notice(Notice::JobManagerAvailable);
+            }
+            _ => {}
+        }
+        self.job_manager_unavailable = unavailable;
+    }
+
+    /// 加工工程 `operation` の、最後に読んだ計算の状態（まだ読んでいなければ、読んでいる）
+    fn operation_job_status(&self, operation: MachiningOperationId) -> JobStatusLine {
+        self.operation_job_statuses
+            .iter()
+            .find(|(id, _)| *id == operation)
+            .map_or(JobStatusLine::Reading, |(_, status)| status.clone())
+    }
+
+    /// 選んだ加工工程が替わった後（文書を替えたときを含む）に、前の工程について持っていた画面の状態を捨てる
+    pub(crate) fn forget_selected_operation_state(&mut self) {
+        self.operation_name_edit = None;
+        self.invalidate_conditions();
+        self.cutting_simulation_job_status = JobStatusLine::Reading;
+        self.cutting_simulation_job_failure = None;
+    }
+
+    /// 加工工程の一覧の操作 `command` を行う
+    fn run_operation_command(&mut self, command: OperationCommand) {
+        let before = self.document.selected_operation();
+        match command {
+            OperationCommand::Select(operation) => {
+                self.document.select_operation(operation);
+            }
+            OperationCommand::Add => {
+                let names: Vec<String> = self
+                    .document
+                    .operations()
+                    .into_iter()
+                    .map(|item| item.name)
+                    .collect();
+                // 使っていない最も小さい番号の名前にする（消した後に、同じ名前を作らないように）
+                let name = (1..)
+                    .map(|number| new_operation_name(self.ui_locale, number))
+                    .find(|name| !names.contains(name))
+                    .expect("an unused number exists");
+                self.document.add_operation(name);
+            }
+            OperationCommand::Duplicate => {
+                let name = copied_operation_name(
+                    self.ui_locale,
+                    &self.document.operation_content().attributes.name,
+                );
+                self.document.duplicate_operation(name);
+            }
+            OperationCommand::Remove => {
+                self.document.remove_selected_operation();
+            }
+            OperationCommand::Move(offset) => {
+                // 並べ替えは、選んだ工程を替えない
+                self.document.move_selected_operation(offset);
+                self.job_status_read_at = None;
+            }
+        }
+        if self.document.selected_operation() != before {
+            self.forget_selected_operation_state();
+            self.show_selected_operation();
+        }
+    }
+
+    /// 条件・製品形状が変わった後に、計算条件と計算の状態を確かめ直す（見積もっている間に頼まれた計算は、前の条件の
+    /// ため頼み直さない）
+    pub(crate) fn invalidate_conditions(&mut self) {
+        // 見積もっている間に頼まれた計算をやめたら、見積もり終えたら計算を始めるという知らせを置き換える
+        if self.pending_submission.take().is_some()
+            && matches!(self.notice, Notice::Operation(OperationStatus::Estimating))
+        {
+            self.set_operation_status(OperationStatus::EstimateAbandoned);
+        }
+        self.condition_issues = None;
+        self.operation_condition_errors = None;
+        self.draft_issues = None;
+        self.job_status_read_at = None;
+    }
+
     pub(crate) fn prepare_machining_conditions_state(&mut self) -> MachiningConditionsUiState {
-        if self.machining_conditions_open {
+        self.resume_pending_submission();
+        // 計算の条件・素材・加工の対象を変えて、切削アニメーションの工程の CL を除いたら（前の条件の結果のため）、
+        // アニメーションを閉じる
+        if self.cutting_animation.is_some()
+            && self.imported_operation.is_some_and(|operation| {
+                self.document.imported_toolpath_state_of(operation) == ImportedToolpathState::None
+            })
+        {
+            tracing::info!(
+                "Closing the cutting animation because its CL is of the previous conditions"
+            );
+            self.close_cutting_animation();
+        }
+        // 条件・素材・加工の対象を変えて、選んだ工程の CL が今の条件の結果かが変わったら、線の色を描き直す。加工手順を
+        // 開いた・閉じたら、線を出す・消す
+        let toolpath_state = (
+            self.document.selected_operation(),
+            self.document.imported_toolpath_state(),
+            self.machining_sequence_open,
+        );
+        if self.cutting_animation.is_none() && self.drawn_toolpath_state != Some(toolpath_state) {
+            self.refresh_operation_toolpath_lines();
+        }
+        // 加工手順の画面は、加工手順を開いている間だけ出す（閉じるときに、画面もすべて閉じる）
+        let screen_shown = self.operation_list_shown || self.condition_draft.is_some();
+        debug_assert!(self.machining_sequence_open || !screen_shown);
+        let dialog_issues = self.draft_issues();
+        // 条件の確かめは画面に出すため、計算の状態は工程リストに出すためだけに読む
+        if screen_shown {
             self.refresh_condition_issues();
         }
+        if self.operation_list_shown {
+            self.refresh_job_status();
+        }
+        let selected = self.document.selected_operation();
+        // 条件に誤りがある工程（条件の確かめを捨てたとき、確かめ中の工程があるときだけ確かめ直す。改訂が進んでいない
+        // 工程は、前の結果を使う）
+        if self.operation_list_shown
+            && self
+                .operation_condition_errors
+                .as_ref()
+                .is_none_or(|errors| errors.values().any(|issues| conditions_checking(issues)))
+        {
+            self.operation_condition_errors = Some(
+                self.cutting_simulation
+                    .operation_condition_issues(&self.document)
+                    .into_iter()
+                    .collect(),
+            );
+        }
+        let condition_errors = self.operation_condition_errors.as_ref();
+        let operations = self
+            .document
+            .operations()
+            .into_iter()
+            .map(|item| OperationRow {
+                status: self.operation_job_status(item.id),
+                toolpath_current: self.document.imported_toolpath_state_of(item.id)
+                    == ImportedToolpathState::Current,
+                setup: if !item.conditions_set {
+                    OperationSetup::NotSet
+                } else if let Some(issues) =
+                    condition_errors.and_then(|errors| errors.get(&item.id))
+                {
+                    OperationSetup::ConditionError(issues.clone())
+                } else {
+                    OperationSetup::Ready
+                },
+                id: item.id,
+                name: item.name,
+                stage: item.stage,
+                spec: item.spec,
+                tool_status: self
+                    .tool_library
+                    .operation_tool_status(item.toolset.as_ref(), &item.tool),
+                tool: item.tool,
+                toolset: item.toolset,
+            })
+            .collect();
+        // ダイアログを開いている間は、編集している条件を出す（ダイアログの外では使わない）
+        let (operation, stock) = match &self.condition_draft {
+            Some(draft) => (draft.content.clone(), draft.stock),
+            None => (
+                self.document.operation_content().clone(),
+                self.document.stock(),
+            ),
+        };
+        let tool_status = self.tool_library.operation_tool_status(
+            operation.attributes.toolset.as_ref(),
+            &operation.conditions.tool,
+        );
+        let tool_reference_library = operation
+            .attributes
+            .toolset
+            .as_ref()
+            .and_then(|toolset| self.tool_library.library_index_of(toolset));
+        // 工具の欄の選べるライブラリは、ダイアログを開いている間だけ作る
+        let tool_libraries = if self.condition_draft.is_some() {
+            self.tool_library
+                .libraries()
+                .into_iter()
+                .enumerate()
+                .map(|(index, row)| ToolLibraryChoice {
+                    name: row.name.clone().unwrap_or_else(|| file_label(&row.path)),
+                    editable: row.editable(),
+                    toolsets: self.tool_library.toolsets(index),
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         MachiningConditionsUiState {
-            open: self.machining_conditions_open,
+            list_shown: self.operation_list_shown,
+            dialog: self.condition_draft.as_ref().map(|draft| draft.dialog),
+            dialog_page: self.operation_settings_page,
+            open_dialog_requested: None,
+            dialog_result: None,
+            submit_on_apply: self.submit_on_apply,
             locale: self.ui_locale,
-            face_count: self.product_shapes.store().visible_face_ids().len(),
-            operation: self.cutting_simulation.operation_content().clone(),
-            stock: self.cutting_simulation.stock(),
-            tool_length_input: self.tool_length_input,
-            toolpath_tolerance: self.cutting_simulation.toolpath_tolerance(),
+            sequence_name: self.document.sequence_name().to_string(),
+            operations,
+            selected_operation: selected,
+            operation_command: None,
+            name_edit: self.operation_name_edit.clone(),
+            name_edit_result: None,
+            name_edit_requested: false,
+            face_count: self.document.target_face_count(),
+            operation,
+            stock,
+            tool_libraries,
+            tool_status,
+            tool_reference_library,
+            tool_library: self.operation_tool_library,
+            tool_filter: self.operation_tool_filter.clone(),
+            tool_command: None,
+            align_tools_requested: false,
+            toolpath_tolerance: self.document.toolpath_tolerance(),
             issues: self.condition_issues.clone().unwrap_or_default(),
+            dialog_issues,
+            // 取り込んだ条件は、取り込んだ工程を選んでいるときだけ出す
             imported: self
                 .cutting_animation_job_id
-                .zip(self.imported_conditions.clone()),
-            run_after_submit: self.run_after_submit,
-            status: self.cutting_simulation_status.clone(),
+                .zip(self.imported_conditions.clone())
+                .filter(|_| self.imported_operation == Some(selected)),
             submit_requested: false,
-            import_requested: false,
+            redo_requested: false,
+            stop_requested: false,
+            submit_sequence_requested: false,
+            import_toolpath_requested: false,
+            toggle_simulation_requested: false,
+            simulation_shown: self.cutting_simulation_shown(),
+            open_job_manager_requested: false,
         }
     }
 
     pub(crate) fn apply_machining_conditions_state(&mut self, state: MachiningConditionsUiState) {
-        self.machining_conditions_open = state.open;
-        self.tool_length_input = state.tool_length_input;
-        self.run_after_submit = state.run_after_submit;
-        if state.operation != *self.cutting_simulation.operation_content() {
-            self.cutting_simulation
-                .set_operation_content(state.operation);
-            self.condition_issues = None;
+        self.operation_list_shown = state.list_shown;
+        self.operation_settings_page = state.dialog_page;
+        self.submit_on_apply = state.submit_on_apply;
+        self.operation_tool_library = state.tool_library;
+        self.operation_tool_filter = state.tool_filter;
+        // 名前の欄で編集した名前は、ほかの操作より先に受け取り、確定・取り消す（ほかの行・ボタンを押して入力欄を離れた
+        // ときは、その操作の前に確定する）。編集をやめた後の名前（選んだ工程が替わった・文書を替えた）は受け取らない
+        if let (Some(edit), Some(shown)) = (&mut self.operation_name_edit, state.name_edit)
+            && edit.operation == shown.operation
+            && edit.session == shown.session
+        {
+            edit.name = shown.name;
         }
-        if state.stock != self.cutting_simulation.stock() {
-            self.cutting_simulation.set_stock(state.stock);
-            self.condition_issues = None;
+        let confirm_requested = std::mem::take(&mut self.operation_name_confirm_requested);
+        match name_edit_decision(state.name_edit_result, confirm_requested) {
+            Some(DialogResult::Apply) => self.confirm_operation_name_edit(),
+            Some(DialogResult::Cancel) => self.cancel_operation_name_edit(),
+            None => {}
         }
-        if state.submit_requested && self.submit_cutting_simulation() && self.run_after_submit {
-            self.run_cutting_simulation_jobs();
+        // ダイアログを開いている間は、編集した条件を受け取り、適用・キャンセルだけを行う（工程リストは押せないため、
+        // ほかの操作は来ない）
+        if let Some(draft) = &mut self.condition_draft {
+            draft.content = state.operation;
+            draft.stock = state.stock;
+            if let Some(command) = state.tool_command {
+                self.run_operation_tool_command(command);
+            }
+            match state.dialog_result {
+                Some(DialogResult::Apply) => self.apply_condition_draft(),
+                Some(DialogResult::Cancel) => self.cancel_condition_dialog(),
+                None => {}
+            }
+            return;
         }
-        if state.import_requested {
-            self.import_cutting_simulation();
+        // 行のダブルクリックは、工程を選ぶ操作と、ダイアログを開くことを同時に行う。選んだ後に開き、選んだ工程の条件を
+        // 編集する
+        let command = state.operation_command;
+        if let Some(command) = command.clone() {
+            self.run_operation_command(command);
         }
+        if let Some(dialog) = state.open_dialog_requested {
+            self.open_condition_dialog(dialog);
+        }
+        if state.name_edit_requested {
+            self.start_operation_name_edit();
+        }
+        if command.is_some() {
+            return;
+        }
+        if state.submit_requested && self.submit_cutting_simulation() {
+            // 投入した計算の状態を、すぐに読み直す
+            self.job_status_read_at = None;
+        }
+        if state.redo_requested && self.redo_cutting_simulation() {
+            self.job_status_read_at = None;
+        }
+        if state.stop_requested {
+            self.stop_cutting_simulation();
+        }
+        if state.submit_sequence_requested && self.submit_sequence() {
+            self.job_status_read_at = None;
+        }
+        if state.import_toolpath_requested {
+            self.import_toolpath();
+        }
+        if state.toggle_simulation_requested {
+            self.toggle_cutting_simulation();
+        }
+        if state.open_job_manager_requested {
+            self.open_job_manager();
+        }
+        if state.align_tools_requested {
+            self.align_sequence_tools();
+        }
+    }
+
+    /// 工程の設定の工具の欄の操作を、ダイアログで編集している工程の中身に当てる（適用するまで工程に入れない）
+    pub(super) fn run_operation_tool_command(&mut self, command: OperationToolCommand) {
+        let Some(draft) = &mut self.condition_draft else {
+            return;
+        };
+        match command {
+            OperationToolCommand::Select { library, toolset } => {
+                if let Some(content) =
+                    self.tool_library
+                        .content_with_toolset(&draft.content, library, toolset)
+                {
+                    draft.content = content;
+                }
+            }
+            OperationToolCommand::Align => {
+                if let Some(content) = self.tool_library.aligned_content(&draft.content) {
+                    draft.content = content;
+                }
+            }
+            OperationToolCommand::Register { library, name } => {
+                match self
+                    .tool_library
+                    .register_operation_tool(&draft.content, library, &name)
+                {
+                    Ok(content) => draft.content = content,
+                    Err(failure) => {
+                        let reason = match failure {
+                            ToolLibraryFailure::Locked { owner, .. } => locked_message(&owner),
+                            ToolLibraryFailure::Failed(reason) => reason,
+                        };
+                        let file = self
+                            .tool_library
+                            .libraries()
+                            .get(library)
+                            .map(|row| file_label(&row.path))
+                            .unwrap_or_default();
+                        tracing::warn!(file = %file, reason = %reason.key, "Cannot register the tool in the library");
+                        self.set_notice(Notice::ToolLibraryFailed { file, reason });
+                    }
+                }
+            }
+            OperationToolCommand::PickFromToolLibrary => {
+                let toolset = draft.content.attributes.toolset.clone();
+                self.open_tool_library_for_operation(toolset);
+            }
+        }
+    }
+
+    /// 工程リスト: 手順のすべての工程の工具を、ライブラリの値にそろえる
+    fn align_sequence_tools(&mut self) {
+        self.tool_library.refresh();
+        let changed = self.document.align_sequence_tools(&self.tool_library);
+        if changed > 0 {
+            self.invalidate_conditions();
+        }
+        tracing::info!(changed, "Operation tools aligned to the libraries");
+        self.set_notice(Notice::ToolsAligned { count: changed });
+    }
+}
+
+/// 言語 `locale` の、空間モデルに加工手順・加工工程がないときに作る加工手順・加工工程の名前で、`make` を行う
+pub(super) fn with_default_names<R>(
+    locale: UiLocale,
+    make: impl FnOnce(viewmodel::space_model_document::DefaultNames<'_>) -> R,
+) -> R {
+    let text = |key| {
+        crate::machining_conditions_messages::resolve_machining_conditions_text(locale, key, &[])
+    };
+    let sequence = text("conditions.sequence.default_name");
+    let operation = text("conditions.operations.default_name");
+    make(viewmodel::space_model_document::DefaultNames {
+        sequence: &sequence,
+        operation: &operation,
+    })
+}
+
+/// 言語 `locale` の、`number` 番目の新しい加工工程の名前
+fn new_operation_name(locale: UiLocale, number: usize) -> String {
+    crate::machining_conditions_messages::resolve_machining_conditions_text(
+        locale,
+        "conditions.operations.new_name",
+        &[("number", number.to_string())],
+    )
+}
+
+/// 言語 `locale` の、加工工程 `name` を複写した工程の名前
+fn copied_operation_name(locale: UiLocale, name: &str) -> String {
+    crate::machining_conditions_messages::resolve_machining_conditions_text(
+        locale,
+        "conditions.operations.copy_name",
+        &[("name", name.to_string())],
+    )
+}
+
+/// 名前の欄の確定・取り消し `result` と、ファイルの操作を待たせているか `confirm_requested` から、編集した名前を確定するか
+/// 取り消すかを決める。ファイルの操作を待たせているときは、受け取った名前で確定する（待っているファイルの操作は、この後に
+/// 行う）。ただし、名前の欄で取り消したとき（Esc の後にファイルの操作をした）は、取り消す
+fn name_edit_decision(
+    result: Option<DialogResult>,
+    confirm_requested: bool,
+) -> Option<DialogResult> {
+    match result {
+        Some(DialogResult::Cancel) => Some(DialogResult::Cancel),
+        _ if confirm_requested => Some(DialogResult::Apply),
+        result => result,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_canceled_name_is_not_confirmed_by_a_waiting_file_action() {
+        // Esc の後に保存したときは、取り消してから保存する（取り消した名前を保存しない）
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Cancel), true),
+            Some(DialogResult::Cancel)
+        );
+        // 名前の欄を離れていなくても、ファイルの操作を待たせていれば確定する
+        assert_eq!(name_edit_decision(None, true), Some(DialogResult::Apply));
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Apply), true),
+            Some(DialogResult::Apply)
+        );
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Apply), false),
+            Some(DialogResult::Apply)
+        );
+        assert_eq!(
+            name_edit_decision(Some(DialogResult::Cancel), false),
+            Some(DialogResult::Cancel)
+        );
+        assert_eq!(name_edit_decision(None, false), None);
     }
 }

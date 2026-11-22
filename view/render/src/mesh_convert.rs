@@ -1,6 +1,6 @@
 //! mesh_convert - メッシュの頂点データから MeshVertex への変換
 
-use crate::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
+use crate::vertex_3d::{MeshVertex, convert_vertex_data_to_mesh_vertices};
 
 /// メッシュの頂点データを MeshVertex に変換する
 pub fn triangle_mesh_to_mesh_vertices_generic(

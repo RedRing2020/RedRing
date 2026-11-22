@@ -7,8 +7,8 @@ mod extensions;
 #[cfg(test)]
 mod tests;
 
-use crate::default_angle_tolerance;
 use crate::Vector2D;
+use crate::default_angle_tolerance;
 use analysis::abstract_types::Scalar;
 use std::ops::{Deref, DerefMut};
 

@@ -365,8 +365,8 @@ fn lerp<T: Scalar>(a: &Homogeneous<T>, b: &Homogeneous<T>, t: T) -> Homogeneous<
 #[cfg(test)]
 mod tests {
     use super::{
-        bezier_segments, minimum_distance_and_splits, CircleDistance, ConvexSetDistance,
-        DistanceField,
+        CircleDistance, ConvexSetDistance, DistanceField, bezier_segments,
+        minimum_distance_and_splits,
     };
 
     const TOLERANCE: f64 = 1e-9;

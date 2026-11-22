@@ -8,11 +8,11 @@
 
 # Layer groups
 $ARCH_LAYERS = [ordered]@{
-    Foundation  = @("analysis", "i18n_foundation", "logging_foundation")
-    Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain")
+    Foundation  = @("analysis", "i18n_foundation", "logging_foundation", "platform_foundation")
+    Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
     Application = @("application")
     ViewModel   = @("viewmodel", "viewmodel-graphics")
-    View        = @("render", "stage", "redring")
+    View        = @("render", "stage", "redring", "job_manager_app")
 }
 
 # Required model crates
@@ -25,6 +25,8 @@ $ARCH_ALLOWED_DEPS = @{
     analysis             = @()
     i18n_foundation      = @()
     logging_foundation   = @()
+    # 動かす環境の違いの吸収は、ワークスペースの他のクレートに依存しない（ARCHITECTURE.md の動かす環境に依存するコードの方針）
+    platform_foundation  = @()
 
     geo_contracts  = @("analysis", "geo_core")
     geo_commons    = @("analysis")
@@ -34,29 +36,40 @@ $ARCH_ALLOWED_DEPS = @{
     geo_topology   = @("analysis", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs")
     geo_algorithms = @("analysis", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology")
     geo_io         = @("analysis", "geo_contracts", "geo_core", "geo_primitives", "geo_algorithms", "logging_foundation")
+    # STEP のデータ交換は、位相（geo_topology）に依存するため geo_io と分ける（BREP_AND_STEP_IMPORT_DESIGN.md 4.2）
+    geo_step       = @("analysis", "geo_contracts", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms")
     geo_entity     = @("geo_contracts", "geo_primitives")
     cam_core       = @("analysis", "geo_contracts", "geo_primitives", "geo_algorithms")
     cam_algorithms = @("analysis", "cam_core", "geo_contracts", "geo_algorithms")
     cam_entity     = @("cam_core", "geo_entity")
-    cam_sim        = @("analysis", "cam_core", "cam_algorithms", "geo_algorithms", "job_runtime", "job_domain")
-    job_runtime    = @("analysis")
+    cam_sim        = @("analysis", "cam_core", "cam_algorithms", "geo_algorithms", "geo_io", "job_runtime", "job_domain")
+    job_runtime    = @("analysis", "platform_foundation")
     job_domain     = @("analysis", "job_runtime")
+    # ランナーは引数・ファイル・終了の番号だけを持ち、入力の読み込みと計算は cam_sim に任せる
+    job_runner     = @("cam_sim", "platform_foundation")
+    # ジョブマネージャーは CAD/CAM に依らず、ジョブの保存先とランナーの起動と、問い合わせる口の受け手を持つ
+    job_manager    = @("job_runtime", "job_ipc", "platform_foundation")
+    # ジョブマネージャーに問い合わせる口は、ジョブの保存先の形式と分けるため、platform_foundation のほかには、ワークスペースの他のクレートに依存しない
+    job_ipc        = @("platform_foundation")
 
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_step", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc", "platform_foundation")
 
     viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application")
     "viewmodel-graphics" = @("analysis")
 
     render  = @("analysis", "logging_foundation", "viewmodel", "viewmodel-graphics")
     stage   = @("analysis", "logging_foundation", "render", "viewmodel", "viewmodel-graphics")
-    redring = @("analysis", "logging_foundation", "render", "stage", "viewmodel", "viewmodel-graphics")
+    redring = @("analysis", "logging_foundation", "platform_foundation", "render", "stage", "viewmodel", "viewmodel-graphics")
+    # 例外: ジョブマネージャーの画面は CAD/CAM の画面とは別の小さなアプリで、間に ViewModel を挟むほどの変換がないため、
+    # ジョブマネージャーのサービスとジョブの記録の型に直接依存する（CAM_OPERATION_UI_DESIGN.md 3.7）
+    job_manager_app = @("i18n_foundation", "logging_foundation", "job_manager", "job_runtime", "job_ipc", "platform_foundation")
 }
 
 # Forbidden dependency rules
 # 許可されていない依存はすべてエラーになる。ここには、特に守る境界を明示する。
 $ARCH_VIEW_AND_VIEWMODEL = @("viewmodel", "viewmodel-graphics", "render", "stage", "redring")
 $ARCH_CAM_CRATES = @("cam_core", "cam_algorithms", "cam_entity", "cam_sim")
-$ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity")
+$ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity")
 $ARCH_FORBIDDEN_DEPS = @{
     # 基盤はワークスペースの他のクレートに依存しない
     analysis           = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_runtime", "job_domain")
@@ -72,6 +85,7 @@ $ARCH_FORBIDDEN_DEPS = @{
     geo_topology       = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_algorithms     = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_io             = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    geo_step           = @("geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_entity         = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     cam_core           = @("cam_algorithms", "cam_entity", "cam_sim", "geo_entity") + $ARCH_VIEW_AND_VIEWMODEL
     cam_algorithms     = @("cam_entity", "cam_sim", "geo_entity", "application") + $ARCH_VIEW_AND_VIEWMODEL
@@ -79,11 +93,15 @@ $ARCH_FORBIDDEN_DEPS = @{
     cam_sim            = @("cam_entity", "geo_entity") + $ARCH_VIEW_AND_VIEWMODEL
     job_runtime        = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     job_domain         = $ARCH_GEO_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    job_runner         = @("application") + $ARCH_VIEW_AND_VIEWMODEL
+    job_manager        = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_domain")
+    job_ipc            = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_runtime", "job_domain", "job_manager")
     application        = $ARCH_VIEW_AND_VIEWMODEL
     # ビューはモデルのクレートに直接依存しない（ビューモデル経由）
-    render             = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain")
-    stage              = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain")
-    redring            = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain")
+    render             = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain", "job_ipc")
+    stage              = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain", "job_ipc")
+    redring            = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain", "job_ipc")
+    job_manager_app    = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_domain", "viewmodel", "viewmodel-graphics", "render", "stage", "redring")
 }
 
 # Shared helper: ワークスペースのクレートと、ワークスペース内の依存（path 依存）を返す

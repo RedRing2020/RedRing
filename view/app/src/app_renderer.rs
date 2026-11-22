@@ -2,13 +2,9 @@ use stage::{MeshStage, RenderStage};
 use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 use winit::{event::WindowEvent, window::Window};
 
-use crate::help_ui::{HelpUiState, NoticeBarUiState};
-use crate::machining_conditions_ui::MachiningConditionsUiState;
-use crate::menu_bar_ui::MenuBarUiState;
 use crate::selection_rect::SelectionRect;
 use crate::selection_rect_renderer::SelectionRectRenderer;
-use crate::settings_panel_renderer::SettingsPanelRenderer;
-use crate::settings_panel_ui::SettingsPanelUiState;
+use crate::settings_panel_renderer::{SettingsPanelRenderer, UiFrameStates};
 use crate::snapshot_overlay_renderer::{SnapshotOverlayRenderer, SnapshotOverlayStyle};
 
 pub struct RenderFrameContext<'a> {
@@ -33,11 +29,12 @@ impl AppRendererFactory {
         window: &Window,
         device: &Device,
         config: &SurfaceConfiguration,
+        ui_format: wgpu::TextureFormat,
     ) -> AppRenderer {
         let stage = Box::new(MeshStage::new(device, config.format));
         let selection_rect_renderer = SelectionRectRenderer::new(device, config.format);
         let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
-        let settings_panel_renderer = SettingsPanelRenderer::new(window, device, config.format);
+        let settings_panel_renderer = SettingsPanelRenderer::new(window, device, ui_format);
         AppRenderer {
             stage,
             selection_rect_renderer,
@@ -66,17 +63,8 @@ impl AppRenderer {
         self.settings_panel_renderer.handle_mouse_motion(delta);
     }
 
-    pub fn prepare_ui_windows(
-        &mut self,
-        window: &Window,
-        menu: &mut MenuBarUiState,
-        notice: NoticeBarUiState<'_>,
-        panel: &mut SettingsPanelUiState,
-        conditions: &mut MachiningConditionsUiState,
-        help: &mut HelpUiState,
-    ) {
-        self.settings_panel_renderer
-            .prepare(window, menu, &notice, panel, conditions, help);
+    pub fn prepare_ui_windows(&mut self, window: &Window, states: &mut UiFrameStates<'_, '_>) {
+        self.settings_panel_renderer.prepare(window, states);
     }
 
     pub fn update_selection_rect_overlay(
@@ -97,6 +85,11 @@ impl AppRenderer {
     /// メニューバーなど上端の UI の高さ（物理ピクセル）
     pub fn top_inset(&self) -> f32 {
         self.settings_panel_renderer.top_inset()
+    }
+
+    /// 工程リスト・ステータスバーなど下端の UI の高さ（物理ピクセル）
+    pub fn bottom_inset(&self) -> f32 {
+        self.settings_panel_renderer.bottom_inset()
     }
 
     pub fn update_snapshot_overlay(
@@ -138,6 +131,7 @@ impl AppRenderer {
         context: &RenderFrameContext<'_>,
         encoder: &mut CommandEncoder,
         view: &TextureView,
+        ui_view: &TextureView,
         depth_view: &TextureView,
     ) {
         // 各ステージが depth を利用できるよう render_with_depth を呼ぶ
@@ -148,7 +142,7 @@ impl AppRenderer {
             context.device,
             context.queue,
             encoder,
-            view,
+            ui_view,
             context.viewport_width,
             context.viewport_height,
         );

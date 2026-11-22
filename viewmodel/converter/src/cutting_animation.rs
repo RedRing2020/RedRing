@@ -16,16 +16,16 @@ use application::machining_sequence::Tool;
 use application::toolpath::{LineSegment3D, LineSegment3DProperties, ToolPath};
 
 use crate::cam_sim_visualization_converter::{
-    create_ball_end_mill_wireframe, create_flat_end_mill_wireframe,
-    create_toolpath_wireframe_vertices, tool_tip_position, ToolWireframeVisualizationSettings,
+    ToolWireframeVisualizationSettings, create_ball_end_mill_wireframe,
+    create_flat_end_mill_wireframe, create_toolpath_wireframe_vertices, tool_tip_position,
 };
 use crate::mesh_converter::{VertexData, WireframeVertex};
 use crate::snapshot_converter::{
-    cam_snapshot_exports_to_inputs, cam_snapshot_inputs_to_domain_series,
-    CamSimulationSnapshotInput, DomainSnapshotSeries,
+    CamSimulationSnapshotInput, DomainSnapshotSeries, cam_snapshot_exports_to_inputs,
+    cam_snapshot_inputs_to_domain_series,
 };
 use crate::toolpath_converter::ToolPathVisualizationSettings;
-use stock::{block_mesh, StockWorker};
+use stock::{StockWorker, block_mesh};
 
 /// 1 つのブロックの素材の面（描画用の頂点と三角形の頂点番号・分類。三角形がなければ空）
 #[derive(Debug, Clone)]
@@ -67,7 +67,7 @@ impl StockBlockMesh {
                 .indices
                 .chunks(3)
                 .zip(&self.classes)
-                .filter(|(_, &triangle_class)| triangle_class == class)
+                .filter(|&(_, &triangle_class)| triangle_class == class)
             {
                 for &index in triangle {
                     let slot = &mut remap[index as usize];
@@ -347,8 +347,12 @@ mod tests {
             ]
         );
         // 分類ごとに、その分類の三角形を同じ順に持ち、使う頂点だけを持つ
-        let [(_, plain_vertices, plain), (_, uncut_vertices, uncut), (_, within_vertices, within), (_, gouge_vertices, gouge)] =
-            &parts;
+        let [
+            (_, plain_vertices, plain),
+            (_, uncut_vertices, uncut),
+            (_, within_vertices, within),
+            (_, gouge_vertices, gouge),
+        ] = &parts;
         assert_eq!(triangles(plain_vertices, plain), expected[3..6]);
         assert_eq!(plain_vertices.len(), 3);
         assert!(uncut_vertices.is_empty() && uncut.is_empty());
@@ -416,10 +420,11 @@ mod tests {
         let started = Instant::now();
         loop {
             if let Some(blocks) = animation.take_stock_update() {
-                assert!(blocks.iter().all(|mesh| mesh
-                    .classes
-                    .iter()
-                    .all(|&c| c == DeviationClass::NotCompared)));
+                assert!(blocks.iter().all(|mesh| {
+                    mesh.classes
+                        .iter()
+                        .all(|&c| c == DeviationClass::NotCompared)
+                }));
                 break;
             }
             assert!(started.elapsed() < Duration::from_secs(60));
@@ -438,9 +443,11 @@ mod tests {
         );
         assert!(!animation.take_initial_stock_blocks().is_empty());
         assert!(animation.take_initial_stock_blocks().is_empty());
-        assert!(!animation
-            .toolpath_wireframe(&ToolPathVisualizationSettings::default())
-            .is_empty());
+        assert!(
+            !animation
+                .toolpath_wireframe(&ToolPathVisualizationSettings::default())
+                .is_empty()
+        );
     }
 
     #[test]

@@ -8,10 +8,10 @@ use crate::{
     Point3D, Ray3D, Scalar, SphericalSolid3D, SphericalSurface3D, Triangle3D, Vector3D,
 };
 use geo_contracts::{
-    default_distance_tolerance, default_parallel_cross_error_tolerance, Circle3DProperties,
-    CylindricalSolid3DProjection, EllipsoidalSolid3DProjection, InfiniteLine3DProjection,
-    InfiniteLine3DProperties, LineSegment3DProjection, LineSegment3DProperties,
-    NurbsCurve3DProperties, Plane3DProjection, Ray3DProjection, SphericalSolid3DProjection,
+    Circle3DProperties, CylindricalSolid3DProjection, EllipsoidalSolid3DProjection,
+    InfiniteLine3DProjection, InfiniteLine3DProperties, LineSegment3DProjection,
+    LineSegment3DProperties, NurbsCurve3DProperties, Plane3DProjection, Ray3DProjection,
+    SphericalSolid3DProjection, default_distance_tolerance, default_parallel_cross_error_tolerance,
 };
 
 /// 交点の有無で衝突判定し、逆の向きは代表の向きを呼ぶ

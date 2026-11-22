@@ -46,6 +46,30 @@
 - Dependabot の PR も、ほかの PR と同じく CI（ビルド・試験・依存の検査）が通ってからマージする
 - 互換のない更新（0.x のマイナー・メジャー）は、変更の内容を確かめ、必要なら Issue にして対応する
 
+## Rust の版
+
+Rust の版は、リポジトリの直下の `rust-toolchain.toml` の 1 か所で決める（#1279）。rustup はリポジトリの中ではこのファイルに従うため、手元・CI・リリースのビルドが同じ版になる。stable が上がっても、CI の結果は変わらない（新しい Clippy の指摘で、急に CI が落ちることがない）。
+
+- CI・リリースのワークフローは、版を書かずに、共通の手順 `.github/actions/setup-rust`（引数なしの `rustup toolchain install`）で `rust-toolchain.toml` の版と部品を入れる。cargo-deny は自分のコンテナで動くため、`rust-toolchain.toml` の版を読んで Action に渡す
+- Cargo.toml には `rust-version` を書かない（版を書く場所を 2 つにしないため）
+- `develop` への PR・push の CI（`develop_ci.yml`）は、Ubuntu の job（`build-test`）に加えて、Windows の job（`windows-build-test`）で clippy と試験を回す。Windows のときだけコンパイルするコード（ジョブマネージャーのタスクトレイ・名前付きパイプの口・ランナーの起動など）は、Ubuntu ではコンパイルされないため（#1307）
+
+版を上げるときは、次の順に行う。
+
+1. `rust-toolchain.toml` の `channel` を新しい版にする
+2. `pwsh -NoProfile -File scripts/check_all_before_push.ps1` を回し、新しい Clippy の指摘・警告を直す
+3. 版を上げる変更と、指摘を直す変更を 1 つの PR にする（CHANGELOG に版を書く）
+
+## 手元のビルドの結果の片付け
+
+cargo は、ビルドの条件が変わると、前の結果を消さずに別の名前で作り直す。古い結果は `cargo clean` するまで `target` に残り、50 GB を超えたことがある（#1303）。条件が変わるのは、主に次のとき。
+
+- 依存の版が変わった（`Cargo.lock` の変更。Dependabot の PR・依存を上げる PR をマージした後に、`develop` を取り込んだとき）。変わった依存を使うクレートが、すべて作り直しになる
+- Rust の版を上げた（`rust-toolchain.toml`）
+- アプリのクレートの版を上げた（`view/app/Cargo.toml` の `version`）
+
+これらを取り込んだ後は、次のビルドの前に `cargo clean` をする。次のビルドは最初からになるため、急ぐ作業の途中では後に回してよい。Windows では、エディターの rust-analyzer が `target` の中のマクロの DLL を開いたままにするため、先に rust-analyzer を止める（VS Code のコマンドパレットの「rust-analyzer: Stop server」。片付けた後に「rust-analyzer: Start server」で動かし直す）。止めないと、`cargo clean` はアクセスが拒否されて途中で止まる。`target` の大きさは、エクスプローラーのフォルダのプロパティなどで、ときどき確かめる。
+
 ## GitHub Actions の決まり
 
 - 第三者の Action は、コミットの SHA で固定し、版を行末のコメントに書く（例: `uses: actions/checkout@<SHA> # v4.4.0`）。タグやブランチ（`@v4`・`@master`）は付け替えられるため使わない

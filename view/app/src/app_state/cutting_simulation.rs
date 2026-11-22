@@ -3,14 +3,21 @@
 use std::ops::RangeInclusive;
 
 use super::{AppState, SnapshotShadedColorSettings};
+use crate::machining_conditions_messages::resolve_machining_conditions_text;
 use crate::machining_conditions_ui::OperationStatus;
 use render::mesh_list::MeshListItem;
-use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
+use render::vertex_3d::{MeshVertex, convert_vertex_data_to_mesh_vertices};
 use stage::MeshStage;
 use viewmodel::cutting_animation::{CuttingAnimation, DeviationClass, StockBlockMesh};
-use viewmodel::cutting_simulation_session::CuttingSimulationSessionError;
-use viewmodel::failure_message_mapper::cutting_simulation_failure_message;
+use viewmodel::cutting_simulation_session::SequenceSubmissionError;
+use viewmodel::cutting_simulation_session::{
+    CuttingSimulationSessionError, LargeToolpath, RedoOutcome, SequenceOutcome, StopOutcome,
+    SubmissionKind, SubmitOutcome,
+};
+use viewmodel::failure_message_mapper::{cutting_simulation_failure_message, format_gb};
 use viewmodel::mesh_converter::WireframeVertex;
+use viewmodel::message_catalog::UiLocale;
+use winit::window::Window;
 
 /// 取り込んだ直後のコマ送りで、ツールパスの全長を分ける数
 const FRAME_STEP_DIVISIONS: f64 = 100.0;
@@ -20,6 +27,53 @@ const STOCK_BLOCK_KEYS: RangeInclusive<u64> = (1 << 63)..=u64::MAX;
 
 /// 素材の面の分類の、キーの中の位置（分類ごとのキーは続いた範囲になる）
 const CLASS_SHIFT: u32 = 60;
+
+/// ツールパスが大きくなる工程 `large` を出して、計算するかを確かめる（計算するなら `true`）
+fn confirm_large_toolpaths(window: &Window, locale: UiLocale, large: &[LargeToolpath]) -> bool {
+    let text = |key, args: &[(&str, String)]| resolve_machining_conditions_text(locale, key, args);
+    let operations = large
+        .iter()
+        .map(|item| {
+            text(
+                if item.near_limit {
+                    "conditions.confirm.large_toolpath_item_near_limit"
+                } else {
+                    "conditions.confirm.large_toolpath_item"
+                },
+                &[
+                    ("position", item.position.to_string()),
+                    ("operation", item.operation.clone()),
+                    ("gb", format_gb(item.memory_gb)),
+                ],
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let calculate = text("conditions.confirm.calculate", &[]);
+    let answer = rfd::MessageDialog::new()
+        .set_parent(window)
+        .set_level(rfd::MessageLevel::Warning)
+        .set_title(crate::app::APP_TITLE)
+        .set_description(text(
+            "conditions.confirm.large_toolpath",
+            &[("operations", operations)],
+        ))
+        .set_buttons(rfd::MessageButtons::OkCancelCustom(
+            calculate.clone(),
+            text("conditions.confirm.cancel", &[]),
+        ))
+        .show();
+    tracing::info!(
+        ?large,
+        ?answer,
+        "Asked whether to calculate large toolpaths"
+    );
+    match answer {
+        rfd::MessageDialogResult::Ok => true,
+        rfd::MessageDialogResult::Custom(label) => label == calculate,
+        _ => false,
+    }
+}
 
 /// 素材の面の分類の、キーの中の番号
 fn class_index(class: DeviationClass) -> u64 {
@@ -53,23 +107,260 @@ fn stock_class_color(colors: &SnapshotShadedColorSettings, class: DeviationClass
     }
 }
 
+/// ツールパスの大きさを見積もっている間に頼まれた計算
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PendingSubmission {
+    /// 選んだ工程の計算
+    Operation,
+    /// 選んだ工程の再計算
+    Redo,
+    /// 手順のすべての工程の計算
+    Sequence,
+}
+
 impl AppState {
-    /// 表示中の製品形状で、加工工程の切削シミュレーションを投入する（実行しない）
+    /// ツールパスの大きさを見積もり終えるのを待ってから、計算 `submission` をもう一度頼む（待つ間は画面を止めない）
+    fn wait_for_estimate(&mut self, submission: PendingSubmission) {
+        tracing::info!(
+            ?submission,
+            "Estimating the toolpath size before the calculation"
+        );
+        self.pending_submission = Some(submission);
+        // 全工程を計算で工程ごとに見積もるときも、見積もっていることは続けて出さない
+        if !matches!(
+            self.notice,
+            crate::help_ui::Notice::Operation(OperationStatus::Estimating)
+        ) {
+            self.set_operation_status(OperationStatus::Estimating);
+        }
+    }
+
+    /// ツールパスの大きさを見積もり終えたら、見積もっている間に頼まれた計算をもう一度頼む（条件の編集のダイアログを
+    /// 開いている間は頼まない。キャンセルしたら頼み、条件を変えて適用したら頼まない）
+    pub(crate) fn resume_pending_submission(&mut self) {
+        let Some(submission) = self.pending_submission else {
+            return;
+        };
+        if self.is_condition_dialog_open() {
+            return;
+        }
+        // 頼まれた計算の工程の、今の改訂の見積もりだけを待つ（やめた工程・前の条件の見積もりは待たない）
+        let operations: Vec<_> = match submission {
+            PendingSubmission::Operation | PendingSubmission::Redo => {
+                vec![self.document.selected_operation()]
+            }
+            PendingSubmission::Sequence => self
+                .document
+                .operations()
+                .into_iter()
+                .map(|item| item.id)
+                .collect(),
+        };
+        if self
+            .cutting_simulation
+            .estimating(&self.document, &operations)
+        {
+            return;
+        }
+        self.pending_submission = None;
+        let submitted = match submission {
+            PendingSubmission::Operation => self.submit_cutting_simulation(),
+            PendingSubmission::Redo => self.redo_cutting_simulation(),
+            PendingSubmission::Sequence => self.submit_sequence(),
+        };
+        if submitted {
+            // 投入した計算の状態を、すぐに読み直す
+            self.job_status_read_at = None;
+        }
+    }
+
+    /// 加工手順の加工の対象で、選んだ加工工程を投入する（実行しない。今の条件の計算が計算待ち・計算中・計算済みなら
+    /// 投入しない。今の条件の CL があれば、切削シミュレーションだけ）
     ///
     /// 投入できたかを返す。
     pub(crate) fn submit_cutting_simulation(&mut self) -> bool {
-        match self.cutting_simulation.submit(&self.product_shapes) {
-            Ok(()) => {
+        let (window, locale) = (&self.window, self.ui_locale);
+        let kind = match self.cutting_simulation.submit(&self.document, |large| {
+            confirm_large_toolpaths(window, locale, large)
+        }) {
+            Ok(SubmitOutcome::Submitted(kind)) => Ok(kind),
+            Ok(SubmitOutcome::AlreadyCalculated) => {
+                // 押した後に読んだ状態が、計算待ち・計算中・計算済みだった（ボタンは最後に読んだ状態で決めるため）
                 tracing::info!(
-                    operation = ?self.cutting_simulation.operation_content(),
-                    stock = ?self.cutting_simulation.stock(),
-                    "Submitted the cutting simulation (run with Shift+R, import with Shift+L)"
+                    "The machining operation is already waiting, calculating, or calculated"
                 );
-                self.set_operation_status(OperationStatus::Submitted);
+                self.set_operation_status(OperationStatus::AlreadyCalculated);
+                // 押したときに読んだ状態を、すぐ表とボタンに出す
+                self.job_status_read_at = None;
+                return false;
+            }
+            Ok(SubmitOutcome::Declined) => {
+                self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                return false;
+            }
+            Ok(SubmitOutcome::Estimating) => {
+                self.wait_for_estimate(PendingSubmission::Operation);
+                return false;
+            }
+            Err(error) => Err(error),
+        };
+        let result = kind.map(|kind| match kind {
+            SubmissionKind::Full => (
+                "the toolpath generation and the cutting simulation",
+                OperationStatus::Submitted {
+                    simulation_only: false,
+                },
+            ),
+            SubmissionKind::SimulationOnly => (
+                "the cutting simulation of the imported toolpath",
+                OperationStatus::Submitted {
+                    simulation_only: true,
+                },
+            ),
+            SubmissionKind::Resume => ("the interrupted calculation", OperationStatus::Resumed),
+        });
+        self.finish_submission(result, "the machining operation")
+    }
+
+    /// 加工手順の加工の対象で、選んだ加工工程の空間モデルの CL を消して、ツールパス生成から投入し直す（実行しない）。
+    /// その工程の切削アニメーションを出していれば閉じる（消した CL の結果を出し続けないように）
+    ///
+    /// 投入できたかを返す。
+    pub(crate) fn redo_cutting_simulation(&mut self) -> bool {
+        let (window, locale) = (&self.window, self.ui_locale);
+        let result = match self.cutting_simulation.redo(&mut self.document, |large| {
+            confirm_large_toolpaths(window, locale, large)
+        }) {
+            Ok(RedoOutcome::Declined) => {
+                self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                return false;
+            }
+            Ok(RedoOutcome::Estimating) => {
+                self.wait_for_estimate(PendingSubmission::Redo);
+                return false;
+            }
+            Ok(RedoOutcome::Waiting) => {
+                // 押した後に読んだ状態が計算待ちだった（ボタンは最後に読んだ状態で決めるため）
+                tracing::info!("The machining operation is already waiting for the calculation");
+                self.set_operation_status(OperationStatus::RecalculationWaiting);
+                // 押したときに読んだ状態を、すぐ表とボタンに出す
+                self.job_status_read_at = None;
+                return false;
+            }
+            Ok(RedoOutcome::Submitted { canceled }) => Ok((
+                "the machining operation again",
+                OperationStatus::Redone { canceled },
+            )),
+            Err(error) => Err(error),
+        };
+        let submitted = self.finish_submission(result, "the machining operation again");
+        if submitted
+            && self.cutting_animation.is_some()
+            && self.imported_operation == Some(self.document.selected_operation())
+        {
+            self.close_cutting_animation();
+        }
+        submitted
+    }
+
+    /// 加工手順のすべての加工工程を投入する（実行しない）。1 つでも投入できたかを返す
+    pub(crate) fn submit_sequence(&mut self) -> bool {
+        let (window, locale) = (&self.window, self.ui_locale);
+        match self
+            .cutting_simulation
+            .submit_sequence(&self.document, |large| {
+                confirm_large_toolpaths(window, locale, large)
+            }) {
+            Ok(SequenceOutcome::Declined) => {
+                self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                false
+            }
+            Ok(SequenceOutcome::Estimating) => {
+                self.wait_for_estimate(PendingSubmission::Sequence);
+                false
+            }
+            Ok(SequenceOutcome::Submitted(submission)) => {
+                tracing::info!(
+                    submitted = submission.submitted,
+                    simulation_only = submission.simulation_only,
+                    skipped = submission.skipped,
+                    "Submitted the machining sequence to the job manager"
+                );
+                self.cancel_superseded_jobs();
+                self.set_operation_status(OperationStatus::SequenceSubmitted {
+                    submitted: submission.submitted,
+                    simulation_only: submission.simulation_only,
+                    skipped: submission.skipped,
+                });
+                submission.submitted > 0
+            }
+            Err(failure) => {
+                tracing::warn!("Cannot submit the machining sequence: {failure}");
+                match failure {
+                    SequenceSubmissionError::StatusUnreadable(error) => {
+                        self.set_operation_status(OperationStatus::SequenceStatusUnreadable(
+                            cutting_simulation_failure_message(&error),
+                        ));
+                        false
+                    }
+                    SequenceSubmissionError::Conditions {
+                        position,
+                        operation,
+                        error,
+                    } => {
+                        self.set_operation_status(OperationStatus::SequenceSubmitFailed {
+                            position,
+                            operation,
+                            submitted: 0,
+                            reason: cutting_simulation_failure_message(&error),
+                        });
+                        false
+                    }
+                    SequenceSubmissionError::Submit {
+                        position,
+                        operation,
+                        submitted,
+                        error,
+                    } => {
+                        // 前の工程までは投入したため（ジョブマネージャーは動いている）、前の条件の計算を取り消す
+                        if submitted > 0 {
+                            self.cancel_superseded_jobs();
+                        }
+                        self.set_operation_status(OperationStatus::SequenceSubmitFailed {
+                            position,
+                            operation,
+                            submitted,
+                            reason: cutting_simulation_failure_message(&error),
+                        });
+                        // 前の工程までは投入したため、状態を読み直す
+                        submitted > 0
+                    }
+                }
+            }
+        }
+    }
+
+    /// 投入の結果 `result`（投入できたら、ログに出す投入したものの名前と、最後の操作の結果。`what` は、投入できない
+    /// ときにログに出す投入の名前）を、最後の操作の結果にする。投入できたかを返す
+    fn finish_submission(
+        &mut self,
+        result: Result<(&str, OperationStatus), CuttingSimulationSessionError>,
+        what: &str,
+    ) -> bool {
+        match result {
+            Ok((submitted, status)) => {
+                tracing::info!(
+                    operation = ?self.document.operation_content(),
+                    stock = ?self.document.stock(),
+                    "Submitted {submitted} to the job manager (import with Shift+L after it finishes)"
+                );
+                // 投入したジョブマネージャーは動いているため、前の条件の計算もここで取り消す（投入の結果を後に出す）
+                self.cancel_superseded_jobs();
+                self.set_operation_status(status);
                 true
             }
             Err(error) => {
-                tracing::warn!("Cannot submit the cutting simulation: {error}");
+                tracing::warn!("Cannot submit {what}: {error}");
                 self.set_operation_status(OperationStatus::SubmitFailed(
                     cutting_simulation_failure_message(&error),
                 ));
@@ -78,36 +369,126 @@ impl AppState {
         }
     }
 
-    /// キューにあるジョブを実行する（ジョブマネージャーの代わり。終わるまで戻らない）
-    pub(crate) fn run_cutting_simulation_jobs(&mut self) {
-        tracing::info!("Running the queued jobs");
-        let started = std::time::Instant::now();
-        match self.cutting_simulation.run_queued_jobs() {
-            Ok(executed) => {
-                let seconds = started.elapsed().as_secs_f64();
-                tracing::info!(executed, "Finished running the jobs ({seconds:.1} s)");
-                self.set_operation_status(OperationStatus::Ran { executed, seconds });
+    /// 加工手順のすべての工程の、前の条件の計算待ち・計算中の計算を取り消すよう頼み、取り消したら画面の下の行に出す
+    /// （止まるのは待たない。ジョブマネージャーが動いていなければ、起動せずに何もしない）
+    pub(crate) fn cancel_superseded_jobs(&mut self) {
+        match self
+            .cutting_simulation
+            .cancel_superseded_jobs(&self.document)
+        {
+            Ok(0) => {}
+            Ok(count) => {
+                tracing::info!(
+                    count,
+                    "Requested the job manager to cancel the calculations of the earlier conditions"
+                );
+                self.set_operation_status(OperationStatus::EarlierConditionsCanceled);
+                // 取り消しを、すぐ表に出す
+                self.job_status_read_at = None;
             }
             Err(error) => {
-                tracing::warn!("Cannot run the jobs: {error}");
-                self.set_operation_status(OperationStatus::RunFailed(
+                tracing::warn!("Cannot cancel the calculations of the earlier conditions: {error}");
+            }
+        }
+    }
+
+    /// 選んだ加工工程の今の条件の、計算待ち・計算中の計算を止める（取り消すよう頼み、止まるのを待たない）
+    pub(crate) fn stop_cutting_simulation(&mut self) {
+        let status = match self.cutting_simulation.stop(&self.document) {
+            Ok(StopOutcome::Stopped) => {
+                tracing::info!("Requested the job manager to cancel the calculation");
+                OperationStatus::Stopped
+            }
+            Ok(StopOutcome::NotYetAccepted) => {
+                tracing::info!("The job manager has not received the calculation yet");
+                OperationStatus::StopNotYetAccepted
+            }
+            Ok(StopOutcome::NothingToStop) => OperationStatus::NothingToStop,
+            Err(error) => {
+                tracing::warn!("Cannot stop the calculation: {error}");
+                OperationStatus::StopFailed(cutting_simulation_failure_message(&error))
+            }
+        };
+        self.set_operation_status(status);
+        // 止めた計算の状態を、すぐに読み直す
+        self.job_status_read_at = None;
+    }
+
+    /// ジョブマネージャーのウィンドウを開く（動いていなければ、ウィンドウを出して起動する）
+    pub(crate) fn open_job_manager(&mut self) {
+        match self.cutting_simulation.open_job_manager() {
+            Ok(()) => tracing::info!("Opened the job manager window"),
+            Err(error) => {
+                tracing::warn!("Cannot open the job manager: {error}");
+                self.set_operation_status(OperationStatus::JobManagerFailed(
                     cutting_simulation_failure_message(&error),
                 ));
             }
         }
     }
 
+    /// 選んだ加工工程の、今の条件で正常に終わった最も新しいツールパス生成の CL だけを、空間モデルに取り込む（切削
+    /// アニメーションは開かない）
+    pub(crate) fn import_toolpath(&mut self) {
+        match self.cutting_simulation.import_toolpath(&mut self.document) {
+            Ok(job) => {
+                tracing::info!(job, "Imported the toolpath into the space model");
+                self.set_operation_status(OperationStatus::ToolpathImported { job });
+                // 同じ状態の CL を取り込み直しても、線を描き直す
+                self.refresh_operation_toolpath_lines();
+            }
+            Err(error) => {
+                tracing::warn!("Cannot import the toolpath: {error}");
+                self.set_operation_status(match error {
+                    CuttingSimulationSessionError::NoSucceededToolpath => {
+                        OperationStatus::NoToolpathToImport
+                    }
+                    other => {
+                        OperationStatus::ImportFailed(cutting_simulation_failure_message(&other))
+                    }
+                });
+            }
+        }
+    }
+
+    /// 選んだ工程の切削アニメーションを出しているか（ほかの工程を選ぶと閉じるため、出していれば選んだ工程のもの）
+    pub(crate) fn cutting_simulation_shown(&self) -> bool {
+        self.cutting_animation.is_some()
+            && self.imported_operation == Some(self.document.selected_operation())
+    }
+
+    /// 選んだ工程の切削シミュレーションの表示を切り替える。出していれば、切削アニメーションを閉じて、製品形状と選んだ
+    /// 工程の CL の線に戻す（メモリを放す。カメラは動かさない）。出していなければ、取り込んで出す
+    pub(crate) fn toggle_cutting_simulation(&mut self) {
+        if !self.cutting_simulation_shown() {
+            self.import_cutting_simulation();
+            return;
+        }
+        // 条件の編集のダイアログを開いている間は、取り込みと同じく切り替えない
+        if self.is_condition_dialog_open() {
+            return;
+        }
+        self.close_cutting_animation();
+        tracing::info!("Cutting simulation display closed");
+    }
+
     /// 正常に実行済みの最も新しい切削シミュレーションを取り込み、製品形状に重ねて再生できるようにする
     pub(crate) fn import_cutting_simulation(&mut self) {
+        // CAM の表示は、加工手順を開いている間だけ出す。条件の編集のダイアログを開いている間は取り込まない
+        if !self.machining_sequence_open || self.is_condition_dialog_open() {
+            tracing::debug!("The machining sequence is not open; nothing is imported");
+            return;
+        }
         tracing::info!("Importing the cutting simulation");
         let started = std::time::Instant::now();
-        match self.cutting_simulation.import_latest(&self.product_shapes) {
+        match self.cutting_simulation.import_latest(&mut self.document) {
             Ok(imported) => {
                 self.set_operation_status(OperationStatus::Imported {
                     job: imported.job_id,
                 });
                 self.cutting_animation_job_id = Some(imported.job_id);
                 self.imported_conditions = Some(imported.conditions);
+                self.imported_operation = Some(self.document.selected_operation());
                 self.start_cutting_animation(imported.animation, started);
             }
             Err(error) => {
@@ -138,13 +519,16 @@ impl AppState {
         self.cutting_animation_colors = self.snapshot_shaded_color_settings;
         animation.set_deviations_shown(self.cutting_animation_colors.deviations.shown);
         let stock_blocks = animation.take_initial_stock_blocks();
-        let (mesh_stage, positions) = self.build_cutting_animation_stage(&animation, stock_blocks);
+        let (mesh_stage, positions, meshes, lines) =
+            self.build_cutting_animation_stage(&animation, stock_blocks);
+        self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
+        self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         // 取り込み直しても見ていた向き・拡大を保つ。カメラは STL の読み込みで製品形状に合わせているため、表示中の
         // 製品形状がない場合だけ合わせる
-        if self.product_shapes.store().visible_face_ids().is_empty() {
-            if let Some(fit) = Self::build_camera_fit(&positions) {
-                self.apply_camera_fit(fit);
-            }
+        if self.document.shapes().visible_face_ids().is_empty()
+            && let Some(fit) = Self::build_camera_fit(&positions)
+        {
+            self.apply_camera_fit(fit);
         }
         self.discard_main_view();
         self.renderer.set_stage(mesh_stage);
@@ -169,9 +553,9 @@ impl AppState {
     /// 場合は、素材の面がすべて作り直されて届く。今のコマ・カメラ・ワイヤーフレームの状態は保つ。
     pub(super) fn redraw_cutting_animation(&mut self) {
         let Some(animation) = &self.cutting_animation else {
-            tracing::info!(
-                "No cutting simulation is imported; the settings apply from the next import"
-            );
+            // 切削アニメーションがなければ、選んだ工程の CL の線を描き直す
+            self.refresh_operation_toolpath_lines();
+            self.update_camera_uniforms();
             return;
         };
         let toolpath_lines = self.toolpath_lines(animation);
@@ -187,8 +571,9 @@ impl AppState {
             self.set_notice(crate::help_ui::Notice::ApplyWithoutAnimation);
             return;
         };
-        mesh_stage.set_overlay_toolpath_line_data(device, toolpath_lines.clone());
-        mesh_stage.set_overlay_tool_line_data(device, tool_lines);
+        let lines = mesh_stage
+            .set_overlay_toolpath_line_data(device, &toolpath_lines)
+            .and(mesh_stage.set_overlay_tool_line_data(device, &tool_lines));
         for class in [
             DeviationClass::NotCompared,
             DeviationClass::Uncut,
@@ -203,8 +588,10 @@ impl AppState {
         }
         // ツールパスの線を重ねたデバッグ表示にも、同じ線を描く
         if let Some(debug_stage) = self.debug_toolpath_overlay_stage() {
-            debug_stage.set_overlay_toolpath_line_data(device, toolpath_lines);
+            let debug_lines = debug_stage.set_overlay_toolpath_line_data(device, &toolpath_lines);
+            self.report_not_drawn(debug_lines, crate::help_ui::Notice::LinesNotDrawn);
         }
+        self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         // 色分けするかが変わった場合は、最後の時点の素材の面が作り直されて届く
         if let Some(animation) = &mut self.cutting_animation {
             animation.set_deviations_shown(colors.deviations.shown);
@@ -217,18 +604,19 @@ impl AppState {
         );
     }
 
-    /// 切削アニメーションの最初のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置
+    /// 切削アニメーションの最初のコマのメッシュステージ（製品形状・素材の面・ツールパスの線・工具の線）と、素材の面の頂点の位置と、
+    /// 面・線を GPU に置けたか
     fn build_cutting_animation_stage(
         &self,
         animation: &CuttingAnimation,
         stock_blocks: Vec<StockBlockMesh>,
-    ) -> (Box<MeshStage>, Vec<[f32; 3]>) {
+    ) -> (Box<MeshStage>, Vec<[f32; 3]>, GpuPlaced, GpuPlaced) {
         let positions: Vec<[f32; 3]> = stock_blocks
             .iter()
             .flat_map(|block| block.vertices.iter().map(|vertex| vertex.position))
             .collect();
         let mut items: Vec<(u64, MeshListItem)> = self
-            .product_shapes
+            .document
             .visible_meshes()
             .into_iter()
             .enumerate()
@@ -250,18 +638,19 @@ impl AppState {
 
         let device = &self.graphic.device;
         let mut mesh_stage = Box::new(MeshStage::new(device, self.graphic.config.format));
-        mesh_stage.set_mesh_list(device, items);
+        let meshes = mesh_stage.set_mesh_list(device, items);
         mesh_stage.set_overlay_toolpath_visible(self.toolpath_lines_visible);
         mesh_stage.set_overlay_tool_visible(self.tool_lines_visible);
-        mesh_stage.set_overlay_toolpath_line_data(device, self.toolpath_lines(animation));
-        mesh_stage.set_overlay_tool_line_data(
-            device,
-            line_vertices(
-                &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
-                Some(self.cutting_animation_colors.tool_wire_color),
-            ),
-        );
-        (mesh_stage, positions)
+        let lines = mesh_stage
+            .set_overlay_toolpath_line_data(device, &self.toolpath_lines(animation))
+            .and(mesh_stage.set_overlay_tool_line_data(
+                device,
+                &line_vertices(
+                    &animation.tool_wireframe(&self.tool_wireframe_visualization_settings),
+                    Some(self.cutting_animation_colors.tool_wire_color),
+                ),
+            ));
+        (mesh_stage, positions, meshes, lines)
     }
 
     /// 切削アニメーション `animation` のツールパスの線の頂点（今の表示の設定で作る）
@@ -276,7 +665,8 @@ impl AppState {
     pub(super) fn toggle_toolpath_lines(&mut self) {
         self.toolpath_lines_visible = !self.toolpath_lines_visible;
         let visible = self.toolpath_lines_visible;
-        if let Some(mesh_stage) = self.cutting_animation_stage() {
+        // 切削アニメーションがなくても、選んだ工程の CL の線を重ねている
+        if let Some(mesh_stage) = self.main_mesh_stage() {
             mesh_stage.set_overlay_toolpath_visible(visible);
         }
         if let Some(mesh_stage) = self.debug_toolpath_overlay_stage() {
@@ -325,18 +715,25 @@ impl AppState {
         let device = self.graphic.device.clone();
         let device = &device;
         if let Some(mesh_stage) = self.main_mesh_stage() {
+            let mut meshes = Ok(());
             for block in blocks {
                 // 三角形のない分類の面も渡し、前の面の同じ分類のメッシュを除く
                 for (key, item) in stock_block_items(block, &colors) {
-                    mesh_stage.set_mesh_list_item(device, key, item);
+                    // 最初の誤りを残す
+                    meshes = meshes.and(mesh_stage.set_mesh_list_item(device, key, item));
                 }
             }
-            mesh_stage.set_overlay_tool_line_data(device, tool_lines);
+            let lines = mesh_stage.set_overlay_tool_line_data(device, &tool_lines);
+            self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
+            self.report_not_drawn(lines, crate::help_ui::Notice::LinesNotDrawn);
         }
         // 工具の位置（区間の端点に置いたか）は面を受け取った後に決まるため、タイトルは受け取った後にも出す
         self.refresh_snapshot_window_title();
     }
 }
+
+/// 面・線を GPU に置けたか（置けなければ、その誤り）
+type GpuPlaced = Result<(), render::gpu_buffer::GpuDataError>;
 
 /// ブロックの素材の面の、分類ごとのメッシュ（三角形のない分類は空のメッシュ）
 fn stock_block_items(
@@ -355,7 +752,10 @@ fn stock_block_items(
 }
 
 /// 線の頂点を描画用にする（`color` を指定しない場合は頂点の色）
-fn line_vertices(vertices: &[WireframeVertex], color: Option<[f32; 3]>) -> Vec<MeshVertex> {
+pub(super) fn line_vertices(
+    vertices: &[WireframeVertex],
+    color: Option<[f32; 3]>,
+) -> Vec<MeshVertex> {
     vertices
         .iter()
         .map(|vertex| MeshVertex::new(vertex.position, color.unwrap_or(vertex.color)))

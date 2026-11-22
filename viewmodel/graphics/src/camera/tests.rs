@@ -24,9 +24,26 @@ fn test_camera_pan() {
     let mut camera = Camera::new();
     let initial_target = camera.target;
 
-    camera.pan(1.0, 0.0);
+    camera.pan(1.0, 0.0, 1.0, 100.0);
 
     assert_ne!(camera.target, initial_target);
+}
+
+#[test]
+fn panning_follows_the_cursor_at_the_visible_scale() {
+    // 縦に 100 の長さが見えている高さ 100 ピクセルの画面では、10 ピクセルの移動で、注視点が 10 だけ動く
+    let mut camera = Camera::new();
+    camera.set_projection_mode(ProjectionMode::Orthographic);
+    camera.set_orthographic_bounds(-50.0, 50.0, -50.0, 50.0);
+    let start = camera.target;
+    camera.pan(0.0, 10.0, 1.0, 100.0);
+    let moved = camera.target - start;
+    assert!((moved.norm() - 10.0).abs() < 1e-3);
+    // 表示の範囲を 2 倍にすると（縮小）、同じマウスの動きで 2 倍動く（見えている形はマウスに付いてくる）
+    camera.set_orthographic_bounds(-100.0, 100.0, -100.0, 100.0);
+    let start = camera.target;
+    camera.pan(0.0, 10.0, 1.0, 100.0);
+    assert!(((camera.target - start).norm() - 20.0).abs() < 1e-3);
 }
 
 #[test]
@@ -246,4 +263,38 @@ fn test_issue_242_zoom_magnitude_sensitivity() {
         (dist_h - initial_distance).abs() > 0.001,
         "横方向ズームが有効"
     );
+}
+
+#[test]
+fn a_projection_centered_in_a_band_keeps_its_scale_and_moves_the_center() {
+    // 高さ 1000 の画面の、上端から 100 の位置の高さ 600 の帯（中心は正規化した y で +0.2）
+    let proj = Camera::new().projection_matrix(2.0);
+    let mapped = center_in_band(proj, 1000.0, 100.0, 600.0);
+    // 写す変換を、クリップ座標 (x, y, z, w) に直接当てる
+    let band = |clip: [f32; 4]| {
+        let identity = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+        let m = center_in_band(identity, 1000.0, 100.0, 600.0);
+        let y = (0..4).map(|c| m[c][1] * clip[c]).sum::<f32>();
+        let w = (0..4).map(|c| m[c][3] * clip[c]).sum::<f32>();
+        y / w
+    };
+    // 見る中心は帯の中心へ動き、拡大縮小率は変えない（視野の上端・下端は、同じ量だけ動く）
+    assert!((band([0.0, 0.0, 0.5, 1.0]) - 0.2).abs() < 1e-6);
+    assert!((band([0.0, 0.5, 0.5, 1.0]) - 0.7).abs() < 1e-6);
+    assert!((band([0.0, -0.5, 0.5, 1.0]) + 0.3).abs() < 1e-6);
+    // w が 1 でない点（透視投影）も、同じ位置に写る
+    assert!((band([0.0, 1.0, 1.0, 2.0]) - 0.7).abs() < 1e-6);
+    // 実際の射影行列の y の行は、中心 +0.2 だけ w の行の分を足す。深さ・x・w の行は変えない
+    for c in 0..4 {
+        let expected = proj[c][1] + 0.2 * proj[c][3];
+        assert!((mapped[c][1] - expected).abs() < 1e-6);
+        assert_eq!(mapped[c][0], proj[c][0]);
+        assert_eq!(mapped[c][2], proj[c][2]);
+        assert_eq!(mapped[c][3], proj[c][3]);
+    }
 }

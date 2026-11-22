@@ -1,25 +1,34 @@
 use cam_core::{
-    MachiningStage, OperationSpec, ScanlineCutDirection, ScanlineParams, ScanlineToolRange,
-    StockMargins, ToleranceProfile, Tool,
+    MachiningBoundary, MachiningStage, OperationSpec, RectangleBoundary, ScanlineCutDirection,
+    ScanlineParams, ScanlineToolRange, StockMargins, ToleranceProfile, Tool,
 };
 use geo_entity::FaceId;
 
-use crate::{MachiningOperation, MachiningOperationContent, MachiningSequence, MachiningStock};
+use crate::{
+    MachiningOperation, MachiningOperationAttributes, MachiningOperationConditions,
+    MachiningOperationContent, MachiningOperationId, MachiningRevisionKey, MachiningSequence,
+    MachiningSequenceId, MachiningStock, ToolLibraryId, ToolSetId, ToolSetReference,
+};
 
 fn content() -> MachiningOperationContent {
     MachiningOperationContent {
-        name: "仕上げ".to_string(),
-        stage: MachiningStage::Finish,
-        spec: OperationSpec::Scanline(ScanlineParams {
-            stepover: 1.0,
-            feed_rate: 1000.0,
-            tool_range: ScanlineToolRange::default(),
-            cut_direction: ScanlineCutDirection::default(),
-            angle_degrees: 0.0,
-        }),
-        tool: Tool::ball_end_mill("T1".to_string(), 10.0, 20.0),
-        boundary: None,
-        tolerance_profile: ToleranceProfile::PressRough,
+        attributes: MachiningOperationAttributes {
+            name: "仕上げ".to_string(),
+            stage: MachiningStage::Finish,
+            toolset: None,
+        },
+        conditions: MachiningOperationConditions {
+            spec: OperationSpec::Scanline(ScanlineParams {
+                stepover: 1.0,
+                feed_rate: 1000.0,
+                tool_range: ScanlineToolRange::default(),
+                cut_direction: ScanlineCutDirection::default(),
+                angle_degrees: 0.0,
+            }),
+            tool: Tool::ball_end_mill("T1".to_string(), 10.0, 20.0),
+            boundary: None,
+            tolerance_profile: ToleranceProfile::PressRough,
+        },
     }
 }
 
@@ -34,24 +43,68 @@ fn stock() -> MachiningStock {
 fn changing_the_content_increments_the_revision() {
     let mut operation = MachiningOperation::new(content());
     let id = operation.id();
+    let first_key = operation.revision_key();
     assert_eq!(operation.revision(), 1);
 
-    // 同じ中身では増えない
+    // 同じ中身では増えない（改訂の鍵も変わらない）
     operation.set_content(content());
     assert_eq!(operation.revision(), 1);
+    assert_eq!(operation.revision_key(), first_key);
 
-    // 名前だけの変更でも増える
+    // 属性（名前・加工の段階・工具を選んだツールライブラリの項目）だけの変更では増えない（属性は計算に使わない）。
+    // 属性は替わる
+    let toolset = ToolSetReference {
+        library: ToolLibraryId::from_uuid(uuid::Uuid::from_u128(1)),
+        toolset: ToolSetId::from_uuid(uuid::Uuid::from_u128(2)),
+        name: "R5 ボール".to_string(),
+    };
     let mut renamed = content();
-    renamed.name = "仕上げ 2".to_string();
+    renamed.attributes.name = "仕上げ 2".to_string();
+    renamed.attributes.stage = MachiningStage::Rough;
+    renamed.attributes.toolset = Some(toolset.clone());
     operation.set_content(renamed);
-    assert_eq!(operation.revision(), 2);
+    assert_eq!(operation.revision(), 1);
+    assert_eq!(operation.revision_key(), first_key);
+    assert_eq!(operation.content().attributes.name, "仕上げ 2");
+    assert_eq!(operation.content().attributes.stage, MachiningStage::Rough);
+    assert_eq!(operation.content().attributes.toolset, Some(toolset));
 
+    // 計算の条件を変えると増え、改訂の鍵を作り直す
     let mut changed = operation.content().clone();
-    changed.stage = MachiningStage::Rough;
+    changed.conditions.tolerance_profile = ToleranceProfile::MoldFinish;
     operation.set_content(changed);
-    assert_eq!(operation.revision(), 3);
-    assert_eq!(operation.content().stage, MachiningStage::Rough);
+    assert_eq!(operation.revision(), 2);
+    assert_ne!(operation.revision_key(), first_key);
+    assert_eq!(
+        operation.content().conditions.tolerance_profile,
+        ToleranceProfile::MoldFinish
+    );
     assert_eq!(operation.id(), id);
+}
+
+#[test]
+fn changing_any_of_the_conditions_increments_the_revision() {
+    let changes: [fn(&mut MachiningOperationConditions); 4] = [
+        |conditions| {
+            let OperationSpec::Scanline(scanline) = &mut conditions.spec;
+            scanline.stepover = 2.0;
+        },
+        |conditions| conditions.tool = Tool::ball_end_mill("T1".to_string(), 8.0, 20.0),
+        |conditions| {
+            conditions.boundary = Some(MachiningBoundary::Rectangle(RectangleBoundary {
+                rect_min: [0.0, 0.0],
+                rect_max: [10.0, 10.0],
+            }))
+        },
+        |conditions| conditions.tolerance_profile = ToleranceProfile::MoldFinish,
+    ];
+    for change in changes {
+        let mut operation = MachiningOperation::new(content());
+        let mut changed = content();
+        change(&mut changed.conditions);
+        operation.set_content(changed);
+        assert_eq!(operation.revision(), 2);
+    }
 }
 
 #[test]
@@ -97,7 +150,7 @@ fn an_operation_is_changed_through_its_sequence() {
     sequence.push_operation(second);
 
     let mut changed = content();
-    changed.stage = MachiningStage::SemiFinish;
+    changed.conditions.tolerance_profile = ToleranceProfile::MoldFinish;
     sequence
         .operation_mut(second_id)
         .expect("the operation belongs to the sequence")
@@ -107,5 +160,54 @@ fn an_operation_is_changed_through_its_sequence() {
     assert_eq!(operations[0].revision(), 1);
     assert_eq!(operations[1].id(), second_id);
     assert_eq!(operations[1].revision(), 2);
-    assert_eq!(operations[1].content().stage, MachiningStage::SemiFinish);
+    assert_eq!(
+        operations[1].content().conditions.tolerance_profile,
+        ToleranceProfile::MoldFinish
+    );
+}
+
+#[test]
+fn ids_and_revision_keys_are_restored_from_their_uuids() {
+    let operation = MachiningOperation::new(content());
+    let id = MachiningOperationId::from_uuid(operation.id().as_uuid());
+    let key = MachiningRevisionKey::from_uuid(operation.revision_key().as_uuid());
+    assert_eq!(id, operation.id());
+    assert_eq!(key, operation.revision_key());
+    let sequence = MachiningSequence::new("手順".to_string(), Vec::new(), stock());
+    assert_eq!(
+        MachiningSequenceId::from_uuid(sequence.id().as_uuid()),
+        sequence.id()
+    );
+}
+
+#[test]
+fn the_revision_stops_at_its_limit_and_the_revision_key_still_changes() {
+    let saved = MachiningOperation::new(content());
+    let mut operation = MachiningOperation::restore(
+        saved.id(),
+        content(),
+        std::num::NonZeroU32::MAX,
+        saved.revision_key(),
+        true,
+    );
+    let mut changed = content();
+    changed.conditions.tolerance_profile = ToleranceProfile::MoldFinish;
+    operation.set_content(changed);
+    assert_eq!(operation.revision(), u32::MAX);
+    assert_ne!(operation.revision_key(), saved.revision_key());
+}
+
+#[test]
+fn new_operations_have_no_conditions_set_until_marked() {
+    let mut operation = MachiningOperation::new(content());
+    assert!(!operation.conditions_set());
+    let (revision, key) = (operation.revision(), operation.revision_key());
+    assert!(operation.mark_conditions_set());
+    assert!(operation.conditions_set());
+    // 2 度目は変わらない。改訂は進めない
+    assert!(!operation.mark_conditions_set());
+    assert_eq!(
+        (operation.revision(), operation.revision_key()),
+        (revision, key)
+    );
 }

@@ -25,7 +25,9 @@ Push-Location $repoRoot
 try {
     $extensions = @("*.rs", "*.ps1", "*.sh", "*.wgsl", "*.toml", "*.yml", "*.yaml")
     $files = git ls-files -- $extensions |
-        Where-Object { $_ -notmatch '^(dev|docs|manual|\.github)/' }
+        Where-Object { $_ -notmatch '^(dev|docs|manual|\.github)/' } |
+        # 消してまだコミットしていないファイルは読まない
+        Where-Object { Test-Path -LiteralPath $_ }
     if ($LASTEXITCODE -ne 0) {
         throw "git ls-files failed"
     }

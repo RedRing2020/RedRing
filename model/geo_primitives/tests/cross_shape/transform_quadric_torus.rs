@@ -69,11 +69,7 @@ fn assert_containment_maps(
                 let p = Point3D::new(x, y, z);
                 let before = original(p);
                 assert_eq!(before, moved(map(p)), "probe {p:?}");
-                if before {
-                    inside += 1
-                } else {
-                    outside += 1
-                }
+                if before { inside += 1 } else { outside += 1 }
             }
         }
     }

@@ -25,11 +25,10 @@ mod tests; // ニュートン・ラフソン法
 // Newton法ソルバーの再エクスポート
 // generic / multivariate API を正本として公開する。
 pub use newton::{
-    newton_inverse_generic, newton_solve_bounded_generic, newton_solve_generic,
-    newton_solve_multivariate, newton_solve_multivariate_bounded,
-    newton_solve_multivariate_bounded_with_solver, newton_solve_multivariate_with_solver,
-    newton_solve_with_numeric_derivative_bounded_generic, MultivariateNewtonBounds,
-    MultivariateNewtonOptions,
+    MultivariateNewtonBounds, MultivariateNewtonOptions, newton_inverse_generic,
+    newton_solve_bounded_generic, newton_solve_generic, newton_solve_multivariate,
+    newton_solve_multivariate_bounded, newton_solve_multivariate_bounded_with_solver,
+    newton_solve_multivariate_with_solver, newton_solve_with_numeric_derivative_bounded_generic,
 };
 
 // テストモジュール

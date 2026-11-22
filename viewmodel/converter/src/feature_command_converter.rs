@@ -10,11 +10,11 @@ use application::topology_orchestration::{
 };
 
 use crate::entity_converter::{
-    arc_entity_to_vertices, circle_entity_to_vertices, geometric_entity_to_vertices,
-    EntityConvertError,
+    EntityConvertError, arc_entity_to_vertices, circle_entity_to_vertices,
+    geometric_entity_to_vertices,
 };
 use crate::mesh_converter::VertexData;
-use crate::shape_converter::{triangle_to_solid_vertices, TessellationQuality};
+use crate::shape_converter::{TessellationQuality, triangle_to_solid_vertices};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FeatureCommandConvertError {

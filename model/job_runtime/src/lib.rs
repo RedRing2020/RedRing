@@ -7,6 +7,7 @@ pub mod events;
 pub mod executor;
 pub mod manager;
 pub mod reference;
+pub mod store;
 pub mod types;
 
 pub use artifact_manifest::{

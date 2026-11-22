@@ -145,9 +145,9 @@ impl<T: Scalar> Matrix2x2<T> {
     /// フロベニウスノルム
     pub fn frobenius_norm(&self) -> T {
         let mut sum = T::ZERO;
-        for i in 0..2 {
-            for j in 0..2 {
-                sum += self.data[i][j] * self.data[i][j];
+        for row in &self.data {
+            for &value in row {
+                sum += value * value;
             }
         }
         sum.sqrt()
