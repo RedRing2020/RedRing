@@ -475,7 +475,7 @@ fn shell_faces_are_displayed_with_the_placement_and_occurrences_share_the_triang
         );
     }
     // 2 つの出現で、三角形は 1 回だけ作る
-    assert_eq!(first.shell().meshes.0.lock().unwrap().len(), 1);
+    assert_eq!(first.shell().meshes.lock().meshes.len(), 1);
     // 置き場は、許容弦誤差の違う組を `CACHED_SHELL_MESHES` まで残す
     for tolerance in [0.1, 0.2, 0.3] {
         first
@@ -483,7 +483,7 @@ fn shell_faces_are_displayed_with_the_placement_and_occurrences_share_the_triang
             .unwrap();
     }
     assert_eq!(
-        first.shell().meshes.0.lock().unwrap().len(),
+        first.shell().meshes.lock().meshes.len(),
         CACHED_SHELL_MESHES
     );
     let unknown = FaceId::new_random();
@@ -491,6 +491,83 @@ fn shell_faces_are_displayed_with_the_placement_and_occurrences_share_the_triang
         first.face_display_mesh(unknown, 0.05).unwrap_err(),
         ProductShapeError::UnknownFace(unknown)
     );
+}
+
+#[test]
+fn shell_triangles_for_the_solver_are_prepared_on_another_thread() {
+    let mut store = ProductShapeStore::new();
+    let cube = store
+        .add_shell(
+            Arc::new(test_fixtures::cube_brep()),
+            SimilarityTransform3D::identity(),
+            None,
+        )
+        .unwrap();
+    store
+        .add_shell(
+            Arc::new(test_fixtures::sphere_brep()),
+            SimilarityTransform3D::identity(),
+            None,
+        )
+        .unwrap();
+    let [cube_shell, sphere_shell] = store.shells() else {
+        panic!("two shells are held");
+    };
+    assert_eq!(cube_shell.id(), cube);
+    let cube_faces = cube_shell.face_ids();
+    let tolerance = 0.01;
+
+    // 加工の対象のシェルだけを、別のスレッドで分ける（初めは、分け終えていない）
+    assert!(!store.prepare_solver_geometry(&cube_faces, tolerance));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while !store.prepare_solver_geometry(&cube_faces, tolerance) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the triangles are prepared"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(sphere_shell.shell().meshes.lock().meshes.is_empty());
+    // 分けた三角形を、形状にするときに使う（同じ三角形）
+    let prepared = store
+        .resolve_solver_geometry(&cube_faces, tolerance)
+        .unwrap();
+    assert_eq!(cube_shell.shell().meshes.lock().meshes.len(), 1);
+    let fresh = ProductShapeStore::from_records(Vec::new(), store.shell_records())
+        .unwrap()
+        .resolve_solver_geometry(&cube_faces, tolerance)
+        .unwrap();
+    let (SolverGeometry::TriangleMesh(prepared), SolverGeometry::TriangleMesh(fresh)) =
+        (prepared, fresh)
+    else {
+        panic!("shell faces become a triangle mesh");
+    };
+    assert_eq!(prepared.vertices(), fresh.vertices());
+    assert_eq!(prepared.indices(), fresh.indices());
+    // シェルの面がなければ、分けるものはない
+    assert!(store.prepare_solver_geometry(&[], tolerance));
+}
+
+#[test]
+fn resolving_the_solver_geometry_waits_for_the_triangles_being_prepared() {
+    let mut store = ProductShapeStore::new();
+    store
+        .add_shell(
+            Arc::new(test_fixtures::sphere_brep()),
+            SimilarityTransform3D::identity(),
+            None,
+        )
+        .unwrap();
+    let [shell] = store.shells() else {
+        panic!("one shell is held");
+    };
+    let faces = shell.face_ids();
+    assert!(!store.prepare_solver_geometry(&faces, 0.01));
+    // 作っている三角形を待って使う（もう一度作らない）
+    store.resolve_solver_geometry(&faces, 0.01).unwrap();
+    let meshes = shell.shell().meshes.lock();
+    assert_eq!(meshes.meshes.len(), 1);
+    assert!(meshes.building.is_empty());
 }
 
 /// 表示を確かめるモデルファイル（立方体・円柱・球・トーラス・穴のある板のシェル）を書き出す
@@ -653,9 +730,8 @@ fn shell_faces_placed_with_a_scale_are_triangulated_finer_in_the_brep() {
     let cached: Vec<u64> = store.shells()[0]
         .shell()
         .meshes
-        .0
         .lock()
-        .unwrap()
+        .meshes
         .iter()
         .map(|(key, _)| *key)
         .collect();

@@ -407,6 +407,35 @@ impl CamSimulationWorkflow {
         resolve_operation_request(shapes, sequences, sequence_id, operation_id).map(|_| ())
     }
 
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_ids` を確かめる（[`Self::check_operation`]・
+    /// [`Self::check_operations`]）ときに要る加工の対象の形状を、工程の精度で作り終えているか
+    ///
+    /// 作り終えていない形状は、別のスレッドで作り始める（シェルの面を三角形に分ける。待たない）。保管していない加工
+    /// 手順・加工手順にない加工工程は、作るものがないとする（確かめで、その誤りを返す）。
+    pub fn prepare_check(
+        shapes: &ProductShapeStore,
+        sequences: &MachiningSequenceStore,
+        sequence_id: MachiningSequenceId,
+        operation_ids: &[MachiningOperationId],
+    ) -> bool {
+        let Ok(sequence) = sequences.sequence(sequence_id) else {
+            return true;
+        };
+        let mut tolerances: Vec<u64> = operation_ids
+            .iter()
+            .filter_map(|&operation_id| sequences.operation(sequence_id, operation_id).ok())
+            .map(|operation| operation_tolerance(operation).to_bits())
+            .collect();
+        tolerances.sort_unstable();
+        tolerances.dedup();
+        // すべての精度の形状を作り始めるため、途中でやめない
+        tolerances.into_iter().fold(true, |ready, tolerance| {
+            let prepared =
+                shapes.prepare_solver_geometry(sequence.target_faces(), f64::from_bits(tolerance));
+            ready && prepared
+        })
+    }
+
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_ids` のそれぞれについて、投入の前に計算条件の
     /// 誤りをすべて確かめ、`operation_ids` の順に返す（[`Self::check_operation`] と同じ判定）
     ///

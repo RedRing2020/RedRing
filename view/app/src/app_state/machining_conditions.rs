@@ -12,7 +12,7 @@ use crate::help_ui::Notice;
 use crate::machining_conditions_ui::{
     ApplySubmission, ConditionDialog, DialogResult, JobStatusLine, MachiningConditionsUiState,
     OperationCommand, OperationNameEdit, OperationRow, OperationSetup, OperationToolCommand,
-    ToolLibraryChoice, submission_on_apply,
+    ToolLibraryChoice, conditions_checking, submission_on_apply,
 };
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, MachiningOperationContent, MachiningStock,
@@ -262,13 +262,16 @@ impl AppState {
         }
     }
 
-    /// 編集している条件の問題（計算の条件・素材が変わったときだけ確かめ直す。属性は計算に使わない）
+    /// 編集している条件の問題（計算の条件・素材が変わったとき、加工の対象の形状を作っている間の確かめ中のときだけ
+    /// 確かめ直す。属性は計算に使わない）
     fn draft_issues(&mut self) -> Vec<ConditionIssue> {
         let Some(draft) = &self.condition_draft else {
             return Vec::new();
         };
         let current = self.draft_issues.as_ref().is_some_and(|cached| {
-            cached.content.conditions == draft.content.conditions && cached.stock == draft.stock
+            cached.content.conditions == draft.content.conditions
+                && cached.stock == draft.stock
+                && !conditions_checking(&cached.issues)
         });
         if !current {
             let (content, stock) = (draft.content.clone(), draft.stock);
@@ -287,9 +290,14 @@ impl AppState {
             .unwrap_or_default()
     }
 
-    /// 計算条件を確かめ直す必要がある場合（条件・製品形状が変わった後）に確かめる
+    /// 計算条件を確かめ直す必要がある場合（条件・製品形状が変わった後、加工の対象の形状を作っている間の確かめ中）に
+    /// 確かめる
     fn refresh_condition_issues(&mut self) {
-        if self.condition_issues.is_none() {
+        if self
+            .condition_issues
+            .as_ref()
+            .is_none_or(|issues| conditions_checking(issues))
+        {
             self.condition_issues = Some(self.cutting_simulation.check(&self.document));
         }
     }
@@ -528,8 +536,14 @@ impl AppState {
             self.refresh_job_status();
         }
         let selected = self.document.selected_operation();
-        // 条件に誤りがある工程（条件の確かめを捨てたときだけ確かめ直す。改訂が進んでいない工程は、前の結果を使う）
-        if self.operation_list_shown && self.operation_condition_errors.is_none() {
+        // 条件に誤りがある工程（条件の確かめを捨てたとき、確かめ中の工程があるときだけ確かめ直す。改訂が進んでいない
+        // 工程は、前の結果を使う）
+        if self.operation_list_shown
+            && self
+                .operation_condition_errors
+                .as_ref()
+                .is_none_or(|errors| errors.values().any(|issues| conditions_checking(issues)))
+        {
             self.operation_condition_errors = Some(
                 self.cutting_simulation
                     .operation_condition_issues(&self.document)

@@ -56,6 +56,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
     ("conditions.operations.status.none", "未計算"),
     ("conditions.operations.status.not_set", "未設定"),
     ("conditions.operations.status.condition_error", "条件エラー"),
+    ("conditions.operations.status.checking", "確かめ中"),
     ("conditions.operations.status.queued", "計算待ち"),
     ("conditions.operations.status.running", "計算中"),
     ("conditions.operations.status.succeeded", "計算済み"),
@@ -396,6 +397,10 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "工程の条件をまだ設定していません",
     ),
     (
+        "conditions.issue.checking",
+        "加工の対象の形状を作っています（作り終えたら条件を確かめます）",
+    ),
+    (
         "conditions.issue.invalid_stock_margins",
         "余裕は 0 以上の数値にしてください",
     ),
@@ -527,6 +532,7 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.operations.status.condition_error",
         "condition error",
     ),
+    ("conditions.operations.status.checking", "checking"),
     ("conditions.operations.status.queued", "waiting"),
     ("conditions.operations.status.running", "calculating"),
     ("conditions.operations.status.succeeded", "calculated"),
@@ -883,6 +889,10 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
     (
         "conditions.issue.not_set",
         "The conditions of the operation are not set yet",
+    ),
+    (
+        "conditions.issue.checking",
+        "Preparing the target shape (the conditions are checked when it is ready)",
     ),
     (
         "conditions.issue.invalid_stock_margins",
