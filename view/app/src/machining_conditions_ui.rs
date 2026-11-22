@@ -80,6 +80,10 @@ pub(crate) enum OperationStatus {
     RecalculationWaiting,
     /// ツールパスが大きくなることを確かめて、計算しないことにした
     LargeToolpathDeclined,
+    /// ツールパスの大きさを見積もっている（見積もり終えたら、頼まれた計算を始める）
+    Estimating,
+    /// 見積もっている間に工程・条件が変わったため、頼まれた計算を始めない
+    EstimateAbandoned,
     /// 今の条件の計算待ち・計算中の計算を止めている（取り消すよう頼んだ。止まるのは待たない）
     Stopped,
     /// 前の条件の、計算待ち・計算中の計算を取り消した（取り消すよう頼んだ。止まるのは待たない）
@@ -263,6 +267,8 @@ fn operation_status_message(
         OperationStatus::LargeToolpathDeclined => {
             ("conditions.status.large_toolpath_declined", vec![])
         }
+        OperationStatus::Estimating => ("conditions.status.estimating", vec![]),
+        OperationStatus::EstimateAbandoned => ("conditions.status.estimate_abandoned", vec![]),
         OperationStatus::RecalculationWaiting => {
             ("conditions.status.recalculation_waiting", vec![])
         }
@@ -2320,6 +2326,8 @@ mod tests {
             OperationStatus::AlreadyImported,
             OperationStatus::RecalculationWaiting,
             OperationStatus::LargeToolpathDeclined,
+            OperationStatus::Estimating,
+            OperationStatus::EstimateAbandoned,
             OperationStatus::Stopped,
             OperationStatus::EarlierConditionsCanceled,
             OperationStatus::StopNotYetAccepted,

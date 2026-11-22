@@ -191,6 +191,8 @@ pub struct AppState {
 
     /// 次に投入する計算条件の問題（`None` は、条件・製品形状が変わって確かめ直す必要がある）
     condition_issues: Option<Vec<ConditionIssue>>,
+    /// ツールパスの大きさを見積もっている間に頼まれた計算（見積もり終えたら、もう一度頼む）
+    pending_submission: Option<cutting_simulation::PendingSubmission>,
     /// 加工手順の工程のうち、計算の条件に誤りがある工程と、その問題（確かめていなければ `None`）
     operation_condition_errors: Option<
         std::collections::HashMap<
@@ -339,6 +341,7 @@ impl AppState {
             operation_settings_page: OperationSettingsPage::default(),
             submit_on_apply: false,
             condition_issues: None,
+            pending_submission: None,
             operation_condition_errors: None,
             imported_conditions: None,
             cutting_simulation_job_status: JobStatusLine::NotSubmitted,

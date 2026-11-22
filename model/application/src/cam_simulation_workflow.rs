@@ -16,6 +16,7 @@ mod tests;
 /// 逆オフセット形状の表示用の三角形と、その種類
 pub use cam_algorithms::{InverseOffsetPart, InverseOffsetPartKind};
 use std::fmt;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use cam_algorithms::{
     CamSolverError, CamSolverInput, InverseOffsetShape, ScanlineInputError, SolverGeometry,
@@ -509,42 +510,62 @@ impl CamSimulationWorkflow {
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` のツールパスの大きさを、計算を始める前に
-    /// 見積もり、確かめる目安と上限 `limits`（[`Self::toolpath_limits`]）で、確かめずに計算してよいか・確かめてから
-    /// 計算するかを返す
+    /// 別のスレッドで見積もり始める（待たない。見積もりは [`ToolpathSizeEstimation::size`] で受け取る）
     ///
-    /// 見積もれないときは、確かめずに計算してよいとする（計算すれば、計算の失敗として理由が分かる）。
+    /// 計算の入力は、このスレッドで組み立てて確かめる。
     ///
     /// # Errors
     ///
-    /// 投入前の確認（[`Self::check_operation`]）の誤り、見積もったツールパスがメモリの上限を超える場合。
-    pub fn check_toolpath_size(
+    /// 投入前の確認（[`Self::check_operation`]）の誤り。
+    pub fn estimate_toolpath_size(
         shapes: &ProductShapeStore,
         sequences: &MachiningSequenceStore,
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
-        limits: ToolpathLimits,
-    ) -> Result<ToolpathSize, CamSimulationWorkflowError> {
+    ) -> Result<ToolpathSizeEstimation, CamSimulationWorkflowError> {
         let (request, _) = resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
-        let started = std::time::Instant::now();
-        match estimate_toolpath_points(&request.solver_input) {
-            Ok(points) => {
-                tracing::info!(
-                    points,
-                    memory_bytes = toolpath_memory_bytes(points),
-                    confirm_bytes = limits.confirm_bytes,
-                    limit_bytes = limits.limit_bytes,
-                    elapsed_ms = started.elapsed().as_millis() as u64,
-                    "Estimated the toolpath size before the calculation"
-                );
-                toolpath_size(points, limits)
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "Cannot estimate the toolpath size, calculating without asking: {error}"
-                );
-                Ok(ToolpathSize::Normal)
-            }
+        let points = Arc::new(Mutex::new(None));
+        let estimated = Arc::clone(&points);
+        let estimate = move || {
+            let started = std::time::Instant::now();
+            // 見積もりの途中で panic しても、見積もれなかったとして結果を残す（見積もり中のままにしない）
+            let estimated_points = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                estimate_toolpath_points(&request.solver_input)
+            }));
+            let result = match estimated_points {
+                Err(_) => {
+                    tracing::warn!(
+                        "The toolpath size estimate panicked, calculating without asking"
+                    );
+                    None
+                }
+                Ok(Ok(points)) => {
+                    tracing::info!(
+                        points,
+                        memory_bytes = toolpath_memory_bytes(points),
+                        elapsed_ms = started.elapsed().as_millis() as u64,
+                        "Estimated the toolpath size before the calculation"
+                    );
+                    Some(points)
+                }
+                Ok(Err(error)) => {
+                    tracing::warn!(
+                        "Cannot estimate the toolpath size, calculating without asking: {error}"
+                    );
+                    None
+                }
+            };
+            *estimated.lock().unwrap_or_else(PoisonError::into_inner) = Some(result);
+        };
+        if let Err(error) = std::thread::Builder::new()
+            .name("toolpath-estimate".to_string())
+            .spawn(estimate)
+        {
+            // スレッドを作れなければ、見積もらずに計算してよいとする（計算すれば、計算の失敗として理由が分かる）
+            tracing::warn!("Cannot start a thread to estimate the toolpath size: {error}");
+            *points.lock().unwrap_or_else(PoisonError::into_inner) = Some(None);
         }
+        Ok(ToolpathSizeEstimation { points })
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、投入したときのツールパス生成と同じ逆オフセット形状を
@@ -1217,6 +1238,44 @@ impl ToolpathEstimate {
     /// 超えて止まることがある）
     pub fn is_near_limit(&self) -> bool {
         self.memory_bytes >= self.limit_bytes / 10 * 8
+    }
+}
+
+/// 別のスレッドで見積もっている、計算を始める前のツールパスの大きさ
+/// （[`CamSimulationWorkflow::estimate_toolpath_size`]）
+#[derive(Debug)]
+pub struct ToolpathSizeEstimation {
+    /// 見積もったパスの点の数（見積もっている間は `None`。見積もれなければ `Some(None)`）
+    points: Arc<Mutex<Option<Option<u64>>>>,
+}
+
+impl ToolpathSizeEstimation {
+    /// 見積もり終えたか
+    pub fn is_finished(&self) -> bool {
+        self.points
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_some()
+    }
+
+    /// 見積もり終えていれば、確かめる目安と上限 `limits`（[`CamSimulationWorkflow::toolpath_limits`]）で、確かめずに
+    /// 計算してよいか・確かめてから計算するか（見積もっている間は `None`）
+    ///
+    /// 見積もれなかったときは、確かめずに計算してよいとする（計算すれば、計算の失敗として理由が分かる）。
+    ///
+    /// # Errors
+    ///
+    /// 見積もったツールパスがメモリの上限を超える場合。
+    pub fn size(
+        &self,
+        limits: ToolpathLimits,
+    ) -> Option<Result<ToolpathSize, CamSimulationWorkflowError>> {
+        let points = *self.points.lock().unwrap_or_else(PoisonError::into_inner);
+        points.map(|points| {
+            points.map_or(Ok(ToolpathSize::Normal), |points| {
+                toolpath_size(points, limits)
+            })
+        })
     }
 }
 

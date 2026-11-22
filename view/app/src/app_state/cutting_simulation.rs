@@ -107,7 +107,73 @@ fn stock_class_color(colors: &SnapshotShadedColorSettings, class: DeviationClass
     }
 }
 
+/// ツールパスの大きさを見積もっている間に頼まれた計算
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PendingSubmission {
+    /// 選んだ工程の計算
+    Operation,
+    /// 選んだ工程の再計算
+    Redo,
+    /// 手順のすべての工程の計算
+    Sequence,
+}
+
 impl AppState {
+    /// ツールパスの大きさを見積もり終えるのを待ってから、計算 `submission` をもう一度頼む（待つ間は画面を止めない）
+    fn wait_for_estimate(&mut self, submission: PendingSubmission) {
+        tracing::info!(
+            ?submission,
+            "Estimating the toolpath size before the calculation"
+        );
+        self.pending_submission = Some(submission);
+        // 全工程を計算で工程ごとに見積もるときも、見積もっていることは続けて出さない
+        if !matches!(
+            self.notice,
+            crate::help_ui::Notice::Operation(OperationStatus::Estimating)
+        ) {
+            self.set_operation_status(OperationStatus::Estimating);
+        }
+    }
+
+    /// ツールパスの大きさを見積もり終えたら、見積もっている間に頼まれた計算をもう一度頼む（条件の編集のダイアログを
+    /// 開いている間は頼まない。キャンセルしたら頼み、条件を変えて適用したら頼まない）
+    pub(crate) fn resume_pending_submission(&mut self) {
+        let Some(submission) = self.pending_submission else {
+            return;
+        };
+        if self.is_condition_dialog_open() {
+            return;
+        }
+        // 頼まれた計算の工程の、今の改訂の見積もりだけを待つ（やめた工程・前の条件の見積もりは待たない）
+        let operations: Vec<_> = match submission {
+            PendingSubmission::Operation | PendingSubmission::Redo => {
+                vec![self.document.selected_operation()]
+            }
+            PendingSubmission::Sequence => self
+                .document
+                .operations()
+                .into_iter()
+                .map(|item| item.id)
+                .collect(),
+        };
+        if self
+            .cutting_simulation
+            .estimating(&self.document, &operations)
+        {
+            return;
+        }
+        self.pending_submission = None;
+        let submitted = match submission {
+            PendingSubmission::Operation => self.submit_cutting_simulation(),
+            PendingSubmission::Redo => self.redo_cutting_simulation(),
+            PendingSubmission::Sequence => self.submit_sequence(),
+        };
+        if submitted {
+            // 投入した計算の状態を、すぐに読み直す
+            self.job_status_read_at = None;
+        }
+    }
+
     /// 加工手順の加工の対象で、選んだ加工工程を投入する（実行しない。今の条件の計算が計算待ち・計算中・計算済みなら
     /// 投入しない。今の条件の CL があれば、切削シミュレーションだけ）
     ///
@@ -130,6 +196,10 @@ impl AppState {
             }
             Ok(SubmitOutcome::Declined) => {
                 self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                return false;
+            }
+            Ok(SubmitOutcome::Estimating) => {
+                self.wait_for_estimate(PendingSubmission::Operation);
                 return false;
             }
             Err(error) => Err(error),
@@ -163,6 +233,10 @@ impl AppState {
         }) {
             Ok(RedoOutcome::Declined) => {
                 self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                return false;
+            }
+            Ok(RedoOutcome::Estimating) => {
+                self.wait_for_estimate(PendingSubmission::Redo);
                 return false;
             }
             Ok(RedoOutcome::Waiting) => {
@@ -199,6 +273,10 @@ impl AppState {
             }) {
             Ok(SequenceOutcome::Declined) => {
                 self.set_operation_status(OperationStatus::LargeToolpathDeclined);
+                false
+            }
+            Ok(SequenceOutcome::Estimating) => {
+                self.wait_for_estimate(PendingSubmission::Sequence);
                 false
             }
             Ok(SequenceOutcome::Submitted(submission)) => {
