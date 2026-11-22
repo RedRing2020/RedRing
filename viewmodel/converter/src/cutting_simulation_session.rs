@@ -105,6 +105,8 @@ pub enum ConditionIssue {
     Condition(CamConditionError),
     /// そのほかの理由で投入できない（画面に出す理由）
     Other(UiMessage),
+    /// 加工の対象の形状を、工程の精度で作っている（作り終えたら確かめる。それまでは投入しない）
+    Checking,
 }
 
 impl ConditionIssue {
@@ -477,12 +479,16 @@ impl CuttingSimulationSession {
     }
 
     /// 加工手順の加工の対象と加工工程・加工手順の条件を、投入と同じ判定で確かめ、問題をすべて返す（問題がなければ空。
-    /// 条件を設定していない工程は、そのことだけを返す）
+    /// 条件を設定していない工程は、そのことだけを返す。加工の対象の形状を作り終えるまでは
+    /// [`ConditionIssue::Checking`] だけを返す）
     pub fn check(&self, document: &SpaceModelDocument) -> Vec<ConditionIssue> {
         if !document.conditions_set_of(document.selected_operation()) {
             return vec![ConditionIssue::NotSet];
         }
         let (shapes, sequences, sequence, operation) = document.machining();
+        if !CamSimulationWorkflow::prepare_check(shapes, sequences, sequence, &[operation]) {
+            return vec![ConditionIssue::Checking];
+        }
         match CamSimulationWorkflow::check_operation(shapes, sequences, sequence, operation) {
             Ok(()) => Vec::new(),
             Err(error) => ConditionIssue::from_workflow_error(&error),
@@ -498,7 +504,8 @@ impl CuttingSimulationSession {
     /// 確かめたときと同じ。条件を設定していない工程は含めない）
     ///
     /// 工程の改訂ごとに確かめた結果を覚え、改訂が進んだ工程（計算の条件・素材・加工の対象が変わった）だけを
-    /// 確かめ直す。確かめ直す工程はまとめて確かめ、加工の対象の形状は工程の精度ごとに 1 回だけ作る。
+    /// 確かめ直す。確かめ直す工程はまとめて確かめ、加工の対象の形状は工程の精度ごとに 1 回だけ作る。形状を作り
+    /// 終えるまでは、確かめ直す工程を [`ConditionIssue::Checking`] とする（覚えない）。
     pub fn operation_condition_issues(
         &mut self,
         document: &SpaceModelDocument,
@@ -519,22 +526,30 @@ impl CuttingSimulationSession {
                 !matches!(self.condition_issues.get(id), Some((checked, _)) if checked == key)
             })
             .collect();
+        let mut checking = Vec::new();
         if !stale.is_empty() {
             let (shapes, sequences, sequence, _) = document.machining();
             let ids: Vec<MachiningOperationId> = stale.iter().map(|(id, _)| *id).collect();
-            let results =
-                CamSimulationWorkflow::check_operations(shapes, sequences, sequence, &ids);
-            for ((id, key), result) in stale.into_iter().zip(results) {
-                let issues = match result {
-                    Ok(()) => Vec::new(),
-                    Err(error) => ConditionIssue::from_workflow_error(&error),
-                };
-                self.condition_issues.insert(id, (key, issues));
+            if CamSimulationWorkflow::prepare_check(shapes, sequences, sequence, &ids) {
+                let results =
+                    CamSimulationWorkflow::check_operations(shapes, sequences, sequence, &ids);
+                for ((id, key), result) in stale.into_iter().zip(results) {
+                    let issues = match result {
+                        Ok(()) => Vec::new(),
+                        Err(error) => ConditionIssue::from_workflow_error(&error),
+                    };
+                    self.condition_issues.insert(id, (key, issues));
+                }
+            } else {
+                checking = ids;
             }
         }
         keyed
             .into_iter()
             .filter_map(|(id, _)| {
+                if checking.contains(&id) {
+                    return Some((id, vec![ConditionIssue::Checking]));
+                }
                 let (_, issues) = self.condition_issues.get(&id)?;
                 (!issues.is_empty()).then(|| (id, issues.clone()))
             })
@@ -542,7 +557,8 @@ impl CuttingSimulationSession {
     }
 
     /// 選んだ加工工程の中身を `content` に、加工手順の素材を `stock` に替えたときの計算条件の問題（文書の工程・
-    /// 手順は替えない。適用する前の条件を確かめる）
+    /// 手順は替えない。適用する前の条件を確かめる。加工の対象の形状を作り終えるまでは [`ConditionIssue::Checking`]
+    /// だけを返す）
     pub fn check_draft(
         &self,
         document: &SpaceModelDocument,
@@ -557,6 +573,9 @@ impl CuttingSimulationSession {
             .set_operation_content(sequence, operation, content.clone())
             .and_then(|()| draft.set_stock(sequence, stock))
             .expect("the document holds its machining sequence and operation");
+        if !CamSimulationWorkflow::prepare_check(shapes, &draft, sequence, &[operation]) {
+            return vec![ConditionIssue::Checking];
+        }
         match CamSimulationWorkflow::check_operation(shapes, &draft, sequence, operation) {
             Ok(()) => Vec::new(),
             Err(error) => ConditionIssue::from_workflow_error(&error),
@@ -1784,6 +1803,41 @@ pub(crate) mod tests {
         document.select_operation(first);
         coarse(&mut document);
         assert_eq!(session.operation_condition_issues(&document), Vec::new());
+    }
+
+    #[test]
+    fn conditions_are_checked_after_the_shell_target_is_prepared_on_another_thread() {
+        let mut session = CuttingSimulationSession::in_process();
+        let mut document = SpaceModelDocument::new(NAMES);
+        let sphere = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/step/sphere.step");
+        document.import_step(&sphere).unwrap();
+        coarse(&mut document);
+        let operation = document.selected_operation();
+        // 形状を作り終えるまでは確かめ中（画面のスレッドで、シェルの面を三角形に分けない）
+        assert_eq!(session.check(&document), vec![ConditionIssue::Checking]);
+        // 工程リストも確かめ中（その間に作り終えていれば、確かめた結果）
+        let listed = session.operation_condition_issues(&document);
+        assert!(
+            listed == vec![(operation, vec![ConditionIssue::Checking])] || listed.is_empty(),
+            "{listed:?}"
+        );
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+        while session.check(&document) == vec![ConditionIssue::Checking] {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the target is prepared"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        // 作り終えたら、条件を確かめる（確かめ中は覚えていない）
+        assert_eq!(session.check(&document), Vec::new());
+        assert_eq!(session.operation_condition_issues(&document), Vec::new());
+        let content = document.operation_content().clone();
+        assert_eq!(
+            session.check_draft(&document, &content, document.stock()),
+            Vec::new()
+        );
     }
 
     #[test]

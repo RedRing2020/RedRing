@@ -11,7 +11,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
 use cam_algorithms::SolverGeometry;
 /// 製品形状の面の形（NURBS 曲面・三角形メッシュ）の型
@@ -162,12 +162,87 @@ pub struct ShellSource {
     pub faces: Vec<u64>,
 }
 
-/// 置き場に残す B-rep の三角形の数（許容弦誤差の違う組。表示と CAM の入力で 1 つずつ）
-const CACHED_SHELL_MESHES: usize = 2;
+/// 置き場に残す B-rep の三角形の数（許容弦誤差の違う組。表示と、CAM の入力の精度プロファイルの 2 つで 1 つずつ）
+const CACHED_SHELL_MESHES: usize = 3;
 
-/// B-rep の三角形の置き場（許容弦誤差のビット列と三角形。古い順。同じ B-rep の表を持つシェルで共有する）
+/// B-rep の三角形の置き場（同じ B-rep の表を持つシェルで共有する）
 #[derive(Default)]
-struct ShellMeshCache(Mutex<Vec<(u64, Arc<ShellMesh>)>>);
+struct ShellMeshCache {
+    state: Mutex<ShellMeshes>,
+    /// 作っていた三角形を作り終えた（置き場に残した、または作れずにやめた）
+    built: Condvar,
+}
+
+/// 置き場の中身
+#[derive(Default)]
+struct ShellMeshes {
+    /// 許容弦誤差のビット列と三角形（古い順）
+    meshes: Vec<(u64, Arc<ShellMesh>)>,
+    /// 作っている三角形の、許容弦誤差のビット列
+    building: Vec<u64>,
+    /// 別のスレッドで作る途中で panic した三角形の、許容弦誤差のビット列（別のスレッドで作り直さない）
+    failed: Vec<u64>,
+}
+
+impl ShellMeshCache {
+    fn lock(&self) -> MutexGuard<'_, ShellMeshes> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+impl ShellMeshes {
+    fn get(&self, key: u64) -> Option<Arc<ShellMesh>> {
+        self.meshes
+            .iter()
+            .find(|(cached, _)| *cached == key)
+            .map(|(_, mesh)| Arc::clone(mesh))
+    }
+}
+
+/// 作っている三角形の印（作り終えたら、または作る途中で panic したら、印を外して待っているスレッドを起こす）
+struct Building {
+    cache: Arc<ShellMeshCache>,
+    key: u64,
+}
+
+impl Building {
+    /// 許容弦誤差 `key` の三角形を作り始めたことを、置き場 `meshes`（`cache` の中身）に記す
+    fn start(cache: &Arc<ShellMeshCache>, meshes: &mut ShellMeshes, key: u64) -> Self {
+        meshes.building.push(key);
+        Self {
+            cache: Arc::clone(cache),
+            key,
+        }
+    }
+
+    /// B-rep `brep` を許容弦誤差 `key` で三角形に分けて置き場に残し、三角形にできない面を警告に出す（置き場が一杯なら、
+    /// 古いものを捨てる）
+    fn build(self, brep: &Brep<f64>, face_ids: &[FaceId], entity_id: EntityId) -> Arc<ShellMesh> {
+        let mesh = Arc::new(triangulate_brep(brep, f64::from_bits(self.key)));
+        for (face_id, face) in face_ids.iter().zip(&mesh.faces) {
+            if let Err(error) = face {
+                tracing::warn!(%entity_id, %face_id, "a shell face cannot be triangulated: {error}");
+            }
+        }
+        let mut meshes = self.cache.lock();
+        if meshes.meshes.len() == CACHED_SHELL_MESHES {
+            meshes.meshes.remove(0);
+        }
+        meshes.meshes.push((self.key, Arc::clone(&mesh)));
+        mesh
+    }
+}
+
+impl Drop for Building {
+    fn drop(&mut self) {
+        let mut meshes = self.cache.lock();
+        meshes.building.retain(|key| *key != self.key);
+        if std::thread::panicking() {
+            meshes.failed.push(self.key);
+        }
+        self.cache.built.notify_all();
+    }
+}
 
 impl fmt::Debug for ShellMeshCache {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -212,24 +287,65 @@ impl ProductShell {
     }
 
     /// 許容弦誤差 `chord_tolerance` の B-rep の三角形（置き場になければ作って残し、三角形にできない面を警告に
-    /// 出す。置き場が一杯なら、古いものを捨てる）
+    /// 出す。置き場が一杯なら、古いものを捨てる。別のスレッドで作っていれば、作り終えるのを待つ）
     fn mesh(&self, chord_tolerance: f64, entity_id: EntityId) -> Arc<ShellMesh> {
         let key = chord_tolerance.to_bits();
-        let mut meshes = self.meshes.0.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some((_, mesh)) = meshes.iter().find(|(cached, _)| *cached == key) {
-            return Arc::clone(mesh);
+        let mut meshes = self.meshes.lock();
+        loop {
+            if let Some(mesh) = meshes.get(key) {
+                return mesh;
+            }
+            if !meshes.building.contains(&key) {
+                break;
+            }
+            meshes = self
+                .meshes
+                .built
+                .wait(meshes)
+                .unwrap_or_else(PoisonError::into_inner);
         }
-        let mesh = Arc::new(triangulate_brep(&self.brep, chord_tolerance));
-        for (face_id, face) in self.face_ids.iter().zip(&mesh.faces) {
-            if let Err(error) = face {
-                tracing::warn!(%entity_id, %face_id, "a shell face cannot be triangulated: {error}");
+        let building = Building::start(&self.meshes, &mut meshes, key);
+        drop(meshes);
+        building.build(&self.brep, &self.face_ids, entity_id)
+    }
+
+    /// 許容弦誤差 `chord_tolerance` の B-rep の三角形を、置き場に残しているか（なければ、別のスレッドで作り始める。
+    /// 作っている間は、残していないとする。別のスレッドで作れなかった（panic した・スレッドを作れない）三角形は、
+    /// 別のスレッドでは作り直さずに、残しているとする。使うときに、そのスレッドで作る）
+    fn prepare_mesh(&self, chord_tolerance: f64, entity_id: EntityId) -> bool {
+        let key = chord_tolerance.to_bits();
+        let mut meshes = self.meshes.lock();
+        if meshes.get(key).is_some() || meshes.failed.contains(&key) {
+            return true;
+        }
+        if meshes.building.contains(&key) {
+            return false;
+        }
+        let building = Building::start(&self.meshes, &mut meshes, key);
+        drop(meshes);
+        let (brep, face_ids) = (Arc::clone(&self.brep), self.face_ids.clone());
+        let spawned = std::thread::Builder::new()
+            .name("shell-mesh".to_string())
+            .spawn(move || {
+                building.build(&brep, &face_ids, entity_id);
+            });
+        match spawned {
+            Ok(_) => false,
+            Err(error) => {
+                // スレッドを作れなければ（作る途中の印は外れる）、このスレッドで作る（確かめ中のままにしない）
+                tracing::warn!(%entity_id, "cannot start a thread to triangulate a shell: {error}");
+                self.mesh(chord_tolerance, entity_id);
+                true
             }
         }
-        if meshes.len() == CACHED_SHELL_MESHES {
-            meshes.remove(0);
-        }
-        meshes.push((key, Arc::clone(&mesh)));
-        mesh
+    }
+
+    /// 許容弦誤差 `chord_tolerance` の B-rep の三角形を、置き場に残しているか（別のスレッドで作れなかった三角形は、
+    /// 残しているとする）
+    fn mesh_ready(&self, chord_tolerance: f64) -> bool {
+        let key = chord_tolerance.to_bits();
+        let meshes = self.meshes.lock();
+        meshes.get(key).is_some() || meshes.failed.contains(&key)
     }
 
     /// B-rep の面の位置 `positions` の三角形を、境界の頂点を共有した 1 つの三角形メッシュにして、配置を当てる（法線は
@@ -856,6 +972,54 @@ impl ProductShapeStore {
         Ok(SolverGeometry::TriangleMesh(concatenate_triangle_meshes(
             &meshes,
         )))
+    }
+
+    /// 面の ID の集合 `face_ids` を [`Self::resolve_solver_geometry`] で形状にするときに、シェルの面を許容弦誤差
+    /// `chord_tolerance` で三角形に分け終えているか（分けていないシェルは、別のスレッドで分け始める。シェルの面が
+    /// なければ、分け終えているとする）
+    pub(crate) fn prepare_solver_geometry(
+        &self,
+        face_ids: &[FaceId],
+        chord_tolerance: f64,
+    ) -> bool {
+        // 加工の対象の面を持つシェルと、B-rep の座標の許容弦誤差
+        let targets: Vec<(&ProductShellEntity, f64)> = self
+            .shells
+            .iter()
+            .filter(|entity| {
+                face_ids
+                    .iter()
+                    .any(|face_id| entity.shell().face_positions.contains_key(face_id))
+            })
+            .map(|entity| {
+                let shell = entity.shell();
+                (entity, chord_tolerance / shell.placement.scale_factor())
+            })
+            .collect();
+        // 同じ置き場で、置き場に入らない数の許容弦誤差が要る（同じ B-rep を違う拡大で置いた）ときは、作り終えた
+        // 三角形が互いを捨て合うため、別のスレッドでは作らない（形状にするときに、そのスレッドで作る）
+        let mut keys: Vec<(*const ShellMeshCache, u64)> = targets
+            .iter()
+            .map(|(entity, tolerance)| (Arc::as_ptr(&entity.shell().meshes), tolerance.to_bits()))
+            .collect();
+        keys.sort_unstable();
+        keys.dedup();
+        let crowded = keys
+            .chunk_by(|a, b| a.0 == b.0)
+            .any(|same| same.len() > CACHED_SHELL_MESHES);
+        if crowded {
+            return true;
+        }
+        // すべてのシェルを分け始めるため、途中でやめない
+        let started = targets.iter().fold(true, |ready, (entity, tolerance)| {
+            let prepared = entity.shell().prepare_mesh(*tolerance, entity.id());
+            ready && prepared
+        });
+        // 分け終えた三角形が、ほかの三角形を作り終えて捨てられていないかを、最後にまとめて確かめる
+        started
+            && targets
+                .iter()
+                .all(|(entity, tolerance)| entity.shell().mesh_ready(*tolerance))
     }
 }
 

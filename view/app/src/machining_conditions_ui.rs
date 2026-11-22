@@ -45,7 +45,7 @@ pub(crate) enum ConditionField {
 pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
     match issue {
         ConditionIssue::NotSet => ConditionField::Submission,
-        ConditionIssue::NoProductShape => ConditionField::Target,
+        ConditionIssue::NoProductShape | ConditionIssue::Checking => ConditionField::Target,
         ConditionIssue::Condition(error) => match error.field() {
             CamConditionField::Tool => ConditionField::Tool,
             CamConditionField::Machining => ConditionField::Machining,
@@ -55,6 +55,11 @@ pub(crate) fn condition_field(issue: &ConditionIssue) -> ConditionField {
         },
         ConditionIssue::Other(_) => ConditionField::Submission,
     }
+}
+
+/// 問題 `issues` が、加工の対象の形状を作っている間の確かめ中か（作り終えたら確かめ直す）
+pub(crate) fn conditions_checking(issues: &[ConditionIssue]) -> bool {
+    issues.contains(&ConditionIssue::Checking)
 }
 
 /// 切削シミュレーションの最後の操作（投入・実行・取り込み）の結果
@@ -134,6 +139,9 @@ pub(crate) fn condition_issue_text(locale: UiLocale, issue: &ConditionIssue) -> 
             "conditions.issue.other",
             &[("reason", resolve_failure_message(locale, message))],
         ),
+        ConditionIssue::Checking => {
+            resolve_machining_conditions_text(locale, "conditions.issue.checking", &[])
+        }
     }
 }
 
@@ -623,6 +631,9 @@ fn operation_row_key(row: &OperationRow) -> &'static str {
     // 計算できない工程は、計算の状態より先に、計算できない理由を出す
     match row.setup {
         OperationSetup::NotSet => return "conditions.operations.status.not_set",
+        OperationSetup::ConditionError(ref issues) if conditions_checking(issues) => {
+            return "conditions.operations.status.checking";
+        }
         OperationSetup::ConditionError(_) => {
             return "conditions.operations.status.condition_error";
         }
@@ -1013,7 +1024,13 @@ impl MachiningConditionsUiState {
             .iter()
             .filter(|issue| condition_field(issue) == field)
         {
-            ui.colored_label(ui.visuals().error_fg_color, self.issue_text(issue));
+            // 確かめ中は誤りではないため、誤りの色にしない
+            let color = if *issue == ConditionIssue::Checking {
+                ui.visuals().weak_text_color()
+            } else {
+                ui.visuals().error_fg_color
+            };
+            ui.colored_label(color, self.issue_text(issue));
         }
     }
 
@@ -1259,8 +1276,18 @@ impl MachiningConditionsUiState {
             if redo.clicked() {
                 self.redo_requested = true;
             }
-            // 手順の全体は、すべての工程を確かめてから投入する（誤りは、工程の名前とともに出す）
-            if ui.button(self.text("conditions.submit_sequence")).clicked() {
+            // 手順の全体は、すべての工程を確かめてから投入する（誤りは、工程の名前とともに出す）。確かめ中の工程が
+            // あれば、形状を作り終えるまで押せない（押すと、作り終えるまで画面が止まるため）
+            let checking = self.operations.iter().any(|row| {
+                matches!(&row.setup, OperationSetup::ConditionError(issues) if conditions_checking(issues))
+            });
+            if ui
+                .add_enabled(
+                    !checking,
+                    egui::Button::new(self.text("conditions.submit_sequence")),
+                )
+                .clicked()
+            {
                 self.submit_sequence_requested = true;
             }
             let import_toolpath = ui
@@ -2386,6 +2413,11 @@ mod tests {
             (
                 OperationSetup::ConditionError(vec![ConditionIssue::NoProductShape]),
                 "conditions.operations.status.condition_error",
+            ),
+            // 加工の対象の形状を作っている間は、誤りではなく確かめ中
+            (
+                OperationSetup::ConditionError(vec![ConditionIssue::Checking]),
+                "conditions.operations.status.checking",
             ),
         ] {
             let mut imported = row(JobStatusLine::Status(OperationJobStatus::Succeeded), true);
