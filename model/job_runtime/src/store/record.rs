@@ -17,13 +17,23 @@ pub(super) const INTERRUPTED_FORMAT_VERSION: u32 = 4;
 /// 切削シミュレーションの入力に CL のファイルを持てる、最も古い要求の形式の版
 pub const TOOLPATH_FILE_FORMAT_VERSION: u32 = 3;
 
+/// 切削シミュレーションが前の区間の切削シミュレーションの終わりの素材から始める（始まりの素材を持つ）、最も古い
+/// 要求・記録の形式の版
+///
+/// 前の版のジョブマネージャーは、知らない項目を読み捨てて素材の範囲から計算してしまうため、版を上げて、要求を拒み・
+/// 記録を読めない記録として扱わせる。中断の記録の版 [`INTERRUPTED_FORMAT_VERSION`] より後の版とし、この版の記録は
+/// 中断も表せる。
+pub const START_STOCK_FORMAT_VERSION: u32 = 5;
+
 /// 前の版で書ける要求の、最も新しい形式の版（CL のファイルを持たない要求）
 const BASE_REQUEST_FORMAT_VERSION: u32 = 2;
 
 /// ジョブの列 `jobs` を表せる、最も古い要求の形式の版（前の版のジョブマネージャーも取り込めるよう、新しい項目を
 /// 使わない要求は前の版で書く）
 pub fn request_format_version(jobs: &[SubmittedJob]) -> u32 {
-    if jobs.iter().any(|job| job.toolpath_file.is_some()) {
+    if jobs.iter().any(|job| job.start_stock.is_some()) {
+        START_STOCK_FORMAT_VERSION
+    } else if jobs.iter().any(|job| job.toolpath_file.is_some()) {
         TOOLPATH_FILE_FORMAT_VERSION
     } else {
         BASE_REQUEST_FORMAT_VERSION
@@ -39,7 +49,8 @@ pub(super) const OLDEST_STORE_FORMAT_VERSION: u32 = 1;
 pub enum StoredJobKind {
     /// ツールパス生成
     Cam,
-    /// 切削シミュレーション（依存するツールパス生成のジョブの成果物を入力にする）
+    /// 切削シミュレーション（依存するツールパス生成のジョブの成果物を入力にする。始まりの素材を持つものは、前の区間の
+    /// 切削シミュレーションの終わりの素材から削る）
     Sim,
 }
 
@@ -72,6 +83,10 @@ pub struct StoredJobSource {
     /// 改訂の鍵（前の版の記録・要求は持たない）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revision_key: Option<String>,
+    /// 切削シミュレーションの区間の前提の鍵（ツールパス生成・前の版の記録・要求は持たない。前の版のジョブマネージャーが
+    /// 読み捨てても計算は変わらないため、形式の版を上げない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub segment_key: Option<String>,
 }
 
 /// ジョブの失敗の理由の種類（画面の言語の文言にするため。英語の文は `Display` で返し、記録の `last_error` に残す）
@@ -159,6 +174,10 @@ pub struct StoredJob {
     pub kind: StoredJobKind,
     /// 依存するジョブ（すべて正常に終わってから実行する）
     pub depends_on: Vec<u64>,
+    /// 始まりの素材を持つ切削シミュレーションの、前の区間の切削シミュレーションのジョブ（依存するジョブの 1 つ。
+    /// その終わりの素材から削る。持たないものは素材の範囲から削る）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_stock: Option<u64>,
     /// 優先順位（大きいほど先）
     pub priority: i32,
     pub group_id: Option<String>,
@@ -209,6 +228,9 @@ pub struct SubmittedJob {
     /// 生成のジョブに依存しない
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub toolpath_file: Option<String>,
+    /// 切削シミュレーションが始まりの素材にする、前の区間の切削シミュレーションのジョブ（`depends_on` の 1 つ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_stock: Option<DependencyRef>,
 }
 
 /// 依存先

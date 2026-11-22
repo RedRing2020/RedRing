@@ -68,12 +68,25 @@ pub fn stock_around_product(bounds: Aabb3D<f64>, margins: StockMargins) -> Optio
 pub trait CuttingSimulationInputProvider: Send + Sync {
     /// 参照先の入力を返す。未登録の場合は `None`。
     fn resolve(&self, input_ref: &str) -> Option<CuttingSimulationInput>;
+
+    /// 参照先の入力の始まりの素材（前の区間の終わりの素材のファイル）。始まりの素材を持たなければ `Ok(None)`（素材の
+    /// 範囲から削る）、持つのに前の区間の終わりの素材がなければ、その理由（英語）
+    fn start_stock(&self, _input_ref: &str) -> Result<Option<Vec<u8>>, String> {
+        Ok(None)
+    }
+
+    /// 参照先の入力で計算した、終わりの素材のファイルを残す（後の区間の始まりの素材にするため）
+    fn record_end_stock(&self, _input_ref: &str, _stock: Vec<u8>) {}
 }
 
 /// プロセス内メモリで切削シミュレーションの入力を保持する provider
 #[derive(Debug, Default)]
 pub struct InMemoryCuttingSimulationInputStore {
     inputs: RwLock<HashMap<String, CuttingSimulationInput>>,
+    /// 入力ごとの、始まりの素材にする前の区間の入力
+    start_stocks: RwLock<HashMap<String, String>>,
+    /// 入力ごとの、計算した終わりの素材のファイル
+    end_stocks: RwLock<HashMap<String, Vec<u8>>>,
 }
 
 impl InMemoryCuttingSimulationInputStore {
@@ -94,6 +107,24 @@ impl InMemoryCuttingSimulationInputStore {
             .insert(input_ref.trim().to_string(), input);
         Ok(())
     }
+
+    /// 入力 `input_ref` の始まりの素材を、前の区間の入力 `previous_ref` で計算した終わりの素材にする
+    pub fn register_start_stock(
+        &self,
+        input_ref: &str,
+        previous_ref: &str,
+    ) -> Result<(), RefValidationError> {
+        validate_sim_input_ref(input_ref)?;
+        validate_sim_input_ref(previous_ref)?;
+        self.start_stocks
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(
+                input_ref.trim().to_string(),
+                previous_ref.trim().to_string(),
+            );
+        Ok(())
+    }
 }
 
 impl CuttingSimulationInputProvider for InMemoryCuttingSimulationInputStore {
@@ -103,6 +134,30 @@ impl CuttingSimulationInputProvider for InMemoryCuttingSimulationInputStore {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .get(input_ref.trim())
             .cloned()
+    }
+
+    fn start_stock(&self, input_ref: &str) -> Result<Option<Vec<u8>>, String> {
+        let starts = self
+            .start_stocks
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(previous) = starts.get(input_ref.trim()) else {
+            return Ok(None);
+        };
+        self.end_stocks
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(previous)
+            .cloned()
+            .map(Some)
+            .ok_or_else(|| format!("the previous segment {previous} has no end stock"))
+    }
+
+    fn record_end_stock(&self, input_ref: &str, stock: Vec<u8>) {
+        self.end_stocks
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(input_ref.trim().to_string(), stock);
     }
 }
 

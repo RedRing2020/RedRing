@@ -77,9 +77,12 @@ pub struct DeletePlan {
 /// ジョブの記録 `jobs` のうち、選んだジョブ `selected` を消すときに消すジョブ
 ///
 /// 選んだジョブは、その成果物を使う後のジョブ（依存関係をたどったすべて）とあわせて消す（後のジョブだけが残っても、
-/// 計算も取り込みもできないため）。選んだジョブか後のジョブのどれかが計算待ち・計算中なら、どれも消さない。ただし、
-/// 中断のジョブと、それを待つ計算待ちのジョブ（中断のジョブを計算で続けるまで実行されない）は、終わったジョブと
-/// 同じに消す。ないジョブは数えない。後のジョブだけを選んだときは、前のジョブを残す。
+/// 計算も取り込みもできないため）。ただし、終わりの素材を始まりの素材にする後の区間の切削シミュレーションのうち、
+/// 正常に終わったものは消さない（その結果は、前の区間がなくても取り込める。終わっていないもの・失敗したものは、
+/// 始まりの素材がなければ計算で続けられず、やり直せないため一緒に消す）。選んだジョブか後のジョブ（後の区間を
+/// 含む）のどれかが計算待ち・計算中なら、どれも消さない。ただし、中断のジョブと、それを待つ計算待ちのジョブ
+/// （中断のジョブを計算で続けるまで実行されない）は、終わったジョブと同じに消す。ないジョブは数えない。後のジョブ
+/// だけを選んだときは、前のジョブを残す。
 pub fn delete_plan(jobs: &[StoredJob], selected: &[u64]) -> DeletePlan {
     let by_id: HashMap<u64, &StoredJob> = jobs.iter().map(|job| (job.job_id, job)).collect();
     let idle = idle_jobs(jobs);
@@ -89,9 +92,8 @@ pub fn delete_plan(jobs: &[StoredJob], selected: &[u64]) -> DeletePlan {
         if !by_id.contains_key(&job_id) {
             continue;
         }
-        let family = later_jobs(jobs, job_id, |_| true);
-        if family.iter().all(deletable) {
-            plan.deleted.extend(family);
+        if later_jobs(jobs, job_id, |_| true).iter().all(deletable) {
+            plan.deleted.extend(users_of_results(jobs, job_id));
         } else {
             plan.kept.insert(job_id);
         }
@@ -176,8 +178,8 @@ pub fn imported_sources(jobs: &[StoredJob], imported_job: impl Fn(u64) -> Option
 
 /// ジョブの記録 `jobs` のうち、時刻 `before_ms`（UNIX 時刻のミリ秒）より前に投入した、終わったジョブ（番号の順）
 ///
-/// その成果物を使う後のジョブ（消すときに、あわせて消える）も、すべてその時刻より前に投入したものに限る（古い
-/// ツールパス生成の下に、後から計算した切削シミュレーションを消さないように）。
+/// その成果物を使う後のジョブ（消すときに、あわせて消える。[`delete_plan`]）も、すべてその時刻より前に投入したものに
+/// 限る（古いツールパス生成の下に、後から計算した切削シミュレーションを消さないように）。
 pub fn old_jobs(jobs: &[StoredJob], before_ms: u64) -> Vec<u64> {
     let created: HashMap<u64, u64> = jobs
         .iter()
@@ -186,7 +188,7 @@ pub fn old_jobs(jobs: &[StoredJob], before_ms: u64) -> Vec<u64> {
     jobs.iter()
         .filter(|job| job.status.is_terminal() && job.created_at_ms < before_ms)
         .filter(|job| {
-            later_jobs(jobs, job.job_id, |_| true)
+            users_of_results(jobs, job.job_id)
                 .iter()
                 .all(|id| created[id] < before_ms)
         })
@@ -662,25 +664,30 @@ impl<L: Launcher> JobManagerService<L> {
 
     /// ジョブ `job` のランナーの引数（パスは保存先のジョブのフォルダの決まった名前だけ）
     fn launch_spec(&self, jobs: &[StoredJob], job: &StoredJob) -> LaunchSpec {
-        // 切削シミュレーションは、依存するツールパス生成のジョブ（投入の検証で 1 つに限る）の成果物を読む。依存する
-        // ジョブを持たないもの（投入の検証で、CL のファイルを持つものに限る）は、ジョブの入力のフォルダの CL を読む
-        let toolpath = if job.kind != StoredJobKind::Sim {
-            None
-        } else if job.depends_on.is_empty() {
-            Some(self.store.input_toolpath_file(job.job_id))
-        } else {
+        // 切削シミュレーションは、依存するツールパス生成のジョブ（投入の検証で 1 つに限る）の成果物を読む。ツール
+        // パス生成のジョブに依存しないもの（投入の検証で、CL のファイルを持つものに限る）は、ジョブの入力のフォルダの
+        // CL を読む。始まりの素材を持つものは、前の区間の切削シミュレーションのジョブの終わりの素材から削る
+        let toolpath = (job.kind == StoredJobKind::Sim).then(|| {
             job.depends_on
                 .iter()
                 .find(|&&id| {
                     jobs.iter()
                         .any(|other| other.job_id == id && other.kind == StoredJobKind::Cam)
                 })
-                .map(|&id| self.store.result_file(id, StoredJobKind::Cam))
-        };
+                .map_or_else(
+                    || self.store.input_toolpath_file(job.job_id),
+                    |&id| self.store.result_file(id, StoredJobKind::Cam),
+                )
+        });
+        let stock = job
+            .start_stock
+            .filter(|_| job.kind == StoredJobKind::Sim)
+            .map(|id| self.store.stock_file(id));
         LaunchSpec {
             job_type: domain(job.kind),
             input: self.store.input_file(job.job_id),
             toolpath,
+            stock,
             output: self.store.output_dir(job.job_id),
             logs: self.store.logs_dir(job.job_id),
             progress: self.store.progress_file(job.job_id),
@@ -708,6 +715,24 @@ fn later_jobs(jobs: &[StoredJob], start: u64, member: impl Fn(&u64) -> bool) -> 
     while let Some(id) = pending.pop() {
         for job in jobs {
             if job.depends_on.contains(&id) && member(&job.job_id) && found.insert(job.job_id) {
+                pending.push(job.job_id);
+            }
+        }
+    }
+    found
+}
+
+/// ジョブ `start` と、その成果物を入力にする後のジョブ（依存関係を後の向きにたどる。終わりの素材を始まりの素材に
+/// する後の区間の切削シミュレーションへは、正常に終わったものにはたどらない。小さい順）
+fn users_of_results(jobs: &[StoredJob], start: u64) -> BTreeSet<u64> {
+    let mut found = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(id) = pending.pop() {
+        for job in jobs {
+            let completed_later_segment =
+                job.start_stock == Some(id) && job.status == StoredJobStatus::Succeeded;
+            if job.depends_on.contains(&id) && !completed_later_segment && found.insert(job.job_id)
+            {
                 pending.push(job.job_id);
             }
         }

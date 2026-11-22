@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use job_runtime::store::{DependencyRef, STORE_FORMAT_VERSION, SubmissionRequest, SubmittedJob};
+use job_runtime::store::{DependencyRef, SubmissionRequest, SubmittedJob, request_format_version};
 
 /// 試験ごとの保存先（試験の終わりに消す）
 struct TempRoot(PathBuf);
@@ -131,7 +131,7 @@ fn submit(store: &JobStore, id: &str, jobs: Vec<SubmittedJob>) {
         }
     }
     let request = SubmissionRequest {
-        format_version: STORE_FORMAT_VERSION,
+        format_version: request_format_version(&jobs),
         jobs,
     };
     fs::write(
@@ -156,6 +156,7 @@ fn job(
         group_id: None,
         source: None,
         toolpath_file: None,
+        start_stock: None,
     }
 }
 
@@ -179,6 +180,67 @@ fn status_of(store: &JobStore, job_id: u64) -> StoredJob {
         .into_iter()
         .find(|job| job.job_id == job_id)
         .unwrap()
+}
+
+#[test]
+fn a_sim_job_of_a_later_segment_starts_from_the_end_stock_of_the_previous_segment() {
+    let root = TempRoot::new();
+    let launcher = FakeLauncher::default();
+    let (mut service, _) = JobManagerService::start(root.store(), launcher.clone(), 0).unwrap();
+    let mut jobs = cam_and_sim();
+    jobs.push(job(StoredJobKind::Cam, "cam2.bin", vec![], 0));
+    jobs.push(SubmittedJob {
+        start_stock: Some(DependencyRef::Submitted(1)),
+        ..job(
+            StoredJobKind::Sim,
+            "sim2.bin",
+            vec![DependencyRef::Submitted(2), DependencyRef::Submitted(1)],
+            0,
+        )
+    });
+    submit(&root.store(), "a1", jobs);
+
+    for now in 1..=16 {
+        service.tick(now);
+    }
+    let launched = launcher.0.borrow().launched.clone();
+    let sim = |input: PathBuf| launched.iter().find(|spec| spec.input == input).unwrap();
+    let store = root.store();
+    let first = sim(store.input_file(2));
+    assert_eq!(
+        first.toolpath,
+        Some(store.result_file(1, StoredJobKind::Cam))
+    );
+    assert_eq!(first.stock, None);
+    let second = sim(store.input_file(4));
+    assert_eq!(
+        second.toolpath,
+        Some(store.result_file(3, StoredJobKind::Cam))
+    );
+    assert_eq!(second.stock, Some(store.stock_file(2)));
+    assert!(
+        second
+            .args()
+            .contains(&store.stock_file(2).into_os_string())
+    );
+    assert_eq!(status_of(&store, 4).status, StoredJobStatus::Succeeded);
+
+    // 前の区間を消しても、終わった後の区間の結果は取り込めるため残す
+    let (mut jobs, _) = store.load_jobs().unwrap();
+    assert_eq!(delete_plan(&jobs, &[1]).deleted, BTreeSet::from([1, 2]));
+    assert_eq!(old_jobs(&jobs, 100), vec![1, 2, 3, 4]);
+    // 後の区間が計算待ちの間は、前の区間を消さない
+    jobs[3].status = StoredJobStatus::Queued;
+    assert_eq!(delete_plan(&jobs, &[1]).kept, BTreeSet::from([1]));
+    // 中断・失敗・取り消しの後の区間は、始まりの素材がなければ続けられないため、前の区間と一緒に消す
+    for status in [
+        StoredJobStatus::Interrupted,
+        StoredJobStatus::Failed,
+        StoredJobStatus::Canceled,
+    ] {
+        jobs[3].status = status;
+        assert_eq!(delete_plan(&jobs, &[1]).deleted, BTreeSet::from([1, 2, 4]));
+    }
 }
 
 #[test]
@@ -1031,6 +1093,7 @@ fn launch_arguments_name_only_files_under_the_job_folder() {
         job_type: "sim",
         input: PathBuf::from("in"),
         toolpath: Some(PathBuf::from("tp")),
+        stock: None,
         output: PathBuf::from("out"),
         logs: PathBuf::from("logs"),
         progress: PathBuf::from("progress.json"),
@@ -1062,6 +1125,7 @@ fn launch_arguments_name_only_files_under_the_job_folder() {
     let cam = LaunchSpec {
         job_type: "cam",
         toolpath: None,
+        stock: None,
         resume: Some(PathBuf::from("resume/toolpath.resume")),
         ..spec
     };
@@ -1088,6 +1152,7 @@ fn with_source(
             source_id: source_id.to_string(),
             revision,
             revision_key: Some(key.to_string()),
+            segment_key: None,
         });
     }
     jobs

@@ -205,6 +205,7 @@ fn source_to_ipc(source: &StoredJobSource) -> JobSource {
         source_id: source.source_id.clone(),
         revision: source.revision,
         revision_key: source.revision_key.clone(),
+        segment_key: source.segment_key.clone(),
     }
 }
 
@@ -213,6 +214,7 @@ fn source_from_ipc(source: JobSource) -> StoredJobSource {
         source_id: source.source_id,
         revision: source.revision,
         revision_key: source.revision_key,
+        segment_key: source.segment_key,
     }
 }
 
@@ -242,6 +244,10 @@ impl Handler for StoreHandler {
         if uses_missing_input {
             return Err(invalid("a job uses an input that is not sent"));
         }
+        let dependency_from_ipc = |dependency| match dependency {
+            Dependency::Submitted(index) => DependencyRef::Submitted(index),
+            Dependency::Existing(job_id) => DependencyRef::Existing(job_id),
+        };
         let jobs: Vec<SubmittedJob> = jobs
             .into_iter()
             .map(|job| SubmittedJob {
@@ -250,15 +256,13 @@ impl Handler for StoreHandler {
                 depends_on: job
                     .depends_on
                     .into_iter()
-                    .map(|dependency| match dependency {
-                        Dependency::Submitted(index) => DependencyRef::Submitted(index),
-                        Dependency::Existing(job_id) => DependencyRef::Existing(job_id),
-                    })
+                    .map(dependency_from_ipc)
                     .collect(),
                 priority: job.priority,
                 group_id: None,
                 source: job.source.map(source_from_ipc),
                 toolpath_file: job.toolpath_file,
+                start_stock: job.start_stock.map(dependency_from_ipc),
             })
             .collect();
         let request = SubmissionRequest {
@@ -306,12 +310,13 @@ impl Handler for StoreHandler {
         Ok(submissions
             .into_iter()
             .map(|submission| PendingSubmission {
-                source: submission
+                sources: submission
                     .request
-                    .as_ref()
-                    .and_then(|request| request.jobs.first())
-                    .and_then(|job| job.source.as_ref())
-                    .map(source_to_ipc),
+                    .iter()
+                    .flat_map(|request| &request.jobs)
+                    .filter_map(|job| job.source.as_ref())
+                    .map(source_to_ipc)
+                    .collect(),
                 rejected: submission.rejected.is_some(),
             })
             .collect())
@@ -474,6 +479,7 @@ mod tests {
             source_id: "op-1".to_string(),
             revision: 1,
             revision_key: Some("key".to_string()),
+            segment_key: None,
         };
         let job = |kind, input: &str, depends_on| SubmitJob {
             kind,
@@ -482,6 +488,7 @@ mod tests {
             priority: 0,
             source: Some(source.clone()),
             toolpath_file: None,
+            start_stock: None,
         };
         let jobs = vec![
             job(JobKind::Cam, "cam.bin", vec![]),
@@ -500,7 +507,8 @@ mod tests {
             .unwrap();
         let pending = client.pending_submissions().unwrap();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].source, Some(source));
+        // すべてのジョブの投入元を返す
+        assert_eq!(pending[0].sources, vec![source.clone(), source]);
         assert!(!pending[0].rejected);
 
         // ジョブマネージャーが取り込むと、ジョブとその入力を読める

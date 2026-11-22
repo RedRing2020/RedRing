@@ -165,24 +165,38 @@ impl CamJobExecutorAdapter {
                 "missing input artifact bytes for cutting simulation".to_string(),
             );
         };
+        let provider = self.simulation_input_provider.as_ref();
+        let start_stock = match provider.map(|provider| provider.start_stock(&job.spec.input_ref)) {
+            Some(Err(reason)) => return sim_failure(job, "missing-start-stock", reason),
+            Some(Ok(stock)) => stock,
+            None => None,
+        };
 
+        let mut start_stock = start_stock.as_deref();
         match run_cutting_simulation(
             &input,
             &mut std::io::Cursor::new(input_artifact_bytes),
-            None,
+            start_stock
+                .as_mut()
+                .map(|stock| stock as &mut dyn std::io::Read),
             &mut |_, _| {},
         ) {
-            Ok(run) => JobExecutionResult {
-                status: JobStatus::Succeeded,
-                result_ref: Some(build_result_ref("sim", job.id.0, "ok")),
-                artifact_bytes: Some(run.artifact),
-                log_ref: Some(build_log_ref(
-                    "sim",
-                    job.id.0,
-                    &format!("ok/snapshots-{}", run.snapshot_count),
-                )),
-                error: None,
-            },
+            Ok(run) => {
+                if let Some(provider) = provider {
+                    provider.record_end_stock(&job.spec.input_ref, run.stock);
+                }
+                JobExecutionResult {
+                    status: JobStatus::Succeeded,
+                    result_ref: Some(build_result_ref("sim", job.id.0, "ok")),
+                    artifact_bytes: Some(run.artifact),
+                    log_ref: Some(build_log_ref(
+                        "sim",
+                        job.id.0,
+                        &format!("ok/snapshots-{}", run.snapshot_count),
+                    )),
+                    error: None,
+                }
+            }
             Err(failure) => sim_failure(job, failure.code, failure.message),
         }
     }

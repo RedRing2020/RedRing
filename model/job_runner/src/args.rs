@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 pub(crate) const USAGE: &str = "usage: redring-batch-runner --job-type <cam|sim> --input <file> \
 --output <dir> --logs <dir> [--memory-limit <bytes> (cam only, required)] \
-[--toolpath <file> (sim only, required)] [--resume <file> (cam only)] [--progress <file>]";
+[--toolpath <file> (sim only, required)] [--stock <file> (sim only)] [--resume <file> (cam only)] [--progress <file>]";
 
 /// ジョブの種類
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +23,8 @@ pub(crate) struct RunnerArgs {
     pub input: PathBuf,
     /// 切削シミュレーションの、親のジョブのツールパスの成果物
     pub toolpath: Option<PathBuf>,
+    /// 切削シミュレーションの始まりの素材（前の区間の終わりの素材のファイル。なければ素材の範囲から削る）
+    pub stock: Option<PathBuf>,
     pub output: PathBuf,
     pub logs: PathBuf,
     pub progress: Option<PathBuf>,
@@ -38,6 +40,7 @@ impl RunnerArgs {
         let mut job_type = None;
         let mut input = None;
         let mut toolpath = None;
+        let mut stock = None;
         let mut output = None;
         let mut logs = None;
         let mut progress = None;
@@ -49,6 +52,7 @@ impl RunnerArgs {
                 Some("--job-type") => &mut job_type,
                 Some("--input") => &mut input,
                 Some("--toolpath") => &mut toolpath,
+                Some("--stock") => &mut stock,
                 Some("--output") => &mut output,
                 Some("--logs") => &mut logs,
                 Some("--progress") => &mut progress,
@@ -83,6 +87,9 @@ impl RunnerArgs {
         if job_kind == JobKind::Sim && resume.is_some() {
             return Err("--resume is only for cam".to_string());
         }
+        if job_kind == JobKind::Cam && stock.is_some() {
+            return Err("--stock is only for sim".to_string());
+        }
         let memory_limit = match (job_kind, memory_limit) {
             (JobKind::Cam, None) => return Err("--memory-limit is required for cam".to_string()),
             (JobKind::Sim, Some(_)) => return Err("--memory-limit is only for cam".to_string()),
@@ -99,6 +106,7 @@ impl RunnerArgs {
             job_kind,
             input: required(input, "--input")?,
             toolpath,
+            stock: stock.map(PathBuf::from),
             output: required(output, "--output")?,
             logs: required(logs, "--logs")?,
             progress: progress.map(PathBuf::from),
@@ -155,6 +163,7 @@ mod tests {
         .unwrap();
         assert_eq!(sim.job_kind, JobKind::Sim);
         assert_eq!(sim.toolpath, Some(PathBuf::from("tp.bin")));
+        assert_eq!(sim.stock, None);
         assert_eq!(sim.progress, Some(PathBuf::from("progress.json")));
         assert_eq!(sim.memory_limit, None);
     }
@@ -173,6 +182,13 @@ mod tests {
         assert!(with(&["--job-type", "sim"]).is_err());
         assert!(with(&[&cam[..], &["--toolpath", "tp"]].concat()).is_err());
         assert!(with(&["--job-type", "sim", "--toolpath", "tp", "--resume", "r"]).is_err());
+        assert!(with(&[&cam[..], &["--stock", "s"]].concat()).is_err());
+        assert_eq!(
+            with(&["--job-type", "sim", "--toolpath", "tp", "--stock", "s"])
+                .unwrap()
+                .stock,
+            Some(PathBuf::from("s"))
+        );
         assert_eq!(
             with(&[&cam[..], &["--resume", "r"]].concat())
                 .unwrap()

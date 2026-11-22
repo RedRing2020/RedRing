@@ -4,11 +4,12 @@
 //! redring-batch-runner --job-type cam --input <入力> --output <フォルダ> --logs <フォルダ> --memory-limit <バイト>
 //!                      [--resume <ファイル>] [--progress <ファイル>]
 //! redring-batch-runner --job-type sim --input <入力> --toolpath <ツールパスの成果物> --output <フォルダ> --logs <フォルダ>
-//!                      [--progress <ファイル>]
+//!                      [--stock <始まりの素材>] [--progress <ファイル>]
 //! ```
 //!
 //! 入力のファイルを読み、計算し、成果物（cam: `toolpath.bin`、sim: `cutting_simulation.bin`）を出力のフォルダに、
-//! ログ（`runner.log`）をログのフォルダに書く。ファイルは一時の名前（`*.tmp`）で書き終えてから名前を変える。
+//! ログ（`runner.log`）をログのフォルダに書く。切削シミュレーションは、`--stock` の素材のファイル（前の区間の終わりの
+//! 素材）があればそこから削り、終わりの素材を `stock.bin` に書く（成果物より先に書く）。ファイルは一時の名前（`*.tmp`）で書き終えてから名前を変える。
 //! 成否は終了の番号で返す（[`ExitCode`] の値）。
 //!
 //! ツールパス生成は、点の数が `--memory-limit`（ツールパス生成に使ってよいメモリのバイトの数）に収まる数を超えたら止める。

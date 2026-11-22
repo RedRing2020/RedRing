@@ -9,7 +9,8 @@
 //!   jobs/<ジョブの番号>/
 //!     job.json                ジョブの記録
 //!     input/input.bin         入力
-//!     output/                 成果物（toolpath.bin・cutting_simulation.bin）
+//!     output/                 成果物（toolpath.bin・cutting_simulation.bin と、切削シミュレーションの終わりの素材
+//!                             stock.bin）
 //!     logs/runner.log         ログ
 //!     logs/runner.stderr.log  ランナーの標準エラー出力
 //!     progress.json           進み具合
@@ -33,9 +34,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 pub use record::{
-    DependencyRef, STORE_FORMAT_VERSION, StoredJob, StoredJobError, StoredJobKind, StoredJobSource,
-    StoredJobStatus, SubmissionRequest, SubmittedJob, TOOLPATH_FILE_FORMAT_VERSION,
-    request_format_version,
+    DependencyRef, START_STOCK_FORMAT_VERSION, STORE_FORMAT_VERSION, StoredJob, StoredJobError,
+    StoredJobKind, StoredJobSource, StoredJobStatus, SubmissionRequest, SubmittedJob,
+    TOOLPATH_FILE_FORMAT_VERSION, request_format_version,
 };
 pub use schedule::{SchedulePlan, plan_schedule};
 
@@ -73,6 +74,8 @@ const RESUME_FILE: &str = "toolpath.resume";
 const IMPORTED_FILE: &str = "imported";
 const TOOLPATH_FILE: &str = "toolpath.bin";
 const CUTTING_SIMULATION_FILE: &str = "cutting_simulation.bin";
+/// 切削シミュレーションの終わりの素材（後の区間の切削シミュレーションが始まりの素材にする）
+const STOCK_FILE: &str = "stock.bin";
 
 /// 投入の要求・ジョブの記録のファイルの大きさの上限
 const MAX_JSON_BYTES: u64 = 64 * 1024;
@@ -358,11 +361,13 @@ impl JobStore {
 
     /// ジョブの記録を書く
     ///
-    /// 形式の版は、中断の記録は [`INTERRUPTED_FORMAT_VERSION`]、ほかの記録は [`STORE_FORMAT_VERSION`] 以下の
-    /// 記録の版（表せる最も古い版）とする。
+    /// 形式の版は、始まりの素材を持つ記録は [`START_STOCK_FORMAT_VERSION`]、中断の記録は
+    /// [`INTERRUPTED_FORMAT_VERSION`]、ほかの記録は [`STORE_FORMAT_VERSION`] 以下の記録の版（表せる最も古い版）とする。
     pub fn write_job(&self, _lock: &JobStoreLock, job: &StoredJob) -> Result<(), StoreError> {
         let mut job = job.clone();
-        job.format_version = if job.status == StoredJobStatus::Interrupted {
+        job.format_version = if job.start_stock.is_some() {
+            START_STOCK_FORMAT_VERSION
+        } else if job.status == StoredJobStatus::Interrupted {
             INTERRUPTED_FORMAT_VERSION
         } else {
             job.format_version.min(STORE_FORMAT_VERSION)
@@ -460,19 +465,21 @@ impl JobStore {
         state.next_id += request.jobs.len() as u64;
         let mut created = Vec::new();
         for (index, submitted) in request.jobs.iter().enumerate() {
+            let to_job_id = |dependency: &DependencyRef| match *dependency {
+                DependencyRef::Submitted(position) => job_ids[position],
+                DependencyRef::Existing(job_id) => job_id,
+            };
             let job = StoredJob {
-                format_version: STORE_FORMAT_VERSION,
+                format_version: if submitted.start_stock.is_some() {
+                    START_STOCK_FORMAT_VERSION
+                } else {
+                    STORE_FORMAT_VERSION
+                },
                 job_id: job_ids[index],
                 submission_id: submission_id.to_string(),
                 kind: submitted.kind,
-                depends_on: submitted
-                    .depends_on
-                    .iter()
-                    .map(|dependency| match *dependency {
-                        DependencyRef::Submitted(position) => job_ids[position],
-                        DependencyRef::Existing(job_id) => job_id,
-                    })
-                    .collect(),
+                depends_on: submitted.depends_on.iter().map(to_job_id).collect(),
+                start_stock: submitted.start_stock.as_ref().map(to_job_id),
                 priority: submitted.priority,
                 group_id: submitted.group_id.clone(),
                 source: submitted.source.clone(),
@@ -822,6 +829,11 @@ impl JobStore {
         })
     }
 
+    /// 切削シミュレーションのジョブの、終わりの素材のファイル
+    pub fn stock_file(&self, job_id: u64) -> PathBuf {
+        self.output_dir(job_id).join(STOCK_FILE)
+    }
+
     /// ログのファイル
     pub fn log_file(&self, job_id: u64) -> PathBuf {
         self.logs_dir(job_id).join(LOG_FILE)
@@ -862,12 +874,12 @@ impl JobStore {
 
 /// 読める要求の形式の版か
 fn is_supported_format_version(version: u32) -> bool {
-    (OLDEST_STORE_FORMAT_VERSION..=STORE_FORMAT_VERSION).contains(&version)
+    (OLDEST_STORE_FORMAT_VERSION..=START_STOCK_FORMAT_VERSION).contains(&version)
 }
 
-/// 読める記録の形式の版か（中断の記録の版まで）
+/// 読める記録の形式の版か（始まりの素材を持つ記録の版まで）
 fn is_supported_record_version(version: u32) -> bool {
-    (OLDEST_STORE_FORMAT_VERSION..=INTERRUPTED_FORMAT_VERSION).contains(&version)
+    (OLDEST_STORE_FORMAT_VERSION..=START_STOCK_FORMAT_VERSION).contains(&version)
 }
 
 /// ジョブの番号の名前（先頭が 0 でない 10 進数）を読む
@@ -886,6 +898,13 @@ fn read_job(path: &Path, job_id: u64) -> Result<StoredJob, String> {
     }
     if job.job_id != job_id {
         return Err(format!("job id {} does not match the folder", job.job_id));
+    }
+    // 始まりの素材のジョブを待たずに計算しないように
+    if job
+        .start_stock
+        .is_some_and(|start_stock| !job.depends_on.contains(&start_stock))
+    {
+        return Err("the start stock job is not a dependency".to_string());
     }
     Ok(job)
 }
@@ -983,6 +1002,9 @@ fn validate_submission(
             job.source
                 .as_ref()
                 .and_then(|source| source.revision_key.as_deref()),
+            job.source
+                .as_ref()
+                .and_then(|source| source.segment_key.as_deref()),
         ];
         if labels
             .iter()
@@ -995,6 +1017,7 @@ fn validate_submission(
         }
         let mut cam_dependencies = 0;
         let mut seen = HashSet::new();
+        let mut start_stock_kind = None;
         for dependency in &job.depends_on {
             let kind = match *dependency {
                 DependencyRef::Submitted(position) if position < index => {
@@ -1014,6 +1037,35 @@ fn validate_submission(
             }
             if kind == StoredJobKind::Cam {
                 cam_dependencies += 1;
+            }
+            if job.start_stock == Some(*dependency) {
+                start_stock_kind = Some(kind);
+            } else if job.kind == StoredJobKind::Sim && kind == StoredJobKind::Sim {
+                // 前の区間を待って、素材の範囲から削らないように
+                return Err(error(
+                    "a sim job can depend on a sim job only for its start stock".to_string(),
+                ));
+            }
+        }
+        if job.start_stock.is_some() {
+            if request.format_version < START_STOCK_FORMAT_VERSION {
+                return Err(error(format!(
+                    "a start stock needs format version {START_STOCK_FORMAT_VERSION} or later"
+                )));
+            }
+            if job.kind != StoredJobKind::Sim {
+                return Err(error("only a sim job can have a start stock".to_string()));
+            }
+            match start_stock_kind {
+                Some(StoredJobKind::Sim) => {}
+                Some(StoredJobKind::Cam) => {
+                    return Err(error("a start stock must come from a sim job".to_string()));
+                }
+                None => {
+                    return Err(error(
+                        "the start stock job must be a dependency".to_string(),
+                    ));
+                }
             }
         }
         // 切削シミュレーションは、ツールパスを作るジョブを 1 つだけ、または CL のファイルを入力にする（どちらか一方）
