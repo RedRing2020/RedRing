@@ -36,6 +36,7 @@
   - `toolpath`: `RRTP`
   - `interference`: `RRIN`
   - 切削シミュレーション: `RRCS`
+  - 素材（切削シミュレーションの区間の終わりの素材。次の区間の始まりの素材にする。`CAM_PROCESS_ENTITY_DESIGN.md` 6.3）: `RRST`（`cam_sim::stock_file`）
   - ジョブの入力（成果物ではないが、同じヘッダを使う。`JOB_MANAGER_STORAGE_DESIGN.md` 5.2）: `RRCI`（ツールパス生成の入力）・`RRSI`（切削シミュレーションの入力）
   - 空間モデル（モデルファイル。成果物ではないが、同じヘッダを使う。中身は区画を並べたもの。`SPACE_MODEL_FILE_DESIGN.md` 4 章）: `RRMF`（`application::space_model_file`。#1166）
   - ツールライブラリのファイル（成果物ではないが、同じヘッダを使う。中身はモデルファイルと同じ形の区画を並べたもの。`TOOL_LIBRARY_DESIGN.md` 4.3）: `RRTL`（`application::tool_library`。#1395）

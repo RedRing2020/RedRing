@@ -20,6 +20,7 @@ mod simulation_artifact;
 mod simulation_input;
 mod simulator;
 mod solver_input;
+mod stock_file;
 mod stock_model;
 mod tri_dexel;
 mod workflow;
@@ -51,7 +52,7 @@ pub use replay::CuttingSimulationReplay;
 /// 切削シミュレーションの成果物（中身の型と書き出し・読み込み）。
 pub use simulation_artifact::{
     CuttingSimulationArtifact, DexelChanges, DexelGridLayout, DexelGridStates, DexelState,
-    read_cutting_simulation_artifact_v1, write_cutting_simulation_artifact_v1,
+    StockDexels, read_cutting_simulation_artifact_v1, write_cutting_simulation_artifact_v1,
 };
 /// CuttingSimulation の InputRef -> 素材・工具・精度の設定の解決境界。
 pub use simulation_input::{
@@ -74,6 +75,8 @@ pub use tri_dexel::TriDexelModel;
 /// CAM工程向けワークフロー制約ファサード。
 pub use workflow::{CamWorkflowError, CamWorkflowSubmitter};
 
+#[cfg(test)]
+mod segment_tests;
 #[cfg(test)]
 mod solver_job_tests;
 #[cfg(test)]

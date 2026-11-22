@@ -195,8 +195,14 @@ impl CamConditionError {
     fn from_simulation_input(error: CuttingSimulationInputError) -> Self {
         match error {
             CuttingSimulationInputError::Stock => Self::InvalidStock,
-            CuttingSimulationInputError::Tool => Self::InvalidTool,
-            CuttingSimulationInputError::Precision => Self::InvalidPrecision,
+            // 格子を決める工具の半径は、工程の工具の半径から決める
+            CuttingSimulationInputError::Tool | CuttingSimulationInputError::GridToolRadius => {
+                Self::InvalidTool
+            }
+            // 格子の間隔は、工具の半径と精度から決まる。直せるのは精度
+            CuttingSimulationInputError::Precision | CuttingSimulationInputError::GridSpacing => {
+                Self::InvalidPrecision
+            }
             CuttingSimulationInputError::SnapshotInterval => Self::InvalidSnapshotInterval,
             CuttingSimulationInputError::TooManyDexelLines {
                 finest_precision, ..
@@ -1440,6 +1446,7 @@ fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionE
         cutting_simulation_input_errors(
             &request.stock,
             &request.solver_input.tool,
+            request.solver_input.tool.radius(),
             request.precision,
             &request.snapshot_interval,
         )
@@ -1455,6 +1462,7 @@ fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulation
         stock: request.stock,
         tool: request.solver_input.tool.clone(),
         precision: request.precision,
+        grid_tool_radius: request.solver_input.tool.radius(),
         snapshot_interval: request.snapshot_interval.clone(),
         product: request.solver_input.geometry.clone(),
         tolerance: request.solver_input.chord_tolerance,

@@ -85,6 +85,7 @@ fn sim_input(snapshot_interval: SnapshotInterval) -> CuttingSimulationInput {
         ),
         tool: Tool::radius_end_mill("REM10R1".to_string(), 10.0, 1.0, 40.0),
         precision: 0.05,
+        grid_tool_radius: 5.0,
         snapshot_interval,
         product: mesh(),
         tolerance: 0.001,
@@ -150,6 +151,7 @@ fn cutting_simulation_input_round_trips() {
     for interval in intervals {
         let input = CuttingSimulationInput {
             product: nurbs(),
+            grid_tool_radius: 2.5,
             ..sim_input(interval)
         };
         let bytes = sim_bytes(&input);
@@ -157,9 +159,30 @@ fn cutting_simulation_input_round_trips() {
         assert_eq!(read.stock, input.stock);
         assert_eq!(read.tool, input.tool);
         assert_eq!(read.precision, input.precision);
+        assert_eq!(read.grid_tool_radius, input.grid_tool_radius);
         assert_eq!(read.tolerance, input.tolerance);
         assert_eq!(sim_bytes(&read), bytes);
     }
+}
+
+#[test]
+fn inputs_without_the_grid_tool_radius_use_the_tool_radius() {
+    let input = CuttingSimulationInput {
+        grid_tool_radius: 2.5,
+        ..sim_input(SnapshotInterval::ByToolAndGrid)
+    };
+    let bytes = sim_bytes(&input);
+    // 前の版の入力: 末尾の格子を決める工具の半径がなく、本体の長さもその分短い
+    let mut header = ArtifactHeaderV1::read_from(&mut bytes.as_slice()).unwrap();
+    let header_len = bytes.len() - header.payload_len as usize;
+    header.payload_len -= 8;
+    let mut older = Vec::new();
+    header.write_to(&mut older).unwrap();
+    older.extend_from_slice(&bytes[header_len..bytes.len() - 8]);
+
+    let read = read_cutting_simulation_input_v1(&mut older.as_slice()).unwrap();
+    assert_eq!(read.grid_tool_radius, input.tool.radius());
+    assert_eq!(read.tolerance, input.tolerance);
 }
 
 #[test]

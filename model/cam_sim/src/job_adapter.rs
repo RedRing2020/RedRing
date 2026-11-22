@@ -169,6 +169,7 @@ impl CamJobExecutorAdapter {
         match run_cutting_simulation(
             &input,
             &mut std::io::Cursor::new(input_artifact_bytes),
+            None,
             &mut |_, _| {},
         ) {
             Ok(run) => JobExecutionResult {
