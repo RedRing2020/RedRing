@@ -11,12 +11,11 @@ RedRing is a standalone CAD/CAM application built with Rust, wgpu and egui, deve
 
 ## Status
 
-The latest release, v0.1.3, is a preview: import an STL, compute a 3-axis scanline toolpath with a ball or flat end mill, and check it with a cutting simulation. NC output is not available yet, so the toolpaths cannot be used for real machining.
+The latest release, v0.2.0, is a preview: import an STL or STEP shape, set up machining operations with tools from a tool library, compute 3-axis scanline toolpaths with a ball or flat end mill in the job manager, and check them with a cutting simulation that cuts from the stock left by the previous operation. Save everything in a model file. NC output is not available yet, so the toolpaths cannot be used for real machining.
 
 Planned releases:
 
-- v0.2.0 (in development): machining management (operations, jobs, tool library) and machining STEP shapes
-- v0.3.0: long operations in the background, with progress and cancel
+- v0.3.0 (in development): long operations in the background, with progress and cancel
 - v0.4.0: connecting moves and NC output
 - v0.5.0: picking faces to set the machining area and coordinates
 
@@ -31,7 +30,7 @@ To build from source, install [rustup](https://rustup.rs/) and Git, then:
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
-git checkout v0.1.3
+git checkout v0.2.0
 cargo build --release
 cargo run --release -p redring
 ```

@@ -66,6 +66,8 @@ For design details, see the repository's [architecture overview](https://github.
 
 ## Development Status
 
+**🛠️ v0.2.0 preview** (November 2026): Machining can now be managed. STEP shapes can be loaded and used as the machining target, and a machining sequence can have several machining operations. Tools are registered in a tool library and selected from operations ([Tool Library](./tool_library.md)). Toolpaths and cutting simulations are calculated by a job manager separate from the app, and the screen does not stop during the calculation. The cutting simulation cuts from the stock left by the previous operation. Product shapes and machining sequences can be saved in a model file (`.rrm`) ([Cutting Simulation](./cutting_simulation_demo.md)).
+
 **📦 v0.1.3 preview** (November 2026): Releases now include a Windows package (zip), so you can try RedRing without building it from source ([Getting Started](./getting_started.md)). Added this English manual. The scanline angle can be specified, uncut stock at the top edges of walls and in valleys is fixed, and toolpath calculation on fine meshes is much faster ([Cutting Simulation](./cutting_simulation_demo.md)).
 
 **🌍 v0.1.2 preview** (November 2026): Made the screen easier to use. The list of controls opens from the "Help" menu, and the results of operations and the reasons for failures appear in the status bar at the bottom of the screen. The screen text can be switched between Japanese and English with "View" → "Language" ([Screen and Controls](./screen_and_controls.md)).

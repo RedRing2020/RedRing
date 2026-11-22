@@ -32,13 +32,13 @@ The executable does not have a code signature yet, so Windows SmartScreen shows 
 To check that the zip was not damaged while downloading, compare its SHA-256 with the value in `SHA256SUMS.txt`. Run the following in PowerShell; `True` means they are the same (replace `<value>` with the value on the zip line of `SHA256SUMS.txt`).
 
 ```powershell
-(Get-FileHash .\redring-v0.1.3-windows-x86_64.zip -Algorithm SHA256).Hash -eq '<value>'
+(Get-FileHash .\redring-v0.2.0-windows-x86_64.zip -Algorithm SHA256).Hash -eq '<value>'
 ```
 
 To check that the zip was not replaced (that it was built by the CI of the RedRing repository from the release tag), use the [GitHub CLI](https://cli.github.com/). If the release assets were replaced together, the checksums would be replaced too, so this is the reliable check.
 
 ```powershell
-gh attestation verify .\redring-v0.1.3-windows-x86_64.zip --repo RedRing2020/RedRing
+gh attestation verify .\redring-v0.2.0-windows-x86_64.zip --repo RedRing2020/RedRing
 ```
 
 The release also includes the list of dependent crates (SBOM, a `.cdx.json` file in the CycloneDX format).
@@ -48,7 +48,7 @@ The release also includes the list of dependent crates (SBOM, a `.cdx.json` file
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
-git checkout v0.1.3
+git checkout v0.2.0
 cargo build --release
 cargo run --release -p redring
 ```
