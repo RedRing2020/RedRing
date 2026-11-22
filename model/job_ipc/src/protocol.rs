@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 
 /// 口の版（要求・応答の形を変えたら上げる。要求を足すだけなら上げない。前のジョブマネージャーは、知らない要求に
 /// 正しくない要求の誤りを返す。ジョブの状態の値を足したら上げる。前のアプリは知らない状態を読めず、ジョブの一覧を
-/// まるごと読めなくなるため。版 2 で中断を足した）
-pub const PROTOCOL_VERSION: u32 = 2;
+/// まるごと読めなくなるため。版 2 で中断を足した。版 3 で、投入するジョブに始まりの素材を足した。前のジョブマネージャー
+/// は知らない項目を読み捨て、素材の範囲から計算してしまうため）
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// 要求
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,6 +144,10 @@ pub struct SubmitJob {
     /// 切削シミュレーションが入力にする CL の名前（投入の入力の 1 つ。指定するときは、ツールパス生成のジョブに依存
     /// しない）
     pub toolpath_file: Option<String>,
+    /// 切削シミュレーションが始まりの素材にする、前の区間の切削シミュレーションのジョブ（`depends_on` の 1 つ。その
+    /// 終わりの素材から削る）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_stock: Option<Dependency>,
 }
 
 /// ジョブの一覧の 1 つ

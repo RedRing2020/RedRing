@@ -130,6 +130,7 @@ mod tests {
             submission_id: "s".to_string(),
             kind,
             depends_on: depends_on.to_vec(),
+            start_stock: None,
             priority: 0,
             group_id: None,
             source: None,

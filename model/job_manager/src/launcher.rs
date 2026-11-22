@@ -16,6 +16,8 @@ pub struct LaunchSpec {
     pub input: PathBuf,
     /// 切削シミュレーションの、依存するツールパス生成のジョブの成果物
     pub toolpath: Option<PathBuf>,
+    /// 切削シミュレーションの始まりの素材（前の区間の切削シミュレーションのジョブの終わりの素材）
+    pub stock: Option<PathBuf>,
     pub output: PathBuf,
     pub logs: PathBuf,
     pub progress: PathBuf,
@@ -36,6 +38,9 @@ impl LaunchSpec {
         ];
         if let Some(toolpath) = &self.toolpath {
             args.extend(["--toolpath".into(), toolpath.clone().into()]);
+        }
+        if let Some(stock) = &self.stock {
+            args.extend(["--stock".into(), stock.clone().into()]);
         }
         args.extend([
             "--output".into(),

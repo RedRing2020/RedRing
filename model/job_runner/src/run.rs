@@ -19,6 +19,8 @@ use crate::resume::{ResumeFile, checksum, file_checksum};
 const TOOLPATH_FILE: &str = "toolpath.bin";
 /// 切削シミュレーションの成果物のファイルの名前
 const CUTTING_SIMULATION_FILE: &str = "cutting_simulation.bin";
+/// 切削シミュレーションの終わりの素材のファイルの名前
+const STOCK_FILE: &str = "stock.bin";
 /// ツールパスを読むときのバッファーの大きさ（大きなファイルで、読み込みの呼び出しの回数を減らす）
 const TOOLPATH_READ_BUFFER_BYTES: usize = 1 << 20;
 /// ログのファイルの名前（書いている間は `runner.log.tmp`）
@@ -130,7 +132,7 @@ fn job_failure(failure: JobRunFailure) -> Failure {
 /// 入力を読んで計算し、成果物を書く。成果物のパスを返す
 fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
     // 前の実行の成果物が残っていると、失敗した実行の成果物に見えるため、計算の前に消す
-    for name in [TOOLPATH_FILE, CUTTING_SIMULATION_FILE] {
+    for name in [TOOLPATH_FILE, CUTTING_SIMULATION_FILE, STOCK_FILE] {
         remove_if_exists(&args.output.join(name))?;
     }
     let input = read_file(&args.input, "input")?;
@@ -146,27 +148,49 @@ fn execute(args: &RunnerArgs, log: &mut RunnerLog) -> Result<PathBuf, Failure> {
     if let Some(error) = progress.take_error() {
         log.line(&error);
     }
-    let (artifact, file_name) = computed?;
-    let path = args.output.join(file_name);
-    fs::create_dir_all(&args.output)
-        .and_then(|()| write_atomically(&path, &artifact))
-        .map_err(|error| {
-            Failure::new(
-                ExitCode::OutputUnwritable,
-                format!("cannot write {}: {error}", path.display()),
-            )
-        })?;
+    let computed = computed?;
+    fs::create_dir_all(&args.output).map_err(|error| {
+        Failure::new(
+            ExitCode::OutputUnwritable,
+            format!("cannot write in {}: {error}", args.output.display()),
+        )
+    })?;
+    // 終わりの素材を成果物より先に書く（成果物があれば、終わりの素材もあるように）
+    if let Some(stock) = &computed.stock {
+        write_output(&args.output.join(STOCK_FILE), stock)?;
+    }
+    let path = args.output.join(computed.file_name);
+    write_output(&path, &computed.artifact)?;
     Ok(path)
 }
 
-/// 入力の中身 `input` から計算し、成果物のバイト列と、そのファイルの名前を返す（計算の進み具合を `progress` に
-/// 知らせる）
+/// 計算の結果
+struct Computed {
+    /// 成果物のバイト列
+    artifact: Vec<u8>,
+    /// 成果物のファイルの名前
+    file_name: &'static str,
+    /// 切削シミュレーションの終わりの素材のファイルのバイト列
+    stock: Option<Vec<u8>>,
+}
+
+fn write_output(path: &Path, bytes: &[u8]) -> Result<(), Failure> {
+    write_atomically(path, bytes).map_err(|error| {
+        Failure::new(
+            ExitCode::OutputUnwritable,
+            format!("cannot write {}: {error}", path.display()),
+        )
+    })
+}
+
+/// 入力の中身 `input` から計算し、成果物と、切削シミュレーションの終わりの素材を返す（計算の進み具合を `progress`
+/// に知らせる）
 fn compute(
     args: &RunnerArgs,
     input: &[u8],
     log: &mut RunnerLog,
     progress: &mut dyn FnMut(usize, usize),
-) -> Result<(Vec<u8>, &'static str), Failure> {
+) -> Result<Computed, Failure> {
     Ok(match args.job_kind {
         JobKind::Cam => {
             let input_checksum = checksum(input);
@@ -186,7 +210,11 @@ fn compute(
                 None => run_cam_solver_resumable(&input, memory_limit, &mut NoRecords, progress),
             }
             .map_err(job_failure)?;
-            (artifact, TOOLPATH_FILE)
+            Computed {
+                artifact,
+                file_name: TOOLPATH_FILE,
+                stock: None,
+            }
         }
         JobKind::Sim => {
             let toolpath_path = args.toolpath.as_deref().ok_or_else(|| {
@@ -210,10 +238,34 @@ fn compute(
                         ),
                     )
                 })?;
-            let run = run_cutting_simulation(&input, &mut toolpath, None, progress)
-                .map_err(job_failure)?;
-            log.line(&format!("snapshots={}", run.snapshot_count));
-            (run.artifact, CUTTING_SIMULATION_FILE)
+            let mut start_stock = match &args.stock {
+                Some(path) => Some(BufReader::new(File::open(path).map_err(|error| {
+                    Failure::new(
+                        ExitCode::InputUnreadable,
+                        format!("cannot read the stock {}: {error}", path.display()),
+                    )
+                })?)),
+                None => None,
+            };
+            let run = run_cutting_simulation(
+                &input,
+                &mut toolpath,
+                start_stock
+                    .as_mut()
+                    .map(|stock| stock as &mut dyn std::io::Read),
+                progress,
+            )
+            .map_err(job_failure)?;
+            log.line(&format!(
+                "snapshots={} start_stock={}",
+                run.snapshot_count,
+                args.stock.is_some()
+            ));
+            Computed {
+                artifact: run.artifact,
+                file_name: CUTTING_SIMULATION_FILE,
+                stock: Some(run.stock),
+            }
         }
     })
 }

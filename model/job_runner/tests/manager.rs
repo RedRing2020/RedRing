@@ -9,8 +9,8 @@ use cam_sim::{TOOLPATH_MEMORY_LIMIT_BYTES, read_cutting_simulation_artifact_v1, 
 use common::{WorkDir, cam_input, write_cam_input, write_sim_input};
 use job_manager::{JobManagerService, ProcessLauncher};
 use job_runtime::store::{
-    DependencyRef, JobStore, STORE_FORMAT_VERSION, StoredJobKind, StoredJobStatus,
-    SubmissionRequest, SubmittedJob,
+    DependencyRef, JobStore, STORE_FORMAT_VERSION, StoredJob, StoredJobKind, StoredJobStatus,
+    SubmissionRequest, SubmittedJob, request_format_version,
 };
 
 fn submitted(
@@ -26,34 +26,28 @@ fn submitted(
         group_id: None,
         source: None,
         toolpath_file: None,
+        start_stock: None,
     }
 }
 
-#[test]
-fn submitted_cam_and_sim_jobs_run_with_the_real_runner() {
-    let dir = WorkDir::new();
-    let store = JobStore::open(dir.path("store")).unwrap();
+/// 投入 `jobs`（入力は `write_inputs` で書く）を書き終えてから名前を変えて投入し、`count` 個のジョブが終わるまでサービスを動かす
+fn run_submission(
+    store: &JobStore,
+    jobs: Vec<SubmittedJob>,
+    write_inputs: impl FnOnce(&std::path::Path),
+    count: usize,
+) -> Vec<StoredJob> {
     let launcher = ProcessLauncher::new(
         env!("CARGO_BIN_EXE_redring-batch-runner").into(),
         TOOLPATH_MEMORY_LIMIT_BYTES,
     );
     let (mut service, _) = JobManagerService::start(store.clone(), launcher, 0).unwrap();
-
-    // 投入（書き終えてから名前を変える）
     let writing = store.root().join("inbox").join("s1.tmp");
     fs::create_dir_all(&writing).unwrap();
-    write_cam_input(&writing.join("cam.bin"), &cam_input());
-    write_sim_input(&writing.join("sim.bin"));
+    write_inputs(&writing);
     let request = SubmissionRequest {
-        format_version: STORE_FORMAT_VERSION,
-        jobs: vec![
-            submitted(StoredJobKind::Cam, "cam.bin", vec![]),
-            submitted(
-                StoredJobKind::Sim,
-                "sim.bin",
-                vec![DependencyRef::Submitted(0)],
-            ),
-        ],
+        format_version: request_format_version(&jobs),
+        jobs,
     };
     fs::write(
         writing.join("request.json"),
@@ -63,15 +57,85 @@ fn submitted_cam_and_sim_jobs_run_with_the_real_runner() {
     fs::rename(&writing, store.root().join("inbox").join("s1")).unwrap();
 
     let deadline = Instant::now() + Duration::from_secs(120);
-    let jobs = loop {
+    loop {
         service.tick(0);
         let (jobs, _) = store.load_jobs().unwrap();
-        if jobs.len() == 2 && jobs.iter().all(|job| job.status.is_terminal()) {
+        if jobs.len() == count && jobs.iter().all(|job| job.status.is_terminal()) {
             break jobs;
         }
         assert!(Instant::now() < deadline, "jobs did not finish: {jobs:?}");
         std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+#[test]
+fn a_later_segment_runs_from_the_end_stock_of_the_previous_segment_with_the_real_runner() {
+    let dir = WorkDir::new();
+    let store = JobStore::open(dir.path("store")).unwrap();
+    let jobs = vec![
+        submitted(StoredJobKind::Cam, "cam.bin", vec![]),
+        submitted(
+            StoredJobKind::Sim,
+            "sim1.bin",
+            vec![DependencyRef::Submitted(0)],
+        ),
+        // 同じ経路を、前の区間の終わりの素材から削る
+        SubmittedJob {
+            start_stock: Some(DependencyRef::Submitted(1)),
+            ..submitted(
+                StoredJobKind::Sim,
+                "sim2.bin",
+                vec![DependencyRef::Submitted(0), DependencyRef::Submitted(1)],
+            )
+        },
+    ];
+    let jobs = run_submission(
+        &store,
+        jobs,
+        |dir| {
+            write_cam_input(&dir.join("cam.bin"), &cam_input());
+            write_sim_input(&dir.join("sim1.bin"));
+            write_sim_input(&dir.join("sim2.bin"));
+        },
+        3,
+    );
+    for job in &jobs {
+        assert_eq!(job.status, StoredJobStatus::Succeeded, "{job:?}");
+    }
+    let volumes = |job_id| {
+        let bytes = fs::read(store.result_file(job_id, StoredJobKind::Sim)).unwrap();
+        let (_, simulation) = read_cutting_simulation_artifact_v1(&mut bytes.as_slice()).unwrap();
+        let first = simulation.snapshots[0].remaining_volume_mm3;
+        let last = simulation.snapshots.last().unwrap().remaining_volume_mm3;
+        (first, last)
     };
+    let (full, end) = volumes(2);
+    let (start, _) = volumes(3);
+    assert!(end < full);
+    assert!((start - end).abs() <= 1e-9 * end);
+    assert!(store.stock_file(3).is_file());
+}
+
+#[test]
+fn submitted_cam_and_sim_jobs_run_with_the_real_runner() {
+    let dir = WorkDir::new();
+    let store = JobStore::open(dir.path("store")).unwrap();
+    let jobs = run_submission(
+        &store,
+        vec![
+            submitted(StoredJobKind::Cam, "cam.bin", vec![]),
+            submitted(
+                StoredJobKind::Sim,
+                "sim.bin",
+                vec![DependencyRef::Submitted(0)],
+            ),
+        ],
+        |dir| {
+            write_cam_input(&dir.join("cam.bin"), &cam_input());
+            write_sim_input(&dir.join("sim.bin"));
+        },
+        2,
+    );
     for job in &jobs {
         assert_eq!(job.status, StoredJobStatus::Succeeded, "{job:?}");
     }
@@ -118,6 +182,7 @@ fn a_sim_job_runs_from_a_toolpath_file_with_the_real_runner() {
         format_version: STORE_FORMAT_VERSION,
         jobs: vec![SubmittedJob {
             toolpath_file: Some("toolpath.bin".to_string()),
+            start_stock: None,
             ..submitted(StoredJobKind::Sim, "sim.bin", vec![])
         }],
     };

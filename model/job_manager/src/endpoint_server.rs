@@ -242,6 +242,10 @@ impl Handler for StoreHandler {
         if uses_missing_input {
             return Err(invalid("a job uses an input that is not sent"));
         }
+        let dependency_from_ipc = |dependency| match dependency {
+            Dependency::Submitted(index) => DependencyRef::Submitted(index),
+            Dependency::Existing(job_id) => DependencyRef::Existing(job_id),
+        };
         let jobs: Vec<SubmittedJob> = jobs
             .into_iter()
             .map(|job| SubmittedJob {
@@ -250,15 +254,13 @@ impl Handler for StoreHandler {
                 depends_on: job
                     .depends_on
                     .into_iter()
-                    .map(|dependency| match dependency {
-                        Dependency::Submitted(index) => DependencyRef::Submitted(index),
-                        Dependency::Existing(job_id) => DependencyRef::Existing(job_id),
-                    })
+                    .map(dependency_from_ipc)
                     .collect(),
                 priority: job.priority,
                 group_id: None,
                 source: job.source.map(source_from_ipc),
                 toolpath_file: job.toolpath_file,
+                start_stock: job.start_stock.map(dependency_from_ipc),
             })
             .collect();
         let request = SubmissionRequest {
@@ -482,6 +484,7 @@ mod tests {
             priority: 0,
             source: Some(source.clone()),
             toolpath_file: None,
+            start_stock: None,
         };
         let jobs = vec![
             job(JobKind::Cam, "cam.bin", vec![]),

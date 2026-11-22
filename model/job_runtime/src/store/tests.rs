@@ -33,6 +33,7 @@ fn job(kind: StoredJobKind, input_file: &str, depends_on: Vec<DependencyRef>) ->
         group_id: None,
         source: None,
         toolpath_file: None,
+        start_stock: None,
     }
 }
 
@@ -606,6 +607,7 @@ fn scheduled_job(
         submission_id: "s".to_string(),
         kind: StoredJobKind::Cam,
         depends_on: depends_on.to_vec(),
+        start_stock: None,
         priority,
         group_id: None,
         source: None,
@@ -875,6 +877,22 @@ fn requests_use_the_oldest_format_version_that_can_express_them() {
         request_format_version(&with_toolpath),
         TOOLPATH_FILE_FORMAT_VERSION
     );
+    let with_start_stock = vec![
+        job(StoredJobKind::Cam, "cam.bin", vec![]),
+        job(
+            StoredJobKind::Sim,
+            "sim1.bin",
+            vec![DependencyRef::Submitted(0)],
+        ),
+        SubmittedJob {
+            start_stock: Some(DependencyRef::Submitted(1)),
+            ..with_toolpath[0].clone()
+        },
+    ];
+    assert_eq!(
+        request_format_version(&with_start_stock),
+        START_STOCK_FORMAT_VERSION
+    );
 }
 
 #[test]
@@ -995,4 +1013,195 @@ fn progress_is_read_as_untrusted_input() {
         " ".repeat(2048)
     );
     assert_eq!(read(&padded), None);
+}
+
+/// ツールパス生成 2 つと、それぞれの切削シミュレーション（後の区間は、前の区間の終わりの素材から始める）の要求
+fn two_segments(format_version: u32) -> String {
+    serde_json::to_string(&SubmissionRequest {
+        format_version,
+        jobs: vec![
+            job(StoredJobKind::Cam, "cam1.bin", vec![]),
+            job(
+                StoredJobKind::Sim,
+                "sim1.bin",
+                vec![DependencyRef::Submitted(0)],
+            ),
+            job(StoredJobKind::Cam, "cam2.bin", vec![]),
+            SubmittedJob {
+                start_stock: Some(DependencyRef::Submitted(1)),
+                ..job(
+                    StoredJobKind::Sim,
+                    "sim2.bin",
+                    vec![DependencyRef::Submitted(2), DependencyRef::Submitted(1)],
+                )
+            },
+        ],
+    })
+    .unwrap()
+}
+
+const TWO_SEGMENT_INPUTS: [(&str, &[u8]); 4] = [
+    ("cam1.bin", b"c1"),
+    ("sim1.bin", b"s1"),
+    ("cam2.bin", b"c2"),
+    ("sim2.bin", b"s2"),
+];
+
+#[test]
+fn sim_jobs_starting_from_the_previous_segment_are_taken_in_with_the_newer_version() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    submit(
+        &store,
+        "a1",
+        &two_segments(START_STOCK_FORMAT_VERSION),
+        &TWO_SEGMENT_INPUTS,
+    );
+    let outcomes = store.intake(&lock, 1_000).unwrap();
+    assert!(
+        matches!(&outcomes[..], [IntakeOutcome::Accepted { job_ids, .. }] if job_ids == &[1, 2, 3, 4]),
+        "{outcomes:?}"
+    );
+    let (jobs, unreadable) = store.load_jobs().unwrap();
+    assert!(unreadable.is_empty());
+    assert_eq!(jobs[3].depends_on, vec![3, 2]);
+    assert_eq!(jobs[3].start_stock, Some(2));
+    // 前の版のジョブマネージャーが読めない（素材の範囲から計算しない）版で書き、ほかの記録は前の版のまま
+    assert_eq!(jobs[3].format_version, START_STOCK_FORMAT_VERSION);
+    assert_eq!(jobs[1].format_version, STORE_FORMAT_VERSION);
+    const { assert!(START_STOCK_FORMAT_VERSION > INTERRUPTED_FORMAT_VERSION) };
+    let mut interrupted = jobs[3].clone();
+    interrupted.status = StoredJobStatus::Interrupted;
+    store.write_job(&lock, &interrupted).unwrap();
+    let mut plain = jobs[1].clone();
+    plain.status = StoredJobStatus::Interrupted;
+    store.write_job(&lock, &plain).unwrap();
+    let (jobs, _) = store.load_jobs().unwrap();
+    assert_eq!(jobs[3].format_version, START_STOCK_FORMAT_VERSION);
+    assert_eq!(jobs[1].format_version, INTERRUPTED_FORMAT_VERSION);
+    assert_eq!(store.stock_file(2), store.output_dir(2).join(STOCK_FILE));
+}
+
+#[test]
+fn start_stocks_that_cannot_be_used_are_rejected() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    let with_start_stock = |jobs: Vec<SubmittedJob>| {
+        serde_json::to_string(&SubmissionRequest {
+            format_version: START_STOCK_FORMAT_VERSION,
+            jobs,
+        })
+        .unwrap()
+    };
+    let cam = || job(StoredJobKind::Cam, "cam1.bin", vec![]);
+    let sim = || {
+        job(
+            StoredJobKind::Sim,
+            "sim1.bin",
+            vec![DependencyRef::Submitted(0)],
+        )
+    };
+    let cases: Vec<(&str, String, &str)> = vec![
+        (
+            "oldversion",
+            two_segments(STORE_FORMAT_VERSION),
+            "needs format version 5",
+        ),
+        (
+            "camstock",
+            with_start_stock(vec![
+                cam(),
+                sim(),
+                SubmittedJob {
+                    start_stock: Some(DependencyRef::Submitted(1)),
+                    ..job(
+                        StoredJobKind::Cam,
+                        "cam2.bin",
+                        vec![DependencyRef::Submitted(1)],
+                    )
+                },
+            ]),
+            "only a sim job can have a start stock",
+        ),
+        (
+            "fromcam",
+            with_start_stock(vec![
+                cam(),
+                SubmittedJob {
+                    start_stock: Some(DependencyRef::Submitted(0)),
+                    ..sim()
+                },
+            ]),
+            "must come from a sim job",
+        ),
+        (
+            "notdependency",
+            with_start_stock(vec![
+                cam(),
+                sim(),
+                SubmittedJob {
+                    start_stock: Some(DependencyRef::Submitted(1)),
+                    ..job(
+                        StoredJobKind::Sim,
+                        "sim2.bin",
+                        vec![DependencyRef::Submitted(0)],
+                    )
+                },
+            ]),
+            "must be a dependency",
+        ),
+        (
+            "simwithoutstock",
+            with_start_stock(vec![
+                cam(),
+                sim(),
+                job(
+                    StoredJobKind::Sim,
+                    "sim2.bin",
+                    vec![DependencyRef::Submitted(0), DependencyRef::Submitted(1)],
+                ),
+            ]),
+            "only for its start stock",
+        ),
+    ];
+    for (id, request, _) in &cases {
+        submit(&store, id, request, &TWO_SEGMENT_INPUTS);
+    }
+    let outcomes = store.intake(&lock, 0).unwrap();
+    assert_eq!(outcomes.len(), cases.len());
+    for outcome in &outcomes {
+        let IntakeOutcome::Rejected { submission_id, .. } = outcome else {
+            panic!("accepted: {outcome:?}");
+        };
+        let (_, _, expected) = cases.iter().find(|(id, ..)| id == submission_id).unwrap();
+        assert!(
+            rejection_reason(outcome).contains(expected),
+            "{submission_id}: {outcome:?}"
+        );
+    }
+}
+
+#[test]
+fn records_whose_start_stock_is_not_a_dependency_are_unreadable() {
+    let root = TempRoot::new();
+    let store = JobStore::open(&root.0).unwrap();
+    let lock = store.lock().unwrap();
+    submit(
+        &store,
+        "a1",
+        &two_segments(START_STOCK_FORMAT_VERSION),
+        &TWO_SEGMENT_INPUTS,
+    );
+    store.intake(&lock, 0).unwrap();
+    let (jobs, _) = store.load_jobs().unwrap();
+    let mut broken = jobs[3].clone();
+    broken.depends_on = vec![3];
+    let path = store.root().join(JOBS_DIR).join("4").join(JOB_FILE);
+    fs::write(&path, serde_json::to_vec(&broken).unwrap()).unwrap();
+    let (jobs, unreadable) = store.load_jobs().unwrap();
+    assert_eq!(jobs.len(), 3);
+    assert_eq!(unreadable.len(), 1);
+    assert_eq!(unreadable[0].job_id, 4);
 }

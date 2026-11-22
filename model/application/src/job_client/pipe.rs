@@ -466,6 +466,7 @@ impl JobClient for PipeJobClient {
             priority: 0,
             source: source.clone(),
             toolpath_file: None,
+            start_stock: None,
         };
         self.submit_jobs(
             vec![
@@ -497,6 +498,7 @@ impl JobClient for PipeJobClient {
             priority: 0,
             source: submission.source.clone().map(ipc_source),
             toolpath_file: toolpath_file.map(str::to_string),
+            start_stock: None,
         };
         match &submission.toolpath {
             // すでにあるツールパス生成のジョブの下に置く

@@ -70,6 +70,7 @@ mod tests {
             submission_id: "a1".to_string(),
             kind,
             depends_on,
+            start_stock: None,
             priority: 0,
             group_id: None,
             source: None,

@@ -276,6 +276,7 @@ fn requests_go_through_the_endpoint() {
             revision_key: Some("key".to_string()),
         }),
         toolpath_file: None,
+        start_stock: None,
     };
     let input = vec![7u8; MAX_CHUNK_BYTES + 1];
     assert_eq!(

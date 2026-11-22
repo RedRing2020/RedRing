@@ -11,10 +11,11 @@ use std::time::{Duration, Instant};
 
 use cam_core::{OperationSpec, Tool, read_toolpath_artifact_v1};
 use cam_sim::{
-    Checkpoints, SavedRecord, TOOLPATH_MEMORY_LIMIT_BYTES, read_cutting_simulation_artifact_v1,
-    run_cam_solver, run_cam_solver_resumable,
+    Checkpoints, CuttingSimulationInput, SavedRecord, TOOLPATH_MEMORY_LIMIT_BYTES,
+    read_cutting_simulation_artifact_v1, run_cam_solver, run_cam_solver_resumable,
+    write_cutting_simulation_input_v1,
 };
-use common::{WorkDir, cam_input, write_cam_input, write_sim_input};
+use common::{WorkDir, cam_input, sim_input, write_cam_input, write_sim_input};
 
 /// 引数 `args` でランナーを起動するコマンド
 fn runner(args: &[&std::ffi::OsStr]) -> Command {
@@ -284,6 +285,77 @@ fn sim_job_simulates_the_toolpath_of_the_parent_job() {
     let (_, simulation) = read_cutting_simulation_artifact_v1(&mut artifact.as_slice()).unwrap();
     assert!(simulation.product_deviations.is_some());
     assert!(log_text(&dir).contains("snapshots="));
+}
+
+/// 始まりの素材 `stock` から削る切削シミュレーションのランナーを起動し、終了の番号を返す
+fn run_sim_from_stock(dir: &WorkDir, input: &Path, toolpath: &Path, stock: &Path) -> i32 {
+    let (output, logs) = (dir.path("output"), dir.path("logs"));
+    run(&[
+        "--job-type".as_ref(),
+        "sim".as_ref(),
+        "--input".as_ref(),
+        input.as_os_str(),
+        "--toolpath".as_ref(),
+        toolpath.as_os_str(),
+        "--stock".as_ref(),
+        stock.as_os_str(),
+        "--output".as_ref(),
+        output.as_os_str(),
+        "--logs".as_ref(),
+        logs.as_os_str(),
+    ])
+}
+
+#[test]
+fn a_sim_job_writes_the_end_stock_and_the_next_one_starts_from_it() {
+    let dir = WorkDir::new();
+    let toolpath = dir.path("toolpath.bin");
+    fs::write(
+        &toolpath,
+        run_cam_solver(&cam_input(), TOOLPATH_MEMORY_LIMIT_BYTES).unwrap(),
+    )
+    .unwrap();
+    let input = dir.path("sim_input.bin");
+    write_sim_input(&input);
+    assert_eq!(run_job(&dir, "sim", &input, Some(&toolpath)), 0);
+    let stock = dir.path("stock.bin");
+    fs::rename(dir.path("output").join("stock.bin"), &stock).unwrap();
+    let first = fs::read(dir.path("output").join("cutting_simulation.bin")).unwrap();
+    let (_, first) = read_cutting_simulation_artifact_v1(&mut first.as_slice()).unwrap();
+
+    // 同じ経路を、前の区間の終わりの素材から削る（もう削る所はない）
+    assert_eq!(
+        run_sim_from_stock(&dir, &input, &toolpath, &stock),
+        0,
+        "{}",
+        log_text(&dir)
+    );
+    assert!(dir.path("output").join("stock.bin").is_file());
+    let second = fs::read(dir.path("output").join("cutting_simulation.bin")).unwrap();
+    let (_, second) = read_cutting_simulation_artifact_v1(&mut second.as_slice()).unwrap();
+    let end_volume = first.snapshots.last().unwrap().remaining_volume_mm3;
+    let start_volume = second.snapshots[0].remaining_volume_mm3;
+    assert!(start_volume < first.snapshots[0].remaining_volume_mm3);
+    assert!((end_volume - start_volume).abs() <= 1e-9 * end_volume);
+    assert!(log_text(&dir).contains("start_stock=true"));
+
+    // 始まりの素材がない・格子が違う。前の実行の成果物と終わりの素材は消す
+    assert_eq!(
+        run_sim_from_stock(&dir, &input, &toolpath, &dir.path("missing.bin")),
+        3
+    );
+    assert!(log_text(&dir).contains("cannot read the stock"));
+    assert!(!dir.path("output").join("stock.bin").exists());
+    let other_grid = CuttingSimulationInput {
+        grid_tool_radius: sim_input().grid_tool_radius / 2.0,
+        ..sim_input()
+    };
+    let mut bytes = Vec::new();
+    write_cutting_simulation_input_v1(&mut bytes, &other_grid).unwrap();
+    fs::write(&input, bytes).unwrap();
+    assert_eq!(run_sim_from_stock(&dir, &input, &toolpath, &stock), 4);
+    assert!(log_text(&dir).contains("code=start-stock-mismatch"));
+    assert!(!dir.path("output").join("cutting_simulation.bin").exists());
 }
 
 #[test]
