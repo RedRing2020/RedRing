@@ -718,8 +718,9 @@ impl JobClient for PipeJobClient {
                 .get(&simulation_job_id)
                 .filter(|job| job.kind == JobKind::Sim && job.status == JobStatus::Succeeded)
                 .ok_or_else(not_succeeded)?;
-            // CL を入力にするジョブ（依存するジョブを持たない）は、ツールパス生成の入力を持たない
-            let toolpath = if simulation.depends_on.is_empty() {
+            // CL を入力にするジョブは、ツールパス生成の入力を持たない（始まりの素材にする、前の区間の切削シミュレーション
+            // には依存しうる）
+            let toolpath = if simulation.has_input_toolpath {
                 None
             } else {
                 Some(

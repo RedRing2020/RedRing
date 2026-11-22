@@ -32,6 +32,8 @@ pub(crate) struct InProcessJobClient {
     simulation_inputs: Arc<InMemoryCuttingSimulationInputStore>,
     /// 投入した区間（投入の順）
     submissions: Vec<Segment>,
+    /// 投入を頼まれた回数（失敗した投入も数え、投入ごとに別の入力の参照にする）
+    attempts: usize,
 }
 
 /// 投入した区間のジョブ
@@ -55,6 +57,7 @@ impl Default for InProcessJobClient {
             solver_inputs,
             simulation_inputs,
             submissions: Vec::new(),
+            attempts: 0,
         }
     }
 }
@@ -64,8 +67,20 @@ impl JobClient for InProcessJobClient {
         &mut self,
         segments: Vec<SegmentSubmission>,
     ) -> Result<String, CamSimulationWorkflowError> {
-        let run = self.submissions.len() + 1;
-        let submission_id = format!("run-{run}");
+        self.attempts += 1;
+        let submission_id = format!("run-{}", self.attempts);
+        // 同じプロセスの中の実行は、ツールパス生成のジョブを持たない切削シミュレーションを扱わない（ジョブを置く前に
+        // 確かめ、一部の区間だけを置かない）
+        let unsupported = segments.iter().enumerate().any(|(index, segment)| {
+            matches!(segment.toolpath, SegmentToolpath::Artifact(_))
+                || matches!(segment.start_stock, Some(StartStock::Submitted(previous)) if previous >= index)
+        });
+        if unsupported {
+            return Err(CamSimulationWorkflowError::InputRegistration(
+                "simulating an imported toolpath or a segment starting from a later one is not supported"
+                    .to_string(),
+            ));
+        }
         let registration = |error: job_runtime::RefValidationError| {
             CamSimulationWorkflowError::InputRegistration(error.to_string())
         };

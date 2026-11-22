@@ -351,6 +351,44 @@ fn large_toolpath(
     })))
 }
 
+/// 加工工程 `operations`（工程と、その区間の CL の決め方）を投入するときに、ツールパス生成から計算する工程（前の区間
+/// から一緒に置く工程を含む）
+fn operations_to_solve(
+    workflow: &mut CamSimulationWorkflow,
+    document: &SpaceModelDocument,
+    operations: &[(MachiningOperationId, SegmentToolpathSource)],
+) -> Result<Vec<MachiningOperationId>, CamSimulationWorkflowError> {
+    let (_, sequences, sequence, _) = document.machining();
+    workflow.operations_to_solve(sequences, document.toolpaths(), sequence, operations)
+}
+
+/// 工程 `operations` のツールパスの大きさを、計算を始める前に見積もる（確かめる目安を超える工程と見積もり。見積もって
+/// いる工程があれば `None`。確かめる目安と上限は、工程があるときだけ問い合わせる）
+///
+/// # Errors
+///
+/// [`large_toolpath`] の誤り。
+fn large_toolpaths(
+    estimations: &mut ToolpathEstimations,
+    workflow: &mut CamSimulationWorkflow,
+    document: &SpaceModelDocument,
+    operations: &[MachiningOperationId],
+) -> Result<Option<Vec<LargeToolpath>>, CamSimulationWorkflowError> {
+    if operations.is_empty() {
+        return Ok(Some(Vec::new()));
+    }
+    let limits = workflow.toolpath_limits()?;
+    let mut large = Vec::new();
+    for &operation in operations {
+        let (position, name) = operation_label(document, operation);
+        match large_toolpath(estimations, document, operation, (position, &name), limits)? {
+            None => return Ok(None),
+            Some(found) => large.extend(found),
+        }
+    }
+    Ok(Some(large))
+}
+
 /// 選んだ加工工程 `operation` の、加工の順の番号（1 から）と名前
 fn operation_label(
     document: &SpaceModelDocument,
@@ -747,13 +785,19 @@ impl CuttingSimulationSession {
             let Some(kind) = SubmissionKind::of(document.imported_toolpath_state(), state) else {
                 return Ok(Submitting::Done(SubmitOutcome::AlreadyCalculated));
             };
-            if kind == SubmissionKind::Full {
-                let (position, name) = operation_label(document, operation);
-                let limits = workflow.toolpath_limits()?;
-                match large_toolpath(estimations, document, operation, (position, &name), limits)? {
+            if kind != SubmissionKind::Resume {
+                // 前の区間から一緒に置く工程も、ツールパス生成から計算するなら見積もる
+                let solved = operations_to_solve(
+                    workflow,
+                    document,
+                    &[(operation, segment_toolpath_source(kind))],
+                )?;
+                match large_toolpaths(estimations, workflow, document, &solved)? {
                     None => return Ok(Submitting::Done(SubmitOutcome::Estimating)),
-                    Some(Some(large)) => return Ok(Submitting::Confirm(vec![large], kind)),
-                    Some(None) => {}
+                    Some(large) if !large.is_empty() => {
+                        return Ok(Submitting::Confirm(large, kind));
+                    }
+                    Some(_) => {}
                 }
             }
             submit_kind(workflow, document, operation, kind)?;
@@ -791,23 +835,23 @@ impl CuttingSimulationSession {
         confirm: impl FnOnce(&[LargeToolpath]) -> bool,
     ) -> Result<RedoOutcome, CuttingSimulationSessionError> {
         ensure_conditions_set(document)?;
-        // 大きさは、状態を読む前に確かめる（確かめている間に状態が変わっても、読んだ状態ですぐに投入するため）
+        // 大きさは、状態を読む前に確かめる（確かめている間に状態が変わっても、読んだ状態ですぐに投入するため）。前の
+        // 区間から一緒に置く工程も、ツールパス生成から計算するなら見積もる
         let operation = document.selected_operation();
-        let (position, name) = operation_label(document, operation);
-        let limits = self.workflow.toolpath_limits()?;
-        let Some(large) = large_toolpath(
-            &mut self.estimations,
-            document,
-            operation,
-            (position, &name),
-            limits,
-        )?
-        else {
+        let estimations = &mut self.estimations;
+        let large = self.workflow.with_job_manager_connection(|workflow| {
+            let solved = operations_to_solve(
+                workflow,
+                document,
+                &[(operation, SegmentToolpathSource::Solve)],
+            )?;
+            large_toolpaths(estimations, workflow, document, &solved)
+                .map_err(CuttingSimulationSessionError::from)
+        })?;
+        let Some(large) = large else {
             return Ok(RedoOutcome::Estimating);
         };
-        if let Some(large) = large
-            && !confirm(&[large])
-        {
+        if !large.is_empty() && !confirm(&large) {
             return Ok(RedoOutcome::Declined);
         }
         let (_, sequences, sequence, operation) = document.machining();
@@ -1322,6 +1366,36 @@ pub(crate) mod tests {
             submit(&mut session, &document, |_| true).unwrap(),
             SubmitOutcome::Submitted(SubmissionKind::Full)
         );
+    }
+
+    #[test]
+    fn a_large_toolpath_of_an_earlier_operation_is_confirmed_before_it_is_calculated_together() {
+        let (mut session, mut document) = coarse_session();
+        small_tool(&mut document, LARGE_STEPOVER);
+        document.add_operation("仕上げ".to_string());
+        coarse(&mut document);
+        // 後の工程の計算は、前の工程から一緒に計算するため、前の工程の大きさも確かめる
+        for redoing in [false, true] {
+            let mut asked = Vec::new();
+            let confirm = |large: &[LargeToolpath]| {
+                asked.extend_from_slice(large);
+                false
+            };
+            if redoing {
+                assert_eq!(
+                    redo(&mut session, &mut document, confirm).unwrap(),
+                    RedoOutcome::Declined
+                );
+            } else {
+                assert_eq!(
+                    submit(&mut session, &document, confirm).unwrap(),
+                    SubmitOutcome::Declined
+                );
+            }
+            assert_eq!(asked.len(), 1);
+            assert_eq!(asked[0].position, 1);
+            assert_eq!(session.run_queued_jobs().unwrap(), 0);
+        }
     }
 
     #[test]

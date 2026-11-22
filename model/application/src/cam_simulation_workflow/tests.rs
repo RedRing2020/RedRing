@@ -1448,6 +1448,44 @@ fn toolpaths_are_calculated_for_the_faces_of_a_shell() {
 }
 
 #[test]
+fn operations_with_other_chord_tolerances_cut_the_same_stock_of_a_curved_shell() {
+    use crate::product_shape::SimilarityTransform3D;
+    use geo_algorithms::Vector3D;
+
+    // 円柱のシェルを、荒（許容弦誤差 0.001）と仕上げ（0.0001）で削る（円柱の側面を三角形に分けた形状の囲む箱は、
+    // 許容弦誤差で変わる）
+    let mut shapes = ProductShapeStore::new();
+    shapes
+        .add_shell(
+            std::sync::Arc::new(crate::product_shape::test_fixtures::cylinder_brep()),
+            SimilarityTransform3D::translation(Vector3D::new(20.0, 20.0, 80.0)),
+            None,
+        )
+        .unwrap();
+    let mut machining = Machining::new(shapes.visible_face_ids());
+    let mut finish = operation_content();
+    finish.conditions.tolerance_profile = ToleranceProfile::MoldFinish;
+    machining
+        .store
+        .set_operation_content(machining.sequence, machining.operation, finish)
+        .unwrap();
+    let rough = machining.insert_rough();
+    let request = |operation| {
+        resolve_operation_request(&shapes, &machining.store, machining.sequence, operation)
+            .unwrap()
+            .0
+    };
+    let (rough, finish) = (request(rough), request(machining.operation));
+    assert_ne!(
+        rough.solver_input.chord_tolerance,
+        finish.solver_input.chord_tolerance
+    );
+    // 素材（格子の範囲）は、手順の最初の工程の許容弦誤差で分けた形状から決め、手順のすべての工程で同じ（後の工程が、
+    // 前の工程の終わりの素材から削れるように）
+    assert_eq!(rough.stock, finish.stock);
+}
+
+#[test]
 fn an_operation_in_one_connection_runs_only_after_connecting() {
     // つなげれば、操作を行ってその結果を返す
     let mut workflow = CamSimulationWorkflow::in_process();

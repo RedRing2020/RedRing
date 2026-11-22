@@ -993,7 +993,39 @@ fn segments_are_submitted_together_and_later_ones_start_from_the_end_stock_of_ea
             simulation.snapshots.last().unwrap().remaining_volume_mm3,
         )
     };
-    let (_, first_end) = volumes(jobs[0].job_id);
+    let (first_start, first_end) = volumes(jobs[0].job_id);
     let (second_start, _) = volumes(jobs[1].job_id);
+    // 前の区間は素材を削り、後の区間はその終わりの素材から始まる
+    assert!(first_end < first_start);
     assert!((second_start - first_end).abs() <= 1e-9 * first_end);
+}
+
+#[test]
+fn a_segment_of_a_toolpath_file_starts_from_the_end_stock_of_the_earlier_one_and_is_imported() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    let base = base();
+    let toolpath = run_cam_solver(&base.solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap();
+    let mut segments = submission();
+    segments.push(SegmentSubmission {
+        toolpath: SegmentToolpath::Artifact(toolpath.clone()),
+        simulation_input: base.simulation_input,
+        start_stock: Some(StartStock::Submitted(0)),
+        source: base.source,
+    });
+    client.submit(segments).unwrap();
+    for now in 1..=8 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 2);
+    assert_eq!(jobs[1].status, CamJobStatus::Succeeded);
+    assert_eq!(jobs[1].start_stock, Some(jobs[0].job_id));
+
+    // 始まりの素材に依存していても、CL のファイルを入力にした切削シミュレーションとして取り込む
+    let imported = client.import(jobs[1].job_id).unwrap();
+    assert!(imported.solver_input.is_none());
+    assert_eq!(imported.toolpath_artifact, toolpath);
 }
