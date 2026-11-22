@@ -214,7 +214,10 @@ impl CamConditionError {
             CuttingSimulationInputError::Tool | CuttingSimulationInputError::GridToolRadius => {
                 Self::InvalidTool
             }
-            CuttingSimulationInputError::Precision => Self::InvalidPrecision,
+            // 格子の間隔は、工具の半径と精度から決まる。直せるのは精度
+            CuttingSimulationInputError::Precision | CuttingSimulationInputError::GridSpacing => {
+                Self::InvalidPrecision
+            }
             CuttingSimulationInputError::SnapshotInterval => Self::InvalidSnapshotInterval,
             CuttingSimulationInputError::TooManyDexelLines {
                 finest_precision, ..
