@@ -549,6 +549,24 @@ fn shell_triangles_for_the_solver_are_prepared_on_another_thread() {
 }
 
 #[test]
+fn shells_needing_more_triangles_than_the_cache_holds_are_not_prepared_on_another_thread() {
+    // 同じ B-rep を 4 つの拡大で置くと、B-rep の座標の許容弦誤差が 4 つ要り、置き場に入らない
+    let mut store = ProductShapeStore::new();
+    let brep = Arc::new(test_fixtures::cube_brep());
+    for scale in [1.0, 2.0, 4.0, 8.0] {
+        let placement =
+            SimilarityTransform3D::uniform_scale_about(Point3D::origin(), scale).unwrap();
+        store.add_shell(Arc::clone(&brep), placement, None).unwrap();
+    }
+    let faces = store.visible_face_ids();
+    // 作り終えた三角形が互いを捨て合わないよう、別のスレッドでは作らない（形状にするときに作る）
+    assert!(store.prepare_solver_geometry(&faces, 0.01));
+    let meshes = store.shells()[0].shell().meshes.lock();
+    assert!(meshes.meshes.is_empty());
+    assert!(meshes.building.is_empty());
+}
+
+#[test]
 fn resolving_the_solver_geometry_waits_for_the_triangles_being_prepared() {
     let mut store = ProductShapeStore::new();
     store
@@ -565,9 +583,16 @@ fn resolving_the_solver_geometry_waits_for_the_triangles_being_prepared() {
     assert!(!store.prepare_solver_geometry(&faces, 0.01));
     // 作っている三角形を待って使う（もう一度作らない）
     store.resolve_solver_geometry(&faces, 0.01).unwrap();
-    let meshes = shell.shell().meshes.lock();
-    assert_eq!(meshes.meshes.len(), 1);
-    assert!(meshes.building.is_empty());
+    // 作ったスレッドが、置き場に残した後に作る途中の印を外すのを待つ
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while !shell.shell().meshes.lock().building.is_empty() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the marker is removed"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(shell.shell().meshes.lock().meshes.len(), 1);
 }
 
 /// 表示を確かめるモデルファイル（立方体・円柱・球・トーラス・穴のある板のシェル）を書き出す

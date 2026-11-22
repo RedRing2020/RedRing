@@ -1816,9 +1816,11 @@ pub(crate) mod tests {
         let operation = document.selected_operation();
         // 形状を作り終えるまでは確かめ中（画面のスレッドで、シェルの面を三角形に分けない）
         assert_eq!(session.check(&document), vec![ConditionIssue::Checking]);
-        assert_eq!(
-            session.operation_condition_issues(&document),
-            vec![(operation, vec![ConditionIssue::Checking])]
+        // 工程リストも確かめ中（その間に作り終えていれば、確かめた結果）
+        let listed = session.operation_condition_issues(&document);
+        assert!(
+            listed == vec![(operation, vec![ConditionIssue::Checking])] || listed.is_empty(),
+            "{listed:?}"
         );
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
         while session.check(&document) == vec![ConditionIssue::Checking] {

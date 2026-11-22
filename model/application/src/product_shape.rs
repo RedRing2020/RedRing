@@ -310,11 +310,8 @@ impl ProductShell {
     }
 
     /// 許容弦誤差 `chord_tolerance` の B-rep の三角形を、置き場に残しているか（なければ、別のスレッドで作り始める。
-    /// 作っている間は、残していないとする。別のスレッドで作れなかった（panic した）三角形は、作り直さずに残している
-    /// とする。使うときに、そのスレッドで作る）
-    ///
-    /// 置き場に入らない数の許容弦誤差を同時に使うと、作り終えた三角形が互いを捨て合い、作り続ける。置き場の数は、
-    /// 表示と精度プロファイルの数で決めている。
+    /// 作っている間は、残していないとする。別のスレッドで作れなかった（panic した・スレッドを作れない）三角形は、
+    /// 別のスレッドでは作り直さずに、残しているとする。使うときに、そのスレッドで作る）
     fn prepare_mesh(&self, chord_tolerance: f64, entity_id: EntityId) -> bool {
         let key = chord_tolerance.to_bits();
         let mut meshes = self.meshes.lock();
@@ -332,11 +329,23 @@ impl ProductShell {
             .spawn(move || {
                 building.build(&brep, &face_ids, entity_id);
             });
-        if let Err(error) = spawned {
-            // スレッドを作れなければ、作る途中の印は外れる（次に要るときに、このスレッドで作る）
-            tracing::warn!(%entity_id, "cannot start a thread to triangulate a shell: {error}");
+        match spawned {
+            Ok(_) => false,
+            Err(error) => {
+                // スレッドを作れなければ（作る途中の印は外れる）、このスレッドで作る（確かめ中のままにしない）
+                tracing::warn!(%entity_id, "cannot start a thread to triangulate a shell: {error}");
+                self.mesh(chord_tolerance, entity_id);
+                true
+            }
         }
-        false
+    }
+
+    /// 許容弦誤差 `chord_tolerance` の B-rep の三角形を、置き場に残しているか（別のスレッドで作れなかった三角形は、
+    /// 残しているとする）
+    fn mesh_ready(&self, chord_tolerance: f64) -> bool {
+        let key = chord_tolerance.to_bits();
+        let meshes = self.meshes.lock();
+        meshes.get(key).is_some() || meshes.failed.contains(&key)
     }
 
     /// B-rep の面の位置 `positions` の三角形を、境界の頂点を共有した 1 つの三角形メッシュにして、配置を当てる（法線は
@@ -973,22 +982,44 @@ impl ProductShapeStore {
         face_ids: &[FaceId],
         chord_tolerance: f64,
     ) -> bool {
-        // すべてのシェルを分け始めるため、途中でやめない
-        self.shells
+        // 加工の対象の面を持つシェルと、B-rep の座標の許容弦誤差
+        let targets: Vec<(&ProductShellEntity, f64)> = self
+            .shells
             .iter()
             .filter(|entity| {
                 face_ids
                     .iter()
                     .any(|face_id| entity.shell().face_positions.contains_key(face_id))
             })
-            .fold(true, |ready, entity| {
+            .map(|entity| {
                 let shell = entity.shell();
-                let prepared = shell.prepare_mesh(
-                    chord_tolerance / shell.placement.scale_factor(),
-                    entity.id(),
-                );
-                ready && prepared
+                (entity, chord_tolerance / shell.placement.scale_factor())
             })
+            .collect();
+        // 同じ置き場で、置き場に入らない数の許容弦誤差が要る（同じ B-rep を違う拡大で置いた）ときは、作り終えた
+        // 三角形が互いを捨て合うため、別のスレッドでは作らない（形状にするときに、そのスレッドで作る）
+        let mut keys: Vec<(*const ShellMeshCache, u64)> = targets
+            .iter()
+            .map(|(entity, tolerance)| (Arc::as_ptr(&entity.shell().meshes), tolerance.to_bits()))
+            .collect();
+        keys.sort_unstable();
+        keys.dedup();
+        let crowded = keys
+            .chunk_by(|a, b| a.0 == b.0)
+            .any(|same| same.len() > CACHED_SHELL_MESHES);
+        if crowded {
+            return true;
+        }
+        // すべてのシェルを分け始めるため、途中でやめない
+        let started = targets.iter().fold(true, |ready, (entity, tolerance)| {
+            let prepared = entity.shell().prepare_mesh(*tolerance, entity.id());
+            ready && prepared
+        });
+        // 分け終えた三角形が、ほかの三角形を作り終えて捨てられていないかを、最後にまとめて確かめる
+        started
+            && targets
+                .iter()
+                .all(|(entity, tolerance)| entity.shell().mesh_ready(*tolerance))
     }
 }
 
