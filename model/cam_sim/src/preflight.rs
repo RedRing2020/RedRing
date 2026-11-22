@@ -52,6 +52,8 @@ pub enum CuttingSimulationInputError {
     Precision,
     /// 格子を決める工具の半径が正の有限値でない
     GridToolRadius,
+    /// 格子を決める工具の半径と精度から決まる格子の間隔が、正の有限値でない（どちらも大きすぎる）
+    GridSpacing,
     /// 記録の間隔が不正
     SnapshotInterval,
     /// 精度から決めた格子の線の本数が上限を超える（線の本数と、上限に収まる最も細かい精度）
@@ -94,8 +96,11 @@ pub fn cutting_simulation_input_errors(
         errors.push(CuttingSimulationInputError::SnapshotInterval);
     }
     if values_are_valid {
-        let lines = dexel_line_count(stock, dexel_spacing(grid_tool_radius, precision));
-        if lines > MAX_DEXEL_LINES {
+        let spacing = dexel_spacing(grid_tool_radius, precision);
+        let lines = dexel_line_count(stock, spacing);
+        if !positive(spacing) {
+            errors.push(CuttingSimulationInputError::GridSpacing);
+        } else if lines > MAX_DEXEL_LINES {
             errors.push(CuttingSimulationInputError::TooManyDexelLines {
                 lines,
                 finest_precision: finest_precision(stock, grid_tool_radius, precision),
@@ -236,6 +241,10 @@ impl Display for CuttingSimulationInputError {
             Self::GridToolRadius => {
                 write!(f, "grid tool radius must be finite and greater than zero")
             }
+            Self::GridSpacing => write!(
+                f,
+                "grid spacing from the grid tool radius and precision must be finite"
+            ),
             Self::SnapshotInterval => write!(f, "snapshot interval is invalid"),
             Self::TooManyDexelLines {
                 lines,
@@ -406,6 +415,15 @@ mod tests {
             [CuttingSimulationInputError::TooManyDexelLines { .. }]
         ));
         assert_eq!(errors(&input(0.01)), vec![]);
+        // 格子の間隔が無限大になる大きさは、格子を作る前に誤りにする
+        let infinite_spacing = CuttingSimulationInput {
+            grid_tool_radius: f64::MAX,
+            ..input(0.01)
+        };
+        assert_eq!(
+            errors(&infinite_spacing),
+            vec![CuttingSimulationInputError::GridSpacing]
+        );
         // 線の本数は、工程の工具ではなく、格子を決める工具の半径から決まる
         let finer_grid = CuttingSimulationInput {
             grid_tool_radius: 1.0e-4,
@@ -435,11 +453,16 @@ mod tests {
             tool: Tool::flat_end_mill("EM2".to_string(), 2.0, 0.0),
             ..input(1.0)
         };
+        let infinite_spacing = CuttingSimulationInput {
+            grid_tool_radius: f64::MAX,
+            ..input(1.0)
+        };
         for (value, reason) in [
             (flat_stock, CuttingSimulationInputError::Stock),
             (no_cutting_length, CuttingSimulationInputError::Tool),
             (input(0.0), CuttingSimulationInputError::Precision),
             (input(f64::INFINITY), CuttingSimulationInputError::Precision),
+            (infinite_spacing, CuttingSimulationInputError::GridSpacing),
             (
                 invalid_interval,
                 CuttingSimulationInputError::SnapshotInterval,
