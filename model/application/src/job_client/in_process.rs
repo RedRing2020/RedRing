@@ -6,7 +6,7 @@ use cam_sim::{
     CamJobExecutorAdapter, CamSolverInputProvider, CuttingSimulationInputProvider,
     InMemoryCamSolverInputStore, InMemoryCuttingSimulationInputStore, TOOLPATH_MEMORY_LIMIT_BYTES,
 };
-use job_domain::{CamJobStatus, CamJobType};
+use job_domain::{CamJobSource, CamJobStatus, CamJobType};
 use job_ipc::ToolpathLimits;
 use job_runtime::JobManager;
 
@@ -15,7 +15,7 @@ use super::orchestrator::{
     JobWorkflowSubmitRequest,
 };
 use super::{
-    JobClient, JobSubmission, SimulationJob, SimulationSubmission, SimulationToolpath, ToolpathJob,
+    JobClient, SegmentSubmission, SegmentToolpath, SimulationJob, StartStock, ToolpathJob,
 };
 use crate::cam_simulation_workflow::{
     CamSimulationWorkflowError, CamSimulationWorkflowResult, CamToolpathResult,
@@ -30,8 +30,18 @@ pub(crate) struct InProcessJobClient {
     orchestrator: JobWorkflowOrchestrator,
     solver_inputs: Arc<InMemoryCamSolverInputStore>,
     simulation_inputs: Arc<InMemoryCuttingSimulationInputStore>,
-    /// 投入の ID ごとの、ツールパス生成と切削シミュレーションのジョブの番号
-    submissions: Vec<(String, u64, u64)>,
+    /// 投入した区間（投入の順）
+    submissions: Vec<Segment>,
+}
+
+/// 投入した区間のジョブ
+#[derive(Debug)]
+struct Segment {
+    submission_id: String,
+    toolpath_job_id: u64,
+    simulation_job_id: u64,
+    /// 始まりの素材にする、前の区間の切削シミュレーションのジョブ
+    start_stock: Option<u64>,
 }
 
 impl Default for InProcessJobClient {
@@ -50,64 +60,110 @@ impl Default for InProcessJobClient {
 }
 
 impl JobClient for InProcessJobClient {
-    fn submit(&mut self, submission: JobSubmission) -> Result<String, CamSimulationWorkflowError> {
-        let run = self.submissions.len() + 1;
-        let submission_id = format!("run-{run}");
-        let cam_input_ref = format!("input://cam/{submission_id}");
-        let simulation_input_ref = format!("input://sim/{submission_id}");
-        self.solver_inputs
-            .register(&cam_input_ref, submission.solver_input)
-            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-        self.simulation_inputs
-            .register(&simulation_input_ref, submission.simulation_input)
-            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-        let toolpath = self
-            .orchestrator
-            .submit_workflow(JobWorkflowSubmitRequest {
-                job_type: CamJobType::CamProcess,
-                input_ref: cam_input_ref,
-                parent_job_id: None,
-                source: submission.source.clone(),
-            })?;
-        let simulation = self
-            .orchestrator
-            .submit_workflow(JobWorkflowSubmitRequest {
-                job_type: CamJobType::CuttingSimulation,
-                input_ref: simulation_input_ref,
-                parent_job_id: Some(toolpath.job_id),
-                source: submission.source,
-            })?;
-        self.submissions
-            .push((submission_id.clone(), toolpath.job_id, simulation.job_id));
-        Ok(submission_id)
-    }
-
-    fn submit_simulation(
+    fn submit(
         &mut self,
-        submission: SimulationSubmission,
+        segments: Vec<SegmentSubmission>,
     ) -> Result<String, CamSimulationWorkflowError> {
-        // 同じプロセスの中の実行は、ツールパス生成のジョブを持たない切削シミュレーションを扱わない
-        let SimulationToolpath::Job(toolpath_job_id) = submission.toolpath else {
-            return Err(CamSimulationWorkflowError::InputRegistration(
-                "simulating an imported toolpath needs the job manager".to_string(),
-            ));
-        };
         let run = self.submissions.len() + 1;
         let submission_id = format!("run-{run}");
-        let simulation_input_ref = format!("input://sim/{submission_id}");
-        self.simulation_inputs
-            .register(&simulation_input_ref, submission.simulation_input)
-            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-        let simulation = self
-            .orchestrator
-            .submit_workflow(JobWorkflowSubmitRequest {
-                job_type: CamJobType::CuttingSimulation,
-                input_ref: simulation_input_ref,
-                parent_job_id: Some(toolpath_job_id),
-                source: submission.source,
-            })?;
-        self.submissions
-            .push((submission_id.clone(), toolpath_job_id, simulation.job_id));
+        let registration = |error: job_runtime::RefValidationError| {
+            CamSimulationWorkflowError::InputRegistration(error.to_string())
+        };
+        // 区間ごとの、切削シミュレーションのジョブの番号（後の区間の始まりの素材で指す）
+        let mut simulation_job_ids: Vec<u64> = Vec::new();
+        for (index, segment) in segments.into_iter().enumerate() {
+            let toolpath_job_id = match segment.toolpath {
+                SegmentToolpath::Solve(solver_input) => {
+                    let cam_input_ref = format!("input://cam/{submission_id}-{index}");
+                    self.solver_inputs
+                        .register(&cam_input_ref, *solver_input)
+                        .map_err(registration)?;
+                    // ツールパス生成のジョブは、区間の前提の鍵を持たない
+                    let source = segment.source.clone().map(|source| CamJobSource {
+                        segment_key: None,
+                        ..source
+                    });
+                    self.orchestrator
+                        .submit_workflow(JobWorkflowSubmitRequest {
+                            job_type: CamJobType::CamProcess,
+                            input_ref: cam_input_ref,
+                            parent_job_id: None,
+                            source,
+                        })?
+                        .job_id
+                }
+                // 同じプロセスの中のジョブは、ツールパス生成 1 つに切削シミュレーションを 1 つしか置けないため、置いた
+                // ものは、同じ入力でツールパス生成を置き直す（同じ CL になる）
+                SegmentToolpath::Job(job_id)
+                    if self
+                        .submissions
+                        .iter()
+                        .any(|segment| segment.toolpath_job_id == job_id) =>
+                {
+                    let toolpath = self
+                        .orchestrator
+                        .query_result(JobWorkflowResultQuery { job_id })?
+                        .job
+                        .spec;
+                    self.orchestrator
+                        .submit_workflow(JobWorkflowSubmitRequest {
+                            job_type: CamJobType::CamProcess,
+                            input_ref: toolpath.input_ref,
+                            parent_job_id: None,
+                            source: toolpath.source,
+                        })?
+                        .job_id
+                }
+                SegmentToolpath::Job(job_id) => job_id,
+                // 同じプロセスの中の実行は、ツールパス生成のジョブを持たない切削シミュレーションを扱わない
+                SegmentToolpath::Artifact(_) => {
+                    return Err(CamSimulationWorkflowError::InputRegistration(
+                        "simulating an imported toolpath needs the job manager".to_string(),
+                    ));
+                }
+            };
+            let simulation_input_ref = format!("input://sim/{submission_id}-{index}");
+            self.simulation_inputs
+                .register(&simulation_input_ref, segment.simulation_input)
+                .map_err(registration)?;
+            let start_stock = match segment.start_stock {
+                None => None,
+                Some(StartStock::Submitted(previous)) => {
+                    Some(*simulation_job_ids.get(previous).ok_or_else(|| {
+                        CamSimulationWorkflowError::InputRegistration(format!(
+                            "segment {index} starts from segment {previous}, which is not earlier"
+                        ))
+                    })?)
+                }
+                Some(StartStock::Job(job_id)) => Some(job_id),
+            };
+            if let Some(job_id) = start_stock {
+                let previous_ref = self
+                    .orchestrator
+                    .query_result(JobWorkflowResultQuery { job_id })?
+                    .job
+                    .spec
+                    .input_ref;
+                self.simulation_inputs
+                    .register_start_stock(&simulation_input_ref, &previous_ref)
+                    .map_err(registration)?;
+            }
+            let simulation = self
+                .orchestrator
+                .submit_workflow(JobWorkflowSubmitRequest {
+                    job_type: CamJobType::CuttingSimulation,
+                    input_ref: simulation_input_ref.clone(),
+                    parent_job_id: Some(toolpath_job_id),
+                    source: segment.source,
+                })?;
+            simulation_job_ids.push(simulation.job_id);
+            self.submissions.push(Segment {
+                submission_id: submission_id.clone(),
+                toolpath_job_id,
+                simulation_job_id: simulation.job_id,
+                start_stock,
+            });
+        }
         Ok(submission_id)
     }
 
@@ -115,9 +171,12 @@ impl JobClient for InProcessJobClient {
         // ツールパス生成のジョブは、それを作った（最初の）投入の ID を持つ（後の投入は、その下に切削シミュレーション
         // だけを置く）
         let mut jobs: Vec<(u64, &str)> = Vec::new();
-        for (submission_id, toolpath_job_id, _) in &self.submissions {
-            if !jobs.iter().any(|(job_id, _)| job_id == toolpath_job_id) {
-                jobs.push((*toolpath_job_id, submission_id));
+        for segment in &self.submissions {
+            if !jobs
+                .iter()
+                .any(|(job_id, _)| *job_id == segment.toolpath_job_id)
+            {
+                jobs.push((segment.toolpath_job_id, &segment.submission_id));
             }
         }
         jobs.sort_unstable();
@@ -150,19 +209,20 @@ impl JobClient for InProcessJobClient {
     fn simulation_jobs(&self) -> Result<Vec<SimulationJob>, CamSimulationWorkflowError> {
         self.submissions
             .iter()
-            .map(|(submission_id, toolpath_job_id, simulation_job_id)| {
+            .map(|segment| {
                 let status = self.orchestrator.query_result(JobWorkflowResultQuery {
-                    job_id: *simulation_job_id,
+                    job_id: segment.simulation_job_id,
                 })?;
                 let toolpath = self.orchestrator.query_result(JobWorkflowResultQuery {
-                    job_id: *toolpath_job_id,
+                    job_id: segment.toolpath_job_id,
                 })?;
                 Ok(SimulationJob {
-                    job_id: *simulation_job_id,
-                    submission_id: submission_id.clone(),
+                    job_id: segment.simulation_job_id,
+                    submission_id: segment.submission_id.clone(),
                     source: status.job.spec.source.clone(),
                     status: status.job.status,
                     toolpath_status: toolpath.job.status,
+                    start_stock: segment.start_stock,
                     // 同じプロセスの中の計算は、失敗の理由の種類を持たない
                     failure: None,
                 })
@@ -237,12 +297,12 @@ impl JobClient for InProcessJobClient {
             None => match self
                 .submissions
                 .iter()
-                .find(|(_, toolpath, _)| *toolpath == toolpath_job_id)
+                .find(|segment| segment.toolpath_job_id == toolpath_job_id)
             {
-                Some((_, _, simulation)) => {
+                Some(segment) => {
                     self.orchestrator
                         .query_result(JobWorkflowResultQuery {
-                            job_id: *simulation,
+                            job_id: segment.simulation_job_id,
                         })?
                         .input_artifact
                 }

@@ -6,8 +6,8 @@
 
 use crate::space_model_document::MachiningOperationId;
 use application::cam_simulation_workflow::{
-    Aabb3D, CamSimulationWorkflow, CamSimulationWorkflowError, JobFailureReason, ToolpathLimits,
-    ToolpathSize, ToolpathSizeEstimation,
+    Aabb3D, CamSimulationSubmission, CamSimulationWorkflow, CamSimulationWorkflowError,
+    JobFailureReason, SegmentToolpathSource, ToolpathLimits, ToolpathSize, ToolpathSizeEstimation,
 };
 pub use application::cam_simulation_workflow::{
     CamConditionError, CamConditionField, OperationJobState, OperationJobStatus,
@@ -139,6 +139,9 @@ pub enum CuttingSimulationSessionError {
     Playback(CuttingSimulationPlaybackError),
     /// 工程の計算の条件を、まだ設定していない（条件を一度も適用していない）
     ConditionsNotSet,
+    /// 加工の順で前にある工程の計算の条件を、まだ設定していない（切削シミュレーションは前の工程の後の素材から削る
+    /// ため、計算できない）
+    EarlierConditionsNotSet,
 }
 
 impl CuttingSimulationSessionError {
@@ -175,6 +178,10 @@ impl std::fmt::Display for CuttingSimulationSessionError {
             Self::ConditionsNotSet => {
                 write!(f, "the calculation conditions of the operation are not set")
             }
+            Self::EarlierConditionsNotSet => write!(
+                f,
+                "the calculation conditions of an earlier operation are not set"
+            ),
         }
     }
 }
@@ -367,7 +374,10 @@ enum Submitting<T, K> {
     Confirm(Vec<LargeToolpath>, K),
 }
 
-/// 加工手順の工程 `operations` を、計算 `kinds`（`None` は投入し直さない）で加工の順に `workflow` で投入する
+/// 加工手順の工程 `operations` を、計算 `kinds`（`None` は投入し直さない）で `workflow` で投入する
+///
+/// 中断の計算を計算待ちに戻してから、ツールパス生成・切削シミュレーションを投入する工程の区間を、加工の順に 1 つの
+/// 投入で置く（後の区間は、前の区間の終わりの素材から削るため）。
 fn submit_kinds(
     workflow: &mut CamSimulationWorkflow,
     document: &SpaceModelDocument,
@@ -379,25 +389,66 @@ fn submit_kinds(
         simulation_only: 0,
         skipped: 0,
     };
-    for (index, (item, kind)) in operations.iter().zip(kinds).enumerate() {
-        let Some(kind) = kind else {
-            submission.skipped += 1;
-            continue;
-        };
-        submit_kind(workflow, document, item.id, kind).map_err(|error| {
+    let (_, sequences, sequence, _) = document.machining();
+    let mut segments = Vec::new();
+    // 区間を投入する工程のうち、加工の順で最初の工程（投入に失敗したときに知らせる）
+    let mut first_segment = None;
+    for (index, (item, kind)) in operations.iter().zip(&kinds).enumerate() {
+        match kind {
+            None => submission.skipped += 1,
+            Some(SubmissionKind::Resume) => {
+                workflow
+                    .resume_latest_revision_jobs(sequences, sequence, item.id)
+                    .map_err(|error| SequenceSubmissionError::Submit {
+                        position: index + 1,
+                        operation: item.name.clone(),
+                        submitted: submission.submitted,
+                        error: error.into(),
+                    })?;
+                submission.submitted += 1;
+            }
+            Some(kind) => {
+                first_segment.get_or_insert(index);
+                segments.push((item.id, segment_toolpath_source(*kind)));
+            }
+        }
+    }
+    if let Some(index) = first_segment {
+        submit_segments(workflow, document, &segments).map_err(|error| {
             SequenceSubmissionError::Submit {
                 position: index + 1,
-                operation: item.name.clone(),
+                operation: operations[index].name.clone(),
                 submitted: submission.submitted,
                 error: error.into(),
             }
         })?;
-        submission.submitted += 1;
-        if kind == SubmissionKind::SimulationOnly {
-            submission.simulation_only += 1;
-        }
+        submission.submitted += segments.len();
+        submission.simulation_only += kinds
+            .iter()
+            .filter(|kind| **kind == Some(SubmissionKind::SimulationOnly))
+            .count();
     }
     Ok(submission)
+}
+
+/// 計算 `kind`（ツールパス生成から・今の条件の CL から）の区間の切削シミュレーションが入力にする CL の決め方（ツール
+/// パス生成からの計算も、ジョブマネージャーに今の条件の CL が残っていれば、それを使う）
+fn segment_toolpath_source(kind: SubmissionKind) -> SegmentToolpathSource {
+    match kind {
+        SubmissionKind::SimulationOnly => SegmentToolpathSource::Imported,
+        SubmissionKind::Full | SubmissionKind::Resume => SegmentToolpathSource::Current,
+    }
+}
+
+/// 加工手順の工程 `segments`（工程と、その区間の CL の決め方）の区間を、`workflow` で 1 つの投入に置く（前の区間に
+/// 今の結果がなければ、前の区間から置く）
+fn submit_segments(
+    workflow: &mut CamSimulationWorkflow,
+    document: &SpaceModelDocument,
+    segments: &[(MachiningOperationId, SegmentToolpathSource)],
+) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
+    let (shapes, sequences, sequence, _) = document.machining();
+    workflow.submit_operations(shapes, sequences, document.toolpaths(), sequence, segments)
 }
 
 /// 加工工程 `operation` から、計算 `kind` を `workflow` で投入する
@@ -407,23 +458,38 @@ fn submit_kind(
     operation: MachiningOperationId,
     kind: SubmissionKind,
 ) -> Result<(), CamSimulationWorkflowError> {
-    let (shapes, sequences, sequence, _) = document.machining();
     match kind {
-        SubmissionKind::Full => {
-            workflow.submit_operation(shapes, sequences, sequence, operation)?;
-        }
-        SubmissionKind::SimulationOnly => {
-            workflow.submit_imported_toolpath(
-                shapes,
-                sequences,
-                document.toolpaths(),
-                sequence,
-                operation,
+        SubmissionKind::Full | SubmissionKind::SimulationOnly => {
+            submit_segments(
+                workflow,
+                document,
+                &[(operation, segment_toolpath_source(kind))],
             )?;
         }
         SubmissionKind::Resume => {
+            let (_, sequences, sequence, _) = document.machining();
             workflow.resume_latest_revision_jobs(sequences, sequence, operation)?;
         }
+    }
+    Ok(())
+}
+
+/// 選んだ工程と、加工の順でその前にある工程の計算の条件を設定したかを確かめる（前の工程の区間も一緒に計算する
+/// ことがあるため）
+fn ensure_conditions_set(
+    document: &SpaceModelDocument,
+) -> Result<(), CuttingSimulationSessionError> {
+    let selected = document.selected_operation();
+    if !document.conditions_set_of(selected) {
+        return Err(CuttingSimulationSessionError::ConditionsNotSet);
+    }
+    let earlier_not_set = document
+        .operations()
+        .iter()
+        .take_while(|item| item.id != selected)
+        .any(|item| !item.conditions_set);
+    if earlier_not_set {
+        return Err(CuttingSimulationSessionError::EarlierConditionsNotSet);
     }
     Ok(())
 }
@@ -669,9 +735,7 @@ impl CuttingSimulationSession {
         document: &SpaceModelDocument,
         confirm: impl FnOnce(&[LargeToolpath]) -> bool,
     ) -> Result<SubmitOutcome, CuttingSimulationSessionError> {
-        if !document.conditions_set_of(document.selected_operation()) {
-            return Err(CuttingSimulationSessionError::ConditionsNotSet);
-        }
+        ensure_conditions_set(document)?;
         let (_, sequences, sequence, operation) = document.machining();
         let estimations = &mut self.estimations;
         let prepared = self.workflow.with_job_manager_connection(|workflow| {
@@ -726,9 +790,7 @@ impl CuttingSimulationSession {
         document: &mut SpaceModelDocument,
         confirm: impl FnOnce(&[LargeToolpath]) -> bool,
     ) -> Result<RedoOutcome, CuttingSimulationSessionError> {
-        if !document.conditions_set_of(document.selected_operation()) {
-            return Err(CuttingSimulationSessionError::ConditionsNotSet);
-        }
+        ensure_conditions_set(document)?;
         // 大きさは、状態を読む前に確かめる（確かめている間に状態が変わっても、読んだ状態ですぐに投入するため）
         let operation = document.selected_operation();
         let (position, name) = operation_label(document, operation);
@@ -748,7 +810,7 @@ impl CuttingSimulationSession {
         {
             return Ok(RedoOutcome::Declined);
         }
-        let (shapes, sequences, sequence, operation) = document.machining();
+        let (_, sequences, sequence, operation) = document.machining();
         // 状態を読むのと投入・取り消しは、ジョブマネージャーへの 1 つの接続で行う
         let outcome = self.workflow.with_job_manager_connection(|workflow| {
             // 計算待ちかは、状態を今読んで決める（ボタンは最後に読んだ状態で決めるため）
@@ -757,7 +819,11 @@ impl CuttingSimulationSession {
             if states[0] == OperationJobState::Status(OperationJobStatus::Queued) {
                 return Ok(RedoOutcome::Waiting);
             }
-            let submission = workflow.submit_operation(shapes, sequences, sequence, operation)?;
+            let submission = submit_segments(
+                workflow,
+                document,
+                &[(operation, SegmentToolpathSource::Solve)],
+            )?;
             // 取り消すのは投入できてから（先に取り消すと、投入できなかったときに今の計算を失うため）。頼めなくても、
             // 投入は済んでいる（前の計算が残り、重ねて計算するだけ）
             let canceled = match workflow.cancel_latest_revision_jobs(
@@ -1929,6 +1995,30 @@ pub(crate) mod tests {
         coarse(&mut document);
         document.duplicate_operation("複写の複写".to_string());
         assert!(document.conditions_set_of(document.selected_operation()));
+    }
+
+    #[test]
+    fn an_operation_after_one_whose_conditions_are_not_set_is_not_submitted() {
+        let mut session = CuttingSimulationSession::in_process();
+        let mut document = document_with_pyramid();
+        let first = document.selected_operation();
+        document.add_operation("仕上げ".to_string());
+        coarse(&mut document);
+        // 前の工程の条件を設定していなければ、前の工程の区間を一緒に計算できないため、投入しない
+        assert!(matches!(
+            submit(&mut session, &document, |_| true),
+            Err(CuttingSimulationSessionError::EarlierConditionsNotSet)
+        ));
+        assert!(matches!(
+            redo(&mut session, &mut document, |_| true),
+            Err(CuttingSimulationSessionError::EarlierConditionsNotSet)
+        ));
+        assert_eq!(session.run_queued_jobs().unwrap(), 0);
+        let second = document.selected_operation();
+        assert!(document.select_operation(first));
+        coarse(&mut document);
+        assert!(document.select_operation(second));
+        assert!(submit(&mut session, &document, |_| true).is_ok());
     }
 
     #[test]

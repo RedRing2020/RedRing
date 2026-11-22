@@ -1143,6 +1143,7 @@ fn with_source(
             source_id: source_id.to_string(),
             revision,
             revision_key: Some(key.to_string()),
+            segment_key: None,
         });
     }
     jobs

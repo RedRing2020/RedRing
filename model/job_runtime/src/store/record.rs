@@ -83,6 +83,10 @@ pub struct StoredJobSource {
     /// 改訂の鍵（前の版の記録・要求は持たない）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revision_key: Option<String>,
+    /// 切削シミュレーションの区間の前提の鍵（ツールパス生成・前の版の記録・要求は持たない。前の版のジョブマネージャーが
+    /// 読み捨てても計算は変わらないため、形式の版を上げない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub segment_key: Option<String>,
 }
 
 /// ジョブの失敗の理由の種類（画面の言語の文言にするため。英語の文は `Display` で返し、記録の `last_error` に残す）

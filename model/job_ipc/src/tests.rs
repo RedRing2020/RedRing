@@ -88,7 +88,7 @@ impl Handler for FakeHandler {
 
     fn pending_submissions(&mut self) -> Result<Vec<PendingSubmission>, HandlerError> {
         Ok(vec![PendingSubmission {
-            source: None,
+            sources: Vec::new(),
             rejected: true,
         }])
     }
@@ -274,6 +274,7 @@ fn requests_go_through_the_endpoint() {
             source_id: "op-1".to_string(),
             revision: 2,
             revision_key: Some("key".to_string()),
+            segment_key: None,
         }),
         toolpath_file: None,
         start_stock: None,

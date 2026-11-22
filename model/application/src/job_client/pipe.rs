@@ -27,19 +27,21 @@ use job_ipc::{
     JobStatus, JobSummary, SubmitJob, ToolpathLimits,
 };
 
-use super::{JobClient, JobStatusSnapshot, JobSubmission, PendingSubmission, SimulationJob};
-use super::{SimulationSubmission, SimulationToolpath, ToolpathJob};
+use super::{
+    JobClient, JobStatusSnapshot, PendingSubmission, SegmentSubmission, SegmentToolpath,
+    SimulationJob, StartStock, ToolpathJob,
+};
 use crate::cam_simulation_workflow::{
     CamSimulationWorkflowError, CamSimulationWorkflowResult, CamToolpathResult,
 };
 
 /// ジョブマネージャーの実行ファイルの名前（拡張子を除く）
 const JOB_MANAGER_NAME: &str = "redring-job-manager";
-/// 投入の入力の名前
-const CAM_INPUT_FILE: &str = "cam.bin";
-const SIMULATION_INPUT_FILE: &str = "sim.bin";
-/// 切削シミュレーションが入力にする CL の名前
-const TOOLPATH_INPUT_FILE: &str = "toolpath.bin";
+/// 投入の入力の名前の頭（後ろに区間の番号と `.bin` を付ける）
+const CAM_INPUT_PREFIX: &str = "cam";
+const SIMULATION_INPUT_PREFIX: &str = "sim";
+/// 切削シミュレーションが入力にする CL の名前の頭
+const TOOLPATH_INPUT_PREFIX: &str = "toolpath";
 /// 起動したジョブマネージャーの口が開くのを待つ時間
 const MANAGER_START_WAIT: Duration = Duration::from_secs(5);
 /// 口が空いていない（つないでいる数が上限・次の接続を待つ用意の間）ときに、空くのを待つ時間
@@ -191,14 +193,18 @@ impl PipeJobClient {
         jobs: Vec<SubmitJob>,
         inputs: &[(&str, &[u8])],
     ) -> Result<String, CamSimulationWorkflowError> {
-        let submitted_source = jobs.first().and_then(|job| job.source.as_ref()).map(source);
+        let sources = jobs
+            .iter()
+            .filter_map(|job| job.source.as_ref())
+            .map(source)
+            .collect();
         let submission_id =
             self.request(|client| client.submit(jobs, inputs).map_err(client_error))?;
         {
             let mut state = lock(&self.status);
             state.generation += 1;
             let pending = PendingSubmission {
-                source: submitted_source,
+                sources,
                 rejected: false,
             };
             match state.latest.as_mut() {
@@ -451,69 +457,84 @@ fn not_running(error: &io::Error) -> bool {
 }
 
 impl JobClient for PipeJobClient {
-    fn submit(&mut self, submission: JobSubmission) -> Result<String, CamSimulationWorkflowError> {
-        let mut cam_input = Vec::new();
-        write_cam_solver_input_v1(&mut cam_input, &submission.solver_input)
-            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-        let mut simulation_input = Vec::new();
-        write_cutting_simulation_input_v1(&mut simulation_input, &submission.simulation_input)
-            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-        let source = submission.source.map(ipc_source);
-        let job = |kind, input_file: &str, depends_on| SubmitJob {
-            kind,
-            input_file: input_file.to_string(),
-            depends_on,
-            priority: 0,
-            source: source.clone(),
-            toolpath_file: None,
-            start_stock: None,
-        };
-        self.submit_jobs(
-            vec![
-                job(JobKind::Cam, CAM_INPUT_FILE, vec![]),
-                job(
-                    JobKind::Sim,
-                    SIMULATION_INPUT_FILE,
-                    vec![Dependency::Submitted(0)],
-                ),
-            ],
-            &[
-                (CAM_INPUT_FILE, &cam_input),
-                (SIMULATION_INPUT_FILE, &simulation_input),
-            ],
-        )
-    }
-
-    fn submit_simulation(
+    fn submit(
         &mut self,
-        submission: SimulationSubmission,
+        segments: Vec<SegmentSubmission>,
     ) -> Result<String, CamSimulationWorkflowError> {
-        let mut simulation_input = Vec::new();
-        write_cutting_simulation_input_v1(&mut simulation_input, &submission.simulation_input)
-            .map_err(|error| CamSimulationWorkflowError::InputRegistration(error.to_string()))?;
-        let job = |depends_on, toolpath_file: Option<&str>| SubmitJob {
-            kind: JobKind::Sim,
-            input_file: SIMULATION_INPUT_FILE.to_string(),
-            depends_on,
-            priority: 0,
-            source: submission.source.clone().map(ipc_source),
-            toolpath_file: toolpath_file.map(str::to_string),
-            start_stock: None,
+        let write_error = |error: cam_core::BinaryFormatError| {
+            CamSimulationWorkflowError::InputRegistration(error.to_string())
         };
-        match &submission.toolpath {
-            // すでにあるツールパス生成のジョブの下に置く
-            SimulationToolpath::Job(job_id) => self.submit_jobs(
-                vec![job(vec![Dependency::Existing(*job_id)], None)],
-                &[(SIMULATION_INPUT_FILE, &simulation_input)],
-            ),
-            SimulationToolpath::Artifact(artifact) => self.submit_jobs(
-                vec![job(Vec::new(), Some(TOOLPATH_INPUT_FILE))],
-                &[
-                    (SIMULATION_INPUT_FILE, &simulation_input),
-                    (TOOLPATH_INPUT_FILE, artifact),
-                ],
-            ),
+        let mut jobs: Vec<SubmitJob> = Vec::new();
+        let mut inputs: Vec<(String, Vec<u8>)> = Vec::new();
+        // 区間ごとの、切削シミュレーションのジョブの列の番号（後の区間の始まりの素材で指す）
+        let mut simulation_positions: Vec<usize> = Vec::new();
+        for (index, segment) in segments.into_iter().enumerate() {
+            let simulation_source = segment.source.map(ipc_source);
+            // ツールパス生成のジョブは、区間の前提の鍵を持たない（CL は前の工程によらないため）
+            let cam_source = simulation_source.clone().map(|source| JobSource {
+                segment_key: None,
+                ..source
+            });
+            let mut depends_on = Vec::new();
+            let mut toolpath_file = None;
+            match segment.toolpath {
+                SegmentToolpath::Solve(solver_input) => {
+                    let mut bytes = Vec::new();
+                    write_cam_solver_input_v1(&mut bytes, &solver_input).map_err(write_error)?;
+                    let name = format!("{CAM_INPUT_PREFIX}-{index}.bin");
+                    depends_on.push(Dependency::Submitted(jobs.len()));
+                    jobs.push(SubmitJob {
+                        kind: JobKind::Cam,
+                        input_file: name.clone(),
+                        depends_on: Vec::new(),
+                        priority: 0,
+                        source: cam_source,
+                        toolpath_file: None,
+                        start_stock: None,
+                    });
+                    inputs.push((name, bytes));
+                }
+                // すでにあるツールパス生成のジョブの下に置く
+                SegmentToolpath::Job(job_id) => depends_on.push(Dependency::Existing(job_id)),
+                SegmentToolpath::Artifact(artifact) => {
+                    let name = format!("{TOOLPATH_INPUT_PREFIX}-{index}.bin");
+                    toolpath_file = Some(name.clone());
+                    inputs.push((name, artifact));
+                }
+            }
+            let start_stock = match segment.start_stock {
+                None => None,
+                Some(StartStock::Job(job_id)) => Some(Dependency::Existing(job_id)),
+                Some(StartStock::Submitted(previous)) => Some(Dependency::Submitted(
+                    *simulation_positions.get(previous).ok_or_else(|| {
+                        CamSimulationWorkflowError::InputRegistration(format!(
+                            "segment {index} starts from segment {previous}, which is not earlier"
+                        ))
+                    })?,
+                )),
+            };
+            depends_on.extend(start_stock);
+            let mut simulation_input = Vec::new();
+            write_cutting_simulation_input_v1(&mut simulation_input, &segment.simulation_input)
+                .map_err(write_error)?;
+            let name = format!("{SIMULATION_INPUT_PREFIX}-{index}.bin");
+            simulation_positions.push(jobs.len());
+            jobs.push(SubmitJob {
+                kind: JobKind::Sim,
+                input_file: name.clone(),
+                depends_on,
+                priority: 0,
+                source: simulation_source,
+                toolpath_file,
+                start_stock,
+            });
+            inputs.push((name, simulation_input));
         }
+        let inputs: Vec<(&str, &[u8])> = inputs
+            .iter()
+            .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+            .collect();
+        self.submit_jobs(jobs, &inputs)
     }
 
     fn toolpath_jobs(&self) -> Result<Vec<ToolpathJob>, CamSimulationWorkflowError> {
@@ -766,17 +787,21 @@ fn simulation_jobs(jobs: &[JobSummary]) -> Vec<SimulationJob> {
                 submission_id: job.submission_id.clone(),
                 source: job.source.as_ref().map(source),
                 status: status(job.status),
-                // CL を入力にするジョブ（依存するジョブを持たない）は、入力の CL があればツールパスができている（なけ
-                // れば失敗として扱う）。一覧にないツールパス生成のジョブは、待ちとして扱う
-                toolpath_status: if job.depends_on.is_empty() {
-                    if job.has_input_toolpath {
-                        CamJobStatus::Succeeded
-                    } else {
-                        CamJobStatus::Failed
-                    }
+                // CL を入力にするジョブは、入力の CL があればツールパスができている。依存するジョブを持たず、入力の CL
+                // もなければ失敗として扱う。一覧にないツールパス生成のジョブは、待ちとして扱う
+                toolpath_status: if job.has_input_toolpath {
+                    CamJobStatus::Succeeded
+                } else if job.depends_on.is_empty() {
+                    CamJobStatus::Failed
                 } else {
                     toolpath.map_or(CamJobStatus::Queued, |toolpath| status(toolpath.status))
                 },
+                // 切削シミュレーションが依存する切削シミュレーションは、始まりの素材にするものだけ
+                start_stock: job.depends_on.iter().copied().find(|id| {
+                    by_id
+                        .get(id)
+                        .is_some_and(|dependency| dependency.kind == JobKind::Sim)
+                }),
                 failure: toolpath
                     .filter(|toolpath| toolpath.status == JobStatus::Failed)
                     .and_then(|toolpath| toolpath.failure.clone())
@@ -788,7 +813,7 @@ fn simulation_jobs(jobs: &[JobSummary]) -> Vec<SimulationJob> {
 
 fn pending_submission(submission: &job_ipc::PendingSubmission) -> PendingSubmission {
     PendingSubmission {
-        source: submission.source.as_ref().map(source),
+        sources: submission.sources.iter().map(source).collect(),
         rejected: submission.rejected,
     }
 }
@@ -810,6 +835,7 @@ fn ipc_source(source: CamJobSource) -> JobSource {
         source_id: source.source_id,
         revision: source.revision,
         revision_key: source.revision_key,
+        segment_key: source.segment_key,
     }
 }
 
@@ -818,6 +844,7 @@ fn source(source: &JobSource) -> CamJobSource {
         source_id: source.source_id.clone(),
         revision: source.revision,
         revision_key: source.revision_key.clone(),
+        segment_key: source.segment_key.clone(),
     }
 }
 

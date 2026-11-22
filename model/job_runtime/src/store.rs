@@ -1002,6 +1002,9 @@ fn validate_submission(
             job.source
                 .as_ref()
                 .and_then(|source| source.revision_key.as_deref()),
+            job.source
+                .as_ref()
+                .and_then(|source| source.segment_key.as_deref()),
         ];
         if labels
             .iter()

@@ -10,6 +10,7 @@
 //! 加工工程から投入したジョブは、投入元として工程の ID と改訂の番号を持つ。工程からの取り込みは、工程の最も新しい
 //! 改訂の結果とし、前の改訂の結果も消さずに残す（設計: CAM_PROCESS_ENTITY_DESIGN.md）。
 
+mod segment;
 #[cfg(test)]
 mod tests;
 
@@ -39,8 +40,8 @@ pub use job_ipc::{JobFailure, JobFailureReason};
 
 use crate::imported_toolpath::ImportedToolpathStore;
 use crate::job_client::{
-    JobClient, JobStatusSnapshot, JobSubmission, PipeJobClient, SimulationJob,
-    SimulationSubmission, SimulationToolpath, ToolpathJob,
+    JobClient, JobStatusSnapshot, PipeJobClient, SegmentSubmission, SegmentToolpath, SimulationJob,
+    StartStock, ToolpathJob,
 };
 use crate::job_orchestration::JobOrchestrationError;
 use crate::machining_sequence::{
@@ -57,6 +58,8 @@ pub(crate) struct CamSimulationWorkflowRequest {
     pub stock: Aabb3D<f64>,
     /// 素材の形状の許容誤差
     pub precision: f64,
+    /// 切削シミュレーションの格子を決める工具の半径（手順のすべての区間で同じ）
+    pub grid_tool_radius: f64,
     /// スナップショットの記録の間隔
     pub snapshot_interval: SnapshotInterval,
 }
@@ -66,6 +69,18 @@ pub(crate) struct CamSimulationWorkflowRequest {
 pub struct CamSimulationSubmission {
     /// 投入の ID
     pub submission_id: String,
+}
+
+/// 投入する区間の切削シミュレーションが入力にする CL の決め方
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SegmentToolpathSource {
+    /// ツールパス生成から計算し直す
+    Solve,
+    /// 今の条件の CL（今の改訂で正常に終わったツールパス生成のジョブの成果物か、空間モデルに取り込んだ CL）があれば
+    /// それを使い、なければツールパス生成から計算する
+    Current,
+    /// 今の条件の CL を使う（空間モデルに取り込んでいなければ誤り）
+    Imported,
 }
 
 /// 取り込んだツールパス生成と切削シミュレーションの成果物と、投入した入力
@@ -380,21 +395,6 @@ impl CamSimulationWorkflow {
         }
     }
 
-    /// 確かめた入力を、投入元を `source` として投入する
-    fn enqueue(
-        &mut self,
-        request: CamSimulationWorkflowRequest,
-        source: Option<CamJobSource>,
-    ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        let simulation_input = simulation_input(&request);
-        let submission_id = self.jobs.submit(JobSubmission {
-            solver_input: request.solver_input,
-            simulation_input,
-            source,
-        })?;
-        Ok(CamSimulationSubmission { submission_id })
-    }
-
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` からの投入の前に、計算条件の誤りをすべて確かめる
     /// （投入前の確認。投入と同じ判定）
     ///
@@ -607,61 +607,102 @@ impl CamSimulationWorkflow {
             .map_err(CamSimulationWorkflowError::InverseOffsetShape)
     }
 
-    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` から、ツールパス生成と切削シミュレーションのジョブを
-    /// 投入する（計算を待たない）。2 つのジョブは、投入元として工程の ID と今の改訂の番号・改訂の鍵を持つ
+    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operations`（工程と、その切削シミュレーションが入力にする CL
+    /// の決め方）の区間のジョブを、1 つの投入で置く（計算を待たない）
+    ///
+    /// 区間の切削シミュレーションは、加工の順に前の区間の終わりの素材から削る。`operations` の最も後の工程までのうち、
+    /// 今の結果（区間の前提が今の手順と同じ、計算待ち・計算中・中断・正常に終わったジョブ）がない区間も、前の区間から
+    /// 同じ投入に置く（その CL は [`SegmentToolpathSource::Current`] で決める）。今の結果がある区間は置かず、後の区間は
+    /// その終わりの素材から削る。今の条件の CL は、今の改訂で正常に終わったツールパス生成のジョブ（切削シミュレーション
+    /// を置いていないものを先に）、空間モデルに取り込んだ今の条件の CL（`toolpaths`）の順に探す。ジョブは、投入元として
+    /// 工程の ID と今の改訂の番号・改訂の鍵を持ち、切削シミュレーションのジョブは区間の前提の鍵も持つ。計算の状態は、
+    /// ジョブマネージャーに今問い合わせる
     ///
     /// # Errors
     ///
-    /// 投入前の確認（[`Self::check_operation`]）の誤り、入力の書き出し・投入の失敗、ジョブマネージャーがない場合。
-    pub fn submit_operation(
-        &mut self,
-        shapes: &ProductShapeStore,
-        sequences: &MachiningSequenceStore,
-        sequence_id: MachiningSequenceId,
-        operation_id: MachiningOperationId,
-    ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        let (request, operation) =
-            resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
-        self.enqueue(request, Some(operation_source(operation)))
-    }
-
-    /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の切削シミュレーションのジョブだけを投入する
-    /// （計算を待たない）。工程の今の改訂で正常に終わり、切削シミュレーションを置いていないツールパス生成のジョブがあれば、
-    /// その下に置いて成果物を読み、なければ空間モデルに取り込んだ今の条件の CL（`toolpaths`）を入力にする（ツールパス生成の
-    /// ジョブ 1 つに、切削シミュレーションは 1 つだけ置く）。ジョブは、投入元として工程の ID と今の改訂の番号・
-    /// 改訂の鍵を持つ
-    ///
-    /// # Errors
-    ///
-    /// 今の条件の CL を取り込んでいない場合、投入前の確認（[`Self::check_operation`]）の誤り、入力の書き出し・投入の
-    /// 失敗、ジョブマネージャーがない場合。
-    pub fn submit_imported_toolpath(
+    /// 置く区間の工程の投入前の確認（[`Self::check_operation`]）の誤り、CL を今の条件の CL にする工程が今の条件の CL を
+    /// 取り込んでいない場合、入力の書き出し・投入の失敗、ジョブマネージャーがない・状態を読めない場合。
+    pub fn submit_operations(
         &mut self,
         shapes: &ProductShapeStore,
         sequences: &MachiningSequenceStore,
         toolpaths: &ImportedToolpathStore,
         sequence_id: MachiningSequenceId,
-        operation_id: MachiningOperationId,
+        operations: &[(MachiningOperationId, SegmentToolpathSource)],
     ) -> Result<CamSimulationSubmission, CamSimulationWorkflowError> {
-        let toolpath_artifact = toolpaths
-            .current_artifact(sequences, sequence_id, operation_id)
-            .map_err(CamSimulationWorkflowError::Sequence)?
-            .ok_or(CamSimulationWorkflowError::NoCurrentImportedToolpath)?;
-        let (request, operation) =
-            resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
-        let current = current_revision(sequences, sequence_id, operation_id)?;
-        let toolpath_job = self.jobs.toolpath_jobs()?.into_iter().rev().find(|job| {
-            job.status == CamJobStatus::Succeeded && !job.simulated && current(&job.source)
-        });
-        let toolpath = match toolpath_job {
-            Some(job) => SimulationToolpath::Job(job.job_id),
-            None => SimulationToolpath::Artifact(toolpath_artifact.to_vec()),
+        let sequence = sequences
+            .sequence(sequence_id)
+            .map_err(CamSimulationWorkflowError::Sequence)?;
+        for &(operation_id, _) in operations {
+            sequences
+                .operation(sequence_id, operation_id)
+                .map_err(CamSimulationWorkflowError::Sequence)?;
+        }
+        let keys = segment::segment_keys(sequence);
+        let requested = |operation_id| {
+            operations
+                .iter()
+                .find(|(requested, _)| *requested == operation_id)
+                .map(|&(_, source)| source)
         };
-        let submission_id = self.jobs.submit_simulation(SimulationSubmission {
-            simulation_input: simulation_input(&request),
-            toolpath,
-            source: Some(operation_source(operation)),
-        })?;
+        let Some(last) = keys.iter().rposition(|(id, _)| requested(*id).is_some()) else {
+            return Err(CamSimulationWorkflowError::InputRegistration(
+                "no operations to submit".to_string(),
+            ));
+        };
+        let snapshot = self.jobs.read_status_now()?;
+        let toolpath_jobs = self.jobs.toolpath_jobs()?;
+        let mut segments: Vec<SegmentSubmission> = Vec::new();
+        let mut start_stock = None;
+        for (operation_id, segment_key) in &keys[..=last] {
+            let operation_id = *operation_id;
+            let source = requested(operation_id);
+            let current =
+                current_segment(sequences, sequence_id, operation_id, segment_key.clone())?;
+            let reusable = snapshot
+                .simulations
+                .iter()
+                .rev()
+                .find(|job| current(&job.source) && can_finish(job));
+            if source.is_none()
+                && let Some(job) = reusable
+            {
+                start_stock = Some(StartStock::Job(job.job_id));
+                continue;
+            }
+            let (request, operation) =
+                resolve_operation_request(shapes, sequences, sequence_id, operation_id)?;
+            let revision = current_revision(sequences, sequence_id, operation_id)?;
+            let toolpath_job = reusable_toolpath_job(&toolpath_jobs, revision);
+            let imported = toolpaths
+                .current_artifact(sequences, sequence_id, operation_id)
+                .map_err(CamSimulationWorkflowError::Sequence)?;
+            let simulation_input = simulation_input(&request);
+            let toolpath = match (source, toolpath_job, imported) {
+                (Some(SegmentToolpathSource::Solve), _, _) => {
+                    SegmentToolpath::Solve(Box::new(request.solver_input))
+                }
+                (Some(SegmentToolpathSource::Imported), _, None) => {
+                    return Err(CamSimulationWorkflowError::NoCurrentImportedToolpath);
+                }
+                (_, Some(job_id), _) => SegmentToolpath::Job(job_id),
+                (_, None, Some(artifact)) => SegmentToolpath::Artifact(artifact.to_vec()),
+                (Some(SegmentToolpathSource::Current) | None, None, None) => {
+                    SegmentToolpath::Solve(Box::new(request.solver_input))
+                }
+            };
+            segments.push(SegmentSubmission {
+                toolpath,
+                simulation_input,
+                start_stock,
+                source: Some(CamJobSource {
+                    segment_key: Some(segment_key.clone()),
+                    ..operation_source(operation)
+                }),
+            });
+            start_stock = Some(StartStock::Submitted(segments.len() - 1));
+        }
+        let submission_id = self.jobs.submit(segments)?;
         Ok(CamSimulationSubmission { submission_id })
     }
 
@@ -688,6 +729,9 @@ impl CamSimulationWorkflow {
     /// 投入 `kept_submission_id`（あれば）のもの以外を取り消すよう頼み、頼んだジョブの数を返す（取り消し終えるのを待たない。
     /// 前の改訂のジョブ・ほかの工程のジョブには触れない。ジョブマネージャーがまだ取り込んでいない投入は取り消せない）
     ///
+    /// 後の区間の切削シミュレーションが始まりの素材として待つ切削シミュレーションは、取り消さない（後の区間が、依存する
+    /// ジョブの取り消しで失敗しないように）。そのときは、この工程のツールパス生成も取り消さない
+    ///
     /// # Errors
     ///
     /// 保管していない加工手順・加工手順にない加工工程の場合、ジョブマネージャーがない・起動できない・ジョブを
@@ -700,9 +744,33 @@ impl CamSimulationWorkflow {
         kept_submission_id: Option<&str>,
     ) -> Result<usize, CamSimulationWorkflowError> {
         let current = current_revision(sequences, sequence_id, operation_id)?;
-        self.cancel_active_jobs(|source, submission_id| {
-            current(source) && kept_submission_id != Some(submission_id)
-        })
+        let cancels = |status, source: &Option<CamJobSource>, submission_id: &str| {
+            is_active(status) && current(source) && kept_submission_id != Some(submission_id)
+        };
+        let simulations = self.jobs.simulation_jobs()?;
+        let waited: std::collections::HashSet<u64> = simulations
+            .iter()
+            .filter(|job| is_active(job.status))
+            .filter_map(|job| job.start_stock)
+            .collect();
+        let (kept, mut job_ids): (Vec<&SimulationJob>, Vec<&SimulationJob>) = simulations
+            .iter()
+            .filter(|job| cancels(job.status, &job.source, &job.submission_id))
+            .partition(|job| waited.contains(&job.job_id));
+        let mut job_ids: Vec<u64> = job_ids.drain(..).map(|job| job.job_id).collect();
+        if kept.is_empty() {
+            job_ids.extend(
+                self.jobs
+                    .toolpath_jobs()?
+                    .into_iter()
+                    .filter(|job| cancels(job.status, &job.source, &job.submission_id))
+                    .map(|job| job.job_id),
+            );
+        }
+        if !job_ids.is_empty() {
+            self.jobs.cancel(&job_ids)?;
+        }
+        Ok(job_ids.len())
     }
 
     /// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の改訂の計算を止めるよう頼み、頼んだ
@@ -776,19 +844,29 @@ impl CamSimulationWorkflow {
         sequence_id: MachiningSequenceId,
         operation_ids: &[MachiningOperationId],
     ) -> Result<usize, CamSimulationWorkflowError> {
-        let currents = operation_ids
+        let revisions = operation_ids
             .iter()
             .map(|&operation_id| current_revision(sequences, sequence_id, operation_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        let segments = operation_ids
+            .iter()
+            .map(|&operation_id| current_segment_of(sequences, sequence_id, operation_id))
             .collect::<Result<Vec<_>, _>>()?;
         let source_ids: Vec<String> = operation_ids.iter().map(ToString::to_string).collect();
         if !self.jobs.manager_running()? {
             return Ok(0);
         }
+        // 切削シミュレーション（区間の前提の鍵を持つ）は、区間の前提が変わったものも取り消す
         self.cancel_active_jobs(|source, _| {
-            source
-                .as_ref()
-                .is_some_and(|source| source_ids.contains(&source.source_id))
-                && !currents.iter().any(|current| current(source))
+            let Some(job_source) = source.as_ref() else {
+                return false;
+            };
+            source_ids.contains(&job_source.source_id)
+                && if job_source.segment_key.is_some() {
+                    !segments.iter().any(|current| current(source))
+                } else {
+                    !revisions.iter().any(|current| current(source))
+                }
         })
     }
 
@@ -798,17 +876,8 @@ impl CamSimulationWorkflow {
         &mut self,
         cancels: impl Fn(&Option<CamJobSource>, &str) -> bool,
     ) -> Result<usize, CamSimulationWorkflowError> {
-        let active = |status: CamJobStatus| {
-            matches!(
-                status,
-                CamJobStatus::Queued
-                    | CamJobStatus::Running
-                    | CamJobStatus::NeedsRecompute
-                    | CamJobStatus::Interrupted
-            )
-        };
         let job_ids = self.job_ids(|status, source, submission_id| {
-            active(status) && cancels(source, submission_id)
+            is_active(status) && cancels(source, submission_id)
         })?;
         if !job_ids.is_empty() {
             self.jobs.cancel(&job_ids)?;
@@ -861,7 +930,7 @@ impl CamSimulationWorkflow {
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
     ) -> Result<Option<u64>, CamSimulationWorkflowError> {
-        let current = current_revision(sequences, sequence_id, operation_id)?;
+        let current = current_segment_of(sequences, sequence_id, operation_id)?;
         Ok(self
             .operation_simulations(operation_id)?
             .into_iter()
@@ -912,7 +981,7 @@ impl CamSimulationWorkflow {
     ) -> Result<Vec<OperationJobState>, CamSimulationWorkflowError> {
         let currents = operation_ids
             .iter()
-            .map(|&operation_id| current_revision(sequences, sequence_id, operation_id))
+            .map(|&operation_id| current_segment_of(sequences, sequence_id, operation_id))
             .collect::<Result<Vec<_>, _>>()?;
         // ジョブマネージャーが動いていない・見つからないときは、状態が分からないため誤りにする（投入していないとは
         // みなさない。計算済みのジョブがあるかもしれないため）
@@ -942,7 +1011,7 @@ impl CamSimulationWorkflow {
         sequence_id: MachiningSequenceId,
         operation_id: MachiningOperationId,
     ) -> Result<Option<JobFailure>, CamSimulationWorkflowError> {
-        let current = current_revision(sequences, sequence_id, operation_id)?;
+        let current = current_segment_of(sequences, sequence_id, operation_id)?;
         Ok(self
             .jobs
             .status_snapshot()?
@@ -983,7 +1052,7 @@ impl CamSimulationWorkflow {
     ) -> Result<Vec<OperationJobState>, CamSimulationWorkflowError> {
         let currents = operation_ids
             .iter()
-            .map(|&operation_id| current_revision(sequences, sequence_id, operation_id))
+            .map(|&operation_id| current_segment_of(sequences, sequence_id, operation_id))
             .collect::<Result<Vec<_>, _>>()?;
         let snapshot = self.jobs.read_status_now()?;
         Ok(operation_ids
@@ -1011,7 +1080,7 @@ impl CamSimulationWorkflow {
         Ok(snapshot
             .pending
             .iter()
-            .any(|submission| !submission.rejected && current(&submission.source)))
+            .any(|submission| !submission.rejected && submitted_from(submission, &current)))
     }
 
     /// 正常終了した切削シミュレーションのジョブ `simulation_job_id` の、ツールパスと切削シミュレーションの成果物と、
@@ -1063,7 +1132,7 @@ fn operation_state(
     if snapshot
         .pending
         .iter()
-        .any(|submission| !submission.rejected && current(&submission.source))
+        .any(|submission| !submission.rejected && submitted_from(submission, current))
     {
         return OperationJobState::Status(OperationJobStatus::Queued);
     }
@@ -1072,7 +1141,7 @@ fn operation_state(
         let rejected = snapshot
             .pending
             .iter()
-            .any(|submission| submission.rejected && current(&submission.source));
+            .any(|submission| submission.rejected && submitted_from(submission, current));
         return if rejected {
             OperationJobState::Status(OperationJobStatus::Failed)
         } else {
@@ -1094,6 +1163,17 @@ fn operation_state(
             _ => OperationJobStatus::Queued,
         },
     })
+}
+
+/// まだジョブになっていない投入 `submission` が、投入元が `current` に当たるジョブを持つか
+fn submitted_from(
+    submission: &crate::job_client::PendingSubmission,
+    current: &impl Fn(&Option<CamJobSource>) -> bool,
+) -> bool {
+    submission
+        .sources
+        .iter()
+        .any(|source| current(&Some(source.clone())))
 }
 
 /// 計算の状態 `snapshot` の中の、加工工程 `operation_id` の今の改訂（`current` で見分ける）の計算が失敗していれば、
@@ -1153,6 +1233,7 @@ fn operation_source(operation: &MachiningOperation) -> CamJobSource {
         source_id: operation.id().to_string(),
         revision: operation.revision(),
         revision_key: Some(operation.revision_key().to_string()),
+        segment_key: None,
     }
 }
 
@@ -1218,6 +1299,79 @@ fn current_revision(
                 && source.revision_key.as_deref() == Some(revision_key.as_str())
         })
     })
+}
+
+/// 切削シミュレーションの投入元が、保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の区間
+/// （今の改訂の鍵と、区間の前提の鍵 `segment_key` が同じ）かを判定する関数。区間の前提の鍵を持たない投入元（前の版の
+/// 記録）は、今の区間とみなさない
+fn current_segment(
+    sequences: &MachiningSequenceStore,
+    sequence_id: MachiningSequenceId,
+    operation_id: MachiningOperationId,
+    segment_key: String,
+) -> Result<impl Fn(&Option<CamJobSource>) -> bool, CamSimulationWorkflowError> {
+    let revision = current_revision(sequences, sequence_id, operation_id)?;
+    Ok(move |source: &Option<CamJobSource>| {
+        revision(source)
+            && source
+                .as_ref()
+                .and_then(|source| source.segment_key.as_deref())
+                == Some(segment_key.as_str())
+    })
+}
+
+/// 保管先 `sequences` の加工手順 `sequence_id` の加工工程 `operation_id` の今の区間（[`current_segment`]）かを判定する
+/// 関数（区間の前提の鍵は、今の手順から求める）
+fn current_segment_of(
+    sequences: &MachiningSequenceStore,
+    sequence_id: MachiningSequenceId,
+    operation_id: MachiningOperationId,
+) -> Result<impl Fn(&Option<CamJobSource>) -> bool, CamSimulationWorkflowError> {
+    let sequence = sequences
+        .sequence(sequence_id)
+        .map_err(CamSimulationWorkflowError::Sequence)?;
+    let segment_key = segment::segment_keys(sequence)
+        .into_iter()
+        .find(|(id, _)| *id == operation_id)
+        .map(|(_, key)| key)
+        .unwrap_or_default();
+    current_segment(sequences, sequence_id, operation_id, segment_key)
+}
+
+/// ツールパス生成のジョブ `toolpath_jobs` のうち、投入元が `current` に当たり、正常に終わったものの番号（最も新しいもの。
+/// 切削シミュレーションを置いていないものを先に探す。区間の前提が変わると、同じ CL の下に、別の前提の切削
+/// シミュレーションを置く）
+fn reusable_toolpath_job(
+    toolpath_jobs: &[ToolpathJob],
+    current: impl Fn(&Option<CamJobSource>) -> bool,
+) -> Option<u64> {
+    let succeeded =
+        |job: &&ToolpathJob| job.status == CamJobStatus::Succeeded && current(&job.source);
+    toolpath_jobs
+        .iter()
+        .rev()
+        .filter(succeeded)
+        .find(|job| !job.simulated)
+        .or_else(|| toolpath_jobs.iter().rev().find(succeeded))
+        .map(|job| job.job_id)
+}
+
+/// 計算待ち・計算中・中断の状態か（取り消せる）
+fn is_active(status: CamJobStatus) -> bool {
+    matches!(
+        status,
+        CamJobStatus::Queued
+            | CamJobStatus::Running
+            | CamJobStatus::NeedsRecompute
+            | CamJobStatus::Interrupted
+    )
+}
+
+/// 切削シミュレーションのジョブ `job` が、まだ正常に終わりうるか（失敗・取り消しで終わっておらず、入力のツールパス
+/// 生成も失敗・取り消しで終わっていない）
+fn can_finish(job: &SimulationJob) -> bool {
+    let ended = |status| matches!(status, CamJobStatus::Failed | CamJobStatus::Canceled);
+    !ended(job.status) && !ended(job.toolpath_status)
 }
 
 /// 計算を始める前に見積もったツールパスの大きさ（桁が合う程度）
@@ -1405,6 +1559,7 @@ fn operation_request(
         solver_input,
         stock: stock.unwrap_or(bounds),
         precision: sequence.stock().precision,
+        grid_tool_radius: segment::grid_tool_radius(sequence, operation),
         snapshot_interval: SnapshotInterval::default(),
     };
     let errors = match stock {
@@ -1443,7 +1598,7 @@ fn condition_errors(request: &CamSimulationWorkflowRequest) -> Vec<CamConditionE
         cutting_simulation_input_errors(
             &request.stock,
             &request.solver_input.tool,
-            request.solver_input.tool.radius(),
+            request.grid_tool_radius,
             request.precision,
             &request.snapshot_interval,
         )
@@ -1459,7 +1614,7 @@ fn simulation_input(request: &CamSimulationWorkflowRequest) -> CuttingSimulation
         stock: request.stock,
         tool: request.solver_input.tool.clone(),
         precision: request.precision,
-        grid_tool_radius: request.solver_input.tool.radius(),
+        grid_tool_radius: request.grid_tool_radius,
         snapshot_interval: request.snapshot_interval.clone(),
         product: request.solver_input.geometry.clone(),
         tolerance: request.solver_input.chord_tolerance,

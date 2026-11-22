@@ -19,7 +19,8 @@ use geo_algorithms::{
 use job_ipc::{Endpoint, JobFailure, JobFailureReason, ToolpathLimits};
 use job_manager::{JobManagerService, LaunchSpec, Launcher, RunningJob, start_endpoint_server};
 use job_runtime::store::{
-    DependencyRef, JobStore, StoredJobError, StoredJobKind, StoredJobStatus, SubmissionRequest,
+    DependencyRef, JobStore, START_STOCK_FORMAT_VERSION, StoredJobError, StoredJobKind,
+    StoredJobStatus, SubmissionRequest,
 };
 
 use crate::cam_simulation_workflow::CamSimulationWorkflowError;
@@ -90,8 +91,26 @@ impl Drop for TempRoot {
     }
 }
 
-/// 四角錐を直径 6 のボールエンドミルで粗く加工する投入
-fn submission() -> JobSubmission {
+/// 投入する区間の、ツールパス生成と切削シミュレーションの入力と投入元
+struct Base {
+    solver_input: CamSolverInput,
+    simulation_input: CuttingSimulationInput,
+    source: Option<CamJobSource>,
+}
+
+/// 四角錐を直径 6 のボールエンドミルで粗く加工する投入（ツールパス生成から計算する区間 1 つ）
+fn submission() -> Vec<SegmentSubmission> {
+    let base = base();
+    vec![SegmentSubmission {
+        toolpath: SegmentToolpath::Solve(Box::new(base.solver_input)),
+        simulation_input: base.simulation_input,
+        start_stock: None,
+        source: base.source,
+    }]
+}
+
+/// 四角錐を直径 6 のボールエンドミルで粗く加工する入力
+fn base() -> Base {
     let pyramid = SolverGeometry::TriangleMesh(
         TriangleMesh3D::new(
             vec![
@@ -106,7 +125,7 @@ fn submission() -> JobSubmission {
         .unwrap(),
     );
     let tool = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
-    JobSubmission {
+    Base {
         solver_input: CamSolverInput {
             operation_id: "op-1".to_string(),
             tool: tool.clone(),
@@ -140,6 +159,7 @@ fn submission() -> JobSubmission {
             source_id: "operation-1".to_string(),
             revision: 3,
             revision_key: Some("key-3".to_string()),
+            segment_key: None,
         }),
     }
 }
@@ -160,9 +180,16 @@ impl Launcher for InProcessLauncher {
         } else {
             let input = read_cutting_simulation_input_v1(&mut input.as_slice()).unwrap();
             let toolpath = fs::read(spec.toolpath.as_ref().unwrap())?;
-            let run =
-                run_cutting_simulation(&input, &mut toolpath.as_slice(), None, &mut |_, _| {})
-                    .unwrap();
+            let stock = spec.stock.as_ref().map(fs::read).transpose()?;
+            let mut stock = stock.as_deref();
+            let run = run_cutting_simulation(
+                &input,
+                &mut toolpath.as_slice(),
+                stock.as_mut().map(|stock| stock as &mut dyn std::io::Read),
+                &mut |_, _| {},
+            )
+            .unwrap();
+            fs::write(spec.output.join("stock.bin"), run.stock)?;
             ("cutting_simulation.bin", run.artifact)
         };
         fs::write(spec.output.join(name), artifact)?;
@@ -285,8 +312,8 @@ fn a_submission_is_placed_in_the_inbox_with_both_inputs() {
     assert!(!pending[0].rejected);
     assert_eq!(
         pending[0]
-            .source
-            .as_ref()
+            .sources
+            .first()
             .map(|source| (source.revision, source.revision_key.as_deref())),
         Some((3, Some("key-3")))
     );
@@ -314,7 +341,7 @@ fn jobs_run_by_the_job_manager_are_read_and_imported_from_the_store() {
     assert_eq!(imported.simulation_input.precision, 0.5);
     assert_eq!(
         imported.toolpath_artifact,
-        run_cam_solver(&submission().solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
+        run_cam_solver(&base().solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap()
     );
     assert!(
         cam_sim::read_cutting_simulation_artifact_v1(&mut imported.simulation_artifact.as_slice())
@@ -514,14 +541,15 @@ fn simulations_of_a_toolpath_file_run_without_a_cam_job_and_are_imported() {
     let mut client = root.client();
     let store = JobStore::open(root.store_root()).unwrap();
     let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
-    let base = submission();
+    let base = base();
     let toolpath = run_cam_solver(&base.solver_input, TOOLPATH_MEMORY_LIMIT_BYTES).unwrap();
     let submission_id = client
-        .submit_simulation(SimulationSubmission {
+        .submit(vec![SegmentSubmission {
+            toolpath: SegmentToolpath::Artifact(toolpath.clone()),
             simulation_input: base.simulation_input,
-            toolpath: SimulationToolpath::Artifact(toolpath.clone()),
+            start_stock: None,
             source: base.source,
-        })
+        }])
         .unwrap();
     // CL のファイルを持つ投入は、CL のファイルを持てる版の要求で書く
     let request: SubmissionRequest = serde_json::from_slice(
@@ -581,13 +609,14 @@ fn simulations_are_put_under_an_existing_cam_job() {
     );
     assert!(!client.toolpath_jobs().unwrap()[0].simulated);
 
-    let base = submission();
+    let base = base();
     let submission_id = client
-        .submit_simulation(SimulationSubmission {
+        .submit(vec![SegmentSubmission {
+            toolpath: SegmentToolpath::Job(cam[0].job_id),
             simulation_input: base.simulation_input,
-            toolpath: SimulationToolpath::Job(cam[0].job_id),
+            start_stock: None,
             source: base.source,
-        })
+        }])
         .unwrap();
     let request: SubmissionRequest = serde_json::from_slice(
         &fs::read(
@@ -629,8 +658,8 @@ fn the_status_is_read_without_waiting_and_shows_a_submission_at_once() {
     assert_eq!(snapshot.pending.len(), 1);
     assert_eq!(
         snapshot.pending[0]
-            .source
-            .as_ref()
+            .sources
+            .first()
             .and_then(|source| source.revision_key.as_deref()),
         Some("key-3")
     );
@@ -877,4 +906,94 @@ fn holding_a_connection_without_the_job_manager_installed_reports_it_is_not_foun
         client.hold_connection().unwrap_err(),
         CamSimulationWorkflowError::JobManagerNotFound
     );
+}
+
+#[test]
+fn segments_are_submitted_together_and_later_ones_start_from_the_end_stock_of_earlier_ones() {
+    let root = TempRoot::new();
+    let mut client = root.client();
+    let store = JobStore::open(root.store_root()).unwrap();
+    let (mut manager, _) = JobManagerService::start(store.clone(), InProcessLauncher, 0).unwrap();
+    let segment_source = |key: &str| {
+        base().source.map(|source| CamJobSource {
+            segment_key: Some(key.to_string()),
+            ..source
+        })
+    };
+    let mut segments = submission();
+    segments[0].source = segment_source("segment-1");
+    segments.push(SegmentSubmission {
+        start_stock: Some(StartStock::Submitted(0)),
+        source: segment_source("segment-2"),
+        ..submission().remove(0)
+    });
+    let submission_id = client.submit(segments).unwrap();
+
+    // 後の区間の切削シミュレーションは、その CAM の計算と、前の区間の切削シミュレーションに依存する
+    let request: SubmissionRequest = serde_json::from_slice(
+        &fs::read(
+            root.store_root()
+                .join("inbox")
+                .join(&submission_id)
+                .join("request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(request.format_version, START_STOCK_FORMAT_VERSION);
+    let kinds: Vec<StoredJobKind> = request.jobs.iter().map(|job| job.kind).collect();
+    assert_eq!(
+        kinds,
+        [
+            StoredJobKind::Cam,
+            StoredJobKind::Sim,
+            StoredJobKind::Cam,
+            StoredJobKind::Sim
+        ]
+    );
+    assert_eq!(
+        request.jobs[3].depends_on,
+        vec![DependencyRef::Submitted(2), DependencyRef::Submitted(1)]
+    );
+    assert_eq!(
+        request.jobs[3].start_stock,
+        Some(DependencyRef::Submitted(1))
+    );
+    // ツールパス生成のジョブは、区間の前提の鍵を持たない
+    let segment_keys: Vec<Option<&str>> = request
+        .jobs
+        .iter()
+        .map(|job| job.source.as_ref().unwrap().segment_key.as_deref())
+        .collect();
+    assert_eq!(
+        segment_keys,
+        [None, Some("segment-1"), None, Some("segment-2")]
+    );
+    // まだジョブになっていない投入は、すべてのジョブの投入元を持つ
+    assert_eq!(
+        client.status_snapshot().unwrap().unwrap().pending[0]
+            .sources
+            .len(),
+        4
+    );
+
+    for now in 1..=8 {
+        manager.tick(now);
+    }
+    let jobs = client.simulation_jobs().unwrap();
+    assert_eq!(jobs.len(), 2);
+    let volumes = |job_id| {
+        let imported = client.import(job_id).unwrap();
+        let (_, simulation) = cam_sim::read_cutting_simulation_artifact_v1(
+            &mut imported.simulation_artifact.as_slice(),
+        )
+        .unwrap();
+        (
+            simulation.snapshots[0].remaining_volume_mm3,
+            simulation.snapshots.last().unwrap().remaining_volume_mm3,
+        )
+    };
+    let (_, first_end) = volumes(jobs[0].job_id);
+    let (second_start, _) = volumes(jobs[1].job_id);
+    assert!((second_start - first_end).abs() <= 1e-9 * first_end);
 }

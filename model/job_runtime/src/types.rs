@@ -78,6 +78,9 @@ pub struct JobSource {
     pub revision: u32,
     /// 投入したときの投入元の改訂の鍵（同じ鍵なら同じ中身から投入した。前の版の記録は持たない）
     pub revision_key: Option<String>,
+    /// 切削シミュレーションの区間の前提の鍵（その工程と手順の中で前にある工程の改訂の鍵の列と、格子から作る。同じ鍵なら
+    /// 同じ前提で計算した。ツールパス生成・前の版の記録は持たない）
+    pub segment_key: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
