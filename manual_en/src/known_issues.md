@@ -15,7 +15,7 @@ Management:
 
 - There is one machining sequence. It can have several machining operations, but the cutting simulation of every operation starts from the sequence stock (starting from the stock left by the previous operation comes in a later version). There is no tool registration (tool library) yet (planned for v0.2.0)
 - The job manager calculates one job at a time. After reopening the app, the results of jobs submitted before cannot be imported from the process (saving processes will be added in a later version)
-- The machining target is the faces of all loaded product shapes (adding or removing faces by selecting them is a later feature)
+- Loading a product shape adds its faces to the machining target. Opening a model file keeps the saved target (adding or removing faces by selecting them is a later feature)
 - There is no screen yet to choose which job to import, and only the latest result of the current conditions can be imported
 
 Distribution:

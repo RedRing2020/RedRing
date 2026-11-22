@@ -103,12 +103,13 @@ fn edited_conditions_are_held_by_the_operation_and_the_sequence() {
     assert_eq!(document.stock(), stock);
 }
 
-/// 製品形状（四角錐の面単体 2 つ。2 つ目は隠す）と、1 つ目の面だけを加工の対象にした加工手順を保存したモデルファイル
+/// 製品形状（四角錐の面単体 2 つ。1 つ目は隠す）と、隠した 1 つ目の面だけを加工の対象にした加工手順を保存した
+/// モデルファイル（加工の対象は、表示中の面と重ならない）
 fn model_file_targeting_the_first_face(path: &Path) {
     let mut shapes = ProductShapeStore::new();
     let first = shapes.add_face(ProductFaceGeometry::Mesh(pyramid()));
-    let second = shapes.add_face(ProductFaceGeometry::Mesh(pyramid()));
-    shapes.set_visible(second.entity_id, false).unwrap();
+    shapes.add_face(ProductFaceGeometry::Mesh(pyramid()));
+    shapes.set_visible(first.entity_id, false).unwrap();
     let mut sequences = MachiningSequenceStore::new();
     let sequence =
         sequences.create_sequence("手順".to_string(), vec![first.face_id], initial_stock());
@@ -131,12 +132,17 @@ fn opened_documents_keep_the_saved_target_faces_without_a_change() {
     model_file_targeting_the_first_face(&path);
     let (saved, _) = load_space_model(&path).unwrap();
 
-    // 加工の対象は、保存したまま（表示中の面に合わせない）
+    // 加工の対象は、保存したまま（隠した面を含み、表示中の面を含まない。表示中の面に合わせない）。工程の改訂も
+    // 変わらない
     let document = SpaceModelDocument::open(&path, NAMES).unwrap();
     std::fs::remove_file(&path).unwrap();
     assert!(!document.is_modified());
     assert_eq!(document.target_face_count(), 1);
-    let (_, sequences, _, _) = document.machining();
+    let (shapes, sequences, _, _) = document.machining();
+    assert_ne!(
+        sequences.records()[0].target_faces,
+        shapes.visible_face_ids()
+    );
     assert_eq!(sequences.records(), saved.sequences.records());
 }
 
@@ -170,7 +176,7 @@ fn imported_faces_are_added_to_the_target_even_when_other_faces_are_hidden() {
         .map(|item| document.revision_key_of(item.id).unwrap())
         .collect();
 
-    // 取り込んだ面だけを加える（隠した面・加工の対象にしていない面は加えない）
+    // 取り込んだ面だけを加える（加工の対象にしていない表示中の面は加えず、隠した加工の対象の面は残す）
     let stl = temporary_file("stl");
     geo_io::stl::save_stl(&pyramid(), &stl).unwrap();
     document.import_stl(&stl).unwrap();
