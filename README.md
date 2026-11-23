@@ -4,7 +4,8 @@
 
 [![Version](https://img.shields.io/github/v/release/RedRing2020/RedRing?include_prereleases&label=release&color=blue)](https://github.com/RedRing2020/RedRing/releases)
 [![Rust](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FRedRing2020%2FRedRing%2Fdevelop%2Frust-toolchain.toml&query=%24.toolchain.channel&label=rust&logo=rust&color=orange)](rust-toolchain.toml)
-![Implementation](https://img.shields.io/badge/WordPress_Tools-41_Available-green)
+[![Last Commit](https://img.shields.io/github/last-commit/RedRing2020/RedRing/develop)](https://github.com/RedRing2020/RedRing/commits/develop)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/RedRing2020/RedRing)](https://github.com/RedRing2020/RedRing/graphs/commit-activity)
 ![License](https://img.shields.io/badge/License-MIT%2FApache--2.0-green)
 
 RedRing is a standalone CAD/CAM application built with Rust, wgpu and egui, developed as a research project.
