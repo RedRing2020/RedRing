@@ -12,6 +12,7 @@ impl AppState {
     /// 表示する
     pub fn import_product_shape(&mut self, path: &Path) {
         let file = super::model_file::file_name(path);
+        let started = std::time::Instant::now();
         let imported = if super::model_file::is_step_file(path) {
             self.document
                 .import_step(path)
@@ -25,10 +26,15 @@ impl AppState {
                 .import_stl(path)
                 .map(|()| crate::help_ui::Notice::ShapeImported { file: file.clone() })
         };
+        let elapsed_ms = super::model_file::millis_since(started);
         let notice = match imported {
             Ok(notice) => notice,
             Err(error) => {
-                tracing::warn!(path = %path.display(), "product shape import failed: {error}");
+                tracing::warn!(
+                    path = %path.display(),
+                    elapsed_ms,
+                    "product shape import failed: {error}"
+                );
                 self.set_notice(crate::help_ui::Notice::ShapeImportFailed {
                     file,
                     reason: viewmodel::failure_message_mapper::product_shape_failure_message(
@@ -38,13 +44,21 @@ impl AppState {
                 return;
             }
         };
-        tracing::info!(path = %path.display(), "product shape imported");
+        // 読む時間と、反映して製品形状を表示する時間を分けて出す
+        let shown = std::time::Instant::now();
         self.invalidate_conditions();
         // 加工の対象が変わり、工程の改訂が進むため、前の条件の計算を取り消す（取り込んだことを画面の下の行に残すため、
         // 取り込んだことは取り消した後に出す）
         self.cancel_superseded_jobs();
         self.set_notice(notice);
         self.show_product_shapes();
+        tracing::info!(
+            path = %path.display(),
+            elapsed_ms,
+            display_ms = super::model_file::millis_since(shown),
+            bytes = super::model_file::file_bytes(path),
+            "product shape imported"
+        );
     }
 
     /// 表示中の製品形状をメッシュステージに描き、全体が見えるようにカメラを合わせる
