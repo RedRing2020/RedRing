@@ -5,6 +5,7 @@
 //! 別のスレッドで開き、閉じるまで残りの操作を待たせる。
 
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use super::AppState;
 use super::file_dialog::{FileDialogPurpose, one_file};
@@ -226,14 +227,22 @@ impl AppState {
 
     fn save_document_to(&mut self, path: &Path) -> bool {
         let file = file_name(path);
-        match self.document.save_as(path, env!("CARGO_PKG_VERSION")) {
+        let started = Instant::now();
+        let saved = self.document.save_as(path, env!("CARGO_PKG_VERSION"));
+        let elapsed_ms = millis_since(started);
+        match saved {
             Ok(()) => {
-                tracing::info!(path = %path.display(), "model file saved");
+                tracing::info!(
+                    path = %path.display(),
+                    elapsed_ms,
+                    bytes = file_bytes(path),
+                    "model file saved"
+                );
                 self.set_notice(Notice::ModelSaved { file });
                 true
             }
             Err(error) => {
-                tracing::warn!(path = %path.display(), "model file save failed: {error}");
+                tracing::warn!(path = %path.display(), elapsed_ms, "model file save failed: {error}");
                 self.set_notice(Notice::ModelSaveFailed {
                     file,
                     reason: viewmodel::failure_message_mapper::model_file_failure_message(&error),
@@ -245,17 +254,27 @@ impl AppState {
 
     pub(super) fn open_model_file(&mut self, path: &Path) {
         let file = file_name(path);
+        let started = Instant::now();
         let opened = super::machining_conditions::with_default_names(self.ui_locale, |names| {
             SpaceModelDocument::open(path, names)
         });
+        let elapsed_ms = millis_since(started);
         match opened {
             Ok(document) => {
-                tracing::info!(path = %path.display(), "model file opened");
+                // 読む時間と、製品形状を表示する時間を分けて出す
+                let shown = Instant::now();
                 self.replace_document(document);
+                tracing::info!(
+                    path = %path.display(),
+                    elapsed_ms,
+                    display_ms = millis_since(shown),
+                    bytes = file_bytes(path),
+                    "model file opened"
+                );
                 self.set_notice(Notice::ModelOpened { file });
             }
             Err(error) => {
-                tracing::warn!(path = %path.display(), "model file open failed: {error}");
+                tracing::warn!(path = %path.display(), elapsed_ms, "model file open failed: {error}");
                 self.set_notice(Notice::ModelOpenFailed {
                     file,
                     reason: viewmodel::failure_message_mapper::model_file_failure_message(&error),
@@ -348,6 +367,16 @@ pub(super) fn file_name(path: &Path) -> String {
         || path.display().to_string(),
         |name| name.to_string_lossy().into_owned(),
     )
+}
+
+/// `started` から今までのミリ秒（時間のかかる処理のログに出す）
+pub(super) fn millis_since(started: Instant) -> u64 {
+    u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
+/// ファイル `path` の大きさ（バイト。読めなければ `None`。時間のかかる処理のログに出す）
+pub(super) fn file_bytes(path: &Path) -> Option<u64> {
+    std::fs::metadata(path).ok().map(|metadata| metadata.len())
 }
 
 /// モデルファイルの拡張子でなければ、モデルファイルの拡張子を足す（名前の中の `.` は残す）

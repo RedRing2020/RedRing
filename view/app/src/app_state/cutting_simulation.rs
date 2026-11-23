@@ -430,15 +430,24 @@ impl AppState {
     /// 選んだ加工工程の、今の条件で正常に終わった最も新しいツールパス生成の CL だけを、空間モデルに取り込む（切削
     /// アニメーションは開かない）
     pub(crate) fn import_toolpath(&mut self) {
-        match self.cutting_simulation.import_toolpath(&mut self.document) {
+        let started = std::time::Instant::now();
+        let imported = self.cutting_simulation.import_toolpath(&mut self.document);
+        let elapsed_ms = super::model_file::millis_since(started);
+        match imported {
             Ok(job) => {
-                tracing::info!(job, "Imported the toolpath into the space model");
                 self.set_operation_status(OperationStatus::ToolpathImported { job });
-                // 同じ状態の CL を取り込み直しても、線を描き直す
+                // 同じ状態の CL を取り込み直しても、線を描き直す（取り込む時間と、線を描く時間を分けて出す）
+                let shown = std::time::Instant::now();
                 self.refresh_operation_toolpath_lines();
+                tracing::info!(
+                    job,
+                    elapsed_ms,
+                    display_ms = super::model_file::millis_since(shown),
+                    "Imported the toolpath into the space model"
+                );
             }
             Err(error) => {
-                tracing::warn!("Cannot import the toolpath: {error}");
+                tracing::warn!(elapsed_ms, "Cannot import the toolpath: {error}");
                 self.set_operation_status(match error {
                     CuttingSimulationSessionError::NoSucceededToolpath => {
                         OperationStatus::NoToolpathToImport
@@ -481,7 +490,9 @@ impl AppState {
         }
         tracing::info!("Importing the cutting simulation");
         let started = std::time::Instant::now();
-        match self.cutting_simulation.import_latest(&mut self.document) {
+        let imported = self.cutting_simulation.import_latest(&mut self.document);
+        let import_ms = super::model_file::millis_since(started);
+        match imported {
             Ok(imported) => {
                 self.set_operation_status(OperationStatus::Imported {
                     job: imported.job_id,
@@ -489,10 +500,13 @@ impl AppState {
                 self.cutting_animation_job_id = Some(imported.job_id);
                 self.imported_conditions = Some(imported.conditions);
                 self.imported_operation = Some(self.document.selected_operation());
-                self.start_cutting_animation(imported.animation, started);
+                self.start_cutting_animation(imported.animation, started, import_ms);
             }
             Err(error) => {
-                tracing::warn!("Cannot import the cutting simulation: {error}");
+                tracing::warn!(
+                    elapsed_ms = import_ms,
+                    "Cannot import the cutting simulation: {error}"
+                );
                 self.set_operation_status(match error {
                     CuttingSimulationSessionError::NoSucceededSimulation => {
                         OperationStatus::NothingToImport
@@ -509,6 +523,7 @@ impl AppState {
         &mut self,
         mut animation: CuttingAnimation,
         started: std::time::Instant,
+        import_ms: u64,
     ) {
         self.debug_snapshot.clear();
         self.debug_snapshot.series = Some(animation.snapshot_series("cam_sim"));
@@ -516,6 +531,7 @@ impl AppState {
             self.initial_frame_step_distance_mm().unwrap_or(0.0);
         self.rebuild_snapshot_weighted_progress_axis_cache();
 
+        let animation_endpoints = animation.endpoint_count();
         self.cutting_animation_colors = self.snapshot_shaded_color_settings;
         animation.set_deviations_shown(self.cutting_animation_colors.deviations.shown);
         let stock_blocks = animation.take_initial_stock_blocks();
@@ -535,9 +551,12 @@ impl AppState {
         self.cutting_animation = Some(animation);
         self.update_camera_uniforms();
         self.log_current_snapshot_frame(true);
+        // 結果を読む時間と、表示を作るまでの全体の時間を分けて出す
         tracing::info!(
-            "Imported the cutting simulation ({:.1} s; Space to play, k/j to step, drag the progress bar to scrub, w for wireframe)",
-            started.elapsed().as_secs_f64()
+            import_ms,
+            elapsed_ms = super::model_file::millis_since(started),
+            endpoints = animation_endpoints,
+            "Imported the cutting simulation (Space to play, k/j to step, drag the progress bar to scrub, w for wireframe)"
         );
     }
 
