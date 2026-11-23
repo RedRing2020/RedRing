@@ -1,6 +1,6 @@
 # RedRing
 
-**📖🌐[English README is here](README.md)**
+**🌐[English README](README.md)**
 
 [![Version](https://img.shields.io/github/v/release/RedRing2020/RedRing?include_prereleases&label=release&color=blue)](https://github.com/RedRing2020/RedRing/releases)
 [![Rust](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FRedRing2020%2FRedRing%2Fdevelop%2Frust-toolchain.toml&query=%24.toolchain.channel&label=rust&logo=rust&color=orange)](rust-toolchain.toml)
