@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::f64::consts::{FRAC_PI_2, TAU};
 
-use analysis::consts::tessellation::{MAX_CHORD_ANGLE_DEGREES, MAX_TRIANGLE_NORMAL_ANGLE_DEGREES};
+use analysis::consts::tessellation::{
+    GRID_DIAGONAL_TO_STEP_RATIO, MAX_CHORD_ANGLE_DEGREES, MAX_TRIANGLE_NORMAL_ANGLE_DEGREES,
+};
 
 use super::*;
 use crate::Vector3D;
@@ -753,7 +755,8 @@ fn triangles_flipped_beside_a_boundary_chord_do_not_keep_adding_points() {
     let settings = settings(0.01);
     let region = FaceRegion::new(&loops, &surface, &settings).unwrap();
     assert!(region.crossing_edges(&surface).is_empty());
-    let grid = (1.0 / (surface.step * 0.95 * std::f64::consts::FRAC_1_SQRT_2)).ceil() as usize;
+    let spacing = surface.step * GRID_DIAGONAL_TO_STEP_RATIO * std::f64::consts::FRAC_1_SQRT_2;
+    let grid = (1.0 / spacing).ceil() as usize;
     let result = region.triangulate(&surface, &settings).unwrap();
     assert!(
         result.added.len() < 2 * grid * grid,
