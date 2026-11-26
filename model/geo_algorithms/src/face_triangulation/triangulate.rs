@@ -256,7 +256,8 @@ impl Mesh {
         Ok(points)
     }
 
-    /// 許容弦誤差か法線のなす角の上限を超える三角形に足す点の (u, v)（幅が `min_width` より小さい三角形には足さない）
+    /// 許容弦誤差か法線のなす角の上限を超える三角形に足す点の (u, v)（幅が `min_width` より小さい三角形は、離れを
+    /// `min_width` まで許し、法線の角では見ない）
     fn points_to_add(
         &mut self,
         surface: &impl TriangulationSurface,
@@ -289,10 +290,7 @@ impl Mesh {
                 self.accepted.insert(key);
                 continue;
             }
-            if narrower_than(corners.map(|corner| corner.point), min_width) {
-                self.accepted.insert(key);
-                continue;
-            }
+            let narrow = narrower_than(corners.map(|corner| corner.point), min_width);
             let centroid = Point2D::new(
                 corners.iter().map(|corner| corner.uv.x()).sum::<f64>() / 3.0,
                 corners.iter().map(|corner| corner.uv.y()).sum::<f64>() / 3.0,
@@ -338,8 +336,13 @@ impl Mesh {
                     worst_edge = Some((length, middle));
                 }
             }
+            // 幅が下限より小さい三角形は、離れを下限まで許し、法線の角では分けない（細かく分けても直らないため）
+            if narrow {
+                allowed = allowed.max(min_width);
+            }
             let corner_points = corners.map(|corner| corner.point);
-            let tilted = tilted(surface, centroid, corner_points, min_cosine)
+            let tilted = !narrow
+                && tilted(surface, centroid, corner_points, min_cosine)
                 && !forced_by_constraint(corner_points, &deviations, constrained, max_sine);
             let deviated = centroid_deviation.max(quadratic_maximum(&deviations)) > allowed;
             if !tilted && !deviated {
@@ -366,8 +369,8 @@ fn collapsed([a, b, c]: [FaceVertex; 3]) -> bool {
 /// 三角形 `points` の幅（最も長い辺に、向かいの頂点から下ろした高さ）が `width` より小さいか
 ///
 /// 幅で見るのは、曲面の上の 1 本の曲線にほぼ並ぶ 3 点の三角形（(u, v) でつぶれかけた三角形）が、重心に点を足しても同じ
-/// 曲線の上にほぼ並ぶ三角形を作り続け、辺は長いまま、幅だけが曲線の曲がりの分（弦の離れ）にとどまるため。そのような
-/// 三角形の、曲面からの離れと幅は同じ程度になる
+/// 曲線の上にほぼ並ぶ三角形を作り続け、辺は長いまま、幅だけが曲線の曲がりの分（弦の離れ）にとどまるため。幅が小さく
+/// ても、長い辺が曲面から大きく離れる三角形はあるので、離れの判定は残す（下限までを許す）
 fn narrower_than([a, b, c]: [Point3D<f64>; 3], width: f64) -> bool {
     let longest = [a.distance_to(b), b.distance_to(c), c.distance_to(a)]
         .into_iter()

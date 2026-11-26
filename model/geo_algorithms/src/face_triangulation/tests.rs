@@ -641,7 +641,7 @@ fn a_coarse_boundary_does_not_keep_adding_points() {
 fn triangles_narrower_than_the_minimum_width_are_not_refined() {
     // 境界の円を許容弦誤差の 6 倍ほど粗く分けた円柱の帯（弦の離れ 約 0.006）を、許容弦誤差 0.001 で分ける。円に沿って
     // 並ぶ点の三角形は、重心に点を足しても円の上に並ぶ細い三角形を作り続け、下限がなければ点の数の上限に届く。下限が
-    // あれば、それより細い三角形には点を足さずに終わり、その三角形の離れは幅の程度にとどまる
+    // あれば、それより細い三角形は離れを下限まで許して終わる
     let cylinder = Cylinder { radius: 5.0 };
     let loops = [
         ring(0, line((0.0, 0.0), (TAU, 0.0), 64)),
@@ -676,15 +676,25 @@ fn triangles_narrower_than_the_minimum_width_are_not_refined() {
         }
         FaceVertex::Added(index) => result.added[index].point,
     };
+    // 頂点・辺・内側の 28 点（重心座標が (i, j, k) / 6 の点）で、曲面からの離れが下限以内（離れは 2 次式の見積もりで
+    // 確かめるので、わずかな超えを許す）
     for triangle in &result.triangles {
         let [a, b, c] = triangle.map(point);
-        let centroid = Point3D::new(
-            (a.x() + b.x() + c.x()) / 3.0,
-            (a.y() + b.y() + c.y()) / 3.0,
-            (a.z() + b.z() + c.z()) / 3.0,
-        );
-        let distance = cylinder.distance(centroid);
-        assert!(distance <= min_width, "{distance} in {triangle:?}");
+        for i in 0..=6 {
+            for j in 0..=6 - i {
+                let (s, t) = (i as f64 / 6.0, j as f64 / 6.0);
+                let sample = Point3D::new(
+                    a.x() * (1.0 - s - t) + b.x() * s + c.x() * t,
+                    a.y() * (1.0 - s - t) + b.y() * s + c.y() * t,
+                    a.z() * (1.0 - s - t) + b.z() * s + c.z() * t,
+                );
+                let distance = cylinder.distance(sample);
+                assert!(
+                    distance <= min_width * (1.0 + 1.0e-6),
+                    "{distance} in {triangle:?}"
+                );
+            }
+        }
     }
 }
 
