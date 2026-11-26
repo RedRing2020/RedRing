@@ -7,6 +7,8 @@ pub extern crate geo_primitives as primitives;
 
 /// 時間のかかる処理を別のスレッドで行い、進み具合と結果を待たずに受け取る仕組み
 pub use command_framework::background_task;
+/// コマンドの宣言と、実行中のコマンドの最中に来たコマンドの受け付け方を決める仕組み
+pub use command_framework::command;
 
 mod binary_section;
 pub mod cam_simulation_workflow;
