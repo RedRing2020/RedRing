@@ -14,6 +14,7 @@ fn settings(chord_tolerance: f64) -> FaceTriangulationSettings {
         max_angle: Angle::from_degrees(MAX_CHORD_ANGLE_DEGREES),
         max_points: 200_000,
         max_passes: 64,
+        min_width: 0.0,
     }
 }
 
@@ -639,6 +640,81 @@ fn a_coarse_boundary_does_not_keep_adding_points() {
 }
 
 #[test]
+fn triangles_narrower_than_the_minimum_width_are_not_refined() {
+    // 境界の円を許容弦誤差の 6 倍ほど粗く分けた円柱の帯（弦の離れ 約 0.006）を、許容弦誤差 0.001 で分ける。円に沿って
+    // 並ぶ点の三角形は、重心に点を足しても円の上に並ぶ細い三角形を作り続け、下限がなければ点の数か繰り返しの回数の
+    // 上限に届く。下限があれば、それより細い三角形は離れを下限まで許して終わる
+    let cylinder = Cylinder { radius: 5.0 };
+    let loops = [
+        ring(0, line((0.0, 0.0), (TAU, 0.0), 64)),
+        ring(1000, line((TAU, 3.0), (0.0, 3.0), 64)),
+    ];
+    let without = FaceTriangulationSettings {
+        max_points: 50_000,
+        ..settings(0.001)
+    };
+    let region = FaceRegion::new(&loops, &cylinder, &without).unwrap();
+    assert!(matches!(
+        region.triangulate(&cylinder, &without).unwrap_err(),
+        FaceTriangulationError::TooManyPoints | FaceTriangulationError::NotConverged
+    ));
+    let min_width = 0.02;
+    let with = FaceTriangulationSettings {
+        min_width,
+        ..without
+    };
+    let result = FaceRegion::new(&loops, &cylinder, &with)
+        .unwrap()
+        .triangulate(&cylinder, &with)
+        .unwrap();
+    let point = |vertex: FaceVertex| match vertex {
+        FaceVertex::Boundary(index) => {
+            let uv = if index < 1000 {
+                loops[0][index].uv
+            } else {
+                loops[1][index - 1000].uv
+            };
+            cylinder.point_at(uv.x(), uv.y()).unwrap()
+        }
+        FaceVertex::Added(index) => result.added[index].point,
+    };
+    // 頂点・辺・内側の 28 点（重心座標が (i, j, k) / 6 の点）で、曲面からの離れが下限以内（離れは 2 次式の見積もりで
+    // 確かめるので、わずかな超えを許す）
+    for triangle in &result.triangles {
+        let [a, b, c] = triangle.map(point);
+        for i in 0..=6 {
+            for j in 0..=6 - i {
+                let (s, t) = (i as f64 / 6.0, j as f64 / 6.0);
+                let sample = Point3D::new(
+                    a.x() * (1.0 - s - t) + b.x() * s + c.x() * t,
+                    a.y() * (1.0 - s - t) + b.y() * s + c.y() * t,
+                    a.z() * (1.0 - s - t) + b.z() * s + c.z() * t,
+                );
+                let distance = cylinder.distance(sample);
+                assert!(
+                    distance <= min_width * (1.0 + 1.0e-6),
+                    "{distance} in {triangle:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_negative_minimum_width_is_refused() {
+    let settings = FaceTriangulationSettings {
+        min_width: -1.0,
+        ..settings(0.01)
+    };
+    assert_eq!(
+        FaceRegion::new(&[], &Sphere { radius: 10.0 }, &settings)
+            .and_then(|region| region.triangulate(&Sphere { radius: 10.0 }, &settings))
+            .unwrap_err(),
+        FaceTriangulationError::InvalidSettings
+    );
+}
+
+#[test]
 fn triangles_tilted_by_a_boundary_chord_do_not_keep_adding_points() {
     // 斜めの平面で切った 4 分の 1 の円柱の面（下の境界は、平面との交わりの楕円を許容弦誤差で分けた点。上の境界は円）。
     // 下の境界の弦は 3 次元で曲面から離れるので、弦のそばの点と弦でできる三角形は傾く。点を足しても傾きは直らない
@@ -746,7 +822,7 @@ fn triangles_flipped_beside_a_boundary_chord_do_not_keep_adding_points() {
     // 3 次元でまっすぐな境界の辺（下の辺。両端の 2 点だけ）が、(u, v) では曲がる曲面。(u, v) の線分を曲面に写した
     // 線は、3 次元の弦の横（曲面に沿う向き）に 0.03 ふくらむので、そのふくらみの内側にある格子の点と弦でできる
     // 三角形は、3 次元で裏返る。点を足しても直らない（足した点もふくらみの内側に入る）ので、その三角形と、弦に
-    // 沿って並ぶ、高さが許容弦誤差より小さい三角形には、点を足し続けない
+    // 沿って並ぶ、幅が許容弦誤差より小さい三角形には、点を足し続けない
     let surface = ShearedPlane {
         sag: 0.03,
         step: 0.02,
