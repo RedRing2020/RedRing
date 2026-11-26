@@ -30,6 +30,10 @@ const MAX_FACE_POINTS: usize = 2_000_000;
 const MAX_REFINEMENT_PASSES: usize = 64;
 /// (u, v) の多角形が交わるとき、稜線を分け直す回数の上限（1 回ごとに、その稜線の許容弦誤差を半分にする）
 const MAX_RESPLITS: usize = 4;
+/// 面の内側を細かくする三角形の幅の下限の、面の稜線の許容誤差の最大に対する比。境界の点は、稜線の許容誤差ほど
+/// 曲面と食い違う稜線とパラメータ曲線から作るので、それより細かく分けても三角形の離れと傾きは直らず、点の数か繰り返し
+/// の回数の上限まで点を足し続けるため。下限より細い三角形の曲面からの離れは、許容弦誤差を超えても幅の程度にとどまる
+const MIN_WIDTH_TO_EDGE_TOLERANCE_RATIO: f64 = 2.0;
 
 /// 面を三角形にできない理由
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,6 +89,7 @@ pub(crate) fn triangulate_brep(brep: &Brep<f64>, chord_tolerance: f64) -> ShellM
         max_angle: Angle::from_degrees(MAX_CHORD_ANGLE_DEGREES),
         max_points: MAX_FACE_POINTS,
         max_passes: MAX_REFINEMENT_PASSES,
+        min_width: 0.0,
     };
     let faces: Vec<FaceIndex> = brep.face_indices().collect();
     let positions: HashMap<FaceIndex, usize> = faces
@@ -312,7 +317,8 @@ fn prepare_face<'a>(
 }
 
 impl Prepared<'_> {
-    /// 範囲を三角形に分け、面の向きに合わせて三角形の回りと頂点の法線をそろえる（足した点は `points` に加える）
+    /// 範囲を三角形に分け、面の向きに合わせて三角形の回りと頂点の法線をそろえる（足した点は `points` に加える）。
+    /// 内側を細かくする三角形の幅の下限は、面の稜線の許容誤差の最大から決める
     fn triangulate(
         self,
         brep: &Brep<f64>,
@@ -322,9 +328,20 @@ impl Prepared<'_> {
         if !self.crossing.is_empty() {
             return Err(ShellFaceError::Crossing);
         }
+        let edge_tolerance = brep
+            .face(self.face)
+            .loops()
+            .iter()
+            .flat_map(|&loop_index| brep.face_loop(loop_index).uses())
+            .map(|edge_use| brep.edge(edge_use.edge).tolerance())
+            .fold(0.0_f64, f64::max);
+        let settings = FaceTriangulationSettings {
+            min_width: MIN_WIDTH_TO_EDGE_TOLERANCE_RATIO * edge_tolerance,
+            ..*settings
+        };
         let triangulation = self
             .region
-            .triangulate(&self.surface, settings)
+            .triangulate(&self.surface, &settings)
             .map_err(ShellFaceError::Triangulation)?;
         let same_sense = brep.face(self.face).same_sense();
         let boundary_uv: HashMap<usize, Point2D<f64>> = self
