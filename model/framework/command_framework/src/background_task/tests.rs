@@ -275,3 +275,85 @@ fn a_panic_payload_that_panics_on_drop_still_gives_an_outcome() {
         TaskOutcome::Panicked(String::new())
     );
 }
+
+/// 手放されたことを知らせる値
+struct ReportsDrop(mpsc::Sender<()>);
+
+impl Drop for ReportsDrop {
+    fn drop(&mut self) {
+        // 受け手が先に手放されていても、試験の結果には関わらない
+        let _ = self.0.send(());
+    }
+}
+
+#[test]
+fn a_panic_payload_is_dropped_after_the_panic_is_caught() {
+    let (dropped_sender, dropped) = mpsc::channel::<()>();
+    let mut task = BackgroundTask::<(), String, ()>::spawn("test-task", move |_| {
+        std::panic::panic_any(ReportsDrop(dropped_sender));
+    })
+    .expect("spawn");
+
+    assert_eq!(
+        wait_outcome(&mut task),
+        TaskOutcome::Panicked(String::new())
+    );
+    dropped
+        .recv_timeout(TIMEOUT)
+        .expect("the payload is dropped");
+}
+
+/// 手放している間、合図を待つ進み具合
+struct SlowToDrop {
+    value: u32,
+    dropping: Option<mpsc::Sender<()>>,
+    release: Option<mpsc::Receiver<()>>,
+}
+
+impl Clone for SlowToDrop {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value,
+            dropping: None,
+            release: None,
+        }
+    }
+}
+
+impl Drop for SlowToDrop {
+    fn drop(&mut self) {
+        if let (Some(dropping), Some(release)) = (&self.dropping, &self.release) {
+            dropping.send(()).expect("dropping");
+            release.recv_timeout(TIMEOUT).expect("release");
+        }
+    }
+}
+
+#[test]
+fn a_replaced_progress_is_dropped_without_blocking_the_query() {
+    let (dropping_sender, dropping) = mpsc::channel::<()>();
+    let (release, released) = mpsc::channel::<()>();
+    let mut task = BackgroundTask::<(), String, SlowToDrop>::spawn("test-task", move |context| {
+        context.report_progress(SlowToDrop {
+            value: 1,
+            dropping: Some(dropping_sender),
+            release: Some(released),
+        });
+        // 前の値を手放し終えるまで、ここから戻らない
+        context.report_progress(SlowToDrop {
+            value: 2,
+            dropping: None,
+            release: None,
+        });
+        Ok(())
+    })
+    .expect("spawn");
+
+    // 処理が前の値を手放している間も、新しい値を待たずに受け取れる
+    dropping.recv_timeout(TIMEOUT).expect("dropping");
+    assert_eq!(task.progress().map(|progress| progress.value), Some(2));
+    assert_eq!(task.take_outcome(), None);
+
+    release.send(()).expect("send");
+    assert_eq!(wait_outcome(&mut task), TaskOutcome::Succeeded(()));
+}
