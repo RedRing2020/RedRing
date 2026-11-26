@@ -37,7 +37,9 @@ impl<P> TaskContext<P> {
     ///
     /// 前に知らせた値は、問い合わせられていなくても置き換える。
     pub fn report_progress(&self, progress: P) {
-        *lock(&self.signals.progress) = Some(progress);
+        // 前の値は、鍵を放してから手放す（手放すのに時間のかかる値で、問い合わせを待たせない）
+        let previous = lock(&self.signals.progress).replace(progress);
+        drop(previous);
     }
 }
 
@@ -204,7 +206,8 @@ where
 impl<T, E, P> BackgroundTask<T, E, P> {
     /// 最も新しい進み具合（処理がまだ知らせていなければ `None`）
     ///
-    /// 処理が終わった後も、最後に知らせた値を返す。
+    /// 処理が終わった後も、最後に知らせた値を返す。値は、鍵を持ったまま写すため、進み具合の型は、すぐ写せる
+    /// 小さな値にする。
     pub fn progress(&self) -> Option<P>
     where
         P: Clone,
@@ -257,8 +260,11 @@ where
         Ok(Err(TaskFailure::Cancelled)) => TaskOutcome::Cancelled,
         Err(payload) => {
             let message = panic_message(payload.as_ref());
-            // panic の値を手放すときの panic で、結果を置かずに終わらないよう、値は手放さずに残す
-            std::mem::forget(payload);
+            // panic の値を手放すときの panic で、結果を置かずに終わらないよう、手放すところも捕まえる
+            // （そのときの panic の値は、手放さずに残す）
+            if let Err(dropping) = catch_unwind(AssertUnwindSafe(move || drop(payload))) {
+                std::mem::forget(dropping);
+            }
             TaskOutcome::Panicked(message)
         }
     };
