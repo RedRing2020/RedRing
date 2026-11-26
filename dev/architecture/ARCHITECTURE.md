@@ -1,6 +1,6 @@
 # RedRing アーキテクチャ構成
 
-**最終更新日**: 2026年11月14日
+**最終更新日**: 2026年11月27日
 
 RedRing のレイヤー構成、クレートの責務と依存の規則を定義する。クレートの依存の検査は `scripts/check_architecture_dependencies.ps1` と、そのルール `scripts/_arch_rules_data.ps1` で行う。
 
@@ -9,7 +9,7 @@ RedRing のレイヤー構成、クレートの責務と依存の規則を定義
 | ディレクトリ | レイヤー | 役割 |
 | --- | --- | --- |
 | `foundation/` | 基盤 | ドメインに依存しない数値計算・ログ・ローカライズ・動かす環境（OS など）の違いの吸収 |
-| `model/` | モデル | 幾何（`geo_*`）・CAM（`cam_*`）・ジョブ（`job_*`）・ユースケースの orchestration（`application`） |
+| `model/` | モデル | 幾何（`geo_*`）・CAM（`cam_*`）・ジョブ（`job_*`）・ユースケースの orchestration（`application`）。`model/framework/` は、モデルの層の中の framework 層（扱うデータの型に依らない、使い回せる仕組み） |
 | `viewmodel/` | ビューモデル | モデルのデータを描画用のデータに変換する |
 | `view/` | ビュー | GPU 描画・ステージ・アプリケーション |
 
@@ -32,6 +32,7 @@ model
   job_runner → cam_sim（ジョブ 1 つを計算するランナーの実行ファイル）
   job_manager → job_runtime（ジョブを管理してランナーを起動するジョブマネージャーのサービス）
   job_manager_app → job_manager / job_runtime（ジョブマネージャーの画面と実行ファイル。View の層から Model の層への依存の例外。ログの書き方は logging_foundation を使う）
+  application → command_framework（framework 層。別のスレッドの処理の仕組み。依存してよいのは application だけ）
   ↓
 foundation（analysis / logging_foundation / i18n_foundation / platform_foundation）
 ```
@@ -43,6 +44,7 @@ foundation（analysis / logging_foundation / i18n_foundation / platform_foundati
 - **`foundation/analysis`**: 線形代数などの純粋な数値解析・抽象型・許容誤差
 - **`foundation/logging_foundation`** / **`foundation/i18n_foundation`**: ログの初期化・レート制御 / ローカライズのメッセージカタログ
 - **`foundation/platform_foundation`**: 動かす環境（OS・コンテナなど）によって違う処理の、環境に依らない API の薄いラッパー（子プロセスの扱い・ファイルの置き換え・プロセスの間の口・利用者のフォルダの場所など）。ドメインの知識と画面の部品を持たない（動かす環境に依存するコードの方針）
+- **`model/framework/command_framework`**: 扱うデータの型（空間モデル・製品形状など）に依らない、使い回せる仕組み。時間のかかる処理 1 つを別のスレッドで行い、進み具合・結果・取り消しを待たずに受け渡す（`background_task`）。幾何・CAM・ジョブ・`application` に依存せず、async のランタイムを入れず、std のスレッド・`Mutex`・原子変数で作る。依存してよいのは `application` だけで、`viewmodel` は `application` の再エクスポート（`application::background_task`）を使う（`COMMAND_AND_BACKGROUND_TASK_DESIGN.md` 4 章・5 章）
 - **`geo_contracts`**: 幾何の trait定義の正本（抽象化）。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義し、`geo_core` の値型で型付けし、その値型を再エクスポートする。形状の具体型と実装を持たない
 - **`geo_commons`**: `analysis` のみに依存する、形状の型に依存しない共通の数値計算（楕円・楕円体の最近点と距離等）
 - **`geo_core`**: 最下位の幾何の値型（点・ベクトル・方向・相似変換・AABB・点の分類）と、許容誤差の既定値・変換のエラー。`analysis` のみに依存し、trait定義を持たず、操作は固有メソッドで提供する
@@ -78,6 +80,7 @@ foundation（analysis / logging_foundation / i18n_foundation / platform_foundati
 - **循環依存の回避**: `geo_primitives` と `geo_nurbs` は互いに直接依存しない（形状をまたぐ処理は `geo_algorithms` に集約する）
 - **上位責務の分離**: テセレーション・シミュレーション・ジョブ管理の orchestration（処理の順序と実行方式の選択）は `geo_algorithms` より上位の application 層へ集約する
 - **Application Layer の役割**: 非同期の実装詳細そのものは持たず、同期 / 非同期 / ジョブ投入の実行方式の境界だけを管理する
+- **framework 層の役割**: 時間のかかる処理のスレッドを作るのは、framework 層の仕組み（`command_framework`）の中だけとする。`application` は同期の関数のままにし、上の層が使う framework 層の型を再エクスポートする。中間ファイル（`geo_step` など）・幾何・CAM・ジョブ・foundation のクレートは、framework 層に依存しない（取り消しと進み具合は、std の型だけで書いた閉包で受ける）
 - **CAM の責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` は CAM 特化のユースケースの実行として分離する
 - **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋なデータ層ではなく CAM ドメイン専用の application 層に近い
 - **エンティティ層の業務分離**: 業務別の entity（`cam_entity` 等）は、`geo_entity`（業務に依らないエンティティ基盤）と、その業務の中立データ（`cam_core` 等）に依存する。業務の中立データは `geo_entity` に依存しない。計算の層（`cam_algorithms`・`cam_sim`）はエンティティの ID を扱わず、ID から形状への変換は `application` が行う。属性コードのドメインは、業務に依らないもの（メタ・寸法等）を `geo_entity`、業務のもの（CAM）を業務層が所有する（`ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md`）

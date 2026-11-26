@@ -23,6 +23,7 @@ members = [
   "model/job_runner", # Model層：ジョブ 1 つの計算だけを行うランナーの実行ファイル
   "model/job_manager", # Model層：ジョブを管理してランナーを起動するジョブマネージャーの実行ファイル
   "model/job_ipc", # Model層：ジョブマネージャーに問い合わせる口（要求・応答・名前付きパイプ）
+  "model/framework/command_framework", # Model層（framework）：扱うデータの型に依らない仕組み（別のスレッドの処理）
   "model/application", # Application層：orchestration受け皿（PoC段階は単一クレート）
   "viewmodel/converter",  # ViewModel層：データ変換・架け橋
   "viewmodel/graphics",   # ViewModel層：グラフィックス制御（カメラ等）

@@ -138,6 +138,7 @@ dependencies = [
  "cam_core",
  "cam_entity",
  "cam_sim",
+ "command_framework",
  "geo_algorithms",
  "geo_contracts",
  "geo_entity",
@@ -539,6 +540,10 @@ dependencies = [
  "bytes",
  "memchr",
 ]
+
+[[package]]
+name = "command_framework"
+version = "0.1.0"
 
 [[package]]
 name = "concurrent-queue"

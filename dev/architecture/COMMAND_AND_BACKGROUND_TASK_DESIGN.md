@@ -37,7 +37,7 @@
 
 | 項目 | 決めたこと | 章 |
 |---|---|---|
-| 置き場 | コマンドと別のスレッドの仕組みは、Model の層の中に framework 層を設けて、そこの新しいクレートに置く。RedRing の型を知らず、幾何・CAM・ジョブ・application に依存しない。名前は #1261 で決める | 4 |
+| 置き場 | コマンドと別のスレッドの仕組みは、Model の層の中に framework 層を設けて、そこの新しいクレートに置く。RedRing の型を知らず、幾何・CAM・ジョブ・application に依存しない。クレートは `command_framework`（`model/framework/command_framework`） | 4 |
 | 中間ファイルのクレート | STEP（`geo_step`）など中間ファイルのクレートは、中間ファイルの読み書きだけを持ち、framework 層のクレートに依存しない。取り消しと進み具合は、std の型だけで書いた閉包で受ける。IGES・CAD ネイティブの形式を足すときも同じ形にする | 4.2・7.1 |
 | application | 同期の関数のままにし、スレッドを作らない。読む処理（空間モデルを変えずに結果を返す）と、加える処理（空間モデルに反映する）を分ける | 4.1・8 |
 | コマンド | すべての操作（パネル・表示の操作・メニュー・キー・ファイルを落とす）をコマンドとして動かす。コマンドは、同期か非同期か、触るもの、割り込みの可否を宣言する | 6 |
@@ -62,8 +62,8 @@
 
 承認を受けて、次のように変える。クレートを作る #1261 で、`scripts/_arch_rules_data.ps1`・`ARCHITECTURE.md` の層の図とクレートの責務を更新する。
 
-- Model の層の中に framework 層を設ける（ディレクトリは `model/framework/` の下とする案。依存の決まりのデータでは、Model とは別の層の組として持ち、Foundation と Model の間に置く）。framework 層は、RedRing の型を知らない、使い回せる仕組み（コマンド・別のスレッドの処理）を持つ
-- framework 層に新しいクレートを足す。依存してよいのは foundation の層のクレート（要るときに足す）だけとし、幾何・CAM・ジョブ・`application` には依存しない
+- Model の層の中に framework 層を設ける（ディレクトリは `model/framework/` の下。依存の決まりのデータでは、Model とは別の層の組として持ち、Foundation と Model の間に置く）。framework 層は、RedRing の型を知らない、使い回せる仕組み（コマンド・別のスレッドの処理）を持つ
+- framework 層に新しいクレート `command_framework` を足す（コマンドの層の仕組みを持つクレートとして名前を付けた。別のスレッドの処理は `background_task`、コマンドは #1262 で足すモジュールに置く）。依存してよいのは foundation の層のクレート（要るときに足す）だけとし、幾何・CAM・ジョブ・`application` には依存しない
 - framework 層のクレートに依存してよいのは `application` だけとする
   - ViewModel が依存する Model のクレートは `application` だけ（`ARCHITECTURE.md` の「ViewModel → Model の経路」）のため、`viewmodel` は `application` が再エクスポートした型を使う。`view` は `viewmodel` が再エクスポートした型を使う（ビューはモデルのクレートに直接依存しない）
   - 中間ファイルのクレート（`geo_step` など）・幾何・CAM・ジョブのクレートは依存しない（禁止の一覧に足す）。取り消しと進み具合は std の閉包で受ける（7.1）
@@ -97,6 +97,19 @@
 - std のスレッドと、`Mutex`・原子変数で受け渡す。進み具合は、値を上書きして持つ（列に積まない）
 - 画面を起こす仕組み（waker・イベントループへの合図）は使わない（2.2）
 - 毎フレームの問い合わせは、鍵を短く取るだけにし、待たない
+
+### 5.5 型（`command_framework::background_task`）
+
+| 型 | 役割 |
+|---|---|
+| `BackgroundTask<T, E, P>` | 別のスレッドで行っている処理 1 つ。`spawn`（名前を付けたスレッドで始める）、`progress`（最も新しい進み具合）、`request_cancel`・`is_cancel_requested`（取り消しを頼む・頼んであるか）、`take_outcome`（終わっていれば結果を 1 回だけ受け取る）。`T` は結果、`E` は誤り、`P` は進み具合の型 |
+| `TaskContext<P>` | 処理が受け取る口。`is_cancel_requested`（区切りで確かめる）、`report_progress`（進み具合を知らせる） |
+| `TaskFailure<E>` | 処理が結果を出さずに終わった理由（取り消した・誤り）。処理は `Result<T, TaskFailure<E>>` を返す |
+| `TaskOutcome<T, E>` | 始めた側が受け取る結果（成功・誤り・取り消した・panic した） |
+| `SpawnError<W>` | スレッドを作れなかった誤り。始めなかった処理を持ち、`BackgroundTask::run_on_current_thread` で今のスレッドで行える（結果の受け取り方は、別のスレッドで行うときと同じ） |
+
+- 結果を受け取らずに `BackgroundTask` を手放すと、取り消しを頼む（結果を受け取る者がいないため）
+- 処理が取り消しを確かめる前に終われば、結果は取り消しにならない（成功・誤りのまま）
 
 ## 6. コマンド
 
@@ -221,7 +234,6 @@ v0.3.0 で作る非同期のコマンドは、次のように宣言する。
 
 ## 11. 決めていないこと
 
-- 新しいクレートの名前（#1261）
 - CL 取込を別のスレッドに出すか（#1259 の後）
 - 保存の取り消し
 - STEP の立体ごとの並列の読み込み（`BREP_AND_STEP_IMPORT_DESIGN.md` 10.4）
