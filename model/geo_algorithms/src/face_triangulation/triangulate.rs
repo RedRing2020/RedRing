@@ -7,8 +7,8 @@
 //! 重心と 3 つの辺の中点を曲面の上で評価し、三角形（辺）の同じ位置の点との離れ（曲面の法線の向きの成分）を測る。
 //! 重心の離れか、辺の中点の離れから見積もった三角形の中の離れの最大（2 次式で補う）が許容弦誤差を超えれば、重心と
 //! 制約でない辺の中点のうち離れの大きいほうに点を足す。三角形の法線と、重心での曲面の法線のなす角が上限（60 度）を
-//! 超える三角形（曲面に垂直に立つ三角形など。頂点は曲面の上にあるので、法線の向きの離れでは見つからない）と、
-//! つぶれて法線が決まらない三角形には、重心に点を足す。極でつぶれて結果から除く三角形（2 つの頂点が同じ極の点）は、
+//! 超える三角形（曲面に垂直に立つ三角形など。頂点は曲面の上にあるので、法線の向きの離れでは見つからない）には、
+//! 重心に点を足す。極でつぶれて結果から除く三角形（2 つの頂点が同じ極の点）は、
 //! 3 次元では線分で、それが (u, v) で覆う範囲は隣の三角形が 3 次元で覆うので、離れも法線も見ない。辺の (u, v) の幅では分けない（極や円錐の頂点の近くでは、
 //! (u, v) の幅が広くても曲面の上では短く、境界の辺に接する三角形を分け続けてしまうため）。
 //!
@@ -16,6 +16,11 @@
 //! とする（分けられない辺に接する三角形のほかの辺と内側は、どこに点を足してもその辺の離れの程度より小さくできない
 //! ので、点を足し続けないため）。同じ理由で、制約の辺の離れだけで法線のなす角が上限を超えうる三角形は、法線の角
 //! では分けない（`forced_by_constraint`）。
+//!
+//! 3 次元の高さ（最も長い辺から向かいの頂点までの距離）が許容弦誤差より小さい三角形も、法線の角では分けない。
+//! 三角形のどの点も、最も長い辺から高さより離れないので、傾いても、辺の離れより許容弦誤差を超えては曲面から
+//! 離れない。分けられない辺に沿って並ぶ細い三角形や、曲面が狭い幅で折り返す所の三角形は、どこまで分けても法線の
+//! 向きが合わず、点を足し続けてしまうため。
 
 use std::collections::{HashMap, HashSet};
 
@@ -334,7 +339,8 @@ impl Mesh {
             }
             let corner_points = corners.map(|corner| corner.point);
             let tilted = tilted(surface, centroid, corner_points, min_cosine)
-                && !forced_by_constraint(corner_points, &deviations, constrained, max_sine);
+                && smallest_height(corner_points) > chord_tolerance
+                && !forced_by_constraint(surface, corners, constrained, max_sine);
             let deviated = centroid_deviation.max(quadratic_maximum(&deviations)) > allowed;
             if !tilted && !deviated {
                 self.accepted.insert(key);
@@ -357,34 +363,72 @@ fn collapsed([a, b, c]: [FaceVertex; 3]) -> bool {
     a == b || b == c || c == a
 }
 
-/// 三角形 `points` の傾きが、制約の辺の離れだけで法線のなす角の上限を超えうるか（辺 (0, 1)・(1, 2)・(2, 0) の離れ
-/// `deviations` と、制約の辺か `constrained`。`max_sine` は角の上限の正弦）
+/// 三角形 `points` の最も小さい高さ（最も長い辺から向かいの頂点までの距離。つぶれた三角形は 0）
+fn smallest_height([a, b, c]: [Point3D<f64>; 3]) -> f64 {
+    let longest = Vector3D::from_points(a, b)
+        .length()
+        .max(Vector3D::from_points(b, c).length())
+        .max(Vector3D::from_points(c, a).length());
+    if longest > 0.0 {
+        Vector3D::from_points(a, b)
+            .cross(Vector3D::from_points(a, c))
+            .length()
+            / longest
+    } else {
+        0.0
+    }
+}
+
+/// 制約の辺の (u, v) の線分を曲面に写した線が、3 次元の弦から離れる距離を測る位置（線分の上の割合）
+const CONSTRAINT_OFFSET_SAMPLES: [f64; 3] = [0.25, 0.5, 0.75];
+
+/// 三角形 `corners`（3 次元でつぶれていない）の傾きが、制約の辺の離れだけで法線のなす角の上限を超えうるか（辺
+/// (0, 1)・(1, 2)・(2, 0) が制約の辺か `constrained`。`max_sine` は角の上限の正弦）
 ///
-/// 制約の辺は、曲面から `|d|` 離れたまま分けられない。向かいの頂点（曲面の上）が、その辺から曲面に沿って `s` の所に
-/// あれば、三角形は曲面に対して最大で `atan(|d| / s)` 傾く。頂点から辺までの 3 次元の距離 `h` は `√(s² + d²)` なので、
-/// `h sin(上限) ≤ |d|`（`s tan(上限) ≤ |d|` と同じ）なら、その傾きは辺の離れが決めるもので、三角形の中に点を足しても
-/// 直らない（足した点は辺のそばに入り、辺により近い三角形を作る）。`|d|` は辺の中点の離れ（辺の上の離れの最大）なので、
-/// 頂点が辺の端の近くにある細い三角形も含むが、その三角形も辺に接していて、離れ（許容弦誤差）の判定はそのまま受ける。
+/// 制約の辺は分けられず、その (u, v) の線分を曲面に写した線は、3 次元の弦から `d` 離れたままになる。離れる向きは、
+/// 曲面の法線の向きのほかに、曲面に沿う向きもある（3 次元でまっすぐな稜線が (u, v) で曲がる曲面では、(u, v) の線分
+/// を写した線が、弦の横にふくらむ）。向かいの頂点（曲面の上）が弦から `h` の所にあって `h sin(上限) ≤ d` なら、
+/// 三角形の傾き（法線の向きの離れでは `atan(d / s)`。`s` は辺から曲面に沿った距離で、`h = √(s² + d²)`）や裏返り
+/// （横のふくらみの内側に頂点がある）は辺の離れが決めるもので、三角形の中に点を足しても直らない（足した点は辺の
+/// そばに入り、辺により近い三角形を作る）。`d` は、線分の上の何点かで測った最大とする。頂点が辺の端の近くにある
+/// 細い三角形も含むが、その三角形も辺に接していて、離れ（許容弦誤差）の判定はそのまま受ける。
 fn forced_by_constraint(
-    points: [Point3D<f64>; 3],
-    deviations: &[Vector3D<f64>; 3],
+    surface: &impl TriangulationSurface,
+    corners: [&Vertex; 3],
     constrained: [bool; 3],
     max_sine: f64,
 ) -> bool {
     (0..3).any(|edge| {
-        let deviation = deviations[edge].length();
-        if !constrained[edge] || deviation <= 0.0 {
+        if !constrained[edge] {
             return false;
         }
-        let (start, end, opposite) = (points[edge], points[(edge + 1) % 3], points[(edge + 2) % 3]);
-        let along = Vector3D::from_points(start, end);
+        let (start, end, opposite) = (
+            corners[edge],
+            corners[(edge + 1) % 3],
+            corners[(edge + 2) % 3],
+        );
+        let along = Vector3D::from_points(start.point, end.point);
         let length = along.length();
         if !(length.is_finite() && length > 0.0) {
             return false;
         }
-        // 3 次元でつぶれた三角形（高さが 0）は、法線が決まらないので、ほかの傾いた三角形と同じく分ける
-        let height = along.cross(Vector3D::from_points(start, opposite)).length() / length;
-        height > 0.0 && height * max_sine <= deviation
+        let distance = |point: Point3D<f64>| {
+            along
+                .cross(Vector3D::from_points(start.point, point))
+                .length()
+                / length
+        };
+        let offset = CONSTRAINT_OFFSET_SAMPLES
+            .iter()
+            .filter_map(|&ratio| {
+                let uv = Point2D::new(
+                    start.uv.x() + (end.uv.x() - start.uv.x()) * ratio,
+                    start.uv.y() + (end.uv.y() - start.uv.y()) * ratio,
+                );
+                evaluate(surface, uv).ok().map(distance)
+            })
+            .fold(0.0, f64::max);
+        distance(opposite.point) * max_sine <= offset
     })
 }
 

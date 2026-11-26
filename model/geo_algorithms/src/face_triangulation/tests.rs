@@ -711,6 +711,57 @@ fn triangles_tilted_by_a_boundary_chord_do_not_keep_adding_points() {
     }
 }
 
+/// v の線が u によって横にずれる平面（点は (u, v − `sag` × 4 u (1 − u), 0)。v が一定の線は、3 次元で放物線になる）。
+/// u・v の両方に刻み `step` を持ち、内側に格子の点を置く
+struct ShearedPlane {
+    sag: f64,
+    step: f64,
+}
+
+impl TriangulationSurface for ShearedPlane {
+    fn point_at(&self, u: f64, v: f64) -> Option<Point3D<f64>> {
+        Some(Point3D::new(u, v - self.sag * 4.0 * u * (1.0 - u), 0.0))
+    }
+    fn normal_at(&self, _: f64, _: f64) -> Option<Vector3D<f64>> {
+        Some(Vector3D::new(0.0, 0.0, 1.0))
+    }
+    fn periods(&self) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+    fn poles(&self) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+    fn steps(&self, _: f64, _: Angle<f64>) -> (Option<f64>, Option<f64>) {
+        (Some(self.step), Some(self.step))
+    }
+    fn scale(&self) -> (f64, f64) {
+        (1.0, 1.0)
+    }
+}
+
+#[test]
+fn triangles_flipped_beside_a_boundary_chord_do_not_keep_adding_points() {
+    // 3 次元でまっすぐな境界の辺（下の辺。両端の 2 点だけ）が、(u, v) では曲がる曲面。(u, v) の線分を曲面に写した
+    // 線は、3 次元の弦の横（曲面に沿う向き）に 0.03 ふくらむので、そのふくらみの内側にある格子の点と弦でできる
+    // 三角形は、3 次元で裏返る。点を足しても直らない（足した点もふくらみの内側に入る）ので、その三角形と、弦に
+    // 沿って並ぶ、高さが許容弦誤差より小さい三角形には、点を足し続けない
+    let surface = ShearedPlane {
+        sag: 0.03,
+        step: 0.02,
+    };
+    let loops = vec![ring(0, [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)])];
+    let settings = settings(0.01);
+    let region = FaceRegion::new(&loops, &surface, &settings).unwrap();
+    assert!(region.crossing_edges(&surface).is_empty());
+    let grid = (1.0 / (surface.step * 0.95 * std::f64::consts::FRAC_1_SQRT_2)).ceil() as usize;
+    let result = region.triangulate(&surface, &settings).unwrap();
+    assert!(
+        result.added.len() < 2 * grid * grid,
+        "{}",
+        result.added.len()
+    );
+}
+
 /// 頂点が原点にある円錐（v の位置の半径は v × 0.5。刻みは面の中の最も大きい半径 `max_radius` で決める）
 struct Cone {
     max_radius: f64,
