@@ -55,6 +55,10 @@ pub struct FaceTriangulationSettings {
     pub max_points: usize,
     /// 内側に点を足す繰り返しの回数の上限
     pub max_passes: usize,
+    /// 細かくする三角形の幅の下限（3 次元。0 以上）。幅（最も長い辺に、向かいの頂点から下ろした高さ）がこれより小さい
+    /// 三角形には、離れと法線のなす角では点を足さない。その三角形の曲面からの離れは、許容弦誤差を超えても幅の程度に
+    /// とどまる。0 なら下限を置かない
+    pub min_width: f64,
 }
 
 impl FaceTriangulationSettings {
@@ -65,6 +69,8 @@ impl FaceTriangulationSettings {
             && angle > 0.0
             && angle < std::f64::consts::PI
             && self.max_points >= 3
+            && self.min_width.is_finite()
+            && self.min_width >= 0.0
         {
             Ok(())
         } else {

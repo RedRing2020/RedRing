@@ -93,7 +93,8 @@ impl FaceRegion {
         }
         let mut pass = 0;
         loop {
-            let points = mesh.points_to_add(surface, settings.chord_tolerance)?;
+            let points =
+                mesh.points_to_add(surface, settings.chord_tolerance, settings.min_width)?;
             if points.is_empty() {
                 break;
             }
@@ -255,11 +256,12 @@ impl Mesh {
         Ok(points)
     }
 
-    /// 許容弦誤差か法線のなす角の上限を超える三角形に足す点の (u, v)
+    /// 許容弦誤差か法線のなす角の上限を超える三角形に足す点の (u, v)（幅が `min_width` より小さい三角形には足さない）
     fn points_to_add(
         &mut self,
         surface: &impl TriangulationSurface,
         chord_tolerance: f64,
+        min_width: f64,
     ) -> Result<Vec<Point2D<f64>>, FaceTriangulationError> {
         let min_cosine = MAX_TRIANGLE_NORMAL_ANGLE_DEGREES.to_radians().cos();
         let max_sine = MAX_TRIANGLE_NORMAL_ANGLE_DEGREES.to_radians().sin();
@@ -284,6 +286,10 @@ impl Mesh {
             if collapsed(corners.map(|corner| corner.vertex)) {
                 // 極でつぶれる三角形は結果から除く。3 次元では線分で、それが (u, v) で覆う範囲は、隣の三角形が
                 // 3 次元で覆うので、離れも法線も見ない
+                self.accepted.insert(key);
+                continue;
+            }
+            if narrower_than(corners.map(|corner| corner.point), min_width) {
                 self.accepted.insert(key);
                 continue;
             }
@@ -355,6 +361,21 @@ impl Mesh {
 /// 2 つの頂点が同じ点の三角形（極でつぶれる三角形。結果から除く）か
 fn collapsed([a, b, c]: [FaceVertex; 3]) -> bool {
     a == b || b == c || c == a
+}
+
+/// 三角形 `points` の幅（最も長い辺に、向かいの頂点から下ろした高さ）が `width` より小さいか
+///
+/// 幅で見るのは、曲面の上の 1 本の曲線にほぼ並ぶ 3 点の三角形（(u, v) でつぶれかけた三角形）が、重心に点を足しても同じ
+/// 曲線の上にほぼ並ぶ三角形を作り続け、辺は長いまま、幅だけが曲線の曲がりの分（弦の離れ）にとどまるため。そのような
+/// 三角形の、曲面からの離れと幅は同じ程度になる
+fn narrower_than([a, b, c]: [Point3D<f64>; 3], width: f64) -> bool {
+    let longest = [a.distance_to(b), b.distance_to(c), c.distance_to(a)]
+        .into_iter()
+        .fold(0.0_f64, f64::max);
+    let doubled_area = Vector3D::from_points(a, b)
+        .cross(Vector3D::from_points(a, c))
+        .length();
+    doubled_area < width * longest
 }
 
 /// 三角形 `points` の傾きが、制約の辺の離れだけで法線のなす角の上限を超えうるか（辺 (0, 1)・(1, 2)・(2, 0) の離れ
