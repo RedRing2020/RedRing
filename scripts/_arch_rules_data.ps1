@@ -9,6 +9,8 @@
 # Layer groups
 $ARCH_LAYERS = [ordered]@{
     Foundation  = @("analysis", "i18n_foundation", "logging_foundation", "platform_foundation")
+    # Model の層の中の framework 層：扱うデータの型に依らない、使い回せる仕組み（COMMAND_AND_BACKGROUND_TASK_DESIGN.md 4.2）
+    Framework   = @("command_framework")
     Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
     Application = @("application")
     ViewModel   = @("viewmodel", "viewmodel-graphics")
@@ -27,6 +29,9 @@ $ARCH_ALLOWED_DEPS = @{
     logging_foundation   = @()
     # 動かす環境の違いの吸収は、ワークスペースの他のクレートに依存しない（ARCHITECTURE.md の動かす環境に依存するコードの方針）
     platform_foundation  = @()
+
+    # framework 層は、幾何・CAM・ジョブ・application に依存しない（foundation のクレートは、要るときに足す）
+    command_framework = @()
 
     geo_contracts  = @("analysis", "geo_core")
     geo_commons    = @("analysis")
@@ -52,7 +57,7 @@ $ARCH_ALLOWED_DEPS = @{
     # ジョブマネージャーに問い合わせる口は、ジョブの保存先の形式と分けるため、platform_foundation のほかには、ワークスペースの他のクレートに依存しない
     job_ipc        = @("platform_foundation")
 
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_step", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc", "platform_foundation")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_step", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc", "platform_foundation", "command_framework")
 
     viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application")
     "viewmodel-graphics" = @("analysis")
@@ -70,7 +75,11 @@ $ARCH_ALLOWED_DEPS = @{
 $ARCH_VIEW_AND_VIEWMODEL = @("viewmodel", "viewmodel-graphics", "render", "stage", "redring")
 $ARCH_CAM_CRATES = @("cam_core", "cam_algorithms", "cam_entity", "cam_sim")
 $ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity")
+$ARCH_FRAMEWORK_CRATES = @("command_framework")
+$ARCH_JOB_CRATES = @("job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
 $ARCH_FORBIDDEN_DEPS = @{
+    # framework 層は、RedRing の型を知らない
+    command_framework  = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_JOB_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_manager_app")
     # 基盤はワークスペースの他のクレートに依存しない
     analysis           = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_runtime", "job_domain")
     # trait定義の正本（抽象化）は形状のクレートに依存しない（値型の geo_core には依存する）
@@ -102,6 +111,15 @@ $ARCH_FORBIDDEN_DEPS = @{
     stage              = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain", "job_ipc")
     redring            = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_runtime", "job_domain", "job_ipc")
     job_manager_app    = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + @("application", "job_domain", "viewmodel", "viewmodel-graphics", "render", "stage", "redring")
+}
+
+# framework 層のクレートに依存してよいのは application だけ
+# （viewmodel は application の再エクスポートを、view は viewmodel の再エクスポートを使う。中間ファイル・幾何・CAM・ジョブ・foundation のクレートは使わない）
+foreach ($crateName in @($ARCH_ALLOWED_DEPS.Keys)) {
+    if ($crateName -ne "application" -and $ARCH_FRAMEWORK_CRATES -notcontains $crateName) {
+        $forbidden = if ($ARCH_FORBIDDEN_DEPS.ContainsKey($crateName)) { $ARCH_FORBIDDEN_DEPS[$crateName] } else { @() }
+        $ARCH_FORBIDDEN_DEPS[$crateName] = @($forbidden) + $ARCH_FRAMEWORK_CRATES
+    }
 }
 
 # Shared helper: ワークスペースのクレートと、ワークスペース内の依存（path 依存）を返す
