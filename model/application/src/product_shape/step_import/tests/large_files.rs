@@ -45,8 +45,11 @@ fn public_large_files_are_read_and_triangulated() {
         for shell in &shells {
             let mesh = triangulate_brep(&shell.brep, CHORD_TOLERANCE);
             faces += mesh.faces.len();
-            for error in mesh.faces.iter().filter_map(|face| face.as_ref().err()) {
-                *failures.entry(error.to_string()).or_default() += 1;
+            // 内側に点を足すのを上限で終えた面も、三角形にできない面に数える
+            for position in 0..mesh.faces.len() {
+                if let Err(error) = mesh.face_within_tolerance(position) {
+                    *failures.entry(error.to_string()).or_default() += 1;
+                }
             }
         }
         let failed_faces: usize = failures.values().sum();

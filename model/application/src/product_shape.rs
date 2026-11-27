@@ -250,11 +250,23 @@ impl Building {
     }
 }
 
-/// 三角形 `mesh` の、三角形にできない面（面の ID は `face_ids`。B-rep の面の順）を、警告に出す
+/// 三角形 `mesh` の、三角形にできない面と、内側に点を足すのを上限で終えた面（面の ID は `face_ids`。B-rep の面の
+/// 順）を、別の警告に出す
 fn warn_untriangulated_faces(mesh: &ShellMesh, face_ids: &[FaceId], entity_id: EntityId) {
     for (face_id, face) in face_ids.iter().zip(&mesh.faces) {
-        if let Err(error) = face {
-            tracing::warn!(%entity_id, %face_id, "a shell face cannot be triangulated: {error}");
+        match face {
+            Err(error) => {
+                tracing::warn!(%entity_id, %face_id, "a shell face cannot be triangulated: {error}");
+            }
+            Ok(face) => {
+                if let Some(reason) = face.stopped_by {
+                    tracing::warn!(
+                        %entity_id,
+                        %face_id,
+                        "the refinement of a shell face stopped at a limit, its triangles may exceed the chord tolerance: {reason}"
+                    );
+                }
+            }
         }
     }
 }
@@ -366,6 +378,10 @@ impl ProductShell {
 
     /// B-rep の面の位置 `positions` の三角形を、境界の頂点を共有した 1 つの三角形メッシュにして、配置を当てる（法線は
     /// 持たない）。配置した後の許容弦誤差を `chord_tolerance` にする（配置の拡大の分、B-rep の座標では小さくする）
+    ///
+    /// # Errors
+    ///
+    /// 三角形にできない面か、内側に点を足すのを上限で終えた面が、`positions` にあるとき。
     fn solver_mesh(
         &self,
         positions: &[usize],
@@ -378,9 +394,10 @@ impl ProductShell {
         let mut vertices = Vec::new();
         let mut triangles = Vec::new();
         for &position in positions {
-            let face = mesh.faces[position]
-                .as_ref()
-                .map_err(|error| ProductShapeError::ShellFace(*error))?;
+            // 内側に点を足すのを上限で終えた面は、許容弦誤差を守っていない所があるので、加工の形状にしない
+            let face = mesh
+                .face_within_tolerance(position)
+                .map_err(ProductShapeError::ShellFace)?;
             for triangle in &face.triangles {
                 triangles.push(triangle.map(|corner| {
                     let point = face.vertices[corner];
@@ -454,7 +471,8 @@ impl FaceSetEntity3DProperties<f64> for ProductShellEntity {
         self.shell().face_ids.clone()
     }
 
-    /// 面 `face_id` の三角形を、配置を当てて返す（B-rep の全体を一度に分けた三角形の、その面の分）
+    /// 面 `face_id` の三角形を、配置を当てて返す（B-rep の全体を一度に分けた三角形の、その面の分）。内側に点を
+    /// 足すのを上限で終えた面は、そこまでの三角形を返す（表示では、面を欠かさない）
     fn face_display_mesh(
         &self,
         face_id: FaceId,

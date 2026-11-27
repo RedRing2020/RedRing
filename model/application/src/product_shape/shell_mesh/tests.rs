@@ -7,9 +7,22 @@ use crate::product_shape::test_fixtures::{
     seamed_sphere_brep, sphere_brep, torus_brep,
 };
 
-/// B-rep の三角形が閉じていて（どの辺も、2 つの三角形が逆向きに使う）、外を向き（頂点の法線と三角形の法線が同じ
-/// 側）、体積が `volume` に近いことを確かめる
+/// B-rep の三角形が、どの面も内側に点を足し終えていて、閉じていて外を向き（[`closed_volume`]）、体積が `volume` に
+/// 近いことを確かめる
 fn assert_closed(mesh: &ShellMesh, volume: f64) {
+    for position in 0..mesh.faces.len() {
+        mesh.face_within_tolerance(position).unwrap();
+    }
+    let total = closed_volume(mesh);
+    assert!(
+        (total - volume).abs() < volume * 0.02,
+        "volume {total}, expected {volume}"
+    );
+}
+
+/// B-rep の三角形が閉じていて（どの辺も、2 つの三角形が逆向きに使う）、外を向く（頂点の法線と三角形の法線が同じ
+/// 側）ことを確かめ、体積を返す
+fn closed_volume(mesh: &ShellMesh) -> f64 {
     let mut directed: HashMap<(usize, usize), usize> = HashMap::new();
     let mut total = 0.0;
     let center = mesh
@@ -49,10 +62,55 @@ fn assert_closed(mesh: &ShellMesh, volume: f64) {
             "the edge {from}-{to} is used by one triangle only"
         );
     }
-    assert!(
-        (total - volume).abs() < volume * 0.02,
-        "volume {total}, expected {volume}"
-    );
+    total
+}
+
+#[test]
+fn faces_stopped_at_a_limit_keep_their_triangles_but_are_refused_within_tolerance() {
+    let cases = [
+        // NURBS 曲面の山の面は、初めの格子だけでは許容弦誤差を守れず、内側に点を足す
+        (
+            bump_brep(),
+            25.0 * BUMP_HEIGHT,
+            0.05,
+            MAX_FACE_POINTS,
+            0,
+            FaceTriangulationError::NotConverged,
+        ),
+        // トーラスの面の格子は、許容弦誤差 0.001 で 12 万点ほどになる
+        (
+            torus_brep(),
+            2.0 * PI * PI * 20.0 * 25.0,
+            0.001,
+            5_000,
+            MAX_REFINEMENT_PASSES,
+            FaceTriangulationError::TooManyPoints,
+        ),
+    ];
+    for (brep, volume, chord_tolerance, max_points, max_passes, reason) in cases {
+        let mesh = triangulate_brep_within(&brep, chord_tolerance, max_points, max_passes);
+        // 上限で終えた面も三角形を持ち、B-rep の全体で閉じていて、頂点の法線と三角形の向きが合う
+        let total = closed_volume(&mesh);
+        assert!(
+            (total - volume).abs() < volume * 0.05,
+            "volume {total}, expected {volume}"
+        );
+        let stopped: Vec<usize> = (0..mesh.faces.len())
+            .filter(|&position| mesh.faces[position].as_ref().unwrap().stopped_by.is_some())
+            .collect();
+        assert!(!stopped.is_empty(), "{reason}");
+        // 許容弦誤差を守る三角形としては、上限で終えた面だけを断る
+        for position in 0..mesh.faces.len() {
+            let face = mesh.face_within_tolerance(position);
+            if stopped.contains(&position) {
+                assert_eq!(face.unwrap_err(), ShellFaceError::Triangulation(reason));
+            } else {
+                face.unwrap();
+            }
+        }
+        // 上限を置かなければ、どの面も足し終える
+        assert_closed(&triangulate_brep(&brep, chord_tolerance), volume);
+    }
 }
 
 #[test]
@@ -82,8 +140,8 @@ fn assert_within_tolerance(
     distance: impl Fn(Point3D<f64>) -> f64,
     chord_tolerance: f64,
 ) {
-    for face in &mesh.faces {
-        let face = face.as_ref().unwrap();
+    for position in 0..mesh.faces.len() {
+        let face = mesh.face_within_tolerance(position).unwrap();
         for triangle in &face.triangles {
             let [a, b, c] = triangle.map(|corner| mesh.points[face.vertices[corner]]);
             for i in 0..=6 {
