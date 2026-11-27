@@ -1,4 +1,5 @@
 use super::*;
+use crate::progress::{ENTITY_INTERVAL, keep_going};
 use crate::record::{BSplineCurve, BSplineSurface, Records};
 use geo_contracts::{
     Circle3DEvaluation, ConicalSurface3DDistance, ConicalSurface3DEvaluation,
@@ -66,7 +67,7 @@ impl Builder {
     }
 
     fn convert(&self) -> Geometries {
-        convert(&self.records, &tolerances())
+        convert(&self.records, &tolerances(), &mut keep_going).unwrap()
     }
 }
 
@@ -731,4 +732,37 @@ fn an_overflowing_hyperbola_cannot_be_approximated() {
     };
 
     assert!(conic.segment((700.0, 712.0), 1.0e-6).is_none());
+}
+
+#[test]
+fn progress_is_reported_at_each_interval_of_records() {
+    let mut builder = Builder::new();
+    for _ in 0..=ENTITY_INTERVAL {
+        builder.point(0.0, 0.0, 0.0);
+    }
+    let mut reports = Vec::new();
+    let geometries = convert(&builder.records, &tolerances(), &mut |done, total| {
+        reports.push((done, total));
+        std::ops::ControlFlow::Continue(())
+    })
+    .unwrap();
+
+    assert!(geometries.skipped.is_empty());
+    assert_eq!(reports, [(ENTITY_INTERVAL, ENTITY_INTERVAL + 1)]);
+}
+
+#[test]
+fn converting_stops_when_the_progress_closure_breaks() {
+    let mut builder = Builder::new();
+    for _ in 0..2 * ENTITY_INTERVAL {
+        builder.point(0.0, 0.0, 0.0);
+    }
+    let mut reports = 0;
+    let result = convert(&builder.records, &tolerances(), &mut |_, _| {
+        reports += 1;
+        std::ops::ControlFlow::Break(())
+    });
+
+    assert_eq!(result.err(), Some(Cancelled));
+    assert_eq!(reports, 1);
 }

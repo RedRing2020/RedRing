@@ -8,6 +8,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use application::background_task::{BackgroundTask, TaskOutcome};
 use application::cam_simulation_workflow::{CamSimulationWorkflowResult, CamToolpathResult};
 pub use application::imported_toolpath::ImportedToolpathState;
 pub use application::machining_sequence::MachiningOperationId;
@@ -211,13 +212,25 @@ impl SpaceModelDocument {
     }
 
     /// STEP ファイルを製品形状として取り込み（アセンブリの出現ごとのシェル）、今の空間モデルに加え、その面を編集の
-    /// 対象の加工手順の加工の対象に加える
+    /// 対象の加工手順の加工の対象に加える（読み終えて表示用の三角形ができるまで、このスレッドで待つ）
     ///
     /// # Errors
     ///
     /// STEP の読み込みの失敗（何も加えない）。
     pub fn import_step(&mut self, path: &Path) -> Result<StepImportReport, ProductShapeError> {
-        self.import_shapes(|shapes| shapes.import_step(path))
+        let display = self.display;
+        let mut reading = BackgroundTask::run_on_current_thread(|context| {
+            step_reading::read_step_shapes(path, display, context)
+        });
+        let shapes = match reading.take_outcome() {
+            Some(TaskOutcome::Succeeded(shapes)) => shapes,
+            Some(TaskOutcome::Failed(error)) => return Err(error),
+            Some(TaskOutcome::Panicked(message)) => panic!("{message}"),
+            Some(TaskOutcome::Cancelled) | None => {
+                unreachable!("work run on the current thread finishes and is not cancelled")
+            }
+        };
+        self.import_shapes(|store| Ok(store.add_step_shapes(shapes)))
     }
 
     /// 製品形状を `import` で取り込み、加わった面を編集の対象の加工手順の加工の対象に加える（加工の対象が変われば、
@@ -674,6 +687,8 @@ fn all_face_ids(
     let shells = shapes.shells().iter().flat_map(|shell| shell.face_ids());
     singles.chain(shells).collect()
 }
+
+mod step_reading;
 
 #[cfg(test)]
 pub(crate) mod tests;

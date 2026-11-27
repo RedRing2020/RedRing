@@ -9,6 +9,8 @@ mod text;
 
 use std::collections::BTreeMap;
 
+use crate::progress::{ENTITY_INTERVAL, Progress};
+
 /// 構文の段の上限（設計: BREP_AND_STEP_IMPORT_DESIGN.md 4.3）
 ///
 /// 呼び出し元が変えられるのは、ファイルの大きさだけ（ほかの上限は、構文の段の決まりとして固定する。入れ子の
@@ -110,6 +112,8 @@ pub enum SyntaxErrorKind {
     InvalidNumber,
     /// 閉じていない文字列・注釈・バイナリ
     Unterminated,
+    /// 進み具合の閉包に止めると言われて、途中で止めた
+    Cancelled,
 }
 
 /// 構文を読めないエラー（行は 1 から数える）
@@ -131,6 +135,7 @@ impl std::fmt::Display for SyntaxError {
             SyntaxErrorKind::Unexpected(expected) => format!("expected {expected}"),
             SyntaxErrorKind::InvalidNumber => "invalid number".to_string(),
             SyntaxErrorKind::Unterminated => "unterminated string, comment or binary".to_string(),
+            SyntaxErrorKind::Cancelled => "cancelled".to_string(),
         };
         write!(f, "line {}: {text}", self.line)
     }
@@ -143,10 +148,16 @@ impl std::error::Error for SyntaxError {}
 /// 先頭の BOM は飛ばす。`DATA` の節が複数あれば、まとめて 1 つの表にする。`ANCHOR`・`REFERENCE`・`SIGNATURE`
 /// の節は飛ばす。
 ///
+/// エンティティ 4,096 個ごとに、`progress` に進み具合（読んだバイトの数と、全体のバイトの数）を知らせる。
+///
 /// # Errors
 ///
-/// 構文の誤り、または上限 `limits` を超えるとき。
-pub fn parse(bytes: &[u8], limits: &Limits) -> Result<StepFile, SyntaxError> {
+/// 構文の誤り、上限 `limits` を超えるとき、または `progress` が止めると返したとき（[`SyntaxErrorKind::Cancelled`]）。
+pub fn parse(
+    bytes: &[u8],
+    limits: &Limits,
+    progress: &mut Progress<'_>,
+) -> Result<StepFile, SyntaxError> {
     if bytes.len() > limits.max_bytes {
         return Err(SyntaxError {
             kind: SyntaxErrorKind::TooLarge,
@@ -157,6 +168,7 @@ pub fn parse(bytes: &[u8], limits: &Limits) -> Result<StepFile, SyntaxError> {
     Parser {
         lexer: Lexer::new(bytes),
         limits,
+        progress,
         parameters: 0,
         entities: 0,
     }
@@ -451,14 +463,15 @@ impl<'a> Lexer<'a> {
 }
 
 /// 構文を読む
-struct Parser<'a, 'l> {
+struct Parser<'a, 'l, 'p, 'f> {
     lexer: Lexer<'a>,
     limits: &'l Limits,
+    progress: &'p mut Progress<'f>,
     parameters: usize,
     entities: usize,
 }
 
-impl Parser<'_, '_> {
+impl Parser<'_, '_, '_, '_> {
     fn error(&self, kind: SyntaxErrorKind) -> SyntaxError {
         self.lexer.error(kind)
     }
@@ -567,6 +580,11 @@ impl Parser<'_, '_> {
             self.entities += 1;
             if self.entities > self.limits.max_entities {
                 return Err(self.error(SyntaxErrorKind::TooManyEntities));
+            }
+            if self.entities.is_multiple_of(ENTITY_INTERVAL)
+                && (self.progress)(self.lexer.position, self.lexer.bytes.len()).is_break()
+            {
+                return Err(self.error(SyntaxErrorKind::Cancelled));
             }
             self.expect(Token::Equals, "'='")?;
             let records = match self.lexer.next()? {

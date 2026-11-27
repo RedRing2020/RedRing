@@ -7,6 +7,7 @@
 
 use super::parameters::{at, list, optional_reference, part, real, reference, references, text};
 use super::{Reader, SkipReason};
+use crate::progress::Cancelled;
 use crate::syntax::{Parameter, Record};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
@@ -89,16 +90,17 @@ struct Found {
 /// 色の優先の順（上書きのスタイルの割り当て、面の塗りつぶしの色の順に優先する）
 type ColorPriority = (bool, bool);
 
-impl Reader<'_> {
+impl Reader<'_, '_> {
     /// 製品構造を読む（形状の表現を読んだ後に呼ぶ）
-    pub(super) fn product_structure(&mut self) {
+    pub(super) fn product_structure(&mut self) -> Result<(), Cancelled> {
         let file = self.file;
-        let index = self.index();
+        let index = self.index()?;
         let mut priorities: BTreeMap<u64, ColorPriority> = BTreeMap::new();
         let mut transformed = Vec::new();
         // 出現の配置として読んだ変換つきの関係
         let mut used = BTreeSet::new();
         for (&id, entity) in &file.entities {
+            self.steps.step()?;
             match entity.records.as_slice() {
                 [record] => self.product_record(id, record, &index, &mut priorities, &mut used),
                 records => {
@@ -125,10 +127,11 @@ impl Reader<'_> {
             })
             .collect();
         self.records.item_names.extend(names);
+        Ok(())
     }
 
     /// 製品の定義・出現から、形状の表現と配置への索引を作る（ファイルを 1 回たどり、後で突き合わせる）
-    fn index(&mut self) -> Index {
+    fn index(&mut self) -> Result<Index, Cancelled> {
         let file = self.file;
         // 製品の定義の形状から、その定義（製品の定義か出現）
         let mut definitions: BTreeMap<u64, u64> = BTreeMap::new();
@@ -137,6 +140,7 @@ impl Reader<'_> {
         // 文脈による形状の表現（番号、変換つきの関係、製品の定義の形状）
         let mut dependent = Vec::new();
         for (&id, entity) in &file.entities {
+            self.steps.step()?;
             let [record] = entity.records.as_slice() else {
                 continue;
             };
@@ -181,7 +185,7 @@ impl Reader<'_> {
                 None => self.skip(id, SkipReason::MissingReference),
             }
         }
-        index
+        Ok(index)
     }
 
     /// 単純なエンティティのうち、製品構造のもの
@@ -419,7 +423,7 @@ impl Reader<'_> {
             }
             _ => return Err(SkipReason::Unsupported),
         };
-        self.drain();
+        self.drain_uncounted();
         Ok(OccurrencePlacement {
             representation_1,
             representation_2,

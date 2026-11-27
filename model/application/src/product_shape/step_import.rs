@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fmt;
+use std::ops::ControlFlow;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -14,10 +15,11 @@ use geo_entity::Metadata;
 use geo_step::geometry::{PlacementError, rigid_transformation};
 use geo_step::record::Records;
 use geo_step::syntax::{Limits, SyntaxError, SyntaxErrorKind};
-use geo_step::topology::{Built, Correction, ImportToleranceSettings, Topologies};
+use geo_step::topology::{BuildError, Built, Correction, ImportToleranceSettings, Topologies};
 use geo_topology::{Brep, CurveRef, SurfaceRef, TopologyToleranceSettings};
 
 use super::{ShellSource, SimilarityTransform3D};
+use crate::background_task::TaskFailure;
 
 /// アセンブリの深さの上限（循環も、ここで止まる）
 const MAX_ASSEMBLY_DEPTH: usize = 32;
@@ -102,6 +104,66 @@ impl StepImportReport {
     }
 }
 
+/// STEP の読み込みの段
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepImportStage {
+    /// 構文を読む
+    Syntax,
+    /// エンティティを、幾何と位相の記録にする
+    Records,
+    /// 曲線・曲面を作る
+    Geometry,
+    /// B-rep を作り、製品構造に沿ってシェルにする
+    Topology,
+    /// 表示用の三角形を作る
+    DisplayMeshes,
+}
+
+impl StepImportStage {
+    /// 全体を [`PROGRESS_TOTAL`] としたときの、段の初めまでの量と、段の量（段にかかる時間の、おおよその割合）
+    const fn span(self) -> (u32, u32) {
+        match self {
+            Self::Syntax => (0, 50),
+            Self::Records => (50, 50),
+            Self::Geometry => (100, 20),
+            Self::Topology => (120, 530),
+            Self::DisplayMeshes => (650, 350),
+        }
+    }
+}
+
+/// 読み込みの全体の量
+const PROGRESS_TOTAL: u32 = 1000;
+
+/// STEP の読み込みの進み具合（段と、段ごとの重みでまとめた全体の量）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StepImportProgress {
+    /// 今の段
+    pub stage: StepImportStage,
+    /// 全体のうち、済んだ量
+    pub done: u32,
+    /// 全体の量
+    pub total: u32,
+}
+
+impl StepImportProgress {
+    /// 段 `stage` で、全体の数 `total` のうち `done` が済んだときの、全体の進み具合
+    pub(crate) fn in_stage(stage: StepImportStage, done: usize, total: usize) -> Self {
+        let (start, span) = stage.span();
+        let within = if total == 0 {
+            0
+        } else {
+            // 済んだ数は、全体の数までにそろえる（段の量を超えない）
+            (done.min(total) as u128 * u128::from(span) / total as u128) as u32
+        };
+        Self {
+            stage,
+            done: start + within,
+            total: PROGRESS_TOTAL,
+        }
+    }
+}
+
 /// 読み込んだシェル（B-rep・配置・元の要素・名前）
 pub(crate) struct ImportedShell {
     pub(crate) brep: Arc<Brep<f64>>,
@@ -110,37 +172,86 @@ pub(crate) struct ImportedShell {
     pub(crate) metadata: Metadata,
 }
 
+/// 進み具合を受け取り、続けるか止めるかを返す閉包
+pub(crate) type ReportProgress<'a> = dyn FnMut(StepImportProgress) -> ControlFlow<()> + 'a;
+
 /// STEP のバイト列 `bytes`（ファイルの名前 `file_name`）を読み、出現ごとのシェルにする
+///
+/// 段の初めと、段の中の区切り（エンティティ 4,096 個ごと。B-rep を作る段は、表現の要素ごと）で、`progress` に
+/// 進み具合を知らせる。
+///
+/// # Errors
+///
+/// 構文の誤り、上限を超える、形状が 1 つも読めない場合。`progress` が止めると返した場合
+/// （[`TaskFailure::Cancelled`]）。
 pub(crate) fn read_step(
     bytes: &[u8],
     file_name: &str,
-) -> Result<(Vec<ImportedShell>, StepImportReport), StepImportError> {
-    let file =
-        geo_step::syntax::parse(bytes, &Limits::default()).map_err(|error| match error.kind {
-            SyntaxErrorKind::TooLarge
-            | SyntaxErrorKind::TooManyEntities
-            | SyntaxErrorKind::TooManyParameters
-            | SyntaxErrorKind::TooDeep
-            | SyntaxErrorKind::TooManyRecords => StepImportError::TooLarge,
-            _ => StepImportError::Syntax(error),
-        })?;
-    let records = geo_step::record::read(file);
+    progress: &mut ReportProgress<'_>,
+) -> Result<(Vec<ImportedShell>, StepImportReport), TaskFailure<StepImportError>> {
+    let mut report_stage = |stage: StepImportStage, done: usize, total: usize| {
+        progress(StepImportProgress::in_stage(stage, done, total))
+    };
+
+    begin(&mut report_stage, StepImportStage::Syntax)?;
+    let file = geo_step::syntax::parse(bytes, &Limits::default(), &mut |done, total| {
+        report_stage(StepImportStage::Syntax, done, total)
+    })
+    .map_err(|error| match error.kind {
+        SyntaxErrorKind::Cancelled => TaskFailure::Cancelled,
+        SyntaxErrorKind::TooLarge
+        | SyntaxErrorKind::TooManyEntities
+        | SyntaxErrorKind::TooManyParameters
+        | SyntaxErrorKind::TooDeep
+        | SyntaxErrorKind::TooManyRecords => TaskFailure::Failed(StepImportError::TooLarge),
+        _ => TaskFailure::Failed(StepImportError::Syntax(error)),
+    })?;
+
+    begin(&mut report_stage, StepImportStage::Records)?;
+    let records = geo_step::record::read(file, &mut |done, total| {
+        report_stage(StepImportStage::Records, done, total)
+    })
+    .map_err(|geo_step::Cancelled| TaskFailure::Cancelled)?;
+
+    begin(&mut report_stage, StepImportStage::Geometry)?;
     let tolerances = ToleranceSettings::<f64>::standard();
-    let geometries = geo_step::geometry::convert(&records, &tolerances);
+    let geometries = geo_step::geometry::convert(&records, &tolerances, &mut |done, total| {
+        report_stage(StepImportStage::Geometry, done, total)
+    })
+    .map_err(|geo_step::Cancelled| TaskFailure::Cancelled)?;
+
+    begin(&mut report_stage, StepImportStage::Topology)?;
     let topologies = geo_step::topology::build(
         &records,
         &geometries,
         TopologyToleranceSettings::new(tolerances.distance_tolerance),
         ImportToleranceSettings::default(),
+        &mut |done, total| report_stage(StepImportStage::Topology, done, total),
     )
-    .map_err(|_| StepImportError::NoShapes)?;
+    .map_err(|error| match error {
+        BuildError::Cancelled => TaskFailure::Cancelled,
+        BuildError::Brep(_) => TaskFailure::Failed(StepImportError::NoShapes),
+    })?;
     let mut report = report_and_log(&records, &geometries, &topologies);
-    let shells = Expansion::new(&records, topologies, &tolerances, file_name, &mut report).run()?;
+    let shells = Expansion::new(&records, topologies, &tolerances, file_name, &mut report)
+        .run()
+        .map_err(TaskFailure::Failed)?;
     if shells.is_empty() {
-        return Err(StepImportError::NoShapes);
+        return Err(TaskFailure::Failed(StepImportError::NoShapes));
     }
     report.shells = shells.len();
     Ok((shells, report))
+}
+
+/// 段 `stage` の初めを知らせる（区切りに届かない小さなファイルでも、段の間で止められるようにする）
+fn begin(
+    report_stage: &mut impl FnMut(StepImportStage, usize, usize) -> ControlFlow<()>,
+    stage: StepImportStage,
+) -> Result<(), TaskFailure<StepImportError>> {
+    match report_stage(stage, 0, 1) {
+        ControlFlow::Continue(()) => Ok(()),
+        ControlFlow::Break(()) => Err(TaskFailure::Cancelled),
+    }
 }
 
 /// 段 1〜3 で外した要素・直したことを、件数にまとめ、要素ごとにログに出す
@@ -567,4 +678,4 @@ fn control_points(brep: &Brep<f64>) -> usize {
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

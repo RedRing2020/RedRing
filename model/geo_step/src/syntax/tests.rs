@@ -1,4 +1,6 @@
 use super::*;
+use crate::progress::keep_going;
+use std::ops::ControlFlow;
 
 /// 試験の STEP のファイル（AP214 のヘッダ、単純・複合のエンティティ、いろいろな引数）。エンティティの番号の
 /// 印 `#` は `%` で書き、`step` で直して使う（ソースコードの検査で、別の番号と見分けられないため）
@@ -29,7 +31,7 @@ fn sample() -> String {
 }
 
 fn parse_text(text: &str) -> Result<StepFile, SyntaxError> {
-    parse(text.as_bytes(), &Limits::default())
+    parse(text.as_bytes(), &Limits::default(), &mut keep_going)
 }
 
 fn record(file: &StepFile, id: u64) -> &Record {
@@ -137,7 +139,7 @@ fn a_byte_order_mark_and_several_data_sections_are_accepted() {
     let mut bytes = b"\xEF\xBB\xBF".to_vec();
     bytes.extend_from_slice(text.as_bytes());
 
-    let file = parse(&bytes, &Limits::default()).unwrap();
+    let file = parse(&bytes, &Limits::default(), &mut keep_going).unwrap();
     assert!(file.entities.contains_key(&3));
     assert!(file.entities.contains_key(&30));
 }
@@ -177,7 +179,11 @@ fn limits_stop_large_or_deep_input() {
         change(&mut limits);
         limits
     };
-    let kind = |limits: Limits| parse(sample().as_bytes(), &limits).unwrap_err().kind;
+    let kind = |limits: Limits| {
+        parse(sample().as_bytes(), &limits, &mut keep_going)
+            .unwrap_err()
+            .kind
+    };
 
     assert_eq!(
         kind(limits(|l| l.max_bytes = 10)),
@@ -244,14 +250,14 @@ fn truncated_or_changed_input_never_panics() {
     let bytes = sample.as_bytes();
     // どこで切っても、読めるか、エラーを返す
     for end in 0..bytes.len() {
-        let _ = parse(&bytes[..end], &Limits::default());
+        let _ = parse(&bytes[..end], &Limits::default(), &mut keep_going);
     }
     // 1 バイトずつ、いろいろな値に替えても同じ
     for position in 0..bytes.len() {
         for replacement in [b'(', b')', b'\'', b'#', b';', b'\\', b'.', 0x00, 0xFF] {
             let mut changed = bytes.to_vec();
             changed[position] = replacement;
-            let _ = parse(&changed, &Limits::default());
+            let _ = parse(&changed, &Limits::default(), &mut keep_going);
         }
     }
     // 深い入れ子も、上限で止まる
@@ -309,4 +315,60 @@ fn a_skipped_section_ends_only_at_its_own_endsec() {
 fn line_numbers_count_cr_only_line_breaks() {
     let text = sample().replace('\n', "\r").replace("2.5E-3", "1.0E999");
     assert_eq!(parse_text(&text).unwrap_err().line, 9);
+}
+
+/// 点のエンティティ `count` 個の STEP の文
+fn many_points(count: usize) -> String {
+    let data: String = (1..=count)
+        .map(|id| {
+            format!(
+                "%{id}=CARTESIAN_POINT('',(0.,0.,0.));
+"
+            )
+        })
+        .collect();
+    step(&format!(
+        "ISO-10303-21;
+HEADER;
+FILE_SCHEMA(('AUTOMOTIVE_DESIGN'));
+ENDSEC;
+DATA;
+{data}ENDSEC;
+END-ISO-10303-21;
+"
+    ))
+}
+
+#[test]
+fn progress_is_reported_at_each_interval_of_entities() {
+    let count = 2 * ENTITY_INTERVAL + 10;
+    let text = many_points(count);
+    let mut reports = Vec::new();
+    let file = parse(text.as_bytes(), &Limits::default(), &mut |done, total| {
+        reports.push((done, total));
+        ControlFlow::Continue(())
+    })
+    .unwrap();
+
+    assert_eq!(file.entities.len(), count);
+    // 区切りごとに 1 回、読んだバイトの数と全体のバイトの数を知らせる
+    assert_eq!(reports.len(), 2);
+    assert!(reports.iter().all(|&(_, total)| total == text.len()));
+    assert!(reports[0].0 < reports[1].0 && reports[1].0 < text.len());
+}
+
+#[test]
+fn parsing_stops_when_the_progress_closure_breaks() {
+    let text = many_points(2 * ENTITY_INTERVAL + 10);
+    let mut reports = 0;
+    let error = parse(text.as_bytes(), &Limits::default(), &mut |_, _| {
+        reports += 1;
+        ControlFlow::Break(())
+    })
+    .unwrap_err();
+
+    assert_eq!(error.kind, SyntaxErrorKind::Cancelled);
+    // 初めの区切りで止まり、その先は読まない
+    assert_eq!(reports, 1);
+    assert_eq!(error.line, 5 + ENTITY_INTERVAL);
 }

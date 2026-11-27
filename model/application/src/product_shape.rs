@@ -32,11 +32,13 @@ pub use geo_topology::Brep;
 /// シェルの面を三角形にできない理由
 pub use shell_mesh::ShellFaceError;
 use shell_mesh::{ShellMesh, triangulate_brep};
-/// STEP の読み込みの結果・読めない理由・属性のキー
+/// STEP の読み込みの結果・進み具合・読めない理由・属性のキー
 pub use step_import::{
     OCCURRENCE_NAMES_KEY, PRODUCT_NAME_KEY, SOLID_NAME_KEY, StepImportError, StepImportLimit,
-    StepImportReport,
+    StepImportProgress, StepImportReport, StepImportStage,
 };
+/// STEP の読み込みの読む処理と、読んだ形状・その表示用の三角形を作る仕事
+pub use step_shapes::{DisplayMeshWork, StepShapes, read_step_file};
 
 /// 面の形状
 #[derive(Debug, Clone)]
@@ -188,6 +190,27 @@ impl ShellMeshCache {
     fn lock(&self) -> MutexGuard<'_, ShellMeshes> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
+
+    /// B-rep `brep` の、許容弦誤差 `key` の三角形と、この呼び出しで作ったか（置き場になければ作って残す。置き場が
+    /// 一杯なら、古いものを捨てる。別のスレッドで作っていれば、作り終えるのを待つ）
+    fn mesh_or_build(self: &Arc<Self>, key: u64, brep: &Brep<f64>) -> (Arc<ShellMesh>, bool) {
+        let mut meshes = self.lock();
+        loop {
+            if let Some(mesh) = meshes.get(key) {
+                return (mesh, false);
+            }
+            if !meshes.building.contains(&key) {
+                break;
+            }
+            meshes = self
+                .built
+                .wait(meshes)
+                .unwrap_or_else(PoisonError::into_inner);
+        }
+        let building = Building::start(self, &mut meshes, key);
+        drop(meshes);
+        (building.build(brep), true)
+    }
 }
 
 impl ShellMeshes {
@@ -215,21 +238,24 @@ impl Building {
         }
     }
 
-    /// B-rep `brep` を許容弦誤差 `key` で三角形に分けて置き場に残し、三角形にできない面を警告に出す（置き場が一杯なら、
-    /// 古いものを捨てる）
-    fn build(self, brep: &Brep<f64>, face_ids: &[FaceId], entity_id: EntityId) -> Arc<ShellMesh> {
+    /// B-rep `brep` を許容弦誤差 `key` で三角形に分けて置き場に残す（置き場が一杯なら、古いものを捨てる）
+    fn build(self, brep: &Brep<f64>) -> Arc<ShellMesh> {
         let mesh = Arc::new(triangulate_brep(brep, f64::from_bits(self.key)));
-        for (face_id, face) in face_ids.iter().zip(&mesh.faces) {
-            if let Err(error) = face {
-                tracing::warn!(%entity_id, %face_id, "a shell face cannot be triangulated: {error}");
-            }
-        }
         let mut meshes = self.cache.lock();
         if meshes.meshes.len() == CACHED_SHELL_MESHES {
             meshes.meshes.remove(0);
         }
         meshes.meshes.push((self.key, Arc::clone(&mesh)));
         mesh
+    }
+}
+
+/// 三角形 `mesh` の、三角形にできない面（面の ID は `face_ids`。B-rep の面の順）を、警告に出す
+fn warn_untriangulated_faces(mesh: &ShellMesh, face_ids: &[FaceId], entity_id: EntityId) {
+    for (face_id, face) in face_ids.iter().zip(&mesh.faces) {
+        if let Err(error) = face {
+            tracing::warn!(%entity_id, %face_id, "a shell face cannot be triangulated: {error}");
+        }
     }
 }
 
@@ -289,24 +315,13 @@ impl ProductShell {
     /// 許容弦誤差 `chord_tolerance` の B-rep の三角形（置き場になければ作って残し、三角形にできない面を警告に
     /// 出す。置き場が一杯なら、古いものを捨てる。別のスレッドで作っていれば、作り終えるのを待つ）
     fn mesh(&self, chord_tolerance: f64, entity_id: EntityId) -> Arc<ShellMesh> {
-        let key = chord_tolerance.to_bits();
-        let mut meshes = self.meshes.lock();
-        loop {
-            if let Some(mesh) = meshes.get(key) {
-                return mesh;
-            }
-            if !meshes.building.contains(&key) {
-                break;
-            }
-            meshes = self
-                .meshes
-                .built
-                .wait(meshes)
-                .unwrap_or_else(PoisonError::into_inner);
+        let (mesh, built) = self
+            .meshes
+            .mesh_or_build(chord_tolerance.to_bits(), &self.brep);
+        if built {
+            warn_untriangulated_faces(&mesh, &self.face_ids, entity_id);
         }
-        let building = Building::start(&self.meshes, &mut meshes, key);
-        drop(meshes);
-        building.build(&self.brep, &self.face_ids, entity_id)
+        mesh
     }
 
     /// 許容弦誤差 `chord_tolerance` の B-rep の三角形を、置き場に残しているか（なければ、別のスレッドで作り始める。
@@ -327,7 +342,8 @@ impl ProductShell {
         let spawned = std::thread::Builder::new()
             .name("shell-mesh".to_string())
             .spawn(move || {
-                building.build(&brep, &face_ids, entity_id);
+                let mesh = building.build(&brep);
+                warn_untriangulated_faces(&mesh, &face_ids, entity_id);
             });
         match spawned {
             Ok(_) => false,
@@ -735,33 +751,11 @@ impl ProductShapeStore {
         id
     }
 
-    /// STEP ファイルを読み、アセンブリの出現ごとにシェルのエンティティとして加える（同じ部品の B-rep は共有する。
-    /// 外した要素・直したことは、要素ごとにログに出す）
-    ///
-    /// # Errors
-    ///
-    /// ファイルを読めない、構文の誤り、上限を超える、形状が 1 つも読めない場合（何も加えない）。
-    pub fn import_step(&mut self, path: &Path) -> Result<StepImportReport, ProductShapeError> {
-        let file_error = |error: std::io::Error| ProductShapeError::StepFile {
-            kind: error.kind(),
-            reason: error.to_string(),
-        };
-        let size = std::fs::metadata(path).map_err(file_error)?.len();
-        let limits = geo_step::syntax::Limits::default();
-        if size > limits.max_bytes as u64 {
-            return Err(ProductShapeError::Step(StepImportError::TooLarge));
-        }
-        let bytes = std::fs::read(path).map_err(file_error)?;
-        let file_name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        let (shells, report) =
-            step_import::read_step(&bytes, &file_name).map_err(ProductShapeError::Step)?;
-        // 読み込んだ B-rep は保管先のどのシェルとも共有しないので、同じ部品の出現の間でだけ置き場を共有する
-        let mut shared: HashMap<*const Brep<f64>, Arc<ShellMeshCache>> = HashMap::new();
-        for shell in shells {
-            let meshes = Arc::clone(shared.entry(Arc::as_ptr(&shell.brep)).or_default());
+    /// 読んだ STEP の形状 `shapes` を、アセンブリの出現ごとにシェルのエンティティとして加え、読み込みの結果を返す
+    /// （同じ部品の B-rep と、作ってある表示用の三角形は、出現の間で共有する）
+    pub fn add_step_shapes(&mut self, shapes: StepShapes) -> StepImportReport {
+        let (shells, report) = shapes.into_parts();
+        for (shell, meshes) in shells {
             self.push_shell(
                 shell.brep,
                 shell.placement,
@@ -770,7 +764,7 @@ impl ProductShapeStore {
                 meshes,
             );
         }
-        Ok(report)
+        report
     }
 
     /// 保持しているエンティティの記録（加えた順）
@@ -1025,6 +1019,7 @@ impl ProductShapeStore {
 
 mod shell_mesh;
 mod step_import;
+mod step_shapes;
 
 #[cfg(test)]
 mod tests;

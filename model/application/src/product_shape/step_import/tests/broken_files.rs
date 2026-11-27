@@ -20,7 +20,7 @@ const FILES: [&str; 6] = [
 
 /// `bytes` を読み、読めたシェルをすべて三角形に分ける（パニックすれば試験が落ちる）
 fn read_and_triangulate(bytes: &[u8]) -> Result<StepImportReport, StepImportError> {
-    let (shells, report) = read_step(bytes, "broken.step")?;
+    let (shells, report) = read_shells(bytes, "broken.step")?;
     assert_eq!(report.shells, shells.len());
     for shell in &shells {
         let mesh = triangulate_brep(&shell.brep, CHORD_TOLERANCE);

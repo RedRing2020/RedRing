@@ -4,8 +4,20 @@ mod broken_files;
 mod conformance;
 mod large_files;
 
+/// STEP のバイト列を、進み具合を見ずに終わりまで読む
+fn read_shells(
+    bytes: &[u8],
+    file_name: &str,
+) -> Result<(Vec<ImportedShell>, StepImportReport), StepImportError> {
+    read_step(bytes, file_name, &mut |_| ControlFlow::Continue(())).map_err(|failure| match failure
+    {
+        TaskFailure::Failed(error) => error,
+        TaskFailure::Cancelled => panic!("the reading is not cancelled"),
+    })
+}
+
 /// エンティティの番号の印 `#` は `%` で書き、ここで直す（ソースコードの検査で、別の番号と見分けられないため）
-fn step(data: &str) -> Vec<u8> {
+pub(crate) fn step(data: &str) -> Vec<u8> {
     format!(
         "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('AUTOMOTIVE_DESIGN'));\nENDSEC;\nDATA;\n{}\nENDSEC;\nEND-ISO-10303-21;\n",
         data.replace('%', "#")
@@ -14,7 +26,7 @@ fn step(data: &str) -> Vec<u8> {
 }
 
 /// mm とラジアンの文脈（%5）と、底の円と円錐の面の立体（%27）の表現（%28）
-const PART: &str = "
+pub(crate) const PART: &str = "
 %1=(LENGTH_UNIT() NAMED_UNIT(*) SI_UNIT(.MILLI.,.METRE.));
 %2=(NAMED_UNIT(*) PLANE_ANGLE_UNIT() SI_UNIT($,.RADIAN.));
 %3=(NAMED_UNIT(*) SI_UNIT($,.STERADIAN.) SOLID_ANGLE_UNIT());
@@ -53,7 +65,7 @@ const PART: &str = "
 
 /// 部品（%44）を 3 回使うアセンブリ（%52）: 項目で決める配置で x に 100、変換の演算子で y に 50、倍率 2 の
 /// 変換の演算子（外す）
-const ASSEMBLY: &str = "
+pub(crate) const ASSEMBLY: &str = "
 %50=PRODUCT('A1','assembly','',(%41));
 %51=PRODUCT_DEFINITION_FORMATION('','',%50);
 %52=PRODUCT_DEFINITION('design','',%51,%45);
@@ -89,7 +101,7 @@ fn origin_of(shell: &ImportedShell) -> geo_algorithms::Point3D<f64> {
 #[test]
 fn occurrences_share_the_brep_of_their_part_and_are_placed() {
     let (shells, report) =
-        read_step(&step(&(PART.to_string() + ASSEMBLY)), "assembly.step").unwrap();
+        read_shells(&step(&(PART.to_string() + ASSEMBLY)), "assembly.step").unwrap();
     // 倍率 2 の出現は外す
     assert_eq!(report.shells, 2);
     assert_eq!(report.solids, 1);
@@ -115,7 +127,7 @@ fn occurrences_share_the_brep_of_their_part_and_are_placed() {
 
 #[test]
 fn a_part_without_an_assembly_is_read_in_place_with_its_names() {
-    let (shells, report) = read_step(&step(PART), "part.step").unwrap();
+    let (shells, report) = read_shells(&step(PART), "part.step").unwrap();
     assert_eq!(report.shells, 1);
     let [shell] = shells.as_slice() else {
         panic!("one shell is read");
@@ -130,7 +142,7 @@ fn a_part_without_an_assembly_is_read_in_place_with_its_names() {
 fn a_shape_outside_the_product_structure_is_read_in_place() {
     // 製品のない立体だけのファイル（名前は立体の名前）
     let part = &PART[..PART.find("%40=").unwrap()];
-    let (shells, _) = read_step(&step(part), "solid.step").unwrap();
+    let (shells, _) = read_shells(&step(part), "solid.step").unwrap();
     assert_eq!(shells.len(), 1);
     assert_eq!(shells[0].metadata.name.as_deref(), Some("cone solid"));
 }
@@ -155,7 +167,7 @@ fn a_cyclic_assembly_stops_at_the_depth_limit() {
         + "%131=NEXT_ASSEMBLY_USAGE_OCCURRENCE('2','a-b','',%112,%122,$);\n"
         + "%132=NEXT_ASSEMBLY_USAGE_OCCURRENCE('3','b-a','',%122,%112,$);\n";
     assert_eq!(
-        read_step(&step(&data), "cycle.step").err(),
+        read_shells(&step(&data), "cycle.step").err(),
         Some(StepImportError::Limit(StepImportLimit::AssemblyDepth))
     );
 }
@@ -163,12 +175,12 @@ fn a_cyclic_assembly_stops_at_the_depth_limit() {
 #[test]
 fn broken_files_and_files_without_shapes_are_refused() {
     assert!(matches!(
-        read_step(b"ISO-10303-21;\nHEADER;", "broken.step").err(),
+        read_shells(b"ISO-10303-21;\nHEADER;", "broken.step").err(),
         Some(StepImportError::Syntax(_))
     ));
     let context = &PART[..PART.find("%10=").unwrap()];
     assert_eq!(
-        read_step(&step(context), "empty.step").err(),
+        read_shells(&step(context), "empty.step").err(),
         Some(StepImportError::NoShapes)
     );
 }
@@ -200,7 +212,8 @@ const ROTATED: &str = "
 
 #[test]
 fn a_placement_written_from_the_assembly_side_is_inverted_and_a_mirror_is_skipped() {
-    let (shells, report) = read_step(&step(&(PART.to_string() + ROTATED)), "rotated.step").unwrap();
+    let (shells, report) =
+        read_shells(&step(&(PART.to_string() + ROTATED)), "rotated.step").unwrap();
     assert_eq!(report.skipped_occurrences, 1);
     let [shell] = shells.as_slice() else {
         panic!("one occurrence is read");
@@ -233,7 +246,7 @@ const AXIS_X: &str = "
 fn a_placement_along_x_without_a_reference_direction_follows_iso() {
     // 軸が X で基準の方向がなければ、X 軸の向きは Y（ISO 10303-42）。部品の (10, 0, 0) は (0, 10, 0)、(0, 0, 10) は
     // (10, 0, 0) に置く
-    let (shells, _) = read_step(&step(&(PART.to_string() + AXIS_X)), "axis.step").unwrap();
+    let (shells, _) = read_shells(&step(&(PART.to_string() + AXIS_X)), "axis.step").unwrap();
     let [shell] = shells.as_slice() else {
         panic!("one occurrence is read");
     };
@@ -260,7 +273,89 @@ fn a_part_used_only_by_a_skipped_occurrence_is_not_read_in_place() {
         .join("\n");
     let data = PART.to_string() + &mirrored_only;
     assert_eq!(
-        read_step(&step(&data), "mirrored.step").err(),
+        read_shells(&step(&data), "mirrored.step").err(),
         Some(StepImportError::NoShapes)
     );
+}
+
+/// 読み込みの進み具合を集め、`stop_at` 回目の知らせで止めると返す閉包で読む（読めなかった理由と、知らせた進み具合を
+/// 返す）
+fn read_reporting(
+    bytes: &[u8],
+    stop_at: Option<usize>,
+) -> (
+    Option<TaskFailure<StepImportError>>,
+    Vec<StepImportProgress>,
+) {
+    let mut reports = Vec::new();
+    let result = read_step(bytes, "part.step", &mut |progress| {
+        reports.push(progress);
+        if Some(reports.len()) == stop_at {
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
+        }
+    });
+    (result.err(), reports)
+}
+
+#[test]
+fn progress_is_reported_at_the_start_of_each_stage_in_order() {
+    let (failure, reports) = read_reporting(&step(PART), None);
+
+    assert_eq!(failure, None);
+    // 小さなファイルは区切りに届かないので、段の初めと、B-rep を作る段の表現の要素ごとに知らせる
+    let stages: Vec<StepImportStage> = reports.iter().map(|progress| progress.stage).collect();
+    assert_eq!(
+        stages,
+        [
+            StepImportStage::Syntax,
+            StepImportStage::Records,
+            StepImportStage::Geometry,
+            StepImportStage::Topology,
+            StepImportStage::Topology,
+        ]
+    );
+    // 全体の量は変わらず、済んだ量は減らない。読む処理は、表示用の三角形の段の量を残して終わる
+    assert!(
+        reports
+            .iter()
+            .all(|progress| progress.total == PROGRESS_TOTAL)
+    );
+    assert!(reports.is_sorted_by_key(|progress| progress.done));
+    assert_eq!(reports[0].done, 0);
+    let (display_start, display_span) = StepImportStage::DisplayMeshes.span();
+    assert!(reports.iter().all(|progress| progress.done < display_start));
+    assert_eq!(display_start + display_span, PROGRESS_TOTAL);
+}
+
+#[test]
+fn reading_stops_at_the_stage_where_the_progress_closure_breaks() {
+    let bytes = step(PART);
+    let (_, all) = read_reporting(&bytes, None);
+    for stop_at in 1..=all.len() {
+        let (failure, reports) = read_reporting(&bytes, Some(stop_at));
+
+        assert_eq!(
+            failure,
+            Some(TaskFailure::Cancelled),
+            "stopped at report {stop_at}"
+        );
+        // 止めると返した後は知らせず、止めるまでの知らせは、止めないときと同じ
+        assert_eq!(reports, all[..stop_at]);
+    }
+}
+
+#[test]
+fn the_overall_progress_of_a_stage_stays_within_the_span_of_the_stage() {
+    let (start, span) = StepImportStage::Topology.span();
+    let at =
+        |done, total| StepImportProgress::in_stage(StepImportStage::Topology, done, total).done;
+
+    assert_eq!(at(0, 4), start);
+    assert_eq!(at(2, 4), start + span / 2);
+    assert_eq!(at(4, 4), start + span);
+    // 全体の数が 0 のとき・済んだ数が全体の数を超えるときも、段の量の中に収める
+    assert_eq!(at(0, 0), start);
+    assert_eq!(at(9, 4), start + span);
 }

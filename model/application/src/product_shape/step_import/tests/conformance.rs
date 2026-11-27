@@ -34,7 +34,7 @@ pub(super) struct Measured {
 
 /// STEP のバイト列を読み、1 つのシェルを配置なしの位置で三角形にして測る
 pub(super) fn measure(bytes: &[u8]) -> Measured {
-    let (shells, report) = read_step(bytes, "part.step").unwrap();
+    let (shells, report) = read_shells(bytes, "part.step").unwrap();
     let [shell] = shells.as_slice() else {
         panic!("one shell is read");
     };

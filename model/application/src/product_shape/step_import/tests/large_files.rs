@@ -39,7 +39,7 @@ fn public_large_files_are_read_and_triangulated() {
             .collect();
         assert_eq!(actual, hash, "{path}: the file differs from the list");
         let (shells, report) =
-            read_step(&bytes, &path).unwrap_or_else(|error| panic!("{path}: {error}"));
+            read_shells(&bytes, &path).unwrap_or_else(|error| panic!("{path}: {error}"));
         let mut faces = 0;
         let mut failures: std::collections::BTreeMap<String, usize> = Default::default();
         for shell in &shells {
