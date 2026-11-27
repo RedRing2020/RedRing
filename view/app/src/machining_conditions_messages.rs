@@ -271,7 +271,7 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "{position}. {operation}: 約 {gb} GB（上限に近いため、途中で止まることがあります）",
     ),
     ("conditions.confirm.calculate", "計算する"),
-    ("conditions.confirm.cancel", "やめる"),
+    ("conditions.confirm.cancel", "キャンセル"),
     (
         "conditions.status.recalculation_waiting",
         "今の条件の計算が計算待ちのため、再計算していません（計算が始まってから再計算できます）",

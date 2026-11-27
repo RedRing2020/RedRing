@@ -16,7 +16,7 @@ const MENU_BAR_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("file.confirm.save", "保存する"),
     ("file.confirm.dont_save", "保存しない"),
-    ("file.confirm.cancel", "やめる"),
+    ("file.confirm.cancel", "キャンセル"),
     ("menu.file.load.supported", "対応する形状ファイル"),
     ("menu.machining", "加工"),
     ("menu.machining.open_sequence", "加工手順を開く"),
