@@ -53,6 +53,8 @@ impl AppState {
             details: self.notice_details(),
             log_opened: false,
             navigation: self.navigation_text(),
+            progress: self.shape_import_progress(),
+            cancel_requested: false,
         };
         self.renderer.prepare_ui_windows(
             &self.window,
@@ -65,8 +67,11 @@ impl AppState {
                 tool_library: &mut tool_library_state,
             },
         );
-        let log_opened = notice_bar_state.log_opened;
-        self.apply_notice_bar_state(log_opened);
+        let (log_opened, cancel_requested) = (
+            notice_bar_state.log_opened,
+            notice_bar_state.cancel_requested,
+        );
+        self.apply_notice_bar_state(log_opened, cancel_requested);
         self.apply_help_state(help_state);
         self.apply_tool_library_state(tool_library_state);
         self.apply_settings_panel_state(settings_panel_state);

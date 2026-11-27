@@ -17,6 +17,7 @@ use viewmodel::cutting_animation::CuttingAnimation;
 use viewmodel::cutting_simulation_session::{
     ConditionIssue, CuttingSimulationSession, ImportedConditions, OperationFailure,
 };
+use viewmodel::document_command::DocumentCommandScheduler;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::space_model_document::MachiningOperationId;
 use viewmodel::space_model_document::SpaceModelDocument;
@@ -62,6 +63,8 @@ mod product_shapes;
 mod settings_accessors;
 // AppState の設定パネル状態と適用
 mod settings_panel;
+// AppState の、別のスレッドで行う形状の読み込み
+mod shape_import;
 // AppState の Snapshot 再生・スクラブ制御
 mod snapshot_playback;
 // AppState のステージ更新オーケストレーション
@@ -228,8 +231,14 @@ pub struct AppState {
         bool,
     )>,
 
-    /// 要求されたモデルファイルの操作（イベントの処理が終わった後に行う）
+    /// 要求されたモデルファイルの操作（イベントの処理が終わった後に、コマンドとして行う）
     file_actions: Vec<model_file::FileAction>,
+    /// 実行中のコマンドと、実行中のコマンドが許さないため待たせたモデルファイルの操作
+    commands: DocumentCommandScheduler<model_file::FileAction>,
+    /// 待たせたモデルファイルの操作（同じ操作を重ねて待たせないために覚える）
+    waiting_file_actions: Vec<model_file::FileAction>,
+    /// 別のスレッドで行っている形状の読み込み
+    shape_import: Option<shape_import::RunningShapeImport>,
     /// 開いているファイルを選ぶ画面（閉じたら、選んだ結果を受け取る）
     file_dialog: Option<file_dialog::PendingFileDialog>,
     /// アプリを終えてよいことが決まった（保存していない変更を確かめた後）
@@ -357,6 +366,9 @@ impl AppState {
             drawn_toolpath_state: None,
             job_status_read_at: None,
             file_actions: Vec::new(),
+            commands: DocumentCommandScheduler::default(),
+            waiting_file_actions: Vec::new(),
+            shape_import: None,
             file_dialog: None,
             exit_confirmed: false,
             window_title: String::new(),

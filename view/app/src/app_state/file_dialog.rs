@@ -99,9 +99,10 @@ impl AppState {
                     self.file_actions.insert(0, action);
                 }
             }
+            // 選んだファイルは、落としたファイルと同じく、要求として積む（実行中のコマンドが許さなければ待つ）
             FileDialogPurpose::LoadShape => {
                 if let Some(path) = paths.first() {
-                    self.import_product_shape(path);
+                    self.request_file_action(FileAction::LoadPath(path.clone()));
                 }
             }
             FileDialogPurpose::NewToolLibrary { source } => {

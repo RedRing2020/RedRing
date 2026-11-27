@@ -96,6 +96,13 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "notice.shape_import_failed",
         "形状を読み込めません: {file}（{reason}）",
     ),
+    (
+        "notice.shape_import_cancelled",
+        "形状の読み込みを取り消しました: {file}",
+    ),
+    ("progress.shape_import", "形状を読み込み中: {file}"),
+    ("progress.cancel", "取り消し"),
+    ("progress.cancelling", "取り消し中"),
     ("notice.model_created", "新しい空間モデルにしました"),
     (
         "notice.job_manager_not_running",
@@ -283,6 +290,13 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
         "notice.shape_import_failed",
         "Cannot load the shape: {file} ({reason})",
     ),
+    (
+        "notice.shape_import_cancelled",
+        "Cancelled loading the shape: {file}",
+    ),
+    ("progress.shape_import", "Loading the shape: {file}"),
+    ("progress.cancel", "Cancel"),
+    ("progress.cancelling", "Cancelling"),
     ("notice.model_created", "Started a new space model"),
     (
         "notice.job_manager_not_running",
