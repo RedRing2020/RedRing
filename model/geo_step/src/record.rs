@@ -15,6 +15,7 @@ mod units;
 pub use product::{Color, Occurrence, OccurrencePlacement, Product, Transformation};
 pub use units::Context;
 
+use crate::progress::{Cancelled, Progress, Steps};
 use crate::syntax::{Record, StepFile};
 use analysis::abstract_types::Angle;
 use analysis::consts::precision::GEOMETRIC_TOLERANCE;
@@ -294,7 +295,14 @@ const STRUCTURE_ITEMS: [&str; 4] = [
 ///
 /// 短い名前で書かれたエンティティは、表の中で正式な名前に直してから読む（表を受け取るのは、写さずに直すため）。
 /// 読まなかった・読めなかった要素の記録の名前も、直した正式な名前になる（表にない短い名前は、書かれたとおり）。
-pub fn read(mut file: StepFile) -> Records {
+///
+/// エンティティ 4,096 個ごとに、`progress` に進み具合（見たエンティティの数と、その上限）を知らせる。表を 3 回たどり、
+/// 形状から指される要素も読むため、全体の数は、表のエンティティの数の 4 倍を上限とする。
+///
+/// # Errors
+///
+/// `progress` が止めると返したとき。
+pub fn read(mut file: StepFile, progress: &mut Progress<'_>) -> Result<Records, Cancelled> {
     to_long_names(&mut file);
     let file = &file;
     let mut reader = Reader {
@@ -306,11 +314,16 @@ pub fn read(mut file: StepFile) -> Records {
         units_of: BTreeMap::new(),
         conflicts: BTreeSet::new(),
         queue: VecDeque::new(),
+        steps: Steps::new(progress, file.entities.len().saturating_mul(PASSES)),
     };
-    reader.representations();
-    reader.product_structure();
-    reader.records
+    reader.representations()?;
+    reader.product_structure()?;
+    Ok(reader.records)
 }
+
+/// エンティティを数える回数の上限（形状の表現を探す・形状の参照をたどって読む・製品構造の索引を作る・製品構造を
+/// 読む）
+const PASSES: usize = 4;
 
 /// 短い名前で書かれたエンティティを、正式な名前に直す
 fn to_long_names(file: &mut StepFile) {
@@ -325,7 +338,7 @@ fn to_long_names(file: &mut StepFile) {
     }
 }
 
-struct Reader<'a> {
+struct Reader<'a, 'f> {
     file: &'a StepFile,
     records: Records,
     /// 読んだ（読むと決めた）要素の、文脈の倍率（長さ、角度。単位の違う文脈から共有されていないかを見る）
@@ -334,9 +347,11 @@ struct Reader<'a> {
     conflicts: BTreeSet<u64>,
     /// 読む要素と、その文脈の倍率（長さ、角度）
     queue: VecDeque<(u64, f64, f64)>,
+    /// 見たエンティティの数
+    steps: Steps<'a, 'f>,
 }
 
-impl Reader<'_> {
+impl Reader<'_, '_> {
     fn skip(&mut self, id: u64, reason: SkipReason) {
         let name = self
             .file
@@ -349,9 +364,10 @@ impl Reader<'_> {
     }
 
     /// 形状の表現を探し、文脈の次元と要素の種類で、読む要素を決める
-    fn representations(&mut self) {
+    fn representations(&mut self) -> Result<(), Cancelled> {
         let file = self.file;
         for (&id, entity) in &file.entities {
+            self.steps.step()?;
             let Some(record) = entity.records.first() else {
                 continue;
             };
@@ -415,7 +431,7 @@ impl Reader<'_> {
                     context_record.angle_to_degrees,
                 );
             }
-            self.drain();
+            self.drain()?;
             self.records.representations.insert(
                 id,
                 Representation {
@@ -425,6 +441,7 @@ impl Reader<'_> {
                 },
             );
         }
+        Ok(())
     }
 
     /// 表現の文脈 `context`（読んだものは覚えておく。読めなければ理由）
@@ -460,26 +477,40 @@ impl Reader<'_> {
         }
     }
 
-    /// 待っている要素を、参照をたどりながら順に読む
-    fn drain(&mut self) {
-        while let Some((id, length, angle)) = self.queue.pop_front() {
-            let Some(entity) = self.file.entities.get(&id) else {
-                self.skip(id, SkipReason::MissingReference);
-                continue;
-            };
-            let read = match entity.records.as_slice() {
-                [record] => self.simple(id, record, length, angle),
-                records => self.complex(id, records),
-            };
-            match read {
-                Ok(Some(references)) => {
-                    for reference in references {
-                        self.enqueue(reference, length, angle);
-                    }
+    /// 待っている要素を、参照をたどりながら順に読む（読んだ要素を数え、進み具合を知らせる）
+    fn drain(&mut self) -> Result<(), Cancelled> {
+        while let Some(element) = self.queue.pop_front() {
+            self.steps.step()?;
+            self.read_element(element);
+        }
+        Ok(())
+    }
+
+    /// 待っている要素を、参照をたどりながら順に読む（数えない。出現の配置の点・方向のように、少ない要素に使う）
+    fn drain_uncounted(&mut self) {
+        while let Some(element) = self.queue.pop_front() {
+            self.read_element(element);
+        }
+    }
+
+    /// 要素 `id` を、文脈の倍率（長さ `length`・角度 `angle`）で読み、たどる参照を待ちに入れる
+    fn read_element(&mut self, (id, length, angle): (u64, f64, f64)) {
+        let Some(entity) = self.file.entities.get(&id) else {
+            self.skip(id, SkipReason::MissingReference);
+            return;
+        };
+        let read = match entity.records.as_slice() {
+            [record] => self.simple(id, record, length, angle),
+            records => self.complex(id, records),
+        };
+        match read {
+            Ok(Some(references)) => {
+                for reference in references {
+                    self.enqueue(reference, length, angle);
                 }
-                Ok(None) => self.skip(id, SkipReason::Unsupported),
-                Err(reason) => self.skip(id, reason),
             }
+            Ok(None) => self.skip(id, SkipReason::Unsupported),
+            Err(reason) => self.skip(id, reason),
         }
     }
 

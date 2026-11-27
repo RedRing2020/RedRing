@@ -1,6 +1,11 @@
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
-use application::product_shape::ProductFaceGeometry;
+use application::background_task::{TaskContext, TaskFailure};
+use application::product_shape::{
+    ProductFaceGeometry, StepImportProgress, StepImportStage, StepShapes, read_step_file,
+};
 use geo_algorithms::{Point3D, TriangleMesh3D};
 use geo_contracts::TriangleMesh3DConstructor;
 
@@ -351,4 +356,128 @@ fn operations_are_added_duplicated_moved_selected_and_removed() {
     let reopened = SpaceModelDocument::open(&path, NAMES).unwrap();
     std::fs::remove_file(&path).unwrap();
     assert_eq!(reopened.operations(), document.operations());
+}
+
+/// 試験の STEP ファイル（`tests/fixtures/step` の `name`）
+fn step_fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/step")
+        .join(name)
+}
+
+/// 処理 `task` が終わるのを待って、結果を受け取る
+fn wait_for<T, E, P>(task: &mut BackgroundTask<T, E, P>) -> TaskOutcome<T, E> {
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
+        if let Some(outcome) = task.take_outcome() {
+            return outcome;
+        }
+        assert!(Instant::now() < deadline, "the task does not finish");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+/// 取り消しを頼んでから処理 `work` を別のスレッドで始め、終わるのを待った結果
+fn run_cancelled<T: Send + 'static>(
+    work: impl FnOnce(&TaskContext<StepImportProgress>) -> Result<T, TaskFailure<ProductShapeError>>
+    + Send
+    + 'static,
+) -> TaskOutcome<T, ProductShapeError> {
+    let (start, started) = std::sync::mpsc::channel::<()>();
+    let mut task = BackgroundTask::spawn("step-reading-test", move |context| {
+        started.recv().unwrap();
+        work(context)
+    })
+    .unwrap();
+    task.request_cancel();
+    start.send(()).unwrap();
+    wait_for(&mut task)
+}
+
+#[test]
+fn imported_step_shapes_are_displayed_and_added_to_the_target() {
+    let mut document = SpaceModelDocument::new(NAMES);
+
+    let report = document
+        .import_step(&step_fixture("plate_with_holes.step"))
+        .unwrap();
+
+    assert_eq!(report.shells, 1);
+    assert_eq!(report.issues(), 0);
+    assert!(document.is_modified());
+    let [shell] = document.shapes().shells() else {
+        panic!("one shell is added");
+    };
+    assert_eq!(document.target_face_count(), shell.face_ids().len());
+    let meshes = document.visible_meshes();
+    assert_eq!(meshes.len(), 1);
+    assert!(!meshes[0].indices.is_empty());
+}
+
+#[test]
+fn a_step_file_that_cannot_be_read_adds_nothing() {
+    let mut document = SpaceModelDocument::new(NAMES);
+
+    let error = document
+        .import_step(&step_fixture("missing.step"))
+        .unwrap_err();
+
+    assert!(matches!(error, ProductShapeError::StepFile { .. }));
+    assert!(!document.is_modified());
+    assert!(document.shapes().shells().is_empty());
+    assert_eq!(document.target_face_count(), 0);
+}
+
+#[test]
+fn a_step_file_is_read_on_another_thread_up_to_the_display_meshes() {
+    let path = step_fixture("block_with_void.step");
+    let display = ProductShapeDisplaySettings::default();
+    let mut task = BackgroundTask::spawn("step-reading-test", move |context| {
+        step_reading::read_step_shapes(&path, display, context)
+    })
+    .unwrap();
+
+    let TaskOutcome::Succeeded(shapes) = wait_for(&mut task) else {
+        panic!("the file is read");
+    };
+    // 最後の進み具合は、表示用の三角形の段の終わり（すべての B-rep の三角形を作り終えている）
+    let progress = task.progress().unwrap();
+    assert_eq!(progress.stage, StepImportStage::DisplayMeshes);
+    assert_eq!(progress.done, progress.total);
+    assert_eq!(
+        shapes
+            .display_mesh_work(display.chord_tolerance)
+            .brep_count(),
+        1
+    );
+}
+
+#[test]
+fn reading_a_step_file_stops_when_cancellation_is_requested() {
+    let path = step_fixture("block.step");
+    let display = ProductShapeDisplaySettings::default();
+
+    let outcome = run_cancelled(move |context| {
+        step_reading::read_step_shapes(&path, display, context).map(|_| ())
+    });
+
+    assert_eq!(outcome, TaskOutcome::Cancelled);
+}
+
+#[test]
+fn building_the_display_meshes_stops_when_cancellation_is_requested() {
+    let path = step_fixture("block.step");
+    let mut reading =
+        BackgroundTask::run_on_current_thread(|context| read_step_file(&path, context));
+    let Some(TaskOutcome::Succeeded(shapes)) = reading.take_outcome() else {
+        panic!("the file is read");
+    };
+    let shapes: StepShapes = shapes;
+    let work =
+        Arc::new(shapes.display_mesh_work(ProductShapeDisplaySettings::default().chord_tolerance));
+
+    let outcome =
+        run_cancelled(move |context| step_reading::triangulate_display_meshes(&work, context));
+
+    assert_eq!(outcome, TaskOutcome::Cancelled);
 }

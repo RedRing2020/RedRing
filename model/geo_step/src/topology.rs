@@ -11,6 +11,7 @@
 mod tests;
 
 use crate::geometry::{Conic, Curve, Geometries, Sense};
+use crate::progress::Progress;
 use crate::record::{Geometry, Records, Topology};
 use analysis::consts::DERIVATIVE_ZERO_THRESHOLD_F64;
 use analysis::consts::import_tolerance::{DEVIATION_FACTOR, ELEMENT_TOLERANCE_LIMIT_RATIO};
@@ -181,6 +182,32 @@ pub enum TopologyError {
     Brep(BrepError),
 }
 
+/// B-rep を作る段を、終わりまで行えない理由
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BuildError {
+    /// 進み具合の閉包に止めると言われて、途中で止めた
+    Cancelled,
+    /// B-rep の表を作れない（許容誤差の値が正しくない）
+    Brep(BrepError),
+}
+
+impl From<BrepError> for BuildError {
+    fn from(error: BrepError) -> Self {
+        Self::Brep(error)
+    }
+}
+
+impl std::fmt::Display for BuildError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Cancelled => f.write_str("the stage was cancelled"),
+            Self::Brep(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for BuildError {}
+
 /// 段 3 の上限（設計 4.3）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TopologyLimit {
@@ -214,21 +241,31 @@ impl Failure {
 /// 頂点と曲線の外形の箱の対角の長さに `settings` の比を掛けた値（全体の許容誤差より小さければ、全体の
 /// 許容誤差）。
 ///
+/// 表現の要素を作り始めるたびに、`progress` に進み具合（作り終えた要素の数と、全体の数）を知らせる。
+///
 /// # Errors
 ///
 /// 全体の許容誤差が正の有限の値でない、または `settings` の比が正の有限の値でない・倍率が 1 以上の有限の値で
-/// ないとき（`BrepError::InvalidTolerance`）。
+/// ないとき（`BuildError::Brep(BrepError::InvalidTolerance)`）。`progress` が止めると返したとき
+/// （[`BuildError::Cancelled`]）。
 pub fn build(
     records: &Records,
     geometries: &Geometries,
     tolerances: TopologyToleranceSettings<f64>,
     settings: ImportToleranceSettings,
-) -> Result<Topologies, BrepError> {
+    progress: &mut Progress<'_>,
+) -> Result<Topologies, BuildError> {
     // 許容誤差は、要素を作る前に確かめる
     Brep::new(tolerances)?;
     if !settings.is_valid() {
-        return Err(BrepError::InvalidTolerance);
+        return Err(BuildError::Brep(BrepError::InvalidTolerance));
     }
+    let total = records
+        .representations
+        .values()
+        .flat_map(|representation| &representation.items)
+        .collect::<BTreeSet<_>>()
+        .len();
     let mut topologies = Topologies::default();
     let mut seen = BTreeSet::new();
     let mut max_coordinate = 0.0_f64;
@@ -246,6 +283,9 @@ pub fn build(
         for &item in &representation.items {
             if !seen.insert(item) {
                 continue;
+            }
+            if progress(seen.len() - 1, total).is_break() {
+                return Err(BuildError::Cancelled);
             }
             let mut result = build_item(&context, item, MAX_REBUILDS)?;
             topologies.items.append(&mut result.built);

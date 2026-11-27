@@ -14,6 +14,7 @@ mod tests;
 pub use conic::Conic;
 pub use placement::{PlacementError, rigid_transformation};
 
+use crate::progress::{Cancelled, Progress, Steps};
 use crate::record::{Geometry as Record, Records};
 use geo_contracts::{
     Angle, Circle3DConstructor, ConicalSurface3DConstructor, CylindricalSurface3DConstructor,
@@ -102,9 +103,21 @@ struct Frame {
 /// 中間データの幾何を、曲線・曲面の型にする
 ///
 /// `tolerances` は、平行か・軸の上かなどの形の判定に使う（距離と角度）。
-pub fn convert(records: &Records, tolerances: &ToleranceSettings<f64>) -> Geometries {
+///
+/// 幾何の記録 4,096 個ごとに、`progress` に進み具合（見た記録の数と、全体の数）を知らせる。
+///
+/// # Errors
+///
+/// `progress` が止めると返したとき。
+pub fn convert(
+    records: &Records,
+    tolerances: &ToleranceSettings<f64>,
+    progress: &mut Progress<'_>,
+) -> Result<Geometries, Cancelled> {
     let mut converter = Converter::new(records, tolerances);
+    let mut steps = Steps::new(progress, records.geometry.len());
     for (&id, record) in &records.geometry {
+        steps.step()?;
         // 結果は、型にする処理が覚え、型にできなければ理由を記録する
         match record {
             Record::Line { .. }
@@ -131,7 +144,7 @@ pub fn convert(records: &Records, tolerances: &ToleranceSettings<f64>) -> Geomet
             _ => {}
         }
     }
-    converter.geometries
+    Ok(converter.geometries)
 }
 
 struct Converter<'a> {

@@ -7,6 +7,8 @@
 //! - `record`: 中間データ（エンティティの表を、幾何と位相の記録にする）
 //! - `geometry`: 幾何の記録を、曲線・曲面の型にする
 //! - `topology`: 位相の記録と型にした幾何から、B-rep の表を作る
+//!
+//! どの段も、進み具合を受け取る閉包（[`Progress`]）を受け、閉包が止めると返したら途中で止まる。
 
 #![cfg_attr(
     not(test),
@@ -19,6 +21,9 @@
 )]
 
 pub mod geometry;
+mod progress;
 pub mod record;
 pub mod syntax;
 pub mod topology;
+
+pub use progress::{Cancelled, Progress};

@@ -1,5 +1,12 @@
 use super::*;
+use crate::progress::{ENTITY_INTERVAL, keep_going};
 use crate::syntax::{Limits, parse};
+use std::ops::ControlFlow;
+
+/// エンティティの表を、進み具合を見ずに終わりまで読む
+fn read(file: StepFile) -> Records {
+    super::read(file, &mut keep_going).unwrap()
+}
 
 /// エンティティの番号の印 `#` は `%` で書き、`step_file` で直して使う（ソースコードの検査で、別の番号と見分け
 /// られないため）
@@ -8,7 +15,7 @@ fn step_file(data: &str) -> StepFile {
         "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('AUTOMOTIVE_DESIGN'));\nENDSEC;\nDATA;\n{}\nENDSEC;\nEND-ISO-10303-21;\n",
         data.replace('%', "#")
     );
-    parse(text.as_bytes(), &Limits::default()).unwrap()
+    parse(text.as_bytes(), &Limits::default(), &mut keep_going).unwrap()
 }
 
 /// mm とラジアンの文脈（%5）と、平面と円錐の 2 つの面の立体（%27）の表現（%28）
@@ -386,7 +393,7 @@ END-ISO-10303-21;
         for replacement in *b"09$*(),#.-" {
             let mut changed = bytes.to_vec();
             changed[position] = replacement;
-            if let Ok(file) = parse(&changed, &Limits::default()) {
+            if let Ok(file) = parse(&changed, &Limits::default(), &mut keep_going) {
                 let _ = read(file.clone());
             }
         }
@@ -848,4 +855,63 @@ fn every_entity_name_the_reader_matches_has_its_short_name() {
         }
     }
     assert!(missing.is_empty(), "{missing:?}");
+}
+
+/// 立体の表現（[`MM_RADIAN`]・[`SOLID`]）に、どこからも指されない点 `extra` 個を足したエンティティの表
+fn solid_with_extra_points(extra: usize) -> StepFile {
+    let points: String = (0..extra)
+        .map(|index| {
+            format!(
+                "%{}=CARTESIAN_POINT('',(0.,0.,0.));
+",
+                1000 + index
+            )
+        })
+        .collect();
+    step_file(&(MM_RADIAN.to_string() + &SOLID.replace("ANGLE", "0.5") + &points))
+}
+
+#[test]
+fn progress_is_reported_at_each_interval_of_entities() {
+    let file = solid_with_extra_points(2 * ENTITY_INTERVAL);
+    let entities = file.entities.len();
+    let mut reports = Vec::new();
+    let records = super::read(file.clone(), &mut |done, total| {
+        reports.push((done, total));
+        ControlFlow::Continue(())
+    })
+    .unwrap();
+
+    // 進み具合を見ないときと、同じ記録になる
+    assert_eq!(records, read(file));
+    assert_eq!(records.representations.len(), 1);
+    // 表を 3 回たどり、立体から指される要素を読む。全体の数は、表のエンティティの数に、たどる回数の上限を掛けた数
+    assert!(reports.len() >= 6, "{reports:?}");
+    assert!(reports.iter().all(|&(_, total)| total == entities * PASSES));
+    assert!(
+        reports
+            .iter()
+            .zip(1..)
+            .all(|(&(done, total), report)| done == report * ENTITY_INTERVAL && done <= total)
+    );
+}
+
+#[test]
+fn reading_stops_when_the_progress_closure_breaks() {
+    let file = solid_with_extra_points(2 * ENTITY_INTERVAL);
+    for stop_at in [1, 3, 5] {
+        let mut reports = 0;
+        let result = super::read(file.clone(), &mut |_, _| {
+            reports += 1;
+            if reports == stop_at {
+                ControlFlow::Break(())
+            } else {
+                ControlFlow::Continue(())
+            }
+        });
+
+        assert_eq!(result, Err(Cancelled));
+        // 止めると返した後は、知らせない
+        assert_eq!(reports, stop_at);
+    }
 }

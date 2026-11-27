@@ -1,5 +1,6 @@
 use super::*;
 use crate::geometry::convert;
+use crate::progress::keep_going;
 use crate::record::Representation;
 use geo_contracts::{Angle, ToleranceSettings};
 use std::collections::HashMap;
@@ -166,13 +167,14 @@ impl Builder {
     }
 
     fn build(&self) -> Topologies {
-        let geometries = convert(&self.records, &geometry_tolerances());
+        let geometries = convert(&self.records, &geometry_tolerances(), &mut keep_going).unwrap();
         assert!(geometries.skipped.is_empty(), "{:?}", geometries.skipped);
         build(
             &self.records,
             &geometries,
             TopologyToleranceSettings::new(TOLERANCE),
             ImportToleranceSettings::default(),
+            &mut keep_going,
         )
         .unwrap()
     }
@@ -687,8 +689,12 @@ fn an_invalid_tolerance_is_refused() {
         &Geometries::default(),
         TopologyToleranceSettings::new(f64::NAN),
         ImportToleranceSettings::default(),
+        &mut keep_going,
     );
-    assert_eq!(result.err(), Some(BrepError::InvalidTolerance));
+    assert_eq!(
+        result.err(),
+        Some(BuildError::Brep(BrepError::InvalidTolerance))
+    );
 }
 
 /// ループ `bound` を、外側のループ（`FACE_OUTER_BOUND`）とする
@@ -1171,8 +1177,12 @@ fn invalid_import_tolerance_settings_are_refused() {
             &Geometries::default(),
             TopologyToleranceSettings::new(TOLERANCE),
             settings,
+            &mut keep_going,
         );
-        assert_eq!(result.err(), Some(BrepError::InvalidTolerance));
+        assert_eq!(
+            result.err(),
+            Some(BuildError::Brep(BrepError::InvalidTolerance))
+        );
     }
 }
 
@@ -1223,7 +1233,7 @@ fn coincident_edges_in_one_loop_are_not_merged() {
 
 /// 記録 `records` を型にした幾何（試験の許容誤差で）
 fn convert_geometry(records: &Records) -> Geometries {
-    let geometries = convert(records, &geometry_tolerances());
+    let geometries = convert(records, &geometry_tolerances(), &mut keep_going).unwrap();
     assert!(geometries.skipped.is_empty(), "{:?}", geometries.skipped);
     geometries
 }
@@ -1510,4 +1520,58 @@ fn a_face_whose_loop_does_not_connect_is_skipped() {
         skipped,
         vec![(bottom, bound, TopologyError::DisconnectedLoop)]
     );
+}
+
+/// 立方体の立体と、面のない開いたシェルの、2 つの表現の要素を持つ記録を作るもの
+fn cube_and_an_empty_shell() -> Builder {
+    let mut cube = polyhedron(&CUBE_POINTS, &CUBE_FACES, &[]);
+    cube.builder.open_shell(Vec::new());
+    cube.builder
+}
+
+/// 記録 `builder` から、進み具合を `progress` に知らせながら B-rep を作る
+fn build_reporting(
+    builder: &Builder,
+    progress: &mut Progress<'_>,
+) -> Result<Topologies, BuildError> {
+    build(
+        &builder.records,
+        &convert_geometry(&builder.records),
+        TopologyToleranceSettings::new(TOLERANCE),
+        ImportToleranceSettings::default(),
+        progress,
+    )
+}
+
+#[test]
+fn progress_is_reported_before_each_representation_item() {
+    let builder = cube_and_an_empty_shell();
+    let mut reports = Vec::new();
+    let topologies = build_reporting(&builder, &mut |done, total| {
+        reports.push((done, total));
+        std::ops::ControlFlow::Continue(())
+    })
+    .unwrap();
+
+    assert_eq!(reports, [(0, 2), (1, 2)]);
+    assert_eq!(topologies.items.len(), 1);
+}
+
+#[test]
+fn building_stops_when_the_progress_closure_breaks() {
+    let builder = cube_and_an_empty_shell();
+    for stop_at in [1, 2] {
+        let mut reports = 0;
+        let result = build_reporting(&builder, &mut |_, _| {
+            reports += 1;
+            if reports == stop_at {
+                std::ops::ControlFlow::Break(())
+            } else {
+                std::ops::ControlFlow::Continue(())
+            }
+        });
+
+        assert_eq!(result.err(), Some(BuildError::Cancelled));
+        assert_eq!(reports, stop_at);
+    }
 }
