@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Reusable mechanisms for running long work on another thread and receiving its progress and outcome without blocking"
+description = "Reusable mechanisms for running long work on another thread without blocking, and for deciding how commands are admitted while others run"
 
 [dependencies]
 
