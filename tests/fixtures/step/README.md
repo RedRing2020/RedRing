@@ -18,6 +18,8 @@ STEP の読み込みの試験（設計: `dev/architecture/BREP_AND_STEP_IMPORT_D
 | `sphere_seam.step` | 同じ球（継ぎ目の稜線だけで囲んだ 1 つの面） | 1 |
 | `torus.step` | トーラス 中心の円の半径 30 mm・管の半径 8 mm（上と下の円で分けた外側と内側） | 2 |
 | `torus_seam.step` | 同じトーラス（2 本の継ぎ目の稜線で囲んだ 1 つの面） | 1 |
+| `barrel.step` | 樽 大半径 −30 mm・小半径 50 mm のトーラスの内側（レモン形）を z = ±30 mm で切り、平面でふさいだもの（側面は半周ずつ 2 つの面） | 4 |
+| `spindle.step` | 同じトーラスの内側の全体（先は z = ±40 mm。中ほどの円で分けた 2 つの面） | 2 |
 | `plate_with_holes.step` | 板 100 × 60 × 10 mm に、半径 6 mm の穴を 6 つ | 12 |
 | `block_with_void.step` | 直方体 40 × 40 × 40 mm に、半径 10 mm の球の空洞（`BREP_WITH_VOIDS`） | 8 |
 

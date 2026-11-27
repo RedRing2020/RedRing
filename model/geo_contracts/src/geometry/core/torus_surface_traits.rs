@@ -7,7 +7,8 @@ use crate::{Direction3D, Point3D, Scalar};
 pub trait TorusSurface3DConstructor<T: Scalar>: Sized {
     /// 中心・軸・参照方向・大半径・小半径から作成する（STEP AXIS2_PLACEMENT_3D 形式）
     ///
-    /// 参照方向は軸の成分を除いて正規化する。軸と平行な場合・半径が正でない場合は `None`。
+    /// 参照方向は軸の成分を除いて正規化する。大半径が負なら、管の中心が軸の向こう側にある内側の部分
+    /// （レモン形）を表す。軸と平行な場合・小半径が正でない場合・大半径が 0 または −小半径以下の場合は `None`。
     fn new(
         center: Point3D<T>,
         axis: Direction3D<T>,
@@ -16,7 +17,7 @@ pub trait TorusSurface3DConstructor<T: Scalar>: Sized {
         minor_radius: T,
     ) -> Option<Self>;
 
-    /// 軸を Z 軸正方向、参照方向を X 軸正方向として作成する（半径が正でない場合は `None`）
+    /// 軸を Z 軸正方向、参照方向を X 軸正方向として作成する（半径の条件は `new` と同じ）
     fn new_standard(center: Point3D<T>, major_radius: T, minor_radius: T) -> Option<Self>;
 }
 

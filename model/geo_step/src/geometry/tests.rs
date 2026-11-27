@@ -207,12 +207,35 @@ fn analytic_surfaces_keep_their_shape() {
         major_radius: 5.0,
         minor_radius: 1.0,
     });
+    // 大半径が負のトーラスは、管の中心が軸の向こう側にある内側（レモン形）。大きさが小半径以上なら面がない
+    let lemon = builder.add(Record::ToroidalSurface {
+        placement: frame,
+        major_radius: -3.0,
+        minor_radius: 5.0,
+    });
+    let empty_lemon = builder.add(Record::ToroidalSurface {
+        placement: frame,
+        major_radius: -5.0,
+        minor_radius: 5.0,
+    });
     let plane = builder.add(Record::Plane { placement: frame });
     let broken = builder.add(Record::CylindricalSurface {
         placement: frame,
         radius: -1.0,
     });
     let geometries = builder.convert();
+    let lemon = &geometries.surfaces[&lemon];
+    let SurfaceRef::Torus(lemon_torus) = &lemon.surface else {
+        panic!("a lemon-shaped torus");
+    };
+    // 配置の原点から軸の方向に 1 の高さ（配置は z = 1）で、軸から 2 の点が面の上
+    assert_eq!(lemon_torus.major_radius(), -3.0);
+    assert_eq!(lemon.sense, Sense::Same);
+    assert!(lemon_torus.distance_to_point(Point3D::new(2.0, 0.0, 1.0)) < 1.0e-12);
+    assert_eq!(
+        reason(&geometries, empty_lemon),
+        Some(GeometryError::InvalidShape)
+    );
 
     let SurfaceRef::Cylinder(cylinder) = &geometries.surfaces[&cylinder].surface else {
         panic!("a cylinder");

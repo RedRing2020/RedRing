@@ -22,7 +22,28 @@ fn surfaces() -> Vec<SurfaceRef<f64>> {
         ),
         SurfaceRef::Sphere(TopoSphericalSurface3D::new_standard(origin, 2.0).unwrap()),
         SurfaceRef::Torus(TopoTorusSurface3D::new_standard(origin, 5.0, 2.0).unwrap()),
+        // 管が軸と交わるトーラスの外側（りんご形）と内側（レモン形。極は v = ±1.159）
+        SurfaceRef::Torus(TopoTorusSurface3D::new_standard(origin, 1.0, 2.0).unwrap()),
+        SurfaceRef::Torus(TopoTorusSurface3D::new_standard(origin, -1.0, 2.5).unwrap()),
     ]
+}
+
+#[test]
+fn a_torus_whose_tube_crosses_the_axis_has_poles_and_no_period_in_v() {
+    for surface in &surfaces()[5..] {
+        assert_eq!(surface.periods(), (Some(std::f64::consts::TAU), None));
+        assert_eq!(surface.poles().len(), 2);
+        // 点の (u, v) は、極の間の v に戻る
+        for (u, v) in [(0.3, 0.4), (2.0, -0.7), (4.5, 1.1)] {
+            let point = surface.point_at_uv(u, v).unwrap();
+            let (back_u, back_v) = surface.uv_of(point).unwrap();
+            assert!((back_u - u).abs() < 1.0e-9 && (back_v - v).abs() < 1.0e-9);
+        }
+        // 極の点はとがっていて、法線が決まらない
+        let pole = surface.poles()[1];
+        assert!(surface.normal_at_uv(0.5, pole).is_none());
+    }
+    assert_eq!(surfaces()[4].poles().len(), 0);
 }
 
 #[test]
