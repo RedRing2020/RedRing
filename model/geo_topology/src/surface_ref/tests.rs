@@ -4,6 +4,7 @@ use geo_contracts::{
     SphericalSurface3DConstructor, TorusSurface3DConstructor,
 };
 use geo_primitives::Angle;
+use std::f64::consts::FRAC_PI_2;
 
 fn surfaces() -> Vec<SurfaceRef<f64>> {
     let origin = Point3D::new(1.0, 2.0, 3.0);
@@ -39,8 +40,18 @@ fn a_torus_whose_tube_crosses_the_axis_has_poles_and_no_period_in_v() {
             let (back_u, back_v) = surface.uv_of(point).unwrap();
             assert!((back_u - u).abs() < 1.0e-9 && (back_v - v).abs() < 1.0e-9);
         }
-        // 極の点はとがっていて、法線が決まらない
+        // 断面の弧の外の角度にある軸の上の点（りんご形は極の間、レモン形は極の先）の v は、
+        // 近い極の v になる
         let pole = surface.poles()[1];
+        let top = surface.point_at_uv(0.0, pole).unwrap();
+        let bottom = surface.point_at_uv(0.0, -pole).unwrap();
+        let center = top + (bottom - top) * 0.5;
+        let step = (top - center) * if pole > FRAC_PI_2 { -0.5 } else { 0.25 };
+        for (point, expected) in [(top + step, pole), (bottom - step, -pole)] {
+            let (_, v) = surface.uv_of(point).unwrap();
+            assert!((v - expected).abs() < 1.0e-9, "{v} {expected}");
+        }
+        // 極の点はとがっていて、法線が決まらない
         assert!(surface.normal_at_uv(0.5, pole).is_none());
     }
     assert_eq!(surfaces()[4].poles().len(), 0);

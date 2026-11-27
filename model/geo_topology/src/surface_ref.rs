@@ -194,11 +194,11 @@ impl<T: Scalar> SurfaceRef<T> {
                 let (x, y, z) = frame.local(point);
                 let radial = (x * x + y * y).sqrt() - surface.major_radius();
                 let v = z.atan2(radial);
-                // 管が軸と交わるトーラスの v は、周期で折り返さず `[-極, 極]`（`(-π, π]` の中）
-                let v = if torus_pole(surface).is_some() {
-                    v
-                } else {
-                    periodic(v)
+                // 管が軸と交わるトーラスの v は、周期で折り返さず `[-極, 極]` に収める
+                // （極の外の角度では、断面の弧の上で近い点は極の点）
+                let v = match torus_pole(surface) {
+                    Some(pole) => v.max(-pole).min(pole),
+                    None => periodic(v),
                 };
                 Some((periodic(y.atan2(x)), v))
             }
