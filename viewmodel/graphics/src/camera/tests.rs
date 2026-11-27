@@ -222,6 +222,54 @@ fn test_issue_242_arcball_sphere_mapping() {
     }
 }
 
+/// 視点の座標での点 `point` の位置（ビュー行列は列優先）
+fn view_position(camera: &Camera, point: Vec3f) -> [f32; 3] {
+    let m = camera.view_matrix();
+    let p = [point.x(), point.y(), point.z(), 1.0];
+    let mut out = [0.0; 3];
+    for (row, value) in out.iter_mut().enumerate() {
+        *value = (0..4).map(|col| m[col][row] * p[col]).sum();
+    }
+    out
+}
+
+/// どの向きから見ていても、トラックボールの手前の点はドラッグした向きに動く（球の手前をつかんで回す）
+#[test]
+fn arcball_moves_the_near_side_with_the_drag_from_any_view() {
+    let (width, height) = (1920.0, 1000.0);
+    let (cx, cy) = (width * 0.5, height * 0.5);
+    let start_rotations = [
+        Quaternionf::identity(),
+        Quaternionf::from_axis_angle(&Vec3f::new(0.0, 1.0, 0.0), std::f32::consts::FRAC_PI_2),
+        Quaternionf::from_axis_angle(&Vec3f::new(1.0, 0.0, 0.0), -std::f32::consts::FRAC_PI_2),
+        Quaternionf::from_axis_angle(&Vec3f::new(1.0, 1.0, 0.0).normalize().unwrap(), 2.0),
+    ];
+    // 右へ・下へのドラッグと、手前の点が視点の座標で動くべき向き（x は右、y は上）
+    let drags = [((60.0, 0.0), 0, 1.0), ((0.0, 60.0), 1, -1.0)];
+    for start in start_rotations {
+        for ((dx, dy), axis, sign) in drags {
+            let mut camera = Camera::new();
+            camera.target = Vec3f::new(0.0, 0.0, 0.0);
+            camera.distance = 10.0;
+            camera.rotation = start;
+            // 見る中心から視点の側へ 1 だけ出た点（トラックボールの手前の点）
+            let near = {
+                let m = camera.view_matrix();
+                // 視点の座標の +Z（視点の側）を元の座標に戻す（ビュー行列の回転の部分の転置）
+                Vec3f::new(m[0][2], m[1][2], m[2][2])
+            };
+            let before = view_position(&camera, near);
+            camera.rotate_arcball(cx, cy, cx + dx, cy + dy, width, height);
+            let after = view_position(&camera, near);
+            let moved = (after[axis] - before[axis]) * sign;
+            assert!(
+                moved > 0.0,
+                "start {start:?} drag ({dx}, {dy}): moved {moved}"
+            );
+        }
+    }
+}
+
 #[test]
 fn test_issue_242_arcball_rotation_from_sphere_points() {
     let p1 = Vec3f::new(1.0, 0.0, 0.0);
