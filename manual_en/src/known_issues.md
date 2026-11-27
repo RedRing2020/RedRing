@@ -19,7 +19,7 @@ Management:
 - The cutting animation plays only the segment of the selected operation (playing the whole sequence through comes in a later version)
 - When operations are calculated, operations skipped because they already have a current result are not shown on the screen
 - The job manager calculates one job at a time. When you calculate again after changing the conditions while a job is waiting or running, the previous job is cancelled and a new job is submitted, so the job list in the job manager grows
-- The screen stops while a STEP file is being loaded (loading in the background is planned for v0.3.0)
+- The screen stops while an STL file is being loaded and while a model file is being opened or saved. After opening a model file that has STEP shapes, it also stops while the shapes for display are built (doing these in the background is planned for v0.3.0)
 - Loading a product shape adds its faces to the machining target. Opening a model file keeps the saved target (adding or removing faces by selecting them is a later feature)
 - There is no screen yet to choose which job to import, and only the latest result of the current conditions can be imported
 

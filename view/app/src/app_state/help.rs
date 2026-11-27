@@ -148,10 +148,14 @@ impl AppState {
         )
     }
 
-    /// メッセージの一覧を開いたら、まだ開いていないメッセージの印を消す
-    pub(crate) fn apply_notice_bar_state(&mut self, log_opened: bool) {
+    /// メッセージの一覧を開いたら、まだ開いていないメッセージの印を消す。取り消しのボタンを押したら、別のスレッドの
+    /// 形状の読み込みに取り消しを頼む
+    pub(crate) fn apply_notice_bar_state(&mut self, log_opened: bool, cancel_requested: bool) {
         if log_opened {
             self.unread_notice = None;
+        }
+        if cancel_requested {
+            self.cancel_shape_import();
         }
     }
 

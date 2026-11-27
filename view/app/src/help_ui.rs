@@ -5,8 +5,8 @@ use crate::machining_conditions_ui::{OperationStatus, operation_status_text};
 use crate::settings_panel_renderer::SYMBOL_FONT_FAMILY;
 use egui::containers::menu::{MenuButton, MenuConfig};
 use egui::{
-    Align, Align2, Color32, Context, Grid, Label, Layout, Panel, PopupCloseBehavior, Rect,
-    RichText, ScrollArea, Ui, Window,
+    Align, Align2, Button, Color32, Context, Grid, Label, Layout, Panel, PopupCloseBehavior,
+    ProgressBar, Rect, RichText, ScrollArea, Ui, Window,
 };
 use std::collections::VecDeque;
 use viewmodel::failure_message_catalog::resolve_failure_message;
@@ -83,6 +83,8 @@ pub(crate) enum Notice {
     ShapeImported { file: String },
     /// 形状を読み込めない（ファイルの名前と理由）
     ShapeImportFailed { file: String, reason: UiMessage },
+    /// 形状の読み込みを取り消した（ファイルの名前）
+    ShapeImportCancelled { file: String },
     /// STEP ファイルを読み込んだ（ファイルの名前・加えた形状の数・読めなかった・配置できなかった要素の数。理由は
     /// ログに出す）
     StepImported {
@@ -141,6 +143,7 @@ impl Notice {
         match self {
             Self::Startup
             | Self::ShapeImported { .. }
+            | Self::ShapeImportCancelled { .. }
             | Self::ModelCreated
             | Self::ModelOpened { .. }
             | Self::ModelSaved { .. }
@@ -230,6 +233,11 @@ impl Notice {
                     ("reason", resolve_failure_message(locale, reason)),
                 ],
             ),
+            Self::ShapeImportCancelled { file } => resolve_help_text(
+                locale,
+                "notice.shape_import_cancelled",
+                &[("file", file.clone())],
+            ),
             Self::NotImported => resolve_help_text(locale, "notice.not_imported", &[]),
             Self::NoToolSegments => resolve_help_text(locale, "notice.no_tool_segments", &[]),
             Self::LinesNotDrawn => resolve_help_text(locale, "notice.lines_not_drawn", &[]),
@@ -303,7 +311,22 @@ impl Notice {
     }
 }
 
-/// 画面の下の行（最後のメッセージを 1 行で出し、📋 から最近のメッセージと選んだ工程の状態の一覧を開く）
+/// 画面の下の行に出す、時間のかかる処理の進み具合
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ProgressLine {
+    /// 処理の名前
+    pub(crate) text: String,
+    /// 全体のうち済んだ割合（0 から 1。まだ分からなければ `None`）
+    pub(crate) fraction: Option<f32>,
+    /// 取り消しを頼んであり、止まるのを待っているか
+    pub(crate) cancelling: bool,
+}
+
+/// 進み具合の棒の幅
+const PROGRESS_BAR_WIDTH: f32 = 120.0;
+
+/// 画面の下の行（最後のメッセージを 1 行で出し、📋 から最近のメッセージと選んだ工程の状態の一覧を開く。時間のかかる
+/// 処理の最中は、その進み具合と取り消しのボタンも出す）
 #[derive(Debug, Clone)]
 pub struct NoticeBarUiState<'a> {
     pub locale: UiLocale,
@@ -318,6 +341,10 @@ pub struct NoticeBarUiState<'a> {
     pub(crate) log_opened: bool,
     /// 右に出す、次にできることの案内（選んだ工程の状態に応じて。`None` は出さない）
     pub(crate) navigation: Option<String>,
+    /// 時間のかかる処理の進み具合（処理の最中でなければ `None`）
+    pub(crate) progress: Option<ProgressLine>,
+    /// 取り消しのボタンを押した
+    pub(crate) cancel_requested: bool,
 }
 
 /// 重さ `level` の文字の色（普段の文字は `None`）
@@ -358,6 +385,7 @@ impl NoticeBarUiState<'_> {
                     self.log_opened = true;
                 }
                 response.on_hover_text(resolve_help_text(self.locale, "notice.log.hint", &[]));
+                self.show_progress(ui);
                 let text = level_text(ui, self.notice.level(), self.notice.text(self.locale));
                 // 案内を右に寄せて先に置き、メッセージは残りの幅で切り詰める
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -371,6 +399,37 @@ impl NoticeBarUiState<'_> {
                 });
             });
         });
+    }
+
+    /// 時間のかかる処理の最中は、進み具合（割合が分からなければ、動いている印）・処理の名前・取り消しのボタンを出す
+    /// （取り消しを頼んだ後は、止まるまで、ボタンを押せなくして取り消し中と出す）
+    fn show_progress(&mut self, ui: &mut Ui) {
+        let Some(progress) = &self.progress else {
+            return;
+        };
+        match progress.fraction {
+            Some(fraction) => {
+                ui.add(
+                    ProgressBar::new(fraction)
+                        .desired_width(PROGRESS_BAR_WIDTH)
+                        .show_percentage(),
+                );
+            }
+            None => {
+                ui.spinner();
+            }
+        }
+        ui.label(&progress.text);
+        let key = if progress.cancelling {
+            "progress.cancelling"
+        } else {
+            "progress.cancel"
+        };
+        let cancel = Button::new(resolve_help_text(self.locale, key, &[]));
+        if ui.add_enabled(!progress.cancelling, cancel).clicked() {
+            self.cancel_requested = true;
+        }
+        ui.separator();
     }
 
     /// 一覧（選んだ工程の状態と、最近のメッセージ。メッセージの文は写せるように選べる）
@@ -536,7 +595,13 @@ mod tests {
     #[test]
     fn the_notice_log_has_texts_and_errors_are_heavier_than_warnings() {
         for locale in [UiLocale::Ja, UiLocale::En] {
-            for key in ["notice.log.hint", "notice.log.state", "notice.log.history"] {
+            for key in [
+                "notice.log.hint",
+                "notice.log.state",
+                "notice.log.history",
+                "progress.cancel",
+                "progress.cancelling",
+            ] {
                 assert!(
                     !resolve_help_text(locale, key, &[]).contains("__missing__"),
                     "{key}"
@@ -609,6 +674,9 @@ mod tests {
                         key: "failure.shape.stl".to_string(),
                         args: Vec::new(),
                     },
+                },
+                Notice::ShapeImportCancelled {
+                    file: "a.step".to_string(),
                 },
                 Notice::NotImported,
                 Notice::NoToolSegments,

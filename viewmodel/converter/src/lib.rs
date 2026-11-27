@@ -12,6 +12,7 @@
 pub mod cam_sim_visualization_converter;
 pub mod cutting_animation;
 pub mod cutting_simulation_session;
+pub mod document_command;
 pub mod entity_converter;
 pub mod failure_message_catalog;
 pub mod failure_message_mapper;
@@ -23,6 +24,7 @@ pub mod product_shape_converter;
 pub mod shape_converter;
 pub mod snapshot_converter;
 pub mod space_model_document;
+pub mod step_reading;
 pub mod tool_library_session;
 pub mod toolpath_converter;
 

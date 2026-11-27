@@ -3,6 +3,9 @@
 //!
 //! 確かめの画面は描画を止めるため、操作は要求として積み、イベントの処理が終わった後に行う。ファイルを選ぶ画面は
 //! 別のスレッドで開き、閉じるまで残りの操作を待たせる。
+//!
+//! 操作は、コマンドとして行う。別のスレッドの形状の読み込みの最中は、製品形状を変える・空間モデルを入れ替える操作を
+//! 待たせ、読み込みが終わってから行う。アプリを終える操作は、読み込みを取り消し、止まってから行う。
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -11,6 +14,7 @@ use super::AppState;
 use super::file_dialog::{FileDialogPurpose, one_file};
 use crate::help_ui::Notice;
 use crate::menu_bar_messages::resolve_menu_bar_text;
+use viewmodel::document_command::{DocumentCommandKind, Started, Submission};
 use viewmodel::space_model_document::SpaceModelDocument;
 
 /// 読み込める形状ファイルの形式（ファイルを開く画面の種類の名前と拡張子。大文字・小文字を区別する OS のため両方）
@@ -55,6 +59,23 @@ pub(crate) enum FileAction {
     Exit,
 }
 
+impl FileAction {
+    /// 操作のコマンドの種類（実行中のコマンドの最中に来たときの、受け付け方を決める）
+    fn command_kind(&self) -> DocumentCommandKind {
+        match self {
+            Self::New | Self::Open | Self::OpenPath(_) => DocumentCommandKind::ReplaceModel,
+            Self::Save | Self::SaveAs => DocumentCommandKind::SaveModel,
+            // ファイルを選ぶ画面を開くだけで、選んだファイルは `LoadPath` として読み込む
+            Self::Load => DocumentCommandKind::NoAccess,
+            Self::LoadPath(path) if is_step_file(path) => {
+                DocumentCommandKind::ImportShapeInBackground
+            }
+            Self::LoadPath(_) => DocumentCommandKind::ImportShape,
+            Self::Exit => DocumentCommandKind::Exit,
+        }
+    }
+}
+
 /// 保存していない変更の確かめの答え
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DiscardAnswer {
@@ -65,14 +86,14 @@ enum DiscardAnswer {
 
 impl AppState {
     /// モデルファイルの操作 `action` を要求する（イベントの処理が終わった後に、要求の順に行う。同じ操作がまだ残って
-    /// いれば、重ねない）
+    /// いれば・待たせてあれば、重ねない）
     pub(crate) fn request_file_action(&mut self, action: FileAction) {
         // 工程の表で編集している名前は、確定してから行う（保存する文書に入れるため）。確定は、まだ入力欄が受け取って
         // いない打った文字を入れるよう、次の画面の描画で行う
         if self.is_operation_name_editing() {
             self.operation_name_confirm_requested = true;
         }
-        if !self.file_actions.contains(&action) {
+        if !self.file_actions.contains(&action) && !self.waiting_file_actions.contains(&action) {
             self.file_actions.push(action);
         }
     }
@@ -92,7 +113,14 @@ impl AppState {
         self.exit_confirmed
     }
 
-    /// 要求されたモデルファイルの操作を、要求の順に行う（ファイルを選ぶ画面を開いたら、閉じるまで残りを待たせる）
+    /// 要求されたモデルファイルの操作を、コマンドとして、要求の順に行う（ファイルを選ぶ画面を開いたら、閉じるまで
+    /// 残りを待たせる）。別のスレッドの形状の読み込みが終わっていれば、先に結果を反映する
+    ///
+    /// 実行中のコマンド（別のスレッドの形状の読み込み）が許さない操作は待たせ、読み込みが終わってから行う。待たせた
+    /// 操作が、読み込みを取り消してから行うもの（アプリを終える）なら、読み込みに取り消しを頼む。
+    ///
+    /// 要求された操作は、終わった読み込みを反映する前に出す。読み込みの最中に頼んだ保存は、読み込む前の空間モデルを
+    /// 書き、読み込みの最中に頼んだ終了は、読み終えていても、読み込みを取り消して（加えずに）から行う。
     pub(super) fn run_file_actions(&mut self) {
         if self.file_dialog_open() {
             return;
@@ -105,9 +133,62 @@ impl AppState {
             self.operation_name_confirm_requested = false;
             self.confirm_operation_name_edit();
         }
-        while !self.file_actions.is_empty() && !self.exit_confirmed && !self.file_dialog_open() {
+        self.submit_requested_file_actions();
+        // 要求した操作がファイルを選ぶ画面を開いた（名前を付けて保存など）ら、閉じるまで読み込みの結果を反映しない（選んだ
+        // ファイルに、読み込む前の空間モデルを書くため）
+        if self.file_dialog_open() {
+            return;
+        }
+        self.finish_shape_import();
+        // 待たせた操作のうち、行えるようになったもの（1 つ行うたびに、残りを確かめ直す）
+        while self.can_start_file_action()
+            && let Some(started) = self.commands.take_ready()
+        {
+            self.waiting_file_actions
+                .retain(|waiting| *waiting != started.command);
+            self.run_started(started);
+        }
+        // 待たせていた操作を行う間に要求された操作
+        self.submit_requested_file_actions();
+    }
+
+    /// 要求された操作を、要求の順に実行の係に出す（すぐ実行できるものは行い、ほかは待たせる）。待たせた操作が、取り消して
+    /// から行うものなら、取り消すコマンドに取り消しを頼む
+    fn submit_requested_file_actions(&mut self) {
+        while self.can_start_file_action() && !self.file_actions.is_empty() {
             let action = self.file_actions.remove(0);
-            self.run_file_action(action);
+            match self
+                .commands
+                .submit(action.command_kind().declaration(), action.clone())
+            {
+                Submission::Started(started) => self.run_started(started),
+                Submission::Queued => self.waiting_file_actions.push(action),
+                // 受け付けないと宣言した操作はない
+                Submission::Rejected(_) => {}
+            }
+        }
+        for command in self.commands.take_cancel_requests() {
+            self.cancel_command(command);
+        }
+    }
+
+    /// 次のモデルファイルの操作を始めてよいか（終えることが決まった後・ファイルを選ぶ画面を開いている間は、始めない）
+    fn can_start_file_action(&self) -> bool {
+        !self.exit_confirmed && !self.file_dialog_open()
+    }
+
+    /// 実行を始めたコマンド `started` の操作を行う。その場で終わる操作は、行ってからコマンドを終える。別のスレッドの
+    /// 形状の読み込みは、読み込みが終わったときにコマンドを終える
+    fn run_started(&mut self, started: Started<FileAction>) {
+        let Started { id, command } = started;
+        match command {
+            FileAction::LoadPath(path) if is_step_file(&path) => {
+                self.start_shape_import(id, path);
+            }
+            action => {
+                self.run_file_action(action);
+                self.commands.finish(id);
+            }
         }
     }
 
@@ -139,7 +220,7 @@ impl AppState {
             }
             FileAction::SaveAs => self.save_document_as(None),
             FileAction::Load => self.load_shape_file(),
-            FileAction::LoadPath(path) => self.import_product_shape(&path),
+            FileAction::LoadPath(path) => self.import_stl_shape(&path),
             FileAction::Exit => {
                 if self.confirm_discard(&FileAction::Exit) {
                     self.exit_confirmed = true;
@@ -393,6 +474,32 @@ fn with_model_file_extension(path: PathBuf) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn file_actions_are_commands_of_the_kind_of_what_they_touch() {
+        let kind = |action: FileAction| action.command_kind();
+        assert_eq!(kind(FileAction::New), DocumentCommandKind::ReplaceModel);
+        assert_eq!(kind(FileAction::Open), DocumentCommandKind::ReplaceModel);
+        assert_eq!(
+            kind(FileAction::OpenPath(PathBuf::from("a.rrm"))),
+            DocumentCommandKind::ReplaceModel
+        );
+        assert_eq!(kind(FileAction::Save), DocumentCommandKind::SaveModel);
+        assert_eq!(kind(FileAction::SaveAs), DocumentCommandKind::SaveModel);
+        assert_eq!(kind(FileAction::Load), DocumentCommandKind::NoAccess);
+        assert_eq!(kind(FileAction::Exit), DocumentCommandKind::Exit);
+        // STEP は別のスレッドで読み、ほかの形状ファイルはその場で読む（拡張子の大文字と小文字は区別しない）
+        for step in ["a.step", "a.STP"] {
+            assert_eq!(
+                kind(FileAction::LoadPath(PathBuf::from(step))),
+                DocumentCommandKind::ImportShapeInBackground
+            );
+        }
+        assert_eq!(
+            kind(FileAction::LoadPath(PathBuf::from("a.stl"))),
+            DocumentCommandKind::ImportShape
+        );
+    }
 
     #[test]
     fn saved_files_always_get_the_model_file_extension() {

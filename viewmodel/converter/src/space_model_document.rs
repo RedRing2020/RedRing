@@ -8,7 +8,6 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use application::background_task::{BackgroundTask, TaskOutcome};
 use application::cam_simulation_workflow::{CamSimulationWorkflowResult, CamToolpathResult};
 pub use application::imported_toolpath::ImportedToolpathState;
 pub use application::machining_sequence::MachiningOperationId;
@@ -33,6 +32,7 @@ use crate::mesh_converter::WireframeVertex;
 use crate::product_shape_converter::{
     ProductShapeDisplaySettings, ProductShapeMesh, face_set_entity_to_mesh,
 };
+use crate::step_reading::{StepReading, StepShapes};
 use crate::tool_library_session::ToolLibrarySession;
 use crate::toolpath_converter::ToolPathVisualizationSettings;
 
@@ -211,26 +211,38 @@ impl SpaceModelDocument {
         self.import_shapes(|shapes| shapes.import_stl(path).map(|_| ()))
     }
 
-    /// STEP ファイルを製品形状として取り込み（アセンブリの出現ごとのシェル）、今の空間モデルに加え、その面を編集の
-    /// 対象の加工手順の加工の対象に加える（読み終えて表示用の三角形ができるまで、このスレッドで待つ）
-    ///
-    /// # Errors
-    ///
-    /// STEP の読み込みの失敗（何も加えない）。
-    pub fn import_step(&mut self, path: &Path) -> Result<StepImportReport, ProductShapeError> {
-        let display = self.display;
-        let mut reading = BackgroundTask::run_on_current_thread(|context| {
-            step_reading::read_step_shapes(path, display, context)
-        });
-        let shapes = match reading.take_outcome() {
-            Some(TaskOutcome::Succeeded(shapes)) => shapes,
-            Some(TaskOutcome::Failed(error)) => return Err(error),
-            Some(TaskOutcome::Panicked(message)) => panic!("{message}"),
-            Some(TaskOutcome::Cancelled) | None => {
-                unreachable!("work run on the current thread finishes and is not cancelled")
+    /// STEP ファイル `path` の読み込みを、別のスレッドで始める（この文書の表示の設定で、表示用の三角形まで作る。
+    /// 文書は変えない。読めた形状は、[`Self::add_step_shapes`] で加える）
+    pub fn start_step_reading(&self, path: &Path) -> StepReading {
+        StepReading::start(path.to_path_buf(), self.display)
+    }
+
+    /// 読んだ STEP の形状 `shapes`（アセンブリの出現ごとのシェル）を、今の空間モデルに加え、その面を編集の対象の
+    /// 加工手順の加工の対象に加えて、読み込みの結果を返す
+    pub fn add_step_shapes(&mut self, shapes: StepShapes) -> StepImportReport {
+        let before = self.face_ids_before_import();
+        let report = self.model.shapes.add_step_shapes(shapes);
+        self.target_imported_faces(&before);
+        report
+    }
+
+    /// STEP ファイルを製品形状として取り込む（読み終えるまで、このスレッドで待つ）
+    #[cfg(test)]
+    pub(crate) fn import_step(
+        &mut self,
+        path: &Path,
+    ) -> Result<StepImportReport, ProductShapeError> {
+        use crate::step_reading::StepReadingOutcome;
+
+        let mut reading = self.start_step_reading(path);
+        loop {
+            match reading.take_outcome() {
+                Some(StepReadingOutcome::Read(shapes)) => return Ok(self.add_step_shapes(shapes)),
+                Some(StepReadingOutcome::Failed(error)) => return Err(error),
+                Some(StepReadingOutcome::Cancelled) => panic!("the reading is not cancelled"),
+                None => std::thread::sleep(std::time::Duration::from_millis(1)),
             }
-        };
-        self.import_shapes(|store| Ok(store.add_step_shapes(shapes)))
+        }
     }
 
     /// 製品形状を `import` で取り込み、加わった面を編集の対象の加工手順の加工の対象に加える（加工の対象が変われば、
@@ -239,8 +251,20 @@ impl SpaceModelDocument {
         &mut self,
         import: impl FnOnce(&mut ProductShapeStore) -> Result<T, ProductShapeError>,
     ) -> Result<T, ProductShapeError> {
-        let before: HashSet<_> = all_face_ids(&self.model.shapes).into_iter().collect();
+        let before = self.face_ids_before_import();
         let imported = import(&mut self.model.shapes)?;
+        self.target_imported_faces(&before);
+        Ok(imported)
+    }
+
+    /// 今の製品形状のすべての面の ID（取り込んだ後に、加わった面を見分けるために取っておく）
+    fn face_ids_before_import(&self) -> HashSet<ShapeFaceId> {
+        all_face_ids(&self.model.shapes).into_iter().collect()
+    }
+
+    /// 取り込む前の面 `before` になかった面を、編集の対象の加工手順の加工の対象に加え、保存していない変更にする
+    /// （加工の対象が変われば、工程の改訂の番号が増える）
+    fn target_imported_faces(&mut self, before: &HashSet<ShapeFaceId>) {
         self.modified = true;
         let mut targets = self
             .model
@@ -258,7 +282,6 @@ impl SpaceModelDocument {
                 .set_target_faces(sequence, targets)
                 .expect("the document holds its machining sequence");
         });
-        Ok(imported)
     }
 
     /// 表示中のエンティティ（面単体の後にシェル）の描画用のメッシュ（表示用の三角形を作れないエンティティは除き、
@@ -676,10 +699,11 @@ impl SpaceModelDocument {
     }
 }
 
+/// 製品形状の面の ID
+type ShapeFaceId = <ProductFaceEntity as FaceSetEntity3DProperties<f64>>::FaceId;
+
 /// 製品形状のすべての面の ID（面単体、続けてシェルの面。表示・非表示によらない）
-fn all_face_ids(
-    shapes: &ProductShapeStore,
-) -> Vec<<ProductFaceEntity as FaceSetEntity3DProperties<f64>>::FaceId> {
+fn all_face_ids(shapes: &ProductShapeStore) -> Vec<ShapeFaceId> {
     let singles = shapes
         .entities()
         .iter()
@@ -687,8 +711,6 @@ fn all_face_ids(
     let shells = shapes.shells().iter().flat_map(|shell| shell.face_ids());
     singles.chain(shells).collect()
 }
-
-mod step_reading;
 
 #[cfg(test)]
 pub(crate) mod tests;

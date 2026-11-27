@@ -8,27 +8,14 @@ use stage::MeshStage;
 use std::path::Path;
 
 impl AppState {
-    /// 形状ファイル（拡張子が step・stp なら STEP、それ以外は STL）を製品形状として取り込み、表示中の製品形状を
-    /// 表示する
-    pub fn import_product_shape(&mut self, path: &Path) {
+    /// STL ファイルを製品形状として取り込み、表示中の製品形状を表示する
+    pub(super) fn import_stl_shape(&mut self, path: &Path) {
         let file = super::model_file::file_name(path);
         let started = std::time::Instant::now();
-        let imported = if super::model_file::is_step_file(path) {
-            self.document
-                .import_step(path)
-                .map(|report| crate::help_ui::Notice::StepImported {
-                    file: file.clone(),
-                    shapes: report.shells,
-                    skipped: report.issues(),
-                })
-        } else {
-            self.document
-                .import_stl(path)
-                .map(|()| crate::help_ui::Notice::ShapeImported { file: file.clone() })
-        };
+        let imported = self.document.import_stl(path);
         let elapsed_ms = super::model_file::millis_since(started);
         let notice = match imported {
-            Ok(notice) => notice,
+            Ok(()) => crate::help_ui::Notice::ShapeImported { file },
             Err(error) => {
                 tracing::warn!(
                     path = %path.display(),
@@ -46,12 +33,7 @@ impl AppState {
         };
         // 読む時間と、反映して製品形状を表示する時間を分けて出す
         let shown = std::time::Instant::now();
-        self.invalidate_conditions();
-        // 加工の対象が変わり、工程の改訂が進むため、前の条件の計算を取り消す（取り込んだことを画面の下の行に残すため、
-        // 取り込んだことは取り消した後に出す）
-        self.cancel_superseded_jobs();
-        self.set_notice(notice);
-        self.show_product_shapes();
+        self.show_imported_shapes(notice);
         tracing::info!(
             path = %path.display(),
             elapsed_ms,
@@ -59,6 +41,16 @@ impl AppState {
             bytes = super::model_file::file_bytes(path),
             "product shape imported"
         );
+    }
+
+    /// 形状を取り込んだ後に、計算の条件を確かめ直し、取り込んだこと `notice` を出して、製品形状を表示する
+    pub(super) fn show_imported_shapes(&mut self, notice: crate::help_ui::Notice) {
+        self.invalidate_conditions();
+        // 加工の対象が変わり、工程の改訂が進むため、前の条件の計算を取り消す（取り込んだことを画面の下の行に残すため、
+        // 取り込んだことは取り消した後に出す）
+        self.cancel_superseded_jobs();
+        self.set_notice(notice);
+        self.show_product_shapes();
     }
 
     /// 表示中の製品形状をメッシュステージに描き、全体が見えるようにカメラを合わせる
