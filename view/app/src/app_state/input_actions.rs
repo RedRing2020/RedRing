@@ -97,8 +97,7 @@ impl AppState {
                     self.toggle_cutting_simulation();
                 }
                 "r" => {
-                    self.camera.reset();
-                    self.update_camera_uniforms();
+                    self.reset_camera_to_shapes();
                     tracing::info!("Reset the camera (r key)");
                 }
                 "t" => {

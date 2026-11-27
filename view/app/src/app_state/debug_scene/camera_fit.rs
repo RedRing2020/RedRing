@@ -53,8 +53,16 @@ impl AppState {
 
     /// カメラを、形 `fit` の全体が見えるように合わせる。拡大縮小率はウィンドウの全体の高さで決まるため、見える範囲
     /// （メニューバーと工程リスト・ステータスバーの間の帯）の高さの割合だけ表示の範囲を上下に広げ、帯に収める（左右は
-    /// 広げない。縦長のウィンドウで、幅が基準になったときに小さく出さないように）
+    /// 広げない。縦長のウィンドウで、幅が基準になったときに小さく出さないように）。合わせた形は、カメラのリセットで
+    /// 合わせ直すために残す
     pub(in crate::app_state) fn apply_camera_fit(&mut self, fit: CameraFit) {
+        self.camera_fit = Some(fit);
+        tracing::info!(
+            center = ?[fit.center_x, fit.center_y, fit.center_z],
+            half_extent_xy = fit.half_extent_xy,
+            size_z = fit.size_z,
+            "Fitted the camera to the shapes"
+        );
         let (_, band_height) = self.view_band();
         let screen_height = (self.graphic.config.height as f32).max(1.0);
         let half_width = fit.half_extent_xy;
