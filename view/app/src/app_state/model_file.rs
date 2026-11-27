@@ -118,6 +118,9 @@ impl AppState {
     ///
     /// 実行中のコマンド（別のスレッドの形状の読み込み）が許さない操作は待たせ、読み込みが終わってから行う。待たせた
     /// 操作が、読み込みを取り消してから行うもの（アプリを終える）なら、読み込みに取り消しを頼む。
+    ///
+    /// 要求された操作は、終わった読み込みを反映する前に出す。読み込みの最中に頼んだ保存は、読み込む前の空間モデルを
+    /// 書き、読み込みの最中に頼んだ終了は、読み終えていても、読み込みを取り消して（加えずに）から行う。
     pub(super) fn run_file_actions(&mut self) {
         if self.file_dialog_open() {
             return;
@@ -130,6 +133,12 @@ impl AppState {
             self.operation_name_confirm_requested = false;
             self.confirm_operation_name_edit();
         }
+        self.submit_requested_file_actions();
+        // 要求した操作がファイルを選ぶ画面を開いた（名前を付けて保存など）ら、閉じるまで読み込みの結果を反映しない（選んだ
+        // ファイルに、読み込む前の空間モデルを書くため）
+        if self.file_dialog_open() {
+            return;
+        }
         self.finish_shape_import();
         // 待たせた操作のうち、行えるようになったもの（1 つ行うたびに、残りを確かめ直す）
         while self.can_start_file_action()
@@ -139,6 +148,13 @@ impl AppState {
                 .retain(|waiting| *waiting != started.command);
             self.run_started(started);
         }
+        // 待たせていた操作を行う間に要求された操作
+        self.submit_requested_file_actions();
+    }
+
+    /// 要求された操作を、要求の順に実行の係に出す（すぐ実行できるものは行い、ほかは待たせる）。待たせた操作が、取り消して
+    /// から行うものなら、取り消すコマンドに取り消しを頼む
+    fn submit_requested_file_actions(&mut self) {
         while self.can_start_file_action() && !self.file_actions.is_empty() {
             let action = self.file_actions.remove(0);
             match self
