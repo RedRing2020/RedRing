@@ -49,7 +49,7 @@ While editing a field in the settings panel or a settings dialog, typed characte
 
 | Control | Action |
 |---|---|
-| `Ctrl+left drag` | Rotate |
+| `Ctrl+left drag` | Rotate (it turns as if you grab the near side of a large ball placed at the center of the model view; near the left and right edges of a wide model view (the top and bottom edges of a tall one), it turns around the axis perpendicular to the screen) |
 | `Ctrl+middle drag` | Pan (the visible shape follows the mouse, at any zoom) |
 | `Ctrl+right drag` or `Ctrl+wheel` | Zoom |
 | `r` | Reset the camera (fit to the shapes) |

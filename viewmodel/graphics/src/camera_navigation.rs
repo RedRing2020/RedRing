@@ -2,14 +2,15 @@ use crate::camera::ProjectionMode;
 use crate::camera_math::quaternion_to_matrix;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 
-/// 画面座標をArcball用の単位球面上の点へ変換する。
+/// 画面座標をArcball用の単位球面上の点へ変換する。球は画面の中心に置き、半径は画面の幅と高さの大きい方の半分と
+/// する（横長・縦長の画面でも、ほとんどの所で球の上をつかめ、横と縦で回る速さがそろう）
 pub(crate) fn project_on_sphere(
     screen_x: f32,
     screen_y: f32,
     viewport_width: f32,
     viewport_height: f32,
 ) -> Vec3f {
-    let radius = (viewport_width.min(viewport_height)) * 0.5;
+    let radius = (viewport_width.max(viewport_height) * 0.5).max(1.0);
     let cx = screen_x - viewport_width * 0.5;
     let cy = screen_y - viewport_height * 0.5;
 
@@ -50,6 +51,12 @@ pub(crate) fn compute_rotation_from_sphere_points(
     Quaternionf::from_axis_angle(&axis_normalized, angle)
 }
 
+/// カメラの向き `rotation` に、画面から見た座標（視点の座標）で表した回転 `view_rotation` を掛ける。視点の座標の
+/// 回転は、カメラの向きの右から掛ける（左から掛けると元の座標の軸の回転になり、カメラを回した後に画面の軸とずれる）
+fn apply_view_rotation(rotation: Quaternionf, view_rotation: Quaternionf) -> Quaternionf {
+    (rotation * view_rotation).normalize().unwrap_or(rotation)
+}
+
 /// ドラッグ量に応じてカメラ回転を更新する。
 pub(crate) fn rotate(rotation: &mut Quaternionf, delta_x: f32, delta_y: f32, sensitivity: f32) {
     let y_axis = Vec3f::new(0.0, 1.0, 0.0);
@@ -74,7 +81,7 @@ pub(crate) fn rotate_arcball(
     let sphere_from = project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
     let sphere_to = project_on_sphere(prev_x, prev_y, viewport_width, viewport_height);
     let q_rotation = compute_rotation_from_sphere_points(sphere_from, sphere_to);
-    *rotation = (q_rotation * *rotation).normalize().unwrap_or(*rotation);
+    *rotation = apply_view_rotation(*rotation, q_rotation);
 
     tracing::debug!(
         "Arcball rotation: prev=({:.0},{:.0}) -> curr=({:.0},{:.0})",
@@ -110,7 +117,7 @@ pub(crate) fn rotate_arcball_from_delta(
 
     let q_rotation = compute_rotation_from_sphere_points(sphere_from, sphere_to);
     let prev_rotation = *rotation;
-    *rotation = (q_rotation * *rotation).normalize().unwrap_or(*rotation);
+    *rotation = apply_view_rotation(*rotation, q_rotation);
 
     tracing::debug!(
         "Arcball rotation (delta): delta=({:.1},{:.1}), center=({:.1},{:.1}), curr=({:.1},{:.1}), sphere_from=({:.3},{:.3},{:.3}), sphere_to=({:.3},{:.3},{:.3}), axis=({:.3},{:.3},{:.3}), angle_deg={:.2}, q=({:.4},{:.4},{:.4},{:.4}), rot_prev=({:.4},{:.4},{:.4},{:.4}), rot_new=({:.4},{:.4},{:.4},{:.4}), viewport=({:.0}x{:.0})",
