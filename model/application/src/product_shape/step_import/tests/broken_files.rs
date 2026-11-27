@@ -210,7 +210,11 @@ fn broken_and_cyclic_references_never_panic() {
 /// 読めない要素を、エラーにするか、外して結果に書いたことを確かめる
 fn assert_reported(result: Result<StepImportReport, StepImportError>) {
     assert!(
-        result.is_err() || result.as_ref().is_ok_and(|report| report.issues() > 0),
+        result.is_err()
+            || result.as_ref().is_ok_and(|report| {
+                report.skipped_elements + report.skipped_occurrences + report.unplaced_occurrences
+                    > 0
+            }),
         "{result:?}"
     );
 }

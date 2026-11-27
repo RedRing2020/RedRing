@@ -12,7 +12,7 @@ use viewmodel::step_reading::{StepReading, StepReadingOutcome};
 use super::AppState;
 use super::model_file::{file_bytes, file_name, millis_since};
 use crate::help_messages::resolve_help_text;
-use crate::help_ui::{Notice, ProgressLine};
+use crate::help_ui::{Notice, ProgressLine, StepImportIssues};
 
 /// 別のスレッドで行っている形状の読み込み
 pub(super) struct RunningShapeImport {
@@ -60,7 +60,11 @@ impl AppState {
                 self.show_imported_shapes(Notice::StepImported {
                     file,
                     shapes: report.shells,
-                    skipped: report.issues(),
+                    issues: StepImportIssues {
+                        skipped_elements: report.skipped_elements,
+                        unplaced_parts: report.unplaced_occurrences,
+                        skipped_parts: report.skipped_occurrences,
+                    },
                 });
                 tracing::info!(
                     path = %import.path.display(),
