@@ -134,6 +134,11 @@ impl AppState {
             self.confirm_operation_name_edit();
         }
         self.submit_requested_file_actions();
+        // 要求した操作がファイルを選ぶ画面を開いた（名前を付けて保存など）ら、閉じるまで読み込みの結果を反映しない（選んだ
+        // ファイルに、読み込む前の空間モデルを書くため）
+        if self.file_dialog_open() {
+            return;
+        }
         self.finish_shape_import();
         // 待たせた操作のうち、行えるようになったもの（1 つ行うたびに、残りを確かめ直す）
         while self.can_start_file_action()
