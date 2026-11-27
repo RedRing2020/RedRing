@@ -89,9 +89,22 @@ const HELP_TEMPLATE_JA: &[(&str, &str)] = &[
         "STEP ファイルを読み込みました: {file}（形状 {shapes} 個）",
     ),
     (
-        "notice.step_imported_with_skipped",
-        "STEP ファイルを読み込みました: {file}（形状 {shapes} 個。読めなかった・配置できなかった要素 {skipped} 個。理由はログを確認してください）",
+        "notice.step_imported_with_issues",
+        "STEP ファイルを読み込みました: {file}（形状 {shapes} 個。{issues}。理由はログを確認してください）",
     ),
+    (
+        "notice.step_issue.skipped_elements",
+        "読めなかった要素 {count} 個",
+    ),
+    (
+        "notice.step_issue.unplaced_parts",
+        "配置を読めず、配置なしで置いた部品 {count} 個",
+    ),
+    (
+        "notice.step_issue.skipped_parts",
+        "拡大・鏡映の配置のため読まなかった部品 {count} 個",
+    ),
+    ("notice.step_issue.separator", "、"),
     (
         "notice.shape_import_failed",
         "形状を読み込めません: {file}（{reason}）",
@@ -283,9 +296,22 @@ const HELP_TEMPLATE_EN: &[(&str, &str)] = &[
         "Loaded the STEP file: {file} ({shapes} shapes)",
     ),
     (
-        "notice.step_imported_with_skipped",
-        "Loaded the STEP file: {file} ({shapes} shapes, {skipped} elements not loaded or not placed; see the log for the reasons)",
+        "notice.step_imported_with_issues",
+        "Loaded the STEP file: {file} ({shapes} shapes; {issues}; see the log for the reasons)",
     ),
+    (
+        "notice.step_issue.skipped_elements",
+        "{count} elements not loaded",
+    ),
+    (
+        "notice.step_issue.unplaced_parts",
+        "{count} parts placed without their placement",
+    ),
+    (
+        "notice.step_issue.skipped_parts",
+        "{count} parts with a scale or mirror placement not loaded",
+    ),
+    ("notice.step_issue.separator", ", "),
     (
         "notice.shape_import_failed",
         "Cannot load the shape: {file} ({reason})",

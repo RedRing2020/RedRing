@@ -78,7 +78,8 @@ pub enum StepImportLimit {
     ControlPointsPerFile,
 }
 
-/// 読み込みの結果（画面には件数を出し、要素ごとの理由はログに出す）
+/// 読み込みの結果（画面には、外した要素・外した出現・配置なしで読んだ出現の数を種類ごとに出し、要素ごとの理由は
+/// ログに出す）
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StepImportReport {
     /// 加えたシェルのエンティティの数（出現ごと）
@@ -95,13 +96,6 @@ pub struct StepImportReport {
     pub unplaced_occurrences: usize,
     /// 回転と移動でない配置（拡大・鏡映）のため外した出現の数
     pub skipped_occurrences: usize,
-}
-
-impl StepImportReport {
-    /// 注意として知らせる要素の数（外した要素・外した出現・配置なしで読んだ出現）
-    pub fn issues(&self) -> usize {
-        self.skipped_elements + self.skipped_occurrences + self.unplaced_occurrences
-    }
 }
 
 /// STEP の読み込みの段

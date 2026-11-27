@@ -369,7 +369,14 @@ fn imported_step_shapes_are_displayed_and_added_to_the_target() {
         .unwrap();
 
     assert_eq!(report.shells, 1);
-    assert_eq!(report.issues(), 0);
+    assert_eq!(
+        (
+            report.skipped_elements,
+            report.skipped_occurrences,
+            report.unplaced_occurrences
+        ),
+        (0, 0, 0)
+    );
     assert!(document.is_modified());
     let [shell] = document.shapes().shells() else {
         panic!("one shell is added");

@@ -85,12 +85,11 @@ pub(crate) enum Notice {
     ShapeImportFailed { file: String, reason: UiMessage },
     /// 形状の読み込みを取り消した（ファイルの名前）
     ShapeImportCancelled { file: String },
-    /// STEP ファイルを読み込んだ（ファイルの名前・加えた形状の数・読めなかった・配置できなかった要素の数。理由は
-    /// ログに出す）
+    /// STEP ファイルを読み込んだ（ファイルの名前・加えた形状の数・注意として知らせる数。理由はログに出す）
     StepImported {
         file: String,
         shapes: usize,
-        skipped: usize,
+        issues: StepImportIssues,
     },
     /// 切削シミュレーションを取り込む前に、再生の操作をした
     NotImported,
@@ -138,6 +137,43 @@ pub(crate) enum Notice {
     ToolsAligned { count: usize },
 }
 
+/// STEP の読み込みで、注意として知らせる数（種類ごと。知らせには、0 でない種類だけを出す）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) struct StepImportIssues {
+    /// 読めずに外した要素（面・シェル・立体）の数
+    pub(crate) skipped_elements: usize,
+    /// 配置を読めず、配置なしで置いた部品の数
+    pub(crate) unplaced_parts: usize,
+    /// 扱えない配置（拡大・鏡映）のため、読まなかった部品の数
+    pub(crate) skipped_parts: usize,
+}
+
+impl StepImportIssues {
+    /// 知らせる数が 1 つもないか
+    fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// 0 でない種類だけを並べた文
+    fn text(&self, locale: UiLocale) -> String {
+        let kinds = [
+            ("notice.step_issue.skipped_elements", self.skipped_elements),
+            ("notice.step_issue.unplaced_parts", self.unplaced_parts),
+            ("notice.step_issue.skipped_parts", self.skipped_parts),
+        ];
+        let items: Vec<String> = kinds
+            .into_iter()
+            .filter(|(_, count)| *count > 0)
+            .map(|(key, count)| resolve_help_text(locale, key, &[("count", count.to_string())]))
+            .collect();
+        items.join(&resolve_help_text(
+            locale,
+            "notice.step_issue.separator",
+            &[],
+        ))
+    }
+}
+
 impl Notice {
     pub(crate) fn level(&self) -> NoticeLevel {
         match self {
@@ -150,8 +186,8 @@ impl Notice {
             | Self::JobManagerNotRunning
             | Self::ToolsAligned { .. }
             | Self::JobManagerAvailable => NoticeLevel::Info,
-            Self::StepImported { skipped, .. } => {
-                if *skipped == 0 {
+            Self::StepImported { issues, .. } => {
+                if issues.is_empty() {
                     NoticeLevel::Info
                 } else {
                     NoticeLevel::Warning
@@ -211,17 +247,14 @@ impl Notice {
             Self::StepImported {
                 file,
                 shapes,
-                skipped,
+                issues,
             } => {
-                let args = [
-                    ("file", file.clone()),
-                    ("shapes", shapes.to_string()),
-                    ("skipped", skipped.to_string()),
-                ];
-                let key = if *skipped == 0 {
+                let mut args = vec![("file", file.clone()), ("shapes", shapes.to_string())];
+                let key = if issues.is_empty() {
                     "notice.step_imported"
                 } else {
-                    "notice.step_imported_with_skipped"
+                    args.push(("issues", issues.text(locale)));
+                    "notice.step_imported_with_issues"
                 };
                 resolve_help_text(locale, key, &args)
             }
@@ -661,12 +694,16 @@ mod tests {
                 Notice::StepImported {
                     file: "a.step".to_string(),
                     shapes: 2,
-                    skipped: 0,
+                    issues: StepImportIssues::default(),
                 },
                 Notice::StepImported {
                     file: "a.step".to_string(),
                     shapes: 2,
-                    skipped: 1,
+                    issues: StepImportIssues {
+                        skipped_elements: 1,
+                        unplaced_parts: 2,
+                        skipped_parts: 3,
+                    },
                 },
                 Notice::ShapeImportFailed {
                     file: "a.stl".to_string(),
@@ -721,6 +758,50 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn a_step_import_notice_lists_only_the_kinds_of_issues_that_occurred() {
+        let notice = |issues| Notice::StepImported {
+            file: "a.step".to_string(),
+            shapes: 93,
+            issues,
+        };
+        let elements_only = notice(StepImportIssues {
+            skipped_elements: 6,
+            ..StepImportIssues::default()
+        });
+        // 読めなかった要素だけのときは、配置のことを出さない
+        let japanese = elements_only.text(UiLocale::Ja);
+        assert!(japanese.contains("読めなかった要素 6 個"), "{japanese}");
+        assert!(
+            !japanese.contains("配置") && !japanese.contains("部品"),
+            "{japanese}"
+        );
+        let english = elements_only.text(UiLocale::En);
+        assert!(english.contains("6 elements not loaded"), "{english}");
+        assert!(
+            !english.contains("placement") && !english.contains("parts"),
+            "{english}"
+        );
+        assert_eq!(elements_only.level(), NoticeLevel::Warning);
+
+        // いくつかの種類が起きたときは、起きた種類を並べる
+        let all = notice(StepImportIssues {
+            skipped_elements: 6,
+            unplaced_parts: 2,
+            skipped_parts: 1,
+        })
+        .text(UiLocale::Ja);
+        assert!(
+            all.contains("読めなかった要素 6 個、配置を読めず、配置なしで置いた部品 2 個、拡大・鏡映の配置のため読まなかった部品 1 個"),
+            "{all}"
+        );
+
+        // 何も起きなければ、注意にせず、数も出さない
+        let clean = notice(StepImportIssues::default());
+        assert_eq!(clean.level(), NoticeLevel::Info);
+        assert!(!clean.text(UiLocale::Ja).contains("読めなかった"));
     }
 
     #[test]
