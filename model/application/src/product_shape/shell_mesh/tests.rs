@@ -177,3 +177,80 @@ fn nurbs_surface_face_meets_the_chord_tolerance() {
         assert_within_tolerance(&mesh, bump_distance, chord_tolerance);
     }
 }
+
+/// 円錐の一部を表す 3 次の NURBS 曲面（u = 0 で半径 20 の 4 分の 1 の円に近い線、u の終わり `u_end` で頂点の
+/// 1 点につぶれる。u の向きの線はまっすぐ）を、原点から離れた所（座標の丸め誤差の大きい所）に置いたもの
+fn collapsed_side_surface(u_end: f64) -> SurfaceRef<f64> {
+    use geo_contracts::NurbsSurface3DConstructor;
+    // 4 分の 1 の円を 3 次のベジエ曲線で近似する制御点の、中の 2 点の位置
+    let handle = 20.0 * 0.552_284_749_8;
+    let arc = [(20.0, 0.0), (20.0, handle), (handle, 20.0), (0.0, 20.0)];
+    let control_points: Vec<Vec<_>> = (0..4)
+        .map(|i| {
+            let ratio = 1.0 - i as f64 / 3.0;
+            arc.iter()
+                .map(|&(x, y)| {
+                    geo_topology::Point3D::new(
+                        200.0 + ratio * x,
+                        100.0 + ratio * y,
+                        -5000.0 + (1.0 - ratio) * 10.0,
+                    )
+                })
+                .collect()
+        })
+        .collect();
+    let u_knots = vec![0.0, 0.0, 0.0, 0.0, u_end, u_end, u_end, u_end];
+    let v_knots = vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
+    SurfaceRef::Nurbs(
+        geo_topology::TopoNurbsSurface3D::new(3, 3, u_knots, v_knots, &control_points, None)
+            .unwrap(),
+    )
+}
+
+#[test]
+fn a_nurbs_side_collapsed_to_a_point_does_not_make_the_grid_fine() {
+    let max_angle = Angle::from_degrees(MAX_CHORD_ANGLE_DEGREES);
+    let u_end = 0.005_154_953_853_047_42;
+    let surface = collapsed_side_surface(u_end);
+    // 面の (u, v) の範囲（u は 0〜`u_high`、v は 0〜1）を囲むループ
+    let loops = |u_high: f64| {
+        vec![
+            [(0.0, 0.0), (u_high, 0.0), (u_high, 1.0), (0.0, 1.0)]
+                .iter()
+                .enumerate()
+                .map(|(vertex, &(u, v))| LoopPoint {
+                    vertex,
+                    uv: Point2D::new(u, v),
+                })
+                .collect::<Vec<_>>(),
+        ]
+    };
+    for chord_tolerance in [0.05, 0.001] {
+        // 範囲がつぶれた辺のちょうどまでなら、その辺の上の点は同じ点になり、曲がりを測らない
+        let (_, expected) =
+            FaceSurface::new(&surface, &loops(u_end)).steps(chord_tolerance, max_angle);
+        let expected = expected.unwrap();
+        // 範囲がつぶれた辺のわずかに手前まで（ループの点の丸め）でも、その辺の上の点の、丸め誤差で決まる曲がりを
+        // 刻みに使わない
+        // 範囲がつぶれた辺の丸めほど手前までなら、その辺の上の点の曲がりの半径から求めた刻みは、実際の曲がりの刻み
+        // よりずっと小さい（試験が、丸め誤差で決まる曲がりを含むことを確かめる）
+        let face = FaceSurface::new(&surface, &loops(u_end * (1.0 - 1.0e-15)));
+        let noisy = face.nurbs.as_ref().unwrap().bends.1.iter().any(|bend| {
+            bend.length <= 2.0 * chord_tolerance
+                && chord_angle_step(bend.radius, chord_tolerance, max_angle) * bend.radius
+                    / bend.speed
+                    < 0.1 * expected
+        });
+        assert!(noisy, "a bend on the collapsed side is measured");
+        for u_high in [u_end * (1.0 - 1.0e-15), u_end * (1.0 - 1.0e-12)] {
+            let face = FaceSurface::new(&surface, &loops(u_high));
+            let (step_u, step_v) = face.steps(chord_tolerance, max_angle);
+            assert_eq!(step_u, Some(u_high), "the lines along u are straight");
+            let step_v = step_v.unwrap();
+            assert!(
+                (step_v - expected).abs() <= expected * 1.0e-9,
+                "step {step_v}, expected {expected}"
+            );
+        }
+    }
+}
