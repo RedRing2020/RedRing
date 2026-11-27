@@ -49,7 +49,7 @@ fn confirm_large_toolpaths(window: &Window, locale: UiLocale, large: &[LargeTool
         })
         .collect::<Vec<_>>()
         .join("\n");
-    let calculate = text("conditions.confirm.calculate", &[]);
+    // ボタンは OS の標準の「OK・キャンセル」（Windows の標準の画面は、ボタンの名前を変えられないため）
     let answer = rfd::MessageDialog::new()
         .set_parent(window)
         .set_level(rfd::MessageLevel::Warning)
@@ -58,21 +58,14 @@ fn confirm_large_toolpaths(window: &Window, locale: UiLocale, large: &[LargeTool
             "conditions.confirm.large_toolpath",
             &[("operations", operations)],
         ))
-        .set_buttons(rfd::MessageButtons::OkCancelCustom(
-            calculate.clone(),
-            text("conditions.confirm.cancel", &[]),
-        ))
+        .set_buttons(rfd::MessageButtons::OkCancel)
         .show();
     tracing::info!(
         ?large,
         ?answer,
         "Asked whether to calculate large toolpaths"
     );
-    match answer {
-        rfd::MessageDialogResult::Ok => true,
-        rfd::MessageDialogResult::Custom(label) => label == calculate,
-        _ => false,
-    }
+    answer == rfd::MessageDialogResult::Ok
 }
 
 /// 素材の面の分類の、キーの中の番号

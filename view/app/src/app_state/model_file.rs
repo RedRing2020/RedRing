@@ -243,31 +243,22 @@ impl AppState {
         }
     }
 
+    /// 保存していない変更を保存するかを、OS のメッセージの画面で確かめる（ボタンは OS の標準の「はい・いいえ・
+    /// キャンセル」で、名前は OS の言語で出る。Windows の標準の画面は、ボタンの名前を変えられないため）
     fn ask_discard(&self) -> DiscardAnswer {
-        let text = |key| resolve_menu_bar_text(self.ui_locale, key);
-        let (save, dont_save, cancel) = (
-            text("file.confirm.save"),
-            text("file.confirm.dont_save"),
-            text("file.confirm.cancel"),
-        );
         let answer = rfd::MessageDialog::new()
             .set_parent(&*self.window)
             .set_level(rfd::MessageLevel::Warning)
             .set_title(crate::app::APP_TITLE)
-            .set_description(text("file.confirm.unsaved"))
-            .set_buttons(rfd::MessageButtons::YesNoCancelCustom(
-                save.clone(),
-                dont_save.clone(),
-                cancel,
+            .set_description(resolve_menu_bar_text(
+                self.ui_locale,
+                "file.confirm.unsaved",
             ))
+            .set_buttons(rfd::MessageButtons::YesNoCancel)
             .show();
         match answer {
             rfd::MessageDialogResult::Yes => DiscardAnswer::Save,
             rfd::MessageDialogResult::No => DiscardAnswer::DontSave,
-            rfd::MessageDialogResult::Custom(label) if label == save => DiscardAnswer::Save,
-            rfd::MessageDialogResult::Custom(label) if label == dont_save => {
-                DiscardAnswer::DontSave
-            }
             _ => DiscardAnswer::Cancel,
         }
     }
