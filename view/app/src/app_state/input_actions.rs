@@ -96,18 +96,26 @@ impl AppState {
                 "L" => {
                     self.toggle_cutting_simulation();
                 }
+                // 形状に合わせたことがあれば、視点の向きを決める操作は、どれも形状の全体に合わせて見る（向きは
+                // どれも +Z から見る向き）。まだ合わせていなければ、決まった位置に戻す
                 "r" => {
-                    self.reset_camera_to_shapes();
+                    if !self.fit_camera_to_shapes() {
+                        self.reset_camera();
+                    }
                     tracing::info!("Reset the camera (r key)");
                 }
                 "t" => {
-                    self.camera.reset_to_standard_cad_view();
-                    self.update_camera_uniforms();
+                    if !self.fit_camera_to_shapes() {
+                        self.camera.reset_to_standard_cad_view();
+                        self.update_camera_uniforms();
+                    }
                     tracing::info!("Set the standard CAD view (t key)");
                 }
                 "f" => {
-                    self.camera.reset_to_front_view();
-                    self.update_camera_uniforms();
+                    if !self.fit_camera_to_shapes() {
+                        self.camera.reset_to_front_view();
+                        self.update_camera_uniforms();
+                    }
                     tracing::info!("Set the front view (f key)");
                 }
                 "e" => {

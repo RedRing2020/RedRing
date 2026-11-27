@@ -9,15 +9,16 @@ impl AppState {
         self.update_camera_uniforms();
     }
 
-    /// カメラを、通常の表示で最後に合わせた形状の全体に合わせ直す。デバッグ表示の間と、まだ形状に合わせていない
-    /// ときは、決まった位置に戻す
-    pub fn reset_camera_to_shapes(&mut self) {
+    /// カメラを、通常の表示で最後に合わせた形状の全体に、+Z から見る向きで合わせ直す。合わせたら `true`。デバッグ
+    /// 表示の間と、まだ形状に合わせていないときは、何もせず `false`
+    pub(super) fn fit_camera_to_shapes(&mut self) -> bool {
         match self.camera_fit {
             Some(fit) if !self.debug_view_shown() => {
                 self.apply_camera_fit(fit);
                 self.update_camera_uniforms();
+                true
             }
-            _ => self.reset_camera(),
+            _ => false,
         }
     }
 
