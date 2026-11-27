@@ -289,6 +289,8 @@ pub struct AppState {
     debug_snapshot: DebugSnapshotState,
     /// デバッグ表示の間、取っておく通常の表示（ステージとカメラ。通常の表示の間は `None`）
     main_view: Option<main_view::MainView>,
+    /// 通常の表示で最後に合わせた形状の全体（カメラのリセットで合わせ直す。まだ合わせていなければ `None`）
+    camera_fit: Option<debug_scene::camera_fit::CameraFit>,
     snapshot_scrub_active: bool,
 
     cursor_position: Option<(f32, f32)>,
@@ -390,6 +392,7 @@ impl AppState {
             unread_notice: None,
             debug_snapshot: DebugSnapshotState::default(),
             main_view: None,
+            camera_fit: None,
             snapshot_scrub_active: false,
             cursor_position: None,
             last_cursor_position: None,

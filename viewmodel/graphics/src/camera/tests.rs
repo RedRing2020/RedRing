@@ -112,6 +112,24 @@ fn test_projection_matrix_near_far() {
     assert!(!proj[3][2].is_nan());
 }
 
+/// 大きな形状に合わせてカメラを遠くに置いても、見る中心の形状を平行投影の奥で切らない
+#[test]
+fn orthographic_projection_keeps_the_target_of_a_distant_camera() {
+    let mut camera = Camera::new();
+    camera.set_projection_mode(ProjectionMode::Orthographic);
+    camera.set_orthographic_bounds(-10000.0, 10000.0, -10000.0, 10000.0);
+    for distance in [15.0_f32, 4000.0, 40000.0] {
+        camera.distance = distance;
+        let proj = camera.projection_matrix(1.0);
+        // 視点の座標で、見る中心は奥行き `distance`（z = -distance）にある
+        let depth = proj[2][2] * -distance + proj[3][2];
+        assert!(
+            (0.0..=1.0).contains(&depth),
+            "distance {distance}: depth {depth}"
+        );
+    }
+}
+
 #[test]
 fn test_projection_modes() {
     let mut camera = Camera::new();

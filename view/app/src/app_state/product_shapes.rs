@@ -144,8 +144,12 @@ impl AppState {
         ));
         let meshes = mesh_stage.set_mesh_list(&self.graphic.device, items);
         self.report_not_drawn(meshes, crate::help_ui::Notice::ShapesNotDrawn);
-        if fit_camera && let Some(fit) = Self::build_camera_fit(&positions) {
-            self.apply_camera_fit(fit);
+        if fit_camera {
+            match Self::build_camera_fit(&positions) {
+                Some(fit) => self.apply_camera_fit(fit),
+                // 表示する形状がなければ、前の形状に合わせ直さない
+                None => self.camera_fit = None,
+            }
         }
         self.renderer.set_stage(mesh_stage);
         self.refresh_operation_toolpath_lines();

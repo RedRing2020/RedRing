@@ -80,8 +80,7 @@ pub(crate) fn projection_matrix(
                 );
                 (left, right, bottom, top)
             };
-            let near = -5000.0;
-            let far = 5000.0;
+            let (near, far) = orthographic_depth_range(distance);
 
             tracing::info!(
                 "Built the orthographic projection matrix: bounds=({:.1}, {:.1}, {:.1}, {:.1}), near={}, far={}",
@@ -96,6 +95,16 @@ pub(crate) fn projection_matrix(
             orthographic_rh_01(left, right, bottom, top, near, far)
         }
     }
+}
+
+/// 平行投影で描く奥行きの範囲の最小の半分（カメラの距離が短いときも、この奥行きまでは描く）
+const MIN_ORTHOGRAPHIC_HALF_DEPTH: f32 = 5000.0;
+
+/// カメラの距離 `distance` から、平行投影の手前と奥の範囲（視点からの奥行き）を決める。見る中心から `distance`
+/// より近くにある形状は、どの向きから見ても切れない（視点の前後に距離の 2 倍まで描く）
+fn orthographic_depth_range(distance: f32) -> (f32, f32) {
+    let half_depth = (distance * 2.0).max(MIN_ORTHOGRAPHIC_HALF_DEPTH);
+    (-half_depth, half_depth)
 }
 
 /// 右手座標系・Z範囲[0,1] の平行投影行列を構築する。
