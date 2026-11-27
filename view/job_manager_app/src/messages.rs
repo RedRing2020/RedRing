@@ -76,7 +76,7 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
         "削除したジョブの結果は、取り込めなくなります。",
     ),
     ("bulk.yes", "削除"),
-    ("bulk.no", "やめる"),
+    ("bulk.no", "キャンセル"),
     ("command.failed", "操作できませんでした（{reason}）"),
     ("delete.confirm", "選んだジョブ（{jobs}）を削除します。"),
     (
@@ -93,7 +93,7 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
         "計算待ち・計算中のジョブがあるため、消せません（ジョブ {jobs}）",
     ),
     ("delete.confirm_yes", "削除"),
-    ("delete.confirm_no", "やめる"),
+    ("delete.confirm_no", "キャンセル"),
     ("store.change", "保存先を変更…"),
     (
         "store.change_busy",
@@ -114,7 +114,7 @@ const JOB_MANAGER_TEMPLATE_JA: &[(&str, &str)] = &[
     ),
     ("store.change_question", "保存先を替えますか？"),
     ("store.change_yes", "替える"),
-    ("store.change_no", "やめる"),
+    ("store.change_no", "キャンセル"),
     ("store.change_failed", "保存先を替えられません（{reason}）"),
     (
         "store.change_restart_failed",

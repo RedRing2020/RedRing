@@ -270,8 +270,6 @@ const MACHINING_CONDITIONS_TEMPLATE_JA: &[(&str, &str)] = &[
         "conditions.confirm.large_toolpath_item_near_limit",
         "{position}. {operation}: 約 {gb} GB（上限に近いため、途中で止まることがあります）",
     ),
-    ("conditions.confirm.calculate", "計算する"),
-    ("conditions.confirm.cancel", "やめる"),
     (
         "conditions.status.recalculation_waiting",
         "今の条件の計算が計算待ちのため、再計算していません（計算が始まってから再計算できます）",
@@ -766,8 +764,6 @@ const MACHINING_CONDITIONS_TEMPLATE_EN: &[(&str, &str)] = &[
         "conditions.confirm.large_toolpath_item_near_limit",
         "{position}. {operation}: about {gb} GB (close to the limit, so the calculation may stop partway)",
     ),
-    ("conditions.confirm.calculate", "Calculate"),
-    ("conditions.confirm.cancel", "Cancel"),
     (
         "conditions.status.recalculation_waiting",
         "Not recalculated because the calculation for the current conditions is waiting (it can be recalculated after the calculation starts)",
