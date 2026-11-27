@@ -32,7 +32,7 @@ model
   job_runner → cam_sim（ジョブ 1 つを計算するランナーの実行ファイル）
   job_manager → job_runtime（ジョブを管理してランナーを起動するジョブマネージャーのサービス）
   job_manager_app → job_manager / job_runtime（ジョブマネージャーの画面と実行ファイル。View の層から Model の層への依存の例外。ログの書き方は logging_foundation を使う）
-  application → command_framework（framework 層。別のスレッドの処理の仕組み。依存してよいのは application だけ）
+  application → command_framework（framework 層。別のスレッドの処理・コマンドの受け付け方の仕組み。依存してよいのは application だけ）
   ↓
 foundation（analysis / logging_foundation / i18n_foundation / platform_foundation）
 ```
@@ -44,7 +44,7 @@ foundation（analysis / logging_foundation / i18n_foundation / platform_foundati
 - **`foundation/analysis`**: 線形代数などの純粋な数値解析・抽象型・許容誤差
 - **`foundation/logging_foundation`** / **`foundation/i18n_foundation`**: ログの初期化・レート制御 / ローカライズのメッセージカタログ
 - **`foundation/platform_foundation`**: 動かす環境（OS・コンテナなど）によって違う処理の、環境に依らない API の薄いラッパー（子プロセスの扱い・ファイルの置き換え・プロセスの間の口・利用者のフォルダの場所など）。ドメインの知識と画面の部品を持たない（動かす環境に依存するコードの方針）
-- **`model/framework/command_framework`**: 扱うデータの型（空間モデル・製品形状など）に依らない、使い回せる仕組み。時間のかかる処理 1 つを別のスレッドで行い、進み具合・結果・取り消しを待たずに受け渡す（`background_task`）。幾何・CAM・ジョブ・`application` に依存せず、async のランタイムを入れず、std のスレッド・`Mutex`・原子変数で作る。依存してよいのは `application` だけで、`viewmodel` は `application` の再エクスポート（`application::background_task`）を使う（`COMMAND_AND_BACKGROUND_TASK_DESIGN.md` 4 章・5 章）
+- **`model/framework/command_framework`**: 扱うデータの型（空間モデル・製品形状など）に依らない、使い回せる仕組み。時間のかかる処理 1 つを別のスレッドで行い、進み具合・結果・取り消しを待たずに受け渡す（`background_task`）。コマンドの宣言（実行の形・触るもの・許す割り込みなど）から、実行中のコマンドの最中に来たコマンドを、すぐ実行するか・待たせるか・受け付けないかを決める（`command`。実行中のコマンドのスタックと、待たせたコマンドの待ち行列を持つ）。幾何・CAM・ジョブ・`application` に依存せず、async のランタイムを入れず、std のスレッド・`Mutex`・原子変数で作る。依存してよいのは `application` だけで、`viewmodel` は `application` の再エクスポート（`application::background_task`・`application::command`）を使う（`COMMAND_AND_BACKGROUND_TASK_DESIGN.md` 4 章〜6 章）
 - **`geo_contracts`**: 幾何の trait定義の正本（抽象化）。形状ごとの capability（core）・形状に共通の capability（foundation）・形状をまたぐ演算（operations）の公開境界を定義し、`geo_core` の値型で型付けし、その値型を再エクスポートする。形状の具体型と実装を持たない
 - **`geo_commons`**: `analysis` のみに依存する、形状の型に依存しない共通の数値計算（楕円・楕円体の最近点と距離等）
 - **`geo_core`**: 最下位の幾何の値型（点・ベクトル・方向・相似変換・AABB・点の分類）と、許容誤差の既定値・変換のエラー。`analysis` のみに依存し、trait定義を持たず、操作は固有メソッドで提供する
