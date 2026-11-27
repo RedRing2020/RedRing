@@ -448,6 +448,10 @@ struct Bend {
     radius: f64,
     /// パラメータあたりの曲面の上の長さ
     speed: f64,
+    /// 曲がりを測った 3 点を結ぶ折れ線の長さ
+    length: f64,
+    /// 曲がりを測った 3 点の、パラメータの幅
+    width: f64,
 }
 
 /// NURBS 曲面の面の長さと曲がりを測る格子の、u・v の向きの区間の数
@@ -500,7 +504,13 @@ impl NurbsMeasure {
                     // 曲がりの半径は |S'|³ / |S' × S''|（曲がっていない点・速さが 0 の点は値が有限にならない）
                     let radius = speed.powi(3) / first.cross(second).length();
                     if radius.is_finite() && speed > 0.0 {
-                        bends.push(Bend { radius, speed });
+                        let length = before.distance_to(middle) + middle.distance_to(after);
+                        bends.push(Bend {
+                            radius,
+                            speed,
+                            length,
+                            width: 2.0 * step,
+                        });
                     }
                 }
             }
@@ -517,13 +527,24 @@ impl NurbsMeasure {
 
     /// 許容弦誤差と角度の上限から決まる u・v の刻み（測った点ごとの角の刻みを、パラメータの幅にした最小。曲がらな
     /// ければ範囲の幅）
+    ///
+    /// 測った 3 点を結ぶ長さが許容弦誤差の 2 倍以下の点は、その 3 点のパラメータの幅より細かい刻みを求めない。
+    /// 長さ `L` の曲線は、その中のどの弦からも `L / 2` より離れないので、その幅の中では許容弦誤差を守る。つぶれて
+    /// 1 点になる辺（制御点の列が 1 点に集まる辺）の上の点では、u か v の向きの線の長さがほぼ 0 で、曲がりの半径が
+    /// 丸め誤差で決まる小さな値になり、面の全体の刻みを極端に細かくするため。
     fn steps(&self, chord_tolerance: f64, max_angle: Angle<f64>) -> (f64, f64) {
         let step = |bends: &[Bend], span: f64| {
             bends
                 .iter()
                 .map(|bend| {
-                    chord_angle_step(bend.radius, chord_tolerance, max_angle) * bend.radius
-                        / bend.speed
+                    let step = chord_angle_step(bend.radius, chord_tolerance, max_angle)
+                        * bend.radius
+                        / bend.speed;
+                    if bend.length <= 2.0 * chord_tolerance {
+                        step.max(bend.width)
+                    } else {
+                        step
+                    }
                 })
                 // 半径が許容弦誤差に比べて大きすぎて角の刻みが 0 になる点は、曲がっていない点とみなす
                 .filter(|step| step.is_finite() && *step > 0.0)
