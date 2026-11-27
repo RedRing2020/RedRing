@@ -24,7 +24,8 @@ pub enum SurfaceRef<T: Scalar> {
     Cone(TopoConicalSurface3D<T>),
     /// 球（u は経度、v は緯度）
     Sphere(TopoSphericalSurface3D<T>),
-    /// トーラス（u は軸のまわりの角度、v は管のまわりの角度）
+    /// トーラス（u は軸のまわりの角度、v は管のまわりの角度）。管が軸と交わるトーラス（りんご形・レモン形）は、
+    /// 球と同じく v に周期がなく、R + r cos v = 0 の 2 つの v が極になる（v は `[-極, 極]`）
     Torus(TopoTorusSurface3D<T>),
     /// NURBS 曲面（u・v はノットベクトルの値）
     Nurbs(TopoNurbsSurface3D<T>),
@@ -55,16 +56,22 @@ impl<T: Scalar> SurfaceRef<T> {
         match self {
             Self::Plane(_) | Self::Nurbs(_) => (None, None),
             Self::Cylinder(_) | Self::Cone(_) | Self::Sphere(_) => (Some(T::TAU), None),
-            Self::Torus(_) => (Some(T::TAU), Some(T::TAU)),
+            Self::Torus(surface) => match torus_pole(surface) {
+                Some(_) => (Some(T::TAU), None),
+                None => (Some(T::TAU), Some(T::TAU)),
+            },
         }
     }
 
-    /// u によらず 1 点になる v（球の 2 つの極・円錐の頂点。小さい順）
+    /// u によらず 1 点になる v（球の 2 つの極・円錐の頂点・管が軸と交わるトーラスの軸の上の 2 点。小さい順）
     pub fn poles(&self) -> Vec<T> {
         match self {
             Self::Sphere(_) => vec![-T::PI / T::from_f64(2.0), T::PI / T::from_f64(2.0)],
             Self::Cone(surface) => {
                 vec![(surface.apex() - surface.center()).dot(surface.axis().as_vector())]
+            }
+            Self::Torus(surface) => {
+                torus_pole(surface).map_or(Vec::new(), |pole| vec![-pole, pole])
             }
             _ => Vec::new(),
         }
@@ -81,13 +88,23 @@ impl<T: Scalar> SurfaceRef<T> {
             Self::Cylinder(surface) => surface.normal_at(u, v),
             Self::Cone(surface) => surface.normal_at(u, v)?,
             Self::Sphere(surface) => surface.normal_at(u, v),
-            Self::Torus(surface) => surface.normal_at(u, v),
+            Self::Torus(surface) => {
+                // 管が軸と交わるトーラスの軸の上の点は、円錐の頂点と同じくとがり、法線が決まらない
+                let radius = surface.major_radius() + surface.minor_radius() * v.cos();
+                if torus_pole(surface).is_some()
+                    && radius.abs() <= geo_contracts::default_distance_tolerance::<T>()
+                {
+                    return None;
+                }
+                surface.normal_at(u, v)
+            }
             Self::Nurbs(surface) => surface.normal_at(u, v)?,
         };
         Some(direction.as_vector())
     }
 
-    /// 点 `point` が、u によらず 1 点になる v の線（球の極・円錐の頂点）にあれば、その v
+    /// 点 `point` が、u によらず 1 点になる v の線（球の極・円錐の頂点・管が軸と交わるトーラスの軸の上の点）に
+    /// あれば、その v
     pub fn singular_v(&self, point: Point3D<T>, tolerance: T) -> Option<T> {
         match self {
             Self::Sphere(surface) => {
@@ -104,6 +121,18 @@ impl<T: Scalar> SurfaceRef<T> {
                 let apex = surface.apex();
                 (point.distance_to(apex) <= tolerance)
                     .then(|| (apex - surface.center()).dot(surface.axis().as_vector()))
+            }
+            Self::Torus(surface) => {
+                let pole = torus_pole(surface)?;
+                // 軸の上の点の高さは r sin(極)
+                let tip = surface.axis().as_vector() * (surface.minor_radius() * pole.sin());
+                if point.distance_to(surface.center() + tip) <= tolerance {
+                    Some(pole)
+                } else if point.distance_to(surface.center() - tip) <= tolerance {
+                    Some(-pole)
+                } else {
+                    None
+                }
             }
             _ => None,
         }
@@ -164,11 +193,24 @@ impl<T: Scalar> SurfaceRef<T> {
                 );
                 let (x, y, z) = frame.local(point);
                 let radial = (x * x + y * y).sqrt() - surface.major_radius();
-                Some((periodic(y.atan2(x)), periodic(z.atan2(radial))))
+                let v = z.atan2(radial);
+                // 管が軸と交わるトーラスの v は、周期で折り返さず `[-極, 極]` に収める
+                // （極の外の角度では、断面の弧の上で近い点は極の点）
+                let v = match torus_pole(surface) {
+                    Some(pole) => v.max(-pole).min(pole),
+                    None => periodic(v),
+                };
+                Some((periodic(y.atan2(x)), v))
             }
             Self::Nurbs(_) => None,
         }
     }
+}
+
+/// 管が軸と交わるトーラス（大半径が小半径より小さい）の極の v（R + r cos v = 0 の正の v）。ほかは `None`
+fn torus_pole<T: Scalar>(surface: &TopoTorusSurface3D<T>) -> Option<T> {
+    (surface.major_radius() < surface.minor_radius())
+        .then(|| (-surface.major_radius() / surface.minor_radius()).acos())
 }
 
 /// 角度を `[0, 2π)` に収める

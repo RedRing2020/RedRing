@@ -9,7 +9,7 @@ mod transform;
 // トーラス面は大半径（major_radius）と小半径（minor_radius）を持つ回転面です。
 //
 // STEP エンティティ: TOROIDAL_SURFACE + AXIS2_PLACEMENT_3D
-// パラメータ範囲: u ∈ [0, 2π], v ∈ [0, 2π]
+// パラメータ範囲: u ∈ [0, 2π], v ∈ [0, 2π]（管が軸と交わるトーラスでは、v は R + r cos v ≥ 0 の範囲）
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
@@ -21,6 +21,11 @@ use geo_contracts::{
 ///
 /// 大半径（中心軸から断面の円の中心までの距離）と
 /// 小半径（断面の円の半径）により定義されます。
+///
+/// 面は、点 C + (R + r cos v)(cos u X + sin u Y) + r sin v Z のうち、R + r cos v ≥ 0 の部分
+/// （断面の円の、軸から見て角度 u の側にある部分）とする。大半径が小半径より大きければトーラスの全体、
+/// 大半径が正で小半径以下なら外側のりんご形、大半径が負なら内側のレモン形（管の中心が軸の向こう側にある）。
+/// 管が軸と交わるトーラスでは、R + r cos v = 0 の 2 つの v で、面が軸の上の 1 点になる。
 #[derive(Debug, Clone, PartialEq)]
 pub struct TorusSurface3D<T: Scalar> {
     /// 原点（トーラスの中心点）
@@ -61,7 +66,8 @@ impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
         major_radius: T,
         minor_radius: T,
     ) -> Option<Self> {
-        if major_radius <= T::ZERO || minor_radius <= T::ZERO {
+        // 大半径が 0 なら球、−小半径以下なら面がない（または 1 点）
+        if minor_radius <= T::ZERO || major_radius == T::ZERO || major_radius <= -minor_radius {
             return None;
         }
 
@@ -129,12 +135,23 @@ impl<T: Scalar> TorusSurface3DEvaluation<T> for TorusSurface3D<T> {
 
 impl<T: Scalar> TorusSurface3DDistance<T> for TorusSurface3D<T> {
     fn distance_to_point(&self, point: Point3D<T>) -> T {
-        // 断面の円の中心が描く円までの距離と小半径の差
+        // 点と軸を含む断面の、点の側の半平面の上で、断面の円の軸の側（軸からの距離が 0 以上）の弧までの距離
         let local = point - self.origin;
         let axial = local.dot(self.z_axis.as_vector());
         let radial = (local - self.z_axis.as_vector() * axial).length();
         let tube_center_distance =
             Vector3D::new(radial - self.major_radius, axial, T::ZERO).length();
-        (tube_center_distance - self.minor_radius).abs()
+        if tube_center_distance == T::ZERO {
+            return self.minor_radius;
+        }
+        // 断面の円の上の最も近い点が、軸の向こう側に出るなら、弧の端（軸の上の点）が最も近い
+        let nearest_radial = self.major_radius
+            + self.minor_radius * (radial - self.major_radius) / tube_center_distance;
+        if self.major_radius >= self.minor_radius || nearest_radial >= T::ZERO {
+            return (tube_center_distance - self.minor_radius).abs();
+        }
+        let pole_height =
+            (self.minor_radius * self.minor_radius - self.major_radius * self.major_radius).sqrt();
+        Vector3D::new(radial, axial.abs() - pole_height, T::ZERO).length()
     }
 }

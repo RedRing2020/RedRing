@@ -138,7 +138,36 @@ fn expected_parts() -> Vec<Expected> {
         min: [-38.0, -38.0, -8.0],
         max: [38.0, 38.0, 8.0],
     };
+    // 大半径 −30・小半径 50 のトーラスの内側（レモン形）。軸から ρ(z) = √(50² − z²) − 30 の回転体で、
+    // |z| ≤ c の部分の体積は π ∫ ρ² dz、側面の面積は 2π · 50 ∫ (1 − 30 / √(50² − z²)) dz
+    let (lemon_major, lemon_minor) = (30.0_f64, 50.0_f64);
+    let lemon_volume = |c: f64| {
+        let root = (lemon_minor * lemon_minor - c * c).sqrt();
+        PI * (2.0 * c * (lemon_minor * lemon_minor + lemon_major * lemon_major)
+            - 2.0 * c * c * c / 3.0
+            - 2.0 * lemon_major * (c * root + lemon_minor * lemon_minor * (c / lemon_minor).asin()))
+    };
+    let lemon_side_area =
+        |c: f64| 2.0 * PI * lemon_minor * (2.0 * c - 2.0 * lemon_major * (c / lemon_minor).asin());
     vec![
+        // 樽: 側面を半周ずつ 2 つの面にし、上と下を平面でふさぐ（端の円の半径 10）
+        Expected {
+            file: "barrel.step",
+            faces: 4,
+            volume: lemon_volume(30.0),
+            area: lemon_side_area(30.0) + 2.0 * PI * 100.0,
+            min: [-20.0, -20.0, -30.0],
+            max: [20.0, 20.0, 30.0],
+        },
+        // 先まで: 先（軸の上の点）は高さ ±40
+        Expected {
+            file: "spindle.step",
+            faces: 2,
+            volume: lemon_volume(40.0),
+            area: lemon_side_area(40.0),
+            min: [-20.0, -20.0, -40.0],
+            max: [20.0, 20.0, 40.0],
+        },
         Expected {
             file: "block.step",
             faces: 6,

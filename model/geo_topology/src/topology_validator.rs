@@ -201,8 +201,9 @@ fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex) -> bool {
         return false;
     }
     match surface {
-        // u・v の両方に周期があり、どちらの側も有限の面になる。まわる向きが打ち消し合えばよい
-        SurfaceRef::Torus(_) => {
+        // u・v の両方に周期があり、どちらの側も有限の面になる。まわる向きが打ち消し合えばよい（管が軸と
+        // 交わるトーラスは、v に周期がなく両側に極があるので、球と同じに確かめる）
+        SurfaceRef::Torus(_) if surface.periods().1.is_some() => {
             let sum_u = windings
                 .iter()
                 .fold(T::ZERO, |sum, winding| sum + winding.0);
@@ -211,7 +212,10 @@ fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex) -> bool {
                 .fold(T::ZERO, |sum, winding| sum + winding.1);
             sum_u == T::ZERO && sum_v == T::ZERO
         }
-        SurfaceRef::Cylinder(_) | SurfaceRef::Cone(_) | SurfaceRef::Sphere(_) => {
+        SurfaceRef::Cylinder(_)
+        | SurfaceRef::Cone(_)
+        | SurfaceRef::Sphere(_)
+        | SurfaceRef::Torus(_) => {
             match windings.as_slice() {
                 // 帯: u の正の向きにまわるループ（面はその上）が、負の向きにまわるループより下
                 [first, second] => {
@@ -222,9 +226,10 @@ fn is_face_oriented<T: Scalar>(brep: &Brep<T>, index: FaceIndex) -> bool {
                     };
                     lower.0 == T::ONE && upper.0 == -T::ONE && lower.2 < upper.2
                 }
-                // 極までの面: 面は、ループから見て極の側（球はどちらの極の側でもよい）
+                // 極までの面: 面は、ループから見て極の側（球と、管が軸と交わるトーラスは、どちらの極の側でも
+                // よい）
                 [single] => match surface {
-                    SurfaceRef::Sphere(_) => true,
+                    SurfaceRef::Sphere(_) | SurfaceRef::Torus(_) => true,
                     SurfaceRef::Cone(cone) => surface
                         .uv_of(cone.apex())
                         .is_some_and(|(_, apex_v)| single.0 * (apex_v - single.2) > T::ZERO),

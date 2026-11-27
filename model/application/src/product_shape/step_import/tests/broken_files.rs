@@ -128,6 +128,9 @@ fn large_or_non_finite_numbers_never_panic() {
         replace(&cone, "LENGTH_MEASURE(25.4)", "LENGTH_MEASURE(-25.4)"),
         // 管の半径が中心の円の半径より大きいトーラス
         replace(&torus, ",30.,8.)", ",8.,30.)"),
+        // 負の大半径（管が軸と交わる内側・大きさが小半径以上で面がない）
+        replace(&torus, ",30.,8.)", ",-8.,30.)"),
+        replace(&torus, ",30.,8.)", ",-30.,8.)"),
     ];
     // 読めない要素は、エラーにするか、外して結果に書く
     for bytes in &cases {
