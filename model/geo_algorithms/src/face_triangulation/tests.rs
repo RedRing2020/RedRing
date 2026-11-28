@@ -1130,3 +1130,51 @@ fn coarse_grid_counts_fit_the_room_and_keep_inner_points() {
     // 区間が 1 つの向き（内側に点がない）は、そのまま
     assert_eq!(coarse_grid_counts((10_000.0, 1.0), 100.0), (100, 1));
 }
+
+/// u・v の向きに別々の刻みを持つ平面（内側に格子の点を置く）
+struct SteppedPlane {
+    steps: (f64, f64),
+}
+
+impl TriangulationSurface for SteppedPlane {
+    fn point_at(&self, u: f64, v: f64) -> Option<Point3D<f64>> {
+        Some(Point3D::new(u, v, 0.0))
+    }
+    fn normal_at(&self, _: f64, _: f64) -> Option<Vector3D<f64>> {
+        Some(Vector3D::new(0.0, 0.0, 1.0))
+    }
+    fn periods(&self) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+    fn poles(&self) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+    fn steps(&self, _: f64, _: Angle<f64>) -> (Option<f64>, Option<f64>) {
+        (Some(self.steps.0), Some(self.steps.1))
+    }
+    fn scale(&self) -> (f64, f64) {
+        (1.0, 1.0)
+    }
+}
+
+#[test]
+fn a_grid_whose_inner_points_fit_the_point_limit_is_not_made_coarse() {
+    // 一辺 1 の正方形に、u の向きに 2 区間・v の向きに 60 区間の格子。区間の数の積（120）は上限（100）を超えるが、
+    // 内側の点は 1 × 59 = 59 個で、境界の 4 点を引いた残りに収まる
+    let ratio = GRID_DIAGONAL_TO_STEP_RATIO * std::f64::consts::FRAC_1_SQRT_2;
+    let surface = SteppedPlane {
+        steps: (0.5 / ratio, 1.0 / 59.5 / ratio),
+    };
+    let loops = vec![rectangle(0, (0.0, 0.0), (1.0, 1.0), 1, false)];
+    let limited = FaceTriangulationSettings {
+        max_points: 100,
+        ..settings(0.01)
+    };
+    let result = FaceRegion::new(&loops, &surface, &limited)
+        .unwrap()
+        .triangulate(&surface, &limited)
+        .unwrap();
+    assert_eq!(result.stopped_by, None);
+    assert_eq!(result.added.len(), 59);
+    check_cover(&loops, &result);
+}

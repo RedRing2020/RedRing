@@ -245,9 +245,10 @@ impl Mesh {
             return Err(FaceTriangulationError::TooManyPoints);
         }
         let room = self.max_points.saturating_sub(self.vertices.len());
-        // 区間の数の積が上限を超える格子は、点を並べずに粗くする。超えない格子は、境界の近くと範囲の外の点を除いた
-        // 実際の点の数で、残りに収まるかを見る
-        if count_u * count_v <= self.max_points as f64 {
+        // 内側の格子の点の数（区間の数から 1 を引いた数の積）が上限を超える格子は、点を並べずに粗くする。超えない
+        // 格子は、境界の近くと範囲の外の点を除いた実際の点の数で、残りに収まるかを見る
+        let candidates = (count_u - 1.0).max(0.0) * (count_v - 1.0).max(0.0);
+        if candidates <= self.max_points as f64 {
             let points =
                 self.grid_points_at(low, high, steps, (count_u as usize, count_v as usize));
             if points.len() <= room {
