@@ -24,7 +24,8 @@ use geo_contracts::{
     ConicalSurface3DProperties, CylindricalSurface3DProperties, NurbsSurface3DProperties,
     SphericalSurface3DProperties, TorusSurface3DProperties,
 };
-use geo_topology::{Brep, CurveRef, EdgeIndex, FaceIndex, SurfaceRef, VertexIndex};
+use geo_shapes::{CurveRef, SurfaceRef};
+use geo_topology::{Brep, EdgeIndex, FaceIndex, VertexIndex};
 
 /// 1 本の稜線から作る点の数の上限
 const MAX_EDGE_POINTS: usize = 100_000;

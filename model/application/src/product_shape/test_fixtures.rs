@@ -5,9 +5,8 @@ use geo_topology::Brep;
 /// 試験の B-rep: 原点と各軸の上の点を頂点にした四面体の、閉じたシェルの立体
 pub(crate) fn tetrahedron_brep() -> Brep<f64> {
     use geo_contracts::{InfiniteLine3DConstructor, Plane3DConstructor};
-    use geo_topology::{
-        CurveRef, EdgeUse, SurfaceRef, TopoInfiniteLine3D, TopoPlane3D, TopologyToleranceSettings,
-    };
+    use geo_shapes::{CurveRef, SurfaceRef};
+    use geo_topology::{EdgeUse, TopoInfiniteLine3D, TopoPlane3D, TopologyToleranceSettings};
     let mut brep = Brep::new(TopologyToleranceSettings::new(1.0e-9)).unwrap();
     let points = [
         geo_topology::Point3D::new(0.0, 0.0, 0.0),
@@ -120,7 +119,7 @@ impl Solid {
                     .add_edge(
                         self.vertices[key.0],
                         self.vertices[key.1],
-                        geo_topology::CurveRef::Line(line),
+                        geo_shapes::CurveRef::Line(line),
                         (0.0, start.distance_to(end)),
                         0.0,
                     )
@@ -147,7 +146,7 @@ impl Solid {
         loops.extend(holes);
         let face = self
             .brep
-            .add_face(geo_topology::SurfaceRef::Plane(plane), true, loops)
+            .add_face(geo_shapes::SurfaceRef::Plane(plane), true, loops)
             .unwrap();
         self.faces.push(face);
     }
@@ -173,7 +172,7 @@ fn circle_edge(brep: &mut Brep<f64>, center: [f64; 3], radius: f64) -> geo_topol
     brep.add_edge(
         vertex,
         vertex,
-        geo_topology::CurveRef::Circle(circle),
+        geo_shapes::CurveRef::Circle(circle),
         (0.0, std::f64::consts::TAU),
         0.0,
     )
@@ -216,7 +215,7 @@ pub(crate) fn cylinder_brep() -> Brep<f64> {
     let bottom = circle_edge(&mut brep, [0.0, 0.0, 0.0], 10.0);
     let top = circle_edge(&mut brep, [0.0, 0.0, 20.0], 10.0);
     let origin = geo_topology::Point3D::new(0.0, 0.0, 0.0);
-    let side = geo_topology::SurfaceRef::Cylinder(
+    let side = geo_shapes::SurfaceRef::Cylinder(
         geo_topology::TopoCylindricalSurface3D::new_standard(origin, 10.0).unwrap(),
     );
     let plane = |z: f64, up: bool| {
@@ -226,7 +225,7 @@ pub(crate) fn cylinder_brep() -> Brep<f64> {
             if up { 1.0 } else { -1.0 },
         ))
         .unwrap();
-        geo_topology::SurfaceRef::Plane(
+        geo_shapes::SurfaceRef::Plane(
             geo_topology::TopoPlane3D::from_point_and_normal(
                 geo_topology::Point3D::new(0.0, 0.0, z),
                 normal,
@@ -262,7 +261,7 @@ pub(crate) fn sphere_brep() -> Brep<f64> {
     )
     .unwrap();
     let face = brep
-        .add_face(geo_topology::SurfaceRef::Sphere(sphere), true, Vec::new())
+        .add_face(geo_shapes::SurfaceRef::Sphere(sphere), true, Vec::new())
         .unwrap();
     let shell = brep.add_shell(vec![face]).unwrap();
     brep.add_solid(vec![shell]).unwrap();
@@ -280,7 +279,7 @@ pub(crate) fn torus_brep() -> Brep<f64> {
     )
     .unwrap();
     let face = brep
-        .add_face(geo_topology::SurfaceRef::Torus(torus), true, Vec::new())
+        .add_face(geo_shapes::SurfaceRef::Torus(torus), true, Vec::new())
         .unwrap();
     let shell = brep.add_shell(vec![face]).unwrap();
     brep.add_solid(vec![shell]).unwrap();
@@ -309,7 +308,7 @@ pub(crate) fn plate_with_hole_brep() -> Brep<f64> {
         solid.plane_face(&face, Vec::new());
     }
     // 穴の面の外向きの法線は軸の向き（円柱の法線と逆）
-    let hole = geo_topology::SurfaceRef::Cylinder(
+    let hole = geo_shapes::SurfaceRef::Cylinder(
         geo_topology::TopoCylindricalSurface3D::new_standard(
             geo_topology::Point3D::new(20.0, 15.0, 0.0),
             5.0,
@@ -354,7 +353,7 @@ pub(crate) fn seamed_sphere_brep() -> Brep<f64> {
         .add_edge(
             south,
             north,
-            geo_topology::CurveRef::Circle(meridian),
+            geo_shapes::CurveRef::Circle(meridian),
             (-std::f64::consts::FRAC_PI_2, std::f64::consts::FRAC_PI_2),
             0.0,
         )
@@ -362,7 +361,7 @@ pub(crate) fn seamed_sphere_brep() -> Brep<f64> {
     let sphere = geo_topology::TopoSphericalSurface3D::new_standard(origin, 10.0).unwrap();
     let face = brep
         .add_face(
-            geo_topology::SurfaceRef::Sphere(sphere),
+            geo_shapes::SurfaceRef::Sphere(sphere),
             true,
             vec![vec![edge_use(seam, true), edge_use(seam, false)]],
         )
@@ -391,7 +390,7 @@ pub(crate) fn cone_brep() -> Brep<f64> {
         .add_edge(
             rim_vertex,
             apex,
-            geo_topology::CurveRef::Line(line),
+            geo_shapes::CurveRef::Line(line),
             (0.0, rim.distance_to(apex_point)),
             0.0,
         )
@@ -412,7 +411,7 @@ pub(crate) fn cone_brep() -> Brep<f64> {
     // 側面: 底の円を u の減る向きに、継ぎ目を頂点へ下り、同じ継ぎ目を上る
     let faces = vec![
         brep.add_face(
-            geo_topology::SurfaceRef::Cone(cone),
+            geo_shapes::SurfaceRef::Cone(cone),
             true,
             vec![vec![
                 edge_use(base, false),
@@ -422,7 +421,7 @@ pub(crate) fn cone_brep() -> Brep<f64> {
         )
         .unwrap(),
         brep.add_face(
-            geo_topology::SurfaceRef::Plane(top),
+            geo_shapes::SurfaceRef::Plane(top),
             true,
             vec![vec![edge_use(base, true)]],
         )
@@ -475,7 +474,7 @@ pub(crate) fn bump_brep() -> Brep<f64> {
     ];
     let face = solid
         .brep
-        .add_face(geo_topology::SurfaceRef::Nurbs(surface), true, vec![outer])
+        .add_face(geo_shapes::SurfaceRef::Nurbs(surface), true, vec![outer])
         .unwrap();
     solid.faces.push(face);
     solid.finish()

@@ -63,14 +63,14 @@ STEP（ISO 10303-21。AP203・AP214・AP242 の形状）の読み込みと、そ
 ### 4.2 クレートと依存
 
 - `geo_step` を Model の層に足す。STEP のデータ交換（読み込み。書き出しを作るときも、ここに置く）だけを持つ
-  - 依存は `analysis`・`geo_contracts`・`geo_core`・`geo_primitives`・`geo_nurbs`・`geo_topology`・`geo_algorithms` とする
+  - 依存は `analysis`・`geo_contracts`・`geo_core`・`geo_primitives`・`geo_nurbs`・`geo_shapes`・`geo_topology`・`geo_algorithms` とする
   - `geo_io` は、STL と RedRing のバイナリ形式（位相を持たない形状のバイト列）のままとする（`geo_io` は `geo_topology` に依存できない。STEP を `geo_io` に置くと、STL などの読み込みまで位相に依存する形になる）。`geo_io` を、RedRing のバイナリ形式と STL のクレートに分けるかは、#1342 で決める
   - ほかの形式（IGES など）を足すときは、同じ形で別のクレート（`geo_iges` など）にする
 - `application` の依存に `geo_step` を足す
 - 依存の決まり（`scripts/_arch_rules_data.ps1`）と `ARCHITECTURE.md` は、`geo_step` を作る Issue で更新する
-- 形状の層のクレート `geo_shapes` を、`geo_primitives`・`geo_nurbs` の上に足す（#1484。7.2.1）。曲線の参照（`CurveRef`）・曲面の参照（`SurfaceRef`）と、押し出しの面・回転の面の型を置く
-  - 依存は `analysis`・`geo_contracts`・`geo_core`・`geo_primitives`・`geo_nurbs` とする。`geo_topology`・`geo_step`・`application` の依存に `geo_shapes` を足す
-  - 依存の決まりと `ARCHITECTURE.md` は、`geo_shapes` を作る Issue（#1493）で更新する
+- 形状の層のクレート `geo_shapes` は、`geo_primitives`・`geo_nurbs` の上に置く（#1484。7.2.1）。曲線の参照（`CurveRef`）・曲面の参照（`SurfaceRef`）を持ち、押し出しの面・回転の面の型もここに置く
+  - 依存は `analysis`・`geo_contracts`・`geo_core`・`geo_primitives`・`geo_nurbs` とする。`geo_topology`・`geo_step`・`application` は `geo_shapes` に依存する
+  - 依存の決まり（`scripts/_arch_rules_data.ps1`）と `ARCHITECTURE.md` は、`geo_shapes` を作るときに更新した（#1493）
 
 ### 4.3 入力を信用しない
 
@@ -129,7 +129,7 @@ STEP（ISO 10303-21。AP203・AP214・AP242 の形状）の読み込みと、そ
 
 - 曲面: 平面・円柱・円錐・球・トーラス・NURBS 曲面（`geo_primitives`・`geo_nurbs` の型）と、押し出しの面・回転の面（`geo_shapes` の型。7.2）
 - 3 次元の曲線: 線分の母線（無限の直線）・円・楕円・NURBS 曲線。稜線は、曲線と区間の組で持つ（`TOPOLOGY_ENTITY_LAYER_DESIGN.md` の「母曲線と範囲」）
-- 曲線の参照（`CurveRef`）と曲面の参照（`SurfaceRef`）は、形状の層 `geo_shapes` に置き、B-rep の表（`geo_topology`）が使う（7.2.1。移すのは #1493）
+- 曲線の参照（`CurveRef`）と曲面の参照（`SurfaceRef`）は、形状の層 `geo_shapes` に置き、B-rep の表（`geo_topology`）が使う（7.2.1）
 - パラメータ曲線（2 次元）: 直線・円・楕円・NURBS 曲線。稜線の母曲線と同じパラメータで (u, v) を返す形で持つ（円は、楕円の 2 つの半軸が同じ長さで直交するものとして持つ）
 
 ### 5.3 向きの規則
@@ -292,7 +292,7 @@ STEP の押し出しの面（`SURFACE_OF_LINEAR_EXTRUSION`）と回転の面（`
 
 #### 7.2.1 置き場（形状の層 `geo_shapes`）
 
-- 元の曲線は、直線・円・楕円・NURBS 曲線のどれもありうる。今それを 1 つの型で持つ曲線の参照（`CurveRef`）は `geo_topology` にあり、`geo_primitives` と `geo_nurbs` は互いに依存しない（4.2）ので、型をどちらにも置けない
+- 元の曲線は、直線・円・楕円・NURBS 曲線のどれもありうる。それを 1 つの型で持つ曲線の参照（`CurveRef`）は、もとは `geo_topology` にあった。`geo_primitives` と `geo_nurbs` は互いに依存しない（4.2）ので、型をどちらにも置けない
 - `geo_primitives`・`geo_nurbs` の上に、両方の型を参照する形状の層のクレート `geo_shapes` を足す（2026-11-28 に利用者が決めた）
   - 置くもの: 曲線の参照（`CurveRef`）、曲面の参照（`SurfaceRef`。点・法線・周期・極などの形の操作を含む）、押し出しの面の型（`ExtrusionSurface3D`）・回転の面の型（`RevolutionSurface3D`）
   - `geo_topology` は、B-rep の表・パラメータ曲線・表の確かめを持ち、`geo_shapes` の曲線・曲面の参照を使う。`geo_topology` に別名の再エクスポートは置かず、使う側の import を直す
@@ -300,7 +300,7 @@ STEP の押し出しの面（`SURFACE_OF_LINEAR_EXTRUSION`）と回転の面（`
 - ほかの案と、選ばなかった理由
   - `geo_topology` に置く: 依存は変わらないが、位相のクレートに曲面の形の評価が増え、形と位相が分かれない
   - `geo_primitives` に置き、元の曲線を型引数で受ける: 曲線の点と微分の trait を `geo_contracts` に足すことになり、今それを実装するのは曲線の参照だけ
-- 曲線・曲面の参照を移すことは、振る舞いを変えない段 0（#1493）として先に行う
+- 曲線・曲面の参照を移すことは、振る舞いを変えない段 0（#1493）として先に行った
 
 #### 7.2.2 型と持つもの
 

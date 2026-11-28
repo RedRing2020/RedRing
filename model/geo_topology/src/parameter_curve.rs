@@ -8,14 +8,13 @@ mod fitting;
 #[cfg(test)]
 mod tests;
 
-use crate::{
-    CurveRef, Point2D, SurfaceRef, TopoNurbsCurve2D, TopoNurbsCurve3D, TopoPlane3D, Vector2D,
-};
+use crate::{Point2D, TopoNurbsCurve2D, TopoNurbsCurve3D, TopoPlane3D, Vector2D};
 use geo_contracts::{
     Circle3DProperties, Ellipse3DProperties, InfiniteLine3DProperties, NurbsCurve2DConstructor,
     NurbsCurve2DEvaluation, NurbsCurve2DProperties, NurbsCurve3DProperties, Plane3DProperties,
     Scalar,
 };
+use geo_shapes::{CurveRef, SurfaceRef};
 
 /// 母曲線の区間を分ける数（当てはめと確かめに使う点は、区間の両端を含めて この数 + 1 個）
 const SAMPLE_SEGMENTS: usize = 8;

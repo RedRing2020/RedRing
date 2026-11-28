@@ -16,6 +16,7 @@ geo_contracts = { path = "../geo_contracts" }
 geo_core = { path = "../geo_core" }
 geo_nurbs = { path = "../geo_nurbs" }
 geo_primitives = { path = "../geo_primitives" }
+geo_shapes = { path = "../geo_shapes" }
 geo_topology = { path = "../geo_topology" }
 
 [lints]

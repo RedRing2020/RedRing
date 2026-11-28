@@ -1,8 +1,9 @@
 //! B-rep の表の確かめ（稜線と頂点の整合・ループのつながり・多様体でない稜線・面の向きの規則）
 
 use crate::brep::{shift_to_side, use_parameters};
-use crate::{Brep, EdgeIndex, FaceIndex, LoopIndex, Point2D, SurfaceRef};
+use crate::{Brep, EdgeIndex, FaceIndex, LoopIndex, Point2D};
 use geo_contracts::{ConicalSurface3DProperties, Scalar};
+use geo_shapes::SurfaceRef;
 
 /// ループの向きを求めるときに、稜線の使用 1 つから取る点の数
 const SAMPLES_PER_USE: usize = 16;

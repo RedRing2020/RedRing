@@ -10,22 +10,22 @@ fn surfaces() -> Vec<SurfaceRef<f64>> {
     let origin = Point3D::new(1.0, 2.0, 3.0);
     vec![
         SurfaceRef::Plane(
-            TopoPlane3D::from_three_points(
+            Plane3D::from_three_points(
                 origin,
                 Point3D::new(2.0, 2.0, 3.0),
                 Point3D::new(1.0, 3.0, 4.0),
             )
             .unwrap(),
         ),
-        SurfaceRef::Cylinder(TopoCylindricalSurface3D::new_standard(origin, 2.0).unwrap()),
+        SurfaceRef::Cylinder(CylindricalSurface3D::new_standard(origin, 2.0).unwrap()),
         SurfaceRef::Cone(
-            TopoConicalSurface3D::new_standard(origin, 2.0, Angle::from_degrees(30.0)).unwrap(),
+            ConicalSurface3D::new_standard(origin, 2.0, Angle::from_degrees(30.0)).unwrap(),
         ),
-        SurfaceRef::Sphere(TopoSphericalSurface3D::new_standard(origin, 2.0).unwrap()),
-        SurfaceRef::Torus(TopoTorusSurface3D::new_standard(origin, 5.0, 2.0).unwrap()),
+        SurfaceRef::Sphere(SphericalSurface3D::new_standard(origin, 2.0).unwrap()),
+        SurfaceRef::Torus(TorusSurface3D::new_standard(origin, 5.0, 2.0).unwrap()),
         // 管が軸と交わるトーラスの外側（りんご形）と内側（レモン形。極は v = ±1.159）
-        SurfaceRef::Torus(TopoTorusSurface3D::new_standard(origin, 1.0, 2.0).unwrap()),
-        SurfaceRef::Torus(TopoTorusSurface3D::new_standard(origin, -1.0, 2.5).unwrap()),
+        SurfaceRef::Torus(TorusSurface3D::new_standard(origin, 1.0, 2.0).unwrap()),
+        SurfaceRef::Torus(TorusSurface3D::new_standard(origin, -1.0, 2.5).unwrap()),
     ]
 }
 

@@ -4,8 +4,9 @@
 //! 戻す口は、信用できない入力として、頂点・稜線・面・シェル・立体を足す処理で作り直し、確かめる。
 
 use super::{Brep, BrepError, EdgeIndex, EdgeUse, FaceIndex, ShellIndex, VertexIndex};
-use crate::{CurveRef, Point3D, SurfaceRef, TopologyToleranceSettings};
+use crate::{Point3D, TopologyToleranceSettings};
 use geo_contracts::Scalar;
+use geo_shapes::{CurveRef, SurfaceRef};
 
 /// B-rep の表の中身（番号は、表の中の位置）
 #[derive(Debug, Clone)]

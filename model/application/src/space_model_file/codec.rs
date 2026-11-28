@@ -63,9 +63,8 @@ use geo_io::binary_geometry::{
     write_circle, write_cone, write_cylinder, write_ellipse, write_line, write_nurbs_curve,
     write_nurbs_surface, write_plane, write_sphere, write_torus, write_triangle_mesh,
 };
-use geo_topology::{
-    BrepRecords, CurveRef, EdgeRecord, FaceRecord, Point3D, SurfaceRef, VertexRecord,
-};
+use geo_shapes::{CurveRef, SurfaceRef};
+use geo_topology::{BrepRecords, EdgeRecord, FaceRecord, Point3D, VertexRecord};
 use uuid::Uuid;
 
 use super::{SpaceModelFileError, SpaceModelSaveInfo};
