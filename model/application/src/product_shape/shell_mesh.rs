@@ -6,6 +6,10 @@
 //!
 //! 後の段（面ごと）: 範囲を三角形に分け、面の向きに合わせて三角形の回りと頂点の法線をそろえる。頂点と稜線の点は
 //! B-rep の全体で通しの番号を持ち、隣り合う面の三角形は、境界で同じ番号を使う。
+//!
+//! 内側に点を足すのを上限（頂点の数・繰り返しの回数）で終えた面は、そこまでの三角形を、終えた理由と一緒に持つ
+//! （設計書 6.2）。許容弦誤差を守っていない所があるので、許容弦誤差を守る三角形だけを返す口
+//! （[`ShellMesh::face_within_tolerance`]）では、三角形にできない面と同じく断る。
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -24,9 +28,9 @@ use geo_topology::{Brep, CurveRef, EdgeIndex, FaceIndex, SurfaceRef, VertexIndex
 
 /// 1 本の稜線から作る点の数の上限
 const MAX_EDGE_POINTS: usize = 100_000;
-/// 1 つの面の頂点の数の上限
+/// 1 つの面の頂点の数の上限（内側に点を足す間に届いた面は、そこまでの三角形で終える）
 const MAX_FACE_POINTS: usize = 2_000_000;
-/// 面の内側に点を足す繰り返しの回数の上限
+/// 面の内側に点を足す繰り返しの回数の上限（届いた面は、そこまでの三角形で終える）
 const MAX_REFINEMENT_PASSES: usize = 64;
 /// (u, v) の多角形が交わるとき、稜線を分け直す回数の上限（1 回ごとに、その稜線の許容弦誤差を半分にする）
 const MAX_RESPLITS: usize = 4;
@@ -71,6 +75,24 @@ pub(crate) struct ShellMesh {
     pub(crate) faces: Vec<Result<FaceMesh, ShellFaceError>>,
 }
 
+impl ShellMesh {
+    /// B-rep の面の順の位置 `position` の面の、許容弦誤差を守る三角形
+    ///
+    /// # Errors
+    ///
+    /// 面を三角形にできない、または内側に点を足すのを上限で終えた（許容弦誤差を守っていない所がある）とき。
+    pub(crate) fn face_within_tolerance(
+        &self,
+        position: usize,
+    ) -> Result<&FaceMesh, ShellFaceError> {
+        let face = self.faces[position].as_ref().map_err(|error| *error)?;
+        match face.stopped_by {
+            Some(reason) => Err(ShellFaceError::Triangulation(reason)),
+            None => Ok(face),
+        }
+    }
+}
+
 /// 面の三角形
 #[derive(Debug)]
 pub(crate) struct FaceMesh {
@@ -80,15 +102,35 @@ pub(crate) struct FaceMesh {
     pub(crate) normals: Vec<Vector3D<f64>>,
     /// 三角形（`vertices` の位置。面の外向きの法線の側から見て反時計回り）
     pub(crate) triangles: Vec<[usize; 3]>,
+    /// 内側に点を足すのを、上限で終えた理由（頂点の数の上限か、繰り返しの回数の上限。足し終えていれば `None`）。
+    /// 上限で終えた面の三角形は、面の全体を覆い、隣の面と境界の点をそろえているが、許容弦誤差と法線の角の上限を
+    /// 守っていない所がある
+    pub(crate) stopped_by: Option<FaceTriangulationError>,
 }
 
 /// B-rep `brep` のすべての面を、許容弦誤差 `chord_tolerance` で三角形に分ける
 pub(crate) fn triangulate_brep(brep: &Brep<f64>, chord_tolerance: f64) -> ShellMesh {
+    triangulate_brep_within(
+        brep,
+        chord_tolerance,
+        MAX_FACE_POINTS,
+        MAX_REFINEMENT_PASSES,
+    )
+}
+
+/// B-rep `brep` のすべての面を、許容弦誤差 `chord_tolerance` で三角形に分ける（1 つの面の頂点の数の上限
+/// `max_points`、内側に点を足す繰り返しの回数の上限 `max_passes`）
+fn triangulate_brep_within(
+    brep: &Brep<f64>,
+    chord_tolerance: f64,
+    max_points: usize,
+    max_passes: usize,
+) -> ShellMesh {
     let settings = FaceTriangulationSettings {
         chord_tolerance,
         max_angle: Angle::from_degrees(MAX_CHORD_ANGLE_DEGREES),
-        max_points: MAX_FACE_POINTS,
-        max_passes: MAX_REFINEMENT_PASSES,
+        max_points,
+        max_passes,
         min_width: 0.0,
     };
     let faces: Vec<FaceIndex> = brep.face_indices().collect();
@@ -357,6 +399,7 @@ impl Prepared<'_> {
             vertices: Vec::new(),
             normals: Vec::new(),
             triangles: Vec::with_capacity(triangulation.triangles.len()),
+            stopped_by: triangulation.stopped_by,
         };
         // 曲面の法線が決まらない頂点（円錐の頂点）
         let mut undetermined = Vec::new();

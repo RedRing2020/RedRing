@@ -41,19 +41,31 @@ fn public_large_files_are_read_and_triangulated() {
         let (shells, report) =
             read_shells(&bytes, &path).unwrap_or_else(|error| panic!("{path}: {error}"));
         let mut faces = 0;
+        // 三角形にできない面と、内側に点を足すのを上限で終えた面（表示はできるが、許容弦誤差を守っていない所が
+        // ある）の、理由ごとの数
         let mut failures: std::collections::BTreeMap<String, usize> = Default::default();
+        let mut stopped: std::collections::BTreeMap<String, usize> = Default::default();
         for shell in &shells {
             let mesh = triangulate_brep(&shell.brep, CHORD_TOLERANCE);
             faces += mesh.faces.len();
-            for error in mesh.faces.iter().filter_map(|face| face.as_ref().err()) {
-                *failures.entry(error.to_string()).or_default() += 1;
+            for face in &mesh.faces {
+                match face {
+                    Err(error) => *failures.entry(error.to_string()).or_default() += 1,
+                    Ok(face) => {
+                        if let Some(reason) = face.stopped_by {
+                            *stopped.entry(reason.to_string()).or_default() += 1;
+                        }
+                    }
+                }
             }
         }
         let failed_faces: usize = failures.values().sum();
+        let stopped_faces: usize = stopped.values().sum();
         println!(
-            "{path}: {report:?}, faces {faces}, faces not triangulated {failed_faces} {failures:?}"
+            "{path}: {report:?}, faces {faces}, faces not triangulated {failed_faces} {failures:?}, faces stopped at a limit {stopped_faces} {stopped:?}"
         );
         assert!(report.shells > 0, "{path}");
         assert_eq!(failed_faces, 0, "{path}: {failures:?}");
+        assert_eq!(stopped_faces, 0, "{path}: {stopped:?}");
     }
 }

@@ -50,8 +50,8 @@ pub(super) fn measure(bytes: &[u8]) -> Measured {
         ]
     };
     let (mut volume, mut area) = (0.0, 0.0);
-    for face in &mesh.faces {
-        let face = face.as_ref().unwrap();
+    for position in 0..mesh.faces.len() {
+        let face = mesh.face_within_tolerance(position).unwrap();
         for triangle in &face.triangles {
             let [p, q, r] = triangle.map(|corner| offset(face.vertices[corner]));
             let normal = cross(sub(q, p), sub(r, p));

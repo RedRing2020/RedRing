@@ -214,18 +214,18 @@ fn line(from: (f64, f64), to: (f64, f64), count: usize) -> impl Iterator<Item = 
 
 /// 結果を確かめる
 ///
+/// - 内側に点を足すのを、上限で終えていない
 /// - 三角形の内側の点（各三角形で 28 点）と曲面の離れが、許容弦誤差以下
 /// - (u, v) で反時計回り（3 次元で、∂u × ∂v の側から見て反時計回り）で、三角形の法線と曲面の法線のなす角が上限
 ///   （`MAX_TRIANGLE_NORMAL_ANGLE_DEGREES`）以下
-/// - 回りの向きがそろう（同じ向きの辺を 2 つの三角形が持たない）
-/// - 1 つの三角形だけが持つ辺は、ループの辺（境界の点を結ぶ辺。同じループで行きと帰りに使う継ぎ目の稜線の辺は
-///   除く）とちょうど同じ
+/// - 範囲の全体を覆う（[`check_cover`]）
 fn check(
     loops: &[Vec<LoopPoint>],
     result: &FaceTriangulation,
     surface: &impl TestSurface,
     chord_tolerance: f64,
 ) {
+    assert_eq!(result.stopped_by, None);
     let boundary: HashMap<usize, Point2D<f64>> = loops
         .iter()
         .flatten()
@@ -238,8 +238,6 @@ fn check(
         }
         FaceVertex::Added(index) => result.added[index].point,
     };
-    assert!(!result.triangles.is_empty());
-    let mut directed: HashMap<(FaceVertex, FaceVertex), usize> = HashMap::new();
     for &triangle in &result.triangles {
         let [a, b, c] = triangle.map(point);
         for i in 0..=6 {
@@ -274,6 +272,19 @@ fn check(
                 cosine.acos().to_degrees()
             );
         }
+    }
+    check_cover(loops, result);
+}
+
+/// 三角形が、範囲の全体を隙間なく覆うことを確かめる
+///
+/// - 回りの向きがそろう（同じ向きの辺を 2 つの三角形が持たない）
+/// - 1 つの三角形だけが持つ辺は、ループの辺（境界の点を結ぶ辺。同じループで行きと帰りに使う継ぎ目の稜線の辺は
+///   除く）とちょうど同じ
+fn check_cover(loops: &[Vec<LoopPoint>], result: &FaceTriangulation) {
+    assert!(!result.triangles.is_empty());
+    let mut directed: HashMap<(FaceVertex, FaceVertex), usize> = HashMap::new();
+    for &triangle in &result.triangles {
         for index in 0..3 {
             *directed
                 .entry((triangle[index], triangle[(index + 1) % 3]))
@@ -636,7 +647,8 @@ fn a_coarse_boundary_does_not_keep_adding_points() {
     let upper = ring(1000, line((TAU, 3.0), (0.0, 3.0), 45));
     let settings = settings(0.01);
     let region = FaceRegion::new(&[lower, upper], &cylinder, &settings).unwrap();
-    region.triangulate(&cylinder, &settings).unwrap();
+    let result = region.triangulate(&cylinder, &settings).unwrap();
+    assert_eq!(result.stopped_by, None);
 }
 
 #[test]
@@ -655,8 +667,8 @@ fn triangles_narrower_than_the_minimum_width_are_not_refined() {
     };
     let region = FaceRegion::new(&loops, &cylinder, &without).unwrap();
     assert!(matches!(
-        region.triangulate(&cylinder, &without).unwrap_err(),
-        FaceTriangulationError::TooManyPoints | FaceTriangulationError::NotConverged
+        region.triangulate(&cylinder, &without).unwrap().stopped_by,
+        Some(FaceTriangulationError::TooManyPoints | FaceTriangulationError::NotConverged)
     ));
     let min_width = 0.02;
     let with = FaceTriangulationSettings {
@@ -667,6 +679,7 @@ fn triangles_narrower_than_the_minimum_width_are_not_refined() {
         .unwrap()
         .triangulate(&cylinder, &with)
         .unwrap();
+    assert_eq!(result.stopped_by, None);
     let point = |vertex: FaceVertex| match vertex {
         FaceVertex::Boundary(index) => {
             let uv = if index < 1000 {
@@ -759,6 +772,7 @@ fn triangles_tilted_by_a_boundary_chord_do_not_keep_adding_points() {
         let region = FaceRegion::new(&loops, &cylinder, &settings).unwrap();
         assert!(region.crossing_edges(&cylinder).is_empty());
         let result = region.triangulate(&cylinder, &settings).unwrap();
+        assert_eq!(result.stopped_by, None);
         assert!(result.added.len() < 2_000, "{}", result.added.len());
         // 傾きで分けない三角形も、内側で許容弦誤差を守る（境界の弦の離れは許容弦誤差より小さい）
         let point = |vertex: FaceVertex| match vertex {
@@ -834,6 +848,7 @@ fn triangles_flipped_beside_a_boundary_chord_do_not_keep_adding_points() {
     let spacing = surface.step * GRID_DIAGONAL_TO_STEP_RATIO * std::f64::consts::FRAC_1_SQRT_2;
     let grid = (1.0 / spacing).ceil() as usize;
     let result = region.triangulate(&surface, &settings).unwrap();
+    assert_eq!(result.stopped_by, None);
     assert!(
         result.added.len() < 2 * grid * grid,
         "{}",
@@ -975,4 +990,191 @@ fn a_torus_with_a_hole_converges_at_a_machining_tolerance() {
     };
     let holes = vec![rectangle(0, (1.0, 1.0), (1.2, 1.5), 50, true)];
     triangulate(&holes, &torus, 0.0001);
+}
+
+/// 上限で終えた結果の三角形が、3 次元で ∂u × ∂v の側を向くことを確かめる（面積が 0 の三角形は除く）
+fn check_facing(loops: &[Vec<LoopPoint>], result: &FaceTriangulation, surface: &impl TestSurface) {
+    let boundary: HashMap<usize, Point2D<f64>> = loops
+        .iter()
+        .flatten()
+        .map(|point| (point.vertex, point.uv))
+        .collect();
+    for &triangle in &result.triangles {
+        let [a, b, c] = triangle.map(|vertex| match vertex {
+            FaceVertex::Boundary(index) => {
+                let uv = boundary[&index];
+                surface.point_at(uv.x(), uv.y()).unwrap()
+            }
+            FaceVertex::Added(index) => result.added[index].point,
+        });
+        let normal = Vector3D::from_points(a, b).cross(Vector3D::from_points(a, c));
+        let center = Point3D::new(
+            (a.x() + b.x() + c.x()) / 3.0,
+            (a.y() + b.y() + c.y()) / 3.0,
+            (a.z() + b.z() + c.z()) / 3.0,
+        );
+        let size = a.distance_to(b).max(b.distance_to(c)).max(c.distance_to(a));
+        if normal.length() > 1.0e-9 * size * size {
+            assert!(normal.dot(surface.normal(center)) > 0.0, "{triangle:?}");
+        }
+    }
+}
+
+/// 格子を置かない円錐台の面（小さい円は v = 1、大きい円は v = 5）のループ
+fn cone_frustum_loops(tolerance: f64) -> Vec<Vec<LoopPoint>> {
+    vec![
+        ring(
+            0,
+            line((0.0, 1.0), (TAU, 1.0), circle_points(CONE_SLOPE, tolerance)),
+        ),
+        ring(
+            1000,
+            line((TAU, 5.0), (0.0, 5.0), circle_points(2.5, tolerance)),
+        ),
+    ]
+}
+
+#[test]
+fn refinement_stopped_at_the_pass_limit_returns_the_triangles_so_far() {
+    // 格子を置かない円錐台の面は、境界から細分化で点を足すので、繰り返しが 1 回では足りない
+    let cone = Cone { max_radius: 2.5 };
+    let tolerance = 0.001;
+    let loops = cone_frustum_loops(tolerance);
+    let converged = triangulate(&loops, &cone, tolerance);
+    let limited = FaceTriangulationSettings {
+        max_passes: 1,
+        ..settings(tolerance)
+    };
+    let result = FaceRegion::new(&loops, &cone, &limited)
+        .unwrap()
+        .triangulate(&cone, &limited)
+        .unwrap();
+    assert_eq!(
+        result.stopped_by,
+        Some(FaceTriangulationError::NotConverged)
+    );
+    // 1 回分の点は足していて、足し終えた結果より少ない
+    assert!(!result.added.is_empty());
+    assert!(result.added.len() < converged.added.len());
+    check_cover(&loops, &result);
+    check_facing(&loops, &result, &cone);
+}
+
+#[test]
+fn refinement_stopped_at_the_point_limit_returns_the_triangles_so_far() {
+    let cone = Cone { max_radius: 2.5 };
+    let tolerance = 0.001;
+    let loops = cone_frustum_loops(tolerance);
+    let boundary: usize = loops.iter().map(Vec::len).sum();
+    let converged = triangulate(&loops, &cone, tolerance);
+    // 切れ目の点も数に入るので、上限は、境界の点の数の 2 倍に 100 点を足した数にする
+    let max_points = 2 * boundary + 100;
+    assert!(converged.added.len() + boundary > max_points);
+    let limited = FaceTriangulationSettings {
+        max_points,
+        ..settings(tolerance)
+    };
+    let result = FaceRegion::new(&loops, &cone, &limited)
+        .unwrap()
+        .triangulate(&cone, &limited)
+        .unwrap();
+    assert_eq!(
+        result.stopped_by,
+        Some(FaceTriangulationError::TooManyPoints)
+    );
+    assert!(result.added.len() + boundary <= max_points);
+    check_cover(&loops, &result);
+    check_facing(&loops, &result, &cone);
+}
+
+#[test]
+fn a_grid_over_the_point_limit_is_made_coarse() {
+    // トーラスの全体は、許容弦誤差 0.001 の格子で 12 万点ほどになる。上限が 5,000 点なら、上限に収まる粗い格子を
+    // 置いて終える
+    let torus = Torus {
+        major: 20.0,
+        minor: 5.0,
+    };
+    let limited = FaceTriangulationSettings {
+        max_points: 5_000,
+        ..settings(0.001)
+    };
+    let result = FaceRegion::new(&[], &torus, &limited)
+        .unwrap()
+        .triangulate(&torus, &limited)
+        .unwrap();
+    assert_eq!(
+        result.stopped_by,
+        Some(FaceTriangulationError::TooManyPoints)
+    );
+    assert!(result.added.len() <= 5_000);
+    // 上限の半分より多くの点を置く（格子を、要るより粗くしすぎない）
+    assert!(result.added.len() > 2_500, "{}", result.added.len());
+    check_cover(&[], &result);
+    check_facing(&[], &result, &torus);
+}
+
+#[test]
+fn coarse_grid_counts_fit_the_room_and_keep_inner_points() {
+    use super::triangulate::coarse_grid_counts;
+    // 同じ比で減らす
+    let (u, v) = coarse_grid_counts((300.0, 150.0), 3_000.0);
+    assert!(u * v <= 3_000 && u * v > 2_500, "{u} {v}");
+    assert!((u as f64 / v as f64 - 2.0).abs() < 0.1, "{u} {v}");
+    // 一方の向きの区間が 2 つだけの格子は、その向きの内側の点の列を残し、もう一方を減らす
+    for counts in [(1_000_000.0, 2.0), (2.0, 1_000_000.0)] {
+        let (u, v) = coarse_grid_counts(counts, 4_996.0);
+        assert!(u >= 2 && v >= 2, "{u} {v}");
+        assert!(u * v <= 4_996 && u * v > 4_000, "{u} {v}");
+    }
+    // 区間が 1 つの向き（内側に点がない）は、そのまま
+    assert_eq!(coarse_grid_counts((10_000.0, 1.0), 100.0), (100, 1));
+}
+
+/// u・v の向きに別々の刻みを持つ平面（内側に格子の点を置く）
+struct SteppedPlane {
+    steps: (f64, f64),
+}
+
+impl TriangulationSurface for SteppedPlane {
+    fn point_at(&self, u: f64, v: f64) -> Option<Point3D<f64>> {
+        Some(Point3D::new(u, v, 0.0))
+    }
+    fn normal_at(&self, _: f64, _: f64) -> Option<Vector3D<f64>> {
+        Some(Vector3D::new(0.0, 0.0, 1.0))
+    }
+    fn periods(&self) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+    fn poles(&self) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+    fn steps(&self, _: f64, _: Angle<f64>) -> (Option<f64>, Option<f64>) {
+        (Some(self.steps.0), Some(self.steps.1))
+    }
+    fn scale(&self) -> (f64, f64) {
+        (1.0, 1.0)
+    }
+}
+
+#[test]
+fn a_grid_whose_inner_points_fit_the_point_limit_is_not_made_coarse() {
+    // 一辺 1 の正方形に、u の向きに 2 区間・v の向きに 60 区間の格子。区間の数の積（120）は上限（100）を超えるが、
+    // 内側の点は 1 × 59 = 59 個で、境界の 4 点を引いた残りに収まる
+    let ratio = GRID_DIAGONAL_TO_STEP_RATIO * std::f64::consts::FRAC_1_SQRT_2;
+    let surface = SteppedPlane {
+        steps: (0.5 / ratio, 1.0 / 59.5 / ratio),
+    };
+    let loops = vec![rectangle(0, (0.0, 0.0), (1.0, 1.0), 1, false)];
+    let limited = FaceTriangulationSettings {
+        max_points: 100,
+        ..settings(0.01)
+    };
+    let result = FaceRegion::new(&loops, &surface, &limited)
+        .unwrap()
+        .triangulate(&surface, &limited)
+        .unwrap();
+    assert_eq!(result.stopped_by, None);
+    assert_eq!(result.added.len(), 59);
+    check_cover(&loops, &result);
 }

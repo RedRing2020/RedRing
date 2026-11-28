@@ -22,6 +22,12 @@
 //! 離れない。分けられない辺に沿って並ぶ細い三角形や、曲面が狭い幅で折り返す所の三角形は、どこまで分けても法線の
 //! 向きが合わず、点を足し続けてしまうため。幅が設定の下限（`min_width`）より小さい三角形は、さらに、離れを下限
 //! まで許す。
+//!
+//! 頂点の数か繰り返しの回数の上限に届いたら、そこで点を足すのを終え、そこまでの三角形を、終えた理由と一緒に返す
+//! （`FaceTriangulation::stopped_by`）。どこで終えても、三角形は範囲の全体を覆う（点を 1 つ足すごとに、範囲の
+//! 全体の三角形分割になっているため）。初めの格子の点の数が上限を超えるときは、上限に収まる粗い格子を置いて終える
+//! （その後の細分化には入らない。頂点の数は、すでに上限の近くにあるため）。上限で終えた三角形には、許容弦誤差か
+//! 法線の角の上限を超える三角形（曲面に垂直に立つ三角形を含む）が残りうる。
 
 use std::collections::{HashMap, HashSet};
 
@@ -44,9 +50,13 @@ impl FaceRegion {
     /// 多角形の辺どうしが交わらないことは、先に [`FaceRegion::crossing_edges`] で確かめておく（同じ座標と、丸め誤差に
     /// 強い判定を使うので、交わらないと確かめた範囲は、ここでも交わるとはしない）。
     ///
+    /// 頂点の数か繰り返しの回数の上限に届いたら、そこまでの三角形を返す（[`FaceTriangulation::stopped_by`] に
+    /// 理由を入れる）。その三角形は、範囲の全体を覆うが、許容弦誤差と法線の角の上限を守っていない所がある。
+    ///
     /// # Errors
     ///
-    /// 設定が正しくない、多角形の辺どうしが交わる、曲面を評価できない、頂点の数・繰り返しの回数が上限を超えるとき。
+    /// 設定が正しくない、多角形の辺どうしが交わる、曲面を評価できない、境界の点だけで頂点の数が上限を超える、
+    /// 初めの格子の区間の数が有限の値にならないとき。
     pub fn triangulate(
         &self,
         surface: &impl TriangulationSurface,
@@ -94,22 +104,26 @@ impl FaceRegion {
                 }
             }
         }
-        for uv in mesh.grid_points(steps)? {
+        let (grid, coarse) = mesh.grid_points(steps)?;
+        for uv in grid {
             mesh.insert(surface, uv, None)?;
         }
+        // 粗くした格子は、頂点の数の上限まで点を置いているので、細分化には入らない
+        let mut stopped_by = coarse.then_some(FaceTriangulationError::TooManyPoints);
         let mut pass = 0;
-        loop {
+        while stopped_by.is_none() {
             let points =
                 mesh.points_to_add(surface, settings.chord_tolerance, settings.min_width)?;
             if points.is_empty() {
                 break;
             }
             if pass == settings.max_passes {
-                return Err(FaceTriangulationError::NotConverged);
+                stopped_by = Some(FaceTriangulationError::NotConverged);
+                break;
             }
             pass += 1;
-            for uv in points {
-                mesh.insert(surface, uv, None)?;
+            if !mesh.insert_until_limit(surface, points)? {
+                stopped_by = Some(FaceTriangulationError::TooManyPoints);
             }
         }
         let triangles = inside_faces(&mesh.cdt)
@@ -125,6 +139,7 @@ impl FaceRegion {
         Ok(FaceTriangulation {
             added: mesh.added,
             triangles,
+            stopped_by,
         })
     }
 }
@@ -151,21 +166,27 @@ struct Mesh {
 
 impl Mesh {
     /// (u, v) の点を足す（`vertex` が `None` なら、足した点として番号を付ける）。同じ位置に点があれば、その点
+    ///
+    /// 頂点の数が上限に届いていれば、新しい点は足さずにエラーを返す（三角形分割は、足す前のまま使える）。
     fn insert(
         &mut self,
         surface: &impl TriangulationSurface,
         uv: Point2D<f64>,
         vertex: Option<FaceVertex>,
     ) -> Result<FixedVertexHandle, FaceTriangulationError> {
+        let position = Point2::new(uv.x() * self.scale.0, uv.y() * self.scale.1);
+        if self.vertices.len() >= self.max_points {
+            return match self.cdt.locate(position) {
+                PositionInTriangulation::OnVertex(handle) => Ok(handle),
+                _ => Err(FaceTriangulationError::TooManyPoints),
+            };
+        }
         let handle = self
             .cdt
-            .insert(Point2::new(uv.x() * self.scale.0, uv.y() * self.scale.1))
+            .insert(position)
             .map_err(|_| FaceTriangulationError::InvalidLoops)?;
         if handle.index() < self.vertices.len() {
             return Ok(handle);
-        }
-        if self.vertices.len() >= self.max_points {
-            return Err(FaceTriangulationError::TooManyPoints);
         }
         let point = evaluate(surface, uv)?;
         let vertex = vertex.unwrap_or_else(|| {
@@ -176,15 +197,36 @@ impl Mesh {
         Ok(handle)
     }
 
-    /// u・v の両方に刻みのある曲面で、範囲の内側に刻みの格子で置く点の (u, v)。境界の点と制約の辺から、刻みの半分
-    /// より近い点は置かない（細い三角形を避けるため）
+    /// 内側の点 `points` を順に足す。頂点の数が上限に届いたら、そこで足すのをやめて `false` を返す
+    fn insert_until_limit(
+        &mut self,
+        surface: &impl TriangulationSurface,
+        points: Vec<Point2D<f64>>,
+    ) -> Result<bool, FaceTriangulationError> {
+        for uv in points {
+            match self.insert(surface, uv, None) {
+                Ok(_) => {}
+                Err(FaceTriangulationError::TooManyPoints) => return Ok(false),
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(true)
+    }
+
+    /// u・v の両方に刻みのある曲面で、範囲の内側に刻みの格子で置く点の (u, v) と、格子を粗くしたか。境界の点と
+    /// 制約の辺から、格子の間隔の半分より近い点は置かない（細い三角形を避けるため）
+    ///
+    /// 刻みの格子で置く点の数が、頂点の数の上限までの残りを超えるときは、u・v の区間の数を減らし
+    /// （[`coarse_grid_counts`]）、残りに収まる粗い格子を、範囲の全体に置く（刻みの格子を途中まで置くと、範囲の
+    /// 一部にだけ点が並ぶため）。
     fn grid_points(
         &self,
         steps: (Option<f64>, Option<f64>),
-    ) -> Result<Vec<Point2D<f64>>, FaceTriangulationError> {
+    ) -> Result<(Vec<Point2D<f64>>, bool), FaceTriangulationError> {
         let (Some(step_u), Some(step_v)) = steps else {
-            return Ok(Vec::new());
+            return Ok((Vec::new(), false));
         };
+        let steps = (step_u, step_v);
         let (low, high) = self.vertices.iter().fold(
             (
                 (f64::INFINITY, f64::INFINITY),
@@ -199,15 +241,39 @@ impl Mesh {
         );
         let count_u = ((high.0 - low.0) / step_u).ceil();
         let count_v = ((high.1 - low.1) / step_v).ceil();
-        if !(count_u.is_finite() && count_v.is_finite())
-            || count_u * count_v > self.max_points as f64
-        {
+        if !(count_u.is_finite() && count_v.is_finite()) {
             return Err(FaceTriangulationError::TooManyPoints);
         }
-        let (count_u, count_v) = (count_u as usize, count_v as usize);
+        let room = self.max_points.saturating_sub(self.vertices.len());
+        // 内側の格子の点の数（区間の数から 1 を引いた数の積）が上限を超える格子は、点を並べずに粗くする。超えない
+        // 格子は、境界の近くと範囲の外の点を除いた実際の点の数で、残りに収まるかを見る
+        let candidates = (count_u - 1.0).max(0.0) * (count_v - 1.0).max(0.0);
+        if candidates <= self.max_points as f64 {
+            let points =
+                self.grid_points_at(low, high, steps, (count_u as usize, count_v as usize));
+            if points.len() <= room {
+                return Ok((points, false));
+            }
+        }
+        let counts = coarse_grid_counts((count_u, count_v), room as f64);
+        Ok((self.grid_points_at(low, high, steps, counts), true))
+    }
+
+    /// (u, v) の範囲 `low`〜`high` を、u・v の向きに `counts` の区間に分けた格子の、範囲の内側の点（`steps` は
+    /// 曲面の刻みから決めた間隔）
+    fn grid_points_at(
+        &self,
+        low: (f64, f64),
+        high: (f64, f64),
+        (step_u, step_v): (f64, f64),
+        (count_u, count_v): (usize, usize),
+    ) -> Vec<Point2D<f64>> {
         let inside: HashSet<FixedFaceHandle<InnerTag>> =
             inside_faces(&self.cdt).into_iter().collect();
-        let clearance = 0.5 * (step_u * self.scale.0).min(step_v * self.scale.1);
+        // 格子の間隔（粗くした格子では、刻みより広い）
+        let spacing_u = step_u.max((high.0 - low.0) / count_u as f64);
+        let spacing_v = step_v.max((high.1 - low.1) / count_v as f64);
+        let clearance = 0.5 * (spacing_u * self.scale.0).min(spacing_v * self.scale.1);
         let mut points = Vec::new();
         for i in 1..count_u {
             for j in 1..count_v {
@@ -259,7 +325,7 @@ impl Mesh {
                 }
             }
         }
-        Ok(points)
+        points
     }
 
     /// 許容弦誤差か法線のなす角の上限を超える三角形に足す点の (u, v)（幅が `min_width` より小さい三角形は、離れを
@@ -367,6 +433,24 @@ impl Mesh {
         }
         Ok(points)
     }
+}
+
+/// 格子の u・v の区間の数 `counts`（1 以上）を、区間の数の積が `room` 以下になるように減らした数
+///
+/// 同じ比で減らす。ただし、内側に点のある向き（区間が 2 つ以上）は、2 つより少なくしない（内側の点の列をなくさない
+/// ため）。それで積が `room` を超えれば、区間の多いほうの向きを、収まるまで減らす。
+pub(super) fn coarse_grid_counts(counts: (f64, f64), room: f64) -> (usize, usize) {
+    let ratio = (room / (counts.0 * counts.1)).sqrt();
+    let reduced = |count: f64| (count * ratio).floor().clamp(count.min(2.0), count);
+    let (mut u, mut v) = (reduced(counts.0), reduced(counts.1));
+    if u * v > room {
+        if u >= v {
+            u = (room / v).floor().max(1.0);
+        } else {
+            v = (room / u).floor().max(1.0);
+        }
+    }
+    (u as usize, v as usize)
 }
 
 /// 2 つの頂点が同じ点の三角形（極でつぶれる三角形。結果から除く）か

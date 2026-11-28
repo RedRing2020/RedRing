@@ -152,7 +152,8 @@ impl DisplayMeshWork {
         self.items.len()
     }
 
-    /// まだ取られていない B-rep を 1 つ取り、三角形を作って置き場に残す（三角形にできない面は、警告に出す）
+    /// まだ取られていない B-rep を 1 つ取り、三角形を作って置き場に残す（三角形にできない面と、内側に点を足すのを
+    /// 上限で終えた面は、別の警告に出す）
     ///
     /// 取る B-rep が残っていなければ、何もせずに `false` を返す。
     pub fn triangulate_next(&self) -> bool {
@@ -163,12 +164,23 @@ impl DisplayMeshWork {
         let (mesh, built) = item.meshes.mesh_or_build(self.key, &item.brep);
         if built {
             for (face, result) in item.faces.iter().zip(&mesh.faces) {
-                if let Err(error) = result {
-                    tracing::warn!(
-                        file = %item.file_name,
-                        face,
-                        "a shell face cannot be triangulated: {error}"
-                    );
+                match result {
+                    Err(error) => {
+                        tracing::warn!(
+                            file = %item.file_name,
+                            face,
+                            "a shell face cannot be triangulated: {error}"
+                        );
+                    }
+                    Ok(mesh) => {
+                        if let Some(reason) = mesh.stopped_by {
+                            tracing::warn!(
+                                file = %item.file_name,
+                                face,
+                                "the refinement of a shell face stopped at a limit, its triangles may exceed the chord tolerance: {reason}"
+                            );
+                        }
+                    }
                 }
             }
         }
