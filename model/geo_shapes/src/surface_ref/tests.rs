@@ -3,7 +3,9 @@ use geo_contracts::{
     ConicalSurface3DConstructor, CylindricalSurface3DConstructor, Plane3DConstructor,
     SphericalSurface3DConstructor, TorusSurface3DConstructor,
 };
-use geo_primitives::Angle;
+use geo_primitives::{
+    Angle, ConicalSurface3D, CylindricalSurface3D, Plane3D, SphericalSurface3D, TorusSurface3D,
+};
 use std::f64::consts::FRAC_PI_2;
 
 fn surfaces() -> Vec<SurfaceRef<f64>> {

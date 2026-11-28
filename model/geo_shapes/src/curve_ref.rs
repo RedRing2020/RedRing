@@ -6,17 +6,16 @@ use geo_contracts::{
 };
 use geo_core::Point3D;
 use geo_nurbs::NurbsCurve3D;
-use geo_primitives::{Circle3D, Ellipse3D, InfiniteLine3D};
 
 /// 稜線が参照する母曲線
 #[derive(Debug, Clone)]
 pub enum CurveRef<T: Scalar> {
     /// 無限の直線（パラメータは、基準点からの向きつきの距離）
-    Line(InfiniteLine3D<T>),
+    Line(geo_primitives::InfiniteLine3D<T>),
     /// 円（パラメータは、角度 0 の方向からの角度）
-    Circle(Circle3D<T>),
+    Circle(geo_primitives::Circle3D<T>),
     /// 楕円（パラメータは、長軸の方向からの角度）
-    Ellipse(Ellipse3D<T>),
+    Ellipse(geo_primitives::Ellipse3D<T>),
     /// NURBS 曲線（パラメータは、ノットベクトルの値）
     Nurbs(NurbsCurve3D<T>),
 }
@@ -101,7 +100,8 @@ mod tests {
 
     #[test]
     fn a_circle_is_evaluated_with_its_angle() {
-        let circle = Circle3D::new_xy_plane(Point3D::new(1.0, 0.0, 0.0), 2.0).unwrap();
+        let circle =
+            geo_primitives::Circle3D::new_xy_plane(Point3D::new(1.0, 0.0, 0.0), 2.0).unwrap();
         let curve_ref = CurveRef::Circle(circle);
 
         let start = curve_ref.point_at_parameter(0.0);

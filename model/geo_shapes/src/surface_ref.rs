@@ -10,24 +10,21 @@ use geo_contracts::{
 };
 use geo_core::{Point3D, Vector3D};
 use geo_nurbs::NurbsSurface3D;
-use geo_primitives::{
-    ConicalSurface3D, CylindricalSurface3D, Plane3D, SphericalSurface3D, TorusSurface3D,
-};
 
 /// 面が載る曲面
 #[derive(Debug, Clone)]
 pub enum SurfaceRef<T: Scalar> {
     /// 平面（u・v は平面の座標）
-    Plane(Plane3D<T>),
+    Plane(geo_primitives::Plane3D<T>),
     /// 円柱（u は周の角度、v は軸の方向の距離）
-    Cylinder(CylindricalSurface3D<T>),
+    Cylinder(geo_primitives::CylindricalSurface3D<T>),
     /// 円錐（u は周の角度、v は軸の方向の距離）
-    Cone(ConicalSurface3D<T>),
+    Cone(geo_primitives::ConicalSurface3D<T>),
     /// 球（u は経度、v は緯度）
-    Sphere(SphericalSurface3D<T>),
+    Sphere(geo_primitives::SphericalSurface3D<T>),
     /// トーラス（u は軸のまわりの角度、v は管のまわりの角度）。管が軸と交わるトーラス（りんご形・レモン形）は、
     /// 球と同じく v に周期がなく、R + r cos v = 0 の 2 つの v が極になる（v は `[-極, 極]`）
-    Torus(TorusSurface3D<T>),
+    Torus(geo_primitives::TorusSurface3D<T>),
     /// NURBS 曲面（u・v はノットベクトルの値）
     Nurbs(NurbsSurface3D<T>),
 }
@@ -209,7 +206,7 @@ impl<T: Scalar> SurfaceRef<T> {
 }
 
 /// 管が軸と交わるトーラス（大半径が小半径より小さい）の極の v（R + r cos v = 0 の正の v）。ほかは `None`
-fn torus_pole<T: Scalar>(surface: &TorusSurface3D<T>) -> Option<T> {
+fn torus_pole<T: Scalar>(surface: &geo_primitives::TorusSurface3D<T>) -> Option<T> {
     (surface.major_radius() < surface.minor_radius())
         .then(|| (-surface.major_radius() / surface.minor_radius()).acos())
 }
