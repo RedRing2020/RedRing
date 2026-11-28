@@ -1,7 +1,7 @@
 //! 制約つきのドロネー分割と、許容弦誤差による細分化（設計書 6.1〜6.3）
 //!
-//! 範囲の多角形の辺を制約の辺にして、三角形分割の座標（`TriangulationSurface::scale` を掛けた (u, v)）でドロネー
-//! 分割する。外から制約の辺を越えるたびに内と外が入れ替わるとして、範囲の内側の三角形を選ぶ。
+//! 範囲の多角形の辺を制約の辺にして、三角形分割の座標（格子の間隔で割った (u, v)。格子のマスが正方形になる）で
+//! ドロネー分割する。外から制約の辺を越えるたびに内と外が入れ替わるとして、範囲の内側の三角形を選ぶ。
 //!
 //! u・v の両方に刻みのある曲面では、初めに範囲の内側に刻みの格子で点を置く。その後、内側の三角形ごとに、(u, v) の
 //! 重心と 3 つの辺の中点を曲面の上で評価し、三角形（辺）の同じ位置の点との離れ（曲面の法線の向きの成分）を測る。
@@ -48,7 +48,8 @@ impl FaceRegion {
     /// 範囲を、多角形の辺を必ず辺に持つ三角形に分け、許容弦誤差と刻みを守るまで内側に点を足す
     ///
     /// 多角形の辺どうしが交わらないことは、先に [`FaceRegion::crossing_edges`] で確かめておく（同じ座標と、丸め誤差に
-    /// 強い判定を使うので、交わらないと確かめた範囲は、ここでも交わるとはしない）。
+    /// 強い判定を使うので、交わらないと確かめた範囲は、ここでも交わるとはしない）。`settings` の許容弦誤差と角度の
+    /// 上限は、範囲を作ったときと同じ値を渡す（三角形分割の座標を、範囲を作ったときの格子の間隔で決めているため）。
     ///
     /// 頂点の数か繰り返しの回数の上限に届いたら、そこまでの三角形を返す（[`FaceTriangulation::stopped_by`] に
     /// 理由を入れる）。その三角形は、範囲の全体を覆うが、許容弦誤差と法線の角の上限を守っていない所がある。
@@ -63,10 +64,7 @@ impl FaceRegion {
         settings: &FaceTriangulationSettings,
     ) -> Result<FaceTriangulation, FaceTriangulationError> {
         settings.check()?;
-        let scale = surface.scale();
-        if !(scale.0.is_finite() && scale.0 > 0.0 && scale.1.is_finite() && scale.1 > 0.0) {
-            return Err(FaceTriangulationError::Evaluation);
-        }
+        let scale = self.scale;
         let steps = super::checked_steps(surface, settings)?;
         let mut mesh = Mesh {
             cdt: Cdt::new(),
@@ -165,6 +163,14 @@ struct Mesh {
 }
 
 impl Mesh {
+    /// (u, v) の点の、三角形分割の座標
+    fn position(&self, uv: Point2D<f64>) -> Point2<f64> {
+        Point2::new(
+            super::triangulation_coordinate(uv.x(), self.scale.0),
+            super::triangulation_coordinate(uv.y(), self.scale.1),
+        )
+    }
+
     /// (u, v) の点を足す（`vertex` が `None` なら、足した点として番号を付ける）。同じ位置に点があれば、その点
     ///
     /// 頂点の数が上限に届いていれば、新しい点は足さずにエラーを返す（三角形分割は、足す前のまま使える）。
@@ -174,7 +180,7 @@ impl Mesh {
         uv: Point2D<f64>,
         vertex: Option<FaceVertex>,
     ) -> Result<FixedVertexHandle, FaceTriangulationError> {
-        let position = Point2::new(uv.x() * self.scale.0, uv.y() * self.scale.1);
+        let position = self.position(uv);
         if self.vertices.len() >= self.max_points {
             return match self.cdt.locate(position) {
                 PositionInTriangulation::OnVertex(handle) => Ok(handle),
@@ -281,7 +287,7 @@ impl Mesh {
                     low.0 + (high.0 - low.0) * i as f64 / count_u as f64,
                     low.1 + (high.1 - low.1) * j as f64 / count_v as f64,
                 );
-                let position = Point2::new(uv.x() * self.scale.0, uv.y() * self.scale.1);
+                let position = self.position(uv);
                 // 点が三角形の辺の上にあれば（格子の点は、境界の点と同じ u・v の線に並ぶので、境界の点を結ぶ辺の上に
                 // よく載る）、その辺の両側の三角形のうち、範囲の内側のほうで見る。制約の辺の上の点は置かない
                 let face = match self.cdt.locate(position) {
