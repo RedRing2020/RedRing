@@ -657,7 +657,7 @@ fn test_setup() -> CylindricalSolid3D<f64> {
 
 - [`dev/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) - アーキテクチャ構成
 - [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) - 開発ガイドライン
-- [`INFORMATION_MANAGEMENT_TRANSITION.md`](../../INFORMATION_MANAGEMENT_TRANSITION.md) - 情報管理移行記録
+- [`INFORMATION_MANAGEMENT_TRANSITION.md`](../archive/INFORMATION_MANAGEMENT_TRANSITION.md) - 情報管理移行記録
 
 ---
 
