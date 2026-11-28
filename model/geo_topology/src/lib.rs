@@ -3,17 +3,13 @@
 //! 交差判定・モデリング・形状の読み込みで利用するトポロジー構造を提供する。
 //! 現在の提供:
 //! - Brep: 頂点・稜線・ループ・面・シェル・立体の表（設計: BREP_AND_STEP_IMPORT_DESIGN.md 5 章）
-//! - CurveRef: 稜線が参照する母曲線
-//! - SurfaceRef: 面が載る曲面
 //! - ParameterCurve: 稜線の使用が持つ、面の曲面の上のパラメータ曲線
 //! - CompositeCurve3D: 拘束端点で連結された複合曲線
 //! - CurveSegment3D: 個別セグメント（Line / Arc / Nurbs、ideal/constraint endpoint を区別）
 
 pub mod brep;
 pub mod composite_curve;
-pub mod curve_ref;
 pub mod parameter_curve;
-pub mod surface_ref;
 pub mod tolerance;
 pub mod topology_validator;
 
@@ -23,10 +19,8 @@ pub use brep::{
     SolidIndex, VertexIndex, VertexRecord,
 };
 pub use composite_curve::{CompositeCurve3D, CurveSegment3D};
-pub use curve_ref::CurveRef;
 pub use geo_core::{Point2D, Point3D, Vector2D, Vector3D};
 pub use parameter_curve::ParameterCurve;
-pub use surface_ref::SurfaceRef;
 pub use tolerance::TopologyToleranceSettings;
 pub use topology_validator::BrepValidationReport;
 

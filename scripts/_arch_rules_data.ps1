@@ -11,7 +11,7 @@ $ARCH_LAYERS = [ordered]@{
     Foundation  = @("analysis", "i18n_foundation", "logging_foundation", "platform_foundation")
     # Model の層の中の framework 層：扱うデータの型に依らない、使い回せる仕組み（COMMAND_AND_BACKGROUND_TASK_DESIGN.md 4.2）
     Framework   = @("command_framework")
-    Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
+    Model       = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_shapes", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
     Application = @("application")
     ViewModel   = @("viewmodel", "viewmodel-graphics")
     View        = @("render", "stage", "redring", "job_manager_app")
@@ -38,11 +38,13 @@ $ARCH_ALLOWED_DEPS = @{
     geo_core       = @("analysis")
     geo_primitives = @("analysis", "geo_contracts", "geo_commons", "geo_core")
     geo_nurbs      = @("analysis", "geo_contracts", "geo_commons", "geo_core")
-    geo_topology   = @("analysis", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs")
+    # 形状の層は、基本の形状と NURBS のどちらの型も持つ形状を置く（BREP_AND_STEP_IMPORT_DESIGN.md 7.2.1）
+    geo_shapes     = @("analysis", "geo_contracts", "geo_core", "geo_primitives", "geo_nurbs")
+    geo_topology   = @("analysis", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_shapes")
     geo_algorithms = @("analysis", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology")
     geo_io         = @("analysis", "geo_contracts", "geo_core", "geo_primitives", "geo_algorithms", "logging_foundation")
     # STEP のデータ交換は、位相（geo_topology）に依存するため geo_io と分ける（BREP_AND_STEP_IMPORT_DESIGN.md 4.2）
-    geo_step       = @("analysis", "geo_contracts", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms")
+    geo_step       = @("analysis", "geo_contracts", "geo_core", "geo_primitives", "geo_nurbs", "geo_shapes", "geo_topology", "geo_algorithms")
     geo_entity     = @("geo_contracts", "geo_primitives")
     cam_core       = @("analysis", "geo_contracts", "geo_primitives", "geo_algorithms")
     cam_algorithms = @("analysis", "cam_core", "geo_contracts", "geo_algorithms")
@@ -57,7 +59,7 @@ $ARCH_ALLOWED_DEPS = @{
     # ジョブマネージャーに問い合わせる口は、ジョブの保存先の形式と分けるため、platform_foundation のほかには、ワークスペースの他のクレートに依存しない
     job_ipc        = @("platform_foundation")
 
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_step", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc", "platform_foundation", "command_framework")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_io", "geo_step", "geo_primitives", "geo_shapes", "geo_topology", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "job_ipc", "platform_foundation", "command_framework")
 
     viewmodel            = @("analysis", "i18n_foundation", "logging_foundation", "application")
     "viewmodel-graphics" = @("analysis")
@@ -74,7 +76,7 @@ $ARCH_ALLOWED_DEPS = @{
 # 許可されていない依存はすべてエラーになる。ここには、特に守る境界を明示する。
 $ARCH_VIEW_AND_VIEWMODEL = @("viewmodel", "viewmodel-graphics", "render", "stage", "redring")
 $ARCH_CAM_CRATES = @("cam_core", "cam_algorithms", "cam_entity", "cam_sim")
-$ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity")
+$ARCH_GEO_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_shapes", "geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity")
 $ARCH_FRAMEWORK_CRATES = @("command_framework")
 $ARCH_JOB_CRATES = @("job_runtime", "job_domain", "job_runner", "job_manager", "job_ipc")
 $ARCH_FORBIDDEN_DEPS = @{
@@ -83,14 +85,16 @@ $ARCH_FORBIDDEN_DEPS = @{
     # 基盤はワークスペースの他のクレートに依存しない
     analysis           = $ARCH_GEO_CRATES + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL + @("application", "job_runtime", "job_domain")
     # trait定義の正本（抽象化）は形状のクレートに依存しない（値型の geo_core には依存する）
-    geo_contracts      = @("geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    geo_contracts      = @("geo_primitives", "geo_nurbs", "geo_shapes", "geo_topology", "geo_algorithms", "geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     # 共通計算は形状のクレートに依存しない
-    geo_commons        = @("geo_contracts", "geo_core", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    geo_commons        = @("geo_contracts", "geo_core", "geo_primitives", "geo_nurbs", "geo_shapes", "geo_topology", "geo_algorithms") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     # 幾何のクレートは CAM・ビューモデル・ビューに依存しない（CAD / CAM の境界）
     # 値型は抽象化・形状に依存しない
-    geo_core           = @("geo_contracts", "geo_commons", "geo_primitives", "geo_nurbs", "geo_topology", "geo_algorithms", "geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
-    geo_primitives     = @("geo_nurbs") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
-    geo_nurbs          = @("geo_primitives", "geo_topology") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    geo_core           = @("geo_contracts", "geo_commons", "geo_primitives", "geo_nurbs", "geo_shapes", "geo_topology", "geo_algorithms", "geo_io", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    geo_primitives     = @("geo_nurbs", "geo_shapes") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    geo_nurbs          = @("geo_primitives", "geo_shapes", "geo_topology") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
+    # 形状の層は、位相・アルゴリズム・入出力の上の層に依存しない
+    geo_shapes         = @("geo_topology", "geo_algorithms", "geo_io", "geo_step", "geo_entity") + $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_topology       = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_algorithms     = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL
     geo_io             = $ARCH_CAM_CRATES + $ARCH_VIEW_AND_VIEWMODEL

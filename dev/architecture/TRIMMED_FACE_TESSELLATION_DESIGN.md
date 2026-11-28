@@ -22,7 +22,7 @@ B-rep の面（曲面の上で、ループで囲んだ範囲だけを使う面�
 
 | 項目 | 決めたこと | 章 |
 |---|---|---|
-| 置き場 | 曲線・曲面を分ける部品は `geo_algorithms`（位相の型を受けない）。B-rep をたどってつなぐのは `application`。曲面の (u, v) の付け方は `geo_topology::SurfaceRef` だけが持つ | 4 |
+| 置き場 | 曲線・曲面を分ける部品は `geo_algorithms`（位相の型を受けない）。B-rep をたどってつなぐのは `application`。曲面の (u, v) の付け方は `geo_shapes::SurfaceRef` だけが持つ | 4 |
 | 境界 | 稜線を面より先に 1 回だけ点に分け、その稜線を使う面で同じ点（同じ頂点の番号）を使う | 5 |
 | 稜線の分け方 | 稜線の曲線の許容弦誤差と、角度の上限で分ける。隣の面の曲がりは見ない | 5.1 |
 | (u, v) への写し方 | 稜線の点を、その稜線の使用のパラメータ曲線で (u, v) に写す（同じパラメータ `t`） | 5.2 |
@@ -45,8 +45,8 @@ B-rep の面（曲面の上で、ループで囲んだ範囲だけを使う面�
   - (u, v) の多角形の、境界を辺に持つ三角形分割と、内側の細分化（6 章）。曲面は、(u, v) から点と法線を返す口（6.4 の trait）で受ける
 - `application`（B-rep をたどってつなぐ）
   - シェルのエンティティの B-rep から、稜線を 1 回ずつ分け、面ごとに (u, v) の多角形を作って `geo_algorithms` に渡し、面ごとの三角形を集める（5・7・8 章）
-  - `geo_topology` の曲線・曲面の型（`CurveRef`・`SurfaceRef`）から、`geo_algorithms` の部品が受ける型への対応も、ここで行う
-- `geo_topology`: 曲面の (u, v) の付け方（`SurfaceRef::point_at_uv`）・周期・極・法線は `SurfaceRef` だけが持つ。`application` が `SurfaceRef` を包んで 6.4 の trait を実装できるよう、周期・極・(u, v) の法線を公開する小さな変更をする（#1378 で、`SurfaceRef::periods`・`poles`・`normal_at_uv`・`singular_v` と、面の番号を並べる `Brep::face_indices` を公開した）
+  - `geo_shapes` の曲線・曲面の型（`CurveRef`・`SurfaceRef`）から、`geo_algorithms` の部品が受ける型への対応も、ここで行う
+- `geo_shapes`（もとは `geo_topology`）: 曲面の (u, v) の付け方（`SurfaceRef::point_at_uv`）・周期・極・法線は `SurfaceRef` だけが持つ。`application` が `SurfaceRef` を包んで 6.4 の trait を実装できるよう、周期・極・(u, v) の法線を公開する小さな変更をする（#1378 で、`SurfaceRef::periods`・`poles`・`normal_at_uv`・`singular_v` と、面の番号を並べる `Brep::face_indices` を公開した）
 - NURBS 曲面の上の面と、正確な形にならない組の面は、パラメータ曲線の当てはめ（#1351。`BREP_AND_STEP_IMPORT_DESIGN.md` 5.5.1）で、当てはめた NURBS 曲線のパラメータ曲線を持つ。正確な形にならない組の面（解析的な曲面）は、ほかの面と同じく三角形にする。NURBS 曲面の上の面も、6.3 の表の刻みと座標の倍率で、同じ部品に載せて三角形にする（#1417。NIST の試験用のファイルの結果は 8.2）
 
 ### 4.2 流れ（シェル 1 つ）
@@ -187,7 +187,7 @@ B-rep の面（曲面の上で、ループで囲んだ範囲だけを使う面�
 ### 6.4 曲面を評価する口
 
 - `geo_algorithms` は、曲面を trait（`TriangulationSurface`）で受ける。trait は、(u, v) から点と法線、u・v の周期、極（u によらず 1 点になる v の線）、許容弦誤差と角度の上限から u・v の刻みを返す（三角形分割の座標は、刻みから `geo_algorithms` が決める。6.3）
-- trait は `application` が `geo_topology::SurfaceRef` を包んで実装する。(u, v) の付け方・周期・極は `SurfaceRef` に任せ、同じ付け方を別に書き写さない（パラメータ曲線がその付け方で作られているため、2 か所に持つと食い違うおそれがある）。そのため、`SurfaceRef` の周期（`periods`）・極・(u, v) の法線を公開する（4.1）
+- trait は `application` が `geo_shapes::SurfaceRef` を包んで実装する。(u, v) の付け方・周期・極は `SurfaceRef` に任せ、同じ付け方を別に書き写さない（パラメータ曲線がその付け方で作られているため、2 か所に持つと食い違うおそれがある）。そのため、`SurfaceRef` の周期（`periods`）・極・(u, v) の法線を公開する（4.1）
 - 刻みの式（6.3）は、曲面の種類ごとの計算として、trait の実装（`application`）に置く
 
 ## 7. 速さ

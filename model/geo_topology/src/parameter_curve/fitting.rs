@@ -11,11 +11,12 @@
 mod tests;
 
 use super::{ParameterCurve, SAMPLE_SEGMENTS, sample, unwrap};
-use crate::{CurveRef, Point2D, SurfaceRef, TopoNurbsCurve2D, TopoNurbsSurface3D};
+use crate::{Point2D, TopoNurbsCurve2D, TopoNurbsSurface3D};
 use geo_contracts::{
     NurbsCurve2DConstructor, NurbsCurve3DProperties, NurbsSurface3DEvaluation,
     NurbsSurface3DProperties, Scalar,
 };
+use geo_shapes::{CurveRef, SurfaceRef};
 
 /// 小区間を 2 つに分ける深さの上限（初めの小区間 1 つが、最大で 2 の この数 乗の小区間に分かれる）
 const MAX_SPLIT_DEPTH: usize = 10;

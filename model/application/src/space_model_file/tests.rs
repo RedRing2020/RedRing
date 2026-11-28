@@ -732,9 +732,8 @@ fn corrupted_files_with_shells_do_not_panic() {
 fn shell_record() -> crate::product_shape::ProductShellRecord {
     use crate::product_shape::{Brep, ProductShellRecord, ShellSource, SimilarityTransform3D};
     use geo_contracts::{InfiniteLine3DConstructor, Plane3DConstructor};
-    use geo_topology::{
-        CurveRef, EdgeUse, SurfaceRef, TopoInfiniteLine3D, TopoPlane3D, TopologyToleranceSettings,
-    };
+    use geo_shapes::{CurveRef, SurfaceRef};
+    use geo_topology::{EdgeUse, TopoInfiniteLine3D, TopoPlane3D, TopologyToleranceSettings};
     let mut brep = Brep::new(TopologyToleranceSettings::new(1.0e-6)).unwrap();
     let points = [
         geo_topology::Point3D::new(0.0, 0.0, 0.0),

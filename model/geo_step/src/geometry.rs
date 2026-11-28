@@ -22,9 +22,10 @@ use geo_contracts::{
     SphericalSurface3DConstructor, ToleranceSettings, TorusSurface3DConstructor,
 };
 use geo_core::{Direction3D, Point3D, Vector3D};
+use geo_shapes::{CurveRef, SurfaceRef};
 use geo_topology::{
-    CurveRef, SurfaceRef, TopoCircle3D, TopoConicalSurface3D, TopoCylindricalSurface3D,
-    TopoEllipse3D, TopoInfiniteLine3D, TopoPlane3D, TopoSphericalSurface3D, TopoTorusSurface3D,
+    TopoCircle3D, TopoConicalSurface3D, TopoCylindricalSurface3D, TopoEllipse3D,
+    TopoInfiniteLine3D, TopoPlane3D, TopoSphericalSurface3D, TopoTorusSurface3D,
 };
 use std::collections::{BTreeMap, BTreeSet};
 

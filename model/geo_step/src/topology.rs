@@ -21,10 +21,11 @@ use geo_contracts::{
     SphericalSurface3DProperties,
 };
 use geo_core::{Direction3D, Point3D, Vector3D};
+use geo_shapes::{CurveRef, SurfaceRef};
 use geo_topology::{
-    Brep, BrepError, CurveRef, EdgeIndex, EdgeUse, FaceIndex, ParameterCurve, ShellIndex,
-    SolidIndex, SurfaceRef, TopoEllipse3D, TopoInfiniteLine3D, TopoNurbsCurve3D, TopoPlane3D,
-    TopoSphericalSurface3D, TopologyToleranceSettings, VertexIndex,
+    Brep, BrepError, EdgeIndex, EdgeUse, FaceIndex, ParameterCurve, ShellIndex, SolidIndex,
+    TopoEllipse3D, TopoInfiniteLine3D, TopoNurbsCurve3D, TopoPlane3D, TopoSphericalSurface3D,
+    TopologyToleranceSettings, VertexIndex,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::f64::consts::TAU;

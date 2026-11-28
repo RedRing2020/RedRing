@@ -10,6 +10,7 @@ geo_contracts = { path = "../geo_contracts", version = "0.1.0" }
 geo_core = { path = "../geo_core", version = "0.1.0" }
 geo_primitives = { path = "../geo_primitives", version = "0.1.0" }
 geo_nurbs = { path = "../geo_nurbs", version = "0.1.0" }
+geo_shapes = { path = "../geo_shapes", version = "0.1.0" }
 analysis = { path = "../../foundation/analysis", version = "0.1.0" }
 
 [dev-dependencies]

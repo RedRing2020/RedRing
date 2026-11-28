@@ -11,12 +11,10 @@ mod tests;
 pub use records::{BrepRecords, EdgeRecord, FaceRecord, VertexRecord};
 
 use crate::parameter_curve::unwrap;
-use crate::{
-    CurveRef, ParameterCurve, Point2D, Point3D, SurfaceRef, TopoNurbsCurve3D,
-    TopologyToleranceSettings,
-};
+use crate::{ParameterCurve, Point2D, Point3D, TopoNurbsCurve3D, TopologyToleranceSettings};
 use analysis::consts::tessellation::POLE_PARAMETER_TOLERANCE;
 use geo_contracts::{NurbsCurve3DProperties, Scalar};
+use geo_shapes::{CurveRef, SurfaceRef};
 use std::collections::{HashMap, HashSet};
 
 macro_rules! element_index {

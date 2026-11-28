@@ -18,6 +18,7 @@ geo_entity = { path = "../geo_entity" }
 geo_io = { path = "../geo_io" }
 geo_step = { path = "../geo_step" }
 geo_primitives = { path = "../geo_primitives" }
+geo_shapes = { path = "../geo_shapes" }
 geo_topology = { path = "../geo_topology" }
 cam_algorithms = { path = "../cam_algorithms" }
 cam_core = { path = "../cam_core" }

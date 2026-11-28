@@ -144,6 +144,7 @@ dependencies = [
  "geo_entity",
  "geo_io",
  "geo_primitives",
+ "geo_shapes",
  "geo_step",
  "geo_topology",
  "jiff",
@@ -1283,6 +1284,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "geo_shapes"
+version = "0.1.0"
+dependencies = [
+ "geo_contracts",
+ "geo_core",
+ "geo_nurbs",
+ "geo_primitives",
+]
+
+[[package]]
 name = "geo_step"
 version = "0.1.0"
 dependencies = [
@@ -1291,6 +1302,7 @@ dependencies = [
  "geo_core",
  "geo_nurbs",
  "geo_primitives",
+ "geo_shapes",
  "geo_topology",
 ]
 
@@ -1303,6 +1315,7 @@ dependencies = [
  "geo_core",
  "geo_nurbs",
  "geo_primitives",
+ "geo_shapes",
 ]
 
 [[package]]

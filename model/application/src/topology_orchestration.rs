@@ -7,9 +7,10 @@ use geo_contracts::{
     LineSegment3DSupportLine, Plane3DConstructor, Triangle3DBoundaryAccess,
     default_distance_tolerance,
 };
+use geo_shapes::{CurveRef, SurfaceRef};
 use geo_topology::{
-    Brep, BrepValidationReport, CurveRef, EdgeIndex, EdgeUse, FaceIndex, SurfaceRef,
-    TopoInfiniteLine3D, TopoPlane3D, TopologyToleranceSettings,
+    Brep, BrepValidationReport, EdgeIndex, EdgeUse, FaceIndex, TopoInfiniteLine3D, TopoPlane3D,
+    TopologyToleranceSettings,
 };
 
 #[derive(Debug, Clone, PartialEq)]
