@@ -13,6 +13,43 @@ use super::{
 };
 use crate::Point2D;
 
+/// 三角形分割の座標にするために、u・v に掛ける値（格子の間隔 `steps` の逆数）
+///
+/// 三角形分割の座標は、格子のマスが正方形になる座標とする。格子の間隔は、その向きの曲がりで許容弦誤差を守る幅
+/// なので、この座標の上の長さは、u・v のどちらの向きでも、曲面からの離れやすさを表す。曲面の上の長さに合わせた
+/// 座標では、格子のマスが細長くなる曲面（u と v の曲がりの違う曲面）で、足した点が格子の列を飛ばしてつながり、
+/// その辺に足した点が次の列を飛ばす辺を作って、足す点が 1 列ずつ進む。
+///
+/// 刻みのない向き（その向きにまっすぐな曲面）は、範囲の多角形 `polygons` のその向きの幅を間隔とみなす（まっすぐな
+/// 向きは、範囲の端から端までを 1 つの辺で渡せる）。どちらの向きにも刻みがなければ（平面）、(u, v) のままとする。
+fn triangulation_scale(
+    polygons: &[Vec<RegionPoint>],
+    steps: (Option<f64>, Option<f64>),
+) -> (f64, f64) {
+    if steps == (None, None) {
+        return (1.0, 1.0);
+    }
+    let span = |coordinate: fn(&RegionPoint) -> f64| {
+        let (low, high) = polygons
+            .iter()
+            .flatten()
+            .map(coordinate)
+            .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), value| {
+                (low.min(value), high.max(value))
+            });
+        high - low
+    };
+    let scale = |step: Option<f64>, coordinate: fn(&RegionPoint) -> f64| {
+        let spacing = step.unwrap_or_else(|| span(coordinate));
+        // 幅のない範囲は三角形にならないので、倍率は何でもよい
+        if spacing > 0.0 { 1.0 / spacing } else { 1.0 }
+    };
+    (
+        scale(steps.0, |point| point.uv.x()),
+        scale(steps.1, |point| point.uv.y()),
+    )
+}
+
 /// 範囲の多角形の点
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct RegionPoint {
@@ -26,6 +63,8 @@ pub struct FaceRegion {
     pub(super) polygons: Vec<Vec<RegionPoint>>,
     /// 足した点（切れ目・極）の (u, v)。`FaceVertex::Added` の番号の順
     pub(super) added: Vec<Point2D<f64>>,
+    /// 三角形分割の座標にするために、u・v に掛ける値（範囲を作ったときの設定の、格子の間隔の逆数）
+    pub(super) scale: (f64, f64),
 }
 
 impl FaceRegion {
@@ -33,7 +72,7 @@ impl FaceRegion {
     ///
     /// # Errors
     ///
-    /// 設定・ループが正しくない、扱えないループの組、穴を避けて切れ目を置けないとき。
+    /// 設定・ループが正しくない、扱えないループの組、穴を避けて切れ目を置けない、曲面の刻みが正しくないとき。
     pub fn new(
         loops: &[Vec<LoopPoint>],
         surface: &impl TriangulationSurface,
@@ -57,11 +96,12 @@ impl FaceRegion {
         let swapped = |pair: (Option<f64>, Option<f64>)| {
             if swap { (pair.1, pair.0) } else { pair }
         };
+        let steps = super::checked_steps(surface, settings)?;
         let mut builder = Builder {
             swap,
             periods: swapped(periods),
             poles: if swap { (None, None) } else { poles },
-            steps: swapped(super::checked_steps(surface, settings)?),
+            steps: swapped(steps),
             max_points: settings.max_points,
             added: Vec::new(),
         };
@@ -75,7 +115,7 @@ impl FaceRegion {
             [first, second] => builder.band(first, second, holes)?,
             _ => return Err(FaceTriangulationError::UnsupportedLoops),
         };
-        let polygons = polygons
+        let polygons: Vec<Vec<RegionPoint>> = polygons
             .iter()
             .map(|polygon| {
                 Ok(builder
@@ -88,18 +128,29 @@ impl FaceRegion {
                     .collect())
             })
             .collect::<Result<_, FaceTriangulationError>>()?;
+        let scale = triangulation_scale(&polygons, steps);
+        if !(scale.0.is_finite() && scale.1.is_finite()) {
+            // 刻みが小さすぎて、逆数が有限の値にならない
+            return Err(FaceTriangulationError::Evaluation);
+        }
         Ok(Self {
             polygons,
             added: builder.added,
+            scale,
         })
     }
 
     /// 交わる多角形の辺のうち、両端が境界の点の辺（頂点の番号の組）
     ///
-    /// 辺どうしが端の点のほかで交わるか接すれば、交わるとする。三角形分割と同じ座標（曲面 `surface` の倍率を掛けた
-    /// (u, v)）と、丸め誤差に強い向きの判定で確かめる。呼び出し元は、その辺を含む稜線を分け直して、範囲を作り直す。
-    pub fn crossing_edges(&self, surface: &impl TriangulationSurface) -> Vec<[usize; 2]> {
-        let scale = surface.scale();
+    /// 辺どうしが端の点のほかで交わるか接すれば、交わるとする。三角形分割と同じ座標（格子の間隔で割った (u, v)）と、
+    /// 丸め誤差に強い向きの判定で確かめる。呼び出し元は、その辺を含む稜線を分け直して、範囲を作り直す。
+    pub fn crossing_edges(&self) -> Vec<[usize; 2]> {
+        let position = |uv: Point2D<f64>| {
+            (
+                super::triangulation_coordinate(uv.x(), self.scale.0),
+                super::triangulation_coordinate(uv.y(), self.scale.1),
+            )
+        };
         let edges: Vec<Edge> = self
             .polygons
             .iter()
@@ -108,8 +159,8 @@ impl FaceRegion {
                     let (from, to) = (polygon[index], polygon[(index + 1) % polygon.len()]);
                     Edge {
                         vertices: [from.vertex, to.vertex],
-                        from: (from.uv.x() * scale.0, from.uv.y() * scale.1),
-                        to: (to.uv.x() * scale.0, to.uv.y() * scale.1),
+                        from: position(from.uv),
+                        to: position(to.uv),
                     }
                 })
             })

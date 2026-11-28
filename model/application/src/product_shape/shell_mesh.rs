@@ -348,7 +348,7 @@ fn prepare_face<'a>(
     let surface = FaceSurface::new(surface, &loops);
     let region =
         FaceRegion::new(&loops, &surface, settings).map_err(ShellFaceError::Triangulation)?;
-    let crossing = region.crossing_edges(&surface);
+    let crossing = region.crossing_edges();
     Ok(Prepared {
         face,
         surface,
@@ -464,23 +464,21 @@ impl Prepared<'_> {
     }
 }
 
-/// 面の曲面を、三角形に分ける部品が受ける形にしたもの（刻みと座標の式は、設計書 6.3）
+/// 面の曲面を、三角形に分ける部品が受ける形にしたもの（刻みの式は、設計書 6.3）
 struct FaceSurface<'a> {
     surface: &'a SurfaceRef<f64>,
     /// 面の範囲の v の小さい側と大きい側の極
     poles: (Option<f64>, Option<f64>),
     /// 円錐の面の中の半径の絶対値の最大（頂点の先の、半径が負の側も含む）
     cone_radius: f64,
-    /// NURBS 曲面の面の中で測った、u・v の向きの長さと曲がり
+    /// NURBS 曲面の面の中で測った、u・v の向きの曲がり
     nurbs: Option<NurbsMeasure>,
 }
 
-/// NURBS 曲面の面の (u, v) の範囲に格子で点を取って測った、u・v の向きの長さと曲がり（設計書 6.3）
+/// NURBS 曲面の面の (u, v) の範囲に格子で点を取って測った、u・v の向きの曲がり（設計書 6.3）
 struct NurbsMeasure {
     /// 面の (u, v) の範囲の幅
     spans: (f64, f64),
-    /// u・v の向きの、パラメータあたりの曲面の上の長さの平均（三角形分割の座標の倍率）
-    speeds: (f64, f64),
     /// u・v の向きの、測った点ごとの曲がり（曲がっていない点は除く）
     bends: (Vec<Bend>, Vec<Bend>),
 }
@@ -497,7 +495,7 @@ struct Bend {
     width: f64,
 }
 
-/// NURBS 曲面の面の長さと曲がりを測る格子の、u・v の向きの区間の数
+/// NURBS 曲面の面の曲がりを測る格子の、u・v の向きの区間の数
 const NURBS_MEASURE_SEGMENTS: usize = 16;
 
 impl NurbsMeasure {
@@ -561,9 +559,9 @@ impl NurbsMeasure {
         };
         let (speed_u, bends_u) = measure(true)?;
         let (speed_v, bends_v) = measure(false)?;
+        // u か v の向きの長さがない面（線や点につぶれた面）は、測れないとする
         (speed_u > 0.0 && speed_v > 0.0).then_some(Self {
             spans,
-            speeds: (speed_u, speed_v),
             bends: (bends_u, bends_v),
         })
     }
@@ -686,22 +684,6 @@ impl TriangulationSurface for FaceSurface<'_> {
             SurfaceRef::Torus(torus) => (
                 step(torus.major_radius() + torus.minor_radius()),
                 step(torus.minor_radius()),
-            ),
-        }
-    }
-
-    fn scale(&self) -> (f64, f64) {
-        match self.surface {
-            SurfaceRef::Plane(_) => (1.0, 1.0),
-            SurfaceRef::Nurbs(_) => self.nurbs.as_ref().map_or((1.0, 1.0), |nurbs| nurbs.speeds),
-            SurfaceRef::Cylinder(cylinder) => (cylinder.radius(), 1.0),
-            SurfaceRef::Cone(cone) => {
-                (self.cone_radius, 1.0 / cone.semi_angle().to_radians().cos())
-            }
-            SurfaceRef::Sphere(sphere) => (sphere.radius(), sphere.radius()),
-            SurfaceRef::Torus(torus) => (
-                torus.major_radius() + torus.minor_radius(),
-                torus.minor_radius(),
             ),
         }
     }

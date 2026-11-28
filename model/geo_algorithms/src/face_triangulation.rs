@@ -39,9 +39,6 @@ pub trait TriangulationSurface {
     /// 許容弦誤差 `chord_tolerance` と角度の上限 `max_angle` から決まる u・v の刻み（刻みで点を足さない方向は
     /// `None`）
     fn steps(&self, chord_tolerance: f64, max_angle: Angle<f64>) -> (Option<f64>, Option<f64>);
-
-    /// 三角形分割の座標（曲面の上の長さに近い座標）にするために、u・v に掛ける値（正）
-    fn scale(&self) -> (f64, f64);
 }
 
 /// 面を三角形に分ける設定
@@ -101,6 +98,20 @@ fn checked_steps(
     }
 }
 
+/// 三角形分割の座標の値（u か v の値 `value` に、倍率 `scale` を掛けた値）
+///
+/// 絶対値が、三角形分割のクレートが扱える最小の値（`spade::MIN_ALLOWED_VALUE`。2 の −142 乗）より小さい値は、0 に
+/// する。0 のはずの u・v が、丸め誤差で 0 にごく近い値になっていると、そのまま渡した三角形分割が点を受け取らない
+/// ため。
+fn triangulation_coordinate(value: f64, scale: f64) -> f64 {
+    let coordinate = value * scale;
+    if coordinate.abs() < spade::MIN_ALLOWED_VALUE {
+        0.0
+    } else {
+        coordinate
+    }
+}
+
 /// ループの点（境界の頂点の番号と (u, v)）
 ///
 /// 極（`TriangulationSurface::poles`）の上の点は、v を極の値に合わせて渡す（差が
@@ -155,7 +166,7 @@ pub enum FaceTriangulationError {
     NoCut,
     /// 多角形の辺どうしが交わる
     Crossing,
-    /// 曲面を評価できない（点が有限の値でない、刻みや倍率が正の有限の値でない）
+    /// 曲面を評価できない（点が有限の値でない、刻みが正の有限の値でない）
     Evaluation,
     /// 頂点の数が上限を超える（境界の点だけで超えれば、三角形に分けられない。内側に点を足す間に届けば、そこまでの
     /// 三角形を返す）
