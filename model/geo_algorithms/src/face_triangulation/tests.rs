@@ -50,9 +50,6 @@ impl TriangulationSurface for Plane {
     fn steps(&self, _: f64, _: Angle<f64>) -> (Option<f64>, Option<f64>) {
         (None, None)
     }
-    fn scale(&self) -> (f64, f64) {
-        (1.0, 1.0)
-    }
 }
 
 impl TestSurface for Plane {
@@ -91,9 +88,6 @@ impl TriangulationSurface for Cylinder {
             None,
         )
     }
-    fn scale(&self) -> (f64, f64) {
-        (self.radius, 1.0)
-    }
 }
 
 impl TestSurface for Cylinder {
@@ -129,9 +123,6 @@ impl TriangulationSurface for Sphere {
     fn steps(&self, chord_tolerance: f64, max_angle: Angle<f64>) -> (Option<f64>, Option<f64>) {
         let step = angle_step(self.radius, chord_tolerance, max_angle);
         (Some(step), Some(step))
-    }
-    fn scale(&self) -> (f64, f64) {
-        (self.radius, self.radius)
     }
 }
 
@@ -176,9 +167,6 @@ impl TriangulationSurface for Torus {
             )),
             Some(angle_step(self.minor, chord_tolerance, max_angle)),
         )
-    }
-    fn scale(&self) -> (f64, f64) {
-        (self.major + self.minor, self.minor)
     }
 }
 
@@ -327,7 +315,7 @@ fn triangulate(
 ) -> FaceTriangulation {
     let settings = settings(chord_tolerance);
     let region = FaceRegion::new(loops, surface, &settings).unwrap();
-    assert!(region.crossing_edges(surface).is_empty());
+    assert!(region.crossing_edges().is_empty());
     let result = region.triangulate(surface, &settings).unwrap();
     check(loops, &result, surface, chord_tolerance);
     result
@@ -388,6 +376,20 @@ fn a_plane_with_many_holes_uses_only_the_boundary_points() {
         })
         .sum();
     assert!((area - (100.0 - 16.0 * 0.5)).abs() < 1.0e-9);
+}
+
+#[test]
+fn coordinates_too_close_to_zero_for_the_triangulation_are_taken_as_zero() {
+    // 0 のはずの u・v が、丸め誤差で 0 にごく近い値（三角形分割のクレートが扱える最小の値より小さい値）になった
+    // 境界の点も、三角形分割が受け取る
+    let tiny = 1.0e-50;
+    assert!(tiny < spade::MIN_ALLOWED_VALUE);
+    let loops = vec![ring(
+        0,
+        [(tiny, -tiny), (10.0, tiny), (10.0, 10.0), (-tiny, 10.0)],
+    )];
+    let result = triangulate(&loops, &Plane, 0.01);
+    assert_eq!(result.triangles.len(), 2);
 }
 
 #[test]
@@ -494,7 +496,7 @@ fn crossing_edges_are_reported() {
     let hole = rectangle(100, (8.0, 4.0), (12.0, 6.0), 1, true);
     let settings = settings(0.01);
     let region = FaceRegion::new(&[outer, hole], &Plane, &settings).unwrap();
-    let crossing = region.crossing_edges(&Plane);
+    let crossing = region.crossing_edges();
     assert!(crossing.contains(&[1, 2]));
     assert!(crossing.contains(&[100, 101]) || crossing.contains(&[102, 103]));
     assert_eq!(
@@ -623,9 +625,6 @@ impl TriangulationSurface for ZeroStep {
     }
     fn steps(&self, _: f64, _: Angle<f64>) -> (Option<f64>, Option<f64>) {
         (Some(0.0), None)
-    }
-    fn scale(&self) -> (f64, f64) {
-        (1.0, 1.0)
     }
 }
 
@@ -770,7 +769,7 @@ fn triangles_tilted_by_a_boundary_chord_do_not_keep_adding_points() {
         let loops = vec![ring(0, bottom.iter().copied().chain(top))];
         let settings = settings(tolerance);
         let region = FaceRegion::new(&loops, &cylinder, &settings).unwrap();
-        assert!(region.crossing_edges(&cylinder).is_empty());
+        assert!(region.crossing_edges().is_empty());
         let result = region.triangulate(&cylinder, &settings).unwrap();
         assert_eq!(result.stopped_by, None);
         assert!(result.added.len() < 2_000, "{}", result.added.len());
@@ -826,9 +825,6 @@ impl TriangulationSurface for ShearedPlane {
     fn steps(&self, _: f64, _: Angle<f64>) -> (Option<f64>, Option<f64>) {
         (Some(self.step), Some(self.step))
     }
-    fn scale(&self) -> (f64, f64) {
-        (1.0, 1.0)
-    }
 }
 
 #[test]
@@ -844,7 +840,7 @@ fn triangles_flipped_beside_a_boundary_chord_do_not_keep_adding_points() {
     let loops = vec![ring(0, [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)])];
     let settings = settings(0.01);
     let region = FaceRegion::new(&loops, &surface, &settings).unwrap();
-    assert!(region.crossing_edges(&surface).is_empty());
+    assert!(region.crossing_edges().is_empty());
     let spacing = surface.step * GRID_DIAGONAL_TO_STEP_RATIO * std::f64::consts::FRAC_1_SQRT_2;
     let grid = (1.0 / spacing).ceil() as usize;
     let result = region.triangulate(&surface, &settings).unwrap();
@@ -887,9 +883,6 @@ impl TriangulationSurface for Cone {
             Some(angle_step(self.max_radius, chord_tolerance, max_angle)),
             None,
         )
-    }
-    fn scale(&self) -> (f64, f64) {
-        (self.max_radius, (1.0 + CONE_SLOPE * CONE_SLOPE).sqrt())
     }
 }
 
@@ -1020,34 +1013,79 @@ fn check_facing(loops: &[Vec<LoopPoint>], result: &FaceTriangulation, surface: &
     }
 }
 
-/// 格子を置かない円錐台の面（小さい円は v = 1、大きい円は v = 5）のループ
-fn cone_frustum_loops(tolerance: f64) -> Vec<Vec<LoopPoint>> {
-    vec![
-        ring(
+/// u の向きにも v の向きにもまっすぐで、ねじれた曲面（(u, v, `twist` u v)）。刻みを持たないので、内側の点は、
+/// 細分化だけで足す
+struct Twisted {
+    twist: f64,
+}
+
+impl TriangulationSurface for Twisted {
+    fn point_at(&self, u: f64, v: f64) -> Option<Point3D<f64>> {
+        Some(Point3D::new(u, v, self.twist * u * v))
+    }
+    fn normal_at(&self, u: f64, v: f64) -> Option<Vector3D<f64>> {
+        Some(Vector3D::new(-self.twist * v, -self.twist * u, 1.0))
+    }
+    fn periods(&self) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+    fn poles(&self) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+    fn steps(&self, _: f64, _: Angle<f64>) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+}
+
+impl TestSurface for Twisted {
+    fn distance(&self, point: Point3D<f64>) -> f64 {
+        // 最も近い点の (u, v) を、ガウス・ニュートン法で求める
+        let (mut u, mut v) = (point.x(), point.y());
+        for _ in 0..16 {
+            let offset = Vector3D::from_points(self.point_at(u, v).unwrap(), point);
+            let along_u = Vector3D::new(1.0, 0.0, self.twist * v);
+            let along_v = Vector3D::new(0.0, 1.0, self.twist * u);
+            let (a, b, c) = (
+                along_u.dot(along_u),
+                along_u.dot(along_v),
+                along_v.dot(along_v),
+            );
+            let (p, q) = (along_u.dot(offset), along_v.dot(offset));
+            let determinant = a * c - b * b;
+            u += (c * p - b * q) / determinant;
+            v += (a * q - b * p) / determinant;
+        }
+        point.distance_to(self.point_at(u, v).unwrap())
+    }
+    fn normal(&self, point: Point3D<f64>) -> Vector3D<f64> {
+        self.normal_at(point.x(), point.y()).unwrap()
+    }
+}
+
+/// ねじれた曲面の正方形の面（辺は 3 次元でまっすぐなので、境界の点は角の 4 点だけ）
+fn twisted_square() -> (Twisted, Vec<Vec<LoopPoint>>) {
+    (
+        Twisted { twist: 0.1 },
+        vec![ring(
             0,
-            line((0.0, 1.0), (TAU, 1.0), circle_points(CONE_SLOPE, tolerance)),
-        ),
-        ring(
-            1000,
-            line((TAU, 5.0), (0.0, 5.0), circle_points(2.5, tolerance)),
-        ),
-    ]
+            [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)],
+        )],
+    )
 }
 
 #[test]
 fn refinement_stopped_at_the_pass_limit_returns_the_triangles_so_far() {
-    // 格子を置かない円錐台の面は、境界から細分化で点を足すので、繰り返しが 1 回では足りない
-    let cone = Cone { max_radius: 2.5 };
+    // 刻みを持たない曲面は、境界から細分化で点を足すので、繰り返しが 1 回では足りない
+    let (surface, loops) = twisted_square();
     let tolerance = 0.001;
-    let loops = cone_frustum_loops(tolerance);
-    let converged = triangulate(&loops, &cone, tolerance);
+    let converged = triangulate(&loops, &surface, tolerance);
     let limited = FaceTriangulationSettings {
         max_passes: 1,
         ..settings(tolerance)
     };
-    let result = FaceRegion::new(&loops, &cone, &limited)
+    let result = FaceRegion::new(&loops, &surface, &limited)
         .unwrap()
-        .triangulate(&cone, &limited)
+        .triangulate(&surface, &limited)
         .unwrap();
     assert_eq!(
         result.stopped_by,
@@ -1057,26 +1095,24 @@ fn refinement_stopped_at_the_pass_limit_returns_the_triangles_so_far() {
     assert!(!result.added.is_empty());
     assert!(result.added.len() < converged.added.len());
     check_cover(&loops, &result);
-    check_facing(&loops, &result, &cone);
+    check_facing(&loops, &result, &surface);
 }
 
 #[test]
 fn refinement_stopped_at_the_point_limit_returns_the_triangles_so_far() {
-    let cone = Cone { max_radius: 2.5 };
+    let (surface, loops) = twisted_square();
     let tolerance = 0.001;
-    let loops = cone_frustum_loops(tolerance);
     let boundary: usize = loops.iter().map(Vec::len).sum();
-    let converged = triangulate(&loops, &cone, tolerance);
-    // 切れ目の点も数に入るので、上限は、境界の点の数の 2 倍に 100 点を足した数にする
-    let max_points = 2 * boundary + 100;
+    let converged = triangulate(&loops, &surface, tolerance);
+    let max_points = boundary + 100;
     assert!(converged.added.len() + boundary > max_points);
     let limited = FaceTriangulationSettings {
         max_points,
         ..settings(tolerance)
     };
-    let result = FaceRegion::new(&loops, &cone, &limited)
+    let result = FaceRegion::new(&loops, &surface, &limited)
         .unwrap()
-        .triangulate(&cone, &limited)
+        .triangulate(&surface, &limited)
         .unwrap();
     assert_eq!(
         result.stopped_by,
@@ -1084,7 +1120,63 @@ fn refinement_stopped_at_the_point_limit_returns_the_triangles_so_far() {
     );
     assert!(result.added.len() + boundary <= max_points);
     check_cover(&loops, &result);
-    check_facing(&loops, &result, &cone);
+    check_facing(&loops, &result, &surface);
+}
+
+/// 長方形のループ（反時計回り）。u の向きの辺は `count_u`、v の向きの辺は `count_v` に分ける
+fn divided_rectangle(
+    low: (f64, f64),
+    high: (f64, f64),
+    (count_u, count_v): (usize, usize),
+) -> Vec<LoopPoint> {
+    let corners = [low, (high.0, low.1), high, (low.0, high.1)];
+    ring(
+        0,
+        (0..4).flat_map(|index| {
+            let count = if index % 2 == 0 { count_u } else { count_v };
+            line(corners[index], corners[(index + 1) % 4], count)
+        }),
+    )
+}
+
+#[test]
+fn points_added_to_a_grid_of_long_cells_do_not_advance_column_by_column() {
+    // 管の細いトーラスの面は、u と v の曲がりが大きく違い、格子のマスが曲面の上で細長い（4 対 1 ほど）。曲面の上の
+    // 長さに合わせた座標で分けると、格子の点を置かない境界のそばに足した点が、格子の列を飛ばしてつながり、その辺に
+    // 足した点が次の列を飛ばす辺を作って、足す点が 1 回に 1 列ずつ進む（格子の点の 2 倍ほどの点を足す。面が広ければ、
+    // 繰り返しの上限に届く）
+    let torus = Torus {
+        major: 92.0,
+        minor: 6.0,
+    };
+    let tolerance = 0.001;
+    let max_angle = Angle::from_degrees(MAX_CHORD_ANGLE_DEGREES);
+    let (step_u, step_v) = torus.steps(tolerance, max_angle);
+    let (low, high) = ((0.0, 4.7), (0.27, 6.2));
+    // 境界の点は、境界の線（u の向きの辺は v = 4.7 と 6.2 の円、v の向きの辺は管の円）の半径で分ける
+    let radius = |v: f64| torus.major + torus.minor * v.cos();
+    let step = angle_step(radius(high.1), tolerance, max_angle).min(step_u.unwrap());
+    let counts = (
+        ((high.0 - low.0) / step).ceil() as usize,
+        ((high.1 - low.1) / step_v.unwrap()).ceil() as usize,
+    );
+    let loops = vec![divided_rectangle(low, high, counts)];
+    let settings = settings(tolerance);
+    let region = FaceRegion::new(&loops, &torus, &settings).unwrap();
+    assert!(region.crossing_edges().is_empty());
+    let grid = FaceTriangulationSettings {
+        max_passes: 0,
+        ..settings
+    };
+    let placed = region.triangulate(&torus, &grid).unwrap().added.len();
+    let result = region.triangulate(&torus, &settings).unwrap();
+    check(&loops, &result, &torus, tolerance);
+    // 細分化で足す点は、境界のそばだけで、格子の点よりずっと少ない
+    assert!(
+        result.added.len() - placed < placed / 4,
+        "{} points added to a grid of {placed}",
+        result.added.len() - placed
+    );
 }
 
 #[test]
@@ -1151,9 +1243,6 @@ impl TriangulationSurface for SteppedPlane {
     }
     fn steps(&self, _: f64, _: Angle<f64>) -> (Option<f64>, Option<f64>) {
         (Some(self.steps.0), Some(self.steps.1))
-    }
-    fn scale(&self) -> (f64, f64) {
-        (1.0, 1.0)
     }
 }
 
