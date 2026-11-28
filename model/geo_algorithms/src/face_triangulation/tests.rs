@@ -1113,3 +1113,20 @@ fn a_grid_over_the_point_limit_is_made_coarse() {
     check_cover(&[], &result);
     check_facing(&[], &result, &torus);
 }
+
+#[test]
+fn coarse_grid_counts_fit_the_room_and_keep_inner_points() {
+    use super::triangulate::coarse_grid_counts;
+    // 同じ比で減らす
+    let (u, v) = coarse_grid_counts((300.0, 150.0), 3_000.0);
+    assert!(u * v <= 3_000 && u * v > 2_500, "{u} {v}");
+    assert!((u as f64 / v as f64 - 2.0).abs() < 0.1, "{u} {v}");
+    // 一方の向きの区間が 2 つだけの格子は、その向きの内側の点の列を残し、もう一方を減らす
+    for counts in [(1_000_000.0, 2.0), (2.0, 1_000_000.0)] {
+        let (u, v) = coarse_grid_counts(counts, 4_996.0);
+        assert!(u >= 2 && v >= 2, "{u} {v}");
+        assert!(u * v <= 4_996 && u * v > 4_000, "{u} {v}");
+    }
+    // 区間が 1 つの向き（内側に点がない）は、そのまま
+    assert_eq!(coarse_grid_counts((10_000.0, 1.0), 100.0), (100, 1));
+}

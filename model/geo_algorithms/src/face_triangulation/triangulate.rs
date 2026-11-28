@@ -105,11 +105,11 @@ impl FaceRegion {
             }
         }
         let (grid, coarse) = mesh.grid_points(steps)?;
+        for uv in grid {
+            mesh.insert(surface, uv, None)?;
+        }
         // 粗くした格子は、頂点の数の上限まで点を置いているので、細分化には入らない
         let mut stopped_by = coarse.then_some(FaceTriangulationError::TooManyPoints);
-        if !mesh.insert_until_limit(surface, grid)? {
-            stopped_by = Some(FaceTriangulationError::TooManyPoints);
-        }
         let mut pass = 0;
         while stopped_by.is_none() {
             let points =
@@ -216,8 +216,9 @@ impl Mesh {
     /// u・v の両方に刻みのある曲面で、範囲の内側に刻みの格子で置く点の (u, v) と、格子を粗くしたか。境界の点と
     /// 制約の辺から、格子の間隔の半分より近い点は置かない（細い三角形を避けるため）
     ///
-    /// 刻みの格子の点の数が頂点の数の上限を超えるときは、u・v の区間の数を同じ比で減らし、上限までの残りに収まる
-    /// 粗い格子にする。
+    /// 刻みの格子で置く点の数が、頂点の数の上限までの残りを超えるときは、u・v の区間の数を減らし
+    /// （[`coarse_grid_counts`]）、残りに収まる粗い格子を、範囲の全体に置く（刻みの格子を途中まで置くと、範囲の
+    /// 一部にだけ点が並ぶため）。
     fn grid_points(
         &self,
         steps: (Option<f64>, Option<f64>),
@@ -225,6 +226,7 @@ impl Mesh {
         let (Some(step_u), Some(step_v)) = steps else {
             return Ok((Vec::new(), false));
         };
+        let steps = (step_u, step_v);
         let (low, high) = self.vertices.iter().fold(
             (
                 (f64::INFINITY, f64::INFINITY),
@@ -242,17 +244,29 @@ impl Mesh {
         if !(count_u.is_finite() && count_v.is_finite()) {
             return Err(FaceTriangulationError::TooManyPoints);
         }
-        let coarse = count_u * count_v > self.max_points as f64;
-        let (count_u, count_v) = if coarse {
-            // どちらの向きにも、内側に点が 1 列は残るようにする（区間が 2 つ以上）
-            let room = self.max_points.saturating_sub(self.vertices.len()) as f64;
-            let ratio = (room / (count_u * count_v)).sqrt();
-            let coarse_u = (count_u * ratio).floor().clamp(count_u.min(2.0), count_u);
-            let coarse_v = (room / coarse_u).floor().clamp(1.0, count_v);
-            (coarse_u as usize, coarse_v as usize)
-        } else {
-            (count_u as usize, count_v as usize)
-        };
+        let room = self.max_points.saturating_sub(self.vertices.len());
+        // 区間の数の積が上限を超える格子は、点を並べずに粗くする。超えない格子は、境界の近くと範囲の外の点を除いた
+        // 実際の点の数で、残りに収まるかを見る
+        if count_u * count_v <= self.max_points as f64 {
+            let points =
+                self.grid_points_at(low, high, steps, (count_u as usize, count_v as usize));
+            if points.len() <= room {
+                return Ok((points, false));
+            }
+        }
+        let counts = coarse_grid_counts((count_u, count_v), room as f64);
+        Ok((self.grid_points_at(low, high, steps, counts), true))
+    }
+
+    /// (u, v) の範囲 `low`〜`high` を、u・v の向きに `counts` の区間に分けた格子の、範囲の内側の点（`steps` は
+    /// 曲面の刻みから決めた間隔）
+    fn grid_points_at(
+        &self,
+        low: (f64, f64),
+        high: (f64, f64),
+        (step_u, step_v): (f64, f64),
+        (count_u, count_v): (usize, usize),
+    ) -> Vec<Point2D<f64>> {
         let inside: HashSet<FixedFaceHandle<InnerTag>> =
             inside_faces(&self.cdt).into_iter().collect();
         // 格子の間隔（粗くした格子では、刻みより広い）
@@ -310,7 +324,7 @@ impl Mesh {
                 }
             }
         }
-        Ok((points, coarse))
+        points
     }
 
     /// 許容弦誤差か法線のなす角の上限を超える三角形に足す点の (u, v)（幅が `min_width` より小さい三角形は、離れを
@@ -418,6 +432,24 @@ impl Mesh {
         }
         Ok(points)
     }
+}
+
+/// 格子の u・v の区間の数 `counts`（1 以上）を、区間の数の積が `room` 以下になるように減らした数
+///
+/// 同じ比で減らす。ただし、内側に点のある向き（区間が 2 つ以上）は、2 つより少なくしない（内側の点の列をなくさない
+/// ため）。それで積が `room` を超えれば、区間の多いほうの向きを、収まるまで減らす。
+pub(super) fn coarse_grid_counts(counts: (f64, f64), room: f64) -> (usize, usize) {
+    let ratio = (room / (counts.0 * counts.1)).sqrt();
+    let reduced = |count: f64| (count * ratio).floor().clamp(count.min(2.0), count);
+    let (mut u, mut v) = (reduced(counts.0), reduced(counts.1));
+    if u * v > room {
+        if u >= v {
+            u = (room / v).floor().max(1.0);
+        } else {
+            v = (room / u).floor().max(1.0);
+        }
+    }
+    (u as usize, v as usize)
 }
 
 /// 2 つの頂点が同じ点の三角形（極でつぶれる三角形。結果から除く）か
