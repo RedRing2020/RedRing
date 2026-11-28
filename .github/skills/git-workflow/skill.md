@@ -1,6 +1,6 @@
 # Git/GitHub ワークフロー
 
-## 最終更新日: 2026年10月12日
+## 最終更新日: 2026年11月28日
 
 RedRing における Git 操作・コミット・PR 作成の手順です。運用ルールの正本は `dev/GIT_PR_WORKFLOW_OPERATION.md` で、この手順書と食い違う場合は正本を優先します。
 
@@ -153,4 +153,4 @@ git commit
 - **Git/PR の運用ルール（正本）**: `dev/GIT_PR_WORKFLOW_OPERATION.md`
 - **Issue のラベル運用**: `dev/ISSUE_LABEL_OPERATION.md`
 - **用語**: `dev/AI_TERMINOLOGY_GLOSSARY.md`
-- **情報管理の方針**: `INFORMATION_MANAGEMENT_TRANSITION.md`
+- **ローカルの文書の扱い**: `dev/GIT_PR_WORKFLOW_OPERATION.md` の「ローカル文書運用」
