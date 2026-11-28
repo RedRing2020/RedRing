@@ -21,7 +21,8 @@ viewmodel（converter / graphics）
 model
   application → cam_sim → cam_algorithms → cam_core
   application → geo_algorithms → geo_primitives / geo_nurbs → geo_contracts → geo_core
-  application → geo_topology → geo_shapes → geo_primitives / geo_nurbs（形状の層）
+  application → geo_topology → geo_shapes / geo_primitives / geo_nurbs
+  geo_shapes → geo_primitives / geo_nurbs（形状の層）
   application → geo_entity / geo_io（製品形状の取り込み）
   application → geo_step → geo_topology / geo_shapes / geo_algorithms（STEP の読み込み）
   geo_primitives → geo_commons

@@ -69,7 +69,7 @@ STEP（ISO 10303-21。AP203・AP214・AP242 の形状）の読み込みと、そ
 - `application` の依存に `geo_step` を足す
 - 依存の決まり（`scripts/_arch_rules_data.ps1`）と `ARCHITECTURE.md` は、`geo_step` を作る Issue で更新する
 - 形状の層のクレート `geo_shapes` は、`geo_primitives`・`geo_nurbs` の上に置く（#1484。7.2.1）。曲線の参照（`CurveRef`）・曲面の参照（`SurfaceRef`）を持ち、押し出しの面・回転の面の型もここに置く
-  - 依存は `analysis`・`geo_contracts`・`geo_core`・`geo_primitives`・`geo_nurbs` とする。`geo_topology`・`geo_step`・`application` は `geo_shapes` に依存する
+  - 依存してよいのは `analysis`・`geo_contracts`・`geo_core`・`geo_primitives`・`geo_nurbs` とする（使うものだけを依存に書く）。`geo_topology`・`geo_step`・`application` は `geo_shapes` に依存する
   - 依存の決まり（`scripts/_arch_rules_data.ps1`）と `ARCHITECTURE.md` は、`geo_shapes` を作るときに更新した（#1493）
 
 ### 4.3 入力を信用しない
